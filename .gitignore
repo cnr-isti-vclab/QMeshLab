@@ -1,0 +1,17 @@
+# Build
+build/
+
+# macOS
+.DS_Store
+
+# IDE / Editor
+.vscode/
+.qtcreator/
+*.user
+*.swp
+*~
+
+# Compiled
+*.o
+*.a
+*.dylib
