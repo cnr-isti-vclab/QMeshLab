@@ -1,8 +1,11 @@
 #include "mainwindow.h"
+#include "document.h"
 #include "renderwidget.h"
+#include "meshtreewidget.h"
 #include <QFileDialog>
 #include <QMenuBar>
 #include <QStatusBar>
+#include <QDockWidget>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -10,10 +13,17 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle(QStringLiteral("QMeshLab"));
     resize(800, 600);
 
-    auto *renderWidget = new RenderWidget(this);
-    setCentralWidget(renderWidget);
+    m_doc = new Document(this);
 
-    connect(renderWidget, &RenderWidget::frameRendered, this, [this](float ms) {
+    m_renderWidget = new RenderWidget(this);
+    setCentralWidget(m_renderWidget);
+
+    m_meshTree = new MeshTreeWidget(m_doc, this);
+    auto *dock = new QDockWidget(tr("Mesh List"), this);
+    dock->setWidget(m_meshTree);
+    addDockWidget(Qt::LeftDockWidgetArea, dock);
+
+    connect(m_renderWidget, &RenderWidget::frameRendered, this, [this](float ms) {
         statusBar()->showMessage(QString("Frame: %1 ms").arg(ms, 0, 'f', 3));
     });
 
@@ -29,5 +39,9 @@ void MainWindow::openFile()
         QString(), tr("Mesh Files (*.ply *.obj *.stl *.off);;All Files (*)"));
     if (fileName.isEmpty())
         return;
-    statusBar()->showMessage(tr("Opened %1").arg(fileName), 3000);
+    int err = m_doc->loadMesh(fileName);
+    if (err != 0)
+        statusBar()->showMessage(tr("Failed to load %1").arg(fileName), 3000);
+    else
+        statusBar()->showMessage(tr("Loaded %1").arg(fileName), 3000);
 }

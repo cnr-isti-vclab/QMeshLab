@@ -11,6 +11,15 @@ qt_add_executable(QMeshLab
     main.cpp
     mainwindow.h mainwindow.cpp
     renderwidget.h renderwidget.cpp
+    document.h document.cpp
+    meshtreewidget.h meshtreewidget.cpp
+    vcgmesh.h
+    vcglib/wrap/ply/plylib.cpp
+)
+
+target_include_directories(QMeshLab PRIVATE
+    ${CMAKE_SOURCE_DIR}/vcglib
+    ${CMAKE_SOURCE_DIR}/vcglib/eigenlib
 )
 
 target_link_libraries(QMeshLab PRIVATE

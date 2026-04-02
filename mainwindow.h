@@ -2,6 +2,10 @@
 
 #include <QMainWindow>
 
+class Document;
+class RenderWidget;
+class MeshTreeWidget;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -10,4 +14,9 @@ public:
 
 private slots:
     void openFile();
+
+private:
+    Document *m_doc;
+    RenderWidget *m_renderWidget;
+    MeshTreeWidget *m_meshTree;
 };
