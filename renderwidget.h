@@ -59,8 +59,15 @@ private:
         std::unique_ptr<QRhiBuffer> vbuf;
         std::vector<float> uploadData;
     };
+    // Per-mesh point cloud GPU data (position-only, Points topology)
+    struct PointsGPU {
+        std::unique_ptr<QRhiBuffer> vbuf;
+        int vertexCount = 0;
+        std::vector<float> uploadData;
+    };
     std::vector<MeshGPU> m_meshGPU;
     std::vector<BBoxGPU> m_bboxGPU;
+    std::vector<PointsGPU> m_pointsGPU;
     bool m_buffersDirty = true;
     bool m_logRebuildRequested = false;
 
@@ -68,6 +75,7 @@ private:
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiGraphicsPipeline> m_pipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
     ShadingMode m_shadingMode = ShadingMode::Smooth;
     bool m_showBoundingBox = false;
     bool m_showPoints = false;

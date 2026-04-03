@@ -74,7 +74,7 @@ void RenderWidget::createOverlayButtons()
     };
 
     m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box"));
-    m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points (stub)"));
+    m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points"));
     m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
     m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
 
@@ -89,7 +89,6 @@ void RenderWidget::createOverlayButtons()
     });
     connect(m_pointsButton, &QToolButton::toggled, this, [this](bool checked) {
         m_showPoints = checked;
-        m_doc->writeLog(tr("[render] Points pass is not implemented yet"), Document::LogSource::Application);
         update();
     });
     connect(m_wireButton, &QToolButton::toggled, this, [this](bool checked) {
@@ -129,10 +128,12 @@ void RenderWidget::ensureRenderResources()
         m_rhi = rhi();
         m_pipeline.reset();
         m_bboxPipeline.reset();
+        m_pointsPipeline.reset();
         m_srb.reset();
         m_ubuf.reset();
         m_meshGPU.clear();
         m_bboxGPU.clear();
+        m_pointsGPU.clear();
         m_buffersDirty = true;
     }
 
@@ -256,6 +257,39 @@ void RenderWidget::ensureRenderResources()
         if (!m_bboxPipeline->create()) {
             qWarning("Failed to create bbox pipeline");
             m_bboxPipeline.reset();
+        }
+    }
+
+    if (!m_pointsPipeline) {
+        m_pointsPipeline.reset(m_rhi->newGraphicsPipeline());
+
+        QShader vs = loadShader(QStringLiteral(":/shaders/points.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/points.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load points shaders");
+            m_pointsPipeline.reset();
+            return;
+        }
+
+        m_pointsPipeline->setShaderStages({
+            { QRhiShaderStage::Vertex, vs },
+            { QRhiShaderStage::Fragment, fs }
+        });
+        m_pointsPipeline->setTopology(QRhiGraphicsPipeline::Points);
+        m_pointsPipeline->setDepthTest(true);
+        m_pointsPipeline->setDepthWrite(false);
+        m_pointsPipeline->setCullMode(QRhiGraphicsPipeline::None);
+
+        QRhiVertexInputLayout ptsLayout;
+        ptsLayout.setBindings({ { 3 * sizeof(float) } });
+        ptsLayout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+        m_pointsPipeline->setVertexInputLayout(ptsLayout);
+        m_pointsPipeline->setShaderResourceBindings(m_srb.get());
+        m_pointsPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+
+        if (!m_pointsPipeline->create()) {
+            qWarning("Failed to create points pipeline");
+            m_pointsPipeline.reset();
         }
     }
 }
@@ -396,6 +430,31 @@ void RenderWidget::rebuildBuffers()
         bg.uploadData = std::move(bd);
         m_bboxGPU.push_back(std::move(bg));
     }
+
+    // Build per-mesh position-only buffers for the points pass
+    m_pointsGPU.clear();
+    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        const VCGMesh &mesh = m_doc->mesh(mi).mesh;
+        if (mesh.VN() == 0) continue;
+
+        std::vector<float> pdata(mesh.VN() * 3);
+        for (int i = 0; i < mesh.VN(); ++i) {
+            pdata[i * 3 + 0] = mesh.vert[i].cP()[0];
+            pdata[i * 3 + 1] = mesh.vert[i].cP()[1];
+            pdata[i * 3 + 2] = mesh.vert[i].cP()[2];
+        }
+
+        auto pvbuf = std::unique_ptr<QRhiBuffer>(
+            m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer,
+                             static_cast<quint32>(pdata.size() * sizeof(float))));
+        pvbuf->create();
+
+        PointsGPU pg;
+        pg.vbuf = std::move(pvbuf);
+        pg.vertexCount = mesh.VN();
+        pg.uploadData = std::move(pdata);
+        m_pointsGPU.push_back(std::move(pg));
+    }
 }
 
 void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
@@ -414,7 +473,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     int uploadedVertices = 0;
     int uploadedTriangles = 0;
 
-    if (!m_meshGPU.empty() || !m_bboxGPU.empty()) {
+    if (!m_meshGPU.empty() || !m_bboxGPU.empty() || !m_pointsGPU.empty()) {
         QElapsedTimer uploadTimer;
         uploadTimer.start();
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
@@ -432,6 +491,12 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             if (!bg.uploadData.empty()) {
                 u->uploadStaticBuffer(bg.vbuf.get(), bg.uploadData.data());
                 bg.uploadData.clear();
+            }
+        }
+        for (auto &pg : m_pointsGPU) {
+            if (!pg.uploadData.empty()) {
+                u->uploadStaticBuffer(pg.vbuf.get(), pg.uploadData.data());
+                pg.uploadData.clear();
             }
         }
         cb->resourceUpdate(u);
@@ -469,7 +534,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!m_rhi || !m_ubuf)
         return;
 
-    if (!m_showFill && !m_showWire && !m_showBoundingBox)
+    if (!m_showFill && !m_showWire && !m_showBoundingBox && !m_showPoints)
         return;
 
     prepareDirtyBuffers(cb);
@@ -535,6 +600,17 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             const QRhiCommandBuffer::VertexInput bv(bg.vbuf.get(), 0);
             cb->setVertexInput(0, 1, &bv);
             cb->draw(24);
+        }
+    }
+
+    if (m_showPoints && m_pointsPipeline && !m_pointsGPU.empty()) {
+        cb->setGraphicsPipeline(m_pointsPipeline.get());
+        cb->setShaderResources();
+        for (const auto &pg : m_pointsGPU) {
+            if (!pg.vbuf || pg.vertexCount == 0) continue;
+            const QRhiCommandBuffer::VertexInput pv(pg.vbuf.get(), 0);
+            cb->setVertexInput(0, 1, &pv);
+            cb->draw(pg.vertexCount);
         }
     }
 

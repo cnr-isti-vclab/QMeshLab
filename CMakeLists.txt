@@ -52,6 +52,8 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/wireframe_lines.frag
         shaders/bbox.vert
         shaders/bbox.frag
+        shaders/points.vert
+        shaders/points.frag
 )
 
 qt_add_resources(QMeshLab "icons"
