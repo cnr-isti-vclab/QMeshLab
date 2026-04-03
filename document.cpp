@@ -1,6 +1,6 @@
 #include "document.h"
 #include "meshiopluginmanager.h"
-#include "vcgimportplugin.h"
+#include "plugins/meshpluginregistry.h"
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <QElapsedTimer>
@@ -14,7 +14,7 @@ Document::Document(QObject *parent)
     : QObject(parent)
     , m_pluginManager(std::make_unique<MeshIOPluginManager>())
 {
-    m_pluginManager->registerPlugin(std::make_unique<VCGImportPlugin>());
+    registerBuiltinMeshPlugins(*m_pluginManager);
 }
 
 Document::~Document() = default;
