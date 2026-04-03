@@ -3,6 +3,7 @@
 #include "vcgmesh.h"
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <memory>
 #include <vector>
 
@@ -41,6 +42,7 @@ public:
     const MeshEntry &mesh(int i) const { return *m_meshes[i]; }
     const std::vector<LogEntry> &logMessages() const { return m_logMessages; }
     QString openDialogFilter() const;
+    QStringList loadedPluginSummaries() const;
 
 signals:
     void meshAdded(int index);

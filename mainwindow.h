@@ -14,6 +14,8 @@ public:
 
 private slots:
     void openFile();
+    void showAbout();
+    void showLoadedPlugins();
 
 private:
     Document *m_doc;

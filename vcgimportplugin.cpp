@@ -3,6 +3,11 @@
 #include <QFileInfo>
 #include <QObject>
 
+QString VCGImportPlugin::name() const
+{
+    return QObject::tr("VCGLib Generic Importer");
+}
+
 bool VCGImportPlugin::canLoad(const QString &filename) const
 {
     const QString ext = QFileInfo(filename).suffix().toLower();

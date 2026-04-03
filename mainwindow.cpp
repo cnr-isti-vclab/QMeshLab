@@ -4,12 +4,14 @@
 #include "layerwidget.h"
 #include <QFileDialog>
 #include <QMenuBar>
+#include <QMessageBox>
 #include <QStatusBar>
 #include <QDockWidget>
 #include <QBrush>
 #include <QColor>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QStringList>
 
 namespace {
 void appendLogItem(QListWidget *logWidget, const QString &message, Document::LogSource source, bool replaceLast)
@@ -71,6 +73,10 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &MainWindow::openFile);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
+
+    QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
+    helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
+    helpMenu->addAction(tr("Loaded &Plugins"), this, &MainWindow::showLoadedPlugins);
 }
 
 void MainWindow::openFile()
@@ -84,4 +90,27 @@ void MainWindow::openFile()
         statusBar()->showMessage(tr("Failed to load %1").arg(fileName), 3000);
     else
         statusBar()->showMessage(tr("Loaded %1").arg(fileName), 3000);
+}
+
+void MainWindow::showAbout()
+{
+    QMessageBox::about(this,
+        tr("About QMeshLab"),
+        tr("QMeshLab\n"
+           "Minimal SDI mesh viewer based on Qt 6, QRhi and vcglib.\n\n"
+           "Features:\n"
+           "- Document + multiple views (3D, Layers, Log)\n"
+           "- Plugin-based mesh loading\n"
+           "- Structured logging with timings\n\n"
+           "License: GNU GPL v3"));
+}
+
+void MainWindow::showLoadedPlugins()
+{
+    const QStringList plugins = m_doc->loadedPluginSummaries();
+    const QString text = plugins.isEmpty()
+        ? tr("No plugins loaded.")
+        : tr("Plugins loaded at startup:\n\n%1").arg(plugins.join(QStringLiteral("\n")));
+
+    QMessageBox::information(this, tr("Loaded Plugins"), text);
 }

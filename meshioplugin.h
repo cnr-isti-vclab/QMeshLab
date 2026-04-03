@@ -10,6 +10,9 @@ class MeshIOPlugin
 public:
     virtual ~MeshIOPlugin() = default;
 
+    // Human-readable plugin name.
+    virtual QString name() const = 0;
+
     // Returns true if this plugin can handle the given filename (by extension).
     virtual bool canLoad(const QString &filename) const = 0;
 

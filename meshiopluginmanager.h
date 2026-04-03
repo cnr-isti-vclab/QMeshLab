@@ -2,6 +2,7 @@
 
 #include "meshioplugin.h"
 #include <memory>
+#include <QStringList>
 #include <vector>
 
 // Registry of MeshIOPlugin instances.
@@ -16,6 +17,9 @@ public:
 
     // Builds the combined Qt file dialog filter from all registered plugins.
     QString openDialogFilter() const;
+
+    // Returns one line per loaded plugin for diagnostics/UI.
+    QStringList loadedPluginSummaries() const;
 
 private:
     std::vector<std::unique_ptr<MeshIOPlugin>> m_plugins;

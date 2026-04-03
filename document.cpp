@@ -24,6 +24,11 @@ QString Document::openDialogFilter() const
     return m_pluginManager->openDialogFilter();
 }
 
+QStringList Document::loadedPluginSummaries() const
+{
+    return m_pluginManager->loadedPluginSummaries();
+}
+
 int Document::loadMesh(const QString &filename)
 {
     const MeshIOPlugin *plugin = m_pluginManager->pluginFor(filename);
