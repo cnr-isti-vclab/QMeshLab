@@ -8,6 +8,7 @@
 #include <vector>
 
 class Document;
+class QToolButton;
 
 class RenderWidget : public QRhiWidget
 {
@@ -29,11 +30,14 @@ signals:
 protected:
     void initialize(QRhiCommandBuffer *cb) override;
     void render(QRhiCommandBuffer *cb) override;
+    void resizeEvent(QResizeEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void wheelEvent(QWheelEvent *e) override;
 
 private:
+    void createOverlayButtons();
+    void layoutOverlayButtons();
     void ensureRenderResources();
     void rebuildBuffers();
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
@@ -58,6 +62,14 @@ private:
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiGraphicsPipeline> m_pipeline;
     ShadingMode m_shadingMode = ShadingMode::Smooth;
+    bool m_showBoundingBox = false;
+    bool m_showPoints = false;
+    bool m_showWire = true;
+    bool m_showFill = true;
+    QToolButton *m_bboxButton = nullptr;
+    QToolButton *m_pointsButton = nullptr;
+    QToolButton *m_wireButton = nullptr;
+    QToolButton *m_fillButton = nullptr;
     QElapsedTimer m_frameTimer;
 
     // Simple orbit camera

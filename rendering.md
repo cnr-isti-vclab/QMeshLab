@@ -70,8 +70,9 @@ The current uniform block contains:
 These values are recomputed every frame from the current camera configuration.
 
 ## Rendering Modes
-The renderer support overlayed rendering modes that can be added and switched on the fly
+The renderer support layered rendering modes that can be added and switched on the fly
 we assume a rendering layer for 
+- bounding box
 - points
 - edges
 - faces

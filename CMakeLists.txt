@@ -49,6 +49,16 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/flat.frag
         shaders/wireframe.vert
         shaders/wireframe.frag
+        shaders/wireframe_lines.frag
+)
+
+qt_add_resources(QMeshLab "icons"
+    PREFIX "/"
+    FILES
+        img/box.png
+        img/points.png
+        img/wire.png
+        img/flat.png
 )
 
 enable_testing()

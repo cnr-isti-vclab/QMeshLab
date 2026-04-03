@@ -1,7 +1,10 @@
 #include "renderwidget.h"
 #include "document.h"
 #include <QFile>
+#include <QIcon>
 #include <QMouseEvent>
+#include <QResizeEvent>
+#include <QToolButton>
 #include <QWheelEvent>
 #include <cmath>
 
@@ -18,6 +21,8 @@ static QShader loadShader(const QString &path)
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
+    createOverlayButtons();
+
     connect(m_doc, &Document::meshAdded, this, [this](int) {
         m_buffersDirty = true;
         m_logRebuildRequested = true;
@@ -32,6 +37,15 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
 
 void RenderWidget::setShadingMode(ShadingMode mode)
 {
+    if (mode == ShadingMode::Wireframe) {
+        m_showWire = true;
+        m_showFill = true;
+        if (m_wireButton) m_wireButton->setChecked(true);
+        if (m_fillButton) m_fillButton->setChecked(true);
+        update();
+        return;
+    }
+
     if (m_shadingMode == mode)
         return;
 
@@ -40,6 +54,74 @@ void RenderWidget::setShadingMode(ShadingMode mode)
     m_buffersDirty = true;
     m_logRebuildRequested = true;
     update();
+}
+
+void RenderWidget::createOverlayButtons()
+{
+    auto makeButton = [this](const QString &iconPath, const QString &tooltip) {
+        auto *btn = new QToolButton(this);
+        btn->setIcon(QIcon(iconPath));
+        btn->setToolTip(tooltip);
+        btn->setCheckable(true);
+        btn->setAutoRaise(false);
+        btn->setIconSize(QSize(32, 32));
+        btn->setFixedSize(32, 32);
+        btn->setStyleSheet(QStringLiteral(
+            "QToolButton { background: rgba(250,250,250,210); border: 1px solid rgba(40,40,40,160); border-radius: 4px; }"
+            "QToolButton:checked { background: rgba(60,130,220,220); }"
+            "QToolButton:hover { background: rgba(220,230,245,220); }"));
+        return btn;
+    };
+
+    m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box (stub)"));
+    m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points (stub)"));
+    m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
+    m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
+
+    m_bboxButton->setChecked(m_showBoundingBox);
+    m_pointsButton->setChecked(m_showPoints);
+    m_wireButton->setChecked(m_showWire);
+    m_fillButton->setChecked(m_showFill);
+
+    connect(m_bboxButton, &QToolButton::toggled, this, [this](bool checked) {
+        m_showBoundingBox = checked;
+        m_doc->writeLog(tr("[render] Bounding box pass is not implemented yet"), Document::LogSource::Application);
+        update();
+    });
+    connect(m_pointsButton, &QToolButton::toggled, this, [this](bool checked) {
+        m_showPoints = checked;
+        m_doc->writeLog(tr("[render] Points pass is not implemented yet"), Document::LogSource::Application);
+        update();
+    });
+    connect(m_wireButton, &QToolButton::toggled, this, [this](bool checked) {
+        m_showWire = checked;
+        m_pipeline.reset();
+        m_buffersDirty = true;
+        m_logRebuildRequested = true;
+        update();
+    });
+    connect(m_fillButton, &QToolButton::toggled, this, [this](bool checked) {
+        m_showFill = checked;
+        m_pipeline.reset();
+        m_buffersDirty = true;
+        m_logRebuildRequested = true;
+        update();
+    });
+
+    layoutOverlayButtons();
+}
+
+void RenderWidget::layoutOverlayButtons()
+{
+    const int x0 = 8;
+    const int y0 = 8;
+    const int s = 32;
+    const int gap = 4;
+
+    if (m_bboxButton) m_bboxButton->move(x0 + 0 * (s + gap), y0);
+    if (m_pointsButton) m_pointsButton->move(x0 + 1 * (s + gap), y0);
+    if (m_wireButton) m_wireButton->move(x0 + 2 * (s + gap), y0);
+    if (m_fillButton) m_fillButton->move(x0 + 3 * (s + gap), y0);
 }
 
 void RenderWidget::ensureRenderResources()
@@ -73,21 +155,30 @@ void RenderWidget::ensureRenderResources()
     if (!m_pipeline) {
         m_pipeline.reset(m_rhi->newGraphicsPipeline());
 
+        const bool useWirePipeline = m_showWire;
+
         QString vsPath;
         QString fsPath;
-        switch (m_shadingMode) {
-        case ShadingMode::Smooth:
-            vsPath = QStringLiteral(":/shaders/color.vert.qsb");
-            fsPath = QStringLiteral(":/shaders/color.frag.qsb");
-            break;
-        case ShadingMode::Flat:
-            vsPath = QStringLiteral(":/shaders/flat.vert.qsb");
-            fsPath = QStringLiteral(":/shaders/flat.frag.qsb");
-            break;
-        case ShadingMode::Wireframe:
+        if (useWirePipeline) {
             vsPath = QStringLiteral(":/shaders/wireframe.vert.qsb");
-            fsPath = QStringLiteral(":/shaders/wireframe.frag.qsb");
-            break;
+            fsPath = m_showFill
+                ? QStringLiteral(":/shaders/wireframe.frag.qsb")
+                : QStringLiteral(":/shaders/wireframe_lines.frag.qsb");
+        } else {
+            switch (m_shadingMode) {
+            case ShadingMode::Smooth:
+                vsPath = QStringLiteral(":/shaders/color.vert.qsb");
+                fsPath = QStringLiteral(":/shaders/color.frag.qsb");
+                break;
+            case ShadingMode::Flat:
+                vsPath = QStringLiteral(":/shaders/flat.vert.qsb");
+                fsPath = QStringLiteral(":/shaders/flat.frag.qsb");
+                break;
+            case ShadingMode::Wireframe:
+                vsPath = QStringLiteral(":/shaders/color.vert.qsb");
+                fsPath = QStringLiteral(":/shaders/color.frag.qsb");
+                break;
+            }
         }
 
         QShader vs = loadShader(vsPath);
@@ -109,14 +200,14 @@ void RenderWidget::ensureRenderResources()
 
         QRhiVertexInputLayout inputLayout;
         inputLayout.setBindings({ { 6 * sizeof(float) } });
-        if (m_shadingMode == ShadingMode::Flat) {
-            inputLayout.setAttributes({
-                { 0, 0, QRhiVertexInputAttribute::Float3, 0 }              // position
-            });
-        } else if (m_shadingMode == ShadingMode::Wireframe) {
+        if (useWirePipeline) {
             inputLayout.setAttributes({
                 { 0, 0, QRhiVertexInputAttribute::Float3, 0 },             // position
                 { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) } // barycentric
+            });
+        } else if (m_shadingMode == ShadingMode::Flat) {
+            inputLayout.setAttributes({
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 }              // position
             });
         } else {
             inputLayout.setAttributes({
@@ -156,7 +247,7 @@ void RenderWidget::rebuildBuffers()
 
         MeshGPU mg;
 
-        if (m_shadingMode == ShadingMode::Wireframe) {
+        if (m_showWire) {
             const int vertexCount = mesh.FN() * 3;
             const int vertBytes = vertexCount * 6 * sizeof(float);
             auto vbuf = std::unique_ptr<QRhiBuffer>(
@@ -298,6 +389,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!m_rhi || !m_ubuf)
         return;
 
+    if (!m_showFill && !m_showWire)
+        return;
+
     prepareDirtyBuffers(cb);
 
     m_frameTimer.start();
@@ -381,4 +475,10 @@ void RenderWidget::wheelEvent(QWheelEvent *e)
     m_distance *= (1.0f - e->angleDelta().y() * 0.001f);
     m_distance = qMax(m_distance, 0.01f * m_radius);
     update();
+}
+
+void RenderWidget::resizeEvent(QResizeEvent *e)
+{
+    QRhiWidget::resizeEvent(e);
+    layoutOverlayButtons();
 }
