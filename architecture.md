@@ -22,7 +22,7 @@ QMeshLab follows a **Single Document Interface (SDI)** pattern where one `Docume
 | View | Widget | Role |
 |------|--------|------|
 | 3D viewport | `RenderWidget` (QRhiWidget, central) | Renders meshes using Qt RHI |
-| Mesh list | `MeshTreeWidget` (QTreeWidget, left dock) | Shows mesh names, vertex/face counts |
+| Layers | `LayerWidget` (QTreeWidget, right dock) | Shows mesh names, vertex/face counts |
 
 ## Adding a New View
 
@@ -37,6 +37,6 @@ User action → MainWindow → Document (mutates data, emits signal)
                                 ↓
                      ┌──────────┴──────────┐
                      │                     │
-               RenderWidget          MeshTreeWidget
+               RenderWidget            LayerWidget
               (3D rendering)         (mesh info tree)
 ```

@@ -12,7 +12,7 @@ qt_add_executable(QMeshLab
     mainwindow.h mainwindow.cpp
     renderwidget.h renderwidget.cpp
     document.h document.cpp
-    meshtreewidget.h meshtreewidget.cpp
+    layerwidget.h layerwidget.cpp
     vcgmesh.h
     vcglib/wrap/ply/plylib.cpp
 )

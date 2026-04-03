@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "document.h"
 #include "renderwidget.h"
-#include "meshtreewidget.h"
+#include "layerwidget.h"
 #include <QFileDialog>
 #include <QMenuBar>
 #include <QStatusBar>
@@ -18,10 +18,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_renderWidget = new RenderWidget(m_doc, this);
     setCentralWidget(m_renderWidget);
 
-    m_meshTree = new MeshTreeWidget(m_doc, this);
-    auto *dock = new QDockWidget(tr("Mesh List"), this);
-    dock->setWidget(m_meshTree);
-    addDockWidget(Qt::LeftDockWidgetArea, dock);
+    m_layerWidget = new LayerWidget(m_doc, this);
+    auto *dock = new QDockWidget(tr("Layers"), this);
+    dock->setWidget(m_layerWidget);
+    addDockWidget(Qt::RightDockWidgetArea, dock);
 
     connect(m_renderWidget, &RenderWidget::frameRendered, this, [this](float ms) {
         statusBar()->showMessage(QString("Frame: %1 ms").arg(ms, 0, 'f', 3));

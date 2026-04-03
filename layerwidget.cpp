@@ -1,19 +1,19 @@
-#include "meshtreewidget.h"
+#include "layerwidget.h"
 #include "document.h"
 
-MeshTreeWidget::MeshTreeWidget(Document *doc, QWidget *parent)
+LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     : QTreeWidget(parent), m_doc(doc)
 {
-    setHeaderLabels({tr("Property"), tr("Value")});
     setColumnCount(2);
+    setHeaderHidden(true);
 
-    connect(m_doc, &Document::meshAdded, this, &MeshTreeWidget::rebuild);
-    connect(m_doc, &Document::meshRemoved, this, &MeshTreeWidget::rebuild);
+    connect(m_doc, &Document::meshAdded, this, &LayerWidget::rebuild);
+    connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
 
     rebuild();
 }
 
-void MeshTreeWidget::rebuild()
+void LayerWidget::rebuild()
 {
     clear();
     for (int i = 0; i < m_doc->meshCount(); ++i) {

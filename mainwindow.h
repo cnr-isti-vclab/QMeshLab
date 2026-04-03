@@ -4,7 +4,7 @@
 
 class Document;
 class RenderWidget;
-class MeshTreeWidget;
+class LayerWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -18,5 +18,5 @@ private slots:
 private:
     Document *m_doc;
     RenderWidget *m_renderWidget;
-    MeshTreeWidget *m_meshTree;
+    LayerWidget *m_layerWidget;
 };

@@ -4,11 +4,11 @@
 
 class Document;
 
-class MeshTreeWidget : public QTreeWidget
+class LayerWidget : public QTreeWidget
 {
     Q_OBJECT
 public:
-    explicit MeshTreeWidget(Document *doc, QWidget *parent = nullptr);
+    explicit LayerWidget(Document *doc, QWidget *parent = nullptr);
 
 private:
     void rebuild();
