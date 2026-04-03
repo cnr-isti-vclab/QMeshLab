@@ -37,6 +37,8 @@ void RenderWidget::setShadingMode(ShadingMode mode)
 
     m_shadingMode = mode;
     m_pipeline.reset();
+    m_buffersDirty = true;
+    m_logRebuildRequested = true;
     update();
 }
 
@@ -71,12 +73,22 @@ void RenderWidget::ensureRenderResources()
     if (!m_pipeline) {
         m_pipeline.reset(m_rhi->newGraphicsPipeline());
 
-        const QString vsPath = (m_shadingMode == ShadingMode::Flat)
-            ? QStringLiteral(":/shaders/flat.vert.qsb")
-            : QStringLiteral(":/shaders/color.vert.qsb");
-        const QString fsPath = (m_shadingMode == ShadingMode::Flat)
-            ? QStringLiteral(":/shaders/flat.frag.qsb")
-            : QStringLiteral(":/shaders/color.frag.qsb");
+        QString vsPath;
+        QString fsPath;
+        switch (m_shadingMode) {
+        case ShadingMode::Smooth:
+            vsPath = QStringLiteral(":/shaders/color.vert.qsb");
+            fsPath = QStringLiteral(":/shaders/color.frag.qsb");
+            break;
+        case ShadingMode::Flat:
+            vsPath = QStringLiteral(":/shaders/flat.vert.qsb");
+            fsPath = QStringLiteral(":/shaders/flat.frag.qsb");
+            break;
+        case ShadingMode::Wireframe:
+            vsPath = QStringLiteral(":/shaders/wireframe.vert.qsb");
+            fsPath = QStringLiteral(":/shaders/wireframe.frag.qsb");
+            break;
+        }
 
         QShader vs = loadShader(vsPath);
         QShader fs = loadShader(fsPath);
@@ -100,6 +112,11 @@ void RenderWidget::ensureRenderResources()
         if (m_shadingMode == ShadingMode::Flat) {
             inputLayout.setAttributes({
                 { 0, 0, QRhiVertexInputAttribute::Float3, 0 }              // position
+            });
+        } else if (m_shadingMode == ShadingMode::Wireframe) {
+            inputLayout.setAttributes({
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },             // position
+                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) } // barycentric
             });
         } else {
             inputLayout.setAttributes({
@@ -137,6 +154,43 @@ void RenderWidget::rebuildBuffers()
         const VCGMesh &mesh = m_doc->mesh(mi).mesh;
         if (mesh.FN() == 0) continue;
 
+        MeshGPU mg;
+
+        if (m_shadingMode == ShadingMode::Wireframe) {
+            const int vertexCount = mesh.FN() * 3;
+            const int vertBytes = vertexCount * 6 * sizeof(float);
+            auto vbuf = std::unique_ptr<QRhiBuffer>(
+                m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
+            vbuf->create();
+
+            std::vector<float> vdata(vertexCount * 6);
+            static constexpr float barycentrics[3][3] = {
+                { 1.0f, 0.0f, 0.0f },
+                { 0.0f, 1.0f, 0.0f },
+                { 0.0f, 0.0f, 1.0f }
+            };
+
+            for (int i = 0; i < mesh.FN(); ++i) {
+                const auto &f = mesh.face[i];
+                for (int corner = 0; corner < 3; ++corner) {
+                    const auto *vertex = f.cV(corner);
+                    const int base = (i * 3 + corner) * 6;
+                    vdata[base + 0] = vertex->cP()[0];
+                    vdata[base + 1] = vertex->cP()[1];
+                    vdata[base + 2] = vertex->cP()[2];
+                    vdata[base + 3] = barycentrics[corner][0];
+                    vdata[base + 4] = barycentrics[corner][1];
+                    vdata[base + 5] = barycentrics[corner][2];
+                }
+            }
+
+            mg.vbuf = std::move(vbuf);
+            mg.vertexCount = vertexCount;
+            mg.uploadData = std::move(vdata);
+            m_meshGPU.push_back(std::move(mg));
+            continue;
+        }
+
         // Build interleaved vertex buffer: pos(3f) + normal(3f)
         const int vertBytes = mesh.VN() * 6 * sizeof(float);
         auto vbuf = std::unique_ptr<QRhiBuffer>(
@@ -169,9 +223,9 @@ void RenderWidget::rebuildBuffers()
             idata[i * 3 + 2] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(2)));
         }
 
-        MeshGPU mg;
         mg.vbuf = std::move(vbuf);
         mg.ibuf = std::move(ibuf);
+        mg.vertexCount = mesh.VN();
         mg.indexCount = idxCount;
         mg.uploadData = std::move(vdata);
         mg.uploadIndices = std::move(idata);
@@ -201,10 +255,11 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
         for (auto &mg : m_meshGPU) {
             u->uploadStaticBuffer(mg.vbuf.get(), mg.uploadData.data());
-            u->uploadStaticBuffer(mg.ibuf.get(), mg.uploadIndices.data());
+            if (mg.ibuf && !mg.uploadIndices.empty())
+                u->uploadStaticBuffer(mg.ibuf.get(), mg.uploadIndices.data());
             ++uploadedMeshes;
             uploadedVertices += static_cast<int>(mg.uploadData.size() / 6);
-            uploadedTriangles += mg.indexCount / 3;
+            uploadedTriangles += (mg.indexCount > 0 ? mg.indexCount : mg.vertexCount) / 3;
             mg.uploadData.clear();
             mg.uploadIndices.clear();
         }
@@ -285,10 +340,16 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         cb->setShaderResources();
 
         for (const auto &mg : m_meshGPU) {
-            if (mg.indexCount == 0) continue;
+            if (mg.indexCount == 0 && mg.vertexCount == 0)
+                continue;
             const QRhiCommandBuffer::VertexInput vbufBinding(mg.vbuf.get(), 0);
-            cb->setVertexInput(0, 1, &vbufBinding, mg.ibuf.get(), 0, QRhiCommandBuffer::IndexUInt32);
-            cb->drawIndexed(mg.indexCount);
+            if (mg.indexCount > 0) {
+                cb->setVertexInput(0, 1, &vbufBinding, mg.ibuf.get(), 0, QRhiCommandBuffer::IndexUInt32);
+                cb->drawIndexed(mg.indexCount);
+            } else {
+                cb->setVertexInput(0, 1, &vbufBinding);
+                cb->draw(mg.vertexCount);
+            }
         }
     }
 

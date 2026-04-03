@@ -89,8 +89,11 @@ MainWindow::MainWindow(QWidget *parent)
     smoothAction->setCheckable(true);
     QAction *flatAction = viewMenu->addAction(tr("Flat Shading"), this, &MainWindow::setFlatShading);
     flatAction->setCheckable(true);
+    QAction *wireframeAction = viewMenu->addAction(tr("Wireframe"), this, &MainWindow::setWireframeShading);
+    wireframeAction->setCheckable(true);
     modeGroup->addAction(smoothAction);
     modeGroup->addAction(flatAction);
+    modeGroup->addAction(wireframeAction);
     smoothAction->setChecked(true);
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
@@ -167,6 +170,11 @@ void MainWindow::setSmoothShading()
 void MainWindow::setFlatShading()
 {
     m_renderWidget->setShadingMode(RenderWidget::ShadingMode::Flat);
+}
+
+void MainWindow::setWireframeShading()
+{
+    m_renderWidget->setShadingMode(RenderWidget::ShadingMode::Wireframe);
 }
 
 bool MainWindow::loadMeshFromPath(const QString &filePath)

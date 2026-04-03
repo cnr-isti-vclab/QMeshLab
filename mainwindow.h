@@ -23,6 +23,7 @@ private slots:
     void showLoadedPlugins();
     void setSmoothShading();
     void setFlatShading();
+    void setWireframeShading();
 
 private:
     bool loadMeshFromPath(const QString &filePath);

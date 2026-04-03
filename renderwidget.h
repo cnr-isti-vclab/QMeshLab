@@ -15,7 +15,8 @@ class RenderWidget : public QRhiWidget
 public:
     enum class ShadingMode {
         Smooth,
-        Flat
+        Flat,
+        Wireframe
     };
 
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
@@ -44,6 +45,7 @@ private:
     struct MeshGPU {
         std::unique_ptr<QRhiBuffer> vbuf;
         std::unique_ptr<QRhiBuffer> ibuf;
+        int vertexCount = 0;
         int indexCount = 0;
         std::vector<float> uploadData;
         std::vector<quint32> uploadIndices;

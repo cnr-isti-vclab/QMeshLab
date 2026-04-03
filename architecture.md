@@ -12,8 +12,13 @@ QMeshLab follows a **Single Document Interface (SDI)** pattern where one `Docume
 - Owns a `MeshIOPluginManager` and delegates all file loading to it. `loadMesh()` only orchestrates: find plugin → call load → post-process (bounds, normals) → add entry → emit signals.
 
 ### General Idea of Plugins 
+There are two main classes of plugins: I/O and filter.
+
+The I/O plugins are responsible for loading and saving the meshes.
+The Document is responsible for adding the returned mesh it to its collection and emitting the appropriate signals. The plugins can be implemented as shared libraries that are loaded at runtime. The plugins should be able to handle different file formats and provide a consistent interface for loading meshes.
+
 Loading a mesh is managed in an isolated way via a plugin mechanism that can be extended in the future to support more formats. The plugin should be able to load a mesh and return a VCGMesh, and the Document should be able to add it to its collection and emit the appropriate signals.
-Each plugins should contained in a separate folder with isolated compilation too. During the initial setup of cmake we should also install library needed for the various plugins or eventually download them from known github sources. 
+Each plugin should be contained in a separate folder with isolated compilation too. During the initial setup of CMake, we should also install libraries needed for the various plugins or eventually download them from known GitHub sources. 
 
 
 
