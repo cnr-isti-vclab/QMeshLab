@@ -18,8 +18,16 @@ static QShader loadShader(const QString &path)
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
-    connect(m_doc, &Document::meshAdded, this, [this](int) { m_buffersDirty = true; update(); });
-    connect(m_doc, &Document::meshRemoved, this, [this](int) { m_buffersDirty = true; update(); });
+    connect(m_doc, &Document::meshAdded, this, [this](int) {
+        m_buffersDirty = true;
+        m_logRebuildRequested = true;
+        update();
+    });
+    connect(m_doc, &Document::meshRemoved, this, [this](int) {
+        m_buffersDirty = true;
+        m_logRebuildRequested = true;
+        update();
+    });
 }
 
 void RenderWidget::rebuildBuffers()
@@ -159,18 +167,46 @@ void RenderWidget::initialize(QRhiCommandBuffer *cb)
     }
 
     if (m_buffersDirty) {
+        const bool logRebuild = m_logRebuildRequested;
+        QElapsedTimer rebuildTimer;
+        rebuildTimer.start();
         rebuildBuffers();
+        const qint64 rebuildMs = rebuildTimer.elapsed();
+
+        qint64 uploadMs = 0;
+        int uploadedMeshes = 0;
+        int uploadedVertices = 0;
+        int uploadedTriangles = 0;
+
         // Upload all mesh data
         if (!m_meshGPU.empty()) {
+            QElapsedTimer uploadTimer;
+            uploadTimer.start();
             QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
             for (auto &mg : m_meshGPU) {
                 u->uploadStaticBuffer(mg.vbuf.get(), mg.uploadData.data());
                 u->uploadStaticBuffer(mg.ibuf.get(), mg.uploadIndices.data());
+                ++uploadedMeshes;
+                uploadedVertices += static_cast<int>(mg.uploadData.size() / 6);
+                uploadedTriangles += mg.indexCount / 3;
                 mg.uploadData.clear();
                 mg.uploadIndices.clear();
             }
             cb->resourceUpdate(u);
+            uploadMs = uploadTimer.elapsed();
         }
+
+        if (logRebuild) {
+            m_doc->writeLog(tr("[render] Prepared buffers in %1 ms, uploaded in %2 ms (%3 meshes, %4 vertices, %5 triangles)")
+                .arg(rebuildMs)
+                .arg(uploadMs)
+                .arg(uploadedMeshes)
+                .arg(uploadedVertices)
+                .arg(uploadedTriangles),
+                Document::LogSource::Application);
+            m_logRebuildRequested = false;
+        }
+
         m_buffersDirty = false;
     }
 }

@@ -6,6 +6,32 @@
 #include <QMenuBar>
 #include <QStatusBar>
 #include <QDockWidget>
+#include <QBrush>
+#include <QColor>
+#include <QListWidget>
+#include <QListWidgetItem>
+
+namespace {
+void appendLogItem(QListWidget *logWidget, const QString &message, Document::LogSource source, bool replaceLast)
+{
+    QListWidgetItem *item = nullptr;
+    if (replaceLast && logWidget->count() > 0) {
+        item = logWidget->item(logWidget->count() - 1);
+    } else {
+        item = new QListWidgetItem(logWidget);
+    }
+
+    if (source == Document::LogSource::VCG) {
+        item->setText(QObject::tr("[vcg] %1").arg(message));
+        item->setForeground(QBrush(QColor(80, 110, 150)));
+    } else {
+        item->setText(QObject::tr("[app] %1").arg(message));
+        item->setForeground(QBrush(QColor(50, 50, 50)));
+    }
+
+    logWidget->scrollToBottom();
+}
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -22,6 +48,20 @@ MainWindow::MainWindow(QWidget *parent)
     auto *dock = new QDockWidget(tr("Layers"), this);
     dock->setWidget(m_layerWidget);
     addDockWidget(Qt::RightDockWidgetArea, dock);
+
+    auto *logWidget = new QListWidget(this);
+    auto *logDock = new QDockWidget(tr("Log"), this);
+    logDock->setWidget(logWidget);
+    addDockWidget(Qt::BottomDockWidgetArea, logDock);
+
+    for (const auto &entry : m_doc->logMessages())
+        appendLogItem(logWidget, entry.message, entry.source, false);
+
+    connect(m_doc, &Document::logCleared, logWidget, &QListWidget::clear);
+    connect(m_doc, &Document::logMessageAdded, logWidget,
+        [logWidget](const QString &message, Document::LogSource source, bool replaceLast) {
+            appendLogItem(logWidget, message, source, replaceLast);
+    });
 
     connect(m_renderWidget, &RenderWidget::frameRendered, this, [this](float ms) {
         statusBar()->showMessage(QString("Frame: %1 ms").arg(ms, 0, 'f', 3));

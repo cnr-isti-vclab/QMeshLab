@@ -41,6 +41,7 @@ private:
     };
     std::vector<MeshGPU> m_meshGPU;
     bool m_buffersDirty = true;
+    bool m_logRebuildRequested = false;
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;

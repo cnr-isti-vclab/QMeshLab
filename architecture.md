@@ -8,6 +8,7 @@ QMeshLab follows a **Single Document Interface (SDI)** pattern where one `Docume
 - Owns an ordered list of `MeshEntry` (name, visibility flag, `VCGMesh`).
 - Provides `loadMesh()` / `removeMesh()` to mutate the collection.
 - Emits `meshAdded(int)` and `meshRemoved(int)` so views stay in sync.
+- Owns a per-document log and emits log signals when new messages are appended.
 
 ### VCGMesh
 - Defined in `vcgmesh.h` as a specialization of `vcg::tri::TriMesh` with standard per-vertex and per-face components (coords, normals, colors, quality, adjacency).
@@ -23,6 +24,7 @@ QMeshLab follows a **Single Document Interface (SDI)** pattern where one `Docume
 |------|--------|------|
 | 3D viewport | `RenderWidget` (QRhiWidget, central) | Renders meshes using Qt RHI |
 | Layers | `LayerWidget` (QTreeWidget, right dock) | Shows mesh names, vertex/face counts |
+| Log | `QPlainTextEdit` (bottom dock) | Shows document log messages and vcglib import progress |
 
 ## Adding a New View
 
