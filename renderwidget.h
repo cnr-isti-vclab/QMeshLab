@@ -13,7 +13,14 @@ class RenderWidget : public QRhiWidget
 {
     Q_OBJECT
 public:
+    enum class ShadingMode {
+        Smooth,
+        Flat
+    };
+
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
+    void setShadingMode(ShadingMode mode);
+    ShadingMode shadingMode() const { return m_shadingMode; }
 
 signals:
     void frameRendered(float ms);
@@ -26,7 +33,9 @@ protected:
     void wheelEvent(QWheelEvent *e) override;
 
 private:
+    void ensureRenderResources();
     void rebuildBuffers();
+    void prepareDirtyBuffers(QRhiCommandBuffer *cb);
 
     Document *m_doc;
     QRhi *m_rhi = nullptr;
@@ -46,6 +55,7 @@ private:
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiGraphicsPipeline> m_pipeline;
+    ShadingMode m_shadingMode = ShadingMode::Smooth;
     QElapsedTimer m_frameTimer;
 
     // Simple orbit camera

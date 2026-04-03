@@ -45,6 +45,8 @@ qt_add_shaders(QMeshLab "shaders"
     FILES
         shaders/color.vert
         shaders/color.frag
+    shaders/flat.vert
+    shaders/flat.frag
 )
 
 enable_testing()

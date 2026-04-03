@@ -3,14 +3,18 @@
 #include "renderwidget.h"
 #include "layerwidget.h"
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QStatusBar>
 #include <QDockWidget>
+#include <QActionGroup>
+#include <QAction>
 #include <QBrush>
 #include <QColor>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QSettings>
 #include <QStringList>
 
 namespace {
@@ -71,12 +75,33 @@ MainWindow::MainWindow(QWidget *parent)
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &MainWindow::openFile);
+    m_openLastAction = fileMenu->addAction(tr("Open &Last Mesh"), this, &MainWindow::openLastMesh);
+    m_openLastAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+L")));
+    m_recentMenu = fileMenu->addMenu(tr("Open &Recent"));
     fileMenu->addSeparator();
     fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
+
+    QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+    auto *modeGroup = new QActionGroup(this);
+    modeGroup->setExclusive(true);
+
+    QAction *smoothAction = viewMenu->addAction(tr("Smooth Shading"), this, &MainWindow::setSmoothShading);
+    smoothAction->setCheckable(true);
+    QAction *flatAction = viewMenu->addAction(tr("Flat Shading"), this, &MainWindow::setFlatShading);
+    flatAction->setCheckable(true);
+    modeGroup->addAction(smoothAction);
+    modeGroup->addAction(flatAction);
+    smoothAction->setChecked(true);
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
     helpMenu->addAction(tr("Loaded &Plugins"), this, &MainWindow::showLoadedPlugins);
+
+    QSettings settings;
+    m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
+    while (m_recentMeshes.size() > 10)
+        m_recentMeshes.removeLast();
+    refreshRecentMeshesMenu();
 }
 
 void MainWindow::openFile()
@@ -85,11 +110,30 @@ void MainWindow::openFile()
         QString(), m_doc->openDialogFilter());
     if (fileName.isEmpty())
         return;
-    int err = m_doc->loadMesh(fileName);
-    if (err != 0)
-        statusBar()->showMessage(tr("Failed to load %1").arg(fileName), 3000);
-    else
-        statusBar()->showMessage(tr("Loaded %1").arg(fileName), 3000);
+    loadMeshFromPath(fileName);
+}
+
+void MainWindow::openLastMesh()
+{
+    if (m_recentMeshes.isEmpty()) {
+        statusBar()->showMessage(tr("No recent meshes"), 2000);
+        return;
+    }
+
+    loadMeshFromPath(m_recentMeshes.constFirst());
+}
+
+void MainWindow::openRecentMesh()
+{
+    auto *action = qobject_cast<QAction *>(sender());
+    if (!action)
+        return;
+
+    const QString filePath = action->data().toString();
+    if (filePath.isEmpty())
+        return;
+
+    loadMeshFromPath(filePath);
 }
 
 void MainWindow::showAbout()
@@ -113,4 +157,53 @@ void MainWindow::showLoadedPlugins()
         : tr("Plugins loaded at startup:\n\n%1").arg(plugins.join(QStringLiteral("\n")));
 
     QMessageBox::information(this, tr("Loaded Plugins"), text);
+}
+
+void MainWindow::setSmoothShading()
+{
+    m_renderWidget->setShadingMode(RenderWidget::ShadingMode::Smooth);
+}
+
+void MainWindow::setFlatShading()
+{
+    m_renderWidget->setShadingMode(RenderWidget::ShadingMode::Flat);
+}
+
+bool MainWindow::loadMeshFromPath(const QString &filePath)
+{
+    const int err = m_doc->loadMesh(filePath);
+    if (err != 0) {
+        statusBar()->showMessage(tr("Failed to load %1").arg(filePath), 3000);
+        return false;
+    }
+
+    statusBar()->showMessage(tr("Loaded %1").arg(filePath), 3000);
+    addRecentMesh(filePath);
+    return true;
+}
+
+void MainWindow::addRecentMesh(const QString &filePath)
+{
+    m_recentMeshes.removeAll(filePath);
+    m_recentMeshes.prepend(filePath);
+    while (m_recentMeshes.size() > 10)
+        m_recentMeshes.removeLast();
+
+    QSettings settings;
+    settings.setValue(QStringLiteral("recentMeshes"), m_recentMeshes);
+    refreshRecentMeshesMenu();
+}
+
+void MainWindow::refreshRecentMeshesMenu()
+{
+    m_recentMenu->clear();
+
+    for (const QString &path : std::as_const(m_recentMeshes)) {
+        QAction *action = m_recentMenu->addAction(QFileInfo(path).fileName(), this, &MainWindow::openRecentMesh);
+        action->setData(path);
+        action->setToolTip(path);
+    }
+
+    m_recentMenu->setEnabled(!m_recentMeshes.isEmpty());
+    m_openLastAction->setEnabled(!m_recentMeshes.isEmpty());
 }

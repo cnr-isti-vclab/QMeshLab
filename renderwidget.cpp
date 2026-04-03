@@ -30,6 +30,94 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     });
 }
 
+void RenderWidget::setShadingMode(ShadingMode mode)
+{
+    if (m_shadingMode == mode)
+        return;
+
+    m_shadingMode = mode;
+    m_pipeline.reset();
+    update();
+}
+
+void RenderWidget::ensureRenderResources()
+{
+    if (m_rhi != rhi()) {
+        m_rhi = rhi();
+        m_pipeline.reset();
+        m_srb.reset();
+        m_ubuf.reset();
+        m_meshGPU.clear();
+        m_buffersDirty = true;
+    }
+
+    if (!m_rhi || !renderTarget())
+        return;
+
+    if (!m_ubuf) {
+        // Uniform buffer: mat4 mvp (64) + mat4 modelView (64) + mat3 std140 (48) = 176 bytes
+        m_ubuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, 176));
+        m_ubuf->create();
+    }
+
+    if (!m_srb) {
+        m_srb.reset(m_rhi->newShaderResourceBindings());
+        m_srb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(0, QRhiShaderResourceBinding::VertexStage, m_ubuf.get())
+        });
+        m_srb->create();
+    }
+
+    if (!m_pipeline) {
+        m_pipeline.reset(m_rhi->newGraphicsPipeline());
+
+        const QString vsPath = (m_shadingMode == ShadingMode::Flat)
+            ? QStringLiteral(":/shaders/flat.vert.qsb")
+            : QStringLiteral(":/shaders/color.vert.qsb");
+        const QString fsPath = (m_shadingMode == ShadingMode::Flat)
+            ? QStringLiteral(":/shaders/flat.frag.qsb")
+            : QStringLiteral(":/shaders/color.frag.qsb");
+
+        QShader vs = loadShader(vsPath);
+        QShader fs = loadShader(fsPath);
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load shaders");
+            m_pipeline.reset();
+            return;
+        }
+
+        m_pipeline->setShaderStages({
+            { QRhiShaderStage::Vertex, vs },
+            { QRhiShaderStage::Fragment, fs }
+        });
+
+        m_pipeline->setDepthTest(true);
+        m_pipeline->setDepthWrite(true);
+        m_pipeline->setCullMode(QRhiGraphicsPipeline::Back);
+
+        QRhiVertexInputLayout inputLayout;
+        inputLayout.setBindings({ { 6 * sizeof(float) } });
+        if (m_shadingMode == ShadingMode::Flat) {
+            inputLayout.setAttributes({
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 }              // position
+            });
+        } else {
+            inputLayout.setAttributes({
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },             // position
+                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) } // normal
+            });
+        }
+        m_pipeline->setVertexInputLayout(inputLayout);
+        m_pipeline->setShaderResourceBindings(m_srb.get());
+        m_pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+
+        if (!m_pipeline->create()) {
+            qWarning("Failed to create graphics pipeline");
+            m_pipeline.reset();
+        }
+    }
+}
+
 void RenderWidget::rebuildBuffers()
 {
     m_meshGPU.clear();
@@ -81,15 +169,6 @@ void RenderWidget::rebuildBuffers()
             idata[i * 3 + 2] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(2)));
         }
 
-        // Upload via deferred resource update in next render pass
-        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-        u->uploadStaticBuffer(vbuf.get(), vdata.data());
-        u->uploadStaticBuffer(ibuf.get(), idata.data());
-        // We'll merge this into the render cb later; for now use a dummy cb
-        // Actually store uploads and apply in render()
-        // Simpler: just use Dynamic buffers or upload here with a helper
-        // Let's use the approach of uploading in initialize/render
-
         MeshGPU mg;
         mg.vbuf = std::move(vbuf);
         mg.ibuf = std::move(ibuf);
@@ -100,119 +179,72 @@ void RenderWidget::rebuildBuffers()
     }
 }
 
-void RenderWidget::initialize(QRhiCommandBuffer *cb)
+void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
 {
-    if (m_rhi != rhi()) {
-        m_rhi = rhi();
-        m_pipeline.reset();
-        m_srb.reset();
-        m_ubuf.reset();
-        m_meshGPU.clear();
-        m_buffersDirty = true;
+    if (!m_buffersDirty || !m_rhi)
+        return;
+
+    const bool logRebuild = m_logRebuildRequested;
+    QElapsedTimer rebuildTimer;
+    rebuildTimer.start();
+    rebuildBuffers();
+    const qint64 rebuildMs = rebuildTimer.elapsed();
+
+    qint64 uploadMs = 0;
+    int uploadedMeshes = 0;
+    int uploadedVertices = 0;
+    int uploadedTriangles = 0;
+
+    if (!m_meshGPU.empty()) {
+        QElapsedTimer uploadTimer;
+        uploadTimer.start();
+        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+        for (auto &mg : m_meshGPU) {
+            u->uploadStaticBuffer(mg.vbuf.get(), mg.uploadData.data());
+            u->uploadStaticBuffer(mg.ibuf.get(), mg.uploadIndices.data());
+            ++uploadedMeshes;
+            uploadedVertices += static_cast<int>(mg.uploadData.size() / 6);
+            uploadedTriangles += mg.indexCount / 3;
+            mg.uploadData.clear();
+            mg.uploadIndices.clear();
+        }
+        cb->resourceUpdate(u);
+        uploadMs = uploadTimer.elapsed();
     }
 
+    if (logRebuild) {
+        m_doc->writeLog(tr("[render] Prepared buffers in %1 ms, uploaded in %2 ms (%3 meshes, %4 vertices, %5 triangles)")
+            .arg(rebuildMs)
+            .arg(uploadMs)
+            .arg(uploadedMeshes)
+            .arg(uploadedVertices)
+            .arg(uploadedTriangles),
+            Document::LogSource::Application);
+        m_logRebuildRequested = false;
+    }
+
+    m_buffersDirty = false;
+}
+
+void RenderWidget::initialize(QRhiCommandBuffer *cb)
+{
+    ensureRenderResources();
     if (!m_rhi) {
         qWarning("QRhi not available");
         return;
     }
 
-    if (!m_ubuf) {
-        // Uniform buffer: mat4 (64) + mat3 padded to std140 (48) = 112 bytes
-        m_ubuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, 112));
-        m_ubuf->create();
-    }
-
-    if (!m_srb) {
-        m_srb.reset(m_rhi->newShaderResourceBindings());
-        m_srb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(0, QRhiShaderResourceBinding::VertexStage, m_ubuf.get())
-        });
-        m_srb->create();
-    }
-
-    if (!m_pipeline) {
-        m_pipeline.reset(m_rhi->newGraphicsPipeline());
-
-        QShader vs = loadShader(QStringLiteral(":/shaders/color.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/color.frag.qsb"));
-        if (!vs.isValid() || !fs.isValid()) {
-            qWarning("Failed to load shaders");
-            m_pipeline.reset();
-            return;
-        }
-
-        m_pipeline->setShaderStages({
-            { QRhiShaderStage::Vertex, vs },
-            { QRhiShaderStage::Fragment, fs }
-        });
-
-        m_pipeline->setDepthTest(true);
-        m_pipeline->setDepthWrite(true);
-        m_pipeline->setCullMode(QRhiGraphicsPipeline::Back);
-
-        QRhiVertexInputLayout inputLayout;
-        inputLayout.setBindings({ { 6 * sizeof(float) } });
-        inputLayout.setAttributes({
-            { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
-            { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) }  // normal
-        });
-        m_pipeline->setVertexInputLayout(inputLayout);
-        m_pipeline->setShaderResourceBindings(m_srb.get());
-        m_pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
-
-        if (!m_pipeline->create()) {
-            qWarning("Failed to create graphics pipeline");
-            m_pipeline.reset();
-        }
-    }
-
-    if (m_buffersDirty) {
-        const bool logRebuild = m_logRebuildRequested;
-        QElapsedTimer rebuildTimer;
-        rebuildTimer.start();
-        rebuildBuffers();
-        const qint64 rebuildMs = rebuildTimer.elapsed();
-
-        qint64 uploadMs = 0;
-        int uploadedMeshes = 0;
-        int uploadedVertices = 0;
-        int uploadedTriangles = 0;
-
-        // Upload all mesh data
-        if (!m_meshGPU.empty()) {
-            QElapsedTimer uploadTimer;
-            uploadTimer.start();
-            QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-            for (auto &mg : m_meshGPU) {
-                u->uploadStaticBuffer(mg.vbuf.get(), mg.uploadData.data());
-                u->uploadStaticBuffer(mg.ibuf.get(), mg.uploadIndices.data());
-                ++uploadedMeshes;
-                uploadedVertices += static_cast<int>(mg.uploadData.size() / 6);
-                uploadedTriangles += mg.indexCount / 3;
-                mg.uploadData.clear();
-                mg.uploadIndices.clear();
-            }
-            cb->resourceUpdate(u);
-            uploadMs = uploadTimer.elapsed();
-        }
-
-        if (logRebuild) {
-            m_doc->writeLog(tr("[render] Prepared buffers in %1 ms, uploaded in %2 ms (%3 meshes, %4 vertices, %5 triangles)")
-                .arg(rebuildMs)
-                .arg(uploadMs)
-                .arg(uploadedMeshes)
-                .arg(uploadedVertices)
-                .arg(uploadedTriangles),
-                Document::LogSource::Application);
-            m_logRebuildRequested = false;
-        }
-
-        m_buffersDirty = false;
-    }
+    prepareDirtyBuffers(cb);
 }
 
 void RenderWidget::render(QRhiCommandBuffer *cb)
 {
+    ensureRenderResources();
+    if (!m_rhi || !m_ubuf)
+        return;
+
+    prepareDirtyBuffers(cb);
+
     m_frameTimer.start();
 
     const QSize sz = renderTarget()->pixelSize();
@@ -227,20 +259,23 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     view.rotate(m_rotY, 0, 1, 0);
     view.translate(-m_center);
 
-    QMatrix4x4 mvp = proj * view;
-    QMatrix3x3 normalMat = view.normalMatrix();
+    QMatrix4x4 modelView = view;
 
-    // Pack uniform: mat4(64 bytes) + mat3 as 3 vec4 (48 bytes) = 112 bytes
-    float ubufData[28]; // 112 / 4
+    QMatrix4x4 mvp = proj * view;
+    QMatrix3x3 normalMat = modelView.normalMatrix();
+
+    // Pack uniform: mat4 mvp + mat4 modelView + mat3 as 3 vec4 (std140)
+    float ubufData[44]; // 176 / 4
     memcpy(ubufData, mvp.constData(), 64);
+    memcpy(ubufData + 16, modelView.constData(), 64);
     // std140: mat3 is stored as 3 columns of vec4
     const float *n = normalMat.constData();
-    ubufData[16] = n[0]; ubufData[17] = n[1]; ubufData[18] = n[2]; ubufData[19] = 0;
-    ubufData[20] = n[3]; ubufData[21] = n[4]; ubufData[22] = n[5]; ubufData[23] = 0;
-    ubufData[24] = n[6]; ubufData[25] = n[7]; ubufData[26] = n[8]; ubufData[27] = 0;
+    ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0;
+    ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
+    ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
 
     QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-    u->updateDynamicBuffer(m_ubuf.get(), 0, 112, ubufData);
+    u->updateDynamicBuffer(m_ubuf.get(), 0, 176, ubufData);
 
     cb->beginPass(renderTarget(), QColor(40, 40, 40), { 1.0f, 0 }, u);
 

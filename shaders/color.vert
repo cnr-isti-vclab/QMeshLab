@@ -5,6 +5,7 @@ layout(location = 1) in vec3 normal;
 
 layout(std140, binding = 0) uniform buf {
     mat4 mvp;
+    mat4 modelView;
     mat3 normalMatrix;
 };
 
