@@ -15,7 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_doc = new Document(this);
 
-    m_renderWidget = new RenderWidget(this);
+    m_renderWidget = new RenderWidget(m_doc, this);
     setCentralWidget(m_renderWidget);
 
     m_meshTree = new MeshTreeWidget(m_doc, this);
