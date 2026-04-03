@@ -50,6 +50,8 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/wireframe.vert
         shaders/wireframe.frag
         shaders/wireframe_lines.frag
+        shaders/bbox.vert
+        shaders/bbox.frag
 )
 
 qt_add_resources(QMeshLab "icons"

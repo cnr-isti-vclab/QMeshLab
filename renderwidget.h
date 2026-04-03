@@ -54,13 +54,20 @@ private:
         std::vector<float> uploadData;
         std::vector<quint32> uploadIndices;
     };
+    // Per-mesh bounding-box GPU data (24 vertices, LineList)
+    struct BBoxGPU {
+        std::unique_ptr<QRhiBuffer> vbuf;
+        std::vector<float> uploadData;
+    };
     std::vector<MeshGPU> m_meshGPU;
+    std::vector<BBoxGPU> m_bboxGPU;
     bool m_buffersDirty = true;
     bool m_logRebuildRequested = false;
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiGraphicsPipeline> m_pipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     ShadingMode m_shadingMode = ShadingMode::Smooth;
     bool m_showBoundingBox = false;
     bool m_showPoints = false;

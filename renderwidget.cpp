@@ -73,7 +73,7 @@ void RenderWidget::createOverlayButtons()
         return btn;
     };
 
-    m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box (stub)"));
+    m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box"));
     m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points (stub)"));
     m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
     m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
@@ -85,7 +85,6 @@ void RenderWidget::createOverlayButtons()
 
     connect(m_bboxButton, &QToolButton::toggled, this, [this](bool checked) {
         m_showBoundingBox = checked;
-        m_doc->writeLog(tr("[render] Bounding box pass is not implemented yet"), Document::LogSource::Application);
         update();
     });
     connect(m_pointsButton, &QToolButton::toggled, this, [this](bool checked) {
@@ -129,9 +128,11 @@ void RenderWidget::ensureRenderResources()
     if (m_rhi != rhi()) {
         m_rhi = rhi();
         m_pipeline.reset();
+        m_bboxPipeline.reset();
         m_srb.reset();
         m_ubuf.reset();
         m_meshGPU.clear();
+        m_bboxGPU.clear();
         m_buffersDirty = true;
     }
 
@@ -222,6 +223,39 @@ void RenderWidget::ensureRenderResources()
         if (!m_pipeline->create()) {
             qWarning("Failed to create graphics pipeline");
             m_pipeline.reset();
+        }
+    }
+
+    if (!m_bboxPipeline) {
+        m_bboxPipeline.reset(m_rhi->newGraphicsPipeline());
+
+        QShader vs = loadShader(QStringLiteral(":/shaders/bbox.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/bbox.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load bbox shaders");
+            m_bboxPipeline.reset();
+            return;
+        }
+
+        m_bboxPipeline->setShaderStages({
+            { QRhiShaderStage::Vertex, vs },
+            { QRhiShaderStage::Fragment, fs }
+        });
+        m_bboxPipeline->setTopology(QRhiGraphicsPipeline::Lines);
+        m_bboxPipeline->setDepthTest(true);
+        m_bboxPipeline->setDepthWrite(false);
+        m_bboxPipeline->setCullMode(QRhiGraphicsPipeline::None);
+
+        QRhiVertexInputLayout bboxLayout;
+        bboxLayout.setBindings({ { 3 * sizeof(float) } });
+        bboxLayout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+        m_bboxPipeline->setVertexInputLayout(bboxLayout);
+        m_bboxPipeline->setShaderResourceBindings(m_srb.get());
+        m_bboxPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+
+        if (!m_bboxPipeline->create()) {
+            qWarning("Failed to create bbox pipeline");
+            m_bboxPipeline.reset();
         }
     }
 }
@@ -322,6 +356,46 @@ void RenderWidget::rebuildBuffers()
         mg.uploadIndices = std::move(idata);
         m_meshGPU.push_back(std::move(mg));
     }
+
+    // Build per-mesh bounding box line buffers (12 edges = 24 vertices)
+    m_bboxGPU.clear();
+    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        const VCGMesh &mesh = m_doc->mesh(mi).mesh;
+        if (mesh.bbox.IsNull()) continue;
+
+        const auto &mn = mesh.bbox.min;
+        const auto &mx = mesh.bbox.max;
+
+        // clang-format off
+        std::vector<float> bd = {
+            // bottom face
+            mn[0],mn[1],mn[2],  mx[0],mn[1],mn[2],
+            mx[0],mn[1],mn[2],  mx[0],mx[1],mn[2],
+            mx[0],mx[1],mn[2],  mn[0],mx[1],mn[2],
+            mn[0],mx[1],mn[2],  mn[0],mn[1],mn[2],
+            // top face
+            mn[0],mn[1],mx[2],  mx[0],mn[1],mx[2],
+            mx[0],mn[1],mx[2],  mx[0],mx[1],mx[2],
+            mx[0],mx[1],mx[2],  mn[0],mx[1],mx[2],
+            mn[0],mx[1],mx[2],  mn[0],mn[1],mx[2],
+            // vertical edges
+            mn[0],mn[1],mn[2],  mn[0],mn[1],mx[2],
+            mx[0],mn[1],mn[2],  mx[0],mn[1],mx[2],
+            mx[0],mx[1],mn[2],  mx[0],mx[1],mx[2],
+            mn[0],mx[1],mn[2],  mn[0],mx[1],mx[2],
+        };
+        // clang-format on
+
+        auto bvbuf = std::unique_ptr<QRhiBuffer>(
+            m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer,
+                             static_cast<quint32>(bd.size() * sizeof(float))));
+        bvbuf->create();
+
+        BBoxGPU bg;
+        bg.vbuf = std::move(bvbuf);
+        bg.uploadData = std::move(bd);
+        m_bboxGPU.push_back(std::move(bg));
+    }
 }
 
 void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
@@ -340,7 +414,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     int uploadedVertices = 0;
     int uploadedTriangles = 0;
 
-    if (!m_meshGPU.empty()) {
+    if (!m_meshGPU.empty() || !m_bboxGPU.empty()) {
         QElapsedTimer uploadTimer;
         uploadTimer.start();
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
@@ -353,6 +427,12 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             uploadedTriangles += (mg.indexCount > 0 ? mg.indexCount : mg.vertexCount) / 3;
             mg.uploadData.clear();
             mg.uploadIndices.clear();
+        }
+        for (auto &bg : m_bboxGPU) {
+            if (!bg.uploadData.empty()) {
+                u->uploadStaticBuffer(bg.vbuf.get(), bg.uploadData.data());
+                bg.uploadData.clear();
+            }
         }
         cb->resourceUpdate(u);
         uploadMs = uploadTimer.elapsed();
@@ -389,7 +469,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!m_rhi || !m_ubuf)
         return;
 
-    if (!m_showFill && !m_showWire)
+    if (!m_showFill && !m_showWire && !m_showBoundingBox)
         return;
 
     prepareDirtyBuffers(cb);
@@ -444,6 +524,17 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 cb->setVertexInput(0, 1, &vbufBinding);
                 cb->draw(mg.vertexCount);
             }
+        }
+    }
+
+    if (m_showBoundingBox && m_bboxPipeline && !m_bboxGPU.empty()) {
+        cb->setGraphicsPipeline(m_bboxPipeline.get());
+        cb->setShaderResources();
+        for (const auto &bg : m_bboxGPU) {
+            if (!bg.vbuf) continue;
+            const QRhiCommandBuffer::VertexInput bv(bg.vbuf.get(), 0);
+            cb->setVertexInput(0, 1, &bv);
+            cb->draw(24);
         }
     }
 
