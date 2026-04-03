@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 
+class MeshIOPluginManager;
+
 class Document : public QObject
 {
     Q_OBJECT
@@ -27,6 +29,7 @@ public:
     };
 
     explicit Document(QObject *parent = nullptr);
+    ~Document() override;
 
     int loadMesh(const QString &filename);
     void removeMesh(int index);
@@ -37,7 +40,7 @@ public:
     MeshEntry &mesh(int i) { return *m_meshes[i]; }
     const MeshEntry &mesh(int i) const { return *m_meshes[i]; }
     const std::vector<LogEntry> &logMessages() const { return m_logMessages; }
-    vcg::CallBackPos *logCallback();
+    QString openDialogFilter() const;
 
 signals:
     void meshAdded(int index);
@@ -46,9 +49,11 @@ signals:
     void logMessageAdded(const QString &message, Document::LogSource source, bool replaceLast);
 
 private:
+    vcg::CallBackPos *logCallback();
     bool handleLogCallback(int pos, const char *message);
     static bool dispatchLogCallback(int pos, const char *message);
 
+    std::unique_ptr<MeshIOPluginManager> m_pluginManager;
     std::vector<std::unique_ptr<MeshEntry>> m_meshes;
     std::vector<LogEntry> m_logMessages;
     QString m_lastCallbackMessage;

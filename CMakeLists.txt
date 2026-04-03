@@ -14,6 +14,9 @@ qt_add_executable(QMeshLab
     document.h document.cpp
     layerwidget.h layerwidget.cpp
     vcgmesh.h
+    meshioplugin.h
+    meshiopluginmanager.h meshiopluginmanager.cpp
+    vcgimportplugin.h vcgimportplugin.cpp
     vcglib/wrap/ply/plylib.cpp
 )
 

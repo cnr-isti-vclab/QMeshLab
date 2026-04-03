@@ -76,7 +76,7 @@ MainWindow::MainWindow(QWidget *parent)
 void MainWindow::openFile()
 {
     QString fileName = QFileDialog::getOpenFileName(this, tr("Open Mesh"),
-        QString(), tr("Mesh Files (*.ply *.obj *.stl *.off);;All Files (*)"));
+        QString(), m_doc->openDialogFilter());
     if (fileName.isEmpty())
         return;
     int err = m_doc->loadMesh(fileName);

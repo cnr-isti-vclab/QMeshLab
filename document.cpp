@@ -1,5 +1,8 @@
 #include "document.h"
-#include <wrap/io_trimesh/import.h>
+#include "meshiopluginmanager.h"
+#include "vcgimportplugin.h"
+#include <vcg/complex/algorithms/update/bounding.h>
+#include <vcg/complex/algorithms/update/normal.h>
 #include <QElapsedTimer>
 #include <QFileInfo>
 
@@ -7,10 +10,28 @@ namespace {
 Document *g_callbackDocument = nullptr;
 }
 
-Document::Document(QObject *parent) : QObject(parent) {}
+Document::Document(QObject *parent)
+    : QObject(parent)
+    , m_pluginManager(std::make_unique<MeshIOPluginManager>())
+{
+    m_pluginManager->registerPlugin(std::make_unique<VCGImportPlugin>());
+}
+
+Document::~Document() = default;
+
+QString Document::openDialogFilter() const
+{
+    return m_pluginManager->openDialogFilter();
+}
 
 int Document::loadMesh(const QString &filename)
 {
+    const MeshIOPlugin *plugin = m_pluginManager->pluginFor(filename);
+    if (!plugin) {
+        writeLog(tr("No plugin found for: %1").arg(filename), LogSource::Application);
+        return -1;
+    }
+
     writeLog(tr("Loading mesh: %1").arg(filename), LogSource::Application);
 
     auto entry = std::make_unique<MeshEntry>();
@@ -21,17 +42,14 @@ int Document::loadMesh(const QString &filename)
 
     Document *previousCallbackDocument = g_callbackDocument;
     g_callbackDocument = this;
-    int err = vcg::tri::io::Importer<VCGMesh>::Open(
-        entry->mesh,
-        filename.toStdString().c_str(),
-        logCallback());
+    int err = plugin->load(filename, entry->mesh, logCallback());
     g_callbackDocument = previousCallbackDocument;
     const qint64 elapsedMs = loadTimer.elapsed();
 
     if (err != 0) {
         writeLog(tr("Load failed in %1 ms: %2")
             .arg(elapsedMs)
-            .arg(QString::fromLatin1(vcg::tri::io::Importer<VCGMesh>::ErrorMsg(err))),
+            .arg(plugin->errorString(err)),
             LogSource::Application);
         return err;
     }
