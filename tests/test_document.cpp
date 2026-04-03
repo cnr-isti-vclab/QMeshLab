@@ -1,0 +1,71 @@
+#include <QtTest/QtTest>
+#include <QSignalSpy>
+
+#include "document.h"
+
+class DocumentTests : public QObject
+{
+    Q_OBJECT
+
+private slots:
+    void logReplaceLastEntryOnCarriageReturn();
+    void loadMeshAddsLayerAndEmitsSignal();
+    void openDialogFilterContainsKnownFormats();
+    void benchmarkLoadMesh();
+};
+
+void DocumentTests::logReplaceLastEntryOnCarriageReturn()
+{
+    Document doc;
+
+    doc.writeLog(QStringLiteral("first"));
+    doc.writeLog(QStringLiteral("progress\r"));
+
+    const auto &log = doc.logMessages();
+    QCOMPARE(log.size(), size_t(1));
+    QCOMPARE(log.back().message, QStringLiteral("progress"));
+    QCOMPARE(log.back().source, Document::LogSource::Application);
+}
+
+void DocumentTests::loadMeshAddsLayerAndEmitsSignal()
+{
+    Document doc;
+    QSignalSpy addedSpy(&doc, &Document::meshAdded);
+
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off");
+    const int err = doc.loadMesh(path);
+
+    QCOMPARE(err, 0);
+    QCOMPARE(doc.meshCount(), 1);
+    QCOMPARE(addedSpy.count(), 1);
+    QCOMPARE(doc.mesh(0).name, QStringLiteral("simple.off"));
+
+    const auto &log = doc.logMessages();
+    QVERIFY(!log.empty());
+}
+
+void DocumentTests::openDialogFilterContainsKnownFormats()
+{
+    Document doc;
+    const QString filter = doc.openDialogFilter();
+
+    QVERIFY(filter.contains(QStringLiteral("*.ply")));
+    QVERIFY(filter.contains(QStringLiteral("*.obj")));
+    QVERIFY(filter.contains(QStringLiteral("All Files (*)")));
+}
+
+void DocumentTests::benchmarkLoadMesh()
+{
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off");
+    int err = -1;
+
+    QBENCHMARK {
+        Document doc;
+        err = doc.loadMesh(path);
+    }
+
+    QCOMPARE(err, 0);
+}
+
+QTEST_MAIN(DocumentTests)
+#include "test_document.moc"
