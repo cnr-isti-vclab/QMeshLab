@@ -1,5 +1,6 @@
 #pragma once
 
+#include "renderingsettings.h"
 #include <QRhiWidget>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
@@ -8,7 +9,7 @@
 #include <vector>
 
 class Document;
-class QToolButton;
+class RenderOverlayPanel;
 
 class RenderWidget : public QRhiWidget
 {
@@ -77,15 +78,8 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
     ShadingMode m_shadingMode = ShadingMode::Smooth;
-    bool m_showBoundingBox = false;
-    bool m_showPoints = false;
-    bool m_showWire = true;
-    bool m_showFill = true;
-    QToolButton *m_modeButton = nullptr;
-    QToolButton *m_bboxButton = nullptr;
-    QToolButton *m_pointsButton = nullptr;
-    QToolButton *m_wireButton = nullptr;
-    QToolButton *m_fillButton = nullptr;
+    RenderSettings m_renderSettings;
+    RenderOverlayPanel *m_overlayPanel = nullptr;
     QElapsedTimer m_frameTimer;
 
     // Simple orbit camera

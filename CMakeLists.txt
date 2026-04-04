@@ -30,6 +30,7 @@ qt_add_executable(QMeshLab
     main.cpp
     mainwindow.h mainwindow.cpp
     renderwidget.h renderwidget.cpp
+    renderoverlaypanel.h renderoverlaypanel.cpp
     layerwidget.h layerwidget.cpp
 )
 

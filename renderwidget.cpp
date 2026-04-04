@@ -1,10 +1,9 @@
 #include "renderwidget.h"
 #include "document.h"
+#include "renderoverlaypanel.h"
 #include <QFile>
-#include <QIcon>
 #include <QMouseEvent>
 #include <QResizeEvent>
-#include <QToolButton>
 #include <QWheelEvent>
 #include <cmath>
 
@@ -16,6 +15,12 @@ static QShader loadShader(const QString &path)
         return {};
     }
     return QShader::fromSerialized(f.readAll());
+}
+
+namespace {
+constexpr int kUbufSize = 192;
+constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
+constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
 }
 
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
@@ -38,10 +43,11 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
 void RenderWidget::setShadingMode(ShadingMode mode)
 {
     if (mode == ShadingMode::Wireframe) {
-        m_showWire = true;
-        m_showFill = true;
-        if (m_wireButton) m_wireButton->setChecked(true);
-        if (m_fillButton) m_fillButton->setChecked(true);
+        m_renderSettings.showWire = true;
+        m_renderSettings.showFill = true;
+        if (m_overlayPanel) {
+            m_overlayPanel->setSettings(m_renderSettings);
+        }
         update();
         return;
     }
@@ -58,58 +64,22 @@ void RenderWidget::setShadingMode(ShadingMode mode)
 
 void RenderWidget::createOverlayButtons()
 {
-    auto makeButton = [this](const QString &iconPath, const QString &tooltip) {
-        auto *btn = new QToolButton(this);
-        btn->setIcon(QIcon(iconPath));
-        btn->setToolTip(tooltip);
-        btn->setCheckable(true);
-        btn->setAutoRaise(false);
-        btn->setIconSize(QSize(32, 32));
-        btn->setFixedSize(32, 32);
-        btn->setStyleSheet(QStringLiteral(
-            "QToolButton { background: rgba(250,250,250,210); border: 1px solid rgba(40,40,40,160); border-radius: 4px; }"
-            "QToolButton:checked { background: rgba(60,130,220,220); }"
-            "QToolButton:hover { background: rgba(220,230,245,220); }"));
-        return btn;
-    };
+    m_overlayPanel = new RenderOverlayPanel(this);
+    m_overlayPanel->setSettings(m_renderSettings);
 
-    m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box"));
-    m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points"));
-    m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
-    m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
-    m_modeButton = makeButton(QStringLiteral(":/img/options.png"), tr("Render Modality"));
-    m_modeButton->setCheckable(false);
+    connect(m_overlayPanel, &RenderOverlayPanel::settingsChanged, this,
+            [this](const RenderSettings &settings) {
+        const RenderSettings prev = m_renderSettings;
+        m_renderSettings = settings;
 
-    m_bboxButton->setChecked(m_showBoundingBox);
-    m_pointsButton->setChecked(m_showPoints);
-    m_wireButton->setChecked(m_showWire);
-    m_fillButton->setChecked(m_showFill);
+        if (prev.showWire != m_renderSettings.showWire || prev.showFill != m_renderSettings.showFill) {
+            m_pipeline.reset();
+            m_buffersDirty = true;
+            m_logRebuildRequested = true;
+        }
 
-    connect(m_modeButton, &QToolButton::clicked, this, [this]() {
-        // Placeholder: render modality settings will be attached here.
         update();
-    });
-    connect(m_bboxButton, &QToolButton::toggled, this, [this](bool checked) {
-        m_showBoundingBox = checked;
-        update();
-    });
-    connect(m_pointsButton, &QToolButton::toggled, this, [this](bool checked) {
-        m_showPoints = checked;
-        update();
-    });
-    connect(m_wireButton, &QToolButton::toggled, this, [this](bool checked) {
-        m_showWire = checked;
-        m_pipeline.reset();
-        m_buffersDirty = true;
-        m_logRebuildRequested = true;
-        update();
-    });
-    connect(m_fillButton, &QToolButton::toggled, this, [this](bool checked) {
-        m_showFill = checked;
-        m_pipeline.reset();
-        m_buffersDirty = true;
-        m_logRebuildRequested = true;
-        update();
+        layoutOverlayButtons();
     });
 
     layoutOverlayButtons();
@@ -117,16 +87,12 @@ void RenderWidget::createOverlayButtons()
 
 void RenderWidget::layoutOverlayButtons()
 {
-    const int x0 = 8;
-    const int y0 = 8;
-    const int s = 32;
-    const int gap = 4;
+    if (!m_overlayPanel)
+        return;
 
-    if (m_modeButton) m_modeButton->move(x0 + 0 * (s + gap), y0);
-    if (m_bboxButton) m_bboxButton->move(x0 + 1 * (s + gap), y0);
-    if (m_pointsButton) m_pointsButton->move(x0 + 2 * (s + gap), y0);
-    if (m_wireButton) m_wireButton->move(x0 + 3 * (s + gap), y0);
-    if (m_fillButton) m_fillButton->move(x0 + 4 * (s + gap), y0);
+    m_overlayPanel->adjustSize();
+    m_overlayPanel->move(8, 8);
+    m_overlayPanel->raise();
 }
 
 void RenderWidget::ensureRenderResources()
@@ -148,15 +114,18 @@ void RenderWidget::ensureRenderResources()
         return;
 
     if (!m_ubuf) {
-        // Uniform buffer: mat4 mvp (64) + mat4 modelView (64) + mat3 std140 (48) = 176 bytes
-        m_ubuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, 176));
+        // Uniform buffer: mat4 mvp + mat4 modelView + mat3 std140 + vec4 bboxColor
+        m_ubuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kUbufSize));
         m_ubuf->create();
     }
 
     if (!m_srb) {
         m_srb.reset(m_rhi->newShaderResourceBindings());
         m_srb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(0, QRhiShaderResourceBinding::VertexStage, m_ubuf.get())
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                m_ubuf.get())
         });
         m_srb->create();
     }
@@ -164,13 +133,13 @@ void RenderWidget::ensureRenderResources()
     if (!m_pipeline) {
         m_pipeline.reset(m_rhi->newGraphicsPipeline());
 
-        const bool useWirePipeline = m_showWire;
+        const bool useWirePipeline = m_renderSettings.showWire;
 
         QString vsPath;
         QString fsPath;
         if (useWirePipeline) {
             vsPath = QStringLiteral(":/shaders/wireframe.vert.qsb");
-            fsPath = m_showFill
+            fsPath = m_renderSettings.showFill
                 ? QStringLiteral(":/shaders/wireframe.frag.qsb")
                 : QStringLiteral(":/shaders/wireframe_lines.frag.qsb");
         } else {
@@ -324,7 +293,7 @@ void RenderWidget::rebuildBuffers()
 
         MeshGPU mg;
 
-        if (m_showWire) {
+        if (m_renderSettings.showWire) {
             const int vertexCount = mesh.FN() * 3;
             const int vertBytes = vertexCount * 6 * sizeof(float);
             auto vbuf = std::unique_ptr<QRhiBuffer>(
@@ -541,7 +510,10 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!m_rhi || !m_ubuf)
         return;
 
-    if (!m_showFill && !m_showWire && !m_showBoundingBox && !m_showPoints)
+    if (!m_renderSettings.showFill
+        && !m_renderSettings.showWire
+        && !m_renderSettings.showBoundingBox
+        && !m_renderSettings.showPoints)
         return;
 
     prepareDirtyBuffers(cb);
@@ -565,8 +537,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     QMatrix4x4 mvp = proj * view;
     QMatrix3x3 normalMat = modelView.normalMatrix();
 
-    // Pack uniform: mat4 mvp + mat4 modelView + mat3 as 3 vec4 (std140)
-    float ubufData[44]; // 176 / 4
+    // Pack uniform: mat4 mvp + mat4 modelView + mat3 as 3 vec4 (std140) + vec4 bboxColor.
+    float ubufData[kUbufFloatCount] = {};
     memcpy(ubufData, mvp.constData(), 64);
     memcpy(ubufData + 16, modelView.constData(), 64);
     // std140: mat3 is stored as 3 columns of vec4
@@ -574,9 +546,13 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0;
     ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
     ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
+    ubufData[kUbufBBoxColorOffset + 0] = m_renderSettings.bboxWireColor.redF();
+    ubufData[kUbufBBoxColorOffset + 1] = m_renderSettings.bboxWireColor.greenF();
+    ubufData[kUbufBBoxColorOffset + 2] = m_renderSettings.bboxWireColor.blueF();
+    ubufData[kUbufBBoxColorOffset + 3] = m_renderSettings.bboxWireColor.alphaF();
 
     QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-    u->updateDynamicBuffer(m_ubuf.get(), 0, 176, ubufData);
+    u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
 
     cb->beginPass(renderTarget(), QColor(40, 40, 40), { 1.0f, 0 }, u);
 
@@ -599,7 +575,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
-    if (m_showBoundingBox && m_bboxPipeline && !m_bboxGPU.empty()) {
+    if (m_renderSettings.showBoundingBox && m_bboxPipeline && !m_bboxGPU.empty()) {
         cb->setGraphicsPipeline(m_bboxPipeline.get());
         cb->setShaderResources();
         for (const auto &bg : m_bboxGPU) {
@@ -610,7 +586,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
-    if (m_showPoints && m_pointsPipeline && !m_pointsGPU.empty()) {
+    if (m_renderSettings.showPoints && m_pointsPipeline && !m_pointsGPU.empty()) {
         cb->setGraphicsPipeline(m_pointsPipeline.get());
         cb->setShaderResources();
         for (const auto &pg : m_pointsGPU) {
