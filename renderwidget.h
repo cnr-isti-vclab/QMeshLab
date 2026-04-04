@@ -26,7 +26,7 @@ public:
     ShadingMode shadingMode() const { return m_shadingMode; }
 
 signals:
-    void frameRendered(float ms);
+    void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
 
 protected:
     void initialize(QRhiCommandBuffer *cb) override;

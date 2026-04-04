@@ -3,12 +3,14 @@
 #include <QMainWindow>
 #include <QStringList>
 #include <array>
+#include <deque>
 
 class Document;
 class RenderWidget;
 class LayerWidget;
 class QMenu;
 class QAction;
+class QLabel;
 
 class MainWindow : public QMainWindow
 {
@@ -29,8 +31,10 @@ private slots:
 private:
     bool loadMeshFromPath(const QString &filePath);
     void addRecentMesh(const QString &filePath);
+    void sanitizeRecentMeshes();
     void refreshRecentMeshesMenu();
     void openRecentMeshByIndex(int index);
+    void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
 
     Document *m_doc;
     RenderWidget *m_renderWidget;
@@ -39,4 +43,7 @@ private:
     QAction *m_openLastAction = nullptr;
     std::array<QAction *, 4> m_recentActions = {};
     QStringList m_recentMeshes;
+    QLabel *m_frameStatsLabel = nullptr;
+    std::deque<float> m_lastCpuFrameTimes;
+    std::deque<float> m_lastGpuFrameTimes;
 };

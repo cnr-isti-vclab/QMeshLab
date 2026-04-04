@@ -12,13 +12,37 @@
 #include <QAction>
 #include <QBrush>
 #include <QColor>
+#include <QFontDatabase>
+#include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QSettings>
 #include <QStringList>
+#include <algorithm>
 #include <array>
+#include <numeric>
 
 namespace {
+constexpr std::size_t kFrameStatsWindow = 100;
+
+QString normalizeRecentPath(const QString &path)
+{
+    const QFileInfo fi(path);
+    const QString canonical = fi.canonicalFilePath();
+    if (!canonical.isEmpty())
+        return canonical;
+    return fi.absoluteFilePath();
+}
+
+bool sameRecentPath(const QString &a, const QString &b)
+{
+#if defined(Q_OS_WIN) || defined(Q_OS_DARWIN)
+    return a.compare(b, Qt::CaseInsensitive) == 0;
+#else
+    return a == b;
+#endif
+}
+
 void appendLogItem(QListWidget *logWidget, const QString &message, Document::LogSource source, bool replaceLast)
 {
     QListWidgetItem *item = nullptr;
@@ -51,6 +75,12 @@ MainWindow::MainWindow(QWidget *parent)
     m_renderWidget = new RenderWidget(m_doc, this);
     setCentralWidget(m_renderWidget);
 
+    m_frameStatsLabel = new QLabel(this);
+    QFont statsFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    statsFont.setStyleHint(QFont::TypeWriter);
+    m_frameStatsLabel->setFont(statsFont);
+    statusBar()->addPermanentWidget(m_frameStatsLabel, 1);
+
     m_layerWidget = new LayerWidget(m_doc, this);
     auto *dock = new QDockWidget(tr("Layers"), this);
     dock->setWidget(m_layerWidget);
@@ -70,8 +100,9 @@ MainWindow::MainWindow(QWidget *parent)
             appendLogItem(logWidget, message, source, replaceLast);
     });
 
-    connect(m_renderWidget, &RenderWidget::frameRendered, this, [this](float ms) {
-        statusBar()->showMessage(QString("Frame: %1 ms").arg(ms, 0, 'f', 3));
+    connect(m_renderWidget, &RenderWidget::frameRendered, this,
+            [this](float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid) {
+        updateFrameTimeStats(cpuMs, gpuMs, gpuTimingSupported, gpuSampleValid);
     });
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
@@ -103,8 +134,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     QSettings settings;
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
-    while (m_recentMeshes.size() > 4)
-        m_recentMeshes.removeLast();
+    sanitizeRecentMeshes();
     refreshRecentMeshesMenu();
 }
 
@@ -119,6 +149,9 @@ void MainWindow::openFile()
 
 void MainWindow::openLastMesh()
 {
+    sanitizeRecentMeshes();
+    refreshRecentMeshesMenu();
+
     if (m_recentMeshes.isEmpty()) {
         statusBar()->showMessage(tr("No recent meshes"), 2000);
         return;
@@ -193,14 +226,46 @@ bool MainWindow::loadMeshFromPath(const QString &filePath)
 
 void MainWindow::addRecentMesh(const QString &filePath)
 {
-    m_recentMeshes.removeAll(filePath);
-    m_recentMeshes.prepend(filePath);
-    while (m_recentMeshes.size() > 4)
-        m_recentMeshes.removeLast();
+    const QString normalizedPath = normalizeRecentPath(filePath);
+    if (!normalizedPath.isEmpty())
+        m_recentMeshes.prepend(normalizedPath);
 
+    sanitizeRecentMeshes();
+    refreshRecentMeshesMenu();
+}
+
+void MainWindow::sanitizeRecentMeshes()
+{
+    QStringList cleaned;
+    cleaned.reserve(4);
+    for (const QString &path : std::as_const(m_recentMeshes)) {
+        const QString normalizedPath = normalizeRecentPath(path);
+        if (normalizedPath.isEmpty())
+            continue;
+        if (!QFileInfo::exists(normalizedPath))
+            continue;
+
+        bool alreadyInList = false;
+        for (const QString &existingPath : std::as_const(cleaned)) {
+            if (sameRecentPath(existingPath, normalizedPath)) {
+                alreadyInList = true;
+                break;
+            }
+        }
+        if (alreadyInList)
+            continue;
+
+        cleaned.append(normalizedPath);
+        if (cleaned.size() >= 4)
+            break;
+    }
+
+    if (cleaned == m_recentMeshes)
+        return;
+
+    m_recentMeshes = cleaned;
     QSettings settings;
     settings.setValue(QStringLiteral("recentMeshes"), m_recentMeshes);
-    refreshRecentMeshesMenu();
 }
 
 void MainWindow::refreshRecentMeshesMenu()
@@ -234,7 +299,67 @@ void MainWindow::refreshRecentMeshesMenu()
 
 void MainWindow::openRecentMeshByIndex(int index)
 {
+    sanitizeRecentMeshes();
+    refreshRecentMeshesMenu();
+
     if (index >= 0 && index < m_recentMeshes.size()) {
         loadMeshFromPath(m_recentMeshes[index]);
     }
+}
+
+void MainWindow::updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid)
+{
+    m_lastCpuFrameTimes.push_back(cpuMs);
+    if (m_lastCpuFrameTimes.size() > kFrameStatsWindow)
+        m_lastCpuFrameTimes.pop_front();
+
+    const auto [cpuMinIt, cpuMaxIt] = std::minmax_element(m_lastCpuFrameTimes.begin(), m_lastCpuFrameTimes.end());
+    const float cpuSum = std::accumulate(m_lastCpuFrameTimes.begin(), m_lastCpuFrameTimes.end(), 0.0f);
+    const float cpuAvg = cpuSum / static_cast<float>(m_lastCpuFrameTimes.size());
+    const float cpuMinMs = (cpuMinIt != m_lastCpuFrameTimes.end()) ? *cpuMinIt : cpuMs;
+    const float cpuMaxMs = (cpuMaxIt != m_lastCpuFrameTimes.end()) ? *cpuMaxIt : cpuMs;
+
+    QString gpuText;
+    if (!gpuTimingSupported) {
+        m_lastGpuFrameTimes.clear();
+        gpuText = tr("GPU: n/a");
+    } else {
+        if (gpuSampleValid) {
+            m_lastGpuFrameTimes.push_back(gpuMs);
+            if (m_lastGpuFrameTimes.size() > kFrameStatsWindow)
+                m_lastGpuFrameTimes.pop_front();
+        }
+
+        if (m_lastGpuFrameTimes.empty()) {
+            gpuText = tr("GPU: waiting...");
+        } else {
+            const auto [gpuMinIt, gpuMaxIt] =
+                std::minmax_element(m_lastGpuFrameTimes.begin(), m_lastGpuFrameTimes.end());
+            const float gpuSum = std::accumulate(m_lastGpuFrameTimes.begin(), m_lastGpuFrameTimes.end(), 0.0f);
+            const float gpuAvg = gpuSum / static_cast<float>(m_lastGpuFrameTimes.size());
+            const float gpuMinMs = (gpuMinIt != m_lastGpuFrameTimes.end()) ? *gpuMinIt : m_lastGpuFrameTimes.back();
+            const float gpuMaxMs = (gpuMaxIt != m_lastGpuFrameTimes.end()) ? *gpuMaxIt : m_lastGpuFrameTimes.back();
+            const float gpuCurrentMs = gpuSampleValid ? gpuMs : m_lastGpuFrameTimes.back();
+
+            gpuText = tr("GPU: %1 ms | Last %2 avg %3 ms (min %4, max %5)")
+                .arg(gpuCurrentMs, 0, 'f', 3)
+                .arg(m_lastGpuFrameTimes.size())
+                .arg(gpuAvg, 0, 'f', 3)
+                .arg(gpuMinMs, 0, 'f', 3)
+                .arg(gpuMaxMs, 0, 'f', 3);
+        }
+    }
+
+    const QString statsText = tr("CPU: %1 ms | Last %2 avg %3 ms (min %4, max %5) | %6")
+        .arg(cpuMs, 0, 'f', 3)
+        .arg(m_lastCpuFrameTimes.size())
+        .arg(cpuAvg, 0, 'f', 3)
+        .arg(cpuMinMs, 0, 'f', 3)
+        .arg(cpuMaxMs, 0, 'f', 3)
+        .arg(gpuText);
+
+    if (m_frameStatsLabel)
+        m_frameStatsLabel->setText(statsText);
+    else
+        statusBar()->showMessage(statsText);
 }

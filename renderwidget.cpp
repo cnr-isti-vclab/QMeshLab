@@ -144,7 +144,10 @@ void RenderWidget::ensureRenderResources()
         m_srb->create();
     }
 
-    if (!m_pipeline) {
+    const bool meshPassEnabled = m_renderSettings.showWire || m_renderSettings.showFill;
+    if (!meshPassEnabled) {
+        m_pipeline.reset();
+    } else if (!m_pipeline) {
         m_pipeline.reset(m_rhi->newGraphicsPipeline());
 
         const bool useWirePipeline = m_renderSettings.showWire;
@@ -520,67 +523,71 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!m_rhi || !m_ubuf)
         return;
 
-    if (!m_renderSettings.showFill
-        && !m_renderSettings.showWire
-        && !m_renderSettings.showBoundingBox
-        && !m_renderSettings.showPoints)
-        return;
+    const bool drawMeshPass = m_renderSettings.showFill || m_renderSettings.showWire;
+    const bool drawBBoxPass = m_renderSettings.showBoundingBox;
+    const bool drawPointsPass = m_renderSettings.showPoints;
+    const bool anyDrawPass = drawMeshPass || drawBBoxPass || drawPointsPass;
 
-    prepareDirtyBuffers(cb);
+    if (anyDrawPass)
+        prepareDirtyBuffers(cb);
 
     m_frameTimer.start();
 
     const QSize sz = renderTarget()->pixelSize();
-    const float aspect = sz.width() / float(sz.height());
 
-    QMatrix4x4 proj;
-    proj.perspective(45.0f, aspect, 0.01f * m_radius, 100.0f * m_radius);
+    QRhiResourceUpdateBatch *u = nullptr;
+    if (anyDrawPass) {
+        const float aspect = sz.width() / float(sz.height());
 
-    QMatrix4x4 view;
-    view.translate(0, 0, -m_distance);
-    view.rotate(m_rotX, 1, 0, 0);
-    view.rotate(m_rotY, 0, 1, 0);
-    view.translate(-m_center);
+        QMatrix4x4 proj;
+        proj.perspective(45.0f, aspect, 0.01f * m_radius, 100.0f * m_radius);
 
-    QMatrix4x4 modelView = view;
+        QMatrix4x4 view;
+        view.translate(0, 0, -m_distance);
+        view.rotate(m_rotX, 1, 0, 0);
+        view.rotate(m_rotY, 0, 1, 0);
+        view.translate(-m_center);
 
-    QMatrix4x4 mvp = proj * view;
-    QMatrix3x3 normalMat = modelView.normalMatrix();
+        QMatrix4x4 modelView = view;
 
-    // Pack uniform: mat4 mvp + mat4 modelView + mat3 as 3 vec4 (std140) + render colors/params.
-    float ubufData[kUbufFloatCount] = {};
-    memcpy(ubufData, mvp.constData(), 64);
-    memcpy(ubufData + 16, modelView.constData(), 64);
-    // std140: mat3 is stored as 3 columns of vec4
-    const float *n = normalMat.constData();
-    ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0;
-    ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
-    ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
-    ubufData[kUbufBBoxColorOffset + 0] = m_renderSettings.bboxWireColor.redF();
-    ubufData[kUbufBBoxColorOffset + 1] = m_renderSettings.bboxWireColor.greenF();
-    ubufData[kUbufBBoxColorOffset + 2] = m_renderSettings.bboxWireColor.blueF();
-    ubufData[kUbufBBoxColorOffset + 3] = m_renderSettings.bboxWireColor.alphaF();
-    ubufData[kUbufPointColorOffset + 0] = m_renderSettings.pointColor.redF();
-    ubufData[kUbufPointColorOffset + 1] = m_renderSettings.pointColor.greenF();
-    ubufData[kUbufPointColorOffset + 2] = m_renderSettings.pointColor.blueF();
-    ubufData[kUbufPointColorOffset + 3] = m_renderSettings.pointColor.alphaF();
-    ubufData[kUbufPointParamsOffset + 0] = m_renderSettings.pointSize;
-    ubufData[kUbufWireColorOffset + 0] = m_renderSettings.wireColor.redF();
-    ubufData[kUbufWireColorOffset + 1] = m_renderSettings.wireColor.greenF();
-    ubufData[kUbufWireColorOffset + 2] = m_renderSettings.wireColor.blueF();
-    ubufData[kUbufWireColorOffset + 3] = m_renderSettings.wireColor.alphaF();
-    ubufData[kUbufWireParamsOffset + 0] = m_renderSettings.wireSize;
-    ubufData[kUbufFillColorOffset + 0] = m_renderSettings.fillColor.redF();
-    ubufData[kUbufFillColorOffset + 1] = m_renderSettings.fillColor.greenF();
-    ubufData[kUbufFillColorOffset + 2] = m_renderSettings.fillColor.blueF();
-    ubufData[kUbufFillColorOffset + 3] = m_renderSettings.fillColor.alphaF();
+        QMatrix4x4 mvp = proj * view;
+        QMatrix3x3 normalMat = modelView.normalMatrix();
 
-    QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-    u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
+        // Pack uniform: mat4 mvp + mat4 modelView + mat3 as 3 vec4 (std140) + render colors/params.
+        float ubufData[kUbufFloatCount] = {};
+        memcpy(ubufData, mvp.constData(), 64);
+        memcpy(ubufData + 16, modelView.constData(), 64);
+        // std140: mat3 is stored as 3 columns of vec4
+        const float *n = normalMat.constData();
+        ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0;
+        ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
+        ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
+        ubufData[kUbufBBoxColorOffset + 0] = m_renderSettings.bboxWireColor.redF();
+        ubufData[kUbufBBoxColorOffset + 1] = m_renderSettings.bboxWireColor.greenF();
+        ubufData[kUbufBBoxColorOffset + 2] = m_renderSettings.bboxWireColor.blueF();
+        ubufData[kUbufBBoxColorOffset + 3] = m_renderSettings.bboxWireColor.alphaF();
+        ubufData[kUbufPointColorOffset + 0] = m_renderSettings.pointColor.redF();
+        ubufData[kUbufPointColorOffset + 1] = m_renderSettings.pointColor.greenF();
+        ubufData[kUbufPointColorOffset + 2] = m_renderSettings.pointColor.blueF();
+        ubufData[kUbufPointColorOffset + 3] = m_renderSettings.pointColor.alphaF();
+        ubufData[kUbufPointParamsOffset + 0] = m_renderSettings.pointSize;
+        ubufData[kUbufWireColorOffset + 0] = m_renderSettings.wireColor.redF();
+        ubufData[kUbufWireColorOffset + 1] = m_renderSettings.wireColor.greenF();
+        ubufData[kUbufWireColorOffset + 2] = m_renderSettings.wireColor.blueF();
+        ubufData[kUbufWireColorOffset + 3] = m_renderSettings.wireColor.alphaF();
+        ubufData[kUbufWireParamsOffset + 0] = m_renderSettings.wireSize;
+        ubufData[kUbufFillColorOffset + 0] = m_renderSettings.fillColor.redF();
+        ubufData[kUbufFillColorOffset + 1] = m_renderSettings.fillColor.greenF();
+        ubufData[kUbufFillColorOffset + 2] = m_renderSettings.fillColor.blueF();
+        ubufData[kUbufFillColorOffset + 3] = m_renderSettings.fillColor.alphaF();
+
+        u = m_rhi->nextResourceUpdateBatch();
+        u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
+    }
 
     cb->beginPass(renderTarget(), QColor(40, 40, 40), { 1.0f, 0 }, u);
 
-    if (m_pipeline) {
+    if (drawMeshPass && m_pipeline) {
         cb->setGraphicsPipeline(m_pipeline.get());
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
         cb->setShaderResources();
@@ -599,7 +606,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
-    if (m_renderSettings.showBoundingBox && m_bboxPipeline && !m_bboxGPU.empty()) {
+    if (drawBBoxPass && m_bboxPipeline && !m_bboxGPU.empty()) {
         cb->setGraphicsPipeline(m_bboxPipeline.get());
         cb->setShaderResources();
         for (const auto &bg : m_bboxGPU) {
@@ -610,7 +617,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
-    if (m_renderSettings.showPoints && m_pointsPipeline && !m_pointsGPU.empty()) {
+    if (drawPointsPass && m_pointsPipeline && !m_pointsGPU.empty()) {
         cb->setGraphicsPipeline(m_pointsPipeline.get());
         cb->setShaderResources();
         for (const auto &pg : m_pointsGPU) {
@@ -623,8 +630,21 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     cb->endPass();
 
-    const float ms = m_frameTimer.nsecsElapsed() / 1e6f;
-    emit frameRendered(ms);
+    const float cpuMs = m_frameTimer.nsecsElapsed() / 1e6f;
+
+    const bool gpuTimingSupported = m_rhi->isFeatureSupported(QRhi::Timestamps);
+    float gpuMs = 0.0f;
+    bool gpuSampleValid = false;
+    if (gpuTimingSupported) {
+        // API returns elapsed seconds for the last completed frame.
+        const double gpuSeconds = cb->lastCompletedGpuTime();
+        if (gpuSeconds > 0.0) {
+            gpuMs = static_cast<float>(gpuSeconds * 1000.0);
+            gpuSampleValid = true;
+        }
+    }
+
+    emit frameRendered(cpuMs, gpuMs, gpuTimingSupported, gpuSampleValid);
 }
 
 void RenderWidget::mousePressEvent(QMouseEvent *e)
