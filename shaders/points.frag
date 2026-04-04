@@ -1,5 +1,14 @@
 #version 440
 
+layout(std140, binding = 0) uniform buf {
+    mat4 mvp;
+    mat4 modelView;
+    mat3 normalMatrix;
+    vec4 bboxColor;
+    vec4 pointColor;
+    vec4 pointParams;
+} ub;
+
 layout(location = 0) out vec4 fragColor;
 
 void main()
@@ -9,5 +18,5 @@ void main()
     if (dot(coord, coord) > 0.25)
         discard;
 
-    fragColor = vec4(1.0, 0.75, 0.2, 1.0);
+    fragColor = ub.pointColor;
 }

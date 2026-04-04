@@ -1,5 +1,7 @@
 #include "renderoverlaypanel.h"
 #include <QColorDialog>
+#include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -163,9 +165,63 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bboxLayout->addLayout(bboxForm);
 
     m_settingsStack->addWidget(bboxPage);
-    m_settingsStack->addWidget(makePlaceholderPage());
-    m_settingsStack->addWidget(makePlaceholderPage());
-    m_settingsStack->addWidget(makePlaceholderPage());
+    auto *pointsPage = new QWidget(m_settingsStack);
+    auto *pointsLayout = new QVBoxLayout(pointsPage);
+    pointsLayout->setContentsMargins(0, 0, 0, 0);
+    pointsLayout->setSpacing(2);
+    auto *pointsForm = new QFormLayout();
+    pointsForm->setContentsMargins(0, 0, 0, 0);
+    pointsForm->setHorizontalSpacing(6);
+    pointsForm->setVerticalSpacing(2);
+    pointsForm->setLabelAlignment(Qt::AlignLeft);
+    m_pointsColorButton = new QPushButton(tr("Choose..."), pointsPage);
+    m_pointSizeSpin = new QDoubleSpinBox(pointsPage);
+    m_pointSizeSpin->setRange(1.0, 32.0);
+    m_pointSizeSpin->setSingleStep(0.5);
+    m_pointSizeSpin->setDecimals(1);
+    m_pointSizeSpin->setSuffix(tr(" px"));
+    m_pointSizeSpin->setValue(m_settings.pointSize);
+    pointsForm->addRow(tr("Point color"), m_pointsColorButton);
+    pointsForm->addRow(tr("Point size"), m_pointSizeSpin);
+    pointsLayout->addLayout(pointsForm);
+    m_settingsStack->addWidget(pointsPage);
+    auto *wirePage = new QWidget(m_settingsStack);
+    auto *wireLayout = new QVBoxLayout(wirePage);
+    wireLayout->setContentsMargins(0, 0, 0, 0);
+    wireLayout->setSpacing(2);
+    auto *wireForm = new QFormLayout();
+    wireForm->setContentsMargins(0, 0, 0, 0);
+    wireForm->setHorizontalSpacing(6);
+    wireForm->setVerticalSpacing(2);
+    wireForm->setLabelAlignment(Qt::AlignLeft);
+    m_wireColorButton = new QPushButton(tr("Choose..."), wirePage);
+    m_wireSizeSpin = new QDoubleSpinBox(wirePage);
+    m_wireSizeSpin->setRange(0.5, 8.0);
+    m_wireSizeSpin->setSingleStep(0.1);
+    m_wireSizeSpin->setDecimals(1);
+    m_wireSizeSpin->setSuffix(tr(" px"));
+    m_wireSizeSpin->setValue(m_settings.wireSize);
+    wireForm->addRow(tr("Wire color"), m_wireColorButton);
+    wireForm->addRow(tr("Wire size"), m_wireSizeSpin);
+    wireLayout->addLayout(wireForm);
+    m_settingsStack->addWidget(wirePage);
+    auto *fillPage = new QWidget(m_settingsStack);
+    auto *fillLayout = new QVBoxLayout(fillPage);
+    fillLayout->setContentsMargins(0, 0, 0, 0);
+    fillLayout->setSpacing(2);
+    auto *fillForm = new QFormLayout();
+    fillForm->setContentsMargins(0, 0, 0, 0);
+    fillForm->setHorizontalSpacing(6);
+    fillForm->setVerticalSpacing(2);
+    fillForm->setLabelAlignment(Qt::AlignLeft);
+    m_fillColorButton = new QPushButton(tr("Choose..."), fillPage);
+    m_fillShadingCombo = new QComboBox(fillPage);
+    m_fillShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
+    m_fillShadingCombo->addItem(tr("Flat"), static_cast<int>(FillShading::Flat));
+    fillForm->addRow(tr("Fill color"), m_fillColorButton);
+    fillForm->addRow(tr("Shading"), m_fillShadingCombo);
+    fillLayout->addLayout(fillForm);
+    m_settingsStack->addWidget(fillPage);
     panelLayout->addWidget(m_settingsContainer);
 
     connect(m_modeButton, &QToolButton::toggled, this, [this](bool checked) {
@@ -182,6 +238,56 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             return;
         m_settings.bboxWireColor = picked;
         updateBBoxColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
+    connect(m_pointsColorButton, &QPushButton::clicked, this, [this]() {
+        const QColor picked = QColorDialog::getColor(m_settings.pointColor, this, tr("Point Color"));
+        if (!picked.isValid())
+            return;
+        m_settings.pointColor = picked;
+        updatePointsColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
+    connect(m_pointSizeSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
+        const float newSize = static_cast<float>(value);
+        if (m_settings.pointSize == newSize)
+            return;
+        m_settings.pointSize = newSize;
+        emit settingsChanged(m_settings);
+    });
+    connect(m_wireColorButton, &QPushButton::clicked, this, [this]() {
+        const QColor picked = QColorDialog::getColor(m_settings.wireColor, this, tr("Wire Color"));
+        if (!picked.isValid())
+            return;
+        m_settings.wireColor = picked;
+        updateWireColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
+    connect(m_wireSizeSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
+        const float newSize = static_cast<float>(value);
+        if (m_settings.wireSize == newSize)
+            return;
+        m_settings.wireSize = newSize;
+        emit settingsChanged(m_settings);
+    });
+    connect(m_fillColorButton, &QPushButton::clicked, this, [this]() {
+        const QColor picked = QColorDialog::getColor(m_settings.fillColor, this, tr("Fill Color"));
+        if (!picked.isValid())
+            return;
+        m_settings.fillColor = picked;
+        updateFillColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
+    connect(m_fillShadingCombo, &QComboBox::currentIndexChanged, this, [this](int idx) {
+        if (!m_fillShadingCombo)
+            return;
+        const QVariant data = m_fillShadingCombo->itemData(idx);
+        if (!data.isValid())
+            return;
+        const FillShading shading = static_cast<FillShading>(data.toInt());
+        if (m_settings.fillShading == shading)
+            return;
+        m_settings.fillShading = shading;
         emit settingsChanged(m_settings);
     });
 
@@ -241,6 +347,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     });
 
     updateBBoxColorButtonStyle();
+    updatePointsColorButtonStyle();
+    updateWireColorButtonStyle();
+    updateFillColorButtonStyle();
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
     if (m_settingsContainer)
@@ -303,12 +412,33 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_modeButton);
         m_modeButton->setChecked(m_settings.settingsPanelVisible);
     }
+    if (m_pointSizeSpin) {
+        QSignalBlocker blocker(m_pointSizeSpin);
+        m_pointSizeSpin->setValue(m_settings.pointSize);
+    }
+    if (m_wireSizeSpin) {
+        QSignalBlocker blocker(m_wireSizeSpin);
+        m_wireSizeSpin->setValue(m_settings.wireSize);
+    }
+    if (m_fillShadingCombo) {
+        QSignalBlocker blocker(m_fillShadingCombo);
+        const int value = static_cast<int>(m_settings.fillShading);
+        for (int i = 0; i < m_fillShadingCombo->count(); ++i) {
+            if (m_fillShadingCombo->itemData(i).toInt() == value) {
+                m_fillShadingCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
     if (m_settingsContainer)
         m_settingsContainer->setVisible(m_settings.settingsPanelVisible);
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
 
     updateBBoxColorButtonStyle();
+    updatePointsColorButtonStyle();
+    updateWireColorButtonStyle();
+    updateFillColorButtonStyle();
     syncRenderPassUiState();
 }
 
@@ -319,6 +449,33 @@ void RenderOverlayPanel::updateBBoxColorButtonStyle()
     m_bboxColorButton->setStyleSheet(QStringLiteral(
         "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
             .arg(m_settings.bboxWireColor.name()));
+}
+
+void RenderOverlayPanel::updatePointsColorButtonStyle()
+{
+    if (!m_pointsColorButton)
+        return;
+    m_pointsColorButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
+            .arg(m_settings.pointColor.name()));
+}
+
+void RenderOverlayPanel::updateWireColorButtonStyle()
+{
+    if (!m_wireColorButton)
+        return;
+    m_wireColorButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
+            .arg(m_settings.wireColor.name()));
+}
+
+void RenderOverlayPanel::updateFillColorButtonStyle()
+{
+    if (!m_fillColorButton)
+        return;
+    m_fillColorButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
+            .arg(m_settings.fillColor.name()));
 }
 
 void RenderOverlayPanel::syncRenderPassUiState()

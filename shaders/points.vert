@@ -6,6 +6,9 @@ layout(std140, binding = 0) uniform buf {
     mat4 mvp;
     mat4 modelView;
     mat3 normalMatrix;
+    vec4 bboxColor;
+    vec4 pointColor;
+    vec4 pointParams;
 } ub;
 
 out gl_PerVertex {
@@ -16,5 +19,5 @@ out gl_PerVertex {
 void main()
 {
     gl_Position = ub.mvp * vec4(inPos, 1.0);
-    gl_PointSize = 4.0;
+    gl_PointSize = ub.pointParams.x;
 }

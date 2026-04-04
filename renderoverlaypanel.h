@@ -4,6 +4,8 @@
 #include <QWidget>
 
 class QPushButton;
+class QDoubleSpinBox;
+class QComboBox;
 class QStackedWidget;
 class QToolButton;
 
@@ -25,12 +27,21 @@ private:
     int renderPassPageIndex(RenderPass pass) const;
     void syncRenderPassUiState();
     void updateBBoxColorButtonStyle();
+    void updatePointsColorButtonStyle();
+    void updateWireColorButtonStyle();
+    void updateFillColorButtonStyle();
 
     RenderSettings m_settings;
 
     QWidget *m_settingsContainer = nullptr;
     QStackedWidget *m_settingsStack = nullptr;
     QPushButton *m_bboxColorButton = nullptr;
+    QPushButton *m_pointsColorButton = nullptr;
+    QPushButton *m_wireColorButton = nullptr;
+    QPushButton *m_fillColorButton = nullptr;
+    QDoubleSpinBox *m_pointSizeSpin = nullptr;
+    QDoubleSpinBox *m_wireSizeSpin = nullptr;
+    QComboBox *m_fillShadingCombo = nullptr;
     QToolButton *m_modeButton = nullptr;
     QToolButton *m_bboxButton = nullptr;
     QToolButton *m_pointsButton = nullptr;

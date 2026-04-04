@@ -18,9 +18,14 @@ static QShader loadShader(const QString &path)
 }
 
 namespace {
-constexpr int kUbufSize = 192;
+constexpr int kUbufSize = 272;
 constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
 constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
+constexpr int kUbufPointColorOffset = 192 / sizeof(float);
+constexpr int kUbufPointParamsOffset = 208 / sizeof(float);
+constexpr int kUbufWireColorOffset = 224 / sizeof(float);
+constexpr int kUbufWireParamsOffset = 240 / sizeof(float);
+constexpr int kUbufFillColorOffset = 256 / sizeof(float);
 }
 
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
@@ -56,6 +61,9 @@ void RenderWidget::setShadingMode(ShadingMode mode)
         return;
 
     m_shadingMode = mode;
+    m_renderSettings.fillShading = (mode == ShadingMode::Flat) ? FillShading::Flat : FillShading::Smooth;
+    if (m_overlayPanel)
+        m_overlayPanel->setSettings(m_renderSettings);
     m_pipeline.reset();
     m_buffersDirty = true;
     m_logRebuildRequested = true;
@@ -72,7 +80,13 @@ void RenderWidget::createOverlayButtons()
         const RenderSettings prev = m_renderSettings;
         m_renderSettings = settings;
 
-        if (prev.showWire != m_renderSettings.showWire || prev.showFill != m_renderSettings.showFill) {
+        m_shadingMode = (m_renderSettings.fillShading == FillShading::Flat)
+            ? ShadingMode::Flat
+            : ShadingMode::Smooth;
+
+        if (prev.showWire != m_renderSettings.showWire
+            || prev.showFill != m_renderSettings.showFill
+            || prev.fillShading != m_renderSettings.fillShading) {
             m_pipeline.reset();
             m_buffersDirty = true;
             m_logRebuildRequested = true;
@@ -114,7 +128,7 @@ void RenderWidget::ensureRenderResources()
         return;
 
     if (!m_ubuf) {
-        // Uniform buffer: mat4 mvp + mat4 modelView + mat3 std140 + vec4 bboxColor
+        // Uniform buffer: mvp + modelView + normalMat + bbox/point/wire/fill parameters
         m_ubuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kUbufSize));
         m_ubuf->create();
     }
@@ -143,18 +157,14 @@ void RenderWidget::ensureRenderResources()
                 ? QStringLiteral(":/shaders/wireframe.frag.qsb")
                 : QStringLiteral(":/shaders/wireframe_lines.frag.qsb");
         } else {
-            switch (m_shadingMode) {
-            case ShadingMode::Smooth:
+            switch (m_renderSettings.fillShading) {
+            case FillShading::Smooth:
                 vsPath = QStringLiteral(":/shaders/color.vert.qsb");
                 fsPath = QStringLiteral(":/shaders/color.frag.qsb");
                 break;
-            case ShadingMode::Flat:
+            case FillShading::Flat:
                 vsPath = QStringLiteral(":/shaders/flat.vert.qsb");
                 fsPath = QStringLiteral(":/shaders/flat.frag.qsb");
-                break;
-            case ShadingMode::Wireframe:
-                vsPath = QStringLiteral(":/shaders/color.vert.qsb");
-                fsPath = QStringLiteral(":/shaders/color.frag.qsb");
                 break;
             }
         }
@@ -183,7 +193,7 @@ void RenderWidget::ensureRenderResources()
                 { 0, 0, QRhiVertexInputAttribute::Float3, 0 },             // position
                 { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) } // barycentric
             });
-        } else if (m_shadingMode == ShadingMode::Flat) {
+        } else if (m_renderSettings.fillShading == FillShading::Flat) {
             inputLayout.setAttributes({
                 { 0, 0, QRhiVertexInputAttribute::Float3, 0 }              // position
             });
@@ -537,7 +547,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     QMatrix4x4 mvp = proj * view;
     QMatrix3x3 normalMat = modelView.normalMatrix();
 
-    // Pack uniform: mat4 mvp + mat4 modelView + mat3 as 3 vec4 (std140) + vec4 bboxColor.
+    // Pack uniform: mat4 mvp + mat4 modelView + mat3 as 3 vec4 (std140) + render colors/params.
     float ubufData[kUbufFloatCount] = {};
     memcpy(ubufData, mvp.constData(), 64);
     memcpy(ubufData + 16, modelView.constData(), 64);
@@ -550,6 +560,20 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     ubufData[kUbufBBoxColorOffset + 1] = m_renderSettings.bboxWireColor.greenF();
     ubufData[kUbufBBoxColorOffset + 2] = m_renderSettings.bboxWireColor.blueF();
     ubufData[kUbufBBoxColorOffset + 3] = m_renderSettings.bboxWireColor.alphaF();
+    ubufData[kUbufPointColorOffset + 0] = m_renderSettings.pointColor.redF();
+    ubufData[kUbufPointColorOffset + 1] = m_renderSettings.pointColor.greenF();
+    ubufData[kUbufPointColorOffset + 2] = m_renderSettings.pointColor.blueF();
+    ubufData[kUbufPointColorOffset + 3] = m_renderSettings.pointColor.alphaF();
+    ubufData[kUbufPointParamsOffset + 0] = m_renderSettings.pointSize;
+    ubufData[kUbufWireColorOffset + 0] = m_renderSettings.wireColor.redF();
+    ubufData[kUbufWireColorOffset + 1] = m_renderSettings.wireColor.greenF();
+    ubufData[kUbufWireColorOffset + 2] = m_renderSettings.wireColor.blueF();
+    ubufData[kUbufWireColorOffset + 3] = m_renderSettings.wireColor.alphaF();
+    ubufData[kUbufWireParamsOffset + 0] = m_renderSettings.wireSize;
+    ubufData[kUbufFillColorOffset + 0] = m_renderSettings.fillColor.redF();
+    ubufData[kUbufFillColorOffset + 1] = m_renderSettings.fillColor.greenF();
+    ubufData[kUbufFillColorOffset + 2] = m_renderSettings.fillColor.blueF();
+    ubufData[kUbufFillColorOffset + 3] = m_renderSettings.fillColor.alphaF();
 
     QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
     u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);

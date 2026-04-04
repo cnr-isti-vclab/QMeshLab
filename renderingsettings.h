@@ -10,6 +10,11 @@ enum class RenderPass {
     Fill
 };
 
+enum class FillShading {
+    Smooth = 0,
+    Flat
+};
+
 struct RenderSettings {
     bool showBoundingBox = false;
     bool showPoints = false;
@@ -18,6 +23,12 @@ struct RenderSettings {
     bool settingsPanelVisible = false;
     RenderPass currentPass = RenderPass::Fill;
     QColor bboxWireColor = QColor(245, 190, 60);
+    QColor pointColor = QColor(255, 191, 51);
+    float pointSize = 4.0f;
+    QColor wireColor = QColor(15, 15, 20);
+    float wireSize = 1.5f;
+    QColor fillColor = QColor(153, 153, 179);
+    FillShading fillShading = FillShading::Smooth;
 
     bool operator==(const RenderSettings &other) const
     {
@@ -27,7 +38,13 @@ struct RenderSettings {
             && showFill == other.showFill
             && settingsPanelVisible == other.settingsPanelVisible
             && currentPass == other.currentPass
-            && bboxWireColor == other.bboxWireColor;
+            && bboxWireColor == other.bboxWireColor
+            && pointColor == other.pointColor
+            && pointSize == other.pointSize
+            && wireColor == other.wireColor
+            && wireSize == other.wireSize
+            && fillColor == other.fillColor
+            && fillShading == other.fillShading;
     }
 
     bool operator!=(const RenderSettings &other) const
