@@ -81,6 +81,7 @@ private:
     bool m_showPoints = false;
     bool m_showWire = true;
     bool m_showFill = true;
+    QToolButton *m_modeButton = nullptr;
     QToolButton *m_bboxButton = nullptr;
     QToolButton *m_pointsButton = nullptr;
     QToolButton *m_wireButton = nullptr;

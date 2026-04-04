@@ -59,6 +59,7 @@ qt_add_shaders(QMeshLab "shaders"
 qt_add_resources(QMeshLab "icons"
     PREFIX "/"
     FILES
+        img/options.png
         img/box.png
         img/points.png
         img/wire.png

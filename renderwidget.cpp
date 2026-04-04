@@ -77,12 +77,18 @@ void RenderWidget::createOverlayButtons()
     m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points"));
     m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
     m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
+    m_modeButton = makeButton(QStringLiteral(":/img/options.png"), tr("Render Modality"));
+    m_modeButton->setCheckable(false);
 
     m_bboxButton->setChecked(m_showBoundingBox);
     m_pointsButton->setChecked(m_showPoints);
     m_wireButton->setChecked(m_showWire);
     m_fillButton->setChecked(m_showFill);
 
+    connect(m_modeButton, &QToolButton::clicked, this, [this]() {
+        // Placeholder: render modality settings will be attached here.
+        update();
+    });
     connect(m_bboxButton, &QToolButton::toggled, this, [this](bool checked) {
         m_showBoundingBox = checked;
         update();
@@ -116,10 +122,11 @@ void RenderWidget::layoutOverlayButtons()
     const int s = 32;
     const int gap = 4;
 
-    if (m_bboxButton) m_bboxButton->move(x0 + 0 * (s + gap), y0);
-    if (m_pointsButton) m_pointsButton->move(x0 + 1 * (s + gap), y0);
-    if (m_wireButton) m_wireButton->move(x0 + 2 * (s + gap), y0);
-    if (m_fillButton) m_fillButton->move(x0 + 3 * (s + gap), y0);
+    if (m_modeButton) m_modeButton->move(x0 + 0 * (s + gap), y0);
+    if (m_bboxButton) m_bboxButton->move(x0 + 1 * (s + gap), y0);
+    if (m_pointsButton) m_pointsButton->move(x0 + 2 * (s + gap), y0);
+    if (m_wireButton) m_wireButton->move(x0 + 3 * (s + gap), y0);
+    if (m_fillButton) m_fillButton->move(x0 + 4 * (s + gap), y0);
 }
 
 void RenderWidget::ensureRenderResources()
@@ -297,6 +304,8 @@ void RenderWidget::ensureRenderResources()
 void RenderWidget::rebuildBuffers()
 {
     m_meshGPU.clear();
+    m_bboxGPU.clear();
+    m_pointsGPU.clear();
     if (!m_rhi || m_doc->meshCount() == 0)
         return;
 
@@ -392,7 +401,6 @@ void RenderWidget::rebuildBuffers()
     }
 
     // Build per-mesh bounding box line buffers (12 edges = 24 vertices)
-    m_bboxGPU.clear();
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         const VCGMesh &mesh = m_doc->mesh(mi).mesh;
         if (mesh.bbox.IsNull()) continue;
@@ -432,7 +440,6 @@ void RenderWidget::rebuildBuffers()
     }
 
     // Build per-mesh position-only buffers for the points pass
-    m_pointsGPU.clear();
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         const VCGMesh &mesh = m_doc->mesh(mi).mesh;
         if (mesh.VN() == 0) continue;
@@ -484,19 +491,19 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             ++uploadedMeshes;
             uploadedVertices += static_cast<int>(mg.uploadData.size() / 6);
             uploadedTriangles += (mg.indexCount > 0 ? mg.indexCount : mg.vertexCount) / 3;
-            mg.uploadData.clear();
-            mg.uploadIndices.clear();
+            std::vector<float>().swap(mg.uploadData);
+            std::vector<quint32>().swap(mg.uploadIndices);
         }
         for (auto &bg : m_bboxGPU) {
             if (!bg.uploadData.empty()) {
                 u->uploadStaticBuffer(bg.vbuf.get(), bg.uploadData.data());
-                bg.uploadData.clear();
+                std::vector<float>().swap(bg.uploadData);
             }
         }
         for (auto &pg : m_pointsGPU) {
             if (!pg.uploadData.empty()) {
                 u->uploadStaticBuffer(pg.vbuf.get(), pg.uploadData.data());
-                pg.uploadData.clear();
+                std::vector<float>().swap(pg.uploadData);
             }
         }
         cb->resourceUpdate(u);
