@@ -48,8 +48,20 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
 void RenderWidget::setShadingMode(ShadingMode mode)
 {
     if (mode == ShadingMode::Wireframe) {
+        const bool fillChanged = !m_renderSettings.showFill;
+        const bool wireChanged = !m_renderSettings.showWire;
         m_renderSettings.showWire = true;
         m_renderSettings.showFill = true;
+
+        if (fillChanged)
+            m_fillPipeline.reset();
+        if (wireChanged)
+            m_wirePipeline.reset();
+        if (fillChanged || wireChanged) {
+            m_buffersDirty = true;
+            m_logRebuildRequested = true;
+        }
+
         if (m_overlayPanel) {
             m_overlayPanel->setSettings(m_renderSettings);
         }
@@ -64,8 +76,7 @@ void RenderWidget::setShadingMode(ShadingMode mode)
     m_renderSettings.fillShading = (mode == ShadingMode::Flat) ? FillShading::Flat : FillShading::Smooth;
     if (m_overlayPanel)
         m_overlayPanel->setSettings(m_renderSettings);
-    m_pipeline.reset();
-    m_buffersDirty = true;
+    m_fillPipeline.reset();
     m_logRebuildRequested = true;
     update();
 }
@@ -84,10 +95,15 @@ void RenderWidget::createOverlayButtons()
             ? ShadingMode::Flat
             : ShadingMode::Smooth;
 
-        if (prev.showWire != m_renderSettings.showWire
-            || prev.showFill != m_renderSettings.showFill
+        if (prev.showFill != m_renderSettings.showFill
             || prev.fillShading != m_renderSettings.fillShading) {
-            m_pipeline.reset();
+            m_fillPipeline.reset();
+        }
+        if (prev.showWire != m_renderSettings.showWire) {
+            m_wirePipeline.reset();
+        }
+        if (prev.showWire != m_renderSettings.showWire
+            || prev.showFill != m_renderSettings.showFill) {
             m_buffersDirty = true;
             m_logRebuildRequested = true;
         }
@@ -113,12 +129,14 @@ void RenderWidget::ensureRenderResources()
 {
     if (m_rhi != rhi()) {
         m_rhi = rhi();
-        m_pipeline.reset();
+        m_fillPipeline.reset();
+        m_wirePipeline.reset();
         m_bboxPipeline.reset();
         m_pointsPipeline.reset();
         m_srb.reset();
         m_ubuf.reset();
         m_meshGPU.clear();
+        m_wireGPU.clear();
         m_bboxGPU.clear();
         m_pointsGPU.clear();
         m_buffersDirty = true;
@@ -144,59 +162,44 @@ void RenderWidget::ensureRenderResources()
         m_srb->create();
     }
 
-    const bool meshPassEnabled = m_renderSettings.showWire || m_renderSettings.showFill;
-    if (!meshPassEnabled) {
-        m_pipeline.reset();
-    } else if (!m_pipeline) {
-        m_pipeline.reset(m_rhi->newGraphicsPipeline());
-
-        const bool useWirePipeline = m_renderSettings.showWire;
+    if (!m_renderSettings.showFill) {
+        m_fillPipeline.reset();
+    } else if (!m_fillPipeline) {
+        m_fillPipeline.reset(m_rhi->newGraphicsPipeline());
 
         QString vsPath;
         QString fsPath;
-        if (useWirePipeline) {
-            vsPath = QStringLiteral(":/shaders/wireframe.vert.qsb");
-            fsPath = m_renderSettings.showFill
-                ? QStringLiteral(":/shaders/wireframe.frag.qsb")
-                : QStringLiteral(":/shaders/wireframe_lines.frag.qsb");
-        } else {
-            switch (m_renderSettings.fillShading) {
-            case FillShading::Smooth:
-                vsPath = QStringLiteral(":/shaders/color.vert.qsb");
-                fsPath = QStringLiteral(":/shaders/color.frag.qsb");
-                break;
-            case FillShading::Flat:
-                vsPath = QStringLiteral(":/shaders/flat.vert.qsb");
-                fsPath = QStringLiteral(":/shaders/flat.frag.qsb");
-                break;
-            }
+        switch (m_renderSettings.fillShading) {
+        case FillShading::Smooth:
+            vsPath = QStringLiteral(":/shaders/color.vert.qsb");
+            fsPath = QStringLiteral(":/shaders/color.frag.qsb");
+            break;
+        case FillShading::Flat:
+            vsPath = QStringLiteral(":/shaders/flat.vert.qsb");
+            fsPath = QStringLiteral(":/shaders/flat.frag.qsb");
+            break;
         }
 
         QShader vs = loadShader(vsPath);
         QShader fs = loadShader(fsPath);
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load shaders");
-            m_pipeline.reset();
+            m_fillPipeline.reset();
             return;
         }
 
-        m_pipeline->setShaderStages({
+        m_fillPipeline->setShaderStages({
             { QRhiShaderStage::Vertex, vs },
             { QRhiShaderStage::Fragment, fs }
         });
 
-        m_pipeline->setDepthTest(true);
-        m_pipeline->setDepthWrite(true);
-        m_pipeline->setCullMode(QRhiGraphicsPipeline::Back);
+        m_fillPipeline->setDepthTest(true);
+        m_fillPipeline->setDepthWrite(true);
+        m_fillPipeline->setCullMode(QRhiGraphicsPipeline::Back);
 
         QRhiVertexInputLayout inputLayout;
         inputLayout.setBindings({ { 6 * sizeof(float) } });
-        if (useWirePipeline) {
-            inputLayout.setAttributes({
-                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },             // position
-                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) } // barycentric
-            });
-        } else if (m_renderSettings.fillShading == FillShading::Flat) {
+        if (m_renderSettings.fillShading == FillShading::Flat) {
             inputLayout.setAttributes({
                 { 0, 0, QRhiVertexInputAttribute::Float3, 0 }              // position
             });
@@ -206,13 +209,61 @@ void RenderWidget::ensureRenderResources()
                 { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) } // normal
             });
         }
-        m_pipeline->setVertexInputLayout(inputLayout);
-        m_pipeline->setShaderResourceBindings(m_srb.get());
-        m_pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+        m_fillPipeline->setVertexInputLayout(inputLayout);
+        m_fillPipeline->setShaderResourceBindings(m_srb.get());
+        m_fillPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
 
-        if (!m_pipeline->create()) {
-            qWarning("Failed to create graphics pipeline");
-            m_pipeline.reset();
+        if (!m_fillPipeline->create()) {
+            qWarning("Failed to create fill pipeline");
+            m_fillPipeline.reset();
+        }
+    }
+
+    if (!m_renderSettings.showWire) {
+        m_wirePipeline.reset();
+    } else if (!m_wirePipeline) {
+        m_wirePipeline.reset(m_rhi->newGraphicsPipeline());
+
+        QShader vs = loadShader(QStringLiteral(":/shaders/wireframe.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/wireframe_lines.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load wireframe shaders");
+            m_wirePipeline.reset();
+            return;
+        }
+
+        m_wirePipeline->setShaderStages({
+            { QRhiShaderStage::Vertex, vs },
+            { QRhiShaderStage::Fragment, fs }
+        });
+        m_wirePipeline->setDepthTest(true);
+        m_wirePipeline->setDepthWrite(false);
+        m_wirePipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+        m_wirePipeline->setCullMode(QRhiGraphicsPipeline::Back);
+
+        QRhiGraphicsPipeline::TargetBlend blend;
+        blend.enable = true;
+        blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+        blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        blend.opColor = QRhiGraphicsPipeline::Add;
+        blend.srcAlpha = QRhiGraphicsPipeline::One;
+        blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        blend.opAlpha = QRhiGraphicsPipeline::Add;
+        m_wirePipeline->setTargetBlends({ blend });
+
+        QRhiVertexInputLayout wireLayout;
+        wireLayout.setBindings({ { 6 * sizeof(float) } });
+        wireLayout.setAttributes({
+            { 0, 0, QRhiVertexInputAttribute::Float3, 0 },             // position
+            { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) } // barycentric
+        });
+        m_wirePipeline->setVertexInputLayout(wireLayout);
+        m_wirePipeline->setShaderResourceBindings(m_srb.get());
+        m_wirePipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+
+        if (!m_wirePipeline->create()) {
+            qWarning("Failed to create wireframe pipeline");
+            m_wirePipeline.reset();
         }
     }
 
@@ -286,6 +337,7 @@ void RenderWidget::ensureRenderResources()
 void RenderWidget::rebuildBuffers()
 {
     m_meshGPU.clear();
+    m_wireGPU.clear();
     m_bboxGPU.clear();
     m_pointsGPU.clear();
     if (!m_rhi || m_doc->meshCount() == 0)
@@ -304,9 +356,53 @@ void RenderWidget::rebuildBuffers()
         const VCGMesh &mesh = m_doc->mesh(mi).mesh;
         if (mesh.FN() == 0) continue;
 
-        MeshGPU mg;
+        if (m_renderSettings.showFill) {
+            MeshGPU mg;
+
+            // Build interleaved vertex buffer: pos(3f) + normal(3f)
+            const int vertBytes = mesh.VN() * 6 * sizeof(float);
+            auto vbuf = std::unique_ptr<QRhiBuffer>(
+                m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
+            vbuf->create();
+
+            std::vector<float> vdata(mesh.VN() * 6);
+            for (int i = 0; i < mesh.VN(); ++i) {
+                const auto &v = mesh.vert[i];
+                vdata[i * 6 + 0] = v.P()[0];
+                vdata[i * 6 + 1] = v.P()[1];
+                vdata[i * 6 + 2] = v.P()[2];
+                vdata[i * 6 + 3] = v.N()[0];
+                vdata[i * 6 + 4] = v.N()[1];
+                vdata[i * 6 + 5] = v.N()[2];
+            }
+
+            // Build index buffer
+            const int idxCount = mesh.FN() * 3;
+            const int idxBytes = idxCount * sizeof(quint32);
+            auto ibuf = std::unique_ptr<QRhiBuffer>(
+                m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::IndexBuffer, idxBytes));
+            ibuf->create();
+
+            std::vector<quint32> idata(idxCount);
+            for (int i = 0; i < mesh.FN(); ++i) {
+                const auto &f = mesh.face[i];
+                idata[i * 3 + 0] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(0)));
+                idata[i * 3 + 1] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(1)));
+                idata[i * 3 + 2] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(2)));
+            }
+
+            mg.vbuf = std::move(vbuf);
+            mg.ibuf = std::move(ibuf);
+            mg.vertexCount = mesh.VN();
+            mg.indexCount = idxCount;
+            mg.uploadData = std::move(vdata);
+            mg.uploadIndices = std::move(idata);
+            m_meshGPU.push_back(std::move(mg));
+        }
 
         if (m_renderSettings.showWire) {
+            WireGPU wg;
+
             const int vertexCount = mesh.FN() * 3;
             const int vertBytes = vertexCount * 6 * sizeof(float);
             auto vbuf = std::unique_ptr<QRhiBuffer>(
@@ -334,52 +430,11 @@ void RenderWidget::rebuildBuffers()
                 }
             }
 
-            mg.vbuf = std::move(vbuf);
-            mg.vertexCount = vertexCount;
-            mg.uploadData = std::move(vdata);
-            m_meshGPU.push_back(std::move(mg));
-            continue;
+            wg.vbuf = std::move(vbuf);
+            wg.vertexCount = vertexCount;
+            wg.uploadData = std::move(vdata);
+            m_wireGPU.push_back(std::move(wg));
         }
-
-        // Build interleaved vertex buffer: pos(3f) + normal(3f)
-        const int vertBytes = mesh.VN() * 6 * sizeof(float);
-        auto vbuf = std::unique_ptr<QRhiBuffer>(
-            m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
-        vbuf->create();
-
-        std::vector<float> vdata(mesh.VN() * 6);
-        for (int i = 0; i < mesh.VN(); ++i) {
-            const auto &v = mesh.vert[i];
-            vdata[i * 6 + 0] = v.P()[0];
-            vdata[i * 6 + 1] = v.P()[1];
-            vdata[i * 6 + 2] = v.P()[2];
-            vdata[i * 6 + 3] = v.N()[0];
-            vdata[i * 6 + 4] = v.N()[1];
-            vdata[i * 6 + 5] = v.N()[2];
-        }
-
-        // Build index buffer
-        const int idxCount = mesh.FN() * 3;
-        const int idxBytes = idxCount * sizeof(quint32);
-        auto ibuf = std::unique_ptr<QRhiBuffer>(
-            m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::IndexBuffer, idxBytes));
-        ibuf->create();
-
-        std::vector<quint32> idata(idxCount);
-        for (int i = 0; i < mesh.FN(); ++i) {
-            const auto &f = mesh.face[i];
-            idata[i * 3 + 0] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(0)));
-            idata[i * 3 + 1] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(1)));
-            idata[i * 3 + 2] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(2)));
-        }
-
-        mg.vbuf = std::move(vbuf);
-        mg.ibuf = std::move(ibuf);
-        mg.vertexCount = mesh.VN();
-        mg.indexCount = idxCount;
-        mg.uploadData = std::move(vdata);
-        mg.uploadIndices = std::move(idata);
-        m_meshGPU.push_back(std::move(mg));
     }
 
     // Build per-mesh bounding box line buffers (12 edges = 24 vertices)
@@ -462,7 +517,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     int uploadedVertices = 0;
     int uploadedTriangles = 0;
 
-    if (!m_meshGPU.empty() || !m_bboxGPU.empty() || !m_pointsGPU.empty()) {
+    if (!m_meshGPU.empty() || !m_wireGPU.empty() || !m_bboxGPU.empty() || !m_pointsGPU.empty()) {
         QElapsedTimer uploadTimer;
         uploadTimer.start();
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
@@ -472,9 +527,18 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
                 u->uploadStaticBuffer(mg.ibuf.get(), mg.uploadIndices.data());
             ++uploadedMeshes;
             uploadedVertices += static_cast<int>(mg.uploadData.size() / 6);
-            uploadedTriangles += (mg.indexCount > 0 ? mg.indexCount : mg.vertexCount) / 3;
+            uploadedTriangles += mg.indexCount / 3;
             std::vector<float>().swap(mg.uploadData);
             std::vector<quint32>().swap(mg.uploadIndices);
+        }
+        for (auto &wg : m_wireGPU) {
+            if (!wg.uploadData.empty()) {
+                u->uploadStaticBuffer(wg.vbuf.get(), wg.uploadData.data());
+                ++uploadedMeshes;
+                uploadedVertices += static_cast<int>(wg.uploadData.size() / 6);
+                uploadedTriangles += wg.vertexCount / 3;
+                std::vector<float>().swap(wg.uploadData);
+            }
         }
         for (auto &bg : m_bboxGPU) {
             if (!bg.uploadData.empty()) {
@@ -523,10 +587,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!m_rhi || !m_ubuf)
         return;
 
-    const bool drawMeshPass = m_renderSettings.showFill || m_renderSettings.showWire;
+    const bool drawFillPass = m_renderSettings.showFill;
+    const bool drawWirePass = m_renderSettings.showWire;
     const bool drawBBoxPass = m_renderSettings.showBoundingBox;
     const bool drawPointsPass = m_renderSettings.showPoints;
-    const bool anyDrawPass = drawMeshPass || drawBBoxPass || drawPointsPass;
+    const bool anyDrawPass = drawFillPass || drawWirePass || drawBBoxPass || drawPointsPass;
 
     if (anyDrawPass)
         prepareDirtyBuffers(cb);
@@ -574,7 +639,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         ubufData[kUbufWireColorOffset + 0] = m_renderSettings.wireColor.redF();
         ubufData[kUbufWireColorOffset + 1] = m_renderSettings.wireColor.greenF();
         ubufData[kUbufWireColorOffset + 2] = m_renderSettings.wireColor.blueF();
-        ubufData[kUbufWireColorOffset + 3] = m_renderSettings.wireColor.alphaF();
+        // Wire pass is intentionally translucent to compose independently over fill/effects.
+        ubufData[kUbufWireColorOffset + 3] = m_renderSettings.wireColor.alphaF() * 0.7f;
         ubufData[kUbufWireParamsOffset + 0] = m_renderSettings.wireSize;
         ubufData[kUbufFillColorOffset + 0] = m_renderSettings.fillColor.redF();
         ubufData[kUbufFillColorOffset + 1] = m_renderSettings.fillColor.greenF();
@@ -587,8 +653,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     cb->beginPass(renderTarget(), QColor(40, 40, 40), { 1.0f, 0 }, u);
 
-    if (drawMeshPass && m_pipeline) {
-        cb->setGraphicsPipeline(m_pipeline.get());
+    if (drawFillPass && m_fillPipeline) {
+        cb->setGraphicsPipeline(m_fillPipeline.get());
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
         cb->setShaderResources();
 
@@ -603,6 +669,20 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 cb->setVertexInput(0, 1, &vbufBinding);
                 cb->draw(mg.vertexCount);
             }
+        }
+    }
+
+    if (drawWirePass && m_wirePipeline) {
+        cb->setGraphicsPipeline(m_wirePipeline.get());
+        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+        cb->setShaderResources();
+
+        for (const auto &wg : m_wireGPU) {
+            if (!wg.vbuf || wg.vertexCount == 0)
+                continue;
+            const QRhiCommandBuffer::VertexInput vbufBinding(wg.vbuf.get(), 0);
+            cb->setVertexInput(0, 1, &vbufBinding);
+            cb->draw(wg.vertexCount);
         }
     }
 

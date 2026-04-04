@@ -55,6 +55,12 @@ private:
         std::vector<float> uploadData;
         std::vector<quint32> uploadIndices;
     };
+    // Per-mesh wireframe overlay GPU data (expanded triangles with barycentrics)
+    struct WireGPU {
+        std::unique_ptr<QRhiBuffer> vbuf;
+        int vertexCount = 0;
+        std::vector<float> uploadData;
+    };
     // Per-mesh bounding-box GPU data (24 vertices, LineList)
     struct BBoxGPU {
         std::unique_ptr<QRhiBuffer> vbuf;
@@ -67,6 +73,7 @@ private:
         std::vector<float> uploadData;
     };
     std::vector<MeshGPU> m_meshGPU;
+    std::vector<WireGPU> m_wireGPU;
     std::vector<BBoxGPU> m_bboxGPU;
     std::vector<PointsGPU> m_pointsGPU;
     bool m_buffersDirty = true;
@@ -74,7 +81,8 @@ private:
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
-    std::unique_ptr<QRhiGraphicsPipeline> m_pipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_fillPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
     ShadingMode m_shadingMode = ShadingMode::Smooth;
