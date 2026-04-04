@@ -2,6 +2,7 @@
 
 #include <QMainWindow>
 #include <QStringList>
+#include <array>
 
 class Document;
 class RenderWidget;
@@ -29,11 +30,13 @@ private:
     bool loadMeshFromPath(const QString &filePath);
     void addRecentMesh(const QString &filePath);
     void refreshRecentMeshesMenu();
+    void openRecentMeshByIndex(int index);
 
     Document *m_doc;
     RenderWidget *m_renderWidget;
     LayerWidget *m_layerWidget;
     QMenu *m_recentMenu = nullptr;
     QAction *m_openLastAction = nullptr;
+    std::array<QAction *, 4> m_recentActions = {};
     QStringList m_recentMeshes;
 };

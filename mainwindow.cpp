@@ -16,6 +16,7 @@
 #include <QListWidgetItem>
 #include <QSettings>
 #include <QStringList>
+#include <array>
 
 namespace {
 void appendLogItem(QListWidget *logWidget, const QString &message, Document::LogSource source, bool replaceLast)
@@ -102,7 +103,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     QSettings settings;
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
-    while (m_recentMeshes.size() > 10)
+    while (m_recentMeshes.size() > 4)
         m_recentMeshes.removeLast();
     refreshRecentMeshesMenu();
 }
@@ -194,7 +195,7 @@ void MainWindow::addRecentMesh(const QString &filePath)
 {
     m_recentMeshes.removeAll(filePath);
     m_recentMeshes.prepend(filePath);
-    while (m_recentMeshes.size() > 10)
+    while (m_recentMeshes.size() > 4)
         m_recentMeshes.removeLast();
 
     QSettings settings;
@@ -206,12 +207,34 @@ void MainWindow::refreshRecentMeshesMenu()
 {
     m_recentMenu->clear();
 
-    for (const QString &path : std::as_const(m_recentMeshes)) {
-        QAction *action = m_recentMenu->addAction(QFileInfo(path).fileName(), this, &MainWindow::openRecentMesh);
-        action->setData(path);
-        action->setToolTip(path);
+    const std::array<QString, 4> shortcuts = {
+        QStringLiteral("Ctrl+1"),
+        QStringLiteral("Ctrl+2"),
+        QStringLiteral("Ctrl+3"),
+        QStringLiteral("Ctrl+4")
+    };
+
+    for (int i = 0; i < m_recentMeshes.size() && i < 4; ++i) {
+        const QString &path = m_recentMeshes[i];
+        if (!m_recentActions[i]) {
+            m_recentActions[i] = new QAction(this);
+            connect(m_recentActions[i], &QAction::triggered, this, [this, i]() {
+                openRecentMeshByIndex(i);
+            });
+        }
+        m_recentActions[i]->setText(QFileInfo(path).fileName());
+        m_recentActions[i]->setShortcut(QKeySequence(shortcuts[i]));
+        m_recentActions[i]->setToolTip(path);
+        m_recentMenu->addAction(m_recentActions[i]);
     }
 
     m_recentMenu->setEnabled(!m_recentMeshes.isEmpty());
     m_openLastAction->setEnabled(!m_recentMeshes.isEmpty());
+}
+
+void MainWindow::openRecentMeshByIndex(int index)
+{
+    if (index >= 0 && index < m_recentMeshes.size()) {
+        loadMeshFromPath(m_recentMeshes[index]);
+    }
 }
