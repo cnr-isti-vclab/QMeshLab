@@ -4,8 +4,11 @@
 #include <QFileInfo>
 #include <QImageReader>
 #include <QSignalBlocker>
+#include <algorithm>
 
 namespace {
+constexpr int kFirstColumnMaxWidth = 110;
+
 QString meshDataSummary(const Document::MeshEntry &entry)
 {
     using Mask = vcg::tri::io::Mask;
@@ -122,6 +125,7 @@ void LayerWidget::rebuild()
         item->setData(0, Qt::UserRole, i);
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
         item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
+        item->setFirstColumnSpanned(true);
 
         auto *vItem = new QTreeWidgetItem({tr("Vertices"), QString::number(entry.mesh.VN())});
         vItem->setFlags(vItem->flags() & ~Qt::ItemIsSelectable);
@@ -160,6 +164,7 @@ void LayerWidget::rebuild()
     }
     updateCurrentItemVisuals();
     resizeColumnToContents(0);
+    setColumnWidth(0, std::min(columnWidth(0), kFirstColumnMaxWidth));
     resizeColumnToContents(1);
     m_rebuilding = false;
 }
