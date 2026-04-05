@@ -4,6 +4,7 @@
 #include "meshiopluginmanager.h"
 
 #include <wrap/io_trimesh/import.h>
+#include <QDir>
 #include <QFileInfo>
 #include <QObject>
 #include <memory>
@@ -30,9 +31,25 @@ public:
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
         int loadMask = 0;
+        const QFileInfo fi(filename);
+        const QString ext = fi.suffix().toLower();
+        const QString previousCwd = QDir::currentPath();
+        bool switchedCwd = false;
+
+        // VCGLib OBJ importer resolves mtllib/map_Kd paths against the process cwd.
+        // Temporarily switch to the OBJ directory so relative material/texture paths resolve.
+        if (ext == QLatin1String("obj")) {
+            const QString objDir = fi.absolutePath();
+            if (!objDir.isEmpty())
+                switchedCwd = QDir::setCurrent(objDir);
+        }
+
         vcg::tri::io::Importer<VCGMesh>::LoadMask(filename.toStdString().c_str(), loadMask);
-        const int err = vcg::tri::io::Importer<VCGMesh>::Open(
-            mesh, filename.toStdString().c_str(), loadMask, cb);
+        const int err = vcg::tri::io::Importer<VCGMesh>::Open(mesh, filename.toStdString().c_str(), loadMask, cb);
+
+        if (switchedCwd)
+            QDir::setCurrent(previousCwd);
+
         if (outLoadMask)
             *outLoadMask = loadMask;
         return err;

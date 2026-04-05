@@ -4,6 +4,7 @@
 #include <QRhiWidget>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
+#include <QImage>
 #include <QMatrix4x4>
 #include <memory>
 #include <vector>
@@ -50,12 +51,17 @@ private:
 
     // Per-mesh GPU data
     struct MeshGPU {
+        int meshIndex = -1;
         std::unique_ptr<QRhiBuffer> vbuf;
         std::unique_ptr<QRhiBuffer> ibuf;
+        std::unique_ptr<QRhiTexture> texture;
+        std::unique_ptr<QRhiShaderResourceBindings> srb;
         int vertexCount = 0;
         int indexCount = 0;
+        bool useTexture = false;
         std::vector<float> uploadData;
         std::vector<quint32> uploadIndices;
+        QImage uploadTextureImage;
     };
     // Per-mesh wireframe overlay GPU data (expanded triangles with barycentrics)
     struct WireGPU {
@@ -84,6 +90,9 @@ private:
     bool m_reframeCameraRequested = true;
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
+    std::unique_ptr<QRhiSampler> m_textureSampler;
+    std::unique_ptr<QRhiTexture> m_fallbackTexture;
+    bool m_fallbackTextureUploadPending = false;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiGraphicsPipeline> m_fillPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;

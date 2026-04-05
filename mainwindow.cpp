@@ -4,9 +4,11 @@
 #include "layerwidget.h"
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QStatusBar>
+#include <QScreen>
 #include <QDockWidget>
 #include <QActionGroup>
 #include <QAction>
@@ -68,7 +70,12 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle(QStringLiteral("QMeshLab"));
-    resize(800, 600);
+    if (QScreen *screen = QGuiApplication::primaryScreen()) {
+        const QRect avail = screen->availableGeometry();
+        resize(avail.width() * 9 / 10, avail.height() * 9 / 10);
+    } else {
+        resize(800, 600);
+    }
 
     m_doc = new Document(this);
 

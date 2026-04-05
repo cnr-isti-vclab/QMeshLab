@@ -25,6 +25,11 @@ public:
 
     struct MeshEntry {
         QString name;
+        QString sourcePath;
+        QString textureFileName;
+        QString textureFilePath;
+        QStringList textureFileNames;
+        QStringList textureFilePaths;
         bool visible = true;
         int ioMask = 0;
         VCGMesh mesh;

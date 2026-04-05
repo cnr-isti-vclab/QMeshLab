@@ -15,6 +15,9 @@ layout(std140, binding = 0) uniform buf {
 
 layout(location = 0) in vec3 vViewPos;
 layout(location = 1) in vec4 v_meshColor;
+layout(location = 2) in vec3 v_texInfo;
+
+layout(binding = 1) uniform sampler2D albedoTex;
 layout(location = 0) out vec4 fragColor;
 
 void main()
@@ -27,6 +30,8 @@ void main()
     float diff = clamp(abs(dot(N, lightDir)), 0.0, 1.0);
     float ambient = 0.25;
     vec3 baseColor = mix(ub.fillColor.rgb, v_meshColor.rgb, clamp(v_meshColor.a, 0.0, 1.0));
+    if (v_texInfo.z > 0.5)
+        baseColor = texture(albedoTex, vec2(v_texInfo.x, 1.0 - v_texInfo.y)).rgb;
     vec3 color = baseColor;
     if (ub.lightingParams.w > 0.5)
         color *= ambient + (1.0 - ambient) * diff;

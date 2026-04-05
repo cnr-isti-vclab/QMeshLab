@@ -3,10 +3,14 @@
 #include "renderoverlaypanel.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFile>
+#include <QFileInfo>
+#include <QImageReader>
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QWheelEvent>
 #include <cmath>
+#include <map>
+#include <unordered_map>
 
 static QShader loadShader(const QString &path)
 {
@@ -28,6 +32,7 @@ constexpr int kUbufWireColorOffset = 224 / sizeof(float);
 constexpr int kUbufWireParamsOffset = 240 / sizeof(float);
 constexpr int kUbufFillColorOffset = 256 / sizeof(float);
 constexpr int kUbufLightingParamsOffset = 272 / sizeof(float);
+constexpr int kFillVertexStrideFloats = 13;
 }
 
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
@@ -239,6 +244,9 @@ void RenderWidget::ensureRenderResources()
         m_pointsPipeline.reset();
         m_srb.reset();
         m_ubuf.reset();
+        m_textureSampler.reset();
+        m_fallbackTexture.reset();
+        m_fallbackTextureUploadPending = false;
         m_meshGPU.clear();
         m_wireGPU.clear();
         m_bboxGPU.clear();
@@ -255,13 +263,36 @@ void RenderWidget::ensureRenderResources()
         m_ubuf->create();
     }
 
+    if (!m_textureSampler) {
+        m_textureSampler.reset(
+            m_rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
+                              QRhiSampler::Repeat, QRhiSampler::Repeat));
+        m_textureSampler->create();
+    }
+
+    if (!m_fallbackTexture) {
+        m_fallbackTexture.reset(
+            m_rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1), 1));
+        if (m_fallbackTexture && m_fallbackTexture->create()) {
+            m_fallbackTextureUploadPending = true;
+        } else {
+            m_fallbackTexture.reset();
+            m_fallbackTextureUploadPending = false;
+        }
+    }
+
     if (!m_srb) {
         m_srb.reset(m_rhi->newShaderResourceBindings());
         m_srb->setBindings({
             QRhiShaderResourceBinding::uniformBuffer(
                 0,
                 QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                m_ubuf.get())
+                m_ubuf.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_fallbackTexture.get(),
+                m_textureSampler.get())
         });
         m_srb->create();
     }
@@ -302,18 +333,20 @@ void RenderWidget::ensureRenderResources()
         m_fillPipeline->setCullMode(QRhiGraphicsPipeline::Back);
 
         QRhiVertexInputLayout inputLayout;
-        // Fill vertex layout: position(3f) + normal(3f) + meshColor(4f, color.a used as "has mesh color" flag).
-        inputLayout.setBindings({ { 10 * sizeof(float) } });
+        // Fill vertex layout: position(3f) + normal(3f) + meshColor(4f) + texInfo(uv + useTexture flag).
+        inputLayout.setBindings({ { kFillVertexStrideFloats * sizeof(float) } });
         if (m_renderSettings.fillShading == FillShading::Flat) {
             inputLayout.setAttributes({
                 { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
-                { 0, 1, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) }  // mesh color + use flag
+                { 0, 1, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) }, // mesh color + use flag
+                { 0, 2, QRhiVertexInputAttribute::Float3, 10 * sizeof(float) } // uv + use texture flag
             });
         } else {
             inputLayout.setAttributes({
                 { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
                 { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) }, // normal
-                { 0, 2, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) }  // mesh color + use flag
+                { 0, 2, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) }, // mesh color + use flag
+                { 0, 3, QRhiVertexInputAttribute::Float3, 10 * sizeof(float) } // uv + use texture flag
             });
         }
         m_fillPipeline->setVertexInputLayout(inputLayout);
@@ -476,56 +509,192 @@ void RenderWidget::rebuildBuffers()
 
         const bool meshHasFaceColor = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
         const bool meshHasVertexColor = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
+        const bool meshHasVertexTexcoord = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
+        const bool meshHasWedgeTexcoord = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
         const bool useFaceColor = (m_renderSettings.fillColorSource == FillColorSource::PerFace) && meshHasFaceColor;
         const bool useVertexColor =
             (m_renderSettings.fillColorSource == FillColorSource::PerVertex) && meshHasVertexColor;
 
         if (m_renderSettings.showFill) {
-            MeshGPU mg;
+            const bool hasTextureCoords = meshHasWedgeTexcoord || meshHasVertexTexcoord;
+            const bool hasTextureSlots = hasTextureCoords && !meshEntry.textureFilePaths.isEmpty();
+            const bool expandTriangles = useFaceColor || hasTextureSlots;
 
-            if (useFaceColor) {
-                // Per-face colors require triangle expansion so each face keeps a constant color.
-                const int vertexCount = mesh.FN() * 3;
-                const int vertBytes = vertexCount * 10 * sizeof(float);
-                auto vbuf = std::unique_ptr<QRhiBuffer>(
-                    m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
-                vbuf->create();
+            if (expandTriangles) {
+                struct PreparedTexture {
+                    std::unique_ptr<QRhiTexture> texture;
+                    std::unique_ptr<QRhiShaderResourceBindings> srb;
+                    QImage uploadImage;
+                    bool ready = false;
+                };
 
-                std::vector<float> vdata(vertexCount * 10);
+                std::map<int, std::vector<float>> groupedTriangles;
+                std::unordered_map<int, PreparedTexture> preparedTextures;
+                auto ensureTexturePrepared =
+                    [this, &meshEntry, &preparedTextures](int textureIndex) -> bool {
+                    if (textureIndex < 0 || textureIndex >= meshEntry.textureFilePaths.size())
+                        return false;
+                    auto it = preparedTextures.find(textureIndex);
+                    if (it != preparedTextures.end())
+                        return it->second.ready;
+
+                    PreparedTexture prepared;
+                    if (!m_textureSampler || !m_ubuf) {
+                        preparedTextures.emplace(textureIndex, std::move(prepared));
+                        return false;
+                    }
+
+                    const QString &texturePath = meshEntry.textureFilePaths.at(textureIndex);
+                    if (!QFileInfo::exists(texturePath)) {
+                        preparedTextures.emplace(textureIndex, std::move(prepared));
+                        return false;
+                    }
+
+                    QImageReader reader(texturePath);
+                    QImage image = reader.read();
+                    if (image.isNull()) {
+                        preparedTextures.emplace(textureIndex, std::move(prepared));
+                        return false;
+                    }
+
+                    image = image.convertToFormat(QImage::Format_RGBA8888);
+                    prepared.texture.reset(m_rhi->newTexture(QRhiTexture::RGBA8, image.size(), 1));
+                    if (!prepared.texture || !prepared.texture->create()) {
+                        prepared.texture.reset();
+                        preparedTextures.emplace(textureIndex, std::move(prepared));
+                        return false;
+                    }
+
+                    prepared.srb.reset(m_rhi->newShaderResourceBindings());
+                    prepared.srb->setBindings({
+                        QRhiShaderResourceBinding::uniformBuffer(
+                            0,
+                            QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                            m_ubuf.get()),
+                        QRhiShaderResourceBinding::sampledTexture(
+                            1,
+                            QRhiShaderResourceBinding::FragmentStage,
+                            prepared.texture.get(),
+                            m_textureSampler.get())
+                    });
+                    if (!prepared.srb->create()) {
+                        prepared.srb.reset();
+                        prepared.texture.reset();
+                        preparedTextures.emplace(textureIndex, std::move(prepared));
+                        return false;
+                    }
+
+                    prepared.uploadImage = std::move(image);
+                    prepared.ready = true;
+                    preparedTextures.emplace(textureIndex, std::move(prepared));
+                    return true;
+                };
+
                 for (int i = 0; i < mesh.FN(); ++i) {
                     const auto &f = mesh.face[i];
                     const auto fc = f.cC();
                     const float fr = static_cast<float>(fc[0]) / 255.0f;
                     const float fg = static_cast<float>(fc[1]) / 255.0f;
                     const float fb = static_cast<float>(fc[2]) / 255.0f;
+
+                    int textureGroup = -1;
+                    bool useTextureForFace = false;
+                    if (hasTextureSlots) {
+                        int textureIndex = 0;
+                        if (meshHasWedgeTexcoord) {
+                            textureIndex = static_cast<int>(f.cWT(0).N());
+                        } else if (meshHasVertexTexcoord) {
+                            textureIndex = static_cast<int>(f.cV(0)->cT().N());
+                        }
+                        if (ensureTexturePrepared(textureIndex)) {
+                            textureGroup = textureIndex;
+                            useTextureForFace = true;
+                        } else if (ensureTexturePrepared(0)) {
+                            // Fallback for files with vertex UVs but missing/invalid texture indices.
+                            textureGroup = 0;
+                            useTextureForFace = true;
+                        }
+                    }
+
+                    std::vector<float> &groupData = groupedTriangles[textureGroup];
+                    const int startBase = static_cast<int>(groupData.size());
+                    groupData.resize(groupData.size() + (3 * kFillVertexStrideFloats));
                     for (int corner = 0; corner < 3; ++corner) {
                         const auto *vertex = f.cV(corner);
-                        const int base = (i * 3 + corner) * 10;
-                        vdata[base + 0] = vertex->cP()[0];
-                        vdata[base + 1] = vertex->cP()[1];
-                        vdata[base + 2] = vertex->cP()[2];
-                        vdata[base + 3] = vertex->cN()[0];
-                        vdata[base + 4] = vertex->cN()[1];
-                        vdata[base + 5] = vertex->cN()[2];
-                        vdata[base + 6] = fr;
-                        vdata[base + 7] = fg;
-                        vdata[base + 8] = fb;
-                        vdata[base + 9] = 1.0f; // use mesh color
+                        const auto vc = vertex->cC();
+                        const float vr = static_cast<float>(vc[0]) / 255.0f;
+                        const float vg = static_cast<float>(vc[1]) / 255.0f;
+                        const float vb = static_cast<float>(vc[2]) / 255.0f;
+                        const int base = startBase + (corner * kFillVertexStrideFloats);
+                        groupData[base + 0] = vertex->cP()[0];
+                        groupData[base + 1] = vertex->cP()[1];
+                        groupData[base + 2] = vertex->cP()[2];
+                        groupData[base + 3] = vertex->cN()[0];
+                        groupData[base + 4] = vertex->cN()[1];
+                        groupData[base + 5] = vertex->cN()[2];
+                        groupData[base + 6] = useFaceColor ? fr : (useVertexColor ? vr : 1.0f);
+                        groupData[base + 7] = useFaceColor ? fg : (useVertexColor ? vg : 1.0f);
+                        groupData[base + 8] = useFaceColor ? fb : (useVertexColor ? vb : 1.0f);
+                        groupData[base + 9] = (useFaceColor || useVertexColor) ? 1.0f : 0.0f;
+                        if (useTextureForFace) {
+                            if (meshHasWedgeTexcoord) {
+                                const auto &wt = f.cWT(corner);
+                                groupData[base + 10] = wt.U();
+                                groupData[base + 11] = wt.V();
+                            } else if (meshHasVertexTexcoord) {
+                                const auto &vt = vertex->cT();
+                                groupData[base + 10] = vt.U();
+                                groupData[base + 11] = vt.V();
+                            } else {
+                                groupData[base + 10] = 0.0f;
+                                groupData[base + 11] = 0.0f;
+                            }
+                            groupData[base + 12] = 1.0f;
+                        } else {
+                            groupData[base + 10] = 0.0f;
+                            groupData[base + 11] = 0.0f;
+                            groupData[base + 12] = 0.0f;
+                        }
                     }
                 }
 
-                mg.vbuf = std::move(vbuf);
-                mg.vertexCount = vertexCount;
-                mg.indexCount = 0;
-                mg.uploadData = std::move(vdata);
+                for (auto &groupEntry : groupedTriangles) {
+                    if (groupEntry.second.empty())
+                        continue;
+
+                    MeshGPU mg;
+                    mg.meshIndex = mi;
+                    mg.useTexture = groupEntry.first >= 0;
+                    if (mg.useTexture) {
+                        auto texIt = preparedTextures.find(groupEntry.first);
+                        if (texIt != preparedTextures.end() && texIt->second.ready) {
+                            mg.texture = std::move(texIt->second.texture);
+                            mg.srb = std::move(texIt->second.srb);
+                            mg.uploadTextureImage = std::move(texIt->second.uploadImage);
+                        } else {
+                            mg.useTexture = false;
+                        }
+                    }
+
+                    mg.vertexCount = static_cast<int>(groupEntry.second.size() / kFillVertexStrideFloats);
+                    mg.indexCount = 0;
+                    const int vertBytes = static_cast<int>(groupEntry.second.size() * sizeof(float));
+                    mg.vbuf.reset(
+                        m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
+                    mg.vbuf->create();
+                    mg.uploadData = std::move(groupEntry.second);
+                    m_meshGPU.push_back(std::move(mg));
+                }
             } else {
+                MeshGPU mg;
+                mg.meshIndex = mi;
                 // Build interleaved vertex buffer: pos(3f) + normal(3f) + color(3f) + useColorFlag(1f)
-                const int vertBytes = mesh.VN() * 10 * sizeof(float);
+                const int vertBytes = mesh.VN() * kFillVertexStrideFloats * sizeof(float);
                 auto vbuf = std::unique_ptr<QRhiBuffer>(
                     m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
                 vbuf->create();
 
-                std::vector<float> vdata(mesh.VN() * 10);
+                std::vector<float> vdata(mesh.VN() * kFillVertexStrideFloats);
                 const float useMeshColor = useVertexColor ? 1.0f : 0.0f;
                 for (int i = 0; i < mesh.VN(); ++i) {
                     const auto &v = mesh.vert[i];
@@ -533,7 +702,7 @@ void RenderWidget::rebuildBuffers()
                     const float cr = useVertexColor ? static_cast<float>(vc[0]) / 255.0f : 1.0f;
                     const float cg = useVertexColor ? static_cast<float>(vc[1]) / 255.0f : 1.0f;
                     const float cb = useVertexColor ? static_cast<float>(vc[2]) / 255.0f : 1.0f;
-                    const int base = i * 10;
+                    const int base = i * kFillVertexStrideFloats;
                     vdata[base + 0] = v.P()[0];
                     vdata[base + 1] = v.P()[1];
                     vdata[base + 2] = v.P()[2];
@@ -544,6 +713,9 @@ void RenderWidget::rebuildBuffers()
                     vdata[base + 7] = cg;
                     vdata[base + 8] = cb;
                     vdata[base + 9] = useMeshColor;
+                    vdata[base + 10] = 0.0f;
+                    vdata[base + 11] = 0.0f;
+                    vdata[base + 12] = 0.0f;
                 }
 
                 // Build index buffer
@@ -567,8 +739,8 @@ void RenderWidget::rebuildBuffers()
                 mg.indexCount = idxCount;
                 mg.uploadData = std::move(vdata);
                 mg.uploadIndices = std::move(idata);
+                m_meshGPU.push_back(std::move(mg));
             }
-            m_meshGPU.push_back(std::move(mg));
         }
 
         if (m_renderSettings.showWire) {
@@ -709,7 +881,7 @@ void RenderWidget::rebuildBuffers()
 
 void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
 {
-    if (!m_buffersDirty || !m_rhi)
+    if ((!m_buffersDirty && !m_fallbackTextureUploadPending) || !m_rhi)
         return;
 
     const bool logRebuild = m_logRebuildRequested;
@@ -723,19 +895,35 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     int uploadedVertices = 0;
     int uploadedTriangles = 0;
 
-    if (!m_meshGPU.empty() || !m_wireGPU.empty() || !m_bboxGPU.empty() || !m_pointsGPU.empty()) {
+    if (!m_meshGPU.empty() || !m_wireGPU.empty() || !m_bboxGPU.empty() || !m_pointsGPU.empty()
+        || m_fallbackTextureUploadPending) {
         QElapsedTimer uploadTimer;
         uploadTimer.start();
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+        if (m_fallbackTextureUploadPending && m_fallbackTexture) {
+            QImage white(1, 1, QImage::Format_RGBA8888);
+            white.fill(Qt::white);
+            QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(white));
+            u->uploadTexture(m_fallbackTexture.get(), QRhiTextureUploadDescription({ entry }));
+            m_fallbackTextureUploadPending = false;
+        }
         for (auto &mg : m_meshGPU) {
             u->uploadStaticBuffer(mg.vbuf.get(), mg.uploadData.data());
             if (mg.ibuf && !mg.uploadIndices.empty())
                 u->uploadStaticBuffer(mg.ibuf.get(), mg.uploadIndices.data());
+            if (mg.texture && !mg.uploadTextureImage.isNull()) {
+                QRhiTextureUploadEntry entry(
+                    0,
+                    0,
+                    QRhiTextureSubresourceUploadDescription(mg.uploadTextureImage));
+                u->uploadTexture(mg.texture.get(), QRhiTextureUploadDescription({ entry }));
+            }
             ++uploadedMeshes;
-            uploadedVertices += static_cast<int>(mg.uploadData.size() / 10);
+            uploadedVertices += static_cast<int>(mg.uploadData.size() / kFillVertexStrideFloats);
             uploadedTriangles += (mg.indexCount > 0 ? mg.indexCount : mg.vertexCount) / 3;
             std::vector<float>().swap(mg.uploadData);
             std::vector<quint32>().swap(mg.uploadIndices);
+            QImage().swap(mg.uploadTextureImage);
         }
         for (auto &wg : m_wireGPU) {
             if (!wg.uploadData.empty()) {
@@ -868,11 +1056,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (drawFillPass && m_fillPipeline) {
         cb->setGraphicsPipeline(m_fillPipeline.get());
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-        cb->setShaderResources();
 
         for (const auto &mg : m_meshGPU) {
             if (mg.indexCount == 0 && mg.vertexCount == 0)
                 continue;
+            cb->setShaderResources(mg.srb ? mg.srb.get() : m_srb.get());
             const QRhiCommandBuffer::VertexInput vbufBinding(mg.vbuf.get(), 0);
             if (mg.indexCount > 0) {
                 cb->setVertexInput(0, 1, &vbufBinding, mg.ibuf.get(), 0, QRhiCommandBuffer::IndexUInt32);

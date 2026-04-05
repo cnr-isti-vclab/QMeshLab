@@ -5,6 +5,7 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <QElapsedTimer>
+#include <QDir>
 #include <QFileInfo>
 
 namespace {
@@ -39,6 +40,17 @@ QString summarizeLoadMask(int mask)
     if (attrs.isEmpty())
         return QObject::tr("none");
     return attrs.join(QStringLiteral(", "));
+}
+
+QString resolveTexturePath(const QString &meshFilePath, const QString &declaredTextureName)
+{
+    const QString normalizedName = QDir::fromNativeSeparators(declaredTextureName);
+    QFileInfo textureInfo(normalizedName);
+    if (textureInfo.isAbsolute())
+        return textureInfo.absoluteFilePath();
+
+    const QFileInfo meshInfo(meshFilePath);
+    return meshInfo.dir().filePath(normalizedName);
 }
 }
 
@@ -101,6 +113,31 @@ int Document::loadMesh(const QString &filename)
     }
     entry->ioMask = loadMask;
     entry->name = QFileInfo(filename).fileName();
+    entry->sourcePath = filename;
+
+    QStringList declaredTextureNames;
+    QStringList resolvedTexturePaths;
+    bool selectedExistingTexture = false;
+    for (const std::string &rawTextureName : entry->mesh.textures) {
+        const QString textureName = QString::fromStdString(rawTextureName).trimmed();
+        if (textureName.isEmpty())
+            continue;
+        declaredTextureNames.append(textureName);
+        const QString resolvedTexturePath = resolveTexturePath(filename, textureName);
+        resolvedTexturePaths.append(resolvedTexturePath);
+        entry->textureFileNames.append(textureName);
+        entry->textureFilePaths.append(resolvedTexturePath);
+        if (entry->textureFileName.isEmpty()) {
+            entry->textureFileName = textureName;
+            entry->textureFilePath = resolvedTexturePath;
+        }
+        if (!selectedExistingTexture && QFileInfo::exists(resolvedTexturePath)) {
+            entry->textureFileName = textureName;
+            entry->textureFilePath = resolvedTexturePath;
+            selectedExistingTexture = true;
+        }
+    }
+
     int index = meshCount();
     m_meshes.push_back(std::move(entry));
 
@@ -116,6 +153,21 @@ int Document::loadMesh(const QString &filename)
         .arg(summarizeLoadMask(loadMask))
         .arg(QString::number(static_cast<quint32>(loadMask), 16).toUpper()),
         LogSource::Application);
+    if (!declaredTextureNames.isEmpty()) {
+        int existingTextureFiles = 0;
+        for (const QString &path : meshEntry.textureFilePaths) {
+            if (QFileInfo::exists(path))
+                ++existingTextureFiles;
+        }
+        writeLog(tr("Texture info for '%1': declared [%2], resolved [%3], selected '%4' (%5/%6 files found)")
+            .arg(meshEntry.name)
+            .arg(declaredTextureNames.join(QStringLiteral(", ")))
+            .arg(resolvedTexturePaths.join(QStringLiteral(", ")))
+            .arg(meshEntry.textureFileName.isEmpty() ? tr("none") : meshEntry.textureFileName)
+            .arg(existingTextureFiles)
+            .arg(meshEntry.textureFilePaths.size()),
+            LogSource::Application);
+    }
 
     emit meshAdded(index);
     setCurrentMeshIndex(index);
