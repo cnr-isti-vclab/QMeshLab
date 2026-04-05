@@ -17,6 +17,7 @@ public:
 
     const RenderSettings &settings() const { return m_settings; }
     void setSettings(const RenderSettings &settings);
+    void setFillColorSourceAvailability(bool hasVertexColors, bool hasFaceColors);
 
 signals:
     void settingsChanged(const RenderSettings &settings);
@@ -42,6 +43,9 @@ private:
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;
+    QComboBox *m_fillColorSourceCombo = nullptr;
+    bool m_hasVertexColorSource = false;
+    bool m_hasFaceColorSource = false;
     QToolButton *m_modeButton = nullptr;
     QToolButton *m_bboxButton = nullptr;
     QToolButton *m_pointsButton = nullptr;

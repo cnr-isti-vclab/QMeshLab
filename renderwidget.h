@@ -39,6 +39,7 @@ protected:
 private:
     void createOverlayButtons();
     void layoutOverlayButtons();
+    void refreshFillColorSourceAvailability();
     void ensureRenderResources();
     void rebuildBuffers();
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);

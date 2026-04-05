@@ -24,8 +24,11 @@ public:
         return QFileInfo(filename).suffix().compare(QStringLiteral("e57"), Qt::CaseInsensitive) == 0;
     }
 
-    int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb) const override
+    int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
+        if (outLoadMask)
+            *outLoadMask = 0;
+
         e57::Reader reader(filename.toStdString(), {});
         if (!reader.IsOpen())
             return -1;

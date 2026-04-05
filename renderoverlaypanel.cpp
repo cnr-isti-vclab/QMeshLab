@@ -215,9 +215,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillForm->setVerticalSpacing(2);
     fillForm->setLabelAlignment(Qt::AlignLeft);
     m_fillColorButton = new QPushButton(tr("Choose..."), fillPage);
+    m_fillColorSourceCombo = new QComboBox(fillPage);
+    m_fillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
+    m_fillColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(FillColorSource::PerVertex));
+    m_fillColorSourceCombo->addItem(tr("Per-Face"), static_cast<int>(FillColorSource::PerFace));
     m_fillShadingCombo = new QComboBox(fillPage);
     m_fillShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
     m_fillShadingCombo->addItem(tr("Flat"), static_cast<int>(FillShading::Flat));
+    fillForm->addRow(tr("Color source"), m_fillColorSourceCombo);
     fillForm->addRow(tr("Fill color"), m_fillColorButton);
     fillForm->addRow(tr("Shading"), m_fillShadingCombo);
     fillLayout->addLayout(fillForm);
@@ -276,6 +281,18 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             return;
         m_settings.fillColor = picked;
         updateFillColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
+    connect(m_fillColorSourceCombo, &QComboBox::currentIndexChanged, this, [this](int idx) {
+        if (!m_fillColorSourceCombo)
+            return;
+        const QVariant data = m_fillColorSourceCombo->itemData(idx);
+        if (!data.isValid())
+            return;
+        const FillColorSource source = static_cast<FillColorSource>(data.toInt());
+        if (m_settings.fillColorSource == source)
+            return;
+        m_settings.fillColorSource = source;
         emit settingsChanged(m_settings);
     });
     connect(m_fillShadingCombo, &QComboBox::currentIndexChanged, this, [this](int idx) {
@@ -350,6 +367,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     updatePointsColorButtonStyle();
     updateWireColorButtonStyle();
     updateFillColorButtonStyle();
+    setFillColorSourceAvailability(false, false);
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
     if (m_settingsContainer)
@@ -430,6 +448,16 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
             }
         }
     }
+    if (m_fillColorSourceCombo) {
+        QSignalBlocker blocker(m_fillColorSourceCombo);
+        const int value = static_cast<int>(m_settings.fillColorSource);
+        for (int i = 0; i < m_fillColorSourceCombo->count(); ++i) {
+            if (m_fillColorSourceCombo->itemData(i).toInt() == value) {
+                m_fillColorSourceCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
     if (m_settingsContainer)
         m_settingsContainer->setVisible(m_settings.settingsPanelVisible);
     if (m_settingsStack)
@@ -440,6 +468,33 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     updateWireColorButtonStyle();
     updateFillColorButtonStyle();
     syncRenderPassUiState();
+}
+
+void RenderOverlayPanel::setFillColorSourceAvailability(bool hasVertexColors, bool hasFaceColors)
+{
+    m_hasVertexColorSource = hasVertexColors;
+    m_hasFaceColorSource = hasFaceColors;
+
+    if (!m_fillColorSourceCombo)
+        return;
+
+    const int vertexIndex =
+        m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::PerVertex));
+    const int faceIndex =
+        m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::PerFace));
+
+    if (vertexIndex >= 0) {
+        m_fillColorSourceCombo->setItemData(
+            vertexIndex,
+            hasVertexColors ? QVariant() : QVariant(0),
+            Qt::UserRole - 1);
+    }
+    if (faceIndex >= 0) {
+        m_fillColorSourceCombo->setItemData(
+            faceIndex,
+            hasFaceColors ? QVariant() : QVariant(0),
+            Qt::UserRole - 1);
+    }
 }
 
 void RenderOverlayPanel::updateBBoxColorButtonStyle()

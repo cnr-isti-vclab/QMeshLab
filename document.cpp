@@ -47,7 +47,8 @@ int Document::loadMesh(const QString &filename)
 
     Document *previousCallbackDocument = g_callbackDocument;
     g_callbackDocument = this;
-    int err = plugin->load(filename, entry->mesh, logCallback());
+    int loadMask = 0;
+    int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask);
     g_callbackDocument = previousCallbackDocument;
     const qint64 elapsedMs = loadTimer.elapsed();
 
@@ -61,6 +62,7 @@ int Document::loadMesh(const QString &filename)
 
     vcg::tri::UpdateBounding<VCGMesh>::Box(entry->mesh);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry->mesh);
+    entry->ioMask = loadMask;
     entry->name = QFileInfo(filename).fileName();
     int index = meshCount();
     m_meshes.push_back(std::move(entry));

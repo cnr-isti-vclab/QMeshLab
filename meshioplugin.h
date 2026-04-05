@@ -18,8 +18,10 @@ public:
 
     // Loads the mesh from filename into mesh.
     // The optional callback cb follows vcg::CallBackPos convention for progress reporting.
+    // If outLoadMask is non-null, the plugin can store vcg::tri::io::Mask bits describing
+    // which attributes were found in the input file.
     // Returns 0 on success, a non-zero error code otherwise.
-    virtual int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb) const = 0;
+    virtual int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const = 0;
 
     // Qt file dialog filter string for this plugin's formats, e.g. "Mesh Files (*.ply *.obj)".
     virtual QString filterString() const = 0;

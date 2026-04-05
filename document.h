@@ -26,6 +26,7 @@ public:
     struct MeshEntry {
         QString name;
         bool visible = true;
+        int ioMask = 0;
         VCGMesh mesh;
     };
 

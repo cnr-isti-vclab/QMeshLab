@@ -15,6 +15,12 @@ enum class FillShading {
     Flat
 };
 
+enum class FillColorSource {
+    Constant = 0,
+    PerVertex,
+    PerFace
+};
+
 struct RenderSettings {
     bool showBoundingBox = false;
     bool showPoints = false;
@@ -29,6 +35,7 @@ struct RenderSettings {
     float wireSize = 1.5f;
     QColor fillColor = QColor(153, 153, 179);
     FillShading fillShading = FillShading::Smooth;
+    FillColorSource fillColorSource = FillColorSource::Constant;
 
     bool operator==(const RenderSettings &other) const
     {
@@ -44,7 +51,8 @@ struct RenderSettings {
             && wireColor == other.wireColor
             && wireSize == other.wireSize
             && fillColor == other.fillColor
-            && fillShading == other.fillShading;
+            && fillShading == other.fillShading
+            && fillColorSource == other.fillColorSource;
     }
 
     bool operator!=(const RenderSettings &other) const

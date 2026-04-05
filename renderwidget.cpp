@@ -1,6 +1,7 @@
 #include "renderwidget.h"
 #include "document.h"
 #include "renderoverlaypanel.h"
+#include <wrap/io_trimesh/io_mask.h>
 #include <QFile>
 #include <QMouseEvent>
 #include <QResizeEvent>
@@ -32,13 +33,16 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
     createOverlayButtons();
+    refreshFillColorSourceAvailability();
 
     connect(m_doc, &Document::meshAdded, this, [this](int) {
+        refreshFillColorSourceAvailability();
         m_buffersDirty = true;
         m_logRebuildRequested = true;
         update();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int) {
+        refreshFillColorSourceAvailability();
         m_buffersDirty = true;
         m_logRebuildRequested = true;
         update();
@@ -107,6 +111,10 @@ void RenderWidget::createOverlayButtons()
             m_buffersDirty = true;
             m_logRebuildRequested = true;
         }
+        if (prev.fillColorSource != m_renderSettings.fillColorSource) {
+            m_buffersDirty = true;
+            m_logRebuildRequested = true;
+        }
 
         update();
         layoutOverlayButtons();
@@ -123,6 +131,34 @@ void RenderWidget::layoutOverlayButtons()
     m_overlayPanel->adjustSize();
     m_overlayPanel->move(8, 8);
     m_overlayPanel->raise();
+}
+
+void RenderWidget::refreshFillColorSourceAvailability()
+{
+    bool hasVertexColors = false;
+    bool hasFaceColors = false;
+    for (int i = 0; i < m_doc->meshCount(); ++i) {
+        const int mask = m_doc->mesh(i).ioMask;
+        hasVertexColors = hasVertexColors || ((mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0);
+        hasFaceColors = hasFaceColors || ((mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0);
+    }
+
+    if (m_overlayPanel)
+        m_overlayPanel->setFillColorSourceAvailability(hasVertexColors, hasFaceColors);
+
+    RenderSettings corrected = m_renderSettings;
+    if (corrected.fillColorSource == FillColorSource::PerVertex && !hasVertexColors)
+        corrected.fillColorSource = FillColorSource::Constant;
+    if (corrected.fillColorSource == FillColorSource::PerFace && !hasFaceColors)
+        corrected.fillColorSource = FillColorSource::Constant;
+
+    if (corrected != m_renderSettings) {
+        m_renderSettings = corrected;
+        if (m_overlayPanel)
+            m_overlayPanel->setSettings(m_renderSettings);
+        m_buffersDirty = true;
+        m_logRebuildRequested = true;
+    }
 }
 
 void RenderWidget::ensureRenderResources()
@@ -198,15 +234,18 @@ void RenderWidget::ensureRenderResources()
         m_fillPipeline->setCullMode(QRhiGraphicsPipeline::Back);
 
         QRhiVertexInputLayout inputLayout;
-        inputLayout.setBindings({ { 6 * sizeof(float) } });
+        // Fill vertex layout: position(3f) + normal(3f) + meshColor(4f, color.a used as "has mesh color" flag).
+        inputLayout.setBindings({ { 10 * sizeof(float) } });
         if (m_renderSettings.fillShading == FillShading::Flat) {
             inputLayout.setAttributes({
-                { 0, 0, QRhiVertexInputAttribute::Float3, 0 }              // position
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
+                { 0, 1, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) }  // mesh color + use flag
             });
         } else {
             inputLayout.setAttributes({
-                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },             // position
-                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) } // normal
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
+                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) }, // normal
+                { 0, 2, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) }  // mesh color + use flag
             });
         }
         m_fillPipeline->setVertexInputLayout(inputLayout);
@@ -353,50 +392,104 @@ void RenderWidget::rebuildBuffers()
     m_distance = m_radius * 3.0f;
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const VCGMesh &mesh = m_doc->mesh(mi).mesh;
+        const auto &meshEntry = m_doc->mesh(mi);
+        const VCGMesh &mesh = meshEntry.mesh;
         if (mesh.FN() == 0) continue;
+
+        const bool meshHasFaceColor = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
+        const bool meshHasVertexColor = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
+        const bool useFaceColor = (m_renderSettings.fillColorSource == FillColorSource::PerFace) && meshHasFaceColor;
+        const bool useVertexColor =
+            (m_renderSettings.fillColorSource == FillColorSource::PerVertex) && meshHasVertexColor;
 
         if (m_renderSettings.showFill) {
             MeshGPU mg;
 
-            // Build interleaved vertex buffer: pos(3f) + normal(3f)
-            const int vertBytes = mesh.VN() * 6 * sizeof(float);
-            auto vbuf = std::unique_ptr<QRhiBuffer>(
-                m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
-            vbuf->create();
+            if (useFaceColor) {
+                // Per-face colors require triangle expansion so each face keeps a constant color.
+                const int vertexCount = mesh.FN() * 3;
+                const int vertBytes = vertexCount * 10 * sizeof(float);
+                auto vbuf = std::unique_ptr<QRhiBuffer>(
+                    m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
+                vbuf->create();
 
-            std::vector<float> vdata(mesh.VN() * 6);
-            for (int i = 0; i < mesh.VN(); ++i) {
-                const auto &v = mesh.vert[i];
-                vdata[i * 6 + 0] = v.P()[0];
-                vdata[i * 6 + 1] = v.P()[1];
-                vdata[i * 6 + 2] = v.P()[2];
-                vdata[i * 6 + 3] = v.N()[0];
-                vdata[i * 6 + 4] = v.N()[1];
-                vdata[i * 6 + 5] = v.N()[2];
+                std::vector<float> vdata(vertexCount * 10);
+                for (int i = 0; i < mesh.FN(); ++i) {
+                    const auto &f = mesh.face[i];
+                    const auto fc = f.cC();
+                    const float fr = static_cast<float>(fc[0]) / 255.0f;
+                    const float fg = static_cast<float>(fc[1]) / 255.0f;
+                    const float fb = static_cast<float>(fc[2]) / 255.0f;
+                    for (int corner = 0; corner < 3; ++corner) {
+                        const auto *vertex = f.cV(corner);
+                        const int base = (i * 3 + corner) * 10;
+                        vdata[base + 0] = vertex->cP()[0];
+                        vdata[base + 1] = vertex->cP()[1];
+                        vdata[base + 2] = vertex->cP()[2];
+                        vdata[base + 3] = vertex->cN()[0];
+                        vdata[base + 4] = vertex->cN()[1];
+                        vdata[base + 5] = vertex->cN()[2];
+                        vdata[base + 6] = fr;
+                        vdata[base + 7] = fg;
+                        vdata[base + 8] = fb;
+                        vdata[base + 9] = 1.0f; // use mesh color
+                    }
+                }
+
+                mg.vbuf = std::move(vbuf);
+                mg.vertexCount = vertexCount;
+                mg.indexCount = 0;
+                mg.uploadData = std::move(vdata);
+            } else {
+                // Build interleaved vertex buffer: pos(3f) + normal(3f) + color(3f) + useColorFlag(1f)
+                const int vertBytes = mesh.VN() * 10 * sizeof(float);
+                auto vbuf = std::unique_ptr<QRhiBuffer>(
+                    m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
+                vbuf->create();
+
+                std::vector<float> vdata(mesh.VN() * 10);
+                const float useMeshColor = useVertexColor ? 1.0f : 0.0f;
+                for (int i = 0; i < mesh.VN(); ++i) {
+                    const auto &v = mesh.vert[i];
+                    const auto vc = v.cC();
+                    const float cr = useVertexColor ? static_cast<float>(vc[0]) / 255.0f : 1.0f;
+                    const float cg = useVertexColor ? static_cast<float>(vc[1]) / 255.0f : 1.0f;
+                    const float cb = useVertexColor ? static_cast<float>(vc[2]) / 255.0f : 1.0f;
+                    const int base = i * 10;
+                    vdata[base + 0] = v.P()[0];
+                    vdata[base + 1] = v.P()[1];
+                    vdata[base + 2] = v.P()[2];
+                    vdata[base + 3] = v.N()[0];
+                    vdata[base + 4] = v.N()[1];
+                    vdata[base + 5] = v.N()[2];
+                    vdata[base + 6] = cr;
+                    vdata[base + 7] = cg;
+                    vdata[base + 8] = cb;
+                    vdata[base + 9] = useMeshColor;
+                }
+
+                // Build index buffer
+                const int idxCount = mesh.FN() * 3;
+                const int idxBytes = idxCount * sizeof(quint32);
+                auto ibuf = std::unique_ptr<QRhiBuffer>(
+                    m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::IndexBuffer, idxBytes));
+                ibuf->create();
+
+                std::vector<quint32> idata(idxCount);
+                for (int i = 0; i < mesh.FN(); ++i) {
+                    const auto &f = mesh.face[i];
+                    idata[i * 3 + 0] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(0)));
+                    idata[i * 3 + 1] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(1)));
+                    idata[i * 3 + 2] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(2)));
+                }
+
+                mg.vbuf = std::move(vbuf);
+                mg.ibuf = std::move(ibuf);
+                mg.vertexCount = mesh.VN();
+                mg.indexCount = idxCount;
+                mg.uploadData = std::move(vdata);
+                mg.uploadIndices = std::move(idata);
             }
-
-            // Build index buffer
-            const int idxCount = mesh.FN() * 3;
-            const int idxBytes = idxCount * sizeof(quint32);
-            auto ibuf = std::unique_ptr<QRhiBuffer>(
-                m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::IndexBuffer, idxBytes));
-            ibuf->create();
-
-            std::vector<quint32> idata(idxCount);
-            for (int i = 0; i < mesh.FN(); ++i) {
-                const auto &f = mesh.face[i];
-                idata[i * 3 + 0] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(0)));
-                idata[i * 3 + 1] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(1)));
-                idata[i * 3 + 2] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(2)));
-            }
-
-            mg.vbuf = std::move(vbuf);
-            mg.ibuf = std::move(ibuf);
-            mg.vertexCount = mesh.VN();
-            mg.indexCount = idxCount;
-            mg.uploadData = std::move(vdata);
-            mg.uploadIndices = std::move(idata);
             m_meshGPU.push_back(std::move(mg));
         }
 
@@ -526,8 +619,8 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             if (mg.ibuf && !mg.uploadIndices.empty())
                 u->uploadStaticBuffer(mg.ibuf.get(), mg.uploadIndices.data());
             ++uploadedMeshes;
-            uploadedVertices += static_cast<int>(mg.uploadData.size() / 6);
-            uploadedTriangles += mg.indexCount / 3;
+            uploadedVertices += static_cast<int>(mg.uploadData.size() / 10);
+            uploadedTriangles += (mg.indexCount > 0 ? mg.indexCount : mg.vertexCount) / 3;
             std::vector<float>().swap(mg.uploadData);
             std::vector<quint32>().swap(mg.uploadIndices);
         }

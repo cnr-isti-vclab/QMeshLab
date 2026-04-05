@@ -27,10 +27,15 @@ public:
             || ext == QLatin1String("vmi");
     }
 
-    int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb) const override
+    int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
-        return vcg::tri::io::Importer<VCGMesh>::Open(
-            mesh, filename.toStdString().c_str(), cb);
+        int loadMask = 0;
+        vcg::tri::io::Importer<VCGMesh>::LoadMask(filename.toStdString().c_str(), loadMask);
+        const int err = vcg::tri::io::Importer<VCGMesh>::Open(
+            mesh, filename.toStdString().c_str(), loadMask, cb);
+        if (outLoadMask)
+            *outLoadMask = loadMask;
+        return err;
     }
 
     QString filterString() const override
