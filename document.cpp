@@ -118,6 +118,7 @@ int Document::loadMesh(const QString &filename)
         LogSource::Application);
 
     emit meshAdded(index);
+    setCurrentMeshIndex(index);
     return 0;
 }
 
@@ -127,9 +128,40 @@ void Document::removeMesh(int index)
         return;
 
     const QString meshName = mesh(index).name;
+    int newCurrent = m_currentMeshIndex;
+    if (m_currentMeshIndex == index) {
+        if (meshCount() == 1)
+            newCurrent = -1;
+        else
+            newCurrent = (index < meshCount() - 1) ? index : (meshCount() - 2);
+    } else if (m_currentMeshIndex > index) {
+        newCurrent = m_currentMeshIndex - 1;
+    }
+
     m_meshes.erase(m_meshes.begin() + index);
     writeLog(tr("Removed mesh '%1'").arg(meshName), LogSource::Application);
     emit meshRemoved(index);
+    setCurrentMeshIndex(newCurrent);
+}
+
+void Document::setMeshVisible(int index, bool visible)
+{
+    if (index < 0 || index >= meshCount())
+        return;
+    MeshEntry &entry = mesh(index);
+    if (entry.visible == visible)
+        return;
+    entry.visible = visible;
+    emit meshVisibilityChanged(index, visible);
+}
+
+void Document::setCurrentMeshIndex(int index)
+{
+    const int normalizedIndex = (index >= 0 && index < meshCount()) ? index : -1;
+    if (m_currentMeshIndex == normalizedIndex)
+        return;
+    m_currentMeshIndex = normalizedIndex;
+    emit currentMeshChanged(m_currentMeshIndex);
 }
 
 void Document::clearLog()

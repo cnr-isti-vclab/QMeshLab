@@ -53,6 +53,11 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         m_logRebuildRequested = true;
         update();
     });
+    connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
+        m_buffersDirty = true;
+        m_logRebuildRequested = true;
+        update();
+    });
 }
 
 void RenderWidget::setShadingMode(ShadingMode mode)
@@ -465,6 +470,7 @@ void RenderWidget::rebuildBuffers()
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         const auto &meshEntry = m_doc->mesh(mi);
+        if (!meshEntry.visible) continue;
         const VCGMesh &mesh = meshEntry.mesh;
         if (mesh.FN() == 0) continue;
 
@@ -604,7 +610,9 @@ void RenderWidget::rebuildBuffers()
 
     // Build per-mesh bounding box line buffers (12 edges = 24 vertices)
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const VCGMesh &mesh = m_doc->mesh(mi).mesh;
+        const auto &meshEntry = m_doc->mesh(mi);
+        if (!meshEntry.visible) continue;
+        const VCGMesh &mesh = meshEntry.mesh;
         if (mesh.bbox.IsNull()) continue;
 
         const auto &mn = mesh.bbox.min;
@@ -645,6 +653,7 @@ void RenderWidget::rebuildBuffers()
     // position(3f) + color(3f) + useMeshColorFlag(1f) + normal(3f) + useNormalFlag(1f)
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         const auto &meshEntry = m_doc->mesh(mi);
+        if (!meshEntry.visible) continue;
         const VCGMesh &mesh = meshEntry.mesh;
         if (mesh.VN() == 0) continue;
 
