@@ -844,7 +844,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         ubufData[kUbufFillColorOffset + 1] = m_renderSettings.fillColor.greenF();
         ubufData[kUbufFillColorOffset + 2] = m_renderSettings.fillColor.blueF();
         ubufData[kUbufFillColorOffset + 3] = m_renderSettings.fillColor.alphaF();
-        ubufData[kUbufLightingParamsOffset + 0] = m_renderSettings.bboxLighting ? 1.0f : 0.0f;
+        // bbox lighting removed: slot 0 intentionally unused/reserved.
+        ubufData[kUbufLightingParamsOffset + 0] = 0.0f;
         ubufData[kUbufLightingParamsOffset + 1] = m_renderSettings.pointLighting ? 1.0f : 0.0f;
         ubufData[kUbufLightingParamsOffset + 2] = m_renderSettings.wireLighting ? 1.0f : 0.0f;
         ubufData[kUbufLightingParamsOffset + 3] = m_renderSettings.fillLighting ? 1.0f : 0.0f;

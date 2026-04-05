@@ -162,9 +162,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bboxForm->setVerticalSpacing(2);
     bboxForm->setLabelAlignment(Qt::AlignLeft);
     m_bboxColorButton = new QPushButton(tr("Choose..."), bboxPage);
-    m_bboxLightingCheck = new QCheckBox(tr("On"), bboxPage);
     bboxForm->addRow(tr("Wire color"), m_bboxColorButton);
-    bboxForm->addRow(tr("Lighting"), m_bboxLightingCheck);
     bboxLayout->addLayout(bboxForm);
 
     m_settingsStack->addWidget(bboxPage);
@@ -256,12 +254,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             return;
         m_settings.bboxWireColor = picked;
         updateBBoxColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_bboxLightingCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.bboxLighting == checked)
-            return;
-        m_settings.bboxLighting = checked;
         emit settingsChanged(m_settings);
     });
     connect(m_pointsColorButton, &QPushButton::clicked, this, [this]() {
@@ -480,10 +472,6 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_modeButton) {
         QSignalBlocker blocker(m_modeButton);
         m_modeButton->setChecked(m_settings.settingsPanelVisible);
-    }
-    if (m_bboxLightingCheck) {
-        QSignalBlocker blocker(m_bboxLightingCheck);
-        m_bboxLightingCheck->setChecked(m_settings.bboxLighting);
     }
     if (m_pointLightingCheck) {
         QSignalBlocker blocker(m_pointLightingCheck);

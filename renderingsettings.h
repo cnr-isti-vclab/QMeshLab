@@ -31,7 +31,6 @@ struct RenderSettings {
     bool showPoints = false;
     bool showWire = true;
     bool showFill = true;
-    bool bboxLighting = false;
     bool pointLighting = false;
     bool wireLighting = false;
     bool fillLighting = true;
@@ -53,7 +52,6 @@ struct RenderSettings {
             && showPoints == other.showPoints
             && showWire == other.showWire
             && showFill == other.showFill
-            && bboxLighting == other.bboxLighting
             && pointLighting == other.pointLighting
             && wireLighting == other.wireLighting
             && fillLighting == other.fillLighting

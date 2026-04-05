@@ -46,7 +46,6 @@ private:
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
     QComboBox *m_pointColorSourceCombo = nullptr;
-    QCheckBox *m_bboxLightingCheck = nullptr;
     QCheckBox *m_pointLightingCheck = nullptr;
     QCheckBox *m_wireLightingCheck = nullptr;
     QCheckBox *m_fillLightingCheck = nullptr;
