@@ -6,6 +6,7 @@
 class QPushButton;
 class QDoubleSpinBox;
 class QComboBox;
+class QCheckBox;
 class QStackedWidget;
 class QToolButton;
 
@@ -17,6 +18,8 @@ public:
 
     const RenderSettings &settings() const { return m_settings; }
     void setSettings(const RenderSettings &settings);
+    void setPointColorSourceAvailability(bool hasVertexColors);
+    void setPointLightingAvailability(bool hasVertexNormals);
     void setFillColorSourceAvailability(bool hasVertexColors, bool hasFaceColors);
 
 signals:
@@ -42,8 +45,15 @@ private:
     QPushButton *m_fillColorButton = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
+    QComboBox *m_pointColorSourceCombo = nullptr;
+    QCheckBox *m_bboxLightingCheck = nullptr;
+    QCheckBox *m_pointLightingCheck = nullptr;
+    QCheckBox *m_wireLightingCheck = nullptr;
+    QCheckBox *m_fillLightingCheck = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;
     QComboBox *m_fillColorSourceCombo = nullptr;
+    bool m_hasPointVertexColorSource = false;
+    bool m_hasPointNormalSource = false;
     bool m_hasVertexColorSource = false;
     bool m_hasFaceColorSource = false;
     QToolButton *m_modeButton = nullptr;

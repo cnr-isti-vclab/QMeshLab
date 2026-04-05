@@ -8,7 +8,11 @@ layout(std140, binding = 0) uniform buf {
     mat3 normalMatrix;
 } ub;
 
+layout(location = 0) out vec3 vViewPos;
+
 void main()
 {
+    vec4 viewPos = ub.modelView * vec4(inPos, 1.0);
+    vViewPos = viewPos.xyz;
     gl_Position = ub.mvp * vec4(inPos, 1.0);
 }

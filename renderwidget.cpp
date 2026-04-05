@@ -19,7 +19,7 @@ static QShader loadShader(const QString &path)
 }
 
 namespace {
-constexpr int kUbufSize = 272;
+constexpr int kUbufSize = 288;
 constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
 constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
 constexpr int kUbufPointColorOffset = 192 / sizeof(float);
@@ -27,22 +27,28 @@ constexpr int kUbufPointParamsOffset = 208 / sizeof(float);
 constexpr int kUbufWireColorOffset = 224 / sizeof(float);
 constexpr int kUbufWireParamsOffset = 240 / sizeof(float);
 constexpr int kUbufFillColorOffset = 256 / sizeof(float);
+constexpr int kUbufLightingParamsOffset = 272 / sizeof(float);
 }
 
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
     createOverlayButtons();
-    refreshFillColorSourceAvailability();
+    refreshColorSourceAvailability();
 
     connect(m_doc, &Document::meshAdded, this, [this](int) {
-        refreshFillColorSourceAvailability();
+        m_reframeCameraRequested = true;
+        applySceneDefaultRenderModeIfNeeded();
+        refreshColorSourceAvailability();
         m_buffersDirty = true;
         m_logRebuildRequested = true;
         update();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int) {
-        refreshFillColorSourceAvailability();
+        m_reframeCameraRequested = true;
+        if (m_doc->meshCount() == 0)
+            m_applySceneDefaultRenderMode = true;
+        refreshColorSourceAvailability();
         m_buffersDirty = true;
         m_logRebuildRequested = true;
         update();
@@ -115,6 +121,10 @@ void RenderWidget::createOverlayButtons()
             m_buffersDirty = true;
             m_logRebuildRequested = true;
         }
+        if (prev.pointColorSource != m_renderSettings.pointColorSource) {
+            m_buffersDirty = true;
+            m_logRebuildRequested = true;
+        }
 
         update();
         layoutOverlayButtons();
@@ -133,20 +143,73 @@ void RenderWidget::layoutOverlayButtons()
     m_overlayPanel->raise();
 }
 
-void RenderWidget::refreshFillColorSourceAvailability()
+void RenderWidget::applySceneDefaultRenderModeIfNeeded()
+{
+    if (!m_applySceneDefaultRenderMode)
+        return;
+
+    if (m_doc->meshCount() <= 0)
+        return;
+
+    m_applySceneDefaultRenderMode = false;
+
+    bool hasFaces = false;
+    bool hasVertexColors = false;
+    bool hasVertexNormals = false;
+    for (int i = 0; i < m_doc->meshCount(); ++i) {
+        if (m_doc->mesh(i).mesh.FN() > 0) {
+            hasFaces = true;
+            break;
+        }
+        const int mask = m_doc->mesh(i).ioMask;
+        hasVertexColors = hasVertexColors || ((mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0);
+        hasVertexNormals = hasVertexNormals || ((mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0);
+    }
+
+    if (hasFaces)
+        return;
+
+    m_renderSettings.showPoints = true;
+    m_renderSettings.showWire = false;
+    m_renderSettings.showFill = false;
+    m_renderSettings.currentPass = RenderPass::Points;
+    m_renderSettings.pointColorSource = hasVertexColors
+        ? PointColorSource::PerVertex
+        : PointColorSource::Constant;
+    m_renderSettings.pointLighting = hasVertexNormals;
+
+    m_shadingMode = ShadingMode::Smooth;
+    m_fillPipeline.reset();
+    m_wirePipeline.reset();
+
+    if (m_overlayPanel)
+        m_overlayPanel->setSettings(m_renderSettings);
+}
+
+void RenderWidget::refreshColorSourceAvailability()
 {
     bool hasVertexColors = false;
     bool hasFaceColors = false;
+    bool hasVertexNormals = false;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         const int mask = m_doc->mesh(i).ioMask;
         hasVertexColors = hasVertexColors || ((mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0);
         hasFaceColors = hasFaceColors || ((mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0);
+        hasVertexNormals = hasVertexNormals || ((mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0);
     }
 
+    if (m_overlayPanel)
+        m_overlayPanel->setPointColorSourceAvailability(hasVertexColors);
+    if (m_overlayPanel)
+        m_overlayPanel->setPointLightingAvailability(hasVertexNormals);
     if (m_overlayPanel)
         m_overlayPanel->setFillColorSourceAvailability(hasVertexColors, hasFaceColors);
 
     RenderSettings corrected = m_renderSettings;
+    if (corrected.pointColorSource == PointColorSource::PerVertex && !hasVertexColors)
+        corrected.pointColorSource = PointColorSource::Constant;
+    if (corrected.pointLighting && !hasVertexNormals)
+        corrected.pointLighting = false;
     if (corrected.fillColorSource == FillColorSource::PerVertex && !hasVertexColors)
         corrected.fillColorSource = FillColorSource::Constant;
     if (corrected.fillColorSource == FillColorSource::PerFace && !hasFaceColors)
@@ -356,12 +419,18 @@ void RenderWidget::ensureRenderResources()
         });
         m_pointsPipeline->setTopology(QRhiGraphicsPipeline::Points);
         m_pointsPipeline->setDepthTest(true);
-        m_pointsPipeline->setDepthWrite(false);
+        m_pointsPipeline->setDepthWrite(true);
         m_pointsPipeline->setCullMode(QRhiGraphicsPipeline::None);
 
         QRhiVertexInputLayout ptsLayout;
-        ptsLayout.setBindings({ { 3 * sizeof(float) } });
-        ptsLayout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+        // Points vertex layout: position(3f) + meshColor(3f) + useMeshColorFlag(1f)
+        // + normal(3f) + useNormalFlag(1f)
+        ptsLayout.setBindings({ { 11 * sizeof(float) } });
+        ptsLayout.setAttributes({
+            { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
+            { 0, 1, QRhiVertexInputAttribute::Float4, 3 * sizeof(float) }, // mesh color + use flag
+            { 0, 2, QRhiVertexInputAttribute::Float4, 7 * sizeof(float) }  // normal + use flag
+        });
         m_pointsPipeline->setVertexInputLayout(ptsLayout);
         m_pointsPipeline->setShaderResourceBindings(m_srb.get());
         m_pointsPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
@@ -386,10 +455,13 @@ void RenderWidget::rebuildBuffers()
     vcg::Box3f bbox;
     for (int i = 0; i < m_doc->meshCount(); ++i)
         bbox.Add(m_doc->mesh(i).mesh.bbox);
-    auto c = bbox.Center();
-    m_center = QVector3D(c[0], c[1], c[2]);
-    m_radius = bbox.Diag() / 2.0f;
-    m_distance = m_radius * 3.0f;
+    if (m_reframeCameraRequested) {
+        auto c = bbox.Center();
+        m_center = QVector3D(c[0], c[1], c[2]);
+        m_radius = bbox.Diag() / 2.0f;
+        m_distance = m_radius * 3.0f;
+        m_reframeCameraRequested = false;
+    }
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         const auto &meshEntry = m_doc->mesh(mi);
@@ -569,16 +641,48 @@ void RenderWidget::rebuildBuffers()
         m_bboxGPU.push_back(std::move(bg));
     }
 
-    // Build per-mesh position-only buffers for the points pass
+    // Build per-mesh point buffers:
+    // position(3f) + color(3f) + useMeshColorFlag(1f) + normal(3f) + useNormalFlag(1f)
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const VCGMesh &mesh = m_doc->mesh(mi).mesh;
+        const auto &meshEntry = m_doc->mesh(mi);
+        const VCGMesh &mesh = meshEntry.mesh;
         if (mesh.VN() == 0) continue;
 
-        std::vector<float> pdata(mesh.VN() * 3);
+        const bool meshHasVertexColor = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
+        const bool meshHasVertexNormal = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
+        const bool useVertexColor =
+            (m_renderSettings.pointColorSource == PointColorSource::PerVertex) && meshHasVertexColor;
+        const float useMeshColor = useVertexColor ? 1.0f : 0.0f;
+
+        std::vector<float> pdata(mesh.VN() * 11);
         for (int i = 0; i < mesh.VN(); ++i) {
-            pdata[i * 3 + 0] = mesh.vert[i].cP()[0];
-            pdata[i * 3 + 1] = mesh.vert[i].cP()[1];
-            pdata[i * 3 + 2] = mesh.vert[i].cP()[2];
+            const auto &v = mesh.vert[i];
+            const auto vc = v.cC();
+            const float cr = useVertexColor ? static_cast<float>(vc[0]) / 255.0f : 1.0f;
+            const float cg = useVertexColor ? static_cast<float>(vc[1]) / 255.0f : 1.0f;
+            const float cb = useVertexColor ? static_cast<float>(vc[2]) / 255.0f : 1.0f;
+
+            const int base = i * 11;
+            pdata[base + 0] = v.cP()[0];
+            pdata[base + 1] = v.cP()[1];
+            pdata[base + 2] = v.cP()[2];
+            pdata[base + 3] = cr;
+            pdata[base + 4] = cg;
+            pdata[base + 5] = cb;
+            pdata[base + 6] = useMeshColor;
+            const float nx = v.cN()[0];
+            const float ny = v.cN()[1];
+            const float nz = v.cN()[2];
+            const float nLen2 = nx * nx + ny * ny + nz * nz;
+            const bool normalFinite =
+                std::isfinite(nx) && std::isfinite(ny) && std::isfinite(nz);
+            const bool hasUsableNormal =
+                meshHasVertexNormal && normalFinite && nLen2 > 1e-12f && nLen2 < 1e12f;
+
+            pdata[base + 7] = hasUsableNormal ? nx : 0.0f;
+            pdata[base + 8] = hasUsableNormal ? ny : 0.0f;
+            pdata[base + 9] = hasUsableNormal ? nz : 1.0f;
+            pdata[base + 10] = hasUsableNormal ? 1.0f : 0.0f;
         }
 
         auto pvbuf = std::unique_ptr<QRhiBuffer>(
@@ -642,6 +746,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
         for (auto &pg : m_pointsGPU) {
             if (!pg.uploadData.empty()) {
                 u->uploadStaticBuffer(pg.vbuf.get(), pg.uploadData.data());
+                uploadedVertices += static_cast<int>(pg.uploadData.size() / 11);
                 std::vector<float>().swap(pg.uploadData);
             }
         }
@@ -739,6 +844,10 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         ubufData[kUbufFillColorOffset + 1] = m_renderSettings.fillColor.greenF();
         ubufData[kUbufFillColorOffset + 2] = m_renderSettings.fillColor.blueF();
         ubufData[kUbufFillColorOffset + 3] = m_renderSettings.fillColor.alphaF();
+        ubufData[kUbufLightingParamsOffset + 0] = m_renderSettings.bboxLighting ? 1.0f : 0.0f;
+        ubufData[kUbufLightingParamsOffset + 1] = m_renderSettings.pointLighting ? 1.0f : 0.0f;
+        ubufData[kUbufLightingParamsOffset + 2] = m_renderSettings.wireLighting ? 1.0f : 0.0f;
+        ubufData[kUbufLightingParamsOffset + 3] = m_renderSettings.fillLighting ? 1.0f : 0.0f;
 
         u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);

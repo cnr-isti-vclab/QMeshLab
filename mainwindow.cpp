@@ -260,10 +260,9 @@ void MainWindow::sanitizeRecentMeshes()
             break;
     }
 
-    if (cleaned == m_recentMeshes)
-        return;
+    if (cleaned != m_recentMeshes)
+        m_recentMeshes = cleaned;
 
-    m_recentMeshes = cleaned;
     QSettings settings;
     settings.setValue(QStringLiteral("recentMeshes"), m_recentMeshes);
 }

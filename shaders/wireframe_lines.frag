@@ -9,9 +9,12 @@ layout(std140, binding = 0) uniform buf {
     vec4 pointParams;
     vec4 wireColor;
     vec4 wireParams;
+    vec4 fillColor;
+    vec4 lightingParams;
 } ub;
 
 layout(location = 0) in vec3 vBarycentric;
+layout(location = 1) in vec3 vViewPos;
 layout(location = 0) out vec4 fragColor;
 
 void main()
@@ -23,5 +26,14 @@ void main()
     if (wire < 0.05)
         discard;
 
-    fragColor = vec4(ub.wireColor.rgb, wire * ub.wireColor.a);
+    vec3 color = ub.wireColor.rgb;
+    if (ub.lightingParams.z > 0.5) {
+        vec3 N = normalize(cross(dFdx(vViewPos), dFdy(vViewPos)));
+        vec3 lightDir = normalize(-vViewPos);
+        float diff = clamp(abs(dot(N, lightDir)), 0.0, 1.0);
+        float ambient = 0.25;
+        color *= ambient + (1.0 - ambient) * diff;
+    }
+
+    fragColor = vec4(color, wire * ub.wireColor.a);
 }

@@ -39,7 +39,8 @@ protected:
 private:
     void createOverlayButtons();
     void layoutOverlayButtons();
-    void refreshFillColorSourceAvailability();
+    void applySceneDefaultRenderModeIfNeeded();
+    void refreshColorSourceAvailability();
     void ensureRenderResources();
     void rebuildBuffers();
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
@@ -67,7 +68,7 @@ private:
         std::unique_ptr<QRhiBuffer> vbuf;
         std::vector<float> uploadData;
     };
-    // Per-mesh point cloud GPU data (position-only, Points topology)
+    // Per-mesh point cloud GPU data (position + optional mesh color, Points topology)
     struct PointsGPU {
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -79,6 +80,8 @@ private:
     std::vector<PointsGPU> m_pointsGPU;
     bool m_buffersDirty = true;
     bool m_logRebuildRequested = false;
+    bool m_applySceneDefaultRenderMode = true;
+    bool m_reframeCameraRequested = true;
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;

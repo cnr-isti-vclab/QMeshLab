@@ -1,6 +1,7 @@
 #include "document.h"
 #include "meshiopluginmanager.h"
 #include "plugins/meshpluginregistry.h"
+#include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <QElapsedTimer>
@@ -8,6 +9,37 @@
 
 namespace {
 Document *g_callbackDocument = nullptr;
+
+QString summarizeLoadMask(int mask)
+{
+    using Mask = vcg::tri::io::Mask;
+
+    QStringList attrs;
+    auto addIf = [&attrs, mask](int bit, const QString &name) {
+        if ((mask & bit) != 0)
+            attrs.append(name);
+    };
+
+    addIf(Mask::IOM_VERTCOLOR, QStringLiteral("vertex color"));
+    addIf(Mask::IOM_FACECOLOR, QStringLiteral("face color"));
+    addIf(Mask::IOM_VERTNORMAL, QStringLiteral("vertex normal"));
+    addIf(Mask::IOM_FACENORMAL, QStringLiteral("face normal"));
+    addIf(Mask::IOM_VERTTEXCOORD, QStringLiteral("vertex texcoord"));
+    addIf(Mask::IOM_WEDGTEXCOORD, QStringLiteral("wedge texcoord"));
+    addIf(Mask::IOM_WEDGTEXMULTI, QStringLiteral("multi texture index"));
+    addIf(Mask::IOM_WEDGCOLOR, QStringLiteral("wedge color"));
+    addIf(Mask::IOM_WEDGNORMAL, QStringLiteral("wedge normal"));
+    addIf(Mask::IOM_VERTQUALITY, QStringLiteral("vertex quality"));
+    addIf(Mask::IOM_FACEQUALITY, QStringLiteral("face quality"));
+    addIf(Mask::IOM_VERTRADIUS, QStringLiteral("vertex radius"));
+    addIf(Mask::IOM_EDGEINDEX, QStringLiteral("edge index"));
+    addIf(Mask::IOM_BITPOLYGONAL, QStringLiteral("polygonal faces"));
+    addIf(Mask::IOM_CAMERA, QStringLiteral("camera"));
+
+    if (attrs.isEmpty())
+        return QObject::tr("none");
+    return attrs.join(QStringLiteral(", "));
+}
 }
 
 Document::Document(QObject *parent)
@@ -61,7 +93,12 @@ int Document::loadMesh(const QString &filename)
     }
 
     vcg::tri::UpdateBounding<VCGMesh>::Box(entry->mesh);
-    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry->mesh);
+    const bool hasImportedVertexNormals = (loadMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
+    if (!hasImportedVertexNormals && entry->mesh.FN() > 0) {
+        // Preserve imported vertex normals exactly as provided by the file.
+        // Generate smooth normals only when they are missing.
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry->mesh);
+    }
     entry->ioMask = loadMask;
     entry->name = QFileInfo(filename).fileName();
     int index = meshCount();
@@ -73,6 +110,11 @@ int Document::loadMesh(const QString &filename)
         .arg(elapsedMs)
         .arg(meshEntry.mesh.VN())
         .arg(meshEntry.mesh.FN()),
+        LogSource::Application);
+    writeLog(tr("File info for '%1': %2 (mask: 0x%3)")
+        .arg(meshEntry.name)
+        .arg(summarizeLoadMask(loadMask))
+        .arg(QString::number(static_cast<quint32>(loadMask), 16).toUpper()),
         LogSource::Application);
 
     emit meshAdded(index);
