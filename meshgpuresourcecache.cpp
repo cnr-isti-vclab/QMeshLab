@@ -2,6 +2,7 @@
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <rhi/qrhi.h>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QImageReader>
 
@@ -90,18 +91,23 @@ MeshGpuResourceCache::MeshGpuResourceCache()
 
 MeshGpuResourceCache::~MeshGpuResourceCache() = default;
 
-void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
-                                               QRhiCommandBuffer *cb,
-                                               const MeshSource &source,
-                                               FillVariant fillVariant,
-                                               PointVariant pointVariant,
-                                               bool needFill,
-                                               bool needWire,
-                                               bool needPoints,
-                                               bool needBoundingBox)
+MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
+    QRhi *rhi,
+    QRhiCommandBuffer *cb,
+    const MeshSource &source,
+    FillVariant fillVariant,
+    PointVariant pointVariant,
+    bool needFill,
+    bool needWire,
+    bool needPoints,
+    bool needBoundingBox)
 {
+    EnsureStats stats;
     if (!m_state || !rhi || !cb || !source.mesh || source.meshId == 0)
-        return;
+        return stats;
+
+    QElapsedTimer timer;
+    timer.start();
 
     const VCGMesh &meshData = *source.mesh;
     static const QStringList kEmptyTexturePaths;
@@ -117,11 +123,11 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
     };
 
     auto rebuildFillVariant =
-        [&](CacheState::FillVariantGpu &dst, FillVariant variant) {
+        [&](CacheState::FillVariantGpu &dst, FillVariant variant) -> bool {
             if (dst.valid
                 && dst.geometryRevision == source.geometryRevision
                 && dst.materialRevision == source.materialRevision) {
-                return;
+                return false;
             }
 
             dst.valid = true;
@@ -131,7 +137,7 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
             dst.viewBatches.clear();
 
             if (meshData.FN() <= 0)
-                return;
+                return true;
 
             const bool meshHasFaceColor = (source.ioMask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
             const bool meshHasVertexColor = (source.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
@@ -345,11 +351,11 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
                         QRhiBuffer::Immutable,
                         QRhiBuffer::IndexBuffer,
                         static_cast<quint32>(idata.size() * sizeof(quint32))));
-                if (!batch.vbuf || !batch.ibuf || !batch.vbuf->create() || !batch.ibuf->create()) {
-                    batch.vbuf.reset();
-                    batch.ibuf.reset();
-                    return;
-                }
+                    if (!batch.vbuf || !batch.ibuf || !batch.vbuf->create() || !batch.ibuf->create()) {
+                        batch.vbuf.reset();
+                        batch.ibuf.reset();
+                        return true;
+                    }
 
                 ensureUpdates()->uploadStaticBuffer(batch.vbuf.get(), vdata.data());
                 ensureUpdates()->uploadStaticBuffer(batch.ibuf.get(), idata.data());
@@ -357,11 +363,12 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
                 batch.indexCount = indexCount;
                 dst.batches.push_back(std::move(batch));
             }
+            return true;
         };
 
-    auto rebuildWire = [&](CacheState::WireGpu &dst) {
+    auto rebuildWire = [&](CacheState::WireGpu &dst) -> bool {
         if (dst.valid && dst.geometryRevision == source.geometryRevision)
-            return;
+            return false;
 
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
@@ -369,7 +376,7 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
         dst.vertexCount = 0;
 
         if (meshData.FN() <= 0)
-            return;
+            return true;
 
         const int vertexCount = meshData.FN() * 3;
         std::vector<float> vdata(vertexCount * 6);
@@ -399,17 +406,18 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
                 static_cast<quint32>(vdata.size() * sizeof(float))));
         if (!dst.vbuf || !dst.vbuf->create()) {
             dst.vbuf.reset();
-            return;
+            return true;
         }
 
         ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), vdata.data());
         dst.vertexCount = vertexCount;
+        return true;
     };
 
     auto rebuildPointsVariant =
-        [&](CacheState::PointsVariantGpu &dst, PointVariant variant) {
+        [&](CacheState::PointsVariantGpu &dst, PointVariant variant) -> bool {
             if (dst.valid && dst.geometryRevision == source.geometryRevision)
-                return;
+                return false;
 
             dst.valid = true;
             dst.geometryRevision = source.geometryRevision;
@@ -417,7 +425,7 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
             dst.vertexCount = 0;
 
             if (meshData.VN() <= 0)
-                return;
+                return true;
 
             const bool meshHasVertexColor = (source.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
             const bool meshHasVertexNormal =
@@ -460,15 +468,16 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
                     static_cast<quint32>(pdata.size() * sizeof(float))));
             if (!dst.vbuf || !dst.vbuf->create()) {
                 dst.vbuf.reset();
-                return;
+                return true;
             }
             ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), pdata.data());
             dst.vertexCount = meshData.VN();
+            return true;
         };
 
-    auto rebuildBBox = [&](CacheState::BBoxGpu &dst) {
+    auto rebuildBBox = [&](CacheState::BBoxGpu &dst) -> bool {
         if (dst.valid && dst.geometryRevision == source.geometryRevision)
-            return;
+            return false;
 
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
@@ -476,7 +485,7 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
         dst.vertexCount = 0;
 
         if (meshData.bbox.IsNull())
-            return;
+            return true;
 
         const auto &mn = meshData.bbox.min;
         const auto &mx = meshData.bbox.max;
@@ -502,27 +511,33 @@ void MeshGpuResourceCache::ensureMeshResources(QRhi *rhi,
                 static_cast<quint32>(bd.size() * sizeof(float))));
         if (!dst.vbuf || !dst.vbuf->create()) {
             dst.vbuf.reset();
-            return;
+            return true;
         }
         ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), bd.data());
         dst.vertexCount = 24;
+        return true;
     };
 
     if (needFill) {
         auto &fill = meshCache.fill[fillVariantIndex(fillVariant)];
-        rebuildFillVariant(fill, fillVariant);
+        stats.rebuiltFill = rebuildFillVariant(fill, fillVariant);
     }
     if (needWire)
-        rebuildWire(meshCache.wire);
+        stats.rebuiltWire = rebuildWire(meshCache.wire);
     if (needPoints) {
         auto &points = meshCache.points[pointVariantIndex(pointVariant)];
-        rebuildPointsVariant(points, pointVariant);
+        stats.rebuiltPoints = rebuildPointsVariant(points, pointVariant);
     }
     if (needBoundingBox)
-        rebuildBBox(meshCache.bbox);
+        stats.rebuiltBoundingBox = rebuildBBox(meshCache.bbox);
 
-    if (updates)
+    if (updates) {
+        stats.uploadedResources = true;
         cb->resourceUpdate(updates);
+    }
+
+    stats.elapsedMs = float(timer.nsecsElapsed() / 1000000.0);
+    return stats;
 }
 
 MeshGpuResourceCache::FillPassView MeshGpuResourceCache::fillPassView(
@@ -640,4 +655,3 @@ void MeshGpuResourceCache::clearAll()
         return;
     m_state->byRhi.clear();
 }
-

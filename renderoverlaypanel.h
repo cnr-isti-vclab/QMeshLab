@@ -46,6 +46,9 @@ private:
     QPushButton *m_wireColorButton = nullptr;
     QPushButton *m_fillColorButton = nullptr;
     QDoubleSpinBox *m_currentMeshOutlineWidthSpin = nullptr;
+    QDoubleSpinBox *m_currentMeshDilateRadiusSpin = nullptr;
+    QDoubleSpinBox *m_currentMeshErodeRadiusSpin = nullptr;
+    QComboBox *m_currentMeshDebugViewCombo = nullptr;
     QCheckBox *m_currentMeshHighlightCheck = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;

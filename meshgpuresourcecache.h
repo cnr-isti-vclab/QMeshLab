@@ -65,18 +65,32 @@ public:
         bool valid = false;
     };
 
+    struct EnsureStats {
+        bool rebuiltFill = false;
+        bool rebuiltWire = false;
+        bool rebuiltPoints = false;
+        bool rebuiltBoundingBox = false;
+        bool uploadedResources = false;
+        float elapsedMs = 0.0f;
+
+        bool anyRebuilt() const
+        {
+            return rebuiltFill || rebuiltWire || rebuiltPoints || rebuiltBoundingBox;
+        }
+    };
+
     MeshGpuResourceCache();
     ~MeshGpuResourceCache();
 
-    void ensureMeshResources(QRhi *rhi,
-                             QRhiCommandBuffer *cb,
-                             const MeshSource &source,
-                             FillVariant fillVariant,
-                             PointVariant pointVariant,
-                             bool needFill,
-                             bool needWire,
-                             bool needPoints,
-                             bool needBoundingBox);
+    EnsureStats ensureMeshResources(QRhi *rhi,
+                                    QRhiCommandBuffer *cb,
+                                    const MeshSource &source,
+                                    FillVariant fillVariant,
+                                    PointVariant pointVariant,
+                                    bool needFill,
+                                    bool needWire,
+                                    bool needPoints,
+                                    bool needBoundingBox);
 
     FillPassView fillPassView(QRhi *rhi, std::uint64_t meshId, FillVariant variant) const;
     WirePassView wirePassView(QRhi *rhi, std::uint64_t meshId) const;
@@ -91,4 +105,3 @@ private:
     struct CacheState;
     std::unique_ptr<CacheState> m_state;
 };
-

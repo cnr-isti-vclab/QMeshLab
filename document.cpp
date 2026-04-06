@@ -247,7 +247,7 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
     source.mesh = &meshEntry.mesh;
     source.textureFilePaths = &meshEntry.textureFilePaths;
 
-    m_gpuCache->ensureMeshResources(
+    const MeshGpuResourceCache::EnsureStats stats = m_gpuCache->ensureMeshResources(
         rhi,
         cb,
         source,
@@ -257,6 +257,24 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
         needWire,
         needPoints,
         needBoundingBox);
+
+    if (stats.anyRebuilt()) {
+        QStringList rebuiltPasses;
+        if (stats.rebuiltFill)
+            rebuiltPasses << tr("fill");
+        if (stats.rebuiltWire)
+            rebuiltPasses << tr("wire");
+        if (stats.rebuiltPoints)
+            rebuiltPasses << tr("points");
+        if (stats.rebuiltBoundingBox)
+            rebuiltPasses << tr("bbox");
+        writeLog(
+            tr("GPU buffers built for '%1': %2 in %3 ms")
+                .arg(meshEntry.name)
+                .arg(rebuiltPasses.join(QStringLiteral(", ")))
+                .arg(QString::number(stats.elapsedMs, 'f', 2)),
+            LogSource::Application);
+    }
 }
 
 Document::FillPassGpuView Document::fillPassGpuView(

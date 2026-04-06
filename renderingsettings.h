@@ -27,6 +27,13 @@ enum class PointColorSource {
     PerVertex
 };
 
+enum class CurrentMeshDebugView {
+    Outline = 0,
+    BaseMask,
+    DilatedMask,
+    ErodedMask
+};
+
 struct RenderSettings {
     bool highlightCurrentMesh = true;
     bool showBoundingBox = false;
@@ -35,6 +42,9 @@ struct RenderSettings {
     bool showFill = true;
     QColor currentMeshOutlineColor = QColor(42, 160, 240);
     float currentMeshOutlineWidth = 1.0f;
+    float currentMeshDilateRadius = 2.5f;
+    float currentMeshErodeRadius = 1.5f;
+    CurrentMeshDebugView currentMeshDebugView = CurrentMeshDebugView::Outline;
     bool pointLighting = false;
     bool wireLighting = false;
     bool wireBackfaceCulling = true;
@@ -60,6 +70,9 @@ struct RenderSettings {
             && showFill == other.showFill
             && currentMeshOutlineColor == other.currentMeshOutlineColor
             && currentMeshOutlineWidth == other.currentMeshOutlineWidth
+            && currentMeshDilateRadius == other.currentMeshDilateRadius
+            && currentMeshErodeRadius == other.currentMeshErodeRadius
+            && currentMeshDebugView == other.currentMeshDebugView
             && pointLighting == other.pointLighting
             && wireLighting == other.wireLighting
             && wireBackfaceCulling == other.wireBackfaceCulling

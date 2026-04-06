@@ -161,14 +161,42 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_currentMeshHighlightCheck = new QCheckBox(tr("On"), currentMeshPage);
     m_currentMeshOutlineColorButton = new QPushButton(tr("Choose..."), currentMeshPage);
     m_currentMeshOutlineWidthSpin = new QDoubleSpinBox(currentMeshPage);
+    m_currentMeshDilateRadiusSpin = new QDoubleSpinBox(currentMeshPage);
+    m_currentMeshErodeRadiusSpin = new QDoubleSpinBox(currentMeshPage);
+    m_currentMeshDebugViewCombo = new QComboBox(currentMeshPage);
     m_currentMeshOutlineWidthSpin->setRange(1.0, 8.0);
     m_currentMeshOutlineWidthSpin->setSingleStep(0.5);
     m_currentMeshOutlineWidthSpin->setDecimals(1);
     m_currentMeshOutlineWidthSpin->setSuffix(tr(" px"));
     m_currentMeshOutlineWidthSpin->setValue(m_settings.currentMeshOutlineWidth);
+    m_currentMeshDilateRadiusSpin->setRange(0.0, 16.0);
+    m_currentMeshDilateRadiusSpin->setSingleStep(0.5);
+    m_currentMeshDilateRadiusSpin->setDecimals(1);
+    m_currentMeshDilateRadiusSpin->setSuffix(tr(" px"));
+    m_currentMeshDilateRadiusSpin->setValue(m_settings.currentMeshDilateRadius);
+    m_currentMeshErodeRadiusSpin->setRange(0.0, 16.0);
+    m_currentMeshErodeRadiusSpin->setSingleStep(0.5);
+    m_currentMeshErodeRadiusSpin->setDecimals(1);
+    m_currentMeshErodeRadiusSpin->setSuffix(tr(" px"));
+    m_currentMeshErodeRadiusSpin->setValue(m_settings.currentMeshErodeRadius);
+    m_currentMeshDebugViewCombo->addItem(
+        tr("Outline"),
+        static_cast<int>(CurrentMeshDebugView::Outline));
+    m_currentMeshDebugViewCombo->addItem(
+        tr("Base Mask"),
+        static_cast<int>(CurrentMeshDebugView::BaseMask));
+    m_currentMeshDebugViewCombo->addItem(
+        tr("Dilated"),
+        static_cast<int>(CurrentMeshDebugView::DilatedMask));
+    m_currentMeshDebugViewCombo->addItem(
+        tr("Eroded"),
+        static_cast<int>(CurrentMeshDebugView::ErodedMask));
     currentMeshForm->addRow(tr("Highlight"), m_currentMeshHighlightCheck);
     currentMeshForm->addRow(tr("Outline color"), m_currentMeshOutlineColorButton);
     currentMeshForm->addRow(tr("Outline width"), m_currentMeshOutlineWidthSpin);
+    currentMeshForm->addRow(tr("Dilate"), m_currentMeshDilateRadiusSpin);
+    currentMeshForm->addRow(tr("Erode"), m_currentMeshErodeRadiusSpin);
+    currentMeshForm->addRow(tr("Debug view"), m_currentMeshDebugViewCombo);
     currentMeshLayout->addLayout(currentMeshForm);
     m_settingsStack->addWidget(currentMeshPage);
 
@@ -291,6 +319,32 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         if (m_settings.currentMeshOutlineWidth == newWidth)
             return;
         m_settings.currentMeshOutlineWidth = newWidth;
+        emit settingsChanged(m_settings);
+    });
+    connect(m_currentMeshDilateRadiusSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
+        const float newRadius = static_cast<float>(value);
+        if (m_settings.currentMeshDilateRadius == newRadius)
+            return;
+        m_settings.currentMeshDilateRadius = newRadius;
+        emit settingsChanged(m_settings);
+    });
+    connect(m_currentMeshErodeRadiusSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
+        const float newRadius = static_cast<float>(value);
+        if (m_settings.currentMeshErodeRadius == newRadius)
+            return;
+        m_settings.currentMeshErodeRadius = newRadius;
+        emit settingsChanged(m_settings);
+    });
+    connect(m_currentMeshDebugViewCombo, &QComboBox::currentIndexChanged, this, [this](int idx) {
+        if (!m_currentMeshDebugViewCombo)
+            return;
+        const QVariant data = m_currentMeshDebugViewCombo->itemData(idx);
+        if (!data.isValid())
+            return;
+        const CurrentMeshDebugView view = static_cast<CurrentMeshDebugView>(data.toInt());
+        if (m_settings.currentMeshDebugView == view)
+            return;
+        m_settings.currentMeshDebugView = view;
         emit settingsChanged(m_settings);
     });
     connect(m_bboxColorButton, &QPushButton::clicked, this, [this]() {
@@ -541,6 +595,24 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_currentMeshOutlineWidthSpin) {
         QSignalBlocker blocker(m_currentMeshOutlineWidthSpin);
         m_currentMeshOutlineWidthSpin->setValue(m_settings.currentMeshOutlineWidth);
+    }
+    if (m_currentMeshDilateRadiusSpin) {
+        QSignalBlocker blocker(m_currentMeshDilateRadiusSpin);
+        m_currentMeshDilateRadiusSpin->setValue(m_settings.currentMeshDilateRadius);
+    }
+    if (m_currentMeshErodeRadiusSpin) {
+        QSignalBlocker blocker(m_currentMeshErodeRadiusSpin);
+        m_currentMeshErodeRadiusSpin->setValue(m_settings.currentMeshErodeRadius);
+    }
+    if (m_currentMeshDebugViewCombo) {
+        QSignalBlocker blocker(m_currentMeshDebugViewCombo);
+        const int value = static_cast<int>(m_settings.currentMeshDebugView);
+        for (int i = 0; i < m_currentMeshDebugViewCombo->count(); ++i) {
+            if (m_currentMeshDebugViewCombo->itemData(i).toInt() == value) {
+                m_currentMeshDebugViewCombo->setCurrentIndex(i);
+                break;
+            }
+        }
     }
     if (m_pointLightingCheck) {
         QSignalBlocker blocker(m_pointLightingCheck);

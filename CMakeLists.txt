@@ -60,6 +60,8 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/points.frag
         shaders/current_mask.vert
         shaders/current_mask.frag
+        shaders/mask_morph.frag
+        shaders/mask_debug.frag
         shaders/outline.vert
         shaders/outline.frag
 )

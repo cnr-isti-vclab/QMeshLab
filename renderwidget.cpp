@@ -31,6 +31,8 @@ constexpr int kUbufFillColorOffset = 256 / sizeof(float);
 constexpr int kUbufLightingParamsOffset = 272 / sizeof(float);
 constexpr int kFillVertexStrideFloats = 13;
 constexpr int kPointsVertexStrideFloats = 11;
+constexpr int kMaskMorphUbufSize = 16;
+constexpr int kMaskDebugUbufSize = 16;
 constexpr int kOutlineUbufSize = 32;
 }
 
@@ -292,12 +294,28 @@ void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
 
     m_currentMaskFillPipeline.reset();
     m_currentMaskPointsPipeline.reset();
+    m_maskMorphMaskToBaseSrb.reset();
+    m_maskMorphMaskToWorkSrb.reset();
+    m_maskMorphWorkToMaskSrb.reset();
+    m_maskMorphToBasePipeline.reset();
+    m_maskMorphToWorkPipeline.reset();
+    m_maskMorphWorkToMaskPipeline.reset();
+    m_maskDebugBaseSrb.reset();
+    m_maskDebugWorkSrb.reset();
+    m_maskDebugMaskSrb.reset();
+    m_maskDebugPipeline.reset();
     m_outlineSrb.reset();
     m_outlinePipeline.reset();
+    m_currentMaskBaseRt.reset();
+    m_currentMaskBaseRp.reset();
+    m_currentMaskBaseTexture.reset();
     m_currentMaskRt.reset();
     m_currentMaskRp.reset();
     m_currentMaskDepth.reset();
     m_currentMaskTexture.reset();
+    m_currentMaskWorkRt.reset();
+    m_currentMaskWorkRp.reset();
+    m_currentMaskWorkTexture.reset();
 
     m_currentMaskTexture.reset(
         m_rhi->newTexture(
@@ -340,6 +358,99 @@ void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
         return;
     }
 
+    m_currentMaskBaseTexture.reset(
+        m_rhi->newTexture(
+            QRhiTexture::RGBA8,
+            pixelSize,
+            1,
+            QRhiTexture::RenderTarget));
+    if (!m_currentMaskBaseTexture || !m_currentMaskBaseTexture->create()) {
+        m_currentMaskBaseTexture.reset();
+        m_currentMaskRp.reset();
+        m_currentMaskRt.reset();
+        m_currentMaskDepth.reset();
+        m_currentMaskTexture.reset();
+        m_currentMaskSize = QSize();
+        return;
+    }
+
+    QRhiTextureRenderTargetDescription baseRtDesc(QRhiColorAttachment(m_currentMaskBaseTexture.get()));
+    m_currentMaskBaseRt.reset(m_rhi->newTextureRenderTarget(baseRtDesc));
+    if (!m_currentMaskBaseRt) {
+        m_currentMaskBaseTexture.reset();
+        m_currentMaskRp.reset();
+        m_currentMaskRt.reset();
+        m_currentMaskDepth.reset();
+        m_currentMaskTexture.reset();
+        m_currentMaskSize = QSize();
+        return;
+    }
+
+    m_currentMaskBaseRp.reset(m_currentMaskBaseRt->newCompatibleRenderPassDescriptor());
+    m_currentMaskBaseRt->setRenderPassDescriptor(m_currentMaskBaseRp.get());
+    if (!m_currentMaskBaseRt->create()) {
+        m_currentMaskBaseRp.reset();
+        m_currentMaskBaseRt.reset();
+        m_currentMaskBaseTexture.reset();
+        m_currentMaskRp.reset();
+        m_currentMaskRt.reset();
+        m_currentMaskDepth.reset();
+        m_currentMaskTexture.reset();
+        m_currentMaskSize = QSize();
+        return;
+    }
+
+    m_currentMaskWorkTexture.reset(
+        m_rhi->newTexture(
+            QRhiTexture::RGBA8,
+            pixelSize,
+            1,
+            QRhiTexture::RenderTarget));
+    if (!m_currentMaskWorkTexture || !m_currentMaskWorkTexture->create()) {
+        m_currentMaskWorkTexture.reset();
+        m_currentMaskBaseRp.reset();
+        m_currentMaskBaseRt.reset();
+        m_currentMaskBaseTexture.reset();
+        m_currentMaskRp.reset();
+        m_currentMaskRt.reset();
+        m_currentMaskDepth.reset();
+        m_currentMaskTexture.reset();
+        m_currentMaskSize = QSize();
+        return;
+    }
+
+    QRhiTextureRenderTargetDescription workRtDesc(QRhiColorAttachment(m_currentMaskWorkTexture.get()));
+    m_currentMaskWorkRt.reset(m_rhi->newTextureRenderTarget(workRtDesc));
+    if (!m_currentMaskWorkRt) {
+        m_currentMaskWorkTexture.reset();
+        m_currentMaskBaseRp.reset();
+        m_currentMaskBaseRt.reset();
+        m_currentMaskBaseTexture.reset();
+        m_currentMaskRp.reset();
+        m_currentMaskRt.reset();
+        m_currentMaskDepth.reset();
+        m_currentMaskTexture.reset();
+        m_currentMaskSize = QSize();
+        return;
+    }
+
+    m_currentMaskWorkRp.reset(m_currentMaskWorkRt->newCompatibleRenderPassDescriptor());
+    m_currentMaskWorkRt->setRenderPassDescriptor(m_currentMaskWorkRp.get());
+    if (!m_currentMaskWorkRt->create()) {
+        m_currentMaskWorkRp.reset();
+        m_currentMaskWorkRt.reset();
+        m_currentMaskWorkTexture.reset();
+        m_currentMaskBaseRp.reset();
+        m_currentMaskBaseRt.reset();
+        m_currentMaskBaseTexture.reset();
+        m_currentMaskRp.reset();
+        m_currentMaskRt.reset();
+        m_currentMaskDepth.reset();
+        m_currentMaskTexture.reset();
+        m_currentMaskSize = QSize();
+        return;
+    }
+
     m_currentMaskSize = pixelSize;
 }
 
@@ -353,13 +464,34 @@ void RenderWidget::ensureRenderResources()
         m_wirePipeline.reset();
         m_bboxPipeline.reset();
         m_pointsPipeline.reset();
+        m_currentMaskBaseTexture.reset();
+        m_currentMaskBaseRt.reset();
+        m_currentMaskBaseRp.reset();
         m_currentMaskTexture.reset();
         m_currentMaskDepth.reset();
         m_currentMaskRt.reset();
         m_currentMaskRp.reset();
+        m_currentMaskWorkTexture.reset();
+        m_currentMaskWorkRt.reset();
+        m_currentMaskWorkRp.reset();
         m_currentMaskSize = QSize();
         m_currentMaskFillPipeline.reset();
         m_currentMaskPointsPipeline.reset();
+        m_maskMorphCopyUbuf.reset();
+        m_maskMorphDilateUbuf.reset();
+        m_maskMorphErodeUbuf.reset();
+        m_maskMorphSampler.reset();
+        m_maskMorphMaskToBaseSrb.reset();
+        m_maskMorphMaskToWorkSrb.reset();
+        m_maskMorphWorkToMaskSrb.reset();
+        m_maskMorphToBasePipeline.reset();
+        m_maskMorphToWorkPipeline.reset();
+        m_maskMorphWorkToMaskPipeline.reset();
+        m_maskDebugUbuf.reset();
+        m_maskDebugBaseSrb.reset();
+        m_maskDebugWorkSrb.reset();
+        m_maskDebugMaskSrb.reset();
+        m_maskDebugPipeline.reset();
         m_outlineUbuf.reset();
         m_outlineSampler.reset();
         m_outlineSrb.reset();
@@ -428,6 +560,144 @@ void RenderWidget::ensureRenderResources()
                 QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
                 QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
         m_outlineSampler->create();
+    }
+    if (!m_maskMorphCopyUbuf) {
+        m_maskMorphCopyUbuf.reset(
+            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kMaskMorphUbufSize));
+        m_maskMorphCopyUbuf->create();
+    }
+    if (!m_maskMorphDilateUbuf) {
+        m_maskMorphDilateUbuf.reset(
+            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kMaskMorphUbufSize));
+        m_maskMorphDilateUbuf->create();
+    }
+    if (!m_maskMorphErodeUbuf) {
+        m_maskMorphErodeUbuf.reset(
+            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kMaskMorphUbufSize));
+        m_maskMorphErodeUbuf->create();
+    }
+    if (!m_maskMorphSampler) {
+        m_maskMorphSampler.reset(
+            m_rhi->newSampler(
+                QRhiSampler::Nearest, QRhiSampler::Nearest, QRhiSampler::None,
+                QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
+        m_maskMorphSampler->create();
+    }
+    if (!m_maskDebugUbuf) {
+        m_maskDebugUbuf.reset(
+            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kMaskDebugUbufSize));
+        m_maskDebugUbuf->create();
+    }
+    if (!m_maskMorphMaskToBaseSrb
+        && m_maskMorphCopyUbuf
+        && m_maskMorphSampler
+        && m_currentMaskTexture
+        && m_currentMaskBaseTexture) {
+        m_maskMorphMaskToBaseSrb.reset(m_rhi->newShaderResourceBindings());
+        m_maskMorphMaskToBaseSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_maskMorphCopyUbuf.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskTexture.get(),
+                m_maskMorphSampler.get())
+        });
+        m_maskMorphMaskToBaseSrb->create();
+    }
+    if (!m_maskMorphMaskToWorkSrb
+        && m_maskMorphDilateUbuf
+        && m_maskMorphSampler
+        && m_currentMaskBaseTexture
+        && m_currentMaskWorkTexture) {
+        m_maskMorphMaskToWorkSrb.reset(m_rhi->newShaderResourceBindings());
+        m_maskMorphMaskToWorkSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_maskMorphDilateUbuf.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskBaseTexture.get(),
+                m_maskMorphSampler.get())
+        });
+        m_maskMorphMaskToWorkSrb->create();
+    }
+    if (!m_maskMorphWorkToMaskSrb
+        && m_maskMorphErodeUbuf
+        && m_maskMorphSampler
+        && m_currentMaskTexture
+        && m_currentMaskWorkTexture) {
+        m_maskMorphWorkToMaskSrb.reset(m_rhi->newShaderResourceBindings());
+        m_maskMorphWorkToMaskSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_maskMorphErodeUbuf.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskWorkTexture.get(),
+                m_maskMorphSampler.get())
+        });
+        m_maskMorphWorkToMaskSrb->create();
+    }
+    if (!m_maskDebugBaseSrb
+        && m_maskDebugUbuf
+        && m_maskMorphSampler
+        && m_currentMaskBaseTexture) {
+        m_maskDebugBaseSrb.reset(m_rhi->newShaderResourceBindings());
+        m_maskDebugBaseSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_maskDebugUbuf.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskBaseTexture.get(),
+                m_maskMorphSampler.get())
+        });
+        m_maskDebugBaseSrb->create();
+    }
+    if (!m_maskDebugWorkSrb
+        && m_maskDebugUbuf
+        && m_maskMorphSampler
+        && m_currentMaskWorkTexture) {
+        m_maskDebugWorkSrb.reset(m_rhi->newShaderResourceBindings());
+        m_maskDebugWorkSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_maskDebugUbuf.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskWorkTexture.get(),
+                m_maskMorphSampler.get())
+        });
+        m_maskDebugWorkSrb->create();
+    }
+    if (!m_maskDebugMaskSrb
+        && m_maskDebugUbuf
+        && m_maskMorphSampler
+        && m_currentMaskTexture) {
+        m_maskDebugMaskSrb.reset(m_rhi->newShaderResourceBindings());
+        m_maskDebugMaskSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_maskDebugUbuf.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskTexture.get(),
+                m_maskMorphSampler.get())
+        });
+        m_maskDebugMaskSrb->create();
     }
     if (!m_outlineSrb && m_outlineUbuf && m_outlineSampler && m_currentMaskTexture) {
         m_outlineSrb.reset(m_rhi->newShaderResourceBindings());
@@ -671,8 +941,9 @@ void RenderWidget::ensureRenderResources()
                 { QRhiShaderStage::Fragment, fs }
             });
             m_currentMaskPointsPipeline->setTopology(QRhiGraphicsPipeline::Points);
-            m_currentMaskPointsPipeline->setDepthTest(true);
-            m_currentMaskPointsPipeline->setDepthWrite(true);
+            // Point-cloud outline mask: draw all vertices as pure occupancy (no depth/shading).
+            m_currentMaskPointsPipeline->setDepthTest(false);
+            m_currentMaskPointsPipeline->setDepthWrite(false);
             m_currentMaskPointsPipeline->setCullMode(QRhiGraphicsPipeline::None);
             QRhiVertexInputLayout layout;
             layout.setBindings({ { kPointsVertexStrideFloats * sizeof(float) } });
@@ -683,6 +954,110 @@ void RenderWidget::ensureRenderResources()
             if (!m_currentMaskPointsPipeline->create()) {
                 qWarning("Failed to create current-mask points pipeline");
                 m_currentMaskPointsPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_maskMorphToBasePipeline && m_maskMorphMaskToBaseSrb && m_currentMaskBaseRp) {
+        m_maskMorphToBasePipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/mask_morph.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load mask-morph shaders (to base)");
+            m_maskMorphToBasePipeline.reset();
+        } else {
+            m_maskMorphToBasePipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_maskMorphToBasePipeline->setDepthTest(false);
+            m_maskMorphToBasePipeline->setDepthWrite(false);
+            m_maskMorphToBasePipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            m_maskMorphToBasePipeline->setVertexInputLayout(layout);
+            m_maskMorphToBasePipeline->setShaderResourceBindings(m_maskMorphMaskToBaseSrb.get());
+            m_maskMorphToBasePipeline->setRenderPassDescriptor(m_currentMaskBaseRp.get());
+            if (!m_maskMorphToBasePipeline->create()) {
+                qWarning("Failed to create mask-morph pipeline (to base)");
+                m_maskMorphToBasePipeline.reset();
+            }
+        }
+    }
+
+    if (!m_maskMorphToWorkPipeline && m_maskMorphMaskToWorkSrb && m_currentMaskWorkRp) {
+        m_maskMorphToWorkPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/mask_morph.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load mask-morph shaders (to work)");
+            m_maskMorphToWorkPipeline.reset();
+        } else {
+            m_maskMorphToWorkPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_maskMorphToWorkPipeline->setDepthTest(false);
+            m_maskMorphToWorkPipeline->setDepthWrite(false);
+            m_maskMorphToWorkPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            m_maskMorphToWorkPipeline->setVertexInputLayout(layout);
+            m_maskMorphToWorkPipeline->setShaderResourceBindings(m_maskMorphMaskToWorkSrb.get());
+            m_maskMorphToWorkPipeline->setRenderPassDescriptor(m_currentMaskWorkRp.get());
+            if (!m_maskMorphToWorkPipeline->create()) {
+                qWarning("Failed to create mask-morph pipeline (to work)");
+                m_maskMorphToWorkPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_maskMorphWorkToMaskPipeline && m_maskMorphWorkToMaskSrb && m_currentMaskRp) {
+        m_maskMorphWorkToMaskPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/mask_morph.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load mask-morph shaders (to mask)");
+            m_maskMorphWorkToMaskPipeline.reset();
+        } else {
+            m_maskMorphWorkToMaskPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_maskMorphWorkToMaskPipeline->setDepthTest(false);
+            m_maskMorphWorkToMaskPipeline->setDepthWrite(false);
+            m_maskMorphWorkToMaskPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            m_maskMorphWorkToMaskPipeline->setVertexInputLayout(layout);
+            m_maskMorphWorkToMaskPipeline->setShaderResourceBindings(m_maskMorphWorkToMaskSrb.get());
+            m_maskMorphWorkToMaskPipeline->setRenderPassDescriptor(m_currentMaskRp.get());
+            if (!m_maskMorphWorkToMaskPipeline->create()) {
+                qWarning("Failed to create mask-morph pipeline (to mask)");
+                m_maskMorphWorkToMaskPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_maskDebugPipeline && m_maskDebugBaseSrb) {
+        m_maskDebugPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/mask_debug.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load mask-debug shaders");
+            m_maskDebugPipeline.reset();
+        } else {
+            m_maskDebugPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_maskDebugPipeline->setDepthTest(false);
+            m_maskDebugPipeline->setDepthWrite(false);
+            m_maskDebugPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            m_maskDebugPipeline->setVertexInputLayout(layout);
+            m_maskDebugPipeline->setShaderResourceBindings(m_maskDebugBaseSrb.get());
+            m_maskDebugPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_maskDebugPipeline->create()) {
+                qWarning("Failed to create mask-debug pipeline");
+                m_maskDebugPipeline.reset();
             }
         }
     }
@@ -778,6 +1153,8 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     if (!m_renderSettings.highlightCurrentMesh)
         return;
 
+    m_currentMaskFromPoints = false;
+
     const int currentMeshIndex = m_doc->currentMeshIndex();
     if (currentMeshIndex < 0)
         return;
@@ -827,6 +1204,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         cb->setGraphicsPipeline(m_currentMaskPointsPipeline.get());
         cb->setShaderResources();
         if (pointsView.valid && pointsView.vertexBuffer && pointsView.vertexCount > 0) {
+            m_currentMaskFromPoints = true;
             const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &pv);
             cb->draw(pointsView.vertexCount);
@@ -836,16 +1214,135 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     cb->endPass();
 }
 
+void RenderWidget::processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize)
+{
+    if (!m_renderSettings.highlightCurrentMesh)
+        return;
+    if (!m_currentMaskRt || !m_currentMaskBaseRt || !m_currentMaskWorkRt)
+        return;
+    if (!m_maskMorphCopyUbuf
+        || !m_maskMorphDilateUbuf
+        || !m_maskMorphErodeUbuf
+        || !m_maskMorphMaskToBaseSrb
+        || !m_maskMorphMaskToWorkSrb
+        || !m_maskMorphWorkToMaskSrb)
+        return;
+    if (!m_maskMorphToBasePipeline
+        || !m_maskMorphToWorkPipeline
+        || !m_maskMorphWorkToMaskPipeline)
+        return;
+
+    const float invW = 1.0f / float(qMax(1, pixelSize.width()));
+    const float invH = 1.0f / float(qMax(1, pixelSize.height()));
+
+    auto updateMorphParams = [&](QRhiBuffer *ubuf, float mode, float radiusPx) {
+        // mode: 0 = dilate, 1 = erode
+        const float params[4] = { invW, invH, radiusPx, mode };
+        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+        u->updateDynamicBuffer(ubuf, 0, kMaskMorphUbufSize, params);
+        cb->resourceUpdate(u);
+    };
+
+    // Snapshot base point mask for debugging/inspection before any morphology.
+    updateMorphParams(m_maskMorphCopyUbuf.get(), 0.0f, 0.0f);
+    cb->beginPass(m_currentMaskBaseRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
+    cb->setGraphicsPipeline(m_maskMorphToBasePipeline.get());
+    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    cb->setShaderResources(m_maskMorphMaskToBaseSrb.get());
+    cb->draw(3);
+    cb->endPass();
+
+    if (!m_currentMaskFromPoints)
+        return;
+
+    // Point-cloud outline pipeline:
+    // 1) dilate(base, dilateRadius) -> work
+    // 2) erode(work, erodeRadius) -> mask
+    // 3) edge filter on final mask texture
+    // This keeps mask rasterization cheap (1px points) and pushes expansion to screen space.
+    const float dilateRadiusPx = qMax(0.0f, m_renderSettings.currentMeshDilateRadius);
+    const float erosionRadiusPx = qBound(
+        0.0f,
+        m_renderSettings.currentMeshErodeRadius,
+        dilateRadiusPx);
+    if (dilateRadiusPx <= 0.0f && erosionRadiusPx <= 0.0f)
+        return;
+
+    updateMorphParams(m_maskMorphDilateUbuf.get(), 0.0f, dilateRadiusPx);
+    cb->beginPass(m_currentMaskWorkRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
+    cb->setGraphicsPipeline(m_maskMorphToWorkPipeline.get());
+    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    cb->setShaderResources(m_maskMorphMaskToWorkSrb.get());
+    cb->draw(3);
+    cb->endPass();
+
+    updateMorphParams(m_maskMorphErodeUbuf.get(), 1.0f, erosionRadiusPx);
+    cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
+    cb->setGraphicsPipeline(m_maskMorphWorkToMaskPipeline.get());
+    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    cb->setShaderResources(m_maskMorphWorkToMaskSrb.get());
+    cb->draw(3);
+    cb->endPass();
+}
+
+void RenderWidget::drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &pixelSize)
+{
+    if (!m_maskDebugPipeline || !m_maskDebugUbuf)
+        return;
+
+    QRhiShaderResourceBindings *srb = nullptr;
+    switch (m_renderSettings.currentMeshDebugView) {
+    case CurrentMeshDebugView::Outline:
+        return;
+    case CurrentMeshDebugView::BaseMask:
+        srb = m_maskDebugBaseSrb.get();
+        break;
+    case CurrentMeshDebugView::DilatedMask:
+        srb = m_currentMaskFromPoints ? m_maskDebugWorkSrb.get() : m_maskDebugBaseSrb.get();
+        break;
+    case CurrentMeshDebugView::ErodedMask:
+        srb = m_maskDebugMaskSrb.get();
+        break;
+    }
+    if (!srb)
+        return;
+
+    const float debugData[4] = {
+        1.0f / float(qMax(1, pixelSize.width())),
+        1.0f / float(qMax(1, pixelSize.height())),
+        m_rhi->isYUpInFramebuffer() ? 1.0f : 0.0f,
+        0.0f
+    };
+    QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+    u->updateDynamicBuffer(m_maskDebugUbuf.get(), 0, kMaskDebugUbufSize, debugData);
+    cb->resourceUpdate(u);
+
+    cb->setGraphicsPipeline(m_maskDebugPipeline.get());
+    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    cb->setShaderResources(srb);
+    cb->draw(3);
+}
+
 void RenderWidget::drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize)
 {
     if (!m_renderSettings.highlightCurrentMesh)
         return;
+
+    if (m_renderSettings.currentMeshDebugView != CurrentMeshDebugView::Outline) {
+        drawCurrentMeshDebugView(cb, pixelSize);
+        return;
+    }
+
     if (!m_outlinePipeline || !m_outlineSrb || !m_outlineUbuf)
         return;
     if (!m_currentMaskTexture)
         return;
 
-    const float widthPx = qMax(1.0f, m_renderSettings.currentMeshOutlineWidth);
+    // For point-cloud highlighting, outline width is controlled by dilate/erode radius difference.
+    // Keep edge extraction local and stable.
+    const float widthPx = m_currentMaskFromPoints
+        ? 1.0f
+        : qMax(1.0f, m_renderSettings.currentMeshOutlineWidth);
     float outlineData[8] = {};
     outlineData[0] = m_renderSettings.currentMeshOutlineColor.redF();
     outlineData[1] = m_renderSettings.currentMeshOutlineColor.greenF();
@@ -962,6 +1459,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             u = nullptr;
         }
         renderCurrentMeshMask(cb, sz);
+        processCurrentMeshMask(cb, sz);
     }
 
     const auto fillVariant = static_cast<Document::FillGpuVariant>(
