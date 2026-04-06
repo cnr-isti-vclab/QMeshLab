@@ -52,11 +52,13 @@ QString resolveTexturePath(const QString &meshFilePath, const QString &declaredT
     const QFileInfo meshInfo(meshFilePath);
     return meshInfo.dir().filePath(normalizedName);
 }
+
 }
 
 Document::Document(QObject *parent)
     : QObject(parent)
     , m_pluginManager(std::make_unique<MeshIOPluginManager>())
+    , m_gpuCache(std::make_unique<MeshGpuResourceCache>())
 {
     registerBuiltinMeshPlugins(*m_pluginManager);
 }
@@ -112,6 +114,9 @@ int Document::loadMesh(const QString &filename)
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry->mesh);
     }
     entry->ioMask = loadMask;
+    entry->meshId = m_nextMeshId++;
+    entry->geometryRevision = 1;
+    entry->materialRevision = 1;
     entry->name = QFileInfo(filename).fileName();
     entry->sourcePath = filename;
 
@@ -180,6 +185,7 @@ void Document::removeMesh(int index)
         return;
 
     const QString meshName = mesh(index).name;
+    const std::uint64_t meshId = mesh(index).meshId;
     int newCurrent = m_currentMeshIndex;
     if (m_currentMeshIndex == index) {
         if (meshCount() == 1)
@@ -191,6 +197,7 @@ void Document::removeMesh(int index)
     }
 
     m_meshes.erase(m_meshes.begin() + index);
+    purgeMeshGpuResources(meshId);
     writeLog(tr("Removed mesh '%1'").arg(meshName), LogSource::Application);
     emit meshRemoved(index);
     setCurrentMeshIndex(newCurrent);
@@ -214,6 +221,101 @@ void Document::setCurrentMeshIndex(int index)
         return;
     m_currentMeshIndex = normalizedIndex;
     emit currentMeshChanged(m_currentMeshIndex);
+}
+
+void Document::ensureMeshGpuResources(QRhi *rhi,
+                                      QRhiCommandBuffer *cb,
+                                      int meshIndex,
+                                      FillGpuVariant fillVariant,
+                                      PointGpuVariant pointVariant,
+                                      bool needFill,
+                                      bool needWire,
+                                      bool needPoints,
+                                      bool needBoundingBox)
+{
+    if (!m_gpuCache || !rhi || !cb)
+        return;
+    if (meshIndex < 0 || meshIndex >= meshCount())
+        return;
+
+    const MeshEntry &meshEntry = mesh(meshIndex);
+    MeshGpuResourceCache::MeshSource source;
+    source.meshId = meshEntry.meshId;
+    source.geometryRevision = meshEntry.geometryRevision;
+    source.materialRevision = meshEntry.materialRevision;
+    source.ioMask = meshEntry.ioMask;
+    source.mesh = &meshEntry.mesh;
+    source.textureFilePaths = &meshEntry.textureFilePaths;
+
+    m_gpuCache->ensureMeshResources(
+        rhi,
+        cb,
+        source,
+        fillVariant,
+        pointVariant,
+        needFill,
+        needWire,
+        needPoints,
+        needBoundingBox);
+}
+
+Document::FillPassGpuView Document::fillPassGpuView(
+    QRhi *rhi, int meshIndex, FillGpuVariant variant) const
+{
+    if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
+        return {};
+
+    const MeshEntry &meshEntry = mesh(meshIndex);
+    return m_gpuCache->fillPassView(rhi, meshEntry.meshId, variant);
+}
+
+Document::WirePassGpuView Document::wirePassGpuView(QRhi *rhi, int meshIndex) const
+{
+    if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
+        return {};
+
+    const MeshEntry &meshEntry = mesh(meshIndex);
+    return m_gpuCache->wirePassView(rhi, meshEntry.meshId);
+}
+
+Document::PointsPassGpuView Document::pointsPassGpuView(
+    QRhi *rhi, int meshIndex, PointGpuVariant variant) const
+{
+    if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
+        return {};
+
+    const MeshEntry &meshEntry = mesh(meshIndex);
+    return m_gpuCache->pointsPassView(rhi, meshEntry.meshId, variant);
+}
+
+Document::BBoxPassGpuView Document::bboxPassGpuView(QRhi *rhi, int meshIndex) const
+{
+    if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
+        return {};
+
+    const MeshEntry &meshEntry = mesh(meshIndex);
+    return m_gpuCache->bboxPassView(rhi, meshEntry.meshId);
+}
+
+void Document::releaseRhiGpuResources(QRhi *rhi)
+{
+    if (!m_gpuCache || !rhi)
+        return;
+    m_gpuCache->releaseRhiResources(rhi);
+}
+
+void Document::clearAllGpuResources()
+{
+    if (!m_gpuCache)
+        return;
+    m_gpuCache->clearAll();
+}
+
+void Document::purgeMeshGpuResources(std::uint64_t meshId)
+{
+    if (!m_gpuCache)
+        return;
+    m_gpuCache->purgeMesh(meshId);
 }
 
 void Document::clearLog()

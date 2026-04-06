@@ -3,14 +3,11 @@
 #include "renderoverlaypanel.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFile>
-#include <QFileInfo>
-#include <QImageReader>
+#include <QImage>
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QWheelEvent>
 #include <cmath>
-#include <map>
-#include <unordered_map>
 
 static QShader loadShader(const QString &path)
 {
@@ -47,8 +44,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         m_reframeCameraRequested = true;
         applySceneDefaultRenderModeIfNeeded();
         refreshColorSourceAvailability();
-        m_buffersDirty = true;
-        m_logRebuildRequested = true;
+        m_textureSrbs.clear();
         update();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int) {
@@ -56,13 +52,10 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         if (m_doc->meshCount() == 0)
             m_applySceneDefaultRenderMode = true;
         refreshColorSourceAvailability();
-        m_buffersDirty = true;
-        m_logRebuildRequested = true;
+        m_textureSrbs.clear();
         update();
     });
     connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
-        m_buffersDirty = true;
-        m_logRebuildRequested = true;
         update();
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
@@ -82,10 +75,6 @@ void RenderWidget::setShadingMode(ShadingMode mode)
             m_fillPipeline.reset();
         if (wireChanged)
             m_wirePipeline.reset();
-        if (fillChanged || wireChanged) {
-            m_buffersDirty = true;
-            m_logRebuildRequested = true;
-        }
 
         if (m_overlayPanel) {
             m_overlayPanel->setSettings(m_renderSettings);
@@ -102,7 +91,6 @@ void RenderWidget::setShadingMode(ShadingMode mode)
     if (m_overlayPanel)
         m_overlayPanel->setSettings(m_renderSettings);
     m_fillPipeline.reset();
-    m_logRebuildRequested = true;
     update();
 }
 
@@ -128,24 +116,6 @@ void RenderWidget::createOverlayButtons()
             || prev.wireBackfaceCulling != m_renderSettings.wireBackfaceCulling) {
             m_wirePipeline.reset();
         }
-        if (prev.showWire != m_renderSettings.showWire
-            || prev.showFill != m_renderSettings.showFill) {
-            m_buffersDirty = true;
-            m_logRebuildRequested = true;
-        }
-        if (prev.fillColorSource != m_renderSettings.fillColorSource) {
-            m_buffersDirty = true;
-            m_logRebuildRequested = true;
-        }
-        if (prev.pointColorSource != m_renderSettings.pointColorSource) {
-            m_buffersDirty = true;
-            m_logRebuildRequested = true;
-        }
-        if (prev.highlightCurrentMesh != m_renderSettings.highlightCurrentMesh) {
-            m_buffersDirty = true;
-            m_logRebuildRequested = true;
-        }
-
         update();
         layoutOverlayButtons();
     });
@@ -239,9 +209,77 @@ void RenderWidget::refreshColorSourceAvailability()
         m_renderSettings = corrected;
         if (m_overlayPanel)
             m_overlayPanel->setSettings(m_renderSettings);
-        m_buffersDirty = true;
-        m_logRebuildRequested = true;
     }
+}
+
+int RenderWidget::fillGpuVariantIndexForCurrentSettings() const
+{
+    switch (m_renderSettings.fillColorSource) {
+    case FillColorSource::PerVertex: return static_cast<int>(Document::FillGpuVariant::PerVertex);
+    case FillColorSource::PerFace: return static_cast<int>(Document::FillGpuVariant::PerFace);
+    case FillColorSource::Constant:
+    default:
+        return static_cast<int>(Document::FillGpuVariant::Constant);
+    }
+}
+
+int RenderWidget::pointGpuVariantIndexForCurrentSettings() const
+{
+    switch (m_renderSettings.pointColorSource) {
+    case PointColorSource::PerVertex: return static_cast<int>(Document::PointGpuVariant::PerVertex);
+    case PointColorSource::Constant:
+    default:
+        return static_cast<int>(Document::PointGpuVariant::Constant);
+    }
+}
+
+QRhiShaderResourceBindings *RenderWidget::shaderResourcesForTexture(QRhiTexture *texture)
+{
+    if (!texture || !m_rhi || !m_ubuf || !m_textureSampler)
+        return m_srb.get();
+
+    auto it = m_textureSrbs.find(texture);
+    if (it != m_textureSrbs.end())
+        return it->second.get();
+
+    auto textureSrb = std::unique_ptr<QRhiShaderResourceBindings>(m_rhi->newShaderResourceBindings());
+    textureSrb->setBindings({
+        QRhiShaderResourceBinding::uniformBuffer(
+            0,
+            QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+            m_ubuf.get()),
+        QRhiShaderResourceBinding::sampledTexture(
+            1,
+            QRhiShaderResourceBinding::FragmentStage,
+            texture,
+            m_textureSampler.get())
+    });
+    if (!textureSrb->create())
+        return m_srb.get();
+
+    QRhiShaderResourceBindings *raw = textureSrb.get();
+    m_textureSrbs.emplace(texture, std::move(textureSrb));
+    return raw;
+}
+
+void RenderWidget::updateCameraFrameIfNeeded()
+{
+    if (!m_reframeCameraRequested)
+        return;
+    if (m_doc->meshCount() == 0)
+        return;
+
+    vcg::Box3f bbox;
+    for (int i = 0; i < m_doc->meshCount(); ++i)
+        bbox.Add(m_doc->mesh(i).mesh.bbox);
+    if (bbox.IsNull())
+        return;
+
+    auto c = bbox.Center();
+    m_center = QVector3D(c[0], c[1], c[2]);
+    m_radius = bbox.Diag() / 2.0f;
+    m_distance = m_radius * 3.0f;
+    m_reframeCameraRequested = false;
 }
 
 void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
@@ -308,6 +346,8 @@ void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
 void RenderWidget::ensureRenderResources()
 {
     if (m_rhi != rhi()) {
+        if (m_rhi)
+            m_doc->releaseRhiGpuResources(m_rhi);
         m_rhi = rhi();
         m_fillPipeline.reset();
         m_wirePipeline.reset();
@@ -329,11 +369,7 @@ void RenderWidget::ensureRenderResources()
         m_textureSampler.reset();
         m_fallbackTexture.reset();
         m_fallbackTextureUploadPending = false;
-        m_meshGPU.clear();
-        m_wireGPU.clear();
-        m_bboxGPU.clear();
-        m_pointsGPU.clear();
-        m_buffersDirty = true;
+        m_textureSrbs.clear();
     }
 
     if (!m_rhi || !renderTarget())
@@ -687,490 +723,54 @@ void RenderWidget::ensureRenderResources()
     }
 }
 
-void RenderWidget::rebuildBuffers()
-{
-    m_meshGPU.clear();
-    m_wireGPU.clear();
-    m_bboxGPU.clear();
-    m_pointsGPU.clear();
-    if (!m_rhi || m_doc->meshCount() == 0)
-        return;
-
-    // Compute global bounding box for camera framing
-    vcg::Box3f bbox;
-    for (int i = 0; i < m_doc->meshCount(); ++i)
-        bbox.Add(m_doc->mesh(i).mesh.bbox);
-    if (m_reframeCameraRequested) {
-        auto c = bbox.Center();
-        m_center = QVector3D(c[0], c[1], c[2]);
-        m_radius = bbox.Diag() / 2.0f;
-        m_distance = m_radius * 3.0f;
-        m_reframeCameraRequested = false;
-    }
-
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const auto &meshEntry = m_doc->mesh(mi);
-        if (!meshEntry.visible) continue;
-        const VCGMesh &mesh = meshEntry.mesh;
-        if (mesh.FN() == 0) continue;
-
-        const bool meshHasFaceColor = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
-        const bool meshHasVertexColor = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
-        const bool meshHasVertexTexcoord = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
-        const bool meshHasWedgeTexcoord = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
-        const bool useFaceColor = (m_renderSettings.fillColorSource == FillColorSource::PerFace) && meshHasFaceColor;
-        const bool useVertexColor =
-            (m_renderSettings.fillColorSource == FillColorSource::PerVertex) && meshHasVertexColor;
-
-        if (m_renderSettings.showFill || m_renderSettings.highlightCurrentMesh) {
-            const bool hasTextureCoords = meshHasWedgeTexcoord || meshHasVertexTexcoord;
-            const bool hasTextureSlots = hasTextureCoords && !meshEntry.textureFilePaths.isEmpty();
-            const bool expandTriangles = useFaceColor || hasTextureSlots;
-
-            if (expandTriangles) {
-                struct PreparedTexture {
-                    std::unique_ptr<QRhiTexture> texture;
-                    std::unique_ptr<QRhiShaderResourceBindings> srb;
-                    QImage uploadImage;
-                    bool ready = false;
-                };
-
-                std::map<int, std::vector<float>> groupedTriangles;
-                std::unordered_map<int, PreparedTexture> preparedTextures;
-                auto ensureTexturePrepared =
-                    [this, &meshEntry, &preparedTextures](int textureIndex) -> bool {
-                    if (textureIndex < 0 || textureIndex >= meshEntry.textureFilePaths.size())
-                        return false;
-                    auto it = preparedTextures.find(textureIndex);
-                    if (it != preparedTextures.end())
-                        return it->second.ready;
-
-                    PreparedTexture prepared;
-                    if (!m_textureSampler || !m_ubuf) {
-                        preparedTextures.emplace(textureIndex, std::move(prepared));
-                        return false;
-                    }
-
-                    const QString &texturePath = meshEntry.textureFilePaths.at(textureIndex);
-                    if (!QFileInfo::exists(texturePath)) {
-                        preparedTextures.emplace(textureIndex, std::move(prepared));
-                        return false;
-                    }
-
-                    QImageReader reader(texturePath);
-                    QImage image = reader.read();
-                    if (image.isNull()) {
-                        preparedTextures.emplace(textureIndex, std::move(prepared));
-                        return false;
-                    }
-
-                    image = image.convertToFormat(QImage::Format_RGBA8888);
-                    prepared.texture.reset(m_rhi->newTexture(QRhiTexture::RGBA8, image.size(), 1));
-                    if (!prepared.texture || !prepared.texture->create()) {
-                        prepared.texture.reset();
-                        preparedTextures.emplace(textureIndex, std::move(prepared));
-                        return false;
-                    }
-
-                    prepared.srb.reset(m_rhi->newShaderResourceBindings());
-                    prepared.srb->setBindings({
-                        QRhiShaderResourceBinding::uniformBuffer(
-                            0,
-                            QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                            m_ubuf.get()),
-                        QRhiShaderResourceBinding::sampledTexture(
-                            1,
-                            QRhiShaderResourceBinding::FragmentStage,
-                            prepared.texture.get(),
-                            m_textureSampler.get())
-                    });
-                    if (!prepared.srb->create()) {
-                        prepared.srb.reset();
-                        prepared.texture.reset();
-                        preparedTextures.emplace(textureIndex, std::move(prepared));
-                        return false;
-                    }
-
-                    prepared.uploadImage = std::move(image);
-                    prepared.ready = true;
-                    preparedTextures.emplace(textureIndex, std::move(prepared));
-                    return true;
-                };
-
-                for (int i = 0; i < mesh.FN(); ++i) {
-                    const auto &f = mesh.face[i];
-                    const auto fc = f.cC();
-                    const float fr = static_cast<float>(fc[0]) / 255.0f;
-                    const float fg = static_cast<float>(fc[1]) / 255.0f;
-                    const float fb = static_cast<float>(fc[2]) / 255.0f;
-
-                    int textureGroup = -1;
-                    bool useTextureForFace = false;
-                    if (hasTextureSlots) {
-                        int textureIndex = 0;
-                        if (meshHasWedgeTexcoord) {
-                            textureIndex = static_cast<int>(f.cWT(0).N());
-                        } else if (meshHasVertexTexcoord) {
-                            textureIndex = static_cast<int>(f.cV(0)->cT().N());
-                        }
-                        if (ensureTexturePrepared(textureIndex)) {
-                            textureGroup = textureIndex;
-                            useTextureForFace = true;
-                        } else if (ensureTexturePrepared(0)) {
-                            // Fallback for files with vertex UVs but missing/invalid texture indices.
-                            textureGroup = 0;
-                            useTextureForFace = true;
-                        }
-                    }
-
-                    std::vector<float> &groupData = groupedTriangles[textureGroup];
-                    const int startBase = static_cast<int>(groupData.size());
-                    groupData.resize(groupData.size() + (3 * kFillVertexStrideFloats));
-                    for (int corner = 0; corner < 3; ++corner) {
-                        const auto *vertex = f.cV(corner);
-                        const auto vc = vertex->cC();
-                        const float vr = static_cast<float>(vc[0]) / 255.0f;
-                        const float vg = static_cast<float>(vc[1]) / 255.0f;
-                        const float vb = static_cast<float>(vc[2]) / 255.0f;
-                        const int base = startBase + (corner * kFillVertexStrideFloats);
-                        groupData[base + 0] = vertex->cP()[0];
-                        groupData[base + 1] = vertex->cP()[1];
-                        groupData[base + 2] = vertex->cP()[2];
-                        groupData[base + 3] = vertex->cN()[0];
-                        groupData[base + 4] = vertex->cN()[1];
-                        groupData[base + 5] = vertex->cN()[2];
-                        groupData[base + 6] = useFaceColor ? fr : (useVertexColor ? vr : 1.0f);
-                        groupData[base + 7] = useFaceColor ? fg : (useVertexColor ? vg : 1.0f);
-                        groupData[base + 8] = useFaceColor ? fb : (useVertexColor ? vb : 1.0f);
-                        groupData[base + 9] = (useFaceColor || useVertexColor) ? 1.0f : 0.0f;
-                        if (useTextureForFace) {
-                            if (meshHasWedgeTexcoord) {
-                                const auto &wt = f.cWT(corner);
-                                groupData[base + 10] = wt.U();
-                                groupData[base + 11] = wt.V();
-                            } else if (meshHasVertexTexcoord) {
-                                const auto &vt = vertex->cT();
-                                groupData[base + 10] = vt.U();
-                                groupData[base + 11] = vt.V();
-                            } else {
-                                groupData[base + 10] = 0.0f;
-                                groupData[base + 11] = 0.0f;
-                            }
-                            groupData[base + 12] = 1.0f;
-                        } else {
-                            groupData[base + 10] = 0.0f;
-                            groupData[base + 11] = 0.0f;
-                            groupData[base + 12] = 0.0f;
-                        }
-                    }
-                }
-
-                for (auto &groupEntry : groupedTriangles) {
-                    if (groupEntry.second.empty())
-                        continue;
-
-                    MeshGPU mg;
-                    mg.meshIndex = mi;
-                    mg.useTexture = groupEntry.first >= 0;
-                    if (mg.useTexture) {
-                        auto texIt = preparedTextures.find(groupEntry.first);
-                        if (texIt != preparedTextures.end() && texIt->second.ready) {
-                            mg.texture = std::move(texIt->second.texture);
-                            mg.srb = std::move(texIt->second.srb);
-                            mg.uploadTextureImage = std::move(texIt->second.uploadImage);
-                        } else {
-                            mg.useTexture = false;
-                        }
-                    }
-
-                    mg.vertexCount = static_cast<int>(groupEntry.second.size() / kFillVertexStrideFloats);
-                    mg.indexCount = 0;
-                    const int vertBytes = static_cast<int>(groupEntry.second.size() * sizeof(float));
-                    mg.vbuf.reset(
-                        m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
-                    mg.vbuf->create();
-                    mg.uploadData = std::move(groupEntry.second);
-                    m_meshGPU.push_back(std::move(mg));
-                }
-            } else {
-                MeshGPU mg;
-                mg.meshIndex = mi;
-                // Build interleaved vertex buffer: pos(3f) + normal(3f) + color(3f) + useColorFlag(1f)
-                const int vertBytes = mesh.VN() * kFillVertexStrideFloats * sizeof(float);
-                auto vbuf = std::unique_ptr<QRhiBuffer>(
-                    m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
-                vbuf->create();
-
-                std::vector<float> vdata(mesh.VN() * kFillVertexStrideFloats);
-                const float useMeshColor = useVertexColor ? 1.0f : 0.0f;
-                for (int i = 0; i < mesh.VN(); ++i) {
-                    const auto &v = mesh.vert[i];
-                    const auto vc = v.cC();
-                    const float cr = useVertexColor ? static_cast<float>(vc[0]) / 255.0f : 1.0f;
-                    const float cg = useVertexColor ? static_cast<float>(vc[1]) / 255.0f : 1.0f;
-                    const float cb = useVertexColor ? static_cast<float>(vc[2]) / 255.0f : 1.0f;
-                    const int base = i * kFillVertexStrideFloats;
-                    vdata[base + 0] = v.P()[0];
-                    vdata[base + 1] = v.P()[1];
-                    vdata[base + 2] = v.P()[2];
-                    vdata[base + 3] = v.N()[0];
-                    vdata[base + 4] = v.N()[1];
-                    vdata[base + 5] = v.N()[2];
-                    vdata[base + 6] = cr;
-                    vdata[base + 7] = cg;
-                    vdata[base + 8] = cb;
-                    vdata[base + 9] = useMeshColor;
-                    vdata[base + 10] = 0.0f;
-                    vdata[base + 11] = 0.0f;
-                    vdata[base + 12] = 0.0f;
-                }
-
-                // Build index buffer
-                const int idxCount = mesh.FN() * 3;
-                const int idxBytes = idxCount * sizeof(quint32);
-                auto ibuf = std::unique_ptr<QRhiBuffer>(
-                    m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::IndexBuffer, idxBytes));
-                ibuf->create();
-
-                std::vector<quint32> idata(idxCount);
-                for (int i = 0; i < mesh.FN(); ++i) {
-                    const auto &f = mesh.face[i];
-                    idata[i * 3 + 0] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(0)));
-                    idata[i * 3 + 1] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(1)));
-                    idata[i * 3 + 2] = static_cast<quint32>(vcg::tri::Index(mesh, f.cV(2)));
-                }
-
-                mg.vbuf = std::move(vbuf);
-                mg.ibuf = std::move(ibuf);
-                mg.vertexCount = mesh.VN();
-                mg.indexCount = idxCount;
-                mg.uploadData = std::move(vdata);
-                mg.uploadIndices = std::move(idata);
-                m_meshGPU.push_back(std::move(mg));
-            }
-        }
-
-        if (m_renderSettings.showWire) {
-            WireGPU wg;
-
-            const int vertexCount = mesh.FN() * 3;
-            const int vertBytes = vertexCount * 6 * sizeof(float);
-            auto vbuf = std::unique_ptr<QRhiBuffer>(
-                m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, vertBytes));
-            vbuf->create();
-
-            std::vector<float> vdata(vertexCount * 6);
-            static constexpr float barycentrics[3][3] = {
-                { 1.0f, 0.0f, 0.0f },
-                { 0.0f, 1.0f, 0.0f },
-                { 0.0f, 0.0f, 1.0f }
-            };
-
-            for (int i = 0; i < mesh.FN(); ++i) {
-                const auto &f = mesh.face[i];
-                for (int corner = 0; corner < 3; ++corner) {
-                    const auto *vertex = f.cV(corner);
-                    const int base = (i * 3 + corner) * 6;
-                    vdata[base + 0] = vertex->cP()[0];
-                    vdata[base + 1] = vertex->cP()[1];
-                    vdata[base + 2] = vertex->cP()[2];
-                    vdata[base + 3] = barycentrics[corner][0];
-                    vdata[base + 4] = barycentrics[corner][1];
-                    vdata[base + 5] = barycentrics[corner][2];
-                }
-            }
-
-            wg.vbuf = std::move(vbuf);
-            wg.vertexCount = vertexCount;
-            wg.uploadData = std::move(vdata);
-            m_wireGPU.push_back(std::move(wg));
-        }
-    }
-
-    // Build per-mesh bounding box line buffers (12 edges = 24 vertices)
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const auto &meshEntry = m_doc->mesh(mi);
-        if (!meshEntry.visible) continue;
-        const VCGMesh &mesh = meshEntry.mesh;
-        if (mesh.bbox.IsNull()) continue;
-
-        const auto &mn = mesh.bbox.min;
-        const auto &mx = mesh.bbox.max;
-
-        // clang-format off
-        std::vector<float> bd = {
-            // bottom face
-            mn[0],mn[1],mn[2],  mx[0],mn[1],mn[2],
-            mx[0],mn[1],mn[2],  mx[0],mx[1],mn[2],
-            mx[0],mx[1],mn[2],  mn[0],mx[1],mn[2],
-            mn[0],mx[1],mn[2],  mn[0],mn[1],mn[2],
-            // top face
-            mn[0],mn[1],mx[2],  mx[0],mn[1],mx[2],
-            mx[0],mn[1],mx[2],  mx[0],mx[1],mx[2],
-            mx[0],mx[1],mx[2],  mn[0],mx[1],mx[2],
-            mn[0],mx[1],mx[2],  mn[0],mn[1],mx[2],
-            // vertical edges
-            mn[0],mn[1],mn[2],  mn[0],mn[1],mx[2],
-            mx[0],mn[1],mn[2],  mx[0],mn[1],mx[2],
-            mx[0],mx[1],mn[2],  mx[0],mx[1],mx[2],
-            mn[0],mx[1],mn[2],  mn[0],mx[1],mx[2],
-        };
-        // clang-format on
-
-        auto bvbuf = std::unique_ptr<QRhiBuffer>(
-            m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer,
-                             static_cast<quint32>(bd.size() * sizeof(float))));
-        bvbuf->create();
-
-        BBoxGPU bg;
-        bg.vbuf = std::move(bvbuf);
-        bg.uploadData = std::move(bd);
-        m_bboxGPU.push_back(std::move(bg));
-    }
-
-    // Build per-mesh point buffers:
-    // position(3f) + color(3f) + useMeshColorFlag(1f) + normal(3f) + useNormalFlag(1f)
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const auto &meshEntry = m_doc->mesh(mi);
-        if (!meshEntry.visible) continue;
-        const VCGMesh &mesh = meshEntry.mesh;
-        if (mesh.VN() == 0) continue;
-
-        const bool meshHasVertexColor = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
-        const bool meshHasVertexNormal = (meshEntry.ioMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
-        const bool useVertexColor =
-            (m_renderSettings.pointColorSource == PointColorSource::PerVertex) && meshHasVertexColor;
-        const float useMeshColor = useVertexColor ? 1.0f : 0.0f;
-
-        std::vector<float> pdata(mesh.VN() * kPointsVertexStrideFloats);
-        for (int i = 0; i < mesh.VN(); ++i) {
-            const auto &v = mesh.vert[i];
-            const auto vc = v.cC();
-            const float cr = useVertexColor ? static_cast<float>(vc[0]) / 255.0f : 1.0f;
-            const float cg = useVertexColor ? static_cast<float>(vc[1]) / 255.0f : 1.0f;
-            const float cb = useVertexColor ? static_cast<float>(vc[2]) / 255.0f : 1.0f;
-
-            const int base = i * kPointsVertexStrideFloats;
-            pdata[base + 0] = v.cP()[0];
-            pdata[base + 1] = v.cP()[1];
-            pdata[base + 2] = v.cP()[2];
-            pdata[base + 3] = cr;
-            pdata[base + 4] = cg;
-            pdata[base + 5] = cb;
-            pdata[base + 6] = useMeshColor;
-            const float nx = v.cN()[0];
-            const float ny = v.cN()[1];
-            const float nz = v.cN()[2];
-            const float nLen2 = nx * nx + ny * ny + nz * nz;
-            const bool normalFinite =
-                std::isfinite(nx) && std::isfinite(ny) && std::isfinite(nz);
-            const bool hasUsableNormal =
-                meshHasVertexNormal && normalFinite && nLen2 > 1e-12f && nLen2 < 1e12f;
-
-            pdata[base + 7] = hasUsableNormal ? nx : 0.0f;
-            pdata[base + 8] = hasUsableNormal ? ny : 0.0f;
-            pdata[base + 9] = hasUsableNormal ? nz : 1.0f;
-            pdata[base + 10] = hasUsableNormal ? 1.0f : 0.0f;
-        }
-
-        auto pvbuf = std::unique_ptr<QRhiBuffer>(
-            m_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer,
-                             static_cast<quint32>(pdata.size() * sizeof(float))));
-        pvbuf->create();
-
-        PointsGPU pg;
-        pg.meshIndex = mi;
-        pg.vbuf = std::move(pvbuf);
-        pg.vertexCount = mesh.VN();
-        pg.uploadData = std::move(pdata);
-        m_pointsGPU.push_back(std::move(pg));
-    }
-}
-
 void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
 {
-    if ((!m_buffersDirty && !m_fallbackTextureUploadPending) || !m_rhi)
+    if (!m_rhi)
         return;
 
-    const bool logRebuild = m_logRebuildRequested;
-    QElapsedTimer rebuildTimer;
-    rebuildTimer.start();
-    rebuildBuffers();
-    const qint64 rebuildMs = rebuildTimer.elapsed();
+    updateCameraFrameIfNeeded();
 
-    qint64 uploadMs = 0;
-    int uploadedMeshes = 0;
-    int uploadedVertices = 0;
-    int uploadedTriangles = 0;
-
-    if (!m_meshGPU.empty() || !m_wireGPU.empty() || !m_bboxGPU.empty() || !m_pointsGPU.empty()
-        || m_fallbackTextureUploadPending) {
-        QElapsedTimer uploadTimer;
-        uploadTimer.start();
+    if (m_fallbackTextureUploadPending && m_fallbackTexture) {
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-        if (m_fallbackTextureUploadPending && m_fallbackTexture) {
-            QImage white(1, 1, QImage::Format_RGBA8888);
-            white.fill(Qt::white);
-            QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(white));
-            u->uploadTexture(m_fallbackTexture.get(), QRhiTextureUploadDescription({ entry }));
-            m_fallbackTextureUploadPending = false;
-        }
-        for (auto &mg : m_meshGPU) {
-            u->uploadStaticBuffer(mg.vbuf.get(), mg.uploadData.data());
-            if (mg.ibuf && !mg.uploadIndices.empty())
-                u->uploadStaticBuffer(mg.ibuf.get(), mg.uploadIndices.data());
-            if (mg.texture && !mg.uploadTextureImage.isNull()) {
-                QRhiTextureUploadEntry entry(
-                    0,
-                    0,
-                    QRhiTextureSubresourceUploadDescription(mg.uploadTextureImage));
-                u->uploadTexture(mg.texture.get(), QRhiTextureUploadDescription({ entry }));
-            }
-            ++uploadedMeshes;
-            uploadedVertices += static_cast<int>(mg.uploadData.size() / kFillVertexStrideFloats);
-            uploadedTriangles += (mg.indexCount > 0 ? mg.indexCount : mg.vertexCount) / 3;
-            std::vector<float>().swap(mg.uploadData);
-            std::vector<quint32>().swap(mg.uploadIndices);
-            QImage().swap(mg.uploadTextureImage);
-        }
-        for (auto &wg : m_wireGPU) {
-            if (!wg.uploadData.empty()) {
-                u->uploadStaticBuffer(wg.vbuf.get(), wg.uploadData.data());
-                ++uploadedMeshes;
-                uploadedVertices += static_cast<int>(wg.uploadData.size() / 6);
-                uploadedTriangles += wg.vertexCount / 3;
-                std::vector<float>().swap(wg.uploadData);
-            }
-        }
-        for (auto &bg : m_bboxGPU) {
-            if (!bg.uploadData.empty()) {
-                u->uploadStaticBuffer(bg.vbuf.get(), bg.uploadData.data());
-                std::vector<float>().swap(bg.uploadData);
-            }
-        }
-        for (auto &pg : m_pointsGPU) {
-            if (!pg.uploadData.empty()) {
-                u->uploadStaticBuffer(pg.vbuf.get(), pg.uploadData.data());
-                uploadedVertices += static_cast<int>(pg.uploadData.size() / kPointsVertexStrideFloats);
-                std::vector<float>().swap(pg.uploadData);
-            }
-        }
+        QImage white(1, 1, QImage::Format_RGBA8888);
+        white.fill(Qt::white);
+        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(white));
+        u->uploadTexture(m_fallbackTexture.get(), QRhiTextureUploadDescription({ entry }));
         cb->resourceUpdate(u);
-        uploadMs = uploadTimer.elapsed();
+        m_fallbackTextureUploadPending = false;
     }
 
-    if (logRebuild) {
-        m_doc->writeLog(tr("[render] Prepared buffers in %1 ms, uploaded in %2 ms (%3 meshes, %4 vertices, %5 triangles)")
-            .arg(rebuildMs)
-            .arg(uploadMs)
-            .arg(uploadedMeshes)
-            .arg(uploadedVertices)
-            .arg(uploadedTriangles),
-            Document::LogSource::Application);
-        m_logRebuildRequested = false;
-    }
+    const bool needFill =
+        m_renderSettings.showFill || m_renderSettings.highlightCurrentMesh;
+    const bool needWire = m_renderSettings.showWire;
+    const bool needPoints =
+        m_renderSettings.showPoints || m_renderSettings.highlightCurrentMesh;
+    const bool needBBox = m_renderSettings.showBoundingBox;
+    if (!needFill && !needWire && !needPoints && !needBBox)
+        return;
 
-    m_buffersDirty = false;
+    const auto pointVariant = static_cast<Document::PointGpuVariant>(
+        pointGpuVariantIndexForCurrentSettings());
+    const auto fillVariant = static_cast<Document::FillGpuVariant>(
+        m_renderSettings.showFill
+            ? fillGpuVariantIndexForCurrentSettings()
+            : static_cast<int>(Document::FillGpuVariant::Constant));
+
+    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        const auto &meshEntry = m_doc->mesh(mi);
+        if (!meshEntry.visible)
+            continue;
+        m_doc->ensureMeshGpuResources(
+            m_rhi,
+            cb,
+            mi,
+            fillVariant,
+            pointVariant,
+            needFill,
+            needWire,
+            needPoints,
+            needBBox);
+    }
 }
 
 void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize)
@@ -1189,36 +789,47 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
     cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
 
+    const auto pointVariant = static_cast<Document::PointGpuVariant>(
+        pointGpuVariantIndexForCurrentSettings());
+    const auto fillVariant = static_cast<Document::FillGpuVariant>(
+        m_renderSettings.showFill
+            ? fillGpuVariantIndexForCurrentSettings()
+            : static_cast<int>(Document::FillGpuVariant::Constant));
+
     bool drewSurface = false;
     if (m_currentMaskFillPipeline) {
+        const Document::FillPassGpuView fillView =
+            m_doc->fillPassGpuView(m_rhi, currentMeshIndex, fillVariant);
         cb->setGraphicsPipeline(m_currentMaskFillPipeline.get());
         cb->setShaderResources();
-        for (const auto &mg : m_meshGPU) {
-            if (mg.meshIndex != currentMeshIndex)
+        for (int bi = 0; bi < fillView.batchCount; ++bi) {
+            const auto &batch = fillView.batches[bi];
+            if (!batch.vertexBuffer)
                 continue;
-            if (mg.indexCount == 0 && mg.vertexCount == 0)
+            if (batch.indexCount == 0 && batch.vertexCount == 0)
                 continue;
             drewSurface = true;
-            const QRhiCommandBuffer::VertexInput vbufBinding(mg.vbuf.get(), 0);
-            if (mg.indexCount > 0) {
-                cb->setVertexInput(0, 1, &vbufBinding, mg.ibuf.get(), 0, QRhiCommandBuffer::IndexUInt32);
-                cb->drawIndexed(mg.indexCount);
+            const QRhiCommandBuffer::VertexInput vbufBinding(batch.vertexBuffer, 0);
+            if (batch.indexCount > 0 && batch.indexBuffer) {
+                cb->setVertexInput(
+                    0, 1, &vbufBinding, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
+                cb->drawIndexed(batch.indexCount);
             } else {
                 cb->setVertexInput(0, 1, &vbufBinding);
-                cb->draw(mg.vertexCount);
+                cb->draw(batch.vertexCount);
             }
         }
     }
 
     if (!drewSurface && m_currentMaskPointsPipeline) {
+        const Document::PointsPassGpuView pointsView =
+            m_doc->pointsPassGpuView(m_rhi, currentMeshIndex, pointVariant);
         cb->setGraphicsPipeline(m_currentMaskPointsPipeline.get());
         cb->setShaderResources();
-        for (const auto &pg : m_pointsGPU) {
-            if (pg.meshIndex != currentMeshIndex || !pg.vbuf || pg.vertexCount == 0)
-                continue;
-            const QRhiCommandBuffer::VertexInput pv(pg.vbuf.get(), 0);
+        if (pointsView.valid && pointsView.vertexBuffer && pointsView.vertexCount > 0) {
+            const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &pv);
-            cb->draw(pg.vertexCount);
+            cb->draw(pointsView.vertexCount);
         }
     }
 
@@ -1353,23 +964,41 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         renderCurrentMeshMask(cb, sz);
     }
 
+    const auto fillVariant = static_cast<Document::FillGpuVariant>(
+        fillGpuVariantIndexForCurrentSettings());
+    const auto pointVariant = static_cast<Document::PointGpuVariant>(
+        pointGpuVariantIndexForCurrentSettings());
+
     cb->beginPass(renderTarget(), QColor(40, 40, 40), { 1.0f, 0 }, u);
 
     if (drawFillPass && m_fillPipeline) {
         cb->setGraphicsPipeline(m_fillPipeline.get());
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
 
-        for (const auto &mg : m_meshGPU) {
-            if (mg.indexCount == 0 && mg.vertexCount == 0)
+        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+            const auto &meshEntry = m_doc->mesh(mi);
+            if (!meshEntry.visible)
                 continue;
-            cb->setShaderResources(mg.srb ? mg.srb.get() : m_srb.get());
-            const QRhiCommandBuffer::VertexInput vbufBinding(mg.vbuf.get(), 0);
-            if (mg.indexCount > 0) {
-                cb->setVertexInput(0, 1, &vbufBinding, mg.ibuf.get(), 0, QRhiCommandBuffer::IndexUInt32);
-                cb->drawIndexed(mg.indexCount);
-            } else {
-                cb->setVertexInput(0, 1, &vbufBinding);
-                cb->draw(mg.vertexCount);
+            const Document::FillPassGpuView fillView =
+                m_doc->fillPassGpuView(m_rhi, mi, fillVariant);
+            if (!fillView.valid)
+                continue;
+
+            for (int bi = 0; bi < fillView.batchCount; ++bi) {
+                const auto &batch = fillView.batches[bi];
+                if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
+                    continue;
+
+                cb->setShaderResources(shaderResourcesForTexture(batch.texture));
+                const QRhiCommandBuffer::VertexInput vbufBinding(batch.vertexBuffer, 0);
+                if (batch.indexCount > 0 && batch.indexBuffer) {
+                    cb->setVertexInput(
+                        0, 1, &vbufBinding, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
+                    cb->drawIndexed(batch.indexCount);
+                } else {
+                    cb->setVertexInput(0, 1, &vbufBinding);
+                    cb->draw(batch.vertexCount);
+                }
             }
         }
     }
@@ -1379,34 +1008,49 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
         cb->setShaderResources();
 
-        for (const auto &wg : m_wireGPU) {
-            if (!wg.vbuf || wg.vertexCount == 0)
+        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+            const auto &meshEntry = m_doc->mesh(mi);
+            if (!meshEntry.visible)
                 continue;
-            const QRhiCommandBuffer::VertexInput vbufBinding(wg.vbuf.get(), 0);
+            const Document::WirePassGpuView wireView = m_doc->wirePassGpuView(m_rhi, mi);
+            if (!wireView.valid || !wireView.vertexBuffer || wireView.vertexCount <= 0)
+                continue;
+            const QRhiCommandBuffer::VertexInput vbufBinding(wireView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &vbufBinding);
-            cb->draw(wg.vertexCount);
+            cb->draw(wireView.vertexCount);
         }
     }
 
-    if (drawBBoxPass && m_bboxPipeline && !m_bboxGPU.empty()) {
+    if (drawBBoxPass && m_bboxPipeline) {
         cb->setGraphicsPipeline(m_bboxPipeline.get());
         cb->setShaderResources();
-        for (const auto &bg : m_bboxGPU) {
-            if (!bg.vbuf) continue;
-            const QRhiCommandBuffer::VertexInput bv(bg.vbuf.get(), 0);
+        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+            const auto &meshEntry = m_doc->mesh(mi);
+            if (!meshEntry.visible)
+                continue;
+            const Document::BBoxPassGpuView bboxView = m_doc->bboxPassGpuView(m_rhi, mi);
+            if (!bboxView.valid || !bboxView.vertexBuffer || bboxView.vertexCount <= 0)
+                continue;
+            const QRhiCommandBuffer::VertexInput bv(bboxView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &bv);
-            cb->draw(24);
+            cb->draw(bboxView.vertexCount);
         }
     }
 
-    if (drawPointsPass && m_pointsPipeline && !m_pointsGPU.empty()) {
+    if (drawPointsPass && m_pointsPipeline) {
         cb->setGraphicsPipeline(m_pointsPipeline.get());
         cb->setShaderResources();
-        for (const auto &pg : m_pointsGPU) {
-            if (!pg.vbuf || pg.vertexCount == 0) continue;
-            const QRhiCommandBuffer::VertexInput pv(pg.vbuf.get(), 0);
+        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+            const auto &meshEntry = m_doc->mesh(mi);
+            if (!meshEntry.visible)
+                continue;
+            const Document::PointsPassGpuView pointsView =
+                m_doc->pointsPassGpuView(m_rhi, mi, pointVariant);
+            if (!pointsView.valid || !pointsView.vertexBuffer || pointsView.vertexCount <= 0)
+                continue;
+            const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &pv);
-            cb->draw(pg.vertexCount);
+            cb->draw(pointsView.vertexCount);
         }
     }
 

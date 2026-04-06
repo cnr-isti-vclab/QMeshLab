@@ -4,9 +4,9 @@
 #include <QRhiWidget>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
-#include <QImage>
 #include <QMatrix4x4>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 class Document;
@@ -44,52 +44,16 @@ private:
     void refreshColorSourceAvailability();
     void ensureRenderResources();
     void ensureCurrentMeshMaskResources(const QSize &pixelSize);
-    void rebuildBuffers();
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
+    void updateCameraFrameIfNeeded();
+    int fillGpuVariantIndexForCurrentSettings() const;
+    int pointGpuVariantIndexForCurrentSettings() const;
+    QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
     void renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize);
 
     Document *m_doc;
     QRhi *m_rhi = nullptr;
-
-    // Per-mesh GPU data
-    struct MeshGPU {
-        int meshIndex = -1;
-        std::unique_ptr<QRhiBuffer> vbuf;
-        std::unique_ptr<QRhiBuffer> ibuf;
-        std::unique_ptr<QRhiTexture> texture;
-        std::unique_ptr<QRhiShaderResourceBindings> srb;
-        int vertexCount = 0;
-        int indexCount = 0;
-        bool useTexture = false;
-        std::vector<float> uploadData;
-        std::vector<quint32> uploadIndices;
-        QImage uploadTextureImage;
-    };
-    // Per-mesh wireframe overlay GPU data (expanded triangles with barycentrics)
-    struct WireGPU {
-        std::unique_ptr<QRhiBuffer> vbuf;
-        int vertexCount = 0;
-        std::vector<float> uploadData;
-    };
-    // Per-mesh bounding-box GPU data (24 vertices, LineList)
-    struct BBoxGPU {
-        std::unique_ptr<QRhiBuffer> vbuf;
-        std::vector<float> uploadData;
-    };
-    // Per-mesh point cloud GPU data (position + optional mesh color, Points topology)
-    struct PointsGPU {
-        int meshIndex = -1;
-        std::unique_ptr<QRhiBuffer> vbuf;
-        int vertexCount = 0;
-        std::vector<float> uploadData;
-    };
-    std::vector<MeshGPU> m_meshGPU;
-    std::vector<WireGPU> m_wireGPU;
-    std::vector<BBoxGPU> m_bboxGPU;
-    std::vector<PointsGPU> m_pointsGPU;
-    bool m_buffersDirty = true;
-    bool m_logRebuildRequested = false;
     bool m_applySceneDefaultRenderMode = true;
     bool m_reframeCameraRequested = true;
 
@@ -98,6 +62,7 @@ private:
     std::unique_ptr<QRhiTexture> m_fallbackTexture;
     bool m_fallbackTextureUploadPending = false;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
+    std::unordered_map<QRhiTexture *, std::unique_ptr<QRhiShaderResourceBindings>> m_textureSrbs;
     std::unique_ptr<QRhiGraphicsPipeline> m_fillPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;

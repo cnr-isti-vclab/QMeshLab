@@ -1,13 +1,17 @@
 #pragma once
 
+#include "meshgpuresourcecache.h"
 #include "vcgmesh.h"
 #include <QObject>
+#include <cstdint>
 #include <QString>
 #include <QStringList>
 #include <memory>
 #include <vector>
 
 class MeshIOPluginManager;
+class QRhi;
+class QRhiCommandBuffer;
 
 class Document : public QObject
 {
@@ -24,6 +28,9 @@ public:
     };
 
     struct MeshEntry {
+        std::uint64_t meshId = 0;
+        std::uint64_t geometryRevision = 0;
+        std::uint64_t materialRevision = 0;
         QString name;
         QString sourcePath;
         QString textureFileName;
@@ -34,6 +41,14 @@ public:
         int ioMask = 0;
         VCGMesh mesh;
     };
+
+    using FillGpuVariant = MeshGpuResourceCache::FillVariant;
+    using PointGpuVariant = MeshGpuResourceCache::PointVariant;
+    using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
+    using FillPassGpuView = MeshGpuResourceCache::FillPassView;
+    using WirePassGpuView = MeshGpuResourceCache::WirePassView;
+    using PointsPassGpuView = MeshGpuResourceCache::PointsPassView;
+    using BBoxPassGpuView = MeshGpuResourceCache::BBoxPassView;
 
     explicit Document(QObject *parent = nullptr);
     ~Document() override;
@@ -52,6 +67,21 @@ public:
     const std::vector<LogEntry> &logMessages() const { return m_logMessages; }
     QString openDialogFilter() const;
     QStringList loadedPluginSummaries() const;
+    void ensureMeshGpuResources(QRhi *rhi,
+                                QRhiCommandBuffer *cb,
+                                int meshIndex,
+                                FillGpuVariant fillVariant,
+                                PointGpuVariant pointVariant,
+                                bool needFill,
+                                bool needWire,
+                                bool needPoints,
+                                bool needBoundingBox);
+    FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
+    WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
+    PointsPassGpuView pointsPassGpuView(QRhi *rhi, int meshIndex, PointGpuVariant variant) const;
+    BBoxPassGpuView bboxPassGpuView(QRhi *rhi, int meshIndex) const;
+    void releaseRhiGpuResources(QRhi *rhi);
+    void clearAllGpuResources();
 
 signals:
     void meshAdded(int index);
@@ -65,9 +95,12 @@ private:
     vcg::CallBackPos *logCallback();
     bool handleLogCallback(int pos, const char *message);
     static bool dispatchLogCallback(int pos, const char *message);
+    void purgeMeshGpuResources(std::uint64_t meshId);
 
     std::unique_ptr<MeshIOPluginManager> m_pluginManager;
+    std::unique_ptr<MeshGpuResourceCache> m_gpuCache;
     std::vector<std::unique_ptr<MeshEntry>> m_meshes;
+    std::uint64_t m_nextMeshId = 1;
     int m_currentMeshIndex = -1;
     std::vector<LogEntry> m_logMessages;
     QString m_lastCallbackMessage;
