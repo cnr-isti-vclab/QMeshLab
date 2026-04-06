@@ -43,8 +43,11 @@ private:
     void applySceneDefaultRenderModeIfNeeded();
     void refreshColorSourceAvailability();
     void ensureRenderResources();
+    void ensureCurrentMeshMaskResources(const QSize &pixelSize);
     void rebuildBuffers();
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
+    void renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
+    void drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize);
 
     Document *m_doc;
     QRhi *m_rhi = nullptr;
@@ -76,6 +79,7 @@ private:
     };
     // Per-mesh point cloud GPU data (position + optional mesh color, Points topology)
     struct PointsGPU {
+        int meshIndex = -1;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
         std::vector<float> uploadData;
@@ -98,6 +102,17 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
+    std::unique_ptr<QRhiTexture> m_currentMaskTexture;
+    std::unique_ptr<QRhiRenderBuffer> m_currentMaskDepth;
+    std::unique_ptr<QRhiTextureRenderTarget> m_currentMaskRt;
+    std::unique_ptr<QRhiRenderPassDescriptor> m_currentMaskRp;
+    QSize m_currentMaskSize;
+    std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskFillPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskPointsPipeline;
+    std::unique_ptr<QRhiBuffer> m_outlineUbuf;
+    std::unique_ptr<QRhiSampler> m_outlineSampler;
+    std::unique_ptr<QRhiShaderResourceBindings> m_outlineSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_outlinePipeline;
     ShadingMode m_shadingMode = ShadingMode::Smooth;
     RenderSettings m_renderSettings;
     RenderOverlayPanel *m_overlayPanel = nullptr;

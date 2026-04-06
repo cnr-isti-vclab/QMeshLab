@@ -55,12 +55,17 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/bbox.frag
         shaders/points.vert
         shaders/points.frag
+        shaders/current_mask.vert
+        shaders/current_mask.frag
+        shaders/outline.vert
+        shaders/outline.frag
 )
 
 qt_add_resources(QMeshLab "icons"
     PREFIX "/"
     FILES
         img/options.png
+        img/global.png
         img/box.png
         img/points.png
         img/wire.png

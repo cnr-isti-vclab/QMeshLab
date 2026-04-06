@@ -147,11 +147,30 @@ MainWindow::MainWindow(QWidget *parent)
 
 void MainWindow::openFile()
 {
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open Mesh"),
-        QString(), m_doc->openDialogFilter());
-    if (fileName.isEmpty())
+    const QStringList fileNames = QFileDialog::getOpenFileNames(
+        this,
+        tr("Open Mesh"),
+        QString(),
+        m_doc->openDialogFilter());
+    if (fileNames.isEmpty())
         return;
-    loadMeshFromPath(fileName);
+
+    int loadedCount = 0;
+    int failedCount = 0;
+    for (const QString &fileName : fileNames) {
+        if (loadMeshFromPath(fileName))
+            ++loadedCount;
+        else
+            ++failedCount;
+    }
+
+    if (fileNames.size() > 1) {
+        statusBar()->showMessage(
+            tr("Open complete: %1 loaded, %2 failed")
+                .arg(loadedCount)
+                .arg(failedCount),
+            3500);
+    }
 }
 
 void MainWindow::openLastMesh()

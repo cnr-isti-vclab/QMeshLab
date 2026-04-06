@@ -4,7 +4,8 @@
 #include <QMetaType>
 
 enum class RenderPass {
-    BoundingBox = 0,
+    CurrentMesh = 0,
+    BoundingBox,
     Points,
     Wireframe,
     Fill
@@ -27,10 +28,13 @@ enum class PointColorSource {
 };
 
 struct RenderSettings {
+    bool highlightCurrentMesh = true;
     bool showBoundingBox = false;
     bool showPoints = false;
     bool showWire = true;
     bool showFill = true;
+    QColor currentMeshOutlineColor = QColor(42, 160, 240);
+    float currentMeshOutlineWidth = 1.0f;
     bool pointLighting = false;
     bool wireLighting = false;
     bool fillLighting = true;
@@ -48,10 +52,13 @@ struct RenderSettings {
 
     bool operator==(const RenderSettings &other) const
     {
-        return showBoundingBox == other.showBoundingBox
+        return highlightCurrentMesh == other.highlightCurrentMesh
+            && showBoundingBox == other.showBoundingBox
             && showPoints == other.showPoints
             && showWire == other.showWire
             && showFill == other.showFill
+            && currentMeshOutlineColor == other.currentMeshOutlineColor
+            && currentMeshOutlineWidth == other.currentMeshOutlineWidth
             && pointLighting == other.pointLighting
             && wireLighting == other.wireLighting
             && fillLighting == other.fillLighting

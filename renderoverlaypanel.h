@@ -30,6 +30,7 @@ private:
     void setSettingsVisible(bool visible);
     int renderPassPageIndex(RenderPass pass) const;
     void syncRenderPassUiState();
+    void updateCurrentMeshOutlineColorButtonStyle();
     void updateBBoxColorButtonStyle();
     void updatePointsColorButtonStyle();
     void updateWireColorButtonStyle();
@@ -39,10 +40,13 @@ private:
 
     QWidget *m_settingsContainer = nullptr;
     QStackedWidget *m_settingsStack = nullptr;
+    QPushButton *m_currentMeshOutlineColorButton = nullptr;
     QPushButton *m_bboxColorButton = nullptr;
     QPushButton *m_pointsColorButton = nullptr;
     QPushButton *m_wireColorButton = nullptr;
     QPushButton *m_fillColorButton = nullptr;
+    QDoubleSpinBox *m_currentMeshOutlineWidthSpin = nullptr;
+    QCheckBox *m_currentMeshHighlightCheck = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
     QComboBox *m_pointColorSourceCombo = nullptr;
@@ -55,11 +59,13 @@ private:
     bool m_hasPointNormalSource = false;
     bool m_hasVertexColorSource = false;
     bool m_hasFaceColorSource = false;
+    QToolButton *m_currentMeshButton = nullptr;
     QToolButton *m_modeButton = nullptr;
     QToolButton *m_bboxButton = nullptr;
     QToolButton *m_pointsButton = nullptr;
     QToolButton *m_wireButton = nullptr;
     QToolButton *m_fillButton = nullptr;
+    QToolButton *m_currentMeshSettingsArrow = nullptr;
     QToolButton *m_bboxSettingsArrow = nullptr;
     QToolButton *m_pointsSettingsArrow = nullptr;
     QToolButton *m_wireSettingsArrow = nullptr;

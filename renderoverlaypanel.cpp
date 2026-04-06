@@ -89,6 +89,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         return btn;
     };
 
+    m_currentMeshButton = makeButton(QStringLiteral(":/img/global.png"), tr("Current Mesh Highlight"));
+    m_currentMeshButton->setCheckable(false);
     m_modeButton = makeButton(QStringLiteral(":/img/options.png"), tr("Rendering Settings"));
     m_modeButton->setCheckable(true);
     m_modeButton->setChecked(false);
@@ -98,6 +100,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
 
     buttonLayout->addWidget(m_modeButton);
+    buttonLayout->addWidget(m_currentMeshButton);
     buttonLayout->addWidget(m_bboxButton);
     buttonLayout->addWidget(m_pointsButton);
     buttonLayout->addWidget(m_wireButton);
@@ -114,15 +117,18 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     arrowLayout->setSpacing(4);
     panelLayout->addWidget(arrowRow);
 
-    auto *modeArrowSpacer = new QWidget(arrowRow);
-    modeArrowSpacer->setFixedSize(32, 12);
-    arrowLayout->addWidget(modeArrowSpacer);
-
     auto makeArrowButton = [this, arrowRow](const QString &tooltip) {
         auto *btn = new PassArrowButton(arrowRow);
         btn->setToolTip(tooltip);
         return btn;
     };
+    auto *modeArrowSpacer = new QWidget(arrowRow);
+    modeArrowSpacer->setFixedSize(32, 12);
+    arrowLayout->addWidget(modeArrowSpacer);
+
+    m_currentMeshSettingsArrow = makeArrowButton(tr("Settings: Current Mesh"));
+    arrowLayout->addWidget(m_currentMeshSettingsArrow);
+
     m_bboxSettingsArrow = makeArrowButton(tr("Settings: Bounding Box"));
     m_pointsSettingsArrow = makeArrowButton(tr("Settings: Points"));
     m_wireSettingsArrow = makeArrowButton(tr("Settings: Wireframe"));
@@ -143,14 +149,28 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_settingsStack = new QStackedWidget(m_settingsContainer);
     settingsContainerLayout->addWidget(m_settingsStack);
 
-    auto makePlaceholderPage = [this]() {
-        auto *page = new QWidget(m_settingsStack);
-        auto *layout = new QVBoxLayout(page);
-        layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(0);
-        layout->addStretch(1);
-        return page;
-    };
+    auto *currentMeshPage = new QWidget(m_settingsStack);
+    auto *currentMeshLayout = new QVBoxLayout(currentMeshPage);
+    currentMeshLayout->setContentsMargins(0, 0, 0, 0);
+    currentMeshLayout->setSpacing(2);
+    auto *currentMeshForm = new QFormLayout();
+    currentMeshForm->setContentsMargins(0, 0, 0, 0);
+    currentMeshForm->setHorizontalSpacing(6);
+    currentMeshForm->setVerticalSpacing(2);
+    currentMeshForm->setLabelAlignment(Qt::AlignLeft);
+    m_currentMeshHighlightCheck = new QCheckBox(tr("On"), currentMeshPage);
+    m_currentMeshOutlineColorButton = new QPushButton(tr("Choose..."), currentMeshPage);
+    m_currentMeshOutlineWidthSpin = new QDoubleSpinBox(currentMeshPage);
+    m_currentMeshOutlineWidthSpin->setRange(1.0, 8.0);
+    m_currentMeshOutlineWidthSpin->setSingleStep(0.5);
+    m_currentMeshOutlineWidthSpin->setDecimals(1);
+    m_currentMeshOutlineWidthSpin->setSuffix(tr(" px"));
+    m_currentMeshOutlineWidthSpin->setValue(m_settings.currentMeshOutlineWidth);
+    currentMeshForm->addRow(tr("Highlight"), m_currentMeshHighlightCheck);
+    currentMeshForm->addRow(tr("Outline color"), m_currentMeshOutlineColorButton);
+    currentMeshForm->addRow(tr("Outline width"), m_currentMeshOutlineWidthSpin);
+    currentMeshLayout->addLayout(currentMeshForm);
+    m_settingsStack->addWidget(currentMeshPage);
 
     auto *bboxPage = new QWidget(m_settingsStack);
     auto *bboxLayout = new QVBoxLayout(bboxPage);
@@ -246,6 +266,28 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_settings.settingsPanelVisible = checked;
         if (m_settingsContainer)
             m_settingsContainer->setVisible(checked);
+        emit settingsChanged(m_settings);
+    });
+    connect(m_currentMeshHighlightCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_settings.highlightCurrentMesh == checked)
+            return;
+        m_settings.highlightCurrentMesh = checked;
+        emit settingsChanged(m_settings);
+    });
+    connect(m_currentMeshOutlineColorButton, &QPushButton::clicked, this, [this]() {
+        const QColor picked = QColorDialog::getColor(
+            m_settings.currentMeshOutlineColor, this, tr("Current Mesh Outline Color"));
+        if (!picked.isValid())
+            return;
+        m_settings.currentMeshOutlineColor = picked;
+        updateCurrentMeshOutlineColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
+    connect(m_currentMeshOutlineWidthSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
+        const float newWidth = static_cast<float>(value);
+        if (m_settings.currentMeshOutlineWidth == newWidth)
+            return;
+        m_settings.currentMeshOutlineWidth = newWidth;
         emit settingsChanged(m_settings);
     });
     connect(m_bboxColorButton, &QPushButton::clicked, this, [this]() {
@@ -349,6 +391,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         emit settingsChanged(m_settings);
     });
 
+    connect(m_currentMeshButton, &QToolButton::clicked, this, [this]() {
+        setCurrentRenderPass(RenderPass::CurrentMesh);
+        setSettingsVisible(true);
+    });
     connect(m_bboxButton, &QToolButton::clicked, this, [this]() {
         setCurrentRenderPass(RenderPass::BoundingBox);
     });
@@ -362,6 +408,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         setCurrentRenderPass(RenderPass::Fill);
     });
 
+    connect(m_currentMeshSettingsArrow, &QToolButton::clicked, this, [this]() {
+        setCurrentRenderPass(RenderPass::CurrentMesh);
+        setSettingsVisible(true);
+    });
     connect(m_bboxSettingsArrow, &QToolButton::clicked, this, [this]() {
         setCurrentRenderPass(RenderPass::BoundingBox);
         setSettingsVisible(true);
@@ -404,6 +454,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         emit settingsChanged(m_settings);
     });
 
+    updateCurrentMeshOutlineColorButtonStyle();
     updateBBoxColorButtonStyle();
     updatePointsColorButtonStyle();
     updateWireColorButtonStyle();
@@ -421,10 +472,11 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
 {
     switch (pass) {
-    case RenderPass::BoundingBox: return 0;
-    case RenderPass::Points: return 1;
-    case RenderPass::Wireframe: return 2;
-    case RenderPass::Fill: return 3;
+    case RenderPass::CurrentMesh: return 0;
+    case RenderPass::BoundingBox: return 1;
+    case RenderPass::Points: return 2;
+    case RenderPass::Wireframe: return 3;
+    case RenderPass::Fill: return 4;
     }
     return 0;
 }
@@ -453,6 +505,10 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
 
     m_settings = settings;
 
+    if (m_currentMeshHighlightCheck) {
+        QSignalBlocker blocker(m_currentMeshHighlightCheck);
+        m_currentMeshHighlightCheck->setChecked(m_settings.highlightCurrentMesh);
+    }
     if (m_bboxButton) {
         QSignalBlocker blocker(m_bboxButton);
         m_bboxButton->setChecked(m_settings.showBoundingBox);
@@ -472,6 +528,10 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_modeButton) {
         QSignalBlocker blocker(m_modeButton);
         m_modeButton->setChecked(m_settings.settingsPanelVisible);
+    }
+    if (m_currentMeshOutlineWidthSpin) {
+        QSignalBlocker blocker(m_currentMeshOutlineWidthSpin);
+        m_currentMeshOutlineWidthSpin->setValue(m_settings.currentMeshOutlineWidth);
     }
     if (m_pointLightingCheck) {
         QSignalBlocker blocker(m_pointLightingCheck);
@@ -528,6 +588,7 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
 
+    updateCurrentMeshOutlineColorButtonStyle();
     updateBBoxColorButtonStyle();
     updatePointsColorButtonStyle();
     updateWireColorButtonStyle();
@@ -585,6 +646,15 @@ void RenderOverlayPanel::setFillColorSourceAvailability(bool hasVertexColors, bo
             hasFaceColors ? QVariant() : QVariant(0),
             Qt::UserRole - 1);
     }
+}
+
+void RenderOverlayPanel::updateCurrentMeshOutlineColorButtonStyle()
+{
+    if (!m_currentMeshOutlineColorButton)
+        return;
+    m_currentMeshOutlineColorButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
+            .arg(m_settings.currentMeshOutlineColor.name()));
 }
 
 void RenderOverlayPanel::updateBBoxColorButtonStyle()
@@ -646,11 +716,13 @@ void RenderOverlayPanel::syncRenderPassUiState()
         btn->update();
     };
 
+    setPassMarker(m_currentMeshButton, RenderPass::CurrentMesh);
     setPassMarker(m_bboxButton, RenderPass::BoundingBox);
     setPassMarker(m_pointsButton, RenderPass::Points);
     setPassMarker(m_wireButton, RenderPass::Wireframe);
     setPassMarker(m_fillButton, RenderPass::Fill);
 
+    setArrowChecked(m_currentMeshSettingsArrow, RenderPass::CurrentMesh);
     setArrowChecked(m_bboxSettingsArrow, RenderPass::BoundingBox);
     setArrowChecked(m_pointsSettingsArrow, RenderPass::Points);
     setArrowChecked(m_wireSettingsArrow, RenderPass::Wireframe);
