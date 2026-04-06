@@ -307,7 +307,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 const int vertexCount = meshData.VN();
                 const int indexCount = meshData.FN() * 3;
                 if (vertexCount <= 0 || indexCount <= 0)
-                    return;
+                    return true;
 
                 std::vector<float> vdata(vertexCount * kFillVertexStrideFloats);
                 const float useMeshColor = useVertexColor ? 1.0f : 0.0f;
