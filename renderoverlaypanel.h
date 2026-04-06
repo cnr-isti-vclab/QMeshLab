@@ -52,6 +52,7 @@ private:
     QComboBox *m_pointColorSourceCombo = nullptr;
     QCheckBox *m_pointLightingCheck = nullptr;
     QCheckBox *m_wireLightingCheck = nullptr;
+    QCheckBox *m_wireBackfaceCullingCheck = nullptr;
     QCheckBox *m_fillLightingCheck = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;
     QComboBox *m_fillColorSourceCombo = nullptr;

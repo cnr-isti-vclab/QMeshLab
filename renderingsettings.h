@@ -37,6 +37,7 @@ struct RenderSettings {
     float currentMeshOutlineWidth = 1.0f;
     bool pointLighting = false;
     bool wireLighting = false;
+    bool wireBackfaceCulling = true;
     bool fillLighting = true;
     bool settingsPanelVisible = false;
     RenderPass currentPass = RenderPass::Fill;
@@ -61,6 +62,7 @@ struct RenderSettings {
             && currentMeshOutlineWidth == other.currentMeshOutlineWidth
             && pointLighting == other.pointLighting
             && wireLighting == other.wireLighting
+            && wireBackfaceCulling == other.wireBackfaceCulling
             && fillLighting == other.fillLighting
             && settingsPanelVisible == other.settingsPanelVisible
             && currentPass == other.currentPass

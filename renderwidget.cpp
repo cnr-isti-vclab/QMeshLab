@@ -124,7 +124,8 @@ void RenderWidget::createOverlayButtons()
             || prev.fillShading != m_renderSettings.fillShading) {
             m_fillPipeline.reset();
         }
-        if (prev.showWire != m_renderSettings.showWire) {
+        if (prev.showWire != m_renderSettings.showWire
+            || prev.wireBackfaceCulling != m_renderSettings.wireBackfaceCulling) {
             m_wirePipeline.reset();
         }
         if (prev.showWire != m_renderSettings.showWire
@@ -490,7 +491,10 @@ void RenderWidget::ensureRenderResources()
         m_wirePipeline->setDepthTest(true);
         m_wirePipeline->setDepthWrite(false);
         m_wirePipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
-        m_wirePipeline->setCullMode(QRhiGraphicsPipeline::Back);
+        m_wirePipeline->setCullMode(
+            m_renderSettings.wireBackfaceCulling
+                ? QRhiGraphicsPipeline::Back
+                : QRhiGraphicsPipeline::None);
 
         QRhiGraphicsPipeline::TargetBlend blend;
         blend.enable = true;

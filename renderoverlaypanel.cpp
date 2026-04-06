@@ -228,9 +228,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_wireSizeSpin->setDecimals(1);
     m_wireSizeSpin->setSuffix(tr(" px"));
     m_wireSizeSpin->setValue(m_settings.wireSize);
+    m_wireBackfaceCullingCheck = new QCheckBox(tr("On"), wirePage);
+    m_wireBackfaceCullingCheck->setChecked(m_settings.wireBackfaceCulling);
     m_wireLightingCheck = new QCheckBox(tr("On"), wirePage);
     wireForm->addRow(tr("Wire color"), m_wireColorButton);
     wireForm->addRow(tr("Wire size"), m_wireSizeSpin);
+    wireForm->addRow(tr("Backface culling"), m_wireBackfaceCullingCheck);
     wireForm->addRow(tr("Lighting"), m_wireLightingCheck);
     wireLayout->addLayout(wireForm);
     m_settingsStack->addWidget(wirePage);
@@ -344,6 +347,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         if (m_settings.wireSize == newSize)
             return;
         m_settings.wireSize = newSize;
+        emit settingsChanged(m_settings);
+    });
+    connect(m_wireBackfaceCullingCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_settings.wireBackfaceCulling == checked)
+            return;
+        m_settings.wireBackfaceCulling = checked;
         emit settingsChanged(m_settings);
     });
     connect(m_wireLightingCheck, &QCheckBox::toggled, this, [this](bool checked) {
@@ -540,6 +549,10 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_wireLightingCheck) {
         QSignalBlocker blocker(m_wireLightingCheck);
         m_wireLightingCheck->setChecked(m_settings.wireLighting);
+    }
+    if (m_wireBackfaceCullingCheck) {
+        QSignalBlocker blocker(m_wireBackfaceCullingCheck);
+        m_wireBackfaceCullingCheck->setChecked(m_settings.wireBackfaceCulling);
     }
     if (m_fillLightingCheck) {
         QSignalBlocker blocker(m_fillLightingCheck);
