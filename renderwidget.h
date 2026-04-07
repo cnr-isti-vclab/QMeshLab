@@ -1,11 +1,10 @@
 #pragma once
 
 #include "renderingsettings.h"
+#include "viewtrackball.h"
 #include <QRhiWidget>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
-#include <QMatrix4x4>
-#include <QQuaternion>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -35,6 +34,7 @@ protected:
     void render(QRhiCommandBuffer *cb) override;
     void resizeEvent(QResizeEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
+    void mouseDoubleClickEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void wheelEvent(QWheelEvent *e) override;
@@ -55,15 +55,6 @@ private:
     void processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize);
-    QVector3D projectOnArcball(const QPointF &pos) const;
-    QVector3D cameraRight() const;
-    QVector3D cameraUp() const;
-
-    enum class NavigationMode {
-        None,
-        Rotate,
-        Pan
-    };
 
     Document *m_doc;
     QRhi *m_rhi = nullptr;
@@ -112,18 +103,15 @@ private:
     std::unique_ptr<QRhiSampler> m_outlineSampler;
     std::unique_ptr<QRhiShaderResourceBindings> m_outlineSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_outlinePipeline;
+    std::unique_ptr<QRhiBuffer> m_trackballGizmoUbuf;
+    std::unique_ptr<QRhiBuffer> m_trackballGizmoVbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_trackballGizmoSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_trackballGizmoPipeline;
+    int m_trackballGizmoVertexCount = 0;
     ShadingMode m_shadingMode = ShadingMode::Smooth;
     RenderSettings m_renderSettings;
     RenderOverlayPanel *m_overlayPanel = nullptr;
     QElapsedTimer m_frameTimer;
     bool m_currentMaskFromPoints = false;
-    NavigationMode m_navigationMode = NavigationMode::None;
-    QPointF m_lastMousePos;
-    QVector3D m_lastArcballVec = QVector3D(0.0f, 0.0f, 1.0f);
-    QQuaternion m_trackballRotation;
-
-    // Simple orbit camera
-    float m_distance = 3.0f;
-    QVector3D m_center;
-    float m_radius = 1.0f;
+    ViewTrackball m_trackball;
 };

@@ -1,0 +1,390 @@
+#include "viewtrackball.h"
+
+#include <QMouseEvent>
+#include <QWheelEvent>
+#include <QtMath>
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
+namespace {
+constexpr float kTrackballFovYDeg = 45.0f;
+constexpr float kTrackballHyperbolaCutAngleDeg = 45.0f;
+}
+
+ViewTrackball::ViewTrackball()
+{
+    m_rotation = QQuaternion::fromAxisAndAngle(1.0f, 0.0f, 0.0f, -20.0f);
+}
+
+void ViewTrackball::setFrame(const QVector3D &center, float radius, float distance)
+{
+    m_center = center;
+    m_radius = qMax(1e-4f, radius);
+    m_distance = qMax(0.01f * m_radius, distance);
+    // Keep gizmo screen size stable under dolly zoom, using this frame as reference.
+    m_gizmoBaseRadius = m_radius * 1.02f;
+    m_gizmoReferenceDistance = m_distance;
+}
+
+QMatrix4x4 ViewTrackball::viewMatrix() const
+{
+    return viewMatrixForRotation(m_rotation);
+}
+
+QMatrix4x4 ViewTrackball::viewMatrixForRotation(const QQuaternion &rotation) const
+{
+    QMatrix4x4 view;
+    view.translate(0.0f, 0.0f, -m_distance);
+    view.rotate(rotation);
+    view.translate(-m_center);
+    return view;
+}
+
+float ViewTrackball::gizmoWorldRadius() const
+{
+    const float refDist = qMax(1e-4f, m_gizmoReferenceDistance);
+    const float scale = m_distance / refDist;
+    return qMax(1e-4f, m_gizmoBaseRadius * scale);
+}
+
+void ViewTrackball::mousePress(const QMouseEvent *e, const QSize &viewportSize)
+{
+    m_lastMousePos = e->position();
+    m_lastArcballVec = projectOnArcball(m_lastMousePos, viewportSize);
+
+    const bool ctrlPan = (e->button() == Qt::LeftButton)
+        && (e->modifiers() & Qt::ControlModifier);
+    if (e->button() == Qt::MiddleButton || e->button() == Qt::RightButton || ctrlPan) {
+        m_navigationMode = NavigationMode::Pan;
+        m_dragStartHitValid = false;
+    } else if (e->button() == Qt::LeftButton) {
+        m_navigationMode = NavigationMode::Rotate;
+        m_dragStartRotation = m_rotation;
+        m_dragStartHitValid =
+            hitSphereLikeVcg(m_lastMousePos, viewportSize, m_dragStartRotation, m_dragStartHit);
+    } else {
+        m_navigationMode = NavigationMode::None;
+        m_dragStartHitValid = false;
+    }
+}
+
+void ViewTrackball::mouseRelease(const QMouseEvent *e)
+{
+    if (e->buttons() == Qt::NoButton) {
+        m_navigationMode = NavigationMode::None;
+        m_dragStartHitValid = false;
+    }
+}
+
+bool ViewTrackball::mouseMove(const QMouseEvent *e, const QSize &viewportSize)
+{
+    const QPointF currentPos = e->position();
+    const QPointF delta = currentPos - m_lastMousePos;
+    m_lastMousePos = currentPos;
+
+    if (m_navigationMode == NavigationMode::Rotate && (e->buttons() & Qt::LeftButton)) {
+        QVector3D hitNew;
+        const bool hitNewValid =
+            hitSphereLikeVcg(currentPos, viewportSize, m_dragStartRotation, hitNew);
+        if (m_dragStartHitValid && hitNewValid) {
+            const QVector3D from = m_dragStartHit - m_center;
+            const QVector3D to = hitNew - m_center;
+            QVector3D axis = QVector3D::crossProduct(to, from);
+            const float axisLen2 = axis.lengthSquared();
+            if (axisLen2 > 1e-12f) {
+                axis.normalize();
+
+                QVector3D fromN = from;
+                QVector3D toN = to;
+                const float fromLen = fromN.length();
+                const float toLen = toN.length();
+                if (fromLen > 1e-12f && toLen > 1e-12f) {
+                    fromN /= fromLen;
+                    toN /= toLen;
+                }
+                const float angleRad = std::acos(std::clamp(QVector3D::dotProduct(toN, fromN), -1.0f, 1.0f));
+
+                const float radius = qMax(1e-6f, gizmoWorldRadius());
+                const float chordOverR = (hitNew - m_dragStartHit).length() / radius;
+                const float phi = qMax(angleRad, chordOverR);
+
+                const QQuaternion deltaRot =
+                    QQuaternion::fromAxisAndAngle(axis, -qRadiansToDegrees(phi));
+                m_rotation = (deltaRot * m_dragStartRotation).normalized();
+            } else {
+                // Return exactly to anchor orientation when cursor comes back to start.
+                m_rotation = m_dragStartRotation;
+            }
+        } else {
+            // Fallback for degenerate cases.
+            const QVector3D currentVec = projectOnArcball(currentPos, viewportSize);
+            QVector3D axis = QVector3D::crossProduct(m_lastArcballVec, currentVec);
+            const float axisLen2 = axis.lengthSquared();
+            if (axisLen2 > 1e-12f) {
+                const float dotVal = std::clamp(
+                    QVector3D::dotProduct(m_lastArcballVec, currentVec),
+                    -1.0f,
+                    1.0f);
+                const float angleRad = std::atan2(std::sqrt(axisLen2), dotVal);
+                axis.normalize();
+                const QQuaternion deltaRot =
+                    QQuaternion::fromAxisAndAngle(axis, qRadiansToDegrees(angleRad));
+                m_rotation = (deltaRot * m_rotation).normalized();
+            }
+            m_lastArcballVec = currentVec;
+        }
+        return true;
+    }
+
+    const bool panButtons = (e->buttons() & (Qt::MiddleButton | Qt::RightButton))
+        || ((e->buttons() & Qt::LeftButton) && (e->modifiers() & Qt::ControlModifier));
+    if (m_navigationMode == NavigationMode::Pan && panButtons) {
+        const float viewportH = float(qMax(1, viewportSize.height()));
+        const float fovYRad = qDegreesToRadians(45.0f);
+        const float worldPerPixel = (2.0f * m_distance * std::tan(0.5f * fovYRad)) / viewportH;
+        const QVector3D panWorld =
+            (-cameraRight() * float(delta.x()) + cameraUp() * float(delta.y())) * worldPerPixel;
+        m_center += panWorld;
+        return true;
+    }
+
+    return false;
+}
+
+bool ViewTrackball::wheel(const QWheelEvent *e)
+{
+    float steps = e->angleDelta().y() / 120.0f;
+    if (qFuzzyIsNull(steps) && !e->pixelDelta().isNull())
+        steps = e->pixelDelta().y() / 120.0f;
+    if (qFuzzyIsNull(steps))
+        return false;
+
+    m_distance *= std::pow(0.85f, steps);
+    const float minDist = qMax(1e-4f, 0.01f * m_radius);
+    const float maxDist = qMax(minDist * 2.0f, 1000.0f * m_radius);
+    m_distance = std::clamp(m_distance, minDist, maxDist);
+    return true;
+}
+
+QVector3D ViewTrackball::projectOnArcball(const QPointF &pos, const QSize &viewportSize) const
+{
+    const float w = float(qMax(1, viewportSize.width()));
+    const float h = float(qMax(1, viewportSize.height()));
+    float x = (2.0f * float(pos.x()) - w) / w;
+    float y = (h - 2.0f * float(pos.y())) / h;
+
+    const float len2 = x * x + y * y;
+    float z = 0.0f;
+    if (len2 <= 1.0f) {
+        z = std::sqrt(1.0f - len2);
+    } else {
+        const float invLen = 1.0f / std::sqrt(len2);
+        x *= invLen;
+        y *= invLen;
+    }
+    return QVector3D(x, y, z).normalized();
+}
+
+QVector3D ViewTrackball::cameraRight() const
+{
+    return m_rotation.conjugated().rotatedVector(QVector3D(1.0f, 0.0f, 0.0f));
+}
+
+QVector3D ViewTrackball::cameraUp() const
+{
+    return m_rotation.conjugated().rotatedVector(QVector3D(0.0f, 1.0f, 0.0f));
+}
+
+QMatrix4x4 ViewTrackball::projectionMatrix(float aspect) const
+{
+    const float r = qMax(1e-4f, m_radius);
+    QMatrix4x4 proj;
+    proj.perspective(kTrackballFovYDeg, aspect, 0.01f * r, 100.0f * r);
+    return proj;
+}
+
+QVector3D ViewTrackball::viewPointForRotation(const QQuaternion &rotation) const
+{
+    bool ok = false;
+    const QMatrix4x4 invView = viewMatrixForRotation(rotation).inverted(&ok);
+    if (!ok)
+        return QVector3D(0.0f, 0.0f, 0.0f);
+    const QVector4D vp = invView * QVector4D(0.0f, 0.0f, 0.0f, 1.0f);
+    return vp.toVector3D();
+}
+
+bool ViewTrackball::viewRayFromWindow(
+    const QPointF &pos,
+    const QSize &viewportSize,
+    const QQuaternion &rotation,
+    QVector3D &rayOrigin,
+    QVector3D &rayDir) const
+{
+    if (viewportSize.width() <= 1 || viewportSize.height() <= 1)
+        return false;
+
+    const float aspect = float(viewportSize.width()) / float(viewportSize.height());
+    const QMatrix4x4 mvp = projectionMatrix(aspect) * viewMatrixForRotation(rotation);
+    bool okInv = false;
+    const QMatrix4x4 invMvp = mvp.inverted(&okInv);
+    if (!okInv)
+        return false;
+
+    const float xNdc = (2.0f * float(pos.x()) / float(viewportSize.width())) - 1.0f;
+    const float yNdc = 1.0f - (2.0f * float(pos.y()) / float(viewportSize.height()));
+
+    QVector4D pFar = invMvp * QVector4D(xNdc, yNdc, 1.0f, 1.0f);
+    if (qFuzzyIsNull(pFar.w()))
+        return false;
+    pFar /= pFar.w();
+
+    rayOrigin = viewPointForRotation(rotation);
+    rayDir = pFar.toVector3D() - rayOrigin;
+    const float d2 = rayDir.lengthSquared();
+    if (d2 < 1e-12f)
+        return false;
+    rayDir /= std::sqrt(d2);
+    return true;
+}
+
+bool ViewTrackball::hitViewPlane(
+    const QPointF &pos,
+    const QSize &viewportSize,
+    const QQuaternion &rotation,
+    QVector3D &hit) const
+{
+    QVector3D rayOrigin, rayDir;
+    if (!viewRayFromWindow(pos, viewportSize, rotation, rayOrigin, rayDir))
+        return false;
+
+    QVector3D plNorm = viewPointForRotation(rotation) - m_center;
+    const float nLen = plNorm.length();
+    if (nLen < 1e-12f)
+        return false;
+    plNorm /= nLen;
+
+    const float den = QVector3D::dotProduct(plNorm, rayDir);
+    if (std::abs(den) < 1e-12f)
+        return false;
+    const float t = QVector3D::dotProduct(plNorm, (m_center - rayOrigin)) / den;
+    hit = rayOrigin + rayDir * t;
+    return true;
+}
+
+bool ViewTrackball::hitHyper(
+    const QPointF &pos,
+    const QSize &viewportSize,
+    const QQuaternion &rotation,
+    QVector3D &hit) const
+{
+    QVector3D hitPlane;
+    if (!hitViewPlane(pos, viewportSize, rotation, hitPlane))
+        return false;
+
+    const QVector3D vp = viewPointForRotation(rotation);
+    const float hitPlaneY = (hitPlane - m_center).length();
+    const float viewPointX = (vp - m_center).length();
+    if (hitPlaneY < 1e-12f || viewPointX < 1e-12f)
+        return false;
+
+    const float r = qMax(1e-6f, gizmoWorldRadius());
+    const float a = hitPlaneY / viewPointX;
+    const float b = -hitPlaneY;
+    const float c = (r * r) / 2.0f;
+    const float delta = b * b - 4.0f * a * c;
+    if (delta <= 0.0f)
+        return false;
+
+    const float x1 = (-b - std::sqrt(delta)) / (2.0f * a);
+    const float x2 = (-b + std::sqrt(delta)) / (2.0f * a);
+    const float xval = qMin(x1, x2);
+    if (std::abs(xval) < 1e-12f)
+        return false;
+    const float yval = c / xval;
+
+    QVector3D dirRadial = hitPlane - m_center;
+    const float drLen = dirRadial.length();
+    if (drLen < 1e-12f)
+        return false;
+    dirRadial /= drLen;
+
+    QVector3D dirView = vp - m_center;
+    const float dvLen = dirView.length();
+    if (dvLen < 1e-12f)
+        return false;
+    dirView /= dvLen;
+
+    hit = m_center + dirRadial * yval + dirView * xval;
+    return true;
+}
+
+bool ViewTrackball::hitSphereLikeVcg(
+    const QPointF &pos,
+    const QSize &viewportSize,
+    const QQuaternion &rotation,
+    QVector3D &hit) const
+{
+    QVector3D rayOrigin, rayDir;
+    if (!viewRayFromWindow(pos, viewportSize, rotation, rayOrigin, rayDir))
+        return false;
+
+    const float r = qMax(1e-6f, gizmoWorldRadius());
+    const QVector3D oc = rayOrigin - m_center;
+    const float a = QVector3D::dotProduct(rayDir, rayDir);
+    const float b = 2.0f * QVector3D::dotProduct(oc, rayDir);
+    const float c = QVector3D::dotProduct(oc, oc) - r * r;
+    const float disc = b * b - 4.0f * a * c;
+
+    bool resSp = false;
+    QVector3D hitSphere;
+    if (disc >= 0.0f) {
+        const float sqrtDisc = std::sqrt(disc);
+        const float inv2a = 1.0f / (2.0f * a);
+        const float t1 = (-b - sqrtDisc) * inv2a;
+        const float t2 = (-b + sqrtDisc) * inv2a;
+        float t = std::numeric_limits<float>::max();
+        if (t1 > 1e-6f)
+            t = t1;
+        if (t2 > 1e-6f && t2 < t)
+            t = t2;
+        if (t < std::numeric_limits<float>::max()) {
+            hitSphere = rayOrigin + rayDir * t;
+            resSp = true;
+        }
+    }
+
+    QVector3D hitHp;
+    const bool resHp = hitHyper(pos, viewportSize, rotation, hitHp);
+
+    if (!resSp && !resHp) {
+        // Degenerate fallback: closest point on ray to center.
+        const float t = QVector3D::dotProduct((m_center - rayOrigin), rayDir);
+        hit = rayOrigin + rayDir * t;
+        return true;
+    }
+    if (resSp && !resHp) {
+        hit = hitSphere;
+        return true;
+    }
+    if (!resSp && resHp) {
+        hit = hitHp;
+        return true;
+    }
+
+    const QVector3D vp = viewPointForRotation(rotation);
+    QVector3D aVec = vp - m_center;
+    QVector3D bVec = hitSphere - m_center;
+    const float aLen = aVec.length();
+    const float bLen = bVec.length();
+    if (aLen < 1e-12f || bLen < 1e-12f) {
+        hit = hitSphere;
+        return true;
+    }
+    aVec /= aLen;
+    bVec /= bLen;
+    const float angleDeg = qRadiansToDegrees(std::acos(std::clamp(QVector3D::dotProduct(aVec, bVec), -1.0f, 1.0f)));
+    hit = (angleDeg < kTrackballHyperbolaCutAngleDeg) ? hitSphere : hitHp;
+    return true;
+}

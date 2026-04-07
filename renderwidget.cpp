@@ -7,8 +7,10 @@
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QWheelEvent>
-#include <QtMath>
-#include <algorithm>
+#include <QVector3D>
+#include <QVector4D>
+#include <vector>
+#include <limits>
 #include <cmath>
 
 static QShader loadShader(const QString &path)
@@ -36,13 +38,101 @@ constexpr int kPointsVertexStrideFloats = 11;
 constexpr int kMaskMorphUbufSize = 16;
 constexpr int kMaskDebugUbufSize = 16;
 constexpr int kOutlineUbufSize = 32;
+constexpr int kTrackballGizmoUbufSize = 80; // mat4 mvp + vec4(center.xyz, radius)
+constexpr int kTrackballGizmoSteps = 96;
+constexpr float kPi = 3.14159265358979323846f;
+
+QVector3D toVec3(const VCGMesh::CoordType &p)
+{
+    return QVector3D(p[0], p[1], p[2]);
+}
+
+bool intersectRayTriangle(
+    const QVector3D &rayOrig,
+    const QVector3D &rayDir,
+    const QVector3D &v0,
+    const QVector3D &v1,
+    const QVector3D &v2,
+    float &outT)
+{
+    constexpr float kEps = 1e-8f;
+    const QVector3D e1 = v1 - v0;
+    const QVector3D e2 = v2 - v0;
+    const QVector3D pvec = QVector3D::crossProduct(rayDir, e2);
+    const float det = QVector3D::dotProduct(e1, pvec);
+    if (std::abs(det) < kEps)
+        return false;
+
+    const float invDet = 1.0f / det;
+    const QVector3D tvec = rayOrig - v0;
+    const float u = QVector3D::dotProduct(tvec, pvec) * invDet;
+    if (u < 0.0f || u > 1.0f)
+        return false;
+
+    const QVector3D qvec = QVector3D::crossProduct(tvec, e1);
+    const float v = QVector3D::dotProduct(rayDir, qvec) * invDet;
+    if (v < 0.0f || (u + v) > 1.0f)
+        return false;
+
+    const float t = QVector3D::dotProduct(e2, qvec) * invDet;
+    if (t <= kEps)
+        return false;
+
+    outT = t;
+    return true;
+}
+
+std::vector<float> buildTrackballGizmoVertices()
+{
+    std::vector<float> v;
+    v.reserve(kTrackballGizmoSteps * 2 * 3 * 6);
+
+    auto append = [&v](const QVector3D &p, const QVector3D &c) {
+        v.push_back(p.x());
+        v.push_back(p.y());
+        v.push_back(p.z());
+        v.push_back(c.x());
+        v.push_back(c.y());
+        v.push_back(c.z());
+    };
+
+    auto emitCircle = [&](int axis, const QVector3D &color) {
+        // axis: 0=XY(z=0), 1=YZ(x=0), 2=XZ(y=0)
+        for (int i = 0; i < kTrackballGizmoSteps; ++i) {
+            const float t0 = float(i) * 2.0f * kPi / float(kTrackballGizmoSteps);
+            const float t1 = float(i + 1) * 2.0f * kPi / float(kTrackballGizmoSteps);
+            QVector3D p0, p1;
+            if (axis == 0) {
+                p0 = QVector3D(std::cos(t0), std::sin(t0), 0.0f);
+                p1 = QVector3D(std::cos(t1), std::sin(t1), 0.0f);
+            } else if (axis == 1) {
+                p0 = QVector3D(0.0f, std::cos(t0), std::sin(t0));
+                p1 = QVector3D(0.0f, std::cos(t1), std::sin(t1));
+            } else {
+                p0 = QVector3D(std::cos(t0), 0.0f, std::sin(t0));
+                p1 = QVector3D(std::cos(t1), 0.0f, std::sin(t1));
+            }
+            append(p0, color);
+            append(p1, color);
+        }
+    };
+
+    emitCircle(0, QVector3D(0.40f, 0.40f, 0.85f)); // XY - blue-ish
+    emitCircle(1, QVector3D(0.40f, 0.85f, 0.40f)); // YZ - green-ish
+    emitCircle(2, QVector3D(0.85f, 0.40f, 0.40f)); // XZ - red-ish
+    return v;
+}
+
+const std::vector<float> &trackballGizmoVertices()
+{
+    static const std::vector<float> kVerts = buildTrackballGizmoVertices();
+    return kVerts;
+}
 }
 
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
-    m_trackballRotation = QQuaternion::fromAxisAndAngle(1.0f, 0.0f, 0.0f, -20.0f);
-
     createOverlayButtons();
     refreshColorSourceAvailability();
 
@@ -283,9 +373,9 @@ void RenderWidget::updateCameraFrameIfNeeded()
         return;
 
     auto c = bbox.Center();
-    m_center = QVector3D(c[0], c[1], c[2]);
-    m_radius = bbox.Diag() / 2.0f;
-    m_distance = m_radius * 3.0f;
+    const QVector3D center(c[0], c[1], c[2]);
+    const float radius = qMax(1e-4f, bbox.Diag() / 2.0f);
+    m_trackball.setFrame(center, radius, radius * 3.0f);
     m_reframeCameraRequested = false;
 }
 
@@ -501,6 +591,11 @@ void RenderWidget::ensureRenderResources()
         m_outlineSampler.reset();
         m_outlineSrb.reset();
         m_outlinePipeline.reset();
+        m_trackballGizmoUbuf.reset();
+        m_trackballGizmoVbuf.reset();
+        m_trackballGizmoSrb.reset();
+        m_trackballGizmoPipeline.reset();
+        m_trackballGizmoVertexCount = 0;
         m_srb.reset();
         m_ubuf.reset();
         m_textureSampler.reset();
@@ -1104,6 +1199,76 @@ void RenderWidget::ensureRenderResources()
             }
         }
     }
+
+    if (!m_trackballGizmoUbuf) {
+        m_trackballGizmoUbuf.reset(
+            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kTrackballGizmoUbufSize));
+        m_trackballGizmoUbuf->create();
+    }
+
+    if (!m_trackballGizmoVbuf) {
+        const auto &verts = trackballGizmoVertices();
+        m_trackballGizmoVbuf.reset(
+            m_rhi->newBuffer(
+                QRhiBuffer::Dynamic,
+                QRhiBuffer::VertexBuffer,
+                static_cast<quint32>(verts.size() * sizeof(float))));
+        m_trackballGizmoVbuf->create();
+        m_trackballGizmoVertexCount = int(verts.size() / 6);
+    }
+
+    if (!m_trackballGizmoSrb && m_trackballGizmoUbuf) {
+        m_trackballGizmoSrb.reset(m_rhi->newShaderResourceBindings());
+        m_trackballGizmoSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage,
+                m_trackballGizmoUbuf.get())
+        });
+        m_trackballGizmoSrb->create();
+    }
+
+    if (!m_trackballGizmoPipeline && m_trackballGizmoSrb) {
+        m_trackballGizmoPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_trackball_gizmo.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_trackball_gizmo.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load trackball gizmo shaders");
+            m_trackballGizmoPipeline.reset();
+        } else {
+            m_trackballGizmoPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_trackballGizmoPipeline->setTopology(QRhiGraphicsPipeline::Lines);
+            m_trackballGizmoPipeline->setDepthTest(true);
+            m_trackballGizmoPipeline->setDepthWrite(false);
+            m_trackballGizmoPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_trackballGizmoPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiGraphicsPipeline::TargetBlend blend;
+            blend.enable = true;
+            blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+            blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opColor = QRhiGraphicsPipeline::Add;
+            blend.srcAlpha = QRhiGraphicsPipeline::One;
+            blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opAlpha = QRhiGraphicsPipeline::Add;
+            m_trackballGizmoPipeline->setTargetBlends({ blend });
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 6 * sizeof(float) } });
+            layout.setAttributes({
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
+                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) }
+            });
+            m_trackballGizmoPipeline->setVertexInputLayout(layout);
+            m_trackballGizmoPipeline->setShaderResourceBindings(m_trackballGizmoSrb.get());
+            m_trackballGizmoPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_trackballGizmoPipeline->create()) {
+                qWarning("Failed to create trackball gizmo pipeline");
+                m_trackballGizmoPipeline.reset();
+            }
+        }
+    }
 }
 
 void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
@@ -1393,10 +1558,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     const bool drawWirePass = m_renderSettings.showWire;
     const bool drawBBoxPass = m_renderSettings.showBoundingBox;
     const bool drawPointsPass = m_renderSettings.showPoints;
+    const bool drawTrackballGizmo = (m_doc->meshCount() > 0);
     const bool drawCurrentMeshHighlight =
         m_renderSettings.highlightCurrentMesh && (m_doc->currentMeshIndex() >= 0);
     const bool anyDrawPass =
-        drawFillPass || drawWirePass || drawBBoxPass || drawPointsPass || drawCurrentMeshHighlight;
+        drawFillPass || drawWirePass || drawBBoxPass || drawPointsPass
+        || drawCurrentMeshHighlight || drawTrackballGizmo;
 
     if (anyDrawPass)
         prepareDirtyBuffers(cb);
@@ -1406,20 +1573,19 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     const QSize sz = renderTarget()->pixelSize();
 
     QRhiResourceUpdateBatch *u = nullptr;
+    QMatrix4x4 mvp;
     if (anyDrawPass) {
         const float aspect = sz.width() / float(sz.height());
+        const float sceneRadius = m_trackball.radius();
 
         QMatrix4x4 proj;
-        proj.perspective(45.0f, aspect, 0.01f * m_radius, 100.0f * m_radius);
+        proj.perspective(45.0f, aspect, 0.01f * sceneRadius, 100.0f * sceneRadius);
 
-        QMatrix4x4 view;
-        view.translate(0, 0, -m_distance);
-        view.rotate(m_trackballRotation);
-        view.translate(-m_center);
+        const QMatrix4x4 view = m_trackball.viewMatrix();
 
         QMatrix4x4 modelView = view;
 
-        QMatrix4x4 mvp = proj * view;
+        mvp = proj * view;
         QMatrix3x3 normalMat = modelView.normalMatrix();
 
         // Pack uniform: mat4 mvp + mat4 modelView + mat3 as 3 vec4 (std140) + render colors/params.
@@ -1458,6 +1624,28 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
         u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
+
+        if (drawTrackballGizmo && m_trackballGizmoUbuf && m_trackballGizmoVbuf) {
+            const auto &verts = trackballGizmoVertices();
+            u->updateDynamicBuffer(
+                m_trackballGizmoVbuf.get(),
+                0,
+                int(verts.size() * sizeof(float)),
+                verts.data());
+
+            float gizmoData[kTrackballGizmoUbufSize / sizeof(float)] = {};
+            memcpy(gizmoData, mvp.constData(), 64);
+            const QVector3D center = m_trackball.center();
+            gizmoData[16] = center.x();
+            gizmoData[17] = center.y();
+            gizmoData[18] = center.z();
+            gizmoData[19] = m_trackball.gizmoWorldRadius();
+            u->updateDynamicBuffer(
+                m_trackballGizmoUbuf.get(),
+                0,
+                kTrackballGizmoUbufSize,
+                gizmoData);
+        }
     }
 
     if (drawCurrentMeshHighlight) {
@@ -1559,6 +1747,15 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
+    if (drawTrackballGizmo && m_trackballGizmoPipeline && m_trackballGizmoVbuf && m_trackballGizmoSrb) {
+        cb->setGraphicsPipeline(m_trackballGizmoPipeline.get());
+        cb->setShaderResources(m_trackballGizmoSrb.get());
+        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+        const QRhiCommandBuffer::VertexInput gv(m_trackballGizmoVbuf.get(), 0);
+        cb->setVertexInput(0, 1, &gv);
+        cb->draw(m_trackballGizmoVertexCount);
+    }
+
     if (drawCurrentMeshHighlight)
         drawCurrentMeshOutline(cb, sz);
 
@@ -1583,107 +1780,132 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
 void RenderWidget::mousePressEvent(QMouseEvent *e)
 {
-    m_lastMousePos = e->position();
-    m_lastArcballVec = projectOnArcball(m_lastMousePos);
+    m_trackball.mousePress(e, size());
+}
 
-    const bool ctrlPan = (e->button() == Qt::LeftButton)
-        && (e->modifiers() & Qt::ControlModifier);
-    if (e->button() == Qt::MiddleButton || e->button() == Qt::RightButton || ctrlPan) {
-        m_navigationMode = NavigationMode::Pan;
-    } else if (e->button() == Qt::LeftButton) {
-        m_navigationMode = NavigationMode::Rotate;
-    } else {
-        m_navigationMode = NavigationMode::None;
+void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
+{
+    if (!e || m_doc->meshCount() <= 0)
+        return;
+
+    const QSize viewport = size();
+    if (viewport.width() <= 1 || viewport.height() <= 1)
+        return;
+
+    const float sceneRadius = m_trackball.radius();
+    const float aspect = float(viewport.width()) / float(viewport.height());
+    QMatrix4x4 proj;
+    proj.perspective(45.0f, aspect, 0.01f * sceneRadius, 100.0f * sceneRadius);
+    const QMatrix4x4 view = m_trackball.viewMatrix();
+    const QMatrix4x4 mvp = proj * view;
+    bool okInv = false;
+    const QMatrix4x4 invMvp = mvp.inverted(&okInv);
+    if (!okInv)
+        return;
+
+    const QPointF p = e->position();
+    const float xNdc = (2.0f * float(p.x()) / float(viewport.width())) - 1.0f;
+    const float yNdc = 1.0f - (2.0f * float(p.y()) / float(viewport.height()));
+    QVector4D pNear = invMvp * QVector4D(xNdc, yNdc, -1.0f, 1.0f);
+    QVector4D pFar = invMvp * QVector4D(xNdc, yNdc, 1.0f, 1.0f);
+    if (qFuzzyIsNull(pNear.w()) || qFuzzyIsNull(pFar.w()))
+        return;
+    pNear /= pNear.w();
+    pFar /= pFar.w();
+
+    const QVector3D rayOrig = pNear.toVector3D();
+    QVector3D rayDir = pFar.toVector3D() - rayOrig;
+    const float rayLen2 = rayDir.lengthSquared();
+    if (rayLen2 < 1e-12f)
+        return;
+    rayDir /= std::sqrt(rayLen2);
+
+    bool hitFound = false;
+    float bestT = std::numeric_limits<float>::max();
+    QVector3D bestHit;
+
+    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        const auto &entry = m_doc->mesh(mi);
+        if (!entry.visible || entry.mesh.FN() <= 0)
+            continue;
+        for (const VCGFace &f : entry.mesh.face) {
+            if (f.IsD())
+                continue;
+            const QVector3D v0 = toVec3(f.V(0)->cP());
+            const QVector3D v1 = toVec3(f.V(1)->cP());
+            const QVector3D v2 = toVec3(f.V(2)->cP());
+            float t = 0.0f;
+            if (!intersectRayTriangle(rayOrig, rayDir, v0, v1, v2, t))
+                continue;
+            if (t < bestT) {
+                bestT = t;
+                bestHit = rayOrig + rayDir * t;
+                hitFound = true;
+            }
+        }
+    }
+
+    // Fallback for point clouds or misses: nearest projected visible vertex under cursor.
+    if (!hitFound) {
+        const float pickRadiusPx = 18.0f;
+        const float pickRadius2 = pickRadiusPx * pickRadiusPx;
+        float bestScreenD2 = std::numeric_limits<float>::max();
+        QVector3D bestVertex;
+
+        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+            const auto &entry = m_doc->mesh(mi);
+            if (!entry.visible)
+                continue;
+            for (const VCGVertex &v : entry.mesh.vert) {
+                if (v.IsD())
+                    continue;
+                const QVector3D wp = toVec3(v.cP());
+                const QVector4D clip = mvp * QVector4D(wp, 1.0f);
+                if (clip.w() <= 0.0f)
+                    continue;
+                const QVector3D ndc = clip.toVector3D() / clip.w();
+                if (ndc.z() < -1.0f || ndc.z() > 1.0f)
+                    continue;
+                const float sx = (ndc.x() * 0.5f + 0.5f) * float(viewport.width());
+                const float sy = (1.0f - (ndc.y() * 0.5f + 0.5f)) * float(viewport.height());
+                const float dx = sx - float(p.x());
+                const float dy = sy - float(p.y());
+                const float d2 = dx * dx + dy * dy;
+                if (d2 <= pickRadius2 && d2 < bestScreenD2) {
+                    bestScreenD2 = d2;
+                    bestVertex = wp;
+                }
+            }
+        }
+
+        if (bestScreenD2 < std::numeric_limits<float>::max()) {
+            hitFound = true;
+            bestHit = bestVertex;
+        }
+    }
+
+    if (hitFound) {
+        m_trackball.setCenter(bestHit);
+        update();
+        e->accept();
     }
 }
 
 void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
 {
-    if (e->buttons() == Qt::NoButton)
-        m_navigationMode = NavigationMode::None;
+    m_trackball.mouseRelease(e);
 }
 
 void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 {
-    const QPointF currentPos = e->position();
-    const QPointF delta = currentPos - m_lastMousePos;
-    m_lastMousePos = currentPos;
-
-    if (m_navigationMode == NavigationMode::Rotate && (e->buttons() & Qt::LeftButton)) {
-        const QVector3D currentVec = projectOnArcball(currentPos);
-        QVector3D axis = QVector3D::crossProduct(m_lastArcballVec, currentVec);
-        const float axisLen2 = axis.lengthSquared();
-        if (axisLen2 > 1e-12f) {
-            const float dotVal = std::clamp(
-                QVector3D::dotProduct(m_lastArcballVec, currentVec),
-                -1.0f,
-                1.0f);
-            const float angleRad = std::atan2(std::sqrt(axisLen2), dotVal);
-            axis.normalize();
-            const QQuaternion deltaRot =
-                QQuaternion::fromAxisAndAngle(axis, qRadiansToDegrees(angleRad));
-            m_trackballRotation = (deltaRot * m_trackballRotation).normalized();
-            update();
-        }
-        m_lastArcballVec = currentVec;
-        return;
-    }
-
-    const bool panButtons = (e->buttons() & (Qt::MiddleButton | Qt::RightButton))
-        || ((e->buttons() & Qt::LeftButton) && (e->modifiers() & Qt::ControlModifier));
-    if (m_navigationMode == NavigationMode::Pan && panButtons) {
-        const float viewportH = float(qMax(1, height()));
-        const float fovYRad = qDegreesToRadians(45.0f);
-        const float worldPerPixel = (2.0f * m_distance * std::tan(0.5f * fovYRad)) / viewportH;
-        const QVector3D panWorld =
-            (-cameraRight() * float(delta.x()) + cameraUp() * float(delta.y())) * worldPerPixel;
-        m_center += panWorld;
+    if (m_trackball.mouseMove(e, size()))
         update();
-    }
 }
 
 void RenderWidget::wheelEvent(QWheelEvent *e)
 {
-    float steps = e->angleDelta().y() / 120.0f;
-    if (qFuzzyIsNull(steps) && !e->pixelDelta().isNull())
-        steps = e->pixelDelta().y() / 120.0f;
-    if (qFuzzyIsNull(steps))
-        return;
-
-    m_distance *= std::pow(0.85f, steps);
-    const float minDist = qMax(1e-4f, 0.01f * m_radius);
-    const float maxDist = qMax(minDist * 2.0f, 1000.0f * m_radius);
-    m_distance = std::clamp(m_distance, minDist, maxDist);
-    update();
-}
-
-QVector3D RenderWidget::projectOnArcball(const QPointF &pos) const
-{
-    const float w = float(qMax(1, width()));
-    const float h = float(qMax(1, height()));
-    float x = (2.0f * float(pos.x()) - w) / w;
-    float y = (h - 2.0f * float(pos.y())) / h;
-
-    const float len2 = x * x + y * y;
-    float z = 0.0f;
-    if (len2 <= 1.0f) {
-        z = std::sqrt(1.0f - len2);
-    } else {
-        const float invLen = 1.0f / std::sqrt(len2);
-        x *= invLen;
-        y *= invLen;
-    }
-    return QVector3D(x, y, z).normalized();
-}
-
-QVector3D RenderWidget::cameraRight() const
-{
-    return m_trackballRotation.conjugated().rotatedVector(QVector3D(1.0f, 0.0f, 0.0f));
-}
-
-QVector3D RenderWidget::cameraUp() const
-{
-    return m_trackballRotation.conjugated().rotatedVector(QVector3D(0.0f, 1.0f, 0.0f));
+    if (m_trackball.wheel(e))
+        update();
 }
 
 void RenderWidget::resizeEvent(QResizeEvent *e)

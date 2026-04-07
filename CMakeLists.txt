@@ -33,6 +33,7 @@ qt_add_executable(QMeshLab
     main.cpp
     mainwindow.h mainwindow.cpp
     renderwidget.h renderwidget.cpp
+    viewtrackball.h viewtrackball.cpp
     renderoverlaypanel.h renderoverlaypanel.cpp
     layerwidget.h layerwidget.cpp
 )
@@ -58,6 +59,8 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/overlay_bbox.frag
         shaders/overlay_points.vert
         shaders/overlay_points.frag
+        shaders/overlay_trackball_gizmo.vert
+        shaders/overlay_trackball_gizmo.frag
         shaders/selection_mask.vert
         shaders/selection_mask.frag
         shaders/selection_mask_morph.frag
