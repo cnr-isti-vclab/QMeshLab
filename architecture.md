@@ -1,89 +1,181 @@
 # Architecture
 
-QMeshLab follows a **Single Document Interface (SDI)** pattern where one `Document` is the central data model and multiple views observe it through Qt signals.
+QMeshLab follows a **single-document, multi-view** architecture:
 
-## Core Classes
+- one `Document` is the authoritative model
+- UI widgets observe it via Qt signals
+- rendering data and rendering state are intentionally split
 
-### Document
-- Owns an ordered list of `MeshEntry` (name, visibility flag, `VCGMesh`).
-- Provides `loadMesh()` / `removeMesh()` to mutate the collection.
-- Emits `meshAdded(int)` and `meshRemoved(int)` so views stay in sync.
-- Owns a per-document log and emits log signals when new messages are appended.
-- Owns a `MeshIOPluginManager` and delegates all file loading to it. `loadMesh()` only orchestrates: find plugin → call load → post-process (bounds, normals) → add entry → emit signals.
+## Architectural Layers
 
-### General Idea of Plugins 
-There are two main classes of plugins: I/O and filter.
+1. Application shell (`MainWindow`)
+2. Data/model (`Document`, `VCGMesh`, log state)
+3. I/O plugins (`MeshIOPlugin*`, plugin registry)
+4. Shared GPU cache (`MeshGpuResourceCache`)
+5. Per-view rendering (`RenderWidget`, `ViewTrackball`, `RenderOverlayPanel`)
+6. Auxiliary views (`LayerWidget`, log dock, status-bar stats/progress)
 
-The I/O plugins are responsible for loading and saving the meshes.
-The Document is responsible for adding the returned mesh it to its collection and emitting the appropriate signals. The plugins can be implemented as shared libraries that are loaded at runtime. The plugins should be able to handle different file formats and provide a consistent interface for loading meshes.
+## Core Components
 
-Loading a mesh is managed in an isolated way via a plugin mechanism that can be extended in the future to support more formats. The plugin should be able to load a mesh and return a VCGMesh, and the Document should be able to add it to its collection and emit the appropriate signals.
-Each plugin should be contained in a separate folder with isolated compilation too. During the initial setup of CMake, we should also install libraries needed for the various plugins or eventually download them from known GitHub sources. 
+### `Document`
 
+`Document` owns:
 
+- ordered mesh list (`MeshEntry`)
+- current mesh index
+- per-document log
+- load progress forwarding
+- plugin manager
+- shared GPU mesh cache
+
+`MeshEntry` stores:
+
+- identity/revisions (`meshId`, `geometryRevision`, `materialRevision`)
+- source metadata (`name`, `sourcePath`, `ioMask`)
+- texture metadata (`textureFileNames`, `textureFilePaths`, selected texture convenience fields)
+- view-independent mesh state (`visible`, `VCGMesh mesh`)
+
+The document exposes renderer-oriented methods (`ensureMeshGpuResources`, `*PassGpuView`) but does not own per-widget pipelines or camera state.
+
+### `MeshGpuResourceCache`
+
+Central cache for mesh GPU resources, keyed by:
+
+- `QRhi*` backend instance
+- mesh id
+- pass variants (fill/points)
+- geometry/material revisions
+
+What is cached:
+
+- fill batches (vertex/index buffers + optional texture)
+- wire vertex buffer
+- points vertex buffer
+- bbox vertex buffer
+
+This enables reuse of heavy mesh uploads across rendering mode switches and across views sharing the same `QRhi`.
+
+### `RenderWidget`
+
+`RenderWidget` is a `QRhiWidget` and owns per-view rendering state:
+
+- graphics pipelines
+- per-widget SRBs and uniform buffers
+- offscreen render targets (depth pick, current mesh mask/morph)
+- trackball camera/navigation state
+- overlay settings panel integration
+
+It queries mesh GPU views from `Document`/`MeshGpuResourceCache` and issues pass draws each frame.
+
+### `ViewTrackball`
+
+Navigation logic is factored into a dedicated class:
+
+- arcball-like rotate + hyperbola fallback
+- pan
+- dolly
+- `Shift+Wheel` vertigo effect (FOV + compensating dolly)
+- reset-to-frame and animated recenter target support (via `RenderWidget`)
+
+### `RenderOverlayPanel`
+
+Compact pass/settings UI for layered rendering:
+
+- pass toggles (current mesh, bbox, points, wire, fill)
+- per-pass arrow buttons to open settings page
+- one shared settings container with pass-specific pages
+- strongly typed `RenderSettings` synchronization
+
+### `MainWindow`
+
+Composition and global orchestration:
+
+- central `RenderWidget`
+- right dock `LayerWidget`
+- bottom dock log list
+- status bar:
+  - load progress bar
+  - CPU/GPU frame-time label (fixed-width font, rolling 100-frame stats)
+- file/view/help actions (`New`, multi-file `Open`, recent files, `Reset Camera`, shading actions)
 
 ## Plugin System
 
-### MeshIOPlugin (`meshioplugin.h`)
-Pure abstract interface every I/O plugin must implement:
-- `canLoad(filename)` — extension-based format detection
-- `load(filename, mesh, cb)` — fills a `VCGMesh`, forwards a `vcg::CallBackPos*` for progress
-- `filterString()` — Qt file dialog filter, e.g. `"Mesh Files (*.ply *.obj)"`
-- `errorString(errCode)` — human-readable error message
+### Plugin interface
 
-### MeshIOPluginManager (`meshiopluginmanager.h`)
-Registry holding registered plugins in order. `pluginFor(filename)` returns the first matching plugin. `openDialogFilter()` builds the combined Qt file dialog filter from all plugins plus "All Files (*)".
+`MeshIOPlugin` defines:
 
-### Folder Layout
-- `plugins/io_vcg/` contains the built-in vcglib importer plugin and its own `CMakeLists.txt`.
-- `plugins/io_e57/` contains the optional E57 importer plugin and its own `CMakeLists.txt`.
-- `plugins/meshpluginregistry.*` registers all plugin targets that were successfully compiled.
+- `canLoad(filename)`
+- `load(filename, mesh, callback, outLoadMask)`
+- `filterString()`
+- `errorString(errCode)`
 
-Each plugin is compiled as a separate library target and linked into the application through `QMeshLabPlugins`.
+### Plugin manager
 
-### VCG Import Plugin (`plugins/io_vcg/`)
-Built-in plugin wrapping `vcg::tri::io::Importer<VCGMesh>`. Supports PLY, OBJ, STL, OFF, VMI.
+`MeshIOPluginManager`:
 
-### E57 Import Plugin (`plugins/io_e57/`)
-Optional plugin for E57 point clouds. Its CMake file tries to find `E57Format` and `XercesC` first and can fetch `libE57Format` from GitHub when requested.
+- stores plugins in registration order
+- returns first matching loader for a file
+- composes file dialog filters from all registered plugins
 
-### Adding a New Format
-1. Create a new folder under `plugins/` with a local `CMakeLists.txt`.
-2. Implement a class inheriting `MeshIOPlugin` inside that folder.
-3. Expose a `register...Plugin(MeshIOPluginManager&)` function.
-4. Add the plugin subdirectory from `plugins/CMakeLists.txt`.
+### Built-in plugin registration
 
-Plugins are owned by the application. The plugins are responsible for loading the meshes and returning a VCGMesh, and the Document is responsible for adding it to its collection and emitting the appropriate signals. The plugins can be implemented as shared libraries that are loaded at runtime. The plugins should be able to handle different file formats and provide a consistent interface for loading meshes.
+`plugins/meshpluginregistry.*` registers plugins that are enabled/available at build time.
 
-### VCGMesh
-- Defined in `vcgmesh.h` as a specialization of `vcg::tri::TriMesh` with standard per-vertex and per-face components (coords, normals, colors, quality, adjacency).
+Current plugin families:
 
-### MainWindow
-- Creates and owns the `Document`.
-- Sets up the central 3D view and dockable panels.
-- Handles file menu actions, delegating I/O to the `Document`.
+- `plugins/io_vcg` (ply/obj/stl/off/vmi)
+- `plugins/io_gltf` (gltf/glb, tinygltf)
+- `plugins/io_e57` (optional, dependency-gated)
 
-## Views
+## Views and Responsibilities
 
-| View | Widget | Role |
-|------|--------|------|
-| 3D viewport | `RenderWidget` (QRhiWidget, central) | Renders meshes using Qt RHI |
-| Layers | `LayerWidget` (QTreeWidget, right dock) | Shows mesh names, vertex/face counts |
-| Log | `QPlainTextEdit` (bottom dock) | Shows document log messages and vcglib import progress |
+| View | Widget | Responsibility |
+|------|--------|----------------|
+| 3D View | `RenderWidget` | Layered rendering, camera interaction, picking |
+| Layer Panel | `LayerWidget` | Visibility toggles, current mesh selection, mesh/data/texture info |
+| Log Panel | `QListWidget` in dock | Per-document app + VCG/import logs |
 
-## Adding a New View
+## State Ownership Rules
 
-1. Create a widget that takes a `Document*` in its constructor.
-2. Connect to `Document::meshAdded` / `meshRemoved` signals.
-3. Instantiate it in `MainWindow` and add it as a dock widget (or tab).
+Shared/document state:
+
+- mesh geometry/material data
+- visibility and current mesh
+- import metadata and logs
+- shared mesh GPU cache
+
+Per-view state:
+
+- camera/trackball state
+- overlay render settings
+- pipelines/SRBs/uniforms
+- offscreen targets and transient frame resources
+
+This rule keeps model consistency while allowing multiple independent views.
 
 ## Data Flow
 
+```text
+User Action
+   |
+   v
+MainWindow (menu/toolbar/status orchestration)
+   |
+   v
+Document (load/mutate/log/signal)
+   |                     \
+   |                      \--> LayerWidget / Log Dock
+   v
+MeshGpuResourceCache (shared GPU mesh resources)
+   |
+   v
+RenderWidget (per-view pipelines + passes + camera)
 ```
-User action → MainWindow → Document (mutates data, emits signal)
-                                ↓
-                     ┌──────────┴──────────┐
-                     │                     │
-               RenderWidget            LayerWidget
-              (3D rendering)         (mesh info tree)
-```
+
+## Typical Runtime Sequence
+
+1. User opens one or more files from `MainWindow`.
+2. `Document` loads through plugin, updates metadata/log/progress, emits signals.
+3. `RenderWidget` reacts, ensures needed GPU pass resources in shared cache.
+4. Frame render runs layered passes and optional current-mesh outline/picking logic.
+5. Frame CPU/GPU timings are emitted to `MainWindow` and shown in status bar stats.

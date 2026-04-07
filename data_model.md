@@ -1,34 +1,123 @@
 # Data Model
 
-This application uses a simple data model 
-A document is an ordered list of meshes; each mesh is called a layer. 
+This note describes the current data model used by QMeshLab.
 
-For meshes we use the vcglib. We define a vcgMesh that is a specialization of the vcg::tri::TriMesh class 
-There are per properties per viewer and properties per document. 
-The viewer properties are used to store the visibility of the mesh, the rendering mode the current camera position, etc. The document properties are used to store the name of the mesh, the path from which it was loaded, etc.
+## Core Idea
 
-There is a single document and multiple views. The document emits signals when the mesh is added or removed, and the views are connected to these signals to update their content.  
+The application is **single-document**:
 
-There is a per document log that is used to store the log messages. The log messages are emitted by the document and the views are connected to these signals to update their content.
+- one `Document` owns all loaded meshes and log state
+- UI/view widgets observe the document through Qt signals
+- rendering state is split between document-owned mesh data and per-view settings
 
-The bottom part of the main window is a log widget that shows the log messages. The log messages are emitted by the document and eventually the views are connected to these signals to update their content. The log messages are stored in a per document log, so that when a new document is created, the log is cleared.
+## Document Ownership
 
-Methods for writing in the log are provided by the document and a vcg::Callback can be provided for catching the log messages emitted by the vcglib. 
+`Document` is the canonical owner of mesh data (`Document::MeshEntry`).
 
-Meshes can store appearance information in different ways:
-- per vertex: color, normal, quality.
-- per face: color, normal, quality.
-- per mesh: color, normal, quality.
+Each mesh entry stores:
 
+- identity and cache keys:
+  - `meshId` (stable unique id)
+  - `geometryRevision`
+  - `materialRevision`
+- source metadata:
+  - `name`
+  - `sourcePath`
+- texture metadata:
+  - `textureFileNames` / `textureFilePaths` (multiple textures supported)
+  - convenience selected texture: `textureFileName` / `textureFilePath`
+- mesh state:
+  - `visible`
+  - `ioMask` (attributes present in the imported file)
+  - `VCGMesh mesh`
 
+The document also owns:
 
-## Rendering 
-The rendering is done using the QRhi. The rendering is done in a separate thread, so that the UI is not blocked. The rendering thread is created when the first view is created, and it is destroyed when the last view is destroyed. The rendering thread is responsible for rendering the meshes and emitting signals when the rendering is done. The views are connected to these signals to update their content. The rendering thread is also responsible for handling the camera position and the rendering mode. The camera position and the rendering mode are stored in the viewer properties, so that they are preserved when the view is destroyed
+- `currentMeshIndex` (shared selection across views)
+- per-document log (`LogEntry { message, source }`)
+- `MeshIOPluginManager`
+- `MeshGpuResourceCache` (shared mesh GPU cache, keyed by `QRhi*`)
 
-We support different rendering modes:
-- point cloud: only the vertices are rendered as points.
-- wireframe: only the edges are rendered as lines.
-- flat: the faces are rendered with flat shading.
-- smooth: the faces are rendered with smooth shading.
+## Mesh Data Type
 
+Geometry uses `VCGMesh` (`vcg::tri::TriMesh` specialization) with standard VCG components (position, normals, colors, quality, wedge texcoords, etc. depending on load mask and file data).
+
+## Signals and Reactive Views
+
+The document emits signals for all relevant state changes:
+
+- mesh lifecycle: `meshAdded`, `meshRemoved`
+- visibility/current mesh: `meshVisibilityChanged`, `currentMeshChanged`
+- loading progress: `loadProgressStarted`, `loadProgressUpdated`, `loadProgressFinished`
+- log updates: `logCleared`, `logMessageAdded`
+
+`RenderWidget`, `LayerWidget`, status bar progress UI, and the log dock subscribe to these signals.
+
+## Loading Pipeline
+
+`Document::loadMesh()`:
+
+1. selects plugin from `MeshIOPluginManager`
+2. loads mesh + optional callback progress (`vcg::CallBackPos`)
+3. updates bounding box
+4. preserves imported vertex normals if present, otherwise computes them when needed
+5. collects texture declarations from `mesh.textures` and resolves absolute paths
+6. stores mesh entry, logs detailed file/texture info, emits progress and mesh signals
+7. sets the loaded mesh as current
+
+Progress callback messages are also forwarded into the document log (deduplicated/bucketed).
+
+## Plugin-Based I/O
+
+Built-in plugin registration is centralized in `plugins/meshpluginregistry.*`.
+Current import plugins:
+
+- VCGLib generic importer (`*.ply *.obj *.stl *.off *.vmi`)
+- glTF importer (`*.gltf *.glb`, tinygltf-based)
+- optional E57 importer (`*.e57`)
+
+The file dialog filter is built dynamically from loaded plugins.
+
+## Layer and Selection Model
+
+The layer dock (`LayerWidget`) mirrors document state:
+
+- per-layer visibility checkbox
+- compact data summary from `ioMask` (`VC`, `FC`, `VN`, `WT`, `TX`, ...)
+- vertices/faces with locale thousands separators
+- texture entries, one line per texture, including texture size
+- current mesh highlighted with bold style
+
+Changing current item in the layer tree updates `currentMeshIndex` in the document.
+
+## Shared vs Per-View State
+
+Document/shared state:
+
+- mesh geometry/material source data
+- mesh visibility
+- current mesh index
+- log and load progress
+- shared mesh GPU cache (`MeshGpuResourceCache`)
+
+Per-view (`RenderWidget`) state:
+
+- camera/trackball state
+- render settings (`RenderSettings`)
+- per-widget pipelines, SRBs, uniform buffers, and render targets
+
+This split lets multiple views share mesh data/cache while keeping independent cameras and UI rendering settings.
+
+## GPU Cache Integration
+
+`Document` exposes a renderer-facing API:
+
+- `ensureMeshGpuResources(...)`
+- `fillPassGpuView(...)`
+- `wirePassGpuView(...)`
+- `pointsPassGpuView(...)`
+- `bboxPassGpuView(...)`
+
+Under the hood this delegates to `MeshGpuResourceCache`, which caches GPU resources by `(QRhi*, meshId, variants, revisions)`.
+The document can release resources per-RHI (`releaseRhiGpuResources`) or globally (`clearAllGpuResources`).
 

@@ -1,115 +1,191 @@
 # Rendering
 
-This note describes the current rendering path used by QMeshLab.
+This note describes the current QRhi rendering architecture used by QMeshLab.
 
-## Overview
+## High-Level Architecture
 
-Rendering is handled by `RenderWidget`, a `QRhiWidget`-based viewport placed in the center of the main window.
+Rendering is performed by `RenderWidget` (`QRhiWidget`).
 
-The rendering flow is intentionally simple:
+Data ownership split:
 
-1. The `Document` owns the loaded meshes.
-2. `RenderWidget` listens to document changes (`meshAdded`, `meshRemoved`).
-3. When mesh content or rendering mode changes, GPU buffers and/or pipeline state are marked dirty.
-4. During the next frame, the widget prepares the missing GPU resources and renders all visible geometry.
+- `Document` owns canonical mesh data.
+- `MeshGpuResourceCache` (owned by `Document`) owns shared mesh GPU geometry/texture resources.
+- `RenderWidget` owns per-view rendering state (pipelines, SRBs, uniform buffers, offscreen targets, camera/trackball, overlay UI state).
 
-This keeps the data model (`Document`) independent from the rendering backend while still allowing the viewport to rebuild GPU state on demand.
+This split is what enables reuse of mesh GPU buffers across rendering mode changes and across views that share the same `QRhi` backend.
 
-## Main Components
+## Shared GPU Cache (`MeshGpuResourceCache`)
 
-### Document
+Cache key shape:
 
-`Document` is the authoritative owner of mesh data. After a plugin loads a mesh, the document:
+- per backend: `QRhi*`
+- per mesh: `meshId`
+- per variant:
+  - fill: `Constant`, `PerVertex`, `PerFace`
+  - points: `Constant`, `PerVertex`
+- with revision checks:
+  - `geometryRevision`
+  - `materialRevision`
 
-- updates bounding information and normals
-- stores the mesh as a `MeshEntry`
-- emits Qt signals so views can react
+Cached pass data:
 
-The renderer never loads files directly and never owns the canonical mesh representation.
+- fill pass: one or more batches (`vbuf`, optional `ibuf`, optional `texture`)
+- wire pass: barycentric-expanded triangle buffer
+- points pass: point buffer (position/color/normal payload)
+- bbox pass: line buffer
 
-### RenderWidget
+### Fill Buffer Strategy
 
-`RenderWidget` converts document meshes into GPU buffers and draws them through Qt RHI.
-it creates the bugffers on demand when the document signals that a mesh was added or removed, or when the rendering mode changes. The widget is responsible for managing the graphics pipeline, uniform buffers, and mesh GPU buffers. It also handles camera controls and emits timing information to the document log when buffers are rebuilt.
+Two fill upload paths are used:
 
-It owns:
+- indexed mesh path when triangles can share vertices
+- expanded-triangle batches when needed for:
+  - per-face color
+  - texture slot grouping (multi-texture meshes)
 
-- one graphics pipeline for the current shading mode
-- one uniform buffer for camera and transform data
-- one shader resource binding set
-- one GPU buffer set per mesh
+When textures are present, faces are grouped by texture slot and each batch carries its texture handle.
 
-The widget also owns a simple orbit camera defined by rotation angles, scene center, and camera distance.
+## Per-Widget GPU State (`RenderWidget`)
 
-## Frame Preparation
+Per-widget resources include:
 
-The render widget uses two kinds of lazy rebuilds:
+- dynamic uniform buffers (`m_ubuf`, outline/morph/debug UBOs)
+- widget-local samplers and fallback 1x1 white texture
+- shader resource bindings:
+  - base SRB (UBO + fallback texture)
+  - per-texture SRB cache for sampled fill batches
+- graphics pipelines (fill/wire/points/bbox, depth-pick, mask/morph/debug/outline, trackball gizmo)
+- offscreen render targets/textures for:
+  - depth picking
+  - current-mesh mask + morphology
 
-- `m_buffersDirty`: mesh GPU buffers must be rebuilt and uploaded again
-- pipeline reset: shader/pipeline state must be recreated, typically after a rendering-mode change
+These remain per widget because they bind per-view uniforms/settings and render-pass descriptors tied to that widget render target.
 
-This work is performed during normal rendering, not only during resize or initialization. That detail matters because otherwise newly loaded meshes or changed shading modes could appear only after an unrelated window event.
+## Layered Render Passes
 
-### Mesh Buffer Preparation
+Main visible passes (toggleable):
 
-For standard shaded modes, each mesh is uploaded as:
+- Fill
+- Wireframe
+- Bounding box
+- Points
+- Current mesh highlight
 
-- one vertex buffer with interleaved position and normal data
-- one index buffer with triangle indices
+Additional always-available overlay:
 
-For wireframe mode, the renderer does not store explicit edges. Instead, each triangle is expanded to three independent vertices carrying barycentric coordinates. This allows edge detection entirely in the fragment shader.
+- trackball gizmo (depth-aware line rendering)
 
-## Uniform Data
+Draw order in the main pass:
 
-The current uniform block contains:
+1. fill
+2. wire (alpha blended, independent overlay)
+3. bbox
+4. points
+5. trackball gizmo
+6. current mesh outline composite
 
-- `mat4 mvp`
-- `mat4 modelView`
-- `mat3 normalMatrix` stored with std140-compatible padding
+## Pass Behavior Details
 
-These values are recomputed every frame from the current camera configuration.
+### Fill
 
-## Rendering Modes
-The renderer support layered rendering modes that can be added and switched on the fly
-we assume a rendering layer for 
-- bounding box
-- points
-- edges
-- faces
-Each rendering layer can be switched on and off independently, and the rendering mode for each layer can be changed independently too.
+- Smooth/Flat shading use distinct shader pairs.
+- Depth test/write enabled.
+- Backface culling controlled by `fillBackfaceCulling`.
+- Color source: constant / per-vertex / per-face.
+- Texture sampling supported through fill batches and per-batch SRBs.
 
-For each of these layers we support different rendering modalities where we distinguish shading and coloring policies. 
-- faces can be rendered with flat or smooth shading, or none shading at all. Flat mode reconstructs face normals in the shader for a faceted look, while smooth mode uses per-vertex normals for a smoother appearance. 
-Color can be per vertex, per face or per mesh. The shader currently supports only per vertex color, but it can be easily extended to support the other cases too.
-- wireframe
-edges can be rendered as lines. The current implementation uses a barycentric approach to draw antialiased wireframes without needing a separate edge list. Future improvements could include a separate line-only pass for better control over edge styling.
-- point cloud 
-vertices can be rendered as points with a fixed screen size. The shader can be extended to support per-vertex point size and per-vertex color in the future.
+### Wireframe
 
+- Uses barycentric-expanded triangles + fragment edge test.
+- Separate transparent overlay pass.
+- Depth test enabled (`LessOrEqual`), depth write disabled.
+- Backface culling toggle (`wireBackfaceCulling`).
 
-## Camera
+### Points
 
-The viewport uses a basic orbit camera:
+- `QRhiGraphicsPipeline::Points`.
+- Depth test and depth write enabled.
+- Point size and lighting controlled by settings.
+- Color source: constant or per-vertex.
+- Vertex payload includes optional normal + availability flag for point lighting.
 
-- left mouse drag rotates around the scene
-- mouse wheel changes camera distance
+### Bounding Box
 
-When buffers are rebuilt, the scene bounding box is recomputed from all meshes and used to update the camera center and default distance.
+- Line topology.
+- Depth test enabled, depth write disabled.
+- Color controlled from overlay settings.
 
-## Logging
+## Current Mesh Highlight Pipeline
 
-The renderer writes timing information into the document log when buffers are rebuilt. At the moment this includes preparation and upload time plus mesh/vertex/triangle counts.
+The current mesh highlight is independent from regular fill/wire/points toggles.
 
-This is meant as lightweight observability rather than a full profiler.
+Pipeline:
 
-## Current Limits
+1. Render current mesh occupancy mask to offscreen RT.
+   - surface meshes: fill-style mask pipeline (depth-aware)
+   - point clouds: points mask pipeline (no depth/shading, occupancy only)
+2. Snapshot base mask.
+3. For point clouds, apply screen-space morphology:
+   - dilate(base -> work)
+   - erode(work -> mask)
+4. Final outline extraction/composite from the mask texture.
 
-The rendering path is intentionally minimal. Some notable limitations are:
+Debug view modes can show intermediate masks (`Base`, `Dilated`, `Eroded`) instead of final outline.
 
-- no material system
-- no per-mesh color or style overrides yet
-- no selection or picking
-- no transparency pipeline
-- no line-only overlay pass separated from fill
+## Camera and Interaction
 
-The current architecture is still adequate for experimenting with viewport behavior because mesh ownership, GPU upload, and shading policies are already separated in a reasonably clean way.
+`ViewTrackball` is used for navigation.
+
+- Left drag: arcball/hyperbola rotation (VCG-style math, stable around 180 degrees).
+- Middle/Right drag or `Ctrl+Left`: pan.
+- Wheel: dolly (distance change).
+- `Shift+Wheel`: vertigo zoom (FOV + compensating dolly).
+  - FOV range: 10..120 degrees.
+  - distance is adjusted to keep apparent object/trackball scale stable.
+- Double click: depth-pick under cursor and animated recenter to picked world point.
+
+Trackball gizmo scale stays visually stable across dolly and FOV changes.
+
+## Depth Picking
+
+Double click schedules a depth-pick frame:
+
+- offscreen color RT encodes depth in RGB
+- readback of one pixel
+- backend-specific handling:
+  - Y orientation (`isYUpInFramebuffer`, `isYUpInNDC`)
+  - clip-space depth convention (`isClipDepthZeroToOne`)
+- unproject via inverse `MVP` to world point
+- start center animation and emit `trackballCenterPicked(worldPos)`
+
+## Runtime Performance Instrumentation
+
+### Buffer Build Logging
+
+When cache rebuilds happen, `Document` logs:
+
+- which pass buffers were rebuilt (`fill`, `wire`, `points`, `bbox`)
+- rebuild elapsed time in ms
+
+### Frame Timing
+
+`RenderWidget` emits per-frame:
+
+- CPU frame time (`nsecsElapsed`)
+- GPU frame time (if backend supports `QRhi::Timestamps`, via `lastCompletedGpuTime`)
+
+`MainWindow` accumulates rolling stats over the last 100 frames and shows min/avg/max in a fixed-width status-bar label.
+
+## Defaults and Behavior Notes
+
+- For point-cloud-only scenes, default render mode switches to points.
+- Point color source defaults to per-vertex when available.
+- Point lighting defaults on when vertex normals are available.
+- Render setting availability is clamped to loaded data (invalid color-source options are disabled/fallbacked).
+
+## Current Scope and Limits
+
+- Material system is intentionally minimal (base color + texture usage for fill path).
+- No full PBR path yet.
+- No compute-based post-processing; current outline/morph is raster full-screen passes.
+- Selection/highlight currently focuses on the concept of **current mesh** rather than a full element-level selection model.
