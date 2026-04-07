@@ -52,6 +52,9 @@ private:
     void ensureCurrentMeshMaskResources(const QSize &pixelSize);
     void ensureDepthPickResources(const QSize &pixelSize);
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
+    void startCenterAnimation(const QVector3D &targetCenter);
+    void cancelCenterAnimation();
+    void advanceCenterAnimation();
     void updateCameraFrameIfNeeded();
     int fillGpuVariantIndexForCurrentSettings() const;
     int pointGpuVariantIndexForCurrentSettings() const;
@@ -71,6 +74,11 @@ private:
     bool m_applySceneDefaultRenderMode = true;
     bool m_reframeCameraRequested = true;
     bool m_resetTrackballRequested = false;
+    bool m_centerAnimActive = false;
+    QVector3D m_centerAnimStart;
+    QVector3D m_centerAnimTarget;
+    QElapsedTimer m_centerAnimTimer;
+    int m_centerAnimDurationMs = 200;
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiSampler> m_textureSampler;

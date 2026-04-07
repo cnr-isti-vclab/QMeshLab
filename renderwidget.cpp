@@ -167,9 +167,56 @@ void RenderWidget::setShadingMode(ShadingMode mode)
 
 void RenderWidget::resetCameraToScene()
 {
+    cancelCenterAnimation();
     m_reframeCameraRequested = true;
     m_resetTrackballRequested = true;
     update();
+}
+
+void RenderWidget::startCenterAnimation(const QVector3D &targetCenter)
+{
+    const QVector3D currentCenter = m_trackball.center();
+    if ((targetCenter - currentCenter).lengthSquared() < 1e-12f) {
+        m_trackball.setCenter(targetCenter);
+        m_centerAnimActive = false;
+        return;
+    }
+
+    m_centerAnimStart = currentCenter;
+    m_centerAnimTarget = targetCenter;
+    m_centerAnimTimer.restart();
+    m_centerAnimActive = true;
+    update();
+}
+
+void RenderWidget::cancelCenterAnimation()
+{
+    m_centerAnimActive = false;
+}
+
+void RenderWidget::advanceCenterAnimation()
+{
+    if (!m_centerAnimActive)
+        return;
+    if (!m_centerAnimTimer.isValid())
+        m_centerAnimTimer.start();
+
+    const float t = std::clamp(
+        float(m_centerAnimTimer.elapsed()) / float(qMax(1, m_centerAnimDurationMs)),
+        0.0f,
+        1.0f);
+    const float eased = (t < 0.5f)
+        ? (4.0f * t * t * t)
+        : (1.0f - std::pow(-2.0f * t + 2.0f, 3.0f) / 2.0f);
+    const QVector3D c = m_centerAnimStart + (m_centerAnimTarget - m_centerAnimStart) * eased;
+    m_trackball.setCenter(c);
+
+    if (t >= 1.0f) {
+        m_trackball.setCenter(m_centerAnimTarget);
+        m_centerAnimActive = false;
+    } else {
+        update();
+    }
 }
 
 void RenderWidget::createOverlayButtons()
@@ -363,6 +410,7 @@ void RenderWidget::updateCameraFrameIfNeeded()
         m_trackball.setFrame(center, radius, radius * 3.0f);
     m_reframeCameraRequested = false;
     m_resetTrackballRequested = false;
+    m_centerAnimActive = false;
 }
 
 void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
@@ -1593,9 +1641,8 @@ void RenderWidget::executePendingDepthPick(
                 return;
             world /= world.w();
             const QVector3D worldPos = world.toVector3D();
-            self->m_trackball.setCenter(worldPos);
+            self->startCenterAnimation(worldPos);
             emit self->trackballCenterPicked(worldPos);
-            self->update();
         },
             Qt::QueuedConnection);
     };
@@ -1844,6 +1891,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!m_rhi || !m_ubuf)
         return;
 
+    advanceCenterAnimation();
+
     const bool drawFillPass = m_renderSettings.showFill;
     const bool drawWirePass = m_renderSettings.showWire;
     const bool drawBBoxPass = m_renderSettings.showBoundingBox;
@@ -2080,6 +2129,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
 void RenderWidget::mousePressEvent(QMouseEvent *e)
 {
+    cancelCenterAnimation();
     m_trackball.mousePress(e, size());
 }
 
@@ -2108,6 +2158,7 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 
 void RenderWidget::wheelEvent(QWheelEvent *e)
 {
+    cancelCenterAnimation();
     if (m_trackball.wheel(e))
         update();
 }
