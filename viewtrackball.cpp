@@ -11,6 +11,7 @@
 namespace {
 constexpr float kTrackballFovYDeg = 45.0f;
 constexpr float kTrackballHyperbolaCutAngleDeg = 45.0f;
+const QQuaternion kIdentityRotation;
 }
 
 ViewTrackball::ViewTrackball()
@@ -59,14 +60,17 @@ void ViewTrackball::mousePress(const QMouseEvent *e, const QSize &viewportSize)
     if (e->button() == Qt::MiddleButton || e->button() == Qt::RightButton || ctrlPan) {
         m_navigationMode = NavigationMode::Pan;
         m_dragStartHitValid = false;
+        m_dragLastAxisValid = false;
     } else if (e->button() == Qt::LeftButton) {
         m_navigationMode = NavigationMode::Rotate;
         m_dragStartRotation = m_rotation;
+        m_dragLastAxisValid = false;
         m_dragStartHitValid =
-            hitSphereLikeVcg(m_lastMousePos, viewportSize, m_dragStartRotation, m_dragStartHit);
+            hitSphereLikeVcg(m_lastMousePos, viewportSize, kIdentityRotation, m_dragStartHit);
     } else {
         m_navigationMode = NavigationMode::None;
         m_dragStartHitValid = false;
+        m_dragLastAxisValid = false;
     }
 }
 
@@ -75,6 +79,7 @@ void ViewTrackball::mouseRelease(const QMouseEvent *e)
     if (e->buttons() == Qt::NoButton) {
         m_navigationMode = NavigationMode::None;
         m_dragStartHitValid = false;
+        m_dragLastAxisValid = false;
     }
 }
 
@@ -87,36 +92,57 @@ bool ViewTrackball::mouseMove(const QMouseEvent *e, const QSize &viewportSize)
     if (m_navigationMode == NavigationMode::Rotate && (e->buttons() & Qt::LeftButton)) {
         QVector3D hitNew;
         const bool hitNewValid =
-            hitSphereLikeVcg(currentPos, viewportSize, m_dragStartRotation, hitNew);
+            hitSphereLikeVcg(currentPos, viewportSize, kIdentityRotation, hitNew);
         if (m_dragStartHitValid && hitNewValid) {
             const QVector3D from = m_dragStartHit - m_center;
             const QVector3D to = hitNew - m_center;
             QVector3D axis = QVector3D::crossProduct(to, from);
             const float axisLen2 = axis.lengthSquared();
+            QVector3D fromN = from;
+            QVector3D toN = to;
+            const float fromLen = fromN.length();
+            const float toLen = toN.length();
+            if (fromLen > 1e-12f && toLen > 1e-12f) {
+                fromN /= fromLen;
+                toN /= toLen;
+            }
+            const float dotVal = std::clamp(QVector3D::dotProduct(toN, fromN), -1.0f, 1.0f);
+            const float angleRad = std::acos(dotVal);
+
             if (axisLen2 > 1e-12f) {
                 axis.normalize();
-
-                QVector3D fromN = from;
-                QVector3D toN = to;
-                const float fromLen = fromN.length();
-                const float toLen = toN.length();
-                if (fromLen > 1e-12f && toLen > 1e-12f) {
-                    fromN /= fromLen;
-                    toN /= toLen;
-                }
-                const float angleRad = std::acos(std::clamp(QVector3D::dotProduct(toN, fromN), -1.0f, 1.0f));
-
-                const float radius = qMax(1e-6f, gizmoWorldRadius());
-                const float chordOverR = (hitNew - m_dragStartHit).length() / radius;
-                const float phi = qMax(angleRad, chordOverR);
-
-                const QQuaternion deltaRot =
-                    QQuaternion::fromAxisAndAngle(axis, -qRadiansToDegrees(phi));
-                m_rotation = (deltaRot * m_dragStartRotation).normalized();
-            } else {
-                // Return exactly to anchor orientation when cursor comes back to start.
+                m_dragLastAxis = axis;
+                m_dragLastAxisValid = true;
+            } else if (dotVal > 0.999999f) {
+                // Cursor returned to drag start: exact identity wrt press orientation.
                 m_rotation = m_dragStartRotation;
+                return true;
+            } else if (dotVal < -0.999999f) {
+                // 180-degree singularity: keep the previous stable axis to avoid inversion flicker.
+                if (m_dragLastAxisValid) {
+                    axis = m_dragLastAxis;
+                } else {
+                    axis = QVector3D::crossProduct(fromN, QVector3D(1.0f, 0.0f, 0.0f));
+                    if (axis.lengthSquared() < 1e-12f)
+                        axis = QVector3D::crossProduct(fromN, QVector3D(0.0f, 1.0f, 0.0f));
+                    if (axis.lengthSquared() < 1e-12f)
+                        axis = QVector3D(0.0f, 0.0f, 1.0f);
+                    axis.normalize();
+                    m_dragLastAxis = axis;
+                    m_dragLastAxisValid = true;
+                }
+            } else {
+                // Near-singular numeric case: keep current orientation and wait next sample.
+                return true;
             }
+
+            const float radius = qMax(1e-6f, gizmoWorldRadius());
+            const float chordOverR = (hitNew - m_dragStartHit).length() / radius;
+            const float phi = qMax(angleRad, chordOverR);
+
+            const QQuaternion deltaRot =
+                QQuaternion::fromAxisAndAngle(axis, -qRadiansToDegrees(phi));
+            m_rotation = (deltaRot * m_dragStartRotation).normalized();
         } else {
             // Fallback for degenerate cases.
             const QVector3D currentVec = projectOnArcball(currentPos, viewportSize);

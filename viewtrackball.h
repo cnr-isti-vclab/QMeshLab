@@ -52,6 +52,8 @@ private:
     QVector3D m_dragStartHit;
     bool m_dragStartHitValid = false;
     QQuaternion m_dragStartRotation;
+    QVector3D m_dragLastAxis = QVector3D(0.0f, 1.0f, 0.0f);
+    bool m_dragLastAxisValid = false;
     QQuaternion m_rotation;
     QVector3D m_center;
     float m_distance = 3.0f;
