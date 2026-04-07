@@ -20,6 +20,7 @@ public:
     void setCenter(const QVector3D &center) { m_center = center; }
     QVector3D center() const { return m_center; }
     float radius() const { return m_radius; }
+    float fovYDegrees() const { return m_fovYDeg; }
     float gizmoWorldRadius() const;
 
     QMatrix4x4 viewMatrix() const;
@@ -59,6 +60,8 @@ private:
     QVector3D m_center;
     float m_distance = 3.0f;
     float m_radius = 1.0f;
+    float m_fovYDeg = 45.0f;
     float m_gizmoBaseRadius = 1.0f;
     float m_gizmoReferenceDistance = 3.0f;
+    float m_gizmoReferenceFovYDeg = 45.0f;
 };

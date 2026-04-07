@@ -1919,7 +1919,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         const float sceneRadius = m_trackball.radius();
 
         QMatrix4x4 proj;
-        proj.perspective(45.0f, aspect, 0.01f * sceneRadius, 100.0f * sceneRadius);
+        proj.perspective(
+            m_trackball.fovYDegrees(),
+            aspect,
+            0.01f * sceneRadius,
+            100.0f * sceneRadius);
 
         const QMatrix4x4 view = m_trackball.viewMatrix();
 

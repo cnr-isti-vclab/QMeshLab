@@ -5,6 +5,7 @@
 
 enum class RenderPass {
     CurrentMesh = 0,
+    Decorators,
     BoundingBox,
     Points,
     Wireframe,
@@ -36,6 +37,7 @@ enum class CurrentMeshDebugView {
 
 struct RenderSettings {
     bool highlightCurrentMesh = true;
+    bool showDecorators = false;
     bool showBoundingBox = false;
     bool showPoints = false;
     bool showWire = true;
@@ -52,6 +54,14 @@ struct RenderSettings {
     bool fillBackfaceCulling = true;
     bool settingsPanelVisible = false;
     RenderPass currentPass = RenderPass::Fill;
+    bool decoratorVertexNormals = false;
+    bool decoratorFaceNormals = false;
+    bool decoratorBoundaryEdges = false;
+    bool decoratorTextureSeams = false;
+    QColor decoratorVertexNormalColor = QColor(70, 200, 255);
+    QColor decoratorFaceNormalColor = QColor(70, 255, 120);
+    QColor decoratorBoundaryEdgeColor = QColor(255, 80, 80);
+    QColor decoratorTextureSeamColor = QColor(255, 170, 40);
     QColor bboxWireColor = QColor(245, 190, 60);
     QColor pointColor = QColor(255, 191, 51);
     float pointSize = 4.0f;
@@ -65,6 +75,7 @@ struct RenderSettings {
     bool operator==(const RenderSettings &other) const
     {
         return highlightCurrentMesh == other.highlightCurrentMesh
+            && showDecorators == other.showDecorators
             && showBoundingBox == other.showBoundingBox
             && showPoints == other.showPoints
             && showWire == other.showWire
@@ -81,6 +92,14 @@ struct RenderSettings {
             && fillBackfaceCulling == other.fillBackfaceCulling
             && settingsPanelVisible == other.settingsPanelVisible
             && currentPass == other.currentPass
+            && decoratorVertexNormals == other.decoratorVertexNormals
+            && decoratorFaceNormals == other.decoratorFaceNormals
+            && decoratorBoundaryEdges == other.decoratorBoundaryEdges
+            && decoratorTextureSeams == other.decoratorTextureSeams
+            && decoratorVertexNormalColor == other.decoratorVertexNormalColor
+            && decoratorFaceNormalColor == other.decoratorFaceNormalColor
+            && decoratorBoundaryEdgeColor == other.decoratorBoundaryEdgeColor
+            && decoratorTextureSeamColor == other.decoratorTextureSeamColor
             && bboxWireColor == other.bboxWireColor
             && pointColor == other.pointColor
             && pointSize == other.pointSize

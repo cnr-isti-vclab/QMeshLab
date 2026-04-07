@@ -9,7 +9,9 @@
 #include <limits>
 
 namespace {
-constexpr float kTrackballFovYDeg = 45.0f;
+constexpr float kDefaultTrackballFovYDeg = 45.0f;
+constexpr float kMinTrackballFovYDeg = 10.0f;
+constexpr float kMaxTrackballFovYDeg = 120.0f;
 constexpr float kTrackballHyperbolaCutAngleDeg = 45.0f;
 const QQuaternion kIdentityRotation;
 QQuaternion defaultTrackballRotation()
@@ -31,10 +33,12 @@ void ViewTrackball::setFrame(const QVector3D &center, float radius, float distan
     // Keep gizmo screen size stable under dolly zoom, using this frame as reference.
     m_gizmoBaseRadius = m_radius * 1.02f;
     m_gizmoReferenceDistance = m_distance;
+    m_gizmoReferenceFovYDeg = m_fovYDeg;
 }
 
 void ViewTrackball::resetToFrame(const QVector3D &center, float radius, float distance)
 {
+    m_fovYDeg = kDefaultTrackballFovYDeg;
     setFrame(center, radius, distance);
     m_rotation = defaultTrackballRotation();
     m_navigationMode = NavigationMode::None;
@@ -60,7 +64,11 @@ QMatrix4x4 ViewTrackball::viewMatrixForRotation(const QQuaternion &rotation) con
 float ViewTrackball::gizmoWorldRadius() const
 {
     const float refDist = qMax(1e-4f, m_gizmoReferenceDistance);
-    const float scale = m_distance / refDist;
+    const float fovRad = qDegreesToRadians(m_fovYDeg);
+    const float refFovRad = qDegreesToRadians(m_gizmoReferenceFovYDeg);
+    const float tanHalfFov = qMax(1e-6f, std::tan(0.5f * fovRad));
+    const float tanHalfFovRef = qMax(1e-6f, std::tan(0.5f * refFovRad));
+    const float scale = (m_distance / refDist) * (tanHalfFov / tanHalfFovRef);
     return qMax(1e-4f, m_gizmoBaseRadius * scale);
 }
 
@@ -182,7 +190,7 @@ bool ViewTrackball::mouseMove(const QMouseEvent *e, const QSize &viewportSize)
         || ((e->buttons() & Qt::LeftButton) && (e->modifiers() & Qt::ControlModifier));
     if (m_navigationMode == NavigationMode::Pan && panButtons) {
         const float viewportH = float(qMax(1, viewportSize.height()));
-        const float fovYRad = qDegreesToRadians(45.0f);
+        const float fovYRad = qDegreesToRadians(m_fovYDeg);
         const float worldPerPixel = (2.0f * m_distance * std::tan(0.5f * fovYRad)) / viewportH;
         const QVector3D panWorld =
             (-cameraRight() * float(delta.x()) + cameraUp() * float(delta.y())) * worldPerPixel;
@@ -201,7 +209,23 @@ bool ViewTrackball::wheel(const QWheelEvent *e)
     if (qFuzzyIsNull(steps))
         return false;
 
-    m_distance *= std::pow(0.85f, steps);
+    const bool fovMode = (e->modifiers() & Qt::ShiftModifier);
+    if (fovMode) {
+        const float oldFovRad = qDegreesToRadians(m_fovYDeg);
+        const float oldTanHalfFov = qMax(1e-6f, std::tan(0.5f * oldFovRad));
+        const float constantScreenScale = m_distance * oldTanHalfFov;
+
+        float newFov = m_fovYDeg * std::pow(0.90f, steps);
+        newFov = std::clamp(newFov, kMinTrackballFovYDeg, kMaxTrackballFovYDeg);
+        m_fovYDeg = newFov;
+
+        const float newFovRad = qDegreesToRadians(m_fovYDeg);
+        const float newTanHalfFov = qMax(1e-6f, std::tan(0.5f * newFovRad));
+        m_distance = constantScreenScale / newTanHalfFov;
+    } else {
+        m_distance *= std::pow(0.85f, steps);
+    }
+
     const float minDist = qMax(1e-4f, 0.01f * m_radius);
     const float maxDist = qMax(minDist * 2.0f, 1000.0f * m_radius);
     m_distance = std::clamp(m_distance, minDist, maxDist);
@@ -241,7 +265,7 @@ QMatrix4x4 ViewTrackball::projectionMatrix(float aspect) const
 {
     const float r = qMax(1e-4f, m_radius);
     QMatrix4x4 proj;
-    proj.perspective(kTrackballFovYDeg, aspect, 0.01f * r, 100.0f * r);
+    proj.perspective(m_fovYDeg, aspect, 0.01f * r, 100.0f * r);
     return proj;
 }
 
