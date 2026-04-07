@@ -7,6 +7,8 @@
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QWheelEvent>
+#include <QtMath>
+#include <algorithm>
 #include <cmath>
 
 static QShader loadShader(const QString &path)
@@ -39,6 +41,8 @@ constexpr int kOutlineUbufSize = 32;
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
+    m_trackballRotation = QQuaternion::fromAxisAndAngle(1.0f, 0.0f, 0.0f, -20.0f);
+
     createOverlayButtons();
     refreshColorSourceAvailability();
 
@@ -725,12 +729,12 @@ void RenderWidget::ensureRenderResources()
         QString fsPath;
         switch (m_renderSettings.fillShading) {
         case FillShading::Smooth:
-            vsPath = QStringLiteral(":/shaders/color.vert.qsb");
-            fsPath = QStringLiteral(":/shaders/color.frag.qsb");
+            vsPath = QStringLiteral(":/shaders/fill_smooth.vert.qsb");
+            fsPath = QStringLiteral(":/shaders/fill_smooth.frag.qsb");
             break;
         case FillShading::Flat:
-            vsPath = QStringLiteral(":/shaders/flat.vert.qsb");
-            fsPath = QStringLiteral(":/shaders/flat.frag.qsb");
+            vsPath = QStringLiteral(":/shaders/fill_flat.vert.qsb");
+            fsPath = QStringLiteral(":/shaders/fill_flat.frag.qsb");
             break;
         }
 
@@ -786,8 +790,8 @@ void RenderWidget::ensureRenderResources()
     } else if (!m_wirePipeline) {
         m_wirePipeline.reset(m_rhi->newGraphicsPipeline());
 
-        QShader vs = loadShader(QStringLiteral(":/shaders/wireframe.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/wireframe_lines.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/fill_wire.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/fill_wire_overlay.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load wireframe shaders");
             m_wirePipeline.reset();
@@ -835,8 +839,8 @@ void RenderWidget::ensureRenderResources()
     if (!m_bboxPipeline) {
         m_bboxPipeline.reset(m_rhi->newGraphicsPipeline());
 
-        QShader vs = loadShader(QStringLiteral(":/shaders/bbox.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/bbox.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_bbox.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_bbox.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load bbox shaders");
             m_bboxPipeline.reset();
@@ -868,8 +872,8 @@ void RenderWidget::ensureRenderResources()
     if (!m_pointsPipeline) {
         m_pointsPipeline.reset(m_rhi->newGraphicsPipeline());
 
-        QShader vs = loadShader(QStringLiteral(":/shaders/points.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/points.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_points.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_points.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load points shaders");
             m_pointsPipeline.reset();
@@ -906,8 +910,8 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_currentMaskFillPipeline && m_currentMaskRp) {
         m_currentMaskFillPipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/current_mask.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/current_mask.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_mask.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_mask.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load current-mask shaders");
             m_currentMaskFillPipeline.reset();
@@ -934,8 +938,8 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_currentMaskPointsPipeline && m_currentMaskRp) {
         m_currentMaskPointsPipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/current_mask.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/current_mask.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_mask.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_mask.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load current-mask point shaders");
             m_currentMaskPointsPipeline.reset();
@@ -964,8 +968,8 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_maskMorphToBasePipeline && m_maskMorphMaskToBaseSrb && m_currentMaskBaseRp) {
         m_maskMorphToBasePipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/outline.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/mask_morph.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_mask_morph.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load mask-morph shaders (to base)");
             m_maskMorphToBasePipeline.reset();
@@ -990,8 +994,8 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_maskMorphToWorkPipeline && m_maskMorphMaskToWorkSrb && m_currentMaskWorkRp) {
         m_maskMorphToWorkPipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/outline.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/mask_morph.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_mask_morph.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load mask-morph shaders (to work)");
             m_maskMorphToWorkPipeline.reset();
@@ -1016,8 +1020,8 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_maskMorphWorkToMaskPipeline && m_maskMorphWorkToMaskSrb && m_currentMaskRp) {
         m_maskMorphWorkToMaskPipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/outline.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/mask_morph.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_mask_morph.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load mask-morph shaders (to mask)");
             m_maskMorphWorkToMaskPipeline.reset();
@@ -1042,8 +1046,8 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_maskDebugPipeline && m_maskDebugBaseSrb) {
         m_maskDebugPipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/outline.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/mask_debug.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_mask_debug.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load mask-debug shaders");
             m_maskDebugPipeline.reset();
@@ -1068,8 +1072,8 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_outlinePipeline && m_outlineSrb) {
         m_outlinePipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/outline.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/outline.frag.qsb"));
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_outline.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load outline shaders");
             m_outlinePipeline.reset();
@@ -1410,8 +1414,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
         QMatrix4x4 view;
         view.translate(0, 0, -m_distance);
-        view.rotate(m_rotX, 1, 0, 0);
-        view.rotate(m_rotY, 0, 1, 0);
+        view.rotate(m_trackballRotation);
         view.translate(-m_center);
 
         QMatrix4x4 modelView = view;
@@ -1580,26 +1583,107 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
 void RenderWidget::mousePressEvent(QMouseEvent *e)
 {
-    m_lastPos = e->position();
+    m_lastMousePos = e->position();
+    m_lastArcballVec = projectOnArcball(m_lastMousePos);
+
+    const bool ctrlPan = (e->button() == Qt::LeftButton)
+        && (e->modifiers() & Qt::ControlModifier);
+    if (e->button() == Qt::MiddleButton || e->button() == Qt::RightButton || ctrlPan) {
+        m_navigationMode = NavigationMode::Pan;
+    } else if (e->button() == Qt::LeftButton) {
+        m_navigationMode = NavigationMode::Rotate;
+    } else {
+        m_navigationMode = NavigationMode::None;
+    }
+}
+
+void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
+{
+    if (e->buttons() == Qt::NoButton)
+        m_navigationMode = NavigationMode::None;
 }
 
 void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 {
-    QPointF delta = e->position() - m_lastPos;
-    m_lastPos = e->position();
-    if (e->buttons() & Qt::LeftButton) {
-        m_rotY += delta.x() * 0.5f;
-        m_rotX += delta.y() * 0.5f;
-        m_rotX = qBound(-90.0f, m_rotX, 90.0f);
+    const QPointF currentPos = e->position();
+    const QPointF delta = currentPos - m_lastMousePos;
+    m_lastMousePos = currentPos;
+
+    if (m_navigationMode == NavigationMode::Rotate && (e->buttons() & Qt::LeftButton)) {
+        const QVector3D currentVec = projectOnArcball(currentPos);
+        QVector3D axis = QVector3D::crossProduct(m_lastArcballVec, currentVec);
+        const float axisLen2 = axis.lengthSquared();
+        if (axisLen2 > 1e-12f) {
+            const float dotVal = std::clamp(
+                QVector3D::dotProduct(m_lastArcballVec, currentVec),
+                -1.0f,
+                1.0f);
+            const float angleRad = std::atan2(std::sqrt(axisLen2), dotVal);
+            axis.normalize();
+            const QQuaternion deltaRot =
+                QQuaternion::fromAxisAndAngle(axis, qRadiansToDegrees(angleRad));
+            m_trackballRotation = (deltaRot * m_trackballRotation).normalized();
+            update();
+        }
+        m_lastArcballVec = currentVec;
+        return;
+    }
+
+    const bool panButtons = (e->buttons() & (Qt::MiddleButton | Qt::RightButton))
+        || ((e->buttons() & Qt::LeftButton) && (e->modifiers() & Qt::ControlModifier));
+    if (m_navigationMode == NavigationMode::Pan && panButtons) {
+        const float viewportH = float(qMax(1, height()));
+        const float fovYRad = qDegreesToRadians(45.0f);
+        const float worldPerPixel = (2.0f * m_distance * std::tan(0.5f * fovYRad)) / viewportH;
+        const QVector3D panWorld =
+            (-cameraRight() * float(delta.x()) + cameraUp() * float(delta.y())) * worldPerPixel;
+        m_center += panWorld;
         update();
     }
 }
 
 void RenderWidget::wheelEvent(QWheelEvent *e)
 {
-    m_distance *= (1.0f - e->angleDelta().y() * 0.001f);
-    m_distance = qMax(m_distance, 0.01f * m_radius);
+    float steps = e->angleDelta().y() / 120.0f;
+    if (qFuzzyIsNull(steps) && !e->pixelDelta().isNull())
+        steps = e->pixelDelta().y() / 120.0f;
+    if (qFuzzyIsNull(steps))
+        return;
+
+    m_distance *= std::pow(0.85f, steps);
+    const float minDist = qMax(1e-4f, 0.01f * m_radius);
+    const float maxDist = qMax(minDist * 2.0f, 1000.0f * m_radius);
+    m_distance = std::clamp(m_distance, minDist, maxDist);
     update();
+}
+
+QVector3D RenderWidget::projectOnArcball(const QPointF &pos) const
+{
+    const float w = float(qMax(1, width()));
+    const float h = float(qMax(1, height()));
+    float x = (2.0f * float(pos.x()) - w) / w;
+    float y = (h - 2.0f * float(pos.y())) / h;
+
+    const float len2 = x * x + y * y;
+    float z = 0.0f;
+    if (len2 <= 1.0f) {
+        z = std::sqrt(1.0f - len2);
+    } else {
+        const float invLen = 1.0f / std::sqrt(len2);
+        x *= invLen;
+        y *= invLen;
+    }
+    return QVector3D(x, y, z).normalized();
+}
+
+QVector3D RenderWidget::cameraRight() const
+{
+    return m_trackballRotation.conjugated().rotatedVector(QVector3D(1.0f, 0.0f, 0.0f));
+}
+
+QVector3D RenderWidget::cameraUp() const
+{
+    return m_trackballRotation.conjugated().rotatedVector(QVector3D(0.0f, 1.0f, 0.0f));
 }
 
 void RenderWidget::resizeEvent(QResizeEvent *e)

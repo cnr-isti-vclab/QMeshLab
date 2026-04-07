@@ -5,6 +5,7 @@
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
 #include <QMatrix4x4>
+#include <QQuaternion>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -34,6 +35,7 @@ protected:
     void render(QRhiCommandBuffer *cb) override;
     void resizeEvent(QResizeEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
+    void mouseReleaseEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void wheelEvent(QWheelEvent *e) override;
 
@@ -53,6 +55,15 @@ private:
     void processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize);
+    QVector3D projectOnArcball(const QPointF &pos) const;
+    QVector3D cameraRight() const;
+    QVector3D cameraUp() const;
+
+    enum class NavigationMode {
+        None,
+        Rotate,
+        Pan
+    };
 
     Document *m_doc;
     QRhi *m_rhi = nullptr;
@@ -106,12 +117,13 @@ private:
     RenderOverlayPanel *m_overlayPanel = nullptr;
     QElapsedTimer m_frameTimer;
     bool m_currentMaskFromPoints = false;
+    NavigationMode m_navigationMode = NavigationMode::None;
+    QPointF m_lastMousePos;
+    QVector3D m_lastArcballVec = QVector3D(0.0f, 0.0f, 1.0f);
+    QQuaternion m_trackballRotation;
 
     // Simple orbit camera
-    float m_rotX = -20.0f;
-    float m_rotY = 0.0f;
     float m_distance = 3.0f;
-    QPointF m_lastPos;
     QVector3D m_center;
     float m_radius = 1.0f;
 };

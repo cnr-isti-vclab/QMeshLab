@@ -47,23 +47,23 @@ target_link_libraries(QMeshLab PRIVATE
 qt_add_shaders(QMeshLab "shaders"
     PREFIX "/"
     FILES
-        shaders/color.vert
-        shaders/color.frag
-        shaders/flat.vert
-        shaders/flat.frag
-        shaders/wireframe.vert
-        shaders/wireframe.frag
-        shaders/wireframe_lines.frag
-        shaders/bbox.vert
-        shaders/bbox.frag
-        shaders/points.vert
-        shaders/points.frag
-        shaders/current_mask.vert
-        shaders/current_mask.frag
-        shaders/mask_morph.frag
-        shaders/mask_debug.frag
-        shaders/outline.vert
-        shaders/outline.frag
+        shaders/fill_smooth.vert
+        shaders/fill_smooth.frag
+        shaders/fill_flat.vert
+        shaders/fill_flat.frag
+        shaders/fill_wire.vert
+        shaders/fill_wire.frag
+        shaders/fill_wire_overlay.frag
+        shaders/overlay_bbox.vert
+        shaders/overlay_bbox.frag
+        shaders/overlay_points.vert
+        shaders/overlay_points.frag
+        shaders/selection_mask.vert
+        shaders/selection_mask.frag
+        shaders/selection_mask_morph.frag
+        shaders/selection_mask_debug.frag
+        shaders/selection_outline.vert
+        shaders/selection_outline.frag
 )
 
 qt_add_resources(QMeshLab "icons"
