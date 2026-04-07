@@ -159,6 +159,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->setVerticalSpacing(2);
     currentMeshForm->setLabelAlignment(Qt::AlignLeft);
     m_currentMeshHighlightCheck = new QCheckBox(tr("On"), currentMeshPage);
+    m_currentMeshHighlightCheck->setChecked(m_settings.highlightCurrentMesh);
     m_currentMeshOutlineColorButton = new QPushButton(tr("Choose..."), currentMeshPage);
     m_currentMeshOutlineWidthSpin = new QDoubleSpinBox(currentMeshPage);
     m_currentMeshDilateRadiusSpin = new QDoubleSpinBox(currentMeshPage);
@@ -234,6 +235,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_pointSizeSpin->setSuffix(tr(" px"));
     m_pointSizeSpin->setValue(m_settings.pointSize);
     m_pointLightingCheck = new QCheckBox(tr("On"), pointsPage);
+    m_pointLightingCheck->setChecked(m_settings.pointLighting);
     pointsForm->addRow(tr("Color source"), m_pointColorSourceCombo);
     pointsForm->addRow(tr("Point color"), m_pointsColorButton);
     pointsForm->addRow(tr("Point size"), m_pointSizeSpin);
@@ -259,6 +261,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_wireBackfaceCullingCheck = new QCheckBox(tr("On"), wirePage);
     m_wireBackfaceCullingCheck->setChecked(m_settings.wireBackfaceCulling);
     m_wireLightingCheck = new QCheckBox(tr("On"), wirePage);
+    m_wireLightingCheck->setChecked(m_settings.wireLighting);
     wireForm->addRow(tr("Wire color"), m_wireColorButton);
     wireForm->addRow(tr("Wire size"), m_wireSizeSpin);
     wireForm->addRow(tr("Backface culling"), m_wireBackfaceCullingCheck);
@@ -283,6 +286,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
     m_fillShadingCombo->addItem(tr("Flat"), static_cast<int>(FillShading::Flat));
     m_fillLightingCheck = new QCheckBox(tr("On"), fillPage);
+    m_fillLightingCheck->setChecked(m_settings.fillLighting);
     fillForm->addRow(tr("Color source"), m_fillColorSourceCombo);
     fillForm->addRow(tr("Fill color"), m_fillColorButton);
     fillForm->addRow(tr("Shading"), m_fillShadingCombo);
@@ -563,9 +567,6 @@ void RenderOverlayPanel::setSettingsVisible(bool visible)
 
 void RenderOverlayPanel::setSettings(const RenderSettings &settings)
 {
-    if (m_settings == settings)
-        return;
-
     m_settings = settings;
 
     if (m_currentMeshHighlightCheck) {

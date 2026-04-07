@@ -10,6 +10,10 @@
 #include "plugins/io_e57/e57importplugin.h"
 #endif
 
+#if QMESH_PLUGIN_IO_GLTF_ENABLED
+#include "plugins/io_gltf/gltfimportplugin.h"
+#endif
+
 void registerBuiltinMeshPlugins(MeshIOPluginManager &pluginManager)
 {
 #if QMESH_PLUGIN_IO_VCG_ENABLED
@@ -17,5 +21,8 @@ void registerBuiltinMeshPlugins(MeshIOPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_IO_E57_ENABLED
     registerE57ImportPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_IO_GLTF_ENABLED
+    registerGltfImportPlugin(pluginManager);
 #endif
 }
