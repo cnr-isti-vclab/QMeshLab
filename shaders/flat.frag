@@ -22,13 +22,11 @@ layout(location = 0) out vec4 fragColor;
 
 void main()
 {
-    // Derivative-based face normal. The dFdy x dFdx order matches the view-space handedness here.
+    // Derivative-based face normal in view space.
     vec3 N = normalize(cross(dFdy(vViewPos), dFdx(vViewPos)));
-    // Camera headlight in view space: light comes from the eye toward the fragment.
-    vec3 lightDir = normalize(-vViewPos);
-    // Use absolute term to avoid dark output from winding/normal orientation mismatches.
-    float diff = clamp(abs(dot(N, lightDir)), 0.0, 1.0);
-    float ambient = 0.25;
+    vec3 lightDir = normalize(vec3(0.0, 0.0, 1.0));
+    float diff = max(dot(N, lightDir), 0.0);
+    float ambient = 0.15;
     vec3 baseColor = mix(ub.fillColor.rgb, v_meshColor.rgb, clamp(v_meshColor.a, 0.0, 1.0));
     if (v_texInfo.z > 0.5)
         baseColor = texture(albedoTex, vec2(v_texInfo.x, 1.0 - v_texInfo.y)).rgb;
