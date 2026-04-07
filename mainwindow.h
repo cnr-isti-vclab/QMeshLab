@@ -26,6 +26,7 @@ private slots:
     void openRecentMesh();
     void showAbout();
     void showLoadedPlugins();
+    void resetCamera();
     void setSmoothShading();
     void setFlatShading();
     void setWireframeShading();

@@ -5,6 +5,8 @@
 #include <QRhiWidget>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
+#include <QMatrix4x4>
+#include <QPoint>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -25,9 +27,11 @@ public:
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
     void setShadingMode(ShadingMode mode);
     ShadingMode shadingMode() const { return m_shadingMode; }
+    void resetCameraToScene();
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
+    void trackballCenterPicked(const QVector3D &worldPos);
 
 protected:
     void initialize(QRhiCommandBuffer *cb) override;
@@ -46,11 +50,17 @@ private:
     void refreshColorSourceAvailability();
     void ensureRenderResources();
     void ensureCurrentMeshMaskResources(const QSize &pixelSize);
+    void ensureDepthPickResources(const QSize &pixelSize);
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
     void updateCameraFrameIfNeeded();
     int fillGpuVariantIndexForCurrentSettings() const;
     int pointGpuVariantIndexForCurrentSettings() const;
     QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
+    void executePendingDepthPick(
+        QRhiCommandBuffer *cb,
+        const QMatrix4x4 &mvp,
+        const QSize &pixelSize,
+        int pointVariantIndex);
     void renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &pixelSize);
@@ -60,6 +70,7 @@ private:
     QRhi *m_rhi = nullptr;
     bool m_applySceneDefaultRenderMode = true;
     bool m_reframeCameraRequested = true;
+    bool m_resetTrackballRequested = false;
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiSampler> m_textureSampler;
@@ -71,6 +82,18 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
+    std::unique_ptr<QRhiTexture> m_depthPickTexture;
+    std::unique_ptr<QRhiRenderBuffer> m_depthPickDepth;
+    std::unique_ptr<QRhiTextureRenderTarget> m_depthPickRt;
+    std::unique_ptr<QRhiRenderPassDescriptor> m_depthPickRp;
+    QSize m_depthPickSize;
+    std::unique_ptr<QRhiShaderResourceBindings> m_depthPickSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_depthPickFillPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_depthPickPointsPipeline;
+    bool m_depthPickPending = false;
+    bool m_depthPickInFlight = false;
+    QPoint m_depthPickPos;
+    std::unique_ptr<QRhiReadbackResult> m_depthPickReadbackResult;
     std::unique_ptr<QRhiTexture> m_currentMaskTexture;
     std::unique_ptr<QRhiRenderBuffer> m_currentMaskDepth;
     std::unique_ptr<QRhiTextureRenderTarget> m_currentMaskRt;

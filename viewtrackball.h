@@ -16,6 +16,7 @@ public:
     ViewTrackball();
 
     void setFrame(const QVector3D &center, float radius, float distance);
+    void resetToFrame(const QVector3D &center, float radius, float distance);
     void setCenter(const QVector3D &center) { m_center = center; }
     QVector3D center() const { return m_center; }
     float radius() const { return m_radius; }

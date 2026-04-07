@@ -21,6 +21,7 @@
 #include <QProgressBar>
 #include <QSettings>
 #include <QStringList>
+#include <QVector3D>
 #include <algorithm>
 #include <array>
 #include <numeric>
@@ -146,6 +147,15 @@ MainWindow::MainWindow(QWidget *parent)
             [this](float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid) {
         updateFrameTimeStats(cpuMs, gpuMs, gpuTimingSupported, gpuSampleValid);
     });
+    connect(m_renderWidget, &RenderWidget::trackballCenterPicked, this,
+            [this](const QVector3D &worldPos) {
+        const QString msg = tr("Trackball center: (%1, %2, %3)")
+            .arg(worldPos.x(), 0, 'f', 6)
+            .arg(worldPos.y(), 0, 'f', 6)
+            .arg(worldPos.z(), 0, 'f', 6);
+        statusBar()->showMessage(msg, 3500);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+    });
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(tr("&New"), QKeySequence::New, this, &MainWindow::newDocument);
@@ -158,6 +168,8 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+    viewMenu->addAction(tr("Reset Camera"), this, &MainWindow::resetCamera);
+    viewMenu->addSeparator();
     auto *modeGroup = new QActionGroup(this);
     modeGroup->setExclusive(true);
 
@@ -266,6 +278,12 @@ void MainWindow::showLoadedPlugins()
         : tr("Plugins loaded at startup:\n\n%1").arg(plugins.join(QStringLiteral("\n")));
 
     QMessageBox::information(this, tr("Loaded Plugins"), text);
+}
+
+void MainWindow::resetCamera()
+{
+    m_renderWidget->resetCameraToScene();
+    statusBar()->showMessage(tr("Camera reset"), 1500);
 }
 
 void MainWindow::setSmoothShading()

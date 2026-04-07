@@ -12,11 +12,15 @@ namespace {
 constexpr float kTrackballFovYDeg = 45.0f;
 constexpr float kTrackballHyperbolaCutAngleDeg = 45.0f;
 const QQuaternion kIdentityRotation;
+QQuaternion defaultTrackballRotation()
+{
+    return QQuaternion::fromAxisAndAngle(1.0f, 0.0f, 0.0f, -20.0f);
+}
 }
 
 ViewTrackball::ViewTrackball()
 {
-    m_rotation = QQuaternion::fromAxisAndAngle(1.0f, 0.0f, 0.0f, -20.0f);
+    m_rotation = defaultTrackballRotation();
 }
 
 void ViewTrackball::setFrame(const QVector3D &center, float radius, float distance)
@@ -27,6 +31,16 @@ void ViewTrackball::setFrame(const QVector3D &center, float radius, float distan
     // Keep gizmo screen size stable under dolly zoom, using this frame as reference.
     m_gizmoBaseRadius = m_radius * 1.02f;
     m_gizmoReferenceDistance = m_distance;
+}
+
+void ViewTrackball::resetToFrame(const QVector3D &center, float radius, float distance)
+{
+    setFrame(center, radius, distance);
+    m_rotation = defaultTrackballRotation();
+    m_navigationMode = NavigationMode::None;
+    m_dragStartHitValid = false;
+    m_dragLastAxisValid = false;
+    m_lastArcballVec = QVector3D(0.0f, 0.0f, 1.0f);
 }
 
 QMatrix4x4 ViewTrackball::viewMatrix() const

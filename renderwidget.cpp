@@ -4,7 +4,9 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFile>
 #include <QImage>
+#include <QMetaObject>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QResizeEvent>
 #include <QWheelEvent>
 #include <QVector3D>
@@ -47,39 +49,12 @@ QVector3D toVec3(const VCGMesh::CoordType &p)
     return QVector3D(p[0], p[1], p[2]);
 }
 
-bool intersectRayTriangle(
-    const QVector3D &rayOrig,
-    const QVector3D &rayDir,
-    const QVector3D &v0,
-    const QVector3D &v1,
-    const QVector3D &v2,
-    float &outT)
+float decodePackedDepthRgb8(const uchar *px, bool bgraOrder)
 {
-    constexpr float kEps = 1e-8f;
-    const QVector3D e1 = v1 - v0;
-    const QVector3D e2 = v2 - v0;
-    const QVector3D pvec = QVector3D::crossProduct(rayDir, e2);
-    const float det = QVector3D::dotProduct(e1, pvec);
-    if (std::abs(det) < kEps)
-        return false;
-
-    const float invDet = 1.0f / det;
-    const QVector3D tvec = rayOrig - v0;
-    const float u = QVector3D::dotProduct(tvec, pvec) * invDet;
-    if (u < 0.0f || u > 1.0f)
-        return false;
-
-    const QVector3D qvec = QVector3D::crossProduct(tvec, e1);
-    const float v = QVector3D::dotProduct(rayDir, qvec) * invDet;
-    if (v < 0.0f || (u + v) > 1.0f)
-        return false;
-
-    const float t = QVector3D::dotProduct(e2, qvec) * invDet;
-    if (t <= kEps)
-        return false;
-
-    outT = t;
-    return true;
+    const float c0 = (bgraOrder ? px[2] : px[0]) / 255.0f;
+    const float c1 = px[1] / 255.0f;
+    const float c2 = (bgraOrder ? px[0] : px[2]) / 255.0f;
+    return c0 + c1 / 255.0f + c2 / 65025.0f;
 }
 
 std::vector<float> buildTrackballGizmoVertices()
@@ -187,6 +162,13 @@ void RenderWidget::setShadingMode(ShadingMode mode)
     if (m_overlayPanel)
         m_overlayPanel->setSettings(m_renderSettings);
     m_fillPipeline.reset();
+    update();
+}
+
+void RenderWidget::resetCameraToScene()
+{
+    m_reframeCameraRequested = true;
+    m_resetTrackballRequested = true;
     update();
 }
 
@@ -375,8 +357,12 @@ void RenderWidget::updateCameraFrameIfNeeded()
     auto c = bbox.Center();
     const QVector3D center(c[0], c[1], c[2]);
     const float radius = qMax(1e-4f, bbox.Diag() / 2.0f);
-    m_trackball.setFrame(center, radius, radius * 3.0f);
+    if (m_resetTrackballRequested)
+        m_trackball.resetToFrame(center, radius, radius * 3.0f);
+    else
+        m_trackball.setFrame(center, radius, radius * 3.0f);
     m_reframeCameraRequested = false;
+    m_resetTrackballRequested = false;
 }
 
 void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
@@ -549,6 +535,135 @@ void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
     m_currentMaskSize = pixelSize;
 }
 
+void RenderWidget::ensureDepthPickResources(const QSize &pixelSize)
+{
+    if (!m_rhi || pixelSize.isEmpty())
+        return;
+
+    if (m_depthPickRt && m_depthPickSize == pixelSize)
+        return;
+
+    m_depthPickFillPipeline.reset();
+    m_depthPickPointsPipeline.reset();
+    m_depthPickSrb.reset();
+    m_depthPickRp.reset();
+    m_depthPickRt.reset();
+    m_depthPickDepth.reset();
+    m_depthPickTexture.reset();
+
+    m_depthPickTexture.reset(
+        m_rhi->newTexture(
+            QRhiTexture::RGBA8,
+            pixelSize,
+            1,
+            QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
+    if (!m_depthPickTexture || !m_depthPickTexture->create()) {
+        m_depthPickTexture.reset();
+        m_depthPickSize = QSize();
+        return;
+    }
+
+    m_depthPickDepth.reset(m_rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, pixelSize, 1));
+    if (!m_depthPickDepth || !m_depthPickDepth->create()) {
+        m_depthPickDepth.reset();
+        m_depthPickTexture.reset();
+        m_depthPickSize = QSize();
+        return;
+    }
+
+    QRhiTextureRenderTargetDescription rtDesc(QRhiColorAttachment(m_depthPickTexture.get()));
+    rtDesc.setDepthStencilBuffer(m_depthPickDepth.get());
+    m_depthPickRt.reset(m_rhi->newTextureRenderTarget(rtDesc));
+    if (!m_depthPickRt) {
+        m_depthPickDepth.reset();
+        m_depthPickTexture.reset();
+        m_depthPickSize = QSize();
+        return;
+    }
+
+    m_depthPickRp.reset(m_depthPickRt->newCompatibleRenderPassDescriptor());
+    m_depthPickRt->setRenderPassDescriptor(m_depthPickRp.get());
+    if (!m_depthPickRt->create()) {
+        m_depthPickRp.reset();
+        m_depthPickRt.reset();
+        m_depthPickDepth.reset();
+        m_depthPickTexture.reset();
+        m_depthPickSize = QSize();
+        return;
+    }
+
+    if (!m_depthPickSrb && m_ubuf) {
+        m_depthPickSrb.reset(m_rhi->newShaderResourceBindings());
+        m_depthPickSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage,
+                m_ubuf.get())
+        });
+        if (!m_depthPickSrb->create())
+            m_depthPickSrb.reset();
+    }
+
+    if (m_depthPickSrb && !m_depthPickFillPipeline) {
+        m_depthPickFillPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/depth_pick.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/depth_pick.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load depth-pick fill shaders");
+            m_depthPickFillPipeline.reset();
+        } else {
+            m_depthPickFillPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_depthPickFillPipeline->setDepthTest(true);
+            m_depthPickFillPipeline->setDepthWrite(true);
+            m_depthPickFillPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { kFillVertexStrideFloats * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_depthPickFillPipeline->setVertexInputLayout(layout);
+            m_depthPickFillPipeline->setShaderResourceBindings(m_depthPickSrb.get());
+            m_depthPickFillPipeline->setRenderPassDescriptor(m_depthPickRp.get());
+            if (!m_depthPickFillPipeline->create()) {
+                qWarning("Failed to create depth-pick fill pipeline");
+                m_depthPickFillPipeline.reset();
+            }
+        }
+    }
+
+    if (m_depthPickSrb && !m_depthPickPointsPipeline) {
+        m_depthPickPointsPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/depth_pick.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/depth_pick.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load depth-pick points shaders");
+            m_depthPickPointsPipeline.reset();
+        } else {
+            m_depthPickPointsPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_depthPickPointsPipeline->setTopology(QRhiGraphicsPipeline::Points);
+            m_depthPickPointsPipeline->setDepthTest(true);
+            m_depthPickPointsPipeline->setDepthWrite(true);
+            m_depthPickPointsPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { kPointsVertexStrideFloats * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_depthPickPointsPipeline->setVertexInputLayout(layout);
+            m_depthPickPointsPipeline->setShaderResourceBindings(m_depthPickSrb.get());
+            m_depthPickPointsPipeline->setRenderPassDescriptor(m_depthPickRp.get());
+            if (!m_depthPickPointsPipeline->create()) {
+                qWarning("Failed to create depth-pick points pipeline");
+                m_depthPickPointsPipeline.reset();
+            }
+        }
+    }
+
+    m_depthPickSize = pixelSize;
+}
+
 void RenderWidget::ensureRenderResources()
 {
     if (m_rhi != rhi()) {
@@ -559,6 +674,17 @@ void RenderWidget::ensureRenderResources()
         m_wirePipeline.reset();
         m_bboxPipeline.reset();
         m_pointsPipeline.reset();
+        m_depthPickTexture.reset();
+        m_depthPickDepth.reset();
+        m_depthPickRt.reset();
+        m_depthPickRp.reset();
+        m_depthPickSize = QSize();
+        m_depthPickSrb.reset();
+        m_depthPickFillPipeline.reset();
+        m_depthPickPointsPipeline.reset();
+        m_depthPickPending = false;
+        m_depthPickInFlight = false;
+        m_depthPickReadbackResult.reset();
         m_currentMaskBaseTexture.reset();
         m_currentMaskBaseRt.reset();
         m_currentMaskBaseRp.reset();
@@ -1321,6 +1447,170 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     }
 }
 
+void RenderWidget::executePendingDepthPick(
+    QRhiCommandBuffer *cb,
+    const QMatrix4x4 &mvp,
+    const QSize &pixelSize,
+    int pointVariantIndex)
+{
+    if (!m_depthPickPending || m_depthPickInFlight || !m_rhi || !cb || pixelSize.isEmpty())
+        return;
+
+    ensureDepthPickResources(pixelSize);
+    if (!m_depthPickRt || !m_depthPickTexture || !m_depthPickSrb)
+        return;
+    if (!m_depthPickFillPipeline && !m_depthPickPointsPipeline)
+        return;
+
+    const float sx = float(pixelSize.width()) / float(qMax(1, width()));
+    const float sy = float(pixelSize.height()) / float(qMax(1, height()));
+    const int px = std::clamp(
+        int(std::floor((float(m_depthPickPos.x()) + 0.5f) * sx)),
+        0,
+        pixelSize.width() - 1);
+    const int pyScreen = std::clamp(
+        int(std::floor((float(m_depthPickPos.y()) + 0.5f) * sy)),
+        0,
+        pixelSize.height() - 1);
+    const int pyRead = m_rhi->isYUpInFramebuffer()
+        ? (pixelSize.height() - 1 - pyScreen)
+        : pyScreen;
+    const bool yUpInNdc = m_rhi->isYUpInNDC();
+    const bool clipDepthZeroToOne = m_rhi->isClipDepthZeroToOne();
+
+    const auto fillVariant = Document::FillGpuVariant::Constant;
+    const auto pointVariant = static_cast<Document::PointGpuVariant>(pointVariantIndex);
+
+    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        const auto &meshEntry = m_doc->mesh(mi);
+        if (!meshEntry.visible)
+            continue;
+        m_doc->ensureMeshGpuResources(
+            m_rhi,
+            cb,
+            mi,
+            fillVariant,
+            pointVariant,
+            true,   // fill
+            false,  // wire
+            true,   // points
+            false); // bbox
+    }
+
+    cb->beginPass(m_depthPickRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
+    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+
+    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        const auto &meshEntry = m_doc->mesh(mi);
+        if (!meshEntry.visible)
+            continue;
+
+        if (m_depthPickFillPipeline) {
+            const Document::FillPassGpuView fillView =
+                m_doc->fillPassGpuView(m_rhi, mi, fillVariant);
+            cb->setGraphicsPipeline(m_depthPickFillPipeline.get());
+            cb->setShaderResources(m_depthPickSrb.get());
+            for (int bi = 0; bi < fillView.batchCount; ++bi) {
+                const auto &batch = fillView.batches[bi];
+                if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
+                    continue;
+                const QRhiCommandBuffer::VertexInput vbufBinding(batch.vertexBuffer, 0);
+                if (batch.indexCount > 0 && batch.indexBuffer) {
+                    cb->setVertexInput(
+                        0, 1, &vbufBinding, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
+                    cb->drawIndexed(batch.indexCount);
+                } else {
+                    cb->setVertexInput(0, 1, &vbufBinding);
+                    cb->draw(batch.vertexCount);
+                }
+            }
+        }
+
+        if (m_depthPickPointsPipeline) {
+            const Document::PointsPassGpuView pointsView =
+                m_doc->pointsPassGpuView(m_rhi, mi, pointVariant);
+            if (pointsView.valid && pointsView.vertexBuffer && pointsView.vertexCount > 0) {
+                cb->setGraphicsPipeline(m_depthPickPointsPipeline.get());
+                cb->setShaderResources(m_depthPickSrb.get());
+                const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
+                cb->setVertexInput(0, 1, &pv);
+                cb->draw(pointsView.vertexCount);
+            }
+        }
+    }
+
+    cb->endPass();
+
+    QMatrix4x4 invMvp;
+    bool invOk = false;
+    invMvp = mvp.inverted(&invOk);
+    if (!invOk)
+        return;
+
+    QPointer<RenderWidget> self(this);
+    m_depthPickReadbackResult = std::make_unique<QRhiReadbackResult>();
+    m_depthPickReadbackResult->completed =
+        [self, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
+        if (!self)
+            return;
+        const QByteArray data =
+            self->m_depthPickReadbackResult ? self->m_depthPickReadbackResult->data : QByteArray();
+        const QRhiTexture::Format format = self->m_depthPickReadbackResult
+            ? self->m_depthPickReadbackResult->format
+            : QRhiTexture::UnknownFormat;
+        QMetaObject::invokeMethod(
+            self,
+            [self, data, format, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
+            if (!self)
+                return;
+            self->m_depthPickInFlight = false;
+            self->m_depthPickReadbackResult.reset();
+
+            if (self->m_depthPickPending)
+                self->update();
+
+            if (data.size() < 4)
+                return;
+
+            const uchar *pxData = reinterpret_cast<const uchar *>(data.constData());
+            const float alpha = pxData[3] / 255.0f;
+            if (alpha < 0.5f)
+                return;
+
+            const bool bgraOrder = (format == QRhiTexture::BGRA8);
+            const float depth01 = decodePackedDepthRgb8(pxData, bgraOrder);
+            if (depth01 <= 0.0f || depth01 >= 1.0f)
+                return;
+
+            const float ndcX =
+                (2.0f * (float(px) + 0.5f) / float(qMax(1, pixelSize.width()))) - 1.0f;
+            const float y01 = (float(pyScreen) + 0.5f) / float(qMax(1, pixelSize.height()));
+            const float ndcY = yUpInNdc ? (1.0f - 2.0f * y01) : (2.0f * y01 - 1.0f);
+            const float ndcZ = clipDepthZeroToOne ? depth01 : (depth01 * 2.0f - 1.0f);
+
+            QVector4D world = invMvp * QVector4D(ndcX, ndcY, ndcZ, 1.0f);
+            if (std::abs(world.w()) < 1e-8f)
+                return;
+            world /= world.w();
+            const QVector3D worldPos = world.toVector3D();
+            self->m_trackball.setCenter(worldPos);
+            emit self->trackballCenterPicked(worldPos);
+            self->update();
+        },
+            Qt::QueuedConnection);
+    };
+
+    QRhiReadbackDescription rb(m_depthPickTexture.get());
+    rb.setRect(QRect(px, pyRead, 1, 1));
+
+    QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+    u->readBackTexture(rb, m_depthPickReadbackResult.get());
+    cb->resourceUpdate(u);
+
+    m_depthPickPending = false;
+    m_depthPickInFlight = true;
+}
+
 void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize)
 {
     if (!m_renderSettings.highlightCurrentMesh)
@@ -1564,6 +1854,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     const bool anyDrawPass =
         drawFillPass || drawWirePass || drawBBoxPass || drawPointsPass
         || drawCurrentMeshHighlight || drawTrackballGizmo;
+    const bool needMvpForFrame = anyDrawPass || m_depthPickPending;
 
     if (anyDrawPass)
         prepareDirtyBuffers(cb);
@@ -1574,7 +1865,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     QRhiResourceUpdateBatch *u = nullptr;
     QMatrix4x4 mvp;
-    if (anyDrawPass) {
+    if (needMvpForFrame) {
         const float aspect = sz.width() / float(sz.height());
         const float sceneRadius = m_trackball.radius();
 
@@ -1648,6 +1939,15 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
+    const int pointVariantIndex = pointGpuVariantIndexForCurrentSettings();
+    if (m_depthPickPending) {
+        if (u) {
+            cb->resourceUpdate(u);
+            u = nullptr;
+        }
+        executePendingDepthPick(cb, mvp, sz, pointVariantIndex);
+    }
+
     if (drawCurrentMeshHighlight) {
         if (u) {
             cb->resourceUpdate(u);
@@ -1660,7 +1960,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     const auto fillVariant = static_cast<Document::FillGpuVariant>(
         fillGpuVariantIndexForCurrentSettings());
     const auto pointVariant = static_cast<Document::PointGpuVariant>(
-        pointGpuVariantIndexForCurrentSettings());
+        pointVariantIndex);
 
     cb->beginPass(renderTarget(), QColor(40, 40, 40), { 1.0f, 0 }, u);
 
@@ -1787,108 +2087,12 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 {
     if (!e || m_doc->meshCount() <= 0)
         return;
-
-    const QSize viewport = size();
-    if (viewport.width() <= 1 || viewport.height() <= 1)
+    if (e->button() != Qt::LeftButton)
         return;
-
-    const float sceneRadius = m_trackball.radius();
-    const float aspect = float(viewport.width()) / float(viewport.height());
-    QMatrix4x4 proj;
-    proj.perspective(45.0f, aspect, 0.01f * sceneRadius, 100.0f * sceneRadius);
-    const QMatrix4x4 view = m_trackball.viewMatrix();
-    const QMatrix4x4 mvp = proj * view;
-    bool okInv = false;
-    const QMatrix4x4 invMvp = mvp.inverted(&okInv);
-    if (!okInv)
-        return;
-
-    const QPointF p = e->position();
-    const float xNdc = (2.0f * float(p.x()) / float(viewport.width())) - 1.0f;
-    const float yNdc = 1.0f - (2.0f * float(p.y()) / float(viewport.height()));
-    QVector4D pNear = invMvp * QVector4D(xNdc, yNdc, -1.0f, 1.0f);
-    QVector4D pFar = invMvp * QVector4D(xNdc, yNdc, 1.0f, 1.0f);
-    if (qFuzzyIsNull(pNear.w()) || qFuzzyIsNull(pFar.w()))
-        return;
-    pNear /= pNear.w();
-    pFar /= pFar.w();
-
-    const QVector3D rayOrig = pNear.toVector3D();
-    QVector3D rayDir = pFar.toVector3D() - rayOrig;
-    const float rayLen2 = rayDir.lengthSquared();
-    if (rayLen2 < 1e-12f)
-        return;
-    rayDir /= std::sqrt(rayLen2);
-
-    bool hitFound = false;
-    float bestT = std::numeric_limits<float>::max();
-    QVector3D bestHit;
-
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const auto &entry = m_doc->mesh(mi);
-        if (!entry.visible || entry.mesh.FN() <= 0)
-            continue;
-        for (const VCGFace &f : entry.mesh.face) {
-            if (f.IsD())
-                continue;
-            const QVector3D v0 = toVec3(f.V(0)->cP());
-            const QVector3D v1 = toVec3(f.V(1)->cP());
-            const QVector3D v2 = toVec3(f.V(2)->cP());
-            float t = 0.0f;
-            if (!intersectRayTriangle(rayOrig, rayDir, v0, v1, v2, t))
-                continue;
-            if (t < bestT) {
-                bestT = t;
-                bestHit = rayOrig + rayDir * t;
-                hitFound = true;
-            }
-        }
-    }
-
-    // Fallback for point clouds or misses: nearest projected visible vertex under cursor.
-    if (!hitFound) {
-        const float pickRadiusPx = 18.0f;
-        const float pickRadius2 = pickRadiusPx * pickRadiusPx;
-        float bestScreenD2 = std::numeric_limits<float>::max();
-        QVector3D bestVertex;
-
-        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            const auto &entry = m_doc->mesh(mi);
-            if (!entry.visible)
-                continue;
-            for (const VCGVertex &v : entry.mesh.vert) {
-                if (v.IsD())
-                    continue;
-                const QVector3D wp = toVec3(v.cP());
-                const QVector4D clip = mvp * QVector4D(wp, 1.0f);
-                if (clip.w() <= 0.0f)
-                    continue;
-                const QVector3D ndc = clip.toVector3D() / clip.w();
-                if (ndc.z() < -1.0f || ndc.z() > 1.0f)
-                    continue;
-                const float sx = (ndc.x() * 0.5f + 0.5f) * float(viewport.width());
-                const float sy = (1.0f - (ndc.y() * 0.5f + 0.5f)) * float(viewport.height());
-                const float dx = sx - float(p.x());
-                const float dy = sy - float(p.y());
-                const float d2 = dx * dx + dy * dy;
-                if (d2 <= pickRadius2 && d2 < bestScreenD2) {
-                    bestScreenD2 = d2;
-                    bestVertex = wp;
-                }
-            }
-        }
-
-        if (bestScreenD2 < std::numeric_limits<float>::max()) {
-            hitFound = true;
-            bestHit = bestVertex;
-        }
-    }
-
-    if (hitFound) {
-        m_trackball.setCenter(bestHit);
-        update();
-        e->accept();
-    }
+    m_depthPickPos = e->position().toPoint();
+    m_depthPickPending = true;
+    update();
+    e->accept();
 }
 
 void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
