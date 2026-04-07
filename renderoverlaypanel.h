@@ -57,6 +57,7 @@ private:
     QCheckBox *m_wireLightingCheck = nullptr;
     QCheckBox *m_wireBackfaceCullingCheck = nullptr;
     QCheckBox *m_fillLightingCheck = nullptr;
+    QCheckBox *m_fillBackfaceCullingCheck = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;
     QComboBox *m_fillColorSourceCombo = nullptr;
     bool m_hasPointVertexColorSource = false;

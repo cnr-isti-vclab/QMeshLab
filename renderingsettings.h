@@ -49,6 +49,7 @@ struct RenderSettings {
     bool wireLighting = false;
     bool wireBackfaceCulling = true;
     bool fillLighting = true;
+    bool fillBackfaceCulling = true;
     bool settingsPanelVisible = false;
     RenderPass currentPass = RenderPass::Fill;
     QColor bboxWireColor = QColor(245, 190, 60);
@@ -77,6 +78,7 @@ struct RenderSettings {
             && wireLighting == other.wireLighting
             && wireBackfaceCulling == other.wireBackfaceCulling
             && fillLighting == other.fillLighting
+            && fillBackfaceCulling == other.fillBackfaceCulling
             && settingsPanelVisible == other.settingsPanelVisible
             && currentPass == other.currentPass
             && bboxWireColor == other.bboxWireColor

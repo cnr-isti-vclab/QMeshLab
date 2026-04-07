@@ -285,11 +285,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillShadingCombo = new QComboBox(fillPage);
     m_fillShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
     m_fillShadingCombo->addItem(tr("Flat"), static_cast<int>(FillShading::Flat));
+    m_fillBackfaceCullingCheck = new QCheckBox(tr("On"), fillPage);
+    m_fillBackfaceCullingCheck->setChecked(m_settings.fillBackfaceCulling);
     m_fillLightingCheck = new QCheckBox(tr("On"), fillPage);
     m_fillLightingCheck->setChecked(m_settings.fillLighting);
     fillForm->addRow(tr("Color source"), m_fillColorSourceCombo);
     fillForm->addRow(tr("Fill color"), m_fillColorButton);
     fillForm->addRow(tr("Shading"), m_fillShadingCombo);
+    fillForm->addRow(tr("Backface culling"), m_fillBackfaceCullingCheck);
     fillForm->addRow(tr("Lighting"), m_fillLightingCheck);
     fillLayout->addLayout(fillForm);
     m_settingsStack->addWidget(fillPage);
@@ -449,6 +452,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         if (m_settings.fillShading == shading)
             return;
         m_settings.fillShading = shading;
+        emit settingsChanged(m_settings);
+    });
+    connect(m_fillBackfaceCullingCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_settings.fillBackfaceCulling == checked)
+            return;
+        m_settings.fillBackfaceCulling = checked;
         emit settingsChanged(m_settings);
     });
     connect(m_fillLightingCheck, &QCheckBox::toggled, this, [this](bool checked) {
@@ -630,6 +639,10 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_fillLightingCheck) {
         QSignalBlocker blocker(m_fillLightingCheck);
         m_fillLightingCheck->setChecked(m_settings.fillLighting);
+    }
+    if (m_fillBackfaceCullingCheck) {
+        QSignalBlocker blocker(m_fillBackfaceCullingCheck);
+        m_fillBackfaceCullingCheck->setChecked(m_settings.fillBackfaceCulling);
     }
     if (m_pointSizeSpin) {
         QSignalBlocker blocker(m_pointSizeSpin);

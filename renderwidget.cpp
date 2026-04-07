@@ -111,7 +111,8 @@ void RenderWidget::createOverlayButtons()
             : ShadingMode::Smooth;
 
         if (prev.showFill != m_renderSettings.showFill
-            || prev.fillShading != m_renderSettings.fillShading) {
+            || prev.fillShading != m_renderSettings.fillShading
+            || prev.fillBackfaceCulling != m_renderSettings.fillBackfaceCulling) {
             m_fillPipeline.reset();
         }
         if (prev.showWire != m_renderSettings.showWire
@@ -748,7 +749,10 @@ void RenderWidget::ensureRenderResources()
 
         m_fillPipeline->setDepthTest(true);
         m_fillPipeline->setDepthWrite(true);
-        m_fillPipeline->setCullMode(QRhiGraphicsPipeline::Back);
+        m_fillPipeline->setCullMode(
+            m_renderSettings.fillBackfaceCulling
+                ? QRhiGraphicsPipeline::Back
+                : QRhiGraphicsPipeline::None);
 
         QRhiVertexInputLayout inputLayout;
         // Fill vertex layout: position(3f) + normal(3f) + meshColor(4f) + texInfo(uv + useTexture flag).

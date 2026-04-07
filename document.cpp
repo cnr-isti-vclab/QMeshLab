@@ -5,8 +5,11 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <QElapsedTimer>
+#include <QCoreApplication>
+#include <QEventLoop>
 #include <QDir>
 #include <QFileInfo>
+#include <algorithm>
 
 namespace {
 Document *g_callbackDocument = nullptr;
@@ -88,8 +91,11 @@ int Document::loadMesh(const QString &filename)
     auto entry = std::make_unique<MeshEntry>();
     m_lastCallbackMessage.clear();
     m_lastCallbackBucket = -1;
+    m_lastProgressPos = -1;
     QElapsedTimer loadTimer;
     loadTimer.start();
+    emit loadProgressStarted(filename);
+    emit loadProgressUpdated(0, tr("Opening %1").arg(QFileInfo(filename).fileName()));
 
     Document *previousCallbackDocument = g_callbackDocument;
     g_callbackDocument = this;
@@ -99,6 +105,7 @@ int Document::loadMesh(const QString &filename)
     const qint64 elapsedMs = loadTimer.elapsed();
 
     if (err != 0) {
+        emit loadProgressFinished(false, plugin->errorString(err));
         writeLog(tr("Load failed in %1 ms: %2")
             .arg(elapsedMs)
             .arg(plugin->errorString(err)),
@@ -176,6 +183,8 @@ int Document::loadMesh(const QString &filename)
 
     emit meshAdded(index);
     setCurrentMeshIndex(index);
+    emit loadProgressUpdated(100, tr("Loaded %1").arg(meshEntry.name));
+    emit loadProgressFinished(true, tr("Loaded %1").arg(meshEntry.name));
     return 0;
 }
 
@@ -382,6 +391,13 @@ bool Document::handleLogCallback(int pos, const char *message)
     while (!text.isEmpty() && (text.endsWith('\n') || text.endsWith('\r')))
         text.chop(1);
     text = text.trimmed();
+
+    const int clampedPos = std::clamp(pos, 0, 100);
+    if (clampedPos != m_lastProgressPos) {
+        m_lastProgressPos = clampedPos;
+        emit loadProgressUpdated(clampedPos, text);
+        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+    }
 
     const int bucket = pos / 10;
 

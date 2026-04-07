@@ -13,6 +13,7 @@
 #include <QMatrix4x4>
 #include <QObject>
 #include <QQuaternion>
+#include <QRegularExpression>
 #include <QUrl>
 
 #include <algorithm>
@@ -32,6 +33,16 @@ constexpr int kErrOpen = -1;
 constexpr int kErrParse = -2;
 constexpr int kErrNoMesh = -3;
 constexpr int kErrInvalidData = -4;
+
+void reportProgress(vcg::CallBackPos *cb, int pos, const QString &msg, bool replaceLast = false)
+{
+    if (!cb)
+        return;
+    const QByteArray raw = replaceLast
+        ? (msg + QStringLiteral("\r")).toLocal8Bit()
+        : msg.toLocal8Bit();
+    cb(pos, raw.constData());
+}
 
 struct AccessorView {
     const unsigned char *data = nullptr;
@@ -279,6 +290,8 @@ public:
         if (outLoadMask)
             *outLoadMask = 0;
 
+        reportProgress(cb, 0, QObject::tr("Reading glTF file: %1").arg(QFileInfo(filename).fileName()), true);
+
         tinygltf::TinyGLTF loader;
         tinygltf::Model model;
         std::string warn;
@@ -288,10 +301,26 @@ public:
         const bool ok = (ext == QLatin1String("glb"))
             ? loader.LoadBinaryFromFile(&model, &warn, &err, filename.toStdString())
             : loader.LoadASCIIFromFile(&model, &warn, &err, filename.toStdString());
-        if (!ok)
-            return kErrOpen;
-        if (model.meshes.empty())
+        if (!warn.empty()) {
+            const QStringList warnLines =
+                QString::fromStdString(warn).split(QRegularExpression(QStringLiteral("[\\r\\n]+")), Qt::SkipEmptyParts);
+            for (const QString &line : warnLines)
+                reportProgress(cb, 0, QObject::tr("glTF warning: %1").arg(line.trimmed()));
+        }
+        if (!ok) {
+            const QString errorText = QString::fromStdString(err).trimmed();
+            if (!errorText.isEmpty())
+                reportProgress(cb, 0, QObject::tr("glTF load error: %1").arg(errorText));
+            else
+                reportProgress(cb, 0, QObject::tr("glTF load error: unknown loader failure."));
+            return QFileInfo::exists(filename) ? kErrParse : kErrOpen;
+        }
+        if (model.meshes.empty()) {
+            reportProgress(cb, 0, QObject::tr("glTF error: document has no meshes."));
             return kErrNoMesh;
+        }
+
+        reportProgress(cb, 5, QObject::tr("Parsing glTF scene graph..."), true);
 
         mesh.Clear();
         mesh.textures.clear();
@@ -300,9 +329,16 @@ public:
         bool hasVertexNormals = false;
         bool hasVertexColors = false;
         bool hasWedgeTexCoords = false;
+        int skippedUnsupportedPrimitiveCount = 0;
+        int skippedMissingPositionCount = 0;
+        int skippedInvalidPositionAccessorCount = 0;
+        int textureDecodeFailureCount = 0;
+        int textureMissingFileCount = 0;
 
         std::unordered_map<int, int> imageToTextureSlot;
         std::vector<std::string> textureFiles;
+        const QFileInfo inputInfo(filename);
+        const QDir inputDir = inputInfo.absoluteDir();
 
         auto textureSlotForMaterial = [&](int materialIndex) -> int {
             if (materialIndex < 0 || materialIndex >= int(model.materials.size()))
@@ -324,8 +360,15 @@ public:
 
             const bool isDataUri = uri.startsWith(QStringLiteral("data:"), Qt::CaseInsensitive);
             if (uri.isEmpty() || isDataUri) {
-                if (img.image.empty() || img.width <= 0 || img.height <= 0)
+                if (img.image.empty() || img.width <= 0 || img.height <= 0) {
+                    ++textureDecodeFailureCount;
+                    reportProgress(
+                        cb,
+                        0,
+                        QObject::tr("glTF warning: embedded texture #%1 has no valid pixel data.")
+                            .arg(imageIndex));
                     return -1;
+                }
 
                 QImage qimg;
                 if (img.bits == 8 && img.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
@@ -337,8 +380,18 @@ public:
                         qimg = QImage(img.image.data(), img.width, img.height, QImage::Format_Grayscale8).copy();
                     }
                 }
-                if (qimg.isNull())
+                if (qimg.isNull()) {
+                    ++textureDecodeFailureCount;
+                    reportProgress(
+                        cb,
+                        0,
+                        QObject::tr("glTF warning: unsupported embedded texture format for image #%1 (components=%2, bits=%3, pixelType=%4).")
+                            .arg(imageIndex)
+                            .arg(img.component)
+                            .arg(img.bits)
+                            .arg(img.pixel_type));
                     return -1;
+                }
 
                 QDir tmpDir(QDir::tempPath() + QStringLiteral("/qmeshlab_gltf_textures"));
                 if (!tmpDir.exists())
@@ -346,9 +399,31 @@ public:
                 const QString baseName = QFileInfo(filename).completeBaseName();
                 const QString fileName = QStringLiteral("%1_img_%2.png").arg(baseName).arg(imageIndex);
                 const QString absPath = tmpDir.filePath(fileName);
-                if (!qimg.save(absPath))
+                if (!qimg.save(absPath)) {
+                    ++textureDecodeFailureCount;
+                    reportProgress(
+                        cb,
+                        0,
+                        QObject::tr("glTF warning: failed saving embedded texture #%1 to '%2'.")
+                            .arg(imageIndex)
+                            .arg(absPath));
                     return -1;
+                }
                 uri = absPath;
+            } else {
+                QString resolvedTexturePath = uri;
+                if (QFileInfo(uri).isRelative())
+                    resolvedTexturePath = inputDir.filePath(uri);
+                if (!QFileInfo::exists(resolvedTexturePath)) {
+                    ++textureMissingFileCount;
+                    reportProgress(
+                        cb,
+                        0,
+                        QObject::tr("glTF warning: texture file not found '%1' (resolved: '%2').")
+                            .arg(uri)
+                            .arg(resolvedTexturePath));
+                    return -1;
+                }
             }
 
             const int slot = int(textureFiles.size());
@@ -386,16 +461,22 @@ public:
                 for (int pi = 0; pi < primitiveCount; ++pi) {
                     const tinygltf::Primitive &prim = srcMesh.primitives[size_t(pi)];
                     const int mode = prim.mode;
-                    if (mode != TINYGLTF_MODE_TRIANGLES && mode != TINYGLTF_MODE_POINTS)
+                    if (mode != TINYGLTF_MODE_TRIANGLES && mode != TINYGLTF_MODE_POINTS) {
+                        ++skippedUnsupportedPrimitiveCount;
                         continue;
+                    }
 
                     const auto posIt = prim.attributes.find("POSITION");
-                    if (posIt == prim.attributes.end())
+                    if (posIt == prim.attributes.end()) {
+                        ++skippedMissingPositionCount;
                         continue;
+                    }
 
                     AccessorView posView, nrmView, uvView, colView, idxView;
-                    if (!makeAccessorView(model, posIt->second, posView) || posView.componentCount < 3)
+                    if (!makeAccessorView(model, posIt->second, posView) || posView.componentCount < 3) {
+                        ++skippedInvalidPositionAccessorCount;
                         continue;
+                    }
                     const auto nIt = prim.attributes.find("NORMAL");
                     if (nIt != prim.attributes.end() && makeAccessorView(model, nIt->second, nrmView) && nrmView.componentCount >= 3)
                         hasVertexNormals = true;
@@ -485,7 +566,7 @@ public:
 
                     if (cb != nullptr && primitiveCount > 0) {
                         const int primitiveProgress = int((pi + 1) * 100 / primitiveCount);
-                        cb(primitiveProgress, "Loading glTF primitives\r");
+                        reportProgress(cb, primitiveProgress, QStringLiteral("Loading glTF primitives"), true);
                     }
                 }
             }
@@ -518,8 +599,10 @@ public:
                 processNode(int(ni), identity);
         }
 
-        if (mesh.VN() == 0)
+        if (mesh.VN() == 0) {
+            reportProgress(cb, 0, QObject::tr("glTF error: no supported geometry could be imported."));
             return kErrInvalidData;
+        }
 
         mesh.textures = textureFiles;
 
@@ -535,8 +618,37 @@ public:
         if (outLoadMask)
             *outLoadMask = loadMask;
 
-        if (cb != nullptr)
-            cb(100, "Loading glTF done\r");
+        if (skippedUnsupportedPrimitiveCount > 0) {
+            reportProgress(
+                cb,
+                100,
+                QObject::tr("glTF warning: skipped %1 unsupported primitive(s) (only TRIANGLES and POINTS are imported).")
+                    .arg(skippedUnsupportedPrimitiveCount));
+        }
+        if (skippedMissingPositionCount > 0) {
+            reportProgress(
+                cb,
+                100,
+                QObject::tr("glTF warning: skipped %1 primitive(s) missing POSITION attribute.")
+                    .arg(skippedMissingPositionCount));
+        }
+        if (skippedInvalidPositionAccessorCount > 0) {
+            reportProgress(
+                cb,
+                100,
+                QObject::tr("glTF warning: skipped %1 primitive(s) with invalid POSITION accessor.")
+                    .arg(skippedInvalidPositionAccessorCount));
+        }
+        if (textureDecodeFailureCount > 0 || textureMissingFileCount > 0) {
+            reportProgress(
+                cb,
+                100,
+                QObject::tr("glTF texture report: %1 decode failure(s), %2 missing file(s).")
+                    .arg(textureDecodeFailureCount)
+                    .arg(textureMissingFileCount));
+        }
+
+        reportProgress(cb, 100, QStringLiteral("Loading glTF done"), true);
 
         return 0;
     }
@@ -550,13 +662,13 @@ public:
     {
         switch (errCode) {
         case kErrOpen:
-            return QObject::tr("Cannot open or parse glTF/glb file.");
+            return QObject::tr("Cannot open glTF/glb file. Check file path and external resources.");
         case kErrParse:
-            return QObject::tr("Failed to parse glTF document.");
+            return QObject::tr("Failed to parse glTF document. Check log for detailed tinygltf errors.");
         case kErrNoMesh:
             return QObject::tr("No mesh data found in glTF document.");
         case kErrInvalidData:
-            return QObject::tr("glTF geometry data is empty or invalid.");
+            return QObject::tr("glTF geometry data is empty or unsupported.");
         default:
             return QObject::tr("Unknown glTF import error.");
         }

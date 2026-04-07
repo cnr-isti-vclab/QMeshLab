@@ -11,6 +11,7 @@ class LayerWidget;
 class QMenu;
 class QAction;
 class QLabel;
+class QProgressBar;
 
 class MainWindow : public QMainWindow
 {
@@ -19,6 +20,7 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
 
 private slots:
+    void newDocument();
     void openFile();
     void openLastMesh();
     void openRecentMesh();
@@ -43,6 +45,7 @@ private:
     QAction *m_openLastAction = nullptr;
     std::array<QAction *, 4> m_recentActions = {};
     QStringList m_recentMeshes;
+    QProgressBar *m_loadProgressBar = nullptr;
     QLabel *m_frameStatsLabel = nullptr;
     std::deque<float> m_lastCpuFrameTimes;
     std::deque<float> m_lastGpuFrameTimes;

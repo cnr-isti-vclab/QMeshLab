@@ -88,6 +88,9 @@ signals:
     void meshRemoved(int index);
     void meshVisibilityChanged(int index, bool visible);
     void currentMeshChanged(int index);
+    void loadProgressStarted(const QString &filePath);
+    void loadProgressUpdated(int percent, const QString &message);
+    void loadProgressFinished(bool success, const QString &message);
     void logCleared();
     void logMessageAdded(const QString &message, Document::LogSource source, bool replaceLast);
 
@@ -105,4 +108,5 @@ private:
     std::vector<LogEntry> m_logMessages;
     QString m_lastCallbackMessage;
     int m_lastCallbackBucket = -1;
+    int m_lastProgressPos = -1;
 };

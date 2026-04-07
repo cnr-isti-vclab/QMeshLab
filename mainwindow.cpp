@@ -18,6 +18,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QProgressBar>
 #include <QSettings>
 #include <QStringList>
 #include <algorithm>
@@ -82,6 +83,13 @@ MainWindow::MainWindow(QWidget *parent)
     m_renderWidget = new RenderWidget(m_doc, this);
     setCentralWidget(m_renderWidget);
 
+    m_loadProgressBar = new QProgressBar(this);
+    m_loadProgressBar->setRange(0, 100);
+    m_loadProgressBar->setTextVisible(false);
+    m_loadProgressBar->setFixedWidth(160);
+    m_loadProgressBar->setVisible(false);
+    statusBar()->addPermanentWidget(m_loadProgressBar, 0);
+
     m_frameStatsLabel = new QLabel(this);
     QFont statsFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
     statsFont.setStyleHint(QFont::TypeWriter);
@@ -107,12 +115,41 @@ MainWindow::MainWindow(QWidget *parent)
             appendLogItem(logWidget, message, source, replaceLast);
     });
 
+    connect(m_doc, &Document::loadProgressStarted, this, [this](const QString &filePath) {
+        if (!m_loadProgressBar)
+            return;
+        m_loadProgressBar->setValue(0);
+        m_loadProgressBar->setVisible(true);
+        m_loadProgressBar->setToolTip(filePath);
+        statusBar()->showMessage(tr("Loading %1...").arg(QFileInfo(filePath).fileName()));
+    });
+    connect(m_doc, &Document::loadProgressUpdated, this, [this](int percent, const QString &message) {
+        if (!m_loadProgressBar)
+            return;
+        m_loadProgressBar->setVisible(true);
+        m_loadProgressBar->setValue(std::clamp(percent, 0, 100));
+        if (!message.isEmpty())
+            statusBar()->showMessage(tr("Loading: %1% - %2").arg(percent).arg(message));
+        else
+            statusBar()->showMessage(tr("Loading: %1%").arg(percent));
+    });
+    connect(m_doc, &Document::loadProgressFinished, this, [this](bool success, const QString &message) {
+        if (m_loadProgressBar)
+            m_loadProgressBar->setVisible(false);
+        statusBar()->showMessage(message.isEmpty()
+                ? (success ? tr("Loading completed") : tr("Loading failed"))
+                : message,
+            success ? 2500 : 4000);
+    });
+
     connect(m_renderWidget, &RenderWidget::frameRendered, this,
             [this](float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid) {
         updateFrameTimeStats(cpuMs, gpuMs, gpuTimingSupported, gpuSampleValid);
     });
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
+    fileMenu->addAction(tr("&New"), QKeySequence::New, this, &MainWindow::newDocument);
+    fileMenu->addSeparator();
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &MainWindow::openFile);
     m_openLastAction = fileMenu->addAction(tr("Open &Last Mesh"), this, &MainWindow::openLastMesh);
     m_openLastAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+L")));
@@ -143,6 +180,15 @@ MainWindow::MainWindow(QWidget *parent)
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
     sanitizeRecentMeshes();
     refreshRecentMeshesMenu();
+}
+
+void MainWindow::newDocument()
+{
+    // Remove from back to keep indices valid while emitting meshRemoved/currentMeshChanged.
+    while (m_doc->meshCount() > 0)
+        m_doc->removeMesh(m_doc->meshCount() - 1);
+    m_doc->clearLog();
+    statusBar()->showMessage(tr("New document"), 2000);
 }
 
 void MainWindow::openFile()

@@ -3,11 +3,14 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QHeaderView>
+#include <QLocale>
 #include <QSignalBlocker>
 #include <algorithm>
 
 namespace {
 constexpr int kFirstColumnMaxWidth = 110;
+constexpr int kSecondColumnFixedWidth = 170;
 
 QString meshDataSummary(const Document::MeshEntry &entry)
 {
@@ -17,25 +20,25 @@ QString meshDataSummary(const Document::MeshEntry &entry)
     const int mask = entry.ioMask;
 
     if ((mask & Mask::IOM_VERTCOLOR) != 0)
-        tokens << QObject::tr("VColor");
+        tokens << QObject::tr("VC");
     if ((mask & Mask::IOM_FACECOLOR) != 0)
-        tokens << QObject::tr("FColor");
+        tokens << QObject::tr("FC");
     if ((mask & Mask::IOM_VERTNORMAL) != 0)
-        tokens << QObject::tr("VNormal");
+        tokens << QObject::tr("VN");
     if ((mask & Mask::IOM_FACENORMAL) != 0)
-        tokens << QObject::tr("FNormal");
+        tokens << QObject::tr("FN");
     if ((mask & Mask::IOM_WEDGNORMAL) != 0)
-        tokens << QObject::tr("WNormal");
+        tokens << QObject::tr("WN");
     if ((mask & Mask::IOM_VERTTEXCOORD) != 0)
-        tokens << QObject::tr("VTex");
+        tokens << QObject::tr("VT");
     if ((mask & Mask::IOM_WEDGTEXCOORD) != 0)
-        tokens << QObject::tr("WTex");
+        tokens << QObject::tr("WT");
     if ((mask & Mask::IOM_WEDGTEXMULTI) != 0)
-        tokens << QObject::tr("MultiTex");
+        tokens << QObject::tr("MT");
     if ((mask & Mask::IOM_VERTQUALITY) != 0)
-        tokens << QObject::tr("VQuality");
+        tokens << QObject::tr("VQ");
     if ((mask & Mask::IOM_FACEQUALITY) != 0)
-        tokens << QObject::tr("FQuality");
+        tokens << QObject::tr("FQ");
 
     if (!entry.textureFilePaths.isEmpty()) {
         int foundCount = 0;
@@ -43,12 +46,12 @@ QString meshDataSummary(const Document::MeshEntry &entry)
             if (QFileInfo::exists(path))
                 ++foundCount;
         }
-        tokens << QObject::tr("Textures %1/%2").arg(foundCount).arg(entry.textureFilePaths.size());
+        tokens << QObject::tr("TX %1/%2").arg(foundCount).arg(entry.textureFilePaths.size());
     }
 
     if (tokens.isEmpty())
         return QObject::tr("none");
-    return tokens.join(QStringLiteral(", "));
+    return tokens.join(QLatin1Char(' '));
 }
 
 QString meshDataTooltip(const Document::MeshEntry &entry)
@@ -72,8 +75,12 @@ QString meshDataTooltip(const Document::MeshEntry &entry)
 
 QString textureDisplayName(const Document::MeshEntry &entry, int index)
 {
-    if (index >= 0 && index < entry.textureFileNames.size() && !entry.textureFileNames.at(index).isEmpty())
+    if (index >= 0 && index < entry.textureFileNames.size() && !entry.textureFileNames.at(index).isEmpty()) {
+        const QString n = QFileInfo(entry.textureFileNames.at(index)).fileName();
+        if (!n.isEmpty())
+            return n;
         return entry.textureFileNames.at(index);
+    }
 
     if (index >= 0 && index < entry.textureFilePaths.size()) {
         const QString fileName = QFileInfo(entry.textureFilePaths.at(index)).fileName();
@@ -103,6 +110,9 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     setColumnCount(2);
     setHeaderHidden(true);
     setSelectionMode(QAbstractItemView::SingleSelection);
+    header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    header()->setSectionResizeMode(1, QHeaderView::Fixed);
+    setColumnWidth(1, kSecondColumnFixedWidth);
 
     connect(m_doc, &Document::meshAdded, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
@@ -118,6 +128,7 @@ void LayerWidget::rebuild()
 {
     m_rebuilding = true;
     QSignalBlocker blocker(this);
+    const QLocale locale = QLocale::system();
     clear();
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         const auto &entry = m_doc->mesh(i);
@@ -127,11 +138,13 @@ void LayerWidget::rebuild()
         item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
         item->setFirstColumnSpanned(true);
 
-        auto *vItem = new QTreeWidgetItem({tr("Vertices"), QString::number(entry.mesh.VN())});
+        auto *vItem = new QTreeWidgetItem({tr("Vertices"), locale.toString(static_cast<qlonglong>(entry.mesh.VN()))});
         vItem->setFlags(vItem->flags() & ~Qt::ItemIsSelectable);
+        vItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
         item->addChild(vItem);
-        auto *fItem = new QTreeWidgetItem({tr("Faces"), QString::number(entry.mesh.FN())});
+        auto *fItem = new QTreeWidgetItem({tr("Faces"), locale.toString(static_cast<qlonglong>(entry.mesh.FN()))});
         fItem->setFlags(fItem->flags() & ~Qt::ItemIsSelectable);
+        fItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
         item->addChild(fItem);
         auto *dItem = new QTreeWidgetItem({tr("Data"), meshDataSummary(entry)});
         dItem->setFlags(dItem->flags() & ~Qt::ItemIsSelectable);
@@ -165,7 +178,7 @@ void LayerWidget::rebuild()
     updateCurrentItemVisuals();
     resizeColumnToContents(0);
     setColumnWidth(0, std::min(columnWidth(0), kFirstColumnMaxWidth));
-    resizeColumnToContents(1);
+    setColumnWidth(1, kSecondColumnFixedWidth);
     m_rebuilding = false;
 }
 
