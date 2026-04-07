@@ -90,6 +90,9 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
+    std::unique_ptr<QRhiBuffer> m_decoratorUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_decoratorSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_decoratorPipeline;
     std::unique_ptr<QRhiTexture> m_depthPickTexture;
     std::unique_ptr<QRhiRenderBuffer> m_depthPickDepth;
     std::unique_ptr<QRhiTextureRenderTarget> m_depthPickRt;

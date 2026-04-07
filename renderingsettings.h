@@ -5,11 +5,12 @@
 
 enum class RenderPass {
     CurrentMesh = 0,
-    Decorators,
     BoundingBox,
     Points,
     Wireframe,
-    Fill
+    Fill,
+    DecoratorNormals,
+    DecoratorBoundary
 };
 
 enum class FillShading {

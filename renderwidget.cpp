@@ -40,6 +40,7 @@ constexpr int kPointsVertexStrideFloats = 11;
 constexpr int kMaskMorphUbufSize = 16;
 constexpr int kMaskDebugUbufSize = 16;
 constexpr int kOutlineUbufSize = 32;
+constexpr int kDecoratorUbufSize = 80; // mat4 mvp + vec4 color
 constexpr int kTrackballGizmoUbufSize = 80; // mat4 mvp + vec4(center.xyz, radius)
 constexpr int kTrackballGizmoSteps = 96;
 constexpr float kPi = 3.14159265358979323846f;
@@ -722,6 +723,9 @@ void RenderWidget::ensureRenderResources()
         m_wirePipeline.reset();
         m_bboxPipeline.reset();
         m_pointsPipeline.reset();
+        m_decoratorPipeline.reset();
+        m_decoratorSrb.reset();
+        m_decoratorUbuf.reset();
         m_depthPickTexture.reset();
         m_depthPickDepth.reset();
         m_depthPickRt.reset();
@@ -821,6 +825,22 @@ void RenderWidget::ensureRenderResources()
                 m_textureSampler.get())
         });
         m_srb->create();
+    }
+
+    if (!m_decoratorUbuf) {
+        m_decoratorUbuf.reset(
+            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorUbufSize));
+        m_decoratorUbuf->create();
+    }
+    if (!m_decoratorSrb && m_decoratorUbuf) {
+        m_decoratorSrb.reset(m_rhi->newShaderResourceBindings());
+        m_decoratorSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                m_decoratorUbuf.get())
+        });
+        m_decoratorSrb->create();
     }
 
     if (!m_outlineUbuf) {
@@ -1177,6 +1197,37 @@ void RenderWidget::ensureRenderResources()
         }
     }
 
+    if (!m_decoratorPipeline && m_decoratorSrb) {
+        m_decoratorPipeline.reset(m_rhi->newGraphicsPipeline());
+
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_decorator.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_decorator.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load decorator shaders");
+            m_decoratorPipeline.reset();
+        } else {
+            m_decoratorPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_decoratorPipeline->setTopology(QRhiGraphicsPipeline::Lines);
+            m_decoratorPipeline->setDepthTest(true);
+            m_decoratorPipeline->setDepthWrite(false);
+            m_decoratorPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_decoratorPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_decoratorPipeline->setVertexInputLayout(layout);
+            m_decoratorPipeline->setShaderResourceBindings(m_decoratorSrb.get());
+            m_decoratorPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_decoratorPipeline->create()) {
+                qWarning("Failed to create decorator pipeline");
+                m_decoratorPipeline.reset();
+            }
+        }
+    }
+
     if (!m_currentMaskFillPipeline && m_currentMaskRp) {
         m_currentMaskFillPipeline.reset(m_rhi->newGraphicsPipeline());
         QShader vs = loadShader(QStringLiteral(":/shaders/selection_mask.vert.qsb"));
@@ -1468,7 +1519,12 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     const bool needPoints =
         m_renderSettings.showPoints || m_renderSettings.highlightCurrentMesh;
     const bool needBBox = m_renderSettings.showBoundingBox;
-    if (!needFill && !needWire && !needPoints && !needBBox)
+    const bool needDecorators = m_renderSettings.showDecorators
+        && (m_renderSettings.decoratorVertexNormals
+            || m_renderSettings.decoratorFaceNormals
+            || m_renderSettings.decoratorBoundaryEdges
+            || m_renderSettings.decoratorTextureSeams);
+    if (!needFill && !needWire && !needPoints && !needBBox && !needDecorators)
         return;
 
     const auto pointVariant = static_cast<Document::PointGpuVariant>(
@@ -1491,7 +1547,8 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             needFill,
             needWire,
             needPoints,
-            needBBox);
+            needBBox,
+            needDecorators);
     }
 }
 
@@ -1542,7 +1599,8 @@ void RenderWidget::executePendingDepthPick(
             true,   // fill
             false,  // wire
             true,   // points
-            false); // bbox
+            false,  // bbox
+            false); // decorators
     }
 
     cb->beginPass(m_depthPickRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
@@ -1897,11 +1955,16 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     const bool drawWirePass = m_renderSettings.showWire;
     const bool drawBBoxPass = m_renderSettings.showBoundingBox;
     const bool drawPointsPass = m_renderSettings.showPoints;
+    const bool drawDecoratorPass = m_renderSettings.showDecorators
+        && (m_renderSettings.decoratorVertexNormals
+            || m_renderSettings.decoratorFaceNormals
+            || m_renderSettings.decoratorBoundaryEdges
+            || m_renderSettings.decoratorTextureSeams);
     const bool drawTrackballGizmo = (m_doc->meshCount() > 0);
     const bool drawCurrentMeshHighlight =
         m_renderSettings.highlightCurrentMesh && (m_doc->currentMeshIndex() >= 0);
     const bool anyDrawPass =
-        drawFillPass || drawWirePass || drawBBoxPass || drawPointsPass
+        drawFillPass || drawWirePass || drawBBoxPass || drawPointsPass || drawDecoratorPass
         || drawCurrentMeshHighlight || drawTrackballGizmo;
     const bool needMvpForFrame = anyDrawPass || m_depthPickPending;
 
@@ -2097,6 +2160,84 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &pv);
             cb->draw(pointsView.vertexCount);
+        }
+    }
+
+    if (drawDecoratorPass && m_decoratorPipeline && m_decoratorSrb && m_decoratorUbuf) {
+        auto setDecoratorColor = [&](const QColor &color) {
+            float decoratorData[kDecoratorUbufSize / sizeof(float)] = {};
+            memcpy(decoratorData, mvp.constData(), 64);
+            decoratorData[16] = color.redF();
+            decoratorData[17] = color.greenF();
+            decoratorData[18] = color.blueF();
+            decoratorData[19] = color.alphaF();
+            QRhiResourceUpdateBatch *uDecor = m_rhi->nextResourceUpdateBatch();
+            uDecor->updateDynamicBuffer(
+                m_decoratorUbuf.get(), 0, kDecoratorUbufSize, decoratorData);
+            cb->resourceUpdate(uDecor);
+            cb->setGraphicsPipeline(m_decoratorPipeline.get());
+            cb->setShaderResources(m_decoratorSrb.get());
+            cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+        };
+
+        auto drawDecoratorKind = [&](auto bufferGetter, auto countGetter) {
+            for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+                const auto &meshEntry = m_doc->mesh(mi);
+                if (!meshEntry.visible)
+                    continue;
+                const Document::DecoratorPassGpuView decorView =
+                    m_doc->decoratorPassGpuView(m_rhi, mi);
+                if (!decorView.valid)
+                    continue;
+                QRhiBuffer *vbuf = bufferGetter(decorView);
+                const int vertexCount = countGetter(decorView);
+                if (!vbuf || vertexCount <= 0)
+                    continue;
+                const QRhiCommandBuffer::VertexInput binding(vbuf, 0);
+                cb->setVertexInput(0, 1, &binding);
+                cb->draw(vertexCount);
+            }
+        };
+
+        if (m_renderSettings.decoratorVertexNormals) {
+            setDecoratorColor(m_renderSettings.decoratorVertexNormalColor);
+            drawDecoratorKind(
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.vertexNormalsBuffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.vertexNormalsVertexCount;
+                });
+        }
+        if (m_renderSettings.decoratorFaceNormals) {
+            setDecoratorColor(m_renderSettings.decoratorFaceNormalColor);
+            drawDecoratorKind(
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.faceNormalsBuffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.faceNormalsVertexCount;
+                });
+        }
+        if (m_renderSettings.decoratorBoundaryEdges) {
+            setDecoratorColor(m_renderSettings.decoratorBoundaryEdgeColor);
+            drawDecoratorKind(
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.boundaryEdgesBuffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.boundaryEdgesVertexCount;
+                });
+        }
+        if (m_renderSettings.decoratorTextureSeams) {
+            setDecoratorColor(m_renderSettings.decoratorTextureSeamColor);
+            drawDecoratorKind(
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.textureSeamsBuffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.textureSeamsVertexCount;
+                });
         }
     }
 

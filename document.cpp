@@ -240,7 +240,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
                                       bool needFill,
                                       bool needWire,
                                       bool needPoints,
-                                      bool needBoundingBox)
+                                      bool needBoundingBox,
+                                      bool needDecorators)
 {
     if (!m_gpuCache || !rhi || !cb)
         return;
@@ -265,7 +266,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
         needFill,
         needWire,
         needPoints,
-        needBoundingBox);
+        needBoundingBox,
+        needDecorators);
 
     if (stats.anyRebuilt()) {
         QStringList rebuiltPasses;
@@ -277,6 +279,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
             rebuiltPasses << tr("points");
         if (stats.rebuiltBoundingBox)
             rebuiltPasses << tr("bbox");
+        if (stats.rebuiltDecorators)
+            rebuiltPasses << tr("decorators");
         writeLog(
             tr("GPU buffers built for '%1': %2 in %3 ms")
                 .arg(meshEntry.name)
@@ -322,6 +326,16 @@ Document::BBoxPassGpuView Document::bboxPassGpuView(QRhi *rhi, int meshIndex) co
 
     const MeshEntry &meshEntry = mesh(meshIndex);
     return m_gpuCache->bboxPassView(rhi, meshEntry.meshId);
+}
+
+Document::DecoratorPassGpuView Document::decoratorPassGpuView(
+    QRhi *rhi, int meshIndex) const
+{
+    if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
+        return {};
+
+    const MeshEntry &meshEntry = mesh(meshIndex);
+    return m_gpuCache->decoratorPassView(rhi, meshEntry.meshId);
 }
 
 void Document::releaseRhiGpuResources(QRhi *rhi)

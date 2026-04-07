@@ -59,6 +59,8 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/overlay_bbox.frag
         shaders/overlay_points.vert
         shaders/overlay_points.frag
+        shaders/overlay_decorator.vert
+        shaders/overlay_decorator.frag
         shaders/overlay_trackball_gizmo.vert
         shaders/overlay_trackball_gizmo.frag
         shaders/selection_mask.vert
@@ -76,6 +78,8 @@ qt_add_resources(QMeshLab "icons"
     FILES
         img/options.png
         img/global.png
+        img/normals.png
+        img/boundary.png
         img/box.png
         img/points.png
         img/wire.png

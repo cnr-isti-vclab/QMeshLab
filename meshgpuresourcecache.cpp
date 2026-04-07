@@ -74,11 +74,25 @@ struct MeshGpuResourceCache::CacheState
         int vertexCount = 0;
     };
 
+    struct DecoratorGpu {
+        std::uint64_t geometryRevision = 0;
+        bool valid = false;
+        std::unique_ptr<QRhiBuffer> vertexNormalsVbuf;
+        int vertexNormalsVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> faceNormalsVbuf;
+        int faceNormalsVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> boundaryEdgesVbuf;
+        int boundaryEdgesVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> textureSeamsVbuf;
+        int textureSeamsVertexCount = 0;
+    };
+
     struct MeshGpu {
         std::array<FillVariantGpu, 3> fill;
         std::array<PointsVariantGpu, 2> points;
         WireGpu wire;
         BBoxGpu bbox;
+        DecoratorGpu decorators;
     };
 
     std::unordered_map<QRhi *, std::unordered_map<std::uint64_t, MeshGpu>> byRhi;
@@ -100,7 +114,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     bool needFill,
     bool needWire,
     bool needPoints,
-    bool needBoundingBox)
+    bool needBoundingBox,
+    bool needDecorators)
 {
     EnsureStats stats;
     if (!m_state || !rhi || !cb || !source.mesh || source.meshId == 0)
@@ -518,6 +533,286 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         return true;
     };
 
+    auto rebuildDecorators = [&](CacheState::DecoratorGpu &dst) -> bool {
+        if (dst.valid && dst.geometryRevision == source.geometryRevision)
+            return false;
+
+        dst.valid = true;
+        dst.geometryRevision = source.geometryRevision;
+        dst.vertexNormalsVbuf.reset();
+        dst.vertexNormalsVertexCount = 0;
+        dst.faceNormalsVbuf.reset();
+        dst.faceNormalsVertexCount = 0;
+        dst.boundaryEdgesVbuf.reset();
+        dst.boundaryEdgesVertexCount = 0;
+        dst.textureSeamsVbuf.reset();
+        dst.textureSeamsVertexCount = 0;
+
+        if (meshData.VN() <= 0)
+            return true;
+
+        const float diag = meshData.bbox.Diag();
+        const float normalLength = std::max(1e-4f, diag * 0.02f);
+
+        auto uploadLineBuffer = [&](const std::vector<float> &lineData,
+                                    std::unique_ptr<QRhiBuffer> &dstBuffer,
+                                    int &dstVertexCount) {
+            dstBuffer.reset();
+            dstVertexCount = 0;
+            if (lineData.empty())
+                return;
+
+            dstBuffer.reset(
+                rhi->newBuffer(
+                    QRhiBuffer::Immutable,
+                    QRhiBuffer::VertexBuffer,
+                    static_cast<quint32>(lineData.size() * sizeof(float))));
+            if (!dstBuffer || !dstBuffer->create()) {
+                dstBuffer.reset();
+                return;
+            }
+
+            ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), lineData.data());
+            dstVertexCount = static_cast<int>(lineData.size() / 3);
+        };
+
+        std::vector<float> vertexNormalLines;
+        vertexNormalLines.reserve(static_cast<size_t>(meshData.VN()) * 6);
+        for (int vi = 0; vi < meshData.VN(); ++vi) {
+            const auto &v = meshData.vert[vi];
+            const float nx = v.cN()[0];
+            const float ny = v.cN()[1];
+            const float nz = v.cN()[2];
+            const bool finite =
+                std::isfinite(nx) && std::isfinite(ny) && std::isfinite(nz);
+            const float nLen2 = nx * nx + ny * ny + nz * nz;
+            if (!finite || nLen2 < 1e-12f || nLen2 > 1e12f)
+                continue;
+
+            const float invLen = 1.0f / std::sqrt(nLen2);
+            const float dx = nx * invLen * normalLength;
+            const float dy = ny * invLen * normalLength;
+            const float dz = nz * invLen * normalLength;
+            const float px = v.cP()[0];
+            const float py = v.cP()[1];
+            const float pz = v.cP()[2];
+            vertexNormalLines.push_back(px);
+            vertexNormalLines.push_back(py);
+            vertexNormalLines.push_back(pz);
+            vertexNormalLines.push_back(px + dx);
+            vertexNormalLines.push_back(py + dy);
+            vertexNormalLines.push_back(pz + dz);
+        }
+        uploadLineBuffer(
+            vertexNormalLines, dst.vertexNormalsVbuf, dst.vertexNormalsVertexCount);
+
+        std::vector<float> faceNormalLines;
+        faceNormalLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
+        for (int fi = 0; fi < meshData.FN(); ++fi) {
+            const auto &f = meshData.face[fi];
+            const auto *v0 = f.cV(0);
+            const auto *v1 = f.cV(1);
+            const auto *v2 = f.cV(2);
+            const float cx = (v0->cP()[0] + v1->cP()[0] + v2->cP()[0]) / 3.0f;
+            const float cy = (v0->cP()[1] + v1->cP()[1] + v2->cP()[1]) / 3.0f;
+            const float cz = (v0->cP()[2] + v1->cP()[2] + v2->cP()[2]) / 3.0f;
+
+            float nx = f.cN()[0];
+            float ny = f.cN()[1];
+            float nz = f.cN()[2];
+            const float nLen2 = nx * nx + ny * ny + nz * nz;
+            if (!(std::isfinite(nx) && std::isfinite(ny) && std::isfinite(nz))
+                || nLen2 < 1e-12f || nLen2 > 1e12f) {
+                const float e1x = v1->cP()[0] - v0->cP()[0];
+                const float e1y = v1->cP()[1] - v0->cP()[1];
+                const float e1z = v1->cP()[2] - v0->cP()[2];
+                const float e2x = v2->cP()[0] - v0->cP()[0];
+                const float e2y = v2->cP()[1] - v0->cP()[1];
+                const float e2z = v2->cP()[2] - v0->cP()[2];
+                nx = e1y * e2z - e1z * e2y;
+                ny = e1z * e2x - e1x * e2z;
+                nz = e1x * e2y - e1y * e2x;
+            }
+            const float finalLen2 = nx * nx + ny * ny + nz * nz;
+            if (finalLen2 < 1e-12f || finalLen2 > 1e12f)
+                continue;
+            const float invLen = 1.0f / std::sqrt(finalLen2);
+            const float dx = nx * invLen * normalLength;
+            const float dy = ny * invLen * normalLength;
+            const float dz = nz * invLen * normalLength;
+            faceNormalLines.push_back(cx);
+            faceNormalLines.push_back(cy);
+            faceNormalLines.push_back(cz);
+            faceNormalLines.push_back(cx + dx);
+            faceNormalLines.push_back(cy + dy);
+            faceNormalLines.push_back(cz + dz);
+        }
+        uploadLineBuffer(faceNormalLines, dst.faceNormalsVbuf, dst.faceNormalsVertexCount);
+
+        struct EdgeIncidence {
+            int a = -1;
+            int b = -1;
+            float uA = 0.0f;
+            float vA = 0.0f;
+            float uB = 0.0f;
+            float vB = 0.0f;
+            int texA = -1;
+            int texB = -1;
+            bool hasUv = false;
+        };
+
+        struct EdgeInfo {
+            bool hasFirst = false;
+            bool hasSecond = false;
+            EdgeIncidence first;
+            EdgeIncidence second;
+            int vMin = -1;
+            int vMax = -1;
+        };
+
+        std::unordered_map<std::uint64_t, EdgeInfo> edgeMap;
+        edgeMap.reserve(static_cast<size_t>(qMax(1, meshData.FN() * 3)));
+
+        const bool hasWedgeTex =
+            (source.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
+        const bool hasVertTex =
+            !hasWedgeTex && (source.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
+        const bool canCheckTexSeams = hasWedgeTex || hasVertTex;
+
+        auto edgeKey = [](int v0, int v1) -> std::uint64_t {
+            const std::uint32_t mn = static_cast<std::uint32_t>(std::min(v0, v1));
+            const std::uint32_t mx = static_cast<std::uint32_t>(std::max(v0, v1));
+            return (std::uint64_t(mx) << 32) | std::uint64_t(mn);
+        };
+
+        auto makeIncidence = [&](const VCGFace &f, int corner) -> EdgeIncidence {
+            EdgeIncidence inc;
+            const int next = (corner + 1) % 3;
+            inc.a = static_cast<int>(vcg::tri::Index(meshData, f.cV(corner)));
+            inc.b = static_cast<int>(vcg::tri::Index(meshData, f.cV(next)));
+            if (hasWedgeTex) {
+                const auto &tA = f.cWT(corner);
+                const auto &tB = f.cWT(next);
+                inc.uA = tA.U();
+                inc.vA = tA.V();
+                inc.uB = tB.U();
+                inc.vB = tB.V();
+                inc.texA = tA.N();
+                inc.texB = tB.N();
+                inc.hasUv = true;
+            } else if (hasVertTex) {
+                const auto &tA = f.cV(corner)->cT();
+                const auto &tB = f.cV(next)->cT();
+                inc.uA = tA.U();
+                inc.vA = tA.V();
+                inc.uB = tB.U();
+                inc.vB = tB.V();
+                inc.texA = tA.N();
+                inc.texB = tB.N();
+                inc.hasUv = true;
+            }
+            return inc;
+        };
+
+        auto uvAtVertex =
+            [](const EdgeIncidence &inc, int vid, float &u, float &v, int &tex) -> bool {
+            if (!inc.hasUv)
+                return false;
+            if (vid == inc.a) {
+                u = inc.uA;
+                v = inc.vA;
+                tex = inc.texA;
+                return true;
+            }
+            if (vid == inc.b) {
+                u = inc.uB;
+                v = inc.vB;
+                tex = inc.texB;
+                return true;
+            }
+            return false;
+        };
+
+        for (int fi = 0; fi < meshData.FN(); ++fi) {
+            const auto &f = meshData.face[fi];
+            for (int corner = 0; corner < 3; ++corner) {
+                const int next = (corner + 1) % 3;
+                const int v0 = static_cast<int>(vcg::tri::Index(meshData, f.cV(corner)));
+                const int v1 = static_cast<int>(vcg::tri::Index(meshData, f.cV(next)));
+                auto &edgeInfo = edgeMap[edgeKey(v0, v1)];
+                edgeInfo.vMin = std::min(v0, v1);
+                edgeInfo.vMax = std::max(v0, v1);
+                if (!edgeInfo.hasFirst) {
+                    edgeInfo.first = makeIncidence(f, corner);
+                    edgeInfo.hasFirst = true;
+                } else if (!edgeInfo.hasSecond) {
+                    edgeInfo.second = makeIncidence(f, corner);
+                    edgeInfo.hasSecond = true;
+                }
+            }
+        }
+
+        std::vector<float> boundaryEdgeLines;
+        std::vector<float> textureSeamLines;
+        boundaryEdgeLines.reserve(edgeMap.size() * 6);
+        textureSeamLines.reserve(edgeMap.size() * 6);
+        constexpr float kTexEps = 1e-5f;
+        for (const auto &entry : edgeMap) {
+            const EdgeInfo &edgeInfo = entry.second;
+            if (edgeInfo.vMin < 0 || edgeInfo.vMax < 0)
+                continue;
+
+            const auto &p0 = meshData.vert[edgeInfo.vMin].cP();
+            const auto &p1 = meshData.vert[edgeInfo.vMax].cP();
+
+            const bool isBoundary = edgeInfo.hasFirst && !edgeInfo.hasSecond;
+            if (isBoundary) {
+                boundaryEdgeLines.push_back(p0[0]);
+                boundaryEdgeLines.push_back(p0[1]);
+                boundaryEdgeLines.push_back(p0[2]);
+                boundaryEdgeLines.push_back(p1[0]);
+                boundaryEdgeLines.push_back(p1[1]);
+                boundaryEdgeLines.push_back(p1[2]);
+            }
+
+            if (!canCheckTexSeams || !edgeInfo.hasFirst || !edgeInfo.hasSecond)
+                continue;
+
+            float u0a = 0.0f, v0a = 0.0f, u1a = 0.0f, v1a = 0.0f;
+            float u0b = 0.0f, v0b = 0.0f, u1b = 0.0f, v1b = 0.0f;
+            int t0a = -1, t1a = -1, t0b = -1, t1b = -1;
+            const bool firstHasMin = uvAtVertex(edgeInfo.first, edgeInfo.vMin, u0a, v0a, t0a);
+            const bool firstHasMax = uvAtVertex(edgeInfo.first, edgeInfo.vMax, u1a, v1a, t1a);
+            const bool secondHasMin = uvAtVertex(edgeInfo.second, edgeInfo.vMin, u0b, v0b, t0b);
+            const bool secondHasMax = uvAtVertex(edgeInfo.second, edgeInfo.vMax, u1b, v1b, t1b);
+            if (!(firstHasMin && firstHasMax && secondHasMin && secondHasMax))
+                continue;
+
+            const bool texSlotMismatch = (t0a != t0b) || (t1a != t1b);
+            const bool uvMismatch =
+                (std::abs(u0a - u0b) > kTexEps)
+                || (std::abs(v0a - v0b) > kTexEps)
+                || (std::abs(u1a - u1b) > kTexEps)
+                || (std::abs(v1a - v1b) > kTexEps);
+            if (!(texSlotMismatch || uvMismatch))
+                continue;
+
+            textureSeamLines.push_back(p0[0]);
+            textureSeamLines.push_back(p0[1]);
+            textureSeamLines.push_back(p0[2]);
+            textureSeamLines.push_back(p1[0]);
+            textureSeamLines.push_back(p1[1]);
+            textureSeamLines.push_back(p1[2]);
+        }
+
+        uploadLineBuffer(
+            boundaryEdgeLines, dst.boundaryEdgesVbuf, dst.boundaryEdgesVertexCount);
+        uploadLineBuffer(
+            textureSeamLines, dst.textureSeamsVbuf, dst.textureSeamsVertexCount);
+
+        return true;
+    };
+
     if (needFill) {
         auto &fill = meshCache.fill[fillVariantIndex(fillVariant)];
         stats.rebuiltFill = rebuildFillVariant(fill, fillVariant);
@@ -530,6 +825,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     }
     if (needBoundingBox)
         stats.rebuiltBoundingBox = rebuildBBox(meshCache.bbox);
+    if (needDecorators)
+        stats.rebuiltDecorators = rebuildDecorators(meshCache.decorators);
 
     if (updates) {
         stats.uploadedResources = true;
@@ -632,6 +929,36 @@ MeshGpuResourceCache::BBoxPassView MeshGpuResourceCache::bboxPassView(QRhi *rhi,
         return {};
 
     return { bbox.vbuf.get(), bbox.vertexCount, true };
+}
+
+MeshGpuResourceCache::DecoratorPassView MeshGpuResourceCache::decoratorPassView(
+    QRhi *rhi, std::uint64_t meshId) const
+{
+    if (!m_state || !rhi || meshId == 0)
+        return {};
+
+    const auto rhiIt = m_state->byRhi.find(rhi);
+    if (rhiIt == m_state->byRhi.end())
+        return {};
+    const auto meshIt = rhiIt->second.find(meshId);
+    if (meshIt == rhiIt->second.end())
+        return {};
+
+    const auto &decor = meshIt->second.decorators;
+    if (!decor.valid)
+        return {};
+
+    DecoratorPassView view;
+    view.valid = true;
+    view.vertexNormalsBuffer = decor.vertexNormalsVbuf.get();
+    view.vertexNormalsVertexCount = decor.vertexNormalsVertexCount;
+    view.faceNormalsBuffer = decor.faceNormalsVbuf.get();
+    view.faceNormalsVertexCount = decor.faceNormalsVertexCount;
+    view.boundaryEdgesBuffer = decor.boundaryEdgesVbuf.get();
+    view.boundaryEdgesVertexCount = decor.boundaryEdgesVertexCount;
+    view.textureSeamsBuffer = decor.textureSeamsVbuf.get();
+    view.textureSeamsVertexCount = decor.textureSeamsVertexCount;
+    return view;
 }
 
 void MeshGpuResourceCache::purgeMesh(std::uint64_t meshId)

@@ -49,6 +49,7 @@ public:
     using WirePassGpuView = MeshGpuResourceCache::WirePassView;
     using PointsPassGpuView = MeshGpuResourceCache::PointsPassView;
     using BBoxPassGpuView = MeshGpuResourceCache::BBoxPassView;
+    using DecoratorPassGpuView = MeshGpuResourceCache::DecoratorPassView;
 
     explicit Document(QObject *parent = nullptr);
     ~Document() override;
@@ -75,11 +76,13 @@ public:
                                 bool needFill,
                                 bool needWire,
                                 bool needPoints,
-                                bool needBoundingBox);
+                                bool needBoundingBox,
+                                bool needDecorators);
     FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
     WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
     PointsPassGpuView pointsPassGpuView(QRhi *rhi, int meshIndex, PointGpuVariant variant) const;
     BBoxPassGpuView bboxPassGpuView(QRhi *rhi, int meshIndex) const;
+    DecoratorPassGpuView decoratorPassGpuView(QRhi *rhi, int meshIndex) const;
     void releaseRhiGpuResources(QRhi *rhi);
     void clearAllGpuResources();
 

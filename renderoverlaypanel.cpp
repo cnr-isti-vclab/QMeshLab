@@ -94,6 +94,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_modeButton = makeButton(QStringLiteral(":/img/options.png"), tr("Rendering Settings"));
     m_modeButton->setCheckable(true);
     m_modeButton->setChecked(false);
+    m_normalsDecoratorsButton = makeButton(QStringLiteral(":/img/normals.png"), tr("Normal Decorators"));
+    m_boundaryDecoratorsButton = makeButton(QStringLiteral(":/img/boundary.png"), tr("Boundary Decorators"));
     m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box"));
     m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points"));
     m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
@@ -105,7 +107,11 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     buttonLayout->addWidget(m_pointsButton);
     buttonLayout->addWidget(m_wireButton);
     buttonLayout->addWidget(m_fillButton);
+    buttonLayout->addWidget(m_normalsDecoratorsButton);
+    buttonLayout->addWidget(m_boundaryDecoratorsButton);
 
+    m_normalsDecoratorsButton->setChecked(false);
+    m_boundaryDecoratorsButton->setChecked(false);
     m_bboxButton->setChecked(false);
     m_pointsButton->setChecked(false);
     m_wireButton->setChecked(true);
@@ -137,6 +143,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     arrowLayout->addWidget(m_pointsSettingsArrow);
     arrowLayout->addWidget(m_wireSettingsArrow);
     arrowLayout->addWidget(m_fillSettingsArrow);
+    m_normalsDecoratorsSettingsArrow = makeArrowButton(tr("Settings: Normal Decorators"));
+    arrowLayout->addWidget(m_normalsDecoratorsSettingsArrow);
+    m_boundaryDecoratorsSettingsArrow = makeArrowButton(tr("Settings: Boundary Decorators"));
+    arrowLayout->addWidget(m_boundaryDecoratorsSettingsArrow);
 
     m_settingsContainer = new QFrame(this);
     m_settingsContainer->setVisible(false);
@@ -200,6 +210,50 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->addRow(tr("Debug view"), m_currentMeshDebugViewCombo);
     currentMeshLayout->addLayout(currentMeshForm);
     m_settingsStack->addWidget(currentMeshPage);
+
+    auto *normalDecoratorsPage = new QWidget(m_settingsStack);
+    auto *normalDecoratorsLayout = new QVBoxLayout(normalDecoratorsPage);
+    normalDecoratorsLayout->setContentsMargins(0, 0, 0, 0);
+    normalDecoratorsLayout->setSpacing(2);
+    auto *normalDecoratorsForm = new QFormLayout();
+    normalDecoratorsForm->setContentsMargins(0, 0, 0, 0);
+    normalDecoratorsForm->setHorizontalSpacing(6);
+    normalDecoratorsForm->setVerticalSpacing(2);
+    normalDecoratorsForm->setLabelAlignment(Qt::AlignLeft);
+    m_decoratorVertexNormalsCheck = new QCheckBox(tr("On"), normalDecoratorsPage);
+    m_decoratorFaceNormalsCheck = new QCheckBox(tr("On"), normalDecoratorsPage);
+    m_decoratorBoundaryEdgesCheck = new QCheckBox(tr("On"), normalDecoratorsPage);
+    m_decoratorTextureSeamsCheck = new QCheckBox(tr("On"), normalDecoratorsPage);
+    m_decoratorVertexNormalsCheck->setChecked(m_settings.decoratorVertexNormals);
+    m_decoratorFaceNormalsCheck->setChecked(m_settings.decoratorFaceNormals);
+    m_decoratorBoundaryEdgesCheck->setChecked(m_settings.decoratorBoundaryEdges);
+    m_decoratorTextureSeamsCheck->setChecked(m_settings.decoratorTextureSeams);
+    m_decoratorVertexNormalColorButton = new QPushButton(tr("Choose..."), normalDecoratorsPage);
+    m_decoratorFaceNormalColorButton = new QPushButton(tr("Choose..."), normalDecoratorsPage);
+    m_decoratorBoundaryEdgeColorButton = new QPushButton(tr("Choose..."), normalDecoratorsPage);
+    m_decoratorTextureSeamColorButton = new QPushButton(tr("Choose..."), normalDecoratorsPage);
+    normalDecoratorsForm->addRow(tr("Vertex normals"), m_decoratorVertexNormalsCheck);
+    normalDecoratorsForm->addRow(tr("Vertex normal color"), m_decoratorVertexNormalColorButton);
+    normalDecoratorsForm->addRow(tr("Face normals"), m_decoratorFaceNormalsCheck);
+    normalDecoratorsForm->addRow(tr("Face normal color"), m_decoratorFaceNormalColorButton);
+    normalDecoratorsLayout->addLayout(normalDecoratorsForm);
+    m_settingsStack->addWidget(normalDecoratorsPage);
+
+    auto *boundaryDecoratorsPage = new QWidget(m_settingsStack);
+    auto *boundaryDecoratorsLayout = new QVBoxLayout(boundaryDecoratorsPage);
+    boundaryDecoratorsLayout->setContentsMargins(0, 0, 0, 0);
+    boundaryDecoratorsLayout->setSpacing(2);
+    auto *boundaryDecoratorsForm = new QFormLayout();
+    boundaryDecoratorsForm->setContentsMargins(0, 0, 0, 0);
+    boundaryDecoratorsForm->setHorizontalSpacing(6);
+    boundaryDecoratorsForm->setVerticalSpacing(2);
+    boundaryDecoratorsForm->setLabelAlignment(Qt::AlignLeft);
+    boundaryDecoratorsForm->addRow(tr("Boundary edges"), m_decoratorBoundaryEdgesCheck);
+    boundaryDecoratorsForm->addRow(tr("Boundary edge color"), m_decoratorBoundaryEdgeColorButton);
+    boundaryDecoratorsForm->addRow(tr("Texture seams"), m_decoratorTextureSeamsCheck);
+    boundaryDecoratorsForm->addRow(tr("Texture seam color"), m_decoratorTextureSeamColorButton);
+    boundaryDecoratorsLayout->addLayout(boundaryDecoratorsForm);
+    m_settingsStack->addWidget(boundaryDecoratorsPage);
 
     auto *bboxPage = new QWidget(m_settingsStack);
     auto *bboxLayout = new QVBoxLayout(bboxPage);
@@ -354,6 +408,90 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_settings.currentMeshDebugView = view;
         emit settingsChanged(m_settings);
     });
+    connect(m_decoratorVertexNormalsCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_settings.decoratorVertexNormals == checked)
+            return;
+        m_settings.decoratorVertexNormals = checked;
+        m_settings.showDecorators =
+            m_settings.decoratorVertexNormals
+            || m_settings.decoratorFaceNormals
+            || m_settings.decoratorBoundaryEdges
+            || m_settings.decoratorTextureSeams;
+        setSettings(m_settings);
+        emit settingsChanged(m_settings);
+    });
+    connect(m_decoratorFaceNormalsCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_settings.decoratorFaceNormals == checked)
+            return;
+        m_settings.decoratorFaceNormals = checked;
+        m_settings.showDecorators =
+            m_settings.decoratorVertexNormals
+            || m_settings.decoratorFaceNormals
+            || m_settings.decoratorBoundaryEdges
+            || m_settings.decoratorTextureSeams;
+        setSettings(m_settings);
+        emit settingsChanged(m_settings);
+    });
+    connect(m_decoratorBoundaryEdgesCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_settings.decoratorBoundaryEdges == checked)
+            return;
+        m_settings.decoratorBoundaryEdges = checked;
+        m_settings.showDecorators =
+            m_settings.decoratorVertexNormals
+            || m_settings.decoratorFaceNormals
+            || m_settings.decoratorBoundaryEdges
+            || m_settings.decoratorTextureSeams;
+        setSettings(m_settings);
+        emit settingsChanged(m_settings);
+    });
+    connect(m_decoratorTextureSeamsCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_settings.decoratorTextureSeams == checked)
+            return;
+        m_settings.decoratorTextureSeams = checked;
+        m_settings.showDecorators =
+            m_settings.decoratorVertexNormals
+            || m_settings.decoratorFaceNormals
+            || m_settings.decoratorBoundaryEdges
+            || m_settings.decoratorTextureSeams;
+        setSettings(m_settings);
+        emit settingsChanged(m_settings);
+    });
+    connect(m_decoratorVertexNormalColorButton, &QPushButton::clicked, this, [this]() {
+        const QColor picked = QColorDialog::getColor(
+            m_settings.decoratorVertexNormalColor, this, tr("Decorator Vertex Normal Color"));
+        if (!picked.isValid())
+            return;
+        m_settings.decoratorVertexNormalColor = picked;
+        updateDecoratorVertexNormalColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
+    connect(m_decoratorFaceNormalColorButton, &QPushButton::clicked, this, [this]() {
+        const QColor picked = QColorDialog::getColor(
+            m_settings.decoratorFaceNormalColor, this, tr("Decorator Face Normal Color"));
+        if (!picked.isValid())
+            return;
+        m_settings.decoratorFaceNormalColor = picked;
+        updateDecoratorFaceNormalColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
+    connect(m_decoratorBoundaryEdgeColorButton, &QPushButton::clicked, this, [this]() {
+        const QColor picked = QColorDialog::getColor(
+            m_settings.decoratorBoundaryEdgeColor, this, tr("Decorator Boundary Edge Color"));
+        if (!picked.isValid())
+            return;
+        m_settings.decoratorBoundaryEdgeColor = picked;
+        updateDecoratorBoundaryEdgeColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
+    connect(m_decoratorTextureSeamColorButton, &QPushButton::clicked, this, [this]() {
+        const QColor picked = QColorDialog::getColor(
+            m_settings.decoratorTextureSeamColor, this, tr("Decorator Texture Seam Color"));
+        if (!picked.isValid())
+            return;
+        m_settings.decoratorTextureSeamColor = picked;
+        updateDecoratorTextureSeamColorButtonStyle();
+        emit settingsChanged(m_settings);
+    });
     connect(m_bboxColorButton, &QPushButton::clicked, this, [this]() {
         const QColor picked = QColorDialog::getColor(m_settings.bboxWireColor, this, tr("Bounding Box Wire Color"));
         if (!picked.isValid())
@@ -471,6 +609,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         setCurrentRenderPass(RenderPass::CurrentMesh);
         setSettingsVisible(true);
     });
+    connect(m_normalsDecoratorsButton, &QToolButton::clicked, this, [this]() {
+        setCurrentRenderPass(RenderPass::DecoratorNormals);
+    });
+    connect(m_boundaryDecoratorsButton, &QToolButton::clicked, this, [this]() {
+        setCurrentRenderPass(RenderPass::DecoratorBoundary);
+    });
     connect(m_bboxButton, &QToolButton::clicked, this, [this]() {
         setCurrentRenderPass(RenderPass::BoundingBox);
     });
@@ -486,6 +630,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 
     connect(m_currentMeshSettingsArrow, &QToolButton::clicked, this, [this]() {
         setCurrentRenderPass(RenderPass::CurrentMesh);
+        setSettingsVisible(true);
+    });
+    connect(m_normalsDecoratorsSettingsArrow, &QToolButton::clicked, this, [this]() {
+        setCurrentRenderPass(RenderPass::DecoratorNormals);
+        setSettingsVisible(true);
+    });
+    connect(m_boundaryDecoratorsSettingsArrow, &QToolButton::clicked, this, [this]() {
+        setCurrentRenderPass(RenderPass::DecoratorBoundary);
         setSettingsVisible(true);
     });
     connect(m_bboxSettingsArrow, &QToolButton::clicked, this, [this]() {
@@ -511,6 +663,38 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_settings.showBoundingBox = checked;
         emit settingsChanged(m_settings);
     });
+    connect(m_normalsDecoratorsButton, &QToolButton::toggled, this, [this](bool checked) {
+        const bool changed =
+            (m_settings.decoratorVertexNormals != checked)
+            || (m_settings.decoratorFaceNormals != checked);
+        if (!changed)
+            return;
+        m_settings.decoratorVertexNormals = checked;
+        m_settings.decoratorFaceNormals = checked;
+        m_settings.showDecorators =
+            m_settings.decoratorVertexNormals
+            || m_settings.decoratorFaceNormals
+            || m_settings.decoratorBoundaryEdges
+            || m_settings.decoratorTextureSeams;
+        setSettings(m_settings);
+        emit settingsChanged(m_settings);
+    });
+    connect(m_boundaryDecoratorsButton, &QToolButton::toggled, this, [this](bool checked) {
+        const bool changed =
+            (m_settings.decoratorBoundaryEdges != checked)
+            || (m_settings.decoratorTextureSeams != checked);
+        if (!changed)
+            return;
+        m_settings.decoratorBoundaryEdges = checked;
+        m_settings.decoratorTextureSeams = checked;
+        m_settings.showDecorators =
+            m_settings.decoratorVertexNormals
+            || m_settings.decoratorFaceNormals
+            || m_settings.decoratorBoundaryEdges
+            || m_settings.decoratorTextureSeams;
+        setSettings(m_settings);
+        emit settingsChanged(m_settings);
+    });
     connect(m_pointsButton, &QToolButton::toggled, this, [this](bool checked) {
         if (m_settings.showPoints == checked)
             return;
@@ -531,6 +715,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     });
 
     updateCurrentMeshOutlineColorButtonStyle();
+    updateDecoratorVertexNormalColorButtonStyle();
+    updateDecoratorFaceNormalColorButtonStyle();
+    updateDecoratorBoundaryEdgeColorButtonStyle();
+    updateDecoratorTextureSeamColorButtonStyle();
     updateBBoxColorButtonStyle();
     updatePointsColorButtonStyle();
     updateWireColorButtonStyle();
@@ -549,10 +737,12 @@ int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
 {
     switch (pass) {
     case RenderPass::CurrentMesh: return 0;
-    case RenderPass::BoundingBox: return 1;
-    case RenderPass::Points: return 2;
-    case RenderPass::Wireframe: return 3;
-    case RenderPass::Fill: return 4;
+    case RenderPass::DecoratorNormals: return 1;
+    case RenderPass::DecoratorBoundary: return 2;
+    case RenderPass::BoundingBox: return 3;
+    case RenderPass::Points: return 4;
+    case RenderPass::Wireframe: return 5;
+    case RenderPass::Fill: return 6;
     }
     return 0;
 }
@@ -577,6 +767,11 @@ void RenderOverlayPanel::setSettingsVisible(bool visible)
 void RenderOverlayPanel::setSettings(const RenderSettings &settings)
 {
     m_settings = settings;
+    m_settings.showDecorators =
+        m_settings.decoratorVertexNormals
+        || m_settings.decoratorFaceNormals
+        || m_settings.decoratorBoundaryEdges
+        || m_settings.decoratorTextureSeams;
 
     if (m_currentMeshHighlightCheck) {
         QSignalBlocker blocker(m_currentMeshHighlightCheck);
@@ -585,6 +780,16 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_bboxButton) {
         QSignalBlocker blocker(m_bboxButton);
         m_bboxButton->setChecked(m_settings.showBoundingBox);
+    }
+    if (m_normalsDecoratorsButton) {
+        QSignalBlocker blocker(m_normalsDecoratorsButton);
+        m_normalsDecoratorsButton->setChecked(
+            m_settings.decoratorVertexNormals || m_settings.decoratorFaceNormals);
+    }
+    if (m_boundaryDecoratorsButton) {
+        QSignalBlocker blocker(m_boundaryDecoratorsButton);
+        m_boundaryDecoratorsButton->setChecked(
+            m_settings.decoratorBoundaryEdges || m_settings.decoratorTextureSeams);
     }
     if (m_pointsButton) {
         QSignalBlocker blocker(m_pointsButton);
@@ -623,6 +828,22 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
                 break;
             }
         }
+    }
+    if (m_decoratorVertexNormalsCheck) {
+        QSignalBlocker blocker(m_decoratorVertexNormalsCheck);
+        m_decoratorVertexNormalsCheck->setChecked(m_settings.decoratorVertexNormals);
+    }
+    if (m_decoratorFaceNormalsCheck) {
+        QSignalBlocker blocker(m_decoratorFaceNormalsCheck);
+        m_decoratorFaceNormalsCheck->setChecked(m_settings.decoratorFaceNormals);
+    }
+    if (m_decoratorBoundaryEdgesCheck) {
+        QSignalBlocker blocker(m_decoratorBoundaryEdgesCheck);
+        m_decoratorBoundaryEdgesCheck->setChecked(m_settings.decoratorBoundaryEdges);
+    }
+    if (m_decoratorTextureSeamsCheck) {
+        QSignalBlocker blocker(m_decoratorTextureSeamsCheck);
+        m_decoratorTextureSeamsCheck->setChecked(m_settings.decoratorTextureSeams);
     }
     if (m_pointLightingCheck) {
         QSignalBlocker blocker(m_pointLightingCheck);
@@ -688,6 +909,10 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
 
     updateCurrentMeshOutlineColorButtonStyle();
+    updateDecoratorVertexNormalColorButtonStyle();
+    updateDecoratorFaceNormalColorButtonStyle();
+    updateDecoratorBoundaryEdgeColorButtonStyle();
+    updateDecoratorTextureSeamColorButtonStyle();
     updateBBoxColorButtonStyle();
     updatePointsColorButtonStyle();
     updateWireColorButtonStyle();
@@ -756,6 +981,42 @@ void RenderOverlayPanel::updateCurrentMeshOutlineColorButtonStyle()
             .arg(m_settings.currentMeshOutlineColor.name()));
 }
 
+void RenderOverlayPanel::updateDecoratorVertexNormalColorButtonStyle()
+{
+    if (!m_decoratorVertexNormalColorButton)
+        return;
+    m_decoratorVertexNormalColorButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
+            .arg(m_settings.decoratorVertexNormalColor.name()));
+}
+
+void RenderOverlayPanel::updateDecoratorFaceNormalColorButtonStyle()
+{
+    if (!m_decoratorFaceNormalColorButton)
+        return;
+    m_decoratorFaceNormalColorButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
+            .arg(m_settings.decoratorFaceNormalColor.name()));
+}
+
+void RenderOverlayPanel::updateDecoratorBoundaryEdgeColorButtonStyle()
+{
+    if (!m_decoratorBoundaryEdgeColorButton)
+        return;
+    m_decoratorBoundaryEdgeColorButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
+            .arg(m_settings.decoratorBoundaryEdgeColor.name()));
+}
+
+void RenderOverlayPanel::updateDecoratorTextureSeamColorButtonStyle()
+{
+    if (!m_decoratorTextureSeamColorButton)
+        return;
+    m_decoratorTextureSeamColorButton->setStyleSheet(QStringLiteral(
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
+            .arg(m_settings.decoratorTextureSeamColor.name()));
+}
+
 void RenderOverlayPanel::updateBBoxColorButtonStyle()
 {
     if (!m_bboxColorButton)
@@ -816,12 +1077,16 @@ void RenderOverlayPanel::syncRenderPassUiState()
     };
 
     setPassMarker(m_currentMeshButton, RenderPass::CurrentMesh);
+    setPassMarker(m_normalsDecoratorsButton, RenderPass::DecoratorNormals);
+    setPassMarker(m_boundaryDecoratorsButton, RenderPass::DecoratorBoundary);
     setPassMarker(m_bboxButton, RenderPass::BoundingBox);
     setPassMarker(m_pointsButton, RenderPass::Points);
     setPassMarker(m_wireButton, RenderPass::Wireframe);
     setPassMarker(m_fillButton, RenderPass::Fill);
 
     setArrowChecked(m_currentMeshSettingsArrow, RenderPass::CurrentMesh);
+    setArrowChecked(m_normalsDecoratorsSettingsArrow, RenderPass::DecoratorNormals);
+    setArrowChecked(m_boundaryDecoratorsSettingsArrow, RenderPass::DecoratorBoundary);
     setArrowChecked(m_bboxSettingsArrow, RenderPass::BoundingBox);
     setArrowChecked(m_pointsSettingsArrow, RenderPass::Points);
     setArrowChecked(m_wireSettingsArrow, RenderPass::Wireframe);

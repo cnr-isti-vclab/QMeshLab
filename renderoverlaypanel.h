@@ -31,6 +31,10 @@ private:
     int renderPassPageIndex(RenderPass pass) const;
     void syncRenderPassUiState();
     void updateCurrentMeshOutlineColorButtonStyle();
+    void updateDecoratorVertexNormalColorButtonStyle();
+    void updateDecoratorFaceNormalColorButtonStyle();
+    void updateDecoratorBoundaryEdgeColorButtonStyle();
+    void updateDecoratorTextureSeamColorButtonStyle();
     void updateBBoxColorButtonStyle();
     void updatePointsColorButtonStyle();
     void updateWireColorButtonStyle();
@@ -41,6 +45,10 @@ private:
     QWidget *m_settingsContainer = nullptr;
     QStackedWidget *m_settingsStack = nullptr;
     QPushButton *m_currentMeshOutlineColorButton = nullptr;
+    QPushButton *m_decoratorVertexNormalColorButton = nullptr;
+    QPushButton *m_decoratorFaceNormalColorButton = nullptr;
+    QPushButton *m_decoratorBoundaryEdgeColorButton = nullptr;
+    QPushButton *m_decoratorTextureSeamColorButton = nullptr;
     QPushButton *m_bboxColorButton = nullptr;
     QPushButton *m_pointsColorButton = nullptr;
     QPushButton *m_wireColorButton = nullptr;
@@ -50,6 +58,10 @@ private:
     QDoubleSpinBox *m_currentMeshErodeRadiusSpin = nullptr;
     QComboBox *m_currentMeshDebugViewCombo = nullptr;
     QCheckBox *m_currentMeshHighlightCheck = nullptr;
+    QCheckBox *m_decoratorVertexNormalsCheck = nullptr;
+    QCheckBox *m_decoratorFaceNormalsCheck = nullptr;
+    QCheckBox *m_decoratorBoundaryEdgesCheck = nullptr;
+    QCheckBox *m_decoratorTextureSeamsCheck = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
     QComboBox *m_pointColorSourceCombo = nullptr;
@@ -66,11 +78,15 @@ private:
     bool m_hasFaceColorSource = false;
     QToolButton *m_currentMeshButton = nullptr;
     QToolButton *m_modeButton = nullptr;
+    QToolButton *m_normalsDecoratorsButton = nullptr;
+    QToolButton *m_boundaryDecoratorsButton = nullptr;
     QToolButton *m_bboxButton = nullptr;
     QToolButton *m_pointsButton = nullptr;
     QToolButton *m_wireButton = nullptr;
     QToolButton *m_fillButton = nullptr;
     QToolButton *m_currentMeshSettingsArrow = nullptr;
+    QToolButton *m_normalsDecoratorsSettingsArrow = nullptr;
+    QToolButton *m_boundaryDecoratorsSettingsArrow = nullptr;
     QToolButton *m_bboxSettingsArrow = nullptr;
     QToolButton *m_pointsSettingsArrow = nullptr;
     QToolButton *m_wireSettingsArrow = nullptr;
