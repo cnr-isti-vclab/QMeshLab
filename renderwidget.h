@@ -7,6 +7,7 @@
 #include <QElapsedTimer>
 #include <QMatrix4x4>
 #include <QPoint>
+#include <QString>
 #include <array>
 #include <memory>
 #include <unordered_map>
@@ -29,6 +30,8 @@ public:
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
     void setShadingMode(ShadingMode mode);
     void resetCameraToScene();
+    QString cameraStateJson() const;
+    bool applyCameraStateJson(const QString &jsonText, QString *errorMessage = nullptr);
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);

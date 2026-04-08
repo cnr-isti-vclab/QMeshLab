@@ -13,10 +13,23 @@ class QWheelEvent;
 class ViewTrackball
 {
 public:
+    struct State {
+        QVector3D center = QVector3D(0.0f, 0.0f, 0.0f);
+        QQuaternion rotation;
+        float distance = 3.0f;
+        float radius = 1.0f;
+        float fovYDeg = 45.0f;
+        float gizmoBaseRadius = 1.0f;
+        float gizmoReferenceDistance = 3.0f;
+        float gizmoReferenceFovYDeg = 45.0f;
+    };
+
     ViewTrackball();
 
     void setFrame(const QVector3D &center, float radius, float distance);
     void resetToFrame(const QVector3D &center, float radius, float distance);
+    State state() const;
+    void setState(const State &state);
     void setCenter(const QVector3D &center) { m_center = center; }
     QVector3D center() const { return m_center; }
     float radius() const { return m_radius; }

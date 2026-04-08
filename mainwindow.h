@@ -28,6 +28,8 @@ private slots:
     void showAbout();
     void showImportPlugins();
     void resetCamera();
+    void copyCameraState();
+    void pasteCameraState();
 
 private:
     bool loadMeshFromPath(const QString &filePath);

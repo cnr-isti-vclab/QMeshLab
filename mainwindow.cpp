@@ -3,6 +3,7 @@
 #include "renderwidget.h"
 #include "layerwidget.h"
 #include <QButtonGroup>
+#include <QClipboard>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHeaderView>
@@ -183,6 +184,17 @@ MainWindow::MainWindow(QWidget *parent)
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     viewMenu->addAction(tr("Reset Camera"), this, &MainWindow::resetCamera);
+    viewMenu->addSeparator();
+    viewMenu->addAction(
+        tr("Copy Camera/Trackball JSON"),
+        QKeySequence::Copy,
+        this,
+        &MainWindow::copyCameraState);
+    viewMenu->addAction(
+        tr("Paste Camera/Trackball JSON"),
+        QKeySequence::Paste,
+        this,
+        &MainWindow::pasteCameraState);
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
@@ -426,6 +438,45 @@ void MainWindow::resetCamera()
 {
     m_renderWidget->resetCameraToScene();
     statusBar()->showMessage(tr("Camera reset"), 1500);
+}
+
+void MainWindow::copyCameraState()
+{
+    if (!m_renderWidget)
+        return;
+
+    const QString json = m_renderWidget->cameraStateJson();
+    if (QClipboard *clipboard = QGuiApplication::clipboard()) {
+        clipboard->setText(json, QClipboard::Clipboard);
+        if (clipboard->supportsSelection())
+            clipboard->setText(json, QClipboard::Selection);
+    }
+
+    const QString msg = tr("Camera/trackball JSON copied to clipboard");
+    statusBar()->showMessage(msg, 2000);
+    m_doc->writeLog(msg, Document::LogSource::Application);
+}
+
+void MainWindow::pasteCameraState()
+{
+    if (!m_renderWidget)
+        return;
+
+    QString jsonText;
+    if (QClipboard *clipboard = QGuiApplication::clipboard())
+        jsonText = clipboard->text(QClipboard::Clipboard);
+
+    QString error;
+    if (!m_renderWidget->applyCameraStateJson(jsonText, &error)) {
+        const QString msg = tr("Cannot paste camera/trackball JSON: %1").arg(error);
+        statusBar()->showMessage(msg, 3500);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+        return;
+    }
+
+    const QString msg = tr("Camera/trackball state restored from clipboard JSON");
+    statusBar()->showMessage(msg, 2500);
+    m_doc->writeLog(msg, Document::LogSource::Application);
 }
 
 bool MainWindow::loadMeshFromPath(const QString &filePath)

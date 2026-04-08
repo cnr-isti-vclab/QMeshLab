@@ -4,6 +4,10 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFile>
 #include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QLabel>
 #include <QMetaObject>
 #include <QMouseEvent>
@@ -110,6 +114,61 @@ const std::vector<float> &trackballGizmoVertices()
     static const std::vector<float> kVerts = buildTrackballGizmoVertices();
     return kVerts;
 }
+
+QJsonArray vec3ToJsonArray(const QVector3D &v)
+{
+    return QJsonArray{v.x(), v.y(), v.z()};
+}
+
+QJsonArray quatToJsonArray(const QQuaternion &q)
+{
+    return QJsonArray{q.x(), q.y(), q.z(), q.scalar()};
+}
+
+bool parseFloatValue(const QJsonValue &value, float &outValue)
+{
+    if (!value.isDouble())
+        return false;
+    outValue = float(value.toDouble());
+    return std::isfinite(outValue);
+}
+
+bool parseVec3Value(const QJsonValue &value, QVector3D &outValue)
+{
+    if (!value.isArray())
+        return false;
+    const QJsonArray arr = value.toArray();
+    if (arr.size() != 3)
+        return false;
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    if (!parseFloatValue(arr[0], x) || !parseFloatValue(arr[1], y) || !parseFloatValue(arr[2], z))
+        return false;
+    outValue = QVector3D(x, y, z);
+    return true;
+}
+
+bool parseQuatXyzwValue(const QJsonValue &value, QQuaternion &outValue)
+{
+    if (!value.isArray())
+        return false;
+    const QJsonArray arr = value.toArray();
+    if (arr.size() != 4)
+        return false;
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float w = 0.0f;
+    if (!parseFloatValue(arr[0], x)
+        || !parseFloatValue(arr[1], y)
+        || !parseFloatValue(arr[2], z)
+        || !parseFloatValue(arr[3], w)) {
+        return false;
+    }
+    outValue = QQuaternion(w, x, y, z);
+    return true;
+}
 }
 
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
@@ -184,6 +243,127 @@ void RenderWidget::resetCameraToScene()
     m_reframeCameraRequested = true;
     m_resetTrackballRequested = true;
     update();
+}
+
+QString RenderWidget::cameraStateJson() const
+{
+    const ViewTrackball::State state = m_trackball.state();
+
+    QJsonObject trackball;
+    trackball.insert(QStringLiteral("center"), vec3ToJsonArray(state.center));
+    trackball.insert(QStringLiteral("rotation_xyzw"), quatToJsonArray(state.rotation));
+    trackball.insert(QStringLiteral("distance"), state.distance);
+    trackball.insert(QStringLiteral("radius"), state.radius);
+    trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
+    trackball.insert(QStringLiteral("gizmo_base_radius"), state.gizmoBaseRadius);
+    trackball.insert(
+        QStringLiteral("gizmo_reference_distance"),
+        state.gizmoReferenceDistance);
+    trackball.insert(
+        QStringLiteral("gizmo_reference_fov_y_degrees"),
+        state.gizmoReferenceFovYDeg);
+
+    QJsonObject root;
+    root.insert(QStringLiteral("kind"), QStringLiteral("QMeshLab.CameraTrackballState"));
+    root.insert(QStringLiteral("version"), 1);
+    root.insert(QStringLiteral("trackball"), trackball);
+
+    return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
+}
+
+bool RenderWidget::applyCameraStateJson(const QString &jsonText, QString *errorMessage)
+{
+    auto fail = [&](const QString &msg) {
+        if (errorMessage)
+            *errorMessage = msg;
+        return false;
+    };
+
+    const QString trimmed = jsonText.trimmed();
+    if (trimmed.isEmpty())
+        return fail(tr("Clipboard is empty."));
+
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(trimmed.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        return fail(tr("Invalid JSON: %1").arg(parseError.errorString()));
+    }
+    if (!doc.isObject())
+        return fail(tr("Invalid camera JSON: root must be an object."));
+
+    const QJsonObject root = doc.object();
+    if (root.contains(QStringLiteral("kind"))) {
+        const QString kind = root.value(QStringLiteral("kind")).toString();
+        if (!kind.isEmpty() && kind != QStringLiteral("QMeshLab.CameraTrackballState")) {
+            return fail(tr("Unsupported camera JSON kind: %1").arg(kind));
+        }
+    }
+
+    QJsonObject trackballObj = root;
+    if (root.contains(QStringLiteral("trackball"))) {
+        const QJsonValue trackballValue = root.value(QStringLiteral("trackball"));
+        if (!trackballValue.isObject()) {
+            return fail(tr("Invalid camera JSON: 'trackball' must be an object."));
+        }
+        trackballObj = trackballValue.toObject();
+    }
+
+    ViewTrackball::State state = m_trackball.state();
+    if (!parseVec3Value(trackballObj.value(QStringLiteral("center")), state.center))
+        return fail(tr("Invalid camera JSON: 'center' must be [x, y, z]."));
+    if (!parseQuatXyzwValue(trackballObj.value(QStringLiteral("rotation_xyzw")), state.rotation)) {
+        return fail(tr("Invalid camera JSON: 'rotation_xyzw' must be [x, y, z, w]."));
+    }
+
+    if (!parseFloatValue(trackballObj.value(QStringLiteral("distance")), state.distance))
+        return fail(tr("Invalid camera JSON: 'distance' must be a number."));
+    if (!parseFloatValue(trackballObj.value(QStringLiteral("radius")), state.radius))
+        return fail(tr("Invalid camera JSON: 'radius' must be a number."));
+    if (!parseFloatValue(trackballObj.value(QStringLiteral("fov_y_degrees")), state.fovYDeg)) {
+        return fail(tr("Invalid camera JSON: 'fov_y_degrees' must be a number."));
+    }
+
+    if (trackballObj.contains(QStringLiteral("gizmo_base_radius"))) {
+        if (!parseFloatValue(
+                trackballObj.value(QStringLiteral("gizmo_base_radius")),
+                state.gizmoBaseRadius)) {
+            return fail(tr("Invalid camera JSON: 'gizmo_base_radius' must be a number."));
+        }
+    } else {
+        state.gizmoBaseRadius = qMax(1e-4f, state.radius * 1.02f);
+    }
+
+    if (trackballObj.contains(QStringLiteral("gizmo_reference_distance"))) {
+        if (!parseFloatValue(
+                trackballObj.value(QStringLiteral("gizmo_reference_distance")),
+                state.gizmoReferenceDistance)) {
+            return fail(
+                tr("Invalid camera JSON: 'gizmo_reference_distance' must be a number."));
+        }
+    } else {
+        state.gizmoReferenceDistance = state.distance;
+    }
+
+    if (trackballObj.contains(QStringLiteral("gizmo_reference_fov_y_degrees"))) {
+        if (!parseFloatValue(
+                trackballObj.value(QStringLiteral("gizmo_reference_fov_y_degrees")),
+                state.gizmoReferenceFovYDeg)) {
+            return fail(
+                tr("Invalid camera JSON: 'gizmo_reference_fov_y_degrees' must be a number."));
+        }
+    } else {
+        state.gizmoReferenceFovYDeg = state.fovYDeg;
+    }
+
+    m_trackball.setState(state);
+    cancelCenterAnimation();
+    m_reframeCameraRequested = false;
+    m_resetTrackballRequested = false;
+
+    if (errorMessage)
+        errorMessage->clear();
+    update();
+    return true;
 }
 
 void RenderWidget::startCenterAnimation(const QVector3D &targetCenter)

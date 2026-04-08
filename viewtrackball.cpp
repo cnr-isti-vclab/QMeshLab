@@ -25,6 +25,44 @@ ViewTrackball::ViewTrackball()
     m_rotation = defaultTrackballRotation();
 }
 
+ViewTrackball::State ViewTrackball::state() const
+{
+    State s;
+    s.center = m_center;
+    s.rotation = m_rotation;
+    s.distance = m_distance;
+    s.radius = m_radius;
+    s.fovYDeg = m_fovYDeg;
+    s.gizmoBaseRadius = m_gizmoBaseRadius;
+    s.gizmoReferenceDistance = m_gizmoReferenceDistance;
+    s.gizmoReferenceFovYDeg = m_gizmoReferenceFovYDeg;
+    return s;
+}
+
+void ViewTrackball::setState(const State &state)
+{
+    m_center = state.center;
+    m_radius = qMax(1e-4f, state.radius);
+    m_distance = qMax(0.01f * m_radius, state.distance);
+    m_fovYDeg = std::clamp(state.fovYDeg, kMinTrackballFovYDeg, kMaxTrackballFovYDeg);
+
+    const float rotLen2 = state.rotation.lengthSquared();
+    if (rotLen2 > 1e-12f)
+        m_rotation = state.rotation.normalized();
+    else
+        m_rotation = defaultTrackballRotation();
+
+    m_gizmoBaseRadius = qMax(1e-4f, state.gizmoBaseRadius);
+    m_gizmoReferenceDistance = qMax(1e-4f, state.gizmoReferenceDistance);
+    m_gizmoReferenceFovYDeg =
+        std::clamp(state.gizmoReferenceFovYDeg, kMinTrackballFovYDeg, kMaxTrackballFovYDeg);
+
+    m_navigationMode = NavigationMode::None;
+    m_dragStartHitValid = false;
+    m_dragLastAxisValid = false;
+    m_lastArcballVec = QVector3D(0.0f, 0.0f, 1.0f);
+}
+
 void ViewTrackball::setFrame(const QVector3D &center, float radius, float distance)
 {
     m_center = center;
