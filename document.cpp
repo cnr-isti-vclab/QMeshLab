@@ -78,6 +78,45 @@ QStringList Document::loadedPluginSummaries() const
     return m_pluginManager->loadedPluginSummaries();
 }
 
+std::vector<Document::ImportPluginInfo> Document::importPluginInfos() const
+{
+    std::vector<ImportPluginInfo> infos;
+    if (!m_pluginManager)
+        return infos;
+
+    const auto pluginInfos = m_pluginManager->pluginInfos();
+    infos.reserve(pluginInfos.size());
+    for (const auto &info : pluginInfos) {
+        ImportPluginInfo out;
+        out.id = info.id;
+        out.name = info.name;
+        out.extensions = info.extensions;
+        infos.push_back(std::move(out));
+    }
+    return infos;
+}
+
+QStringList Document::importSupportedExtensions() const
+{
+    if (!m_pluginManager)
+        return {};
+    return m_pluginManager->supportedExtensions();
+}
+
+QString Document::preferredImportPluginForExtension(const QString &extension) const
+{
+    if (!m_pluginManager)
+        return {};
+    return m_pluginManager->preferredPluginForExtension(extension);
+}
+
+void Document::setPreferredImportPluginForExtension(const QString &extension, const QString &pluginId)
+{
+    if (!m_pluginManager)
+        return;
+    m_pluginManager->setPreferredPluginForExtension(extension, pluginId);
+}
+
 int Document::loadMesh(const QString &filename)
 {
     const MeshIOPlugin *plugin = m_pluginManager->pluginFor(filename);

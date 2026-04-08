@@ -14,14 +14,25 @@ namespace {
 class E57ImportPlugin final : public MeshIOPlugin
 {
 public:
+    QString pluginId() const override
+    {
+        return QStringLiteral("io_e57");
+    }
+
     QString name() const override
     {
         return QObject::tr("E57 Importer");
     }
 
+    QStringList supportedExtensions() const override
+    {
+        return { QStringLiteral("e57") };
+    }
+
     bool canLoad(const QString &filename) const override
     {
-        return QFileInfo(filename).suffix().compare(QStringLiteral("e57"), Qt::CaseInsensitive) == 0;
+        const QString ext = QFileInfo(filename).suffix().toLower();
+        return supportedExtensions().contains(ext);
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override

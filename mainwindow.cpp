@@ -2,27 +2,34 @@
 #include "document.h"
 #include "renderwidget.h"
 #include "layerwidget.h"
+#include <QButtonGroup>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QHeaderView>
 #include <QGuiApplication>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QStatusBar>
 #include <QScreen>
 #include <QDockWidget>
-#include <QActionGroup>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QAction>
 #include <QBrush>
 #include <QColor>
 #include <QFontDatabase>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QProcess>
 #include <QProgressBar>
+#include <QRadioButton>
 #include <QSettings>
 #include <QStringList>
+#include <QTableWidget>
 #include <QVector3D>
+#include <QVBoxLayout>
 #include <algorithm>
 #include <array>
 #include <numeric>
@@ -175,24 +182,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     viewMenu->addAction(tr("Reset Camera"), this, &MainWindow::resetCamera);
-    viewMenu->addSeparator();
-    auto *modeGroup = new QActionGroup(this);
-    modeGroup->setExclusive(true);
-
-    QAction *smoothAction = viewMenu->addAction(tr("Smooth Shading"), this, &MainWindow::setSmoothShading);
-    smoothAction->setCheckable(true);
-    QAction *flatAction = viewMenu->addAction(tr("Flat Shading"), this, &MainWindow::setFlatShading);
-    flatAction->setCheckable(true);
-    QAction *wireframeAction = viewMenu->addAction(tr("Wireframe"), this, &MainWindow::setWireframeShading);
-    wireframeAction->setCheckable(true);
-    modeGroup->addAction(smoothAction);
-    modeGroup->addAction(flatAction);
-    modeGroup->addAction(wireframeAction);
-    smoothAction->setChecked(true);
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
-    helpMenu->addAction(tr("Loaded &Plugins"), this, &MainWindow::showLoadedPlugins);
+    helpMenu->addAction(tr("Import &Plugins..."), this, &MainWindow::showLoadedPlugins);
 
     QSettings settings;
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
@@ -288,33 +281,130 @@ void MainWindow::showAbout()
 
 void MainWindow::showLoadedPlugins()
 {
-    const QStringList plugins = m_doc->loadedPluginSummaries();
-    const QString text = plugins.isEmpty()
-        ? tr("No plugins loaded.")
-        : tr("Plugins loaded at startup:\n\n%1").arg(plugins.join(QStringLiteral("\n")));
+    const std::vector<Document::ImportPluginInfo> plugins = m_doc->importPluginInfos();
+    const QStringList extensions = m_doc->importSupportedExtensions();
+    if (plugins.empty() || extensions.isEmpty()) {
+        QMessageBox::information(this, tr("Import Plugins"), tr("No import plugins are available."));
+        return;
+    }
 
-    QMessageBox::information(this, tr("Loaded Plugins"), text);
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Import Plugins"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    layout->addWidget(new QLabel(
+        tr("Choose the preferred plugin for each file type/extension."),
+        &dialog));
+
+    auto *table = new QTableWidget(static_cast<int>(plugins.size()), extensions.size(), &dialog);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionMode(QAbstractItemView::NoSelection);
+    table->setFocusPolicy(Qt::NoFocus);
+    table->setHorizontalHeaderLabels(extensions);
+    table->verticalHeader()->setVisible(true);
+    table->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+
+    QStringList rowLabels;
+    rowLabels.reserve(static_cast<int>(plugins.size()));
+    for (const auto &plugin : plugins)
+        rowLabels << plugin.name;
+    table->setVerticalHeaderLabels(rowLabels);
+
+    std::vector<QButtonGroup *> groups(static_cast<size_t>(extensions.size()), nullptr);
+    for (int col = 0; col < extensions.size(); ++col) {
+        auto *group = new QButtonGroup(table);
+        group->setExclusive(true);
+        groups[static_cast<size_t>(col)] = group;
+    }
+
+    for (int col = 0; col < extensions.size(); ++col) {
+        const QString extension = extensions[col];
+        const QString preferredPluginId = m_doc->preferredImportPluginForExtension(extension);
+        int preferredRow = -1;
+        int firstSupportedRow = -1;
+
+        for (int row = 0; row < static_cast<int>(plugins.size()); ++row) {
+            const bool supports = plugins[static_cast<size_t>(row)].extensions.contains(extension);
+            if (!supports)
+                continue;
+
+            if (firstSupportedRow < 0)
+                firstSupportedRow = row;
+            if (plugins[static_cast<size_t>(row)].id == preferredPluginId)
+                preferredRow = row;
+
+            auto *radio = new QRadioButton(table);
+            radio->setToolTip(
+                tr("Use \"%1\" for .%2 files")
+                    .arg(plugins[static_cast<size_t>(row)].name, extension));
+            groups[static_cast<size_t>(col)]->addButton(radio, row);
+
+            auto *cell = new QWidget(table);
+            auto *cellLayout = new QHBoxLayout(cell);
+            cellLayout->setContentsMargins(0, 0, 0, 0);
+            cellLayout->addWidget(radio, 0, Qt::AlignCenter);
+            table->setCellWidget(row, col, cell);
+        }
+
+        const int rowToSelect = (preferredRow >= 0) ? preferredRow : firstSupportedRow;
+        if (rowToSelect >= 0) {
+            if (QAbstractButton *button = groups[static_cast<size_t>(col)]->button(rowToSelect))
+                button->setChecked(true);
+        }
+    }
+
+    table->resizeColumnsToContents();
+    table->resizeRowsToContents();
+
+    const int frame = table->frameWidth() * 2;
+    const int verticalHeaderWidth = table->verticalHeader()->isVisible() ? table->verticalHeader()->width() : 0;
+    const int horizontalHeaderHeight =
+        table->horizontalHeader()->isVisible() ? table->horizontalHeader()->height() : 0;
+    const int contentWidth = table->horizontalHeader()->length();
+    const int contentHeight = table->verticalHeader()->length();
+    const int slack = 8; // guard against style-dependent underestimation
+    const int tableWidth = frame + verticalHeaderWidth + contentWidth + slack;
+    const int tableHeight = frame + horizontalHeaderHeight + contentHeight + slack;
+
+    table->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    table->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    table->setMinimumSize(tableWidth, tableHeight);
+    table->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+
+    layout->addWidget(table, 1);
+
+    auto *buttons =
+        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    layout->setSizeConstraint(QLayout::SetFixedSize);
+    dialog.adjustSize();
+
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    for (int col = 0; col < extensions.size(); ++col) {
+        QButtonGroup *group = groups[static_cast<size_t>(col)];
+        if (!group)
+            continue;
+        const int selectedRow = group->checkedId();
+        if (selectedRow < 0 || selectedRow >= static_cast<int>(plugins.size()))
+            continue;
+
+        m_doc->setPreferredImportPluginForExtension(
+            extensions[col],
+            plugins[static_cast<size_t>(selectedRow)].id);
+    }
+
+    statusBar()->showMessage(tr("Import plugin preferences updated"), 2000);
 }
 
 void MainWindow::resetCamera()
 {
     m_renderWidget->resetCameraToScene();
     statusBar()->showMessage(tr("Camera reset"), 1500);
-}
-
-void MainWindow::setSmoothShading()
-{
-    m_renderWidget->setShadingMode(RenderWidget::ShadingMode::Smooth);
-}
-
-void MainWindow::setFlatShading()
-{
-    m_renderWidget->setShadingMode(RenderWidget::ShadingMode::Flat);
-}
-
-void MainWindow::setWireframeShading()
-{
-    m_renderWidget->setShadingMode(RenderWidget::ShadingMode::Wireframe);
 }
 
 bool MainWindow::loadMeshFromPath(const QString &filePath)

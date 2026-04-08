@@ -96,14 +96,25 @@ QString formatRapidObjErrorDetails(const rapidobj::Error &error)
 class RapidObjImportPlugin final : public MeshIOPlugin
 {
 public:
+    QString pluginId() const override
+    {
+        return QStringLiteral("io_obj_rapidobj");
+    }
+
     QString name() const override
     {
         return QObject::tr("rapidobj OBJ Importer");
     }
 
+    QStringList supportedExtensions() const override
+    {
+        return { QStringLiteral("obj") };
+    }
+
     bool canLoad(const QString &filename) const override
     {
-        return QFileInfo(filename).suffix().compare(QStringLiteral("obj"), Qt::CaseInsensitive) == 0;
+        const QString ext = QFileInfo(filename).suffix().toLower();
+        return supportedExtensions().contains(ext);
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override

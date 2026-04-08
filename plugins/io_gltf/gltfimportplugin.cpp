@@ -274,15 +274,25 @@ QMatrix4x4 nodeLocalMatrix(const tinygltf::Node &node)
 class GLTFImportPlugin final : public MeshIOPlugin
 {
 public:
+    QString pluginId() const override
+    {
+        return QStringLiteral("io_gltf");
+    }
+
     QString name() const override
     {
         return QObject::tr("glTF Importer (tinygltf)");
     }
 
+    QStringList supportedExtensions() const override
+    {
+        return { QStringLiteral("gltf"), QStringLiteral("glb") };
+    }
+
     bool canLoad(const QString &filename) const override
     {
         const QString ext = QFileInfo(filename).suffix().toLower();
-        return ext == QLatin1String("gltf") || ext == QLatin1String("glb");
+        return supportedExtensions().contains(ext);
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override

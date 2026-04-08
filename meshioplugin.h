@@ -2,6 +2,7 @@
 
 #include "vcgmesh.h"
 #include <QString>
+#include <QStringList>
 
 // Abstract interface for a mesh I/O plugin.
 // Implement this to add support for new file formats.
@@ -10,8 +11,14 @@ class MeshIOPlugin
 public:
     virtual ~MeshIOPlugin() = default;
 
+    // Stable plugin identifier used for preferences/settings (non-localized).
+    virtual QString pluginId() const = 0;
+
     // Human-readable plugin name.
     virtual QString name() const = 0;
+
+    // Supported file extensions (lowercase, without leading dot), e.g. {"ply", "obj"}.
+    virtual QStringList supportedExtensions() const = 0;
 
     // Returns true if this plugin can handle the given filename (by extension).
     virtual bool canLoad(const QString &filename) const = 0;

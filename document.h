@@ -41,6 +41,12 @@ public:
         VCGMesh mesh;
     };
 
+    struct ImportPluginInfo {
+        QString id;
+        QString name;
+        QStringList extensions;
+    };
+
     using FillGpuVariant = MeshGpuResourceCache::FillVariant;
     using PointGpuVariant = MeshGpuResourceCache::PointVariant;
     using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
@@ -67,6 +73,10 @@ public:
     const std::vector<LogEntry> &logMessages() const { return m_logMessages; }
     QString openDialogFilter() const;
     QStringList loadedPluginSummaries() const;
+    std::vector<ImportPluginInfo> importPluginInfos() const;
+    QStringList importSupportedExtensions() const;
+    QString preferredImportPluginForExtension(const QString &extension) const;
+    void setPreferredImportPluginForExtension(const QString &extension, const QString &pluginId);
     void ensureMeshGpuResources(QRhi *rhi,
                                 QRhiCommandBuffer *cb,
                                 int meshIndex,

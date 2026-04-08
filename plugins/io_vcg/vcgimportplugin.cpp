@@ -13,19 +13,31 @@ namespace {
 class VCGImportPlugin final : public MeshIOPlugin
 {
 public:
+    QString pluginId() const override
+    {
+        return QStringLiteral("io_vcg");
+    }
+
     QString name() const override
     {
         return QObject::tr("VCGLib Generic Importer");
     }
 
+    QStringList supportedExtensions() const override
+    {
+        return {
+            QStringLiteral("ply"),
+            QStringLiteral("obj"),
+            QStringLiteral("stl"),
+            QStringLiteral("off"),
+            QStringLiteral("vmi")
+        };
+    }
+
     bool canLoad(const QString &filename) const override
     {
         const QString ext = QFileInfo(filename).suffix().toLower();
-        return ext == QLatin1String("ply")
-            || ext == QLatin1String("obj")
-            || ext == QLatin1String("stl")
-            || ext == QLatin1String("off")
-            || ext == QLatin1String("vmi");
+        return supportedExtensions().contains(ext);
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override

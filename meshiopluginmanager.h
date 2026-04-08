@@ -2,6 +2,7 @@
 
 #include "meshioplugin.h"
 #include <memory>
+#include <QHash>
 #include <QStringList>
 #include <vector>
 
@@ -10,6 +11,14 @@
 class MeshIOPluginManager
 {
 public:
+    struct PluginInfo {
+        QString id;
+        QString name;
+        QStringList extensions;
+    };
+
+    MeshIOPluginManager();
+
     void registerPlugin(std::unique_ptr<MeshIOPlugin> plugin);
 
     // Returns the first registered plugin that can handle filename, or nullptr.
@@ -21,7 +30,20 @@ public:
     // Returns one line per loaded plugin for diagnostics/UI.
     QStringList loadedPluginSummaries() const;
 
+    // Returns plugin metadata for UI.
+    std::vector<PluginInfo> pluginInfos() const;
+
+    // Returns all supported extensions (lowercase, without dot), deduplicated.
+    QStringList supportedExtensions() const;
+
+    // Preferred plugin id for a given extension (lowercase, without dot), empty if not set.
+    QString preferredPluginForExtension(const QString &extension) const;
+
+    // Set preferred plugin for extension. Empty pluginId removes preference.
+    void setPreferredPluginForExtension(const QString &extension, const QString &pluginId);
+
 private:
     std::vector<std::unique_ptr<MeshIOPlugin>> m_plugins;
     QStringList m_openableExtensions;
+    QHash<QString, QString> m_preferredPluginByExtension;
 };
