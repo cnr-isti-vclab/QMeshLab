@@ -412,11 +412,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         if (m_settings.decoratorVertexNormals == checked)
             return;
         m_settings.decoratorVertexNormals = checked;
-        m_settings.showDecorators =
-            m_settings.decoratorVertexNormals
-            || m_settings.decoratorFaceNormals
-            || m_settings.decoratorBoundaryEdges
-            || m_settings.decoratorTextureSeams;
         setSettings(m_settings);
         emit settingsChanged(m_settings);
     });
@@ -424,11 +419,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         if (m_settings.decoratorFaceNormals == checked)
             return;
         m_settings.decoratorFaceNormals = checked;
-        m_settings.showDecorators =
-            m_settings.decoratorVertexNormals
-            || m_settings.decoratorFaceNormals
-            || m_settings.decoratorBoundaryEdges
-            || m_settings.decoratorTextureSeams;
         setSettings(m_settings);
         emit settingsChanged(m_settings);
     });
@@ -436,11 +426,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         if (m_settings.decoratorBoundaryEdges == checked)
             return;
         m_settings.decoratorBoundaryEdges = checked;
-        m_settings.showDecorators =
-            m_settings.decoratorVertexNormals
-            || m_settings.decoratorFaceNormals
-            || m_settings.decoratorBoundaryEdges
-            || m_settings.decoratorTextureSeams;
         setSettings(m_settings);
         emit settingsChanged(m_settings);
     });
@@ -448,11 +433,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         if (m_settings.decoratorTextureSeams == checked)
             return;
         m_settings.decoratorTextureSeams = checked;
-        m_settings.showDecorators =
-            m_settings.decoratorVertexNormals
-            || m_settings.decoratorFaceNormals
-            || m_settings.decoratorBoundaryEdges
-            || m_settings.decoratorTextureSeams;
         setSettings(m_settings);
         emit settingsChanged(m_settings);
     });
@@ -671,11 +651,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             return;
         m_settings.decoratorVertexNormals = checked;
         m_settings.decoratorFaceNormals = checked;
-        m_settings.showDecorators =
-            m_settings.decoratorVertexNormals
-            || m_settings.decoratorFaceNormals
-            || m_settings.decoratorBoundaryEdges
-            || m_settings.decoratorTextureSeams;
         setSettings(m_settings);
         emit settingsChanged(m_settings);
     });
@@ -687,11 +662,6 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             return;
         m_settings.decoratorBoundaryEdges = checked;
         m_settings.decoratorTextureSeams = checked;
-        m_settings.showDecorators =
-            m_settings.decoratorVertexNormals
-            || m_settings.decoratorFaceNormals
-            || m_settings.decoratorBoundaryEdges
-            || m_settings.decoratorTextureSeams;
         setSettings(m_settings);
         emit settingsChanged(m_settings);
     });
@@ -767,11 +737,6 @@ void RenderOverlayPanel::setSettingsVisible(bool visible)
 void RenderOverlayPanel::setSettings(const RenderSettings &settings)
 {
     m_settings = settings;
-    m_settings.showDecorators =
-        m_settings.decoratorVertexNormals
-        || m_settings.decoratorFaceNormals
-        || m_settings.decoratorBoundaryEdges
-        || m_settings.decoratorTextureSeams;
 
     if (m_currentMeshHighlightCheck) {
         QSignalBlocker blocker(m_currentMeshHighlightCheck);
@@ -922,8 +887,6 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
 
 void RenderOverlayPanel::setPointColorSourceAvailability(bool hasVertexColors)
 {
-    m_hasPointVertexColorSource = hasVertexColors;
-
     if (!m_pointColorSourceCombo)
         return;
 
@@ -939,7 +902,6 @@ void RenderOverlayPanel::setPointColorSourceAvailability(bool hasVertexColors)
 
 void RenderOverlayPanel::setPointLightingAvailability(bool hasVertexNormals)
 {
-    m_hasPointNormalSource = hasVertexNormals;
     if (!m_pointLightingCheck)
         return;
     m_pointLightingCheck->setEnabled(hasVertexNormals);
@@ -947,9 +909,6 @@ void RenderOverlayPanel::setPointLightingAvailability(bool hasVertexNormals)
 
 void RenderOverlayPanel::setFillColorSourceAvailability(bool hasVertexColors, bool hasFaceColors)
 {
-    m_hasVertexColorSource = hasVertexColors;
-    m_hasFaceColorSource = hasFaceColors;
-
     if (!m_fillColorSourceCombo)
         return;
 

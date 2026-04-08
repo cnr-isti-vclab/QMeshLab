@@ -1519,11 +1519,11 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     const bool needPoints =
         m_renderSettings.showPoints || m_renderSettings.highlightCurrentMesh;
     const bool needBBox = m_renderSettings.showBoundingBox;
-    const bool needDecorators = m_renderSettings.showDecorators
-        && (m_renderSettings.decoratorVertexNormals
-            || m_renderSettings.decoratorFaceNormals
-            || m_renderSettings.decoratorBoundaryEdges
-            || m_renderSettings.decoratorTextureSeams);
+    const bool needDecorators =
+        m_renderSettings.decoratorVertexNormals
+        || m_renderSettings.decoratorFaceNormals
+        || m_renderSettings.decoratorBoundaryEdges
+        || m_renderSettings.decoratorTextureSeams;
     if (!needFill && !needWire && !needPoints && !needBBox && !needDecorators)
         return;
 
@@ -1955,11 +1955,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     const bool drawWirePass = m_renderSettings.showWire;
     const bool drawBBoxPass = m_renderSettings.showBoundingBox;
     const bool drawPointsPass = m_renderSettings.showPoints;
-    const bool drawDecoratorPass = m_renderSettings.showDecorators
-        && (m_renderSettings.decoratorVertexNormals
-            || m_renderSettings.decoratorFaceNormals
-            || m_renderSettings.decoratorBoundaryEdges
-            || m_renderSettings.decoratorTextureSeams);
+    const bool drawDecoratorPass =
+        m_renderSettings.decoratorVertexNormals
+        || m_renderSettings.decoratorFaceNormals
+        || m_renderSettings.decoratorBoundaryEdges
+        || m_renderSettings.decoratorTextureSeams;
     const bool drawTrackballGizmo = (m_doc->meshCount() > 0);
     const bool drawCurrentMeshHighlight =
         m_renderSettings.highlightCurrentMesh && (m_doc->currentMeshIndex() >= 0);

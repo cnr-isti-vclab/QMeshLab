@@ -72,10 +72,6 @@ private:
     QCheckBox *m_fillBackfaceCullingCheck = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;
     QComboBox *m_fillColorSourceCombo = nullptr;
-    bool m_hasPointVertexColorSource = false;
-    bool m_hasPointNormalSource = false;
-    bool m_hasVertexColorSource = false;
-    bool m_hasFaceColorSource = false;
     QToolButton *m_currentMeshButton = nullptr;
     QToolButton *m_modeButton = nullptr;
     QToolButton *m_normalsDecoratorsButton = nullptr;

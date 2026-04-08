@@ -38,7 +38,6 @@ enum class CurrentMeshDebugView {
 
 struct RenderSettings {
     bool highlightCurrentMesh = true;
-    bool showDecorators = false;
     bool showBoundingBox = false;
     bool showPoints = false;
     bool showWire = true;
@@ -76,7 +75,6 @@ struct RenderSettings {
     bool operator==(const RenderSettings &other) const
     {
         return highlightCurrentMesh == other.highlightCurrentMesh
-            && showDecorators == other.showDecorators
             && showBoundingBox == other.showBoundingBox
             && showPoints == other.showPoints
             && showWire == other.showWire
