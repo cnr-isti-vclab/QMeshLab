@@ -7,7 +7,8 @@
 #include <vector>
 
 // Registry of MeshIOPlugin instances.
-// Plugins are checked in registration order; the first that canLoad() wins.
+// Selection honors user preference for the file extension first, then falls
+// back to the first registered plugin that canLoad().
 class MeshIOPluginManager
 {
 public:
@@ -21,7 +22,8 @@ public:
 
     void registerPlugin(std::unique_ptr<MeshIOPlugin> plugin);
 
-    // Returns the first registered plugin that can handle filename, or nullptr.
+    // Returns preferred plugin for extension when valid, otherwise first
+    // registered plugin that can handle filename, or nullptr.
     const MeshIOPlugin *pluginFor(const QString &filename) const;
 
     // Builds the combined Qt file dialog filter from all registered plugins.

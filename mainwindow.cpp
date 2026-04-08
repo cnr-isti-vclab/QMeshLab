@@ -185,7 +185,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
-    helpMenu->addAction(tr("Import &Plugins..."), this, &MainWindow::showLoadedPlugins);
+    helpMenu->addAction(tr("Import &Plugins..."), this, &MainWindow::showImportPlugins);
 
     QSettings settings;
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
@@ -279,7 +279,7 @@ void MainWindow::showAbout()
            "License: GNU GPL v3"));
 }
 
-void MainWindow::showLoadedPlugins()
+void MainWindow::showImportPlugins()
 {
     const std::vector<Document::ImportPluginInfo> plugins = m_doc->importPluginInfos();
     const QStringList extensions = m_doc->importSupportedExtensions();
@@ -379,8 +379,28 @@ void MainWindow::showLoadedPlugins()
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
-    layout->setSizeConstraint(QLayout::SetFixedSize);
     dialog.adjustSize();
+
+    if (QScreen *screen = dialog.screen()) {
+        const QSize maxDialogSize(
+            screen->availableGeometry().width() * 9 / 10,
+            screen->availableGeometry().height() * 9 / 10);
+
+        const QSize preferredDialogSize = dialog.sizeHint();
+        if (preferredDialogSize.width() > maxDialogSize.width()
+            || preferredDialogSize.height() > maxDialogSize.height()) {
+            const int chromeWidth = preferredDialogSize.width() - tableWidth;
+            const int chromeHeight = preferredDialogSize.height() - tableHeight;
+            const QSize maxTableSize(
+                std::max(320, maxDialogSize.width() - std::max(0, chromeWidth)),
+                std::max(220, maxDialogSize.height() - std::max(0, chromeHeight)));
+            table->setMinimumSize(0, 0);
+            table->setMaximumSize(maxTableSize);
+            dialog.adjustSize();
+        }
+
+        dialog.resize(dialog.sizeHint().boundedTo(maxDialogSize));
+    }
 
     if (dialog.exec() != QDialog::Accepted)
         return;

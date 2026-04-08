@@ -26,7 +26,7 @@ private slots:
     void openLastMesh();
     void openRecentMesh();
     void showAbout();
-    void showLoadedPlugins();
+    void showImportPlugins();
     void resetCamera();
 
 private:
