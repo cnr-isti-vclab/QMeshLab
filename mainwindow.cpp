@@ -12,7 +12,9 @@
 #include <QMessageBox>
 #include <QStatusBar>
 #include <QScreen>
+#include <QSplitter>
 #include <QDockWidget>
+#include <QStyle>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QAction>
@@ -91,8 +93,20 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_doc = new Document(this);
 
-    m_renderWidget = new RenderWidget(m_doc, this);
-    setCentralWidget(m_renderWidget);
+    m_viewSplitter = new QSplitter(Qt::Horizontal, this);
+    m_viewSplitter->setChildrenCollapsible(false);
+    m_viewSplitter->setStyleSheet(QStringLiteral(
+        "RenderWidget {"
+        "  border: 1px solid rgb(90, 90, 90);"
+        "}"
+        "RenderWidget[currentView=\"true\"] {"
+        "  border: 2px solid rgb(42, 160, 240);"
+        "}"
+    ));
+    setCentralWidget(m_viewSplitter);
+
+    RenderWidget *initialView = createRenderWidget(m_viewSplitter);
+    setCurrentRenderWidget(initialView);
 
     m_loadProgressBar = new QProgressBar(this);
     m_loadProgressBar->setRange(0, 100);
@@ -152,19 +166,13 @@ MainWindow::MainWindow(QWidget *parent)
                 : message,
             success ? 2500 : 4000);
     });
-
-    connect(m_renderWidget, &RenderWidget::frameRendered, this,
-            [this](float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid) {
-        updateFrameTimeStats(cpuMs, gpuMs, gpuTimingSupported, gpuSampleValid);
-    });
-    connect(m_renderWidget, &RenderWidget::trackballCenterPicked, this,
-            [this](const QVector3D &worldPos) {
-        const QString msg = tr("Trackball center: (%1, %2, %3)")
-            .arg(worldPos.x(), 0, 'f', 6)
-            .arg(worldPos.y(), 0, 'f', 6)
-            .arg(worldPos.z(), 0, 'f', 6);
-        statusBar()->showMessage(msg, 3500);
-        m_doc->writeLog(msg, Document::LogSource::Application);
+    connect(m_doc, &Document::meshVisibilityChanged, this, [this](int index, bool visible) {
+        if (m_syncingVisibilityProxy)
+            return;
+        RenderWidget *view = currentRenderWidget();
+        if (!view)
+            return;
+        view->setMeshVisible(index, visible);
     });
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
@@ -183,6 +191,9 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+    viewMenu->addAction(tr("Split Horizontally"), this, &MainWindow::splitViewHorizontally);
+    viewMenu->addAction(tr("Split Vertically"), this, &MainWindow::splitViewVertically);
+    viewMenu->addSeparator();
     viewMenu->addAction(tr("Reset Camera"), this, &MainWindow::resetCamera);
     viewMenu->addSeparator();
     viewMenu->addAction(
@@ -204,6 +215,171 @@ MainWindow::MainWindow(QWidget *parent)
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
     sanitizeRecentMeshes();
     refreshRecentMeshesMenu();
+}
+
+RenderWidget *MainWindow::currentRenderWidget() const
+{
+    if (m_currentRenderWidget)
+        return m_currentRenderWidget;
+    return m_renderWidgets.isEmpty() ? nullptr : m_renderWidgets.first();
+}
+
+RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
+{
+    if (!parentSplitter)
+        return nullptr;
+
+    auto *view = new RenderWidget(m_doc, parentSplitter);
+    view->setAttribute(Qt::WA_StyledBackground, true);
+    view->setProperty("currentView", false);
+    parentSplitter->addWidget(view);
+    m_renderWidgets.append(view);
+
+    connect(view, &RenderWidget::viewActivated, this, [this](RenderWidget *activatedView) {
+        setCurrentRenderWidget(activatedView);
+    });
+    connect(view, &RenderWidget::frameRendered, this,
+            [this, view](float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid) {
+        if (view != currentRenderWidget())
+            return;
+        updateFrameTimeStats(cpuMs, gpuMs, gpuTimingSupported, gpuSampleValid);
+    });
+    connect(view, &RenderWidget::trackballCenterPicked, this,
+            [this, view](const QVector3D &worldPos) {
+        setCurrentRenderWidget(view);
+        const QString msg = tr("Trackball center: (%1, %2, %3)")
+            .arg(worldPos.x(), 0, 'f', 6)
+            .arg(worldPos.y(), 0, 'f', 6)
+            .arg(worldPos.z(), 0, 'f', 6);
+        statusBar()->showMessage(msg, 3500);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+    });
+
+    return view;
+}
+
+void MainWindow::setCurrentRenderWidget(RenderWidget *view)
+{
+    if (!view)
+        return;
+    if (m_currentRenderWidget == view)
+        return;
+    m_currentRenderWidget = view;
+    updateCurrentViewBorder();
+    syncDocumentVisibilityFromCurrentView();
+}
+
+void MainWindow::updateCurrentViewBorder()
+{
+    for (RenderWidget *view : std::as_const(m_renderWidgets)) {
+        if (!view)
+            continue;
+        const bool isCurrent = (view == m_currentRenderWidget);
+        if (view->property("currentView").toBool() == isCurrent)
+            continue;
+        view->setProperty("currentView", isCurrent);
+        if (QStyle *s = view->style()) {
+            s->unpolish(view);
+            s->polish(view);
+        }
+        view->update();
+    }
+}
+
+void MainWindow::syncDocumentVisibilityFromCurrentView()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view || !m_doc)
+        return;
+
+    m_syncingVisibilityProxy = true;
+    for (int i = 0; i < m_doc->meshCount(); ++i)
+        m_doc->setMeshVisible(i, view->meshVisible(i));
+    m_syncingVisibilityProxy = false;
+}
+
+void MainWindow::splitCurrentView(Qt::Orientation orientation)
+{
+    RenderWidget *sourceView = currentRenderWidget();
+    if (!sourceView)
+        return;
+    auto *parentSplitter = qobject_cast<QSplitter *>(sourceView->parentWidget());
+    if (!parentSplitter)
+        return;
+
+    const int sourceIndex = parentSplitter->indexOf(sourceView);
+    if (sourceIndex < 0)
+        return;
+
+    RenderWidget *newView = nullptr;
+    if (parentSplitter->orientation() == orientation) {
+        const QList<int> oldSizes = parentSplitter->sizes();
+        newView = createRenderWidget(parentSplitter);
+        if (!newView)
+            return;
+        parentSplitter->insertWidget(sourceIndex + 1, newView);
+
+        // Split only the source pane into 50/50, keep all others unchanged.
+        QList<int> newSizes = parentSplitter->sizes();
+        if (oldSizes.size() == newSizes.size() - 1 && sourceIndex < oldSizes.size()) {
+            const int sourceOldSize = qMax(2, oldSizes[sourceIndex]);
+            const int firstHalf = sourceOldSize / 2;
+            const int secondHalf = sourceOldSize - firstHalf;
+
+            for (int i = 0; i < newSizes.size(); ++i) {
+                if (i < sourceIndex) {
+                    newSizes[i] = oldSizes[i];
+                } else if (i == sourceIndex) {
+                    newSizes[i] = firstHalf;
+                } else if (i == sourceIndex + 1) {
+                    newSizes[i] = secondHalf;
+                } else {
+                    newSizes[i] = oldSizes[i - 1];
+                }
+            }
+            parentSplitter->setSizes(newSizes);
+        }
+    } else {
+        const QList<int> oldParentSizes = parentSplitter->sizes();
+
+        auto *nestedSplitter = new QSplitter(orientation, parentSplitter);
+        nestedSplitter->setChildrenCollapsible(false);
+
+        // Replace source view with a nested splitter in the parent.
+        parentSplitter->insertWidget(sourceIndex, nestedSplitter);
+        nestedSplitter->addWidget(sourceView);
+
+        newView = createRenderWidget(nestedSplitter);
+        if (!newView)
+            return;
+        nestedSplitter->setSizes(QList<int>{1, 1});
+
+        // Preserve parent splitter allocation so other views are not affected.
+        QList<int> parentSizes = parentSplitter->sizes();
+        if (parentSizes.size() == oldParentSizes.size()) {
+            for (int i = 0; i < parentSizes.size(); ++i)
+                parentSizes[i] = oldParentSizes[i];
+            parentSplitter->setSizes(parentSizes);
+        }
+    }
+
+    newView->setRenderSettings(sourceView->renderSettings());
+    newView->setMeshVisibilityState(sourceView->meshVisibilityState());
+    QString cameraError;
+    newView->applyCameraStateJson(sourceView->cameraStateJson(), &cameraError);
+
+    setCurrentRenderWidget(newView);
+    statusBar()->showMessage(tr("Created new view"), 1500);
+}
+
+void MainWindow::splitViewHorizontally()
+{
+    splitCurrentView(Qt::Horizontal);
+}
+
+void MainWindow::splitViewVertically()
+{
+    splitCurrentView(Qt::Vertical);
 }
 
 void MainWindow::newDocument()
@@ -436,16 +612,20 @@ void MainWindow::showImportPlugins()
 
 void MainWindow::resetCamera()
 {
-    m_renderWidget->resetCameraToScene();
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+    view->resetCameraToScene();
     statusBar()->showMessage(tr("Camera reset"), 1500);
 }
 
 void MainWindow::copyCameraState()
 {
-    if (!m_renderWidget)
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
         return;
 
-    const QString json = m_renderWidget->cameraStateJson();
+    const QString json = view->cameraStateJson();
     if (QClipboard *clipboard = QGuiApplication::clipboard()) {
         clipboard->setText(json, QClipboard::Clipboard);
         if (clipboard->supportsSelection())
@@ -459,7 +639,8 @@ void MainWindow::copyCameraState()
 
 void MainWindow::pasteCameraState()
 {
-    if (!m_renderWidget)
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
         return;
 
     QString jsonText;
@@ -467,7 +648,7 @@ void MainWindow::pasteCameraState()
         jsonText = clipboard->text(QClipboard::Clipboard);
 
     QString error;
-    if (!m_renderWidget->applyCameraStateJson(jsonText, &error)) {
+    if (!view->applyCameraStateJson(jsonText, &error)) {
         const QString msg = tr("Cannot paste camera/trackball JSON: %1").arg(error);
         statusBar()->showMessage(msg, 3500);
         m_doc->writeLog(msg, Document::LogSource::Application);

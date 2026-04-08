@@ -175,9 +175,14 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
     createOverlayButtons();
+    ensureVisibilitySize();
     refreshColorSourceAvailability();
 
-    connect(m_doc, &Document::meshAdded, this, [this](int) {
+    connect(m_doc, &Document::meshAdded, this, [this](int index) {
+        if (index >= 0 && index <= int(m_meshVisibility.size()))
+            m_meshVisibility.insert(m_meshVisibility.begin() + index, true);
+        else
+            ensureVisibilitySize();
         m_reframeCameraRequested = true;
         applySceneDefaultRenderModeIfNeeded();
         refreshColorSourceAvailability();
@@ -186,7 +191,11 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         layoutOverlayButtons();
         update();
     });
-    connect(m_doc, &Document::meshRemoved, this, [this](int) {
+    connect(m_doc, &Document::meshRemoved, this, [this](int index) {
+        if (index >= 0 && index < int(m_meshVisibility.size()))
+            m_meshVisibility.erase(m_meshVisibility.begin() + index);
+        else
+            ensureVisibilitySize();
         m_reframeCameraRequested = true;
         if (m_doc->meshCount() == 0)
             m_applySceneDefaultRenderMode = true;
@@ -196,14 +205,22 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         layoutOverlayButtons();
         update();
     });
-    connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
-        updateBoundingBoxCornersOverlay();
-        layoutOverlayButtons();
-        update();
-    });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
         update();
     });
+}
+
+void RenderWidget::ensureVisibilitySize()
+{
+    const int targetSize = m_doc ? m_doc->meshCount() : 0;
+    if (targetSize <= 0) {
+        m_meshVisibility.clear();
+        return;
+    }
+    if (int(m_meshVisibility.size()) < targetSize)
+        m_meshVisibility.resize(size_t(targetSize), true);
+    else if (int(m_meshVisibility.size()) > targetSize)
+        m_meshVisibility.resize(size_t(targetSize));
 }
 
 void RenderWidget::setShadingMode(ShadingMode mode)
@@ -234,6 +251,69 @@ void RenderWidget::setShadingMode(ShadingMode mode)
     if (m_overlayPanel)
         m_overlayPanel->setSettings(m_renderSettings);
     m_fillPipeline.reset();
+    update();
+}
+
+void RenderWidget::setRenderSettings(const RenderSettings &settings)
+{
+    const RenderSettings prev = m_renderSettings;
+    m_renderSettings = settings;
+    m_shadingMode = (m_renderSettings.fillShading == FillShading::Flat)
+        ? ShadingMode::Flat
+        : ShadingMode::Smooth;
+
+    if (prev.showFill != m_renderSettings.showFill
+        || prev.fillShading != m_renderSettings.fillShading
+        || prev.fillBackfaceCulling != m_renderSettings.fillBackfaceCulling) {
+        m_fillPipeline.reset();
+    }
+    if (prev.showWire != m_renderSettings.showWire
+        || prev.wireBackfaceCulling != m_renderSettings.wireBackfaceCulling) {
+        m_wirePipeline.reset();
+    }
+
+    if (m_overlayPanel)
+        m_overlayPanel->setSettings(m_renderSettings);
+    updateBoundingBoxCornersOverlay();
+    layoutOverlayButtons();
+    update();
+}
+
+bool RenderWidget::meshVisible(int index) const
+{
+    if (index < 0 || index >= int(m_meshVisibility.size()))
+        return true;
+    return m_meshVisibility[size_t(index)];
+}
+
+void RenderWidget::setMeshVisible(int index, bool visible)
+{
+    ensureVisibilitySize();
+    if (index < 0 || index >= int(m_meshVisibility.size()))
+        return;
+    const size_t idx = size_t(index);
+    if (m_meshVisibility[idx] == visible)
+        return;
+    m_meshVisibility[idx] = visible;
+    updateBoundingBoxCornersOverlay();
+    update();
+}
+
+void RenderWidget::setMeshVisibilityState(const std::vector<bool> &visibility)
+{
+    ensureVisibilitySize();
+    const size_t n = m_meshVisibility.size();
+    bool changed = false;
+    for (size_t i = 0; i < n; ++i) {
+        const bool v = (i < visibility.size()) ? visibility[i] : true;
+        if (m_meshVisibility[i] != v) {
+            m_meshVisibility[i] = v;
+            changed = true;
+        }
+    }
+    if (!changed)
+        return;
+    updateBoundingBoxCornersOverlay();
     update();
 }
 
@@ -443,6 +523,7 @@ void RenderWidget::createOverlayButtons()
 
     connect(m_overlayPanel, &RenderOverlayPanel::settingsChanged, this,
             [this](const RenderSettings &settings) {
+        emit viewActivated(this);
         const RenderSettings prev = m_renderSettings;
         m_renderSettings = settings;
 
@@ -487,7 +568,7 @@ bool RenderWidget::computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3
     vcg::Box3f sceneBox;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         const auto &meshEntry = m_doc->mesh(i);
-        if (!meshEntry.visible)
+        if (!meshVisible(i))
             continue;
         if (meshEntry.mesh.bbox.IsNull())
             continue;
@@ -837,8 +918,15 @@ void RenderWidget::updateCameraFrameIfNeeded()
         return;
 
     vcg::Box3f bbox;
-    for (int i = 0; i < m_doc->meshCount(); ++i)
+    bool hasVisibleMesh = false;
+    for (int i = 0; i < m_doc->meshCount(); ++i) {
+        if (!meshVisible(i))
+            continue;
         bbox.Add(m_doc->mesh(i).mesh.bbox);
+        hasVisibleMesh = true;
+    }
+    if (!hasVisibleMesh)
+        return;
     if (bbox.IsNull())
         return;
 
@@ -1983,8 +2071,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             : static_cast<int>(Document::FillGpuVariant::Constant));
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const auto &meshEntry = m_doc->mesh(mi);
-        if (!meshEntry.visible)
+        if (!meshVisible(mi))
             continue;
         m_doc->ensureMeshGpuResources(
             m_rhi,
@@ -2036,8 +2123,7 @@ void RenderWidget::executePendingDepthPick(
     const auto pointVariant = static_cast<Document::PointGpuVariant>(pointVariantIndex);
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const auto &meshEntry = m_doc->mesh(mi);
-        if (!meshEntry.visible)
+        if (!meshVisible(mi))
             continue;
         m_doc->ensureMeshGpuResources(
             m_rhi,
@@ -2057,8 +2143,7 @@ void RenderWidget::executePendingDepthPick(
     cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        const auto &meshEntry = m_doc->mesh(mi);
-        if (!meshEntry.visible)
+        if (!meshVisible(mi))
             continue;
 
         if (m_depthPickFillPipeline) {
@@ -2175,6 +2260,8 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
 
     const int currentMeshIndex = m_doc->currentMeshIndex();
     if (currentMeshIndex < 0)
+        return;
+    if (!meshVisible(currentMeshIndex))
         return;
 
     ensureCurrentMeshMaskResources(pixelSize);
@@ -2411,8 +2498,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         || m_renderSettings.decoratorBoundaryEdges
         || m_renderSettings.decoratorTextureSeams;
     const bool drawTrackballGizmo = (m_doc->meshCount() > 0);
+    const int currentMeshIndex = m_doc->currentMeshIndex();
     const bool drawCurrentMeshHighlight =
-        m_renderSettings.highlightCurrentMesh && (m_doc->currentMeshIndex() >= 0);
+        m_renderSettings.highlightCurrentMesh
+        && (currentMeshIndex >= 0)
+        && meshVisible(currentMeshIndex);
     const bool anyDrawPass =
         drawFillPass || drawWirePass || drawBBoxPass || drawPointsPass || drawDecoratorPass
         || drawCurrentMeshHighlight || drawTrackballGizmo;
@@ -2535,8 +2625,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
 
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            const auto &meshEntry = m_doc->mesh(mi);
-            if (!meshEntry.visible)
+            if (!meshVisible(mi))
                 continue;
             const Document::FillPassGpuView fillView =
                 m_doc->fillPassGpuView(m_rhi, mi, fillVariant);
@@ -2568,8 +2657,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         cb->setShaderResources();
 
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            const auto &meshEntry = m_doc->mesh(mi);
-            if (!meshEntry.visible)
+            if (!meshVisible(mi))
                 continue;
             const Document::WirePassGpuView wireView = m_doc->wirePassGpuView(m_rhi, mi);
             if (!wireView.valid || !wireView.vertexBuffer || wireView.vertexCount <= 0)
@@ -2584,8 +2672,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         cb->setGraphicsPipeline(m_bboxPipeline.get());
         cb->setShaderResources();
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            const auto &meshEntry = m_doc->mesh(mi);
-            if (!meshEntry.visible)
+            if (!meshVisible(mi))
                 continue;
             const Document::BBoxPassGpuView bboxView = m_doc->bboxPassGpuView(m_rhi, mi);
             if (!bboxView.valid || !bboxView.vertexBuffer || bboxView.vertexCount <= 0)
@@ -2600,8 +2687,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         cb->setGraphicsPipeline(m_pointsPipeline.get());
         cb->setShaderResources();
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            const auto &meshEntry = m_doc->mesh(mi);
-            if (!meshEntry.visible)
+            if (!meshVisible(mi))
                 continue;
             const Document::PointsPassGpuView pointsView =
                 m_doc->pointsPassGpuView(m_rhi, mi, pointVariant);
@@ -2639,8 +2725,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
         auto drawDecoratorKind = [&](auto bufferGetter, auto countGetter) {
             for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-                const auto &meshEntry = m_doc->mesh(mi);
-                if (!meshEntry.visible)
+                if (!meshVisible(mi))
                     continue;
                 const Document::DecoratorPassGpuView decorView =
                     m_doc->decoratorPassGpuView(m_rhi, mi);
@@ -2748,12 +2833,14 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
 void RenderWidget::mousePressEvent(QMouseEvent *e)
 {
+    emit viewActivated(this);
     cancelCenterAnimation();
     m_trackball.mousePress(e, size());
 }
 
 void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 {
+    emit viewActivated(this);
     if (!e || m_doc->meshCount() <= 0)
         return;
     if (e->button() != Qt::LeftButton)
@@ -2766,17 +2853,21 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 
 void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
 {
+    emit viewActivated(this);
     m_trackball.mouseRelease(e);
 }
 
 void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 {
+    if (e && e->buttons() != Qt::NoButton)
+        emit viewActivated(this);
     if (m_trackball.mouseMove(e, size()))
         update();
 }
 
 void RenderWidget::wheelEvent(QWheelEvent *e)
 {
+    emit viewActivated(this);
     cancelCenterAnimation();
     if (m_trackball.wheel(e))
         update();

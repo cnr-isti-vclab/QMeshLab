@@ -2,6 +2,7 @@
 
 #include <QMainWindow>
 #include <QStringList>
+#include <QList>
 #include <array>
 #include <deque>
 
@@ -12,6 +13,7 @@ class QMenu;
 class QAction;
 class QLabel;
 class QProgressBar;
+class QSplitter;
 
 class MainWindow : public QMainWindow
 {
@@ -30,8 +32,16 @@ private slots:
     void resetCamera();
     void copyCameraState();
     void pasteCameraState();
+    void splitViewHorizontally();
+    void splitViewVertically();
 
 private:
+    RenderWidget *currentRenderWidget() const;
+    RenderWidget *createRenderWidget(QSplitter *parentSplitter);
+    void setCurrentRenderWidget(RenderWidget *view);
+    void updateCurrentViewBorder();
+    void splitCurrentView(Qt::Orientation orientation);
+    void syncDocumentVisibilityFromCurrentView();
     bool loadMeshFromPath(const QString &filePath);
     void addRecentMesh(const QString &filePath);
     void sanitizeRecentMeshes();
@@ -40,7 +50,10 @@ private:
     void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
 
     Document *m_doc;
-    RenderWidget *m_renderWidget;
+    QSplitter *m_viewSplitter = nullptr;
+    QList<RenderWidget *> m_renderWidgets;
+    RenderWidget *m_currentRenderWidget = nullptr;
+    bool m_syncingVisibilityProxy = false;
     LayerWidget *m_layerWidget;
     QMenu *m_recentMenu = nullptr;
     QAction *m_openLastAction = nullptr;

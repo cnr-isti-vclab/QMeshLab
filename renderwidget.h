@@ -30,12 +30,19 @@ public:
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
     void setShadingMode(ShadingMode mode);
     void resetCameraToScene();
+    const RenderSettings &renderSettings() const { return m_renderSettings; }
+    void setRenderSettings(const RenderSettings &settings);
     QString cameraStateJson() const;
     bool applyCameraStateJson(const QString &jsonText, QString *errorMessage = nullptr);
+    bool meshVisible(int index) const;
+    void setMeshVisible(int index, bool visible);
+    std::vector<bool> meshVisibilityState() const { return m_meshVisibility; }
+    void setMeshVisibilityState(const std::vector<bool> &visibility);
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
     void trackballCenterPicked(const QVector3D &worldPos);
+    void viewActivated(RenderWidget *view);
 
 protected:
     void initialize(QRhiCommandBuffer *cb) override;
@@ -66,6 +73,7 @@ private:
     void cancelCenterAnimation();
     void advanceCenterAnimation();
     void updateCameraFrameIfNeeded();
+    void ensureVisibilitySize();
     int fillGpuVariantIndexForCurrentSettings() const;
     int pointGpuVariantIndexForCurrentSettings() const;
     QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
@@ -166,4 +174,5 @@ private:
     QElapsedTimer m_frameTimer;
     bool m_currentMaskFromPoints = false;
     ViewTrackball m_trackball;
+    std::vector<bool> m_meshVisibility;
 };
