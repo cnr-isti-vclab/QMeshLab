@@ -21,6 +21,25 @@ constexpr int kErrParse = -1;
 constexpr int kErrTriangulate = -2;
 constexpr int kErrInvalidData = -3;
 
+struct VertexKey {
+    int positionIndex = -1;
+    int normalIndex = -1;
+
+    bool operator==(const VertexKey &other) const
+    {
+        return positionIndex == other.positionIndex && normalIndex == other.normalIndex;
+    }
+};
+
+struct VertexKeyHash {
+    size_t operator()(const VertexKey &key) const noexcept
+    {
+        const size_t a = std::hash<int>{}(key.positionIndex);
+        const size_t b = std::hash<int>{}(key.normalIndex);
+        return a ^ (b + 0x9e3779b97f4a7c15ULL + (a << 6) + (a >> 2));
+    }
+};
+
 bool hasTriplet(const rapidobj::Array<float> &data, int index)
 {
     if (index < 0)
@@ -91,6 +110,50 @@ public:
             return uint8_t(std::lround(clamped * 255.0f));
         };
 
+        std::unordered_map<VertexKey, int, VertexKeyHash> vertexCache;
+        auto getOrCreateVertex = [&](const rapidobj::Index &idx) -> int {
+            if (!hasTriplet(positions, idx.position_index))
+                return -1;
+
+            const int normalIndex = hasTriplet(normals, idx.normal_index) ? idx.normal_index : -1;
+            const VertexKey key { idx.position_index, normalIndex };
+            const auto existing = vertexCache.find(key);
+            if (existing != vertexCache.end())
+                return existing->second;
+
+            const size_t pBase = size_t(idx.position_index) * 3;
+            auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(
+                mesh,
+                VCGMesh::CoordType(
+                    positions[pBase + 0],
+                    positions[pBase + 1],
+                    positions[pBase + 2]));
+            VCGVertex *v = &(*vi);
+            const int vertexIndex = mesh.VN() - 1;
+
+            if (normalIndex >= 0) {
+                const size_t nBase = size_t(normalIndex) * 3;
+                v->N() = VCGMesh::CoordType(
+                    normals[nBase + 0],
+                    normals[nBase + 1],
+                    normals[nBase + 2]);
+                importedNormals = true;
+            }
+
+            if (hasTriplet(colors, idx.position_index)) {
+                const size_t cBase = size_t(idx.position_index) * 3;
+                v->C() = vcg::Color4b(
+                    toColorByte(colors[cBase + 0]),
+                    toColorByte(colors[cBase + 1]),
+                    toColorByte(colors[cBase + 2]),
+                    255);
+                importedColors = true;
+            }
+
+            vertexCache.emplace(key, vertexIndex);
+            return vertexIndex;
+        };
+
         for (size_t shapeIndex = 0; shapeIndex < result.shapes.size(); ++shapeIndex) {
             const rapidobj::Shape &shape = result.shapes[shapeIndex];
             size_t indexOffset = 0;
@@ -121,37 +184,11 @@ public:
 
                 int vertexIndices[3] = { -1, -1, -1 };
                 for (int c = 0; c < 3; ++c) {
-                    const rapidobj::Index idx = cornerIndices[c];
-                    const size_t pBase = size_t(idx.position_index) * 3;
-
-                    auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(
-                        mesh,
-                        VCGMesh::CoordType(
-                            positions[pBase + 0],
-                            positions[pBase + 1],
-                            positions[pBase + 2]));
-                    VCGVertex *v = &(*vi);
-                    vertexIndices[c] = mesh.VN() - 1;
-
-                    if (hasTriplet(normals, idx.normal_index)) {
-                        const size_t nBase = size_t(idx.normal_index) * 3;
-                        v->N() = VCGMesh::CoordType(
-                            normals[nBase + 0],
-                            normals[nBase + 1],
-                            normals[nBase + 2]);
-                        importedNormals = true;
-                    }
-
-                    if (hasTriplet(colors, idx.position_index)) {
-                        const size_t cBase = size_t(idx.position_index) * 3;
-                        v->C() = vcg::Color4b(
-                            toColorByte(colors[cBase + 0]),
-                            toColorByte(colors[cBase + 1]),
-                            toColorByte(colors[cBase + 2]),
-                            255);
-                        importedColors = true;
-                    }
+                    vertexIndices[c] = getOrCreateVertex(cornerIndices[c]);
                 }
+
+                if (vertexIndices[0] < 0 || vertexIndices[1] < 0 || vertexIndices[2] < 0)
+                    continue;
 
                 auto fi = vcg::tri::Allocator<VCGMesh>::AddFace(
                     mesh,
@@ -173,36 +210,7 @@ public:
 
             for (size_t i = 0; i < shape.points.indices.size(); ++i) {
                 const rapidobj::Index idx = shape.points.indices[i];
-                if (!hasTriplet(positions, idx.position_index))
-                    continue;
-
-                const size_t pBase = size_t(idx.position_index) * 3;
-                auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(
-                    mesh,
-                    VCGMesh::CoordType(
-                        positions[pBase + 0],
-                        positions[pBase + 1],
-                        positions[pBase + 2]));
-                VCGVertex *v = &(*vi);
-
-                if (hasTriplet(normals, idx.normal_index)) {
-                    const size_t nBase = size_t(idx.normal_index) * 3;
-                    v->N() = VCGMesh::CoordType(
-                        normals[nBase + 0],
-                        normals[nBase + 1],
-                        normals[nBase + 2]);
-                    importedNormals = true;
-                }
-
-                if (hasTriplet(colors, idx.position_index)) {
-                    const size_t cBase = size_t(idx.position_index) * 3;
-                    v->C() = vcg::Color4b(
-                        toColorByte(colors[cBase + 0]),
-                        toColorByte(colors[cBase + 1]),
-                        toColorByte(colors[cBase + 2]),
-                        255);
-                    importedColors = true;
-                }
+                getOrCreateVertex(idx);
             }
 
             if (cb) {
