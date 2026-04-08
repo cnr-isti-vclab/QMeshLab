@@ -42,7 +42,7 @@ private:
     LayerWidget *m_layerWidget;
     QMenu *m_recentMenu = nullptr;
     QAction *m_openLastAction = nullptr;
-    std::array<QAction *, 4> m_recentActions = {};
+    std::array<QAction *, 8> m_recentActions = {};
     QStringList m_recentMeshes;
     QProgressBar *m_loadProgressBar = nullptr;
     QLabel *m_frameStatsLabel = nullptr;

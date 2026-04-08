@@ -36,6 +36,7 @@
 
 namespace {
 constexpr std::size_t kFrameStatsWindow = 100;
+constexpr int kRecentMeshesLimit = 8;
 
 QString normalizeRecentPath(const QString &path)
 {
@@ -453,7 +454,7 @@ void MainWindow::addRecentMesh(const QString &filePath)
 void MainWindow::sanitizeRecentMeshes()
 {
     QStringList cleaned;
-    cleaned.reserve(4);
+    cleaned.reserve(kRecentMeshesLimit);
     for (const QString &path : std::as_const(m_recentMeshes)) {
         const QString normalizedPath = normalizeRecentPath(path);
         if (normalizedPath.isEmpty())
@@ -472,7 +473,7 @@ void MainWindow::sanitizeRecentMeshes()
             continue;
 
         cleaned.append(normalizedPath);
-        if (cleaned.size() >= 4)
+        if (cleaned.size() >= kRecentMeshesLimit)
             break;
     }
 
@@ -487,14 +488,18 @@ void MainWindow::refreshRecentMeshesMenu()
 {
     m_recentMenu->clear();
 
-    const std::array<QString, 4> shortcuts = {
+    const std::array<QString, 8> shortcuts = {
         QStringLiteral("Ctrl+1"),
         QStringLiteral("Ctrl+2"),
         QStringLiteral("Ctrl+3"),
-        QStringLiteral("Ctrl+4")
+        QStringLiteral("Ctrl+4"),
+        QStringLiteral("Ctrl+5"),
+        QStringLiteral("Ctrl+6"),
+        QStringLiteral("Ctrl+7"),
+        QStringLiteral("Ctrl+8")
     };
 
-    for (int i = 0; i < m_recentMeshes.size() && i < 4; ++i) {
+    for (int i = 0; i < m_recentMeshes.size() && i < kRecentMeshesLimit; ++i) {
         const QString &path = m_recentMeshes[i];
         if (!m_recentActions[i]) {
             m_recentActions[i] = new QAction(this);
