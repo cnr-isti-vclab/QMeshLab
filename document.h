@@ -76,7 +76,8 @@ public:
                                 bool needWire,
                                 bool needPoints,
                                 bool needBoundingBox,
-                                bool needDecorators);
+                                bool needDecoratorNormals,
+                                bool needDecoratorBoundaries);
     FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
     WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
     PointsPassGpuView pointsPassGpuView(QRhi *rhi, int meshIndex, PointGpuVariant variant) const;

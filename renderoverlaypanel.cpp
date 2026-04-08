@@ -129,6 +129,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         btn->setToolTip(tooltip);
         return btn;
     };
+    auto makeColorButton = [this](QWidget *parentWidget) {
+        auto *btn = new QPushButton(parentWidget);
+        btn->setText(QString());
+        btn->setToolTip(tr("Click to choose a new color"));
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setFixedSize(22, 22);
+        return btn;
+    };
     auto *modeArrowSpacer = new QWidget(arrowRow);
     modeArrowSpacer->setFixedSize(32, 12);
     arrowLayout->addWidget(modeArrowSpacer);
@@ -169,9 +177,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->setHorizontalSpacing(6);
     currentMeshForm->setVerticalSpacing(2);
     currentMeshForm->setLabelAlignment(Qt::AlignLeft);
-    m_currentMeshHighlightCheck = new QCheckBox(tr("On"), currentMeshPage);
+    m_currentMeshHighlightCheck = new QCheckBox(currentMeshPage);
     m_currentMeshHighlightCheck->setChecked(m_settings.highlightCurrentMesh);
-    m_currentMeshOutlineColorButton = new QPushButton(tr("Choose..."), currentMeshPage);
+    m_currentMeshOutlineColorButton = makeColorButton(currentMeshPage);
     m_currentMeshOutlineWidthSpin = new QDoubleSpinBox(currentMeshPage);
     m_currentMeshDilateRadiusSpin = new QDoubleSpinBox(currentMeshPage);
     m_currentMeshErodeRadiusSpin = new QDoubleSpinBox(currentMeshPage);
@@ -221,18 +229,18 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     normalDecoratorsForm->setHorizontalSpacing(6);
     normalDecoratorsForm->setVerticalSpacing(2);
     normalDecoratorsForm->setLabelAlignment(Qt::AlignLeft);
-    m_decoratorVertexNormalsCheck = new QCheckBox(tr("On"), normalDecoratorsPage);
-    m_decoratorFaceNormalsCheck = new QCheckBox(tr("On"), normalDecoratorsPage);
-    m_decoratorBoundaryEdgesCheck = new QCheckBox(tr("On"), normalDecoratorsPage);
-    m_decoratorTextureSeamsCheck = new QCheckBox(tr("On"), normalDecoratorsPage);
+    m_decoratorVertexNormalsCheck = new QCheckBox(normalDecoratorsPage);
+    m_decoratorFaceNormalsCheck = new QCheckBox(normalDecoratorsPage);
+    m_decoratorBoundaryEdgesCheck = new QCheckBox(normalDecoratorsPage);
+    m_decoratorTextureSeamsCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorVertexNormalsCheck->setChecked(m_settings.decoratorVertexNormals);
     m_decoratorFaceNormalsCheck->setChecked(m_settings.decoratorFaceNormals);
     m_decoratorBoundaryEdgesCheck->setChecked(m_settings.decoratorBoundaryEdges);
     m_decoratorTextureSeamsCheck->setChecked(m_settings.decoratorTextureSeams);
-    m_decoratorVertexNormalColorButton = new QPushButton(tr("Choose..."), normalDecoratorsPage);
-    m_decoratorFaceNormalColorButton = new QPushButton(tr("Choose..."), normalDecoratorsPage);
-    m_decoratorBoundaryEdgeColorButton = new QPushButton(tr("Choose..."), normalDecoratorsPage);
-    m_decoratorTextureSeamColorButton = new QPushButton(tr("Choose..."), normalDecoratorsPage);
+    m_decoratorVertexNormalColorButton = makeColorButton(normalDecoratorsPage);
+    m_decoratorFaceNormalColorButton = makeColorButton(normalDecoratorsPage);
+    m_decoratorBoundaryEdgeColorButton = makeColorButton(normalDecoratorsPage);
+    m_decoratorTextureSeamColorButton = makeColorButton(normalDecoratorsPage);
     normalDecoratorsForm->addRow(tr("Vertex normals"), m_decoratorVertexNormalsCheck);
     normalDecoratorsForm->addRow(tr("Vertex normal color"), m_decoratorVertexNormalColorButton);
     normalDecoratorsForm->addRow(tr("Face normals"), m_decoratorFaceNormalsCheck);
@@ -265,7 +273,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bboxForm->setHorizontalSpacing(6);
     bboxForm->setVerticalSpacing(2);
     bboxForm->setLabelAlignment(Qt::AlignLeft);
-    m_bboxColorButton = new QPushButton(tr("Choose..."), bboxPage);
+    m_bboxColorButton = makeColorButton(bboxPage);
     bboxForm->addRow(tr("Wire color"), m_bboxColorButton);
     bboxLayout->addLayout(bboxForm);
 
@@ -279,7 +287,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     pointsForm->setHorizontalSpacing(6);
     pointsForm->setVerticalSpacing(2);
     pointsForm->setLabelAlignment(Qt::AlignLeft);
-    m_pointsColorButton = new QPushButton(tr("Choose..."), pointsPage);
+    m_pointsColorButton = makeColorButton(pointsPage);
     m_pointColorSourceCombo = new QComboBox(pointsPage);
     m_pointColorSourceCombo->addItem(tr("Constant"), static_cast<int>(PointColorSource::Constant));
     m_pointColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(PointColorSource::PerVertex));
@@ -289,7 +297,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_pointSizeSpin->setDecimals(1);
     m_pointSizeSpin->setSuffix(tr(" px"));
     m_pointSizeSpin->setValue(m_settings.pointSize);
-    m_pointLightingCheck = new QCheckBox(tr("On"), pointsPage);
+    m_pointLightingCheck = new QCheckBox(pointsPage);
     m_pointLightingCheck->setChecked(m_settings.pointLighting);
     pointsForm->addRow(tr("Color source"), m_pointColorSourceCombo);
     pointsForm->addRow(tr("Point color"), m_pointsColorButton);
@@ -306,16 +314,16 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     wireForm->setHorizontalSpacing(6);
     wireForm->setVerticalSpacing(2);
     wireForm->setLabelAlignment(Qt::AlignLeft);
-    m_wireColorButton = new QPushButton(tr("Choose..."), wirePage);
+    m_wireColorButton = makeColorButton(wirePage);
     m_wireSizeSpin = new QDoubleSpinBox(wirePage);
     m_wireSizeSpin->setRange(0.5, 8.0);
     m_wireSizeSpin->setSingleStep(0.1);
     m_wireSizeSpin->setDecimals(1);
     m_wireSizeSpin->setSuffix(tr(" px"));
     m_wireSizeSpin->setValue(m_settings.wireSize);
-    m_wireBackfaceCullingCheck = new QCheckBox(tr("On"), wirePage);
+    m_wireBackfaceCullingCheck = new QCheckBox(wirePage);
     m_wireBackfaceCullingCheck->setChecked(m_settings.wireBackfaceCulling);
-    m_wireLightingCheck = new QCheckBox(tr("On"), wirePage);
+    m_wireLightingCheck = new QCheckBox(wirePage);
     m_wireLightingCheck->setChecked(m_settings.wireLighting);
     wireForm->addRow(tr("Wire color"), m_wireColorButton);
     wireForm->addRow(tr("Wire size"), m_wireSizeSpin);
@@ -332,7 +340,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillForm->setHorizontalSpacing(6);
     fillForm->setVerticalSpacing(2);
     fillForm->setLabelAlignment(Qt::AlignLeft);
-    m_fillColorButton = new QPushButton(tr("Choose..."), fillPage);
+    m_fillColorButton = makeColorButton(fillPage);
     m_fillColorSourceCombo = new QComboBox(fillPage);
     m_fillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
     m_fillColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(FillColorSource::PerVertex));
@@ -340,9 +348,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillShadingCombo = new QComboBox(fillPage);
     m_fillShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
     m_fillShadingCombo->addItem(tr("Flat"), static_cast<int>(FillShading::Flat));
-    m_fillBackfaceCullingCheck = new QCheckBox(tr("On"), fillPage);
+    m_fillBackfaceCullingCheck = new QCheckBox(fillPage);
     m_fillBackfaceCullingCheck->setChecked(m_settings.fillBackfaceCulling);
-    m_fillLightingCheck = new QCheckBox(tr("On"), fillPage);
+    m_fillLightingCheck = new QCheckBox(fillPage);
     m_fillLightingCheck->setChecked(m_settings.fillLighting);
     fillForm->addRow(tr("Color source"), m_fillColorSourceCombo);
     fillForm->addRow(tr("Fill color"), m_fillColorButton);
@@ -775,8 +783,10 @@ void RenderOverlayPanel::updateColorButtonStyle(QPushButton *button, const QColo
 {
     if (!button)
         return;
+    button->setText(QString());
     button->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 0px; min-width: 22px; min-height: 22px; max-width: 22px; max-height: 22px; }"
+        "QPushButton:hover { border-color: rgba(36,132,210,220); }")
             .arg(color.name()));
 }
 

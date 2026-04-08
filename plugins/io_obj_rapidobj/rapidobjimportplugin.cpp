@@ -8,10 +8,12 @@
 
 #include <QFileInfo>
 #include <QObject>
+#include <QStringList>
 #include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 #include <rapidobj/rapidobj.hpp>
@@ -63,6 +65,32 @@ void appendTexture(std::unordered_set<std::string> &seen, VCGMesh &mesh, const s
     if (seen.insert(textureName).second)
         mesh.textures.push_back(textureName);
 }
+
+QString compactSourceLine(const std::string &line)
+{
+    QString s = QString::fromStdString(line).trimmed();
+    if (s.size() > 160)
+        s = s.left(157) + QStringLiteral("...");
+    return s;
+}
+
+QString formatRapidObjErrorDetails(const rapidobj::Error &error)
+{
+    if (!error)
+        return QObject::tr("No additional rapidobj diagnostics are available.");
+
+    QStringList detail;
+    if (error.code)
+        detail << QObject::tr("code: %1").arg(QString::fromStdString(error.code.message()));
+    if (error.line_num > 0)
+        detail << QObject::tr("line: %1").arg(error.line_num);
+
+    const QString sourceLine = compactSourceLine(error.line);
+    if (!sourceLine.isEmpty())
+        detail << QObject::tr("source: %1").arg(sourceLine);
+
+    return detail.join(QStringLiteral("; "));
+}
 }
 
 class RapidObjImportPlugin final : public MeshIOPlugin
@@ -80,6 +108,8 @@ public:
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
+        m_lastDetailedError.clear();
+
         if (outLoadMask)
             *outLoadMask = 0;
 
@@ -88,22 +118,39 @@ public:
         rapidobj::Result result = rapidobj::ParseFile(
             filename.toStdString(),
             rapidobj::MaterialLibrary::Default(rapidobj::Load::Optional));
-        if (result.error)
+        if (result.error) {
+            m_lastDetailedError = formatRapidObjErrorDetails(result.error);
             return kErrParse;
+        }
 
-        if (!rapidobj::Triangulate(result))
+        if (!rapidobj::Triangulate(result)) {
+            m_lastDetailedError = formatRapidObjErrorDetails(result.error);
             return kErrTriangulate;
+        }
 
         const auto &positions = result.attributes.positions;
         const auto &normals = result.attributes.normals;
         const auto &texcoords = result.attributes.texcoords;
         const auto &colors = result.attributes.colors;
-        if (positions.empty())
+        if (positions.empty()) {
+            m_lastDetailedError = QObject::tr(
+                "positions=%1, normals=%2, texcoords=%3, colors=%4, shapes=%5")
+                                      .arg(positions.size() / 3)
+                                      .arg(normals.size() / 3)
+                                      .arg(texcoords.size() / 2)
+                                      .arg(colors.size() / 3)
+                                      .arg(result.shapes.size());
             return kErrInvalidData;
+        }
 
         bool importedNormals = false;
         bool importedTexcoords = false;
         bool importedColors = false;
+        size_t skippedMalformedFaces = 0;
+        size_t skippedInvalidPositionFaces = 0;
+        size_t skippedNonTriangleFaces = 0;
+        size_t skippedInvalidPointIndices = 0;
+        size_t invalidTexcoordCorners = 0;
 
         const auto toColorByte = [](float v) -> uint8_t {
             const float clamped = std::clamp(v, 0.0f, 1.0f);
@@ -160,11 +207,14 @@ public:
 
             for (size_t faceIndex = 0; faceIndex < shape.mesh.num_face_vertices.size(); ++faceIndex) {
                 const uint8_t vertexCount = shape.mesh.num_face_vertices[faceIndex];
-                if (indexOffset + size_t(vertexCount) > shape.mesh.indices.size())
+                if (indexOffset + size_t(vertexCount) > shape.mesh.indices.size()) {
+                    skippedMalformedFaces += (shape.mesh.num_face_vertices.size() - faceIndex);
                     break;
+                }
 
                 if (vertexCount != 3) {
                     indexOffset += size_t(vertexCount);
+                    ++skippedNonTriangleFaces;
                     continue;
                 }
 
@@ -179,8 +229,10 @@ public:
                 }
                 indexOffset += 3;
 
-                if (!faceValid)
+                if (!faceValid) {
+                    ++skippedInvalidPositionFaces;
                     continue;
+                }
 
                 int vertexIndices[3] = { -1, -1, -1 };
                 for (int c = 0; c < 3; ++c) {
@@ -197,8 +249,11 @@ public:
                     size_t(vertexIndices[2]));
                 for (int c = 0; c < 3; ++c) {
                     const rapidobj::Index idx = cornerIndices[c];
-                    if (!hasPair(texcoords, idx.texcoord_index))
+                    if (!hasPair(texcoords, idx.texcoord_index)) {
+                        if (idx.texcoord_index >= 0)
+                            ++invalidTexcoordCorners;
                         continue;
+                    }
 
                     const size_t tBase = size_t(idx.texcoord_index) * 2;
                     fi->WT(c).U() = texcoords[tBase + 0];
@@ -210,7 +265,8 @@ public:
 
             for (size_t i = 0; i < shape.points.indices.size(); ++i) {
                 const rapidobj::Index idx = shape.points.indices[i];
-                getOrCreateVertex(idx);
+                if (getOrCreateVertex(idx) < 0)
+                    ++skippedInvalidPointIndices;
             }
 
             if (cb) {
@@ -231,8 +287,48 @@ public:
             appendTexture(seenTextures, mesh, material.ambient_texname);
         }
 
-        if (mesh.VN() == 0)
+        if (mesh.VN() == 0) {
+            size_t totalShapeIndices = 0;
+            for (const auto &shape : result.shapes)
+                totalShapeIndices += shape.mesh.indices.size();
+            m_lastDetailedError = QObject::tr(
+                "No vertices created from parsed data (positions=%1, shapeIndices=%2, shapes=%3).")
+                                      .arg(positions.size() / 3)
+                                      .arg(totalShapeIndices)
+                                      .arg(result.shapes.size());
             return kErrInvalidData;
+        }
+
+        if (cb) {
+            QStringList warnings;
+            if (skippedMalformedFaces > 0) {
+                warnings << QObject::tr("skipped %1 malformed face record(s)")
+                                .arg(skippedMalformedFaces);
+            }
+            if (skippedNonTriangleFaces > 0) {
+                warnings << QObject::tr("skipped %1 non-triangle face(s) after triangulation")
+                                .arg(skippedNonTriangleFaces);
+            }
+            if (skippedInvalidPositionFaces > 0) {
+                warnings << QObject::tr("skipped %1 face(s) with invalid position index")
+                                .arg(skippedInvalidPositionFaces);
+            }
+            if (skippedInvalidPointIndices > 0) {
+                warnings << QObject::tr("skipped %1 point(s) with invalid position index")
+                                .arg(skippedInvalidPointIndices);
+            }
+            if (invalidTexcoordCorners > 0) {
+                warnings << QObject::tr("%1 corner texcoord index(es) were invalid and ignored")
+                                .arg(invalidTexcoordCorners);
+            }
+
+            if (!warnings.isEmpty()) {
+                const QString warningMsg =
+                    QObject::tr("rapidobj warnings: %1").arg(warnings.join(QStringLiteral("; ")));
+                const QByteArray rawWarning = warningMsg.toLocal8Bit();
+                cb(99, rawWarning.constData());
+            }
+        }
 
         int loadMask = 0;
         if (importedNormals)
@@ -257,15 +353,21 @@ public:
     {
         switch (errCode) {
         case kErrParse:
-            return QObject::tr("Cannot parse OBJ file with rapidobj.");
+            return QObject::tr("Cannot parse OBJ file with rapidobj. %1")
+                .arg(m_lastDetailedError);
         case kErrTriangulate:
-            return QObject::tr("Failed to triangulate OBJ faces with rapidobj.");
+            return QObject::tr("Failed to triangulate OBJ faces with rapidobj. %1")
+                .arg(m_lastDetailedError);
         case kErrInvalidData:
-            return QObject::tr("OBJ file has no valid vertex data.");
+            return QObject::tr("OBJ file has no valid vertex data. %1")
+                .arg(m_lastDetailedError);
         default:
             return QObject::tr("Unknown rapidobj import error.");
         }
     }
+
+private:
+    mutable QString m_lastDetailedError;
 };
 
 void registerRapidObjImportPlugin(MeshIOPluginManager &pluginManager)

@@ -277,6 +277,7 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
 
     bool hasFaces = false;
     bool hasVertexColors = false;
+    bool hasFaceColors = false;
     bool hasVertexNormals = false;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         if (m_doc->mesh(i).mesh.FN() > 0) {
@@ -285,11 +286,19 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
         }
         const int mask = m_doc->mesh(i).ioMask;
         hasVertexColors = hasVertexColors || ((mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0);
+        hasFaceColors = hasFaceColors || ((mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0);
         hasVertexNormals = hasVertexNormals || ((mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0);
     }
 
     if (hasFaces)
+    {
+        m_renderSettings.fillColorSource = FillColorSource::Constant;
+        if (hasVertexColors)
+            m_renderSettings.fillColorSource = FillColorSource::PerVertex;
+        else if (hasFaceColors)
+            m_renderSettings.fillColorSource = FillColorSource::PerFace;
         return;
+    }
 
     m_renderSettings.showPoints = true;
     m_renderSettings.showWire = false;
@@ -1530,12 +1539,14 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     const bool needPoints =
         m_renderSettings.showPoints || m_renderSettings.highlightCurrentMesh;
     const bool needBBox = m_renderSettings.showBoundingBox;
-    const bool needDecorators =
+    const bool needDecoratorNormals =
         m_renderSettings.decoratorVertexNormals
-        || m_renderSettings.decoratorFaceNormals
-        || m_renderSettings.decoratorBoundaryEdges
+        || m_renderSettings.decoratorFaceNormals;
+    const bool needDecoratorBoundaries =
+        m_renderSettings.decoratorBoundaryEdges
         || m_renderSettings.decoratorTextureSeams;
-    if (!needFill && !needWire && !needPoints && !needBBox && !needDecorators)
+    if (!needFill && !needWire && !needPoints && !needBBox
+        && !needDecoratorNormals && !needDecoratorBoundaries)
         return;
 
     const auto pointVariant = static_cast<Document::PointGpuVariant>(
@@ -1559,7 +1570,8 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             needWire,
             needPoints,
             needBBox,
-            needDecorators);
+            needDecoratorNormals,
+            needDecoratorBoundaries);
     }
 }
 
@@ -1611,7 +1623,8 @@ void RenderWidget::executePendingDepthPick(
             false,  // wire
             true,   // points
             false,  // bbox
-            false); // decorators
+            false,  // decorator normals
+            false); // decorator boundaries
     }
 
     cb->beginPass(m_depthPickRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);

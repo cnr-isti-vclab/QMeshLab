@@ -76,13 +76,18 @@ struct MeshGpuResourceCache::CacheState
         int vertexCount = 0;
     };
 
-    struct DecoratorGpu {
+    struct DecoratorNormalsGpu {
         std::uint64_t geometryRevision = 0;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vertexNormalsVbuf;
         int vertexNormalsVertexCount = 0;
         std::unique_ptr<QRhiBuffer> faceNormalsVbuf;
         int faceNormalsVertexCount = 0;
+    };
+
+    struct DecoratorBoundaryGpu {
+        std::uint64_t geometryRevision = 0;
+        bool valid = false;
         std::unique_ptr<QRhiBuffer> boundaryEdgesVbuf;
         int boundaryEdgesVertexCount = 0;
         std::unique_ptr<QRhiBuffer> textureSeamsVbuf;
@@ -94,7 +99,8 @@ struct MeshGpuResourceCache::CacheState
         std::array<PointsVariantGpu, 2> points;
         WireGpu wire;
         BBoxGpu bbox;
-        DecoratorGpu decorators;
+        DecoratorNormalsGpu decoratorNormals;
+        DecoratorBoundaryGpu decoratorBoundaries;
     };
 
     std::unordered_map<QRhi *, std::unordered_map<std::uint64_t, MeshGpu>> byRhi;
@@ -117,7 +123,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     bool needWire,
     bool needPoints,
     bool needBoundingBox,
-    bool needDecorators)
+    bool needDecoratorNormals,
+    bool needDecoratorBoundaries)
 {
     EnsureStats stats;
     if (!m_state || !rhi || !cb || !source.mesh || source.meshId == 0)
@@ -535,7 +542,29 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         return true;
     };
 
-    auto rebuildDecorators = [&](CacheState::DecoratorGpu &dst) -> bool {
+    auto uploadLineBuffer = [&](const std::vector<float> &lineData,
+                                std::unique_ptr<QRhiBuffer> &dstBuffer,
+                                int &dstVertexCount) {
+        dstBuffer.reset();
+        dstVertexCount = 0;
+        if (lineData.empty())
+            return;
+
+        dstBuffer.reset(
+            rhi->newBuffer(
+                QRhiBuffer::Immutable,
+                QRhiBuffer::VertexBuffer,
+                static_cast<quint32>(lineData.size() * sizeof(float))));
+        if (!dstBuffer || !dstBuffer->create()) {
+            dstBuffer.reset();
+            return;
+        }
+
+        ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), lineData.data());
+        dstVertexCount = static_cast<int>(lineData.size() / 3);
+    };
+
+    auto rebuildDecoratorNormals = [&](CacheState::DecoratorNormalsGpu &dst) -> bool {
         if (dst.valid && dst.geometryRevision == source.geometryRevision)
             return false;
 
@@ -545,38 +574,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.vertexNormalsVertexCount = 0;
         dst.faceNormalsVbuf.reset();
         dst.faceNormalsVertexCount = 0;
-        dst.boundaryEdgesVbuf.reset();
-        dst.boundaryEdgesVertexCount = 0;
-        dst.textureSeamsVbuf.reset();
-        dst.textureSeamsVertexCount = 0;
 
         if (meshData.VN() <= 0)
             return true;
 
         const float diag = meshData.bbox.Diag();
         const float normalLength = std::max(1e-4f, diag * 0.02f);
-
-        auto uploadLineBuffer = [&](const std::vector<float> &lineData,
-                                    std::unique_ptr<QRhiBuffer> &dstBuffer,
-                                    int &dstVertexCount) {
-            dstBuffer.reset();
-            dstVertexCount = 0;
-            if (lineData.empty())
-                return;
-
-            dstBuffer.reset(
-                rhi->newBuffer(
-                    QRhiBuffer::Immutable,
-                    QRhiBuffer::VertexBuffer,
-                    static_cast<quint32>(lineData.size() * sizeof(float))));
-            if (!dstBuffer || !dstBuffer->create()) {
-                dstBuffer.reset();
-                return;
-            }
-
-            ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), lineData.data());
-            dstVertexCount = static_cast<int>(lineData.size() / 3);
-        };
 
         std::vector<float> vertexNormalLines;
         vertexNormalLines.reserve(static_cast<size_t>(meshData.VN()) * 6);
@@ -650,6 +653,22 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             faceNormalLines.push_back(cz + dz);
         }
         uploadLineBuffer(faceNormalLines, dst.faceNormalsVbuf, dst.faceNormalsVertexCount);
+        return true;
+    };
+
+    auto rebuildDecoratorBoundaries = [&](CacheState::DecoratorBoundaryGpu &dst) -> bool {
+        if (dst.valid && dst.geometryRevision == source.geometryRevision)
+            return false;
+
+        dst.valid = true;
+        dst.geometryRevision = source.geometryRevision;
+        dst.boundaryEdgesVbuf.reset();
+        dst.boundaryEdgesVertexCount = 0;
+        dst.textureSeamsVbuf.reset();
+        dst.textureSeamsVertexCount = 0;
+
+        if (meshData.VN() <= 0)
+            return true;
 
         std::vector<float> boundaryEdgeLines;
         std::vector<float> textureSeamLines;
@@ -742,7 +761,6 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             boundaryEdgeLines, dst.boundaryEdgesVbuf, dst.boundaryEdgesVertexCount);
         uploadLineBuffer(
             textureSeamLines, dst.textureSeamsVbuf, dst.textureSeamsVertexCount);
-
         return true;
     };
 
@@ -758,8 +776,11 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     }
     if (needBoundingBox)
         stats.rebuiltBoundingBox = rebuildBBox(meshCache.bbox);
-    if (needDecorators)
-        stats.rebuiltDecorators = rebuildDecorators(meshCache.decorators);
+    if (needDecoratorNormals)
+        stats.rebuiltDecoratorNormals = rebuildDecoratorNormals(meshCache.decoratorNormals);
+    if (needDecoratorBoundaries)
+        stats.rebuiltDecoratorBoundaries =
+            rebuildDecoratorBoundaries(meshCache.decoratorBoundaries);
 
     if (updates) {
         stats.uploadedResources = true;
@@ -877,20 +898,21 @@ MeshGpuResourceCache::DecoratorPassView MeshGpuResourceCache::decoratorPassView(
     if (meshIt == rhiIt->second.end())
         return {};
 
-    const auto &decor = meshIt->second.decorators;
-    if (!decor.valid)
+    const auto &normalDecor = meshIt->second.decoratorNormals;
+    const auto &boundaryDecor = meshIt->second.decoratorBoundaries;
+    if (!normalDecor.valid && !boundaryDecor.valid)
         return {};
 
     DecoratorPassView view;
     view.valid = true;
-    view.vertexNormalsBuffer = decor.vertexNormalsVbuf.get();
-    view.vertexNormalsVertexCount = decor.vertexNormalsVertexCount;
-    view.faceNormalsBuffer = decor.faceNormalsVbuf.get();
-    view.faceNormalsVertexCount = decor.faceNormalsVertexCount;
-    view.boundaryEdgesBuffer = decor.boundaryEdgesVbuf.get();
-    view.boundaryEdgesVertexCount = decor.boundaryEdgesVertexCount;
-    view.textureSeamsBuffer = decor.textureSeamsVbuf.get();
-    view.textureSeamsVertexCount = decor.textureSeamsVertexCount;
+    view.vertexNormalsBuffer = normalDecor.vertexNormalsVbuf.get();
+    view.vertexNormalsVertexCount = normalDecor.vertexNormalsVertexCount;
+    view.faceNormalsBuffer = normalDecor.faceNormalsVbuf.get();
+    view.faceNormalsVertexCount = normalDecor.faceNormalsVertexCount;
+    view.boundaryEdgesBuffer = boundaryDecor.boundaryEdgesVbuf.get();
+    view.boundaryEdgesVertexCount = boundaryDecor.boundaryEdgesVertexCount;
+    view.textureSeamsBuffer = boundaryDecor.textureSeamsVbuf.get();
+    view.textureSeamsVertexCount = boundaryDecor.textureSeamsVertexCount;
     return view;
 }
 

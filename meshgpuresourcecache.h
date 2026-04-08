@@ -82,14 +82,15 @@ public:
         bool rebuiltWire = false;
         bool rebuiltPoints = false;
         bool rebuiltBoundingBox = false;
-        bool rebuiltDecorators = false;
+        bool rebuiltDecoratorNormals = false;
+        bool rebuiltDecoratorBoundaries = false;
         bool uploadedResources = false;
         float elapsedMs = 0.0f;
 
         bool anyRebuilt() const
         {
             return rebuiltFill || rebuiltWire || rebuiltPoints || rebuiltBoundingBox
-                || rebuiltDecorators;
+                || rebuiltDecoratorNormals || rebuiltDecoratorBoundaries;
         }
     };
 
@@ -105,7 +106,8 @@ public:
                                     bool needWire,
                                     bool needPoints,
                                     bool needBoundingBox,
-                                    bool needDecorators);
+                                    bool needDecoratorNormals,
+                                    bool needDecoratorBoundaries);
 
     FillPassView fillPassView(QRhi *rhi, std::uint64_t meshId, FillVariant variant) const;
     WirePassView wirePassView(QRhi *rhi, std::uint64_t meshId) const;

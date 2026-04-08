@@ -266,7 +266,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
                                       bool needWire,
                                       bool needPoints,
                                       bool needBoundingBox,
-                                      bool needDecorators)
+                                      bool needDecoratorNormals,
+                                      bool needDecoratorBoundaries)
 {
     if (!m_gpuCache || !rhi || !cb)
         return;
@@ -292,7 +293,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
         needWire,
         needPoints,
         needBoundingBox,
-        needDecorators);
+        needDecoratorNormals,
+        needDecoratorBoundaries);
 
     if (stats.anyRebuilt()) {
         QStringList rebuiltPasses;
@@ -304,8 +306,10 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
             rebuiltPasses << tr("points");
         if (stats.rebuiltBoundingBox)
             rebuiltPasses << tr("bbox");
-        if (stats.rebuiltDecorators)
-            rebuiltPasses << tr("decorators");
+        if (stats.rebuiltDecoratorNormals)
+            rebuiltPasses << tr("decorator normals");
+        if (stats.rebuiltDecoratorBoundaries)
+            rebuiltPasses << tr("decorator boundaries");
         writeLog(
             tr("GPU buffers built for '%1': %2 in %3 ms")
                 .arg(meshEntry.name)

@@ -60,8 +60,8 @@ struct RenderSettings {
     bool decoratorTextureSeams = false;
     QColor decoratorVertexNormalColor = QColor(70, 200, 255);
     QColor decoratorFaceNormalColor = QColor(70, 255, 120);
-    QColor decoratorBoundaryEdgeColor = QColor(255, 80, 80);
-    QColor decoratorTextureSeamColor = QColor(255, 170, 40);
+    QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);
+    QColor decoratorTextureSeamColor = QColor(255, 80, 255);
     QColor bboxWireColor = QColor(245, 190, 60);
     QColor pointColor = QColor(255, 191, 51);
     float pointSize = 4.0f;
