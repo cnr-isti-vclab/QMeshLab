@@ -3,6 +3,7 @@
 #include "meshgpuresourcecache.h"
 #include "vcgmesh.h"
 #include <QObject>
+#include <QElapsedTimer>
 #include <cstdint>
 #include <QString>
 #include <QStringList>
@@ -33,8 +34,6 @@ public:
         std::uint64_t materialRevision = 0;
         QString name;
         QString sourcePath;
-        QString textureFileName;
-        QString textureFilePath;
         QStringList textureFileNames;
         QStringList textureFilePaths;
         bool visible = true;
@@ -109,7 +108,13 @@ private:
     std::uint64_t m_nextMeshId = 1;
     int m_currentMeshIndex = -1;
     std::vector<LogEntry> m_logMessages;
-    QString m_lastCallbackMessage;
     int m_lastCallbackBucket = -1;
     int m_lastProgressPos = -1;
+    QElapsedTimer m_loadCallbackTimer;
+    int m_loadCallbackCount = 0;
+    int m_loadProgressEmitCount = 0;
+    int m_loadProcessEventsCount = 0;
+    qint64 m_loadProcessEventsNs = 0;
+    qint64 m_lastProgressEmitMs = -1;
+    qint64 m_lastProcessEventsMs = -1;
 };

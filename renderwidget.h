@@ -26,7 +26,6 @@ public:
 
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
     void setShadingMode(ShadingMode mode);
-    ShadingMode shadingMode() const { return m_shadingMode; }
     void resetCameraToScene();
 
 signals:

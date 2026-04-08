@@ -25,7 +25,6 @@ Each mesh entry stores:
   - `sourcePath`
 - texture metadata:
   - `textureFileNames` / `textureFilePaths` (multiple textures supported)
-  - convenience selected texture: `textureFileName` / `textureFilePath`
 - mesh state:
   - `visible`
   - `ioMask` (attributes present in the imported file)
@@ -120,4 +119,3 @@ This split lets multiple views share mesh data/cache while keeping independent c
 
 Under the hood this delegates to `MeshGpuResourceCache`, which caches GPU resources by `(QRhi*, meshId, variants, revisions)`.
 The document can release resources per-RHI (`releaseRhiGpuResources`) or globally (`clearAllGpuResources`).
-

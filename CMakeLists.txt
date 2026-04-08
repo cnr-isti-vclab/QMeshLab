@@ -53,7 +53,6 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/fill_flat.vert
         shaders/fill_flat.frag
         shaders/fill_wire.vert
-        shaders/fill_wire.frag
         shaders/fill_wire_overlay.frag
         shaders/overlay_bbox.vert
         shaders/overlay_bbox.frag

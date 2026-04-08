@@ -89,9 +89,16 @@ int Document::loadMesh(const QString &filename)
     writeLog(tr("Loading mesh: %1").arg(filename), LogSource::Application);
 
     auto entry = std::make_unique<MeshEntry>();
-    m_lastCallbackMessage.clear();
     m_lastCallbackBucket = -1;
     m_lastProgressPos = -1;
+    m_loadCallbackCount = 0;
+    m_loadProgressEmitCount = 0;
+    m_loadProcessEventsCount = 0;
+    m_loadProcessEventsNs = 0;
+    m_lastProgressEmitMs = -1;
+    m_lastProcessEventsMs = -1;
+    m_loadCallbackTimer.invalidate();
+    m_loadCallbackTimer.start();
     QElapsedTimer loadTimer;
     loadTimer.start();
     emit loadProgressStarted(filename);
@@ -102,12 +109,12 @@ int Document::loadMesh(const QString &filename)
     int loadMask = 0;
     int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask);
     g_callbackDocument = previousCallbackDocument;
-    const qint64 elapsedMs = loadTimer.elapsed();
+    const qint64 importElapsedMs = loadTimer.elapsed();
 
     if (err != 0) {
         emit loadProgressFinished(false, plugin->errorString(err));
         writeLog(tr("Load failed in %1 ms: %2")
-            .arg(elapsedMs)
+            .arg(importElapsedMs)
             .arg(plugin->errorString(err)),
             LogSource::Application);
         return err;
@@ -129,6 +136,7 @@ int Document::loadMesh(const QString &filename)
 
     QStringList declaredTextureNames;
     QStringList resolvedTexturePaths;
+    QString selectedTextureName;
     bool selectedExistingTexture = false;
     for (const std::string &rawTextureName : entry->mesh.textures) {
         const QString textureName = QString::fromStdString(rawTextureName).trimmed();
@@ -139,13 +147,11 @@ int Document::loadMesh(const QString &filename)
         resolvedTexturePaths.append(resolvedTexturePath);
         entry->textureFileNames.append(textureName);
         entry->textureFilePaths.append(resolvedTexturePath);
-        if (entry->textureFileName.isEmpty()) {
-            entry->textureFileName = textureName;
-            entry->textureFilePath = resolvedTexturePath;
+        if (selectedTextureName.isEmpty()) {
+            selectedTextureName = textureName;
         }
         if (!selectedExistingTexture && QFileInfo::exists(resolvedTexturePath)) {
-            entry->textureFileName = textureName;
-            entry->textureFilePath = resolvedTexturePath;
+            selectedTextureName = textureName;
             selectedExistingTexture = true;
         }
     }
@@ -153,6 +159,8 @@ int Document::loadMesh(const QString &filename)
     int index = meshCount();
     m_meshes.push_back(std::move(entry));
 
+    const qint64 elapsedMs = loadTimer.elapsed();
+    const qint64 postProcessElapsedMs = std::max<qint64>(0, elapsedMs - importElapsedMs);
     const MeshEntry &meshEntry = mesh(index);
     writeLog(tr("Loaded mesh '%1' in %2 ms (%3 vertices, %4 faces)")
         .arg(meshEntry.name)
@@ -160,6 +168,23 @@ int Document::loadMesh(const QString &filename)
         .arg(meshEntry.mesh.VN())
         .arg(meshEntry.mesh.FN()),
         LogSource::Application);
+    if (elapsedMs >= 250) {
+        writeLog(tr("Load timing '%1': import %2 ms, post %3 ms")
+                .arg(meshEntry.name)
+                .arg(importElapsedMs)
+                .arg(postProcessElapsedMs),
+            LogSource::Application);
+    }
+    if (m_loadCallbackCount > 0) {
+        const float processEventsMs = float(m_loadProcessEventsNs / 1000000.0);
+        writeLog(tr("Load callback stats '%1': %2 calls, %3 UI updates, %4 event pumps (%5 ms)")
+                .arg(meshEntry.name)
+                .arg(m_loadCallbackCount)
+                .arg(m_loadProgressEmitCount)
+                .arg(m_loadProcessEventsCount)
+                .arg(QString::number(processEventsMs, 'f', 2)),
+            LogSource::Application);
+    }
     writeLog(tr("File info for '%1': %2 (mask: 0x%3)")
         .arg(meshEntry.name)
         .arg(summarizeLoadMask(loadMask))
@@ -175,7 +200,7 @@ int Document::loadMesh(const QString &filename)
             .arg(meshEntry.name)
             .arg(declaredTextureNames.join(QStringLiteral(", ")))
             .arg(resolvedTexturePaths.join(QStringLiteral(", ")))
-            .arg(meshEntry.textureFileName.isEmpty() ? tr("none") : meshEntry.textureFileName)
+            .arg(selectedTextureName.isEmpty() ? tr("none") : selectedTextureName)
             .arg(existingTextureFiles)
             .arg(meshEntry.textureFilePaths.size()),
             LogSource::Application);
@@ -365,7 +390,6 @@ void Document::clearLog()
         return;
 
     m_logMessages.clear();
-    m_lastCallbackMessage.clear();
     m_lastCallbackBucket = -1;
     emit logCleared();
 }
@@ -399,32 +423,59 @@ vcg::CallBackPos *Document::logCallback()
 
 bool Document::handleLogCallback(int pos, const char *message)
 {
-    const QByteArray rawMessage(message ? message : "");
-    QString text = QString::fromLocal8Bit(rawMessage);
-    const bool replaceLast = text.endsWith('\r');
-    while (!text.isEmpty() && (text.endsWith('\n') || text.endsWith('\r')))
-        text.chop(1);
-    text = text.trimmed();
+    ++m_loadCallbackCount;
 
     const int clampedPos = std::clamp(pos, 0, 100);
-    if (clampedPos != m_lastProgressPos) {
+    const qint64 nowMs = m_loadCallbackTimer.isValid() ? m_loadCallbackTimer.elapsed() : 0;
+    const bool forceUiUpdate = (clampedPos == 0 || clampedPos == 100);
+    const bool progressChanged = (clampedPos != m_lastProgressPos);
+    const bool uiThrottleElapsed =
+        (m_lastProgressEmitMs < 0) || (nowMs - m_lastProgressEmitMs >= 33);
+
+    QString text;
+    bool textDecoded = false;
+    auto decodeText = [&]() {
+        if (textDecoded)
+            return;
+        const QByteArray rawMessage(message ? message : "");
+        text = QString::fromLocal8Bit(rawMessage);
+        while (!text.isEmpty() && (text.endsWith('\n') || text.endsWith('\r')))
+            text.chop(1);
+        text = text.trimmed();
+        textDecoded = true;
+    };
+
+    if (progressChanged && (forceUiUpdate || uiThrottleElapsed)) {
         m_lastProgressPos = clampedPos;
+        m_lastProgressEmitMs = nowMs;
+        decodeText();
         emit loadProgressUpdated(clampedPos, text);
-        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+        ++m_loadProgressEmitCount;
+
+        const bool processEventsThrottleElapsed =
+            (m_lastProcessEventsMs < 0) || (nowMs - m_lastProcessEventsMs >= 80);
+        if (forceUiUpdate || processEventsThrottleElapsed) {
+            QElapsedTimer processTimer;
+            processTimer.start();
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+            m_loadProcessEventsNs += processTimer.nsecsElapsed();
+            m_lastProcessEventsMs = nowMs;
+            ++m_loadProcessEventsCount;
+        }
     }
 
-    const int bucket = pos / 10;
-
-    if (text == m_lastCallbackMessage && bucket == m_lastCallbackBucket)
+    const int bucket = clampedPos / 10;
+    if (bucket == m_lastCallbackBucket)
         return true;
 
-    m_lastCallbackMessage = text;
     m_lastCallbackBucket = bucket;
+    decodeText();
+    const bool replaceLast = message ? QByteArray(message).endsWith('\r') : false;
 
     if (text.isEmpty())
-        writeLog(tr("Progress %1%").arg(pos), LogSource::VCG, replaceLast);
+        writeLog(tr("Progress %1%").arg(clampedPos), LogSource::VCG, replaceLast);
     else
-        writeLog(tr("%1% - %2").arg(pos, 3).arg(text), LogSource::VCG, replaceLast);
+        writeLog(tr("%1% - %2").arg(clampedPos, 3).arg(text), LogSource::VCG, replaceLast);
 
     return true;
 }

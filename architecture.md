@@ -32,7 +32,7 @@ QMeshLab follows a **single-document, multi-view** architecture:
 
 - identity/revisions (`meshId`, `geometryRevision`, `materialRevision`)
 - source metadata (`name`, `sourcePath`, `ioMask`)
-- texture metadata (`textureFileNames`, `textureFilePaths`, selected texture convenience fields)
+- texture metadata (`textureFileNames`, `textureFilePaths`)
 - view-independent mesh state (`visible`, `VCGMesh mesh`)
 
 The document exposes renderer-oriented methods (`ensureMeshGpuResources`, `*PassGpuView`) but does not own per-widget pipelines or camera state.
