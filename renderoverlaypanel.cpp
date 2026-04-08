@@ -7,9 +7,11 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QLabel>
 #include <QPainter>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSizePolicy>
 #include <QStackedWidget>
 #include <QStyle>
 #include <QToolButton>
@@ -20,6 +22,58 @@ namespace {
 const QColor kAccentColor(36, 132, 210);
 const QColor kNeutralArrowColor(90, 90, 90, 175);
 const QColor kActiveArrowColor(36, 132, 210, 235);
+constexpr int kSettingsRowHeight = 24;
+constexpr int kColorButtonSize = 18;
+constexpr Qt::Alignment kSettingsLabelAlignment = Qt::AlignRight | Qt::AlignVCenter;
+
+QWidget *makeCenteredFieldContainer(QWidget *fieldWidget, QWidget *parentWidget)
+{
+    auto *container = new QWidget(parentWidget);
+    auto *layout = new QHBoxLayout(container);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    const QSize fieldHint = fieldWidget->sizeHint();
+    if (auto *checkBox = qobject_cast<QCheckBox *>(fieldWidget)) {
+        Q_UNUSED(checkBox);
+        // Keep checkbox indicator fully visible even in narrow field columns.
+        fieldWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        fieldWidget->setMinimumWidth(fieldHint.width() + 2);
+        fieldWidget->setMaximumWidth(fieldHint.width() + 2);
+    }
+
+    layout->addWidget(fieldWidget, 0, Qt::AlignLeft | Qt::AlignVCenter);
+    layout->addStretch(1);
+    container->setMinimumWidth(fieldHint.width() + 2);
+    container->setMinimumHeight(kSettingsRowHeight);
+    return container;
+}
+
+void applyUniformFormRowHeights(QFormLayout *form)
+{
+    if (!form)
+        return;
+
+    for (int row = 0; row < form->rowCount(); ++row) {
+        if (QLayoutItem *labelItem = form->itemAt(row, QFormLayout::LabelRole)) {
+            if (QWidget *labelWidget = labelItem->widget()) {
+                if (auto *label = qobject_cast<QLabel *>(labelWidget))
+                    label->setAlignment(kSettingsLabelAlignment);
+                QSizePolicy labelPolicy = labelWidget->sizePolicy();
+                labelPolicy.setVerticalPolicy(QSizePolicy::Fixed);
+                labelWidget->setSizePolicy(labelPolicy);
+                labelWidget->setMinimumHeight(kSettingsRowHeight);
+            }
+        }
+
+        if (QLayoutItem *fieldItem = form->itemAt(row, QFormLayout::FieldRole)) {
+            if (QWidget *fieldWidget = fieldItem->widget()) {
+                if (fieldWidget->minimumHeight() != fieldWidget->maximumHeight())
+                    fieldWidget->setMinimumHeight(kSettingsRowHeight);
+            }
+        }
+    }
+}
 
 class PassArrowButton final : public QToolButton
 {
@@ -134,7 +188,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         btn->setText(QString());
         btn->setToolTip(tr("Click to choose a new color"));
         btn->setCursor(Qt::PointingHandCursor);
-        btn->setFixedSize(22, 22);
+        btn->setFixedSize(kColorButtonSize, kColorButtonSize);
         return btn;
     };
     auto *modeArrowSpacer = new QWidget(arrowRow);
@@ -159,8 +213,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 
     m_settingsContainer = new QFrame(this);
     m_settingsContainer->setVisible(false);
+    m_settingsContainer->setObjectName(QStringLiteral("settingsContainer"));
     m_settingsContainer->setStyleSheet(QStringLiteral(
-        "QFrame { background: rgba(250,250,250,225); border: 1px solid rgba(40,40,40,160); border-radius: 4px; }"));
+        "#settingsContainer { background: rgba(250,250,250,225); border: 1px solid rgba(40,40,40,160); border-radius: 4px; }"
+        "#settingsContainer QLabel { border: none; background: transparent; }"));
 
     auto *settingsContainerLayout = new QVBoxLayout(m_settingsContainer);
     settingsContainerLayout->setContentsMargins(6, 6, 6, 6);
@@ -176,7 +232,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->setContentsMargins(0, 0, 0, 0);
     currentMeshForm->setHorizontalSpacing(6);
     currentMeshForm->setVerticalSpacing(2);
-    currentMeshForm->setLabelAlignment(Qt::AlignLeft);
+    currentMeshForm->setLabelAlignment(kSettingsLabelAlignment);
     m_currentMeshHighlightCheck = new QCheckBox(currentMeshPage);
     m_currentMeshHighlightCheck->setChecked(m_settings.highlightCurrentMesh);
     m_currentMeshOutlineColorButton = makeColorButton(currentMeshPage);
@@ -211,12 +267,17 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_currentMeshDebugViewCombo->addItem(
         tr("Eroded"),
         static_cast<int>(CurrentMeshDebugView::ErodedMask));
-    currentMeshForm->addRow(tr("Highlight"), m_currentMeshHighlightCheck);
-    currentMeshForm->addRow(tr("Outline color"), m_currentMeshOutlineColorButton);
+    currentMeshForm->addRow(
+        tr("Highlight"),
+        makeCenteredFieldContainer(m_currentMeshHighlightCheck, currentMeshPage));
+    currentMeshForm->addRow(
+        tr("Outline color"),
+        makeCenteredFieldContainer(m_currentMeshOutlineColorButton, currentMeshPage));
     currentMeshForm->addRow(tr("Outline width"), m_currentMeshOutlineWidthSpin);
     currentMeshForm->addRow(tr("Dilate"), m_currentMeshDilateRadiusSpin);
     currentMeshForm->addRow(tr("Erode"), m_currentMeshErodeRadiusSpin);
     currentMeshForm->addRow(tr("Debug view"), m_currentMeshDebugViewCombo);
+    applyUniformFormRowHeights(currentMeshForm);
     currentMeshLayout->addLayout(currentMeshForm);
     m_settingsStack->addWidget(currentMeshPage);
 
@@ -228,7 +289,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     normalDecoratorsForm->setContentsMargins(0, 0, 0, 0);
     normalDecoratorsForm->setHorizontalSpacing(6);
     normalDecoratorsForm->setVerticalSpacing(2);
-    normalDecoratorsForm->setLabelAlignment(Qt::AlignLeft);
+    normalDecoratorsForm->setLabelAlignment(kSettingsLabelAlignment);
     m_decoratorVertexNormalsCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorFaceNormalsCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorBoundaryEdgesCheck = new QCheckBox(normalDecoratorsPage);
@@ -241,10 +302,19 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_decoratorFaceNormalColorButton = makeColorButton(normalDecoratorsPage);
     m_decoratorBoundaryEdgeColorButton = makeColorButton(normalDecoratorsPage);
     m_decoratorTextureSeamColorButton = makeColorButton(normalDecoratorsPage);
-    normalDecoratorsForm->addRow(tr("Vertex normals"), m_decoratorVertexNormalsCheck);
-    normalDecoratorsForm->addRow(tr("Vertex normal color"), m_decoratorVertexNormalColorButton);
-    normalDecoratorsForm->addRow(tr("Face normals"), m_decoratorFaceNormalsCheck);
-    normalDecoratorsForm->addRow(tr("Face normal color"), m_decoratorFaceNormalColorButton);
+    normalDecoratorsForm->addRow(
+        tr("Vertex normals"),
+        makeCenteredFieldContainer(m_decoratorVertexNormalsCheck, normalDecoratorsPage));
+    normalDecoratorsForm->addRow(
+        tr("Vertex normal color"),
+        makeCenteredFieldContainer(m_decoratorVertexNormalColorButton, normalDecoratorsPage));
+    normalDecoratorsForm->addRow(
+        tr("Face normals"),
+        makeCenteredFieldContainer(m_decoratorFaceNormalsCheck, normalDecoratorsPage));
+    normalDecoratorsForm->addRow(
+        tr("Face normal color"),
+        makeCenteredFieldContainer(m_decoratorFaceNormalColorButton, normalDecoratorsPage));
+    applyUniformFormRowHeights(normalDecoratorsForm);
     normalDecoratorsLayout->addLayout(normalDecoratorsForm);
     m_settingsStack->addWidget(normalDecoratorsPage);
 
@@ -256,11 +326,20 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     boundaryDecoratorsForm->setContentsMargins(0, 0, 0, 0);
     boundaryDecoratorsForm->setHorizontalSpacing(6);
     boundaryDecoratorsForm->setVerticalSpacing(2);
-    boundaryDecoratorsForm->setLabelAlignment(Qt::AlignLeft);
-    boundaryDecoratorsForm->addRow(tr("Boundary edges"), m_decoratorBoundaryEdgesCheck);
-    boundaryDecoratorsForm->addRow(tr("Boundary edge color"), m_decoratorBoundaryEdgeColorButton);
-    boundaryDecoratorsForm->addRow(tr("Texture seams"), m_decoratorTextureSeamsCheck);
-    boundaryDecoratorsForm->addRow(tr("Texture seam color"), m_decoratorTextureSeamColorButton);
+    boundaryDecoratorsForm->setLabelAlignment(kSettingsLabelAlignment);
+    boundaryDecoratorsForm->addRow(
+        tr("Boundary edges"),
+        makeCenteredFieldContainer(m_decoratorBoundaryEdgesCheck, boundaryDecoratorsPage));
+    boundaryDecoratorsForm->addRow(
+        tr("Boundary edge color"),
+        makeCenteredFieldContainer(m_decoratorBoundaryEdgeColorButton, boundaryDecoratorsPage));
+    boundaryDecoratorsForm->addRow(
+        tr("Texture seams"),
+        makeCenteredFieldContainer(m_decoratorTextureSeamsCheck, boundaryDecoratorsPage));
+    boundaryDecoratorsForm->addRow(
+        tr("Texture seam color"),
+        makeCenteredFieldContainer(m_decoratorTextureSeamColorButton, boundaryDecoratorsPage));
+    applyUniformFormRowHeights(boundaryDecoratorsForm);
     boundaryDecoratorsLayout->addLayout(boundaryDecoratorsForm);
     m_settingsStack->addWidget(boundaryDecoratorsPage);
 
@@ -272,9 +351,22 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bboxForm->setContentsMargins(0, 0, 0, 0);
     bboxForm->setHorizontalSpacing(6);
     bboxForm->setVerticalSpacing(2);
-    bboxForm->setLabelAlignment(Qt::AlignLeft);
+    bboxForm->setLabelAlignment(kSettingsLabelAlignment);
     m_bboxColorButton = makeColorButton(bboxPage);
-    bboxForm->addRow(tr("Wire color"), m_bboxColorButton);
+    m_bboxShowCornersCheck = new QCheckBox(bboxPage);
+    m_bboxShowCornersCheck->setChecked(m_settings.showBoundingBoxCorners);
+    m_bboxShowDimensionsCheck = new QCheckBox(bboxPage);
+    m_bboxShowDimensionsCheck->setChecked(m_settings.showBoundingBoxDimensions);
+    bboxForm->addRow(
+        tr("Wire color"),
+        makeCenteredFieldContainer(m_bboxColorButton, bboxPage));
+    bboxForm->addRow(
+        tr("Show min/max corners"),
+        makeCenteredFieldContainer(m_bboxShowCornersCheck, bboxPage));
+    bboxForm->addRow(
+        tr("Show X/Y/Z size"),
+        makeCenteredFieldContainer(m_bboxShowDimensionsCheck, bboxPage));
+    applyUniformFormRowHeights(bboxForm);
     bboxLayout->addLayout(bboxForm);
 
     m_settingsStack->addWidget(bboxPage);
@@ -286,7 +378,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     pointsForm->setContentsMargins(0, 0, 0, 0);
     pointsForm->setHorizontalSpacing(6);
     pointsForm->setVerticalSpacing(2);
-    pointsForm->setLabelAlignment(Qt::AlignLeft);
+    pointsForm->setLabelAlignment(kSettingsLabelAlignment);
     m_pointsColorButton = makeColorButton(pointsPage);
     m_pointColorSourceCombo = new QComboBox(pointsPage);
     m_pointColorSourceCombo->addItem(tr("Constant"), static_cast<int>(PointColorSource::Constant));
@@ -300,9 +392,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_pointLightingCheck = new QCheckBox(pointsPage);
     m_pointLightingCheck->setChecked(m_settings.pointLighting);
     pointsForm->addRow(tr("Color source"), m_pointColorSourceCombo);
-    pointsForm->addRow(tr("Point color"), m_pointsColorButton);
+    pointsForm->addRow(
+        tr("Point color"),
+        makeCenteredFieldContainer(m_pointsColorButton, pointsPage));
     pointsForm->addRow(tr("Point size"), m_pointSizeSpin);
-    pointsForm->addRow(tr("Lighting"), m_pointLightingCheck);
+    pointsForm->addRow(
+        tr("Lighting"),
+        makeCenteredFieldContainer(m_pointLightingCheck, pointsPage));
+    applyUniformFormRowHeights(pointsForm);
     pointsLayout->addLayout(pointsForm);
     m_settingsStack->addWidget(pointsPage);
     auto *wirePage = new QWidget(m_settingsStack);
@@ -313,7 +410,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     wireForm->setContentsMargins(0, 0, 0, 0);
     wireForm->setHorizontalSpacing(6);
     wireForm->setVerticalSpacing(2);
-    wireForm->setLabelAlignment(Qt::AlignLeft);
+    wireForm->setLabelAlignment(kSettingsLabelAlignment);
     m_wireColorButton = makeColorButton(wirePage);
     m_wireSizeSpin = new QDoubleSpinBox(wirePage);
     m_wireSizeSpin->setRange(0.5, 8.0);
@@ -325,10 +422,17 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_wireBackfaceCullingCheck->setChecked(m_settings.wireBackfaceCulling);
     m_wireLightingCheck = new QCheckBox(wirePage);
     m_wireLightingCheck->setChecked(m_settings.wireLighting);
-    wireForm->addRow(tr("Wire color"), m_wireColorButton);
+    wireForm->addRow(
+        tr("Wire color"),
+        makeCenteredFieldContainer(m_wireColorButton, wirePage));
     wireForm->addRow(tr("Wire size"), m_wireSizeSpin);
-    wireForm->addRow(tr("Backface culling"), m_wireBackfaceCullingCheck);
-    wireForm->addRow(tr("Lighting"), m_wireLightingCheck);
+    wireForm->addRow(
+        tr("Backface culling"),
+        makeCenteredFieldContainer(m_wireBackfaceCullingCheck, wirePage));
+    wireForm->addRow(
+        tr("Lighting"),
+        makeCenteredFieldContainer(m_wireLightingCheck, wirePage));
+    applyUniformFormRowHeights(wireForm);
     wireLayout->addLayout(wireForm);
     m_settingsStack->addWidget(wirePage);
     auto *fillPage = new QWidget(m_settingsStack);
@@ -339,7 +443,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillForm->setContentsMargins(0, 0, 0, 0);
     fillForm->setHorizontalSpacing(6);
     fillForm->setVerticalSpacing(2);
-    fillForm->setLabelAlignment(Qt::AlignLeft);
+    fillForm->setLabelAlignment(kSettingsLabelAlignment);
     m_fillColorButton = makeColorButton(fillPage);
     m_fillColorSourceCombo = new QComboBox(fillPage);
     m_fillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
@@ -353,10 +457,17 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillLightingCheck = new QCheckBox(fillPage);
     m_fillLightingCheck->setChecked(m_settings.fillLighting);
     fillForm->addRow(tr("Color source"), m_fillColorSourceCombo);
-    fillForm->addRow(tr("Fill color"), m_fillColorButton);
+    fillForm->addRow(
+        tr("Fill color"),
+        makeCenteredFieldContainer(m_fillColorButton, fillPage));
     fillForm->addRow(tr("Shading"), m_fillShadingCombo);
-    fillForm->addRow(tr("Backface culling"), m_fillBackfaceCullingCheck);
-    fillForm->addRow(tr("Lighting"), m_fillLightingCheck);
+    fillForm->addRow(
+        tr("Backface culling"),
+        makeCenteredFieldContainer(m_fillBackfaceCullingCheck, fillPage));
+    fillForm->addRow(
+        tr("Lighting"),
+        makeCenteredFieldContainer(m_fillLightingCheck, fillPage));
+    applyUniformFormRowHeights(fillForm);
     fillLayout->addLayout(fillForm);
     m_settingsStack->addWidget(fillPage);
     panelLayout->addWidget(m_settingsContainer);
@@ -472,6 +583,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("Decorator Texture Seam Color"));
 
     bindColorButton(m_bboxColorButton, &RenderSettings::bboxWireColor, tr("Bounding Box Wire Color"));
+    bindCheckBox(m_bboxShowCornersCheck, &RenderSettings::showBoundingBoxCorners);
+    bindCheckBox(m_bboxShowDimensionsCheck, &RenderSettings::showBoundingBoxDimensions);
 
     bindEnumCombo(m_pointColorSourceCombo, &RenderSettings::pointColorSource);
     bindColorButton(m_pointsColorButton, &RenderSettings::pointColor, tr("Point Color"));
@@ -593,6 +706,14 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_bboxButton) {
         QSignalBlocker blocker(m_bboxButton);
         m_bboxButton->setChecked(m_settings.showBoundingBox);
+    }
+    if (m_bboxShowCornersCheck) {
+        QSignalBlocker blocker(m_bboxShowCornersCheck);
+        m_bboxShowCornersCheck->setChecked(m_settings.showBoundingBoxCorners);
+    }
+    if (m_bboxShowDimensionsCheck) {
+        QSignalBlocker blocker(m_bboxShowDimensionsCheck);
+        m_bboxShowDimensionsCheck->setChecked(m_settings.showBoundingBoxDimensions);
     }
     if (m_normalsDecoratorsButton) {
         QSignalBlocker blocker(m_normalsDecoratorsButton);
@@ -785,9 +906,10 @@ void RenderOverlayPanel::updateColorButtonStyle(QPushButton *button, const QColo
         return;
     button->setText(QString());
     button->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 0px; min-width: 22px; min-height: 22px; max-width: 22px; max-height: 22px; }"
+        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 0px; min-width: %2px; min-height: %2px; max-width: %2px; max-height: %2px; }"
         "QPushButton:hover { border-color: rgba(36,132,210,220); }")
-            .arg(color.name()));
+            .arg(color.name())
+            .arg(kColorButtonSize));
 }
 
 void RenderOverlayPanel::syncRenderPassUiState()

@@ -16,7 +16,7 @@ constexpr float kTrackballHyperbolaCutAngleDeg = 45.0f;
 const QQuaternion kIdentityRotation;
 QQuaternion defaultTrackballRotation()
 {
-    return QQuaternion::fromAxisAndAngle(1.0f, 0.0f, 0.0f, -20.0f);
+    return kIdentityRotation;
 }
 }
 

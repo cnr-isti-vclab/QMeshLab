@@ -39,6 +39,8 @@ enum class CurrentMeshDebugView {
 struct RenderSettings {
     bool highlightCurrentMesh = true;
     bool showBoundingBox = false;
+    bool showBoundingBoxCorners = false;
+    bool showBoundingBoxDimensions = false;
     bool showPoints = false;
     bool showWire = true;
     bool showFill = true;
@@ -76,6 +78,8 @@ struct RenderSettings {
     {
         return highlightCurrentMesh == other.highlightCurrentMesh
             && showBoundingBox == other.showBoundingBox
+            && showBoundingBoxCorners == other.showBoundingBoxCorners
+            && showBoundingBoxDimensions == other.showBoundingBoxDimensions
             && showPoints == other.showPoints
             && showWire == other.showWire
             && showFill == other.showFill

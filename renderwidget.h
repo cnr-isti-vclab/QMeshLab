@@ -14,6 +14,7 @@
 
 class Document;
 class RenderOverlayPanel;
+class QLabel;
 
 class RenderWidget : public QRhiWidget
 {
@@ -46,6 +47,12 @@ protected:
 private:
     void createOverlayButtons();
     void layoutOverlayButtons();
+    bool computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const;
+    void updateBoundingBoxCornersOverlay();
+    void updateBoundingBoxCornersOverlayPlacement(
+        const QMatrix4x4 &mvp,
+        const QMatrix4x4 &view,
+        const QSize &pixelSize);
     void applySceneDefaultRenderModeIfNeeded();
     void refreshColorSourceAvailability();
     void ensureRenderResources();
@@ -145,6 +152,14 @@ private:
     ShadingMode m_shadingMode = ShadingMode::Smooth;
     RenderSettings m_renderSettings;
     RenderOverlayPanel *m_overlayPanel = nullptr;
+    QLabel *m_bboxMinCornerOverlayLabel = nullptr;
+    QLabel *m_bboxMaxCornerOverlayLabel = nullptr;
+    QLabel *m_bboxDimXOverlayLabel = nullptr;
+    QLabel *m_bboxDimYOverlayLabel = nullptr;
+    QLabel *m_bboxDimZOverlayLabel = nullptr;
+    QVector3D m_bboxOverlayMinCorner = QVector3D();
+    QVector3D m_bboxOverlayMaxCorner = QVector3D();
+    bool m_bboxOverlayCornersValid = false;
     QElapsedTimer m_frameTimer;
     bool m_currentMaskFromPoints = false;
     ViewTrackball m_trackball;

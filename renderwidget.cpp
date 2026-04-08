@@ -4,6 +4,7 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFile>
 #include <QImage>
+#include <QLabel>
 #include <QMetaObject>
 #include <QMouseEvent>
 #include <QPointer>
@@ -122,6 +123,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         applySceneDefaultRenderModeIfNeeded();
         refreshColorSourceAvailability();
         m_textureSrbs.clear();
+        updateBoundingBoxCornersOverlay();
+        layoutOverlayButtons();
         update();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int) {
@@ -130,9 +133,13 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
             m_applySceneDefaultRenderMode = true;
         refreshColorSourceAvailability();
         m_textureSrbs.clear();
+        updateBoundingBoxCornersOverlay();
+        layoutOverlayButtons();
         update();
     });
     connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
+        updateBoundingBoxCornersOverlay();
+        layoutOverlayButtons();
         update();
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
@@ -229,6 +236,30 @@ void RenderWidget::createOverlayButtons()
 {
     m_overlayPanel = new RenderOverlayPanel(this);
     m_overlayPanel->setSettings(m_renderSettings);
+    auto makeCornerLabel = [this](const QColor &textColor) {
+        auto *label = new QLabel(this);
+        label->setVisible(false);
+        label->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        label->setTextInteractionFlags(Qt::NoTextInteraction);
+        label->setWordWrap(false);
+        label->setStyleSheet(QStringLiteral(
+            "QLabel {"
+            "  color: rgba(%1,%2,%3,245);"
+            "  background: rgba(20,20,20,170);"
+            "  border: 1px solid rgba(90,90,90,180);"
+            "  border-radius: 4px;"
+            "  padding: 2px 4px;"
+            "}")
+                                 .arg(textColor.red())
+                                 .arg(textColor.green())
+                                 .arg(textColor.blue()));
+        return label;
+    };
+    m_bboxMinCornerOverlayLabel = makeCornerLabel(QColor(140, 220, 255));
+    m_bboxMaxCornerOverlayLabel = makeCornerLabel(QColor(255, 210, 140));
+    m_bboxDimXOverlayLabel = makeCornerLabel(QColor(255, 150, 150));
+    m_bboxDimYOverlayLabel = makeCornerLabel(QColor(150, 255, 170));
+    m_bboxDimZOverlayLabel = makeCornerLabel(QColor(150, 190, 255));
 
     connect(m_overlayPanel, &RenderOverlayPanel::settingsChanged, this,
             [this](const RenderSettings &settings) {
@@ -248,21 +279,236 @@ void RenderWidget::createOverlayButtons()
             || prev.wireBackfaceCulling != m_renderSettings.wireBackfaceCulling) {
             m_wirePipeline.reset();
         }
+        updateBoundingBoxCornersOverlay();
         update();
         layoutOverlayButtons();
     });
 
+    updateBoundingBoxCornersOverlay();
     layoutOverlayButtons();
 }
 
 void RenderWidget::layoutOverlayButtons()
 {
-    if (!m_overlayPanel)
+    constexpr int kOverlayMargin = 8;
+    const int maxOverlayWidth = qMax(120, width() - 2 * kOverlayMargin);
+
+    if (m_overlayPanel) {
+        m_overlayPanel->setMaximumWidth(maxOverlayWidth);
+        m_overlayPanel->adjustSize();
+        m_overlayPanel->move(kOverlayMargin, kOverlayMargin);
+        m_overlayPanel->raise();
+    }
+}
+
+bool RenderWidget::computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const
+{
+    bool hasBox = false;
+    vcg::Box3f sceneBox;
+    for (int i = 0; i < m_doc->meshCount(); ++i) {
+        const auto &meshEntry = m_doc->mesh(i);
+        if (!meshEntry.visible)
+            continue;
+        if (meshEntry.mesh.bbox.IsNull())
+            continue;
+        if (!hasBox) {
+            sceneBox = meshEntry.mesh.bbox;
+            hasBox = true;
+        } else {
+            sceneBox.Add(meshEntry.mesh.bbox);
+        }
+    }
+
+    if (!hasBox || sceneBox.IsNull())
+        return false;
+
+    minCorner = QVector3D(sceneBox.min[0], sceneBox.min[1], sceneBox.min[2]);
+    maxCorner = QVector3D(sceneBox.max[0], sceneBox.max[1], sceneBox.max[2]);
+    return true;
+}
+
+void RenderWidget::updateBoundingBoxCornersOverlay()
+{
+    if (!m_bboxMinCornerOverlayLabel || !m_bboxMaxCornerOverlayLabel
+        || !m_bboxDimXOverlayLabel || !m_bboxDimYOverlayLabel || !m_bboxDimZOverlayLabel)
         return;
 
-    m_overlayPanel->adjustSize();
-    m_overlayPanel->move(8, 8);
-    m_overlayPanel->raise();
+    const bool showCorners = m_renderSettings.showBoundingBoxCorners;
+    const bool showDimensions = m_renderSettings.showBoundingBoxDimensions;
+    if (!m_renderSettings.showBoundingBox || (!showCorners && !showDimensions)) {
+        m_bboxOverlayCornersValid = false;
+        m_bboxMinCornerOverlayLabel->hide();
+        m_bboxMaxCornerOverlayLabel->hide();
+        m_bboxDimXOverlayLabel->hide();
+        m_bboxDimYOverlayLabel->hide();
+        m_bboxDimZOverlayLabel->hide();
+        return;
+    }
+
+    QVector3D minCorner;
+    QVector3D maxCorner;
+    if (!computeVisibleSceneBoundingBox(minCorner, maxCorner)) {
+        m_bboxOverlayCornersValid = false;
+        m_bboxMinCornerOverlayLabel->hide();
+        m_bboxMaxCornerOverlayLabel->hide();
+        m_bboxDimXOverlayLabel->hide();
+        m_bboxDimYOverlayLabel->hide();
+        m_bboxDimZOverlayLabel->hide();
+        return;
+    }
+
+    m_bboxOverlayCornersValid = true;
+    m_bboxOverlayMinCorner = minCorner;
+    m_bboxOverlayMaxCorner = maxCorner;
+
+    if (showCorners) {
+        const QString minText = tr("min (%1, %2, %3)")
+                                    .arg(minCorner.x(), 0, 'f', 6)
+                                    .arg(minCorner.y(), 0, 'f', 6)
+                                    .arg(minCorner.z(), 0, 'f', 6);
+        const QString maxText = tr("max (%1, %2, %3)")
+                                    .arg(maxCorner.x(), 0, 'f', 6)
+                                    .arg(maxCorner.y(), 0, 'f', 6)
+                                    .arg(maxCorner.z(), 0, 'f', 6);
+        if (m_bboxMinCornerOverlayLabel->text() != minText)
+            m_bboxMinCornerOverlayLabel->setText(minText);
+        if (m_bboxMaxCornerOverlayLabel->text() != maxText)
+            m_bboxMaxCornerOverlayLabel->setText(maxText);
+        m_bboxMinCornerOverlayLabel->show();
+        m_bboxMaxCornerOverlayLabel->show();
+    } else {
+        m_bboxMinCornerOverlayLabel->hide();
+        m_bboxMaxCornerOverlayLabel->hide();
+    }
+
+    if (showDimensions) {
+        const QVector3D size = maxCorner - minCorner;
+        const QString xText = tr("X: %1").arg(size.x(), 0, 'f', 6);
+        const QString yText = tr("Y: %1").arg(size.y(), 0, 'f', 6);
+        const QString zText = tr("Z: %1").arg(size.z(), 0, 'f', 6);
+        if (m_bboxDimXOverlayLabel->text() != xText)
+            m_bboxDimXOverlayLabel->setText(xText);
+        if (m_bboxDimYOverlayLabel->text() != yText)
+            m_bboxDimYOverlayLabel->setText(yText);
+        if (m_bboxDimZOverlayLabel->text() != zText)
+            m_bboxDimZOverlayLabel->setText(zText);
+        m_bboxDimXOverlayLabel->show();
+        m_bboxDimYOverlayLabel->show();
+        m_bboxDimZOverlayLabel->show();
+    } else {
+        m_bboxDimXOverlayLabel->hide();
+        m_bboxDimYOverlayLabel->hide();
+        m_bboxDimZOverlayLabel->hide();
+    }
+}
+
+void RenderWidget::updateBoundingBoxCornersOverlayPlacement(
+    const QMatrix4x4 &mvp,
+    const QMatrix4x4 &view,
+    const QSize &pixelSize)
+{
+    if (!m_bboxOverlayCornersValid
+        || !m_bboxMinCornerOverlayLabel
+        || !m_bboxMaxCornerOverlayLabel
+        || !m_bboxDimXOverlayLabel
+        || !m_bboxDimYOverlayLabel
+        || !m_bboxDimZOverlayLabel)
+        return;
+
+    const auto projectToScreen = [this, &mvp, &pixelSize](const QVector3D &world, QPoint &screenPos) -> bool {
+        const QVector4D clip = mvp * QVector4D(world, 1.0f);
+        if (clip.w() <= 1e-6f)
+            return false;
+        const QVector3D ndc = clip.toVector3DAffine();
+        const float px = (ndc.x() * 0.5f + 0.5f) * float(pixelSize.width());
+        const float py = (1.0f - (ndc.y() * 0.5f + 0.5f)) * float(pixelSize.height());
+
+        // QRhi renders in physical pixels, QWidget overlays are in logical pixels.
+        const float dpr = qMax(1.0, devicePixelRatioF());
+        const float x = px / dpr;
+        const float y = py / dpr;
+        screenPos = QPoint(int(std::round(x)), int(std::round(y)));
+        return true;
+    };
+
+    auto placeLabel = [this, &projectToScreen](QLabel *label, const QVector3D &corner, const QPoint &offset) {
+        QPoint screenPos;
+        if (!projectToScreen(corner, screenPos)) {
+            label->hide();
+            return;
+        }
+        label->adjustSize();
+        QPoint targetPos = screenPos + offset;
+        const int maxX = qMax(0, width() - label->width());
+        const int maxY = qMax(0, height() - label->height());
+        targetPos.setX(std::clamp(targetPos.x(), 0, maxX));
+        targetPos.setY(std::clamp(targetPos.y(), 0, maxY));
+        label->move(targetPos);
+        label->show();
+        label->raise();
+    };
+
+    if (m_bboxMinCornerOverlayLabel->isVisible())
+        placeLabel(m_bboxMinCornerOverlayLabel, m_bboxOverlayMinCorner, QPoint(8, 8));
+    if (m_bboxMaxCornerOverlayLabel->isVisible())
+        placeLabel(m_bboxMaxCornerOverlayLabel, m_bboxOverlayMaxCorner, QPoint(8, -22));
+
+    if (!m_bboxDimXOverlayLabel->isVisible()
+        && !m_bboxDimYOverlayLabel->isVisible()
+        && !m_bboxDimZOverlayLabel->isVisible()) {
+        return;
+    }
+
+    bool okInv = false;
+    const QMatrix4x4 invView = view.inverted(&okInv);
+    if (!okInv) {
+        m_bboxDimXOverlayLabel->hide();
+        m_bboxDimYOverlayLabel->hide();
+        m_bboxDimZOverlayLabel->hide();
+        return;
+    }
+    const QVector3D cameraPos = (invView * QVector4D(0.0f, 0.0f, 0.0f, 1.0f)).toVector3D();
+
+    const QVector3D mn = m_bboxOverlayMinCorner;
+    const QVector3D mx = m_bboxOverlayMaxCorner;
+
+    auto closestAxisEdgeMidpoint = [&cameraPos, &mn, &mx](int axis) {
+        QVector3D bestMid;
+        float bestDist2 = std::numeric_limits<float>::max();
+        auto test = [&](const QVector3D &a, const QVector3D &b) {
+            const QVector3D mid = (a + b) * 0.5f;
+            const float dist2 = (mid - cameraPos).lengthSquared();
+            if (dist2 < bestDist2) {
+                bestDist2 = dist2;
+                bestMid = mid;
+            }
+        };
+
+        if (axis == 0) { // X
+            test(QVector3D(mn.x(), mn.y(), mn.z()), QVector3D(mx.x(), mn.y(), mn.z()));
+            test(QVector3D(mn.x(), mx.y(), mn.z()), QVector3D(mx.x(), mx.y(), mn.z()));
+            test(QVector3D(mn.x(), mn.y(), mx.z()), QVector3D(mx.x(), mn.y(), mx.z()));
+            test(QVector3D(mn.x(), mx.y(), mx.z()), QVector3D(mx.x(), mx.y(), mx.z()));
+        } else if (axis == 1) { // Y
+            test(QVector3D(mn.x(), mn.y(), mn.z()), QVector3D(mn.x(), mx.y(), mn.z()));
+            test(QVector3D(mx.x(), mn.y(), mn.z()), QVector3D(mx.x(), mx.y(), mn.z()));
+            test(QVector3D(mn.x(), mn.y(), mx.z()), QVector3D(mn.x(), mx.y(), mx.z()));
+            test(QVector3D(mx.x(), mn.y(), mx.z()), QVector3D(mx.x(), mx.y(), mx.z()));
+        } else { // Z
+            test(QVector3D(mn.x(), mn.y(), mn.z()), QVector3D(mn.x(), mn.y(), mx.z()));
+            test(QVector3D(mx.x(), mn.y(), mn.z()), QVector3D(mx.x(), mn.y(), mx.z()));
+            test(QVector3D(mn.x(), mx.y(), mn.z()), QVector3D(mn.x(), mx.y(), mx.z()));
+            test(QVector3D(mx.x(), mx.y(), mn.z()), QVector3D(mx.x(), mx.y(), mx.z()));
+        }
+        return bestMid;
+    };
+
+    if (m_bboxDimXOverlayLabel->isVisible())
+        placeLabel(m_bboxDimXOverlayLabel, closestAxisEdgeMidpoint(0), QPoint(8, -16));
+    if (m_bboxDimYOverlayLabel->isVisible())
+        placeLabel(m_bboxDimYOverlayLabel, closestAxisEdgeMidpoint(1), QPoint(8, 8));
+    if (m_bboxDimZOverlayLabel->isVisible())
+        placeLabel(m_bboxDimZOverlayLabel, closestAxisEdgeMidpoint(2), QPoint(-50, -4));
 }
 
 void RenderWidget::applySceneDefaultRenderModeIfNeeded()
@@ -2295,6 +2541,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     if (drawCurrentMeshHighlight)
         drawCurrentMeshOutline(cb, sz);
+
+    if (needMvpForFrame) {
+        const QMatrix4x4 view = m_trackball.viewMatrix();
+        updateBoundingBoxCornersOverlayPlacement(mvp, view, sz);
+    }
 
     cb->endPass();
 
