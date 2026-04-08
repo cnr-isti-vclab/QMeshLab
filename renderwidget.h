@@ -7,6 +7,7 @@
 #include <QElapsedTimer>
 #include <QMatrix4x4>
 #include <QPoint>
+#include <array>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -89,8 +90,8 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
-    std::unique_ptr<QRhiBuffer> m_decoratorUbuf;
-    std::unique_ptr<QRhiShaderResourceBindings> m_decoratorSrb;
+    std::array<std::unique_ptr<QRhiBuffer>, 4> m_decoratorUbufs;
+    std::array<std::unique_ptr<QRhiShaderResourceBindings>, 4> m_decoratorSrbs;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorPipeline;
     std::unique_ptr<QRhiTexture> m_depthPickTexture;
     std::unique_ptr<QRhiRenderBuffer> m_depthPickDepth;

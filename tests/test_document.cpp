@@ -48,9 +48,11 @@ void DocumentTests::openDialogFilterContainsKnownFormats()
 {
     Document doc;
     const QString filter = doc.openDialogFilter();
+    const QStringList filters = filter.split(QStringLiteral(";;"), Qt::SkipEmptyParts);
 
-    QVERIFY(filter.contains(QStringLiteral("*.ply")));
-    QVERIFY(filter.contains(QStringLiteral("*.obj")));
+    QVERIFY(!filters.isEmpty());
+    QVERIFY(filters.first().contains(QStringLiteral("*.ply")));
+    QVERIFY(filters.first().contains(QStringLiteral("*.obj")));
     QVERIFY(filter.contains(QStringLiteral("All Files (*)")));
 }
 

@@ -1,6 +1,8 @@
 #include "meshgpuresourcecache.h"
 
 #include <wrap/io_trimesh/io_mask.h>
+#include <vcg/complex/algorithms/update/flag.h>
+#include <vcg/complex/algorithms/update/topology.h>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
 #include <QFileInfo>
@@ -649,124 +651,24 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         }
         uploadLineBuffer(faceNormalLines, dst.faceNormalsVbuf, dst.faceNormalsVertexCount);
 
-        struct EdgeIncidence {
-            int a = -1;
-            int b = -1;
-            float uA = 0.0f;
-            float vA = 0.0f;
-            float uB = 0.0f;
-            float vB = 0.0f;
-            int texA = -1;
-            int texB = -1;
-            bool hasUv = false;
-        };
-
-        struct EdgeInfo {
-            bool hasFirst = false;
-            bool hasSecond = false;
-            EdgeIncidence first;
-            EdgeIncidence second;
-            int vMin = -1;
-            int vMax = -1;
-        };
-
-        std::unordered_map<std::uint64_t, EdgeInfo> edgeMap;
-        edgeMap.reserve(static_cast<size_t>(qMax(1, meshData.FN() * 3)));
-
-        const bool hasWedgeTex =
-            (source.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
-        const bool hasVertTex =
-            !hasWedgeTex && (source.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
-        const bool canCheckTexSeams = hasWedgeTex || hasVertTex;
-
-        auto edgeKey = [](int v0, int v1) -> std::uint64_t {
-            const std::uint32_t mn = static_cast<std::uint32_t>(std::min(v0, v1));
-            const std::uint32_t mx = static_cast<std::uint32_t>(std::max(v0, v1));
-            return (std::uint64_t(mx) << 32) | std::uint64_t(mn);
-        };
-
-        auto makeIncidence = [&](const VCGFace &f, int corner) -> EdgeIncidence {
-            EdgeIncidence inc;
-            const int next = (corner + 1) % 3;
-            inc.a = static_cast<int>(vcg::tri::Index(meshData, f.cV(corner)));
-            inc.b = static_cast<int>(vcg::tri::Index(meshData, f.cV(next)));
-            if (hasWedgeTex) {
-                const auto &tA = f.cWT(corner);
-                const auto &tB = f.cWT(next);
-                inc.uA = tA.U();
-                inc.vA = tA.V();
-                inc.uB = tB.U();
-                inc.vB = tB.V();
-                inc.texA = tA.N();
-                inc.texB = tB.N();
-                inc.hasUv = true;
-            } else if (hasVertTex) {
-                const auto &tA = f.cV(corner)->cT();
-                const auto &tB = f.cV(next)->cT();
-                inc.uA = tA.U();
-                inc.vA = tA.V();
-                inc.uB = tB.U();
-                inc.vB = tB.V();
-                inc.texA = tA.N();
-                inc.texB = tB.N();
-                inc.hasUv = true;
-            }
-            return inc;
-        };
-
-        auto uvAtVertex =
-            [](const EdgeIncidence &inc, int vid, float &u, float &v, int &tex) -> bool {
-            if (!inc.hasUv)
-                return false;
-            if (vid == inc.a) {
-                u = inc.uA;
-                v = inc.vA;
-                tex = inc.texA;
-                return true;
-            }
-            if (vid == inc.b) {
-                u = inc.uB;
-                v = inc.vB;
-                tex = inc.texB;
-                return true;
-            }
-            return false;
-        };
-
-        for (int fi = 0; fi < meshData.FN(); ++fi) {
-            const auto &f = meshData.face[fi];
-            for (int corner = 0; corner < 3; ++corner) {
-                const int next = (corner + 1) % 3;
-                const int v0 = static_cast<int>(vcg::tri::Index(meshData, f.cV(corner)));
-                const int v1 = static_cast<int>(vcg::tri::Index(meshData, f.cV(next)));
-                auto &edgeInfo = edgeMap[edgeKey(v0, v1)];
-                edgeInfo.vMin = std::min(v0, v1);
-                edgeInfo.vMax = std::max(v0, v1);
-                if (!edgeInfo.hasFirst) {
-                    edgeInfo.first = makeIncidence(f, corner);
-                    edgeInfo.hasFirst = true;
-                } else if (!edgeInfo.hasSecond) {
-                    edgeInfo.second = makeIncidence(f, corner);
-                    edgeInfo.hasSecond = true;
-                }
-            }
-        }
-
         std::vector<float> boundaryEdgeLines;
         std::vector<float> textureSeamLines;
-        boundaryEdgeLines.reserve(edgeMap.size() * 6);
-        textureSeamLines.reserve(edgeMap.size() * 6);
-        constexpr float kTexEps = 1e-5f;
-        for (const auto &entry : edgeMap) {
-            const EdgeInfo &edgeInfo = entry.second;
-            if (edgeInfo.vMin < 0 || edgeInfo.vMax < 0)
+        boundaryEdgeLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
+        textureSeamLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
+
+        VCGMesh &meshMutable = const_cast<VCGMesh &>(meshData);
+
+        // MeshLab-like geometric boundary extraction:
+        // mark border flags from pure geometry, then collect face border edges.
+        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(meshMutable);
+        for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+            if (fi->IsD())
                 continue;
-
-            const auto &p0 = meshData.vert[edgeInfo.vMin].cP();
-            const auto &p1 = meshData.vert[edgeInfo.vMax].cP();
-
-            const bool isBoundary = edgeInfo.hasFirst && !edgeInfo.hasSecond;
-            if (isBoundary) {
+            for (int i = 0; i < 3; ++i) {
+                if (!fi->IsB(i))
+                    continue;
+                const auto &p0 = fi->V0(i)->cP();
+                const auto &p1 = fi->V1(i)->cP();
                 boundaryEdgeLines.push_back(p0[0]);
                 boundaryEdgeLines.push_back(p0[1]);
                 boundaryEdgeLines.push_back(p0[2]);
@@ -774,35 +676,66 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 boundaryEdgeLines.push_back(p1[1]);
                 boundaryEdgeLines.push_back(p1[2]);
             }
+        }
 
-            if (!canCheckTexSeams || !edgeInfo.hasFirst || !edgeInfo.hasSecond)
-                continue;
+        const bool hasWedgeTex =
+            (source.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
+        const bool hasVertTex =
+            !hasWedgeTex && (source.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
+        if (hasWedgeTex || hasVertTex) {
+            // FaceFaceFromTexCoord works on per-wedge texcoords.
+            // For vertex-only texcoords, mirror vertex UVs onto wedges first.
+            if (hasVertTex) {
+                for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+                    if (fi->IsD())
+                        continue;
+                    for (int i = 0; i < 3; ++i) {
+                        const auto &vt = fi->cV(i)->cT();
+                        fi->WT(i).U() = vt.U();
+                        fi->WT(i).V() = vt.V();
+                        fi->WT(i).N() = vt.N();
+                    }
+                }
+            }
 
-            float u0a = 0.0f, v0a = 0.0f, u1a = 0.0f, v1a = 0.0f;
-            float u0b = 0.0f, v0b = 0.0f, u1b = 0.0f, v1b = 0.0f;
-            int t0a = -1, t1a = -1, t0b = -1, t1b = -1;
-            const bool firstHasMin = uvAtVertex(edgeInfo.first, edgeInfo.vMin, u0a, v0a, t0a);
-            const bool firstHasMax = uvAtVertex(edgeInfo.first, edgeInfo.vMax, u1a, v1a, t1a);
-            const bool secondHasMin = uvAtVertex(edgeInfo.second, edgeInfo.vMin, u0b, v0b, t0b);
-            const bool secondHasMax = uvAtVertex(edgeInfo.second, edgeInfo.vMax, u1b, v1b, t1b);
-            if (!(firstHasMin && firstHasMax && secondHasMin && secondHasMax))
-                continue;
+            std::vector<std::pair<VCGFace *, int>> savedTopo;
+            savedTopo.reserve(static_cast<size_t>(meshMutable.FN()) * 3);
+            for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+                if (fi->IsD())
+                    continue;
+                for (int i = 0; i < 3; ++i)
+                    savedTopo.push_back(std::make_pair(fi->FFp(i), fi->FFi(i)));
+            }
 
-            const bool texSlotMismatch = (t0a != t0b) || (t1a != t1b);
-            const bool uvMismatch =
-                (std::abs(u0a - u0b) > kTexEps)
-                || (std::abs(v0a - v0b) > kTexEps)
-                || (std::abs(u1a - u1b) > kTexEps)
-                || (std::abs(v1a - v1b) > kTexEps);
-            if (!(texSlotMismatch || uvMismatch))
-                continue;
+            // MeshLab-like texture seam extraction:
+            // rebuild FF adjacency in UV space, then collect UV-border edges.
+            vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(meshMutable);
+            for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+                if (fi->IsD())
+                    continue;
+                for (int i = 0; i < 3; ++i) {
+                    if (!vcg::face::IsBorder(*fi, i))
+                        continue;
+                    const auto &p0 = fi->V0(i)->cP();
+                    const auto &p1 = fi->V1(i)->cP();
+                    textureSeamLines.push_back(p0[0]);
+                    textureSeamLines.push_back(p0[1]);
+                    textureSeamLines.push_back(p0[2]);
+                    textureSeamLines.push_back(p1[0]);
+                    textureSeamLines.push_back(p1[1]);
+                    textureSeamLines.push_back(p1[2]);
+                }
+            }
 
-            textureSeamLines.push_back(p0[0]);
-            textureSeamLines.push_back(p0[1]);
-            textureSeamLines.push_back(p0[2]);
-            textureSeamLines.push_back(p1[0]);
-            textureSeamLines.push_back(p1[1]);
-            textureSeamLines.push_back(p1[2]);
+            auto topoIt = savedTopo.begin();
+            for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+                if (fi->IsD())
+                    continue;
+                for (int i = 0; i < 3 && topoIt != savedTopo.end(); ++i, ++topoIt) {
+                    fi->FFp(i) = topoIt->first;
+                    fi->FFi(i) = topoIt->second;
+                }
+            }
         }
 
         uploadLineBuffer(

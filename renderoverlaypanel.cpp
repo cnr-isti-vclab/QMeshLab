@@ -14,6 +14,7 @@
 #include <QStyle>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <type_traits>
 
 namespace {
 const QColor kAccentColor(36, 132, 210);
@@ -352,297 +353,151 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_settingsStack->addWidget(fillPage);
     panelLayout->addWidget(m_settingsContainer);
 
+    auto setField = [this](auto member, const auto &value, bool syncUi = false) {
+        if (m_settings.*member == value)
+            return false;
+        m_settings.*member = value;
+        if (syncUi)
+            setSettings(m_settings);
+        emit settingsChanged(m_settings);
+        return true;
+    };
+
+    auto bindCheckBox = [this, setField](
+                            QCheckBox *checkBox,
+                            bool RenderSettings::*member,
+                            bool syncUi = false) {
+        connect(checkBox, &QCheckBox::toggled, this, [this, setField, member, syncUi](bool checked) {
+            setField(member, checked, syncUi);
+        });
+    };
+
+    auto bindToolToggle = [this, setField](
+                              QToolButton *button,
+                              bool RenderSettings::*member,
+                              bool syncUi = false) {
+        connect(button, &QToolButton::toggled, this, [this, setField, member, syncUi](bool checked) {
+            setField(member, checked, syncUi);
+        });
+    };
+
+    auto bindFloatSpin = [this, setField](QDoubleSpinBox *spin, float RenderSettings::*member) {
+        connect(spin, &QDoubleSpinBox::valueChanged, this, [this, setField, member](double value) {
+            setField(member, static_cast<float>(value));
+        });
+    };
+
+    auto bindEnumCombo = [this, setField](QComboBox *combo, auto member) {
+        using EnumType = std::decay_t<decltype(m_settings.*member)>;
+        connect(
+            combo,
+            qOverload<int>(&QComboBox::currentIndexChanged),
+            this,
+            [this, setField, combo, member](int idx) {
+                const QVariant data = combo->itemData(idx);
+                if (!data.isValid())
+                    return;
+                setField(member, static_cast<EnumType>(data.toInt()));
+            });
+    };
+
+    auto bindColorButton = [this, setField](
+                               QPushButton *button,
+                               QColor RenderSettings::*member,
+                               const QString &dialogTitle) {
+        connect(button, &QPushButton::clicked, this, [this, setField, button, member, dialogTitle]() {
+            const QColor picked = QColorDialog::getColor(m_settings.*member, this, dialogTitle);
+            if (!picked.isValid())
+                return;
+            if (setField(member, picked))
+                updateColorButtonStyle(button, picked);
+        });
+    };
+
+    auto bindPassButton = [this](QToolButton *button, RenderPass pass, bool showSettings) {
+        connect(button, &QToolButton::clicked, this, [this, pass, showSettings]() {
+            setCurrentRenderPass(pass);
+            if (showSettings)
+                setSettingsVisible(true);
+        });
+    };
+
     connect(m_modeButton, &QToolButton::toggled, this, [this](bool checked) {
         if (m_settings.settingsPanelVisible == checked)
             return;
         m_settings.settingsPanelVisible = checked;
         if (m_settingsContainer)
             m_settingsContainer->setVisible(checked);
-        emit settingsChanged(m_settings);
-    });
-    connect(m_currentMeshHighlightCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.highlightCurrentMesh == checked)
-            return;
-        m_settings.highlightCurrentMesh = checked;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_currentMeshOutlineColorButton, &QPushButton::clicked, this, [this]() {
-        const QColor picked = QColorDialog::getColor(
-            m_settings.currentMeshOutlineColor, this, tr("Current Mesh Outline Color"));
-        if (!picked.isValid())
-            return;
-        m_settings.currentMeshOutlineColor = picked;
-        updateCurrentMeshOutlineColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_currentMeshOutlineWidthSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
-        const float newWidth = static_cast<float>(value);
-        if (m_settings.currentMeshOutlineWidth == newWidth)
-            return;
-        m_settings.currentMeshOutlineWidth = newWidth;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_currentMeshDilateRadiusSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
-        const float newRadius = static_cast<float>(value);
-        if (m_settings.currentMeshDilateRadius == newRadius)
-            return;
-        m_settings.currentMeshDilateRadius = newRadius;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_currentMeshErodeRadiusSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
-        const float newRadius = static_cast<float>(value);
-        if (m_settings.currentMeshErodeRadius == newRadius)
-            return;
-        m_settings.currentMeshErodeRadius = newRadius;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_currentMeshDebugViewCombo, &QComboBox::currentIndexChanged, this, [this](int idx) {
-        if (!m_currentMeshDebugViewCombo)
-            return;
-        const QVariant data = m_currentMeshDebugViewCombo->itemData(idx);
-        if (!data.isValid())
-            return;
-        const CurrentMeshDebugView view = static_cast<CurrentMeshDebugView>(data.toInt());
-        if (m_settings.currentMeshDebugView == view)
-            return;
-        m_settings.currentMeshDebugView = view;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_decoratorVertexNormalsCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.decoratorVertexNormals == checked)
-            return;
-        m_settings.decoratorVertexNormals = checked;
-        setSettings(m_settings);
-        emit settingsChanged(m_settings);
-    });
-    connect(m_decoratorFaceNormalsCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.decoratorFaceNormals == checked)
-            return;
-        m_settings.decoratorFaceNormals = checked;
-        setSettings(m_settings);
-        emit settingsChanged(m_settings);
-    });
-    connect(m_decoratorBoundaryEdgesCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.decoratorBoundaryEdges == checked)
-            return;
-        m_settings.decoratorBoundaryEdges = checked;
-        setSettings(m_settings);
-        emit settingsChanged(m_settings);
-    });
-    connect(m_decoratorTextureSeamsCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.decoratorTextureSeams == checked)
-            return;
-        m_settings.decoratorTextureSeams = checked;
-        setSettings(m_settings);
-        emit settingsChanged(m_settings);
-    });
-    connect(m_decoratorVertexNormalColorButton, &QPushButton::clicked, this, [this]() {
-        const QColor picked = QColorDialog::getColor(
-            m_settings.decoratorVertexNormalColor, this, tr("Decorator Vertex Normal Color"));
-        if (!picked.isValid())
-            return;
-        m_settings.decoratorVertexNormalColor = picked;
-        updateDecoratorVertexNormalColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_decoratorFaceNormalColorButton, &QPushButton::clicked, this, [this]() {
-        const QColor picked = QColorDialog::getColor(
-            m_settings.decoratorFaceNormalColor, this, tr("Decorator Face Normal Color"));
-        if (!picked.isValid())
-            return;
-        m_settings.decoratorFaceNormalColor = picked;
-        updateDecoratorFaceNormalColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_decoratorBoundaryEdgeColorButton, &QPushButton::clicked, this, [this]() {
-        const QColor picked = QColorDialog::getColor(
-            m_settings.decoratorBoundaryEdgeColor, this, tr("Decorator Boundary Edge Color"));
-        if (!picked.isValid())
-            return;
-        m_settings.decoratorBoundaryEdgeColor = picked;
-        updateDecoratorBoundaryEdgeColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_decoratorTextureSeamColorButton, &QPushButton::clicked, this, [this]() {
-        const QColor picked = QColorDialog::getColor(
-            m_settings.decoratorTextureSeamColor, this, tr("Decorator Texture Seam Color"));
-        if (!picked.isValid())
-            return;
-        m_settings.decoratorTextureSeamColor = picked;
-        updateDecoratorTextureSeamColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_bboxColorButton, &QPushButton::clicked, this, [this]() {
-        const QColor picked = QColorDialog::getColor(m_settings.bboxWireColor, this, tr("Bounding Box Wire Color"));
-        if (!picked.isValid())
-            return;
-        m_settings.bboxWireColor = picked;
-        updateBBoxColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_pointsColorButton, &QPushButton::clicked, this, [this]() {
-        const QColor picked = QColorDialog::getColor(m_settings.pointColor, this, tr("Point Color"));
-        if (!picked.isValid())
-            return;
-        m_settings.pointColor = picked;
-        updatePointsColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_pointSizeSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
-        const float newSize = static_cast<float>(value);
-        if (m_settings.pointSize == newSize)
-            return;
-        m_settings.pointSize = newSize;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_pointColorSourceCombo, &QComboBox::currentIndexChanged, this, [this](int idx) {
-        if (!m_pointColorSourceCombo)
-            return;
-        const QVariant data = m_pointColorSourceCombo->itemData(idx);
-        if (!data.isValid())
-            return;
-        const PointColorSource source = static_cast<PointColorSource>(data.toInt());
-        if (m_settings.pointColorSource == source)
-            return;
-        m_settings.pointColorSource = source;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_pointLightingCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.pointLighting == checked)
-            return;
-        m_settings.pointLighting = checked;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_wireColorButton, &QPushButton::clicked, this, [this]() {
-        const QColor picked = QColorDialog::getColor(m_settings.wireColor, this, tr("Wire Color"));
-        if (!picked.isValid())
-            return;
-        m_settings.wireColor = picked;
-        updateWireColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_wireSizeSpin, &QDoubleSpinBox::valueChanged, this, [this](double value) {
-        const float newSize = static_cast<float>(value);
-        if (m_settings.wireSize == newSize)
-            return;
-        m_settings.wireSize = newSize;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_wireBackfaceCullingCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.wireBackfaceCulling == checked)
-            return;
-        m_settings.wireBackfaceCulling = checked;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_wireLightingCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.wireLighting == checked)
-            return;
-        m_settings.wireLighting = checked;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_fillColorButton, &QPushButton::clicked, this, [this]() {
-        const QColor picked = QColorDialog::getColor(m_settings.fillColor, this, tr("Fill Color"));
-        if (!picked.isValid())
-            return;
-        m_settings.fillColor = picked;
-        updateFillColorButtonStyle();
-        emit settingsChanged(m_settings);
-    });
-    connect(m_fillColorSourceCombo, &QComboBox::currentIndexChanged, this, [this](int idx) {
-        if (!m_fillColorSourceCombo)
-            return;
-        const QVariant data = m_fillColorSourceCombo->itemData(idx);
-        if (!data.isValid())
-            return;
-        const FillColorSource source = static_cast<FillColorSource>(data.toInt());
-        if (m_settings.fillColorSource == source)
-            return;
-        m_settings.fillColorSource = source;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_fillShadingCombo, &QComboBox::currentIndexChanged, this, [this](int idx) {
-        if (!m_fillShadingCombo)
-            return;
-        const QVariant data = m_fillShadingCombo->itemData(idx);
-        if (!data.isValid())
-            return;
-        const FillShading shading = static_cast<FillShading>(data.toInt());
-        if (m_settings.fillShading == shading)
-            return;
-        m_settings.fillShading = shading;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_fillBackfaceCullingCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.fillBackfaceCulling == checked)
-            return;
-        m_settings.fillBackfaceCulling = checked;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_fillLightingCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        if (m_settings.fillLighting == checked)
-            return;
-        m_settings.fillLighting = checked;
+        adjustSize();
         emit settingsChanged(m_settings);
     });
 
-    connect(m_currentMeshButton, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::CurrentMesh);
-        setSettingsVisible(true);
-    });
-    connect(m_normalsDecoratorsButton, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::DecoratorNormals);
-    });
-    connect(m_boundaryDecoratorsButton, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::DecoratorBoundary);
-    });
-    connect(m_bboxButton, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::BoundingBox);
-    });
-    connect(m_pointsButton, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::Points);
-    });
-    connect(m_wireButton, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::Wireframe);
-    });
-    connect(m_fillButton, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::Fill);
-    });
+    bindCheckBox(m_currentMeshHighlightCheck, &RenderSettings::highlightCurrentMesh);
+    bindColorButton(
+        m_currentMeshOutlineColorButton,
+        &RenderSettings::currentMeshOutlineColor,
+        tr("Current Mesh Outline Color"));
+    bindFloatSpin(m_currentMeshOutlineWidthSpin, &RenderSettings::currentMeshOutlineWidth);
+    bindFloatSpin(m_currentMeshDilateRadiusSpin, &RenderSettings::currentMeshDilateRadius);
+    bindFloatSpin(m_currentMeshErodeRadiusSpin, &RenderSettings::currentMeshErodeRadius);
+    bindEnumCombo(m_currentMeshDebugViewCombo, &RenderSettings::currentMeshDebugView);
 
-    connect(m_currentMeshSettingsArrow, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::CurrentMesh);
-        setSettingsVisible(true);
-    });
-    connect(m_normalsDecoratorsSettingsArrow, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::DecoratorNormals);
-        setSettingsVisible(true);
-    });
-    connect(m_boundaryDecoratorsSettingsArrow, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::DecoratorBoundary);
-        setSettingsVisible(true);
-    });
-    connect(m_bboxSettingsArrow, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::BoundingBox);
-        setSettingsVisible(true);
-    });
-    connect(m_pointsSettingsArrow, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::Points);
-        setSettingsVisible(true);
-    });
-    connect(m_wireSettingsArrow, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::Wireframe);
-        setSettingsVisible(true);
-    });
-    connect(m_fillSettingsArrow, &QToolButton::clicked, this, [this]() {
-        setCurrentRenderPass(RenderPass::Fill);
-        setSettingsVisible(true);
-    });
+    bindCheckBox(m_decoratorVertexNormalsCheck, &RenderSettings::decoratorVertexNormals, true);
+    bindCheckBox(m_decoratorFaceNormalsCheck, &RenderSettings::decoratorFaceNormals, true);
+    bindCheckBox(m_decoratorBoundaryEdgesCheck, &RenderSettings::decoratorBoundaryEdges, true);
+    bindCheckBox(m_decoratorTextureSeamsCheck, &RenderSettings::decoratorTextureSeams, true);
+    bindColorButton(
+        m_decoratorVertexNormalColorButton,
+        &RenderSettings::decoratorVertexNormalColor,
+        tr("Decorator Vertex Normal Color"));
+    bindColorButton(
+        m_decoratorFaceNormalColorButton,
+        &RenderSettings::decoratorFaceNormalColor,
+        tr("Decorator Face Normal Color"));
+    bindColorButton(
+        m_decoratorBoundaryEdgeColorButton,
+        &RenderSettings::decoratorBoundaryEdgeColor,
+        tr("Decorator Boundary Edge Color"));
+    bindColorButton(
+        m_decoratorTextureSeamColorButton,
+        &RenderSettings::decoratorTextureSeamColor,
+        tr("Decorator Texture Seam Color"));
 
-    connect(m_bboxButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (m_settings.showBoundingBox == checked)
-            return;
-        m_settings.showBoundingBox = checked;
-        emit settingsChanged(m_settings);
-    });
+    bindColorButton(m_bboxColorButton, &RenderSettings::bboxWireColor, tr("Bounding Box Wire Color"));
+
+    bindEnumCombo(m_pointColorSourceCombo, &RenderSettings::pointColorSource);
+    bindColorButton(m_pointsColorButton, &RenderSettings::pointColor, tr("Point Color"));
+    bindFloatSpin(m_pointSizeSpin, &RenderSettings::pointSize);
+    bindCheckBox(m_pointLightingCheck, &RenderSettings::pointLighting);
+
+    bindColorButton(m_wireColorButton, &RenderSettings::wireColor, tr("Wire Color"));
+    bindFloatSpin(m_wireSizeSpin, &RenderSettings::wireSize);
+    bindCheckBox(m_wireBackfaceCullingCheck, &RenderSettings::wireBackfaceCulling);
+    bindCheckBox(m_wireLightingCheck, &RenderSettings::wireLighting);
+
+    bindEnumCombo(m_fillColorSourceCombo, &RenderSettings::fillColorSource);
+    bindColorButton(m_fillColorButton, &RenderSettings::fillColor, tr("Fill Color"));
+    bindEnumCombo(m_fillShadingCombo, &RenderSettings::fillShading);
+    bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
+    bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
+
+    bindPassButton(m_currentMeshButton, RenderPass::CurrentMesh, true);
+    bindPassButton(m_normalsDecoratorsButton, RenderPass::DecoratorNormals, false);
+    bindPassButton(m_boundaryDecoratorsButton, RenderPass::DecoratorBoundary, false);
+    bindPassButton(m_bboxButton, RenderPass::BoundingBox, false);
+    bindPassButton(m_pointsButton, RenderPass::Points, false);
+    bindPassButton(m_wireButton, RenderPass::Wireframe, false);
+    bindPassButton(m_fillButton, RenderPass::Fill, false);
+
+    bindPassButton(m_currentMeshSettingsArrow, RenderPass::CurrentMesh, true);
+    bindPassButton(m_normalsDecoratorsSettingsArrow, RenderPass::DecoratorNormals, true);
+    bindPassButton(m_boundaryDecoratorsSettingsArrow, RenderPass::DecoratorBoundary, true);
+    bindPassButton(m_bboxSettingsArrow, RenderPass::BoundingBox, true);
+    bindPassButton(m_pointsSettingsArrow, RenderPass::Points, true);
+    bindPassButton(m_wireSettingsArrow, RenderPass::Wireframe, true);
+    bindPassButton(m_fillSettingsArrow, RenderPass::Fill, true);
+
+    bindToolToggle(m_bboxButton, &RenderSettings::showBoundingBox);
     connect(m_normalsDecoratorsButton, &QToolButton::toggled, this, [this](bool checked) {
         const bool changed =
             (m_settings.decoratorVertexNormals != checked)
@@ -665,34 +520,19 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         setSettings(m_settings);
         emit settingsChanged(m_settings);
     });
-    connect(m_pointsButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (m_settings.showPoints == checked)
-            return;
-        m_settings.showPoints = checked;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_wireButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (m_settings.showWire == checked)
-            return;
-        m_settings.showWire = checked;
-        emit settingsChanged(m_settings);
-    });
-    connect(m_fillButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (m_settings.showFill == checked)
-            return;
-        m_settings.showFill = checked;
-        emit settingsChanged(m_settings);
-    });
+    bindToolToggle(m_pointsButton, &RenderSettings::showPoints);
+    bindToolToggle(m_wireButton, &RenderSettings::showWire);
+    bindToolToggle(m_fillButton, &RenderSettings::showFill);
 
-    updateCurrentMeshOutlineColorButtonStyle();
-    updateDecoratorVertexNormalColorButtonStyle();
-    updateDecoratorFaceNormalColorButtonStyle();
-    updateDecoratorBoundaryEdgeColorButtonStyle();
-    updateDecoratorTextureSeamColorButtonStyle();
-    updateBBoxColorButtonStyle();
-    updatePointsColorButtonStyle();
-    updateWireColorButtonStyle();
-    updateFillColorButtonStyle();
+    updateColorButtonStyle(m_currentMeshOutlineColorButton, m_settings.currentMeshOutlineColor);
+    updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_settings.decoratorVertexNormalColor);
+    updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_settings.decoratorFaceNormalColor);
+    updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_settings.decoratorBoundaryEdgeColor);
+    updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_settings.decoratorTextureSeamColor);
+    updateColorButtonStyle(m_bboxColorButton, m_settings.bboxWireColor);
+    updateColorButtonStyle(m_pointsColorButton, m_settings.pointColor);
+    updateColorButtonStyle(m_wireColorButton, m_settings.wireColor);
+    updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
     setPointColorSourceAvailability(false);
     setPointLightingAvailability(false);
     setFillColorSourceAvailability(false, false);
@@ -873,15 +713,15 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
 
-    updateCurrentMeshOutlineColorButtonStyle();
-    updateDecoratorVertexNormalColorButtonStyle();
-    updateDecoratorFaceNormalColorButtonStyle();
-    updateDecoratorBoundaryEdgeColorButtonStyle();
-    updateDecoratorTextureSeamColorButtonStyle();
-    updateBBoxColorButtonStyle();
-    updatePointsColorButtonStyle();
-    updateWireColorButtonStyle();
-    updateFillColorButtonStyle();
+    updateColorButtonStyle(m_currentMeshOutlineColorButton, m_settings.currentMeshOutlineColor);
+    updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_settings.decoratorVertexNormalColor);
+    updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_settings.decoratorFaceNormalColor);
+    updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_settings.decoratorBoundaryEdgeColor);
+    updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_settings.decoratorTextureSeamColor);
+    updateColorButtonStyle(m_bboxColorButton, m_settings.bboxWireColor);
+    updateColorButtonStyle(m_pointsColorButton, m_settings.pointColor);
+    updateColorButtonStyle(m_wireColorButton, m_settings.wireColor);
+    updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
     syncRenderPassUiState();
 }
 
@@ -931,85 +771,13 @@ void RenderOverlayPanel::setFillColorSourceAvailability(bool hasVertexColors, bo
     }
 }
 
-void RenderOverlayPanel::updateCurrentMeshOutlineColorButtonStyle()
+void RenderOverlayPanel::updateColorButtonStyle(QPushButton *button, const QColor &color)
 {
-    if (!m_currentMeshOutlineColorButton)
+    if (!button)
         return;
-    m_currentMeshOutlineColorButton->setStyleSheet(QStringLiteral(
+    button->setStyleSheet(QStringLiteral(
         "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
-            .arg(m_settings.currentMeshOutlineColor.name()));
-}
-
-void RenderOverlayPanel::updateDecoratorVertexNormalColorButtonStyle()
-{
-    if (!m_decoratorVertexNormalColorButton)
-        return;
-    m_decoratorVertexNormalColorButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
-            .arg(m_settings.decoratorVertexNormalColor.name()));
-}
-
-void RenderOverlayPanel::updateDecoratorFaceNormalColorButtonStyle()
-{
-    if (!m_decoratorFaceNormalColorButton)
-        return;
-    m_decoratorFaceNormalColorButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
-            .arg(m_settings.decoratorFaceNormalColor.name()));
-}
-
-void RenderOverlayPanel::updateDecoratorBoundaryEdgeColorButtonStyle()
-{
-    if (!m_decoratorBoundaryEdgeColorButton)
-        return;
-    m_decoratorBoundaryEdgeColorButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
-            .arg(m_settings.decoratorBoundaryEdgeColor.name()));
-}
-
-void RenderOverlayPanel::updateDecoratorTextureSeamColorButtonStyle()
-{
-    if (!m_decoratorTextureSeamColorButton)
-        return;
-    m_decoratorTextureSeamColorButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
-            .arg(m_settings.decoratorTextureSeamColor.name()));
-}
-
-void RenderOverlayPanel::updateBBoxColorButtonStyle()
-{
-    if (!m_bboxColorButton)
-        return;
-    m_bboxColorButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
-            .arg(m_settings.bboxWireColor.name()));
-}
-
-void RenderOverlayPanel::updatePointsColorButtonStyle()
-{
-    if (!m_pointsColorButton)
-        return;
-    m_pointsColorButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
-            .arg(m_settings.pointColor.name()));
-}
-
-void RenderOverlayPanel::updateWireColorButtonStyle()
-{
-    if (!m_wireColorButton)
-        return;
-    m_wireColorButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
-            .arg(m_settings.wireColor.name()));
-}
-
-void RenderOverlayPanel::updateFillColorButtonStyle()
-{
-    if (!m_fillColorButton)
-        return;
-    m_fillColorButton->setStyleSheet(QStringLiteral(
-        "QPushButton { background: %1; border: 1px solid rgba(40,40,40,160); border-radius: 3px; padding: 4px 8px; }")
-            .arg(m_settings.fillColor.name()));
+            .arg(color.name()));
 }
 
 void RenderOverlayPanel::syncRenderPassUiState()

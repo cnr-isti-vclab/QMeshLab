@@ -21,6 +21,7 @@ public:
 
 private slots:
     void newDocument();
+    void newInstance();
     void openFile();
     void openLastMesh();
     void openRecentMesh();

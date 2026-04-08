@@ -41,6 +41,11 @@ constexpr int kMaskMorphUbufSize = 16;
 constexpr int kMaskDebugUbufSize = 16;
 constexpr int kOutlineUbufSize = 32;
 constexpr int kDecoratorUbufSize = 80; // mat4 mvp + vec4 color
+constexpr int kDecoratorSlotVertexNormals = 0;
+constexpr int kDecoratorSlotFaceNormals = 1;
+constexpr int kDecoratorSlotBoundaryEdges = 2;
+constexpr int kDecoratorSlotTextureSeams = 3;
+constexpr int kDecoratorSlotCount = 4;
 constexpr int kTrackballGizmoUbufSize = 80; // mat4 mvp + vec4(center.xyz, radius)
 constexpr int kTrackballGizmoSteps = 96;
 constexpr float kPi = 3.14159265358979323846f;
@@ -724,8 +729,10 @@ void RenderWidget::ensureRenderResources()
         m_bboxPipeline.reset();
         m_pointsPipeline.reset();
         m_decoratorPipeline.reset();
-        m_decoratorSrb.reset();
-        m_decoratorUbuf.reset();
+        for (auto &srb : m_decoratorSrbs)
+            srb.reset();
+        for (auto &ubuf : m_decoratorUbufs)
+            ubuf.reset();
         m_depthPickTexture.reset();
         m_depthPickDepth.reset();
         m_depthPickRt.reset();
@@ -827,20 +834,22 @@ void RenderWidget::ensureRenderResources()
         m_srb->create();
     }
 
-    if (!m_decoratorUbuf) {
-        m_decoratorUbuf.reset(
-            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorUbufSize));
-        m_decoratorUbuf->create();
-    }
-    if (!m_decoratorSrb && m_decoratorUbuf) {
-        m_decoratorSrb.reset(m_rhi->newShaderResourceBindings());
-        m_decoratorSrb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
-                0,
-                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                m_decoratorUbuf.get())
-        });
-        m_decoratorSrb->create();
+    for (int slot = 0; slot < kDecoratorSlotCount; ++slot) {
+        if (!m_decoratorUbufs[slot]) {
+            m_decoratorUbufs[slot].reset(
+                m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorUbufSize));
+            m_decoratorUbufs[slot]->create();
+        }
+        if (!m_decoratorSrbs[slot] && m_decoratorUbufs[slot]) {
+            m_decoratorSrbs[slot].reset(m_rhi->newShaderResourceBindings());
+            m_decoratorSrbs[slot]->setBindings({
+                QRhiShaderResourceBinding::uniformBuffer(
+                    0,
+                    QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                    m_decoratorUbufs[slot].get())
+            });
+            m_decoratorSrbs[slot]->create();
+        }
     }
 
     if (!m_outlineUbuf) {
@@ -1197,7 +1206,7 @@ void RenderWidget::ensureRenderResources()
         }
     }
 
-    if (!m_decoratorPipeline && m_decoratorSrb) {
+    if (!m_decoratorPipeline && m_decoratorSrbs[kDecoratorSlotVertexNormals]) {
         m_decoratorPipeline.reset(m_rhi->newGraphicsPipeline());
 
         QShader vs = loadShader(QStringLiteral(":/shaders/overlay_decorator.vert.qsb"));
@@ -1219,7 +1228,8 @@ void RenderWidget::ensureRenderResources()
             layout.setBindings({ { 3 * sizeof(float) } });
             layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
             m_decoratorPipeline->setVertexInputLayout(layout);
-            m_decoratorPipeline->setShaderResourceBindings(m_decoratorSrb.get());
+            m_decoratorPipeline->setShaderResourceBindings(
+                m_decoratorSrbs[kDecoratorSlotVertexNormals].get());
             m_decoratorPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
             if (!m_decoratorPipeline->create()) {
                 qWarning("Failed to create decorator pipeline");
@@ -1242,7 +1252,8 @@ void RenderWidget::ensureRenderResources()
             });
             m_currentMaskFillPipeline->setDepthTest(true);
             m_currentMaskFillPipeline->setDepthWrite(true);
-            m_currentMaskFillPipeline->setCullMode(QRhiGraphicsPipeline::Back);
+            // Outline mask generation should include both front and back faces.
+            m_currentMaskFillPipeline->setCullMode(QRhiGraphicsPipeline::None);
             QRhiVertexInputLayout layout;
             layout.setBindings({ { kFillVertexStrideFloats * sizeof(float) } });
             layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
@@ -2163,8 +2174,14 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
-    if (drawDecoratorPass && m_decoratorPipeline && m_decoratorSrb && m_decoratorUbuf) {
-        auto setDecoratorColor = [&](const QColor &color) {
+    if (drawDecoratorPass && m_decoratorPipeline) {
+        auto setDecoratorColor = [&](int slot, const QColor &color) -> bool {
+            if (slot < 0 || slot >= kDecoratorSlotCount)
+                return false;
+            QRhiBuffer *decoratorUbuf = m_decoratorUbufs[slot].get();
+            QRhiShaderResourceBindings *decoratorSrb = m_decoratorSrbs[slot].get();
+            if (!decoratorUbuf || !decoratorSrb)
+                return false;
             float decoratorData[kDecoratorUbufSize / sizeof(float)] = {};
             memcpy(decoratorData, mvp.constData(), 64);
             decoratorData[16] = color.redF();
@@ -2173,11 +2190,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             decoratorData[19] = color.alphaF();
             QRhiResourceUpdateBatch *uDecor = m_rhi->nextResourceUpdateBatch();
             uDecor->updateDynamicBuffer(
-                m_decoratorUbuf.get(), 0, kDecoratorUbufSize, decoratorData);
+                decoratorUbuf, 0, kDecoratorUbufSize, decoratorData);
             cb->resourceUpdate(uDecor);
             cb->setGraphicsPipeline(m_decoratorPipeline.get());
-            cb->setShaderResources(m_decoratorSrb.get());
+            cb->setShaderResources(decoratorSrb);
             cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+            return true;
         };
 
         auto drawDecoratorKind = [&](auto bufferGetter, auto countGetter) {
@@ -2200,44 +2218,56 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         };
 
         if (m_renderSettings.decoratorVertexNormals) {
-            setDecoratorColor(m_renderSettings.decoratorVertexNormalColor);
-            drawDecoratorKind(
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.vertexNormalsBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.vertexNormalsVertexCount;
-                });
+            if (setDecoratorColor(
+                    kDecoratorSlotVertexNormals,
+                    m_renderSettings.decoratorVertexNormalColor)) {
+                drawDecoratorKind(
+                    [](const Document::DecoratorPassGpuView &view) {
+                        return view.vertexNormalsBuffer;
+                    },
+                    [](const Document::DecoratorPassGpuView &view) {
+                        return view.vertexNormalsVertexCount;
+                    });
+            }
         }
         if (m_renderSettings.decoratorFaceNormals) {
-            setDecoratorColor(m_renderSettings.decoratorFaceNormalColor);
-            drawDecoratorKind(
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.faceNormalsBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.faceNormalsVertexCount;
-                });
+            if (setDecoratorColor(
+                    kDecoratorSlotFaceNormals,
+                    m_renderSettings.decoratorFaceNormalColor)) {
+                drawDecoratorKind(
+                    [](const Document::DecoratorPassGpuView &view) {
+                        return view.faceNormalsBuffer;
+                    },
+                    [](const Document::DecoratorPassGpuView &view) {
+                        return view.faceNormalsVertexCount;
+                    });
+            }
         }
         if (m_renderSettings.decoratorBoundaryEdges) {
-            setDecoratorColor(m_renderSettings.decoratorBoundaryEdgeColor);
-            drawDecoratorKind(
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.boundaryEdgesBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.boundaryEdgesVertexCount;
-                });
+            if (setDecoratorColor(
+                    kDecoratorSlotBoundaryEdges,
+                    m_renderSettings.decoratorBoundaryEdgeColor)) {
+                drawDecoratorKind(
+                    [](const Document::DecoratorPassGpuView &view) {
+                        return view.boundaryEdgesBuffer;
+                    },
+                    [](const Document::DecoratorPassGpuView &view) {
+                        return view.boundaryEdgesVertexCount;
+                    });
+            }
         }
         if (m_renderSettings.decoratorTextureSeams) {
-            setDecoratorColor(m_renderSettings.decoratorTextureSeamColor);
-            drawDecoratorKind(
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.textureSeamsBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.textureSeamsVertexCount;
-                });
+            if (setDecoratorColor(
+                    kDecoratorSlotTextureSeams,
+                    m_renderSettings.decoratorTextureSeamColor)) {
+                drawDecoratorKind(
+                    [](const Document::DecoratorPassGpuView &view) {
+                        return view.textureSeamsBuffer;
+                    },
+                    [](const Document::DecoratorPassGpuView &view) {
+                        return view.textureSeamsVertexCount;
+                    });
+            }
         }
     }
 

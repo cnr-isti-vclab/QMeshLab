@@ -18,6 +18,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QProcess>
 #include <QProgressBar>
 #include <QSettings>
 #include <QStringList>
@@ -159,6 +160,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(tr("&New"), QKeySequence::New, this, &MainWindow::newDocument);
+    fileMenu->addAction(
+        tr("New &Instance"),
+        QKeySequence(QStringLiteral("Ctrl+Shift+N")),
+        this,
+        &MainWindow::newInstance);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &MainWindow::openFile);
     m_openLastAction = fileMenu->addAction(tr("Open &Last Mesh"), this, &MainWindow::openLastMesh);
@@ -201,6 +207,16 @@ void MainWindow::newDocument()
         m_doc->removeMesh(m_doc->meshCount() - 1);
     m_doc->clearLog();
     statusBar()->showMessage(tr("New document"), 2000);
+}
+
+void MainWindow::newInstance()
+{
+    const QString program = QCoreApplication::applicationFilePath();
+    const bool started = QProcess::startDetached(program, QStringList());
+    statusBar()->showMessage(
+        started ? tr("Started new QMeshLab instance")
+                : tr("Failed to start a new QMeshLab instance"),
+        started ? 2000 : 4000);
 }
 
 void MainWindow::openFile()

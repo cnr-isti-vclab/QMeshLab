@@ -15,6 +15,12 @@ target_link_libraries(QMeshLabPlugins
         Qt6::Core
 )
 
+add_subdirectory(io_obj_rapidobj)
+if (TARGET QMeshLabPluginIORapidObj)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginIORapidObj)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_IO_RAPIDOBJ_ENABLED=1)
+endif()
+
 add_subdirectory(io_vcg)
 if (TARGET QMeshLabPluginIOVCG)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginIOVCG)

@@ -30,15 +30,7 @@ private:
     void setSettingsVisible(bool visible);
     int renderPassPageIndex(RenderPass pass) const;
     void syncRenderPassUiState();
-    void updateCurrentMeshOutlineColorButtonStyle();
-    void updateDecoratorVertexNormalColorButtonStyle();
-    void updateDecoratorFaceNormalColorButtonStyle();
-    void updateDecoratorBoundaryEdgeColorButtonStyle();
-    void updateDecoratorTextureSeamColorButtonStyle();
-    void updateBBoxColorButtonStyle();
-    void updatePointsColorButtonStyle();
-    void updateWireColorButtonStyle();
-    void updateFillColorButtonStyle();
+    void updateColorButtonStyle(QPushButton *button, const QColor &color);
 
     RenderSettings m_settings;
 

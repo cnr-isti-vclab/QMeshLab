@@ -2,6 +2,10 @@
 
 #include "meshiopluginmanager.h"
 
+#if QMESH_PLUGIN_IO_RAPIDOBJ_ENABLED
+#include "plugins/io_obj_rapidobj/rapidobjimportplugin.h"
+#endif
+
 #if QMESH_PLUGIN_IO_VCG_ENABLED
 #include "plugins/io_vcg/vcgimportplugin.h"
 #endif
@@ -16,6 +20,9 @@
 
 void registerBuiltinMeshPlugins(MeshIOPluginManager &pluginManager)
 {
+#if QMESH_PLUGIN_IO_RAPIDOBJ_ENABLED
+    registerRapidObjImportPlugin(pluginManager);
+#endif
 #if QMESH_PLUGIN_IO_VCG_ENABLED
     registerVcgImportPlugin(pluginManager);
 #endif

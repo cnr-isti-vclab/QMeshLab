@@ -23,4 +23,5 @@ public:
 
 private:
     std::vector<std::unique_ptr<MeshIOPlugin>> m_plugins;
+    QStringList m_openableExtensions;
 };
