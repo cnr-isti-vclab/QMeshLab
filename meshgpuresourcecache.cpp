@@ -23,6 +23,7 @@ int fillVariantIndex(MeshGpuResourceCache::FillVariant variant)
     case MeshGpuResourceCache::FillVariant::Constant: return 0;
     case MeshGpuResourceCache::FillVariant::PerVertex: return 1;
     case MeshGpuResourceCache::FillVariant::PerFace: return 2;
+    case MeshGpuResourceCache::FillVariant::Texture: return 3;
     }
     return 0;
 }
@@ -95,7 +96,7 @@ struct MeshGpuResourceCache::CacheState
     };
 
     struct MeshGpu {
-        std::array<FillVariantGpu, 3> fill;
+        std::array<FillVariantGpu, 4> fill;
         std::array<PointsVariantGpu, 2> points;
         WireGpu wire;
         BBoxGpu bbox;
@@ -174,7 +175,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool useVertexColor = (variant == FillVariant::PerVertex) && meshHasVertexColor;
             const bool hasTextureCoords = meshHasWedgeTexcoord || meshHasVertexTexcoord;
             const bool hasTextureSlots = hasTextureCoords && !texturePaths.isEmpty();
-            const bool expandTriangles = useFaceColor || hasTextureSlots;
+            const bool useTextureColor = (variant == FillVariant::Texture) && hasTextureSlots;
+            const bool expandTriangles = useFaceColor || useTextureColor;
 
             if (expandTriangles) {
                 struct PreparedTexture {
@@ -227,7 +229,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
                     int textureGroup = -1;
                     bool useTextureForFace = false;
-                    if (hasTextureSlots) {
+                    if (useTextureColor) {
                         int textureIndex = 0;
                         if (meshHasWedgeTexcoord) {
                             textureIndex = static_cast<int>(f.cWT(0).N());

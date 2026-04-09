@@ -16,7 +16,8 @@ public:
     enum class FillVariant : int {
         Constant = 0,
         PerVertex = 1,
-        PerFace = 2
+        PerFace = 2,
+        Texture = 3
     };
 
     enum class PointVariant : int {

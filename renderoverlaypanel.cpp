@@ -449,6 +449,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
     m_fillColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(FillColorSource::PerVertex));
     m_fillColorSourceCombo->addItem(tr("Per-Face"), static_cast<int>(FillColorSource::PerFace));
+    m_fillColorSourceCombo->addItem(tr("Texture"), static_cast<int>(FillColorSource::Texture));
     m_fillShadingCombo = new QComboBox(fillPage);
     m_fillShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
     m_fillShadingCombo->addItem(tr("Flat"), static_cast<int>(FillShading::Flat));
@@ -656,7 +657,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
     setPointColorSourceAvailability(false);
     setPointLightingAvailability(false);
-    setFillColorSourceAvailability(false, false);
+    setFillColorSourceAvailability(false, false, false);
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
     if (m_settingsContainer)
@@ -876,7 +877,8 @@ void RenderOverlayPanel::setPointLightingAvailability(bool hasVertexNormals)
     m_pointLightingCheck->setEnabled(hasVertexNormals);
 }
 
-void RenderOverlayPanel::setFillColorSourceAvailability(bool hasVertexColors, bool hasFaceColors)
+void RenderOverlayPanel::setFillColorSourceAvailability(
+    bool hasVertexColors, bool hasFaceColors, bool hasTextures)
 {
     if (!m_fillColorSourceCombo)
         return;
@@ -885,6 +887,8 @@ void RenderOverlayPanel::setFillColorSourceAvailability(bool hasVertexColors, bo
         m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::PerVertex));
     const int faceIndex =
         m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::PerFace));
+    const int textureIndex =
+        m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::Texture));
 
     if (vertexIndex >= 0) {
         m_fillColorSourceCombo->setItemData(
@@ -896,6 +900,12 @@ void RenderOverlayPanel::setFillColorSourceAvailability(bool hasVertexColors, bo
         m_fillColorSourceCombo->setItemData(
             faceIndex,
             hasFaceColors ? QVariant() : QVariant(0),
+            Qt::UserRole - 1);
+    }
+    if (textureIndex >= 0) {
+        m_fillColorSourceCombo->setItemData(
+            textureIndex,
+            hasTextures ? QVariant() : QVariant(0),
             Qt::UserRole - 1);
     }
 }

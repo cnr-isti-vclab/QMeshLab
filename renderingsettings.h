@@ -21,7 +21,8 @@ enum class FillShading {
 enum class FillColorSource {
     Constant = 0,
     PerVertex,
-    PerFace
+    PerFace,
+    Texture
 };
 
 enum class PointColorSource {

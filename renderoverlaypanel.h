@@ -20,7 +20,7 @@ public:
     void setSettings(const RenderSettings &settings);
     void setPointColorSourceAvailability(bool hasVertexColors);
     void setPointLightingAvailability(bool hasVertexNormals);
-    void setFillColorSourceAvailability(bool hasVertexColors, bool hasFaceColors);
+    void setFillColorSourceAvailability(bool hasVertexColors, bool hasFaceColors, bool hasTextures);
 
 signals:
     void settingsChanged(const RenderSettings &settings);

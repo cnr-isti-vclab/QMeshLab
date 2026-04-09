@@ -787,18 +787,24 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
     int firstFaceMeshFaces = 0;
     bool hasVertexColors = false;
     bool hasFaceColors = false;
+    bool hasTextures = false;
     bool hasVertexNormals = false;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
-        const int faceCount = m_doc->mesh(i).mesh.FN();
-        if (faceCount > 0) {
-            hasFaces = true;
-            firstFaceMeshFaces = faceCount;
-            break;
-        }
-        const int mask = m_doc->mesh(i).ioMask;
+        const auto &meshEntry = m_doc->mesh(i);
+        const int mask = meshEntry.ioMask;
+        const bool hasTextureCoords =
+            (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
+            || (mask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
         hasVertexColors = hasVertexColors || ((mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0);
         hasFaceColors = hasFaceColors || ((mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0);
+        hasTextures = hasTextures || (hasTextureCoords && !meshEntry.textureFilePaths.isEmpty());
         hasVertexNormals = hasVertexNormals || ((mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0);
+
+        const int faceCount = m_doc->mesh(i).mesh.FN();
+        if (!hasFaces && faceCount > 0) {
+            hasFaces = true;
+            firstFaceMeshFaces = faceCount;
+        }
     }
 
     if (hasFaces)
@@ -812,7 +818,9 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
             m_renderSettings.currentPass = RenderPass::Fill;
 
         m_renderSettings.fillColorSource = FillColorSource::Constant;
-        if (hasVertexColors)
+        if (hasTextures)
+            m_renderSettings.fillColorSource = FillColorSource::Texture;
+        else if (hasVertexColors)
             m_renderSettings.fillColorSource = FillColorSource::PerVertex;
         else if (hasFaceColors)
             m_renderSettings.fillColorSource = FillColorSource::PerFace;
@@ -842,11 +850,17 @@ void RenderWidget::refreshColorSourceAvailability()
 {
     bool hasVertexColors = false;
     bool hasFaceColors = false;
+    bool hasTextures = false;
     bool hasVertexNormals = false;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
-        const int mask = m_doc->mesh(i).ioMask;
+        const auto &meshEntry = m_doc->mesh(i);
+        const int mask = meshEntry.ioMask;
+        const bool hasTextureCoords =
+            (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
+            || (mask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
         hasVertexColors = hasVertexColors || ((mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0);
         hasFaceColors = hasFaceColors || ((mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0);
+        hasTextures = hasTextures || (hasTextureCoords && !meshEntry.textureFilePaths.isEmpty());
         hasVertexNormals = hasVertexNormals || ((mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0);
     }
 
@@ -855,7 +869,7 @@ void RenderWidget::refreshColorSourceAvailability()
     if (m_overlayPanel)
         m_overlayPanel->setPointLightingAvailability(hasVertexNormals);
     if (m_overlayPanel)
-        m_overlayPanel->setFillColorSourceAvailability(hasVertexColors, hasFaceColors);
+        m_overlayPanel->setFillColorSourceAvailability(hasVertexColors, hasFaceColors, hasTextures);
 
     RenderSettings corrected = m_renderSettings;
     if (corrected.pointColorSource == PointColorSource::PerVertex && !hasVertexColors)
@@ -865,6 +879,8 @@ void RenderWidget::refreshColorSourceAvailability()
     if (corrected.fillColorSource == FillColorSource::PerVertex && !hasVertexColors)
         corrected.fillColorSource = FillColorSource::Constant;
     if (corrected.fillColorSource == FillColorSource::PerFace && !hasFaceColors)
+        corrected.fillColorSource = FillColorSource::Constant;
+    if (corrected.fillColorSource == FillColorSource::Texture && !hasTextures)
         corrected.fillColorSource = FillColorSource::Constant;
 
     if (corrected != m_renderSettings) {
@@ -879,6 +895,7 @@ int RenderWidget::fillGpuVariantIndexForCurrentSettings() const
     switch (m_renderSettings.fillColorSource) {
     case FillColorSource::PerVertex: return static_cast<int>(Document::FillGpuVariant::PerVertex);
     case FillColorSource::PerFace: return static_cast<int>(Document::FillGpuVariant::PerFace);
+    case FillColorSource::Texture: return static_cast<int>(Document::FillGpuVariant::Texture);
     case FillColorSource::Constant:
     default:
         return static_cast<int>(Document::FillGpuVariant::Constant);
