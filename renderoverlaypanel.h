@@ -43,6 +43,7 @@ private:
     QPushButton *m_decoratorTextureSeamColorButton = nullptr;
     QPushButton *m_bboxColorButton = nullptr;
     QPushButton *m_pointsColorButton = nullptr;
+    QPushButton *m_edgeColorButton = nullptr;
     QPushButton *m_wireColorButton = nullptr;
     QPushButton *m_fillColorButton = nullptr;
     QDoubleSpinBox *m_currentMeshOutlineWidthSpin = nullptr;
@@ -57,6 +58,7 @@ private:
     QCheckBox *m_decoratorBoundaryEdgesCheck = nullptr;
     QCheckBox *m_decoratorTextureSeamsCheck = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
+    QDoubleSpinBox *m_edgeSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
     QComboBox *m_pointColorSourceCombo = nullptr;
     QCheckBox *m_pointLightingCheck = nullptr;
@@ -72,6 +74,7 @@ private:
     QToolButton *m_boundaryDecoratorsButton = nullptr;
     QToolButton *m_bboxButton = nullptr;
     QToolButton *m_pointsButton = nullptr;
+    QToolButton *m_edgesButton = nullptr;
     QToolButton *m_wireButton = nullptr;
     QToolButton *m_fillButton = nullptr;
     QToolButton *m_currentMeshSettingsArrow = nullptr;
@@ -79,6 +82,7 @@ private:
     QToolButton *m_boundaryDecoratorsSettingsArrow = nullptr;
     QToolButton *m_bboxSettingsArrow = nullptr;
     QToolButton *m_pointsSettingsArrow = nullptr;
+    QToolButton *m_edgesSettingsArrow = nullptr;
     QToolButton *m_wireSettingsArrow = nullptr;
     QToolButton *m_fillSettingsArrow = nullptr;
 };

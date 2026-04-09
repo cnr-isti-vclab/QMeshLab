@@ -52,6 +52,7 @@ public:
     using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
     using FillPassGpuView = MeshGpuResourceCache::FillPassView;
     using WirePassGpuView = MeshGpuResourceCache::WirePassView;
+    using EdgePassGpuView = MeshGpuResourceCache::EdgePassView;
     using PointsPassGpuView = MeshGpuResourceCache::PointsPassView;
     using BBoxPassGpuView = MeshGpuResourceCache::BBoxPassView;
     using DecoratorPassGpuView = MeshGpuResourceCache::DecoratorPassView;
@@ -84,12 +85,14 @@ public:
                                 PointGpuVariant pointVariant,
                                 bool needFill,
                                 bool needWire,
+                                bool needEdges,
                                 bool needPoints,
                                 bool needBoundingBox,
                                 bool needDecoratorNormals,
                                 bool needDecoratorBoundaries);
     FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
     WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
+    EdgePassGpuView edgePassGpuView(QRhi *rhi, int meshIndex) const;
     PointsPassGpuView pointsPassGpuView(QRhi *rhi, int meshIndex, PointGpuVariant variant) const;
     BBoxPassGpuView bboxPassGpuView(QRhi *rhi, int meshIndex) const;
     DecoratorPassGpuView decoratorPassGpuView(QRhi *rhi, int meshIndex) const;

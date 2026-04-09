@@ -106,6 +106,7 @@ private:
     std::unordered_map<QRhiTexture *, std::unique_ptr<QRhiShaderResourceBindings>> m_textureSrbs;
     std::unique_ptr<QRhiGraphicsPipeline> m_fillPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_edgesPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
     std::array<std::unique_ptr<QRhiBuffer>, 4> m_decoratorUbufs;
@@ -135,7 +136,12 @@ private:
     std::unique_ptr<QRhiRenderPassDescriptor> m_currentMaskWorkRp;
     QSize m_currentMaskSize;
     std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskFillPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskFillDepthOnlyPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskEdgesPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskEdgesDepthPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskEdgesDepthOnlyPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskPointsPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskPointsDepthOnlyPipeline;
     std::unique_ptr<QRhiBuffer> m_maskMorphCopyUbuf;
     std::unique_ptr<QRhiBuffer> m_maskMorphDilateUbuf;
     std::unique_ptr<QRhiBuffer> m_maskMorphErodeUbuf;
@@ -146,6 +152,9 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_maskMorphToBasePipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_maskMorphToWorkPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_maskMorphWorkToMaskPipeline;
+    std::unique_ptr<QRhiBuffer> m_outlineExtractUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_outlineExtractSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_outlineExtractPipeline;
     std::unique_ptr<QRhiBuffer> m_maskDebugUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_maskDebugBaseSrb;
     std::unique_ptr<QRhiShaderResourceBindings> m_maskDebugWorkSrb;

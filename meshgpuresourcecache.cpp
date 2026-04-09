@@ -63,6 +63,13 @@ struct MeshGpuResourceCache::CacheState
         int vertexCount = 0;
     };
 
+    struct EdgeGpu {
+        std::uint64_t geometryRevision = 0;
+        bool valid = false;
+        std::unique_ptr<QRhiBuffer> vbuf;
+        int vertexCount = 0;
+    };
+
     struct PointsVariantGpu {
         std::uint64_t geometryRevision = 0;
         bool valid = false;
@@ -99,6 +106,7 @@ struct MeshGpuResourceCache::CacheState
         std::array<FillVariantGpu, 4> fill;
         std::array<PointsVariantGpu, 2> points;
         WireGpu wire;
+        EdgeGpu edges;
         BBoxGpu bbox;
         DecoratorNormalsGpu decoratorNormals;
         DecoratorBoundaryGpu decoratorBoundaries;
@@ -122,6 +130,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     PointVariant pointVariant,
     bool needFill,
     bool needWire,
+    bool needEdges,
     bool needPoints,
     bool needBoundingBox,
     bool needDecoratorNormals,
@@ -501,6 +510,56 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             return true;
         };
 
+    auto rebuildEdges = [&](CacheState::EdgeGpu &dst) -> bool {
+        if (dst.valid && dst.geometryRevision == source.geometryRevision)
+            return false;
+
+        dst.valid = true;
+        dst.geometryRevision = source.geometryRevision;
+        dst.vbuf.reset();
+        dst.vertexCount = 0;
+
+        if (meshData.EN() <= 0)
+            return true;
+
+        std::vector<float> vdata;
+        vdata.reserve(static_cast<size_t>(meshData.EN()) * 6);
+        for (int ei = 0; ei < meshData.EN(); ++ei) {
+            const auto &e = meshData.edge[ei];
+            if (e.IsD())
+                continue;
+            const auto *v0 = e.cV(0);
+            const auto *v1 = e.cV(1);
+            if (!v0 || !v1)
+                continue;
+            const auto &p0 = v0->cP();
+            const auto &p1 = v1->cP();
+            vdata.push_back(p0[0]);
+            vdata.push_back(p0[1]);
+            vdata.push_back(p0[2]);
+            vdata.push_back(p1[0]);
+            vdata.push_back(p1[1]);
+            vdata.push_back(p1[2]);
+        }
+
+        if (vdata.empty())
+            return true;
+
+        dst.vbuf.reset(
+            rhi->newBuffer(
+                QRhiBuffer::Immutable,
+                QRhiBuffer::VertexBuffer,
+                static_cast<quint32>(vdata.size() * sizeof(float))));
+        if (!dst.vbuf || !dst.vbuf->create()) {
+            dst.vbuf.reset();
+            return true;
+        }
+
+        ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), vdata.data());
+        dst.vertexCount = static_cast<int>(vdata.size() / 3);
+        return true;
+    };
+
     auto rebuildBBox = [&](CacheState::BBoxGpu &dst) -> bool {
         if (dst.valid && dst.geometryRevision == source.geometryRevision)
             return false;
@@ -772,6 +831,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     }
     if (needWire)
         stats.rebuiltWire = rebuildWire(meshCache.wire);
+    if (needEdges)
+        stats.rebuiltEdges = rebuildEdges(meshCache.edges);
     if (needPoints) {
         auto &points = meshCache.points[pointVariantIndex(pointVariant)];
         stats.rebuiltPoints = rebuildPointsVariant(points, pointVariant);
@@ -846,6 +907,26 @@ MeshGpuResourceCache::WirePassView MeshGpuResourceCache::wirePassView(QRhi *rhi,
         return {};
 
     return { wire.vbuf.get(), wire.vertexCount, true };
+}
+
+MeshGpuResourceCache::EdgePassView MeshGpuResourceCache::edgePassView(
+    QRhi *rhi, std::uint64_t meshId) const
+{
+    if (!m_state || !rhi || meshId == 0)
+        return {};
+
+    const auto rhiIt = m_state->byRhi.find(rhi);
+    if (rhiIt == m_state->byRhi.end())
+        return {};
+    const auto meshIt = rhiIt->second.find(meshId);
+    if (meshIt == rhiIt->second.end())
+        return {};
+
+    const auto &edges = meshIt->second.edges;
+    if (!edges.valid)
+        return {};
+
+    return { edges.vbuf.get(), edges.vertexCount, true };
 }
 
 MeshGpuResourceCache::PointsPassView MeshGpuResourceCache::pointsPassView(

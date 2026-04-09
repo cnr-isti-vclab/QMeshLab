@@ -56,6 +56,8 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/fill_wire_overlay.frag
         shaders/overlay_bbox.vert
         shaders/overlay_bbox.frag
+        shaders/overlay_edges.vert
+        shaders/overlay_edges.frag
         shaders/overlay_points.vert
         shaders/overlay_points.frag
         shaders/overlay_decorator.vert
@@ -69,6 +71,7 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/selection_mask_morph.frag
         shaders/selection_mask_debug.frag
         shaders/selection_outline.vert
+        shaders/selection_outline_extract.frag
         shaders/selection_outline.frag
 )
 
@@ -81,6 +84,7 @@ qt_add_resources(QMeshLab "icons"
         img/boundary.png
         img/box.png
         img/points.png
+        img/wireframe.png
         img/wire.png
         img/flat.png
         img/splitH.png

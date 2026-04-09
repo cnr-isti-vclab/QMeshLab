@@ -153,6 +153,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_boundaryDecoratorsButton = makeButton(QStringLiteral(":/img/boundary.png"), tr("Boundary Decorators"));
     m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box"));
     m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points"));
+    m_edgesButton = makeButton(QStringLiteral(":/img/wireframe.png"), tr("Edges pass"));
     m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
     m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
 
@@ -160,6 +161,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     buttonLayout->addWidget(m_currentMeshButton);
     buttonLayout->addWidget(m_bboxButton);
     buttonLayout->addWidget(m_pointsButton);
+    buttonLayout->addWidget(m_edgesButton);
     buttonLayout->addWidget(m_wireButton);
     buttonLayout->addWidget(m_fillButton);
     buttonLayout->addWidget(m_normalsDecoratorsButton);
@@ -169,6 +171,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_boundaryDecoratorsButton->setChecked(false);
     m_bboxButton->setChecked(false);
     m_pointsButton->setChecked(false);
+    m_edgesButton->setChecked(false);
     m_wireButton->setChecked(true);
     m_fillButton->setChecked(true);
 
@@ -200,10 +203,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 
     m_bboxSettingsArrow = makeArrowButton(tr("Settings: Bounding Box"));
     m_pointsSettingsArrow = makeArrowButton(tr("Settings: Points"));
+    m_edgesSettingsArrow = makeArrowButton(tr("Settings: Edges"));
     m_wireSettingsArrow = makeArrowButton(tr("Settings: Wireframe"));
     m_fillSettingsArrow = makeArrowButton(tr("Settings: Fill"));
     arrowLayout->addWidget(m_bboxSettingsArrow);
     arrowLayout->addWidget(m_pointsSettingsArrow);
+    arrowLayout->addWidget(m_edgesSettingsArrow);
     arrowLayout->addWidget(m_wireSettingsArrow);
     arrowLayout->addWidget(m_fillSettingsArrow);
     m_normalsDecoratorsSettingsArrow = makeArrowButton(tr("Settings: Normal Decorators"));
@@ -259,8 +264,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("Outline"),
         static_cast<int>(CurrentMeshDebugView::Outline));
     m_currentMeshDebugViewCombo->addItem(
-        tr("Base Mask"),
-        static_cast<int>(CurrentMeshDebugView::BaseMask));
+        tr("Full Mask"),
+        static_cast<int>(CurrentMeshDebugView::FullMask));
+    m_currentMeshDebugViewCombo->addItem(
+        tr("Visible Mask"),
+        static_cast<int>(CurrentMeshDebugView::VisibleMask));
+    m_currentMeshDebugViewCombo->addItem(
+        tr("Occluded Mask"),
+        static_cast<int>(CurrentMeshDebugView::OccludedMask));
     m_currentMeshDebugViewCombo->addItem(
         tr("Dilated"),
         static_cast<int>(CurrentMeshDebugView::DilatedMask));
@@ -402,6 +413,29 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     applyUniformFormRowHeights(pointsForm);
     pointsLayout->addLayout(pointsForm);
     m_settingsStack->addWidget(pointsPage);
+    auto *edgesPage = new QWidget(m_settingsStack);
+    auto *edgesLayout = new QVBoxLayout(edgesPage);
+    edgesLayout->setContentsMargins(0, 0, 0, 0);
+    edgesLayout->setSpacing(2);
+    auto *edgesForm = new QFormLayout();
+    edgesForm->setContentsMargins(0, 0, 0, 0);
+    edgesForm->setHorizontalSpacing(6);
+    edgesForm->setVerticalSpacing(2);
+    edgesForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_edgeColorButton = makeColorButton(edgesPage);
+    m_edgeSizeSpin = new QDoubleSpinBox(edgesPage);
+    m_edgeSizeSpin->setRange(1.0, 8.0);
+    m_edgeSizeSpin->setSingleStep(0.5);
+    m_edgeSizeSpin->setDecimals(1);
+    m_edgeSizeSpin->setSuffix(tr(" px"));
+    m_edgeSizeSpin->setValue(m_settings.edgeSize);
+    edgesForm->addRow(
+        tr("Edge color"),
+        makeCenteredFieldContainer(m_edgeColorButton, edgesPage));
+    edgesForm->addRow(tr("Edge size"), m_edgeSizeSpin);
+    applyUniformFormRowHeights(edgesForm);
+    edgesLayout->addLayout(edgesForm);
+    m_settingsStack->addWidget(edgesPage);
     auto *wirePage = new QWidget(m_settingsStack);
     auto *wireLayout = new QVBoxLayout(wirePage);
     wireLayout->setContentsMargins(0, 0, 0, 0);
@@ -592,6 +626,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindFloatSpin(m_pointSizeSpin, &RenderSettings::pointSize);
     bindCheckBox(m_pointLightingCheck, &RenderSettings::pointLighting);
 
+    bindColorButton(m_edgeColorButton, &RenderSettings::edgeColor, tr("Edge Color"));
+    bindFloatSpin(m_edgeSizeSpin, &RenderSettings::edgeSize);
+
     bindColorButton(m_wireColorButton, &RenderSettings::wireColor, tr("Wire Color"));
     bindFloatSpin(m_wireSizeSpin, &RenderSettings::wireSize);
     bindCheckBox(m_wireBackfaceCullingCheck, &RenderSettings::wireBackfaceCulling);
@@ -608,6 +645,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_boundaryDecoratorsButton, RenderPass::DecoratorBoundary, false);
     bindPassButton(m_bboxButton, RenderPass::BoundingBox, false);
     bindPassButton(m_pointsButton, RenderPass::Points, false);
+    bindPassButton(m_edgesButton, RenderPass::Edges, false);
     bindPassButton(m_wireButton, RenderPass::Wireframe, false);
     bindPassButton(m_fillButton, RenderPass::Fill, false);
 
@@ -616,6 +654,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_boundaryDecoratorsSettingsArrow, RenderPass::DecoratorBoundary, true);
     bindPassButton(m_bboxSettingsArrow, RenderPass::BoundingBox, true);
     bindPassButton(m_pointsSettingsArrow, RenderPass::Points, true);
+    bindPassButton(m_edgesSettingsArrow, RenderPass::Edges, true);
     bindPassButton(m_wireSettingsArrow, RenderPass::Wireframe, true);
     bindPassButton(m_fillSettingsArrow, RenderPass::Fill, true);
 
@@ -643,6 +682,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         emit settingsChanged(m_settings);
     });
     bindToolToggle(m_pointsButton, &RenderSettings::showPoints);
+    bindToolToggle(m_edgesButton, &RenderSettings::showEdges);
     bindToolToggle(m_wireButton, &RenderSettings::showWire);
     bindToolToggle(m_fillButton, &RenderSettings::showFill);
 
@@ -653,6 +693,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_settings.decoratorTextureSeamColor);
     updateColorButtonStyle(m_bboxColorButton, m_settings.bboxWireColor);
     updateColorButtonStyle(m_pointsColorButton, m_settings.pointColor);
+    updateColorButtonStyle(m_edgeColorButton, m_settings.edgeColor);
     updateColorButtonStyle(m_wireColorButton, m_settings.wireColor);
     updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
     setPointColorSourceAvailability(false);
@@ -673,8 +714,9 @@ int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
     case RenderPass::DecoratorBoundary: return 2;
     case RenderPass::BoundingBox: return 3;
     case RenderPass::Points: return 4;
-    case RenderPass::Wireframe: return 5;
-    case RenderPass::Fill: return 6;
+    case RenderPass::Edges: return 5;
+    case RenderPass::Wireframe: return 6;
+    case RenderPass::Fill: return 7;
     }
     return 0;
 }
@@ -729,6 +771,10 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_pointsButton) {
         QSignalBlocker blocker(m_pointsButton);
         m_pointsButton->setChecked(m_settings.showPoints);
+    }
+    if (m_edgesButton) {
+        QSignalBlocker blocker(m_edgesButton);
+        m_edgesButton->setChecked(m_settings.showEdges);
     }
     if (m_wireButton) {
         QSignalBlocker blocker(m_wireButton);
@@ -808,6 +854,10 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_wireSizeSpin);
         m_wireSizeSpin->setValue(m_settings.wireSize);
     }
+    if (m_edgeSizeSpin) {
+        QSignalBlocker blocker(m_edgeSizeSpin);
+        m_edgeSizeSpin->setValue(m_settings.edgeSize);
+    }
     if (m_pointColorSourceCombo) {
         QSignalBlocker blocker(m_pointColorSourceCombo);
         const int value = static_cast<int>(m_settings.pointColorSource);
@@ -850,6 +900,7 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_settings.decoratorTextureSeamColor);
     updateColorButtonStyle(m_bboxColorButton, m_settings.bboxWireColor);
     updateColorButtonStyle(m_pointsColorButton, m_settings.pointColor);
+    updateColorButtonStyle(m_edgeColorButton, m_settings.edgeColor);
     updateColorButtonStyle(m_wireColorButton, m_settings.wireColor);
     updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
     syncRenderPassUiState();
@@ -950,6 +1001,7 @@ void RenderOverlayPanel::syncRenderPassUiState()
     setPassMarker(m_boundaryDecoratorsButton, RenderPass::DecoratorBoundary);
     setPassMarker(m_bboxButton, RenderPass::BoundingBox);
     setPassMarker(m_pointsButton, RenderPass::Points);
+    setPassMarker(m_edgesButton, RenderPass::Edges);
     setPassMarker(m_wireButton, RenderPass::Wireframe);
     setPassMarker(m_fillButton, RenderPass::Fill);
 
@@ -958,6 +1010,7 @@ void RenderOverlayPanel::syncRenderPassUiState()
     setArrowChecked(m_boundaryDecoratorsSettingsArrow, RenderPass::DecoratorBoundary);
     setArrowChecked(m_bboxSettingsArrow, RenderPass::BoundingBox);
     setArrowChecked(m_pointsSettingsArrow, RenderPass::Points);
+    setArrowChecked(m_edgesSettingsArrow, RenderPass::Edges);
     setArrowChecked(m_wireSettingsArrow, RenderPass::Wireframe);
     setArrowChecked(m_fillSettingsArrow, RenderPass::Fill);
 }

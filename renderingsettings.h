@@ -7,6 +7,7 @@ enum class RenderPass {
     CurrentMesh = 0,
     BoundingBox,
     Points,
+    Edges,
     Wireframe,
     Fill,
     DecoratorNormals,
@@ -32,7 +33,9 @@ enum class PointColorSource {
 
 enum class CurrentMeshDebugView {
     Outline = 0,
-    BaseMask,
+    FullMask,
+    VisibleMask,
+    OccludedMask,
     DilatedMask,
     ErodedMask
 };
@@ -43,6 +46,7 @@ struct RenderSettings {
     bool showBoundingBoxCorners = false;
     bool showBoundingBoxDimensions = false;
     bool showPoints = false;
+    bool showEdges = false;
     bool showWire = true;
     bool showFill = true;
     QColor currentMeshOutlineColor = QColor(42, 160, 240);
@@ -69,6 +73,8 @@ struct RenderSettings {
     QColor pointColor = QColor(255, 191, 51);
     float pointSize = 4.0f;
     PointColorSource pointColorSource = PointColorSource::Constant;
+    QColor edgeColor = QColor(25, 25, 28);
+    float edgeSize = 1.0f;
     QColor wireColor = QColor(15, 15, 20);
     float wireSize = 1.5f;
     QColor fillColor = QColor(153, 153, 179);
@@ -82,6 +88,7 @@ struct RenderSettings {
             && showBoundingBoxCorners == other.showBoundingBoxCorners
             && showBoundingBoxDimensions == other.showBoundingBoxDimensions
             && showPoints == other.showPoints
+            && showEdges == other.showEdges
             && showWire == other.showWire
             && showFill == other.showFill
             && currentMeshOutlineColor == other.currentMeshOutlineColor
@@ -108,6 +115,8 @@ struct RenderSettings {
             && pointColor == other.pointColor
             && pointSize == other.pointSize
             && pointColorSource == other.pointColorSource
+            && edgeColor == other.edgeColor
+            && edgeSize == other.edgeSize
             && wireColor == other.wireColor
             && wireSize == other.wireSize
             && fillColor == other.fillColor

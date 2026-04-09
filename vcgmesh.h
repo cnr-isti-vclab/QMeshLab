@@ -20,7 +20,9 @@ class VCGVertex : public vcg::Vertex<VCGUsedTypes,
     vcg::vertex::BitFlags,
     vcg::vertex::VFAdj> {};
 
-class VCGEdge : public vcg::Edge<VCGUsedTypes> {};
+class VCGEdge : public vcg::Edge<VCGUsedTypes,
+    vcg::edge::VertexRef,
+    vcg::edge::BitFlags> {};
 
 class VCGFace : public vcg::Face<VCGUsedTypes,
     vcg::face::VertexRef,

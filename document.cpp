@@ -201,11 +201,12 @@ int Document::loadMesh(const QString &filename)
     const qint64 elapsedMs = loadTimer.elapsed();
     const qint64 postProcessElapsedMs = std::max<qint64>(0, elapsedMs - importElapsedMs);
     const MeshEntry &meshEntry = mesh(index);
-    writeLog(tr("Loaded mesh '%1' in %2 ms (%3 vertices, %4 faces)")
+    writeLog(tr("Loaded mesh '%1' in %2 ms (%3 vertices, %4 faces, %5 edges)")
         .arg(meshEntry.name)
         .arg(elapsedMs)
         .arg(meshEntry.mesh.VN())
-        .arg(meshEntry.mesh.FN()),
+        .arg(meshEntry.mesh.FN())
+        .arg(meshEntry.mesh.EN()),
         LogSource::Application);
     if (elapsedMs >= 250) {
         writeLog(tr("Load timing '%1': import %2 ms, post %3 ms")
@@ -303,6 +304,7 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
                                       PointGpuVariant pointVariant,
                                       bool needFill,
                                       bool needWire,
+                                      bool needEdges,
                                       bool needPoints,
                                       bool needBoundingBox,
                                       bool needDecoratorNormals,
@@ -330,6 +332,7 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
         pointVariant,
         needFill,
         needWire,
+        needEdges,
         needPoints,
         needBoundingBox,
         needDecoratorNormals,
@@ -341,6 +344,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
             rebuiltPasses << tr("fill");
         if (stats.rebuiltWire)
             rebuiltPasses << tr("wire");
+        if (stats.rebuiltEdges)
+            rebuiltPasses << tr("edges");
         if (stats.rebuiltPoints)
             rebuiltPasses << tr("points");
         if (stats.rebuiltBoundingBox)
@@ -375,6 +380,15 @@ Document::WirePassGpuView Document::wirePassGpuView(QRhi *rhi, int meshIndex) co
 
     const MeshEntry &meshEntry = mesh(meshIndex);
     return m_gpuCache->wirePassView(rhi, meshEntry.meshId);
+}
+
+Document::EdgePassGpuView Document::edgePassGpuView(QRhi *rhi, int meshIndex) const
+{
+    if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
+        return {};
+
+    const MeshEntry &meshEntry = mesh(meshIndex);
+    return m_gpuCache->edgePassView(rhi, meshEntry.meshId);
 }
 
 Document::PointsPassGpuView Document::pointsPassGpuView(

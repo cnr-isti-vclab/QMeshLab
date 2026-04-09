@@ -31,7 +31,7 @@ static QShader loadShader(const QString &path)
 }
 
 namespace {
-constexpr int kUbufSize = 288;
+constexpr int kUbufSize = 304;
 constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
 constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
 constexpr int kUbufPointColorOffset = 192 / sizeof(float);
@@ -40,11 +40,13 @@ constexpr int kUbufWireColorOffset = 224 / sizeof(float);
 constexpr int kUbufWireParamsOffset = 240 / sizeof(float);
 constexpr int kUbufFillColorOffset = 256 / sizeof(float);
 constexpr int kUbufLightingParamsOffset = 272 / sizeof(float);
+constexpr int kUbufEdgeColorOffset = 288 / sizeof(float);
 constexpr int kFillVertexStrideFloats = 13;
 constexpr int kPointsVertexStrideFloats = 11;
 constexpr int kMaskMorphUbufSize = 16;
 constexpr int kMaskDebugUbufSize = 16;
-constexpr int kOutlineUbufSize = 32;
+constexpr int kOutlineExtractUbufSize = 16;
+constexpr int kOutlineUbufSize = 48;
 constexpr int kDecoratorUbufSize = 80; // mat4 mvp + vec4 color
 constexpr int kDecoratorSlotVertexNormals = 0;
 constexpr int kDecoratorSlotFaceNormals = 1;
@@ -271,6 +273,10 @@ void RenderWidget::setRenderSettings(const RenderSettings &settings)
     if (prev.showWire != m_renderSettings.showWire
         || prev.wireBackfaceCulling != m_renderSettings.wireBackfaceCulling) {
         m_wirePipeline.reset();
+    }
+    if (prev.showEdges != m_renderSettings.showEdges
+        || prev.edgeSize != m_renderSettings.edgeSize) {
+        m_edgesPipeline.reset();
     }
 
     if (m_overlayPanel)
@@ -541,6 +547,10 @@ void RenderWidget::createOverlayButtons()
             || prev.wireBackfaceCulling != m_renderSettings.wireBackfaceCulling) {
             m_wirePipeline.reset();
         }
+        if (prev.showEdges != m_renderSettings.showEdges
+            || prev.edgeSize != m_renderSettings.edgeSize) {
+            m_edgesPipeline.reset();
+        }
         updateBoundingBoxCornersOverlay();
         update();
         layoutOverlayButtons();
@@ -785,6 +795,7 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
 
     bool hasFaces = false;
     int firstFaceMeshFaces = 0;
+    bool hasEdges = false;
     bool hasVertexColors = false;
     bool hasFaceColors = false;
     bool hasTextures = false;
@@ -805,6 +816,9 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
             hasFaces = true;
             firstFaceMeshFaces = faceCount;
         }
+        const int edgeCount = m_doc->mesh(i).mesh.EN();
+        if (edgeCount > 0)
+            hasEdges = true;
     }
 
     if (hasFaces)
@@ -813,8 +827,13 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
             (firstFaceMeshFaces > 0) && (firstFaceMeshFaces < kWireframeDefaultFaceThreshold);
         if (m_renderSettings.showWire != showWireByDefault)
             m_wirePipeline.reset();
+        if (m_renderSettings.showEdges)
+            m_edgesPipeline.reset();
         m_renderSettings.showWire = showWireByDefault;
+        m_renderSettings.showEdges = false;
         if (!m_renderSettings.showWire && m_renderSettings.currentPass == RenderPass::Wireframe)
+            m_renderSettings.currentPass = RenderPass::Fill;
+        if (m_renderSettings.currentPass == RenderPass::Edges)
             m_renderSettings.currentPass = RenderPass::Fill;
 
         m_renderSettings.fillColorSource = FillColorSource::Constant;
@@ -829,7 +848,23 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
         return;
     }
 
+    if (hasEdges) {
+        m_renderSettings.showPoints = false;
+        m_renderSettings.showEdges = true;
+        m_renderSettings.showWire = false;
+        m_renderSettings.showFill = false;
+        m_renderSettings.currentPass = RenderPass::Edges;
+        m_wirePipeline.reset();
+        m_fillPipeline.reset();
+        if (m_overlayPanel)
+            m_overlayPanel->setSettings(m_renderSettings);
+        return;
+    }
+
     m_renderSettings.showPoints = true;
+    if (m_renderSettings.showEdges)
+        m_edgesPipeline.reset();
+    m_renderSettings.showEdges = false;
     m_renderSettings.showWire = false;
     m_renderSettings.showFill = false;
     m_renderSettings.currentPass = RenderPass::Points;
@@ -982,13 +1017,21 @@ void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
         return;
 
     m_currentMaskFillPipeline.reset();
+    m_currentMaskFillDepthOnlyPipeline.reset();
+    m_currentMaskEdgesPipeline.reset();
+    m_currentMaskEdgesDepthPipeline.reset();
+    m_currentMaskEdgesDepthOnlyPipeline.reset();
     m_currentMaskPointsPipeline.reset();
+    m_currentMaskPointsDepthOnlyPipeline.reset();
     m_maskMorphMaskToBaseSrb.reset();
     m_maskMorphMaskToWorkSrb.reset();
     m_maskMorphWorkToMaskSrb.reset();
     m_maskMorphToBasePipeline.reset();
     m_maskMorphToWorkPipeline.reset();
     m_maskMorphWorkToMaskPipeline.reset();
+    m_outlineExtractUbuf.reset();
+    m_outlineExtractSrb.reset();
+    m_outlineExtractPipeline.reset();
     m_maskDebugBaseSrb.reset();
     m_maskDebugWorkSrb.reset();
     m_maskDebugMaskSrb.reset();
@@ -1064,6 +1107,7 @@ void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
     }
 
     QRhiTextureRenderTargetDescription baseRtDesc(QRhiColorAttachment(m_currentMaskBaseTexture.get()));
+    baseRtDesc.setDepthStencilBuffer(m_currentMaskDepth.get());
     m_currentMaskBaseRt.reset(m_rhi->newTextureRenderTarget(baseRtDesc));
     if (!m_currentMaskBaseRt) {
         m_currentMaskBaseTexture.reset();
@@ -1310,7 +1354,12 @@ void RenderWidget::ensureRenderResources()
         m_currentMaskWorkRp.reset();
         m_currentMaskSize = QSize();
         m_currentMaskFillPipeline.reset();
+        m_currentMaskFillDepthOnlyPipeline.reset();
+        m_currentMaskEdgesPipeline.reset();
+        m_currentMaskEdgesDepthPipeline.reset();
+        m_currentMaskEdgesDepthOnlyPipeline.reset();
         m_currentMaskPointsPipeline.reset();
+        m_currentMaskPointsDepthOnlyPipeline.reset();
         m_maskMorphCopyUbuf.reset();
         m_maskMorphDilateUbuf.reset();
         m_maskMorphErodeUbuf.reset();
@@ -1321,6 +1370,9 @@ void RenderWidget::ensureRenderResources()
         m_maskMorphToBasePipeline.reset();
         m_maskMorphToWorkPipeline.reset();
         m_maskMorphWorkToMaskPipeline.reset();
+        m_outlineExtractUbuf.reset();
+        m_outlineExtractSrb.reset();
+        m_outlineExtractPipeline.reset();
         m_maskDebugUbuf.reset();
         m_maskDebugBaseSrb.reset();
         m_maskDebugWorkSrb.reset();
@@ -1414,7 +1466,7 @@ void RenderWidget::ensureRenderResources()
     if (!m_outlineSampler) {
         m_outlineSampler.reset(
             m_rhi->newSampler(
-                QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
+                QRhiSampler::Nearest, QRhiSampler::Nearest, QRhiSampler::None,
                 QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
         m_outlineSampler->create();
     }
@@ -1502,10 +1554,62 @@ void RenderWidget::ensureRenderResources()
         });
         m_maskMorphWorkToMaskSrb->create();
     }
+    if (!m_outlineExtractUbuf) {
+        m_outlineExtractUbuf.reset(
+            m_rhi->newBuffer(
+                QRhiBuffer::Dynamic,
+                QRhiBuffer::UniformBuffer,
+                kOutlineExtractUbufSize));
+        m_outlineExtractUbuf->create();
+    }
+    if (!m_outlineExtractSrb
+        && m_outlineExtractUbuf
+        && m_maskMorphSampler
+        && m_currentMaskBaseTexture) {
+        m_outlineExtractSrb.reset(m_rhi->newShaderResourceBindings());
+        m_outlineExtractSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_outlineExtractUbuf.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskBaseTexture.get(),
+                m_maskMorphSampler.get())
+        });
+        m_outlineExtractSrb->create();
+    }
+    if (!m_outlineExtractPipeline && m_outlineExtractSrb && m_currentMaskWorkRp) {
+        m_outlineExtractPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_outline.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_outline_extract.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load outline-extract shaders");
+            m_outlineExtractPipeline.reset();
+        } else {
+            m_outlineExtractPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_outlineExtractPipeline->setDepthTest(false);
+            m_outlineExtractPipeline->setDepthWrite(false);
+            m_outlineExtractPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            m_outlineExtractPipeline->setVertexInputLayout(layout);
+            m_outlineExtractPipeline->setShaderResourceBindings(m_outlineExtractSrb.get());
+            m_outlineExtractPipeline->setRenderPassDescriptor(m_currentMaskWorkRp.get());
+            if (!m_outlineExtractPipeline->create()) {
+                qWarning("Failed to create outline-extract pipeline");
+                m_outlineExtractPipeline.reset();
+            }
+        }
+    }
     if (!m_maskDebugBaseSrb
         && m_maskDebugUbuf
         && m_maskMorphSampler
-        && m_currentMaskBaseTexture) {
+        && m_currentMaskBaseTexture
+        && m_currentMaskTexture) {
         m_maskDebugBaseSrb.reset(m_rhi->newShaderResourceBindings());
         m_maskDebugBaseSrb->setBindings({
             QRhiShaderResourceBinding::uniformBuffer(
@@ -1516,6 +1620,11 @@ void RenderWidget::ensureRenderResources()
                 1,
                 QRhiShaderResourceBinding::FragmentStage,
                 m_currentMaskBaseTexture.get(),
+                m_maskMorphSampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                2,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskTexture.get(),
                 m_maskMorphSampler.get())
         });
         m_maskDebugBaseSrb->create();
@@ -1523,7 +1632,8 @@ void RenderWidget::ensureRenderResources()
     if (!m_maskDebugWorkSrb
         && m_maskDebugUbuf
         && m_maskMorphSampler
-        && m_currentMaskWorkTexture) {
+        && m_currentMaskWorkTexture
+        && m_currentMaskTexture) {
         m_maskDebugWorkSrb.reset(m_rhi->newShaderResourceBindings());
         m_maskDebugWorkSrb->setBindings({
             QRhiShaderResourceBinding::uniformBuffer(
@@ -1534,6 +1644,11 @@ void RenderWidget::ensureRenderResources()
                 1,
                 QRhiShaderResourceBinding::FragmentStage,
                 m_currentMaskWorkTexture.get(),
+                m_maskMorphSampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                2,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskTexture.get(),
                 m_maskMorphSampler.get())
         });
         m_maskDebugWorkSrb->create();
@@ -1541,7 +1656,8 @@ void RenderWidget::ensureRenderResources()
     if (!m_maskDebugMaskSrb
         && m_maskDebugUbuf
         && m_maskMorphSampler
-        && m_currentMaskTexture) {
+        && m_currentMaskTexture
+        && m_currentMaskBaseTexture) {
         m_maskDebugMaskSrb.reset(m_rhi->newShaderResourceBindings());
         m_maskDebugMaskSrb->setBindings({
             QRhiShaderResourceBinding::uniformBuffer(
@@ -1552,11 +1668,21 @@ void RenderWidget::ensureRenderResources()
                 1,
                 QRhiShaderResourceBinding::FragmentStage,
                 m_currentMaskTexture.get(),
+                m_maskMorphSampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                2,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskBaseTexture.get(),
                 m_maskMorphSampler.get())
         });
         m_maskDebugMaskSrb->create();
     }
-    if (!m_outlineSrb && m_outlineUbuf && m_outlineSampler && m_currentMaskTexture) {
+    if (!m_outlineSrb
+        && m_outlineUbuf
+        && m_outlineSampler
+        && m_currentMaskWorkTexture
+        && m_currentMaskBaseTexture
+        && m_currentMaskTexture) {
         m_outlineSrb.reset(m_rhi->newShaderResourceBindings());
         m_outlineSrb->setBindings({
             QRhiShaderResourceBinding::uniformBuffer(
@@ -1565,6 +1691,16 @@ void RenderWidget::ensureRenderResources()
                 m_outlineUbuf.get()),
             QRhiShaderResourceBinding::sampledTexture(
                 1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskWorkTexture.get(),
+                m_outlineSampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                2,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_currentMaskBaseTexture.get(),
+                m_outlineSampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                3,
                 QRhiShaderResourceBinding::FragmentStage,
                 m_currentMaskTexture.get(),
                 m_outlineSampler.get())
@@ -1688,6 +1824,53 @@ void RenderWidget::ensureRenderResources()
         }
     }
 
+    if (!m_renderSettings.showEdges) {
+        m_edgesPipeline.reset();
+    } else if (!m_edgesPipeline) {
+        m_edgesPipeline.reset(m_rhi->newGraphicsPipeline());
+
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_edges.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_edges.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load edges shaders");
+            m_edgesPipeline.reset();
+            return;
+        }
+
+        m_edgesPipeline->setShaderStages({
+            { QRhiShaderStage::Vertex, vs },
+            { QRhiShaderStage::Fragment, fs }
+        });
+        m_edgesPipeline->setTopology(QRhiGraphicsPipeline::Lines);
+        m_edgesPipeline->setDepthTest(true);
+        m_edgesPipeline->setDepthWrite(true);
+        m_edgesPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+        m_edgesPipeline->setCullMode(QRhiGraphicsPipeline::None);
+        m_edgesPipeline->setLineWidth(qMax(1.0f, m_renderSettings.edgeSize));
+
+        QRhiGraphicsPipeline::TargetBlend blend;
+        blend.enable = true;
+        blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+        blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        blend.opColor = QRhiGraphicsPipeline::Add;
+        blend.srcAlpha = QRhiGraphicsPipeline::One;
+        blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        blend.opAlpha = QRhiGraphicsPipeline::Add;
+        m_edgesPipeline->setTargetBlends({ blend });
+
+        QRhiVertexInputLayout edgesLayout;
+        edgesLayout.setBindings({ { 3 * sizeof(float) } });
+        edgesLayout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+        m_edgesPipeline->setVertexInputLayout(edgesLayout);
+        m_edgesPipeline->setShaderResourceBindings(m_srb.get());
+        m_edgesPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+
+        if (!m_edgesPipeline->create()) {
+            qWarning("Failed to create edges pipeline");
+            m_edgesPipeline.reset();
+        }
+    }
+
     if (!m_bboxPipeline) {
         m_bboxPipeline.reset(m_rhi->newGraphicsPipeline());
 
@@ -1806,6 +1989,11 @@ void RenderWidget::ensureRenderResources()
             });
             m_currentMaskFillPipeline->setDepthTest(true);
             m_currentMaskFillPipeline->setDepthWrite(true);
+            m_currentMaskFillPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            // Slight negative bias avoids self-occlusion when comparing current mesh
+            // against a scene depth prepass that already contains the same geometry.
+            m_currentMaskFillPipeline->setDepthBias(-1);
+            m_currentMaskFillPipeline->setSlopeScaledDepthBias(-1.0f);
             // Outline mask generation should include both front and back faces.
             m_currentMaskFillPipeline->setCullMode(QRhiGraphicsPipeline::None);
             QRhiVertexInputLayout layout;
@@ -1817,6 +2005,129 @@ void RenderWidget::ensureRenderResources()
             if (!m_currentMaskFillPipeline->create()) {
                 qWarning("Failed to create current-mask fill pipeline");
                 m_currentMaskFillPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_currentMaskFillDepthOnlyPipeline && m_currentMaskRp) {
+        m_currentMaskFillDepthOnlyPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/depth_pick.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/depth_pick.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load current-mask fill depth-only shaders");
+            m_currentMaskFillDepthOnlyPipeline.reset();
+        } else {
+            m_currentMaskFillDepthOnlyPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_currentMaskFillDepthOnlyPipeline->setDepthTest(true);
+            m_currentMaskFillDepthOnlyPipeline->setDepthWrite(true);
+            m_currentMaskFillDepthOnlyPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { kFillVertexStrideFloats * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_currentMaskFillDepthOnlyPipeline->setVertexInputLayout(layout);
+            m_currentMaskFillDepthOnlyPipeline->setShaderResourceBindings(m_srb.get());
+            m_currentMaskFillDepthOnlyPipeline->setRenderPassDescriptor(m_currentMaskRp.get());
+            if (!m_currentMaskFillDepthOnlyPipeline->create()) {
+                qWarning("Failed to create current-mask fill depth-only pipeline");
+                m_currentMaskFillDepthOnlyPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_currentMaskEdgesPipeline && m_currentMaskRp) {
+        m_currentMaskEdgesPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_mask.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_mask.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load current-mask edge shaders");
+            m_currentMaskEdgesPipeline.reset();
+        } else {
+            m_currentMaskEdgesPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_currentMaskEdgesPipeline->setTopology(QRhiGraphicsPipeline::Lines);
+            // Edge-mesh outline mask should capture all visible segments robustly.
+            m_currentMaskEdgesPipeline->setDepthTest(false);
+            m_currentMaskEdgesPipeline->setDepthWrite(false);
+            m_currentMaskEdgesPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            m_currentMaskEdgesPipeline->setLineWidth(1.0f);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_currentMaskEdgesPipeline->setVertexInputLayout(layout);
+            m_currentMaskEdgesPipeline->setShaderResourceBindings(m_srb.get());
+            m_currentMaskEdgesPipeline->setRenderPassDescriptor(m_currentMaskRp.get());
+            if (!m_currentMaskEdgesPipeline->create()) {
+                qWarning("Failed to create current-mask edges pipeline");
+                m_currentMaskEdgesPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_currentMaskEdgesDepthPipeline && m_currentMaskRp) {
+        m_currentMaskEdgesDepthPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/selection_mask.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/selection_mask.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load current-mask depth-edges shaders");
+            m_currentMaskEdgesDepthPipeline.reset();
+        } else {
+            m_currentMaskEdgesDepthPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_currentMaskEdgesDepthPipeline->setTopology(QRhiGraphicsPipeline::Lines);
+            m_currentMaskEdgesDepthPipeline->setDepthTest(true);
+            m_currentMaskEdgesDepthPipeline->setDepthWrite(true);
+            m_currentMaskEdgesDepthPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_currentMaskEdgesDepthPipeline->setDepthBias(-1);
+            m_currentMaskEdgesDepthPipeline->setSlopeScaledDepthBias(-1.0f);
+            m_currentMaskEdgesDepthPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            m_currentMaskEdgesDepthPipeline->setLineWidth(1.0f);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_currentMaskEdgesDepthPipeline->setVertexInputLayout(layout);
+            m_currentMaskEdgesDepthPipeline->setShaderResourceBindings(m_srb.get());
+            m_currentMaskEdgesDepthPipeline->setRenderPassDescriptor(m_currentMaskRp.get());
+            if (!m_currentMaskEdgesDepthPipeline->create()) {
+                qWarning("Failed to create current-mask depth-edges pipeline");
+                m_currentMaskEdgesDepthPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_currentMaskEdgesDepthOnlyPipeline && m_currentMaskRp) {
+        m_currentMaskEdgesDepthOnlyPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/depth_pick.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/depth_pick.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load current-mask edge depth-only shaders");
+            m_currentMaskEdgesDepthOnlyPipeline.reset();
+        } else {
+            m_currentMaskEdgesDepthOnlyPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_currentMaskEdgesDepthOnlyPipeline->setTopology(QRhiGraphicsPipeline::Lines);
+            m_currentMaskEdgesDepthOnlyPipeline->setDepthTest(true);
+            m_currentMaskEdgesDepthOnlyPipeline->setDepthWrite(true);
+            m_currentMaskEdgesDepthOnlyPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_currentMaskEdgesDepthOnlyPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            m_currentMaskEdgesDepthOnlyPipeline->setLineWidth(1.0f);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_currentMaskEdgesDepthOnlyPipeline->setVertexInputLayout(layout);
+            m_currentMaskEdgesDepthOnlyPipeline->setShaderResourceBindings(m_srb.get());
+            m_currentMaskEdgesDepthOnlyPipeline->setRenderPassDescriptor(m_currentMaskRp.get());
+            if (!m_currentMaskEdgesDepthOnlyPipeline->create()) {
+                qWarning("Failed to create current-mask edge depth-only pipeline");
+                m_currentMaskEdgesDepthOnlyPipeline.reset();
             }
         }
     }
@@ -1847,6 +2158,35 @@ void RenderWidget::ensureRenderResources()
             if (!m_currentMaskPointsPipeline->create()) {
                 qWarning("Failed to create current-mask points pipeline");
                 m_currentMaskPointsPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_currentMaskPointsDepthOnlyPipeline && m_currentMaskRp) {
+        m_currentMaskPointsDepthOnlyPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/depth_pick.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/depth_pick.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load current-mask points depth-only shaders");
+            m_currentMaskPointsDepthOnlyPipeline.reset();
+        } else {
+            m_currentMaskPointsDepthOnlyPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_currentMaskPointsDepthOnlyPipeline->setTopology(QRhiGraphicsPipeline::Points);
+            m_currentMaskPointsDepthOnlyPipeline->setDepthTest(true);
+            m_currentMaskPointsDepthOnlyPipeline->setDepthWrite(true);
+            m_currentMaskPointsDepthOnlyPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { kPointsVertexStrideFloats * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_currentMaskPointsDepthOnlyPipeline->setVertexInputLayout(layout);
+            m_currentMaskPointsDepthOnlyPipeline->setShaderResourceBindings(m_srb.get());
+            m_currentMaskPointsDepthOnlyPipeline->setRenderPassDescriptor(m_currentMaskRp.get());
+            if (!m_currentMaskPointsDepthOnlyPipeline->create()) {
+                qWarning("Failed to create current-mask points depth-only pipeline");
+                m_currentMaskPointsDepthOnlyPipeline.reset();
             }
         }
     }
@@ -2081,6 +2421,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     const bool needFill =
         m_renderSettings.showFill || m_renderSettings.highlightCurrentMesh;
     const bool needWire = m_renderSettings.showWire;
+    const bool needEdges = m_renderSettings.showEdges || m_renderSettings.highlightCurrentMesh;
     const bool needPoints =
         m_renderSettings.showPoints || m_renderSettings.highlightCurrentMesh;
     const bool needBBox = m_renderSettings.showBoundingBox;
@@ -2090,7 +2431,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     const bool needDecoratorBoundaries =
         m_renderSettings.decoratorBoundaryEdges
         || m_renderSettings.decoratorTextureSeams;
-    if (!needFill && !needWire && !needPoints && !needBBox
+    if (!needFill && !needWire && !needEdges && !needPoints && !needBBox
         && !needDecoratorNormals && !needDecoratorBoundaries)
         return;
 
@@ -2112,6 +2453,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             pointVariant,
             needFill,
             needWire,
+            needEdges,
             needPoints,
             needBBox,
             needDecoratorNormals,
@@ -2164,6 +2506,7 @@ void RenderWidget::executePendingDepthPick(
             pointVariant,
             true,   // fill
             false,  // wire
+            false,  // edges
             true,   // points
             false,  // bbox
             false,  // decorator normals
@@ -2296,11 +2639,8 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         return;
 
     ensureCurrentMeshMaskResources(pixelSize);
-    if (!m_currentMaskRt)
+    if (!m_currentMaskRt || !m_currentMaskBaseRt || !m_currentMaskWorkRt)
         return;
-
-    cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
 
     const auto pointVariant = static_cast<Document::PointGpuVariant>(
         pointGpuVariantIndexForCurrentSettings());
@@ -2309,19 +2649,51 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             ? fillGpuVariantIndexForCurrentSettings()
             : static_cast<int>(Document::FillGpuVariant::Constant));
 
-    bool drewSurface = false;
-    if (m_currentMaskFillPipeline) {
-        const Document::FillPassGpuView fillView =
-            m_doc->fillPassGpuView(m_rhi, currentMeshIndex, fillVariant);
-        cb->setGraphicsPipeline(m_currentMaskFillPipeline.get());
+    const Document::FillPassGpuView currentFillView =
+        m_doc->fillPassGpuView(m_rhi, currentMeshIndex, fillVariant);
+    const Document::EdgePassGpuView currentEdgeView =
+        m_doc->edgePassGpuView(m_rhi, currentMeshIndex);
+    const Document::PointsPassGpuView currentPointsView =
+        m_doc->pointsPassGpuView(m_rhi, currentMeshIndex, pointVariant);
+
+    bool currentHasFill = false;
+    for (int bi = 0; bi < currentFillView.batchCount; ++bi) {
+        const auto &batch = currentFillView.batches[bi];
+        if (batch.vertexBuffer && (batch.indexCount > 0 || batch.vertexCount > 0)) {
+            currentHasFill = true;
+            break;
+        }
+    }
+    const bool currentHasEdges =
+        currentEdgeView.valid && currentEdgeView.vertexBuffer && currentEdgeView.vertexCount > 0;
+    const bool currentHasPoints =
+        currentPointsView.valid && currentPointsView.vertexBuffer && currentPointsView.vertexCount > 0;
+
+    if (!currentHasFill && !currentHasEdges && currentHasPoints) {
+        // Keep the point-cloud outline path unchanged.
+        cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
+        cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+        if (m_currentMaskPointsPipeline) {
+            cb->setGraphicsPipeline(m_currentMaskPointsPipeline.get());
+            cb->setShaderResources();
+            const QRhiCommandBuffer::VertexInput pv(currentPointsView.vertexBuffer, 0);
+            cb->setVertexInput(0, 1, &pv);
+            cb->draw(currentPointsView.vertexCount);
+            m_currentMaskFromPoints = true;
+        }
+        cb->endPass();
+        return;
+    }
+
+    auto drawFillDepth = [&](const Document::FillPassGpuView &fillView) {
+        if (!m_currentMaskFillDepthOnlyPipeline)
+            return;
+        cb->setGraphicsPipeline(m_currentMaskFillDepthOnlyPipeline.get());
         cb->setShaderResources();
         for (int bi = 0; bi < fillView.batchCount; ++bi) {
             const auto &batch = fillView.batches[bi];
-            if (!batch.vertexBuffer)
+            if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
                 continue;
-            if (batch.indexCount == 0 && batch.vertexCount == 0)
-                continue;
-            drewSurface = true;
             const QRhiCommandBuffer::VertexInput vbufBinding(batch.vertexBuffer, 0);
             if (batch.indexCount > 0 && batch.indexBuffer) {
                 cb->setVertexInput(
@@ -2332,21 +2704,83 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
                 cb->draw(batch.vertexCount);
             }
         }
-    }
+    };
 
-    if (!drewSurface && m_currentMaskPointsPipeline) {
-        const Document::PointsPassGpuView pointsView =
-            m_doc->pointsPassGpuView(m_rhi, currentMeshIndex, pointVariant);
-        cb->setGraphicsPipeline(m_currentMaskPointsPipeline.get());
+    auto drawEdgeDepth = [&](const Document::EdgePassGpuView &edgeView) {
+        if (!m_currentMaskEdgesDepthOnlyPipeline)
+            return;
+        if (!edgeView.valid || !edgeView.vertexBuffer || edgeView.vertexCount <= 0)
+            return;
+        cb->setGraphicsPipeline(m_currentMaskEdgesDepthOnlyPipeline.get());
         cb->setShaderResources();
-        if (pointsView.valid && pointsView.vertexBuffer && pointsView.vertexCount > 0) {
-            m_currentMaskFromPoints = true;
-            const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
-            cb->setVertexInput(0, 1, &pv);
-            cb->draw(pointsView.vertexCount);
-        }
-    }
+        const QRhiCommandBuffer::VertexInput ev(edgeView.vertexBuffer, 0);
+        cb->setVertexInput(0, 1, &ev);
+        cb->draw(edgeView.vertexCount);
+    };
 
+    auto drawPointsDepth = [&](const Document::PointsPassGpuView &pointsView) {
+        if (!m_currentMaskPointsDepthOnlyPipeline)
+            return;
+        if (!pointsView.valid || !pointsView.vertexBuffer || pointsView.vertexCount <= 0)
+            return;
+        cb->setGraphicsPipeline(m_currentMaskPointsDepthOnlyPipeline.get());
+        cb->setShaderResources();
+        const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
+        cb->setVertexInput(0, 1, &pv);
+        cb->draw(pointsView.vertexCount);
+    };
+
+    // 1) Render current mesh into buffer A (encoded depth in color, depth test/write enabled).
+    cb->beginPass(m_currentMaskBaseRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
+    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    if (currentHasFill) {
+        drawFillDepth(currentFillView);
+    } else if (currentHasEdges) {
+        drawEdgeDepth(currentEdgeView);
+    } else if (currentHasPoints) {
+        drawPointsDepth(currentPointsView);
+    }
+    cb->endPass();
+
+    // 2) Compute outline boundary O from A by removing pixels surrounded by 8 neighbors.
+    cb->beginPass(m_currentMaskWorkRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
+    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    if (m_outlineExtractPipeline && m_outlineExtractSrb && m_outlineExtractUbuf) {
+        const float extractData[4] = {
+            1.0f / float(qMax(1, pixelSize.width())),
+            1.0f / float(qMax(1, pixelSize.height())),
+            m_rhi->isYUpInFramebuffer() ? 1.0f : 0.0f,
+            0.0f
+        };
+        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+        u->updateDynamicBuffer(m_outlineExtractUbuf.get(), 0, kOutlineExtractUbufSize, extractData);
+        cb->resourceUpdate(u);
+
+        cb->setGraphicsPipeline(m_outlineExtractPipeline.get());
+        cb->setShaderResources(m_outlineExtractSrb.get());
+        cb->draw(3);
+    }
+    cb->endPass();
+
+    // 3) Render whole scene depth into a second depth-encoded buffer.
+    cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
+    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        if (!meshVisible(mi))
+            continue;
+        if (mi == currentMeshIndex)
+            continue;
+
+        const Document::FillPassGpuView fillView =
+            m_doc->fillPassGpuView(m_rhi, mi, fillVariant);
+        const Document::EdgePassGpuView edgeView = m_doc->edgePassGpuView(m_rhi, mi);
+        const Document::PointsPassGpuView pointsView =
+            m_doc->pointsPassGpuView(m_rhi, mi, pointVariant);
+
+        drawFillDepth(fillView);
+        drawEdgeDepth(edgeView);
+        drawPointsDepth(pointsView);
+    }
     cb->endPass();
 }
 
@@ -2379,6 +2813,9 @@ void RenderWidget::processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pi
         cb->resourceUpdate(u);
     };
 
+    if (!m_currentMaskFromPoints)
+        return;
+
     // Snapshot base point mask for debugging/inspection before any morphology.
     updateMorphParams(m_maskMorphCopyUbuf.get(), 0.0f, 0.0f);
     cb->beginPass(m_currentMaskBaseRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
@@ -2387,9 +2824,6 @@ void RenderWidget::processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pi
     cb->setShaderResources(m_maskMorphMaskToBaseSrb.get());
     cb->draw(3);
     cb->endPass();
-
-    if (!m_currentMaskFromPoints)
-        return;
 
     // Point-cloud outline pipeline:
     // 1) dilate(base, dilateRadius) -> work
@@ -2427,11 +2861,19 @@ void RenderWidget::drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &
         return;
 
     QRhiShaderResourceBindings *srb = nullptr;
+    float debugMode = 0.0f;
     switch (m_renderSettings.currentMeshDebugView) {
     case CurrentMeshDebugView::Outline:
         return;
-    case CurrentMeshDebugView::BaseMask:
+    case CurrentMeshDebugView::FullMask:
         srb = m_maskDebugBaseSrb.get();
+        break;
+    case CurrentMeshDebugView::VisibleMask:
+        srb = m_maskDebugMaskSrb.get();
+        break;
+    case CurrentMeshDebugView::OccludedMask:
+        srb = m_maskDebugBaseSrb.get();
+        debugMode = 1.0f;
         break;
     case CurrentMeshDebugView::DilatedMask:
         srb = m_currentMaskFromPoints ? m_maskDebugWorkSrb.get() : m_maskDebugBaseSrb.get();
@@ -2447,7 +2889,7 @@ void RenderWidget::drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &
         1.0f / float(qMax(1, pixelSize.width())),
         1.0f / float(qMax(1, pixelSize.height())),
         m_rhi->isYUpInFramebuffer() ? 1.0f : 0.0f,
-        0.0f
+        debugMode
     };
     QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
     u->updateDynamicBuffer(m_maskDebugUbuf.get(), 0, kMaskDebugUbufSize, debugData);
@@ -2471,7 +2913,7 @@ void RenderWidget::drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pi
 
     if (!m_outlinePipeline || !m_outlineSrb || !m_outlineUbuf)
         return;
-    if (!m_currentMaskTexture)
+    if (!m_currentMaskTexture || !m_currentMaskBaseTexture || !m_currentMaskWorkTexture)
         return;
 
     // For point-cloud highlighting, outline width is controlled by dilate/erode radius difference.
@@ -2479,7 +2921,7 @@ void RenderWidget::drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pi
     const float widthPx = m_currentMaskFromPoints
         ? 1.0f
         : qMax(1.0f, m_renderSettings.currentMeshOutlineWidth);
-    float outlineData[8] = {};
+    float outlineData[12] = {};
     outlineData[0] = m_renderSettings.currentMeshOutlineColor.redF();
     outlineData[1] = m_renderSettings.currentMeshOutlineColor.greenF();
     outlineData[2] = m_renderSettings.currentMeshOutlineColor.blueF();
@@ -2489,6 +2931,19 @@ void RenderWidget::drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pi
     outlineData[6] = 1.0f / float(qMax(1, pixelSize.height()));
     // Offscreen texture sampling needs a vertical flip on Y-up framebuffers.
     outlineData[7] = m_rhi->isYUpInFramebuffer() ? 1.0f : 0.0f;
+    if (m_currentMaskFromPoints) {
+        // Keep point-cloud outline behavior unchanged: no occlusion tinting.
+        outlineData[8] = m_renderSettings.currentMeshOutlineColor.redF();
+        outlineData[9] = m_renderSettings.currentMeshOutlineColor.greenF();
+        outlineData[10] = m_renderSettings.currentMeshOutlineColor.blueF();
+        outlineData[11] = 0.0f;
+    } else {
+        // Occluded outline blends 50% with the current framebuffer color.
+        outlineData[8] = m_renderSettings.currentMeshOutlineColor.redF();
+        outlineData[9] = m_renderSettings.currentMeshOutlineColor.greenF();
+        outlineData[10] = m_renderSettings.currentMeshOutlineColor.blueF();
+        outlineData[11] = m_renderSettings.currentMeshOutlineColor.alphaF() * 0.5f;
+    }
 
     QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
     u->updateDynamicBuffer(m_outlineUbuf.get(), 0, kOutlineUbufSize, outlineData);
@@ -2521,6 +2976,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     const bool drawFillPass = m_renderSettings.showFill;
     const bool drawWirePass = m_renderSettings.showWire;
+    const bool drawEdgesPass = m_renderSettings.showEdges;
     const bool drawBBoxPass = m_renderSettings.showBoundingBox;
     const bool drawPointsPass = m_renderSettings.showPoints;
     const bool drawDecoratorPass =
@@ -2535,7 +2991,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         && (currentMeshIndex >= 0)
         && meshVisible(currentMeshIndex);
     const bool anyDrawPass =
-        drawFillPass || drawWirePass || drawBBoxPass || drawPointsPass || drawDecoratorPass
+        drawFillPass || drawWirePass || drawEdgesPass || drawBBoxPass || drawPointsPass || drawDecoratorPass
         || drawCurrentMeshHighlight || drawTrackballGizmo;
     const bool needMvpForFrame = anyDrawPass || m_depthPickPending;
 
@@ -2599,6 +3055,10 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         ubufData[kUbufLightingParamsOffset + 1] = m_renderSettings.pointLighting ? 1.0f : 0.0f;
         ubufData[kUbufLightingParamsOffset + 2] = m_renderSettings.wireLighting ? 1.0f : 0.0f;
         ubufData[kUbufLightingParamsOffset + 3] = m_renderSettings.fillLighting ? 1.0f : 0.0f;
+        ubufData[kUbufEdgeColorOffset + 0] = m_renderSettings.edgeColor.redF();
+        ubufData[kUbufEdgeColorOffset + 1] = m_renderSettings.edgeColor.greenF();
+        ubufData[kUbufEdgeColorOffset + 2] = m_renderSettings.edgeColor.blueF();
+        ubufData[kUbufEdgeColorOffset + 3] = m_renderSettings.edgeColor.alphaF();
 
         u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
@@ -2696,6 +3156,22 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             const QRhiCommandBuffer::VertexInput vbufBinding(wireView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &vbufBinding);
             cb->draw(wireView.vertexCount);
+        }
+    }
+
+    if (drawEdgesPass && m_edgesPipeline) {
+        cb->setGraphicsPipeline(m_edgesPipeline.get());
+        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+        cb->setShaderResources();
+        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+            if (!meshVisible(mi))
+                continue;
+            const Document::EdgePassGpuView edgeView = m_doc->edgePassGpuView(m_rhi, mi);
+            if (!edgeView.valid || !edgeView.vertexBuffer || edgeView.vertexCount <= 0)
+                continue;
+            const QRhiCommandBuffer::VertexInput ev(edgeView.vertexBuffer, 0);
+            cb->setVertexInput(0, 1, &ev);
+            cb->draw(edgeView.vertexCount);
         }
     }
 

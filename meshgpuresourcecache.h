@@ -54,6 +54,12 @@ public:
         bool valid = false;
     };
 
+    struct EdgePassView {
+        QRhiBuffer *vertexBuffer = nullptr;
+        int vertexCount = 0;
+        bool valid = false;
+    };
+
     struct PointsPassView {
         QRhiBuffer *vertexBuffer = nullptr;
         int vertexCount = 0;
@@ -81,6 +87,7 @@ public:
     struct EnsureStats {
         bool rebuiltFill = false;
         bool rebuiltWire = false;
+        bool rebuiltEdges = false;
         bool rebuiltPoints = false;
         bool rebuiltBoundingBox = false;
         bool rebuiltDecoratorNormals = false;
@@ -90,7 +97,7 @@ public:
 
         bool anyRebuilt() const
         {
-            return rebuiltFill || rebuiltWire || rebuiltPoints || rebuiltBoundingBox
+            return rebuiltFill || rebuiltWire || rebuiltEdges || rebuiltPoints || rebuiltBoundingBox
                 || rebuiltDecoratorNormals || rebuiltDecoratorBoundaries;
         }
     };
@@ -105,6 +112,7 @@ public:
                                     PointVariant pointVariant,
                                     bool needFill,
                                     bool needWire,
+                                    bool needEdges,
                                     bool needPoints,
                                     bool needBoundingBox,
                                     bool needDecoratorNormals,
@@ -112,6 +120,7 @@ public:
 
     FillPassView fillPassView(QRhi *rhi, std::uint64_t meshId, FillVariant variant) const;
     WirePassView wirePassView(QRhi *rhi, std::uint64_t meshId) const;
+    EdgePassView edgePassView(QRhi *rhi, std::uint64_t meshId) const;
     PointsPassView pointsPassView(QRhi *rhi, std::uint64_t meshId, PointVariant variant) const;
     BBoxPassView bboxPassView(QRhi *rhi, std::uint64_t meshId) const;
     DecoratorPassView decoratorPassView(QRhi *rhi, std::uint64_t meshId) const;

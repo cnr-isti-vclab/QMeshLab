@@ -39,6 +39,8 @@ QString meshDataSummary(const Document::MeshEntry &entry)
         tokens << QObject::tr("VQ");
     if ((mask & Mask::IOM_FACEQUALITY) != 0)
         tokens << QObject::tr("FQ");
+    if ((mask & Mask::IOM_EDGEINDEX) != 0 || entry.mesh.EN() > 0)
+        tokens << QObject::tr("EI");
 
     if (!entry.textureFilePaths.isEmpty()) {
         int foundCount = 0;
@@ -58,6 +60,10 @@ QString meshDataTooltip(const Document::MeshEntry &entry)
 {
     QStringList lines;
     lines << QObject::tr("Data: %1").arg(meshDataSummary(entry));
+    lines << QObject::tr("Counts: V=%1 F=%2 E=%3")
+                 .arg(entry.mesh.VN())
+                 .arg(entry.mesh.FN())
+                 .arg(entry.mesh.EN());
     if (!entry.textureFileNames.isEmpty()) {
         lines << QObject::tr("Texture slots:");
         for (int i = 0; i < entry.textureFileNames.size(); ++i) {
@@ -146,6 +152,10 @@ void LayerWidget::rebuild()
         fItem->setFlags(fItem->flags() & ~Qt::ItemIsSelectable);
         fItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
         item->addChild(fItem);
+        auto *eItem = new QTreeWidgetItem({tr("Edges"), locale.toString(static_cast<qlonglong>(entry.mesh.EN()))});
+        eItem->setFlags(eItem->flags() & ~Qt::ItemIsSelectable);
+        eItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
+        item->addChild(eItem);
         auto *dItem = new QTreeWidgetItem({tr("Data"), meshDataSummary(entry)});
         dItem->setFlags(dItem->flags() & ~Qt::ItemIsSelectable);
         item->addChild(dItem);

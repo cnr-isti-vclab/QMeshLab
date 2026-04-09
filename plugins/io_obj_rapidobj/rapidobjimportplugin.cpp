@@ -157,10 +157,14 @@ public:
         bool importedNormals = false;
         bool importedTexcoords = false;
         bool importedColors = false;
+        bool importedEdges = false;
         size_t skippedMalformedFaces = 0;
         size_t skippedInvalidPositionFaces = 0;
         size_t skippedNonTriangleFaces = 0;
         size_t skippedInvalidPointIndices = 0;
+        size_t skippedMalformedLines = 0;
+        size_t skippedInvalidLineIndices = 0;
+        size_t skippedDegenerateLineSegments = 0;
         size_t invalidTexcoordCorners = 0;
 
         const auto toColorByte = [](float v) -> uint8_t {
@@ -280,6 +284,52 @@ public:
                     ++skippedInvalidPointIndices;
             }
 
+            size_t lineIndexOffset = 0;
+            for (size_t li = 0; li < shape.lines.num_line_vertices.size(); ++li) {
+                const int32_t lineVertexCount = shape.lines.num_line_vertices[li];
+                if (lineVertexCount < 0) {
+                    ++skippedMalformedLines;
+                    continue;
+                }
+
+                const size_t n = static_cast<size_t>(lineVertexCount);
+                if (lineIndexOffset + n > shape.lines.indices.size()) {
+                    skippedMalformedLines += (shape.lines.num_line_vertices.size() - li);
+                    break;
+                }
+
+                if (n < 2) {
+                    lineIndexOffset += n;
+                    continue;
+                }
+
+                int prevVertexIndex = -1;
+                for (size_t k = 0; k < n; ++k) {
+                    const rapidobj::Index idx = shape.lines.indices[lineIndexOffset + k];
+                    const int currVertexIndex = getOrCreateVertex(idx);
+                    if (currVertexIndex < 0) {
+                        ++skippedInvalidLineIndices;
+                        prevVertexIndex = -1;
+                        continue;
+                    }
+
+                    if (prevVertexIndex >= 0) {
+                        if (prevVertexIndex == currVertexIndex) {
+                            ++skippedDegenerateLineSegments;
+                        } else {
+                            vcg::tri::Allocator<VCGMesh>::AddEdge(
+                                mesh,
+                                size_t(prevVertexIndex),
+                                size_t(currVertexIndex));
+                            importedEdges = true;
+                        }
+                    }
+                    prevVertexIndex = currVertexIndex;
+                }
+
+                lineIndexOffset += n;
+            }
+
             if (cb) {
                 const int progress = result.shapes.empty()
                     ? 100
@@ -328,6 +378,18 @@ public:
                 warnings << QObject::tr("skipped %1 point(s) with invalid position index")
                                 .arg(skippedInvalidPointIndices);
             }
+            if (skippedMalformedLines > 0) {
+                warnings << QObject::tr("skipped %1 malformed polyline record(s)")
+                                .arg(skippedMalformedLines);
+            }
+            if (skippedInvalidLineIndices > 0) {
+                warnings << QObject::tr("skipped %1 polyline index/indices with invalid position")
+                                .arg(skippedInvalidLineIndices);
+            }
+            if (skippedDegenerateLineSegments > 0) {
+                warnings << QObject::tr("ignored %1 degenerate polyline segment(s)")
+                                .arg(skippedDegenerateLineSegments);
+            }
             if (invalidTexcoordCorners > 0) {
                 warnings << QObject::tr("%1 corner texcoord index(es) were invalid and ignored")
                                 .arg(invalidTexcoordCorners);
@@ -348,6 +410,8 @@ public:
             loadMask |= vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
         if (importedColors)
             loadMask |= vcg::tri::io::Mask::IOM_VERTCOLOR;
+        if (importedEdges)
+            loadMask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
 
         if (outLoadMask)
             *outLoadMask = loadMask;
