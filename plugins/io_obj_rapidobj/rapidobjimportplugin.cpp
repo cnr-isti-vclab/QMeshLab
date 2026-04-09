@@ -157,6 +157,7 @@ public:
         bool importedNormals = false;
         bool importedTexcoords = false;
         bool importedColors = false;
+        bool importedFaceColors = false;
         bool importedEdges = false;
         size_t skippedMalformedFaces = 0;
         size_t skippedInvalidPositionFaces = 0;
@@ -262,6 +263,22 @@ public:
                     size_t(vertexIndices[0]),
                     size_t(vertexIndices[1]),
                     size_t(vertexIndices[2]));
+
+                // OBJ has no native per-face RGB, but usemtl provides a material per face.
+                // Map the face material diffuse color (Kd) into FaceColor so Fill/PerFace works.
+                if (faceIndex < shape.mesh.material_ids.size()) {
+                    const int materialId = shape.mesh.material_ids[faceIndex];
+                    if (materialId >= 0 && size_t(materialId) < result.materials.size()) {
+                        const auto &mat = result.materials[size_t(materialId)];
+                        fi->C() = vcg::Color4b(
+                            toColorByte(mat.diffuse[0]),
+                            toColorByte(mat.diffuse[1]),
+                            toColorByte(mat.diffuse[2]),
+                            255);
+                        importedFaceColors = true;
+                    }
+                }
+
                 for (int c = 0; c < 3; ++c) {
                     const rapidobj::Index idx = cornerIndices[c];
                     if (!hasPair(texcoords, idx.texcoord_index)) {
@@ -410,6 +427,8 @@ public:
             loadMask |= vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
         if (importedColors)
             loadMask |= vcg::tri::io::Mask::IOM_VERTCOLOR;
+        if (importedFaceColors)
+            loadMask |= vcg::tri::io::Mask::IOM_FACECOLOR;
         if (importedEdges)
             loadMask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
 
