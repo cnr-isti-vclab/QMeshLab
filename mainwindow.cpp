@@ -8,6 +8,7 @@
 #include <QFileInfo>
 #include <QHeaderView>
 #include <QGuiApplication>
+#include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QStatusBar>
@@ -232,6 +233,7 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
     auto *view = new RenderWidget(m_doc, parentSplitter);
     view->setAttribute(Qt::WA_StyledBackground, true);
     view->setProperty("currentView", false);
+    view->setContextMenuPolicy(Qt::CustomContextMenu);
     parentSplitter->addWidget(view);
     m_renderWidgets.append(view);
 
@@ -253,6 +255,30 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
             .arg(worldPos.z(), 0, 'f', 6);
         statusBar()->showMessage(msg, 3500);
         m_doc->writeLog(msg, Document::LogSource::Application);
+    });
+    connect(view, &QWidget::customContextMenuRequested, this,
+            [this, view](const QPoint &pos) {
+        setCurrentRenderWidget(view);
+
+        QMenu menu(view);
+        QAction *splitHAction =
+            menu.addAction(QIcon(QStringLiteral(":/img/splitV.png")), tr("Split Horizontally"));
+        QAction *splitVAction =
+            menu.addAction(QIcon(QStringLiteral(":/img/splitH.png")), tr("Split Vertically"));
+        menu.addSeparator();
+        QAction *closeAction = menu.addAction(tr("Close View"));
+        closeAction->setEnabled(m_renderWidgets.size() > 1);
+
+        QAction *chosen = menu.exec(view->mapToGlobal(pos));
+        if (!chosen)
+            return;
+        if (chosen == splitHAction) {
+            splitViewHorizontally();
+        } else if (chosen == splitVAction) {
+            splitViewVertically();
+        } else if (chosen == closeAction) {
+            closeCurrentView();
+        }
     });
 
     return view;
@@ -370,6 +396,73 @@ void MainWindow::splitCurrentView(Qt::Orientation orientation)
 
     setCurrentRenderWidget(newView);
     statusBar()->showMessage(tr("Created new view"), 1500);
+}
+
+bool MainWindow::closeRenderWidget(RenderWidget *view)
+{
+    if (!view || m_renderWidgets.size() <= 1)
+        return false;
+
+    RenderWidget *nextCurrent = m_currentRenderWidget;
+    if (nextCurrent == view) {
+        nextCurrent = nullptr;
+        for (RenderWidget *candidate : std::as_const(m_renderWidgets)) {
+            if (candidate != view) {
+                nextCurrent = candidate;
+                break;
+            }
+        }
+    }
+
+    auto *parentSplitter = qobject_cast<QSplitter *>(view->parentWidget());
+    m_renderWidgets.removeAll(view);
+
+    view->setParent(nullptr);
+    view->deleteLater();
+
+    // Collapse nested splitters left with a single child.
+    auto collapse = [this](QSplitter *splitter) {
+        QSplitter *current = splitter;
+        while (current && current != m_viewSplitter) {
+            if (current->count() != 1) {
+                current = qobject_cast<QSplitter *>(current->parentWidget());
+                continue;
+            }
+
+            QWidget *onlyChild = current->widget(0);
+            auto *parent = qobject_cast<QSplitter *>(current->parentWidget());
+            if (!onlyChild || !parent)
+                break;
+
+            const int idx = parent->indexOf(current);
+            onlyChild->setParent(parent);
+            parent->insertWidget(idx, onlyChild);
+            current->deleteLater();
+            current = parent;
+        }
+    };
+    collapse(parentSplitter);
+
+    if (!nextCurrent && !m_renderWidgets.isEmpty())
+        nextCurrent = m_renderWidgets.first();
+    if (nextCurrent)
+        setCurrentRenderWidget(nextCurrent);
+    else
+        updateCurrentViewBorder();
+
+    return true;
+}
+
+void MainWindow::closeCurrentView()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+    if (!closeRenderWidget(view)) {
+        statusBar()->showMessage(tr("Cannot close the last view"), 1800);
+        return;
+    }
+    statusBar()->showMessage(tr("View closed"), 1500);
 }
 
 void MainWindow::splitViewHorizontally()

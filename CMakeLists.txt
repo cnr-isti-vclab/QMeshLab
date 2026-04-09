@@ -83,6 +83,8 @@ qt_add_resources(QMeshLab "icons"
         img/points.png
         img/wire.png
         img/flat.png
+        img/splitH.png
+        img/splitV.png
 )
 
 enable_testing()

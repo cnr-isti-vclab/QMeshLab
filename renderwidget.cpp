@@ -53,6 +53,7 @@ constexpr int kDecoratorSlotTextureSeams = 3;
 constexpr int kDecoratorSlotCount = 4;
 constexpr int kTrackballGizmoUbufSize = 80; // mat4 mvp + vec4(center.xyz, radius)
 constexpr int kTrackballGizmoSteps = 96;
+constexpr int kWireframeDefaultFaceThreshold = 10000;
 constexpr float kPi = 3.14159265358979323846f;
 
 QVector3D toVec3(const VCGMesh::CoordType &p)
@@ -783,12 +784,15 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
     m_applySceneDefaultRenderMode = false;
 
     bool hasFaces = false;
+    int firstFaceMeshFaces = 0;
     bool hasVertexColors = false;
     bool hasFaceColors = false;
     bool hasVertexNormals = false;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
-        if (m_doc->mesh(i).mesh.FN() > 0) {
+        const int faceCount = m_doc->mesh(i).mesh.FN();
+        if (faceCount > 0) {
             hasFaces = true;
+            firstFaceMeshFaces = faceCount;
             break;
         }
         const int mask = m_doc->mesh(i).ioMask;
@@ -799,11 +803,21 @@ void RenderWidget::applySceneDefaultRenderModeIfNeeded()
 
     if (hasFaces)
     {
+        const bool showWireByDefault =
+            (firstFaceMeshFaces > 0) && (firstFaceMeshFaces < kWireframeDefaultFaceThreshold);
+        if (m_renderSettings.showWire != showWireByDefault)
+            m_wirePipeline.reset();
+        m_renderSettings.showWire = showWireByDefault;
+        if (!m_renderSettings.showWire && m_renderSettings.currentPass == RenderPass::Wireframe)
+            m_renderSettings.currentPass = RenderPass::Fill;
+
         m_renderSettings.fillColorSource = FillColorSource::Constant;
         if (hasVertexColors)
             m_renderSettings.fillColorSource = FillColorSource::PerVertex;
         else if (hasFaceColors)
             m_renderSettings.fillColorSource = FillColorSource::PerFace;
+        if (m_overlayPanel)
+            m_overlayPanel->setSettings(m_renderSettings);
         return;
     }
 

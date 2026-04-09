@@ -41,6 +41,8 @@ private:
     void setCurrentRenderWidget(RenderWidget *view);
     void updateCurrentViewBorder();
     void splitCurrentView(Qt::Orientation orientation);
+    bool closeRenderWidget(RenderWidget *view);
+    void closeCurrentView();
     void syncDocumentVisibilityFromCurrentView();
     bool loadMeshFromPath(const QString &filePath);
     void addRecentMesh(const QString &filePath);
