@@ -76,6 +76,16 @@ bool parseQuatXyzwValue(const QJsonValue &value, QQuaternion &outValue)
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
+    m_currentViewIndicator = new QWidget(this);
+    m_currentViewIndicator->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_currentViewIndicator->setStyleSheet(QStringLiteral(
+        "QWidget {"
+        "  background: transparent;"
+        "  border: 1px solid rgba(0,174,255,240);"
+        "  border-radius: 4px;"
+        "}"));
+    m_currentViewIndicator->hide();
+
     createOverlayButtons();
     ensureVisibilitySize();
     syncPerMeshRenderModesWithDocument();
@@ -121,6 +131,9 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         m_uvFitRequested = true;
         update();
     });
+
+    if (m_currentViewIndicator)
+        m_currentViewIndicator->setGeometry(rect().adjusted(1, 1, -1, -1));
 }
 
 void RenderWidget::ensureVisibilitySize()
@@ -402,6 +415,19 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
         errorMessage->clear();
     update();
     return true;
+}
+
+void RenderWidget::setCurrentViewHighlighted(bool highlighted)
+{
+    if (m_currentViewHighlighted == highlighted)
+        return;
+    m_currentViewHighlighted = highlighted;
+
+    if (m_currentViewIndicator) {
+        m_currentViewIndicator->setVisible(highlighted);
+        if (highlighted)
+            m_currentViewIndicator->raise();
+    }
 }
 
 void RenderWidget::startCenterAnimation(const QVector3D &targetCenter)
@@ -879,5 +905,7 @@ void RenderWidget::wheelEvent(QWheelEvent *e)
 void RenderWidget::resizeEvent(QResizeEvent *e)
 {
     QRhiWidget::resizeEvent(e);
+    if (m_currentViewIndicator)
+        m_currentViewIndicator->setGeometry(rect().adjusted(1, 1, -1, -1));
     layoutOverlayButtons();
 }

@@ -36,6 +36,7 @@ public:
 
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
     void setShadingMode(ShadingMode mode);
+    void setCurrentViewHighlighted(bool highlighted);
     void resetCameraToScene();
     const RenderSettings &renderSettings() const { return m_renderSettings; }
     void setRenderSettings(const RenderSettings &settings);
@@ -231,6 +232,8 @@ private:
     ShadingMode m_shadingMode = ShadingMode::Smooth;
     RenderSettings m_renderSettings;
     RenderOverlayPanel *m_overlayPanel = nullptr;
+    QWidget *m_currentViewIndicator = nullptr;
+    bool m_currentViewHighlighted = false;
     QLabel *m_bboxMinCornerOverlayLabel = nullptr;
     QLabel *m_bboxMaxCornerOverlayLabel = nullptr;
     QLabel *m_bboxDimXOverlayLabel = nullptr;

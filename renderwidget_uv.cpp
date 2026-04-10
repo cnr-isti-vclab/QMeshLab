@@ -220,79 +220,80 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     if (!hasUv)
         return false;
 
-    VCGMesh &meshMutable = const_cast<VCGMesh &>(mesh);
-    vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(meshMutable);
-    for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-        if (fi->IsD())
+    struct UvEdgeSample {
+        QVector2D uvA;
+        QVector2D uvB;
+    };
+    std::unordered_map<std::uint64_t, std::vector<UvEdgeSample>> edgeSamples;
+    edgeSamples.reserve(size_t(mesh.FN()) * 3);
+
+    for (int fi = 0; fi < mesh.FN(); ++fi) {
+        const auto &f = mesh.face[fi];
+        if (f.IsD())
             continue;
         for (int i = 0; i < 3; ++i) {
-            if (!fi->IsB(i))
-                continue;
+            const int next = (i + 1) % 3;
             QVector2D uv0;
             QVector2D uv1;
-            if (!uvForCorner(*fi, i, uv0) || !uvForCorner(*fi, (i + 1) % 3, uv1))
+            if (!uvForCorner(f, i, uv0) || !uvForCorner(f, next, uv1))
                 continue;
-            boundaryEdgeData.push_back(uv0.x());
-            boundaryEdgeData.push_back(uv0.y());
-            boundaryEdgeData.push_back(0.0f);
-            boundaryEdgeData.push_back(uv1.x());
-            boundaryEdgeData.push_back(uv1.y());
-            boundaryEdgeData.push_back(0.0f);
+
+            const auto *v0 = f.cV(i);
+            const auto *v1 = f.cV(next);
+            if (!v0 || !v1)
+                continue;
+            int a = vcg::tri::Index(mesh, v0);
+            int b = vcg::tri::Index(mesh, v1);
+            if (a < 0 || b < 0)
+                continue;
+
+            if (a > b) {
+                std::swap(a, b);
+                std::swap(uv0, uv1);
+            }
+
+            const std::uint64_t key =
+                (std::uint64_t(std::uint32_t(a)) << 32) | std::uint64_t(std::uint32_t(b));
+            edgeSamples[key].push_back(UvEdgeSample { uv0, uv1 });
         }
     }
 
-    if (hasWedgeTex || hasVertexTex) {
-        if (hasVertexTex) {
-            for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-                if (fi->IsD())
-                    continue;
-                for (int i = 0; i < 3; ++i) {
-                    const auto &vt = fi->cV(i)->cT();
-                    fi->WT(i).U() = vt.U();
-                    fi->WT(i).V() = vt.V();
-                    fi->WT(i).N() = vt.N();
-                }
-            }
+    const float uvEps = 1e-6f;
+    for (const auto &kv : edgeSamples) {
+        const auto &samples = kv.second;
+        if (samples.empty())
+            continue;
+
+        if (samples.size() == 1) {
+            const UvEdgeSample &s = samples.front();
+            boundaryEdgeData.push_back(s.uvA.x());
+            boundaryEdgeData.push_back(s.uvA.y());
+            boundaryEdgeData.push_back(0.0f);
+            boundaryEdgeData.push_back(s.uvB.x());
+            boundaryEdgeData.push_back(s.uvB.y());
+            boundaryEdgeData.push_back(0.0f);
+            continue;
         }
 
-        std::vector<std::pair<VCGFace *, int>> savedTopo;
-        savedTopo.reserve(static_cast<size_t>(meshMutable.FN()) * 3);
-        for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
-            for (int i = 0; i < 3; ++i)
-                savedTopo.push_back(std::make_pair(fi->FFp(i), fi->FFi(i)));
-        }
-
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(meshMutable);
-        for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
-            for (int i = 0; i < 3; ++i) {
-                if (!vcg::face::IsBorder(*fi, i))
-                    continue;
-                QVector2D uv0;
-                QVector2D uv1;
-                if (!uvForCorner(*fi, i, uv0) || !uvForCorner(*fi, (i + 1) % 3, uv1))
-                    continue;
-                textureSeamData.push_back(uv0.x());
-                textureSeamData.push_back(uv0.y());
-                textureSeamData.push_back(0.0f);
-                textureSeamData.push_back(uv1.x());
-                textureSeamData.push_back(uv1.y());
-                textureSeamData.push_back(0.0f);
+        const UvEdgeSample &ref = samples.front();
+        bool isSeam = false;
+        for (size_t si = 1; si < samples.size(); ++si) {
+            const UvEdgeSample &s = samples[si];
+            if ((s.uvA - ref.uvA).lengthSquared() > uvEps * uvEps
+                || (s.uvB - ref.uvB).lengthSquared() > uvEps * uvEps) {
+                isSeam = true;
+                break;
             }
         }
+        if (!isSeam)
+            continue;
 
-        auto topoIt = savedTopo.begin();
-        for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
-            for (int i = 0; i < 3 && topoIt != savedTopo.end(); ++i, ++topoIt) {
-                fi->FFp(i) = topoIt->first;
-                fi->FFi(i) = topoIt->second;
-            }
-        }
+        textureSeamData.push_back(ref.uvA.x());
+        textureSeamData.push_back(ref.uvA.y());
+        textureSeamData.push_back(0.0f);
+        textureSeamData.push_back(ref.uvB.x());
+        textureSeamData.push_back(ref.uvB.y());
+        textureSeamData.push_back(0.0f);
     }
 
     QRhiResourceUpdateBatch *updates = m_rhi->nextResourceUpdateBatch();

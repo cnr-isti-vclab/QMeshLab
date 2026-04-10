@@ -105,10 +105,14 @@ MainWindow::MainWindow(QWidget *parent)
     m_viewSplitter->setChildrenCollapsible(false);
     m_viewSplitter->setStyleSheet(QStringLiteral(
         "RenderWidget {"
-        "  border: 1px solid rgb(90, 90, 90);"
+        "  border: 1px solid rgb(70, 70, 70);"
+        "  border-radius: 3px;"
+        "}"
+        "RenderWidget[currentView=\"false\"] {"
+        "  border: 1px solid rgb(70, 70, 70);"
         "}"
         "RenderWidget[currentView=\"true\"] {"
-        "  border: 2px solid rgb(42, 160, 240);"
+        "  border: 4px solid rgb(0, 174, 255);"
         "}"
     ));
     setCentralWidget(m_viewSplitter);
@@ -322,10 +326,12 @@ void MainWindow::setCurrentRenderWidget(RenderWidget *view)
 
 void MainWindow::updateCurrentViewBorder()
 {
+    const bool showCurrentViewIndicator = (m_renderWidgets.size() > 1);
     for (RenderWidget *view : std::as_const(m_renderWidgets)) {
         if (!view)
             continue;
         const bool isCurrent = (view == m_currentRenderWidget);
+        view->setCurrentViewHighlighted(showCurrentViewIndicator && isCurrent);
         if (view->property("currentView").toBool() == isCurrent)
             continue;
         view->setProperty("currentView", isCurrent);
