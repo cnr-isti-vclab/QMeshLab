@@ -257,6 +257,10 @@ private:
         std::uint64_t materialRevision = 0;
         std::unique_ptr<QRhiBuffer> wireVbuf;
         int wireVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> boundaryEdgesVbuf;
+        int boundaryEdgesVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> textureSeamsVbuf;
+        int textureSeamsVertexCount = 0;
         std::array<UvFillVariantGpu, 3> fillVariants;
         std::array<UvPointsVariantGpu, 2> pointsVariants;
         QVector2D minUv = QVector2D(0.0f, 0.0f);

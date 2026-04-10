@@ -100,6 +100,10 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
 
     std::vector<float> wireData;
     wireData.reserve(size_t(mesh.FN()) * 18);
+    std::vector<float> boundaryEdgeData;
+    boundaryEdgeData.reserve(size_t(mesh.FN()) * 6);
+    std::vector<float> textureSeamData;
+    textureSeamData.reserve(size_t(mesh.FN()) * 6);
     std::array<std::vector<float>, 3> fillData;
     for (auto &v : fillData)
         v.reserve(size_t(mesh.FN()) * 3 * kFillVertexStrideFloats);
@@ -216,6 +220,81 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     if (!hasUv)
         return false;
 
+    VCGMesh &meshMutable = const_cast<VCGMesh &>(mesh);
+    vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(meshMutable);
+    for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+        if (fi->IsD())
+            continue;
+        for (int i = 0; i < 3; ++i) {
+            if (!fi->IsB(i))
+                continue;
+            QVector2D uv0;
+            QVector2D uv1;
+            if (!uvForCorner(*fi, i, uv0) || !uvForCorner(*fi, (i + 1) % 3, uv1))
+                continue;
+            boundaryEdgeData.push_back(uv0.x());
+            boundaryEdgeData.push_back(uv0.y());
+            boundaryEdgeData.push_back(0.0f);
+            boundaryEdgeData.push_back(uv1.x());
+            boundaryEdgeData.push_back(uv1.y());
+            boundaryEdgeData.push_back(0.0f);
+        }
+    }
+
+    if (hasWedgeTex || hasVertexTex) {
+        if (hasVertexTex) {
+            for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+                if (fi->IsD())
+                    continue;
+                for (int i = 0; i < 3; ++i) {
+                    const auto &vt = fi->cV(i)->cT();
+                    fi->WT(i).U() = vt.U();
+                    fi->WT(i).V() = vt.V();
+                    fi->WT(i).N() = vt.N();
+                }
+            }
+        }
+
+        std::vector<std::pair<VCGFace *, int>> savedTopo;
+        savedTopo.reserve(static_cast<size_t>(meshMutable.FN()) * 3);
+        for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+            if (fi->IsD())
+                continue;
+            for (int i = 0; i < 3; ++i)
+                savedTopo.push_back(std::make_pair(fi->FFp(i), fi->FFi(i)));
+        }
+
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(meshMutable);
+        for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+            if (fi->IsD())
+                continue;
+            for (int i = 0; i < 3; ++i) {
+                if (!vcg::face::IsBorder(*fi, i))
+                    continue;
+                QVector2D uv0;
+                QVector2D uv1;
+                if (!uvForCorner(*fi, i, uv0) || !uvForCorner(*fi, (i + 1) % 3, uv1))
+                    continue;
+                textureSeamData.push_back(uv0.x());
+                textureSeamData.push_back(uv0.y());
+                textureSeamData.push_back(0.0f);
+                textureSeamData.push_back(uv1.x());
+                textureSeamData.push_back(uv1.y());
+                textureSeamData.push_back(0.0f);
+            }
+        }
+
+        auto topoIt = savedTopo.begin();
+        for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
+            if (fi->IsD())
+                continue;
+            for (int i = 0; i < 3 && topoIt != savedTopo.end(); ++i, ++topoIt) {
+                fi->FFp(i) = topoIt->first;
+                fi->FFi(i) = topoIt->second;
+            }
+        }
+    }
+
     QRhiResourceUpdateBatch *updates = m_rhi->nextResourceUpdateBatch();
     bool anyUpload = false;
     auto uploadFloats = [&](const std::vector<float> &src,
@@ -241,6 +320,16 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     };
 
     uploadFloats(wireData, gpu.wireVbuf, gpu.wireVertexCount, 3);
+    uploadFloats(
+        boundaryEdgeData,
+        gpu.boundaryEdgesVbuf,
+        gpu.boundaryEdgesVertexCount,
+        3);
+    uploadFloats(
+        textureSeamData,
+        gpu.textureSeamsVbuf,
+        gpu.textureSeamsVertexCount,
+        3);
     for (int i = 0; i < 3; ++i) {
         uploadFloats(
             fillData[size_t(i)],
@@ -534,6 +623,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         auto cacheIt = m_uvMeshGpu.find(entry.meshId);
         if (cacheIt != m_uvMeshGpu.end() && cacheIt->second.valid) {
             UvMeshGpu &uvGpu = cacheIt->second;
+            const MeshRenderMode meshMode = renderModeForMesh(meshIndex);
 
             if (meshSettings.showFill) {
                 if (meshSettings.fillColorSource == FillColorSource::Texture
@@ -604,6 +694,18 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             if (meshSettings.showEdges)
                 drawLineSet(
                     meshSettings.edgeColor, meshSettings.edgeSize, uvGpu.wireVbuf.get(), uvGpu.wireVertexCount);
+            if (meshMode.decoratorBoundaryEdges)
+                drawLineSet(
+                    meshMode.decoratorBoundaryEdgeColor,
+                    qMax(1.0f, meshSettings.edgeSize),
+                    uvGpu.boundaryEdgesVbuf.get(),
+                    uvGpu.boundaryEdgesVertexCount);
+            if (meshMode.decoratorTextureSeams)
+                drawLineSet(
+                    meshMode.decoratorTextureSeamColor,
+                    qMax(1.0f, meshSettings.edgeSize),
+                    uvGpu.textureSeamsVbuf.get(),
+                    uvGpu.textureSeamsVertexCount);
 
             if (meshSettings.showPoints && m_pointsPipeline) {
                 int pointVariantIdx = (meshSettings.pointColorSource == PointColorSource::PerVertex) ? 1 : 0;
