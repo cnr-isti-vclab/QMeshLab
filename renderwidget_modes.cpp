@@ -48,6 +48,7 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         mode.showWire = false;
         mode.showEdges = true;
         mode.showPoints = false;
+        mode.edgeSize = 4.0f;
         mode.fillLighting = false;
         mode.pointLighting = false;
         mode.wireLighting = false;
@@ -204,6 +205,10 @@ bool RenderWidget::applyRenderSettingsToCurrentMesh(
     applyColor(&MeshRenderMode::decoratorFaceNormalColor, prev.decoratorFaceNormalColor, next.decoratorFaceNormalColor);
     applyColor(&MeshRenderMode::decoratorBoundaryEdgeColor, prev.decoratorBoundaryEdgeColor, next.decoratorBoundaryEdgeColor);
     applyColor(&MeshRenderMode::decoratorTextureSeamColor, prev.decoratorTextureSeamColor, next.decoratorTextureSeamColor);
+    applyFloat(
+        &MeshRenderMode::decoratorBoundaryWidth,
+        prev.decoratorBoundaryWidth,
+        next.decoratorBoundaryWidth);
     applyColor(&MeshRenderMode::bboxWireColor, prev.bboxWireColor, next.bboxWireColor);
     applyColor(&MeshRenderMode::pointColor, prev.pointColor, next.pointColor);
     applyFloat(&MeshRenderMode::pointSize, prev.pointSize, next.pointSize);
@@ -241,6 +246,7 @@ void RenderWidget::applyRenderModeToSettings(
     settings.decoratorFaceNormalColor = mode.decoratorFaceNormalColor;
     settings.decoratorBoundaryEdgeColor = mode.decoratorBoundaryEdgeColor;
     settings.decoratorTextureSeamColor = mode.decoratorTextureSeamColor;
+    settings.decoratorBoundaryWidth = mode.decoratorBoundaryWidth;
     settings.bboxWireColor = mode.bboxWireColor;
     settings.pointColor = mode.pointColor;
     settings.pointSize = mode.pointSize;
@@ -479,6 +485,8 @@ QRhiGraphicsPipeline *RenderWidget::edgesPipelineForSettings(const RenderSetting
     pipeline->setDepthTest(true);
     pipeline->setDepthWrite(true);
     pipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+    pipeline->setDepthBias(-1);
+    pipeline->setSlopeScaledDepthBias(-1.0f);
     pipeline->setCullMode(QRhiGraphicsPipeline::None);
     pipeline->setLineWidth(qMax(1.0f, settings.edgeSize));
     QRhiGraphicsPipeline::TargetBlend blend;
@@ -501,6 +509,60 @@ QRhiGraphicsPipeline *RenderWidget::edgesPipelineForSettings(const RenderSetting
         return nullptr;
 
     auto inserted = m_edgesPipelinesByKey.emplace(key, std::move(pipeline));
+    return inserted.first->second.get();
+}
+
+QRhiGraphicsPipeline *RenderWidget::fatEdgesPipelineForSettings(const RenderSettings &settings)
+{
+    if (!m_rhi || !m_srb || !renderTarget())
+        return nullptr;
+    const int key = int(std::lround(qMax(1.0f, settings.edgeSize) * 10.0f));
+    auto it = m_fatEdgesPipelinesByKey.find(key);
+    if (it != m_fatEdgesPipelinesByKey.end())
+        return it->second.get();
+
+    auto pipeline = std::unique_ptr<QRhiGraphicsPipeline>(m_rhi->newGraphicsPipeline());
+    QShader vs = loadShader(QStringLiteral(":/shaders/overlay_fat_edges.vert.qsb"));
+    QShader fs = loadShader(QStringLiteral(":/shaders/overlay_fat_edges.frag.qsb"));
+    if (!vs.isValid() || !fs.isValid())
+        return nullptr;
+
+    pipeline->setShaderStages({
+        { QRhiShaderStage::Vertex, vs },
+        { QRhiShaderStage::Fragment, fs }
+    });
+    pipeline->setTopology(QRhiGraphicsPipeline::Triangles);
+    pipeline->setDepthTest(true);
+    pipeline->setDepthWrite(true);
+    pipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+    pipeline->setDepthBias(-1);
+    pipeline->setSlopeScaledDepthBias(-1.0f);
+    pipeline->setCullMode(QRhiGraphicsPipeline::None);
+    QRhiGraphicsPipeline::TargetBlend blend;
+    blend.enable = true;
+    blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+    blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    blend.opColor = QRhiGraphicsPipeline::Add;
+    blend.srcAlpha = QRhiGraphicsPipeline::One;
+    blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+    blend.opAlpha = QRhiGraphicsPipeline::Add;
+    pipeline->setTargetBlends({ blend });
+
+    QRhiVertexInputLayout edgesLayout;
+    edgesLayout.setBindings({ { 8 * sizeof(float) } });
+    edgesLayout.setAttributes({
+        { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
+        { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
+        { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
+        { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) }
+    });
+    pipeline->setVertexInputLayout(edgesLayout);
+    pipeline->setShaderResourceBindings(m_srb.get());
+    pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+    if (!pipeline->create())
+        return nullptr;
+
+    auto inserted = m_fatEdgesPipelinesByKey.emplace(key, std::move(pipeline));
     return inserted.first->second.get();
 }
 

@@ -683,7 +683,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     return;
                 updateStyleUbuf(edgeSettings);
                 cb->setGraphicsPipeline(pipeline);
-                cb->setShaderResources();
+                cb->setShaderResources(m_srb.get());
                 const QRhiCommandBuffer::VertexInput binding(vbuf, 0);
                 cb->setVertexInput(0, 1, &binding);
                 cb->draw(vertexCount);
@@ -698,13 +698,13 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             if (meshMode.decoratorBoundaryEdges)
                 drawLineSet(
                     meshMode.decoratorBoundaryEdgeColor,
-                    qMax(1.0f, meshSettings.edgeSize),
+                    qMax(0.5f, meshSettings.decoratorBoundaryWidth),
                     uvGpu.boundaryEdgesVbuf.get(),
                     uvGpu.boundaryEdgesVertexCount);
             if (meshMode.decoratorTextureSeams)
                 drawLineSet(
                     meshMode.decoratorTextureSeamColor,
-                    qMax(1.0f, meshSettings.edgeSize),
+                    qMax(0.5f, meshSettings.decoratorBoundaryWidth),
                     uvGpu.textureSeamsVbuf.get(),
                     uvGpu.textureSeamsVertexCount);
 
@@ -716,7 +716,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     pointSettings.pointLighting = false;
                     updateStyleUbuf(pointSettings);
                     cb->setGraphicsPipeline(m_pointsPipeline.get());
-                    cb->setShaderResources();
+                    cb->setShaderResources(m_srb.get());
                     const QRhiCommandBuffer::VertexInput binding(pointVariant.vbuf.get(), 0);
                     cb->setVertexInput(0, 1, &binding);
                     cb->draw(pointVariant.vertexCount);
@@ -733,7 +733,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         if (pipeline) {
             updateStyleUbuf(boxSettings);
             cb->setGraphicsPipeline(pipeline);
-            cb->setShaderResources();
+            cb->setShaderResources(m_srb.get());
             const QRhiCommandBuffer::VertexInput binding(m_uvUnitBoxVbuf.get(), 0);
             cb->setVertexInput(0, 1, &binding);
             cb->draw(m_uvUnitBoxVertexCount);

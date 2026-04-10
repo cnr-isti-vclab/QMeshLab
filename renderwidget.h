@@ -88,6 +88,7 @@ private:
         QColor decoratorFaceNormalColor = QColor(70, 255, 120);
         QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);
         QColor decoratorTextureSeamColor = QColor(255, 80, 255);
+        float decoratorBoundaryWidth = 4.0f;
         QColor bboxWireColor = QColor(245, 190, 60);
         QColor pointColor = QColor(255, 191, 51);
         float pointSize = 4.0f;
@@ -129,6 +130,7 @@ private:
     QRhiGraphicsPipeline *fillPipelineForSettings(const RenderSettings &settings);
     QRhiGraphicsPipeline *wirePipelineForSettings(const RenderSettings &settings);
     QRhiGraphicsPipeline *edgesPipelineForSettings(const RenderSettings &settings);
+    QRhiGraphicsPipeline *fatEdgesPipelineForSettings(const RenderSettings &settings);
     QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
     void executePendingDepthPick(
         QRhiCommandBuffer *cb,
@@ -167,11 +169,15 @@ private:
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_fillPipelinesByKey;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_wirePipelinesByKey;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_edgesPipelinesByKey;
+    std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_fatEdgesPipelinesByKey;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
     std::array<std::unique_ptr<QRhiBuffer>, 4> m_decoratorUbufs;
     std::array<std::unique_ptr<QRhiShaderResourceBindings>, 4> m_decoratorSrbs;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorPipeline;
+    std::unique_ptr<QRhiBuffer> m_decoratorFatUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_decoratorFatSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_decoratorFatPipeline;
     std::unique_ptr<QRhiTexture> m_depthPickTexture;
     std::unique_ptr<QRhiRenderBuffer> m_depthPickDepth;
     std::unique_ptr<QRhiTextureRenderTarget> m_depthPickRt;

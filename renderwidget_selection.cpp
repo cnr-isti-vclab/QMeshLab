@@ -302,7 +302,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
         if (m_currentMaskPointsPipeline) {
             cb->setGraphicsPipeline(m_currentMaskPointsPipeline.get());
-            cb->setShaderResources();
+            cb->setShaderResources(m_srb.get());
             const QRhiCommandBuffer::VertexInput pv(currentPointsView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &pv);
             cb->draw(currentPointsView.vertexCount);
@@ -316,7 +316,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         if (!m_currentMaskFillDepthOnlyPipeline)
             return;
         cb->setGraphicsPipeline(m_currentMaskFillDepthOnlyPipeline.get());
-        cb->setShaderResources();
+        cb->setShaderResources(m_srb.get());
         for (int bi = 0; bi < fillView.batchCount; ++bi) {
             const auto &batch = fillView.batches[bi];
             if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
@@ -339,7 +339,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         if (!edgeView.valid || !edgeView.vertexBuffer || edgeView.vertexCount <= 0)
             return;
         cb->setGraphicsPipeline(m_currentMaskEdgesDepthOnlyPipeline.get());
-        cb->setShaderResources();
+        cb->setShaderResources(m_srb.get());
         const QRhiCommandBuffer::VertexInput ev(edgeView.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &ev);
         cb->draw(edgeView.vertexCount);
@@ -351,7 +351,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         if (!pointsView.valid || !pointsView.vertexBuffer || pointsView.vertexCount <= 0)
             return;
         cb->setGraphicsPipeline(m_currentMaskPointsDepthOnlyPipeline.get());
-        cb->setShaderResources();
+        cb->setShaderResources(m_srb.get());
         const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &pv);
         cb->draw(pointsView.vertexCount);

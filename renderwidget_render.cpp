@@ -18,7 +18,7 @@ void RenderWidget::initialize(QRhiCommandBuffer *cb)
 void RenderWidget::render(QRhiCommandBuffer *cb)
 {
     ensureRenderResources();
-    if (!m_rhi || !m_ubuf)
+    if (!m_rhi || !m_ubuf || !m_srb)
         return;
 
     if (m_viewMode == ViewMode::ParametrizationUV) {
@@ -115,6 +115,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         // Wire pass is intentionally translucent to compose independently over fill/effects.
         baseUbufData[kUbufWireColorOffset + 3] = m_renderSettings.wireColor.alphaF() * 0.7f;
         baseUbufData[kUbufWireParamsOffset + 0] = m_renderSettings.wireSize;
+        baseUbufData[kUbufWireParamsOffset + 1] = qMax(1.0f, m_renderSettings.edgeSize);
+        baseUbufData[kUbufWireParamsOffset + 2] = 1.0f / float(qMax(1, sz.width()));
+        baseUbufData[kUbufWireParamsOffset + 3] = 1.0f / float(qMax(1, sz.height()));
         baseUbufData[kUbufFillColorOffset + 0] = m_renderSettings.fillColor.redF();
         baseUbufData[kUbufFillColorOffset + 1] = m_renderSettings.fillColor.greenF();
         baseUbufData[kUbufFillColorOffset + 2] = m_renderSettings.fillColor.blueF();
@@ -175,6 +178,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         ubufData[kUbufWireColorOffset + 2] = meshSettings.wireColor.blueF();
         ubufData[kUbufWireColorOffset + 3] = meshSettings.wireColor.alphaF() * 0.7f;
         ubufData[kUbufWireParamsOffset + 0] = meshSettings.wireSize;
+        ubufData[kUbufWireParamsOffset + 1] = qMax(1.0f, meshSettings.edgeSize);
+        ubufData[kUbufWireParamsOffset + 2] = 1.0f / float(qMax(1, sz.width()));
+        ubufData[kUbufWireParamsOffset + 3] = 1.0f / float(qMax(1, sz.height()));
         ubufData[kUbufFillColorOffset + 0] = meshSettings.fillColor.redF();
         ubufData[kUbufFillColorOffset + 1] = meshSettings.fillColor.greenF();
         ubufData[kUbufFillColorOffset + 2] = meshSettings.fillColor.blueF();
@@ -256,7 +262,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     if (drawWirePass) {
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-        cb->setShaderResources();
 
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
@@ -268,6 +273,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             if (!wirePipeline)
                 continue;
             cb->setGraphicsPipeline(wirePipeline);
+            cb->setShaderResources(m_srb.get());
             updateStyleUbuf(meshSettings);
             const Document::WirePassGpuView wireView = m_doc->wirePassGpuView(m_rhi, mi);
             if (!wireView.valid || !wireView.vertexBuffer || wireView.vertexCount <= 0)
@@ -280,30 +286,48 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     if (drawEdgesPass) {
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-        cb->setShaderResources();
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;
             const RenderSettings meshSettings = renderSettingsForMesh(mi);
             if (!meshSettings.showEdges)
                 continue;
-            QRhiGraphicsPipeline *edgesPipeline = edgesPipelineForSettings(meshSettings);
-            if (!edgesPipeline)
-                continue;
-            cb->setGraphicsPipeline(edgesPipeline);
-            updateStyleUbuf(meshSettings);
-            const Document::EdgePassGpuView edgeView = m_doc->edgePassGpuView(m_rhi, mi);
-            if (!edgeView.valid || !edgeView.vertexBuffer || edgeView.vertexCount <= 0)
-                continue;
-            const QRhiCommandBuffer::VertexInput ev(edgeView.vertexBuffer, 0);
-            cb->setVertexInput(0, 1, &ev);
-            cb->draw(edgeView.vertexCount);
+
+            bool drawn = false;
+            {
+                QRhiGraphicsPipeline *fatPipeline = fatEdgesPipelineForSettings(meshSettings);
+                const Document::EdgeFatPassGpuView fatView = m_doc->edgeFatPassGpuView(m_rhi, mi);
+                if (fatPipeline && fatView.valid && fatView.vertexBuffer && fatView.vertexCount > 0) {
+                    cb->setGraphicsPipeline(fatPipeline);
+                    cb->setShaderResources(m_srb.get());
+                    updateStyleUbuf(meshSettings);
+                    const QRhiCommandBuffer::VertexInput ev(fatView.vertexBuffer, 0);
+                    cb->setVertexInput(0, 1, &ev);
+                    cb->draw(fatView.vertexCount);
+                    drawn = true;
+                }
+            }
+
+            if (!drawn) {
+                QRhiGraphicsPipeline *linePipeline = edgesPipelineForSettings(meshSettings);
+                if (!linePipeline)
+                    continue;
+                cb->setGraphicsPipeline(linePipeline);
+                cb->setShaderResources(m_srb.get());
+                updateStyleUbuf(meshSettings);
+                const Document::EdgePassGpuView lineView = m_doc->edgePassGpuView(m_rhi, mi);
+                if (!lineView.valid || !lineView.vertexBuffer || lineView.vertexCount <= 0)
+                    continue;
+                const QRhiCommandBuffer::VertexInput ev(lineView.vertexBuffer, 0);
+                cb->setVertexInput(0, 1, &ev);
+                cb->draw(lineView.vertexCount);
+            }
         }
     }
 
     if (drawBBoxPass && m_bboxPipeline) {
         cb->setGraphicsPipeline(m_bboxPipeline.get());
-        cb->setShaderResources();
+        cb->setShaderResources(m_srb.get());
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;
@@ -322,7 +346,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     if (drawPointsPass && m_pointsPipeline) {
         cb->setGraphicsPipeline(m_pointsPipeline.get());
-        cb->setShaderResources();
+        cb->setShaderResources(m_srb.get());
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;
@@ -342,9 +366,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
-    if (drawDecoratorPass && m_decoratorPipeline) {
+    if (drawDecoratorPass) {
         auto setDecoratorColor = [&](int slot, const QColor &color) -> bool {
             if (slot < 0 || slot >= kDecoratorSlotCount)
+                return false;
+            if (!m_decoratorPipeline)
                 return false;
             QRhiBuffer *decoratorUbuf = m_decoratorUbufs[slot].get();
             QRhiShaderResourceBindings *decoratorSrb = m_decoratorSrbs[slot].get();
@@ -375,7 +401,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 if (!shouldDraw(mode))
                     continue;
                 if (!setDecoratorColor(slot, colorGetter(mode)))
-                    return;
+                    continue;
                 const Document::DecoratorPassGpuView decorView =
                     m_doc->decoratorPassGpuView(m_rhi, mi);
                 if (!decorView.valid)
@@ -387,6 +413,65 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 const QRhiCommandBuffer::VertexInput binding(vbuf, 0);
                 cb->setVertexInput(0, 1, &binding);
                 cb->draw(vertexCount);
+            }
+        };
+
+        auto drawDecoratorBoundaryFatKind = [&](int slot,
+                                                auto shouldDraw,
+                                                auto colorGetter,
+                                                auto fatBufferGetter,
+                                                auto fatCountGetter,
+                                                auto lineBufferGetter,
+                                                auto lineCountGetter) {
+            for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+                if (!meshVisible(mi))
+                    continue;
+                const MeshRenderMode mode = renderModeForMesh(mi);
+                if (!shouldDraw(mode))
+                    continue;
+
+                const Document::DecoratorPassGpuView decorView =
+                    m_doc->decoratorPassGpuView(m_rhi, mi);
+                if (!decorView.valid)
+                    continue;
+
+                const QColor decoColor = colorGetter(mode);
+                QRhiGraphicsPipeline *fatPipeline = m_decoratorFatPipeline.get();
+                QRhiBuffer *fatVbuf = fatBufferGetter(decorView);
+                const int fatVertexCount = fatCountGetter(decorView);
+                if (fatPipeline && m_decoratorFatUbuf && m_decoratorFatSrb
+                    && fatVbuf && fatVertexCount > 0) {
+                    float fatData[kDecoratorFatUbufSize / sizeof(float)] = {};
+                    memcpy(fatData, mvp.constData(), 64);
+                    fatData[16] = decoColor.redF();
+                    fatData[17] = decoColor.greenF();
+                    fatData[18] = decoColor.blueF();
+                    fatData[19] = decoColor.alphaF();
+                    fatData[20] = qMax(0.5f, mode.decoratorBoundaryWidth);
+                    fatData[21] = 1.0f / float(qMax(1, sz.width()));
+                    fatData[22] = 1.0f / float(qMax(1, sz.height()));
+                    QRhiResourceUpdateBatch *uFat = m_rhi->nextResourceUpdateBatch();
+                    uFat->updateDynamicBuffer(
+                        m_decoratorFatUbuf.get(), 0, kDecoratorFatUbufSize, fatData);
+                    cb->resourceUpdate(uFat);
+                    cb->setGraphicsPipeline(fatPipeline);
+                    cb->setShaderResources(m_decoratorFatSrb.get());
+                    cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+                    const QRhiCommandBuffer::VertexInput binding(fatVbuf, 0);
+                    cb->setVertexInput(0, 1, &binding);
+                    cb->draw(fatVertexCount);
+                    continue;
+                }
+
+                if (!setDecoratorColor(slot, colorGetter(mode)))
+                    continue;
+                QRhiBuffer *lineVbuf = lineBufferGetter(decorView);
+                const int lineVertexCount = lineCountGetter(decorView);
+                if (!lineVbuf || lineVertexCount <= 0)
+                    continue;
+                const QRhiCommandBuffer::VertexInput binding(lineVbuf, 0);
+                cb->setVertexInput(0, 1, &binding);
+                cb->draw(lineVertexCount);
             }
         };
 
@@ -437,13 +522,19 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 });
         }
         if (drawBoundaryEdges) {
-            drawDecoratorKind(
+            drawDecoratorBoundaryFatKind(
                 kDecoratorSlotBoundaryEdges,
                 [](const MeshRenderMode &mode) {
                     return mode.decoratorBoundaryEdges;
                 },
                 [](const MeshRenderMode &mode) {
                     return mode.decoratorBoundaryEdgeColor;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.boundaryEdgesFatBuffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.boundaryEdgesFatVertexCount;
                 },
                 [](const Document::DecoratorPassGpuView &view) {
                     return view.boundaryEdgesBuffer;
@@ -453,13 +544,19 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 });
         }
         if (drawTextureSeams) {
-            drawDecoratorKind(
+            drawDecoratorBoundaryFatKind(
                 kDecoratorSlotTextureSeams,
                 [](const MeshRenderMode &mode) {
                     return mode.decoratorTextureSeams;
                 },
                 [](const MeshRenderMode &mode) {
                     return mode.decoratorTextureSeamColor;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.textureSeamsFatBuffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.textureSeamsFatVertexCount;
                 },
                 [](const Document::DecoratorPassGpuView &view) {
                     return view.textureSeamsBuffer;

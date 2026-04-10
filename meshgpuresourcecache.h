@@ -60,6 +60,12 @@ public:
         bool valid = false;
     };
 
+    struct EdgeFatPassView {
+        QRhiBuffer *vertexBuffer = nullptr;
+        int vertexCount = 0;
+        bool valid = false;
+    };
+
     struct PointsPassView {
         QRhiBuffer *vertexBuffer = nullptr;
         int vertexCount = 0;
@@ -79,8 +85,12 @@ public:
         int faceNormalsVertexCount = 0;
         QRhiBuffer *boundaryEdgesBuffer = nullptr;
         int boundaryEdgesVertexCount = 0;
+        QRhiBuffer *boundaryEdgesFatBuffer = nullptr;
+        int boundaryEdgesFatVertexCount = 0;
         QRhiBuffer *textureSeamsBuffer = nullptr;
         int textureSeamsVertexCount = 0;
+        QRhiBuffer *textureSeamsFatBuffer = nullptr;
+        int textureSeamsFatVertexCount = 0;
         bool valid = false;
     };
 
@@ -121,6 +131,7 @@ public:
     FillPassView fillPassView(QRhi *rhi, std::uint64_t meshId, FillVariant variant) const;
     WirePassView wirePassView(QRhi *rhi, std::uint64_t meshId) const;
     EdgePassView edgePassView(QRhi *rhi, std::uint64_t meshId) const;
+    EdgeFatPassView edgeFatPassView(QRhi *rhi, std::uint64_t meshId) const;
     PointsPassView pointsPassView(QRhi *rhi, std::uint64_t meshId, PointVariant variant) const;
     BBoxPassView bboxPassView(QRhi *rhi, std::uint64_t meshId) const;
     DecoratorPassView decoratorPassView(QRhi *rhi, std::uint64_t meshId) const;

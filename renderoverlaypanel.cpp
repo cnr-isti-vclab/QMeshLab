@@ -153,7 +153,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_boundaryDecoratorsButton = makeButton(QStringLiteral(":/img/boundary.png"), tr("Boundary Decorators"));
     m_bboxButton = makeButton(QStringLiteral(":/img/box.png"), tr("Bounding Box"));
     m_pointsButton = makeButton(QStringLiteral(":/img/points.png"), tr("Points"));
-    m_edgesButton = makeButton(QStringLiteral(":/img/wireframe.png"), tr("Edges pass"));
+    m_edgesButton = makeButton(QStringLiteral(":/img/edge-mesh.png"), tr("Edges pass"));
     m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
     m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
 
@@ -338,6 +338,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     boundaryDecoratorsForm->setHorizontalSpacing(6);
     boundaryDecoratorsForm->setVerticalSpacing(2);
     boundaryDecoratorsForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_decoratorBoundaryWidthSpin = new QDoubleSpinBox(boundaryDecoratorsPage);
+    m_decoratorBoundaryWidthSpin->setRange(0.5, 64.0);
+    m_decoratorBoundaryWidthSpin->setSingleStep(0.5);
+    m_decoratorBoundaryWidthSpin->setDecimals(1);
+    m_decoratorBoundaryWidthSpin->setSuffix(tr(" px"));
+    m_decoratorBoundaryWidthSpin->setValue(m_settings.decoratorBoundaryWidth);
     boundaryDecoratorsForm->addRow(
         tr("Boundary edges"),
         makeCenteredFieldContainer(m_decoratorBoundaryEdgesCheck, boundaryDecoratorsPage));
@@ -350,6 +356,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     boundaryDecoratorsForm->addRow(
         tr("Texture seam color"),
         makeCenteredFieldContainer(m_decoratorTextureSeamColorButton, boundaryDecoratorsPage));
+    boundaryDecoratorsForm->addRow(tr("Line width"), m_decoratorBoundaryWidthSpin);
     applyUniformFormRowHeights(boundaryDecoratorsForm);
     boundaryDecoratorsLayout->addLayout(boundaryDecoratorsForm);
     m_settingsStack->addWidget(boundaryDecoratorsPage);
@@ -424,7 +431,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     edgesForm->setLabelAlignment(kSettingsLabelAlignment);
     m_edgeColorButton = makeColorButton(edgesPage);
     m_edgeSizeSpin = new QDoubleSpinBox(edgesPage);
-    m_edgeSizeSpin->setRange(1.0, 8.0);
+    m_edgeSizeSpin->setRange(1.0, 64.0);
     m_edgeSizeSpin->setSingleStep(0.5);
     m_edgeSizeSpin->setDecimals(1);
     m_edgeSizeSpin->setSuffix(tr(" px"));
@@ -432,7 +439,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     edgesForm->addRow(
         tr("Edge color"),
         makeCenteredFieldContainer(m_edgeColorButton, edgesPage));
-    edgesForm->addRow(tr("Edge size"), m_edgeSizeSpin);
+    edgesForm->addRow(tr("Edge width"), m_edgeSizeSpin);
     applyUniformFormRowHeights(edgesForm);
     edgesLayout->addLayout(edgesForm);
     m_settingsStack->addWidget(edgesPage);
@@ -459,7 +466,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     wireForm->addRow(
         tr("Wire color"),
         makeCenteredFieldContainer(m_wireColorButton, wirePage));
-    wireForm->addRow(tr("Wire size"), m_wireSizeSpin);
+    wireForm->addRow(tr("Wire width"), m_wireSizeSpin);
     wireForm->addRow(
         tr("Backface culling"),
         makeCenteredFieldContainer(m_wireBackfaceCullingCheck, wirePage));
@@ -616,6 +623,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_decoratorTextureSeamColorButton,
         &RenderSettings::decoratorTextureSeamColor,
         tr("Decorator Texture Seam Color"));
+    bindFloatSpin(m_decoratorBoundaryWidthSpin, &RenderSettings::decoratorBoundaryWidth);
 
     bindColorButton(m_bboxColorButton, &RenderSettings::bboxWireColor, tr("Bounding Box Wire Color"));
     bindCheckBox(m_bboxShowCornersCheck, &RenderSettings::showBoundingBoxCorners);
@@ -857,6 +865,10 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_edgeSizeSpin) {
         QSignalBlocker blocker(m_edgeSizeSpin);
         m_edgeSizeSpin->setValue(m_settings.edgeSize);
+    }
+    if (m_decoratorBoundaryWidthSpin) {
+        QSignalBlocker blocker(m_decoratorBoundaryWidthSpin);
+        m_decoratorBoundaryWidthSpin->setValue(m_settings.decoratorBoundaryWidth);
     }
     if (m_pointColorSourceCombo) {
         QSignalBlocker blocker(m_pointColorSourceCombo);

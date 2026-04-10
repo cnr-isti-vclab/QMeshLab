@@ -57,6 +57,7 @@ private:
     QCheckBox *m_decoratorFaceNormalsCheck = nullptr;
     QCheckBox *m_decoratorBoundaryEdgesCheck = nullptr;
     QCheckBox *m_decoratorTextureSeamsCheck = nullptr;
+    QDoubleSpinBox *m_decoratorBoundaryWidthSpin = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_edgeSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;

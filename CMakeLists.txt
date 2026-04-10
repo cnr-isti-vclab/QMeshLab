@@ -64,6 +64,10 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/overlay_bbox.frag
         shaders/overlay_edges.vert
         shaders/overlay_edges.frag
+        shaders/overlay_fat_edges.vert
+        shaders/overlay_fat_edges.frag
+        shaders/overlay_fat_decorator.vert
+        shaders/overlay_fat_decorator.frag
         shaders/overlay_points.vert
         shaders/overlay_points.frag
         shaders/overlay_decorator.vert
@@ -93,6 +97,7 @@ qt_add_resources(QMeshLab "icons"
         img/boundary.png
         img/box.png
         img/points.png
+        img/edge-mesh.png
         img/wireframe.png
         img/wire.png
         img/flat.png

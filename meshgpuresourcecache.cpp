@@ -68,6 +68,8 @@ struct MeshGpuResourceCache::CacheState
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
+        std::unique_ptr<QRhiBuffer> fatVbuf;
+        int fatVertexCount = 0;
     };
 
     struct PointsVariantGpu {
@@ -98,8 +100,12 @@ struct MeshGpuResourceCache::CacheState
         bool valid = false;
         std::unique_ptr<QRhiBuffer> boundaryEdgesVbuf;
         int boundaryEdgesVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> boundaryEdgesFatVbuf;
+        int boundaryEdgesFatVertexCount = 0;
         std::unique_ptr<QRhiBuffer> textureSeamsVbuf;
         int textureSeamsVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> textureSeamsFatVbuf;
+        int textureSeamsFatVertexCount = 0;
     };
 
     struct MeshGpu {
@@ -518,12 +524,26 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.geometryRevision = source.geometryRevision;
         dst.vbuf.reset();
         dst.vertexCount = 0;
+        dst.fatVbuf.reset();
+        dst.fatVertexCount = 0;
 
         if (meshData.EN() <= 0)
             return true;
 
         std::vector<float> vdata;
+        std::vector<float> fatVdata;
         vdata.reserve(static_cast<size_t>(meshData.EN()) * 6);
+        const bool buildFatEdges = true;
+        if (buildFatEdges)
+            fatVdata.reserve(static_cast<size_t>(meshData.EN()) * 6 * 8);
+        static constexpr float kFatTriTemplate[6][2] = {
+            { 0.0f, -1.0f },
+            { 0.0f, 1.0f },
+            { 1.0f, -1.0f },
+            { 1.0f, -1.0f },
+            { 0.0f, 1.0f },
+            { 1.0f, 1.0f }
+        };
         for (int ei = 0; ei < meshData.EN(); ++ei) {
             const auto &e = meshData.edge[ei];
             if (e.IsD())
@@ -540,6 +560,19 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             vdata.push_back(p1[0]);
             vdata.push_back(p1[1]);
             vdata.push_back(p1[2]);
+
+            if (buildFatEdges) {
+                for (const auto &tpl : kFatTriTemplate) {
+                    fatVdata.push_back(p0[0]);
+                    fatVdata.push_back(p0[1]);
+                    fatVdata.push_back(p0[2]);
+                    fatVdata.push_back(p1[0]);
+                    fatVdata.push_back(p1[1]);
+                    fatVdata.push_back(p1[2]);
+                    fatVdata.push_back(tpl[0]); // along (0=start, 1=end)
+                    fatVdata.push_back(tpl[1]); // side (-1/+1)
+                }
+            }
         }
 
         if (vdata.empty())
@@ -557,6 +590,20 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
         ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), vdata.data());
         dst.vertexCount = static_cast<int>(vdata.size() / 3);
+
+        if (!fatVdata.empty()) {
+            dst.fatVbuf.reset(
+                rhi->newBuffer(
+                    QRhiBuffer::Immutable,
+                    QRhiBuffer::VertexBuffer,
+                    static_cast<quint32>(fatVdata.size() * sizeof(float))));
+            if (!dst.fatVbuf || !dst.fatVbuf->create()) {
+                dst.fatVbuf.reset();
+            } else {
+                ensureUpdates()->uploadStaticBuffer(dst.fatVbuf.get(), fatVdata.data());
+                dst.fatVertexCount = static_cast<int>(fatVdata.size() / 8);
+            }
+        }
         return true;
     };
 
@@ -623,6 +670,62 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
         ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), lineData.data());
         dstVertexCount = static_cast<int>(lineData.size() / 3);
+    };
+
+    auto uploadFatLineBuffer = [&](const std::vector<float> &lineData,
+                                   std::unique_ptr<QRhiBuffer> &dstBuffer,
+                                   int &dstVertexCount) {
+        dstBuffer.reset();
+        dstVertexCount = 0;
+        if (lineData.size() < 6)
+            return;
+
+        static constexpr float kFatTriTemplate[6][2] = {
+            { 0.0f, -1.0f },
+            { 0.0f, 1.0f },
+            { 1.0f, -1.0f },
+            { 1.0f, -1.0f },
+            { 0.0f, 1.0f },
+            { 1.0f, 1.0f }
+        };
+
+        const size_t segmentCount = lineData.size() / 6;
+        if (segmentCount == 0)
+            return;
+
+        std::vector<float> fatData;
+        fatData.reserve(segmentCount * 6 * 8);
+        for (size_t si = 0; si < segmentCount; ++si) {
+            const float p0x = lineData[si * 6 + 0];
+            const float p0y = lineData[si * 6 + 1];
+            const float p0z = lineData[si * 6 + 2];
+            const float p1x = lineData[si * 6 + 3];
+            const float p1y = lineData[si * 6 + 4];
+            const float p1z = lineData[si * 6 + 5];
+            for (const auto &tpl : kFatTriTemplate) {
+                fatData.push_back(p0x);
+                fatData.push_back(p0y);
+                fatData.push_back(p0z);
+                fatData.push_back(p1x);
+                fatData.push_back(p1y);
+                fatData.push_back(p1z);
+                fatData.push_back(tpl[0]);
+                fatData.push_back(tpl[1]);
+            }
+        }
+
+        dstBuffer.reset(
+            rhi->newBuffer(
+                QRhiBuffer::Immutable,
+                QRhiBuffer::VertexBuffer,
+                static_cast<quint32>(fatData.size() * sizeof(float))));
+        if (!dstBuffer || !dstBuffer->create()) {
+            dstBuffer.reset();
+            return;
+        }
+
+        ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), fatData.data());
+        dstVertexCount = static_cast<int>(fatData.size() / 8);
     };
 
     auto rebuildDecoratorNormals = [&](CacheState::DecoratorNormalsGpu &dst) -> bool {
@@ -725,8 +828,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.geometryRevision = source.geometryRevision;
         dst.boundaryEdgesVbuf.reset();
         dst.boundaryEdgesVertexCount = 0;
+        dst.boundaryEdgesFatVbuf.reset();
+        dst.boundaryEdgesFatVertexCount = 0;
         dst.textureSeamsVbuf.reset();
         dst.textureSeamsVertexCount = 0;
+        dst.textureSeamsFatVbuf.reset();
+        dst.textureSeamsFatVertexCount = 0;
 
         if (meshData.VN() <= 0)
             return true;
@@ -820,8 +927,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
         uploadLineBuffer(
             boundaryEdgeLines, dst.boundaryEdgesVbuf, dst.boundaryEdgesVertexCount);
+        uploadFatLineBuffer(
+            boundaryEdgeLines, dst.boundaryEdgesFatVbuf, dst.boundaryEdgesFatVertexCount);
         uploadLineBuffer(
             textureSeamLines, dst.textureSeamsVbuf, dst.textureSeamsVertexCount);
+        uploadFatLineBuffer(
+            textureSeamLines, dst.textureSeamsFatVbuf, dst.textureSeamsFatVertexCount);
         return true;
     };
 
@@ -929,6 +1040,28 @@ MeshGpuResourceCache::EdgePassView MeshGpuResourceCache::edgePassView(
     return { edges.vbuf.get(), edges.vertexCount, true };
 }
 
+MeshGpuResourceCache::EdgeFatPassView MeshGpuResourceCache::edgeFatPassView(
+    QRhi *rhi, std::uint64_t meshId) const
+{
+    if (!m_state || !rhi || meshId == 0)
+        return {};
+
+    const auto rhiIt = m_state->byRhi.find(rhi);
+    if (rhiIt == m_state->byRhi.end())
+        return {};
+    const auto meshIt = rhiIt->second.find(meshId);
+    if (meshIt == rhiIt->second.end())
+        return {};
+
+    const auto &edges = meshIt->second.edges;
+    if (!edges.valid)
+        return {};
+
+    const bool hasFatBuffer =
+        edges.fatVbuf && edges.fatVertexCount > 0;
+    return { edges.fatVbuf.get(), edges.fatVertexCount, hasFatBuffer };
+}
+
 MeshGpuResourceCache::PointsPassView MeshGpuResourceCache::pointsPassView(
     QRhi *rhi, std::uint64_t meshId, PointVariant variant) const
 {
@@ -994,8 +1127,12 @@ MeshGpuResourceCache::DecoratorPassView MeshGpuResourceCache::decoratorPassView(
     view.faceNormalsVertexCount = normalDecor.faceNormalsVertexCount;
     view.boundaryEdgesBuffer = boundaryDecor.boundaryEdgesVbuf.get();
     view.boundaryEdgesVertexCount = boundaryDecor.boundaryEdgesVertexCount;
+    view.boundaryEdgesFatBuffer = boundaryDecor.boundaryEdgesFatVbuf.get();
+    view.boundaryEdgesFatVertexCount = boundaryDecor.boundaryEdgesFatVertexCount;
     view.textureSeamsBuffer = boundaryDecor.textureSeamsVbuf.get();
     view.textureSeamsVertexCount = boundaryDecor.textureSeamsVertexCount;
+    view.textureSeamsFatBuffer = boundaryDecor.textureSeamsFatVbuf.get();
+    view.textureSeamsFatVertexCount = boundaryDecor.textureSeamsFatVertexCount;
     return view;
 }
 

@@ -53,6 +53,7 @@ public:
     using FillPassGpuView = MeshGpuResourceCache::FillPassView;
     using WirePassGpuView = MeshGpuResourceCache::WirePassView;
     using EdgePassGpuView = MeshGpuResourceCache::EdgePassView;
+    using EdgeFatPassGpuView = MeshGpuResourceCache::EdgeFatPassView;
     using PointsPassGpuView = MeshGpuResourceCache::PointsPassView;
     using BBoxPassGpuView = MeshGpuResourceCache::BBoxPassView;
     using DecoratorPassGpuView = MeshGpuResourceCache::DecoratorPassView;
@@ -93,6 +94,7 @@ public:
     FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
     WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
     EdgePassGpuView edgePassGpuView(QRhi *rhi, int meshIndex) const;
+    EdgeFatPassGpuView edgeFatPassGpuView(QRhi *rhi, int meshIndex) const;
     PointsPassGpuView pointsPassGpuView(QRhi *rhi, int meshIndex, PointGpuVariant variant) const;
     BBoxPassGpuView bboxPassGpuView(QRhi *rhi, int meshIndex) const;
     DecoratorPassGpuView decoratorPassGpuView(QRhi *rhi, int meshIndex) const;

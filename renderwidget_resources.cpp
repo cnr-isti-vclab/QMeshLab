@@ -359,9 +359,13 @@ void RenderWidget::ensureRenderResources()
         m_fillPipelinesByKey.clear();
         m_wirePipelinesByKey.clear();
         m_edgesPipelinesByKey.clear();
+        m_fatEdgesPipelinesByKey.clear();
         m_bboxPipeline.reset();
         m_pointsPipeline.reset();
         m_decoratorPipeline.reset();
+        m_decoratorFatUbuf.reset();
+        m_decoratorFatSrb.reset();
+        m_decoratorFatPipeline.reset();
         for (auto &srb : m_decoratorSrbs)
             srb.reset();
         for (auto &ubuf : m_decoratorUbufs)
@@ -443,14 +447,20 @@ void RenderWidget::ensureRenderResources()
     if (!m_ubuf) {
         // Uniform buffer: mvp + modelView + normalMat + bbox/point/wire/fill parameters
         m_ubuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kUbufSize));
-        m_ubuf->create();
+        if (!m_ubuf || !m_ubuf->create()) {
+            m_ubuf.reset();
+            return;
+        }
     }
 
     if (!m_textureSampler) {
         m_textureSampler.reset(
             m_rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
                               QRhiSampler::Repeat, QRhiSampler::Repeat));
-        m_textureSampler->create();
+        if (!m_textureSampler || !m_textureSampler->create()) {
+            m_textureSampler.reset();
+            return;
+        }
     }
 
     if (!m_fallbackTexture) {
@@ -467,6 +477,8 @@ void RenderWidget::ensureRenderResources()
     ensureCurrentMeshMaskResources(renderTarget()->pixelSize());
 
     if (!m_srb) {
+        if (!m_ubuf || !m_textureSampler || !m_fallbackTexture)
+            return;
         m_srb.reset(m_rhi->newShaderResourceBindings());
         m_srb->setBindings({
             QRhiShaderResourceBinding::uniformBuffer(
@@ -479,7 +491,10 @@ void RenderWidget::ensureRenderResources()
                 m_fallbackTexture.get(),
                 m_textureSampler.get())
         });
-        m_srb->create();
+        if (!m_srb->create()) {
+            m_srb.reset();
+            return;
+        }
     }
 
     for (int slot = 0; slot < kDecoratorSlotCount; ++slot) {
@@ -881,6 +896,8 @@ void RenderWidget::ensureRenderResources()
         m_edgesPipeline->setDepthTest(true);
         m_edgesPipeline->setDepthWrite(true);
         m_edgesPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+        m_edgesPipeline->setDepthBias(-1);
+        m_edgesPipeline->setSlopeScaledDepthBias(-1.0f);
         m_edgesPipeline->setCullMode(QRhiGraphicsPipeline::None);
         m_edgesPipeline->setLineWidth(qMax(1.0f, m_renderSettings.edgeSize));
 
@@ -996,6 +1013,8 @@ void RenderWidget::ensureRenderResources()
             m_decoratorPipeline->setDepthTest(true);
             m_decoratorPipeline->setDepthWrite(false);
             m_decoratorPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_decoratorPipeline->setDepthBias(-1);
+            m_decoratorPipeline->setSlopeScaledDepthBias(-1.0f);
             m_decoratorPipeline->setCullMode(QRhiGraphicsPipeline::None);
             QRhiVertexInputLayout layout;
             layout.setBindings({ { 3 * sizeof(float) } });
@@ -1007,6 +1026,69 @@ void RenderWidget::ensureRenderResources()
             if (!m_decoratorPipeline->create()) {
                 qWarning("Failed to create decorator pipeline");
                 m_decoratorPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_decoratorFatUbuf) {
+        m_decoratorFatUbuf.reset(
+            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorFatUbufSize));
+        if (!m_decoratorFatUbuf || !m_decoratorFatUbuf->create())
+            m_decoratorFatUbuf.reset();
+    }
+    if (!m_decoratorFatSrb && m_decoratorFatUbuf) {
+        m_decoratorFatSrb.reset(m_rhi->newShaderResourceBindings());
+        m_decoratorFatSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                m_decoratorFatUbuf.get())
+        });
+        if (!m_decoratorFatSrb->create())
+            m_decoratorFatSrb.reset();
+    }
+    if (!m_decoratorFatPipeline && m_decoratorFatSrb) {
+        m_decoratorFatPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_fat_decorator.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_fat_decorator.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load fat decorator shaders");
+            m_decoratorFatPipeline.reset();
+        } else {
+            m_decoratorFatPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_decoratorFatPipeline->setTopology(QRhiGraphicsPipeline::Triangles);
+            m_decoratorFatPipeline->setDepthTest(true);
+            m_decoratorFatPipeline->setDepthWrite(false);
+            m_decoratorFatPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_decoratorFatPipeline->setDepthBias(-1);
+            m_decoratorFatPipeline->setSlopeScaledDepthBias(-1.0f);
+            m_decoratorFatPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiGraphicsPipeline::TargetBlend blend;
+            blend.enable = true;
+            blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+            blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opColor = QRhiGraphicsPipeline::Add;
+            blend.srcAlpha = QRhiGraphicsPipeline::One;
+            blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opAlpha = QRhiGraphicsPipeline::Add;
+            m_decoratorFatPipeline->setTargetBlends({ blend });
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 8 * sizeof(float) } });
+            layout.setAttributes({
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
+                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
+                { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
+                { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) }
+            });
+            m_decoratorFatPipeline->setVertexInputLayout(layout);
+            m_decoratorFatPipeline->setShaderResourceBindings(m_decoratorFatSrb.get());
+            m_decoratorFatPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_decoratorFatPipeline->create()) {
+                qWarning("Failed to create fat decorator pipeline");
+                m_decoratorFatPipeline.reset();
             }
         }
     }

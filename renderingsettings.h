@@ -69,6 +69,7 @@ struct RenderSettings {
     QColor decoratorFaceNormalColor = QColor(70, 255, 120);
     QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);
     QColor decoratorTextureSeamColor = QColor(255, 80, 255);
+    float decoratorBoundaryWidth = 4.0f;
     QColor bboxWireColor = QColor(245, 190, 60);
     QColor pointColor = QColor(255, 191, 51);
     float pointSize = 4.0f;
@@ -111,6 +112,7 @@ struct RenderSettings {
             && decoratorFaceNormalColor == other.decoratorFaceNormalColor
             && decoratorBoundaryEdgeColor == other.decoratorBoundaryEdgeColor
             && decoratorTextureSeamColor == other.decoratorTextureSeamColor
+            && decoratorBoundaryWidth == other.decoratorBoundaryWidth
             && bboxWireColor == other.bboxWireColor
             && pointColor == other.pointColor
             && pointSize == other.pointSize

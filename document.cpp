@@ -391,6 +391,15 @@ Document::EdgePassGpuView Document::edgePassGpuView(QRhi *rhi, int meshIndex) co
     return m_gpuCache->edgePassView(rhi, meshEntry.meshId);
 }
 
+Document::EdgeFatPassGpuView Document::edgeFatPassGpuView(QRhi *rhi, int meshIndex) const
+{
+    if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
+        return {};
+
+    const MeshEntry &meshEntry = mesh(meshIndex);
+    return m_gpuCache->edgeFatPassView(rhi, meshEntry.meshId);
+}
+
 Document::PointsPassGpuView Document::pointsPassGpuView(
     QRhi *rhi, int meshIndex, PointGpuVariant variant) const
 {
