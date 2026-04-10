@@ -10,9 +10,10 @@ Minimal Qt 6 SDI mesh viewer using QRhi + vcglib.
 ## Current Features
 - Single `Document` shared by one or more `RenderWidget` views
 - Split-view UI (horizontal/vertical), plus layer and log docks
+- Per-view mode switching between `3D Scene` and `Parametrization (UV)` (when the current mesh has UVs)
 - Plugin-based mesh loading with per-extension plugin preference
 - Structured logging for app/VCG import progress and GPU buffer rebuild timing
-- PNG snapshot export from the active view (with embedded camera/trackball JSON metadata)
+- PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata)
 
 Built-in import plugin families (dependency-gated at build time):
 - `io_vcg` (`ply`, `obj`, `stl`, `off`, `vmi`)

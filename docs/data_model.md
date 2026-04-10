@@ -107,6 +107,18 @@ The layer dock (`LayerWidget`) mirrors document state:
 
 Changing current item in the layer tree updates `currentMeshIndex` in the document.
 
+## Parametrization Availability Model
+
+UV mode eligibility is derived from document mesh metadata:
+
+- `RenderWidget::meshHasParametrization(...)` requires:
+  - a valid current mesh with faces (`FN > 0`)
+  - `ioMask` containing either:
+    - `IOM_WEDGTEXCOORD`, or
+    - `IOM_VERTTEXCOORD`
+
+This keeps UV capability detection deterministic and tied to imported attributes already tracked in `Document::MeshEntry`.
+
 ## Shared vs Per-View State
 
 Document/shared state:
@@ -121,7 +133,10 @@ Per-view (`RenderWidget`) state:
 
 - per-mesh render modes (fill/wire/edges/points/decorators + style)
 - per-view mesh visibility vector
+- view mode (`Scene3D` or `ParametrizationUV`)
 - camera/trackball state
+- UV pan/zoom/fit state (for UV mode)
+- UV mesh GPU cache (widget-local, keyed by document mesh id/revisions)
 - render settings (`RenderSettings`)
 - per-widget pipelines, SRBs, uniform buffers, and render targets
 
@@ -143,4 +158,5 @@ Per-view (`RenderWidget`) state:
 
 Under the hood this delegates to `MeshGpuResourceCache`, which caches GPU resources by `(QRhi*, meshId, variants, revisions)`.
 The document can release resources per-RHI (`releaseRhiGpuResources`) or globally (`clearAllGpuResources`).
+UV mode uses an additional widget-local cache (`RenderWidget::m_uvMeshGpu`) built from document mesh data/revisions for orthographic UV rendering; it may still reuse document fill texture batches when `fillColorSource == Texture`.
 For frame-level pass execution details, see [Rendering](rendering.md).

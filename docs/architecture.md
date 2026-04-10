@@ -82,18 +82,22 @@ This enables reuse of heavy mesh uploads across rendering mode switches and acro
 
 - graphics pipelines
 - per-widget SRBs and uniform buffers
-- offscreen render targets (depth pick, current mesh mask/morph)
-- trackball camera/navigation state
+- offscreen render targets for Scene mode (depth pick, current mesh mask/morph)
+- view mode state (`Scene3D` / `ParametrizationUV`)
+- 3D camera/navigation state (`ViewTrackball`)
+- UV view state (`m_uvPan`, `m_uvZoom`, fit/pan interaction state)
+- per-widget UV mesh GPU cache (rebuilt from document meshes/revisions)
 - overlay settings panel integration
 - per-mesh render modes (keyed by mesh id)
 - per-view mesh visibility vector
 
-It queries mesh GPU views from `Document`/`MeshGpuResourceCache` and issues pass draws each frame.
+In `Scene3D` mode it queries pass GPU views from `Document`/`MeshGpuResourceCache`.
+In `ParametrizationUV` mode it renders an orthographic UV view for the current mesh and can reuse textured fill batches from the document cache.
 For pass-level behavior and draw order, see [Rendering](rendering.md).
 
 ### `ViewTrackball`
 
-Navigation logic is factored into a dedicated class:
+Navigation logic for `Scene3D` mode is factored into a dedicated class:
 
 - arcball-like rotate + hyperbola fallback
 - pan
@@ -122,9 +126,13 @@ Composition and global orchestration:
   - CPU/GPU frame-time label (fixed-width font, rolling 100-frame stats)
 - file/view/help actions:
   - file: `New`, `New Instance`, multi-file `Open`, `Snapshot PNG`, recent files
-  - view: split horizontal/vertical, `Reset Camera`, camera/trackball JSON copy/paste
+  - view: `3D Scene Mode`, `Parametrization (UV) Mode`, split horizontal/vertical, `Reset Camera`, camera/trackball JSON copy/paste
   - help: about + import plugin preference dialog
 - active-view management (view border highlight, context menu split/close)
+- snapshot export:
+  - output resolution options with aspect-ratio lock
+  - offscreen capture from the active view
+  - writes camera state into PNG text metadata (`QMeshLab.CameraTrackballState`)
 
 ## Plugin System
 
@@ -161,7 +169,7 @@ Current plugin families:
 
 | View | Widget | Responsibility |
 |------|--------|----------------|
-| 3D View | `RenderWidget` | Layered rendering, camera interaction, picking, per-view mesh modes |
+| Render View (`Scene3D` or `ParametrizationUV`) | `RenderWidget` | Mode-specific rendering and interaction, per-view mesh modes/visibility, frame stats |
 | Layer Panel | `LayerWidget` | Visibility toggles, current mesh selection, mesh/data/texture info |
 | Log Panel | `QListWidget` in dock | Per-document app + VCG/import logs |
 
@@ -178,10 +186,12 @@ Per-view state:
 
 - mesh render-mode preferences (show fill/wire/edges/points/decorators, styling)
 - per-view mesh visibility vector
-- camera/trackball state
+- view mode (`Scene3D` or `ParametrizationUV`)
+- camera/trackball state (Scene mode)
+- UV pan/zoom/fit state + UV temporary GPU cache (UV mode)
 - overlay render settings
 - pipelines/SRBs/uniforms
-- offscreen targets and transient frame resources
+- offscreen targets and transient frame resources (Scene-mode highlight/depth pick path)
 
 This keeps model consistency while allowing multiple independent views and render styles.
 
@@ -208,6 +218,8 @@ RenderWidget (per-view modes, visibility, pipelines, passes, camera)
 
 1. User opens one or more files from `MainWindow`.
 2. `Document` loads through plugin, updates metadata/log/progress, emits signals.
-3. `RenderWidget` ensures required pass resources in `MeshGpuResourceCache` for visible meshes.
-4. Frame render runs layered passes (`fill`, `wire`, `edges`, `bbox`, `points`, decorators, gizmo, current-mesh highlight).
+3. Each `RenderWidget` resolves its mode (`Scene3D` or `ParametrizationUV`) and ensures needed resources.
+4. Frame render executes either:
+   - Scene path: layered 3D passes (`fill`, `wire`, `edges`, `bbox`, `points`, decorators, gizmo, current-mesh highlight).
+   - UV path: orthographic UV rendering of the current mesh plus UV background and optional unit-box overlay.
 5. Frame CPU/GPU timings are emitted to `MainWindow` and shown in status bar stats.

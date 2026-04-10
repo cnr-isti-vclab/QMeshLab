@@ -8,13 +8,16 @@ See also:
 
 ## High-Level Architecture
 
-Rendering is performed by `RenderWidget` (`QRhiWidget`).
+Rendering is performed by `RenderWidget` (`QRhiWidget`) in two modes:
+
+- `Scene3D`: layered mesh rendering with trackball camera, depth picking, and current-mesh highlight.
+- `ParametrizationUV`: orthographic UV-space rendering for the current mesh (when UV coordinates are available).
 
 Ownership split:
 
 - `Document` owns canonical mesh data and metadata.
-- `MeshGpuResourceCache` (owned by `Document`) owns shared GPU mesh resources.
-- `RenderWidget` owns per-view render state (pipelines, SRBs, UBOs, offscreen targets, camera/trackball, overlay state).
+- `MeshGpuResourceCache` (owned by `Document`) owns shared GPU mesh resources for scene passes.
+- `RenderWidget` owns per-view render state (mode, pipelines, SRBs, UBOs, offscreen targets, camera/trackball, UV pan/zoom/cache, overlay state).
 
 This split allows GPU buffer reuse across render-mode changes and across views that share the same `QRhi`.
 
@@ -44,6 +47,8 @@ Cached pass data:
   - geometric boundary edges
   - texture seam edges
 
+This cache is the primary source for `Scene3D`; UV mode uses a separate widget-local UV cache and only reuses document fill texture batches when textured UV fill is selected.
+
 ### Fill Upload Strategy
 
 Two fill upload paths are used:
@@ -61,15 +66,22 @@ Per-widget resources include:
 
 - dynamic UBOs (`m_ubuf`, outline/morph/debug/decorator/trackball UBOs)
 - widget-local samplers and fallback 1x1 white texture
+- mode state:
+  - `Scene3D` / `ParametrizationUV`
+  - UV view controls (`m_uvPan`, `m_uvZoom`, fit request/pan interaction)
+  - UV mesh GPU cache (`m_uvMeshGpu`)
 - SRBs:
   - base SRB (UBO + fallback texture)
   - per-texture SRB cache for textured fill batches
+  - UV background SRB/UBO
 - pipelines:
   - fill, wire, edges, bbox, points, decorators
   - depth pick
   - current-mesh mask/depth-only variants
   - mask morphology/debug/outline extraction/composite
   - trackball gizmo
+  - UV background
+  - UV textured fill
 - offscreen targets/textures:
   - depth picking
   - current-mesh mask/base/work
@@ -79,6 +91,7 @@ These stay per widget because they depend on per-view settings and render-pass d
 ## Per-Mesh Render Modes
 
 `RenderWidget` keeps `MeshRenderMode` per mesh id (`m_meshRenderModes`), so each mesh can have independent pass/style toggles.
+In UV mode, the current mesh mode is reused to control fill/wire/edges/points/bounding-box styling in UV space.
 
 Default behavior:
 
@@ -96,6 +109,8 @@ Default color-source preference for surfaces:
 Color-source and point-lighting availability are clamped against the current mesh `ioMask` + texture availability.
 
 ## Frame Flow and Draw Order
+
+### `Scene3D` Mode
 
 Per frame:
 
@@ -115,7 +130,21 @@ Main pass draw order:
 7. trackball gizmo
 8. current-mesh outline/debug composite
 
-## Pass Behavior Details
+### `ParametrizationUV` Mode
+
+Per frame:
+
+1. Sync per-mesh mode state and UV cache against the current document.
+2. Ensure UV resources for the current mesh (`m_uvMeshGpu`), and fit the UV view if requested.
+3. Draw UV background (checker/grid shader pair).
+4. Draw the current mesh in UV space using mode-controlled passes:
+   - fill (constant/per-vertex/per-face from UV cache, or textured via document fill batches)
+   - wire
+   - edges
+   - points
+5. Optionally draw the UV unit-box outline (`[0,1] x [0,1]`) when bounding-box display is enabled.
+
+## `Scene3D` Pass Behavior Details
 
 ### Fill
 
@@ -167,7 +196,32 @@ Boundary and seam extraction are done in the cache:
 - geometric boundaries via MeshLab-style border flag extraction
 - seams via UV-space face-face adjacency (`FaceFaceFromTexCoord`)
 
-## Current Mesh Highlight Pipeline
+## `ParametrizationUV` Mode Details
+
+Entry conditions and scope:
+
+- `setViewMode(ParametrizationUV)` is allowed only if the current mesh has faces plus UV coordinates (`IOM_WEDGTEXCOORD` or `IOM_VERTTEXCOORD`).
+- Rendering is current-mesh-centric: the active mesh is drawn in UV space, and normal Scene3D depth-pick/highlight passes are bypassed.
+
+UV-space camera model:
+
+- orthographic projection
+- `m_uvPan` + `m_uvZoom` control translation/scale in UV space
+- reset and UV double click trigger fit-to-current-UV-bounds
+
+UV mode interaction:
+
+- left/middle drag: pan
+- wheel: zoom around cursor anchor
+- left double click: fit UV view to current mesh UV bounds
+
+Additional UV rendering notes:
+
+- UV background is drawn from `uv_background.vert/.frag`.
+- Textured UV fill uses `uv_fill_texture.vert` + the regular fill fragment shader.
+- Scene corner/dimension overlays are hidden in UV mode.
+
+## `Scene3D` Current Mesh Highlight Pipeline
 
 Highlight is controlled by `highlightCurrentMesh`, and only runs when the current mesh is visible.
 
@@ -203,7 +257,7 @@ Debug modes:
 
 (`Outline` mode is the normal composite path.)
 
-## Depth Picking
+## `Scene3D` Depth Picking
 
 Double click schedules a depth-pick frame:
 
@@ -217,6 +271,8 @@ Double click schedules a depth-pick frame:
 
 ## Camera and Interaction
 
+### `Scene3D`
+
 `ViewTrackball` navigation:
 
 - left drag: arcball/hyperbola rotation
@@ -226,6 +282,24 @@ Double click schedules a depth-pick frame:
 - double click: depth-pick + animated recenter
 
 Trackball gizmo is depth-aware and scale-stable across dolly/FOV changes.
+
+### `ParametrizationUV`
+
+- left/middle drag: pan in UV space
+- wheel: zoom around the cursor
+- double click: fit UV framing to current mesh UV bounds
+- `Reset Camera`: requests UV fit instead of trackball reset
+
+## Snapshot Capture Path
+
+`MainWindow::saveSnapshotPng()` captures the active `RenderWidget` offscreen by:
+
+1. setting a temporary fixed color-buffer size (`setFixedColorBufferSize`)
+2. requesting an update and waiting for a `frameRendered` signal (with timeout)
+3. reading the rendered image (`grabFramebuffer`)
+4. restoring the previous fixed-size state
+
+The saved PNG includes camera JSON metadata under `QMeshLab.CameraTrackballState`.
 
 ## Runtime Instrumentation
 
@@ -252,3 +326,4 @@ plus elapsed rebuild time.
 - Material/shading model is intentionally minimal (no full PBR pipeline).
 - Post-processing is raster full-screen passes (no compute path).
 - Selection/highlight is centered on the **current mesh** concept rather than element-level selection.
+- UV mode is currently single-mesh (current mesh only) and requires imported UV attributes.
