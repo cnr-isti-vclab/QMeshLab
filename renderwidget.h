@@ -8,6 +8,7 @@
 #include <QMatrix4x4>
 #include <QPoint>
 #include <QString>
+#include <QVector2D>
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -22,6 +23,11 @@ class RenderWidget : public QRhiWidget
 {
     Q_OBJECT
 public:
+    enum class ViewMode {
+        Scene3D,
+        ParametrizationUV
+    };
+
     enum class ShadingMode {
         Smooth,
         Flat,
@@ -35,6 +41,8 @@ public:
     void setRenderSettings(const RenderSettings &settings);
     QString cameraStateJson() const;
     bool applyCameraStateJson(const QString &jsonText, QString *errorMessage = nullptr);
+    ViewMode viewMode() const { return m_viewMode; }
+    bool setViewMode(ViewMode mode, QString *errorMessage = nullptr);
     bool meshVisible(int index) const;
     void setMeshVisible(int index, bool visible);
     std::vector<bool> meshVisibilityState() const { return m_meshVisibility; }
@@ -130,6 +138,11 @@ private:
     void processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize);
+    void syncUvCacheWithDocument();
+    bool meshHasParametrization(int meshIndex) const;
+    bool ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb);
+    void fitUvViewToCurrentMesh(const QSize &pixelSize);
+    void renderParametrization(QRhiCommandBuffer *cb);
 
     Document *m_doc;
     QRhi *m_rhi = nullptr;
@@ -229,6 +242,38 @@ private:
     QElapsedTimer m_frameTimer;
     bool m_currentMaskFromPoints = false;
     ViewTrackball m_trackball;
+    ViewMode m_viewMode = ViewMode::Scene3D;
+    struct UvMeshGpu {
+        struct UvFillVariantGpu {
+            std::unique_ptr<QRhiBuffer> vbuf;
+            int vertexCount = 0;
+        };
+        struct UvPointsVariantGpu {
+            std::unique_ptr<QRhiBuffer> vbuf;
+            int vertexCount = 0;
+        };
+        bool valid = false;
+        std::uint64_t geometryRevision = 0;
+        std::uint64_t materialRevision = 0;
+        std::unique_ptr<QRhiBuffer> wireVbuf;
+        int wireVertexCount = 0;
+        std::array<UvFillVariantGpu, 3> fillVariants;
+        std::array<UvPointsVariantGpu, 2> pointsVariants;
+        QVector2D minUv = QVector2D(0.0f, 0.0f);
+        QVector2D maxUv = QVector2D(1.0f, 1.0f);
+    };
+    std::unique_ptr<QRhiBuffer> m_uvBackgroundUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_uvBackgroundSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_uvBackgroundPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_uvTextureFillPipeline;
+    std::unique_ptr<QRhiBuffer> m_uvUnitBoxVbuf;
+    int m_uvUnitBoxVertexCount = 0;
+    std::unordered_map<std::uint64_t, UvMeshGpu> m_uvMeshGpu;
+    bool m_uvFitRequested = true;
+    bool m_uvPanning = false;
+    QPoint m_uvLastMousePos;
+    float m_uvZoom = 1.0f;
+    QVector2D m_uvPan = QVector2D(0.5f, 0.5f);
     std::vector<bool> m_meshVisibility;
     std::unordered_map<std::uint64_t, MeshRenderMode> m_meshRenderModes;
 };

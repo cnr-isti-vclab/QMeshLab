@@ -204,6 +204,12 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+    viewMenu->addAction(tr("3D Scene Mode"), this, &MainWindow::setCurrentViewSceneMode);
+    viewMenu->addAction(
+        tr("Parametrization (UV) Mode"),
+        this,
+        &MainWindow::setCurrentViewParametrizationMode);
+    viewMenu->addSeparator();
     viewMenu->addAction(tr("Split Horizontally"), this, &MainWindow::splitViewHorizontally);
     viewMenu->addAction(tr("Split Vertically"), this, &MainWindow::splitViewVertically);
     viewMenu->addSeparator();
@@ -273,6 +279,9 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
         setCurrentRenderWidget(view);
 
         QMenu menu(view);
+        QAction *sceneModeAction = menu.addAction(tr("3D Scene Mode"));
+        QAction *uvModeAction = menu.addAction(tr("Parametrization (UV) Mode"));
+        menu.addSeparator();
         QAction *splitHAction =
             menu.addAction(QIcon(QStringLiteral(":/img/splitV.png")), tr("Split Horizontally"));
         QAction *splitVAction =
@@ -284,7 +293,11 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
         QAction *chosen = menu.exec(view->mapToGlobal(pos));
         if (!chosen)
             return;
-        if (chosen == splitHAction) {
+        if (chosen == sceneModeAction) {
+            setCurrentViewSceneMode();
+        } else if (chosen == uvModeAction) {
+            setCurrentViewParametrizationMode();
+        } else if (chosen == splitHAction) {
             splitViewHorizontally();
         } else if (chosen == splitVAction) {
             splitViewVertically();
@@ -404,6 +417,8 @@ void MainWindow::splitCurrentView(Qt::Orientation orientation)
     newView->setRenderSettings(sourceView->renderSettings());
     newView->copyPerMeshRenderModesFrom(sourceView);
     newView->setMeshVisibilityState(sourceView->meshVisibilityState());
+    QString viewModeError;
+    newView->setViewMode(sourceView->viewMode(), &viewModeError);
     QString cameraError;
     newView->applyCameraStateJson(sourceView->cameraStateJson(), &cameraError);
 
@@ -869,6 +884,36 @@ void MainWindow::resetCamera()
         return;
     view->resetCameraToScene();
     statusBar()->showMessage(tr("Camera reset"), 1500);
+}
+
+void MainWindow::setCurrentViewSceneMode()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+    QString error;
+    if (!view->setViewMode(RenderWidget::ViewMode::Scene3D, &error)) {
+        const QString msg = tr("Cannot switch to 3D mode: %1").arg(error);
+        statusBar()->showMessage(msg, 3000);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+        return;
+    }
+    statusBar()->showMessage(tr("View mode: 3D scene"), 2000);
+}
+
+void MainWindow::setCurrentViewParametrizationMode()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+    QString error;
+    if (!view->setViewMode(RenderWidget::ViewMode::ParametrizationUV, &error)) {
+        const QString msg = tr("Cannot switch to parametrization mode: %1").arg(error);
+        statusBar()->showMessage(msg, 3500);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+        return;
+    }
+    statusBar()->showMessage(tr("View mode: parametrization (UV)"), 2000);
 }
 
 void MainWindow::copyCameraState()

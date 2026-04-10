@@ -38,6 +38,7 @@ qt_add_executable(QMeshLab
     renderwidget_resources.cpp
     renderwidget_selection.cpp
     renderwidget_render.cpp
+    renderwidget_uv.cpp
     viewtrackball.h viewtrackball.cpp
     renderoverlaypanel.h renderoverlaypanel.cpp
     layerwidget.h layerwidget.cpp
@@ -78,6 +79,9 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/selection_outline.vert
         shaders/selection_outline_extract.frag
         shaders/selection_outline.frag
+        shaders/uv_background.vert
+        shaders/uv_background.frag
+        shaders/uv_fill_texture.vert
 )
 
 qt_add_resources(QMeshLab "icons"

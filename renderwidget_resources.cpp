@@ -428,6 +428,13 @@ void RenderWidget::ensureRenderResources()
         m_fallbackTexture.reset();
         m_fallbackTextureUploadPending = false;
         m_textureSrbs.clear();
+        m_uvBackgroundUbuf.reset();
+        m_uvBackgroundSrb.reset();
+        m_uvBackgroundPipeline.reset();
+        m_uvTextureFillPipeline.reset();
+        m_uvUnitBoxVbuf.reset();
+        m_uvUnitBoxVertexCount = 0;
+        m_uvMeshGpu.clear();
     }
 
     if (!m_rhi || !renderTarget())
@@ -1429,4 +1436,3 @@ void RenderWidget::ensureRenderResources()
         }
     }
 }
-

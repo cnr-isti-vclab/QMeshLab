@@ -34,6 +34,8 @@ private slots:
     void resetCamera();
     void copyCameraState();
     void pasteCameraState();
+    void setCurrentViewSceneMode();
+    void setCurrentViewParametrizationMode();
     void splitViewHorizontally();
     void splitViewVertically();
 

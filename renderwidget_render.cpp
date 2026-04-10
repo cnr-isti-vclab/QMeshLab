@@ -21,6 +21,11 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!m_rhi || !m_ubuf)
         return;
 
+    if (m_viewMode == ViewMode::ParametrizationUV) {
+        renderParametrization(cb);
+        return;
+    }
+
     advanceCenterAnimation();
     syncPerMeshRenderModesWithDocument();
 
@@ -500,4 +505,3 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     emit frameRendered(cpuMs, gpuMs, gpuTimingSupported, gpuSampleValid);
 }
-

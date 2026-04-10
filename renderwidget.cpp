@@ -92,6 +92,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         syncOverlaySettingsToCurrentMesh();
         refreshColorSourceAvailability();
         m_textureSrbs.clear();
+        syncUvCacheWithDocument();
+        m_uvFitRequested = true;
         updateBoundingBoxCornersOverlay();
         layoutOverlayButtons();
         update();
@@ -106,6 +108,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         syncOverlaySettingsToCurrentMesh();
         refreshColorSourceAvailability();
         m_textureSrbs.clear();
+        syncUvCacheWithDocument();
+        m_uvFitRequested = true;
         updateBoundingBoxCornersOverlay();
         layoutOverlayButtons();
         update();
@@ -114,6 +118,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         syncPerMeshRenderModesWithDocument();
         syncOverlaySettingsToCurrentMesh();
         refreshColorSourceAvailability();
+        m_uvFitRequested = true;
         update();
     });
 }
@@ -239,6 +244,11 @@ void RenderWidget::copyPerMeshRenderModesFrom(const RenderWidget *other)
 
 void RenderWidget::resetCameraToScene()
 {
+    if (m_viewMode == ViewMode::ParametrizationUV) {
+        m_uvFitRequested = true;
+        update();
+        return;
+    }
     cancelCenterAnimation();
     m_reframeCameraRequested = true;
     m_resetTrackballRequested = true;
@@ -360,6 +370,34 @@ bool RenderWidget::applyCameraStateJson(const QString &jsonText, QString *errorM
     m_reframeCameraRequested = false;
     m_resetTrackballRequested = false;
 
+    if (errorMessage)
+        errorMessage->clear();
+    update();
+    return true;
+}
+
+bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
+{
+    if (mode == m_viewMode) {
+        if (errorMessage)
+            errorMessage->clear();
+        return true;
+    }
+
+    if (mode == ViewMode::ParametrizationUV) {
+        const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+        if (!meshHasParametrization(meshIndex)) {
+            if (errorMessage)
+                *errorMessage = tr("Current mesh has no UV parametrization.");
+            return false;
+        }
+        m_depthPickPending = false;
+        m_uvFitRequested = true;
+    }
+
+    m_viewMode = mode;
+    if (m_viewMode == ViewMode::Scene3D)
+        updateBoundingBoxCornersOverlay();
     if (errorMessage)
         errorMessage->clear();
     update();
@@ -709,6 +747,16 @@ void RenderWidget::updateBoundingBoxCornersOverlayPlacement(
 void RenderWidget::mousePressEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
+    if (m_viewMode == ViewMode::ParametrizationUV) {
+        if (e && (e->button() == Qt::LeftButton || e->button() == Qt::MiddleButton)) {
+            m_uvPanning = true;
+            m_uvLastMousePos = e->position().toPoint();
+            e->accept();
+            return;
+        }
+        QRhiWidget::mousePressEvent(e);
+        return;
+    }
     cancelCenterAnimation();
     m_trackball.mousePress(e, size());
 }
@@ -716,6 +764,16 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
 void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
+    if (m_viewMode == ViewMode::ParametrizationUV) {
+        if (e && e->button() == Qt::LeftButton) {
+            m_uvFitRequested = true;
+            update();
+            e->accept();
+            return;
+        }
+        QRhiWidget::mouseDoubleClickEvent(e);
+        return;
+    }
     if (!e || m_doc->meshCount() <= 0)
         return;
     if (e->button() != Qt::LeftButton)
@@ -729,6 +787,12 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
+    if (m_viewMode == ViewMode::ParametrizationUV) {
+        m_uvPanning = false;
+        if (e)
+            e->accept();
+        return;
+    }
     m_trackball.mouseRelease(e);
 }
 
@@ -736,6 +800,29 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 {
     if (e && e->buttons() != Qt::NoButton)
         emit viewActivated(this);
+    if (m_viewMode == ViewMode::ParametrizationUV) {
+        if (!e || !m_uvPanning)
+            return;
+        const QPointF pos = e->position();
+        const QSize sz(qMax(1, width()), qMax(1, height()));
+        const auto screenToUv = [&](const QPointF &screenPos, float zoom, const QVector2D &pan) {
+            const float aspect = float(sz.width()) / float(sz.height());
+            const float xLim = (aspect >= 1.0f) ? aspect : 1.0f;
+            const float yLim = (aspect >= 1.0f) ? 1.0f : (1.0f / qMax(1e-6f, aspect));
+            const float ndcX = 2.0f * (float(screenPos.x()) / float(sz.width())) - 1.0f;
+            const float ndcY = 1.0f - 2.0f * (float(screenPos.y()) / float(sz.height()));
+            return QVector2D(
+                pan.x() + ndcX * xLim / qMax(1e-6f, zoom),
+                pan.y() + ndcY * yLim / qMax(1e-6f, zoom));
+        };
+        const QVector2D uvBefore = screenToUv(QPointF(m_uvLastMousePos), m_uvZoom, m_uvPan);
+        const QVector2D uvAfter = screenToUv(pos, m_uvZoom, m_uvPan);
+        m_uvPan += (uvBefore - uvAfter);
+        m_uvLastMousePos = pos.toPoint();
+        update();
+        e->accept();
+        return;
+    }
     if (m_trackball.mouseMove(e, size()))
         update();
 }
@@ -743,6 +830,47 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 void RenderWidget::wheelEvent(QWheelEvent *e)
 {
     emit viewActivated(this);
+    if (m_viewMode == ViewMode::ParametrizationUV) {
+        if (!e) {
+            return;
+        }
+        const QPoint numDegrees = e->angleDelta();
+        const float steps = float(numDegrees.y()) / 120.0f;
+        if (std::abs(steps) < 1e-4f) {
+            e->accept();
+            return;
+        }
+
+        const QSize sz(qMax(1, width()), qMax(1, height()));
+        if (sz.width() <= 0 || sz.height() <= 0) {
+            e->accept();
+            return;
+        }
+
+        const QPointF p = e->position();
+        const float oldZoom = qMax(1e-6f, m_uvZoom);
+        const float zoomFactor = std::pow(1.15f, steps);
+        const float newZoom = std::clamp(oldZoom * zoomFactor, 0.05f, 5000.0f);
+
+        const auto screenToUv = [&](const QPointF &screenPos, float zoom, const QVector2D &pan) {
+            const float aspect = float(sz.width()) / float(sz.height());
+            const float xLim = (aspect >= 1.0f) ? aspect : 1.0f;
+            const float yLim = (aspect >= 1.0f) ? 1.0f : (1.0f / qMax(1e-6f, aspect));
+            const float ndcX = 2.0f * (float(screenPos.x()) / float(sz.width())) - 1.0f;
+            const float ndcY = 1.0f - 2.0f * (float(screenPos.y()) / float(sz.height()));
+            return QVector2D(
+                pan.x() + ndcX * xLim / qMax(1e-6f, zoom),
+                pan.y() + ndcY * yLim / qMax(1e-6f, zoom));
+        };
+
+        const QVector2D uvBefore = screenToUv(p, oldZoom, m_uvPan);
+        m_uvZoom = newZoom;
+        const QVector2D uvAfter = screenToUv(p, m_uvZoom, m_uvPan);
+        m_uvPan += (uvBefore - uvAfter);
+        update();
+        e->accept();
+        return;
+    }
     cancelCenterAnimation();
     if (m_trackball.wheel(e))
         update();
