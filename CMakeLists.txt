@@ -33,6 +33,11 @@ qt_add_executable(QMeshLab
     main.cpp
     mainwindow.h mainwindow.cpp
     renderwidget.h renderwidget.cpp
+    renderwidget_internal.h
+    renderwidget_modes.cpp
+    renderwidget_resources.cpp
+    renderwidget_selection.cpp
+    renderwidget_render.cpp
     viewtrackball.h viewtrackball.cpp
     renderoverlaypanel.h renderoverlaypanel.cpp
     layerwidget.h layerwidget.cpp

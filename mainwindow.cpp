@@ -390,6 +390,7 @@ void MainWindow::splitCurrentView(Qt::Orientation orientation)
     }
 
     newView->setRenderSettings(sourceView->renderSettings());
+    newView->copyPerMeshRenderModesFrom(sourceView);
     newView->setMeshVisibilityState(sourceView->meshVisibilityState());
     QString cameraError;
     newView->applyCameraStateJson(sourceView->cameraStateJson(), &cameraError);

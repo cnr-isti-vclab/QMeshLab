@@ -9,6 +9,7 @@
 #include <QPoint>
 #include <QString>
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -38,6 +39,7 @@ public:
     void setMeshVisible(int index, bool visible);
     std::vector<bool> meshVisibilityState() const { return m_meshVisibility; }
     void setMeshVisibilityState(const std::vector<bool> &visibility);
+    void copyPerMeshRenderModesFrom(const RenderWidget *other);
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
@@ -55,6 +57,38 @@ protected:
     void wheelEvent(QWheelEvent *e) override;
 
 private:
+    struct MeshRenderMode {
+        bool showBoundingBox = false;
+        bool showPoints = false;
+        bool showEdges = false;
+        bool showWire = true;
+        bool showFill = true;
+        bool decoratorVertexNormals = false;
+        bool decoratorFaceNormals = false;
+        bool decoratorBoundaryEdges = false;
+        bool decoratorTextureSeams = false;
+        bool pointLighting = false;
+        bool wireLighting = false;
+        bool wireBackfaceCulling = true;
+        bool fillLighting = true;
+        bool fillBackfaceCulling = true;
+        FillShading fillShading = FillShading::Smooth;
+        PointColorSource pointColorSource = PointColorSource::Constant;
+        FillColorSource fillColorSource = FillColorSource::Constant;
+        QColor decoratorVertexNormalColor = QColor(70, 200, 255);
+        QColor decoratorFaceNormalColor = QColor(70, 255, 120);
+        QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);
+        QColor decoratorTextureSeamColor = QColor(255, 80, 255);
+        QColor bboxWireColor = QColor(245, 190, 60);
+        QColor pointColor = QColor(255, 191, 51);
+        float pointSize = 4.0f;
+        QColor edgeColor = QColor(25, 25, 28);
+        float edgeSize = 1.0f;
+        QColor wireColor = QColor(15, 15, 20);
+        float wireSize = 1.5f;
+        QColor fillColor = QColor(153, 153, 179);
+    };
+
     void createOverlayButtons();
     void layoutOverlayButtons();
     bool computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const;
@@ -63,7 +97,14 @@ private:
         const QMatrix4x4 &mvp,
         const QMatrix4x4 &view,
         const QSize &pixelSize);
-    void applySceneDefaultRenderModeIfNeeded();
+    MeshRenderMode defaultRenderModeForMesh(int meshIndex) const;
+    void syncPerMeshRenderModesWithDocument();
+    MeshRenderMode renderModeForMesh(int meshIndex) const;
+    MeshRenderMode *mutableRenderModeForMesh(int meshIndex);
+    bool applyRenderSettingsToCurrentMesh(const RenderSettings &prev, const RenderSettings &next);
+    void applyRenderModeToSettings(RenderSettings &settings, const MeshRenderMode &mode) const;
+    RenderSettings renderSettingsForMesh(int meshIndex) const;
+    void syncOverlaySettingsToCurrentMesh();
     void refreshColorSourceAvailability();
     void ensureRenderResources();
     void ensureCurrentMeshMaskResources(const QSize &pixelSize);
@@ -74,8 +115,11 @@ private:
     void advanceCenterAnimation();
     void updateCameraFrameIfNeeded();
     void ensureVisibilitySize();
-    int fillGpuVariantIndexForCurrentSettings() const;
-    int pointGpuVariantIndexForCurrentSettings() const;
+    int fillGpuVariantIndexForSettings(const RenderSettings &settings) const;
+    int pointGpuVariantIndexForSettings(const RenderSettings &settings) const;
+    QRhiGraphicsPipeline *fillPipelineForSettings(const RenderSettings &settings);
+    QRhiGraphicsPipeline *wirePipelineForSettings(const RenderSettings &settings);
+    QRhiGraphicsPipeline *edgesPipelineForSettings(const RenderSettings &settings);
     QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
     void executePendingDepthPick(
         QRhiCommandBuffer *cb,
@@ -89,7 +133,6 @@ private:
 
     Document *m_doc;
     QRhi *m_rhi = nullptr;
-    bool m_applySceneDefaultRenderMode = true;
     bool m_reframeCameraRequested = true;
     bool m_resetTrackballRequested = false;
     bool m_centerAnimActive = false;
@@ -107,6 +150,9 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_fillPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_edgesPipeline;
+    std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_fillPipelinesByKey;
+    std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_wirePipelinesByKey;
+    std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_edgesPipelinesByKey;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
     std::array<std::unique_ptr<QRhiBuffer>, 4> m_decoratorUbufs;
@@ -184,4 +230,5 @@ private:
     bool m_currentMaskFromPoints = false;
     ViewTrackball m_trackball;
     std::vector<bool> m_meshVisibility;
+    std::unordered_map<std::uint64_t, MeshRenderMode> m_meshRenderModes;
 };
