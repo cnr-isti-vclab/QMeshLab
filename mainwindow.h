@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QImage>
 #include <QStringList>
 #include <QList>
 #include <array>
@@ -25,6 +26,7 @@ private slots:
     void newDocument();
     void newInstance();
     void openFile();
+    void saveSnapshotPng();
     void openLastMesh();
     void openRecentMesh();
     void showAbout();
@@ -50,6 +52,10 @@ private:
     void refreshRecentMeshesMenu();
     void openRecentMeshByIndex(int index);
     void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
+    QImage renderSnapshotOffscreen(
+        RenderWidget *sourceView,
+        const QSize &pixelSize,
+        QString *errorMessage = nullptr);
 
     Document *m_doc;
     QSplitter *m_viewSplitter = nullptr;

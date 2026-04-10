@@ -7,6 +7,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHeaderView>
+#include <QImageWriter>
 #include <QGuiApplication>
 #include <QMenu>
 #include <QMenuBar>
@@ -18,10 +19,13 @@
 #include <QStyle>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QEventLoop>
 #include <QAction>
 #include <QBrush>
+#include <QCheckBox>
 #include <QColor>
 #include <QFontDatabase>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
@@ -30,12 +34,15 @@
 #include <QProgressBar>
 #include <QRadioButton>
 #include <QSettings>
+#include <QSpinBox>
 #include <QStringList>
 #include <QTableWidget>
+#include <QTimer>
 #include <QVector3D>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <numeric>
 
 namespace {
@@ -185,6 +192,11 @@ MainWindow::MainWindow(QWidget *parent)
         &MainWindow::newInstance);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &MainWindow::openFile);
+    fileMenu->addAction(
+        tr("S&napshot PNG..."),
+        QKeySequence(QStringLiteral("Ctrl+Shift+S")),
+        this,
+        &MainWindow::saveSnapshotPng);
     m_openLastAction = fileMenu->addAction(tr("Open &Last Mesh"), this, &MainWindow::openLastMesh);
     m_openLastAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+L")));
     m_recentMenu = fileMenu->addMenu(tr("Open &Recent"));
@@ -521,6 +533,152 @@ void MainWindow::openFile()
                 .arg(failedCount),
             3500);
     }
+}
+
+void MainWindow::saveSnapshotPng()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+
+    QString targetPath = QFileDialog::getSaveFileName(
+        this,
+        tr("Save Snapshot"),
+        QStringLiteral("snapshot.png"),
+        tr("PNG Image (*.png)"));
+    if (targetPath.isEmpty())
+        return;
+    if (!targetPath.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive))
+        targetPath += QStringLiteral(".png");
+
+    const qreal dpr = qMax(1.0, view->devicePixelRatioF());
+    const QSize basePixelSize(
+        qMax(1, int(std::lround(double(view->width()) * dpr))),
+        qMax(1, int(std::lround(double(view->height()) * dpr))));
+
+    QDialog optionsDialog(this);
+    optionsDialog.setWindowTitle(tr("Snapshot Options"));
+    auto *optionsLayout = new QVBoxLayout(&optionsDialog);
+    auto *form = new QFormLayout();
+    optionsLayout->addLayout(form);
+
+    auto *widthSpin = new QSpinBox(&optionsDialog);
+    widthSpin->setRange(64, 16384);
+    widthSpin->setValue(basePixelSize.width());
+    widthSpin->setSuffix(tr(" px"));
+
+    auto *heightSpin = new QSpinBox(&optionsDialog);
+    heightSpin->setRange(64, 16384);
+    heightSpin->setValue(basePixelSize.height());
+    heightSpin->setSuffix(tr(" px"));
+
+    auto *lockAspect = new QCheckBox(tr("Lock aspect ratio"), &optionsDialog);
+    lockAspect->setChecked(true);
+
+    form->addRow(tr("Width"), widthSpin);
+    form->addRow(tr("Height"), heightSpin);
+    form->addRow(QString(), lockAspect);
+
+    bool resizingFromLock = false;
+    const double aspect =
+        (basePixelSize.height() > 0)
+        ? (double(basePixelSize.width()) / double(basePixelSize.height()))
+        : 1.0;
+    connect(widthSpin, qOverload<int>(&QSpinBox::valueChanged), &optionsDialog, [=, &resizingFromLock](int w) {
+        if (!lockAspect->isChecked() || resizingFromLock || aspect <= 0.0)
+            return;
+        resizingFromLock = true;
+        heightSpin->setValue(qMax(64, int(std::lround(double(w) / aspect))));
+        resizingFromLock = false;
+    });
+    connect(heightSpin, qOverload<int>(&QSpinBox::valueChanged), &optionsDialog, [=, &resizingFromLock](int h) {
+        if (!lockAspect->isChecked() || resizingFromLock)
+            return;
+        resizingFromLock = true;
+        widthSpin->setValue(qMax(64, int(std::lround(double(h) * aspect))));
+        resizingFromLock = false;
+    });
+
+    auto *buttons =
+        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &optionsDialog);
+    optionsLayout->addWidget(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &optionsDialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &optionsDialog, &QDialog::reject);
+
+    if (optionsDialog.exec() != QDialog::Accepted)
+        return;
+
+    const QSize snapshotSize(widthSpin->value(), heightSpin->value());
+    QString captureError;
+    const QImage snapshot = renderSnapshotOffscreen(view, snapshotSize, &captureError);
+    if (snapshot.isNull()) {
+        const QString msg = tr("Failed to capture snapshot: %1").arg(captureError);
+        statusBar()->showMessage(msg, 3500);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+        return;
+    }
+
+    QImage outImage = snapshot.convertToFormat(QImage::Format_RGBA8888);
+    outImage.setText(QStringLiteral("QMeshLab.CameraTrackballState"), view->cameraStateJson());
+
+    QImageWriter writer(targetPath, "png");
+    if (!writer.write(outImage)) {
+        const QString msg = tr("Failed to save snapshot: %1").arg(writer.errorString());
+        statusBar()->showMessage(msg, 4500);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+        return;
+    }
+
+    const QString msg = tr("Snapshot saved to %1").arg(targetPath);
+    statusBar()->showMessage(msg, 3000);
+    m_doc->writeLog(msg, Document::LogSource::Application);
+}
+
+QImage MainWindow::renderSnapshotOffscreen(
+    RenderWidget *sourceView,
+    const QSize &pixelSize,
+    QString *errorMessage)
+{
+    auto fail = [&](const QString &msg) {
+        if (errorMessage)
+            *errorMessage = msg;
+        return QImage();
+    };
+
+    if (!sourceView)
+        return fail(tr("No active view"));
+    if (pixelSize.width() <= 0 || pixelSize.height() <= 0)
+        return fail(tr("Invalid snapshot resolution"));
+
+    const QSize oldFixedSize = sourceView->fixedColorBufferSize();
+    sourceView->setFixedColorBufferSize(pixelSize);
+    sourceView->update();
+
+    QEventLoop loop;
+    QTimer timeout;
+    timeout.setSingleShot(true);
+    QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+
+    const QMetaObject::Connection frameConn =
+        QObject::connect(sourceView, &RenderWidget::frameRendered, &loop, [&loop](float, float, bool, bool) {
+            loop.quit();
+        });
+
+    timeout.start(1500);
+    loop.exec();
+    QObject::disconnect(frameConn);
+
+    const QImage result = sourceView->grabFramebuffer();
+
+    sourceView->setFixedColorBufferSize(oldFixedSize);
+    sourceView->update();
+
+    if (result.isNull())
+        return fail(tr("Render target capture failed"));
+
+    if (errorMessage)
+        errorMessage->clear();
+    return result;
 }
 
 void MainWindow::openLastMesh()
