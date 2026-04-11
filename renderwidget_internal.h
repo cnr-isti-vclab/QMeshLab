@@ -1,7 +1,10 @@
 #pragma once
 
+#include "renderingsettings.h"
 #include "vcgmesh.h"
 #include <QFile>
+#include <QSize>
+#include <QtGlobal>
 #include <QVector3D>
 #include <rhi/qshader.h>
 #include <cmath>
@@ -46,6 +49,98 @@ inline constexpr int kTrackballGizmoUbufSize = 80; // mat4 mvp + vec4(center.xyz
 inline constexpr int kTrackballGizmoSteps = 96;
 inline constexpr int kWireframeDefaultFaceThreshold = 10000;
 inline constexpr float kPi = 3.14159265358979323846f;
+
+struct MainStyleUbufKey {
+    QColor bboxWireColor;
+    QColor pointColor;
+    float pointSize = 0.0f;
+    QColor wireColor;
+    float wireSize = 0.0f;
+    QColor fillColor;
+    bool pointLighting = false;
+    bool wireLighting = false;
+    bool fillLighting = false;
+    QColor edgeColor;
+    float edgeSize = 0.0f;
+
+    bool operator==(const MainStyleUbufKey &other) const
+    {
+        return bboxWireColor == other.bboxWireColor
+            && pointColor == other.pointColor
+            && pointSize == other.pointSize
+            && wireColor == other.wireColor
+            && wireSize == other.wireSize
+            && fillColor == other.fillColor
+            && pointLighting == other.pointLighting
+            && wireLighting == other.wireLighting
+            && fillLighting == other.fillLighting
+            && edgeColor == other.edgeColor
+            && edgeSize == other.edgeSize;
+    }
+};
+
+inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
+    const RenderSettings &settings,
+    bool includeLighting = true)
+{
+    MainStyleUbufKey key;
+    key.bboxWireColor = settings.bboxWireColor;
+    key.pointColor = settings.pointColor;
+    key.pointSize = settings.pointSize;
+    key.wireColor = settings.wireColor;
+    key.wireSize = settings.wireSize;
+    key.fillColor = settings.fillColor;
+    key.pointLighting = includeLighting ? settings.pointLighting : false;
+    key.wireLighting = includeLighting ? settings.wireLighting : false;
+    key.fillLighting = includeLighting ? settings.fillLighting : false;
+    key.edgeColor = settings.edgeColor;
+    key.edgeSize = settings.edgeSize;
+    return key;
+}
+
+inline void writeMainStyleToUbuf(
+    float *ubufData,
+    const RenderSettings &settings,
+    const QSize &pixelSize,
+    bool enableLighting)
+{
+    ubufData[kUbufBBoxColorOffset + 0] = settings.bboxWireColor.redF();
+    ubufData[kUbufBBoxColorOffset + 1] = settings.bboxWireColor.greenF();
+    ubufData[kUbufBBoxColorOffset + 2] = settings.bboxWireColor.blueF();
+    ubufData[kUbufBBoxColorOffset + 3] = settings.bboxWireColor.alphaF();
+
+    ubufData[kUbufPointColorOffset + 0] = settings.pointColor.redF();
+    ubufData[kUbufPointColorOffset + 1] = settings.pointColor.greenF();
+    ubufData[kUbufPointColorOffset + 2] = settings.pointColor.blueF();
+    ubufData[kUbufPointColorOffset + 3] = settings.pointColor.alphaF();
+    ubufData[kUbufPointParamsOffset + 0] = settings.pointSize;
+
+    ubufData[kUbufWireColorOffset + 0] = settings.wireColor.redF();
+    ubufData[kUbufWireColorOffset + 1] = settings.wireColor.greenF();
+    ubufData[kUbufWireColorOffset + 2] = settings.wireColor.blueF();
+    // Wire pass is intentionally translucent to compose independently over fill/effects.
+    ubufData[kUbufWireColorOffset + 3] = settings.wireColor.alphaF() * 0.7f;
+    ubufData[kUbufWireParamsOffset + 0] = settings.wireSize;
+    ubufData[kUbufWireParamsOffset + 1] = qMax(1.0f, settings.edgeSize);
+    ubufData[kUbufWireParamsOffset + 2] = 1.0f / float(qMax(1, pixelSize.width()));
+    ubufData[kUbufWireParamsOffset + 3] = 1.0f / float(qMax(1, pixelSize.height()));
+
+    ubufData[kUbufFillColorOffset + 0] = settings.fillColor.redF();
+    ubufData[kUbufFillColorOffset + 1] = settings.fillColor.greenF();
+    ubufData[kUbufFillColorOffset + 2] = settings.fillColor.blueF();
+    ubufData[kUbufFillColorOffset + 3] = settings.fillColor.alphaF();
+
+    // bbox lighting removed: slot 0 intentionally unused/reserved.
+    ubufData[kUbufLightingParamsOffset + 0] = 0.0f;
+    ubufData[kUbufLightingParamsOffset + 1] = (enableLighting && settings.pointLighting) ? 1.0f : 0.0f;
+    ubufData[kUbufLightingParamsOffset + 2] = (enableLighting && settings.wireLighting) ? 1.0f : 0.0f;
+    ubufData[kUbufLightingParamsOffset + 3] = (enableLighting && settings.fillLighting) ? 1.0f : 0.0f;
+
+    ubufData[kUbufEdgeColorOffset + 0] = settings.edgeColor.redF();
+    ubufData[kUbufEdgeColorOffset + 1] = settings.edgeColor.greenF();
+    ubufData[kUbufEdgeColorOffset + 2] = settings.edgeColor.blueF();
+    ubufData[kUbufEdgeColorOffset + 3] = settings.edgeColor.alphaF();
+}
 
 inline QVector3D toVec3(const VCGMesh::CoordType &p)
 {

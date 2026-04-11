@@ -52,6 +52,7 @@ void RenderWidget::ensureCurrentMeshMaskResources(const QSize &pixelSize)
     m_currentMaskEdgesPipeline.reset();
     m_currentMaskEdgesDepthPipeline.reset();
     m_currentMaskEdgesDepthOnlyPipeline.reset();
+    m_currentMaskFatEdgesDepthOnlyPipeline.reset();
     m_currentMaskPointsPipeline.reset();
     m_currentMaskPointsDepthOnlyPipeline.reset();
     m_maskMorphMaskToBaseSrb.reset();
@@ -353,9 +354,6 @@ void RenderWidget::ensureRenderResources()
         if (m_rhi)
             m_doc->releaseRhiGpuResources(m_rhi);
         m_rhi = rhi();
-        m_fillPipeline.reset();
-        m_wirePipeline.reset();
-        m_edgesPipeline.reset();
         m_fillPipelinesByKey.clear();
         m_wirePipelinesByKey.clear();
         m_edgesPipelinesByKey.clear();
@@ -397,6 +395,7 @@ void RenderWidget::ensureRenderResources()
         m_currentMaskEdgesPipeline.reset();
         m_currentMaskEdgesDepthPipeline.reset();
         m_currentMaskEdgesDepthOnlyPipeline.reset();
+        m_currentMaskFatEdgesDepthOnlyPipeline.reset();
         m_currentMaskPointsPipeline.reset();
         m_currentMaskPointsDepthOnlyPipeline.reset();
         m_maskMorphCopyUbuf.reset();
@@ -501,7 +500,8 @@ void RenderWidget::ensureRenderResources()
         if (!m_decoratorUbufs[slot]) {
             m_decoratorUbufs[slot].reset(
                 m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorUbufSize));
-            m_decoratorUbufs[slot]->create();
+            if (!m_decoratorUbufs[slot] || !m_decoratorUbufs[slot]->create())
+                m_decoratorUbufs[slot].reset();
         }
         if (!m_decoratorSrbs[slot] && m_decoratorUbufs[slot]) {
             m_decoratorSrbs[slot].reset(m_rhi->newShaderResourceBindings());
@@ -511,48 +511,56 @@ void RenderWidget::ensureRenderResources()
                     QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
                     m_decoratorUbufs[slot].get())
             });
-            m_decoratorSrbs[slot]->create();
+            if (!m_decoratorSrbs[slot]->create())
+                m_decoratorSrbs[slot].reset();
         }
     }
 
     if (!m_outlineUbuf) {
         m_outlineUbuf.reset(
             m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kOutlineUbufSize));
-        m_outlineUbuf->create();
+        if (!m_outlineUbuf || !m_outlineUbuf->create())
+            m_outlineUbuf.reset();
     }
     if (!m_outlineSampler) {
         m_outlineSampler.reset(
             m_rhi->newSampler(
                 QRhiSampler::Nearest, QRhiSampler::Nearest, QRhiSampler::None,
                 QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
-        m_outlineSampler->create();
+        if (!m_outlineSampler || !m_outlineSampler->create())
+            m_outlineSampler.reset();
     }
     if (!m_maskMorphCopyUbuf) {
         m_maskMorphCopyUbuf.reset(
             m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kMaskMorphUbufSize));
-        m_maskMorphCopyUbuf->create();
+        if (!m_maskMorphCopyUbuf || !m_maskMorphCopyUbuf->create())
+            m_maskMorphCopyUbuf.reset();
     }
     if (!m_maskMorphDilateUbuf) {
         m_maskMorphDilateUbuf.reset(
             m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kMaskMorphUbufSize));
-        m_maskMorphDilateUbuf->create();
+        if (!m_maskMorphDilateUbuf || !m_maskMorphDilateUbuf->create())
+            m_maskMorphDilateUbuf.reset();
     }
     if (!m_maskMorphErodeUbuf) {
         m_maskMorphErodeUbuf.reset(
             m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kMaskMorphUbufSize));
-        m_maskMorphErodeUbuf->create();
+        if (!m_maskMorphErodeUbuf || !m_maskMorphErodeUbuf->create())
+            m_maskMorphErodeUbuf.reset();
     }
     if (!m_maskMorphSampler) {
         m_maskMorphSampler.reset(
             m_rhi->newSampler(
                 QRhiSampler::Nearest, QRhiSampler::Nearest, QRhiSampler::None,
                 QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
-        m_maskMorphSampler->create();
+        if (!m_maskMorphSampler || !m_maskMorphSampler->create())
+            m_maskMorphSampler.reset();
     }
     if (!m_maskDebugUbuf) {
         m_maskDebugUbuf.reset(
             m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kMaskDebugUbufSize));
-        m_maskDebugUbuf->create();
+        if (!m_maskDebugUbuf || !m_maskDebugUbuf->create())
+            m_maskDebugUbuf.reset();
     }
     if (!m_maskMorphMaskToBaseSrb
         && m_maskMorphCopyUbuf
@@ -571,7 +579,8 @@ void RenderWidget::ensureRenderResources()
                 m_currentMaskTexture.get(),
                 m_maskMorphSampler.get())
         });
-        m_maskMorphMaskToBaseSrb->create();
+        if (!m_maskMorphMaskToBaseSrb->create())
+            m_maskMorphMaskToBaseSrb.reset();
     }
     if (!m_maskMorphMaskToWorkSrb
         && m_maskMorphDilateUbuf
@@ -590,7 +599,8 @@ void RenderWidget::ensureRenderResources()
                 m_currentMaskBaseTexture.get(),
                 m_maskMorphSampler.get())
         });
-        m_maskMorphMaskToWorkSrb->create();
+        if (!m_maskMorphMaskToWorkSrb->create())
+            m_maskMorphMaskToWorkSrb.reset();
     }
     if (!m_maskMorphWorkToMaskSrb
         && m_maskMorphErodeUbuf
@@ -609,7 +619,8 @@ void RenderWidget::ensureRenderResources()
                 m_currentMaskWorkTexture.get(),
                 m_maskMorphSampler.get())
         });
-        m_maskMorphWorkToMaskSrb->create();
+        if (!m_maskMorphWorkToMaskSrb->create())
+            m_maskMorphWorkToMaskSrb.reset();
     }
     if (!m_outlineExtractUbuf) {
         m_outlineExtractUbuf.reset(
@@ -617,7 +628,8 @@ void RenderWidget::ensureRenderResources()
                 QRhiBuffer::Dynamic,
                 QRhiBuffer::UniformBuffer,
                 kOutlineExtractUbufSize));
-        m_outlineExtractUbuf->create();
+        if (!m_outlineExtractUbuf || !m_outlineExtractUbuf->create())
+            m_outlineExtractUbuf.reset();
     }
     if (!m_outlineExtractSrb
         && m_outlineExtractUbuf
@@ -635,7 +647,8 @@ void RenderWidget::ensureRenderResources()
                 m_currentMaskBaseTexture.get(),
                 m_maskMorphSampler.get())
         });
-        m_outlineExtractSrb->create();
+        if (!m_outlineExtractSrb->create())
+            m_outlineExtractSrb.reset();
     }
     if (!m_outlineExtractPipeline && m_outlineExtractSrb && m_currentMaskWorkRp) {
         m_outlineExtractPipeline.reset(m_rhi->newGraphicsPipeline());
@@ -684,7 +697,8 @@ void RenderWidget::ensureRenderResources()
                 m_currentMaskTexture.get(),
                 m_maskMorphSampler.get())
         });
-        m_maskDebugBaseSrb->create();
+        if (!m_maskDebugBaseSrb->create())
+            m_maskDebugBaseSrb.reset();
     }
     if (!m_maskDebugWorkSrb
         && m_maskDebugUbuf
@@ -708,7 +722,8 @@ void RenderWidget::ensureRenderResources()
                 m_currentMaskTexture.get(),
                 m_maskMorphSampler.get())
         });
-        m_maskDebugWorkSrb->create();
+        if (!m_maskDebugWorkSrb->create())
+            m_maskDebugWorkSrb.reset();
     }
     if (!m_maskDebugMaskSrb
         && m_maskDebugUbuf
@@ -732,7 +747,8 @@ void RenderWidget::ensureRenderResources()
                 m_currentMaskBaseTexture.get(),
                 m_maskMorphSampler.get())
         });
-        m_maskDebugMaskSrb->create();
+        if (!m_maskDebugMaskSrb->create())
+            m_maskDebugMaskSrb.reset();
     }
     if (!m_outlineSrb
         && m_outlineUbuf
@@ -762,166 +778,8 @@ void RenderWidget::ensureRenderResources()
                 m_currentMaskTexture.get(),
                 m_outlineSampler.get())
         });
-        m_outlineSrb->create();
-    }
-
-    if (!m_fillPipeline) {
-        m_fillPipeline.reset(m_rhi->newGraphicsPipeline());
-
-        QString vsPath;
-        QString fsPath;
-        switch (m_renderSettings.fillShading) {
-        case FillShading::Smooth:
-            vsPath = QStringLiteral(":/shaders/fill_smooth.vert.qsb");
-            fsPath = QStringLiteral(":/shaders/fill_smooth.frag.qsb");
-            break;
-        case FillShading::Flat:
-            vsPath = QStringLiteral(":/shaders/fill_flat.vert.qsb");
-            fsPath = QStringLiteral(":/shaders/fill_flat.frag.qsb");
-            break;
-        }
-
-        QShader vs = loadShader(vsPath);
-        QShader fs = loadShader(fsPath);
-        if (!vs.isValid() || !fs.isValid()) {
-            qWarning("Failed to load shaders");
-            m_fillPipeline.reset();
-            return;
-        }
-
-        m_fillPipeline->setShaderStages({
-            { QRhiShaderStage::Vertex, vs },
-            { QRhiShaderStage::Fragment, fs }
-        });
-
-        m_fillPipeline->setDepthTest(true);
-        m_fillPipeline->setDepthWrite(true);
-        m_fillPipeline->setCullMode(
-            m_renderSettings.fillBackfaceCulling
-                ? QRhiGraphicsPipeline::Back
-                : QRhiGraphicsPipeline::None);
-
-        QRhiVertexInputLayout inputLayout;
-        // Fill vertex layout: position(3f) + normal(3f) + meshColor(4f) + texInfo(uv + useTexture flag).
-        inputLayout.setBindings({ { kFillVertexStrideFloats * sizeof(float) } });
-        if (m_renderSettings.fillShading == FillShading::Flat) {
-            inputLayout.setAttributes({
-                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
-                { 0, 1, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) }, // mesh color + use flag
-                { 0, 2, QRhiVertexInputAttribute::Float3, 10 * sizeof(float) } // uv + use texture flag
-            });
-        } else {
-            inputLayout.setAttributes({
-                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                 // position
-                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) }, // normal
-                { 0, 2, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) }, // mesh color + use flag
-                { 0, 3, QRhiVertexInputAttribute::Float3, 10 * sizeof(float) } // uv + use texture flag
-            });
-        }
-        m_fillPipeline->setVertexInputLayout(inputLayout);
-        m_fillPipeline->setShaderResourceBindings(m_srb.get());
-        m_fillPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
-
-        if (!m_fillPipeline->create()) {
-            qWarning("Failed to create fill pipeline");
-            m_fillPipeline.reset();
-        }
-    }
-
-    if (!m_wirePipeline) {
-        m_wirePipeline.reset(m_rhi->newGraphicsPipeline());
-
-        QShader vs = loadShader(QStringLiteral(":/shaders/fill_wire.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/fill_wire_overlay.frag.qsb"));
-        if (!vs.isValid() || !fs.isValid()) {
-            qWarning("Failed to load wireframe shaders");
-            m_wirePipeline.reset();
-            return;
-        }
-
-        m_wirePipeline->setShaderStages({
-            { QRhiShaderStage::Vertex, vs },
-            { QRhiShaderStage::Fragment, fs }
-        });
-        m_wirePipeline->setDepthTest(true);
-        m_wirePipeline->setDepthWrite(false);
-        m_wirePipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
-        m_wirePipeline->setCullMode(
-            m_renderSettings.wireBackfaceCulling
-                ? QRhiGraphicsPipeline::Back
-                : QRhiGraphicsPipeline::None);
-
-        QRhiGraphicsPipeline::TargetBlend blend;
-        blend.enable = true;
-        blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
-        blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        blend.opColor = QRhiGraphicsPipeline::Add;
-        blend.srcAlpha = QRhiGraphicsPipeline::One;
-        blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        blend.opAlpha = QRhiGraphicsPipeline::Add;
-        m_wirePipeline->setTargetBlends({ blend });
-
-        QRhiVertexInputLayout wireLayout;
-        wireLayout.setBindings({ { 6 * sizeof(float) } });
-        wireLayout.setAttributes({
-            { 0, 0, QRhiVertexInputAttribute::Float3, 0 },             // position
-            { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) } // barycentric
-        });
-        m_wirePipeline->setVertexInputLayout(wireLayout);
-        m_wirePipeline->setShaderResourceBindings(m_srb.get());
-        m_wirePipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
-
-        if (!m_wirePipeline->create()) {
-            qWarning("Failed to create wireframe pipeline");
-            m_wirePipeline.reset();
-        }
-    }
-
-    if (!m_edgesPipeline) {
-        m_edgesPipeline.reset(m_rhi->newGraphicsPipeline());
-
-        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_edges.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_edges.frag.qsb"));
-        if (!vs.isValid() || !fs.isValid()) {
-            qWarning("Failed to load edges shaders");
-            m_edgesPipeline.reset();
-            return;
-        }
-
-        m_edgesPipeline->setShaderStages({
-            { QRhiShaderStage::Vertex, vs },
-            { QRhiShaderStage::Fragment, fs }
-        });
-        m_edgesPipeline->setTopology(QRhiGraphicsPipeline::Lines);
-        m_edgesPipeline->setDepthTest(true);
-        m_edgesPipeline->setDepthWrite(true);
-        m_edgesPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
-        m_edgesPipeline->setDepthBias(-1);
-        m_edgesPipeline->setSlopeScaledDepthBias(-1.0f);
-        m_edgesPipeline->setCullMode(QRhiGraphicsPipeline::None);
-        m_edgesPipeline->setLineWidth(qMax(1.0f, m_renderSettings.edgeSize));
-
-        QRhiGraphicsPipeline::TargetBlend blend;
-        blend.enable = true;
-        blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
-        blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        blend.opColor = QRhiGraphicsPipeline::Add;
-        blend.srcAlpha = QRhiGraphicsPipeline::One;
-        blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        blend.opAlpha = QRhiGraphicsPipeline::Add;
-        m_edgesPipeline->setTargetBlends({ blend });
-
-        QRhiVertexInputLayout edgesLayout;
-        edgesLayout.setBindings({ { 3 * sizeof(float) } });
-        edgesLayout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
-        m_edgesPipeline->setVertexInputLayout(edgesLayout);
-        m_edgesPipeline->setShaderResourceBindings(m_srb.get());
-        m_edgesPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
-
-        if (!m_edgesPipeline->create()) {
-            qWarning("Failed to create edges pipeline");
-            m_edgesPipeline.reset();
-        }
+        if (!m_outlineSrb->create())
+            m_outlineSrb.reset();
     }
 
     if (!m_bboxPipeline) {
@@ -1250,6 +1108,43 @@ void RenderWidget::ensureRenderResources()
         }
     }
 
+    if (!m_currentMaskFatEdgesDepthOnlyPipeline && m_currentMaskRp) {
+        m_currentMaskFatEdgesDepthOnlyPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_fat_edges.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/depth_pick.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load current-mask fat-edge depth-only shaders");
+            m_currentMaskFatEdgesDepthOnlyPipeline.reset();
+        } else {
+            m_currentMaskFatEdgesDepthOnlyPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_currentMaskFatEdgesDepthOnlyPipeline->setTopology(QRhiGraphicsPipeline::Triangles);
+            m_currentMaskFatEdgesDepthOnlyPipeline->setDepthTest(true);
+            m_currentMaskFatEdgesDepthOnlyPipeline->setDepthWrite(true);
+            m_currentMaskFatEdgesDepthOnlyPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_currentMaskFatEdgesDepthOnlyPipeline->setDepthBias(-1);
+            m_currentMaskFatEdgesDepthOnlyPipeline->setSlopeScaledDepthBias(-1.0f);
+            m_currentMaskFatEdgesDepthOnlyPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 8 * sizeof(float) } });
+            layout.setAttributes({
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
+                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
+                { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
+                { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) }
+            });
+            m_currentMaskFatEdgesDepthOnlyPipeline->setVertexInputLayout(layout);
+            m_currentMaskFatEdgesDepthOnlyPipeline->setShaderResourceBindings(m_srb.get());
+            m_currentMaskFatEdgesDepthOnlyPipeline->setRenderPassDescriptor(m_currentMaskRp.get());
+            if (!m_currentMaskFatEdgesDepthOnlyPipeline->create()) {
+                qWarning("Failed to create current-mask fat-edge depth-only pipeline");
+                m_currentMaskFatEdgesDepthOnlyPipeline.reset();
+            }
+        }
+    }
+
     if (!m_currentMaskPointsPipeline && m_currentMaskRp) {
         m_currentMaskPointsPipeline.reset(m_rhi->newGraphicsPipeline());
         QShader vs = loadShader(QStringLiteral(":/shaders/selection_mask.vert.qsb"));
@@ -1451,7 +1346,8 @@ void RenderWidget::ensureRenderResources()
     if (!m_trackballGizmoUbuf) {
         m_trackballGizmoUbuf.reset(
             m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kTrackballGizmoUbufSize));
-        m_trackballGizmoUbuf->create();
+        if (!m_trackballGizmoUbuf || !m_trackballGizmoUbuf->create())
+            m_trackballGizmoUbuf.reset();
     }
 
     if (!m_trackballGizmoVbuf) {
@@ -1461,8 +1357,12 @@ void RenderWidget::ensureRenderResources()
                 QRhiBuffer::Dynamic,
                 QRhiBuffer::VertexBuffer,
                 static_cast<quint32>(verts.size() * sizeof(float))));
-        m_trackballGizmoVbuf->create();
-        m_trackballGizmoVertexCount = int(verts.size() / 6);
+        if (!m_trackballGizmoVbuf || !m_trackballGizmoVbuf->create()) {
+            m_trackballGizmoVbuf.reset();
+            m_trackballGizmoVertexCount = 0;
+        } else {
+            m_trackballGizmoVertexCount = int(verts.size() / 6);
+        }
     }
 
     if (!m_trackballGizmoSrb && m_trackballGizmoUbuf) {
@@ -1473,7 +1373,8 @@ void RenderWidget::ensureRenderResources()
                 QRhiShaderResourceBinding::VertexStage,
                 m_trackballGizmoUbuf.get())
         });
-        m_trackballGizmoSrb->create();
+        if (!m_trackballGizmoSrb->create())
+            m_trackballGizmoSrb.reset();
     }
 
     if (!m_trackballGizmoPipeline && m_trackballGizmoSrb) {

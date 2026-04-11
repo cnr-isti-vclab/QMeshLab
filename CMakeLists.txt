@@ -9,6 +9,7 @@ set(QT_NO_PRIVATE_MODULE_WARNING ON)
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 add_library(QMeshLabCore STATIC
     document.h document.cpp
+    linerenderer.h linerenderer.cpp
     meshgpuresourcecache.h meshgpuresourcecache.cpp
     meshioplugin.h
     meshiopluginmanager.h meshiopluginmanager.cpp

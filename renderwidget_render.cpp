@@ -100,37 +100,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         baseUbufData[32] = n[0]; baseUbufData[33] = n[1]; baseUbufData[34] = n[2]; baseUbufData[35] = 0;
         baseUbufData[36] = n[3]; baseUbufData[37] = n[4]; baseUbufData[38] = n[5]; baseUbufData[39] = 0;
         baseUbufData[40] = n[6]; baseUbufData[41] = n[7]; baseUbufData[42] = n[8]; baseUbufData[43] = 0;
-        baseUbufData[kUbufBBoxColorOffset + 0] = m_renderSettings.bboxWireColor.redF();
-        baseUbufData[kUbufBBoxColorOffset + 1] = m_renderSettings.bboxWireColor.greenF();
-        baseUbufData[kUbufBBoxColorOffset + 2] = m_renderSettings.bboxWireColor.blueF();
-        baseUbufData[kUbufBBoxColorOffset + 3] = m_renderSettings.bboxWireColor.alphaF();
-        baseUbufData[kUbufPointColorOffset + 0] = m_renderSettings.pointColor.redF();
-        baseUbufData[kUbufPointColorOffset + 1] = m_renderSettings.pointColor.greenF();
-        baseUbufData[kUbufPointColorOffset + 2] = m_renderSettings.pointColor.blueF();
-        baseUbufData[kUbufPointColorOffset + 3] = m_renderSettings.pointColor.alphaF();
-        baseUbufData[kUbufPointParamsOffset + 0] = m_renderSettings.pointSize;
-        baseUbufData[kUbufWireColorOffset + 0] = m_renderSettings.wireColor.redF();
-        baseUbufData[kUbufWireColorOffset + 1] = m_renderSettings.wireColor.greenF();
-        baseUbufData[kUbufWireColorOffset + 2] = m_renderSettings.wireColor.blueF();
-        // Wire pass is intentionally translucent to compose independently over fill/effects.
-        baseUbufData[kUbufWireColorOffset + 3] = m_renderSettings.wireColor.alphaF() * 0.7f;
-        baseUbufData[kUbufWireParamsOffset + 0] = m_renderSettings.wireSize;
-        baseUbufData[kUbufWireParamsOffset + 1] = qMax(1.0f, m_renderSettings.edgeSize);
-        baseUbufData[kUbufWireParamsOffset + 2] = 1.0f / float(qMax(1, sz.width()));
-        baseUbufData[kUbufWireParamsOffset + 3] = 1.0f / float(qMax(1, sz.height()));
-        baseUbufData[kUbufFillColorOffset + 0] = m_renderSettings.fillColor.redF();
-        baseUbufData[kUbufFillColorOffset + 1] = m_renderSettings.fillColor.greenF();
-        baseUbufData[kUbufFillColorOffset + 2] = m_renderSettings.fillColor.blueF();
-        baseUbufData[kUbufFillColorOffset + 3] = m_renderSettings.fillColor.alphaF();
-        // bbox lighting removed: slot 0 intentionally unused/reserved.
-        baseUbufData[kUbufLightingParamsOffset + 0] = 0.0f;
-        baseUbufData[kUbufLightingParamsOffset + 1] = m_renderSettings.pointLighting ? 1.0f : 0.0f;
-        baseUbufData[kUbufLightingParamsOffset + 2] = m_renderSettings.wireLighting ? 1.0f : 0.0f;
-        baseUbufData[kUbufLightingParamsOffset + 3] = m_renderSettings.fillLighting ? 1.0f : 0.0f;
-        baseUbufData[kUbufEdgeColorOffset + 0] = m_renderSettings.edgeColor.redF();
-        baseUbufData[kUbufEdgeColorOffset + 1] = m_renderSettings.edgeColor.greenF();
-        baseUbufData[kUbufEdgeColorOffset + 2] = m_renderSettings.edgeColor.blueF();
-        baseUbufData[kUbufEdgeColorOffset + 3] = m_renderSettings.edgeColor.alphaF();
+        writeMainStyleToUbuf(baseUbufData, m_renderSettings, sz, true);
 
         u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, baseUbufData);
@@ -159,43 +129,28 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
+    MainStyleUbufKey lastStyleKey {};
+    bool hasLastStyleKey = false;
+    if (haveBaseUbufData) {
+        lastStyleKey = mainStyleUbufKeyFromSettings(m_renderSettings);
+        hasLastStyleKey = true;
+    }
+
     auto updateStyleUbuf = [&](const RenderSettings &meshSettings) {
         if (!haveBaseUbufData)
             return;
+        const MainStyleUbufKey nextKey = mainStyleUbufKeyFromSettings(meshSettings);
+        if (hasLastStyleKey && nextKey == lastStyleKey)
+            return;
         float ubufData[kUbufFloatCount];
         memcpy(ubufData, baseUbufData, sizeof(ubufData));
-        ubufData[kUbufBBoxColorOffset + 0] = meshSettings.bboxWireColor.redF();
-        ubufData[kUbufBBoxColorOffset + 1] = meshSettings.bboxWireColor.greenF();
-        ubufData[kUbufBBoxColorOffset + 2] = meshSettings.bboxWireColor.blueF();
-        ubufData[kUbufBBoxColorOffset + 3] = meshSettings.bboxWireColor.alphaF();
-        ubufData[kUbufPointColorOffset + 0] = meshSettings.pointColor.redF();
-        ubufData[kUbufPointColorOffset + 1] = meshSettings.pointColor.greenF();
-        ubufData[kUbufPointColorOffset + 2] = meshSettings.pointColor.blueF();
-        ubufData[kUbufPointColorOffset + 3] = meshSettings.pointColor.alphaF();
-        ubufData[kUbufPointParamsOffset + 0] = meshSettings.pointSize;
-        ubufData[kUbufWireColorOffset + 0] = meshSettings.wireColor.redF();
-        ubufData[kUbufWireColorOffset + 1] = meshSettings.wireColor.greenF();
-        ubufData[kUbufWireColorOffset + 2] = meshSettings.wireColor.blueF();
-        ubufData[kUbufWireColorOffset + 3] = meshSettings.wireColor.alphaF() * 0.7f;
-        ubufData[kUbufWireParamsOffset + 0] = meshSettings.wireSize;
-        ubufData[kUbufWireParamsOffset + 1] = qMax(1.0f, meshSettings.edgeSize);
-        ubufData[kUbufWireParamsOffset + 2] = 1.0f / float(qMax(1, sz.width()));
-        ubufData[kUbufWireParamsOffset + 3] = 1.0f / float(qMax(1, sz.height()));
-        ubufData[kUbufFillColorOffset + 0] = meshSettings.fillColor.redF();
-        ubufData[kUbufFillColorOffset + 1] = meshSettings.fillColor.greenF();
-        ubufData[kUbufFillColorOffset + 2] = meshSettings.fillColor.blueF();
-        ubufData[kUbufFillColorOffset + 3] = meshSettings.fillColor.alphaF();
-        ubufData[kUbufLightingParamsOffset + 1] = meshSettings.pointLighting ? 1.0f : 0.0f;
-        ubufData[kUbufLightingParamsOffset + 2] = meshSettings.wireLighting ? 1.0f : 0.0f;
-        ubufData[kUbufLightingParamsOffset + 3] = meshSettings.fillLighting ? 1.0f : 0.0f;
-        ubufData[kUbufEdgeColorOffset + 0] = meshSettings.edgeColor.redF();
-        ubufData[kUbufEdgeColorOffset + 1] = meshSettings.edgeColor.greenF();
-        ubufData[kUbufEdgeColorOffset + 2] = meshSettings.edgeColor.blueF();
-        ubufData[kUbufEdgeColorOffset + 3] = meshSettings.edgeColor.alphaF();
+        writeMainStyleToUbuf(ubufData, meshSettings, sz, true);
 
         QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
         uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
         cb->resourceUpdate(uMesh);
+        lastStyleKey = nextKey;
+        hasLastStyleKey = true;
     };
 
     const RenderSettings currentMeshSettingsForPick =

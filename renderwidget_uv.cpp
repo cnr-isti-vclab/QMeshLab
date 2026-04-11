@@ -560,40 +560,23 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     baseUbufData[32] = n[0]; baseUbufData[33] = n[1]; baseUbufData[34] = n[2]; baseUbufData[35] = 0.0f;
     baseUbufData[36] = n[3]; baseUbufData[37] = n[4]; baseUbufData[38] = n[5]; baseUbufData[39] = 0.0f;
     baseUbufData[40] = n[6]; baseUbufData[41] = n[7]; baseUbufData[42] = n[8]; baseUbufData[43] = 0.0f;
+    writeMainStyleToUbuf(baseUbufData, meshSettings, sz, false);
 
+    MainStyleUbufKey lastStyleKey = mainStyleUbufKeyFromSettings(meshSettings, false);
+    bool hasLastStyleKey = true;
     auto updateStyleUbuf = [&](const RenderSettings &styleSettings) {
+        const MainStyleUbufKey nextKey = mainStyleUbufKeyFromSettings(styleSettings, false);
+        if (hasLastStyleKey && nextKey == lastStyleKey)
+            return;
         float ubufData[kUbufFloatCount];
         memcpy(ubufData, baseUbufData, sizeof(ubufData));
-        ubufData[kUbufBBoxColorOffset + 0] = styleSettings.bboxWireColor.redF();
-        ubufData[kUbufBBoxColorOffset + 1] = styleSettings.bboxWireColor.greenF();
-        ubufData[kUbufBBoxColorOffset + 2] = styleSettings.bboxWireColor.blueF();
-        ubufData[kUbufBBoxColorOffset + 3] = styleSettings.bboxWireColor.alphaF();
-        ubufData[kUbufPointColorOffset + 0] = styleSettings.pointColor.redF();
-        ubufData[kUbufPointColorOffset + 1] = styleSettings.pointColor.greenF();
-        ubufData[kUbufPointColorOffset + 2] = styleSettings.pointColor.blueF();
-        ubufData[kUbufPointColorOffset + 3] = styleSettings.pointColor.alphaF();
-        ubufData[kUbufPointParamsOffset + 0] = styleSettings.pointSize;
-        ubufData[kUbufWireColorOffset + 0] = styleSettings.wireColor.redF();
-        ubufData[kUbufWireColorOffset + 1] = styleSettings.wireColor.greenF();
-        ubufData[kUbufWireColorOffset + 2] = styleSettings.wireColor.blueF();
-        ubufData[kUbufWireColorOffset + 3] = styleSettings.wireColor.alphaF() * 0.7f;
-        ubufData[kUbufWireParamsOffset + 0] = styleSettings.wireSize;
-        ubufData[kUbufFillColorOffset + 0] = styleSettings.fillColor.redF();
-        ubufData[kUbufFillColorOffset + 1] = styleSettings.fillColor.greenF();
-        ubufData[kUbufFillColorOffset + 2] = styleSettings.fillColor.blueF();
-        ubufData[kUbufFillColorOffset + 3] = styleSettings.fillColor.alphaF();
-        ubufData[kUbufLightingParamsOffset + 0] = 0.0f;
-        ubufData[kUbufLightingParamsOffset + 1] = 0.0f;
-        ubufData[kUbufLightingParamsOffset + 2] = 0.0f;
-        ubufData[kUbufLightingParamsOffset + 3] = 0.0f;
-        ubufData[kUbufEdgeColorOffset + 0] = styleSettings.edgeColor.redF();
-        ubufData[kUbufEdgeColorOffset + 1] = styleSettings.edgeColor.greenF();
-        ubufData[kUbufEdgeColorOffset + 2] = styleSettings.edgeColor.blueF();
-        ubufData[kUbufEdgeColorOffset + 3] = styleSettings.edgeColor.alphaF();
+        writeMainStyleToUbuf(ubufData, styleSettings, sz, false);
 
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
         cb->resourceUpdate(u);
+        lastStyleKey = nextKey;
+        hasLastStyleKey = true;
     };
 
     if (m_uvBackgroundUbuf) {

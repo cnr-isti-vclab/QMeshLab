@@ -163,9 +163,6 @@ private:
     bool m_fallbackTextureUploadPending = false;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unordered_map<QRhiTexture *, std::unique_ptr<QRhiShaderResourceBindings>> m_textureSrbs;
-    std::unique_ptr<QRhiGraphicsPipeline> m_fillPipeline;
-    std::unique_ptr<QRhiGraphicsPipeline> m_wirePipeline;
-    std::unique_ptr<QRhiGraphicsPipeline> m_edgesPipeline;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_fillPipelinesByKey;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_wirePipelinesByKey;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_edgesPipelinesByKey;
@@ -206,6 +203,7 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskEdgesPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskEdgesDepthPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskEdgesDepthOnlyPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskFatEdgesDepthOnlyPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskPointsPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_currentMaskPointsDepthOnlyPipeline;
     std::unique_ptr<QRhiBuffer> m_maskMorphCopyUbuf;

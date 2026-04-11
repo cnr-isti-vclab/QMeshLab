@@ -175,7 +175,6 @@ void RenderWidget::setShadingMode(ShadingMode mode)
     applyRenderSettingsToCurrentMesh(prev, m_renderSettings);
     if (m_overlayPanel)
         m_overlayPanel->setSettings(m_renderSettings);
-    m_fillPipeline.reset();
     update();
 }
 
@@ -188,17 +187,6 @@ void RenderWidget::setRenderSettings(const RenderSettings &settings)
     m_shadingMode = (m_renderSettings.fillShading == FillShading::Flat)
         ? ShadingMode::Flat
         : ShadingMode::Smooth;
-
-    if (prev.fillShading != m_renderSettings.fillShading
-        || prev.fillBackfaceCulling != m_renderSettings.fillBackfaceCulling) {
-        m_fillPipeline.reset();
-    }
-    if (prev.wireBackfaceCulling != m_renderSettings.wireBackfaceCulling) {
-        m_wirePipeline.reset();
-    }
-    if (prev.edgeSize != m_renderSettings.edgeSize) {
-        m_edgesPipeline.reset();
-    }
 
     if (m_overlayPanel)
         m_overlayPanel->setSettings(m_renderSettings);
@@ -517,16 +505,6 @@ void RenderWidget::createOverlayButtons()
             ? ShadingMode::Flat
             : ShadingMode::Smooth;
 
-        if (prev.fillShading != m_renderSettings.fillShading
-            || prev.fillBackfaceCulling != m_renderSettings.fillBackfaceCulling) {
-            m_fillPipeline.reset();
-        }
-        if (prev.wireBackfaceCulling != m_renderSettings.wireBackfaceCulling) {
-            m_wirePipeline.reset();
-        }
-        if (prev.edgeSize != m_renderSettings.edgeSize) {
-            m_edgesPipeline.reset();
-        }
         updateBoundingBoxCornersOverlay();
         update();
         layoutOverlayButtons();

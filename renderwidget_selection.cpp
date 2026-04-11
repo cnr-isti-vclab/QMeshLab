@@ -24,11 +24,18 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
         m_fallbackTextureUploadPending = false;
     }
 
+    const int currentMeshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+    const bool needHighlightCurrentMesh =
+        m_renderSettings.highlightCurrentMesh
+        && currentMeshIndex >= 0
+        && currentMeshIndex < m_doc->meshCount()
+        && meshVisible(currentMeshIndex);
+
     bool hasAnyVisibleMesh = false;
-    bool needFillAny = m_renderSettings.highlightCurrentMesh;
+    bool needFillAny = false;
     bool needWireAny = false;
-    bool needEdgesAny = m_renderSettings.highlightCurrentMesh;
-    bool needPointsAny = m_renderSettings.highlightCurrentMesh;
+    bool needEdgesAny = false;
+    bool needPointsAny = false;
     bool needBBoxAny = false;
     bool needDecoratorNormalsAny = false;
     bool needDecoratorBoundariesAny = false;
@@ -50,13 +57,28 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     if (!hasAnyVisibleMesh)
         return;
     if (!needFillAny && !needWireAny && !needEdgesAny && !needPointsAny && !needBBoxAny
-        && !needDecoratorNormalsAny && !needDecoratorBoundariesAny)
+        && !needDecoratorNormalsAny && !needDecoratorBoundariesAny
+        && !needHighlightCurrentMesh)
         return;
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         if (!meshVisible(mi))
             continue;
         const MeshRenderMode mode = renderModeForMesh(mi);
+        const bool needHighlightForMesh = needHighlightCurrentMesh && mi == currentMeshIndex;
+        const bool needResourcesForMesh =
+            mode.showFill
+            || mode.showWire
+            || mode.showEdges
+            || mode.showPoints
+            || mode.showBoundingBox
+            || mode.decoratorVertexNormals
+            || mode.decoratorFaceNormals
+            || mode.decoratorBoundaryEdges
+            || mode.decoratorTextureSeams
+            || needHighlightForMesh;
+        if (!needResourcesForMesh)
+            continue;
         const RenderSettings meshSettings = renderSettingsForMesh(mi);
         const auto pointVariant = static_cast<Document::PointGpuVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
@@ -68,10 +90,10 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             mi,
             fillVariant,
             pointVariant,
-            mode.showFill || m_renderSettings.highlightCurrentMesh,
+            mode.showFill || needHighlightForMesh,
             mode.showWire,
-            mode.showEdges || m_renderSettings.highlightCurrentMesh,
-            mode.showPoints || m_renderSettings.highlightCurrentMesh,
+            mode.showEdges || needHighlightForMesh,
+            mode.showPoints || needHighlightForMesh,
             mode.showBoundingBox,
             mode.decoratorVertexNormals
                 || mode.decoratorFaceNormals,
@@ -272,6 +294,8 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         m_doc->fillPassGpuView(m_rhi, currentMeshIndex, fillVariant);
     const Document::EdgePassGpuView currentEdgeView =
         m_doc->edgePassGpuView(m_rhi, currentMeshIndex);
+    const Document::EdgeFatPassGpuView currentEdgeFatView =
+        m_doc->edgeFatPassGpuView(m_rhi, currentMeshIndex);
     const Document::PointsPassGpuView currentPointsView =
         m_doc->pointsPassGpuView(m_rhi, currentMeshIndex, pointVariant);
 
@@ -287,9 +311,12 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     }
     const bool currentHasEdges =
         currentMeshMode.showEdges
-        && currentEdgeView.valid
-        && currentEdgeView.vertexBuffer
-        && currentEdgeView.vertexCount > 0;
+        && ((currentEdgeFatView.valid
+             && currentEdgeFatView.vertexBuffer
+             && currentEdgeFatView.vertexCount > 0)
+            || (currentEdgeView.valid
+                && currentEdgeView.vertexBuffer
+                && currentEdgeView.vertexCount > 0));
     const bool currentHasPoints =
         currentMeshMode.showPoints
         && currentPointsView.valid
@@ -333,7 +360,35 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         }
     };
 
-    auto drawEdgeDepth = [&](const Document::EdgePassGpuView &edgeView) {
+    auto drawEdgeDepth = [&](const RenderSettings &meshSettings,
+                             const Document::EdgePassGpuView &edgeView,
+                             const Document::EdgeFatPassGpuView &fatEdgeView) {
+        if (m_currentMaskFatEdgesDepthOnlyPipeline
+            && fatEdgeView.valid
+            && fatEdgeView.vertexBuffer
+            && fatEdgeView.vertexCount > 0) {
+            const float wireParams[4] = {
+                meshSettings.wireSize,
+                qMax(1.0f, meshSettings.edgeSize),
+                1.0f / float(qMax(1, pixelSize.width())),
+                1.0f / float(qMax(1, pixelSize.height()))
+            };
+            QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+            u->updateDynamicBuffer(
+                m_ubuf.get(),
+                kUbufWireParamsOffset * int(sizeof(float)),
+                int(sizeof(wireParams)),
+                wireParams);
+            cb->resourceUpdate(u);
+
+            cb->setGraphicsPipeline(m_currentMaskFatEdgesDepthOnlyPipeline.get());
+            cb->setShaderResources(m_srb.get());
+            const QRhiCommandBuffer::VertexInput ev(fatEdgeView.vertexBuffer, 0);
+            cb->setVertexInput(0, 1, &ev);
+            cb->draw(fatEdgeView.vertexCount);
+            return;
+        }
+
         if (!m_currentMaskEdgesDepthOnlyPipeline)
             return;
         if (!edgeView.valid || !edgeView.vertexBuffer || edgeView.vertexCount <= 0)
@@ -363,7 +418,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     if (currentHasFill) {
         drawFillDepth(currentFillView);
     } else if (currentHasEdges) {
-        drawEdgeDepth(currentEdgeView);
+        drawEdgeDepth(currentMeshSettings, currentEdgeView, currentEdgeFatView);
     } else if (currentHasPoints) {
         drawPointsDepth(currentPointsView);
     }
@@ -407,6 +462,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
                 static_cast<Document::FillGpuVariant>(
                     fillGpuVariantIndexForSettings(meshSettings)));
         const Document::EdgePassGpuView edgeView = m_doc->edgePassGpuView(m_rhi, mi);
+        const Document::EdgeFatPassGpuView edgeFatView = m_doc->edgeFatPassGpuView(m_rhi, mi);
         const Document::PointsPassGpuView pointsView =
             m_doc->pointsPassGpuView(
                 m_rhi,
@@ -417,7 +473,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         if (mode.showFill)
             drawFillDepth(fillView);
         if (mode.showEdges)
-            drawEdgeDepth(edgeView);
+            drawEdgeDepth(meshSettings, edgeView, edgeFatView);
         if (mode.showPoints)
             drawPointsDepth(pointsView);
     }

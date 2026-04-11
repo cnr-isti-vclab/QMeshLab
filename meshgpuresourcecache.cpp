@@ -1,8 +1,7 @@
 #include "meshgpuresourcecache.h"
+#include "linerenderer.h"
 
 #include <wrap/io_trimesh/io_mask.h>
-#include <vcg/complex/algorithms/update/flag.h>
-#include <vcg/complex/algorithms/update/topology.h>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
 #include <QFileInfo>
@@ -533,17 +532,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         std::vector<float> vdata;
         std::vector<float> fatVdata;
         vdata.reserve(static_cast<size_t>(meshData.EN()) * 6);
-        const bool buildFatEdges = true;
-        if (buildFatEdges)
-            fatVdata.reserve(static_cast<size_t>(meshData.EN()) * 6 * 8);
-        static constexpr float kFatTriTemplate[6][2] = {
-            { 0.0f, -1.0f },
-            { 0.0f, 1.0f },
-            { 1.0f, -1.0f },
-            { 1.0f, -1.0f },
-            { 0.0f, 1.0f },
-            { 1.0f, 1.0f }
-        };
+        fatVdata.reserve(static_cast<size_t>(meshData.EN()) * 6 * LineRenderer::kFatLineStrideFloats);
         for (int ei = 0; ei < meshData.EN(); ++ei) {
             const auto &e = meshData.edge[ei];
             if (e.IsD())
@@ -560,19 +549,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             vdata.push_back(p1[0]);
             vdata.push_back(p1[1]);
             vdata.push_back(p1[2]);
-
-            if (buildFatEdges) {
-                for (const auto &tpl : kFatTriTemplate) {
-                    fatVdata.push_back(p0[0]);
-                    fatVdata.push_back(p0[1]);
-                    fatVdata.push_back(p0[2]);
-                    fatVdata.push_back(p1[0]);
-                    fatVdata.push_back(p1[1]);
-                    fatVdata.push_back(p1[2]);
-                    fatVdata.push_back(tpl[0]); // along (0=start, 1=end)
-                    fatVdata.push_back(tpl[1]); // side (-1/+1)
-                }
-            }
+            LineRenderer::appendFatLineSegmentVertices(
+                fatVdata, p0[0], p0[1], p0[2], p1[0], p1[1], p1[2]);
         }
 
         if (vdata.empty())
@@ -601,7 +579,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 dst.fatVbuf.reset();
             } else {
                 ensureUpdates()->uploadStaticBuffer(dst.fatVbuf.get(), fatVdata.data());
-                dst.fatVertexCount = static_cast<int>(fatVdata.size() / 8);
+                dst.fatVertexCount =
+                    static_cast<int>(fatVdata.size() / LineRenderer::kFatLineStrideFloats);
             }
         }
         return true;
@@ -677,42 +656,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                                    int &dstVertexCount) {
         dstBuffer.reset();
         dstVertexCount = 0;
-        if (lineData.size() < 6)
+        if (lineData.size() < LineRenderer::kLineStrideFloats)
             return;
 
-        static constexpr float kFatTriTemplate[6][2] = {
-            { 0.0f, -1.0f },
-            { 0.0f, 1.0f },
-            { 1.0f, -1.0f },
-            { 1.0f, -1.0f },
-            { 0.0f, 1.0f },
-            { 1.0f, 1.0f }
-        };
-
-        const size_t segmentCount = lineData.size() / 6;
-        if (segmentCount == 0)
+        std::vector<float> fatData = LineRenderer::buildFatLineVertices(lineData);
+        if (fatData.empty())
             return;
-
-        std::vector<float> fatData;
-        fatData.reserve(segmentCount * 6 * 8);
-        for (size_t si = 0; si < segmentCount; ++si) {
-            const float p0x = lineData[si * 6 + 0];
-            const float p0y = lineData[si * 6 + 1];
-            const float p0z = lineData[si * 6 + 2];
-            const float p1x = lineData[si * 6 + 3];
-            const float p1y = lineData[si * 6 + 4];
-            const float p1z = lineData[si * 6 + 5];
-            for (const auto &tpl : kFatTriTemplate) {
-                fatData.push_back(p0x);
-                fatData.push_back(p0y);
-                fatData.push_back(p0z);
-                fatData.push_back(p1x);
-                fatData.push_back(p1y);
-                fatData.push_back(p1z);
-                fatData.push_back(tpl[0]);
-                fatData.push_back(tpl[1]);
-            }
-        }
 
         dstBuffer.reset(
             rhi->newBuffer(
@@ -725,7 +674,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         }
 
         ensureUpdates()->uploadStaticBuffer(dstBuffer.get(), fatData.data());
-        dstVertexCount = static_cast<int>(fatData.size() / 8);
+        dstVertexCount = static_cast<int>(fatData.size() / LineRenderer::kFatLineStrideFloats);
     };
 
     auto rebuildDecoratorNormals = [&](CacheState::DecoratorNormalsGpu &dst) -> bool {
@@ -843,86 +792,159 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         boundaryEdgeLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
         textureSeamLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
 
-        VCGMesh &meshMutable = const_cast<VCGMesh &>(meshData);
-
-        // MeshLab-like geometric boundary extraction:
-        // mark border flags from pure geometry, then collect face border edges.
-        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(meshMutable);
-        for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
-            for (int i = 0; i < 3; ++i) {
-                if (!fi->IsB(i))
-                    continue;
-                const auto &p0 = fi->V0(i)->cP();
-                const auto &p1 = fi->V1(i)->cP();
-                boundaryEdgeLines.push_back(p0[0]);
-                boundaryEdgeLines.push_back(p0[1]);
-                boundaryEdgeLines.push_back(p0[2]);
-                boundaryEdgeLines.push_back(p1[0]);
-                boundaryEdgeLines.push_back(p1[1]);
-                boundaryEdgeLines.push_back(p1[2]);
-            }
-        }
-
         const bool hasWedgeTex =
             (source.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
         const bool hasVertTex =
             !hasWedgeTex && (source.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
-        if (hasWedgeTex || hasVertTex) {
-            // FaceFaceFromTexCoord works on per-wedge texcoords.
-            // For vertex-only texcoords, mirror vertex UVs onto wedges first.
+        const bool hasTexCoords = hasWedgeTex || hasVertTex;
+
+        struct EdgeUvSample {
+            float u0 = 0.0f;
+            float v0 = 0.0f;
+            float u1 = 0.0f;
+            float v1 = 0.0f;
+            int tex0 = 0;
+            int tex1 = 0;
+        };
+        struct EdgeAccum {
+            std::array<float, 3> p0 { 0.0f, 0.0f, 0.0f };
+            std::array<float, 3> p1 { 0.0f, 0.0f, 0.0f };
+            int incidentCount = 0;
+            std::vector<EdgeUvSample> uvSamples;
+        };
+
+        auto makeEdgeKey = [](int a, int b) -> std::uint64_t {
+            return (std::uint64_t(std::uint32_t(a)) << 32) | std::uint64_t(std::uint32_t(b));
+        };
+        auto readCornerUv = [&](const VCGFace &f, int corner, float &u, float &v, int &texId) -> bool {
+            if (hasWedgeTex) {
+                const auto &wt = f.cWT(corner);
+                u = wt.U();
+                v = wt.V();
+                texId = int(wt.N());
+                return std::isfinite(u) && std::isfinite(v);
+            }
             if (hasVertTex) {
-                for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-                    if (fi->IsD())
-                        continue;
-                    for (int i = 0; i < 3; ++i) {
-                        const auto &vt = fi->cV(i)->cT();
-                        fi->WT(i).U() = vt.U();
-                        fi->WT(i).V() = vt.V();
-                        fi->WT(i).N() = vt.N();
+                const auto *vv = f.cV(corner);
+                if (!vv)
+                    return false;
+                const auto &vt = vv->cT();
+                u = vt.U();
+                v = vt.V();
+                texId = int(vt.N());
+                return std::isfinite(u) && std::isfinite(v);
+            }
+            return false;
+        };
+        auto uvSampleDiffers = [](const EdgeUvSample &a, const EdgeUvSample &b) {
+            constexpr float kUvEps = 1e-6f;
+            auto diff = [](float x, float y) {
+                return std::abs(x - y) > kUvEps;
+            };
+            return a.tex0 != b.tex0
+                || a.tex1 != b.tex1
+                || diff(a.u0, b.u0)
+                || diff(a.v0, b.v0)
+                || diff(a.u1, b.u1)
+                || diff(a.v1, b.v1);
+        };
+
+        std::unordered_map<std::uint64_t, EdgeAccum> edges;
+        edges.reserve(static_cast<size_t>(meshData.FN()) * 3);
+
+        for (int fi = 0; fi < meshData.FN(); ++fi) {
+            const auto &f = meshData.face[fi];
+            if (f.IsD())
+                continue;
+            for (int i = 0; i < 3; ++i) {
+                const int next = (i + 1) % 3;
+                const auto *v0 = f.cV(i);
+                const auto *v1 = f.cV(next);
+                if (!v0 || !v1)
+                    continue;
+
+                int a = vcg::tri::Index(meshData, v0);
+                int b = vcg::tri::Index(meshData, v1);
+                if (a < 0 || b < 0 || a == b)
+                    continue;
+
+                bool swapped = false;
+                std::array<float, 3> p0 = { v0->cP()[0], v0->cP()[1], v0->cP()[2] };
+                std::array<float, 3> p1 = { v1->cP()[0], v1->cP()[1], v1->cP()[2] };
+                if (a > b) {
+                    std::swap(a, b);
+                    std::swap(p0, p1);
+                    swapped = true;
+                }
+
+                EdgeAccum &acc = edges[makeEdgeKey(a, b)];
+                if (acc.incidentCount == 0) {
+                    acc.p0 = p0;
+                    acc.p1 = p1;
+                }
+                ++acc.incidentCount;
+
+                if (!hasTexCoords)
+                    continue;
+
+                float u0 = 0.0f;
+                float v0uv = 0.0f;
+                float u1 = 0.0f;
+                float v1uv = 0.0f;
+                int t0 = 0;
+                int t1 = 0;
+                if (!readCornerUv(f, i, u0, v0uv, t0) || !readCornerUv(f, next, u1, v1uv, t1))
+                    continue;
+                if (swapped) {
+                    std::swap(u0, u1);
+                    std::swap(v0uv, v1uv);
+                    std::swap(t0, t1);
+                }
+                acc.uvSamples.push_back({ u0, v0uv, u1, v1uv, t0, t1 });
+            }
+        }
+
+        for (const auto &kv : edges) {
+            const EdgeAccum &acc = kv.second;
+            if (acc.incidentCount == 1) {
+                boundaryEdgeLines.push_back(acc.p0[0]);
+                boundaryEdgeLines.push_back(acc.p0[1]);
+                boundaryEdgeLines.push_back(acc.p0[2]);
+                boundaryEdgeLines.push_back(acc.p1[0]);
+                boundaryEdgeLines.push_back(acc.p1[1]);
+                boundaryEdgeLines.push_back(acc.p1[2]);
+            }
+
+            if (!hasTexCoords)
+                continue;
+
+            bool isTextureBorder = false;
+            if (acc.incidentCount == 1) {
+                // Keep previous behavior: texture-border also includes geometric boundaries
+                // when texture coordinates are available.
+                isTextureBorder = !acc.uvSamples.empty();
+            } else if (acc.uvSamples.size() < static_cast<size_t>(acc.incidentCount)) {
+                // Missing/invalid UVs on at least one incident face -> treat as seam.
+                isTextureBorder = true;
+            } else if (!acc.uvSamples.empty()) {
+                const EdgeUvSample &ref = acc.uvSamples.front();
+                for (size_t si = 1; si < acc.uvSamples.size(); ++si) {
+                    if (uvSampleDiffers(acc.uvSamples[si], ref)) {
+                        isTextureBorder = true;
+                        break;
                     }
                 }
             }
 
-            std::vector<std::pair<VCGFace *, int>> savedTopo;
-            savedTopo.reserve(static_cast<size_t>(meshMutable.FN()) * 3);
-            for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-                if (fi->IsD())
-                    continue;
-                for (int i = 0; i < 3; ++i)
-                    savedTopo.push_back(std::make_pair(fi->FFp(i), fi->FFi(i)));
-            }
+            if (!isTextureBorder)
+                continue;
 
-            // MeshLab-like texture seam extraction:
-            // rebuild FF adjacency in UV space, then collect UV-border edges.
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(meshMutable);
-            for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-                if (fi->IsD())
-                    continue;
-                for (int i = 0; i < 3; ++i) {
-                    if (!vcg::face::IsBorder(*fi, i))
-                        continue;
-                    const auto &p0 = fi->V0(i)->cP();
-                    const auto &p1 = fi->V1(i)->cP();
-                    textureSeamLines.push_back(p0[0]);
-                    textureSeamLines.push_back(p0[1]);
-                    textureSeamLines.push_back(p0[2]);
-                    textureSeamLines.push_back(p1[0]);
-                    textureSeamLines.push_back(p1[1]);
-                    textureSeamLines.push_back(p1[2]);
-                }
-            }
-
-            auto topoIt = savedTopo.begin();
-            for (auto fi = meshMutable.face.begin(); fi != meshMutable.face.end(); ++fi) {
-                if (fi->IsD())
-                    continue;
-                for (int i = 0; i < 3 && topoIt != savedTopo.end(); ++i, ++topoIt) {
-                    fi->FFp(i) = topoIt->first;
-                    fi->FFi(i) = topoIt->second;
-                }
-            }
+            textureSeamLines.push_back(acc.p0[0]);
+            textureSeamLines.push_back(acc.p0[1]);
+            textureSeamLines.push_back(acc.p0[2]);
+            textureSeamLines.push_back(acc.p1[0]);
+            textureSeamLines.push_back(acc.p1[1]);
+            textureSeamLines.push_back(acc.p1[2]);
         }
 
         uploadLineBuffer(
