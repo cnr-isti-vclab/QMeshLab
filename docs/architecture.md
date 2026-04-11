@@ -45,6 +45,7 @@ The document exposes renderer-facing APIs:
 - `fillPassGpuView(...)`
 - `wirePassGpuView(...)`
 - `edgePassGpuView(...)`
+- `edgeFatPassGpuView(...)`
 - `pointsPassGpuView(...)`
 - `bboxPassGpuView(...)`
 - `decoratorPassGpuView(...)`
@@ -65,16 +66,24 @@ What is cached:
 
 - fill batches (vertex/index buffers + optional texture)
 - wire vertex buffer
-- edge vertex buffer
+- edge line buffer + edge fat-line buffer
 - points vertex buffer
 - bbox vertex buffer
 - decorator buffers:
   - vertex normals
   - face normals
-  - geometric boundaries
-  - texture seams
+  - geometric boundaries (line + fat-line)
+  - texture seams (line + fat-line)
 
 This enables reuse of heavy mesh uploads across rendering mode switches and across views sharing the same `QRhi`.
+
+### `LineRenderer`
+
+`LineRenderer` is a small shared utility used to build triangle-expanded "fat line" geometry from line segments:
+
+- consumed by `MeshGpuResourceCache` for edge and boundary/seam uploads
+- consumed by `RenderWidget` fat-edge/fat-decorator pipelines
+- keeps line-thickness behavior consistent across Scene and UV modes
 
 ### `RenderWidget`
 
@@ -113,6 +122,7 @@ Compact pass/settings UI for layered rendering:
 - per-pass arrow buttons to open settings page
 - one shared settings container with pass-specific pages
 - strongly typed `RenderSettings` synchronization
+- includes width controls for edges and boundary/seam decorators
 
 ### `MainWindow`
 
@@ -128,7 +138,7 @@ Composition and global orchestration:
   - file: `New`, `New Instance`, multi-file `Open`, `Snapshot PNG`, recent files
   - view: `3D Scene Mode`, `Parametrization (UV) Mode`, split horizontal/vertical, `Reset Camera`, camera/trackball JSON copy/paste
   - help: about + import plugin preference dialog
-- active-view management (view border highlight, context menu split/close)
+- active-view management (style border + explicit current-view indicator widget when multiple views are open, context menu split/close)
 - snapshot export:
   - output resolution options with aspect-ratio lock
   - offscreen capture from the active view
@@ -190,6 +200,7 @@ Per-view state:
 - camera/trackball state (Scene mode)
 - UV pan/zoom/fit state + UV temporary GPU cache (UV mode)
 - overlay render settings
+- current-view indicator widget state
 - pipelines/SRBs/uniforms
 - offscreen targets and transient frame resources (Scene-mode highlight/depth pick path)
 
@@ -220,6 +231,6 @@ RenderWidget (per-view modes, visibility, pipelines, passes, camera)
 2. `Document` loads through plugin, updates metadata/log/progress, emits signals.
 3. Each `RenderWidget` resolves its mode (`Scene3D` or `ParametrizationUV`) and ensures needed resources.
 4. Frame render executes either:
-   - Scene path: layered 3D passes (`fill`, `wire`, `edges`, `bbox`, `points`, decorators, gizmo, current-mesh highlight).
-   - UV path: orthographic UV rendering of the current mesh plus UV background and optional unit-box overlay.
+   - Scene path: layered 3D passes (`fill`, `wire`, `edges` with fat-line path when available, `bbox`, `points`, decorators, gizmo, current-mesh highlight).
+   - UV path: orthographic UV rendering of the current mesh plus UV background, boundary/seam overlays, and optional unit-box overlay.
 5. Frame CPU/GPU timings are emitted to `MainWindow` and shown in status bar stats.

@@ -18,6 +18,7 @@ Ownership split:
 - `Document` owns canonical mesh data and metadata.
 - `MeshGpuResourceCache` (owned by `Document`) owns shared GPU mesh resources for scene passes.
 - `RenderWidget` owns per-view render state (mode, pipelines, SRBs, UBOs, offscreen targets, camera/trackball, UV pan/zoom/cache, overlay state).
+- `LineRenderer` is used by cache/build paths to generate triangle-expanded fat-line geometry from line segments.
 
 This split allows GPU buffer reuse across render-mode changes and across views that share the same `QRhi`.
 
@@ -38,16 +39,24 @@ Cached pass data:
 
 - fill pass: one or more batches (`vbuf`, optional `ibuf`, optional `texture`)
 - wire pass: barycentric-expanded triangle buffer
-- edges pass: line buffer from explicit mesh edges
+- edges pass: line buffer and fat-line buffer from explicit mesh edges
 - points pass: point buffer (position/color/normal payload + normal-valid flag)
 - bbox pass: line buffer
 - decorator pass buffers:
   - vertex normals
   - face normals
-  - geometric boundary edges
-  - texture seam edges
+  - geometric boundary edges (line + fat-line)
+  - texture seam edges (line + fat-line)
 
 This cache is the primary source for `Scene3D`; UV mode uses a separate widget-local UV cache and only reuses document fill texture batches when textured UV fill is selected.
+
+### Fat-Line Strategy
+
+For thick lines, geometry is expanded into triangles (`p0`, `p1`, `along`, `side`) rather than relying on backend line-width support:
+
+- edge meshes use fat-edge buffers when available
+- boundary/seam decorators use fat buffers plus explicit width controls
+- line pipelines remain as a fallback path
 
 ### Fill Upload Strategy
 
@@ -76,8 +85,11 @@ Per-widget resources include:
   - UV background SRB/UBO
 - pipelines:
   - fill, wire, edges, bbox, points, decorators
+  - fat edges
+  - fat boundary/seam decorators
   - depth pick
   - current-mesh mask/depth-only variants
+  - current-mask fat-edge depth-only variant
   - mask morphology/debug/outline extraction/composite
   - trackball gizmo
   - UV background
@@ -96,7 +108,7 @@ In UV mode, the current mesh mode is reused to control fill/wire/edges/points/bo
 Default behavior:
 
 - surface meshes (`FN > 0`): fill on, wire optionally on for small meshes (`FN < 10000`), edges off, points off
-- edge-only meshes (`FN == 0 && EN > 0`): edges on
+- edge-only meshes (`FN == 0 && EN > 0`): edges on (`edgeSize = 4.0` default)
 - point-only meshes: points on
 
 Default color-source preference for surfaces:
@@ -107,6 +119,7 @@ Default color-source preference for surfaces:
 4. constant
 
 Color-source and point-lighting availability are clamped against the current mesh `ioMask` + texture availability.
+Boundary/seam decorators share a dedicated width control (`decoratorBoundaryWidth`).
 
 ## Frame Flow and Draw Order
 
@@ -141,6 +154,8 @@ Per frame:
    - fill (constant/per-vertex/per-face from UV cache, or textured via document fill batches)
    - wire
    - edges
+   - boundary edges (decorator)
+   - texture seams (decorator)
    - points
 5. Optionally draw the UV unit-box outline (`[0,1] x [0,1]`) when bounding-box display is enabled.
 
@@ -163,10 +178,11 @@ Per frame:
 
 ### Edges
 
-- Line topology over explicit mesh edges (`mesh.edge`).
+- Uses fat-edge triangles (`overlay_fat_edges.*`) when cached fat buffers are available.
+- Falls back to line topology over explicit mesh edges when needed.
 - Depth test/write enabled (`LessOrEqual`), no culling.
 - Alpha blending enabled.
-- Line width driven by `edgeSize`.
+- Width driven by `edgeSize`.
 
 ### Bounding Box
 
@@ -184,17 +200,22 @@ Per frame:
 
 ### Decorators
 
-Decorator overlays are line-based and depth-tested (`LessOrEqual`) with depth write disabled:
+Decorator overlays are depth-tested (`LessOrEqual`) with depth write disabled:
 
 - vertex normals
 - face normals
 - geometric boundary edges
 - texture seams
 
+Pipeline behavior:
+
+- vertex/face normals: line pipeline
+- boundary/seams: fat-decorator pipeline with `decoratorBoundaryWidth` (line fallback)
+
 Boundary and seam extraction are done in the cache:
 
-- geometric boundaries via MeshLab-style border flag extraction
-- seams via UV-space face-face adjacency (`FaceFaceFromTexCoord`)
+- geometric boundaries via topological edge incidence (`incidentCount == 1`)
+- seams via per-topological-edge UV sample comparison (including texture-index changes and missing/invalid UV on incident faces)
 
 ## `ParametrizationUV` Mode Details
 
@@ -219,6 +240,8 @@ Additional UV rendering notes:
 
 - UV background is drawn from `uv_background.vert/.frag`.
 - Textured UV fill uses `uv_fill_texture.vert` + the regular fill fragment shader.
+- UV cache also builds boundary-edge and texture-seam line buffers.
+- UV boundary/seam overlays use decorator colors and `decoratorBoundaryWidth`.
 - Scene corner/dimension overlays are hidden in UV mode.
 
 ## `Scene3D` Current Mesh Highlight Pipeline
@@ -235,6 +258,8 @@ Used when current mesh has fill or edges enabled:
 2. Extract current silhouette/boundary from `base` into `work`.
 3. Render all other visible meshes into a second depth-encoded mask (`mask`) for occlusion comparison.
 4. Composite outline in the main pass.
+
+For edge meshes, highlight depth passes prefer fat-edge depth-only geometry when available.
 
 ### Point-cloud path
 

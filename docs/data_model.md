@@ -150,6 +150,7 @@ Per-view (`RenderWidget`) state:
 - `fillPassGpuView(...)`
 - `wirePassGpuView(...)`
 - `edgePassGpuView(...)`
+- `edgeFatPassGpuView(...)`
 - `pointsPassGpuView(...)`
 - `bboxPassGpuView(...)`
 - `decoratorPassGpuView(...)`
@@ -157,6 +158,7 @@ Per-view (`RenderWidget`) state:
 `ensureMeshGpuResources(...)` accepts explicit pass needs (`needFill`, `needWire`, `needEdges`, `needPoints`, `needBoundingBox`, `needDecoratorNormals`, `needDecoratorBoundaries`) so renderers can request only what is needed for the frame.
 
 Under the hood this delegates to `MeshGpuResourceCache`, which caches GPU resources by `(QRhi*, meshId, variants, revisions)`.
+For edges and boundary/seam decorators, the cache exposes both line buffers and triangle-expanded fat-line buffers.
 The document can release resources per-RHI (`releaseRhiGpuResources`) or globally (`clearAllGpuResources`).
 UV mode uses an additional widget-local cache (`RenderWidget::m_uvMeshGpu`) built from document mesh data/revisions for orthographic UV rendering; it may still reuse document fill texture batches when `fillColorSource == Texture`.
 For frame-level pass execution details, see [Rendering](rendering.md).
