@@ -5,6 +5,7 @@
 #include <QImageReader>
 #include <QHeaderView>
 #include <QLocale>
+#include <QMetaObject>
 #include <QSignalBlocker>
 #include <algorithm>
 
@@ -122,8 +123,14 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
 
     connect(m_doc, &Document::meshAdded, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
-    connect(m_doc, &Document::meshVisibilityChanged, this, &LayerWidget::rebuild);
-    connect(m_doc, &Document::currentMeshChanged, this, &LayerWidget::rebuild);
+    // Defer rebuild to avoid mutating tree items re-entrantly while an itemChanged
+    // signal is still being processed.
+    connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
+        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+    });
+    connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
+        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+    });
     connect(this, &QTreeWidget::itemChanged, this, &LayerWidget::onItemChanged);
     connect(this, &QTreeWidget::currentItemChanged, this, &LayerWidget::onCurrentItemChanged);
 
