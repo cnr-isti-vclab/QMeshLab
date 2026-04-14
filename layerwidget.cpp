@@ -2,6 +2,7 @@
 #include "document.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFileInfo>
+#include <QFontMetrics>
 #include <QImageReader>
 #include <QHeaderView>
 #include <QLocale>
@@ -10,8 +11,9 @@
 #include <algorithm>
 
 namespace {
-constexpr int kFirstColumnMaxWidth = 110;
-constexpr int kSecondColumnFixedWidth = 170;
+constexpr int kFirstColumnMinWidth = 56;
+constexpr int kFirstColumnPadding = 10;
+constexpr int kFirstColumnTreePadding = 28;
 
 QString meshDataSummary(const Document::MeshEntry &entry)
 {
@@ -117,9 +119,9 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     setColumnCount(2);
     setHeaderHidden(true);
     setSelectionMode(QAbstractItemView::SingleSelection);
-    header()->setSectionResizeMode(0, QHeaderView::Stretch);
-    header()->setSectionResizeMode(1, QHeaderView::Fixed);
-    setColumnWidth(1, kSecondColumnFixedWidth);
+    header()->setSectionResizeMode(0, QHeaderView::Fixed);
+    header()->setSectionResizeMode(1, QHeaderView::Stretch);
+    setColumnWidth(0, kFirstColumnMinWidth);
 
     connect(m_doc, &Document::meshAdded, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
@@ -142,6 +144,8 @@ void LayerWidget::rebuild()
     m_rebuilding = true;
     QSignalBlocker blocker(this);
     const QLocale locale = QLocale::system();
+    const QFontMetrics fm(font());
+    int maxCountTextWidth = 0;
     clear();
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         const auto &entry = m_doc->mesh(i);
@@ -151,18 +155,25 @@ void LayerWidget::rebuild()
         item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
         item->setFirstColumnSpanned(true);
 
-        auto *vItem = new QTreeWidgetItem({tr("Vertices"), locale.toString(static_cast<qlonglong>(entry.mesh.VN()))});
+        const QString vertCountText = locale.toString(static_cast<qlonglong>(entry.mesh.VN()));
+        const QString edgeCountText = locale.toString(static_cast<qlonglong>(entry.mesh.EN()));
+        const QString faceCountText = locale.toString(static_cast<qlonglong>(entry.mesh.FN()));
+        maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(vertCountText));
+        maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(edgeCountText));
+        maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(faceCountText));
+
+        auto *vItem = new QTreeWidgetItem({vertCountText, tr("Vert")});
         vItem->setFlags(vItem->flags() & ~Qt::ItemIsSelectable);
-        vItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
+        vItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
         item->addChild(vItem);
-        auto *fItem = new QTreeWidgetItem({tr("Faces"), locale.toString(static_cast<qlonglong>(entry.mesh.FN()))});
-        fItem->setFlags(fItem->flags() & ~Qt::ItemIsSelectable);
-        fItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
-        item->addChild(fItem);
-        auto *eItem = new QTreeWidgetItem({tr("Edges"), locale.toString(static_cast<qlonglong>(entry.mesh.EN()))});
+        auto *eItem = new QTreeWidgetItem({edgeCountText, tr("Edge")});
         eItem->setFlags(eItem->flags() & ~Qt::ItemIsSelectable);
-        eItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
+        eItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
         item->addChild(eItem);
+        auto *fItem = new QTreeWidgetItem({faceCountText, tr("Face")});
+        fItem->setFlags(fItem->flags() & ~Qt::ItemIsSelectable);
+        fItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+        item->addChild(fItem);
         auto *dItem = new QTreeWidgetItem({tr("Data"), meshDataSummary(entry)});
         dItem->setFlags(dItem->flags() & ~Qt::ItemIsSelectable);
         item->addChild(dItem);
@@ -170,7 +181,7 @@ void LayerWidget::rebuild()
         for (int texIdx = 0; texIdx < entry.textureFilePaths.size(); ++texIdx) {
             const QString texPath = entry.textureFilePaths.at(texIdx);
             auto *tItem = new QTreeWidgetItem(
-                {tr("Texture %1").arg(texIdx), QStringLiteral("%1 (%2)")
+                {tr("Tex %1").arg(texIdx), QStringLiteral("%1 (%2)")
                     .arg(textureDisplayName(entry, texIdx))
                     .arg(textureDisplaySize(texPath))});
             tItem->setFlags(tItem->flags() & ~Qt::ItemIsSelectable);
@@ -193,9 +204,9 @@ void LayerWidget::rebuild()
             setCurrentItem(item);
     }
     updateCurrentItemVisuals();
-    resizeColumnToContents(0);
-    setColumnWidth(0, std::min(columnWidth(0), kFirstColumnMaxWidth));
-    setColumnWidth(1, kSecondColumnFixedWidth);
+    const int requiredWidth =
+        maxCountTextWidth + kFirstColumnPadding + indentation() + kFirstColumnTreePadding;
+    setColumnWidth(0, std::max(kFirstColumnMinWidth, requiredWidth));
     m_rebuilding = false;
 }
 
