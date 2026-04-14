@@ -1,4 +1,5 @@
 #include "renderwidget.h"
+#include "colormap.h"
 #include "document.h"
 #include "renderoverlaypanel.h"
 #include <wrap/io_trimesh/io_mask.h>
@@ -73,56 +74,6 @@ bool parseQuatXyzwValue(const QJsonValue &value, QQuaternion &outValue)
     }
     outValue = QQuaternion(w, x, y, z);
     return true;
-}
-
-QColor qualityColorMap(float t, QualityHistogramColorMap map)
-{
-    struct Stop {
-        float x;
-        QVector3D c;
-    };
-    static const Stop kRainbowStops[] = {
-        { 0.00f, QVector3D(0.231f, 0.298f, 0.753f) },
-        { 0.25f, QVector3D(0.266f, 0.741f, 0.439f) },
-        { 0.50f, QVector3D(0.865f, 0.865f, 0.200f) },
-        { 0.75f, QVector3D(0.956f, 0.427f, 0.262f) },
-        { 1.00f, QVector3D(0.706f, 0.016f, 0.149f) }
-    };
-    static const Stop kViridisStops[] = {
-        { 0.00f, QVector3D(0.267f, 0.005f, 0.329f) },
-        { 0.25f, QVector3D(0.230f, 0.322f, 0.546f) },
-        { 0.50f, QVector3D(0.128f, 0.567f, 0.551f) },
-        { 0.75f, QVector3D(0.369f, 0.789f, 0.383f) },
-        { 1.00f, QVector3D(0.993f, 0.906f, 0.144f) }
-    };
-
-    const Stop *stops = kRainbowStops;
-    int stopCount = int(sizeof(kRainbowStops) / sizeof(kRainbowStops[0]));
-    if (map == QualityHistogramColorMap::Viridis) {
-        stops = kViridisStops;
-        stopCount = int(sizeof(kViridisStops) / sizeof(kViridisStops[0]));
-    }
-
-    t = std::clamp(t, 0.0f, 1.0f);
-    QVector3D rgb = stops[stopCount - 1].c;
-
-    if (map == QualityHistogramColorMap::Gray) {
-        rgb = QVector3D(t, t, t);
-    } else {
-        for (int i = 1; i < stopCount; ++i) {
-            if (t <= stops[i].x) {
-                const float x0 = stops[i - 1].x;
-                const float x1 = stops[i].x;
-                const float u = (x1 > x0) ? ((t - x0) / (x1 - x0)) : 0.0f;
-                rgb = stops[i - 1].c * (1.0f - u) + stops[i].c * u;
-                break;
-            }
-        }
-    }
-
-    QColor color;
-    color.setRgbF(rgb.x(), rgb.y(), rgb.z(), 0.92f);
-    return color;
 }
 
 double niceTickStep(double roughStep)
@@ -324,7 +275,8 @@ void RenderWidget::setRenderSettings(const RenderSettings &settings)
         || prev.qualityHistogramFixedRange != m_renderSettings.qualityHistogramFixedRange
         || prev.qualityHistogramMin != m_renderSettings.qualityHistogramMin
         || prev.qualityHistogramMax != m_renderSettings.qualityHistogramMax
-        || prev.qualityHistogramColorMap != m_renderSettings.qualityHistogramColorMap) {
+        || prev.qualityHistogramColorMapId != m_renderSettings.qualityHistogramColorMapId
+        || prev.qualityHistogramInvertColorMap != m_renderSettings.qualityHistogramInvertColorMap) {
         m_qualityHistogram.valid = false;
     }
     applyRenderSettingsToCurrentMesh(prev, m_renderSettings);
@@ -667,7 +619,8 @@ void RenderWidget::createOverlayButtons()
             || prev.qualityHistogramFixedRange != m_renderSettings.qualityHistogramFixedRange
             || prev.qualityHistogramMin != m_renderSettings.qualityHistogramMin
             || prev.qualityHistogramMax != m_renderSettings.qualityHistogramMax
-            || prev.qualityHistogramColorMap != m_renderSettings.qualityHistogramColorMap) {
+            || prev.qualityHistogramColorMapId != m_renderSettings.qualityHistogramColorMapId
+            || prev.qualityHistogramInvertColorMap != m_renderSettings.qualityHistogramInvertColorMap) {
             m_qualityHistogram.valid = false;
         }
         updateQualityHistogramOverlay();
@@ -972,7 +925,12 @@ void RenderWidget::updateQualityHistogramOverlay()
     float fixedMax = m_renderSettings.qualityHistogramMax;
     if (fixedMin > fixedMax)
         std::swap(fixedMin, fixedMax);
-    const QualityHistogramColorMap colorMap = m_renderSettings.qualityHistogramColorMap;
+    const ColorMapRegistry &colorRegistry = ColorMapRegistry::instance();
+    QString colorMapId = m_renderSettings.qualityHistogramColorMapId.trimmed().toLower();
+    if (colorMapId.isEmpty() || !colorRegistry.hasMap(colorMapId))
+        colorMapId = colorRegistry.fallbackMapId();
+    const bool invertColorMap = m_renderSettings.qualityHistogramInvertColorMap;
+    const ColorMapDefinition *colorMapDef = colorRegistry.definition(colorMapId);
     constexpr int kOverlayMargin = 8;
     const int maxPanelWidth = qMax(120, width() - 2 * kOverlayMargin);
     int panelBottom = kOverlayMargin;
@@ -1033,7 +991,8 @@ void RenderWidget::updateQualityHistogramOverlay()
         && m_qualityHistogram.fixedRange == fixedRange
         && m_qualityHistogram.fixedMin == fixedMin
         && m_qualityHistogram.fixedMax == fixedMax
-        && m_qualityHistogram.colorMap == colorMap
+        && m_qualityHistogram.colorMapId == colorMapId
+        && m_qualityHistogram.invertColorMap == invertColorMap
         && m_qualityHistogram.vertexBased == useVertexQuality;
 
     if (!cacheValid) {
@@ -1045,7 +1004,8 @@ void RenderWidget::updateQualityHistogramOverlay()
         m_qualityHistogram.fixedRange = fixedRange;
         m_qualityHistogram.fixedMin = fixedMin;
         m_qualityHistogram.fixedMax = fixedMax;
-        m_qualityHistogram.colorMap = colorMap;
+        m_qualityHistogram.colorMapId = colorMapId;
+        m_qualityHistogram.invertColorMap = invertColorMap;
         m_qualityHistogram.vertexBased = useVertexQuality;
         m_qualityHistogram.counts.assign(size_t(bins), 0);
         m_qualityHistogram.sampleCount = 0;
@@ -1169,7 +1129,8 @@ void RenderWidget::updateQualityHistogramOverlay()
         const float t = (colorBarRect.height() > 1)
             ? float(colorBarRect.bottom() - yy) / float(colorBarRect.height() - 1)
             : 0.0f;
-        p.setPen(qualityColorMap(t, colorMap));
+        const float tc = invertColorMap ? (1.0f - t) : t;
+        p.setPen(colorRegistry.sampleQColor(colorMapDef, tc, 0.92f));
         p.drawLine(colorBarRect.left(), yy, colorBarRect.right(), yy);
     }
     p.setPen(QColor(175, 175, 175, 180));
@@ -1197,7 +1158,8 @@ void RenderWidget::updateQualityHistogramOverlay()
         const float t = hasRange
             ? std::clamp((qValue - qMin) / qRange, 0.0f, 1.0f)
             : 0.5f;
-        p.setBrush(qualityColorMap(t, colorMap));
+        const float tc = invertColorMap ? (1.0f - t) : t;
+        p.setBrush(colorRegistry.sampleQColor(colorMapDef, tc, 0.92f));
         p.drawRect(plotRect.left() + 1, y0 + 1, bw, bh);
     }
 

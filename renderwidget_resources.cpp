@@ -430,6 +430,10 @@ void RenderWidget::ensureRenderResources()
         m_textureSampler.reset();
         m_fallbackTexture.reset();
         m_fallbackTextureUploadPending = false;
+        m_qualityColorMapTexture.reset();
+        m_qualityColorMapTextureUploadPending = false;
+        m_qualityColorMapTextureMapId.clear();
+        m_qualityColorMapTextureInverted = false;
         m_textureSrbs.clear();
         m_uvBackgroundUbuf.reset();
         m_uvBackgroundSrb.reset();
@@ -473,10 +477,25 @@ void RenderWidget::ensureRenderResources()
         }
     }
 
+    if (!m_qualityColorMapTexture) {
+        m_qualityColorMapTexture.reset(
+            m_rhi->newTexture(QRhiTexture::RGBA8, QSize(256, 1), 1));
+        if (m_qualityColorMapTexture && m_qualityColorMapTexture->create()) {
+            m_qualityColorMapTextureUploadPending = true;
+            m_qualityColorMapTextureMapId.clear();
+            m_qualityColorMapTextureInverted = false;
+        } else {
+            m_qualityColorMapTexture.reset();
+            m_qualityColorMapTextureUploadPending = false;
+            m_qualityColorMapTextureMapId.clear();
+            m_qualityColorMapTextureInverted = false;
+        }
+    }
+
     ensureCurrentMeshMaskResources(renderTarget()->pixelSize());
 
     if (!m_srb) {
-        if (!m_ubuf || !m_textureSampler || !m_fallbackTexture)
+        if (!m_ubuf || !m_textureSampler || !m_fallbackTexture || !m_qualityColorMapTexture)
             return;
         m_srb.reset(m_rhi->newShaderResourceBindings());
         m_srb->setBindings({
@@ -488,6 +507,11 @@ void RenderWidget::ensureRenderResources()
                 1,
                 QRhiShaderResourceBinding::FragmentStage,
                 m_fallbackTexture.get(),
+                m_textureSampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                2,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_qualityColorMapTexture.get(),
                 m_textureSampler.get())
         });
         if (!m_srb->create()) {

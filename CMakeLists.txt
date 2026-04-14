@@ -8,6 +8,7 @@ set(QT_NO_PRIVATE_MODULE_WARNING ON)
 
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 add_library(QMeshLabCore STATIC
+    colormap.h colormap.cpp
     document.h document.cpp
     linerenderer.h linerenderer.cpp
     meshgpuresourcecache.h meshgpuresourcecache.cpp
@@ -26,6 +27,17 @@ target_link_libraries(QMeshLabCore PUBLIC
     Qt6::Core
     Qt6::Gui
     Qt6::GuiPrivate
+)
+
+qt_add_resources(QMeshLabCore "colormaps"
+    PREFIX "/"
+    FILES
+        colormaps/rainbow.json
+        colormaps/viridis.json
+        colormaps/gray.json
+        colormaps/plasma.json
+        colormaps/cividis.json
+        colormaps/turbo.json
 )
 
 add_subdirectory(plugins)
@@ -129,3 +141,18 @@ target_compile_definitions(QMeshLabTests PRIVATE
 )
 
 add_test(NAME QMeshLabTests COMMAND QMeshLabTests)
+
+qt_add_executable(QMeshLabColorMapTests
+    tests/test_colormap.cpp
+)
+
+target_include_directories(QMeshLabColorMapTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+)
+
+target_link_libraries(QMeshLabColorMapTests PRIVATE
+    QMeshLabCore
+    Qt6::Test
+)
+
+add_test(NAME QMeshLabColorMapTests COMMAND QMeshLabColorMapTests)

@@ -17,13 +17,9 @@ public:
         Constant = 0,
         PerVertex = 1,
         PerFace = 2,
-        PerVertexQualityRainbow = 3,
-        PerVertexQualityViridis = 4,
-        PerVertexQualityGray = 5,
-        PerFaceQualityRainbow = 6,
-        PerFaceQualityViridis = 7,
-        PerFaceQualityGray = 8,
-        Texture = 9
+        PerVertexQuality = 3,
+        PerFaceQuality = 4,
+        Texture = 5
     };
 
     enum class PointVariant : int {

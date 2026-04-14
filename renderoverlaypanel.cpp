@@ -1,4 +1,5 @@
 #include "renderoverlaypanel.h"
+#include "colormap.h"
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
@@ -548,13 +549,30 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("Face Q"), static_cast<int>(QualityHistogramSource::FaceQuality));
     histogramForm->addRow(tr("Source"), m_qualityHistogramSourceCombo);
     m_qualityHistogramColorMapCombo = new QComboBox(histogramPage);
-    m_qualityHistogramColorMapCombo->addItem(
-        tr("Rainbow"), static_cast<int>(QualityHistogramColorMap::Rainbow));
-    m_qualityHistogramColorMapCombo->addItem(
-        tr("Viridis"), static_cast<int>(QualityHistogramColorMap::Viridis));
-    m_qualityHistogramColorMapCombo->addItem(
-        tr("Gray"), static_cast<int>(QualityHistogramColorMap::Gray));
+    const ColorMapRegistry &colorMapRegistry = ColorMapRegistry::instance();
+    const QStringList colorMapIds = colorMapRegistry.mapIds();
+    for (const QString &id : colorMapIds)
+        m_qualityHistogramColorMapCombo->addItem(colorMapRegistry.displayName(id), id);
+    if (m_qualityHistogramColorMapCombo->count() == 0)
+        m_qualityHistogramColorMapCombo->addItem(tr("Rainbow"), QStringLiteral("rainbow"));
+    int initialColorMapIndex = m_qualityHistogramColorMapCombo->findData(
+        m_settings.qualityHistogramColorMapId.trimmed().toLower());
+    if (initialColorMapIndex < 0)
+        initialColorMapIndex = m_qualityHistogramColorMapCombo->findData(
+            colorMapRegistry.fallbackMapId());
+    if (initialColorMapIndex < 0 && m_qualityHistogramColorMapCombo->count() > 0)
+        initialColorMapIndex = 0;
+    if (initialColorMapIndex >= 0) {
+        m_qualityHistogramColorMapCombo->setCurrentIndex(initialColorMapIndex);
+        m_settings.qualityHistogramColorMapId =
+            m_qualityHistogramColorMapCombo->itemData(initialColorMapIndex).toString();
+    }
     histogramForm->addRow(tr("Color map"), m_qualityHistogramColorMapCombo);
+    m_qualityHistogramInvertCheck = new QCheckBox(histogramPage);
+    m_qualityHistogramInvertCheck->setChecked(m_settings.qualityHistogramInvertColorMap);
+    histogramForm->addRow(
+        tr("Invert"),
+        makeCenteredFieldContainer(m_qualityHistogramInvertCheck, histogramPage));
     m_qualityHistogramFixedRangeCheck = new QCheckBox(histogramPage);
     m_qualityHistogramFixedRangeCheck->setChecked(m_settings.qualityHistogramFixedRange);
     histogramForm->addRow(
@@ -720,7 +738,30 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
     bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
     bindEnumCombo(m_qualityHistogramSourceCombo, &RenderSettings::qualityHistogramSource);
-    bindEnumCombo(m_qualityHistogramColorMapCombo, &RenderSettings::qualityHistogramColorMap);
+    connect(
+        m_qualityHistogramColorMapCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        [this](int idx) {
+            const QString colorMapId =
+                m_qualityHistogramColorMapCombo->itemData(idx).toString().trimmed().toLower();
+            if (colorMapId.isEmpty())
+                return;
+            if (m_settings.qualityHistogramColorMapId == colorMapId)
+                return;
+            m_settings.qualityHistogramColorMapId = colorMapId;
+            emit settingsChanged(m_settings);
+        });
+    connect(
+        m_qualityHistogramInvertCheck,
+        &QCheckBox::toggled,
+        this,
+        [this](bool checked) {
+            if (m_settings.qualityHistogramInvertColorMap == checked)
+                return;
+            m_settings.qualityHistogramInvertColorMap = checked;
+            emit settingsChanged(m_settings);
+        });
     connect(
         m_qualityHistogramFixedRangeCheck,
         &QCheckBox::toggled,
@@ -1029,13 +1070,23 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     }
     if (m_qualityHistogramColorMapCombo) {
         QSignalBlocker blocker(m_qualityHistogramColorMapCombo);
-        const int value = static_cast<int>(m_settings.qualityHistogramColorMap);
-        for (int i = 0; i < m_qualityHistogramColorMapCombo->count(); ++i) {
-            if (m_qualityHistogramColorMapCombo->itemData(i).toInt() == value) {
-                m_qualityHistogramColorMapCombo->setCurrentIndex(i);
-                break;
-            }
+        QString value = m_settings.qualityHistogramColorMapId.trimmed().toLower();
+        int idx = m_qualityHistogramColorMapCombo->findData(value);
+        if (idx < 0) {
+            idx = m_qualityHistogramColorMapCombo->findData(
+                ColorMapRegistry::instance().fallbackMapId());
         }
+        if (idx < 0 && m_qualityHistogramColorMapCombo->count() > 0)
+            idx = 0;
+        if (idx >= 0) {
+            m_qualityHistogramColorMapCombo->setCurrentIndex(idx);
+            m_settings.qualityHistogramColorMapId =
+                m_qualityHistogramColorMapCombo->itemData(idx).toString();
+        }
+    }
+    if (m_qualityHistogramInvertCheck) {
+        QSignalBlocker blocker(m_qualityHistogramInvertCheck);
+        m_qualityHistogramInvertCheck->setChecked(m_settings.qualityHistogramInvertColorMap);
     }
     if (m_pointColorSourceCombo) {
         QSignalBlocker blocker(m_pointColorSourceCombo);

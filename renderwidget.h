@@ -162,6 +162,10 @@ private:
     std::unique_ptr<QRhiSampler> m_textureSampler;
     std::unique_ptr<QRhiTexture> m_fallbackTexture;
     bool m_fallbackTextureUploadPending = false;
+    std::unique_ptr<QRhiTexture> m_qualityColorMapTexture;
+    bool m_qualityColorMapTextureUploadPending = false;
+    QString m_qualityColorMapTextureMapId;
+    bool m_qualityColorMapTextureInverted = false;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unordered_map<QRhiTexture *, std::unique_ptr<QRhiShaderResourceBindings>> m_textureSrbs;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_fillPipelinesByKey;
@@ -255,7 +259,8 @@ private:
         bool fixedRange = false;
         float fixedMin = 0.0f;
         float fixedMax = 1.0f;
-        QualityHistogramColorMap colorMap = QualityHistogramColorMap::Rainbow;
+        QString colorMapId = QStringLiteral("rainbow");
+        bool invertColorMap = false;
         std::uint64_t meshId = 0;
         std::uint64_t geometryRevision = 0;
         int bins = 0;
@@ -281,7 +286,8 @@ private:
         bool valid = false;
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
-        QualityHistogramColorMap qualityColorMap = QualityHistogramColorMap::Rainbow;
+        QString qualityColorMapId = QStringLiteral("rainbow");
+        bool qualityColorMapInverted = false;
         bool qualityFixedRange = false;
         float qualityRangeMin = 0.0f;
         float qualityRangeMax = 1.0f;

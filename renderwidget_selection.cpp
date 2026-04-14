@@ -142,6 +142,7 @@ void RenderWidget::executePendingDepthPick(
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         if (!meshVisible(mi))
             continue;
+        const RenderSettings meshSettings = renderSettingsForMesh(mi);
         m_doc->ensureMeshGpuResources(
             m_rhi,
             cb,
@@ -154,7 +155,10 @@ void RenderWidget::executePendingDepthPick(
             true,   // points
             false,  // bbox
             false,  // decorator normals
-            false); // decorator boundaries
+            false,  // decorator boundaries
+            meshSettings.qualityHistogramFixedRange,
+            meshSettings.qualityHistogramMin,
+            meshSettings.qualityHistogramMax);
     }
 
     cb->beginPass(m_depthPickRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);

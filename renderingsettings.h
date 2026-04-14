@@ -2,6 +2,7 @@
 
 #include <QColor>
 #include <QMetaType>
+#include <QString>
 
 enum class RenderPass {
     CurrentMesh = 0,
@@ -39,12 +40,6 @@ enum class QualityHistogramSource {
     Auto = 0,
     VertexQuality,
     FaceQuality
-};
-
-enum class QualityHistogramColorMap {
-    Rainbow = 0,
-    Viridis,
-    Gray
 };
 
 enum class CurrentMeshDebugView {
@@ -92,7 +87,8 @@ struct RenderSettings {
     bool qualityHistogramFixedRange = false;
     float qualityHistogramMin = 0.0f;
     float qualityHistogramMax = 1.0f;
-    QualityHistogramColorMap qualityHistogramColorMap = QualityHistogramColorMap::Rainbow;
+    QString qualityHistogramColorMapId = QStringLiteral("rainbow");
+    bool qualityHistogramInvertColorMap = false;
     QColor bboxWireColor = QColor(245, 190, 60);
     QColor pointColor = QColor(255, 191, 51);
     float pointSize = 4.0f;
@@ -142,7 +138,8 @@ struct RenderSettings {
             && qualityHistogramFixedRange == other.qualityHistogramFixedRange
             && qualityHistogramMin == other.qualityHistogramMin
             && qualityHistogramMax == other.qualityHistogramMax
-            && qualityHistogramColorMap == other.qualityHistogramColorMap
+            && qualityHistogramColorMapId == other.qualityHistogramColorMapId
+            && qualityHistogramInvertColorMap == other.qualityHistogramInvertColorMap
             && bboxWireColor == other.bboxWireColor
             && pointColor == other.pointColor
             && pointSize == other.pointSize

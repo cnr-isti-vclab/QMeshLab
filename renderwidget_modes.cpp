@@ -351,25 +351,9 @@ int RenderWidget::fillGpuVariantIndexForSettings(const RenderSettings &settings)
     case FillColorSource::PerVertex: return static_cast<int>(Document::FillGpuVariant::PerVertex);
     case FillColorSource::PerFace: return static_cast<int>(Document::FillGpuVariant::PerFace);
     case FillColorSource::PerVertexQuality:
-        switch (settings.qualityHistogramColorMap) {
-        case QualityHistogramColorMap::Viridis:
-            return static_cast<int>(Document::FillGpuVariant::PerVertexQualityViridis);
-        case QualityHistogramColorMap::Gray:
-            return static_cast<int>(Document::FillGpuVariant::PerVertexQualityGray);
-        case QualityHistogramColorMap::Rainbow:
-        default:
-            return static_cast<int>(Document::FillGpuVariant::PerVertexQualityRainbow);
-        }
+        return static_cast<int>(Document::FillGpuVariant::PerVertexQuality);
     case FillColorSource::PerFaceQuality:
-        switch (settings.qualityHistogramColorMap) {
-        case QualityHistogramColorMap::Viridis:
-            return static_cast<int>(Document::FillGpuVariant::PerFaceQualityViridis);
-        case QualityHistogramColorMap::Gray:
-            return static_cast<int>(Document::FillGpuVariant::PerFaceQualityGray);
-        case QualityHistogramColorMap::Rainbow:
-        default:
-            return static_cast<int>(Document::FillGpuVariant::PerFaceQualityRainbow);
-        }
+        return static_cast<int>(Document::FillGpuVariant::PerFaceQuality);
     case FillColorSource::Texture: return static_cast<int>(Document::FillGpuVariant::Texture);
     case FillColorSource::Constant:
     default:
@@ -611,7 +595,7 @@ QRhiGraphicsPipeline *RenderWidget::fatEdgesPipelineForSettings(const RenderSett
 
 QRhiShaderResourceBindings *RenderWidget::shaderResourcesForTexture(QRhiTexture *texture)
 {
-    if (!texture || !m_rhi || !m_ubuf || !m_textureSampler)
+    if (!texture || !m_rhi || !m_ubuf || !m_textureSampler || !m_qualityColorMapTexture)
         return m_srb.get();
 
     auto it = m_textureSrbs.find(texture);
@@ -628,6 +612,11 @@ QRhiShaderResourceBindings *RenderWidget::shaderResourcesForTexture(QRhiTexture 
             1,
             QRhiShaderResourceBinding::FragmentStage,
             texture,
+            m_textureSampler.get()),
+        QRhiShaderResourceBinding::sampledTexture(
+            2,
+            QRhiShaderResourceBinding::FragmentStage,
+            m_qualityColorMapTexture.get(),
             m_textureSampler.get())
     });
     if (!textureSrb->create())

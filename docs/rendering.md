@@ -29,8 +29,8 @@ Cache key shape:
 - per backend: `QRhi*`
 - per mesh: `meshId`
 - per variant:
-  - fill: `Constant`, `PerVertex`, `PerFace`, `Texture`
-  - points: `Constant`, `PerVertex`
+  - fill: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`
+  - points: `Constant`, `PerVertex`, `PerVertexQuality`
 - revision checks:
   - fill depends on `geometryRevision` + `materialRevision`
   - wire/edges/points/bbox/decorators depend on `geometryRevision`
@@ -68,6 +68,7 @@ Two fill upload paths are used:
   - texture batching by texture slot
 
 For textured fill, faces are grouped by texture slot; each batch can carry its own uploaded `QRhiTexture`.
+For quality fill/points, buffers store normalized quality values and the final color is resolved in shaders via a small LUT texture, so changing colormap no longer requires rebuilding those GPU buffers.
 
 ## Per-Widget GPU State (`RenderWidget`)
 
@@ -167,6 +168,8 @@ Per frame:
 - Depth test/write enabled.
 - Backface culling controlled by `fillBackfaceCulling`.
 - Color source: constant / per-vertex / per-face / texture.
+- Color source: constant / per-vertex / per-face / per-vertex-quality / per-face-quality / texture.
+- Quality variants use LUT sampling in fragment shader (shared per-view colormap texture).
 - Textures are sampled through per-batch SRBs when available.
 
 ### Wireframe
@@ -196,6 +199,8 @@ Per frame:
 - Depth test/write enabled.
 - Point size and lighting controlled by settings.
 - Color source: constant or per-vertex.
+- Color source: constant / per-vertex / per-vertex-quality.
+- Per-vertex-quality uses LUT sampling in fragment shader.
 - Vertex payload carries normal + validity flag for point lighting.
 
 ### Decorators

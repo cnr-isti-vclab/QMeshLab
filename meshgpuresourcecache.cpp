@@ -6,6 +6,7 @@
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QString>
 #include <QVector3D>
 
 #include <array>
@@ -25,13 +26,9 @@ int fillVariantIndex(MeshGpuResourceCache::FillVariant variant)
     case MeshGpuResourceCache::FillVariant::Constant: return 0;
     case MeshGpuResourceCache::FillVariant::PerVertex: return 1;
     case MeshGpuResourceCache::FillVariant::PerFace: return 2;
-    case MeshGpuResourceCache::FillVariant::PerVertexQualityRainbow: return 3;
-    case MeshGpuResourceCache::FillVariant::PerVertexQualityViridis: return 4;
-    case MeshGpuResourceCache::FillVariant::PerVertexQualityGray: return 5;
-    case MeshGpuResourceCache::FillVariant::PerFaceQualityRainbow: return 6;
-    case MeshGpuResourceCache::FillVariant::PerFaceQualityViridis: return 7;
-    case MeshGpuResourceCache::FillVariant::PerFaceQualityGray: return 8;
-    case MeshGpuResourceCache::FillVariant::Texture: return 9;
+    case MeshGpuResourceCache::FillVariant::PerVertexQuality: return 3;
+    case MeshGpuResourceCache::FillVariant::PerFaceQuality: return 4;
+    case MeshGpuResourceCache::FillVariant::Texture: return 5;
     }
     return 0;
 }
@@ -62,82 +59,14 @@ float normalizedQuality(float q, const QualityRange &range)
     return std::clamp((q - range.minV) / den, 0.0f, 1.0f);
 }
 
-enum class QualityColorMap {
-    Rainbow = 0,
-    Viridis,
-    Gray
-};
-
 bool isPerVertexQualityFillVariant(MeshGpuResourceCache::FillVariant variant)
 {
-    return variant == MeshGpuResourceCache::FillVariant::PerVertexQualityRainbow
-        || variant == MeshGpuResourceCache::FillVariant::PerVertexQualityViridis
-        || variant == MeshGpuResourceCache::FillVariant::PerVertexQualityGray;
+    return variant == MeshGpuResourceCache::FillVariant::PerVertexQuality;
 }
 
 bool isPerFaceQualityFillVariant(MeshGpuResourceCache::FillVariant variant)
 {
-    return variant == MeshGpuResourceCache::FillVariant::PerFaceQualityRainbow
-        || variant == MeshGpuResourceCache::FillVariant::PerFaceQualityViridis
-        || variant == MeshGpuResourceCache::FillVariant::PerFaceQualityGray;
-}
-
-QualityColorMap fillVariantQualityColorMap(MeshGpuResourceCache::FillVariant variant)
-{
-    switch (variant) {
-    case MeshGpuResourceCache::FillVariant::PerVertexQualityViridis:
-    case MeshGpuResourceCache::FillVariant::PerFaceQualityViridis:
-        return QualityColorMap::Viridis;
-    case MeshGpuResourceCache::FillVariant::PerVertexQualityGray:
-    case MeshGpuResourceCache::FillVariant::PerFaceQualityGray:
-        return QualityColorMap::Gray;
-    case MeshGpuResourceCache::FillVariant::PerVertexQualityRainbow:
-    case MeshGpuResourceCache::FillVariant::PerFaceQualityRainbow:
-    default:
-        return QualityColorMap::Rainbow;
-    }
-}
-
-QVector3D qualityColorMap(float t, QualityColorMap map = QualityColorMap::Rainbow)
-{
-    const struct Stop {
-        float x;
-        QVector3D c;
-    } kRainbowStops[] = {
-        { 0.00f, QVector3D(0.231f, 0.298f, 0.753f) },
-        { 0.25f, QVector3D(0.266f, 0.741f, 0.439f) },
-        { 0.50f, QVector3D(0.865f, 0.865f, 0.200f) },
-        { 0.75f, QVector3D(0.956f, 0.427f, 0.262f) },
-        { 1.00f, QVector3D(0.706f, 0.016f, 0.149f) }
-    };
-    const Stop kViridisStops[] = {
-        { 0.00f, QVector3D(0.267f, 0.005f, 0.329f) },
-        { 0.25f, QVector3D(0.230f, 0.322f, 0.546f) },
-        { 0.50f, QVector3D(0.128f, 0.567f, 0.551f) },
-        { 0.75f, QVector3D(0.369f, 0.789f, 0.383f) },
-        { 1.00f, QVector3D(0.993f, 0.906f, 0.144f) }
-    };
-
-    t = std::clamp(t, 0.0f, 1.0f);
-    if (map == QualityColorMap::Gray)
-        return QVector3D(t, t, t);
-
-    const Stop *stops = kRainbowStops;
-    int stopCount = int(sizeof(kRainbowStops) / sizeof(kRainbowStops[0]));
-    if (map == QualityColorMap::Viridis) {
-        stops = kViridisStops;
-        stopCount = int(sizeof(kViridisStops) / sizeof(kViridisStops[0]));
-    }
-
-    for (int i = 1; i < stopCount; ++i) {
-        if (t <= stops[i].x) {
-            const float x0 = stops[i - 1].x;
-            const float x1 = stops[i].x;
-            const float u = (x1 > x0) ? ((t - x0) / (x1 - x0)) : 0.0f;
-            return stops[i - 1].c * (1.0f - u) + stops[i].c * u;
-        }
-    }
-    return stops[stopCount - 1].c;
+    return variant == MeshGpuResourceCache::FillVariant::PerFaceQuality;
 }
 }
 
@@ -180,6 +109,9 @@ struct MeshGpuResourceCache::CacheState
 
     struct PointsVariantGpu {
         std::uint64_t geometryRevision = 0;
+        bool qualityFixedRange = false;
+        float qualityRangeMin = 0.0f;
+        float qualityRangeMax = 1.0f;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -215,7 +147,7 @@ struct MeshGpuResourceCache::CacheState
     };
 
     struct MeshGpu {
-        std::array<FillVariantGpu, 10> fill;
+        std::array<FillVariantGpu, 6> fill;
         std::array<PointsVariantGpu, 3> points;
         WireGpu wire;
         EdgeGpu edges;
@@ -321,7 +253,6 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool useVertexColor = (variant == FillVariant::PerVertex) && meshHasVertexColor;
             const bool useVertexQuality = isPerVertexQualityFillVariant(variant) && meshHasVertexQuality;
             const bool useFaceQuality = isPerFaceQualityFillVariant(variant) && meshHasFaceQuality;
-            const QualityColorMap qualityMap = fillVariantQualityColorMap(variant);
             const bool hasTextureCoords = meshHasWedgeTexcoord || meshHasVertexTexcoord;
             const bool hasTextureSlots = hasTextureCoords && !texturePaths.isEmpty();
             const bool useTextureColor = (variant == FillVariant::Texture) && hasTextureSlots;
@@ -428,6 +359,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 for (int fi = 0; fi < meshData.FN(); ++fi) {
                     const auto &f = meshData.face[fi];
                     QVector3D faceRgb(1.0f, 1.0f, 1.0f);
+                    float faceQualityT = 0.5f;
                     if (useFaceColor) {
                         const auto fc = f.cC();
                         faceRgb = QVector3D(
@@ -436,7 +368,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             static_cast<float>(fc[2]) / 255.0f);
                     } else if (useFaceQuality) {
                         const float fq = static_cast<float>(f.cQ());
-                        faceRgb = qualityColorMap(normalizedQuality(fq, faceQualityRange), qualityMap);
+                        faceQualityT = normalizedQuality(fq, faceQualityRange);
                     }
 
                     int textureGroup = -1;
@@ -464,6 +396,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     for (int corner = 0; corner < 3; ++corner) {
                         const auto *vertex = f.cV(corner);
                         QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                        float vertexQualityT = 0.5f;
                         if (useVertexColor) {
                             const auto vc = vertex->cC();
                             vertexRgb = QVector3D(
@@ -472,8 +405,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                                 static_cast<float>(vc[2]) / 255.0f);
                         } else if (useVertexQuality) {
                             const float vq = static_cast<float>(vertex->cQ());
-                            vertexRgb =
-                                qualityColorMap(normalizedQuality(vq, vertexQualityRange), qualityMap);
+                            vertexQualityT = normalizedQuality(vq, vertexQualityRange);
                         }
                         const int base = startBase + (corner * kFillVertexStrideFloats);
 
@@ -483,16 +415,28 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         groupData[base + 3] = vertex->cN()[0];
                         groupData[base + 4] = vertex->cN()[1];
                         groupData[base + 5] = vertex->cN()[2];
-                        groupData[base + 6] = useFaceStyleColor
-                            ? faceRgb.x()
-                            : (useVertexStyleColor ? vertexRgb.x() : 1.0f);
-                        groupData[base + 7] = useFaceStyleColor
-                            ? faceRgb.y()
-                            : (useVertexStyleColor ? vertexRgb.y() : 1.0f);
-                        groupData[base + 8] = useFaceStyleColor
-                            ? faceRgb.z()
-                            : (useVertexStyleColor ? vertexRgb.z() : 1.0f);
-                        groupData[base + 9] = (useFaceStyleColor || useVertexStyleColor) ? 1.0f : 0.0f;
+                        if (useFaceQuality) {
+                            groupData[base + 6] = faceQualityT;
+                            groupData[base + 7] = 0.0f;
+                            groupData[base + 8] = 0.0f;
+                            groupData[base + 9] = -1.0f; // quality LUT lookup
+                        } else if (useVertexQuality) {
+                            groupData[base + 6] = vertexQualityT;
+                            groupData[base + 7] = 0.0f;
+                            groupData[base + 8] = 0.0f;
+                            groupData[base + 9] = -1.0f; // quality LUT lookup
+                        } else {
+                            groupData[base + 6] = useFaceStyleColor
+                                ? faceRgb.x()
+                                : (useVertexStyleColor ? vertexRgb.x() : 1.0f);
+                            groupData[base + 7] = useFaceStyleColor
+                                ? faceRgb.y()
+                                : (useVertexStyleColor ? vertexRgb.y() : 1.0f);
+                            groupData[base + 8] = useFaceStyleColor
+                                ? faceRgb.z()
+                                : (useVertexStyleColor ? vertexRgb.z() : 1.0f);
+                            groupData[base + 9] = (useFaceStyleColor || useVertexStyleColor) ? 1.0f : 0.0f;
+                        }
 
                         if (useTextureForFace) {
                             if (meshHasWedgeTexcoord) {
@@ -566,6 +510,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 for (int vi = 0; vi < vertexCount; ++vi) {
                     const auto &v = meshData.vert[vi];
                     QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                    float vertexQualityT = 0.5f;
                     if (useVertexColor) {
                         const auto vc = v.cC();
                         vertexRgb = QVector3D(
@@ -574,8 +519,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             static_cast<float>(vc[2]) / 255.0f);
                     } else if (useVertexQuality) {
                         const float vq = static_cast<float>(v.cQ());
-                        vertexRgb =
-                            qualityColorMap(normalizedQuality(vq, vertexQualityRange), qualityMap);
+                        vertexQualityT = normalizedQuality(vq, vertexQualityRange);
                     }
                     const int base = vi * kFillVertexStrideFloats;
                     vdata[base + 0] = v.cP()[0];
@@ -584,10 +528,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     vdata[base + 3] = v.cN()[0];
                     vdata[base + 4] = v.cN()[1];
                     vdata[base + 5] = v.cN()[2];
-                    vdata[base + 6] = vertexRgb.x();
-                    vdata[base + 7] = vertexRgb.y();
-                    vdata[base + 8] = vertexRgb.z();
-                    vdata[base + 9] = useMeshColor;
+                    if (useVertexQuality) {
+                        vdata[base + 6] = vertexQualityT;
+                        vdata[base + 7] = 0.0f;
+                        vdata[base + 8] = 0.0f;
+                        vdata[base + 9] = -1.0f; // quality LUT lookup
+                    } else {
+                        vdata[base + 6] = vertexRgb.x();
+                        vdata[base + 7] = vertexRgb.y();
+                        vdata[base + 8] = vertexRgb.z();
+                        vdata[base + 9] = useMeshColor;
+                    }
                     vdata[base + 10] = 0.0f;
                     vdata[base + 11] = 0.0f;
                     vdata[base + 12] = 0.0f;
@@ -676,11 +627,31 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
     auto rebuildPointsVariant =
         [&](CacheState::PointsVariantGpu &dst, PointVariant variant) -> bool {
-            if (dst.valid && dst.geometryRevision == source.geometryRevision)
-                return false;
+            const bool qualityVariant = (variant == PointVariant::PerVertexQuality);
+            float requestedRangeMin = source.qualityRangeMin;
+            float requestedRangeMax = source.qualityRangeMax;
+            if (requestedRangeMin > requestedRangeMax)
+                std::swap(requestedRangeMin, requestedRangeMax);
+            const bool requestedRangeFinite =
+                std::isfinite(requestedRangeMin) && std::isfinite(requestedRangeMax);
+            const bool useFixedRange = qualityVariant && source.qualityFixedRange && requestedRangeFinite;
+
+            if (dst.valid && dst.geometryRevision == source.geometryRevision) {
+                if (!qualityVariant)
+                    return false;
+                if (dst.qualityFixedRange == useFixedRange
+                    && (!useFixedRange
+                        || (dst.qualityRangeMin == requestedRangeMin
+                            && dst.qualityRangeMax == requestedRangeMax))) {
+                    return false;
+                }
+            }
 
             dst.valid = true;
             dst.geometryRevision = source.geometryRevision;
+            dst.qualityFixedRange = useFixedRange;
+            dst.qualityRangeMin = requestedRangeMin;
+            dst.qualityRangeMax = requestedRangeMax;
             dst.vbuf.reset();
             dst.vertexCount = 0;
 
@@ -700,22 +671,28 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
             QualityRange vertexQualityRange;
             if (useVertexQuality) {
-                float minQ = std::numeric_limits<float>::max();
-                float maxQ = -std::numeric_limits<float>::max();
-                for (int vi = 0; vi < meshData.VN(); ++vi) {
-                    const auto &v = meshData.vert[vi];
-                    if (v.IsD())
-                        continue;
-                    const float q = static_cast<float>(v.cQ());
-                    if (!std::isfinite(q))
-                        continue;
-                    minQ = std::min(minQ, q);
-                    maxQ = std::max(maxQ, q);
-                }
-                if (minQ <= maxQ) {
-                    vertexQualityRange.minV = minQ;
-                    vertexQualityRange.maxV = maxQ;
+                if (useFixedRange) {
+                    vertexQualityRange.minV = requestedRangeMin;
+                    vertexQualityRange.maxV = requestedRangeMax;
                     vertexQualityRange.valid = true;
+                } else {
+                    float minQ = std::numeric_limits<float>::max();
+                    float maxQ = -std::numeric_limits<float>::max();
+                    for (int vi = 0; vi < meshData.VN(); ++vi) {
+                        const auto &v = meshData.vert[vi];
+                        if (v.IsD())
+                            continue;
+                        const float q = static_cast<float>(v.cQ());
+                        if (!std::isfinite(q))
+                            continue;
+                        minQ = std::min(minQ, q);
+                        maxQ = std::max(maxQ, q);
+                    }
+                    if (minQ <= maxQ) {
+                        vertexQualityRange.minV = minQ;
+                        vertexQualityRange.maxV = maxQ;
+                        vertexQualityRange.valid = true;
+                    }
                 }
             }
 
@@ -723,6 +700,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             for (int vi = 0; vi < meshData.VN(); ++vi) {
                 const auto &v = meshData.vert[vi];
                 QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                float vertexQualityT = 0.5f;
                 if (useVertexColor) {
                     const auto vc = v.cC();
                     vertexRgb = QVector3D(
@@ -731,16 +709,23 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         static_cast<float>(vc[2]) / 255.0f);
                 } else if (useVertexQuality) {
                     const float vq = static_cast<float>(v.cQ());
-                    vertexRgb = qualityColorMap(normalizedQuality(vq, vertexQualityRange));
+                    vertexQualityT = normalizedQuality(vq, vertexQualityRange);
                 }
                 const int base = vi * kPointsVertexStrideFloats;
                 pdata[base + 0] = v.cP()[0];
                 pdata[base + 1] = v.cP()[1];
                 pdata[base + 2] = v.cP()[2];
-                pdata[base + 3] = vertexRgb.x();
-                pdata[base + 4] = vertexRgb.y();
-                pdata[base + 5] = vertexRgb.z();
-                pdata[base + 6] = useMeshColor;
+                if (useVertexQuality) {
+                    pdata[base + 3] = vertexQualityT;
+                    pdata[base + 4] = 0.0f;
+                    pdata[base + 5] = 0.0f;
+                    pdata[base + 6] = -1.0f; // quality LUT lookup
+                } else {
+                    pdata[base + 3] = vertexRgb.x();
+                    pdata[base + 4] = vertexRgb.y();
+                    pdata[base + 5] = vertexRgb.z();
+                    pdata[base + 6] = useMeshColor;
+                }
                 const float nx = v.cN()[0];
                 const float ny = v.cN()[1];
                 const float nz = v.cN()[2];

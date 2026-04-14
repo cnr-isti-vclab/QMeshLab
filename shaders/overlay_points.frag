@@ -16,6 +16,7 @@ layout(std140, binding = 0) uniform buf {
 layout(location = 0) in vec4 vMeshColor;
 layout(location = 1) in vec4 vNormalAndFlag;
 layout(location = 2) in vec3 vViewPos;
+layout(binding = 2) uniform sampler2D qualityLutTex;
 layout(location = 0) out vec4 fragColor;
 
 void main()
@@ -25,7 +26,11 @@ void main()
     if (dot(coord, coord) > 0.25)
         discard;
 
-    vec3 color = mix(ub.pointColor.rgb, vMeshColor.rgb, clamp(vMeshColor.a, 0.0, 1.0));
+    vec3 color = ub.pointColor.rgb;
+    if (vMeshColor.a < -0.5)
+        color = texture(qualityLutTex, vec2(clamp(vMeshColor.r, 0.0, 1.0), 0.5)).rgb;
+    else
+        color = mix(ub.pointColor.rgb, vMeshColor.rgb, clamp(vMeshColor.a, 0.0, 1.0));
     if (ub.lightingParams.y > 0.5 && vNormalAndFlag.a > 0.5) {
         vec3 N = vNormalAndFlag.xyz;
         float nLen = length(N);

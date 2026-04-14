@@ -1,4 +1,5 @@
 #include "renderwidget.h"
+#include "colormap.h"
 #include "document.h"
 #include "renderwidget_internal.h"
 #include <wrap/io_trimesh/io_mask.h>
@@ -56,7 +57,11 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
 
     const auto &entry = m_doc->mesh(meshIndex);
     auto &gpu = m_uvMeshGpu[entry.meshId];
-    const QualityHistogramColorMap qualityColorMapSetting = m_renderSettings.qualityHistogramColorMap;
+    const ColorMapRegistry &registry = ColorMapRegistry::instance();
+    QString qualityColorMapName = m_renderSettings.qualityHistogramColorMapId.trimmed().toLower();
+    if (qualityColorMapName.isEmpty() || !registry.hasMap(qualityColorMapName))
+        qualityColorMapName = registry.fallbackMapId();
+    const bool qualityColorMapInverted = m_renderSettings.qualityHistogramInvertColorMap;
     float qualityRangeMin = m_renderSettings.qualityHistogramMin;
     float qualityRangeMax = m_renderSettings.qualityHistogramMax;
     if (qualityRangeMin > qualityRangeMax)
@@ -68,7 +73,8 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     if (gpu.valid
         && gpu.geometryRevision == entry.geometryRevision
         && gpu.materialRevision == entry.materialRevision
-        && gpu.qualityColorMap == qualityColorMapSetting
+        && gpu.qualityColorMapId == qualityColorMapName
+        && gpu.qualityColorMapInverted == qualityColorMapInverted
         && gpu.qualityFixedRange == qualityFixedRange
         && (!qualityFixedRange
             || (gpu.qualityRangeMin == qualityRangeMin
@@ -79,7 +85,8 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     gpu = UvMeshGpu {};
     gpu.geometryRevision = entry.geometryRevision;
     gpu.materialRevision = entry.materialRevision;
-    gpu.qualityColorMap = qualityColorMapSetting;
+    gpu.qualityColorMapId = qualityColorMapName;
+    gpu.qualityColorMapInverted = qualityColorMapInverted;
     gpu.qualityFixedRange = qualityFixedRange;
     gpu.qualityRangeMin = qualityRangeMin;
     gpu.qualityRangeMax = qualityRangeMax;
@@ -193,42 +200,11 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
             return 0.5f;
         return std::clamp((q - range.minV) / den, 0.0f, 1.0f);
     };
-    auto qualityColorMap = [qualityColorMapSetting](float t) {
-        const struct Stop {
-            float x;
-            QVector3D c;
-        } kRainbowStops[] = {
-            { 0.00f, QVector3D(0.231f, 0.298f, 0.753f) },
-            { 0.25f, QVector3D(0.266f, 0.741f, 0.439f) },
-            { 0.50f, QVector3D(0.865f, 0.865f, 0.200f) },
-            { 0.75f, QVector3D(0.956f, 0.427f, 0.262f) },
-            { 1.00f, QVector3D(0.706f, 0.016f, 0.149f) }
-        };
-        const Stop kViridisStops[] = {
-            { 0.00f, QVector3D(0.267f, 0.005f, 0.329f) },
-            { 0.25f, QVector3D(0.230f, 0.322f, 0.546f) },
-            { 0.50f, QVector3D(0.128f, 0.567f, 0.551f) },
-            { 0.75f, QVector3D(0.369f, 0.789f, 0.383f) },
-            { 1.00f, QVector3D(0.993f, 0.906f, 0.144f) }
-        };
-        t = std::clamp(t, 0.0f, 1.0f);
-        if (qualityColorMapSetting == QualityHistogramColorMap::Gray)
-            return QVector3D(t, t, t);
-        const Stop *stops = kRainbowStops;
-        int stopCount = int(sizeof(kRainbowStops) / sizeof(kRainbowStops[0]));
-        if (qualityColorMapSetting == QualityHistogramColorMap::Viridis) {
-            stops = kViridisStops;
-            stopCount = int(sizeof(kViridisStops) / sizeof(kViridisStops[0]));
-        }
-        for (int i = 1; i < stopCount; ++i) {
-            if (t <= stops[i].x) {
-                const float x0 = stops[i - 1].x;
-                const float x1 = stops[i].x;
-                const float u = (x1 > x0) ? ((t - x0) / (x1 - x0)) : 0.0f;
-                return stops[i - 1].c * (1.0f - u) + stops[i].c * u;
-            }
-        }
-        return stops[stopCount - 1].c;
+    const ColorMapDefinition *qualityMapDef = registry.definition(qualityColorMapName);
+    auto qualityColorMap = [&registry, qualityMapDef, qualityColorMapInverted](float t) {
+        if (qualityColorMapInverted)
+            t = 1.0f - t;
+        return registry.sampleRgb(qualityMapDef, t);
     };
 
     QualityRange vertexQualityRange;

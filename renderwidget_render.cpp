@@ -1,4 +1,5 @@
 #include "renderwidget.h"
+#include "colormap.h"
 #include "document.h"
 #include "renderwidget_internal.h"
 
@@ -70,6 +71,42 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     const QSize sz = renderTarget()->pixelSize();
 
     QRhiResourceUpdateBatch *u = nullptr;
+    auto updateQualityColorMapLut = [&](QRhiResourceUpdateBatch *&batch) {
+        if (!m_qualityColorMapTexture || !m_rhi)
+            return;
+        const ColorMapRegistry &registry = ColorMapRegistry::instance();
+        QString mapId = m_renderSettings.qualityHistogramColorMapId.trimmed().toLower();
+        if (mapId.isEmpty() || !registry.hasMap(mapId))
+            mapId = registry.fallbackMapId();
+        const bool invert = m_renderSettings.qualityHistogramInvertColorMap;
+        if (m_qualityColorMapTextureMapId != mapId || m_qualityColorMapTextureInverted != invert) {
+            m_qualityColorMapTextureMapId = mapId;
+            m_qualityColorMapTextureInverted = invert;
+            m_qualityColorMapTextureUploadPending = true;
+        }
+        if (!m_qualityColorMapTextureUploadPending)
+            return;
+
+        QImage lut(256, 1, QImage::Format_RGBA8888);
+        uchar *bits = lut.bits();
+        for (int i = 0; i < 256; ++i) {
+            float t = float(i) / 255.0f;
+            if (invert)
+                t = 1.0f - t;
+            const QColor c = registry.sampleQColor(mapId, t, 1.0f);
+            bits[i * 4 + 0] = uchar(c.red());
+            bits[i * 4 + 1] = uchar(c.green());
+            bits[i * 4 + 2] = uchar(c.blue());
+            bits[i * 4 + 3] = 255u;
+        }
+        if (!batch)
+            batch = m_rhi->nextResourceUpdateBatch();
+        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(lut));
+        batch->uploadTexture(m_qualityColorMapTexture.get(), QRhiTextureUploadDescription({ entry }));
+        m_qualityColorMapTextureUploadPending = false;
+    };
+    updateQualityColorMapLut(u);
+
     QMatrix4x4 mvp;
     float baseUbufData[kUbufFloatCount] = {};
     bool haveBaseUbufData = false;
@@ -102,7 +139,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         baseUbufData[40] = n[6]; baseUbufData[41] = n[7]; baseUbufData[42] = n[8]; baseUbufData[43] = 0;
         writeMainStyleToUbuf(baseUbufData, m_renderSettings, sz, true);
 
-        u = m_rhi->nextResourceUpdateBatch();
+        if (!u)
+            u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, baseUbufData);
         haveBaseUbufData = true;
 
