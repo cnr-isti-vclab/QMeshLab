@@ -17,9 +17,13 @@ public:
         Constant = 0,
         PerVertex = 1,
         PerFace = 2,
-        PerVertexQuality = 3,
-        PerFaceQuality = 4,
-        Texture = 5
+        PerVertexQualityRainbow = 3,
+        PerVertexQualityViridis = 4,
+        PerVertexQualityGray = 5,
+        PerFaceQualityRainbow = 6,
+        PerFaceQualityViridis = 7,
+        PerFaceQualityGray = 8,
+        Texture = 9
     };
 
     enum class PointVariant : int {
@@ -33,6 +37,9 @@ public:
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
         int ioMask = 0;
+        bool qualityFixedRange = false;
+        float qualityRangeMin = 0.0f;
+        float qualityRangeMax = 1.0f;
         const VCGMesh *mesh = nullptr;
         const QStringList *textureFilePaths = nullptr;
     };

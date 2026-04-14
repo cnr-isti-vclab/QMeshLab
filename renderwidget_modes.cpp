@@ -351,9 +351,25 @@ int RenderWidget::fillGpuVariantIndexForSettings(const RenderSettings &settings)
     case FillColorSource::PerVertex: return static_cast<int>(Document::FillGpuVariant::PerVertex);
     case FillColorSource::PerFace: return static_cast<int>(Document::FillGpuVariant::PerFace);
     case FillColorSource::PerVertexQuality:
-        return static_cast<int>(Document::FillGpuVariant::PerVertexQuality);
+        switch (settings.qualityHistogramColorMap) {
+        case QualityHistogramColorMap::Viridis:
+            return static_cast<int>(Document::FillGpuVariant::PerVertexQualityViridis);
+        case QualityHistogramColorMap::Gray:
+            return static_cast<int>(Document::FillGpuVariant::PerVertexQualityGray);
+        case QualityHistogramColorMap::Rainbow:
+        default:
+            return static_cast<int>(Document::FillGpuVariant::PerVertexQualityRainbow);
+        }
     case FillColorSource::PerFaceQuality:
-        return static_cast<int>(Document::FillGpuVariant::PerFaceQuality);
+        switch (settings.qualityHistogramColorMap) {
+        case QualityHistogramColorMap::Viridis:
+            return static_cast<int>(Document::FillGpuVariant::PerFaceQualityViridis);
+        case QualityHistogramColorMap::Gray:
+            return static_cast<int>(Document::FillGpuVariant::PerFaceQualityGray);
+        case QualityHistogramColorMap::Rainbow:
+        default:
+            return static_cast<int>(Document::FillGpuVariant::PerFaceQualityRainbow);
+        }
     case FillColorSource::Texture: return static_cast<int>(Document::FillGpuVariant::Texture);
     case FillColorSource::Constant:
     default:

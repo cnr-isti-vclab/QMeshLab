@@ -98,7 +98,10 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             mode.decoratorVertexNormals
                 || mode.decoratorFaceNormals,
             mode.decoratorBoundaryEdges
-                || mode.decoratorTextureSeams);
+                || mode.decoratorTextureSeams,
+            meshSettings.qualityHistogramFixedRange,
+            meshSettings.qualityHistogramMin,
+            meshSettings.qualityHistogramMax);
     }
 }
 

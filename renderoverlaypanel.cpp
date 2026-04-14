@@ -547,6 +547,33 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_qualityHistogramSourceCombo->addItem(
         tr("Face Q"), static_cast<int>(QualityHistogramSource::FaceQuality));
     histogramForm->addRow(tr("Source"), m_qualityHistogramSourceCombo);
+    m_qualityHistogramColorMapCombo = new QComboBox(histogramPage);
+    m_qualityHistogramColorMapCombo->addItem(
+        tr("Rainbow"), static_cast<int>(QualityHistogramColorMap::Rainbow));
+    m_qualityHistogramColorMapCombo->addItem(
+        tr("Viridis"), static_cast<int>(QualityHistogramColorMap::Viridis));
+    m_qualityHistogramColorMapCombo->addItem(
+        tr("Gray"), static_cast<int>(QualityHistogramColorMap::Gray));
+    histogramForm->addRow(tr("Color map"), m_qualityHistogramColorMapCombo);
+    m_qualityHistogramFixedRangeCheck = new QCheckBox(histogramPage);
+    m_qualityHistogramFixedRangeCheck->setChecked(m_settings.qualityHistogramFixedRange);
+    histogramForm->addRow(
+        tr("Fixed range"),
+        makeCenteredFieldContainer(m_qualityHistogramFixedRangeCheck, histogramPage));
+    m_qualityHistogramMinSpin = new QDoubleSpinBox(histogramPage);
+    m_qualityHistogramMinSpin->setRange(-1e12, 1e12);
+    m_qualityHistogramMinSpin->setDecimals(6);
+    m_qualityHistogramMinSpin->setSingleStep(0.1);
+    m_qualityHistogramMinSpin->setValue(m_settings.qualityHistogramMin);
+    histogramForm->addRow(tr("Min"), m_qualityHistogramMinSpin);
+    m_qualityHistogramMaxSpin = new QDoubleSpinBox(histogramPage);
+    m_qualityHistogramMaxSpin->setRange(-1e12, 1e12);
+    m_qualityHistogramMaxSpin->setDecimals(6);
+    m_qualityHistogramMaxSpin->setSingleStep(0.1);
+    m_qualityHistogramMaxSpin->setValue(m_settings.qualityHistogramMax);
+    histogramForm->addRow(tr("Max"), m_qualityHistogramMaxSpin);
+    m_qualityHistogramMinSpin->setEnabled(m_settings.qualityHistogramFixedRange);
+    m_qualityHistogramMaxSpin->setEnabled(m_settings.qualityHistogramFixedRange);
     m_qualityHistogramBinsSpin = new QDoubleSpinBox(histogramPage);
     m_qualityHistogramBinsSpin->setRange(4.0, 512.0);
     m_qualityHistogramBinsSpin->setSingleStep(1.0);
@@ -693,6 +720,43 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
     bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
     bindEnumCombo(m_qualityHistogramSourceCombo, &RenderSettings::qualityHistogramSource);
+    bindEnumCombo(m_qualityHistogramColorMapCombo, &RenderSettings::qualityHistogramColorMap);
+    connect(
+        m_qualityHistogramFixedRangeCheck,
+        &QCheckBox::toggled,
+        this,
+        [this](bool checked) {
+            if (m_settings.qualityHistogramFixedRange == checked)
+                return;
+            m_settings.qualityHistogramFixedRange = checked;
+            if (m_qualityHistogramMinSpin)
+                m_qualityHistogramMinSpin->setEnabled(checked);
+            if (m_qualityHistogramMaxSpin)
+                m_qualityHistogramMaxSpin->setEnabled(checked);
+            emit settingsChanged(m_settings);
+        });
+    connect(
+        m_qualityHistogramMinSpin,
+        &QDoubleSpinBox::valueChanged,
+        this,
+        [this](double value) {
+            const float v = static_cast<float>(value);
+            if (m_settings.qualityHistogramMin == v)
+                return;
+            m_settings.qualityHistogramMin = v;
+            emit settingsChanged(m_settings);
+        });
+    connect(
+        m_qualityHistogramMaxSpin,
+        &QDoubleSpinBox::valueChanged,
+        this,
+        [this](double value) {
+            const float v = static_cast<float>(value);
+            if (m_settings.qualityHistogramMax == v)
+                return;
+            m_settings.qualityHistogramMax = v;
+            emit settingsChanged(m_settings);
+        });
     connect(
         m_qualityHistogramBinsSpin,
         &QDoubleSpinBox::valueChanged,
@@ -939,12 +1003,36 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_qualityHistogramBinsSpin);
         m_qualityHistogramBinsSpin->setValue(m_settings.qualityHistogramBins);
     }
+    if (m_qualityHistogramFixedRangeCheck) {
+        QSignalBlocker blocker(m_qualityHistogramFixedRangeCheck);
+        m_qualityHistogramFixedRangeCheck->setChecked(m_settings.qualityHistogramFixedRange);
+    }
+    if (m_qualityHistogramMinSpin) {
+        QSignalBlocker blocker(m_qualityHistogramMinSpin);
+        m_qualityHistogramMinSpin->setValue(m_settings.qualityHistogramMin);
+        m_qualityHistogramMinSpin->setEnabled(m_settings.qualityHistogramFixedRange);
+    }
+    if (m_qualityHistogramMaxSpin) {
+        QSignalBlocker blocker(m_qualityHistogramMaxSpin);
+        m_qualityHistogramMaxSpin->setValue(m_settings.qualityHistogramMax);
+        m_qualityHistogramMaxSpin->setEnabled(m_settings.qualityHistogramFixedRange);
+    }
     if (m_qualityHistogramSourceCombo) {
         QSignalBlocker blocker(m_qualityHistogramSourceCombo);
         const int value = static_cast<int>(m_settings.qualityHistogramSource);
         for (int i = 0; i < m_qualityHistogramSourceCombo->count(); ++i) {
             if (m_qualityHistogramSourceCombo->itemData(i).toInt() == value) {
                 m_qualityHistogramSourceCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
+    if (m_qualityHistogramColorMapCombo) {
+        QSignalBlocker blocker(m_qualityHistogramColorMapCombo);
+        const int value = static_cast<int>(m_settings.qualityHistogramColorMap);
+        for (int i = 0; i < m_qualityHistogramColorMapCombo->count(); ++i) {
+            if (m_qualityHistogramColorMapCombo->itemData(i).toInt() == value) {
+                m_qualityHistogramColorMapCombo->setCurrentIndex(i);
                 break;
             }
         }

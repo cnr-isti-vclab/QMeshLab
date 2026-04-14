@@ -75,29 +75,48 @@ bool parseQuatXyzwValue(const QJsonValue &value, QQuaternion &outValue)
     return true;
 }
 
-QColor qualityColorMap(float t)
+QColor qualityColorMap(float t, QualityHistogramColorMap map)
 {
-    const struct Stop {
+    struct Stop {
         float x;
         QVector3D c;
-    } kStops[] = {
+    };
+    static const Stop kRainbowStops[] = {
         { 0.00f, QVector3D(0.231f, 0.298f, 0.753f) },
         { 0.25f, QVector3D(0.266f, 0.741f, 0.439f) },
         { 0.50f, QVector3D(0.865f, 0.865f, 0.200f) },
         { 0.75f, QVector3D(0.956f, 0.427f, 0.262f) },
         { 1.00f, QVector3D(0.706f, 0.016f, 0.149f) }
     };
-    const int stopCount = int(sizeof(kStops) / sizeof(kStops[0]));
+    static const Stop kViridisStops[] = {
+        { 0.00f, QVector3D(0.267f, 0.005f, 0.329f) },
+        { 0.25f, QVector3D(0.230f, 0.322f, 0.546f) },
+        { 0.50f, QVector3D(0.128f, 0.567f, 0.551f) },
+        { 0.75f, QVector3D(0.369f, 0.789f, 0.383f) },
+        { 1.00f, QVector3D(0.993f, 0.906f, 0.144f) }
+    };
+
+    const Stop *stops = kRainbowStops;
+    int stopCount = int(sizeof(kRainbowStops) / sizeof(kRainbowStops[0]));
+    if (map == QualityHistogramColorMap::Viridis) {
+        stops = kViridisStops;
+        stopCount = int(sizeof(kViridisStops) / sizeof(kViridisStops[0]));
+    }
 
     t = std::clamp(t, 0.0f, 1.0f);
-    QVector3D rgb = kStops[stopCount - 1].c;
-    for (int i = 1; i < stopCount; ++i) {
-        if (t <= kStops[i].x) {
-            const float x0 = kStops[i - 1].x;
-            const float x1 = kStops[i].x;
-            const float u = (x1 > x0) ? ((t - x0) / (x1 - x0)) : 0.0f;
-            rgb = kStops[i - 1].c * (1.0f - u) + kStops[i].c * u;
-            break;
+    QVector3D rgb = stops[stopCount - 1].c;
+
+    if (map == QualityHistogramColorMap::Gray) {
+        rgb = QVector3D(t, t, t);
+    } else {
+        for (int i = 1; i < stopCount; ++i) {
+            if (t <= stops[i].x) {
+                const float x0 = stops[i - 1].x;
+                const float x1 = stops[i].x;
+                const float u = (x1 > x0) ? ((t - x0) / (x1 - x0)) : 0.0f;
+                rgb = stops[i - 1].c * (1.0f - u) + stops[i].c * u;
+                break;
+            }
         }
     }
 
@@ -149,7 +168,6 @@ NiceTickValues buildNiceTickValues(double minValue, double maxValue, int targetC
         return out;
     }
 
-    const int interiorTarget = std::max(0, targetCount - 2);
     const double roughStep = range / double(std::max(1, targetCount - 1));
     const double step = niceTickStep(roughStep);
     out.step = (step > 0.0) ? step : roughStep;
@@ -165,24 +183,10 @@ NiceTickValues buildNiceTickValues(double minValue, double maxValue, int targetC
         }
     }
 
-    out.values.reserve(size_t(2 + std::max(0, interiorTarget)));
+    out.values.reserve(64);
     out.values.push_back(minValue);
-    if (interiorTarget > 0 && !interior.empty()) {
-        if (int(interior.size()) <= interiorTarget) {
-            out.values.insert(out.values.end(), interior.begin(), interior.end());
-        } else {
-            const double stride = double(interior.size() + 1) / double(interiorTarget + 1);
-            int lastIdx = -1;
-            for (int i = 0; i < interiorTarget; ++i) {
-                int idx = int(std::lround((double(i + 1) * stride) - 1.0));
-                idx = std::clamp(idx, 0, int(interior.size()) - 1);
-                if (idx == lastIdx)
-                    continue;
-                out.values.push_back(interior[size_t(idx)]);
-                lastIdx = idx;
-            }
-        }
-    }
+    if (!interior.empty())
+        out.values.insert(out.values.end(), interior.begin(), interior.end());
     out.values.push_back(maxValue);
     return out;
 }
@@ -316,7 +320,11 @@ void RenderWidget::setRenderSettings(const RenderSettings &settings)
     const RenderSettings prev = m_renderSettings;
     m_renderSettings = settings;
     if (prev.qualityHistogramBins != m_renderSettings.qualityHistogramBins
-        || prev.qualityHistogramSource != m_renderSettings.qualityHistogramSource) {
+        || prev.qualityHistogramSource != m_renderSettings.qualityHistogramSource
+        || prev.qualityHistogramFixedRange != m_renderSettings.qualityHistogramFixedRange
+        || prev.qualityHistogramMin != m_renderSettings.qualityHistogramMin
+        || prev.qualityHistogramMax != m_renderSettings.qualityHistogramMax
+        || prev.qualityHistogramColorMap != m_renderSettings.qualityHistogramColorMap) {
         m_qualityHistogram.valid = false;
     }
     applyRenderSettingsToCurrentMesh(prev, m_renderSettings);
@@ -655,7 +663,11 @@ void RenderWidget::createOverlayButtons()
 
         updateBoundingBoxCornersOverlay();
         if (prev.qualityHistogramBins != m_renderSettings.qualityHistogramBins
-            || prev.qualityHistogramSource != m_renderSettings.qualityHistogramSource) {
+            || prev.qualityHistogramSource != m_renderSettings.qualityHistogramSource
+            || prev.qualityHistogramFixedRange != m_renderSettings.qualityHistogramFixedRange
+            || prev.qualityHistogramMin != m_renderSettings.qualityHistogramMin
+            || prev.qualityHistogramMax != m_renderSettings.qualityHistogramMax
+            || prev.qualityHistogramColorMap != m_renderSettings.qualityHistogramColorMap) {
             m_qualityHistogram.valid = false;
         }
         updateQualityHistogramOverlay();
@@ -955,6 +967,12 @@ void RenderWidget::updateQualityHistogramOverlay()
         break;
     }
     const int bins = std::clamp(m_renderSettings.qualityHistogramBins, 4, 512);
+    const bool fixedRange = m_renderSettings.qualityHistogramFixedRange;
+    float fixedMin = m_renderSettings.qualityHistogramMin;
+    float fixedMax = m_renderSettings.qualityHistogramMax;
+    if (fixedMin > fixedMax)
+        std::swap(fixedMin, fixedMax);
+    const QualityHistogramColorMap colorMap = m_renderSettings.qualityHistogramColorMap;
     constexpr int kOverlayMargin = 8;
     const int maxPanelWidth = qMax(120, width() - 2 * kOverlayMargin);
     int panelBottom = kOverlayMargin;
@@ -1012,6 +1030,10 @@ void RenderWidget::updateQualityHistogramOverlay()
         && m_qualityHistogram.geometryRevision == entry.geometryRevision
         && m_qualityHistogram.bins == bins
         && m_qualityHistogram.sourceSelection == sourceSelection
+        && m_qualityHistogram.fixedRange == fixedRange
+        && m_qualityHistogram.fixedMin == fixedMin
+        && m_qualityHistogram.fixedMax == fixedMax
+        && m_qualityHistogram.colorMap == colorMap
         && m_qualityHistogram.vertexBased == useVertexQuality;
 
     if (!cacheValid) {
@@ -1020,6 +1042,10 @@ void RenderWidget::updateQualityHistogramOverlay()
         m_qualityHistogram.geometryRevision = entry.geometryRevision;
         m_qualityHistogram.bins = bins;
         m_qualityHistogram.sourceSelection = sourceSelection;
+        m_qualityHistogram.fixedRange = fixedRange;
+        m_qualityHistogram.fixedMin = fixedMin;
+        m_qualityHistogram.fixedMax = fixedMax;
+        m_qualityHistogram.colorMap = colorMap;
         m_qualityHistogram.vertexBased = useVertexQuality;
         m_qualityHistogram.counts.assign(size_t(bins), 0);
         m_qualityHistogram.sampleCount = 0;
@@ -1060,13 +1086,15 @@ void RenderWidget::updateQualityHistogramOverlay()
 
         if (!values.empty()) {
             m_qualityHistogram.sampleCount = int(values.size());
-            m_qualityHistogram.minQ = minQ;
-            m_qualityHistogram.maxQ = maxQ;
-            const float den = maxQ - minQ;
+            const float histMin = fixedRange ? fixedMin : minQ;
+            const float histMax = fixedRange ? fixedMax : maxQ;
+            m_qualityHistogram.minQ = histMin;
+            m_qualityHistogram.maxQ = histMax;
+            const float den = histMax - histMin;
             for (float q : values) {
                 int idx = 0;
                 if (std::abs(den) > 1e-12f) {
-                    const float t = std::clamp((q - minQ) / den, 0.0f, 1.0f);
+                    const float t = std::clamp((q - histMin) / den, 0.0f, 1.0f);
                     idx = std::min(bins - 1, int(t * bins));
                 }
                 m_qualityHistogram.counts[size_t(idx)] += 1;
@@ -1098,14 +1126,14 @@ void RenderWidget::updateQualityHistogramOverlay()
     const float qMax = m_qualityHistogram.maxQ;
     const float qRange = qMax - qMin;
 
-    int top = 20;
+    int top = 8;
     int bottom = 10;
     if (h - top - bottom < 24) {
-        top = 14;
+        top = 8;
         bottom = 8;
     }
 
-    const int targetTickCount = std::clamp((h - top - bottom) / (valueFm.height() + 6) + 1, 3, 8);
+    const int targetTickCount = std::clamp((h - top - bottom) / (valueFm.height() + 2) + 1, 3, 14);
     NiceTickValues tickValues = buildNiceTickValues(double(qMin), double(qMax), targetTickCount);
     if (tickValues.values.empty())
         tickValues.values = {double(qMin), double(qMax)};
@@ -1122,16 +1150,30 @@ void RenderWidget::updateQualityHistogramOverlay()
         valueColumnWidth = std::max(valueColumnWidth, valueFm.horizontalAdvance(tickLabelText(tickValues.values[size_t(i)], i)) + 6);
     valueColumnWidth = std::clamp(valueColumnWidth, 28, 96);
     const int tickLen = 4;
-
-    const int left = 10 + valueColumnWidth + tickLen + 4;
+    const int colorBarWidth = 10;
+    const int labelLeft = 10;
+    const int colorBarLeft = labelLeft + valueColumnWidth + 4;
+    const int left = colorBarLeft + colorBarWidth + 4 + tickLen + 4;
     const int right = 10;
     const QRect plotRect(left, top, w - left - right, h - top - bottom);
     if (plotRect.height() < 16 || plotRect.width() < 40) {
         hideOverlay();
         return;
     }
+    const QRect colorBarRect(colorBarLeft, plotRect.top(), colorBarWidth, plotRect.height());
     const int maxCount = *std::max_element(
         m_qualityHistogram.counts.begin(), m_qualityHistogram.counts.end());
+    const bool hasRange = std::abs(qRange) > 1e-20f;
+
+    for (int yy = colorBarRect.top(); yy <= colorBarRect.bottom(); ++yy) {
+        const float t = (colorBarRect.height() > 1)
+            ? float(colorBarRect.bottom() - yy) / float(colorBarRect.height() - 1)
+            : 0.0f;
+        p.setPen(qualityColorMap(t, colorMap));
+        p.drawLine(colorBarRect.left(), yy, colorBarRect.right(), yy);
+    }
+    p.setPen(QColor(175, 175, 175, 180));
+    p.drawRect(colorBarRect);
 
     p.setPen(QColor(175, 175, 175, 180));
     p.drawRect(plotRect);
@@ -1149,16 +1191,31 @@ void RenderWidget::updateQualityHistogramOverlay()
             : 0;
         if (bw <= 0)
             continue;
-        const float t = (float(i) + 0.5f) / float(bins);
-        p.setBrush(qualityColorMap(t));
+        const float qValue = hasRange
+            ? (qMin + ((float(i) + 0.5f) / float(bins)) * qRange)
+            : qMin;
+        const float t = hasRange
+            ? std::clamp((qValue - qMin) / qRange, 0.0f, 1.0f)
+            : 0.5f;
+        p.setBrush(qualityColorMap(t, colorMap));
         p.drawRect(plotRect.left() + 1, y0 + 1, bw, bh);
     }
 
     p.setFont(valueFont);
     p.setPen(QColor(205, 205, 205, 210));
-    const bool hasRange = std::abs(qRange) > 1e-20f;
-    int lastLabelY = std::numeric_limits<int>::max();
-    for (int i = 0; i < int(tickValues.values.size()); ++i) {
+    const int totalTicks = int(tickValues.values.size());
+    const int maxVisibleTicks =
+        std::max(2, plotRect.height() / std::max(1, valueFm.height() + 2) + 1);
+    int tickStride = 1;
+    if (totalTicks > maxVisibleTicks) {
+        tickStride = std::max(
+            1,
+            int(std::ceil(double(totalTicks - 1) / double(std::max(1, maxVisibleTicks - 1)))));
+    }
+    for (int i = 0; i < totalTicks; ++i) {
+        const bool edge = (i == 0) || (i == totalTicks - 1);
+        if (!edge && (i % tickStride) != 0)
+            continue;
         double t = 0.0;
         if (hasRange) {
             t = (tickValues.values[size_t(i)] - double(qMin)) / double(qRange);
@@ -1167,28 +1224,15 @@ void RenderWidget::updateQualityHistogramOverlay()
         }
         t = std::clamp(t, 0.0, 1.0);
         const int y = plotRect.bottom() - int(t * double(plotRect.height() - 1));
-        if (i > 0 && i + 1 < int(tickValues.values.size())
-            && std::abs(y - lastLabelY) < (valueFm.height() - 1)) {
-            continue;
-        }
         p.drawLine(plotRect.left() - tickLen, y, plotRect.left() - 1, y);
         const QString qText = tickLabelText(tickValues.values[size_t(i)], i);
         p.drawText(
-            QRect(10, y - valueFm.height() / 2, valueColumnWidth, valueFm.height()),
+            QRect(labelLeft, y - valueFm.height() / 2, valueColumnWidth, valueFm.height()),
             Qt::AlignRight | Qt::AlignVCenter,
             qText);
-        lastLabelY = y;
     }
 
-    p.setPen(QColor(230, 230, 230));
     const QString sourceName = m_qualityHistogram.vertexBased ? tr("VQ") : tr("FQ");
-    const QString title = tr("%1 histogram (%2 bins)")
-        .arg(sourceName)
-        .arg(m_qualityHistogram.bins);
-    p.drawText(QRect(10, 4, w - 20, 14), Qt::AlignLeft | Qt::AlignVCenter, title);
-    const QString countText = tr("n=%1").arg(m_qualityHistogram.sampleCount);
-    p.drawText(QRect(10, 4, w - 20, 14), Qt::AlignRight | Qt::AlignVCenter, countText);
-
     m_qualityHistogramOverlayLabel->setPixmap(pm);
     m_qualityHistogramOverlayLabel->setToolTip(
         tr("%1 quality distribution\nsamples: %2\nrange: [%3, %4]")

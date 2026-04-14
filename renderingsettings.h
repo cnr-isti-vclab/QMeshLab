@@ -41,6 +41,12 @@ enum class QualityHistogramSource {
     FaceQuality
 };
 
+enum class QualityHistogramColorMap {
+    Rainbow = 0,
+    Viridis,
+    Gray
+};
+
 enum class CurrentMeshDebugView {
     Outline = 0,
     FullMask,
@@ -83,6 +89,10 @@ struct RenderSettings {
     float decoratorBoundaryWidth = 4.0f;
     int qualityHistogramBins = 32;
     QualityHistogramSource qualityHistogramSource = QualityHistogramSource::Auto;
+    bool qualityHistogramFixedRange = false;
+    float qualityHistogramMin = 0.0f;
+    float qualityHistogramMax = 1.0f;
+    QualityHistogramColorMap qualityHistogramColorMap = QualityHistogramColorMap::Rainbow;
     QColor bboxWireColor = QColor(245, 190, 60);
     QColor pointColor = QColor(255, 191, 51);
     float pointSize = 4.0f;
@@ -129,6 +139,10 @@ struct RenderSettings {
             && decoratorBoundaryWidth == other.decoratorBoundaryWidth
             && qualityHistogramBins == other.qualityHistogramBins
             && qualityHistogramSource == other.qualityHistogramSource
+            && qualityHistogramFixedRange == other.qualityHistogramFixedRange
+            && qualityHistogramMin == other.qualityHistogramMin
+            && qualityHistogramMax == other.qualityHistogramMax
+            && qualityHistogramColorMap == other.qualityHistogramColorMap
             && bboxWireColor == other.bboxWireColor
             && pointColor == other.pointColor
             && pointSize == other.pointSize

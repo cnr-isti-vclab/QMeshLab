@@ -56,15 +56,33 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
 
     const auto &entry = m_doc->mesh(meshIndex);
     auto &gpu = m_uvMeshGpu[entry.meshId];
+    const QualityHistogramColorMap qualityColorMapSetting = m_renderSettings.qualityHistogramColorMap;
+    float qualityRangeMin = m_renderSettings.qualityHistogramMin;
+    float qualityRangeMax = m_renderSettings.qualityHistogramMax;
+    if (qualityRangeMin > qualityRangeMax)
+        std::swap(qualityRangeMin, qualityRangeMax);
+    const bool qualityFixedRange =
+        m_renderSettings.qualityHistogramFixedRange
+        && std::isfinite(qualityRangeMin)
+        && std::isfinite(qualityRangeMax);
     if (gpu.valid
         && gpu.geometryRevision == entry.geometryRevision
-        && gpu.materialRevision == entry.materialRevision) {
+        && gpu.materialRevision == entry.materialRevision
+        && gpu.qualityColorMap == qualityColorMapSetting
+        && gpu.qualityFixedRange == qualityFixedRange
+        && (!qualityFixedRange
+            || (gpu.qualityRangeMin == qualityRangeMin
+                && gpu.qualityRangeMax == qualityRangeMax))) {
         return true;
     }
 
     gpu = UvMeshGpu {};
     gpu.geometryRevision = entry.geometryRevision;
     gpu.materialRevision = entry.materialRevision;
+    gpu.qualityColorMap = qualityColorMapSetting;
+    gpu.qualityFixedRange = qualityFixedRange;
+    gpu.qualityRangeMin = qualityRangeMin;
+    gpu.qualityRangeMax = qualityRangeMax;
     if (!meshHasParametrization(meshIndex))
         return false;
 
@@ -175,69 +193,95 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
             return 0.5f;
         return std::clamp((q - range.minV) / den, 0.0f, 1.0f);
     };
-    auto qualityColorMap = [](float t) {
+    auto qualityColorMap = [qualityColorMapSetting](float t) {
         const struct Stop {
             float x;
             QVector3D c;
-        } kStops[] = {
+        } kRainbowStops[] = {
             { 0.00f, QVector3D(0.231f, 0.298f, 0.753f) },
             { 0.25f, QVector3D(0.266f, 0.741f, 0.439f) },
             { 0.50f, QVector3D(0.865f, 0.865f, 0.200f) },
             { 0.75f, QVector3D(0.956f, 0.427f, 0.262f) },
             { 1.00f, QVector3D(0.706f, 0.016f, 0.149f) }
         };
-        const int stopCount = int(sizeof(kStops) / sizeof(kStops[0]));
+        const Stop kViridisStops[] = {
+            { 0.00f, QVector3D(0.267f, 0.005f, 0.329f) },
+            { 0.25f, QVector3D(0.230f, 0.322f, 0.546f) },
+            { 0.50f, QVector3D(0.128f, 0.567f, 0.551f) },
+            { 0.75f, QVector3D(0.369f, 0.789f, 0.383f) },
+            { 1.00f, QVector3D(0.993f, 0.906f, 0.144f) }
+        };
         t = std::clamp(t, 0.0f, 1.0f);
+        if (qualityColorMapSetting == QualityHistogramColorMap::Gray)
+            return QVector3D(t, t, t);
+        const Stop *stops = kRainbowStops;
+        int stopCount = int(sizeof(kRainbowStops) / sizeof(kRainbowStops[0]));
+        if (qualityColorMapSetting == QualityHistogramColorMap::Viridis) {
+            stops = kViridisStops;
+            stopCount = int(sizeof(kViridisStops) / sizeof(kViridisStops[0]));
+        }
         for (int i = 1; i < stopCount; ++i) {
-            if (t <= kStops[i].x) {
-                const float x0 = kStops[i - 1].x;
-                const float x1 = kStops[i].x;
+            if (t <= stops[i].x) {
+                const float x0 = stops[i - 1].x;
+                const float x1 = stops[i].x;
                 const float u = (x1 > x0) ? ((t - x0) / (x1 - x0)) : 0.0f;
-                return kStops[i - 1].c * (1.0f - u) + kStops[i].c * u;
+                return stops[i - 1].c * (1.0f - u) + stops[i].c * u;
             }
         }
-        return kStops[stopCount - 1].c;
+        return stops[stopCount - 1].c;
     };
 
     QualityRange vertexQualityRange;
     if (hasVertexQuality) {
-        float minQ = std::numeric_limits<float>::max();
-        float maxQ = -std::numeric_limits<float>::max();
-        for (int vi = 0; vi < mesh.VN(); ++vi) {
-            const auto &v = mesh.vert[vi];
-            if (v.IsD())
-                continue;
-            const float q = static_cast<float>(v.cQ());
-            if (!std::isfinite(q))
-                continue;
-            minQ = std::min(minQ, q);
-            maxQ = std::max(maxQ, q);
-        }
-        if (minQ <= maxQ) {
-            vertexQualityRange.minV = minQ;
-            vertexQualityRange.maxV = maxQ;
+        if (qualityFixedRange) {
+            vertexQualityRange.minV = qualityRangeMin;
+            vertexQualityRange.maxV = qualityRangeMax;
             vertexQualityRange.valid = true;
+        } else {
+            float minQ = std::numeric_limits<float>::max();
+            float maxQ = -std::numeric_limits<float>::max();
+            for (int vi = 0; vi < mesh.VN(); ++vi) {
+                const auto &v = mesh.vert[vi];
+                if (v.IsD())
+                    continue;
+                const float q = static_cast<float>(v.cQ());
+                if (!std::isfinite(q))
+                    continue;
+                minQ = std::min(minQ, q);
+                maxQ = std::max(maxQ, q);
+            }
+            if (minQ <= maxQ) {
+                vertexQualityRange.minV = minQ;
+                vertexQualityRange.maxV = maxQ;
+                vertexQualityRange.valid = true;
+            }
         }
     }
 
     QualityRange faceQualityRange;
     if (hasFaceQuality) {
-        float minQ = std::numeric_limits<float>::max();
-        float maxQ = -std::numeric_limits<float>::max();
-        for (int fi = 0; fi < mesh.FN(); ++fi) {
-            const auto &f = mesh.face[fi];
-            if (f.IsD())
-                continue;
-            const float q = static_cast<float>(f.cQ());
-            if (!std::isfinite(q))
-                continue;
-            minQ = std::min(minQ, q);
-            maxQ = std::max(maxQ, q);
-        }
-        if (minQ <= maxQ) {
-            faceQualityRange.minV = minQ;
-            faceQualityRange.maxV = maxQ;
+        if (qualityFixedRange) {
+            faceQualityRange.minV = qualityRangeMin;
+            faceQualityRange.maxV = qualityRangeMax;
             faceQualityRange.valid = true;
+        } else {
+            float minQ = std::numeric_limits<float>::max();
+            float maxQ = -std::numeric_limits<float>::max();
+            for (int fi = 0; fi < mesh.FN(); ++fi) {
+                const auto &f = mesh.face[fi];
+                if (f.IsD())
+                    continue;
+                const float q = static_cast<float>(f.cQ());
+                if (!std::isfinite(q))
+                    continue;
+                minQ = std::min(minQ, q);
+                maxQ = std::max(maxQ, q);
+            }
+            if (minQ <= maxQ) {
+                faceQualityRange.minV = minQ;
+                faceQualityRange.maxV = maxQ;
+                faceQualityRange.valid = true;
+            }
         }
     }
 

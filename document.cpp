@@ -308,7 +308,10 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
                                       bool needPoints,
                                       bool needBoundingBox,
                                       bool needDecoratorNormals,
-                                      bool needDecoratorBoundaries)
+                                      bool needDecoratorBoundaries,
+                                      bool qualityFixedRange,
+                                      float qualityRangeMin,
+                                      float qualityRangeMax)
 {
     if (!m_gpuCache || !rhi || !cb)
         return;
@@ -321,6 +324,11 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
     source.geometryRevision = meshEntry.geometryRevision;
     source.materialRevision = meshEntry.materialRevision;
     source.ioMask = meshEntry.ioMask;
+    source.qualityFixedRange = qualityFixedRange;
+    source.qualityRangeMin = qualityRangeMin;
+    source.qualityRangeMax = qualityRangeMax;
+    if (source.qualityRangeMin > source.qualityRangeMax)
+        std::swap(source.qualityRangeMin, source.qualityRangeMax);
     source.mesh = &meshEntry.mesh;
     source.textureFilePaths = &meshEntry.textureFilePaths;
 

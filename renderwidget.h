@@ -252,6 +252,10 @@ private:
         bool valid = false;
         bool vertexBased = true;
         QualityHistogramSource sourceSelection = QualityHistogramSource::Auto;
+        bool fixedRange = false;
+        float fixedMin = 0.0f;
+        float fixedMax = 1.0f;
+        QualityHistogramColorMap colorMap = QualityHistogramColorMap::Rainbow;
         std::uint64_t meshId = 0;
         std::uint64_t geometryRevision = 0;
         int bins = 0;
@@ -277,6 +281,10 @@ private:
         bool valid = false;
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
+        QualityHistogramColorMap qualityColorMap = QualityHistogramColorMap::Rainbow;
+        bool qualityFixedRange = false;
+        float qualityRangeMin = 0.0f;
+        float qualityRangeMax = 1.0f;
         std::unique_ptr<QRhiBuffer> wireVbuf;
         int wireVertexCount = 0;
         std::unique_ptr<QRhiBuffer> boundaryEdgesVbuf;

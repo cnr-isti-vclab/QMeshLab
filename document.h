@@ -90,7 +90,10 @@ public:
                                 bool needPoints,
                                 bool needBoundingBox,
                                 bool needDecoratorNormals,
-                                bool needDecoratorBoundaries);
+                                bool needDecoratorBoundaries,
+                                bool qualityFixedRange = false,
+                                float qualityRangeMin = 0.0f,
+                                float qualityRangeMax = 1.0f);
     FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
     WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
     EdgePassGpuView edgePassGpuView(QRhi *rhi, int meshIndex) const;

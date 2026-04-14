@@ -64,7 +64,11 @@ private:
     QCheckBox *m_decoratorTextureSeamsCheck = nullptr;
     QDoubleSpinBox *m_decoratorBoundaryWidthSpin = nullptr;
     QComboBox *m_qualityHistogramSourceCombo = nullptr;
+    QComboBox *m_qualityHistogramColorMapCombo = nullptr;
+    QCheckBox *m_qualityHistogramFixedRangeCheck = nullptr;
     QDoubleSpinBox *m_qualityHistogramBinsSpin = nullptr;
+    QDoubleSpinBox *m_qualityHistogramMinSpin = nullptr;
+    QDoubleSpinBox *m_qualityHistogramMaxSpin = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_edgeSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
