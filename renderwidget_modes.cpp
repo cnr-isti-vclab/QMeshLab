@@ -19,6 +19,8 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
     const int mask = entry.ioMask;
     const bool hasVertexColors = (mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
     const bool hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
+    const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
+    const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
     const bool hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
     const bool hasTextureCoords =
         (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
@@ -37,9 +39,13 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
             mode.fillColorSource = FillColorSource::PerVertex;
         else if (hasFaceColors)
             mode.fillColorSource = FillColorSource::PerFace;
+        else if (hasVertexQuality)
+            mode.fillColorSource = FillColorSource::PerVertexQuality;
+        else if (hasFaceQuality)
+            mode.fillColorSource = FillColorSource::PerFaceQuality;
         mode.pointColorSource = hasVertexColors
             ? PointColorSource::PerVertex
-            : PointColorSource::Constant;
+            : (hasVertexQuality ? PointColorSource::PerVertexQuality : PointColorSource::Constant);
         mode.fillLighting = true;
         mode.pointLighting = false;
         mode.wireLighting = false;
@@ -59,7 +65,7 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         mode.showPoints = true;
         mode.pointColorSource = hasVertexColors
             ? PointColorSource::PerVertex
-            : PointColorSource::Constant;
+            : (hasVertexQuality ? PointColorSource::PerVertexQuality : PointColorSource::Constant);
         mode.pointLighting = hasVertexNormals;
         mode.fillLighting = false;
         mode.wireLighting = false;
@@ -281,6 +287,8 @@ void RenderWidget::refreshColorSourceAvailability()
 {
     bool hasVertexColors = false;
     bool hasFaceColors = false;
+    bool hasVertexQuality = false;
+    bool hasFaceQuality = false;
     bool hasTextures = false;
     bool hasVertexNormals = false;
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
@@ -292,25 +300,38 @@ void RenderWidget::refreshColorSourceAvailability()
             || (mask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
         hasVertexColors = (mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
         hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
+        hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
+        hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
         hasTextures = hasTextureCoords && !meshEntry.textureFilePaths.isEmpty();
         hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
     }
 
     if (m_overlayPanel)
-        m_overlayPanel->setPointColorSourceAvailability(hasVertexColors);
+        m_overlayPanel->setPointColorSourceAvailability(hasVertexColors, hasVertexQuality);
     if (m_overlayPanel)
         m_overlayPanel->setPointLightingAvailability(hasVertexNormals);
     if (m_overlayPanel)
-        m_overlayPanel->setFillColorSourceAvailability(hasVertexColors, hasFaceColors, hasTextures);
+        m_overlayPanel->setFillColorSourceAvailability(
+            hasVertexColors,
+            hasFaceColors,
+            hasVertexQuality,
+            hasFaceQuality,
+            hasTextures);
 
     RenderSettings corrected = m_renderSettings;
     if (corrected.pointColorSource == PointColorSource::PerVertex && !hasVertexColors)
+        corrected.pointColorSource = PointColorSource::Constant;
+    if (corrected.pointColorSource == PointColorSource::PerVertexQuality && !hasVertexQuality)
         corrected.pointColorSource = PointColorSource::Constant;
     if (corrected.pointLighting && !hasVertexNormals)
         corrected.pointLighting = false;
     if (corrected.fillColorSource == FillColorSource::PerVertex && !hasVertexColors)
         corrected.fillColorSource = FillColorSource::Constant;
     if (corrected.fillColorSource == FillColorSource::PerFace && !hasFaceColors)
+        corrected.fillColorSource = FillColorSource::Constant;
+    if (corrected.fillColorSource == FillColorSource::PerVertexQuality && !hasVertexQuality)
+        corrected.fillColorSource = FillColorSource::Constant;
+    if (corrected.fillColorSource == FillColorSource::PerFaceQuality && !hasFaceQuality)
         corrected.fillColorSource = FillColorSource::Constant;
     if (corrected.fillColorSource == FillColorSource::Texture && !hasTextures)
         corrected.fillColorSource = FillColorSource::Constant;
@@ -329,6 +350,10 @@ int RenderWidget::fillGpuVariantIndexForSettings(const RenderSettings &settings)
     switch (settings.fillColorSource) {
     case FillColorSource::PerVertex: return static_cast<int>(Document::FillGpuVariant::PerVertex);
     case FillColorSource::PerFace: return static_cast<int>(Document::FillGpuVariant::PerFace);
+    case FillColorSource::PerVertexQuality:
+        return static_cast<int>(Document::FillGpuVariant::PerVertexQuality);
+    case FillColorSource::PerFaceQuality:
+        return static_cast<int>(Document::FillGpuVariant::PerFaceQuality);
     case FillColorSource::Texture: return static_cast<int>(Document::FillGpuVariant::Texture);
     case FillColorSource::Constant:
     default:
@@ -340,6 +365,8 @@ int RenderWidget::pointGpuVariantIndexForSettings(const RenderSettings &settings
 {
     switch (settings.pointColorSource) {
     case PointColorSource::PerVertex: return static_cast<int>(Document::PointGpuVariant::PerVertex);
+    case PointColorSource::PerVertexQuality:
+        return static_cast<int>(Document::PointGpuVariant::PerVertexQuality);
     case PointColorSource::Constant:
     default:
         return static_cast<int>(Document::PointGpuVariant::Constant);

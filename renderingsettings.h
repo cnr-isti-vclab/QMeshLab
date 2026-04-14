@@ -11,7 +11,8 @@ enum class RenderPass {
     Wireframe,
     Fill,
     DecoratorNormals,
-    DecoratorBoundary
+    DecoratorBoundary,
+    QualityHistogram
 };
 
 enum class FillShading {
@@ -23,12 +24,21 @@ enum class FillColorSource {
     Constant = 0,
     PerVertex,
     PerFace,
+    PerVertexQuality,
+    PerFaceQuality,
     Texture
 };
 
 enum class PointColorSource {
     Constant = 0,
-    PerVertex
+    PerVertex,
+    PerVertexQuality
+};
+
+enum class QualityHistogramSource {
+    Auto = 0,
+    VertexQuality,
+    FaceQuality
 };
 
 enum class CurrentMeshDebugView {
@@ -65,11 +75,14 @@ struct RenderSettings {
     bool decoratorFaceNormals = false;
     bool decoratorBoundaryEdges = false;
     bool decoratorTextureSeams = false;
+    bool showQualityHistogram = false;
     QColor decoratorVertexNormalColor = QColor(70, 200, 255);
     QColor decoratorFaceNormalColor = QColor(70, 255, 120);
     QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);
     QColor decoratorTextureSeamColor = QColor(255, 80, 255);
     float decoratorBoundaryWidth = 4.0f;
+    int qualityHistogramBins = 32;
+    QualityHistogramSource qualityHistogramSource = QualityHistogramSource::Auto;
     QColor bboxWireColor = QColor(245, 190, 60);
     QColor pointColor = QColor(255, 191, 51);
     float pointSize = 4.0f;
@@ -108,11 +121,14 @@ struct RenderSettings {
             && decoratorFaceNormals == other.decoratorFaceNormals
             && decoratorBoundaryEdges == other.decoratorBoundaryEdges
             && decoratorTextureSeams == other.decoratorTextureSeams
+            && showQualityHistogram == other.showQualityHistogram
             && decoratorVertexNormalColor == other.decoratorVertexNormalColor
             && decoratorFaceNormalColor == other.decoratorFaceNormalColor
             && decoratorBoundaryEdgeColor == other.decoratorBoundaryEdgeColor
             && decoratorTextureSeamColor == other.decoratorTextureSeamColor
             && decoratorBoundaryWidth == other.decoratorBoundaryWidth
+            && qualityHistogramBins == other.qualityHistogramBins
+            && qualityHistogramSource == other.qualityHistogramSource
             && bboxWireColor == other.bboxWireColor
             && pointColor == other.pointColor
             && pointSize == other.pointSize

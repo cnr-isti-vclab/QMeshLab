@@ -102,6 +102,7 @@ qt_add_resources(QMeshLab "icons"
         img/wireframe.png
         img/wire.png
         img/flat.png
+        img/histogram.png
         img/splitH.png
         img/splitV.png
         img/MeshLab_Icon_512x512.png

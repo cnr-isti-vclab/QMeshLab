@@ -107,6 +107,7 @@ private:
         const QMatrix4x4 &mvp,
         const QMatrix4x4 &view,
         const QSize &pixelSize);
+    void updateQualityHistogramOverlay();
     MeshRenderMode defaultRenderModeForMesh(int meshIndex) const;
     void syncPerMeshRenderModesWithDocument();
     MeshRenderMode renderModeForMesh(int meshIndex) const;
@@ -243,9 +244,23 @@ private:
     QLabel *m_bboxDimXOverlayLabel = nullptr;
     QLabel *m_bboxDimYOverlayLabel = nullptr;
     QLabel *m_bboxDimZOverlayLabel = nullptr;
+    QLabel *m_qualityHistogramOverlayLabel = nullptr;
     QVector3D m_bboxOverlayMinCorner = QVector3D();
     QVector3D m_bboxOverlayMaxCorner = QVector3D();
     bool m_bboxOverlayCornersValid = false;
+    struct QualityHistogramCache {
+        bool valid = false;
+        bool vertexBased = true;
+        QualityHistogramSource sourceSelection = QualityHistogramSource::Auto;
+        std::uint64_t meshId = 0;
+        std::uint64_t geometryRevision = 0;
+        int bins = 0;
+        float minQ = 0.0f;
+        float maxQ = 1.0f;
+        int sampleCount = 0;
+        std::vector<int> counts;
+    };
+    QualityHistogramCache m_qualityHistogram;
     QElapsedTimer m_frameTimer;
     bool m_currentMaskFromPoints = false;
     ViewTrackball m_trackball;
@@ -268,8 +283,8 @@ private:
         int boundaryEdgesVertexCount = 0;
         std::unique_ptr<QRhiBuffer> textureSeamsVbuf;
         int textureSeamsVertexCount = 0;
-        std::array<UvFillVariantGpu, 3> fillVariants;
-        std::array<UvPointsVariantGpu, 2> pointsVariants;
+        std::array<UvFillVariantGpu, 5> fillVariants;
+        std::array<UvPointsVariantGpu, 3> pointsVariants;
         QVector2D minUv = QVector2D(0.0f, 0.0f);
         QVector2D maxUv = QVector2D(1.0f, 1.0f);
     };

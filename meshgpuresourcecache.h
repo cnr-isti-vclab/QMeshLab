@@ -17,12 +17,15 @@ public:
         Constant = 0,
         PerVertex = 1,
         PerFace = 2,
-        Texture = 3
+        PerVertexQuality = 3,
+        PerFaceQuality = 4,
+        Texture = 5
     };
 
     enum class PointVariant : int {
         Constant = 0,
-        PerVertex = 1
+        PerVertex = 1,
+        PerVertexQuality = 2
     };
 
     struct MeshSource {

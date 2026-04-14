@@ -74,6 +74,8 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     const bool hasVertexTex = !hasWedgeTex && ((mask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0);
     const bool hasVertexColors = (mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
     const bool hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
+    const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
+    const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
 
     auto uvForCorner = [&](const VCGMesh::FaceType &f, int corner, QVector2D &outUv) -> bool {
         float u = 0.0f;
@@ -104,10 +106,10 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     boundaryEdgeData.reserve(size_t(mesh.FN()) * 6);
     std::vector<float> textureSeamData;
     textureSeamData.reserve(size_t(mesh.FN()) * 6);
-    std::array<std::vector<float>, 3> fillData;
+    std::array<std::vector<float>, 5> fillData;
     for (auto &v : fillData)
         v.reserve(size_t(mesh.FN()) * 3 * kFillVertexStrideFloats);
-    std::array<std::vector<float>, 2> pointsData;
+    std::array<std::vector<float>, 3> pointsData;
     for (auto &v : pointsData)
         v.reserve(size_t(std::max(mesh.VN(), mesh.FN() * 3)) * kPointsVertexStrideFloats);
 
@@ -160,6 +162,85 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         dst.push_back(0.0f);
     };
 
+    struct QualityRange {
+        float minV = 0.0f;
+        float maxV = 1.0f;
+        bool valid = false;
+    };
+    auto normalizedQuality = [](float q, const QualityRange &range) {
+        if (!range.valid)
+            return 0.5f;
+        const float den = range.maxV - range.minV;
+        if (std::abs(den) <= 1e-12f)
+            return 0.5f;
+        return std::clamp((q - range.minV) / den, 0.0f, 1.0f);
+    };
+    auto qualityColorMap = [](float t) {
+        const struct Stop {
+            float x;
+            QVector3D c;
+        } kStops[] = {
+            { 0.00f, QVector3D(0.231f, 0.298f, 0.753f) },
+            { 0.25f, QVector3D(0.266f, 0.741f, 0.439f) },
+            { 0.50f, QVector3D(0.865f, 0.865f, 0.200f) },
+            { 0.75f, QVector3D(0.956f, 0.427f, 0.262f) },
+            { 1.00f, QVector3D(0.706f, 0.016f, 0.149f) }
+        };
+        const int stopCount = int(sizeof(kStops) / sizeof(kStops[0]));
+        t = std::clamp(t, 0.0f, 1.0f);
+        for (int i = 1; i < stopCount; ++i) {
+            if (t <= kStops[i].x) {
+                const float x0 = kStops[i - 1].x;
+                const float x1 = kStops[i].x;
+                const float u = (x1 > x0) ? ((t - x0) / (x1 - x0)) : 0.0f;
+                return kStops[i - 1].c * (1.0f - u) + kStops[i].c * u;
+            }
+        }
+        return kStops[stopCount - 1].c;
+    };
+
+    QualityRange vertexQualityRange;
+    if (hasVertexQuality) {
+        float minQ = std::numeric_limits<float>::max();
+        float maxQ = -std::numeric_limits<float>::max();
+        for (int vi = 0; vi < mesh.VN(); ++vi) {
+            const auto &v = mesh.vert[vi];
+            if (v.IsD())
+                continue;
+            const float q = static_cast<float>(v.cQ());
+            if (!std::isfinite(q))
+                continue;
+            minQ = std::min(minQ, q);
+            maxQ = std::max(maxQ, q);
+        }
+        if (minQ <= maxQ) {
+            vertexQualityRange.minV = minQ;
+            vertexQualityRange.maxV = maxQ;
+            vertexQualityRange.valid = true;
+        }
+    }
+
+    QualityRange faceQualityRange;
+    if (hasFaceQuality) {
+        float minQ = std::numeric_limits<float>::max();
+        float maxQ = -std::numeric_limits<float>::max();
+        for (int fi = 0; fi < mesh.FN(); ++fi) {
+            const auto &f = mesh.face[fi];
+            if (f.IsD())
+                continue;
+            const float q = static_cast<float>(f.cQ());
+            if (!std::isfinite(q))
+                continue;
+            minQ = std::min(minQ, q);
+            maxQ = std::max(maxQ, q);
+        }
+        if (minQ <= maxQ) {
+            faceQualityRange.minV = minQ;
+            faceQualityRange.maxV = maxQ;
+            faceQualityRange.valid = true;
+        }
+    }
+
     for (int fi = 0; fi < mesh.FN(); ++fi) {
         const auto &f = mesh.face[fi];
         if (f.IsD())
@@ -182,6 +263,9 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
             float(fc[1]) / 255.0f,
             float(fc[2]) / 255.0f);
         const float useFaceColorFlag = hasFaceColors ? 1.0f : 0.0f;
+        const QVector3D faceQualityColor = qualityColorMap(
+            normalizedQuality(static_cast<float>(f.cQ()), faceQualityRange));
+        const float useFaceQualityFlag = hasFaceQuality ? 1.0f : 0.0f;
 
         for (int c = 0; c < 3; ++c) {
             includeUvBounds(uv[c]);
@@ -204,6 +288,13 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
                     float(vc[2]) / 255.0f);
                 useVertexColorFlag = 1.0f;
             }
+            QVector3D vertexQualityColor(1.0f, 1.0f, 1.0f);
+            float useVertexQualityFlag = 0.0f;
+            if (vertex && hasVertexQuality) {
+                vertexQualityColor = qualityColorMap(
+                    normalizedQuality(static_cast<float>(vertex->cQ()), vertexQualityRange));
+                useVertexQualityFlag = 1.0f;
+            }
 
             appendFillVertex(
                 fillData[0], uv[c], QVector3D(1.0f, 1.0f, 1.0f), 0.0f, QVector3D(0.0f, 0.0f, 0.0f));
@@ -211,9 +302,22 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
                 fillData[1], uv[c], vertexColor, useVertexColorFlag, QVector3D(0.0f, 0.0f, 0.0f));
             appendFillVertex(
                 fillData[2], uv[c], faceColor, useFaceColorFlag, QVector3D(0.0f, 0.0f, 0.0f));
+            appendFillVertex(
+                fillData[3],
+                uv[c],
+                vertexQualityColor,
+                useVertexQualityFlag,
+                QVector3D(0.0f, 0.0f, 0.0f));
+            appendFillVertex(
+                fillData[4],
+                uv[c],
+                faceQualityColor,
+                useFaceQualityFlag,
+                QVector3D(0.0f, 0.0f, 0.0f));
 
             appendPointVertex(pointsData[0], uv[c], QVector3D(1.0f, 1.0f, 1.0f), 0.0f);
             appendPointVertex(pointsData[1], uv[c], vertexColor, useVertexColorFlag);
+            appendPointVertex(pointsData[2], uv[c], vertexQualityColor, useVertexQualityFlag);
         }
     }
 
@@ -331,14 +435,14 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         gpu.textureSeamsVbuf,
         gpu.textureSeamsVertexCount,
         3);
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 5; ++i) {
         uploadFloats(
             fillData[size_t(i)],
             gpu.fillVariants[size_t(i)].vbuf,
             gpu.fillVariants[size_t(i)].vertexCount,
             kFillVertexStrideFloats);
     }
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 3; ++i) {
         uploadFloats(
             pointsData[size_t(i)],
             gpu.pointsVariants[size_t(i)].vbuf,
@@ -643,6 +747,10 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                         fillVariantIdx = 1;
                     else if (meshSettings.fillColorSource == FillColorSource::PerFace)
                         fillVariantIdx = 2;
+                    else if (meshSettings.fillColorSource == FillColorSource::PerVertexQuality)
+                        fillVariantIdx = 3;
+                    else if (meshSettings.fillColorSource == FillColorSource::PerFaceQuality)
+                        fillVariantIdx = 4;
                     const auto &fillVariant = uvGpu.fillVariants[size_t(fillVariantIdx)];
                     if (fillPipeline && fillVariant.vbuf && fillVariant.vertexCount > 0) {
                         updateStyleUbuf(fillSettings);
@@ -692,7 +800,11 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     uvGpu.textureSeamsVertexCount);
 
             if (meshSettings.showPoints && m_pointsPipeline) {
-                int pointVariantIdx = (meshSettings.pointColorSource == PointColorSource::PerVertex) ? 1 : 0;
+                int pointVariantIdx = 0;
+                if (meshSettings.pointColorSource == PointColorSource::PerVertex)
+                    pointVariantIdx = 1;
+                else if (meshSettings.pointColorSource == PointColorSource::PerVertexQuality)
+                    pointVariantIdx = 2;
                 const auto &pointVariant = uvGpu.pointsVariants[size_t(pointVariantIdx)];
                 if (pointVariant.vbuf && pointVariant.vertexCount > 0) {
                     RenderSettings pointSettings = meshSettings;

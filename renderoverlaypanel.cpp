@@ -16,6 +16,8 @@
 #include <QStyle>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <algorithm>
+#include <cmath>
 #include <type_traits>
 
 namespace {
@@ -156,6 +158,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_edgesButton = makeButton(QStringLiteral(":/img/edge-mesh.png"), tr("Edges pass"));
     m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
     m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
+    m_qualityHistogramButton =
+        makeButton(QStringLiteral(":/img/histogram.png"), tr("Quality Histogram"));
 
     buttonLayout->addWidget(m_modeButton);
     buttonLayout->addWidget(m_currentMeshButton);
@@ -166,6 +170,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     buttonLayout->addWidget(m_fillButton);
     buttonLayout->addWidget(m_normalsDecoratorsButton);
     buttonLayout->addWidget(m_boundaryDecoratorsButton);
+    buttonLayout->addWidget(m_qualityHistogramButton);
 
     m_normalsDecoratorsButton->setChecked(false);
     m_boundaryDecoratorsButton->setChecked(false);
@@ -174,6 +179,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_edgesButton->setChecked(false);
     m_wireButton->setChecked(true);
     m_fillButton->setChecked(true);
+    m_qualityHistogramButton->setChecked(false);
 
     auto *arrowRow = new QWidget(this);
     auto *arrowLayout = new QHBoxLayout(arrowRow);
@@ -206,6 +212,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_edgesSettingsArrow = makeArrowButton(tr("Settings: Edges"));
     m_wireSettingsArrow = makeArrowButton(tr("Settings: Wireframe"));
     m_fillSettingsArrow = makeArrowButton(tr("Settings: Fill"));
+    m_qualityHistogramSettingsArrow = makeArrowButton(tr("Settings: Quality Histogram"));
     arrowLayout->addWidget(m_bboxSettingsArrow);
     arrowLayout->addWidget(m_pointsSettingsArrow);
     arrowLayout->addWidget(m_edgesSettingsArrow);
@@ -215,6 +222,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     arrowLayout->addWidget(m_normalsDecoratorsSettingsArrow);
     m_boundaryDecoratorsSettingsArrow = makeArrowButton(tr("Settings: Boundary Decorators"));
     arrowLayout->addWidget(m_boundaryDecoratorsSettingsArrow);
+    arrowLayout->addWidget(m_qualityHistogramSettingsArrow);
 
     m_settingsContainer = new QFrame(this);
     m_settingsContainer->setVisible(false);
@@ -401,6 +409,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_pointColorSourceCombo = new QComboBox(pointsPage);
     m_pointColorSourceCombo->addItem(tr("Constant"), static_cast<int>(PointColorSource::Constant));
     m_pointColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(PointColorSource::PerVertex));
+    m_pointColorSourceCombo->addItem(
+        tr("Per-Vertex Quality"),
+        static_cast<int>(PointColorSource::PerVertexQuality));
     m_pointSizeSpin = new QDoubleSpinBox(pointsPage);
     m_pointSizeSpin->setRange(1.0, 32.0);
     m_pointSizeSpin->setSingleStep(0.5);
@@ -490,6 +501,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
     m_fillColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(FillColorSource::PerVertex));
     m_fillColorSourceCombo->addItem(tr("Per-Face"), static_cast<int>(FillColorSource::PerFace));
+    m_fillColorSourceCombo->addItem(
+        tr("Per-Vertex Quality"),
+        static_cast<int>(FillColorSource::PerVertexQuality));
+    m_fillColorSourceCombo->addItem(
+        tr("Per-Face Quality"),
+        static_cast<int>(FillColorSource::PerFaceQuality));
     m_fillColorSourceCombo->addItem(tr("Texture"), static_cast<int>(FillColorSource::Texture));
     m_fillShadingCombo = new QComboBox(fillPage);
     m_fillShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
@@ -512,6 +529,34 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     applyUniformFormRowHeights(fillForm);
     fillLayout->addLayout(fillForm);
     m_settingsStack->addWidget(fillPage);
+
+    auto *histogramPage = new QWidget(m_settingsStack);
+    auto *histogramLayout = new QVBoxLayout(histogramPage);
+    histogramLayout->setContentsMargins(0, 0, 0, 0);
+    histogramLayout->setSpacing(2);
+    auto *histogramForm = new QFormLayout();
+    histogramForm->setContentsMargins(0, 0, 0, 0);
+    histogramForm->setHorizontalSpacing(6);
+    histogramForm->setVerticalSpacing(2);
+    histogramForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_qualityHistogramSourceCombo = new QComboBox(histogramPage);
+    m_qualityHistogramSourceCombo->addItem(
+        tr("Auto"), static_cast<int>(QualityHistogramSource::Auto));
+    m_qualityHistogramSourceCombo->addItem(
+        tr("Vertex Q"), static_cast<int>(QualityHistogramSource::VertexQuality));
+    m_qualityHistogramSourceCombo->addItem(
+        tr("Face Q"), static_cast<int>(QualityHistogramSource::FaceQuality));
+    histogramForm->addRow(tr("Source"), m_qualityHistogramSourceCombo);
+    m_qualityHistogramBinsSpin = new QDoubleSpinBox(histogramPage);
+    m_qualityHistogramBinsSpin->setRange(4.0, 512.0);
+    m_qualityHistogramBinsSpin->setSingleStep(1.0);
+    m_qualityHistogramBinsSpin->setDecimals(0);
+    m_qualityHistogramBinsSpin->setValue(m_settings.qualityHistogramBins);
+    histogramForm->addRow(tr("Bins"), m_qualityHistogramBinsSpin);
+    applyUniformFormRowHeights(histogramForm);
+    histogramLayout->addLayout(histogramForm);
+    m_settingsStack->addWidget(histogramPage);
+
     panelLayout->addWidget(m_settingsContainer);
 
     auto setField = [this](auto member, const auto &value, bool syncUi = false) {
@@ -647,6 +692,18 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindEnumCombo(m_fillShadingCombo, &RenderSettings::fillShading);
     bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
     bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
+    bindEnumCombo(m_qualityHistogramSourceCombo, &RenderSettings::qualityHistogramSource);
+    connect(
+        m_qualityHistogramBinsSpin,
+        &QDoubleSpinBox::valueChanged,
+        this,
+        [this](double value) {
+            const int bins = std::clamp(int(std::lround(value)), 4, 512);
+            if (m_settings.qualityHistogramBins == bins)
+                return;
+            m_settings.qualityHistogramBins = bins;
+            emit settingsChanged(m_settings);
+        });
 
     bindPassButton(m_currentMeshButton, RenderPass::CurrentMesh, true);
     bindPassButton(m_normalsDecoratorsButton, RenderPass::DecoratorNormals, false);
@@ -656,6 +713,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_edgesButton, RenderPass::Edges, false);
     bindPassButton(m_wireButton, RenderPass::Wireframe, false);
     bindPassButton(m_fillButton, RenderPass::Fill, false);
+    bindPassButton(m_qualityHistogramButton, RenderPass::QualityHistogram, false);
 
     bindPassButton(m_currentMeshSettingsArrow, RenderPass::CurrentMesh, true);
     bindPassButton(m_normalsDecoratorsSettingsArrow, RenderPass::DecoratorNormals, true);
@@ -665,6 +723,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_edgesSettingsArrow, RenderPass::Edges, true);
     bindPassButton(m_wireSettingsArrow, RenderPass::Wireframe, true);
     bindPassButton(m_fillSettingsArrow, RenderPass::Fill, true);
+    bindPassButton(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram, true);
 
     bindToolToggle(m_bboxButton, &RenderSettings::showBoundingBox);
     connect(m_normalsDecoratorsButton, &QToolButton::toggled, this, [this](bool checked) {
@@ -693,6 +752,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindToolToggle(m_edgesButton, &RenderSettings::showEdges);
     bindToolToggle(m_wireButton, &RenderSettings::showWire);
     bindToolToggle(m_fillButton, &RenderSettings::showFill);
+    bindToolToggle(m_qualityHistogramButton, &RenderSettings::showQualityHistogram);
 
     updateColorButtonStyle(m_currentMeshOutlineColorButton, m_settings.currentMeshOutlineColor);
     updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_settings.decoratorVertexNormalColor);
@@ -704,9 +764,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     updateColorButtonStyle(m_edgeColorButton, m_settings.edgeColor);
     updateColorButtonStyle(m_wireColorButton, m_settings.wireColor);
     updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
-    setPointColorSourceAvailability(false);
+    setPointColorSourceAvailability(false, false);
     setPointLightingAvailability(false);
-    setFillColorSourceAvailability(false, false, false);
+    setFillColorSourceAvailability(false, false, false, false, false);
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
     if (m_settingsContainer)
@@ -725,6 +785,7 @@ int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
     case RenderPass::Edges: return 5;
     case RenderPass::Wireframe: return 6;
     case RenderPass::Fill: return 7;
+    case RenderPass::QualityHistogram: return 8;
     }
     return 0;
 }
@@ -791,6 +852,10 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_fillButton) {
         QSignalBlocker blocker(m_fillButton);
         m_fillButton->setChecked(m_settings.showFill);
+    }
+    if (m_qualityHistogramButton) {
+        QSignalBlocker blocker(m_qualityHistogramButton);
+        m_qualityHistogramButton->setChecked(m_settings.showQualityHistogram);
     }
     if (m_modeButton) {
         QSignalBlocker blocker(m_modeButton);
@@ -870,6 +935,20 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_decoratorBoundaryWidthSpin);
         m_decoratorBoundaryWidthSpin->setValue(m_settings.decoratorBoundaryWidth);
     }
+    if (m_qualityHistogramBinsSpin) {
+        QSignalBlocker blocker(m_qualityHistogramBinsSpin);
+        m_qualityHistogramBinsSpin->setValue(m_settings.qualityHistogramBins);
+    }
+    if (m_qualityHistogramSourceCombo) {
+        QSignalBlocker blocker(m_qualityHistogramSourceCombo);
+        const int value = static_cast<int>(m_settings.qualityHistogramSource);
+        for (int i = 0; i < m_qualityHistogramSourceCombo->count(); ++i) {
+            if (m_qualityHistogramSourceCombo->itemData(i).toInt() == value) {
+                m_qualityHistogramSourceCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
     if (m_pointColorSourceCombo) {
         QSignalBlocker blocker(m_pointColorSourceCombo);
         const int value = static_cast<int>(m_settings.pointColorSource);
@@ -918,17 +997,26 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     syncRenderPassUiState();
 }
 
-void RenderOverlayPanel::setPointColorSourceAvailability(bool hasVertexColors)
+void RenderOverlayPanel::setPointColorSourceAvailability(
+    bool hasVertexColors, bool hasVertexQuality)
 {
     if (!m_pointColorSourceCombo)
         return;
 
     const int vertexIndex =
         m_pointColorSourceCombo->findData(static_cast<int>(PointColorSource::PerVertex));
+    const int qualityIndex =
+        m_pointColorSourceCombo->findData(static_cast<int>(PointColorSource::PerVertexQuality));
     if (vertexIndex >= 0) {
         m_pointColorSourceCombo->setItemData(
             vertexIndex,
             hasVertexColors ? QVariant() : QVariant(0),
+            Qt::UserRole - 1);
+    }
+    if (qualityIndex >= 0) {
+        m_pointColorSourceCombo->setItemData(
+            qualityIndex,
+            hasVertexQuality ? QVariant() : QVariant(0),
             Qt::UserRole - 1);
     }
 }
@@ -941,7 +1029,11 @@ void RenderOverlayPanel::setPointLightingAvailability(bool hasVertexNormals)
 }
 
 void RenderOverlayPanel::setFillColorSourceAvailability(
-    bool hasVertexColors, bool hasFaceColors, bool hasTextures)
+    bool hasVertexColors,
+    bool hasFaceColors,
+    bool hasVertexQuality,
+    bool hasFaceQuality,
+    bool hasTextures)
 {
     if (!m_fillColorSourceCombo)
         return;
@@ -950,6 +1042,10 @@ void RenderOverlayPanel::setFillColorSourceAvailability(
         m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::PerVertex));
     const int faceIndex =
         m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::PerFace));
+    const int vertexQualityIndex =
+        m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::PerVertexQuality));
+    const int faceQualityIndex =
+        m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::PerFaceQuality));
     const int textureIndex =
         m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::Texture));
 
@@ -963,6 +1059,18 @@ void RenderOverlayPanel::setFillColorSourceAvailability(
         m_fillColorSourceCombo->setItemData(
             faceIndex,
             hasFaceColors ? QVariant() : QVariant(0),
+            Qt::UserRole - 1);
+    }
+    if (vertexQualityIndex >= 0) {
+        m_fillColorSourceCombo->setItemData(
+            vertexQualityIndex,
+            hasVertexQuality ? QVariant() : QVariant(0),
+            Qt::UserRole - 1);
+    }
+    if (faceQualityIndex >= 0) {
+        m_fillColorSourceCombo->setItemData(
+            faceQualityIndex,
+            hasFaceQuality ? QVariant() : QVariant(0),
             Qt::UserRole - 1);
     }
     if (textureIndex >= 0) {
@@ -1016,6 +1124,7 @@ void RenderOverlayPanel::syncRenderPassUiState()
     setPassMarker(m_edgesButton, RenderPass::Edges);
     setPassMarker(m_wireButton, RenderPass::Wireframe);
     setPassMarker(m_fillButton, RenderPass::Fill);
+    setPassMarker(m_qualityHistogramButton, RenderPass::QualityHistogram);
 
     setArrowChecked(m_currentMeshSettingsArrow, RenderPass::CurrentMesh);
     setArrowChecked(m_normalsDecoratorsSettingsArrow, RenderPass::DecoratorNormals);
@@ -1025,4 +1134,5 @@ void RenderOverlayPanel::syncRenderPassUiState()
     setArrowChecked(m_edgesSettingsArrow, RenderPass::Edges);
     setArrowChecked(m_wireSettingsArrow, RenderPass::Wireframe);
     setArrowChecked(m_fillSettingsArrow, RenderPass::Fill);
+    setArrowChecked(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram);
 }

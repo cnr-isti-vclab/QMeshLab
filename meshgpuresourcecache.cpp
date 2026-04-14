@@ -6,9 +6,12 @@
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QVector3D>
 
 #include <array>
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <unordered_map>
 
@@ -22,7 +25,9 @@ int fillVariantIndex(MeshGpuResourceCache::FillVariant variant)
     case MeshGpuResourceCache::FillVariant::Constant: return 0;
     case MeshGpuResourceCache::FillVariant::PerVertex: return 1;
     case MeshGpuResourceCache::FillVariant::PerFace: return 2;
-    case MeshGpuResourceCache::FillVariant::Texture: return 3;
+    case MeshGpuResourceCache::FillVariant::PerVertexQuality: return 3;
+    case MeshGpuResourceCache::FillVariant::PerFaceQuality: return 4;
+    case MeshGpuResourceCache::FillVariant::Texture: return 5;
     }
     return 0;
 }
@@ -32,8 +37,51 @@ int pointVariantIndex(MeshGpuResourceCache::PointVariant variant)
     switch (variant) {
     case MeshGpuResourceCache::PointVariant::Constant: return 0;
     case MeshGpuResourceCache::PointVariant::PerVertex: return 1;
+    case MeshGpuResourceCache::PointVariant::PerVertexQuality: return 2;
     }
     return 0;
+}
+
+struct QualityRange {
+    float minV = 0.0f;
+    float maxV = 1.0f;
+    bool valid = false;
+};
+
+float normalizedQuality(float q, const QualityRange &range)
+{
+    if (!range.valid)
+        return 0.5f;
+    const float den = range.maxV - range.minV;
+    if (std::abs(den) <= 1e-12f)
+        return 0.5f;
+    return std::clamp((q - range.minV) / den, 0.0f, 1.0f);
+}
+
+QVector3D qualityColorMap(float t)
+{
+    const struct Stop {
+        float x;
+        QVector3D c;
+    } kStops[] = {
+        { 0.00f, QVector3D(0.231f, 0.298f, 0.753f) },
+        { 0.25f, QVector3D(0.266f, 0.741f, 0.439f) },
+        { 0.50f, QVector3D(0.865f, 0.865f, 0.200f) },
+        { 0.75f, QVector3D(0.956f, 0.427f, 0.262f) },
+        { 1.00f, QVector3D(0.706f, 0.016f, 0.149f) }
+    };
+    const int stopCount = int(sizeof(kStops) / sizeof(kStops[0]));
+
+    t = std::clamp(t, 0.0f, 1.0f);
+    for (int i = 1; i < stopCount; ++i) {
+        if (t <= kStops[i].x) {
+            const float x0 = kStops[i - 1].x;
+            const float x1 = kStops[i].x;
+            const float u = (x1 > x0) ? ((t - x0) / (x1 - x0)) : 0.0f;
+            return kStops[i - 1].c * (1.0f - u) + kStops[i].c * u;
+        }
+    }
+    return kStops[stopCount - 1].c;
 }
 }
 
@@ -108,8 +156,8 @@ struct MeshGpuResourceCache::CacheState
     };
 
     struct MeshGpu {
-        std::array<FillVariantGpu, 4> fill;
-        std::array<PointsVariantGpu, 2> points;
+        std::array<FillVariantGpu, 6> fill;
+        std::array<PointsVariantGpu, 3> points;
         WireGpu wire;
         EdgeGpu edges;
         BBoxGpu bbox;
@@ -180,6 +228,10 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
             const bool meshHasFaceColor = (source.ioMask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
             const bool meshHasVertexColor = (source.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
+            const bool meshHasVertexQuality =
+                (source.ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
+            const bool meshHasFaceQuality =
+                (source.ioMask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
             const bool meshHasVertexTexcoord =
                 (source.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
             const bool meshHasWedgeTexcoord =
@@ -187,10 +239,58 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
             const bool useFaceColor = (variant == FillVariant::PerFace) && meshHasFaceColor;
             const bool useVertexColor = (variant == FillVariant::PerVertex) && meshHasVertexColor;
+            const bool useVertexQuality =
+                (variant == FillVariant::PerVertexQuality) && meshHasVertexQuality;
+            const bool useFaceQuality =
+                (variant == FillVariant::PerFaceQuality) && meshHasFaceQuality;
             const bool hasTextureCoords = meshHasWedgeTexcoord || meshHasVertexTexcoord;
             const bool hasTextureSlots = hasTextureCoords && !texturePaths.isEmpty();
             const bool useTextureColor = (variant == FillVariant::Texture) && hasTextureSlots;
-            const bool expandTriangles = useFaceColor || useTextureColor;
+            const bool useVertexStyleColor = useVertexColor || useVertexQuality;
+            const bool useFaceStyleColor = useFaceColor || useFaceQuality;
+            const bool expandTriangles = useFaceStyleColor || useTextureColor;
+
+            QualityRange vertexQualityRange;
+            if (useVertexQuality) {
+                float minQ = std::numeric_limits<float>::max();
+                float maxQ = -std::numeric_limits<float>::max();
+                for (int vi = 0; vi < meshData.VN(); ++vi) {
+                    const auto &v = meshData.vert[vi];
+                    if (v.IsD())
+                        continue;
+                    const float q = static_cast<float>(v.cQ());
+                    if (!std::isfinite(q))
+                        continue;
+                    minQ = std::min(minQ, q);
+                    maxQ = std::max(maxQ, q);
+                }
+                if (minQ <= maxQ) {
+                    vertexQualityRange.minV = minQ;
+                    vertexQualityRange.maxV = maxQ;
+                    vertexQualityRange.valid = true;
+                }
+            }
+
+            QualityRange faceQualityRange;
+            if (useFaceQuality) {
+                float minQ = std::numeric_limits<float>::max();
+                float maxQ = -std::numeric_limits<float>::max();
+                for (int fi = 0; fi < meshData.FN(); ++fi) {
+                    const auto &f = meshData.face[fi];
+                    if (f.IsD())
+                        continue;
+                    const float q = static_cast<float>(f.cQ());
+                    if (!std::isfinite(q))
+                        continue;
+                    minQ = std::min(minQ, q);
+                    maxQ = std::max(maxQ, q);
+                }
+                if (minQ <= maxQ) {
+                    faceQualityRange.minV = minQ;
+                    faceQualityRange.maxV = maxQ;
+                    faceQualityRange.valid = true;
+                }
+            }
 
             if (expandTriangles) {
                 struct PreparedTexture {
@@ -236,10 +336,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
                 for (int fi = 0; fi < meshData.FN(); ++fi) {
                     const auto &f = meshData.face[fi];
-                    const auto fc = f.cC();
-                    const float fr = static_cast<float>(fc[0]) / 255.0f;
-                    const float fg = static_cast<float>(fc[1]) / 255.0f;
-                    const float fb = static_cast<float>(fc[2]) / 255.0f;
+                    QVector3D faceRgb(1.0f, 1.0f, 1.0f);
+                    if (useFaceColor) {
+                        const auto fc = f.cC();
+                        faceRgb = QVector3D(
+                            static_cast<float>(fc[0]) / 255.0f,
+                            static_cast<float>(fc[1]) / 255.0f,
+                            static_cast<float>(fc[2]) / 255.0f);
+                    } else if (useFaceQuality) {
+                        const float fq = static_cast<float>(f.cQ());
+                        faceRgb = qualityColorMap(normalizedQuality(fq, faceQualityRange));
+                    }
 
                     int textureGroup = -1;
                     bool useTextureForFace = false;
@@ -265,10 +372,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     groupData.resize(groupData.size() + (3 * kFillVertexStrideFloats));
                     for (int corner = 0; corner < 3; ++corner) {
                         const auto *vertex = f.cV(corner);
-                        const auto vc = vertex->cC();
-                        const float vr = static_cast<float>(vc[0]) / 255.0f;
-                        const float vg = static_cast<float>(vc[1]) / 255.0f;
-                        const float vb = static_cast<float>(vc[2]) / 255.0f;
+                        QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                        if (useVertexColor) {
+                            const auto vc = vertex->cC();
+                            vertexRgb = QVector3D(
+                                static_cast<float>(vc[0]) / 255.0f,
+                                static_cast<float>(vc[1]) / 255.0f,
+                                static_cast<float>(vc[2]) / 255.0f);
+                        } else if (useVertexQuality) {
+                            const float vq = static_cast<float>(vertex->cQ());
+                            vertexRgb = qualityColorMap(normalizedQuality(vq, vertexQualityRange));
+                        }
                         const int base = startBase + (corner * kFillVertexStrideFloats);
 
                         groupData[base + 0] = vertex->cP()[0];
@@ -277,10 +391,16 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         groupData[base + 3] = vertex->cN()[0];
                         groupData[base + 4] = vertex->cN()[1];
                         groupData[base + 5] = vertex->cN()[2];
-                        groupData[base + 6] = useFaceColor ? fr : (useVertexColor ? vr : 1.0f);
-                        groupData[base + 7] = useFaceColor ? fg : (useVertexColor ? vg : 1.0f);
-                        groupData[base + 8] = useFaceColor ? fb : (useVertexColor ? vb : 1.0f);
-                        groupData[base + 9] = (useFaceColor || useVertexColor) ? 1.0f : 0.0f;
+                        groupData[base + 6] = useFaceStyleColor
+                            ? faceRgb.x()
+                            : (useVertexStyleColor ? vertexRgb.x() : 1.0f);
+                        groupData[base + 7] = useFaceStyleColor
+                            ? faceRgb.y()
+                            : (useVertexStyleColor ? vertexRgb.y() : 1.0f);
+                        groupData[base + 8] = useFaceStyleColor
+                            ? faceRgb.z()
+                            : (useVertexStyleColor ? vertexRgb.z() : 1.0f);
+                        groupData[base + 9] = (useFaceStyleColor || useVertexStyleColor) ? 1.0f : 0.0f;
 
                         if (useTextureForFace) {
                             if (meshHasWedgeTexcoord) {
@@ -350,13 +470,20 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     return true;
 
                 std::vector<float> vdata(vertexCount * kFillVertexStrideFloats);
-                const float useMeshColor = useVertexColor ? 1.0f : 0.0f;
+                const float useMeshColor = useVertexStyleColor ? 1.0f : 0.0f;
                 for (int vi = 0; vi < vertexCount; ++vi) {
                     const auto &v = meshData.vert[vi];
-                    const auto vc = v.cC();
-                    const float cr = useVertexColor ? static_cast<float>(vc[0]) / 255.0f : 1.0f;
-                    const float cg = useVertexColor ? static_cast<float>(vc[1]) / 255.0f : 1.0f;
-                    const float cb = useVertexColor ? static_cast<float>(vc[2]) / 255.0f : 1.0f;
+                    QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                    if (useVertexColor) {
+                        const auto vc = v.cC();
+                        vertexRgb = QVector3D(
+                            static_cast<float>(vc[0]) / 255.0f,
+                            static_cast<float>(vc[1]) / 255.0f,
+                            static_cast<float>(vc[2]) / 255.0f);
+                    } else if (useVertexQuality) {
+                        const float vq = static_cast<float>(v.cQ());
+                        vertexRgb = qualityColorMap(normalizedQuality(vq, vertexQualityRange));
+                    }
                     const int base = vi * kFillVertexStrideFloats;
                     vdata[base + 0] = v.cP()[0];
                     vdata[base + 1] = v.cP()[1];
@@ -364,9 +491,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     vdata[base + 3] = v.cN()[0];
                     vdata[base + 4] = v.cN()[1];
                     vdata[base + 5] = v.cN()[2];
-                    vdata[base + 6] = cr;
-                    vdata[base + 7] = cg;
-                    vdata[base + 8] = cb;
+                    vdata[base + 6] = vertexRgb.x();
+                    vdata[base + 7] = vertexRgb.y();
+                    vdata[base + 8] = vertexRgb.z();
                     vdata[base + 9] = useMeshColor;
                     vdata[base + 10] = 0.0f;
                     vdata[base + 11] = 0.0f;
@@ -468,25 +595,58 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 return true;
 
             const bool meshHasVertexColor = (source.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
+            const bool meshHasVertexQuality =
+                (source.ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
             const bool meshHasVertexNormal =
                 (source.ioMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
             const bool useVertexColor = (variant == PointVariant::PerVertex) && meshHasVertexColor;
-            const float useMeshColor = useVertexColor ? 1.0f : 0.0f;
+            const bool useVertexQuality =
+                (variant == PointVariant::PerVertexQuality) && meshHasVertexQuality;
+            const bool useVertexStyleColor = useVertexColor || useVertexQuality;
+            const float useMeshColor = useVertexStyleColor ? 1.0f : 0.0f;
+
+            QualityRange vertexQualityRange;
+            if (useVertexQuality) {
+                float minQ = std::numeric_limits<float>::max();
+                float maxQ = -std::numeric_limits<float>::max();
+                for (int vi = 0; vi < meshData.VN(); ++vi) {
+                    const auto &v = meshData.vert[vi];
+                    if (v.IsD())
+                        continue;
+                    const float q = static_cast<float>(v.cQ());
+                    if (!std::isfinite(q))
+                        continue;
+                    minQ = std::min(minQ, q);
+                    maxQ = std::max(maxQ, q);
+                }
+                if (minQ <= maxQ) {
+                    vertexQualityRange.minV = minQ;
+                    vertexQualityRange.maxV = maxQ;
+                    vertexQualityRange.valid = true;
+                }
+            }
 
             std::vector<float> pdata(meshData.VN() * kPointsVertexStrideFloats);
             for (int vi = 0; vi < meshData.VN(); ++vi) {
                 const auto &v = meshData.vert[vi];
-                const auto vc = v.cC();
-                const float cr = useVertexColor ? static_cast<float>(vc[0]) / 255.0f : 1.0f;
-                const float cg = useVertexColor ? static_cast<float>(vc[1]) / 255.0f : 1.0f;
-                const float cb = useVertexColor ? static_cast<float>(vc[2]) / 255.0f : 1.0f;
+                QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                if (useVertexColor) {
+                    const auto vc = v.cC();
+                    vertexRgb = QVector3D(
+                        static_cast<float>(vc[0]) / 255.0f,
+                        static_cast<float>(vc[1]) / 255.0f,
+                        static_cast<float>(vc[2]) / 255.0f);
+                } else if (useVertexQuality) {
+                    const float vq = static_cast<float>(v.cQ());
+                    vertexRgb = qualityColorMap(normalizedQuality(vq, vertexQualityRange));
+                }
                 const int base = vi * kPointsVertexStrideFloats;
                 pdata[base + 0] = v.cP()[0];
                 pdata[base + 1] = v.cP()[1];
                 pdata[base + 2] = v.cP()[2];
-                pdata[base + 3] = cr;
-                pdata[base + 4] = cg;
-                pdata[base + 5] = cb;
+                pdata[base + 3] = vertexRgb.x();
+                pdata[base + 4] = vertexRgb.y();
+                pdata[base + 5] = vertexRgb.z();
                 pdata[base + 6] = useMeshColor;
                 const float nx = v.cN()[0];
                 const float ny = v.cN()[1];

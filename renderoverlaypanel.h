@@ -18,9 +18,14 @@ public:
 
     const RenderSettings &settings() const { return m_settings; }
     void setSettings(const RenderSettings &settings);
-    void setPointColorSourceAvailability(bool hasVertexColors);
+    void setPointColorSourceAvailability(bool hasVertexColors, bool hasVertexQuality);
     void setPointLightingAvailability(bool hasVertexNormals);
-    void setFillColorSourceAvailability(bool hasVertexColors, bool hasFaceColors, bool hasTextures);
+    void setFillColorSourceAvailability(
+        bool hasVertexColors,
+        bool hasFaceColors,
+        bool hasVertexQuality,
+        bool hasFaceQuality,
+        bool hasTextures);
 
 signals:
     void settingsChanged(const RenderSettings &settings);
@@ -58,6 +63,8 @@ private:
     QCheckBox *m_decoratorBoundaryEdgesCheck = nullptr;
     QCheckBox *m_decoratorTextureSeamsCheck = nullptr;
     QDoubleSpinBox *m_decoratorBoundaryWidthSpin = nullptr;
+    QComboBox *m_qualityHistogramSourceCombo = nullptr;
+    QDoubleSpinBox *m_qualityHistogramBinsSpin = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_edgeSizeSpin = nullptr;
     QDoubleSpinBox *m_wireSizeSpin = nullptr;
@@ -78,6 +85,7 @@ private:
     QToolButton *m_edgesButton = nullptr;
     QToolButton *m_wireButton = nullptr;
     QToolButton *m_fillButton = nullptr;
+    QToolButton *m_qualityHistogramButton = nullptr;
     QToolButton *m_currentMeshSettingsArrow = nullptr;
     QToolButton *m_normalsDecoratorsSettingsArrow = nullptr;
     QToolButton *m_boundaryDecoratorsSettingsArrow = nullptr;
@@ -86,4 +94,5 @@ private:
     QToolButton *m_edgesSettingsArrow = nullptr;
     QToolButton *m_wireSettingsArrow = nullptr;
     QToolButton *m_fillSettingsArrow = nullptr;
+    QToolButton *m_qualityHistogramSettingsArrow = nullptr;
 };
