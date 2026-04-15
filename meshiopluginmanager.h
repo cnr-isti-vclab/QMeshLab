@@ -16,6 +16,7 @@ public:
         QString id;
         QString name;
         QStringList extensions;
+        QStringList saveExtensions;
     };
 
     MeshIOPluginManager();
@@ -25,9 +26,14 @@ public:
     // Returns preferred plugin for extension when valid, otherwise first
     // registered plugin that can handle filename, or nullptr.
     const MeshIOPlugin *pluginFor(const QString &filename) const;
+    // Returns preferred plugin for extension when valid, otherwise first
+    // registered plugin that can save filename, or nullptr.
+    const MeshIOPlugin *pluginForSave(const QString &filename) const;
 
     // Builds the combined Qt file dialog filter from all registered plugins.
     QString openDialogFilter() const;
+    // Builds the combined Qt file dialog filter for save.
+    QString saveDialogFilter() const;
 
     // Returns one line per loaded plugin for diagnostics/UI.
     QStringList loadedPluginSummaries() const;
@@ -37,6 +43,8 @@ public:
 
     // Returns all supported extensions (lowercase, without dot), deduplicated.
     QStringList supportedExtensions() const;
+    // Returns all save-supported extensions (lowercase, without dot), deduplicated.
+    QStringList savableExtensions() const;
 
     // Preferred plugin id for a given extension (lowercase, without dot), empty if not set.
     QString preferredPluginForExtension(const QString &extension) const;
@@ -47,5 +55,6 @@ public:
 private:
     std::vector<std::unique_ptr<MeshIOPlugin>> m_plugins;
     QStringList m_openableExtensions;
+    QStringList m_saveableExtensions;
     QHash<QString, QString> m_preferredPluginByExtension;
 };

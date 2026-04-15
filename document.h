@@ -1,5 +1,6 @@
 #pragma once
 
+#include "meshioplugin.h"
 #include "meshgpuresourcecache.h"
 #include "vcgmesh.h"
 #include <QObject>
@@ -47,6 +48,12 @@ public:
         QStringList extensions;
     };
 
+    struct ExportPluginInfo {
+        QString id;
+        QString name;
+        QStringList extensions;
+    };
+
     using FillGpuVariant = MeshGpuResourceCache::FillVariant;
     using PointGpuVariant = MeshGpuResourceCache::PointVariant;
     using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
@@ -62,6 +69,10 @@ public:
     ~Document() override;
 
     int loadMesh(const QString &filename);
+    int saveMesh(int index, const QString &filename, const MeshIOSaveOptions &options);
+    int saveMesh(int index, const QString &filename);
+    int saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options);
+    int saveCurrentMesh(const QString &filename);
     void removeMesh(int index);
     void setMeshVisible(int index, bool visible);
     void setCurrentMeshIndex(int index);
@@ -74,9 +85,13 @@ public:
     int currentMeshIndex() const { return m_currentMeshIndex; }
     const std::vector<LogEntry> &logMessages() const { return m_logMessages; }
     QString openDialogFilter() const;
+    QString saveDialogFilter() const;
+    int saveMaskCapability(const QString &filename) const;
     QStringList loadedPluginSummaries() const;
     std::vector<ImportPluginInfo> importPluginInfos() const;
+    std::vector<ExportPluginInfo> exportPluginInfos() const;
     QStringList importSupportedExtensions() const;
+    QStringList exportSupportedExtensions() const;
     QString preferredImportPluginForExtension(const QString &extension) const;
     void setPreferredImportPluginForExtension(const QString &extension, const QString &pluginId);
     void ensureMeshGpuResources(QRhi *rhi,

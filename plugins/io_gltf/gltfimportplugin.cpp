@@ -8,7 +8,9 @@
 
 #include <QFileInfo>
 #include <QDir>
+#include <QFile>
 #include <QImage>
+#include <QImageReader>
 #include <QMatrix3x3>
 #include <QMatrix4x4>
 #include <QObject>
@@ -18,6 +20,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <functional>
 #include <list>
 #include <memory>
@@ -26,6 +29,7 @@
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <tiny_gltf.h>
 
 namespace {
@@ -33,6 +37,9 @@ constexpr int kErrOpen = -1;
 constexpr int kErrParse = -2;
 constexpr int kErrNoMesh = -3;
 constexpr int kErrInvalidData = -4;
+constexpr int kErrSaveUnsupported = -100;
+constexpr int kErrSaveEmpty = -101;
+constexpr int kErrSaveWrite = -102;
 
 void reportProgress(vcg::CallBackPos *cb, int pos, const QString &msg, bool replaceLast = false)
 {
@@ -271,6 +278,234 @@ QMatrix4x4 nodeLocalMatrix(const tinygltf::Node &node)
     return m;
 }
 
+QString normalizedExtension(const QString &filename)
+{
+    return QFileInfo(filename).suffix().trimmed().toLower();
+}
+
+bool isSupportedExtension(const QString &ext)
+{
+    return ext == QLatin1String("gltf") || ext == QLatin1String("glb");
+}
+
+size_t appendAndAlign4(std::vector<unsigned char> &dst, const void *src, size_t byteCount)
+{
+    const size_t offset = dst.size();
+    if (byteCount > 0 && src != nullptr) {
+        const auto *p = reinterpret_cast<const unsigned char *>(src);
+        dst.insert(dst.end(), p, p + byteCount);
+    }
+    while ((dst.size() & size_t(3)) != 0)
+        dst.push_back(0);
+    return offset;
+}
+
+struct PrimitivePayload {
+    int mode = TINYGLTF_MODE_TRIANGLES;
+    int textureSlot = -1;
+    bool hasNormals = false;
+    bool hasColors = false;
+    bool hasTexcoords = false;
+    std::vector<float> positions;
+    std::vector<float> normals;
+    std::vector<float> colors;
+    std::vector<float> texcoords;
+    std::vector<uint32_t> indices;
+};
+
+uint32_t appendPrimitiveVertex(
+    PrimitivePayload &payload,
+    const VCGVertex *v,
+    const vcg::Color4b &overrideColor,
+    bool useOverrideColor,
+    bool writeNormal,
+    bool writeColor,
+    bool writeTexcoord,
+    float texU,
+    float texV)
+{
+    const uint32_t idx = uint32_t(payload.positions.size() / 3);
+    const auto p = v->cP();
+    payload.positions.push_back(float(p[0]));
+    payload.positions.push_back(float(p[1]));
+    payload.positions.push_back(float(p[2]));
+
+    if (writeNormal) {
+        const auto n = v->cN();
+        payload.normals.push_back(float(n[0]));
+        payload.normals.push_back(float(n[1]));
+        payload.normals.push_back(float(n[2]));
+    }
+
+    if (writeColor) {
+        const vcg::Color4b c = useOverrideColor ? overrideColor : v->cC();
+        payload.colors.push_back(float(c[0]) / 255.0f);
+        payload.colors.push_back(float(c[1]) / 255.0f);
+        payload.colors.push_back(float(c[2]) / 255.0f);
+        payload.colors.push_back(float(c[3]) / 255.0f);
+    }
+
+    if (writeTexcoord) {
+        payload.texcoords.push_back(texU);
+        payload.texcoords.push_back(texV);
+    }
+
+    return idx;
+}
+
+int addBufferView(
+    tinygltf::Model &model,
+    std::vector<unsigned char> &buffer,
+    const void *src,
+    size_t byteCount,
+    int target)
+{
+    tinygltf::BufferView view;
+    view.buffer = 0;
+    view.byteOffset = appendAndAlign4(buffer, src, byteCount);
+    view.byteLength = byteCount;
+    if (target != 0)
+        view.target = target;
+    model.bufferViews.push_back(std::move(view));
+    return int(model.bufferViews.size() - 1);
+}
+
+int addAccessor(
+    tinygltf::Model &model,
+    int bufferViewIndex,
+    int componentType,
+    size_t count,
+    int type,
+    bool normalized = false)
+{
+    tinygltf::Accessor accessor;
+    accessor.bufferView = bufferViewIndex;
+    accessor.byteOffset = 0;
+    accessor.componentType = componentType;
+    accessor.count = count;
+    accessor.type = type;
+    accessor.normalized = normalized;
+    model.accessors.push_back(std::move(accessor));
+    return int(model.accessors.size() - 1);
+}
+
+void setAccessorMinMaxVec3(tinygltf::Accessor &accessor, const std::vector<float> &positions)
+{
+    if (positions.size() < 3)
+        return;
+    float minX = positions[0], minY = positions[1], minZ = positions[2];
+    float maxX = positions[0], maxY = positions[1], maxZ = positions[2];
+    for (size_t i = 3; i + 2 < positions.size(); i += 3) {
+        minX = std::min(minX, positions[i + 0]);
+        minY = std::min(minY, positions[i + 1]);
+        minZ = std::min(minZ, positions[i + 2]);
+        maxX = std::max(maxX, positions[i + 0]);
+        maxY = std::max(maxY, positions[i + 1]);
+        maxZ = std::max(maxZ, positions[i + 2]);
+    }
+    accessor.minValues = { double(minX), double(minY), double(minZ) };
+    accessor.maxValues = { double(maxX), double(maxY), double(maxZ) };
+}
+
+QString makeCopiedTextureUri(
+    const QString &targetFilePath,
+    const QString &sourceTexturePath,
+    vcg::CallBackPos *cb,
+    int textureSlot)
+{
+    if (sourceTexturePath.isEmpty())
+        return QString();
+
+    const QFileInfo sourceInfo(sourceTexturePath);
+    const QString sourceAbs = sourceInfo.absoluteFilePath();
+    if (!QFileInfo::exists(sourceAbs)) {
+        reportProgress(
+            cb,
+            0,
+            QObject::tr("glTF export warning: texture #%1 not found: %2")
+                .arg(textureSlot)
+                .arg(sourceTexturePath));
+        return QString();
+    }
+
+    const QDir outDir = QFileInfo(targetFilePath).absoluteDir();
+    QString fileName = sourceInfo.fileName();
+    if (fileName.isEmpty())
+        fileName = QStringLiteral("texture_%1.png").arg(textureSlot);
+
+    QString candidateName = fileName;
+    QString destPath = outDir.filePath(candidateName);
+    int suffixCounter = 1;
+    while (QFileInfo::exists(destPath) && QFileInfo(destPath).absoluteFilePath() != sourceAbs) {
+        const QFileInfo candidateInfo(fileName);
+        const QString base = candidateInfo.completeBaseName().isEmpty()
+            ? QStringLiteral("texture_%1").arg(textureSlot)
+            : candidateInfo.completeBaseName();
+        const QString ext = candidateInfo.suffix();
+        candidateName = ext.isEmpty()
+            ? QStringLiteral("%1_%2").arg(base).arg(suffixCounter++)
+            : QStringLiteral("%1_%2.%3").arg(base).arg(suffixCounter++).arg(ext);
+        destPath = outDir.filePath(candidateName);
+    }
+
+    if (QFileInfo(destPath).absoluteFilePath() != sourceAbs) {
+        if (!QFile::copy(sourceAbs, destPath)) {
+            reportProgress(
+                cb,
+                0,
+                QObject::tr("glTF export warning: failed copying texture #%1 to %2")
+                    .arg(textureSlot)
+                    .arg(destPath));
+            return QString();
+        }
+    }
+
+    return candidateName;
+}
+
+bool fillTinyGltfImageFromFile(
+    tinygltf::Image &outImage,
+    const QString &texturePath,
+    int textureSlot,
+    vcg::CallBackPos *cb)
+{
+    QImageReader reader(texturePath);
+    QImage image = reader.read();
+    if (image.isNull()) {
+        reportProgress(
+            cb,
+            0,
+            QObject::tr("glTF export warning: failed loading texture #%1 from %2")
+                .arg(textureSlot)
+                .arg(texturePath));
+        return false;
+    }
+
+    image = image.convertToFormat(QImage::Format_RGBA8888);
+    if (image.isNull() || image.width() <= 0 || image.height() <= 0)
+        return false;
+
+    outImage.name = QStringLiteral("texture_%1").arg(textureSlot).toStdString();
+    outImage.mimeType = "image/png";
+    outImage.width = image.width();
+    outImage.height = image.height();
+    outImage.component = 4;
+    outImage.bits = 8;
+    outImage.pixel_type = TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE;
+
+    const size_t packedStride = size_t(image.width()) * 4;
+    outImage.image.resize(packedStride * size_t(image.height()));
+    const unsigned char *src = image.constBits();
+    const int srcStride = image.bytesPerLine();
+    for (int y = 0; y < image.height(); ++y) {
+        std::memcpy(
+            outImage.image.data() + size_t(y) * packedStride,
+            src + size_t(y) * size_t(srcStride),
+            packedStride);
+    }
+    return true;
+}
+
 class GLTFImportPlugin final : public MeshIOPlugin
 {
 public:
@@ -281,7 +516,7 @@ public:
 
     QString name() const override
     {
-        return QObject::tr("glTF Importer (tinygltf)");
+        return QObject::tr("glTF Import/Export (tinygltf)");
     }
 
     QStringList supportedExtensions() const override
@@ -291,8 +526,12 @@ public:
 
     bool canLoad(const QString &filename) const override
     {
-        const QString ext = QFileInfo(filename).suffix().toLower();
-        return supportedExtensions().contains(ext);
+        return isSupportedExtension(normalizedExtension(filename));
+    }
+
+    bool canSave(const QString &filename) const override
+    {
+        return isSupportedExtension(normalizedExtension(filename));
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
@@ -668,6 +907,376 @@ public:
         return QObject::tr("glTF Files (*.gltf *.glb)");
     }
 
+    int save(
+        const QString &filename,
+        VCGMesh &mesh,
+        const MeshIOSaveOptions &options,
+        vcg::CallBackPos *cb) const override
+    {
+        const QString ext = normalizedExtension(filename);
+        if (!isSupportedExtension(ext))
+            return kErrSaveUnsupported;
+        if (mesh.VN() == 0)
+            return kErrSaveEmpty;
+
+        const int capabilityMask = saveMaskCapability(filename);
+        int saveMask = options.mask != 0 ? options.mask : capabilityMask;
+        saveMask &= capabilityMask;
+        saveMask |= vcg::tri::io::Mask::IOM_VERTCOORD;
+        if (mesh.FN() > 0)
+            saveMask |= vcg::tri::io::Mask::IOM_FACEINDEX;
+        if (mesh.EN() > 0)
+            saveMask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
+
+        const bool writeNormals = (saveMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
+        const bool writeVertexColors = (saveMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
+        const bool writeFaceColors = !writeVertexColors && ((saveMask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0);
+        const bool writeWedgeTexcoords = (saveMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
+        const bool writeVertexTexcoords =
+            !writeWedgeTexcoords && ((saveMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0);
+        const bool embedTextures = options.embedTextures;
+
+        reportProgress(
+            cb,
+            5,
+            QObject::tr("Preparing glTF export: %1").arg(QFileInfo(filename).fileName()),
+            true);
+
+        std::vector<PrimitivePayload> primitives;
+        std::unordered_map<int, size_t> triByTextureSlot;
+        std::unordered_map<int, int> usedTextureSlots;
+
+        auto primitiveForTriangleTexture = [&](int textureSlot) -> PrimitivePayload & {
+            const auto it = triByTextureSlot.find(textureSlot);
+            if (it != triByTextureSlot.end())
+                return primitives[it->second];
+
+            PrimitivePayload payload;
+            payload.mode = TINYGLTF_MODE_TRIANGLES;
+            payload.textureSlot = textureSlot;
+            payload.hasNormals = writeNormals;
+            payload.hasColors = writeVertexColors || writeFaceColors;
+            payload.hasTexcoords = writeWedgeTexcoords || writeVertexTexcoords;
+
+            primitives.push_back(std::move(payload));
+            const size_t idx = primitives.size() - 1;
+            triByTextureSlot[textureSlot] = idx;
+            if (textureSlot >= 0)
+                usedTextureSlots[textureSlot] = -1;
+            return primitives[idx];
+        };
+
+        const bool hasFaces = mesh.FN() > 0 && ((saveMask & vcg::tri::io::Mask::IOM_FACEINDEX) != 0);
+        const bool hasEdges = mesh.EN() > 0 && ((saveMask & vcg::tri::io::Mask::IOM_EDGEINDEX) != 0);
+
+        if (hasFaces) {
+            for (const VCGFace &face : mesh.face) {
+                if (face.IsD())
+                    continue;
+
+                int textureSlot = -1;
+                if (writeWedgeTexcoords) {
+                    textureSlot = face.cWT(0).N();
+                    if (textureSlot < 0)
+                        textureSlot = -1;
+                } else if (writeVertexTexcoords && !mesh.textures.empty()) {
+                    // Per-vertex texcoords have no per-face texture index in VCGMesh.
+                    // Bind texture slot 0 when UVs are exported.
+                    textureSlot = 0;
+                }
+
+                PrimitivePayload &prim = primitiveForTriangleTexture(textureSlot);
+                for (int c = 0; c < 3; ++c) {
+                    const VCGVertex *v = face.cV(c);
+                    if (!v)
+                        continue;
+
+                    float u = 0.0f;
+                    float vTex = 0.0f;
+                    if (writeWedgeTexcoords) {
+                        u = face.cWT(c).U();
+                        // Internal UVs are stored with opposite V wrt glTF import.
+                        vTex = 1.0f - face.cWT(c).V();
+                    } else if (writeVertexTexcoords) {
+                        u = v->cT().u();
+                        vTex = 1.0f - v->cT().v();
+                    }
+
+                    const uint32_t idx = appendPrimitiveVertex(
+                        prim,
+                        v,
+                        face.cC(),
+                        writeFaceColors,
+                        writeNormals,
+                        writeVertexColors || writeFaceColors,
+                        writeWedgeTexcoords || writeVertexTexcoords,
+                        u,
+                        vTex);
+                    prim.indices.push_back(idx);
+                }
+            }
+        }
+
+        if (hasEdges) {
+            PrimitivePayload edgePrim;
+            edgePrim.mode = TINYGLTF_MODE_LINE;
+            edgePrim.hasNormals = writeNormals;
+            edgePrim.hasColors = writeVertexColors;
+            edgePrim.hasTexcoords = writeVertexTexcoords;
+
+            for (const VCGEdge &edge : mesh.edge) {
+                if (edge.IsD())
+                    continue;
+                const VCGVertex *v0 = edge.cV(0);
+                const VCGVertex *v1 = edge.cV(1);
+                if (!v0 || !v1)
+                    continue;
+
+                const float u0 = writeVertexTexcoords ? v0->cT().u() : 0.0f;
+                const float v0t = writeVertexTexcoords ? (1.0f - v0->cT().v()) : 0.0f;
+                const float u1 = writeVertexTexcoords ? v1->cT().u() : 0.0f;
+                const float v1t = writeVertexTexcoords ? (1.0f - v1->cT().v()) : 0.0f;
+
+                const uint32_t i0 = appendPrimitiveVertex(
+                    edgePrim,
+                    v0,
+                    vcg::Color4b::White,
+                    false,
+                    writeNormals,
+                    writeVertexColors,
+                    writeVertexTexcoords,
+                    u0,
+                    v0t);
+                const uint32_t i1 = appendPrimitiveVertex(
+                    edgePrim,
+                    v1,
+                    vcg::Color4b::White,
+                    false,
+                    writeNormals,
+                    writeVertexColors,
+                    writeVertexTexcoords,
+                    u1,
+                    v1t);
+                edgePrim.indices.push_back(i0);
+                edgePrim.indices.push_back(i1);
+            }
+
+            if (!edgePrim.indices.empty())
+                primitives.push_back(std::move(edgePrim));
+        }
+
+        if (!hasFaces && !hasEdges) {
+            PrimitivePayload pointPrim;
+            pointPrim.mode = TINYGLTF_MODE_POINTS;
+            pointPrim.hasNormals = writeNormals;
+            pointPrim.hasColors = writeVertexColors;
+            pointPrim.hasTexcoords = writeVertexTexcoords;
+
+            for (const VCGVertex &vertex : mesh.vert) {
+                if (vertex.IsD())
+                    continue;
+                const float u = writeVertexTexcoords ? vertex.cT().u() : 0.0f;
+                const float vTex = writeVertexTexcoords ? (1.0f - vertex.cT().v()) : 0.0f;
+                const uint32_t idx = appendPrimitiveVertex(
+                    pointPrim,
+                    &vertex,
+                    vcg::Color4b::White,
+                    false,
+                    writeNormals,
+                    writeVertexColors,
+                    writeVertexTexcoords,
+                    u,
+                    vTex);
+                pointPrim.indices.push_back(idx);
+            }
+
+            if (!pointPrim.indices.empty())
+                primitives.push_back(std::move(pointPrim));
+        }
+
+        if (primitives.empty())
+            return kErrSaveEmpty;
+
+        tinygltf::Model model;
+        model.asset.version = "2.0";
+        model.asset.generator = "QMeshLab";
+
+        // Prepare texture/material mapping (only for triangle groups with valid texture slots).
+        std::unordered_map<int, int> textureSlotToMaterial;
+        if (!mesh.textures.empty() && !usedTextureSlots.empty()) {
+            for (const auto &entry : usedTextureSlots) {
+                const int slot = entry.first;
+                if (slot < 0 || slot >= int(mesh.textures.size()))
+                    continue;
+
+                const QString sourceTexturePath = QString::fromStdString(mesh.textures[size_t(slot)]);
+                tinygltf::Image image;
+                if (embedTextures) {
+                    if (!fillTinyGltfImageFromFile(image, sourceTexturePath, slot, cb))
+                        continue;
+                } else {
+                    const QString uri = makeCopiedTextureUri(filename, sourceTexturePath, cb, slot);
+                    if (uri.isEmpty())
+                        continue;
+                    image.uri = uri.toStdString();
+                    image.name = QFileInfo(uri).fileName().toStdString();
+                }
+                model.images.push_back(std::move(image));
+                const int imageIndex = int(model.images.size() - 1);
+
+                tinygltf::Texture texture;
+                texture.source = imageIndex;
+                model.textures.push_back(std::move(texture));
+                const int textureIndex = int(model.textures.size() - 1);
+
+                tinygltf::Material material;
+                material.name = QStringLiteral("mat_%1").arg(slot).toStdString();
+                material.pbrMetallicRoughness.baseColorFactor = { 1.0, 1.0, 1.0, 1.0 };
+                material.pbrMetallicRoughness.baseColorTexture.index = textureIndex;
+                material.pbrMetallicRoughness.baseColorTexture.texCoord = 0;
+                material.doubleSided = true;
+                model.materials.push_back(std::move(material));
+                textureSlotToMaterial[slot] = int(model.materials.size() - 1);
+            }
+        }
+
+        std::vector<unsigned char> binaryBuffer;
+        tinygltf::Mesh outMesh;
+        outMesh.name = QFileInfo(filename).completeBaseName().toStdString();
+
+        for (PrimitivePayload &prim : primitives) {
+            if (prim.positions.empty() || prim.indices.empty())
+                continue;
+
+            tinygltf::Primitive gltfPrim;
+            gltfPrim.mode = prim.mode;
+
+            const int posBv = addBufferView(
+                model,
+                binaryBuffer,
+                prim.positions.data(),
+                prim.positions.size() * sizeof(float),
+                TINYGLTF_TARGET_ARRAY_BUFFER);
+            const int posAcc =
+                addAccessor(model, posBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.positions.size() / 3, TINYGLTF_TYPE_VEC3);
+            setAccessorMinMaxVec3(model.accessors[size_t(posAcc)], prim.positions);
+            gltfPrim.attributes["POSITION"] = posAcc;
+
+            if (prim.hasNormals && prim.normals.size() == prim.positions.size()) {
+                const int nBv = addBufferView(
+                    model,
+                    binaryBuffer,
+                    prim.normals.data(),
+                    prim.normals.size() * sizeof(float),
+                    TINYGLTF_TARGET_ARRAY_BUFFER);
+                const int nAcc =
+                    addAccessor(model, nBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.normals.size() / 3, TINYGLTF_TYPE_VEC3);
+                gltfPrim.attributes["NORMAL"] = nAcc;
+            }
+
+            if (prim.hasColors && (prim.colors.size() / 4) == (prim.positions.size() / 3)) {
+                const int cBv = addBufferView(
+                    model,
+                    binaryBuffer,
+                    prim.colors.data(),
+                    prim.colors.size() * sizeof(float),
+                    TINYGLTF_TARGET_ARRAY_BUFFER);
+                const int cAcc =
+                    addAccessor(model, cBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.colors.size() / 4, TINYGLTF_TYPE_VEC4);
+                gltfPrim.attributes["COLOR_0"] = cAcc;
+            }
+
+            if (prim.hasTexcoords && (prim.texcoords.size() / 2) == (prim.positions.size() / 3)) {
+                const int tBv = addBufferView(
+                    model,
+                    binaryBuffer,
+                    prim.texcoords.data(),
+                    prim.texcoords.size() * sizeof(float),
+                    TINYGLTF_TARGET_ARRAY_BUFFER);
+                const int tAcc =
+                    addAccessor(model, tBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.texcoords.size() / 2, TINYGLTF_TYPE_VEC2);
+                gltfPrim.attributes["TEXCOORD_0"] = tAcc;
+            }
+
+            const int iBv = addBufferView(
+                model,
+                binaryBuffer,
+                prim.indices.data(),
+                prim.indices.size() * sizeof(uint32_t),
+                TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER);
+            const int iAcc =
+                addAccessor(model, iBv, TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT, prim.indices.size(), TINYGLTF_TYPE_SCALAR);
+            gltfPrim.indices = iAcc;
+
+            if (prim.textureSlot >= 0) {
+                const auto it = textureSlotToMaterial.find(prim.textureSlot);
+                if (it != textureSlotToMaterial.end())
+                    gltfPrim.material = it->second;
+            }
+
+            outMesh.primitives.push_back(std::move(gltfPrim));
+        }
+
+        if (outMesh.primitives.empty())
+            return kErrSaveEmpty;
+
+        model.meshes.push_back(std::move(outMesh));
+
+        tinygltf::Node node;
+        node.mesh = 0;
+        node.name = QFileInfo(filename).completeBaseName().toStdString();
+        model.nodes.push_back(std::move(node));
+
+        tinygltf::Scene scene;
+        scene.nodes.push_back(0);
+        scene.name = "Scene";
+        model.scenes.push_back(std::move(scene));
+        model.defaultScene = 0;
+
+        tinygltf::Buffer gltfBuffer;
+        gltfBuffer.name = "buffer0";
+        gltfBuffer.data = std::move(binaryBuffer);
+        model.buffers.push_back(std::move(gltfBuffer));
+
+        tinygltf::TinyGLTF writer;
+        if (!embedTextures)
+            writer.SetImageWriter(nullptr, nullptr);
+        const bool writeBinary = (ext == QLatin1String("glb"));
+        const bool ok = writer.WriteGltfSceneToFile(
+            &model,
+            filename.toStdString(),
+            embedTextures,
+            true,   // embedBuffers (single-file .gltf, implicit for .glb)
+            true,   // prettyPrint
+            writeBinary);
+        if (!ok)
+            return kErrSaveWrite;
+
+        reportProgress(cb, 100, QObject::tr("Saved glTF: %1").arg(QFileInfo(filename).fileName()), true);
+        return 0;
+    }
+
+    QString saveFilterString() const override
+    {
+        return QObject::tr("glTF Files (*.gltf *.glb)");
+    }
+
+    int saveMaskCapability(const QString &filename) const override
+    {
+        if (!canSave(filename))
+            return 0;
+        int capability = 0;
+        capability |= vcg::tri::io::Mask::IOM_VERTCOORD;
+        capability |= vcg::tri::io::Mask::IOM_FACEINDEX;
+        capability |= vcg::tri::io::Mask::IOM_EDGEINDEX;
+        capability |= vcg::tri::io::Mask::IOM_VERTNORMAL;
+        capability |= vcg::tri::io::Mask::IOM_VERTCOLOR;
+        capability |= vcg::tri::io::Mask::IOM_FACECOLOR;
+        capability |= vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+        capability |= vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+        return capability;
+    }
+
     QString errorString(int errCode) const override
     {
         switch (errCode) {
@@ -679,8 +1288,14 @@ public:
             return QObject::tr("No mesh data found in glTF document.");
         case kErrInvalidData:
             return QObject::tr("glTF geometry data is empty or unsupported.");
+        case kErrSaveUnsupported:
+            return QObject::tr("Unsupported glTF extension for export.");
+        case kErrSaveEmpty:
+            return QObject::tr("No exportable geometry found.");
+        case kErrSaveWrite:
+            return QObject::tr("Failed to write glTF/glb file.");
         default:
-            return QObject::tr("Unknown glTF import error.");
+            return QObject::tr("Unknown glTF import/export error.");
         }
     }
 };

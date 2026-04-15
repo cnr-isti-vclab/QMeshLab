@@ -26,6 +26,7 @@ private slots:
     void newDocument();
     void newInstance();
     void openFile();
+    void saveCurrentMesh();
     void saveSnapshotPng();
     void openLastMesh();
     void openRecentMesh();

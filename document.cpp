@@ -73,6 +73,22 @@ QString Document::openDialogFilter() const
     return m_pluginManager->openDialogFilter();
 }
 
+QString Document::saveDialogFilter() const
+{
+    return m_pluginManager->saveDialogFilter();
+}
+
+int Document::saveMaskCapability(const QString &filename) const
+{
+    const QString normalizedFilename = filename.trimmed();
+    if (normalizedFilename.isEmpty())
+        return 0;
+    const MeshIOPlugin *plugin = m_pluginManager->pluginForSave(normalizedFilename);
+    if (!plugin)
+        return 0;
+    return plugin->saveMaskCapability(normalizedFilename);
+}
+
 QStringList Document::loadedPluginSummaries() const
 {
     return m_pluginManager->loadedPluginSummaries();
@@ -96,11 +112,36 @@ std::vector<Document::ImportPluginInfo> Document::importPluginInfos() const
     return infos;
 }
 
+std::vector<Document::ExportPluginInfo> Document::exportPluginInfos() const
+{
+    std::vector<ExportPluginInfo> infos;
+    if (!m_pluginManager)
+        return infos;
+
+    const auto pluginInfos = m_pluginManager->pluginInfos();
+    infos.reserve(pluginInfos.size());
+    for (const auto &info : pluginInfos) {
+        ExportPluginInfo out;
+        out.id = info.id;
+        out.name = info.name;
+        out.extensions = info.saveExtensions;
+        infos.push_back(std::move(out));
+    }
+    return infos;
+}
+
 QStringList Document::importSupportedExtensions() const
 {
     if (!m_pluginManager)
         return {};
     return m_pluginManager->supportedExtensions();
+}
+
+QStringList Document::exportSupportedExtensions() const
+{
+    if (!m_pluginManager)
+        return {};
+    return m_pluginManager->savableExtensions();
 }
 
 QString Document::preferredImportPluginForExtension(const QString &extension) const
@@ -175,6 +216,7 @@ int Document::loadMesh(const QString &filename)
 
     QStringList declaredTextureNames;
     QStringList resolvedTexturePaths;
+    std::vector<std::string> normalizedMeshTexturePaths;
     QString selectedTextureName;
     bool selectedExistingTexture = false;
     for (const std::string &rawTextureName : entry->mesh.textures) {
@@ -186,6 +228,7 @@ int Document::loadMesh(const QString &filename)
         resolvedTexturePaths.append(resolvedTexturePath);
         entry->textureFileNames.append(textureName);
         entry->textureFilePaths.append(resolvedTexturePath);
+        normalizedMeshTexturePaths.push_back(QDir::toNativeSeparators(resolvedTexturePath).toStdString());
         if (selectedTextureName.isEmpty()) {
             selectedTextureName = textureName;
         }
@@ -194,6 +237,8 @@ int Document::loadMesh(const QString &filename)
             selectedExistingTexture = true;
         }
     }
+    if (!normalizedMeshTexturePaths.empty())
+        entry->mesh.textures = std::move(normalizedMeshTexturePaths);
 
     int index = meshCount();
     m_meshes.push_back(std::move(entry));
@@ -251,6 +296,77 @@ int Document::loadMesh(const QString &filename)
     emit loadProgressUpdated(100, tr("Loaded %1").arg(meshEntry.name));
     emit loadProgressFinished(true, tr("Loaded %1").arg(meshEntry.name));
     return 0;
+}
+
+int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptions &options)
+{
+    if (index < 0 || index >= meshCount()) {
+        writeLog(tr("Cannot save: invalid mesh index %1").arg(index), LogSource::Application);
+        return -1;
+    }
+    const QString normalizedFilename = filename.trimmed();
+    if (normalizedFilename.isEmpty()) {
+        writeLog(tr("Cannot save: empty target file path"), LogSource::Application);
+        return -2;
+    }
+
+    const MeshIOPlugin *plugin = m_pluginManager->pluginForSave(normalizedFilename);
+    if (!plugin) {
+        writeLog(
+            tr("No export plugin found for: %1").arg(normalizedFilename),
+            LogSource::Application);
+        return -3;
+    }
+
+    MeshEntry &entry = mesh(index);
+    QElapsedTimer timer;
+    timer.start();
+
+    writeLog(
+        tr("Saving mesh '%1' to %2")
+            .arg(entry.name, normalizedFilename),
+        LogSource::Application);
+
+    Document *previousCallbackDocument = g_callbackDocument;
+    g_callbackDocument = this;
+    const int err = plugin->save(normalizedFilename, entry.mesh, options, logCallback());
+    g_callbackDocument = previousCallbackDocument;
+
+    const qint64 elapsedMs = timer.elapsed();
+    if (err != 0) {
+        writeLog(
+            tr("Save failed in %1 ms: %2")
+                .arg(elapsedMs)
+                .arg(plugin->errorString(err)),
+            LogSource::Application);
+        return err;
+    }
+
+    writeLog(
+        tr("Saved mesh '%1' to %2 in %3 ms")
+            .arg(entry.name, normalizedFilename)
+            .arg(elapsedMs),
+        LogSource::Application);
+    return 0;
+}
+
+int Document::saveMesh(int index, const QString &filename)
+{
+    return saveMesh(index, filename, MeshIOSaveOptions{});
+}
+
+int Document::saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options)
+{
+    if (m_currentMeshIndex < 0 || m_currentMeshIndex >= meshCount()) {
+        writeLog(tr("Cannot save: no current mesh selected"), LogSource::Application);
+        return -1;
+    }
+    return saveMesh(m_currentMeshIndex, filename, options);
+}
+
+int Document::saveCurrentMesh(const QString &filename)
+{
+    return saveCurrentMesh(filename, MeshIOSaveOptions{});
 }
 
 void Document::removeMesh(int index)

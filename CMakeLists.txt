@@ -45,6 +45,7 @@ add_subdirectory(plugins)
 qt_add_executable(QMeshLab
     main.cpp
     mainwindow.h mainwindow.cpp
+    meshsaveoptionsdialog.h meshsaveoptionsdialog.cpp
     renderwidget.h renderwidget.cpp
     renderwidget_internal.h
     renderwidget_modes.cpp

@@ -53,11 +53,6 @@ target_include_directories(QMeshLabPluginIOGLTF
         ${TINYGLTF_INCLUDE_DIR}
 )
 
-target_compile_definitions(QMeshLabPluginIOGLTF
-    PRIVATE
-        TINYGLTF_NO_STB_IMAGE_WRITE
-)
-
 target_link_libraries(QMeshLabPluginIOGLTF
     PUBLIC
         QMeshLabCore

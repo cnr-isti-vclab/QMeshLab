@@ -1,7 +1,9 @@
 #include "mainwindow.h"
 #include "document.h"
+#include "meshsaveoptionsdialog.h"
 #include "renderwidget.h"
 #include "layerwidget.h"
+#include <wrap/io_trimesh/io_mask.h>
 #include <QButtonGroup>
 #include <QClipboard>
 #include <QFileDialog>
@@ -65,6 +67,86 @@ bool sameRecentPath(const QString &a, const QString &b)
 #else
     return a == b;
 #endif
+}
+
+QString fileExtensionLower(const QString &path)
+{
+    return QFileInfo(path).suffix().toLower();
+}
+
+QString extensionFromNameFilter(const QString &nameFilter)
+{
+    const int wildcardPos = nameFilter.indexOf(QStringLiteral("*."));
+    if (wildcardPos < 0)
+        return QString();
+    int start = wildcardPos + 2;
+    int end = start;
+    while (end < nameFilter.size()) {
+        const QChar c = nameFilter[end];
+        if (!c.isLetterOrNumber() && c != QLatin1Char('_') && c != QLatin1Char('-'))
+            break;
+        ++end;
+    }
+    if (end <= start)
+        return QString();
+    return nameFilter.mid(start, end - start).toLower();
+}
+
+QString appendSaveExtensionIfMissing(const QString &path, const QString &selectedFilter)
+{
+    if (!QFileInfo(path).suffix().isEmpty())
+        return path;
+
+    QString ext = extensionFromNameFilter(selectedFilter);
+    if (ext.isEmpty())
+        ext = QStringLiteral("ply");
+    return QStringLiteral("%1.%2").arg(path, ext);
+}
+
+bool saveFormatSupportsBinary(const QString &extension)
+{
+    return extension == QLatin1String("ply") || extension == QLatin1String("stl");
+}
+
+bool saveFormatSupportsEmbeddedTextures(const QString &extension)
+{
+    return extension == QLatin1String("gltf") || extension == QLatin1String("glb");
+}
+
+int availableSaveMaskForMesh(const Document::MeshEntry &entry)
+{
+    int mask = entry.ioMask;
+    mask |= vcg::tri::io::Mask::IOM_VERTCOORD;
+    if (entry.mesh.FN() > 0)
+        mask |= vcg::tri::io::Mask::IOM_FACEINDEX;
+    if (entry.mesh.EN() > 0)
+        mask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
+    return mask;
+}
+
+int requiredSaveMaskForMesh(const Document::MeshEntry &entry, int capabilityMask)
+{
+    int requiredMask = 0;
+    if ((capabilityMask & vcg::tri::io::Mask::IOM_VERTCOORD) != 0 && entry.mesh.VN() > 0)
+        requiredMask |= vcg::tri::io::Mask::IOM_VERTCOORD;
+    if ((capabilityMask & vcg::tri::io::Mask::IOM_FACEINDEX) != 0 && entry.mesh.FN() > 0)
+        requiredMask |= vcg::tri::io::Mask::IOM_FACEINDEX;
+    if ((capabilityMask & vcg::tri::io::Mask::IOM_EDGEINDEX) != 0 && entry.mesh.EN() > 0)
+        requiredMask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
+    return requiredMask;
+}
+
+int defaultSaveMaskForMesh(const Document::MeshEntry &entry, int capabilityMask)
+{
+    const int availableMask = availableSaveMaskForMesh(entry);
+    int mask = availableMask & capabilityMask;
+    mask |= requiredSaveMaskForMesh(entry, capabilityMask);
+    // Prefer wedge attributes over per-vertex ones when both are available.
+    if ((mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0)
+        mask &= ~vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+    if ((mask & vcg::tri::io::Mask::IOM_WEDGNORMAL) != 0)
+        mask &= ~vcg::tri::io::Mask::IOM_VERTNORMAL;
+    return mask;
 }
 
 void appendLogItem(QListWidget *logWidget, const QString &message, Document::LogSource source, bool replaceLast)
@@ -196,6 +278,7 @@ MainWindow::MainWindow(QWidget *parent)
         &MainWindow::newInstance);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &MainWindow::openFile);
+    fileMenu->addAction(tr("&Save Mesh..."), QKeySequence::Save, this, &MainWindow::saveCurrentMesh);
     fileMenu->addAction(
         tr("S&napshot PNG..."),
         QKeySequence(QStringLiteral("Ctrl+Shift+S")),
@@ -232,7 +315,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
-    helpMenu->addAction(tr("Import &Plugins..."), this, &MainWindow::showImportPlugins);
+    helpMenu->addAction(tr("I/O &Plugins..."), this, &MainWindow::showImportPlugins);
 
     QSettings settings;
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
@@ -556,6 +639,71 @@ void MainWindow::openFile()
     }
 }
 
+void MainWindow::saveCurrentMesh()
+{
+    const int currentIndex = m_doc->currentMeshIndex();
+    if (currentIndex < 0 || currentIndex >= m_doc->meshCount()) {
+        statusBar()->showMessage(tr("No current mesh to save"), 2500);
+        return;
+    }
+
+    const Document::MeshEntry &entry = m_doc->mesh(currentIndex);
+    const QString defaultPath = !entry.sourcePath.isEmpty()
+        ? entry.sourcePath
+        : QStringLiteral("%1.ply").arg(entry.name.isEmpty() ? QStringLiteral("mesh") : entry.name);
+
+    QString selectedFilter;
+    QString targetPath = QFileDialog::getSaveFileName(
+        this,
+        tr("Save Mesh"),
+        defaultPath,
+        m_doc->saveDialogFilter(),
+        &selectedFilter);
+    if (targetPath.isEmpty())
+        return;
+    targetPath = appendSaveExtensionIfMissing(targetPath, selectedFilter);
+
+    const int capabilityMask = m_doc->saveMaskCapability(targetPath);
+    if (capabilityMask == 0) {
+        const QString msg =
+            tr("No exporter is available for '.%1'").arg(fileExtensionLower(targetPath));
+        statusBar()->showMessage(msg, 4000);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+        return;
+    }
+    const int availableMask = availableSaveMaskForMesh(entry);
+    const int requiredMask = requiredSaveMaskForMesh(entry, capabilityMask);
+    const QString extension = fileExtensionLower(targetPath);
+    const bool binarySupported = saveFormatSupportsBinary(extension);
+    const bool supportsEmbeddedTextures = saveFormatSupportsEmbeddedTextures(extension);
+
+    MeshIOSaveOptions initialOptions;
+    initialOptions.mask = defaultSaveMaskForMesh(entry, capabilityMask);
+    initialOptions.binary = binarySupported;
+    initialOptions.embedTextures = (extension == QLatin1String("glb"));
+
+    MeshSaveOptionsDialog optionsDialog(
+        targetPath,
+        capabilityMask,
+        availableMask,
+        requiredMask,
+        initialOptions,
+        binarySupported,
+        supportsEmbeddedTextures,
+        this);
+    if (optionsDialog.exec() != QDialog::Accepted)
+        return;
+
+    MeshIOSaveOptions saveOptions = optionsDialog.selectedOptions();
+    const int err = m_doc->saveCurrentMesh(targetPath, saveOptions);
+    if (err != 0) {
+        statusBar()->showMessage(tr("Save failed"), 4000);
+        return;
+    }
+
+    statusBar()->showMessage(tr("Mesh saved to %1").arg(targetPath), 3000);
+}
+
 void MainWindow::saveSnapshotPng()
 {
     RenderWidget *view = currentRenderWidget();
@@ -743,98 +891,145 @@ void MainWindow::showAbout()
 
 void MainWindow::showImportPlugins()
 {
-    const std::vector<Document::ImportPluginInfo> plugins = m_doc->importPluginInfos();
-    const QStringList extensions = m_doc->importSupportedExtensions();
-    if (plugins.empty() || extensions.isEmpty()) {
-        QMessageBox::information(this, tr("Import Plugins"), tr("No import plugins are available."));
+    const std::vector<Document::ImportPluginInfo> importPlugins = m_doc->importPluginInfos();
+    const QStringList importExtensions = m_doc->importSupportedExtensions();
+    const std::vector<Document::ExportPluginInfo> exportPlugins = m_doc->exportPluginInfos();
+    const QStringList exportExtensions = m_doc->exportSupportedExtensions();
+
+    if ((importPlugins.empty() || importExtensions.isEmpty()) && exportPlugins.empty()) {
+        QMessageBox::information(this, tr("I/O Plugins"), tr("No plugins are available."));
         return;
     }
 
     QDialog dialog(this);
-    dialog.setWindowTitle(tr("Import Plugins"));
+    dialog.setWindowTitle(tr("I/O Plugins"));
 
     auto *layout = new QVBoxLayout(&dialog);
-    layout->addWidget(new QLabel(
-        tr("Choose the preferred plugin for each file type/extension."),
-        &dialog));
+    layout->addWidget(new QLabel(tr("Import preferences"), &dialog));
 
-    auto *table = new QTableWidget(static_cast<int>(plugins.size()), extensions.size(), &dialog);
-    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    table->setSelectionMode(QAbstractItemView::NoSelection);
-    table->setFocusPolicy(Qt::NoFocus);
-    table->setHorizontalHeaderLabels(extensions);
-    table->verticalHeader()->setVisible(true);
-    table->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    std::vector<QButtonGroup *> groups;
+    if (!importPlugins.empty() && !importExtensions.isEmpty()) {
+        layout->addWidget(new QLabel(
+            tr("Choose the preferred plugin for each file type/extension."),
+            &dialog));
 
-    QStringList rowLabels;
-    rowLabels.reserve(static_cast<int>(plugins.size()));
-    for (const auto &plugin : plugins)
-        rowLabels << plugin.name;
-    table->setVerticalHeaderLabels(rowLabels);
+        auto *importTable = new QTableWidget(
+            static_cast<int>(importPlugins.size()),
+            importExtensions.size(),
+            &dialog);
+        importTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        importTable->setSelectionMode(QAbstractItemView::NoSelection);
+        importTable->setFocusPolicy(Qt::NoFocus);
+        importTable->setHorizontalHeaderLabels(importExtensions);
+        importTable->verticalHeader()->setVisible(true);
+        importTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+        importTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
-    std::vector<QButtonGroup *> groups(static_cast<size_t>(extensions.size()), nullptr);
-    for (int col = 0; col < extensions.size(); ++col) {
-        auto *group = new QButtonGroup(table);
-        group->setExclusive(true);
-        groups[static_cast<size_t>(col)] = group;
-    }
+        QStringList rowLabels;
+        rowLabels.reserve(static_cast<int>(importPlugins.size()));
+        for (const auto &plugin : importPlugins)
+            rowLabels << plugin.name;
+        importTable->setVerticalHeaderLabels(rowLabels);
 
-    for (int col = 0; col < extensions.size(); ++col) {
-        const QString extension = extensions[col];
-        const QString preferredPluginId = m_doc->preferredImportPluginForExtension(extension);
-        int preferredRow = -1;
-        int firstSupportedRow = -1;
-
-        for (int row = 0; row < static_cast<int>(plugins.size()); ++row) {
-            const bool supports = plugins[static_cast<size_t>(row)].extensions.contains(extension);
-            if (!supports)
-                continue;
-
-            if (firstSupportedRow < 0)
-                firstSupportedRow = row;
-            if (plugins[static_cast<size_t>(row)].id == preferredPluginId)
-                preferredRow = row;
-
-            auto *radio = new QRadioButton(table);
-            radio->setToolTip(
-                tr("Use \"%1\" for .%2 files")
-                    .arg(plugins[static_cast<size_t>(row)].name, extension));
-            groups[static_cast<size_t>(col)]->addButton(radio, row);
-
-            auto *cell = new QWidget(table);
-            auto *cellLayout = new QHBoxLayout(cell);
-            cellLayout->setContentsMargins(0, 0, 0, 0);
-            cellLayout->addWidget(radio, 0, Qt::AlignCenter);
-            table->setCellWidget(row, col, cell);
+        groups.assign(static_cast<size_t>(importExtensions.size()), nullptr);
+        for (int col = 0; col < importExtensions.size(); ++col) {
+            auto *group = new QButtonGroup(importTable);
+            group->setExclusive(true);
+            groups[static_cast<size_t>(col)] = group;
         }
 
-        const int rowToSelect = (preferredRow >= 0) ? preferredRow : firstSupportedRow;
-        if (rowToSelect >= 0) {
-            if (QAbstractButton *button = groups[static_cast<size_t>(col)]->button(rowToSelect))
-                button->setChecked(true);
+        for (int col = 0; col < importExtensions.size(); ++col) {
+            const QString extension = importExtensions[col];
+            const QString preferredPluginId = m_doc->preferredImportPluginForExtension(extension);
+            int preferredRow = -1;
+            int firstSupportedRow = -1;
+
+            for (int row = 0; row < static_cast<int>(importPlugins.size()); ++row) {
+                const bool supports = importPlugins[static_cast<size_t>(row)].extensions.contains(extension);
+                if (!supports)
+                    continue;
+
+                if (firstSupportedRow < 0)
+                    firstSupportedRow = row;
+                if (importPlugins[static_cast<size_t>(row)].id == preferredPluginId)
+                    preferredRow = row;
+
+                auto *radio = new QRadioButton(importTable);
+                radio->setToolTip(
+                    tr("Use \"%1\" for .%2 files")
+                        .arg(importPlugins[static_cast<size_t>(row)].name, extension));
+                groups[static_cast<size_t>(col)]->addButton(radio, row);
+
+                auto *cell = new QWidget(importTable);
+                auto *cellLayout = new QHBoxLayout(cell);
+                cellLayout->setContentsMargins(0, 0, 0, 0);
+                cellLayout->addWidget(radio, 0, Qt::AlignCenter);
+                importTable->setCellWidget(row, col, cell);
+            }
+
+            const int rowToSelect = (preferredRow >= 0) ? preferredRow : firstSupportedRow;
+            if (rowToSelect >= 0) {
+                if (QAbstractButton *button = groups[static_cast<size_t>(col)]->button(rowToSelect))
+                    button->setChecked(true);
+            }
         }
+
+        importTable->resizeColumnsToContents();
+        importTable->resizeRowsToContents();
+        importTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        importTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        importTable->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+        layout->addWidget(importTable, 1);
+    } else {
+        auto *label = new QLabel(tr("No import plugins are available."), &dialog);
+        label->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        layout->addWidget(label);
     }
 
-    table->resizeColumnsToContents();
-    table->resizeRowsToContents();
+    layout->addSpacing(8);
+    layout->addWidget(new QLabel(tr("Export support"), &dialog));
+    if (!exportExtensions.isEmpty()) {
+        auto *summary = new QLabel(
+            tr("Savable formats: %1")
+                .arg(exportExtensions.join(QStringLiteral(", "))),
+            &dialog);
+        summary->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        layout->addWidget(summary);
+    } else {
+        auto *summary = new QLabel(tr("No savable formats available."), &dialog);
+        summary->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        layout->addWidget(summary);
+    }
 
-    const int frame = table->frameWidth() * 2;
-    const int verticalHeaderWidth = table->verticalHeader()->isVisible() ? table->verticalHeader()->width() : 0;
-    const int horizontalHeaderHeight =
-        table->horizontalHeader()->isVisible() ? table->horizontalHeader()->height() : 0;
-    const int contentWidth = table->horizontalHeader()->length();
-    const int contentHeight = table->verticalHeader()->length();
-    const int slack = 8; // guard against style-dependent underestimation
-    const int tableWidth = frame + verticalHeaderWidth + contentWidth + slack;
-    const int tableHeight = frame + horizontalHeaderHeight + contentHeight + slack;
+    auto *exportTable = new QTableWidget(static_cast<int>(exportPlugins.size()), 2, &dialog);
+    exportTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    exportTable->setSelectionMode(QAbstractItemView::NoSelection);
+    exportTable->setFocusPolicy(Qt::NoFocus);
+    exportTable->verticalHeader()->setVisible(false);
+    exportTable->setHorizontalHeaderLabels({ tr("Plugin"), tr("Formats") });
+    exportTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    exportTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    exportTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    exportTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-    table->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    table->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    table->setMinimumSize(tableWidth, tableHeight);
-    table->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+    for (int row = 0; row < static_cast<int>(exportPlugins.size()); ++row) {
+        const auto &plugin = exportPlugins[static_cast<size_t>(row)];
+        auto *nameItem = new QTableWidgetItem(plugin.name);
+        nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
+        exportTable->setItem(row, 0, nameItem);
 
-    layout->addWidget(table, 1);
+        QStringList formattedExtensions;
+        formattedExtensions.reserve(plugin.extensions.size());
+        for (const QString &ext : plugin.extensions)
+            formattedExtensions << QStringLiteral(".%1").arg(ext);
+        const QString extensionsText =
+            formattedExtensions.isEmpty() ? QStringLiteral("—") : formattedExtensions.join(QStringLiteral(", "));
+        auto *extItem = new QTableWidgetItem(extensionsText);
+        extItem->setFlags(extItem->flags() & ~Qt::ItemIsEditable);
+        exportTable->setItem(row, 1, extItem);
+    }
+    exportTable->resizeRowsToContents();
+    layout->addWidget(exportTable, 1);
 
     auto *buttons =
         new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dialog);
@@ -847,40 +1042,26 @@ void MainWindow::showImportPlugins()
         const QSize maxDialogSize(
             screen->availableGeometry().width() * 9 / 10,
             screen->availableGeometry().height() * 9 / 10);
-
-        const QSize preferredDialogSize = dialog.sizeHint();
-        if (preferredDialogSize.width() > maxDialogSize.width()
-            || preferredDialogSize.height() > maxDialogSize.height()) {
-            const int chromeWidth = preferredDialogSize.width() - tableWidth;
-            const int chromeHeight = preferredDialogSize.height() - tableHeight;
-            const QSize maxTableSize(
-                std::max(320, maxDialogSize.width() - std::max(0, chromeWidth)),
-                std::max(220, maxDialogSize.height() - std::max(0, chromeHeight)));
-            table->setMinimumSize(0, 0);
-            table->setMaximumSize(maxTableSize);
-            dialog.adjustSize();
-        }
-
         dialog.resize(dialog.sizeHint().boundedTo(maxDialogSize));
     }
 
     if (dialog.exec() != QDialog::Accepted)
         return;
 
-    for (int col = 0; col < extensions.size(); ++col) {
+    for (int col = 0; col < importExtensions.size(); ++col) {
         QButtonGroup *group = groups[static_cast<size_t>(col)];
         if (!group)
             continue;
         const int selectedRow = group->checkedId();
-        if (selectedRow < 0 || selectedRow >= static_cast<int>(plugins.size()))
+        if (selectedRow < 0 || selectedRow >= static_cast<int>(importPlugins.size()))
             continue;
 
         m_doc->setPreferredImportPluginForExtension(
-            extensions[col],
-            plugins[static_cast<size_t>(selectedRow)].id);
+            importExtensions[col],
+            importPlugins[static_cast<size_t>(selectedRow)].id);
     }
 
-    statusBar()->showMessage(tr("Import plugin preferences updated"), 2000);
+    statusBar()->showMessage(tr("Plugin preferences updated"), 2000);
 }
 
 void MainWindow::resetCamera()

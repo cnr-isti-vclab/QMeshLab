@@ -40,10 +40,15 @@ void MeshIOPluginManager::registerPlugin(std::unique_ptr<MeshIOPlugin> plugin)
     const QStringList pluginExtensions = plugin->supportedExtensions();
     for (const QString &rawExt : pluginExtensions) {
         const QString ext = normalizeExtension(rawExt);
-        if (!ext.isEmpty())
+        if (!ext.isEmpty()) {
             m_openableExtensions << ext;
+            const QString probeFileName = QStringLiteral("dummy.%1").arg(ext);
+            if (plugin->canSave(probeFileName))
+                m_saveableExtensions << ext;
+        }
     }
     m_openableExtensions.removeDuplicates();
+    m_saveableExtensions.removeDuplicates();
 
     m_plugins.push_back(std::move(plugin));
 }
@@ -61,6 +66,24 @@ const MeshIOPlugin *MeshIOPluginManager::pluginFor(const QString &filename) cons
 
     for (const auto &plugin : m_plugins) {
         if (plugin->canLoad(filename))
+            return plugin.get();
+    }
+    return nullptr;
+}
+
+const MeshIOPlugin *MeshIOPluginManager::pluginForSave(const QString &filename) const
+{
+    const QString ext = normalizeExtension(QFileInfo(filename).suffix());
+    const QString preferredPluginId = preferredPluginForExtension(ext);
+    if (!preferredPluginId.isEmpty()) {
+        for (const auto &plugin : m_plugins) {
+            if (plugin->pluginId() == preferredPluginId && plugin->canSave(filename))
+                return plugin.get();
+        }
+    }
+
+    for (const auto &plugin : m_plugins) {
+        if (plugin->canSave(filename))
             return plugin.get();
     }
     return nullptr;
@@ -86,6 +109,29 @@ QString MeshIOPluginManager::openDialogFilter() const
     return filters.join(QStringLiteral(";;"));
 }
 
+QString MeshIOPluginManager::saveDialogFilter() const
+{
+    QStringList filters;
+
+    if (!m_saveableExtensions.isEmpty()) {
+        QStringList wildcardExtensions;
+        wildcardExtensions.reserve(m_saveableExtensions.size());
+        for (const QString &ext : m_saveableExtensions)
+            wildcardExtensions << QStringLiteral("*.%1").arg(ext);
+
+        filters << QObject::tr("All Savable Mesh Files (%1)")
+                       .arg(wildcardExtensions.join(QLatin1Char(' ')));
+    }
+
+    for (const auto &plugin : m_plugins) {
+        const QString saveFilter = plugin->saveFilterString().trimmed();
+        if (!saveFilter.isEmpty())
+            filters << saveFilter;
+    }
+    filters << QObject::tr("All Files (*)");
+    return filters.join(QStringLiteral(";;"));
+}
+
 QStringList MeshIOPluginManager::loadedPluginSummaries() const
 {
     QStringList summaries;
@@ -107,10 +153,15 @@ std::vector<MeshIOPluginManager::PluginInfo> MeshIOPluginManager::pluginInfos() 
         const QStringList rawExts = plugin->supportedExtensions();
         for (const QString &rawExt : rawExts) {
             const QString ext = normalizeExtension(rawExt);
-            if (!ext.isEmpty())
+            if (!ext.isEmpty()) {
                 info.extensions << ext;
+                const QString probeFileName = QStringLiteral("dummy.%1").arg(ext);
+                if (plugin->canSave(probeFileName))
+                    info.saveExtensions << ext;
+            }
         }
         info.extensions.removeDuplicates();
+        info.saveExtensions.removeDuplicates();
         infos.push_back(std::move(info));
     }
     return infos;
@@ -119,6 +170,11 @@ std::vector<MeshIOPluginManager::PluginInfo> MeshIOPluginManager::pluginInfos() 
 QStringList MeshIOPluginManager::supportedExtensions() const
 {
     return m_openableExtensions;
+}
+
+QStringList MeshIOPluginManager::savableExtensions() const
+{
+    return m_saveableExtensions;
 }
 
 QString MeshIOPluginManager::preferredPluginForExtension(const QString &extension) const

@@ -4,6 +4,16 @@
 #include <QString>
 #include <QStringList>
 
+struct MeshIOSaveOptions
+{
+    // vcg::tri::io::Mask bits to export.
+    int mask = 0;
+    // Preferred binary/text mode when format supports it.
+    bool binary = true;
+    // Optional hint used by formats supporting embedded textures (e.g. glTF/glb).
+    bool embedTextures = false;
+};
+
 // Abstract interface for a mesh I/O plugin.
 // Implement this to add support for new file formats.
 class MeshIOPlugin
@@ -35,4 +45,41 @@ public:
 
     // Human-readable error message for a given error code returned by load().
     virtual QString errorString(int errCode) const = 0;
+
+    // Returns true if this plugin can save the given filename (typically by extension).
+    virtual bool canSave(const QString &filename) const
+    {
+        (void) filename;
+        return false;
+    }
+
+    // Saves the mesh to filename using the requested save options.
+    // Returns 0 on success, a non-zero error code otherwise.
+    virtual int save(
+        const QString &filename,
+        VCGMesh &mesh,
+        const MeshIOSaveOptions &options,
+        vcg::CallBackPos *cb) const
+    {
+        (void) filename;
+        (void) mesh;
+        (void) options;
+        (void) cb;
+        return -1;
+    }
+
+    // Qt file dialog filter string for save operation, e.g. "PLY (*.ply);;OBJ (*.obj)".
+    // Empty by default if plugin does not support export.
+    virtual QString saveFilterString() const
+    {
+        return QString();
+    }
+
+    // Exportable attribute capability mask for filename's format (vcg::tri::io::Mask bits).
+    // Returns 0 when unknown/unsupported.
+    virtual int saveMaskCapability(const QString &filename) const
+    {
+        (void) filename;
+        return 0;
+    }
 };
