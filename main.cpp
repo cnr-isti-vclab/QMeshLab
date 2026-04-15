@@ -1,10 +1,14 @@
 #include "mainwindow.h"
 #include <QApplication>
 #include <QIcon>
+#include <QImageReader>
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    // Allow loading very large textures (e.g. high-res atlas images in glb/gltf).
+    // Qt defaults to 256 MB decoded-image cap, which can reject valid assets.
+    QImageReader::setAllocationLimit(0);
     app.setOrganizationName(QStringLiteral("QMeshLab"));
     app.setOrganizationDomain(QStringLiteral("qmeshlab.org"));
     app.setApplicationName(QStringLiteral("QMeshLab"));

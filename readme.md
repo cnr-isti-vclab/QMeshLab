@@ -25,14 +25,78 @@ Built-in import plugin families (dependency-gated at build time):
 
 ## Build
 
+### Recommended: vcpkg manifest mode
+
+Prerequisites:
+- Qt 6.11+
+- CMake 3.25+
+- Build tool: `ninja` or `make`
+- vcpkg clone
+
+This repository contains `vcpkg.json`; non-Qt dependencies are installed via vcpkg manifest mode.
+Qt6 is intentionally kept outside vcpkg, and `vcglib` remains a git submodule.
+
+Managed non-Qt dependencies:
+- `draco`
+- `tinygltf`
+- `rapidobj`
+- `libe57format`
+- `xerces-c`
+
+### Setup
+
 ```bash
 git submodule update --init --recursive
-mkdir -p build
-cd build
-cmake ..
-cmake --build .
-./QMeshLab
+git clone https://github.com/microsoft/vcpkg ./vcpkg
+./vcpkg/bootstrap-vcpkg.sh
 ```
 
-`io_e57` can fetch `libE57Format` from GitHub during CMake configuration (requires XercesC).
-`io_gltf` and `io_obj_rapidobj` can also be enabled/disabled or configured through their CMake options under `plugins/`.
+If your vcpkg is elsewhere, set:
+
+```bash
+export VCPKG_ROOT="/absolute/path/to/vcpkg"
+```
+
+### Build from terminal
+
+Release:
+
+```bash
+cmake --preset vcpkg-release
+cmake --build --preset vcpkg-release -j8
+./build-release/QMeshLab
+```
+
+Debug:
+
+```bash
+cmake --preset vcpkg-debug
+cmake --build --preset vcpkg-debug -j8
+./build-debug/QMeshLab
+```
+
+Notes:
+- `vcpkg-debug` and `vcpkg-release` are defined in `CMakeUserPresets.json`.
+- They use `Unix Makefiles` and set `VCPKG_ROOT=${sourceDir}/vcpkg` explicitly, which helps in GUI environments (for example VS Code) where shell environment variables are not always inherited.
+
+### Build from VS Code (CMake Tools)
+
+1. `CMake: Select Configure Preset` -> choose `vcpkg-debug` or `vcpkg-release`.
+2. `CMake: Configure`
+3. `CMake: Build`
+4. Launch with the CMake Tools run/debug actions.
+
+If presets were changed and VS Code still uses stale values:
+1. `CMake: Delete Cache and Reconfigure`
+2. `Developer: Reload Window`
+
+### Optional: local minimal build without vcpkg
+
+```bash
+git submodule update --init --recursive
+cmake --preset local-no-vcpkg
+cmake --build --preset local-no-vcpkg
+./build-local/QMeshLab
+```
+
+The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`).

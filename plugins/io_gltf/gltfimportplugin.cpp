@@ -32,6 +32,14 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <tiny_gltf.h>
 
+#if defined(QMESHLAB_GLTF_HAS_DRACO)
+#include <draco/attributes/geometry_attribute.h>
+#include <draco/compression/encode.h>
+#include <draco/core/encoder_buffer.h>
+#include <draco/core/status.h>
+#include <draco/mesh/mesh.h>
+#endif
+
 namespace {
 constexpr int kErrOpen = -1;
 constexpr int kErrParse = -2;
@@ -313,6 +321,194 @@ struct PrimitivePayload {
     std::vector<uint32_t> indices;
 };
 
+constexpr int kDracoPositionQuantizationBits = 14;
+constexpr int kDracoNormalQuantizationBits = 10;
+constexpr int kDracoTexcoordQuantizationBits = 12;
+constexpr int kDracoColorQuantizationBits = 8;
+
+bool modelUsesDracoCompression(const tinygltf::Model &model)
+{
+    for (const tinygltf::Mesh &mesh : model.meshes) {
+        for (const tinygltf::Primitive &prim : mesh.primitives) {
+            if (prim.extensions.find("KHR_draco_mesh_compression") != prim.extensions.end())
+                return true;
+        }
+    }
+    return false;
+}
+
+#if defined(QMESHLAB_GLTF_HAS_DRACO)
+struct DracoEncodedPrimitive {
+    std::vector<unsigned char> bytes;
+    std::unordered_map<std::string, int> attributeUniqueIds;
+    QString error;
+    bool valid = false;
+};
+
+bool addDracoFloatAttribute(
+    draco::Mesh &mesh,
+    draco::GeometryAttribute::Type attributeType,
+    int componentCount,
+    const std::vector<float> &values,
+    uint32_t vertexCount,
+    int &outUniqueId)
+{
+    if (componentCount <= 0)
+        return false;
+    if (values.size() != size_t(vertexCount) * size_t(componentCount))
+        return false;
+
+    draco::GeometryAttribute attr;
+    attr.Init(
+        attributeType,
+        nullptr,
+        componentCount,
+        draco::DT_FLOAT32,
+        false,
+        int64_t(sizeof(float) * size_t(componentCount)),
+        0);
+
+    const int attrId = mesh.AddAttribute(attr, true, vertexCount);
+    if (attrId < 0)
+        return false;
+    draco::PointAttribute *pointAttr = mesh.attribute(attrId);
+    if (!pointAttr)
+        return false;
+
+    for (uint32_t i = 0; i < vertexCount; ++i) {
+        pointAttr->SetAttributeValue(
+            pointAttr->mapped_index(draco::PointIndex(i)),
+            values.data() + size_t(i) * size_t(componentCount));
+    }
+
+    outUniqueId = pointAttr->unique_id();
+    return true;
+}
+
+bool encodePrimitiveWithDraco(
+    const PrimitivePayload &prim,
+    const MeshIOSaveOptions &options,
+    DracoEncodedPrimitive &out)
+{
+    out = {};
+    if (prim.mode != TINYGLTF_MODE_TRIANGLES)
+        return false;
+    if (prim.positions.empty() || (prim.positions.size() % 3) != 0)
+        return false;
+    if (prim.indices.empty() || (prim.indices.size() % 3) != 0)
+        return false;
+
+    const uint32_t vertexCount = uint32_t(prim.positions.size() / 3);
+    const uint32_t triangleCount = uint32_t(prim.indices.size() / 3);
+    if (vertexCount == 0 || triangleCount == 0)
+        return false;
+
+    draco::Mesh mesh;
+    mesh.SetNumFaces(triangleCount);
+    for (uint32_t ti = 0; ti < triangleCount; ++ti) {
+        const uint32_t i0 = prim.indices[size_t(ti) * 3 + 0];
+        const uint32_t i1 = prim.indices[size_t(ti) * 3 + 1];
+        const uint32_t i2 = prim.indices[size_t(ti) * 3 + 2];
+        if (i0 >= vertexCount || i1 >= vertexCount || i2 >= vertexCount) {
+            out.error = QObject::tr("draco encode failed: primitive index out of bounds.");
+            return false;
+        }
+        draco::Mesh::Face face;
+        face[0] = draco::PointIndex(i0);
+        face[1] = draco::PointIndex(i1);
+        face[2] = draco::PointIndex(i2);
+        mesh.SetFace(draco::FaceIndex(ti), face);
+    }
+
+    int positionUniqueId = -1;
+    if (!addDracoFloatAttribute(
+            mesh,
+            draco::GeometryAttribute::POSITION,
+            3,
+            prim.positions,
+            vertexCount,
+            positionUniqueId)) {
+        out.error = QObject::tr("draco encode failed: POSITION attribute setup.");
+        return false;
+    }
+    out.attributeUniqueIds["POSITION"] = positionUniqueId;
+
+    if (prim.hasNormals && prim.normals.size() == prim.positions.size()) {
+        int normalUniqueId = -1;
+        if (!addDracoFloatAttribute(
+                mesh,
+                draco::GeometryAttribute::NORMAL,
+                3,
+                prim.normals,
+                vertexCount,
+                normalUniqueId)) {
+            out.error = QObject::tr("draco encode failed: NORMAL attribute setup.");
+            return false;
+        }
+        out.attributeUniqueIds["NORMAL"] = normalUniqueId;
+    }
+
+    if (prim.hasColors && (prim.colors.size() / 4) == (prim.positions.size() / 3)) {
+        int colorUniqueId = -1;
+        if (!addDracoFloatAttribute(
+                mesh,
+                draco::GeometryAttribute::COLOR,
+                4,
+                prim.colors,
+                vertexCount,
+                colorUniqueId)) {
+            out.error = QObject::tr("draco encode failed: COLOR_0 attribute setup.");
+            return false;
+        }
+        out.attributeUniqueIds["COLOR_0"] = colorUniqueId;
+    }
+
+    if (prim.hasTexcoords && (prim.texcoords.size() / 2) == (prim.positions.size() / 3)) {
+        int texcoordUniqueId = -1;
+        if (!addDracoFloatAttribute(
+                mesh,
+                draco::GeometryAttribute::TEX_COORD,
+                2,
+                prim.texcoords,
+                vertexCount,
+                texcoordUniqueId)) {
+            out.error = QObject::tr("draco encode failed: TEXCOORD_0 attribute setup.");
+            return false;
+        }
+        out.attributeUniqueIds["TEXCOORD_0"] = texcoordUniqueId;
+    }
+
+    draco::Encoder encoder;
+    const int compressionLevel = std::clamp(options.dracoCompressionLevel, 0, 10);
+    const int speed = 10 - compressionLevel;
+    encoder.SetSpeedOptions(speed, speed);
+    encoder.SetAttributeQuantization(
+        draco::GeometryAttribute::POSITION, kDracoPositionQuantizationBits);
+    if (out.attributeUniqueIds.find("NORMAL") != out.attributeUniqueIds.end())
+        encoder.SetAttributeQuantization(draco::GeometryAttribute::NORMAL, kDracoNormalQuantizationBits);
+    if (out.attributeUniqueIds.find("TEXCOORD_0") != out.attributeUniqueIds.end())
+        encoder.SetAttributeQuantization(draco::GeometryAttribute::TEX_COORD, kDracoTexcoordQuantizationBits);
+    if (out.attributeUniqueIds.find("COLOR_0") != out.attributeUniqueIds.end())
+        encoder.SetAttributeQuantization(draco::GeometryAttribute::COLOR, kDracoColorQuantizationBits);
+
+    draco::EncoderBuffer buffer;
+    const draco::Status status = encoder.EncodeMeshToBuffer(mesh, &buffer);
+    if (!status.ok()) {
+        out.error = QObject::tr("draco encode failed: %1")
+                        .arg(QString::fromStdString(status.error_msg()));
+        return false;
+    }
+
+    const auto *encoded =
+        reinterpret_cast<const unsigned char *>(buffer.data());
+    out.bytes.assign(encoded, encoded + buffer.size());
+    out.valid = !out.bytes.empty();
+    if (!out.valid)
+        out.error = QObject::tr("draco encode failed: empty output buffer.");
+    return out.valid;
+}
+#endif
+
 uint32_t appendPrimitiveVertex(
     PrimitivePayload &payload,
     const VCGVertex *v,
@@ -569,6 +765,15 @@ public:
             return kErrNoMesh;
         }
 
+#if !defined(QMESHLAB_GLTF_HAS_DRACO)
+        if (modelUsesDracoCompression(model)) {
+            reportProgress(
+                cb,
+                0,
+                QObject::tr("glTF uses KHR_draco_mesh_compression but this QMeshLab build has no Draco support."));
+        }
+#endif
+
         reportProgress(cb, 5, QObject::tr("Parsing glTF scene graph..."), true);
 
         mesh.Clear();
@@ -740,6 +945,7 @@ public:
                     const int texSlot = textureSlotForMaterial(prim.material);
                     const vcg::Color4b baseColor = primitiveBaseColor(prim.material);
                     const QMatrix3x3 normalMat = world.normalMatrix();
+                    std::vector<int> primitiveVertexIndexMap(posView.count, -1);
 
                     auto addVertexFromSource = [&](uint32_t srcIndex) -> int {
                         if (srcIndex >= posView.count)
@@ -765,6 +971,18 @@ public:
                         return mesh.VN() - 1;
                     };
 
+                    auto vertexIndexForSource = [&](uint32_t srcIndex) -> int {
+                        if (srcIndex >= primitiveVertexIndexMap.size())
+                            return -1;
+                        const int cached = primitiveVertexIndexMap[size_t(srcIndex)];
+                        if (cached >= 0)
+                            return cached;
+                        const int createdIndex = addVertexFromSource(srcIndex);
+                        if (createdIndex >= 0)
+                            primitiveVertexIndexMap[size_t(srcIndex)] = createdIndex;
+                        return createdIndex;
+                    };
+
                     auto indexAt = [&](size_t i, uint32_t &dst) -> bool {
                         if (hasIndices)
                             return readIndex(idxView, i, dst);
@@ -780,7 +998,7 @@ public:
                             uint32_t src = 0;
                             if (!indexAt(i, src))
                                 continue;
-                            addVertexFromSource(src);
+                            vertexIndexForSource(src);
                         }
                     } else {
                         const size_t indexCount = hasIndices ? idxView.count : posView.count;
@@ -791,23 +1009,25 @@ public:
                                 continue;
 
                             const int vi[3] = {
-                                addVertexFromSource(idx[0]),
-                                addVertexFromSource(idx[1]),
-                                addVertexFromSource(idx[2])
+                                vertexIndexForSource(idx[0]),
+                                vertexIndexForSource(idx[1]),
+                                vertexIndexForSource(idx[2])
                             };
                             if (vi[0] < 0 || vi[1] < 0 || vi[2] < 0)
                                 continue;
 
                             auto fi = vcg::tri::Allocator<VCGMesh>::AddFace(
                                 mesh, size_t(vi[0]), size_t(vi[1]), size_t(vi[2]));
-                            if (texSlot >= 0 && uvView.valid) {
+                            if (uvView.valid) {
                                 hasWedgeTexCoords = true;
+                                const int wedgeTextureSlot = (texSlot >= 0) ? texSlot : 0;
                                 for (int c = 0; c < 3; ++c) {
                                     const uint32_t src = idx[c];
-                                    const QVector2D uv = (src < uvView.count) ? readVec2(uvView, src) : QVector2D();
+                                    const QVector2D uv =
+                                        (src < uvView.count) ? readVec2(uvView, src) : QVector2D();
                                     fi->WT(c).U() = uv.x();
                                     fi->WT(c).V() = 1.0f - uv.y();
-                                    fi->WT(c).N() = texSlot;
+                                    fi->WT(c).N() = wedgeTextureSlot;
                                 }
                             }
                         }
@@ -935,6 +1155,7 @@ public:
         const bool writeVertexTexcoords =
             !writeWedgeTexcoords && ((saveMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0);
         const bool embedTextures = options.embedTextures;
+        const bool dracoRequested = options.dracoCompression;
 
         reportProgress(
             cb,
@@ -1143,6 +1364,12 @@ public:
         std::vector<unsigned char> binaryBuffer;
         tinygltf::Mesh outMesh;
         outMesh.name = QFileInfo(filename).completeBaseName().toStdString();
+        bool usedDracoCompression = false;
+        bool warnedDracoModeUnsupported = false;
+        bool warnedDracoUnavailable = false;
+#if defined(QMESHLAB_GLTF_HAS_DRACO)
+        (void) warnedDracoUnavailable;
+#endif
 
         for (PrimitivePayload &prim : primitives) {
             if (prim.positions.empty() || prim.indices.empty())
@@ -1151,62 +1378,143 @@ public:
             tinygltf::Primitive gltfPrim;
             gltfPrim.mode = prim.mode;
 
-            const int posBv = addBufferView(
-                model,
-                binaryBuffer,
-                prim.positions.data(),
-                prim.positions.size() * sizeof(float),
-                TINYGLTF_TARGET_ARRAY_BUFFER);
-            const int posAcc =
-                addAccessor(model, posBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.positions.size() / 3, TINYGLTF_TYPE_VEC3);
-            setAccessorMinMaxVec3(model.accessors[size_t(posAcc)], prim.positions);
-            gltfPrim.attributes["POSITION"] = posAcc;
-
-            if (prim.hasNormals && prim.normals.size() == prim.positions.size()) {
-                const int nBv = addBufferView(
-                    model,
-                    binaryBuffer,
-                    prim.normals.data(),
-                    prim.normals.size() * sizeof(float),
-                    TINYGLTF_TARGET_ARRAY_BUFFER);
-                const int nAcc =
-                    addAccessor(model, nBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.normals.size() / 3, TINYGLTF_TYPE_VEC3);
-                gltfPrim.attributes["NORMAL"] = nAcc;
+            bool wroteWithDraco = false;
+            if (dracoRequested && prim.mode != TINYGLTF_MODE_TRIANGLES && !warnedDracoModeUnsupported) {
+                reportProgress(
+                    cb,
+                    0,
+                    QObject::tr("glTF export warning: Draco compression is currently applied only to triangle primitives."));
+                warnedDracoModeUnsupported = true;
             }
 
-            if (prim.hasColors && (prim.colors.size() / 4) == (prim.positions.size() / 3)) {
-                const int cBv = addBufferView(
+#if defined(QMESHLAB_GLTF_HAS_DRACO)
+            if (dracoRequested && prim.mode == TINYGLTF_MODE_TRIANGLES) {
+                DracoEncodedPrimitive dracoPrim;
+                if (encodePrimitiveWithDraco(prim, options, dracoPrim) && dracoPrim.valid) {
+                    const int dracoBv = addBufferView(
+                        model,
+                        binaryBuffer,
+                        dracoPrim.bytes.data(),
+                        dracoPrim.bytes.size(),
+                        0);
+
+                    const int posAcc =
+                        addAccessor(model, -1, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.positions.size() / 3, TINYGLTF_TYPE_VEC3);
+                    setAccessorMinMaxVec3(model.accessors[size_t(posAcc)], prim.positions);
+                    gltfPrim.attributes["POSITION"] = posAcc;
+
+                    if (dracoPrim.attributeUniqueIds.find("NORMAL") != dracoPrim.attributeUniqueIds.end()) {
+                        const int nAcc =
+                            addAccessor(model, -1, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.normals.size() / 3, TINYGLTF_TYPE_VEC3);
+                        gltfPrim.attributes["NORMAL"] = nAcc;
+                    }
+
+                    if (dracoPrim.attributeUniqueIds.find("COLOR_0") != dracoPrim.attributeUniqueIds.end()) {
+                        const int cAcc =
+                            addAccessor(model, -1, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.colors.size() / 4, TINYGLTF_TYPE_VEC4);
+                        gltfPrim.attributes["COLOR_0"] = cAcc;
+                    }
+
+                    if (dracoPrim.attributeUniqueIds.find("TEXCOORD_0") != dracoPrim.attributeUniqueIds.end()) {
+                        const int tAcc =
+                            addAccessor(model, -1, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.texcoords.size() / 2, TINYGLTF_TYPE_VEC2);
+                        gltfPrim.attributes["TEXCOORD_0"] = tAcc;
+                    }
+
+                    const int iAcc = addAccessor(
+                        model,
+                        -1,
+                        TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT,
+                        prim.indices.size(),
+                        TINYGLTF_TYPE_SCALAR);
+                    gltfPrim.indices = iAcc;
+
+                    tinygltf::Value::Object dracoExt;
+                    dracoExt["bufferView"] = tinygltf::Value(dracoBv);
+                    tinygltf::Value::Object dracoAttrMap;
+                    for (const auto &entry : dracoPrim.attributeUniqueIds)
+                        dracoAttrMap[entry.first] = tinygltf::Value(entry.second);
+                    dracoExt["attributes"] = tinygltf::Value(dracoAttrMap);
+                    gltfPrim.extensions["KHR_draco_mesh_compression"] = tinygltf::Value(dracoExt);
+
+                    usedDracoCompression = true;
+                    wroteWithDraco = true;
+                } else if (!dracoPrim.error.isEmpty()) {
+                    reportProgress(
+                        cb,
+                        0,
+                        QObject::tr("glTF export warning: %1 Falling back to uncompressed geometry.")
+                            .arg(dracoPrim.error));
+                }
+            }
+#else
+            if (dracoRequested && !warnedDracoUnavailable) {
+                reportProgress(
+                    cb,
+                    0,
+                    QObject::tr("glTF export warning: Draco compression requested but this QMeshLab build has no Draco support."));
+                warnedDracoUnavailable = true;
+            }
+#endif
+
+            if (!wroteWithDraco) {
+                const int posBv = addBufferView(
                     model,
                     binaryBuffer,
-                    prim.colors.data(),
-                    prim.colors.size() * sizeof(float),
+                    prim.positions.data(),
+                    prim.positions.size() * sizeof(float),
                     TINYGLTF_TARGET_ARRAY_BUFFER);
-                const int cAcc =
-                    addAccessor(model, cBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.colors.size() / 4, TINYGLTF_TYPE_VEC4);
-                gltfPrim.attributes["COLOR_0"] = cAcc;
-            }
+                const int posAcc =
+                    addAccessor(model, posBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.positions.size() / 3, TINYGLTF_TYPE_VEC3);
+                setAccessorMinMaxVec3(model.accessors[size_t(posAcc)], prim.positions);
+                gltfPrim.attributes["POSITION"] = posAcc;
 
-            if (prim.hasTexcoords && (prim.texcoords.size() / 2) == (prim.positions.size() / 3)) {
-                const int tBv = addBufferView(
+                if (prim.hasNormals && prim.normals.size() == prim.positions.size()) {
+                    const int nBv = addBufferView(
+                        model,
+                        binaryBuffer,
+                        prim.normals.data(),
+                        prim.normals.size() * sizeof(float),
+                        TINYGLTF_TARGET_ARRAY_BUFFER);
+                    const int nAcc =
+                        addAccessor(model, nBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.normals.size() / 3, TINYGLTF_TYPE_VEC3);
+                    gltfPrim.attributes["NORMAL"] = nAcc;
+                }
+
+                if (prim.hasColors && (prim.colors.size() / 4) == (prim.positions.size() / 3)) {
+                    const int cBv = addBufferView(
+                        model,
+                        binaryBuffer,
+                        prim.colors.data(),
+                        prim.colors.size() * sizeof(float),
+                        TINYGLTF_TARGET_ARRAY_BUFFER);
+                    const int cAcc =
+                        addAccessor(model, cBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.colors.size() / 4, TINYGLTF_TYPE_VEC4);
+                    gltfPrim.attributes["COLOR_0"] = cAcc;
+                }
+
+                if (prim.hasTexcoords && (prim.texcoords.size() / 2) == (prim.positions.size() / 3)) {
+                    const int tBv = addBufferView(
+                        model,
+                        binaryBuffer,
+                        prim.texcoords.data(),
+                        prim.texcoords.size() * sizeof(float),
+                        TINYGLTF_TARGET_ARRAY_BUFFER);
+                    const int tAcc =
+                        addAccessor(model, tBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.texcoords.size() / 2, TINYGLTF_TYPE_VEC2);
+                    gltfPrim.attributes["TEXCOORD_0"] = tAcc;
+                }
+
+                const int iBv = addBufferView(
                     model,
                     binaryBuffer,
-                    prim.texcoords.data(),
-                    prim.texcoords.size() * sizeof(float),
-                    TINYGLTF_TARGET_ARRAY_BUFFER);
-                const int tAcc =
-                    addAccessor(model, tBv, TINYGLTF_COMPONENT_TYPE_FLOAT, prim.texcoords.size() / 2, TINYGLTF_TYPE_VEC2);
-                gltfPrim.attributes["TEXCOORD_0"] = tAcc;
+                    prim.indices.data(),
+                    prim.indices.size() * sizeof(uint32_t),
+                    TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER);
+                const int iAcc =
+                    addAccessor(model, iBv, TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT, prim.indices.size(), TINYGLTF_TYPE_SCALAR);
+                gltfPrim.indices = iAcc;
             }
-
-            const int iBv = addBufferView(
-                model,
-                binaryBuffer,
-                prim.indices.data(),
-                prim.indices.size() * sizeof(uint32_t),
-                TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER);
-            const int iAcc =
-                addAccessor(model, iBv, TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT, prim.indices.size(), TINYGLTF_TYPE_SCALAR);
-            gltfPrim.indices = iAcc;
 
             if (prim.textureSlot >= 0) {
                 const auto it = textureSlotToMaterial.find(prim.textureSlot);
@@ -1215,6 +1523,17 @@ public:
             }
 
             outMesh.primitives.push_back(std::move(gltfPrim));
+        }
+
+        if (usedDracoCompression) {
+            if (std::find(model.extensionsUsed.begin(), model.extensionsUsed.end(),
+                    std::string("KHR_draco_mesh_compression")) == model.extensionsUsed.end()) {
+                model.extensionsUsed.push_back("KHR_draco_mesh_compression");
+            }
+            if (std::find(model.extensionsRequired.begin(), model.extensionsRequired.end(),
+                    std::string("KHR_draco_mesh_compression")) == model.extensionsRequired.end()) {
+                model.extensionsRequired.push_back("KHR_draco_mesh_compression");
+            }
         }
 
         if (outMesh.primitives.empty())

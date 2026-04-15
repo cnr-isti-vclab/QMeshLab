@@ -686,6 +686,14 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     baseUbufData[40] = n[6]; baseUbufData[41] = n[7]; baseUbufData[42] = n[8]; baseUbufData[43] = 0.0f;
     writeMainStyleToUbuf(baseUbufData, meshSettings, sz, false);
 
+    {
+        // Always push the UV-space transform at frame start so pan/zoom is applied
+        // even when the first drawn pass reuses the same style key.
+        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+        u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, baseUbufData);
+        cb->resourceUpdate(u);
+    }
+
     MainStyleUbufKey lastStyleKey = mainStyleUbufKeyFromSettings(meshSettings, false);
     bool hasLastStyleKey = true;
     auto updateStyleUbuf = [&](const RenderSettings &styleSettings) {

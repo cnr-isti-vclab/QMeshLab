@@ -113,6 +113,11 @@ bool saveFormatSupportsEmbeddedTextures(const QString &extension)
     return extension == QLatin1String("gltf") || extension == QLatin1String("glb");
 }
 
+bool saveFormatSupportsDracoCompression(const QString &extension)
+{
+    return extension == QLatin1String("gltf") || extension == QLatin1String("glb");
+}
+
 int availableSaveMaskForMesh(const Document::MeshEntry &entry)
 {
     int mask = entry.ioMask;
@@ -676,11 +681,14 @@ void MainWindow::saveCurrentMesh()
     const QString extension = fileExtensionLower(targetPath);
     const bool binarySupported = saveFormatSupportsBinary(extension);
     const bool supportsEmbeddedTextures = saveFormatSupportsEmbeddedTextures(extension);
+    const bool supportsDracoCompression = saveFormatSupportsDracoCompression(extension);
 
     MeshIOSaveOptions initialOptions;
     initialOptions.mask = defaultSaveMaskForMesh(entry, capabilityMask);
     initialOptions.binary = binarySupported;
     initialOptions.embedTextures = (extension == QLatin1String("glb"));
+    initialOptions.dracoCompression = false;
+    initialOptions.dracoCompressionLevel = 7;
 
     MeshSaveOptionsDialog optionsDialog(
         targetPath,
@@ -690,6 +698,7 @@ void MainWindow::saveCurrentMesh()
         initialOptions,
         binarySupported,
         supportsEmbeddedTextures,
+        supportsDracoCompression,
         this);
     if (optionsDialog.exec() != QDialog::Accepted)
         return;

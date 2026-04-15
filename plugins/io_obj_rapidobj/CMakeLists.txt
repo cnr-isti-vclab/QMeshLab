@@ -1,21 +1,9 @@
 option(QMESH_PLUGIN_OBJ_RAPIDOBJ "Build rapidobj OBJ input plugin" ON)
-option(QMESH_PLUGIN_OBJ_RAPIDOBJ_FETCH_RAPIDOBJ "Fetch rapidobj from GitHub when not installed" OFF)
 
 if (NOT QMESH_PLUGIN_OBJ_RAPIDOBJ)
     message(STATUS "Skipping io_obj_rapidobj - plugin disabled")
     return()
 endif()
-
-set(_rapidobj_hints
-    ${CMAKE_SOURCE_DIR}/third_party/rapidobj/include
-    ${CMAKE_SOURCE_DIR}/third_party/rapidobj
-    ${CMAKE_SOURCE_DIR}/external/rapidobj/include
-    ${CMAKE_SOURCE_DIR}/external/rapidobj
-    ${CMAKE_SOURCE_DIR}/../../meshlab/src/external/downloads/rapidobj/include
-    ${CMAKE_SOURCE_DIR}/../../meshlab/src/external/downloads/rapidobj
-    $ENV{HOME}/Documents/devel/meshlab/src/external/downloads/rapidobj/include
-    $ENV{HOME}/Documents/devel/meshlab/src/external/downloads/rapidobj
-)
 
 set(_rapidobj_target "")
 set(RAPIDOBJ_INCLUDE_DIR "")
@@ -23,30 +11,38 @@ set(RAPIDOBJ_INCLUDE_DIR "")
 find_package(RapidObj CONFIG QUIET)
 if (TARGET rapidobj::rapidobj)
     set(_rapidobj_target rapidobj::rapidobj)
+elseif(TARGET RapidObj::RapidObj)
+    set(_rapidobj_target RapidObj::RapidObj)
 endif()
 
 if (NOT _rapidobj_target)
-    find_path(RAPIDOBJ_INCLUDE_DIR rapidobj/rapidobj.hpp
-        PATHS ${_rapidobj_hints}
-    )
-endif()
+    set(_vcpkg_include_hints "")
+    if (DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+        list(APPEND _vcpkg_include_hints
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include"
+        )
+    endif()
+    if (DEFINED VCPKG_TARGET_TRIPLET)
+        list(APPEND _vcpkg_include_hints
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include"
+            "${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include"
+        )
+    endif()
 
-if (NOT _rapidobj_target AND NOT RAPIDOBJ_INCLUDE_DIR AND QMESH_PLUGIN_OBJ_RAPIDOBJ_FETCH_RAPIDOBJ)
-    include(FetchContent)
-    FetchContent_Declare(
-        rapidobj
-        GIT_REPOSITORY https://github.com/guybrush77/rapidobj.git
-        GIT_TAG v1.1
-    )
-    FetchContent_MakeAvailable(rapidobj)
-    if (TARGET rapidobj::rapidobj)
-        set(_rapidobj_target rapidobj::rapidobj)
+    if (_vcpkg_include_hints)
+        find_path(RAPIDOBJ_INCLUDE_DIR rapidobj/rapidobj.hpp
+            PATHS ${_vcpkg_include_hints}
+            NO_DEFAULT_PATH
+        )
+    else()
+        find_path(RAPIDOBJ_INCLUDE_DIR rapidobj/rapidobj.hpp)
     endif()
 endif()
 
 if (NOT _rapidobj_target AND NOT RAPIDOBJ_INCLUDE_DIR)
-    message(STATUS "Skipping io_obj_rapidobj - missing rapidobj (set RAPIDOBJ_INCLUDE_DIR or enable fetch)")
-    return()
+    message(FATAL_ERROR
+        "io_obj_rapidobj requires rapidobj from vcpkg. "
+        "Install dependency in manifest mode and configure with vcpkg toolchain.")
 endif()
 
 add_library(QMeshLabPluginIORapidObj STATIC

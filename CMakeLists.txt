@@ -6,6 +6,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(QT_NO_PRIVATE_MODULE_WARNING ON)
 
+option(QMESH_REQUIRE_VCPKG_DEPS "Require vcpkg toolchain for non-Qt external dependencies" ON)
+if (QMESH_REQUIRE_VCPKG_DEPS)
+    if (NOT DEFINED VCPKG_TARGET_TRIPLET)
+        message(FATAL_ERROR
+            "QMESH_REQUIRE_VCPKG_DEPS=ON but vcpkg toolchain is not active. "
+            "Set VCPKG_ROOT to your vcpkg clone and configure with "
+            "-DCMAKE_TOOLCHAIN_FILE=$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake, "
+            "or use the 'vcpkg-manifest' preset.")
+    endif()
+    message(STATUS "QMeshLab external dependency mode: vcpkg (triplet: ${VCPKG_TARGET_TRIPLET})")
+endif()
+
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 add_library(QMeshLabCore STATIC
     colormap.h colormap.cpp

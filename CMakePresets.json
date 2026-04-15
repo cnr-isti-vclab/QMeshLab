@@ -1,0 +1,59 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Configure (vcpkg manifest)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "QMESH_REQUIRE_VCPKG_DEPS": "ON"
+      }
+    },
+    {
+      "name": "vcpkg-manifest",
+      "displayName": "vcpkg Manifest Configure",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "QMESH_REQUIRE_VCPKG_DEPS": "ON"
+      }
+    },
+    {
+      "name": "local-no-vcpkg",
+      "displayName": "Local Configure (no vcpkg)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-local",
+      "cacheVariables": {
+        "QMESH_REQUIRE_VCPKG_DEPS": "OFF",
+        "QMESH_PLUGIN_OBJ_RAPIDOBJ": "OFF",
+        "QMESH_PLUGIN_E57": "OFF",
+        "QMESH_PLUGIN_GLTF": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "displayName": "Default Build",
+      "configurePreset": "default"
+    },
+    {
+      "name": "vcpkg-manifest",
+      "displayName": "vcpkg Manifest Build",
+      "configurePreset": "vcpkg-manifest"
+    },
+    {
+      "name": "local-no-vcpkg",
+      "displayName": "Local Build (no vcpkg)",
+      "configurePreset": "local-no-vcpkg"
+    }
+  ]
+}

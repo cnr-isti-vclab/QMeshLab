@@ -6,7 +6,9 @@
 #include <QDialogButtonBox>
 #include <QFileInfo>
 #include <QLabel>
+#include <QSpinBox>
 #include <QVBoxLayout>
+#include <algorithm>
 
 namespace {
 struct OptionalMaskItem {
@@ -42,11 +44,13 @@ MeshSaveOptionsDialog::MeshSaveOptionsDialog(
     const MeshIOSaveOptions &initialOptions,
     bool binarySupported,
     bool supportsEmbeddedTextures,
+    bool supportsDracoCompression,
     QWidget *parent)
     : QDialog(parent)
     , m_requiredMask(requiredMask)
     , m_binarySupported(binarySupported)
     , m_supportsEmbeddedTextures(supportsEmbeddedTextures)
+    , m_supportsDracoCompression(supportsDracoCompression)
 {
     setWindowTitle(tr("Save Mesh Options"));
 
@@ -116,6 +120,31 @@ MeshSaveOptionsDialog::MeshSaveOptionsDialog(
         layout->addWidget(m_embedTexturesCheckBox);
     }
 
+    m_dracoCompressionCheckBox = new QCheckBox(tr("Draco compression"), this);
+    m_dracoCompressionCheckBox->setVisible(m_supportsDracoCompression);
+    m_dracoCompressionCheckBox->setChecked(
+        m_supportsDracoCompression ? initialOptions.dracoCompression : false);
+    if (m_supportsDracoCompression)
+        m_dracoCompressionCheckBox->setToolTip(tr("Compress geometry using KHR_draco_mesh_compression."));
+
+    m_dracoCompressionLevelSpinBox = new QSpinBox(this);
+    m_dracoCompressionLevelSpinBox->setVisible(m_supportsDracoCompression);
+    m_dracoCompressionLevelSpinBox->setRange(0, 10);
+    m_dracoCompressionLevelSpinBox->setValue(std::clamp(initialOptions.dracoCompressionLevel, 0, 10));
+    m_dracoCompressionLevelSpinBox->setEnabled(m_dracoCompressionCheckBox->isChecked());
+    m_dracoCompressionLevelSpinBox->setPrefix(tr("Level "));
+    if (m_supportsDracoCompression)
+        m_dracoCompressionLevelSpinBox->setToolTip(tr("0 = faster, 10 = smaller output."));
+
+    if (m_supportsDracoCompression) {
+        layout->addWidget(m_dracoCompressionCheckBox);
+        layout->addWidget(m_dracoCompressionLevelSpinBox);
+        connect(m_dracoCompressionCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+            if (m_dracoCompressionLevelSpinBox)
+                m_dracoCompressionLevelSpinBox->setEnabled(checked);
+        });
+    }
+
     auto *buttons =
         new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -137,5 +166,11 @@ MeshIOSaveOptions MeshSaveOptionsDialog::selectedOptions() const
     options.binary = m_binarySupported && m_binaryCheckBox && m_binaryCheckBox->isChecked();
     options.embedTextures =
         m_supportsEmbeddedTextures && m_embedTexturesCheckBox && m_embedTexturesCheckBox->isChecked();
+    options.dracoCompression =
+        m_supportsDracoCompression && m_dracoCompressionCheckBox && m_dracoCompressionCheckBox->isChecked();
+    options.dracoCompressionLevel =
+        options.dracoCompression && m_dracoCompressionLevelSpinBox
+        ? std::clamp(m_dracoCompressionLevelSpinBox->value(), 0, 10)
+        : 7;
     return options;
 }

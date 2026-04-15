@@ -1,5 +1,13 @@
 # Build
 build/
+build-local/
+build-*/
+vcpkg_installed/
+vcpkg-manifest-install.log
+CMakeUserPresets.json
+
+# Local dependencies
+vcpkg/
 
 # macOS
 .DS_Store
