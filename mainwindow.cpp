@@ -18,7 +18,6 @@
 #include <QScreen>
 #include <QSplitter>
 #include <QDockWidget>
-#include <QStyle>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QEventLoop>
@@ -190,18 +189,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_viewSplitter = new QSplitter(Qt::Horizontal, this);
     m_viewSplitter->setChildrenCollapsible(false);
-    m_viewSplitter->setStyleSheet(QStringLiteral(
-        "RenderWidget {"
-        "  border: 1px solid rgb(70, 70, 70);"
-        "  border-radius: 3px;"
-        "}"
-        "RenderWidget[currentView=\"false\"] {"
-        "  border: 1px solid rgb(70, 70, 70);"
-        "}"
-        "RenderWidget[currentView=\"true\"] {"
-        "  border: 4px solid rgb(0, 174, 255);"
-        "}"
-    ));
     setCentralWidget(m_viewSplitter);
 
     RenderWidget *initialView = createRenderWidget(m_viewSplitter);
@@ -342,7 +329,6 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
 
     auto *view = new RenderWidget(m_doc, parentSplitter);
     view->setAttribute(Qt::WA_StyledBackground, true);
-    view->setProperty("currentView", false);
     view->setContextMenuPolicy(Qt::CustomContextMenu);
     parentSplitter->addWidget(view);
     m_renderWidgets.append(view);
@@ -420,13 +406,6 @@ void MainWindow::updateCurrentViewBorder()
             continue;
         const bool isCurrent = (view == m_currentRenderWidget);
         view->setCurrentViewHighlighted(showCurrentViewIndicator && isCurrent);
-        if (view->property("currentView").toBool() == isCurrent)
-            continue;
-        view->setProperty("currentView", isCurrent);
-        if (QStyle *s = view->style()) {
-            s->unpolish(view);
-            s->polish(view);
-        }
         view->update();
     }
 }

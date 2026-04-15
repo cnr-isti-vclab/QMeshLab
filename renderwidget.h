@@ -28,14 +28,7 @@ public:
         ParametrizationUV
     };
 
-    enum class ShadingMode {
-        Smooth,
-        Flat,
-        Wireframe
-    };
-
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
-    void setShadingMode(ShadingMode mode);
     void setCurrentViewHighlighted(bool highlighted);
     void resetCameraToScene();
     const RenderSettings &renderSettings() const { return m_renderSettings; }
@@ -238,7 +231,6 @@ private:
     std::unique_ptr<QRhiShaderResourceBindings> m_trackballGizmoSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_trackballGizmoPipeline;
     int m_trackballGizmoVertexCount = 0;
-    ShadingMode m_shadingMode = ShadingMode::Smooth;
     RenderSettings m_renderSettings;
     RenderOverlayPanel *m_overlayPanel = nullptr;
     QWidget *m_currentViewIndicator = nullptr;

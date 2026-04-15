@@ -237,35 +237,6 @@ void RenderWidget::ensureVisibilitySize()
         m_meshVisibility.resize(size_t(targetSize));
 }
 
-void RenderWidget::setShadingMode(ShadingMode mode)
-{
-    if (mode == ShadingMode::Wireframe) {
-        const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-        if (MeshRenderMode *meshMode = mutableRenderModeForMesh(meshIndex)) {
-            meshMode->showFill = true;
-            meshMode->showWire = true;
-            syncOverlaySettingsToCurrentMesh();
-        }
-
-        if (m_overlayPanel) {
-            m_overlayPanel->setSettings(m_renderSettings);
-        }
-        update();
-        return;
-    }
-
-    if (m_shadingMode == mode)
-        return;
-
-    m_shadingMode = mode;
-    const RenderSettings prev = m_renderSettings;
-    m_renderSettings.fillShading = (mode == ShadingMode::Flat) ? FillShading::Flat : FillShading::Smooth;
-    applyRenderSettingsToCurrentMesh(prev, m_renderSettings);
-    if (m_overlayPanel)
-        m_overlayPanel->setSettings(m_renderSettings);
-    update();
-}
-
 void RenderWidget::setRenderSettings(const RenderSettings &settings)
 {
     const RenderSettings prev = m_renderSettings;
@@ -281,10 +252,6 @@ void RenderWidget::setRenderSettings(const RenderSettings &settings)
     }
     applyRenderSettingsToCurrentMesh(prev, m_renderSettings);
     syncOverlaySettingsToCurrentMesh();
-    m_shadingMode = (m_renderSettings.fillShading == FillShading::Flat)
-        ? ShadingMode::Flat
-        : ShadingMode::Smooth;
-
     if (m_overlayPanel)
         m_overlayPanel->setSettings(m_renderSettings);
     updateBoundingBoxCornersOverlay();
@@ -608,10 +575,6 @@ void RenderWidget::createOverlayButtons()
         m_renderSettings = settings;
         applyRenderSettingsToCurrentMesh(prev, m_renderSettings);
         syncOverlaySettingsToCurrentMesh();
-
-        m_shadingMode = (m_renderSettings.fillShading == FillShading::Flat)
-            ? ShadingMode::Flat
-            : ShadingMode::Smooth;
 
         updateBoundingBoxCornersOverlay();
         if (prev.qualityHistogramBins != m_renderSettings.qualityHistogramBins

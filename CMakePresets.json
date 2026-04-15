@@ -7,16 +7,6 @@
   },
   "configurePresets": [
     {
-      "name": "default",
-      "displayName": "Default Configure (vcpkg manifest)",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build",
-      "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "QMESH_REQUIRE_VCPKG_DEPS": "ON"
-      }
-    },
-    {
       "name": "vcpkg-manifest",
       "displayName": "vcpkg Manifest Configure",
       "generator": "Ninja",
@@ -25,6 +15,11 @@
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "QMESH_REQUIRE_VCPKG_DEPS": "ON"
       }
+    },
+    {
+      "name": "default",
+      "displayName": "Default Configure (vcpkg manifest)",
+      "inherits": "vcpkg-manifest"
     },
     {
       "name": "local-no-vcpkg",
@@ -43,7 +38,8 @@
     {
       "name": "default",
       "displayName": "Default Build",
-      "configurePreset": "default"
+      "configurePreset": "default",
+      "inherits": "vcpkg-manifest"
     },
     {
       "name": "vcpkg-manifest",

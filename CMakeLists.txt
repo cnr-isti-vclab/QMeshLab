@@ -71,7 +71,6 @@ qt_add_executable(QMeshLab
 )
 
 target_link_libraries(QMeshLab PRIVATE
-    QMeshLabCore
     QMeshLabPlugins
     Qt6::Widgets
     Qt6::GuiPrivate
@@ -144,7 +143,6 @@ target_include_directories(QMeshLabTests PRIVATE
 )
 
 target_link_libraries(QMeshLabTests PRIVATE
-    QMeshLabCore
     QMeshLabPlugins
     Qt6::Test
 )
