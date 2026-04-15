@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include <QColor>
+#include <QHash>
 #include <QWidget>
 #include <vector>
 
@@ -34,7 +35,9 @@ signals:
 
 private slots:
     void onSearchTextChanged(const QString &text);
+    void onSearchReturnPressed();
     void onResultItemClicked(QListWidgetItem *item);
+    void onResultItemActivated(QListWidgetItem *item);
     void onBackClicked();
     void onApplyClicked();
     void onShowAdvancedToggled(bool checked);
@@ -53,16 +56,22 @@ private:
     void openFilterAtIndex(int filterIndex);
     void clearParameterEditors();
     void buildParameterEditors(const Document::FilterInfo &filterInfo);
+    MeshFilterParameterValues collectCurrentParameterValues() const;
+    void applyParameterValuesToEditors(const MeshFilterParameterValues &values);
+    void cacheCurrentFilterParameters();
     QVariant parameterValue(const ParameterBinding &binding) const;
     bool matchesSearch(const Document::FilterInfo &filterInfo, const QString &needle) const;
+    void openSelectedResult(bool focusApplyButton);
     QColor colorFromVariant(const QVariant &value, const QColor &fallback) const;
     void updateColorButtonStyle(QWidget *button, const QColor &color) const;
     const Document::FilterInfo *filterByKey(const QString &filterKey) const;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     Document *m_doc = nullptr;
     std::vector<Document::FilterInfo> m_filters;
     std::vector<int> m_visibleFilterIndices;
     std::vector<ParameterBinding> m_parameterBindings;
+    QHash<QString, MeshFilterParameterValues> m_filterParameterCache;
     QString m_currentFilterKey;
 
     QLineEdit *m_searchEdit = nullptr;

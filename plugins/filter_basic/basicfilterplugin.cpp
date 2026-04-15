@@ -344,11 +344,14 @@ MeshFilterRunResult BasicFilterPlugin::runFilter(
         VCGMesh generatedMesh;
         WalkerType walker;
         MarchingCubesType mc(generatedMesh, walker);
+        // Keep historical noisy-isosurface appearance by extracting at the
+        // same threshold that was previously used in this filter.
+        const float isoThreshold = float(std::max(16, (gridSize * gridSize) / 10));
         walker.BuildMesh<MarchingCubesType>(
             generatedMesh,
             volume,
             mc,
-            0.0f,
+            isoThreshold,
             nullptr);
 
         if (generatedMesh.VN() <= 0 || generatedMesh.FN() <= 0) {

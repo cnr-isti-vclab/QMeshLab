@@ -4,8 +4,10 @@
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QEvent>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -50,6 +52,7 @@ void MeshFilterPanel::buildUi()
 
     m_searchEdit = new QLineEdit(this);
     m_searchEdit->setPlaceholderText(tr("Search filters..."));
+    m_searchEdit->installEventFilter(this);
     rootLayout->addWidget(m_searchEdit);
 
     m_stack = new QStackedWidget(this);
@@ -111,7 +114,9 @@ void MeshFilterPanel::buildUi()
     m_stack->setCurrentWidget(m_resultsPage);
 
     connect(m_searchEdit, &QLineEdit::textChanged, this, &MeshFilterPanel::onSearchTextChanged);
+    connect(m_searchEdit, &QLineEdit::returnPressed, this, &MeshFilterPanel::onSearchReturnPressed);
     connect(m_resultsList, &QListWidget::itemClicked, this, &MeshFilterPanel::onResultItemClicked);
+    connect(m_resultsList, &QListWidget::itemActivated, this, &MeshFilterPanel::onResultItemActivated);
     connect(m_backButton, &QPushButton::clicked, this, &MeshFilterPanel::onBackClicked);
     connect(m_applyButton, &QPushButton::clicked, this, &MeshFilterPanel::onApplyClicked);
     connect(m_showAdvancedCheck, &QCheckBox::toggled, this, &MeshFilterPanel::onShowAdvancedToggled);
@@ -119,6 +124,7 @@ void MeshFilterPanel::buildUi()
 
 void MeshFilterPanel::reloadFilters()
 {
+    cacheCurrentFilterParameters();
     const QString previousKey = m_currentFilterKey;
     if (m_doc) {
         m_filters = m_doc->filterInfos();
@@ -193,6 +199,15 @@ void MeshFilterPanel::onSearchTextChanged(const QString &)
     m_stack->setCurrentWidget(m_resultsPage);
 }
 
+void MeshFilterPanel::onSearchReturnPressed()
+{
+    if (m_stack->currentWidget() == m_parametersPage) {
+        onApplyClicked();
+        return;
+    }
+    openSelectedResult(true);
+}
+
 void MeshFilterPanel::onResultItemClicked(QListWidgetItem *item)
 {
     if (!item)
@@ -201,8 +216,14 @@ void MeshFilterPanel::onResultItemClicked(QListWidgetItem *item)
     openFilterAtIndex(filterIndex);
 }
 
+void MeshFilterPanel::onResultItemActivated(QListWidgetItem *)
+{
+    openSelectedResult(true);
+}
+
 void MeshFilterPanel::onBackClicked()
 {
+    cacheCurrentFilterParameters();
     showSearchResults();
 }
 
@@ -214,12 +235,8 @@ void MeshFilterPanel::onApplyClicked()
     if (!info || !info->applicable)
         return;
 
-    MeshFilterParameterValues parameters;
-    for (const ParameterBinding &binding : m_parameterBindings) {
-        const QVariant value = parameterValue(binding);
-        if (value.isValid())
-            parameters.insert(binding.descriptor.id, value);
-    }
+    const MeshFilterParameterValues parameters = collectCurrentParameterValues();
+    m_filterParameterCache.insert(m_currentFilterKey, parameters);
     emit runRequested(m_currentFilterKey, parameters, info->descriptor.name);
 }
 
@@ -262,12 +279,36 @@ void MeshFilterPanel::rebuildResultsList()
         if (!tip.isEmpty())
             item->setToolTip(tip);
     }
+
+    if (m_resultsList->count() > 0 && m_resultsList->currentRow() < 0)
+        m_resultsList->setCurrentRow(0);
+}
+
+void MeshFilterPanel::openSelectedResult(bool focusApplyButton)
+{
+    if (!m_resultsList)
+        return;
+
+    QListWidgetItem *item = m_resultsList->currentItem();
+    if (!item && m_resultsList->count() > 0) {
+        item = m_resultsList->item(0);
+        m_resultsList->setCurrentItem(item);
+    }
+    if (!item)
+        return;
+
+    onResultItemClicked(item);
+    if (focusApplyButton && m_applyButton && m_stack->currentWidget() == m_parametersPage)
+        m_applyButton->setFocus(Qt::OtherFocusReason);
 }
 
 void MeshFilterPanel::openFilterAtIndex(int filterIndex)
 {
     if (filterIndex < 0 || filterIndex >= static_cast<int>(m_filters.size()))
         return;
+
+    cacheCurrentFilterParameters();
+
     const Document::FilterInfo &info = m_filters[static_cast<size_t>(filterIndex)];
     m_currentFilterKey = info.key;
     m_filterTitleLabel->setText(info.descriptor.name);
@@ -283,6 +324,9 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
         m_applyButton->setToolTip(tr("Unavailable: %1").arg(reason));
     }
     buildParameterEditors(info);
+    const auto cacheIt = m_filterParameterCache.constFind(info.key);
+    if (cacheIt != m_filterParameterCache.constEnd())
+        applyParameterValuesToEditors(cacheIt.value());
     m_applyButton->setEnabled(info.applicable);
     m_stack->setCurrentWidget(m_parametersPage);
 }
@@ -411,6 +455,77 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
     }
 }
 
+MeshFilterParameterValues MeshFilterPanel::collectCurrentParameterValues() const
+{
+    MeshFilterParameterValues values;
+    for (const ParameterBinding &binding : m_parameterBindings) {
+        const QVariant value = parameterValue(binding);
+        if (value.isValid())
+            values.insert(binding.descriptor.id, value);
+    }
+    return values;
+}
+
+void MeshFilterPanel::applyParameterValuesToEditors(const MeshFilterParameterValues &values)
+{
+    for (const ParameterBinding &binding : m_parameterBindings) {
+        QWidget *editor = binding.editor;
+        if (!editor)
+            continue;
+
+        const auto it = values.constFind(binding.descriptor.id);
+        if (it == values.constEnd())
+            continue;
+
+        const QVariant value = it.value();
+        switch (binding.descriptor.type) {
+        case MeshFilterParameterType::Bool: {
+            if (auto *w = qobject_cast<QCheckBox *>(editor))
+                w->setChecked(value.toBool());
+            break;
+        }
+        case MeshFilterParameterType::Int: {
+            if (auto *w = qobject_cast<QSpinBox *>(editor))
+                w->setValue(value.toInt());
+            break;
+        }
+        case MeshFilterParameterType::Double: {
+            if (auto *w = qobject_cast<QDoubleSpinBox *>(editor))
+                w->setValue(value.toDouble());
+            break;
+        }
+        case MeshFilterParameterType::String: {
+            if (auto *w = qobject_cast<QLineEdit *>(editor))
+                w->setText(value.toString());
+            break;
+        }
+        case MeshFilterParameterType::Enum: {
+            if (auto *w = qobject_cast<QComboBox *>(editor)) {
+                const QString enumId = value.toString();
+                const int pos = w->findData(enumId);
+                if (pos >= 0)
+                    w->setCurrentIndex(pos);
+            }
+            break;
+        }
+        case MeshFilterParameterType::Color: {
+            const QColor fallback = colorFromVariant(editor->property("filterColor"), QColor(Qt::white));
+            const QColor c = colorFromVariant(value, fallback);
+            editor->setProperty("filterColor", c);
+            updateColorButtonStyle(editor, c);
+            break;
+        }
+        }
+    }
+}
+
+void MeshFilterPanel::cacheCurrentFilterParameters()
+{
+    if (m_currentFilterKey.trimmed().isEmpty())
+        return;
+    m_filterParameterCache.insert(m_currentFilterKey, collectCurrentParameterValues());
+}
+
 QVariant MeshFilterPanel::parameterValue(const ParameterBinding &binding) const
 {
     QWidget *editor = binding.editor;
@@ -486,4 +601,21 @@ const Document::FilterInfo *MeshFilterPanel::filterByKey(const QString &filterKe
             return &info;
     }
     return nullptr;
+}
+
+bool MeshFilterPanel::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_searchEdit && event && event->type() == QEvent::KeyPress) {
+        auto *keyEvent = static_cast<QKeyEvent *>(event);
+        if (keyEvent->key() == Qt::Key_Down && keyEvent->modifiers() == Qt::NoModifier) {
+            m_stack->setCurrentWidget(m_resultsPage);
+            if (m_resultsList && m_resultsList->count() > 0) {
+                if (m_resultsList->currentRow() < 0)
+                    m_resultsList->setCurrentRow(0);
+                m_resultsList->setFocus(Qt::OtherFocusReason);
+            }
+            return true;
+        }
+    }
+    return QWidget::eventFilter(watched, event);
 }
