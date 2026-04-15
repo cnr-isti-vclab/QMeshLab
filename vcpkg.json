@@ -9,6 +9,7 @@
     "tinygltf",
     "libe57format",
     "xerces-c",
-    "rapidobj"
+    "rapidobj",
+    "muparser"
   ]
 }

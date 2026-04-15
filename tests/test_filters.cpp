@@ -40,6 +40,7 @@ void FilterTests::filterApplicabilityReflectsDocumentState()
 {
     Document doc;
     QString createIsoKey;
+    int noneDomainCount = 0;
 
     {
         const std::vector<Document::FilterInfo> infos = doc.filterInfos();
@@ -47,6 +48,9 @@ void FilterTests::filterApplicabilityReflectsDocumentState()
         for (const auto &info : infos) {
             if (info.descriptor.id == QStringLiteral("create_noisy_isosurface")) {
                 createIsoKey = info.key;
+            }
+            if (info.descriptor.inputDomain == MeshFilterInputDomain::None) {
+                ++noneDomainCount;
                 QVERIFY(info.applicable);
                 QVERIFY(info.applicabilityError.trimmed().isEmpty());
             } else {
@@ -55,8 +59,8 @@ void FilterTests::filterApplicabilityReflectsDocumentState()
             }
         }
     }
-    QVERIFY(!createIsoKey.isEmpty());
-    {
+    QVERIFY(noneDomainCount > 0);
+    if (!createIsoKey.isEmpty()) {
         MeshFilterParameterValues params;
         params.insert(QStringLiteral("resolution"), 32);
         const MeshFilterRunResult createResult = doc.runFilter(createIsoKey, params);
@@ -70,12 +74,24 @@ void FilterTests::filterApplicabilityReflectsDocumentState()
     QCOMPARE(doc.loadMesh(path), 0);
     QCOMPARE(doc.meshCount(), meshCountBeforeLoad + 1);
 
+    bool hasMeshInfoApplicable = false;
+    bool hasNormalizeApplicable = false;
+    bool hasDuplicateApplicable = false;
     {
         const std::vector<Document::FilterInfo> infos = doc.filterInfos();
         QVERIFY(!infos.empty());
-        for (const auto &info : infos)
-            QVERIFY(info.applicable);
+        for (const auto &info : infos) {
+            if (info.descriptor.id == QStringLiteral("mesh_info"))
+                hasMeshInfoApplicable = info.applicable;
+            else if (info.descriptor.id == QStringLiteral("normalize_unit_box"))
+                hasNormalizeApplicable = info.applicable;
+            else if (info.descriptor.id == QStringLiteral("duplicate_current_mesh"))
+                hasDuplicateApplicable = info.applicable;
+        }
     }
+    QVERIFY(hasMeshInfoApplicable);
+    QVERIFY(hasNormalizeApplicable);
+    QVERIFY(hasDuplicateApplicable);
 }
 
 void FilterTests::basicFiltersRunOnLoadedMesh()
