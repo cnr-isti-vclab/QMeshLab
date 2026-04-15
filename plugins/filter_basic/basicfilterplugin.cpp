@@ -348,7 +348,7 @@ MeshFilterRunResult BasicFilterPlugin::runFilter(
             generatedMesh,
             volume,
             mc,
-            std::max(16, (gridSize * gridSize) / 10),
+            0.0f,
             nullptr);
 
         if (generatedMesh.VN() <= 0 || generatedMesh.FN() <= 0) {

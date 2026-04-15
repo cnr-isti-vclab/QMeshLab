@@ -3,6 +3,7 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFileInfo>
 #include <QFontMetrics>
+#include <QHash>
 #include <QImageReader>
 #include <QHeaderView>
 #include <QLocale>
@@ -14,6 +15,8 @@ namespace {
 constexpr int kFirstColumnMinWidth = 56;
 constexpr int kFirstColumnPadding = 10;
 constexpr int kFirstColumnTreePadding = 28;
+constexpr int kRoleMeshIndex = Qt::UserRole;
+constexpr int kRoleMeshId = Qt::UserRole + 1;
 
 QString meshDataSummary(const Document::MeshEntry &entry)
 {
@@ -149,11 +152,26 @@ void LayerWidget::rebuild()
     const QLocale locale = QLocale::system();
     const QFontMetrics fm(font());
     int maxCountTextWidth = 0;
+
+    QHash<qulonglong, bool> expandedStateByMeshId;
+    expandedStateByMeshId.reserve(topLevelItemCount());
+    for (int row = 0; row < topLevelItemCount(); ++row) {
+        QTreeWidgetItem *existing = topLevelItem(row);
+        if (!existing)
+            continue;
+        bool ok = false;
+        const qulonglong meshId = existing->data(0, kRoleMeshId).toULongLong(&ok);
+        if (!ok)
+            continue;
+        expandedStateByMeshId.insert(meshId, existing->isExpanded());
+    }
+
     clear();
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         const auto &entry = m_doc->mesh(i);
         auto *item = new QTreeWidgetItem(this, {entry.name, QString()});
-        item->setData(0, Qt::UserRole, i);
+        item->setData(0, kRoleMeshIndex, i);
+        item->setData(0, kRoleMeshId, qulonglong(entry.meshId));
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
         item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
         item->setFirstColumnSpanned(true);
@@ -201,7 +219,8 @@ void LayerWidget::rebuild()
         dItem->setToolTip(0, dataTip);
         dItem->setToolTip(1, dataTip);
 
-        item->setExpanded(true);
+        const auto it = expandedStateByMeshId.constFind(qulonglong(entry.meshId));
+        item->setExpanded(it != expandedStateByMeshId.constEnd() ? it.value() : true);
 
         if (i == m_doc->currentMeshIndex())
             setCurrentItem(item);
@@ -223,7 +242,7 @@ int LayerWidget::meshIndexForItem(QTreeWidgetItem *item) const
         top = top->parent();
 
     bool ok = false;
-    const int idx = top->data(0, Qt::UserRole).toInt(&ok);
+    const int idx = top->data(0, kRoleMeshIndex).toInt(&ok);
     return ok ? idx : -1;
 }
 
@@ -232,7 +251,7 @@ void LayerWidget::updateCurrentItemVisuals()
     const int currentIdx = m_doc->currentMeshIndex();
     for (int i = 0; i < topLevelItemCount(); ++i) {
         QTreeWidgetItem *item = topLevelItem(i);
-        const bool isCurrent = (item->data(0, Qt::UserRole).toInt() == currentIdx);
+        const bool isCurrent = (item->data(0, kRoleMeshIndex).toInt() == currentIdx);
         QFont f0 = item->font(0);
         QFont f1 = item->font(1);
         f0.setBold(isCurrent);

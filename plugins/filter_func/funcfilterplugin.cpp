@@ -1463,8 +1463,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
         VCGMesh generated;
         WalkerType walker;
         MarchingCubesType mc(generated, walker);
-        const int budgetHint = std::max(16, (size[0] * size[1]) / 10);
-        walker.BuildMesh<MarchingCubesType>(generated, volume, mc, budgetHint, nullptr);
+        walker.BuildMesh<MarchingCubesType>(generated, volume, mc, 0.0f, nullptr);
         if (generated.VN() <= 0 || generated.FN() <= 0)
             return fail(QObject::tr("Implicit surface extraction produced an empty mesh."));
 

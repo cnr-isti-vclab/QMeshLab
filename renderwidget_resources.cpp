@@ -1415,7 +1415,7 @@ void RenderWidget::ensureRenderResources()
             });
             m_trackballGizmoPipeline->setTopology(QRhiGraphicsPipeline::Lines);
             m_trackballGizmoPipeline->setDepthTest(true);
-            m_trackballGizmoPipeline->setDepthWrite(false);
+            m_trackballGizmoPipeline->setDepthWrite(true);
             m_trackballGizmoPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
             m_trackballGizmoPipeline->setCullMode(QRhiGraphicsPipeline::None);
             QRhiGraphicsPipeline::TargetBlend blend;

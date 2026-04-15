@@ -230,6 +230,10 @@ MainWindow::MainWindow(QWidget *parent)
     auto *logDock = new QDockWidget(tr("Log"), this);
     logDock->setWidget(logWidget);
     addDockWidget(Qt::BottomDockWidgetArea, logDock);
+    // Keep the right column (Layers + Filters) spanning full height.
+    // This ensures the bottom Log dock does not extend under the right column.
+    setCorner(Qt::TopRightCorner, Qt::RightDockWidgetArea);
+    setCorner(Qt::BottomRightCorner, Qt::RightDockWidgetArea);
 
     for (const auto &entry : m_doc->logMessages())
         appendLogItem(logWidget, entry.message, entry.source, false);
@@ -763,10 +767,12 @@ void MainWindow::refreshFiltersMenu()
         return;
 
     m_filtersMenu->clear();
-    m_filtersMenu->addAction(
+    QAction *filterBrowserAction = m_filtersMenu->addAction(
         tr("Filter Browser..."),
         this,
         &MainWindow::openFilterBrowser);
+    filterBrowserAction->setShortcut(QKeySequence::Find);
+    filterBrowserAction->setShortcutContext(Qt::ApplicationShortcut);
     m_filtersMenu->addSeparator();
 
     std::vector<Document::FilterInfo> infos = m_doc->filterInfos();
