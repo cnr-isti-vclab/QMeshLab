@@ -9,6 +9,7 @@
 #include <QString>
 #include <QStringList>
 #include <memory>
+#include <optional>
 #include <vector>
 
 class MeshIOPluginManager;
@@ -73,6 +74,17 @@ public:
     int saveMesh(int index, const QString &filename);
     int saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options);
     int saveCurrentMesh(const QString &filename);
+    void beginUndoStep(const QString &label);
+    void endUndoStep(bool commit = true);
+    bool canUndo() const;
+    bool canRedo() const;
+    QString undoText() const;
+    QString redoText() const;
+    bool undo();
+    bool redo();
+    void clearUndoHistory();
+    int undoLimit() const { return m_undoLimit; }
+    void setUndoLimit(int limit);
     void removeMesh(int index);
     void setMeshVisible(int index, bool visible);
     void setCurrentMeshIndex(int index);
@@ -129,8 +141,29 @@ signals:
     void loadProgressFinished(bool success, const QString &message);
     void logCleared();
     void logMessageAdded(const QString &message, Document::LogSource source, bool replaceLast);
+    void undoRedoStateChanged(
+        bool canUndo,
+        bool canRedo,
+        const QString &undoText,
+        const QString &redoText);
 
 private:
+    struct UndoState {
+        std::vector<std::unique_ptr<MeshEntry>> meshes;
+        int currentMeshIndex = -1;
+        std::uint64_t nextMeshId = 1;
+    };
+
+    struct UndoStep {
+        QString label;
+        UndoState before;
+        UndoState after;
+    };
+
+    UndoState captureUndoState() const;
+    void restoreUndoState(const UndoState &state);
+    void pushUndoStep(const QString &label, UndoState &&before, UndoState &&after);
+    void emitUndoRedoStateChanged();
     vcg::CallBackPos *logCallback();
     bool handleLogCallback(int pos, const char *message);
     static bool dispatchLogCallback(int pos, const char *message);
@@ -151,4 +184,11 @@ private:
     qint64 m_loadProcessEventsNs = 0;
     qint64 m_lastProgressEmitMs = -1;
     qint64 m_lastProcessEventsMs = -1;
+    std::vector<UndoStep> m_undoSteps;
+    int m_undoCursor = 0;
+    int m_undoLimit = 20;
+    bool m_undoStepActive = false;
+    QString m_undoStepLabel;
+    std::optional<UndoState> m_pendingUndoBefore;
+    bool m_restoringUndoRedo = false;
 };

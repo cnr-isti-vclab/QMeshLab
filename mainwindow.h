@@ -26,6 +26,8 @@ private slots:
     void newDocument();
     void newInstance();
     void openFile();
+    void undo();
+    void redo();
     void saveCurrentMesh();
     void saveSnapshotPng();
     void openLastMesh();
@@ -72,6 +74,8 @@ private:
     QStringList m_recentMeshes;
     QProgressBar *m_loadProgressBar = nullptr;
     QLabel *m_frameStatsLabel = nullptr;
+    QAction *m_undoAction = nullptr;
+    QAction *m_redoAction = nullptr;
     std::deque<float> m_lastCpuFrameTimes;
     std::deque<float> m_lastGpuFrameTimes;
 };

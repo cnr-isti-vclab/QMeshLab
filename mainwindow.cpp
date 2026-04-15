@@ -282,6 +282,35 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu->addSeparator();
     fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
+    QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
+    m_undoAction = editMenu->addAction(tr("&Undo"), this, &MainWindow::undo);
+    m_undoAction->setShortcut(QKeySequence::Undo);
+    m_redoAction = editMenu->addAction(tr("&Redo"), this, &MainWindow::redo);
+    m_redoAction->setShortcut(QKeySequence::Redo);
+    connect(m_doc, &Document::undoRedoStateChanged, this,
+            [this](bool canUndo, bool canRedo, const QString &undoText, const QString &redoText) {
+        if (m_undoAction) {
+            m_undoAction->setEnabled(canUndo);
+            m_undoAction->setText(
+                canUndo ? tr("&Undo %1").arg(undoText) : tr("&Undo"));
+        }
+        if (m_redoAction) {
+            m_redoAction->setEnabled(canRedo);
+            m_redoAction->setText(
+                canRedo ? tr("&Redo %1").arg(redoText) : tr("&Redo"));
+        }
+    });
+    if (m_undoAction) {
+        m_undoAction->setEnabled(m_doc->canUndo());
+        m_undoAction->setText(
+            m_doc->canUndo() ? tr("&Undo %1").arg(m_doc->undoText()) : tr("&Undo"));
+    }
+    if (m_redoAction) {
+        m_redoAction->setEnabled(m_doc->canRedo());
+        m_redoAction->setText(
+            m_doc->canRedo() ? tr("&Redo %1").arg(m_doc->redoText()) : tr("&Redo"));
+    }
+
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     viewMenu->addAction(tr("3D Scene Mode"), this, &MainWindow::setCurrentViewSceneMode);
     viewMenu->addAction(
@@ -578,9 +607,12 @@ void MainWindow::splitViewVertically()
 
 void MainWindow::newDocument()
 {
+    const bool hadMeshes = (m_doc->meshCount() > 0);
+    m_doc->beginUndoStep(tr("New Document"));
     // Remove from back to keep indices valid while emitting meshRemoved/currentMeshChanged.
     while (m_doc->meshCount() > 0)
         m_doc->removeMesh(m_doc->meshCount() - 1);
+    m_doc->endUndoStep(hadMeshes);
     m_doc->clearLog();
     statusBar()->showMessage(tr("New document"), 2000);
 }
@@ -605,6 +637,10 @@ void MainWindow::openFile()
     if (fileNames.isEmpty())
         return;
 
+    const bool groupUndoStep = (fileNames.size() > 1);
+    if (groupUndoStep)
+        m_doc->beginUndoStep(tr("Open Meshes"));
+
     int loadedCount = 0;
     int failedCount = 0;
     for (const QString &fileName : fileNames) {
@@ -613,6 +649,8 @@ void MainWindow::openFile()
         else
             ++failedCount;
     }
+    if (groupUndoStep)
+        m_doc->endUndoStep(loadedCount > 0);
 
     if (fileNames.size() > 1) {
         statusBar()->showMessage(
@@ -621,6 +659,26 @@ void MainWindow::openFile()
                 .arg(failedCount),
             3500);
     }
+}
+
+void MainWindow::undo()
+{
+    if (!m_doc->undo())
+        return;
+
+    const QString label = m_doc->redoText();
+    const QString msg = label.isEmpty() ? tr("Undo") : tr("Undo: %1").arg(label);
+    statusBar()->showMessage(msg, 1800);
+}
+
+void MainWindow::redo()
+{
+    if (!m_doc->redo())
+        return;
+
+    const QString label = m_doc->undoText();
+    const QString msg = label.isEmpty() ? tr("Redo") : tr("Redo: %1").arg(label);
+    statusBar()->showMessage(msg, 1800);
 }
 
 void MainWindow::saveCurrentMesh()

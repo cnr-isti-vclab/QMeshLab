@@ -10,6 +10,7 @@ class DocumentTests : public QObject
 private slots:
     void logReplaceLastEntryOnCarriageReturn();
     void loadMeshAddsLayerAndEmitsSignal();
+    void undoRedoRestoresMeshList();
     void openDialogFilterContainsKnownFormats();
     void benchmarkLoadMesh();
 };
@@ -42,6 +43,30 @@ void DocumentTests::loadMeshAddsLayerAndEmitsSignal()
 
     const auto &log = doc.logMessages();
     QVERIFY(!log.empty());
+}
+
+void DocumentTests::undoRedoRestoresMeshList()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off");
+
+    QCOMPARE(doc.meshCount(), 0);
+    QVERIFY(!doc.canUndo());
+    QVERIFY(!doc.canRedo());
+
+    QCOMPARE(doc.loadMesh(path), 0);
+    QCOMPARE(doc.meshCount(), 1);
+    QVERIFY(doc.canUndo());
+    QVERIFY(!doc.canRedo());
+
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.meshCount(), 0);
+    QVERIFY(!doc.canUndo());
+    QVERIFY(doc.canRedo());
+
+    QVERIFY(doc.redo());
+    QCOMPARE(doc.meshCount(), 1);
+    QVERIFY(doc.canUndo());
 }
 
 void DocumentTests::openDialogFilterContainsKnownFormats()

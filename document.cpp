@@ -2,6 +2,7 @@
 #include "meshiopluginmanager.h"
 #include "plugins/meshpluginregistry.h"
 #include <wrap/io_trimesh/io_mask.h>
+#include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <QElapsedTimer>
@@ -54,6 +55,102 @@ QString resolveTexturePath(const QString &meshFilePath, const QString &declaredT
 
     const QFileInfo meshInfo(meshFilePath);
     return meshInfo.dir().filePath(normalizedName);
+}
+
+void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst)
+{
+    dst.meshId = src.meshId;
+    dst.geometryRevision = src.geometryRevision;
+    dst.materialRevision = src.materialRevision;
+    dst.name = src.name;
+    dst.sourcePath = src.sourcePath;
+    dst.textureFileNames = src.textureFileNames;
+    dst.textureFilePaths = src.textureFilePaths;
+    dst.visible = src.visible;
+    dst.ioMask = src.ioMask;
+}
+
+void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
+{
+    dst.Clear();
+
+    std::vector<int> vertexMap(src.vert.size(), -1);
+    if (src.VN() > 0) {
+        vcg::tri::Allocator<VCGMesh>::AddVertices(dst, src.VN());
+        int dstVertexIndex = 0;
+        for (size_t i = 0; i < src.vert.size(); ++i) {
+            const VCGVertex &sv = src.vert[i];
+            if (sv.IsD())
+                continue;
+            VCGVertex &dv = dst.vert[static_cast<size_t>(dstVertexIndex)];
+            dv.P() = sv.cP();
+            dv.N() = sv.cN();
+            dv.T() = sv.cT();
+            dv.C() = sv.cC();
+            dv.Q() = sv.cQ();
+            dv.Flags() = sv.Flags();
+            vertexMap[i] = dstVertexIndex;
+            ++dstVertexIndex;
+        }
+    }
+
+    const VCGVertex *srcVertexBase = src.vert.empty() ? nullptr : &src.vert.front();
+    if (src.FN() > 0) {
+        vcg::tri::Allocator<VCGMesh>::AddFaces(dst, src.FN());
+        int dstFaceIndex = 0;
+        for (const VCGFace &sf : src.face) {
+            if (sf.IsD())
+                continue;
+            VCGFace &df = dst.face[static_cast<size_t>(dstFaceIndex)];
+            for (int k = 0; k < 3; ++k) {
+                const VCGVertex *sv = sf.cV(k);
+                VCGVertex *dv = nullptr;
+                if (sv && srcVertexBase) {
+                    const ptrdiff_t srcIdx = sv - srcVertexBase;
+                    if (srcIdx >= 0 && static_cast<size_t>(srcIdx) < vertexMap.size()) {
+                        const int dstIdx = vertexMap[static_cast<size_t>(srcIdx)];
+                        if (dstIdx >= 0)
+                            dv = &dst.vert[static_cast<size_t>(dstIdx)];
+                    }
+                }
+                df.V(k) = dv;
+                df.WT(k) = sf.cWT(k);
+            }
+            df.N() = sf.cN();
+            df.C() = sf.cC();
+            df.Q() = sf.cQ();
+            df.Flags() = sf.Flags();
+            ++dstFaceIndex;
+        }
+    }
+
+    if (src.EN() > 0) {
+        vcg::tri::Allocator<VCGMesh>::AddEdges(dst, src.EN());
+        int dstEdgeIndex = 0;
+        for (const VCGEdge &se : src.edge) {
+            if (se.IsD())
+                continue;
+            VCGEdge &de = dst.edge[static_cast<size_t>(dstEdgeIndex)];
+            for (int k = 0; k < 2; ++k) {
+                const VCGVertex *sv = se.cV(k);
+                VCGVertex *dv = nullptr;
+                if (sv && srcVertexBase) {
+                    const ptrdiff_t srcIdx = sv - srcVertexBase;
+                    if (srcIdx >= 0 && static_cast<size_t>(srcIdx) < vertexMap.size()) {
+                        const int dstIdx = vertexMap[static_cast<size_t>(srcIdx)];
+                        if (dstIdx >= 0)
+                            dv = &dst.vert[static_cast<size_t>(dstIdx)];
+                    }
+                }
+                de.V(k) = dv;
+            }
+            de.Flags() = se.Flags();
+            ++dstEdgeIndex;
+        }
+    }
+
+    dst.bbox = src.bbox;
+    dst.textures = src.textures;
 }
 
 }
@@ -166,6 +263,10 @@ int Document::loadMesh(const QString &filename)
         return -1;
     }
 
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Open Mesh"));
+
     writeLog(tr("Loading mesh: %1").arg(filename), LogSource::Application);
 
     auto entry = std::make_unique<MeshEntry>();
@@ -197,6 +298,8 @@ int Document::loadMesh(const QString &filename)
             .arg(importElapsedMs)
             .arg(plugin->errorString(err)),
             LogSource::Application);
+        if (ownUndoStep)
+            endUndoStep(false);
         return err;
     }
 
@@ -295,6 +398,8 @@ int Document::loadMesh(const QString &filename)
     setCurrentMeshIndex(index);
     emit loadProgressUpdated(100, tr("Loaded %1").arg(meshEntry.name));
     emit loadProgressFinished(true, tr("Loaded %1").arg(meshEntry.name));
+    if (ownUndoStep)
+        endUndoStep(true);
     return 0;
 }
 
@@ -369,10 +474,204 @@ int Document::saveCurrentMesh(const QString &filename)
     return saveCurrentMesh(filename, MeshIOSaveOptions{});
 }
 
+void Document::beginUndoStep(const QString &label)
+{
+    if (m_restoringUndoRedo || m_undoStepActive)
+        return;
+
+    m_undoStepActive = true;
+    m_undoStepLabel = label.trimmed();
+    if (m_undoStepLabel.isEmpty())
+        m_undoStepLabel = tr("Edit");
+    m_pendingUndoBefore = captureUndoState();
+}
+
+void Document::endUndoStep(bool commit)
+{
+    if (!m_undoStepActive)
+        return;
+
+    const QString label = m_undoStepLabel;
+    std::optional<UndoState> before = std::move(m_pendingUndoBefore);
+    m_pendingUndoBefore.reset();
+    m_undoStepActive = false;
+    m_undoStepLabel.clear();
+
+    if (!commit || !before.has_value())
+        return;
+
+    pushUndoStep(label, std::move(*before), captureUndoState());
+}
+
+bool Document::canUndo() const
+{
+    return m_undoCursor > 0 && !m_undoSteps.empty();
+}
+
+bool Document::canRedo() const
+{
+    return m_undoCursor >= 0 && m_undoCursor < static_cast<int>(m_undoSteps.size());
+}
+
+QString Document::undoText() const
+{
+    if (!canUndo())
+        return {};
+    return m_undoSteps[static_cast<size_t>(m_undoCursor - 1)].label;
+}
+
+QString Document::redoText() const
+{
+    if (!canRedo())
+        return {};
+    return m_undoSteps[static_cast<size_t>(m_undoCursor)].label;
+}
+
+bool Document::undo()
+{
+    if (!canUndo() || m_undoStepActive)
+        return false;
+
+    const int stepIndex = m_undoCursor - 1;
+    m_restoringUndoRedo = true;
+    restoreUndoState(m_undoSteps[static_cast<size_t>(stepIndex)].before);
+    m_restoringUndoRedo = false;
+    m_undoCursor = stepIndex;
+    emitUndoRedoStateChanged();
+    return true;
+}
+
+bool Document::redo()
+{
+    if (!canRedo() || m_undoStepActive)
+        return false;
+
+    const int stepIndex = m_undoCursor;
+    m_restoringUndoRedo = true;
+    restoreUndoState(m_undoSteps[static_cast<size_t>(stepIndex)].after);
+    m_restoringUndoRedo = false;
+    m_undoCursor = stepIndex + 1;
+    emitUndoRedoStateChanged();
+    return true;
+}
+
+void Document::clearUndoHistory()
+{
+    if (m_undoSteps.empty() && m_undoCursor == 0 && !m_undoStepActive)
+        return;
+
+    m_undoSteps.clear();
+    m_undoCursor = 0;
+    m_undoStepActive = false;
+    m_undoStepLabel.clear();
+    m_pendingUndoBefore.reset();
+    emitUndoRedoStateChanged();
+}
+
+void Document::setUndoLimit(int limit)
+{
+    m_undoLimit = std::max(1, limit);
+    const int stepCount = static_cast<int>(m_undoSteps.size());
+    if (stepCount <= m_undoLimit)
+        return;
+
+    const int dropCount = stepCount - m_undoLimit;
+    m_undoSteps.erase(m_undoSteps.begin(), m_undoSteps.begin() + dropCount);
+    m_undoCursor = std::max(0, m_undoCursor - dropCount);
+    emitUndoRedoStateChanged();
+}
+
+Document::UndoState Document::captureUndoState() const
+{
+    UndoState state;
+    state.currentMeshIndex = m_currentMeshIndex;
+    state.nextMeshId = m_nextMeshId;
+    state.meshes.reserve(m_meshes.size());
+    for (const auto &entry : m_meshes) {
+        if (!entry)
+            continue;
+        auto snapshot = std::make_unique<MeshEntry>();
+        copyMeshEntryMetadata(*entry, *snapshot);
+        deepCopyMesh(entry->mesh, snapshot->mesh);
+        state.meshes.push_back(std::move(snapshot));
+    }
+    return state;
+}
+
+void Document::restoreUndoState(const UndoState &state)
+{
+    for (int i = meshCount() - 1; i >= 0; --i) {
+        const std::uint64_t meshId = m_meshes[static_cast<size_t>(i)]->meshId;
+        m_meshes.erase(m_meshes.begin() + i);
+        purgeMeshGpuResources(meshId);
+        emit meshRemoved(i);
+    }
+
+    m_meshes.clear();
+    m_meshes.reserve(state.meshes.size());
+    for (size_t i = 0; i < state.meshes.size(); ++i) {
+        const std::unique_ptr<MeshEntry> &snapshot = state.meshes[i];
+        if (!snapshot)
+            continue;
+        auto entry = std::make_unique<MeshEntry>();
+        copyMeshEntryMetadata(*snapshot, *entry);
+        deepCopyMesh(snapshot->mesh, entry->mesh);
+        m_meshes.push_back(std::move(entry));
+        emit meshAdded(static_cast<int>(m_meshes.size() - 1));
+    }
+
+    // Mesh content can jump arbitrarily across undo/redo, so invalidate all cached
+    // GPU resources and let passes rebuild lazily on demand.
+    clearAllGpuResources();
+
+    m_nextMeshId = state.nextMeshId;
+    const int normalizedCurrent =
+        (state.currentMeshIndex >= 0 && state.currentMeshIndex < meshCount())
+        ? state.currentMeshIndex
+        : -1;
+    m_currentMeshIndex = normalizedCurrent;
+    emit currentMeshChanged(m_currentMeshIndex);
+
+    for (int i = 0; i < meshCount(); ++i) {
+        const MeshEntry &entry = mesh(i);
+        if (!entry.visible)
+            emit meshVisibilityChanged(i, false);
+    }
+}
+
+void Document::pushUndoStep(const QString &label, UndoState &&before, UndoState &&after)
+{
+    if (m_undoCursor < static_cast<int>(m_undoSteps.size())) {
+        m_undoSteps.erase(
+            m_undoSteps.begin() + m_undoCursor,
+            m_undoSteps.end());
+    }
+
+    m_undoSteps.push_back(UndoStep{label, std::move(before), std::move(after)});
+    m_undoCursor = static_cast<int>(m_undoSteps.size());
+
+    if (static_cast<int>(m_undoSteps.size()) > m_undoLimit) {
+        const int dropCount = static_cast<int>(m_undoSteps.size()) - m_undoLimit;
+        m_undoSteps.erase(m_undoSteps.begin(), m_undoSteps.begin() + dropCount);
+        m_undoCursor = std::max(0, m_undoCursor - dropCount);
+    }
+
+    emitUndoRedoStateChanged();
+}
+
+void Document::emitUndoRedoStateChanged()
+{
+    emit undoRedoStateChanged(canUndo(), canRedo(), undoText(), redoText());
+}
+
 void Document::removeMesh(int index)
 {
     if (index < 0 || index >= meshCount())
         return;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Remove Mesh"));
 
     const QString meshName = mesh(index).name;
     const std::uint64_t meshId = mesh(index).meshId;
@@ -391,6 +690,8 @@ void Document::removeMesh(int index)
     writeLog(tr("Removed mesh '%1'").arg(meshName), LogSource::Application);
     emit meshRemoved(index);
     setCurrentMeshIndex(newCurrent);
+    if (ownUndoStep)
+        endUndoStep(true);
 }
 
 void Document::setMeshVisible(int index, bool visible)
@@ -400,8 +701,13 @@ void Document::setMeshVisible(int index, bool visible)
     MeshEntry &entry = mesh(index);
     if (entry.visible == visible)
         return;
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Toggle Visibility"));
     entry.visible = visible;
     emit meshVisibilityChanged(index, visible);
+    if (ownUndoStep)
+        endUndoStep(true);
 }
 
 void Document::setCurrentMeshIndex(int index)
