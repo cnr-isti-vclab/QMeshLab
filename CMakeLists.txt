@@ -23,6 +23,8 @@ add_library(QMeshLabCore STATIC
     colormap.h colormap.cpp
     document.h document.cpp
     linerenderer.h linerenderer.cpp
+    meshfilterplugin.h
+    meshfilterpluginmanager.h meshfilterpluginmanager.cpp
     meshgpuresourcecache.h meshgpuresourcecache.cpp
     meshioplugin.h
     meshiopluginmanager.h meshiopluginmanager.cpp
@@ -57,6 +59,7 @@ add_subdirectory(plugins)
 qt_add_executable(QMeshLab
     main.cpp
     mainwindow.h mainwindow.cpp
+    meshfilterpanel.h meshfilterpanel.cpp
     meshsaveoptionsdialog.h meshsaveoptionsdialog.cpp
     renderwidget.h renderwidget.cpp
     renderwidget_internal.h
@@ -167,3 +170,22 @@ target_link_libraries(QMeshLabColorMapTests PRIVATE
 )
 
 add_test(NAME QMeshLabColorMapTests COMMAND QMeshLabColorMapTests)
+
+qt_add_executable(QMeshLabFilterTests
+    tests/test_filters.cpp
+)
+
+target_include_directories(QMeshLabFilterTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+)
+
+target_link_libraries(QMeshLabFilterTests PRIVATE
+    QMeshLabPlugins
+    Qt6::Test
+)
+
+target_compile_definitions(QMeshLabFilterTests PRIVATE
+    TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+add_test(NAME QMeshLabFilterTests COMMAND QMeshLabFilterTests)

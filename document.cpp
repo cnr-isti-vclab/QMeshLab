@@ -1,5 +1,7 @@
 #include "document.h"
+#include "meshfilterpluginmanager.h"
 #include "meshiopluginmanager.h"
+#include "plugins/filterpluginregistry.h"
 #include "plugins/meshpluginregistry.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
@@ -158,9 +160,11 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
 Document::Document(QObject *parent)
     : QObject(parent)
     , m_pluginManager(std::make_unique<MeshIOPluginManager>())
+    , m_filterPluginManager(std::make_unique<MeshFilterPluginManager>())
     , m_gpuCache(std::make_unique<MeshGpuResourceCache>())
 {
     registerBuiltinMeshPlugins(*m_pluginManager);
+    registerBuiltinMeshFilterPlugins(*m_filterPluginManager);
 }
 
 Document::~Document() = default;
@@ -189,6 +193,49 @@ int Document::saveMaskCapability(const QString &filename) const
 QStringList Document::loadedPluginSummaries() const
 {
     return m_pluginManager->loadedPluginSummaries();
+}
+
+QStringList Document::loadedFilterPluginSummaries() const
+{
+    if (!m_filterPluginManager)
+        return {};
+    return m_filterPluginManager->loadedPluginSummaries();
+}
+
+std::vector<Document::FilterInfo> Document::filterInfos() const
+{
+    std::vector<FilterInfo> infos;
+    if (!m_filterPluginManager)
+        return infos;
+
+    const auto managedInfos = m_filterPluginManager->filterInfos(*this);
+    infos.reserve(managedInfos.size());
+    for (const auto &managedInfo : managedInfos) {
+        FilterInfo info;
+        info.key = managedInfo.key;
+        info.pluginId = managedInfo.pluginId;
+        info.pluginName = managedInfo.pluginName;
+        info.descriptor = managedInfo.descriptor;
+        info.applicable = managedInfo.applicable;
+        info.applicabilityError = managedInfo.applicabilityError;
+        infos.push_back(std::move(info));
+    }
+    return infos;
+}
+
+MeshFilterRunResult Document::runFilter(
+    const QString &filterKey,
+    const MeshFilterParameterValues &parameters)
+{
+    if (!m_filterPluginManager) {
+        return {
+            false,
+            false,
+            tr("No filter plugin manager is available.")
+        };
+    }
+
+    return m_filterPluginManager->runFilter(filterKey, parameters, *this);
 }
 
 std::vector<Document::ImportPluginInfo> Document::importPluginInfos() const
@@ -398,6 +445,173 @@ int Document::loadMesh(const QString &filename)
     setCurrentMeshIndex(index);
     emit loadProgressUpdated(100, tr("Loaded %1").arg(meshEntry.name));
     emit loadProgressFinished(true, tr("Loaded %1").arg(meshEntry.name));
+    if (ownUndoStep)
+        endUndoStep(true);
+    return 0;
+}
+
+int Document::reloadMesh(int index)
+{
+    if (index < 0 || index >= meshCount()) {
+        writeLog(tr("Cannot reload: invalid mesh index %1").arg(index), LogSource::Application);
+        return -1;
+    }
+
+    MeshEntry &entry = mesh(index);
+    const QString sourcePath = entry.sourcePath.trimmed();
+    if (sourcePath.isEmpty()) {
+        writeLog(
+            tr("Cannot reload mesh '%1': missing source file path").arg(entry.name),
+            LogSource::Application);
+        return -2;
+    }
+
+    const MeshIOPlugin *plugin = m_pluginManager->pluginFor(sourcePath);
+    if (!plugin) {
+        writeLog(
+            tr("Cannot reload mesh '%1': no plugin found for %2").arg(entry.name, sourcePath),
+            LogSource::Application);
+        return -3;
+    }
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Reload Mesh"));
+
+    const QString oldName = entry.name;
+    writeLog(
+        tr("Reloading mesh '%1' from %2").arg(oldName, sourcePath),
+        LogSource::Application);
+
+    m_lastCallbackBucket = -1;
+    m_lastProgressPos = -1;
+    m_loadCallbackCount = 0;
+    m_loadProgressEmitCount = 0;
+    m_loadProcessEventsCount = 0;
+    m_loadProcessEventsNs = 0;
+    m_lastProgressEmitMs = -1;
+    m_lastProcessEventsMs = -1;
+    m_loadCallbackTimer.invalidate();
+    m_loadCallbackTimer.start();
+    QElapsedTimer loadTimer;
+    loadTimer.start();
+    emit loadProgressStarted(sourcePath);
+    emit loadProgressUpdated(0, tr("Reloading %1").arg(QFileInfo(sourcePath).fileName()));
+
+    VCGMesh reloadedMesh;
+    Document *previousCallbackDocument = g_callbackDocument;
+    g_callbackDocument = this;
+    int loadMask = 0;
+    const int err = plugin->load(sourcePath, reloadedMesh, logCallback(), &loadMask);
+    g_callbackDocument = previousCallbackDocument;
+    const qint64 importElapsedMs = loadTimer.elapsed();
+
+    if (err != 0) {
+        emit loadProgressFinished(false, plugin->errorString(err));
+        writeLog(
+            tr("Reload failed in %1 ms: %2")
+                .arg(importElapsedMs)
+                .arg(plugin->errorString(err)),
+            LogSource::Application);
+        if (ownUndoStep)
+            endUndoStep(false);
+        return err;
+    }
+
+    vcg::tri::UpdateBounding<VCGMesh>::Box(reloadedMesh);
+    const bool hasImportedVertexNormals = (loadMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
+    if (!hasImportedVertexNormals && reloadedMesh.FN() > 0) {
+        // Preserve imported vertex normals exactly as provided by the file.
+        // Generate smooth normals only when they are missing.
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(reloadedMesh);
+    }
+
+    QStringList declaredTextureNames;
+    QStringList resolvedTexturePaths;
+    QStringList textureFileNames;
+    QStringList textureFilePaths;
+    std::vector<std::string> normalizedMeshTexturePaths;
+    QString selectedTextureName;
+    bool selectedExistingTexture = false;
+    for (const std::string &rawTextureName : reloadedMesh.textures) {
+        const QString textureName = QString::fromStdString(rawTextureName).trimmed();
+        if (textureName.isEmpty())
+            continue;
+        declaredTextureNames.append(textureName);
+        const QString resolvedTexturePath = resolveTexturePath(sourcePath, textureName);
+        resolvedTexturePaths.append(resolvedTexturePath);
+        textureFileNames.append(textureName);
+        textureFilePaths.append(resolvedTexturePath);
+        normalizedMeshTexturePaths.push_back(QDir::toNativeSeparators(resolvedTexturePath).toStdString());
+        if (selectedTextureName.isEmpty())
+            selectedTextureName = textureName;
+        if (!selectedExistingTexture && QFileInfo::exists(resolvedTexturePath)) {
+            selectedTextureName = textureName;
+            selectedExistingTexture = true;
+        }
+    }
+    if (!normalizedMeshTexturePaths.empty())
+        reloadedMesh.textures = std::move(normalizedMeshTexturePaths);
+
+    deepCopyMesh(reloadedMesh, entry.mesh);
+    entry.ioMask = loadMask;
+    entry.name = QFileInfo(sourcePath).fileName();
+    entry.sourcePath = sourcePath;
+    entry.textureFileNames = textureFileNames;
+    entry.textureFilePaths = textureFilePaths;
+    ++entry.geometryRevision;
+    ++entry.materialRevision;
+
+    const qint64 elapsedMs = loadTimer.elapsed();
+    const qint64 postProcessElapsedMs = std::max<qint64>(0, elapsedMs - importElapsedMs);
+    writeLog(tr("Reloaded mesh '%1' in %2 ms (%3 vertices, %4 faces, %5 edges)")
+        .arg(entry.name)
+        .arg(elapsedMs)
+        .arg(entry.mesh.VN())
+        .arg(entry.mesh.FN())
+        .arg(entry.mesh.EN()),
+        LogSource::Application);
+    if (elapsedMs >= 250) {
+        writeLog(tr("Reload timing '%1': import %2 ms, post %3 ms")
+                .arg(entry.name)
+                .arg(importElapsedMs)
+                .arg(postProcessElapsedMs),
+            LogSource::Application);
+    }
+    if (m_loadCallbackCount > 0) {
+        const float processEventsMs = float(m_loadProcessEventsNs / 1000000.0);
+        writeLog(tr("Reload callback stats '%1': %2 calls, %3 UI updates, %4 event pumps (%5 ms)")
+                .arg(entry.name)
+                .arg(m_loadCallbackCount)
+                .arg(m_loadProgressEmitCount)
+                .arg(m_loadProcessEventsCount)
+                .arg(QString::number(processEventsMs, 'f', 2)),
+            LogSource::Application);
+    }
+    writeLog(tr("File info for '%1': %2 (mask: 0x%3)")
+        .arg(entry.name)
+        .arg(summarizeLoadMask(loadMask))
+        .arg(QString::number(static_cast<quint32>(loadMask), 16).toUpper()),
+        LogSource::Application);
+    if (!declaredTextureNames.isEmpty()) {
+        int existingTextureFiles = 0;
+        for (const QString &path : entry.textureFilePaths) {
+            if (QFileInfo::exists(path))
+                ++existingTextureFiles;
+        }
+        writeLog(tr("Texture info for '%1': declared [%2], resolved [%3], selected '%4' (%5/%6 files found)")
+            .arg(entry.name)
+            .arg(declaredTextureNames.join(QStringLiteral(", ")))
+            .arg(resolvedTexturePaths.join(QStringLiteral(", ")))
+            .arg(selectedTextureName.isEmpty() ? tr("none") : selectedTextureName)
+            .arg(existingTextureFiles)
+            .arg(entry.textureFilePaths.size()),
+            LogSource::Application);
+    }
+
+    emit meshDataChanged(index);
+    emit loadProgressUpdated(100, tr("Reloaded %1").arg(entry.name));
+    emit loadProgressFinished(true, tr("Reloaded %1").arg(entry.name));
     if (ownUndoStep)
         endUndoStep(true);
     return 0;
@@ -694,6 +908,84 @@ void Document::removeMesh(int index)
         endUndoStep(true);
 }
 
+int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
+{
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Add Mesh"));
+
+    auto entry = std::make_unique<MeshEntry>();
+    deepCopyMesh(meshData, entry->mesh);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(entry->mesh);
+
+    entry->meshId = m_nextMeshId++;
+    entry->geometryRevision = 1;
+    entry->materialRevision = 1;
+    entry->ioMask = ioMask;
+    entry->sourcePath.clear();
+    entry->name = name.trimmed().isEmpty()
+        ? tr("Mesh %1").arg(meshCount() + 1)
+        : name.trimmed();
+
+    for (const std::string &rawTextureName : entry->mesh.textures) {
+        const QString texturePath = QString::fromStdString(rawTextureName).trimmed();
+        if (texturePath.isEmpty())
+            continue;
+        entry->textureFilePaths.push_back(texturePath);
+        entry->textureFileNames.push_back(QFileInfo(texturePath).fileName());
+    }
+
+    const int newIndex = meshCount();
+    m_meshes.push_back(std::move(entry));
+    writeLog(tr("Added mesh '%1' (%2 vertices, %3 faces, %4 edges)")
+                 .arg(this->mesh(newIndex).name)
+                 .arg(this->mesh(newIndex).mesh.VN())
+                 .arg(this->mesh(newIndex).mesh.FN())
+                 .arg(this->mesh(newIndex).mesh.EN()),
+        LogSource::Application);
+    emit meshAdded(newIndex);
+    setCurrentMeshIndex(newIndex);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+    return newIndex;
+}
+
+int Document::duplicateMesh(int sourceIndex, const QString &newName)
+{
+    if (sourceIndex < 0 || sourceIndex >= meshCount())
+        return -1;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Duplicate Mesh"));
+
+    const MeshEntry &src = mesh(sourceIndex);
+    const QString srcName = src.name;
+    auto dst = std::make_unique<MeshEntry>();
+    copyMeshEntryMetadata(src, *dst);
+    deepCopyMesh(src.mesh, dst->mesh);
+    dst->meshId = m_nextMeshId++;
+    dst->geometryRevision = 1;
+    dst->materialRevision = 1;
+    dst->sourcePath.clear();
+    dst->name = newName.trimmed().isEmpty() ? tr("%1 copy").arg(src.name) : newName.trimmed();
+
+    const int newIndex = meshCount();
+    m_meshes.push_back(std::move(dst));
+    writeLog(
+        tr("Duplicated mesh '%1' as '%2'")
+            .arg(srcName)
+            .arg(mesh(newIndex).name),
+        LogSource::Application);
+    emit meshAdded(newIndex);
+    setCurrentMeshIndex(newIndex);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+    return newIndex;
+}
+
 void Document::setMeshVisible(int index, bool visible)
 {
     if (index < 0 || index >= meshCount())
@@ -706,6 +998,44 @@ void Document::setMeshVisible(int index, bool visible)
         beginUndoStep(tr("Toggle Visibility"));
     entry.visible = visible;
     emit meshVisibilityChanged(index, visible);
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::markMeshGeometryChanged(int index, const QString &contextMessage)
+{
+    if (index < 0 || index >= meshCount())
+        return;
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Modify Mesh Geometry"));
+    MeshEntry &entry = mesh(index);
+    ++entry.geometryRevision;
+    if (!contextMessage.trimmed().isEmpty()) {
+        writeLog(contextMessage.trimmed(), LogSource::Application);
+    } else {
+        writeLog(tr("Mesh geometry updated: '%1'").arg(entry.name), LogSource::Application);
+    }
+    emit meshDataChanged(index);
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::markMeshMaterialChanged(int index, const QString &contextMessage)
+{
+    if (index < 0 || index >= meshCount())
+        return;
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Modify Mesh Material"));
+    MeshEntry &entry = mesh(index);
+    ++entry.materialRevision;
+    if (!contextMessage.trimmed().isEmpty()) {
+        writeLog(contextMessage.trimmed(), LogSource::Application);
+    } else {
+        writeLog(tr("Mesh material updated: '%1'").arg(entry.name), LogSource::Application);
+    }
+    emit meshDataChanged(index);
     if (ownUndoStep)
         endUndoStep(true);
 }

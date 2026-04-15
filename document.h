@@ -1,5 +1,6 @@
 #pragma once
 
+#include "meshfilterplugin.h"
 #include "meshioplugin.h"
 #include "meshgpuresourcecache.h"
 #include "vcgmesh.h"
@@ -13,6 +14,7 @@
 #include <vector>
 
 class MeshIOPluginManager;
+class MeshFilterPluginManager;
 class QRhi;
 class QRhiCommandBuffer;
 
@@ -55,6 +57,15 @@ public:
         QStringList extensions;
     };
 
+    struct FilterInfo {
+        QString key;
+        QString pluginId;
+        QString pluginName;
+        MeshFilterDescriptor descriptor;
+        bool applicable = true;
+        QString applicabilityError;
+    };
+
     using FillGpuVariant = MeshGpuResourceCache::FillVariant;
     using PointGpuVariant = MeshGpuResourceCache::PointVariant;
     using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
@@ -70,6 +81,7 @@ public:
     ~Document() override;
 
     int loadMesh(const QString &filename);
+    int reloadMesh(int index);
     int saveMesh(int index, const QString &filename, const MeshIOSaveOptions &options);
     int saveMesh(int index, const QString &filename);
     int saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options);
@@ -85,9 +97,13 @@ public:
     void clearUndoHistory();
     int undoLimit() const { return m_undoLimit; }
     void setUndoLimit(int limit);
+    int addMesh(const VCGMesh &mesh, const QString &name = {}, int ioMask = 0);
     void removeMesh(int index);
+    int duplicateMesh(int sourceIndex, const QString &newName = {});
     void setMeshVisible(int index, bool visible);
     void setCurrentMeshIndex(int index);
+    void markMeshGeometryChanged(int index, const QString &contextMessage = {});
+    void markMeshMaterialChanged(int index, const QString &contextMessage = {});
     void clearLog();
     void writeLog(const QString &message, LogSource source = LogSource::Application, bool replaceLast = false);
 
@@ -100,8 +116,13 @@ public:
     QString saveDialogFilter() const;
     int saveMaskCapability(const QString &filename) const;
     QStringList loadedPluginSummaries() const;
+    QStringList loadedFilterPluginSummaries() const;
     std::vector<ImportPluginInfo> importPluginInfos() const;
     std::vector<ExportPluginInfo> exportPluginInfos() const;
+    std::vector<FilterInfo> filterInfos() const;
+    MeshFilterRunResult runFilter(
+        const QString &filterKey,
+        const MeshFilterParameterValues &parameters = {});
     QStringList importSupportedExtensions() const;
     QStringList exportSupportedExtensions() const;
     QString preferredImportPluginForExtension(const QString &extension) const;
@@ -136,6 +157,7 @@ signals:
     void meshRemoved(int index);
     void meshVisibilityChanged(int index, bool visible);
     void currentMeshChanged(int index);
+    void meshDataChanged(int index);
     void loadProgressStarted(const QString &filePath);
     void loadProgressUpdated(int percent, const QString &message);
     void loadProgressFinished(bool success, const QString &message);
@@ -170,6 +192,7 @@ private:
     void purgeMeshGpuResources(std::uint64_t meshId);
 
     std::unique_ptr<MeshIOPluginManager> m_pluginManager;
+    std::unique_ptr<MeshFilterPluginManager> m_filterPluginManager;
     std::unique_ptr<MeshGpuResourceCache> m_gpuCache;
     std::vector<std::unique_ptr<MeshEntry>> m_meshes;
     std::uint64_t m_nextMeshId = 1;

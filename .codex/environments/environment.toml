@@ -9,3 +9,8 @@ script = ""
 name = "Run"
 icon = "run"
 command = "build/QMeshLab"
+
+[[actions]]
+name = "run"
+icon = "run"
+command = "build-release/QMeshLab"

@@ -219,6 +219,17 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         updateQualityHistogramOverlay();
         update();
     });
+    connect(m_doc, &Document::meshDataChanged, this, [this](int) {
+        syncPerMeshRenderModesWithDocument();
+        syncOverlaySettingsToCurrentMesh();
+        refreshColorSourceAvailability();
+        m_textureSrbs.clear();
+        syncUvCacheWithDocument();
+        m_qualityHistogram.valid = false;
+        updateBoundingBoxCornersOverlay();
+        updateQualityHistogramOverlay();
+        update();
+    });
 
     if (m_currentViewIndicator)
         m_currentViewIndicator->setGeometry(rect().adjusted(1, 1, -1, -1));

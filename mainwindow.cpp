@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "document.h"
+#include "meshfilterpanel.h"
 #include "meshsaveoptionsdialog.h"
 #include "renderwidget.h"
 #include "layerwidget.h"
@@ -208,9 +209,22 @@ MainWindow::MainWindow(QWidget *parent)
     statusBar()->addPermanentWidget(m_frameStatsLabel, 1);
 
     m_layerWidget = new LayerWidget(m_doc, this);
-    auto *dock = new QDockWidget(tr("Layers"), this);
-    dock->setWidget(m_layerWidget);
-    addDockWidget(Qt::RightDockWidgetArea, dock);
+    m_layerDock = new QDockWidget(tr("Layers"), this);
+    m_layerDock->setWidget(m_layerWidget);
+    m_layerDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    addDockWidget(Qt::RightDockWidgetArea, m_layerDock);
+
+    m_filterPanel = new MeshFilterPanel(m_doc, this);
+    m_filterDock = new QDockWidget(tr("Filters"), this);
+    m_filterDock->setWidget(m_filterPanel);
+    m_filterDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    addDockWidget(Qt::RightDockWidgetArea, m_filterDock);
+    splitDockWidget(m_layerDock, m_filterDock, Qt::Vertical);
+    const int rightColumnWidth = std::max(260, width() / 5);
+    m_layerDock->setMinimumWidth(rightColumnWidth);
+    m_filterDock->setMinimumWidth(rightColumnWidth);
+    resizeDocks({ m_layerDock }, { rightColumnWidth }, Qt::Horizontal);
+    resizeDocks({ m_layerDock, m_filterDock }, { 1, 1 }, Qt::Vertical);
 
     auto *logWidget = new QListWidget(this);
     auto *logDock = new QDockWidget(tr("Log"), this);
@@ -270,6 +284,9 @@ MainWindow::MainWindow(QWidget *parent)
         &MainWindow::newInstance);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &MainWindow::openFile);
+    fileMenu->addAction(tr("Reload &Current Mesh"), this, &MainWindow::reloadCurrentMesh);
+    fileMenu->addAction(tr("Reload &All Meshes"), this, &MainWindow::reloadAllMeshes);
+    fileMenu->addSeparator();
     fileMenu->addAction(tr("&Save Mesh..."), QKeySequence::Save, this, &MainWindow::saveCurrentMesh);
     fileMenu->addAction(
         tr("S&napshot PNG..."),
@@ -310,6 +327,35 @@ MainWindow::MainWindow(QWidget *parent)
         m_redoAction->setText(
             m_doc->canRedo() ? tr("&Redo %1").arg(m_doc->redoText()) : tr("&Redo"));
     }
+
+    m_filtersMenu = menuBar()->addMenu(tr("&Filters"));
+    refreshFiltersMenu();
+    if (m_filterPanel) {
+        connect(m_filterPanel, &MeshFilterPanel::runRequested, this,
+                [this](const QString &filterKey, const MeshFilterParameterValues &params, const QString &label) {
+            executeFilter(filterKey, label, params);
+        });
+    }
+    connect(m_doc, &Document::meshAdded, this, [this](int) {
+        refreshFiltersMenu();
+        if (m_filterPanel)
+            m_filterPanel->reloadFilters();
+    });
+    connect(m_doc, &Document::meshRemoved, this, [this](int) {
+        refreshFiltersMenu();
+        if (m_filterPanel)
+            m_filterPanel->reloadFilters();
+    });
+    connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
+        refreshFiltersMenu();
+        if (m_filterPanel)
+            m_filterPanel->reloadFilters();
+    });
+    connect(m_doc, &Document::meshDataChanged, this, [this](int) {
+        refreshFiltersMenu();
+        if (m_filterPanel)
+            m_filterPanel->reloadFilters();
+    });
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     viewMenu->addAction(tr("3D Scene Mode"), this, &MainWindow::setCurrentViewSceneMode);
@@ -659,6 +705,183 @@ void MainWindow::openFile()
                 .arg(failedCount),
             3500);
     }
+}
+
+void MainWindow::reloadCurrentMesh()
+{
+    if (!m_doc || m_doc->meshCount() <= 0) {
+        statusBar()->showMessage(tr("No mesh to reload"), 2500);
+        return;
+    }
+
+    const int currentIndex = m_doc->currentMeshIndex();
+    if (currentIndex < 0 || currentIndex >= m_doc->meshCount()) {
+        statusBar()->showMessage(tr("No current mesh to reload"), 2500);
+        return;
+    }
+
+    const QString meshName = m_doc->mesh(currentIndex).name;
+    const int err = m_doc->reloadMesh(currentIndex);
+    if (err != 0) {
+        statusBar()->showMessage(tr("Failed to reload %1").arg(meshName), 3500);
+        return;
+    }
+
+    statusBar()->showMessage(tr("Reloaded %1").arg(meshName), 2500);
+}
+
+void MainWindow::reloadAllMeshes()
+{
+    if (!m_doc || m_doc->meshCount() <= 0) {
+        statusBar()->showMessage(tr("No meshes to reload"), 2500);
+        return;
+    }
+
+    const int total = m_doc->meshCount();
+    m_doc->beginUndoStep(tr("Reload All Meshes"));
+
+    int reloadedCount = 0;
+    int failedCount = 0;
+    for (int i = 0; i < total; ++i) {
+        if (m_doc->reloadMesh(i) == 0)
+            ++reloadedCount;
+        else
+            ++failedCount;
+    }
+
+    m_doc->endUndoStep(reloadedCount > 0);
+    statusBar()->showMessage(
+        tr("Reload complete: %1 reloaded, %2 failed")
+            .arg(reloadedCount)
+            .arg(failedCount),
+        failedCount > 0 ? 4500 : 3000);
+}
+
+void MainWindow::refreshFiltersMenu()
+{
+    if (!m_filtersMenu || !m_doc)
+        return;
+
+    m_filtersMenu->clear();
+    m_filtersMenu->addAction(
+        tr("Filter Browser..."),
+        this,
+        &MainWindow::openFilterBrowser);
+    m_filtersMenu->addSeparator();
+
+    std::vector<Document::FilterInfo> infos = m_doc->filterInfos();
+    if (infos.empty()) {
+        QAction *emptyAction = m_filtersMenu->addAction(tr("No filters available"));
+        emptyAction->setEnabled(false);
+        return;
+    }
+
+    std::sort(infos.begin(), infos.end(), [](const Document::FilterInfo &a, const Document::FilterInfo &b) {
+        const int menuCmp = a.descriptor.menuPath.compare(b.descriptor.menuPath, Qt::CaseInsensitive);
+        if (menuCmp != 0)
+            return menuCmp < 0;
+        return a.descriptor.name.compare(b.descriptor.name, Qt::CaseInsensitive) < 0;
+    });
+
+    auto findOrCreateSubmenu = [](QMenu *parent, const QString &title) -> QMenu * {
+        if (!parent)
+            return nullptr;
+        for (QAction *action : parent->actions()) {
+            QMenu *submenu = action ? action->menu() : nullptr;
+            if (submenu && submenu->title() == title)
+                return submenu;
+        }
+        return parent->addMenu(title);
+    };
+
+    for (const Document::FilterInfo &info : infos) {
+        QMenu *menu = m_filtersMenu;
+        const QStringList groups = info.descriptor.menuPath.split(
+            QLatin1Char('/'),
+            Qt::SkipEmptyParts);
+        for (const QString &group : groups) {
+            menu = findOrCreateSubmenu(menu, group.trimmed());
+            if (!menu)
+                break;
+        }
+        if (!menu)
+            continue;
+
+        QAction *action = menu->addAction(info.descriptor.name, this, &MainWindow::runFilterAction);
+        action->setData(info.key);
+        action->setEnabled(info.applicable);
+
+        QString tip = info.descriptor.shortDescription.trimmed();
+        if (!info.applicable && !info.applicabilityError.trimmed().isEmpty()) {
+            if (!tip.isEmpty())
+                tip += QStringLiteral("\n");
+            tip += tr("Unavailable: %1").arg(info.applicabilityError);
+        }
+        if (!tip.isEmpty()) {
+            action->setToolTip(tip);
+            action->setStatusTip(tip);
+        }
+    }
+}
+
+void MainWindow::openFilterBrowser()
+{
+    if (!m_doc || !m_filterPanel)
+        return;
+
+    if (m_filterDock) {
+        if (m_filterDock->isFloating())
+            m_filterDock->setFloating(false);
+        m_filterDock->show();
+        m_filterDock->raise();
+    }
+    m_filterPanel->showSearchResults();
+    m_filterPanel->focusSearch();
+}
+
+void MainWindow::runFilterAction()
+{
+    QAction *action = qobject_cast<QAction *>(sender());
+    if (!action || !m_doc || !m_filterPanel)
+        return;
+
+    const QString filterKey = action->data().toString();
+    if (filterKey.isEmpty())
+        return;
+
+    if (m_filterDock) {
+        if (m_filterDock->isFloating())
+            m_filterDock->setFloating(false);
+        m_filterDock->show();
+        m_filterDock->raise();
+    }
+    m_filterPanel->selectFilterByKey(filterKey, true);
+}
+
+void MainWindow::executeFilter(
+    const QString &filterKey,
+    const QString &fallbackLabel,
+    const QVariantMap &parameters)
+{
+    if (!m_doc || filterKey.trimmed().isEmpty())
+        return;
+
+    const MeshFilterRunResult result = m_doc->runFilter(filterKey, parameters);
+    if (!result.success) {
+        const QString msg = tr("Filter failed: %1").arg(result.errorMessage);
+        statusBar()->showMessage(msg, 4500);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+        return;
+    }
+
+    QString label = fallbackLabel;
+    if (label.trimmed().isEmpty())
+        label = tr("Filter");
+
+    QString status = tr("%1 executed").arg(label);
+    if (!result.infoMessages.isEmpty())
+        status = result.infoMessages.back();
+    statusBar()->showMessage(status, 3200);
 }
 
 void MainWindow::undo()

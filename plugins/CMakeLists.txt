@@ -1,6 +1,8 @@
 add_library(QMeshLabPlugins STATIC
     meshpluginregistry.h
     meshpluginregistry.cpp
+    filterpluginregistry.h
+    filterpluginregistry.cpp
 )
 
 target_include_directories(QMeshLabPlugins
@@ -37,4 +39,10 @@ add_subdirectory(io_gltf)
 if (TARGET QMeshLabPluginIOGLTF)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginIOGLTF)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_IO_GLTF_ENABLED=1)
+endif()
+
+add_subdirectory(filter_basic)
+if (TARGET QMeshLabPluginFilterBasic)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterBasic)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_BASIC_ENABLED=1)
 endif()

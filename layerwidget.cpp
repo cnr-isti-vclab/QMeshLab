@@ -133,6 +133,9 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
         QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
     });
+    connect(m_doc, &Document::meshDataChanged, this, [this](int) {
+        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+    });
     connect(this, &QTreeWidget::itemChanged, this, &LayerWidget::onItemChanged);
     connect(this, &QTreeWidget::currentItemChanged, this, &LayerWidget::onCurrentItemChanged);
 

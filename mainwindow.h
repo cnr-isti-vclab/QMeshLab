@@ -4,17 +4,20 @@
 #include <QImage>
 #include <QStringList>
 #include <QList>
+#include <QVariantMap>
 #include <array>
 #include <deque>
 
 class Document;
 class RenderWidget;
 class LayerWidget;
+class MeshFilterPanel;
 class QMenu;
 class QAction;
 class QLabel;
 class QProgressBar;
 class QSplitter;
+class QDockWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -26,10 +29,14 @@ private slots:
     void newDocument();
     void newInstance();
     void openFile();
+    void reloadCurrentMesh();
+    void reloadAllMeshes();
     void undo();
     void redo();
     void saveCurrentMesh();
     void saveSnapshotPng();
+    void openFilterBrowser();
+    void runFilterAction();
     void openLastMesh();
     void openRecentMesh();
     void showAbout();
@@ -56,6 +63,11 @@ private:
     void sanitizeRecentMeshes();
     void refreshRecentMeshesMenu();
     void openRecentMeshByIndex(int index);
+    void refreshFiltersMenu();
+    void executeFilter(
+        const QString &filterKey,
+        const QString &fallbackLabel,
+        const QVariantMap &parameters = {});
     void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
     QImage renderSnapshotOffscreen(
         RenderWidget *sourceView,
@@ -68,7 +80,11 @@ private:
     RenderWidget *m_currentRenderWidget = nullptr;
     bool m_syncingVisibilityProxy = false;
     LayerWidget *m_layerWidget;
+    MeshFilterPanel *m_filterPanel = nullptr;
+    QDockWidget *m_layerDock = nullptr;
+    QDockWidget *m_filterDock = nullptr;
     QMenu *m_recentMenu = nullptr;
+    QMenu *m_filtersMenu = nullptr;
     QAction *m_openLastAction = nullptr;
     std::array<QAction *, 8> m_recentActions = {};
     QStringList m_recentMeshes;
