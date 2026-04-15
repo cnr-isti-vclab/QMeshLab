@@ -159,6 +159,14 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             gizmoData[17] = center.y();
             gizmoData[18] = center.z();
             gizmoData[19] = m_trackball.gizmoWorldRadius();
+            const QMatrix4x4 invView = view.inverted();
+            QVector4D cameraH = invView * QVector4D(0.0f, 0.0f, 0.0f, 1.0f);
+            if (std::abs(cameraH.w()) > 1e-8f)
+                cameraH /= cameraH.w();
+            gizmoData[20] = cameraH.x();
+            gizmoData[21] = cameraH.y();
+            gizmoData[22] = cameraH.z();
+            gizmoData[23] = 0.38f; // back hemisphere shading floor
             u->updateDynamicBuffer(
                 m_trackballGizmoUbuf.get(),
                 0,
