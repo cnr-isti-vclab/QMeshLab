@@ -8,6 +8,9 @@
 #if QMESH_PLUGIN_FILTER_FUNC_ENABLED
 #include "plugins/filter_func/funcfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_EMBREE_ENABLED
+#include "plugins/filter_embree/embreefilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -16,5 +19,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_FUNC_ENABLED
     registerFuncFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_EMBREE_ENABLED
+    registerEmbreeFilterPlugin(pluginManager);
 #endif
 }

@@ -10,6 +10,7 @@
     "libe57format",
     "xerces-c",
     "rapidobj",
-    "muparser"
+    "muparser",
+    "embree"
   ]
 }
