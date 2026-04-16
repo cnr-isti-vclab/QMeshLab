@@ -18,6 +18,7 @@ class QLabel;
 class QProgressBar;
 class QSplitter;
 class QDockWidget;
+class QToolButton;
 
 class MainWindow : public QMainWindow
 {
@@ -90,6 +91,8 @@ private:
     std::array<QAction *, 8> m_recentActions = {};
     QStringList m_recentMeshes;
     QProgressBar *m_loadProgressBar = nullptr;
+    QProgressBar *m_filterProgressBar = nullptr;
+    QToolButton *m_filterCancelButton = nullptr;
     QLabel *m_frameStatsLabel = nullptr;
     QAction *m_undoAction = nullptr;
     QAction *m_redoAction = nullptr;

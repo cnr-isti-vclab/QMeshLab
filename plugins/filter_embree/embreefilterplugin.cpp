@@ -348,10 +348,16 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
     using Mask = vcg::tri::io::Mask;
     const int rays = std::clamp(intParameter(parameters, QStringLiteral("rays"), 64), 1, 8192);
     vcg::EmbreeAdaptor<VCGMesh> adaptor(entry.mesh);
+    vcg::CallBackPos *cb = doc.progressCallback();
+    auto interruptedResult = [&]() -> MeshFilterRunResult {
+        return { false, false, QObject::tr("Filter interrupted by user.") };
+    };
 
     if (filterId == QString::fromLatin1(kFilterObscurance)) {
         const float tau = float(doubleParameter(parameters, QStringLiteral("tau"), 0.1));
-        adaptor.computeObscurance(entry.mesh, rays, tau);
+        adaptor.computeObscurance(entry.mesh, rays, tau, cb);
+        if (doc.isOperationCancelRequested())
+            return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
         vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityGray(entry.mesh);
 
@@ -373,7 +379,9 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterAmbientOcclusion)) {
-        adaptor.computeAmbientOcclusion(entry.mesh, rays);
+        adaptor.computeAmbientOcclusion(entry.mesh, rays, cb);
+        if (doc.isOperationCancelRequested())
+            return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
         vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityGray(entry.mesh);
 
@@ -395,7 +403,9 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterShapeDiameter)) {
         const float coneAmplitude =
             float(doubleParameter(parameters, QStringLiteral("cone_amplitude"), 90.0));
-        adaptor.computeSDF(entry.mesh, rays, coneAmplitude);
+        adaptor.computeSDF(entry.mesh, rays, coneAmplitude, cb);
+        if (doc.isOperationCancelRequested())
+            return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
         vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(entry.mesh);
 
@@ -426,7 +436,9 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         if (dir.SquaredNorm() <= 1e-20f)
             return { false, false, QObject::tr("Direction vector must be non-zero.") };
 
-        adaptor.selectVisibleFaces(entry.mesh, dir, incremental);
+        adaptor.selectVisibleFaces(entry.mesh, dir, incremental, cb);
+        if (doc.isOperationCancelRequested())
+            return interruptedResult();
 
         int selectedFaces = 0;
         for (const VCGFace &f : entry.mesh.face) {
@@ -451,7 +463,9 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterAnalyzeNormals)) {
         const bool parity =
             boolParameter(parameters, QStringLiteral("parity_sampling"), false);
-        adaptor.computeNormalAnalysis(entry.mesh, rays, parity);
+        adaptor.computeNormalAnalysis(entry.mesh, rays, parity, cb);
+        if (doc.isOperationCancelRequested())
+            return interruptedResult();
 
         vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(entry.mesh);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry.mesh);

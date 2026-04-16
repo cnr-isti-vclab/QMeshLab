@@ -17,9 +17,11 @@
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QStackedWidget>
+#include <QStyle>
 #include <QTextBrowser>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QIcon>
 #include <algorithm>
 #include <limits>
 #include <set>
@@ -53,10 +55,24 @@ void MeshFilterPanel::buildUi()
     rootLayout->setContentsMargins(6, 6, 6, 6);
     rootLayout->setSpacing(6);
 
+    auto *searchLayout = new QHBoxLayout();
+    searchLayout->setContentsMargins(0, 0, 0, 0);
+    searchLayout->setSpacing(4);
+    m_searchButton = new QToolButton(this);
+    m_searchButton->setAutoRaise(true);
+    const QIcon searchIcon = QIcon::fromTheme(QStringLiteral("edit-find"));
+    if (!searchIcon.isNull())
+        m_searchButton->setIcon(searchIcon);
+    else
+        m_searchButton->setIcon(style()->standardIcon(QStyle::SP_FileDialogContentsView));
+    m_searchButton->setToolTip(tr("Search filters"));
+    searchLayout->addWidget(m_searchButton, 0);
+
     m_searchEdit = new QLineEdit(this);
     m_searchEdit->setPlaceholderText(tr("Search filters..."));
     m_searchEdit->installEventFilter(this);
-    rootLayout->addWidget(m_searchEdit);
+    searchLayout->addWidget(m_searchEdit, 1);
+    rootLayout->addLayout(searchLayout);
 
     m_stack = new QStackedWidget(this);
     rootLayout->addWidget(m_stack, 1);
@@ -86,9 +102,15 @@ void MeshFilterPanel::buildUi()
     m_filterTitleLabel->setWordWrap(true);
     headerLayout->addWidget(m_filterTitleLabel, 1);
 
-    m_backButton = new QPushButton(tr("Back"), m_parametersPage);
+    m_longDescriptionToggle = new QToolButton(m_parametersPage);
+    m_longDescriptionToggle->setCheckable(true);
+    m_longDescriptionToggle->setChecked(false);
+    m_longDescriptionToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_longDescriptionToggle->setText(QStringLiteral("?"));
+    m_longDescriptionToggle->setToolTip(tr("Show details"));
+    m_longDescriptionToggle->hide();
     m_applyButton = new QPushButton(tr("Apply"), m_parametersPage);
-    headerLayout->addWidget(m_backButton, 0, Qt::AlignTop);
+    headerLayout->addWidget(m_longDescriptionToggle, 0, Qt::AlignTop);
     headerLayout->addWidget(m_applyButton, 0, Qt::AlignTop);
     paramsPageLayout->addLayout(headerLayout);
 
@@ -96,14 +118,6 @@ void MeshFilterPanel::buildUi()
     m_filterDescriptionLabel->setWordWrap(true);
     m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
     paramsPageLayout->addWidget(m_filterDescriptionLabel);
-
-    m_longDescriptionToggle = new QToolButton(m_parametersPage);
-    m_longDescriptionToggle->setCheckable(true);
-    m_longDescriptionToggle->setChecked(false);
-    m_longDescriptionToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    m_longDescriptionToggle->setText(tr("Show details"));
-    m_longDescriptionToggle->hide();
-    paramsPageLayout->addWidget(m_longDescriptionToggle);
 
     m_longDescriptionView = new QTextBrowser(m_parametersPage);
     m_longDescriptionView->setOpenExternalLinks(true);
@@ -134,14 +148,12 @@ void MeshFilterPanel::buildUi()
     connect(m_searchEdit, &QLineEdit::returnPressed, this, &MeshFilterPanel::onSearchReturnPressed);
     connect(m_resultsList, &QListWidget::itemClicked, this, &MeshFilterPanel::onResultItemClicked);
     connect(m_resultsList, &QListWidget::itemActivated, this, &MeshFilterPanel::onResultItemActivated);
-    connect(m_backButton, &QPushButton::clicked, this, &MeshFilterPanel::onBackClicked);
+    connect(m_searchButton, &QToolButton::clicked, this, [this]() { showSearchResultsFromUi(true); });
     connect(m_applyButton, &QPushButton::clicked, this, &MeshFilterPanel::onApplyClicked);
     connect(m_showAdvancedCheck, &QCheckBox::toggled, this, &MeshFilterPanel::onShowAdvancedToggled);
     connect(m_longDescriptionToggle, &QToolButton::toggled, this, [this](bool checked) {
         if (m_longDescriptionView)
             m_longDescriptionView->setVisible(checked);
-        if (m_longDescriptionToggle)
-            m_longDescriptionToggle->setText(checked ? tr("Hide details") : tr("Show details"));
     });
 }
 
@@ -218,8 +230,8 @@ void MeshFilterPanel::selectFilterByKey(const QString &filterKey, bool openParam
 
 void MeshFilterPanel::onSearchTextChanged(const QString &)
 {
+    showSearchResultsFromUi(false);
     rebuildResultsList();
-    m_stack->setCurrentWidget(m_resultsPage);
 }
 
 void MeshFilterPanel::onSearchReturnPressed()
@@ -242,12 +254,6 @@ void MeshFilterPanel::onResultItemClicked(QListWidgetItem *item)
 void MeshFilterPanel::onResultItemActivated(QListWidgetItem *)
 {
     openSelectedResult(true);
-}
-
-void MeshFilterPanel::onBackClicked()
-{
-    cacheCurrentFilterParameters();
-    showSearchResults();
 }
 
 void MeshFilterPanel::onApplyClicked()
@@ -663,12 +669,26 @@ const Document::FilterInfo *MeshFilterPanel::filterByKey(const QString &filterKe
     return nullptr;
 }
 
+void MeshFilterPanel::showSearchResultsFromUi(bool focusSearch)
+{
+    if (m_stack && m_stack->currentWidget() == m_parametersPage)
+        cacheCurrentFilterParameters();
+    showSearchResults();
+    if (focusSearch && m_searchEdit)
+        m_searchEdit->setFocus(Qt::OtherFocusReason);
+}
+
 bool MeshFilterPanel::eventFilter(QObject *watched, QEvent *event)
 {
+    if (watched == m_searchEdit && event) {
+        if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::FocusIn) {
+            showSearchResultsFromUi(false);
+        }
+    }
     if (watched == m_searchEdit && event && event->type() == QEvent::KeyPress) {
         auto *keyEvent = static_cast<QKeyEvent *>(event);
         if (keyEvent->key() == Qt::Key_Down && keyEvent->modifiers() == Qt::NoModifier) {
-            m_stack->setCurrentWidget(m_resultsPage);
+            showSearchResultsFromUi(false);
             if (m_resultsList && m_resultsList->count() > 0) {
                 if (m_resultsList->currentRow() < 0)
                     m_resultsList->setCurrentRow(0);

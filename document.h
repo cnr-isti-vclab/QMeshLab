@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <QString>
 #include <QStringList>
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -87,7 +88,7 @@ public:
     int saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options);
     int saveCurrentMesh(const QString &filename);
     void beginUndoStep(const QString &label);
-    void endUndoStep(bool commit = true);
+    void endUndoStep(bool commit = true, bool restoreOnCancel = false);
     bool canUndo() const;
     bool canRedo() const;
     QString undoText() const;
@@ -123,6 +124,11 @@ public:
     MeshFilterRunResult runFilter(
         const QString &filterKey,
         const MeshFilterParameterValues &parameters = {});
+    vcg::CallBackPos *progressCallback();
+    void beginFilterProgress(const QString &label);
+    void finishFilterProgress(bool success, const QString &message);
+    void requestOperationCancel();
+    bool isOperationCancelRequested() const;
     QStringList importSupportedExtensions() const;
     QStringList exportSupportedExtensions() const;
     QString preferredImportPluginForExtension(const QString &extension) const;
@@ -161,6 +167,9 @@ signals:
     void loadProgressStarted(const QString &filePath);
     void loadProgressUpdated(int percent, const QString &message);
     void loadProgressFinished(bool success, const QString &message);
+    void filterProgressStarted(const QString &label);
+    void filterProgressUpdated(int percent, const QString &message);
+    void filterProgressFinished(bool success, const QString &message);
     void logCleared();
     void logMessageAdded(const QString &message, Document::LogSource source, bool replaceLast);
     void undoRedoStateChanged(
@@ -180,6 +189,13 @@ private:
         QString label;
         UndoState before;
         UndoState after;
+    };
+
+    enum class CallbackMode {
+        None,
+        Load,
+        Filter,
+        Save
     };
 
     UndoState captureUndoState() const;
@@ -214,4 +230,6 @@ private:
     QString m_undoStepLabel;
     std::optional<UndoState> m_pendingUndoBefore;
     bool m_restoringUndoRedo = false;
+    CallbackMode m_callbackMode = CallbackMode::None;
+    std::atomic<bool> m_cancelRequested = false;
 };

@@ -42,6 +42,7 @@
 #include <QStringList>
 #include <QTableWidget>
 #include <QTimer>
+#include <QToolButton>
 #include <QVector3D>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -230,6 +231,26 @@ MainWindow::MainWindow(QWidget *parent)
     m_loadProgressBar->setVisible(false);
     statusBar()->addPermanentWidget(m_loadProgressBar, 0);
 
+    m_filterProgressBar = new QProgressBar(this);
+    m_filterProgressBar->setRange(0, 100);
+    m_filterProgressBar->setTextVisible(false);
+    m_filterProgressBar->setFixedWidth(160);
+    m_filterProgressBar->setVisible(false);
+    statusBar()->addPermanentWidget(m_filterProgressBar, 0);
+
+    m_filterCancelButton = new QToolButton(this);
+    m_filterCancelButton->setText(tr("Cancel"));
+    m_filterCancelButton->setAutoRaise(true);
+    m_filterCancelButton->setVisible(false);
+    connect(m_filterCancelButton, &QToolButton::clicked, this, [this]() {
+        if (!m_doc || !m_filterCancelButton)
+            return;
+        m_doc->requestOperationCancel();
+        m_filterCancelButton->setEnabled(false);
+        statusBar()->showMessage(tr("Cancelling filter..."));
+    });
+    statusBar()->addPermanentWidget(m_filterCancelButton, 0);
+
     m_frameStatsLabel = new QLabel(this);
     QFont statsFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
     statsFont.setStyleHint(QFont::TypeWriter);
@@ -354,6 +375,37 @@ MainWindow::MainWindow(QWidget *parent)
         statusBar()->showMessage(message.isEmpty()
                 ? (success ? tr("Loading completed") : tr("Loading failed"))
                 : message,
+            success ? 2500 : 4000);
+    });
+    connect(m_doc, &Document::filterProgressStarted, this, [this](const QString &label) {
+        if (m_filterProgressBar) {
+            m_filterProgressBar->setValue(0);
+            m_filterProgressBar->setVisible(true);
+            m_filterProgressBar->setToolTip(label);
+        }
+        if (m_filterCancelButton) {
+            m_filterCancelButton->setEnabled(true);
+            m_filterCancelButton->setVisible(true);
+        }
+        statusBar()->showMessage(tr("Running %1...").arg(label));
+    });
+    connect(m_doc, &Document::filterProgressUpdated, this, [this](int percent, const QString &message) {
+        if (m_filterProgressBar) {
+            m_filterProgressBar->setVisible(true);
+            m_filterProgressBar->setValue(std::clamp(percent, 0, 100));
+        }
+        if (!message.isEmpty())
+            statusBar()->showMessage(tr("Filter: %1% - %2").arg(percent).arg(message));
+        else
+            statusBar()->showMessage(tr("Filter: %1%").arg(percent));
+    });
+    connect(m_doc, &Document::filterProgressFinished, this, [this](bool success, const QString &message) {
+        if (m_filterProgressBar)
+            m_filterProgressBar->setVisible(false);
+        if (m_filterCancelButton)
+            m_filterCancelButton->setVisible(false);
+        statusBar()->showMessage(
+            message.isEmpty() ? (success ? tr("Filter completed") : tr("Filter failed")) : message,
             success ? 2500 : 4000);
     });
     connect(m_doc, &Document::meshVisibilityChanged, this, [this](int index, bool visible) {
@@ -963,6 +1015,7 @@ void MainWindow::executeFilter(
     if (label.trimmed().isEmpty())
         label = tr("Filter");
 
+    m_doc->beginFilterProgress(label);
     QElapsedTimer timer;
     timer.start();
     const MeshFilterRunResult result = m_doc->runFilter(filterKey, parameters);
@@ -970,8 +1023,13 @@ void MainWindow::executeFilter(
     const QString elapsedText = QString::number(elapsedMs, 'f', 2);
 
     if (!result.success) {
-        const QString msg = tr("Filter failed: %1").arg(result.errorMessage);
-        statusBar()->showMessage(msg, 4500);
+        const QString errorText = result.errorMessage.trimmed().isEmpty()
+            ? tr("Unknown filter error")
+            : result.errorMessage.trimmed();
+        const QString msg = errorText.contains(QStringLiteral("interrupt"), Qt::CaseInsensitive)
+            ? errorText
+            : tr("Filter failed: %1").arg(errorText);
+        m_doc->finishFilterProgress(false, msg);
         m_doc->writeLog(msg, Document::LogSource::Application);
         m_doc->writeLog(
             tr("Filter '%1' runtime: %2 ms (failed)")
@@ -983,7 +1041,7 @@ void MainWindow::executeFilter(
     QString status = tr("%1 executed").arg(label);
     if (!result.infoMessages.isEmpty())
         status = result.infoMessages.back();
-    statusBar()->showMessage(status, 3200);
+    m_doc->finishFilterProgress(true, status);
     m_doc->writeLog(
         tr("Filter '%1' runtime: %2 ms").arg(label, elapsedText),
         Document::LogSource::Application);

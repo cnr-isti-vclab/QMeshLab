@@ -40,7 +40,6 @@ private slots:
     void onSearchReturnPressed();
     void onResultItemClicked(QListWidgetItem *item);
     void onResultItemActivated(QListWidgetItem *item);
-    void onBackClicked();
     void onApplyClicked();
     void onShowAdvancedToggled(bool checked);
 
@@ -67,6 +66,7 @@ private:
     QColor colorFromVariant(const QVariant &value, const QColor &fallback) const;
     void updateColorButtonStyle(QWidget *button, const QColor &color) const;
     const Document::FilterInfo *filterByKey(const QString &filterKey) const;
+    void showSearchResultsFromUi(bool focusSearch);
     bool eventFilter(QObject *watched, QEvent *event) override;
 
     Document *m_doc = nullptr;
@@ -76,6 +76,7 @@ private:
     QHash<QString, MeshFilterParameterValues> m_filterParameterCache;
     QString m_currentFilterKey;
 
+    QToolButton *m_searchButton = nullptr;
     QLineEdit *m_searchEdit = nullptr;
     QStackedWidget *m_stack = nullptr;
     QWidget *m_resultsPage = nullptr;
@@ -90,6 +91,5 @@ private:
     QWidget *m_parametersWidget = nullptr;
     QFormLayout *m_parametersLayout = nullptr;
     QLabel *m_noParametersLabel = nullptr;
-    QPushButton *m_backButton = nullptr;
     QPushButton *m_applyButton = nullptr;
 };

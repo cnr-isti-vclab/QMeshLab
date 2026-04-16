@@ -235,7 +235,54 @@ MeshFilterRunResult Document::runFilter(
         };
     }
 
-    return m_filterPluginManager->runFilter(filterKey, parameters, *this);
+    Document *previousCallbackDocument = g_callbackDocument;
+    g_callbackDocument = this;
+    MeshFilterRunResult result = m_filterPluginManager->runFilter(filterKey, parameters, *this);
+    g_callbackDocument = previousCallbackDocument;
+    return result;
+}
+
+vcg::CallBackPos *Document::progressCallback()
+{
+    return logCallback();
+}
+
+void Document::beginFilterProgress(const QString &label)
+{
+    m_lastCallbackBucket = -1;
+    m_lastProgressPos = -1;
+    m_loadCallbackCount = 0;
+    m_loadProgressEmitCount = 0;
+    m_loadProcessEventsCount = 0;
+    m_loadProcessEventsNs = 0;
+    m_lastProgressEmitMs = -1;
+    m_lastProcessEventsMs = -1;
+    m_loadCallbackTimer.invalidate();
+    m_loadCallbackTimer.start();
+    m_cancelRequested.store(false, std::memory_order_relaxed);
+    m_callbackMode = CallbackMode::Filter;
+
+    const QString normalizedLabel = label.trimmed().isEmpty() ? tr("Filter") : label.trimmed();
+    emit filterProgressStarted(normalizedLabel);
+    emit filterProgressUpdated(0, normalizedLabel);
+}
+
+void Document::finishFilterProgress(bool success, const QString &message)
+{
+    const QString normalizedMessage = message.trimmed();
+    m_callbackMode = CallbackMode::None;
+    m_cancelRequested.store(false, std::memory_order_relaxed);
+    emit filterProgressFinished(success, normalizedMessage);
+}
+
+void Document::requestOperationCancel()
+{
+    m_cancelRequested.store(true, std::memory_order_relaxed);
+}
+
+bool Document::isOperationCancelRequested() const
+{
+    return m_cancelRequested.load(std::memory_order_relaxed);
 }
 
 std::vector<Document::ImportPluginInfo> Document::importPluginInfos() const
@@ -333,10 +380,14 @@ int Document::loadMesh(const QString &filename)
     emit loadProgressUpdated(0, tr("Opening %1").arg(QFileInfo(filename).fileName()));
 
     Document *previousCallbackDocument = g_callbackDocument;
+    const CallbackMode previousCallbackMode = m_callbackMode;
+    m_callbackMode = CallbackMode::Load;
+    m_cancelRequested.store(false, std::memory_order_relaxed);
     g_callbackDocument = this;
     int loadMask = 0;
     int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask);
     g_callbackDocument = previousCallbackDocument;
+    m_callbackMode = previousCallbackMode;
     const qint64 importElapsedMs = loadTimer.elapsed();
 
     if (err != 0) {
@@ -500,10 +551,14 @@ int Document::reloadMesh(int index)
 
     VCGMesh reloadedMesh;
     Document *previousCallbackDocument = g_callbackDocument;
+    const CallbackMode previousCallbackMode = m_callbackMode;
+    m_callbackMode = CallbackMode::Load;
+    m_cancelRequested.store(false, std::memory_order_relaxed);
     g_callbackDocument = this;
     int loadMask = 0;
     const int err = plugin->load(sourcePath, reloadedMesh, logCallback(), &loadMask);
     g_callbackDocument = previousCallbackDocument;
+    m_callbackMode = previousCallbackMode;
     const qint64 importElapsedMs = loadTimer.elapsed();
 
     if (err != 0) {
@@ -647,9 +702,13 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
         LogSource::Application);
 
     Document *previousCallbackDocument = g_callbackDocument;
+    const CallbackMode previousCallbackMode = m_callbackMode;
+    m_callbackMode = CallbackMode::Save;
+    m_cancelRequested.store(false, std::memory_order_relaxed);
     g_callbackDocument = this;
     const int err = plugin->save(normalizedFilename, entry.mesh, options, logCallback());
     g_callbackDocument = previousCallbackDocument;
+    m_callbackMode = previousCallbackMode;
 
     const qint64 elapsedMs = timer.elapsed();
     if (err != 0) {
@@ -700,7 +759,7 @@ void Document::beginUndoStep(const QString &label)
     m_pendingUndoBefore = captureUndoState();
 }
 
-void Document::endUndoStep(bool commit)
+void Document::endUndoStep(bool commit, bool restoreOnCancel)
 {
     if (!m_undoStepActive)
         return;
@@ -711,8 +770,17 @@ void Document::endUndoStep(bool commit)
     m_undoStepActive = false;
     m_undoStepLabel.clear();
 
-    if (!commit || !before.has_value())
+    if (!before.has_value())
         return;
+
+    if (!commit) {
+        if (restoreOnCancel) {
+            m_restoringUndoRedo = true;
+            restoreUndoState(*before);
+            m_restoringUndoRedo = false;
+        }
+        return;
+    }
 
     pushUndoStep(label, std::move(*before), captureUndoState());
 }
@@ -1252,6 +1320,8 @@ bool Document::handleLogCallback(int pos, const char *message)
     ++m_loadCallbackCount;
 
     const int clampedPos = std::clamp(pos, 0, 100);
+    const bool isLoadCallback = (m_callbackMode == CallbackMode::Load);
+    const bool isFilterCallback = (m_callbackMode == CallbackMode::Filter);
     const qint64 nowMs = m_loadCallbackTimer.isValid() ? m_loadCallbackTimer.elapsed() : 0;
     const bool forceUiUpdate = (clampedPos == 0 || clampedPos == 100);
     const bool progressChanged = (clampedPos != m_lastProgressPos);
@@ -1275,15 +1345,23 @@ bool Document::handleLogCallback(int pos, const char *message)
         m_lastProgressPos = clampedPos;
         m_lastProgressEmitMs = nowMs;
         decodeText();
-        emit loadProgressUpdated(clampedPos, text);
-        ++m_loadProgressEmitCount;
+        if (isLoadCallback || isFilterCallback) {
+            if (isLoadCallback)
+                emit loadProgressUpdated(clampedPos, text);
+            else
+                emit filterProgressUpdated(clampedPos, text);
+            ++m_loadProgressEmitCount;
+        }
 
         const bool processEventsThrottleElapsed =
             (m_lastProcessEventsMs < 0) || (nowMs - m_lastProcessEventsMs >= 80);
-        if (forceUiUpdate || processEventsThrottleElapsed) {
+        if ((isLoadCallback || isFilterCallback) && (forceUiUpdate || processEventsThrottleElapsed)) {
             QElapsedTimer processTimer;
             processTimer.start();
-            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+            const QEventLoop::ProcessEventsFlags flags = isFilterCallback
+                ? QEventLoop::AllEvents
+                : QEventLoop::ExcludeUserInputEvents;
+            QCoreApplication::processEvents(flags);
             m_loadProcessEventsNs += processTimer.nsecsElapsed();
             m_lastProcessEventsMs = nowMs;
             ++m_loadProcessEventsCount;
@@ -1292,7 +1370,7 @@ bool Document::handleLogCallback(int pos, const char *message)
 
     const int bucket = clampedPos / 10;
     if (bucket == m_lastCallbackBucket)
-        return true;
+        return !m_cancelRequested.load(std::memory_order_relaxed);
 
     m_lastCallbackBucket = bucket;
     decodeText();
@@ -1303,7 +1381,7 @@ bool Document::handleLogCallback(int pos, const char *message)
     else
         writeLog(tr("%1% - %2").arg(clampedPos, 3).arg(text), LogSource::VCG, replaceLast);
 
-    return true;
+    return !m_cancelRequested.load(std::memory_order_relaxed);
 }
 
 bool Document::dispatchLogCallback(int pos, const char *message)

@@ -218,7 +218,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     MeshFilterRunResult result = targetPlugin->runFilter(filterId, normalizedParameters, doc);
     if (!result.success) {
         if (wrapUndo)
-            doc.endUndoStep(false);
+            doc.endUndoStep(false, true);
         return result;
     }
 
