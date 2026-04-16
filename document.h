@@ -76,6 +76,7 @@ public:
     using EdgeFatPassGpuView = MeshGpuResourceCache::EdgeFatPassView;
     using PointsPassGpuView = MeshGpuResourceCache::PointsPassView;
     using BBoxPassGpuView = MeshGpuResourceCache::BBoxPassView;
+    using SelectionPassGpuView = MeshGpuResourceCache::SelectionPassView;
     using DecoratorPassGpuView = MeshGpuResourceCache::DecoratorPassView;
 
     explicit Document(QObject *parent = nullptr);
@@ -147,13 +148,15 @@ public:
                                 bool needDecoratorBoundaries,
                                 bool qualityFixedRange = false,
                                 float qualityRangeMin = 0.0f,
-                                float qualityRangeMax = 1.0f);
+                                float qualityRangeMax = 1.0f,
+                                bool needSelection = false);
     FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
     WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
     EdgePassGpuView edgePassGpuView(QRhi *rhi, int meshIndex) const;
     EdgeFatPassGpuView edgeFatPassGpuView(QRhi *rhi, int meshIndex) const;
     PointsPassGpuView pointsPassGpuView(QRhi *rhi, int meshIndex, PointGpuVariant variant) const;
     BBoxPassGpuView bboxPassGpuView(QRhi *rhi, int meshIndex) const;
+    SelectionPassGpuView selectionPassGpuView(QRhi *rhi, int meshIndex) const;
     DecoratorPassGpuView decoratorPassGpuView(QRhi *rhi, int meshIndex) const;
     void releaseRhiGpuResources(QRhi *rhi);
     void clearAllGpuResources();

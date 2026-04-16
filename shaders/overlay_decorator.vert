@@ -10,4 +10,5 @@ layout(std140, binding = 0) uniform decoBuf {
 void main()
 {
     gl_Position = ub.mvp * vec4(inPos, 1.0);
+    gl_PointSize = 6.0;
 }

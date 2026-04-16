@@ -1131,7 +1131,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
                                       bool needDecoratorBoundaries,
                                       bool qualityFixedRange,
                                       float qualityRangeMin,
-                                      float qualityRangeMax)
+                                      float qualityRangeMax,
+                                      bool needSelection)
 {
     if (!m_gpuCache || !rhi || !cb)
         return;
@@ -1163,6 +1164,7 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
         needEdges,
         needPoints,
         needBoundingBox,
+        needSelection,
         needDecoratorNormals,
         needDecoratorBoundaries);
 
@@ -1178,6 +1180,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
             rebuiltPasses << tr("points");
         if (stats.rebuiltBoundingBox)
             rebuiltPasses << tr("bbox");
+        if (stats.rebuiltSelection)
+            rebuiltPasses << tr("selection");
         if (stats.rebuiltDecoratorNormals)
             rebuiltPasses << tr("decorator normals");
         if (stats.rebuiltDecoratorBoundaries)
@@ -1245,6 +1249,15 @@ Document::BBoxPassGpuView Document::bboxPassGpuView(QRhi *rhi, int meshIndex) co
 
     const MeshEntry &meshEntry = mesh(meshIndex);
     return m_gpuCache->bboxPassView(rhi, meshEntry.meshId);
+}
+
+Document::SelectionPassGpuView Document::selectionPassGpuView(QRhi *rhi, int meshIndex) const
+{
+    if (!m_gpuCache || !rhi || meshIndex < 0 || meshIndex >= meshCount())
+        return {};
+
+    const MeshEntry &meshEntry = mesh(meshIndex);
+    return m_gpuCache->selectionPassView(rhi, meshEntry.meshId);
 }
 
 Document::DecoratorPassGpuView Document::decoratorPassGpuView(

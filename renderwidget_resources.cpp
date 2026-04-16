@@ -365,6 +365,10 @@ void RenderWidget::ensureRenderResources()
         m_bboxPipeline.reset();
         m_pointsPipeline.reset();
         m_decoratorPipeline.reset();
+        m_selectionUbuf.reset();
+        m_selectionSrb.reset();
+        m_selectionFacesPipeline.reset();
+        m_selectionVerticesPipeline.reset();
         m_decoratorFatUbuf.reset();
         m_decoratorFatSrb.reset();
         m_decoratorFatPipeline.reset();
@@ -969,6 +973,100 @@ void RenderWidget::ensureRenderResources()
             if (!m_decoratorPipeline->create()) {
                 qWarning("Failed to create decorator pipeline");
                 m_decoratorPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_selectionUbuf) {
+        m_selectionUbuf.reset(
+            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorUbufSize));
+        if (!m_selectionUbuf || !m_selectionUbuf->create())
+            m_selectionUbuf.reset();
+    }
+    if (!m_selectionSrb && m_selectionUbuf) {
+        m_selectionSrb.reset(m_rhi->newShaderResourceBindings());
+        m_selectionSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                m_selectionUbuf.get())
+        });
+        if (!m_selectionSrb->create())
+            m_selectionSrb.reset();
+    }
+    if (!m_selectionFacesPipeline && m_selectionSrb) {
+        m_selectionFacesPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_decorator.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_decorator.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load selection face shaders");
+            m_selectionFacesPipeline.reset();
+        } else {
+            m_selectionFacesPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_selectionFacesPipeline->setTopology(QRhiGraphicsPipeline::Triangles);
+            m_selectionFacesPipeline->setDepthTest(true);
+            m_selectionFacesPipeline->setDepthWrite(false);
+            m_selectionFacesPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_selectionFacesPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiGraphicsPipeline::TargetBlend blend;
+            blend.enable = true;
+            blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+            blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opColor = QRhiGraphicsPipeline::Add;
+            blend.srcAlpha = QRhiGraphicsPipeline::One;
+            blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opAlpha = QRhiGraphicsPipeline::Add;
+            m_selectionFacesPipeline->setTargetBlends({ blend });
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_selectionFacesPipeline->setVertexInputLayout(layout);
+            m_selectionFacesPipeline->setShaderResourceBindings(m_selectionSrb.get());
+            m_selectionFacesPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_selectionFacesPipeline->create()) {
+                qWarning("Failed to create selection face pipeline");
+                m_selectionFacesPipeline.reset();
+            }
+        }
+    }
+    if (!m_selectionVerticesPipeline && m_selectionSrb) {
+        m_selectionVerticesPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_decorator.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_decorator.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load selection vertex shaders");
+            m_selectionVerticesPipeline.reset();
+        } else {
+            m_selectionVerticesPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_selectionVerticesPipeline->setTopology(QRhiGraphicsPipeline::Points);
+            m_selectionVerticesPipeline->setDepthTest(true);
+            m_selectionVerticesPipeline->setDepthWrite(false);
+            m_selectionVerticesPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_selectionVerticesPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiGraphicsPipeline::TargetBlend blend;
+            blend.enable = true;
+            blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+            blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opColor = QRhiGraphicsPipeline::Add;
+            blend.srcAlpha = QRhiGraphicsPipeline::One;
+            blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opAlpha = QRhiGraphicsPipeline::Add;
+            m_selectionVerticesPipeline->setTargetBlends({ blend });
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_selectionVerticesPipeline->setVertexInputLayout(layout);
+            m_selectionVerticesPipeline->setShaderResourceBindings(m_selectionSrb.get());
+            m_selectionVerticesPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_selectionVerticesPipeline->create()) {
+                qWarning("Failed to create selection vertex pipeline");
+                m_selectionVerticesPipeline.reset();
             }
         }
     }

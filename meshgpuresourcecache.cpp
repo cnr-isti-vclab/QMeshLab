@@ -124,6 +124,16 @@ struct MeshGpuResourceCache::CacheState
         int vertexCount = 0;
     };
 
+    struct SelectionGpu {
+        std::uint64_t geometryRevision = 0;
+        std::uint64_t materialRevision = 0;
+        bool valid = false;
+        std::unique_ptr<QRhiBuffer> selectedFacesVbuf;
+        int selectedFacesVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> selectedVerticesVbuf;
+        int selectedVerticesVertexCount = 0;
+    };
+
     struct DecoratorNormalsGpu {
         std::uint64_t geometryRevision = 0;
         bool valid = false;
@@ -152,6 +162,7 @@ struct MeshGpuResourceCache::CacheState
         WireGpu wire;
         EdgeGpu edges;
         BBoxGpu bbox;
+        SelectionGpu selection;
         DecoratorNormalsGpu decoratorNormals;
         DecoratorBoundaryGpu decoratorBoundaries;
     };
@@ -177,6 +188,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     bool needEdges,
     bool needPoints,
     bool needBoundingBox,
+    bool needSelection,
     bool needDecoratorNormals,
     bool needDecoratorBoundaries)
 {
@@ -824,6 +836,86 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         return true;
     };
 
+    auto rebuildSelection = [&](CacheState::SelectionGpu &dst) -> bool {
+        if (dst.valid
+            && dst.geometryRevision == source.geometryRevision
+            && dst.materialRevision == source.materialRevision) {
+            return false;
+        }
+
+        dst.valid = true;
+        dst.geometryRevision = source.geometryRevision;
+        dst.materialRevision = source.materialRevision;
+        dst.selectedFacesVbuf.reset();
+        dst.selectedFacesVertexCount = 0;
+        dst.selectedVerticesVbuf.reset();
+        dst.selectedVerticesVertexCount = 0;
+
+        if (meshData.VN() <= 0)
+            return true;
+
+        std::vector<float> selectedFaceTriangles;
+        selectedFaceTriangles.reserve(static_cast<size_t>(meshData.FN()) * 9);
+        for (int fi = 0; fi < meshData.FN(); ++fi) {
+            const auto &f = meshData.face[fi];
+            if (f.IsD() || !f.IsS())
+                continue;
+            for (int corner = 0; corner < 3; ++corner) {
+                const auto *v = f.cV(corner);
+                if (!v)
+                    continue;
+                selectedFaceTriangles.push_back(v->cP()[0]);
+                selectedFaceTriangles.push_back(v->cP()[1]);
+                selectedFaceTriangles.push_back(v->cP()[2]);
+            }
+        }
+
+        if (!selectedFaceTriangles.empty()) {
+            dst.selectedFacesVbuf.reset(
+                rhi->newBuffer(
+                    QRhiBuffer::Immutable,
+                    QRhiBuffer::VertexBuffer,
+                    static_cast<quint32>(selectedFaceTriangles.size() * sizeof(float))));
+            if (!dst.selectedFacesVbuf || !dst.selectedFacesVbuf->create()) {
+                dst.selectedFacesVbuf.reset();
+            } else {
+                ensureUpdates()->uploadStaticBuffer(
+                    dst.selectedFacesVbuf.get(), selectedFaceTriangles.data());
+                dst.selectedFacesVertexCount =
+                    static_cast<int>(selectedFaceTriangles.size() / 3);
+            }
+        }
+
+        std::vector<float> selectedVertices;
+        selectedVertices.reserve(static_cast<size_t>(meshData.VN()) * 3);
+        for (int vi = 0; vi < meshData.VN(); ++vi) {
+            const auto &v = meshData.vert[vi];
+            if (v.IsD() || !v.IsS())
+                continue;
+            selectedVertices.push_back(v.cP()[0]);
+            selectedVertices.push_back(v.cP()[1]);
+            selectedVertices.push_back(v.cP()[2]);
+        }
+
+        if (!selectedVertices.empty()) {
+            dst.selectedVerticesVbuf.reset(
+                rhi->newBuffer(
+                    QRhiBuffer::Immutable,
+                    QRhiBuffer::VertexBuffer,
+                    static_cast<quint32>(selectedVertices.size() * sizeof(float))));
+            if (!dst.selectedVerticesVbuf || !dst.selectedVerticesVbuf->create()) {
+                dst.selectedVerticesVbuf.reset();
+            } else {
+                ensureUpdates()->uploadStaticBuffer(
+                    dst.selectedVerticesVbuf.get(), selectedVertices.data());
+                dst.selectedVerticesVertexCount =
+                    static_cast<int>(selectedVertices.size() / 3);
+            }
+        }
+
+        return true;
+    };
+
     auto rebuildBBox = [&](CacheState::BBoxGpu &dst) -> bool {
         if (dst.valid && dst.geometryRevision == source.geometryRevision)
             return false;
@@ -1210,6 +1302,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     }
     if (needBoundingBox)
         stats.rebuiltBoundingBox = rebuildBBox(meshCache.bbox);
+    if (needSelection)
+        stats.rebuiltSelection = rebuildSelection(meshCache.selection);
     if (needDecoratorNormals)
         stats.rebuiltDecoratorNormals = rebuildDecoratorNormals(meshCache.decoratorNormals);
     if (needDecoratorBoundaries)
@@ -1359,6 +1453,32 @@ MeshGpuResourceCache::BBoxPassView MeshGpuResourceCache::bboxPassView(QRhi *rhi,
         return {};
 
     return { bbox.vbuf.get(), bbox.vertexCount, true };
+}
+
+MeshGpuResourceCache::SelectionPassView MeshGpuResourceCache::selectionPassView(
+    QRhi *rhi, std::uint64_t meshId) const
+{
+    if (!m_state || !rhi || meshId == 0)
+        return {};
+
+    const auto rhiIt = m_state->byRhi.find(rhi);
+    if (rhiIt == m_state->byRhi.end())
+        return {};
+    const auto meshIt = rhiIt->second.find(meshId);
+    if (meshIt == rhiIt->second.end())
+        return {};
+
+    const auto &selection = meshIt->second.selection;
+    if (!selection.valid)
+        return {};
+
+    SelectionPassView view;
+    view.valid = true;
+    view.selectedFacesBuffer = selection.selectedFacesVbuf.get();
+    view.selectedFacesVertexCount = selection.selectedFacesVertexCount;
+    view.selectedVerticesBuffer = selection.selectedVerticesVbuf.get();
+    view.selectedVerticesVertexCount = selection.selectedVerticesVertexCount;
+    return view;
 }
 
 MeshGpuResourceCache::DecoratorPassView MeshGpuResourceCache::decoratorPassView(

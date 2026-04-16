@@ -149,6 +149,15 @@ bool RenderWidget::applyRenderSettingsToCurrentMesh(
     apply(&MeshRenderMode::showEdges, prev.showEdges, next.showEdges);
     apply(&MeshRenderMode::showWire, prev.showWire, next.showWire);
     apply(&MeshRenderMode::showFill, prev.showFill, next.showFill);
+    apply(&MeshRenderMode::showSelection, prev.showSelection, next.showSelection);
+    apply(
+        &MeshRenderMode::showSelectionVertices,
+        prev.showSelectionVertices,
+        next.showSelectionVertices);
+    apply(
+        &MeshRenderMode::showSelectionFaces,
+        prev.showSelectionFaces,
+        next.showSelectionFaces);
     apply(
         &MeshRenderMode::decoratorVertexNormals,
         prev.decoratorVertexNormals,
@@ -236,6 +245,9 @@ void RenderWidget::applyRenderModeToSettings(
     settings.showEdges = mode.showEdges;
     settings.showWire = mode.showWire;
     settings.showFill = mode.showFill;
+    settings.showSelection = mode.showSelection;
+    settings.showSelectionVertices = mode.showSelectionVertices;
+    settings.showSelectionFaces = mode.showSelectionFaces;
     settings.decoratorVertexNormals = mode.decoratorVertexNormals;
     settings.decoratorFaceNormals = mode.decoratorFaceNormals;
     settings.decoratorBoundaryEdges = mode.decoratorBoundaryEdges;

@@ -131,6 +131,15 @@ qt_add_resources(QMeshLab "icons"
         img/wireframe.png
         img/wire.png
         img/flat.png
+        img/selected.png
+        img/sel_all.png
+        img/sel_none.png
+        img/sel_plus.png
+        img/sel_minus.png
+        img/sel_inv.png
+        img/delete_vert.png
+        img/delete_face.png
+        img/delete_facevert.png
         img/histogram.png
         img/splitH.png
         img/splitV.png

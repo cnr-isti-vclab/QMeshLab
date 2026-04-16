@@ -11,6 +11,7 @@ enum class RenderPass {
     Edges,
     Wireframe,
     Fill,
+    Selection,
     DecoratorNormals,
     DecoratorBoundary,
     QualityHistogram
@@ -61,6 +62,9 @@ struct RenderSettings {
     bool showEdges = false;
     bool showWire = true;
     bool showFill = true;
+    bool showSelection = false;
+    bool showSelectionVertices = true;
+    bool showSelectionFaces = true;
     QColor currentMeshOutlineColor = QColor(42, 160, 240);
     float currentMeshOutlineWidth = 1.0f;
     float currentMeshDilateRadius = 2.5f;
@@ -117,6 +121,9 @@ struct RenderSettings {
             && showEdges == other.showEdges
             && showWire == other.showWire
             && showFill == other.showFill
+            && showSelection == other.showSelection
+            && showSelectionVertices == other.showSelectionVertices
+            && showSelectionFaces == other.showSelectionFaces
             && currentMeshOutlineColor == other.currentMeshOutlineColor
             && currentMeshOutlineWidth == other.currentMeshOutlineWidth
             && currentMeshDilateRadius == other.currentMeshDilateRadius

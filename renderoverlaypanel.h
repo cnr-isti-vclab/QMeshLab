@@ -86,6 +86,8 @@ private:
     QCheckBox *m_wireBackfaceCullingCheck = nullptr;
     QCheckBox *m_fillLightingCheck = nullptr;
     QCheckBox *m_fillBackfaceCullingCheck = nullptr;
+    QCheckBox *m_selectionShowVerticesCheck = nullptr;
+    QCheckBox *m_selectionShowFacesCheck = nullptr;
     QCheckBox *m_uvShowReferenceFrameCheck = nullptr;
     QCheckBox *m_uvShowFullTextureCheck = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;
@@ -99,6 +101,7 @@ private:
     QToolButton *m_edgesButton = nullptr;
     QToolButton *m_wireButton = nullptr;
     QToolButton *m_fillButton = nullptr;
+    QToolButton *m_selectionButton = nullptr;
     QToolButton *m_qualityHistogramButton = nullptr;
     QToolButton *m_currentMeshSettingsArrow = nullptr;
     QToolButton *m_normalsDecoratorsSettingsArrow = nullptr;
@@ -108,5 +111,6 @@ private:
     QToolButton *m_edgesSettingsArrow = nullptr;
     QToolButton *m_wireSettingsArrow = nullptr;
     QToolButton *m_fillSettingsArrow = nullptr;
+    QToolButton *m_selectionSettingsArrow = nullptr;
     QToolButton *m_qualityHistogramSettingsArrow = nullptr;
 };

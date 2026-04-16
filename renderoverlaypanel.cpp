@@ -159,6 +159,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_edgesButton = makeButton(QStringLiteral(":/img/edge-mesh.png"), tr("Edges pass"));
     m_wireButton = makeButton(QStringLiteral(":/img/wire.png"), tr("Wireframe pass"));
     m_fillButton = makeButton(QStringLiteral(":/img/flat.png"), tr("Fill pass"));
+    m_selectionButton =
+        makeButton(QStringLiteral(":/img/selected.png"), tr("Selected elements overlay"));
     m_qualityHistogramButton =
         makeButton(QStringLiteral(":/img/histogram.png"), tr("Quality Histogram"));
 
@@ -169,6 +171,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     buttonLayout->addWidget(m_edgesButton);
     buttonLayout->addWidget(m_wireButton);
     buttonLayout->addWidget(m_fillButton);
+    buttonLayout->addWidget(m_selectionButton);
     buttonLayout->addWidget(m_normalsDecoratorsButton);
     buttonLayout->addWidget(m_boundaryDecoratorsButton);
     buttonLayout->addWidget(m_qualityHistogramButton);
@@ -180,6 +183,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_edgesButton->setChecked(false);
     m_wireButton->setChecked(true);
     m_fillButton->setChecked(true);
+    m_selectionButton->setChecked(false);
     m_qualityHistogramButton->setChecked(false);
 
     auto *arrowRow = new QWidget(this);
@@ -213,12 +217,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_edgesSettingsArrow = makeArrowButton(tr("Settings: Edges"));
     m_wireSettingsArrow = makeArrowButton(tr("Settings: Wireframe"));
     m_fillSettingsArrow = makeArrowButton(tr("Settings: Fill"));
+    m_selectionSettingsArrow = makeArrowButton(tr("Settings: Selection"));
     m_qualityHistogramSettingsArrow = makeArrowButton(tr("Settings: Quality Histogram"));
     arrowLayout->addWidget(m_bboxSettingsArrow);
     arrowLayout->addWidget(m_pointsSettingsArrow);
     arrowLayout->addWidget(m_edgesSettingsArrow);
     arrowLayout->addWidget(m_wireSettingsArrow);
     arrowLayout->addWidget(m_fillSettingsArrow);
+    arrowLayout->addWidget(m_selectionSettingsArrow);
     m_normalsDecoratorsSettingsArrow = makeArrowButton(tr("Settings: Normal Decorators"));
     arrowLayout->addWidget(m_normalsDecoratorsSettingsArrow);
     m_boundaryDecoratorsSettingsArrow = makeArrowButton(tr("Settings: Boundary Decorators"));
@@ -576,6 +582,29 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillLayout->addLayout(fillForm);
     m_settingsStack->addWidget(fillPage);
 
+    auto *selectionPage = new QWidget(m_settingsStack);
+    auto *selectionLayout = new QVBoxLayout(selectionPage);
+    selectionLayout->setContentsMargins(0, 0, 0, 0);
+    selectionLayout->setSpacing(2);
+    auto *selectionForm = new QFormLayout();
+    selectionForm->setContentsMargins(0, 0, 0, 0);
+    selectionForm->setHorizontalSpacing(6);
+    selectionForm->setVerticalSpacing(2);
+    selectionForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_selectionShowVerticesCheck = new QCheckBox(selectionPage);
+    m_selectionShowVerticesCheck->setChecked(m_settings.showSelectionVertices);
+    m_selectionShowFacesCheck = new QCheckBox(selectionPage);
+    m_selectionShowFacesCheck->setChecked(m_settings.showSelectionFaces);
+    selectionForm->addRow(
+        tr("Vertices"),
+        makeCenteredFieldContainer(m_selectionShowVerticesCheck, selectionPage));
+    selectionForm->addRow(
+        tr("Faces"),
+        makeCenteredFieldContainer(m_selectionShowFacesCheck, selectionPage));
+    applyUniformFormRowHeights(selectionForm);
+    selectionLayout->addLayout(selectionForm);
+    m_settingsStack->addWidget(selectionPage);
+
     auto *histogramPage = new QWidget(m_settingsStack);
     auto *histogramLayout = new QVBoxLayout(histogramPage);
     histogramLayout->setContentsMargins(0, 0, 0, 0);
@@ -791,6 +820,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindEnumCombo(m_fillShadingCombo, &RenderSettings::fillShading);
     bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
     bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
+    bindCheckBox(m_selectionShowVerticesCheck, &RenderSettings::showSelectionVertices);
+    bindCheckBox(m_selectionShowFacesCheck, &RenderSettings::showSelectionFaces);
     bindCheckBox(m_uvShowReferenceFrameCheck, &RenderSettings::uvShowReferenceFrame);
     bindCheckBox(m_uvShowFullTextureCheck, &RenderSettings::uvShowFullTexture);
     bindEnumCombo(m_qualityHistogramSourceCombo, &RenderSettings::qualityHistogramSource);
@@ -874,6 +905,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_edgesButton, RenderPass::Edges, false);
     bindPassButton(m_wireButton, RenderPass::Wireframe, false);
     bindPassButton(m_fillButton, RenderPass::Fill, false);
+    bindPassButton(m_selectionButton, RenderPass::Selection, false);
     bindPassButton(m_qualityHistogramButton, RenderPass::QualityHistogram, false);
 
     bindPassButton(m_currentMeshSettingsArrow, RenderPass::CurrentMesh, true);
@@ -884,6 +916,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_edgesSettingsArrow, RenderPass::Edges, true);
     bindPassButton(m_wireSettingsArrow, RenderPass::Wireframe, true);
     bindPassButton(m_fillSettingsArrow, RenderPass::Fill, true);
+    bindPassButton(m_selectionSettingsArrow, RenderPass::Selection, true);
     bindPassButton(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram, true);
 
     bindToolToggle(m_bboxButton, &RenderSettings::showBoundingBox);
@@ -913,6 +946,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindToolToggle(m_edgesButton, &RenderSettings::showEdges);
     bindToolToggle(m_wireButton, &RenderSettings::showWire);
     bindToolToggle(m_fillButton, &RenderSettings::showFill);
+    bindToolToggle(m_selectionButton, &RenderSettings::showSelection);
     bindToolToggle(m_qualityHistogramButton, &RenderSettings::showQualityHistogram);
 
     updateColorButtonStyle(m_currentMeshOutlineColorButton, m_settings.currentMeshOutlineColor);
@@ -951,7 +985,8 @@ int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
     case RenderPass::Edges: return 5;
     case RenderPass::Wireframe: return 6;
     case RenderPass::Fill: return 7;
-    case RenderPass::QualityHistogram: return 8;
+    case RenderPass::Selection: return 8;
+    case RenderPass::QualityHistogram: return 9;
     }
     return 0;
 }
@@ -1045,6 +1080,18 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_fillButton) {
         QSignalBlocker blocker(m_fillButton);
         m_fillButton->setChecked(m_settings.showFill);
+    }
+    if (m_selectionButton) {
+        QSignalBlocker blocker(m_selectionButton);
+        m_selectionButton->setChecked(m_settings.showSelection);
+    }
+    if (m_selectionShowVerticesCheck) {
+        QSignalBlocker blocker(m_selectionShowVerticesCheck);
+        m_selectionShowVerticesCheck->setChecked(m_settings.showSelectionVertices);
+    }
+    if (m_selectionShowFacesCheck) {
+        QSignalBlocker blocker(m_selectionShowFacesCheck);
+        m_selectionShowFacesCheck->setChecked(m_settings.showSelectionFaces);
     }
     if (m_qualityHistogramButton) {
         QSignalBlocker blocker(m_qualityHistogramButton);
@@ -1358,6 +1405,7 @@ void RenderOverlayPanel::syncRenderPassUiState()
     setPassMarker(m_edgesButton, RenderPass::Edges);
     setPassMarker(m_wireButton, RenderPass::Wireframe);
     setPassMarker(m_fillButton, RenderPass::Fill);
+    setPassMarker(m_selectionButton, RenderPass::Selection);
     setPassMarker(m_qualityHistogramButton, RenderPass::QualityHistogram);
 
     setArrowChecked(m_currentMeshSettingsArrow, RenderPass::CurrentMesh);
@@ -1368,5 +1416,6 @@ void RenderOverlayPanel::syncRenderPassUiState()
     setArrowChecked(m_edgesSettingsArrow, RenderPass::Edges);
     setArrowChecked(m_wireSettingsArrow, RenderPass::Wireframe);
     setArrowChecked(m_fillSettingsArrow, RenderPass::Fill);
+    setArrowChecked(m_selectionSettingsArrow, RenderPass::Selection);
     setArrowChecked(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram);
 }

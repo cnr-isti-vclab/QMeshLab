@@ -1629,9 +1629,11 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
         }
 
         int selectedCount = 0;
+        int totalCount = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
             if (vi->IsD())
                 continue;
+            ++totalCount;
             setVertexRuntime(runtime, vi, mesh);
             bool selected = false;
             try {
@@ -1646,11 +1648,22 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
                 vi->ClearS();
             }
         }
+        entry.ioMask |= Mask::IOM_VERTFLAGS;
+        doc.markMeshMaterialChanged(
+            meshIndex,
+            QObject::tr("Conditional vertex selection on '%1': selected %2 / %3 vertices.")
+                .arg(entry.name)
+                .arg(selectedCount)
+                .arg(totalCount));
 
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
-        result.infoMessages = { QObject::tr("Selected %1 vertices.").arg(selectedCount) };
+        result.infoMessages = {
+            QObject::tr("Selected %1 / %2 vertices.")
+                .arg(selectedCount)
+                .arg(totalCount)
+        };
         return result;
     }
 
@@ -1665,9 +1678,11 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
         }
 
         int selectedCount = 0;
+        int totalCount = 0;
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
             if (fi->IsD())
                 continue;
+            ++totalCount;
             setFaceRuntime(runtime, fi, mesh);
             bool selected = false;
             try {
@@ -1682,11 +1697,22 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
                 fi->ClearS();
             }
         }
+        entry.ioMask |= Mask::IOM_FACEFLAGS;
+        doc.markMeshMaterialChanged(
+            meshIndex,
+            QObject::tr("Conditional face selection on '%1': selected %2 / %3 faces.")
+                .arg(entry.name)
+                .arg(selectedCount)
+                .arg(totalCount));
 
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
-        result.infoMessages = { QObject::tr("Selected %1 faces.").arg(selectedCount) };
+        result.infoMessages = {
+            QObject::tr("Selected %1 / %2 faces.")
+                .arg(selectedCount)
+                .arg(totalCount)
+        };
         return result;
     }
 

@@ -51,6 +51,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     bool drawEdgesPass = false;
     bool drawBBoxPass = false;
     bool drawPointsPass = false;
+    bool drawSelectionPass = false;
     bool drawDecoratorPass = false;
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         if (!meshVisible(mi))
@@ -61,6 +62,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         drawEdgesPass = drawEdgesPass || mode.showEdges;
         drawBBoxPass = drawBBoxPass || mode.showBoundingBox;
         drawPointsPass = drawPointsPass || mode.showPoints;
+        drawSelectionPass =
+            drawSelectionPass
+            || (mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces));
         drawDecoratorPass =
             drawDecoratorPass
             || mode.decoratorVertexNormals
@@ -69,7 +73,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             || mode.decoratorTextureSeams;
     }
     const bool anyDrawPass =
-        drawFillPass || drawWirePass || drawEdgesPass || drawBBoxPass || drawPointsPass || drawDecoratorPass
+        drawFillPass || drawWirePass || drawEdgesPass || drawBBoxPass || drawPointsPass
+        || drawSelectionPass || drawDecoratorPass
         || drawCurrentMeshHighlight || drawTrackballGizmo;
     const bool needMvpForFrame = anyDrawPass || m_depthPickPending;
 
@@ -609,6 +614,60 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     if (drawCurrentMeshHighlight)
         drawCurrentMeshOutline(cb, sz);
+
+    if (drawSelectionPass
+        && m_selectionUbuf
+        && m_selectionSrb
+        && (m_selectionFacesPipeline || m_selectionVerticesPipeline)) {
+        float selectionData[kDecoratorUbufSize / sizeof(float)] = {};
+        memcpy(selectionData, mvp.constData(), 64);
+        selectionData[16] = 1.0f;
+        selectionData[17] = 0.0f;
+        selectionData[18] = 0.0f;
+        selectionData[19] = 0.5f;
+        QRhiResourceUpdateBatch *uSel = m_rhi->nextResourceUpdateBatch();
+        uSel->updateDynamicBuffer(
+            m_selectionUbuf.get(), 0, kDecoratorUbufSize, selectionData);
+        cb->resourceUpdate(uSel);
+        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+
+        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+            if (!meshVisible(mi))
+                continue;
+            const MeshRenderMode mode = renderModeForMesh(mi);
+            if (!mode.showSelection || (!mode.showSelectionVertices && !mode.showSelectionFaces))
+                continue;
+
+            const Document::SelectionPassGpuView selectionView =
+                m_doc->selectionPassGpuView(m_rhi, mi);
+            if (!selectionView.valid)
+                continue;
+
+            if (mode.showSelectionFaces
+                && m_selectionFacesPipeline
+                && selectionView.selectedFacesBuffer
+                && selectionView.selectedFacesVertexCount > 0) {
+                cb->setGraphicsPipeline(m_selectionFacesPipeline.get());
+                cb->setShaderResources(m_selectionSrb.get());
+                const QRhiCommandBuffer::VertexInput fv(
+                    selectionView.selectedFacesBuffer, 0);
+                cb->setVertexInput(0, 1, &fv);
+                cb->draw(selectionView.selectedFacesVertexCount);
+            }
+
+            if (mode.showSelectionVertices
+                && m_selectionVerticesPipeline
+                && selectionView.selectedVerticesBuffer
+                && selectionView.selectedVerticesVertexCount > 0) {
+                cb->setGraphicsPipeline(m_selectionVerticesPipeline.get());
+                cb->setShaderResources(m_selectionSrb.get());
+                const QRhiCommandBuffer::VertexInput vv(
+                    selectionView.selectedVerticesBuffer, 0);
+                cb->setVertexInput(0, 1, &vv);
+                cb->draw(selectionView.selectedVerticesVertexCount);
+            }
+        }
+    }
 
     if (needMvpForFrame) {
         const QMatrix4x4 view = m_trackball.viewMatrix();

@@ -65,6 +65,9 @@ private:
         bool showEdges = false;
         bool showWire = true;
         bool showFill = true;
+        bool showSelection = false;
+        bool showSelectionVertices = true;
+        bool showSelectionFaces = true;
         bool decoratorVertexNormals = false;
         bool decoratorFaceNormals = false;
         bool decoratorBoundaryEdges = false;
@@ -177,6 +180,10 @@ private:
     std::array<std::unique_ptr<QRhiBuffer>, 4> m_decoratorUbufs;
     std::array<std::unique_ptr<QRhiShaderResourceBindings>, 4> m_decoratorSrbs;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorPipeline;
+    std::unique_ptr<QRhiBuffer> m_selectionUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_selectionSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_selectionFacesPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_selectionVerticesPipeline;
     std::unique_ptr<QRhiBuffer> m_decoratorFatUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_decoratorFatSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorFatPipeline;

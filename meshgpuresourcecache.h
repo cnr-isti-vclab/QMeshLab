@@ -100,12 +100,21 @@ public:
         bool valid = false;
     };
 
+    struct SelectionPassView {
+        QRhiBuffer *selectedFacesBuffer = nullptr;
+        int selectedFacesVertexCount = 0;
+        QRhiBuffer *selectedVerticesBuffer = nullptr;
+        int selectedVerticesVertexCount = 0;
+        bool valid = false;
+    };
+
     struct EnsureStats {
         bool rebuiltFill = false;
         bool rebuiltWire = false;
         bool rebuiltEdges = false;
         bool rebuiltPoints = false;
         bool rebuiltBoundingBox = false;
+        bool rebuiltSelection = false;
         bool rebuiltDecoratorNormals = false;
         bool rebuiltDecoratorBoundaries = false;
         bool uploadedResources = false;
@@ -114,7 +123,7 @@ public:
         bool anyRebuilt() const
         {
             return rebuiltFill || rebuiltWire || rebuiltEdges || rebuiltPoints || rebuiltBoundingBox
-                || rebuiltDecoratorNormals || rebuiltDecoratorBoundaries;
+                || rebuiltSelection || rebuiltDecoratorNormals || rebuiltDecoratorBoundaries;
         }
     };
 
@@ -131,6 +140,7 @@ public:
                                     bool needEdges,
                                     bool needPoints,
                                     bool needBoundingBox,
+                                    bool needSelection,
                                     bool needDecoratorNormals,
                                     bool needDecoratorBoundaries);
 
@@ -140,6 +150,7 @@ public:
     EdgeFatPassView edgeFatPassView(QRhi *rhi, std::uint64_t meshId) const;
     PointsPassView pointsPassView(QRhi *rhi, std::uint64_t meshId, PointVariant variant) const;
     BBoxPassView bboxPassView(QRhi *rhi, std::uint64_t meshId) const;
+    SelectionPassView selectionPassView(QRhi *rhi, std::uint64_t meshId) const;
     DecoratorPassView decoratorPassView(QRhi *rhi, std::uint64_t meshId) const;
 
     void purgeMesh(std::uint64_t meshId);

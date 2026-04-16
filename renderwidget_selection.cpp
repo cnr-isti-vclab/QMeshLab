@@ -37,6 +37,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     bool needEdgesAny = false;
     bool needPointsAny = false;
     bool needBBoxAny = false;
+    bool needSelectionAny = false;
     bool needDecoratorNormalsAny = false;
     bool needDecoratorBoundariesAny = false;
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
@@ -49,6 +50,9 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
         needEdgesAny = needEdgesAny || mode.showEdges;
         needPointsAny = needPointsAny || mode.showPoints;
         needBBoxAny = needBBoxAny || mode.showBoundingBox;
+        needSelectionAny =
+            needSelectionAny
+            || (mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces));
         needDecoratorNormalsAny =
             needDecoratorNormalsAny || mode.decoratorVertexNormals || mode.decoratorFaceNormals;
         needDecoratorBoundariesAny =
@@ -57,6 +61,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
     if (!hasAnyVisibleMesh)
         return;
     if (!needFillAny && !needWireAny && !needEdgesAny && !needPointsAny && !needBBoxAny
+        && !needSelectionAny
         && !needDecoratorNormalsAny && !needDecoratorBoundariesAny
         && !needHighlightCurrentMesh)
         return;
@@ -72,6 +77,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             || mode.showEdges
             || mode.showPoints
             || mode.showBoundingBox
+            || (mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces))
             || mode.decoratorVertexNormals
             || mode.decoratorFaceNormals
             || mode.decoratorBoundaryEdges
@@ -101,7 +107,8 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
                 || mode.decoratorTextureSeams,
             meshSettings.qualityHistogramFixedRange,
             meshSettings.qualityHistogramMin,
-            meshSettings.qualityHistogramMax);
+            meshSettings.qualityHistogramMax,
+            mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces));
     }
 }
 

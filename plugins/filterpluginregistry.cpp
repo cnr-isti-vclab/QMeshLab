@@ -11,6 +11,9 @@
 #if QMESH_PLUGIN_FILTER_EMBREE_ENABLED
 #include "plugins/filter_embree/embreefilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_SELECT_ENABLED
+#include "plugins/filter_select/selectfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -22,5 +25,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_EMBREE_ENABLED
     registerEmbreeFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_SELECT_ENABLED
+    registerSelectFilterPlugin(pluginManager);
 #endif
 }
