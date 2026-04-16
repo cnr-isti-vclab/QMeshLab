@@ -7,6 +7,10 @@
 
 using namespace RenderWidgetInternal;
 
+namespace {
+constexpr int kSceneBackgroundUbufSize = 32;
+}
+
 void RenderWidget::updateCameraFrameIfNeeded()
 {
     if (!m_reframeCameraRequested)
@@ -427,6 +431,9 @@ void RenderWidget::ensureRenderResources()
         m_trackballGizmoVertexCount = 0;
         m_srb.reset();
         m_ubuf.reset();
+        m_sceneBackgroundUbuf.reset();
+        m_sceneBackgroundSrb.reset();
+        m_sceneBackgroundPipeline.reset();
         m_textureSampler.reset();
         m_fallbackTexture.reset();
         m_fallbackTextureUploadPending = false;
@@ -439,8 +446,17 @@ void RenderWidget::ensureRenderResources()
         m_uvBackgroundSrb.reset();
         m_uvBackgroundPipeline.reset();
         m_uvTextureFillPipeline.reset();
+        m_uvTextureQuadVbuf.reset();
+        m_uvTextureQuadVertexCount = 0;
+        m_uvAxesVbuf.reset();
+        m_uvAxesVertexCount = 0;
         m_uvUnitBoxVbuf.reset();
         m_uvUnitBoxVertexCount = 0;
+        for (auto &ubuf : m_uvLineUbufs)
+            ubuf.reset();
+        for (auto &srb : m_uvLineSrbs)
+            srb.reset();
+        m_uvLinePipelinesByKey.clear();
         m_uvMeshGpu.clear();
     }
 
@@ -517,6 +533,51 @@ void RenderWidget::ensureRenderResources()
         if (!m_srb->create()) {
             m_srb.reset();
             return;
+        }
+    }
+
+    if (!m_sceneBackgroundUbuf) {
+        m_sceneBackgroundUbuf.reset(
+            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kSceneBackgroundUbufSize));
+        if (!m_sceneBackgroundUbuf || !m_sceneBackgroundUbuf->create())
+            m_sceneBackgroundUbuf.reset();
+    }
+
+    if (!m_sceneBackgroundSrb && m_sceneBackgroundUbuf) {
+        m_sceneBackgroundSrb.reset(m_rhi->newShaderResourceBindings());
+        m_sceneBackgroundSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_sceneBackgroundUbuf.get())
+        });
+        if (!m_sceneBackgroundSrb->create())
+            m_sceneBackgroundSrb.reset();
+    }
+
+    if (!m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
+        m_sceneBackgroundPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/scene_background.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/scene_background.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load scene background shaders");
+            m_sceneBackgroundPipeline.reset();
+        } else {
+            m_sceneBackgroundPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_sceneBackgroundPipeline->setDepthTest(false);
+            m_sceneBackgroundPipeline->setDepthWrite(false);
+            m_sceneBackgroundPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            m_sceneBackgroundPipeline->setVertexInputLayout(layout);
+            m_sceneBackgroundPipeline->setShaderResourceBindings(m_sceneBackgroundSrb.get());
+            m_sceneBackgroundPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_sceneBackgroundPipeline->create()) {
+                qWarning("Failed to create scene background pipeline");
+                m_sceneBackgroundPipeline.reset();
+            }
         }
     }
 

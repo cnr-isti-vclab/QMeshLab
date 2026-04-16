@@ -101,6 +101,10 @@ private:
         const QMatrix4x4 &view,
         const QSize &pixelSize);
     void updateQualityHistogramOverlay();
+    void updateUvScaleOverlay(
+        const QMatrix4x4 &mvp,
+        const QSize &pixelSize,
+        bool showUvReference);
     MeshRenderMode defaultRenderModeForMesh(int meshIndex) const;
     void syncPerMeshRenderModesWithDocument();
     MeshRenderMode renderModeForMesh(int meshIndex) const;
@@ -160,6 +164,9 @@ private:
     QString m_qualityColorMapTextureMapId;
     bool m_qualityColorMapTextureInverted = false;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
+    std::unique_ptr<QRhiBuffer> m_sceneBackgroundUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_sceneBackgroundSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_sceneBackgroundPipeline;
     std::unordered_map<QRhiTexture *, std::unique_ptr<QRhiShaderResourceBindings>> m_textureSrbs;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_fillPipelinesByKey;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_wirePipelinesByKey;
@@ -241,6 +248,8 @@ private:
     QLabel *m_bboxDimYOverlayLabel = nullptr;
     QLabel *m_bboxDimZOverlayLabel = nullptr;
     QLabel *m_qualityHistogramOverlayLabel = nullptr;
+    std::array<QLabel *, 11> m_uvScaleXTickLabels {};
+    std::array<QLabel *, 11> m_uvScaleYTickLabels {};
     QVector3D m_bboxOverlayMinCorner = QVector3D();
     QVector3D m_bboxOverlayMaxCorner = QVector3D();
     bool m_bboxOverlayCornersValid = false;
@@ -298,8 +307,15 @@ private:
     std::unique_ptr<QRhiShaderResourceBindings> m_uvBackgroundSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_uvBackgroundPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_uvTextureFillPipeline;
+    std::unique_ptr<QRhiBuffer> m_uvTextureQuadVbuf;
+    int m_uvTextureQuadVertexCount = 0;
+    std::unique_ptr<QRhiBuffer> m_uvAxesVbuf;
+    int m_uvAxesVertexCount = 0;
     std::unique_ptr<QRhiBuffer> m_uvUnitBoxVbuf;
     int m_uvUnitBoxVertexCount = 0;
+    std::array<std::unique_ptr<QRhiBuffer>, 12> m_uvLineUbufs;
+    std::array<std::unique_ptr<QRhiShaderResourceBindings>, 12> m_uvLineSrbs;
+    std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_uvLinePipelinesByKey;
     std::unordered_map<std::uint64_t, UvMeshGpu> m_uvMeshGpu;
     bool m_uvFitRequested = true;
     bool m_uvPanning = false;

@@ -473,6 +473,8 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
     }
 
     m_viewMode = mode;
+    if (m_overlayPanel)
+        m_overlayPanel->setViewerModeUv(m_viewMode == ViewMode::ParametrizationUV);
     if (m_viewMode == ViewMode::Scene3D)
         updateBoundingBoxCornersOverlay();
     if (errorMessage)
@@ -543,6 +545,7 @@ void RenderWidget::advanceCenterAnimation()
 void RenderWidget::createOverlayButtons()
 {
     m_overlayPanel = new RenderOverlayPanel(this);
+    m_overlayPanel->setViewerModeUv(m_viewMode == ViewMode::ParametrizationUV);
     m_overlayPanel->setSettings(m_renderSettings);
     auto makeCornerLabel = [this](const QColor &textColor) {
         auto *label = new QLabel(this);
@@ -578,6 +581,35 @@ void RenderWidget::createOverlayButtons()
         "  border-radius: 4px;"
         "  padding: 2px;"
         "}"));
+    for (int i = 0; i <= 10; ++i) {
+        auto *xLabel = new QLabel(this);
+        xLabel->setVisible(false);
+        xLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        xLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        xLabel->setStyleSheet(QStringLiteral(
+            "QLabel {"
+            "  color: rgba(240,240,245,230);"
+            "  background: transparent;"
+            "  border: none;"
+            "  padding: 0px;"
+            "}"));
+        xLabel->setText(QString::number(i / 10.0f, 'f', 1));
+        m_uvScaleXTickLabels[size_t(i)] = xLabel;
+
+        auto *yLabel = new QLabel(this);
+        yLabel->setVisible(false);
+        yLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        yLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        yLabel->setStyleSheet(QStringLiteral(
+            "QLabel {"
+            "  color: rgba(240,240,245,230);"
+            "  background: transparent;"
+            "  border: none;"
+            "  padding: 0px;"
+            "}"));
+        yLabel->setText(QString::number(i / 10.0f, 'f', 1));
+        m_uvScaleYTickLabels[size_t(i)] = yLabel;
+    }
 
     connect(m_overlayPanel, &RenderOverlayPanel::settingsChanged, this,
             [this](const RenderSettings &settings) {
@@ -1202,7 +1234,23 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
     emit viewActivated(this);
     if (m_viewMode == ViewMode::ParametrizationUV) {
         if (e && e->button() == Qt::LeftButton) {
-            m_uvFitRequested = true;
+            const QSize sz(qMax(1, width()), qMax(1, height()));
+            const QPointF p = e->position();
+            const auto screenToUv = [&](const QPointF &screenPos, float zoom, const QVector2D &pan) {
+                const float aspect = float(sz.width()) / float(sz.height());
+                const float xLim = (aspect >= 1.0f) ? aspect : 1.0f;
+                const float yLim = (aspect >= 1.0f) ? 1.0f : (1.0f / qMax(1e-6f, aspect));
+                const float ndcX = 2.0f * (float(screenPos.x()) / float(sz.width())) - 1.0f;
+                const float ndcY = 1.0f - 2.0f * (float(screenPos.y()) / float(sz.height()));
+                return QVector2D(
+                    pan.x() + ndcX * xLim / qMax(1e-6f, zoom),
+                    pan.y() + ndcY * yLim / qMax(1e-6f, zoom));
+            };
+
+            const QVector2D clickedUv = screenToUv(p, qMax(1e-6f, m_uvZoom), m_uvPan);
+            m_uvPan = clickedUv;
+            m_uvZoom = std::clamp(m_uvZoom * 1.35f, 0.05f, 5000.0f);
+            m_uvFitRequested = false;
             update();
             e->accept();
             return;

@@ -111,6 +111,8 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/selection_outline.vert
         shaders/selection_outline_extract.frag
         shaders/selection_outline.frag
+        shaders/scene_background.vert
+        shaders/scene_background.frag
         shaders/uv_background.vert
         shaders/uv_background.frag
         shaders/uv_fill_texture.vert

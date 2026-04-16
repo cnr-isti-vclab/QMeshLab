@@ -2,6 +2,7 @@
 #include "colormap.h"
 #include "document.h"
 #include "renderwidget_internal.h"
+#include <QLabel>
 
 using namespace RenderWidgetInternal;
 
@@ -26,11 +27,20 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         renderParametrization(cb);
         return;
     }
+    for (QLabel *label : m_uvScaleXTickLabels) {
+        if (label)
+            label->hide();
+    }
+    for (QLabel *label : m_uvScaleYTickLabels) {
+        if (label)
+            label->hide();
+    }
 
     advanceCenterAnimation();
     syncPerMeshRenderModesWithDocument();
 
-    const bool drawTrackballGizmo = (m_doc->meshCount() > 0);
+    const bool drawTrackballGizmo =
+        m_renderSettings.showTrackballGizmo && (m_doc->meshCount() > 0);
     const int currentMeshIndex = m_doc->currentMeshIndex();
     const bool drawCurrentMeshHighlight =
         m_renderSettings.highlightCurrentMesh
@@ -219,11 +229,31 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         processCurrentMeshMask(cb, sz);
     }
 
-    cb->beginPass(renderTarget(), QColor(40, 40, 40), { 1.0f, 0 }, u);
+    if (m_sceneBackgroundUbuf) {
+        float bgData[8] = {};
+        bgData[0] = m_renderSettings.sceneBackgroundBottomColor.redF();
+        bgData[1] = m_renderSettings.sceneBackgroundBottomColor.greenF();
+        bgData[2] = m_renderSettings.sceneBackgroundBottomColor.blueF();
+        bgData[3] = 1.0f;
+        bgData[4] = m_renderSettings.sceneBackgroundTopColor.redF();
+        bgData[5] = m_renderSettings.sceneBackgroundTopColor.greenF();
+        bgData[6] = m_renderSettings.sceneBackgroundTopColor.blueF();
+        bgData[7] = 1.0f;
+        if (!u)
+            u = m_rhi->nextResourceUpdateBatch();
+        u->updateDynamicBuffer(m_sceneBackgroundUbuf.get(), 0, sizeof(bgData), bgData);
+    }
+
+    cb->beginPass(renderTarget(), m_renderSettings.sceneBackgroundBottomColor, { 1.0f, 0 }, u);
+    cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+
+    if (m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
+        cb->setGraphicsPipeline(m_sceneBackgroundPipeline.get());
+        cb->setShaderResources(m_sceneBackgroundSrb.get());
+        cb->draw(3);
+    }
 
     if (drawFillPass) {
-        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;

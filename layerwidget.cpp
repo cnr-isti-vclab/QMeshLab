@@ -4,11 +4,15 @@
 #include <QFileInfo>
 #include <QFontMetrics>
 #include <QHash>
+#include <QHBoxLayout>
 #include <QImageReader>
 #include <QHeaderView>
+#include <QLabel>
 #include <QLocale>
 #include <QMetaObject>
+#include <QPainter>
 #include <QSignalBlocker>
+#include <QVBoxLayout>
 #include <algorithm>
 
 namespace {
@@ -114,6 +118,106 @@ QString textureDisplaySize(const QString &path)
 
     return QStringLiteral("%1x%2").arg(sz.width()).arg(sz.height());
 }
+
+QPixmap textureThumbnail(const QString &path, int side)
+{
+    side = std::max(8, side);
+    const QString cacheKey = QStringLiteral("%1|%2").arg(path).arg(side);
+    static QHash<QString, QPixmap> cache;
+    const auto it = cache.constFind(cacheKey);
+    if (it != cache.constEnd())
+        return it.value();
+
+    QPixmap out(side, side);
+    out.fill(QColor(30, 30, 30));
+    QPainter p(&out);
+    p.setRenderHint(QPainter::Antialiasing, true);
+
+    bool ok = false;
+    if (!path.isEmpty() && QFileInfo::exists(path)) {
+        QImageReader reader(path);
+        reader.setAutoTransform(true);
+        const QSize native = reader.size();
+        if (native.isValid())
+            reader.setScaledSize(native.scaled(side, side, Qt::KeepAspectRatio));
+        const QImage img = reader.read();
+        if (!img.isNull()) {
+            const QPixmap tex = QPixmap::fromImage(
+                img.scaled(side, side, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            const int x = (side - tex.width()) / 2;
+            const int y = (side - tex.height()) / 2;
+            p.drawPixmap(x, y, tex);
+            ok = true;
+        }
+    }
+
+    if (!ok) {
+        p.fillRect(out.rect(), QColor(45, 45, 48));
+        p.setPen(QColor(110, 110, 115));
+        p.drawLine(2, 2, side - 3, side - 3);
+        p.drawLine(2, side - 3, side - 3, 2);
+    }
+
+    p.setPen(QColor(95, 95, 100));
+    p.drawRect(out.rect().adjusted(0, 0, -1, -1));
+
+    cache.insert(cacheKey, out);
+    return out;
+}
+
+QWidget *textureInfoWidget(
+    QTreeWidget *owner,
+    const Document::MeshEntry &entry,
+    int index,
+    const QFontMetrics &fm)
+{
+    const QString path =
+        (index >= 0 && index < entry.textureFilePaths.size()) ? entry.textureFilePaths.at(index) : QString();
+    const QString name = textureDisplayName(entry, index);
+    const QString size = textureDisplaySize(path);
+    const int lineH = std::max(8, fm.lineSpacing());
+    const int thumbSide = std::max(14, lineH * 2);
+
+    auto *container = new QWidget(owner);
+    auto *h = new QHBoxLayout(container);
+    h->setContentsMargins(0, 0, 0, 0);
+    h->setSpacing(6);
+
+    auto *thumb = new QLabel(container);
+    thumb->setFixedSize(thumbSide, thumbSide);
+    thumb->setPixmap(textureThumbnail(path, thumbSide));
+
+    auto *textCol = new QWidget(container);
+    auto *v = new QVBoxLayout(textCol);
+    v->setContentsMargins(0, 0, 0, 0);
+    v->setSpacing(0);
+
+    auto *nameLabel = new QLabel(name, textCol);
+    nameLabel->setTextFormat(Qt::PlainText);
+    nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    nameLabel->setFixedHeight(lineH);
+
+    auto *sizeLabel = new QLabel(size, textCol);
+    sizeLabel->setTextFormat(Qt::PlainText);
+    sizeLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    sizeLabel->setFixedHeight(lineH);
+    sizeLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+
+    v->addWidget(nameLabel);
+    v->addWidget(sizeLabel);
+
+    h->addWidget(thumb, 0, Qt::AlignVCenter);
+    h->addWidget(textCol, 1);
+
+    if (!path.isEmpty()) {
+        container->setToolTip(path);
+        thumb->setToolTip(path);
+        nameLabel->setToolTip(path);
+        sizeLabel->setToolTip(path);
+    }
+
+    return container;
+}
 }
 
 LayerWidget::LayerWidget(Document *doc, QWidget *parent)
@@ -201,16 +305,14 @@ void LayerWidget::rebuild()
 
         for (int texIdx = 0; texIdx < entry.textureFilePaths.size(); ++texIdx) {
             const QString texPath = entry.textureFilePaths.at(texIdx);
-            auto *tItem = new QTreeWidgetItem(
-                {tr("Tex %1").arg(texIdx), QStringLiteral("%1 (%2)")
-                    .arg(textureDisplayName(entry, texIdx))
-                    .arg(textureDisplaySize(texPath))});
+            auto *tItem = new QTreeWidgetItem({tr("Tex %1").arg(texIdx), QString()});
             tItem->setFlags(tItem->flags() & ~Qt::ItemIsSelectable);
             if (!texPath.isEmpty()) {
                 tItem->setToolTip(0, texPath);
                 tItem->setToolTip(1, texPath);
             }
             item->addChild(tItem);
+            setItemWidget(tItem, 1, textureInfoWidget(this, entry, texIdx, fm));
         }
 
         const QString dataTip = meshDataTooltip(entry);

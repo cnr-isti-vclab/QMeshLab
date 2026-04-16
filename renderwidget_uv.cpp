@@ -3,6 +3,8 @@
 #include "document.h"
 #include "renderwidget_internal.h"
 #include <wrap/io_trimesh/io_mask.h>
+#include <QFontDatabase>
+#include <QFontMetrics>
 #include <QLabel>
 #include <algorithm>
 #include <cmath>
@@ -484,6 +486,10 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
 void RenderWidget::fitUvViewToCurrentMesh(const QSize &pixelSize)
 {
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+    const bool fitWholeTexture =
+        (meshIndex >= 0 && meshIndex < m_doc->meshCount())
+        ? renderSettingsForMesh(meshIndex).uvShowFullTexture
+        : m_renderSettings.uvShowFullTexture;
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
         m_uvPan = QVector2D(0.5f, 0.5f);
         m_uvZoom = 1.0f;
@@ -493,15 +499,15 @@ void RenderWidget::fitUvViewToCurrentMesh(const QSize &pixelSize)
 
     const auto &entry = m_doc->mesh(meshIndex);
     const auto it = m_uvMeshGpu.find(entry.meshId);
-    if (it == m_uvMeshGpu.end() || !it->second.valid) {
+    if (!fitWholeTexture && (it == m_uvMeshGpu.end() || !it->second.valid)) {
         m_uvPan = QVector2D(0.5f, 0.5f);
         m_uvZoom = 1.0f;
         m_uvFitRequested = false;
         return;
     }
 
-    const QVector2D minUv = it->second.minUv;
-    const QVector2D maxUv = it->second.maxUv;
+    const QVector2D minUv = fitWholeTexture ? QVector2D(0.0f, 0.0f) : it->second.minUv;
+    const QVector2D maxUv = fitWholeTexture ? QVector2D(1.0f, 1.0f) : it->second.maxUv;
     const QVector2D center = (minUv + maxUv) * 0.5f;
     const float halfW = qMax(1e-6f, (maxUv.x() - minUv.x()) * 0.5f);
     const float halfH = qMax(1e-6f, (maxUv.y() - minUv.y()) * 0.5f);
@@ -517,6 +523,100 @@ void RenderWidget::fitUvViewToCurrentMesh(const QSize &pixelSize)
     m_uvPan = center;
     m_uvZoom = std::clamp(std::min(zoomX, zoomY), kUvMinZoom, kUvMaxZoom);
     m_uvFitRequested = false;
+}
+
+void RenderWidget::updateUvScaleOverlay(
+    const QMatrix4x4 &mvp,
+    const QSize &pixelSize,
+    bool showUvReference)
+{
+    auto hideAllLabels = [this]() {
+        for (QLabel *label : m_uvScaleXTickLabels) {
+            if (label)
+                label->hide();
+        }
+        for (QLabel *label : m_uvScaleYTickLabels) {
+            if (label)
+                label->hide();
+        }
+    };
+    if (m_viewMode != ViewMode::ParametrizationUV || !showUvReference || pixelSize.isEmpty()) {
+        hideAllLabels();
+        return;
+    }
+
+    const auto uvToWidgetPoint = [this, &mvp, &pixelSize](float u, float v, QPointF &out) -> bool {
+        const QVector4D clip = mvp * QVector4D(u, v, 0.0f, 1.0f);
+        if (clip.w() <= 1e-8f)
+            return false;
+        const QVector3D ndc = clip.toVector3DAffine();
+        const float px = (ndc.x() * 0.5f + 0.5f) * float(pixelSize.width());
+        const float py = (1.0f - (ndc.y() * 0.5f + 0.5f)) * float(pixelSize.height());
+        const float dpr = qMax(1.0, devicePixelRatioF());
+        out.setX(px / dpr);
+        out.setY(py / dpr);
+        return std::isfinite(out.x()) && std::isfinite(out.y());
+    };
+
+    QPointF p00;
+    QPointF p10;
+    QPointF p01;
+    if (!uvToWidgetPoint(0.0f, 0.0f, p00)
+        || !uvToWidgetPoint(1.0f, 0.0f, p10)
+        || !uvToWidgetPoint(0.0f, 1.0f, p01)) {
+        hideAllLabels();
+        return;
+    }
+
+    const QVector2D xAxis = QVector2D(p10 - p00);
+    const QVector2D yAxis = QVector2D(p01 - p00);
+    if (xAxis.length() < 12.0f || yAxis.length() < 12.0f) {
+        hideAllLabels();
+        return;
+    }
+
+    QFont labelFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    if (labelFont.pointSizeF() <= 0.0f)
+        labelFont.setPointSize(9);
+    labelFont.setPointSizeF(std::max(8.0, labelFont.pointSizeF() - 1.0));
+    const QFontMetrics fm(labelFont);
+    const int labelH = qMax(10, fm.height());
+    const int xLabelW = qMax(24, fm.horizontalAdvance(QStringLiteral("1.0")) + 4);
+    const int yLabelW = qMax(24, fm.horizontalAdvance(QStringLiteral("1.0")) + 4);
+    const int xOffset = 8;
+    const int yOffset = 6;
+
+    for (int i = 0; i <= 10; ++i) {
+        const float t = float(i) / 10.0f;
+        const QPointF xPt = p00 + (p10 - p00) * t;
+        const QPointF yPt = p00 + (p01 - p00) * t;
+
+        QLabel *xLabel = m_uvScaleXTickLabels[size_t(i)];
+        if (xLabel) {
+            xLabel->setFont(labelFont);
+            xLabel->setFixedSize(xLabelW, labelH);
+            int x = int(std::lround(xPt.x())) - xLabelW / 2;
+            int y = int(std::lround(xPt.y())) + xOffset;
+            x = std::clamp(x, 0, qMax(0, width() - xLabel->width()));
+            y = std::clamp(y, 0, qMax(0, height() - xLabel->height()));
+            xLabel->move(x, y);
+            xLabel->show();
+            xLabel->raise();
+        }
+
+        QLabel *yLabel = m_uvScaleYTickLabels[size_t(i)];
+        if (yLabel) {
+            yLabel->setFont(labelFont);
+            yLabel->setFixedSize(yLabelW, labelH);
+            int x = int(std::lround(yPt.x())) - yLabelW - yOffset;
+            int y = int(std::lround(yPt.y())) - yLabel->height() / 2;
+            x = std::clamp(x, 0, qMax(0, width() - yLabel->width()));
+            y = std::clamp(y, 0, qMax(0, height() - yLabel->height()));
+            yLabel->move(x, y);
+            yLabel->show();
+            yLabel->raise();
+        }
+    }
 }
 
 void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
@@ -545,6 +645,10 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         (meshIndex >= 0 && meshIndex < m_doc->meshCount())
         ? renderSettingsForMesh(meshIndex)
         : m_renderSettings;
+    const bool hasMeshTextures =
+        (m_doc && meshIndex >= 0 && meshIndex < m_doc->meshCount())
+        ? !m_doc->mesh(meshIndex).textureFilePaths.isEmpty()
+        : false;
     const bool canDraw =
         (meshIndex >= 0)
         && meshVisible(meshIndex)
@@ -619,6 +723,69 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             }
         }
     }
+    if (!m_uvTextureQuadVbuf) {
+        auto appendUvQuadVertex = [](std::array<float, 6 * kFillVertexStrideFloats> &dst,
+                                     int vertexIndex,
+                                     float u,
+                                     float v) {
+            const int o = vertexIndex * kFillVertexStrideFloats;
+            dst[size_t(o + 0)] = 0.0f;
+            dst[size_t(o + 1)] = 0.0f;
+            dst[size_t(o + 2)] = 0.0f;
+            dst[size_t(o + 3)] = 0.0f;
+            dst[size_t(o + 4)] = 0.0f;
+            dst[size_t(o + 5)] = 1.0f;
+            dst[size_t(o + 6)] = 1.0f;
+            dst[size_t(o + 7)] = 1.0f;
+            dst[size_t(o + 8)] = 1.0f;
+            dst[size_t(o + 9)] = 0.0f;
+            dst[size_t(o + 10)] = u;
+            dst[size_t(o + 11)] = v;
+            dst[size_t(o + 12)] = 1.0f;
+        };
+        std::array<float, 6 * kFillVertexStrideFloats> quad = {};
+        appendUvQuadVertex(quad, 0, 0.0f, 0.0f);
+        appendUvQuadVertex(quad, 1, 1.0f, 0.0f);
+        appendUvQuadVertex(quad, 2, 1.0f, 1.0f);
+        appendUvQuadVertex(quad, 3, 0.0f, 0.0f);
+        appendUvQuadVertex(quad, 4, 1.0f, 1.0f);
+        appendUvQuadVertex(quad, 5, 0.0f, 1.0f);
+
+        m_uvTextureQuadVbuf.reset(
+            m_rhi->newBuffer(
+                QRhiBuffer::Immutable,
+                QRhiBuffer::VertexBuffer,
+                quint32(quad.size() * sizeof(float))));
+        if (m_uvTextureQuadVbuf && m_uvTextureQuadVbuf->create()) {
+            QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+            u->uploadStaticBuffer(m_uvTextureQuadVbuf.get(), quad.data());
+            cb->resourceUpdate(u);
+            m_uvTextureQuadVertexCount = 6;
+        } else {
+            m_uvTextureQuadVbuf.reset();
+            m_uvTextureQuadVertexCount = 0;
+        }
+    }
+    if (!m_uvAxesVbuf) {
+        const std::array<float, 12> axes = {
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // U axis
+            0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f  // V axis
+        };
+        m_uvAxesVbuf.reset(
+            m_rhi->newBuffer(
+                QRhiBuffer::Immutable,
+                QRhiBuffer::VertexBuffer,
+                quint32(axes.size() * sizeof(float))));
+        if (m_uvAxesVbuf && m_uvAxesVbuf->create()) {
+            QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+            u->uploadStaticBuffer(m_uvAxesVbuf.get(), axes.data());
+            cb->resourceUpdate(u);
+            m_uvAxesVertexCount = 4;
+        } else {
+            m_uvAxesVbuf.reset();
+            m_uvAxesVertexCount = 0;
+        }
+    }
     if (!m_uvUnitBoxVbuf) {
         const std::array<float, 24> unitBox = {
             0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
@@ -661,7 +828,11 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     normalMat(1, 1) = 1.0f;
     normalMat(2, 2) = 1.0f;
 
-    if (canDraw && meshSettings.showFill && meshSettings.fillColorSource == FillColorSource::Texture) {
+    Document::FillPassGpuView textureFillView {};
+    const bool needTextureGeometry = hasMeshTextures
+        && (meshSettings.uvShowFullTexture
+            || (meshSettings.showFill && meshSettings.fillColorSource == FillColorSource::Texture));
+    if (canDraw && needTextureGeometry) {
         m_doc->ensureMeshGpuResources(
             m_rhi,
             cb,
@@ -675,6 +846,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             false,  // bbox
             false,  // decorator normals
             false); // decorator boundaries
+        textureFillView = m_doc->fillPassGpuView(m_rhi, meshIndex, Document::FillGpuVariant::Texture);
     }
 
     float baseUbufData[kUbufFloatCount] = {};
@@ -694,12 +866,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         cb->resourceUpdate(u);
     }
 
-    MainStyleUbufKey lastStyleKey = mainStyleUbufKeyFromSettings(meshSettings, false);
-    bool hasLastStyleKey = true;
     auto updateStyleUbuf = [&](const RenderSettings &styleSettings) {
-        const MainStyleUbufKey nextKey = mainStyleUbufKeyFromSettings(styleSettings, false);
-        if (hasLastStyleKey && nextKey == lastStyleKey)
-            return;
         float ubufData[kUbufFloatCount];
         memcpy(ubufData, baseUbufData, sizeof(ubufData));
         writeMainStyleToUbuf(ubufData, styleSettings, sz, false);
@@ -707,8 +874,6 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
         cb->resourceUpdate(u);
-        lastStyleKey = nextKey;
-        hasLastStyleKey = true;
     };
 
     if (m_uvBackgroundUbuf) {
@@ -734,6 +899,136 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         cb->draw(3);
     }
 
+    if (meshSettings.uvShowFullTexture
+        && m_uvTextureFillPipeline
+        && m_uvTextureQuadVbuf
+        && m_uvTextureQuadVertexCount > 0
+        && textureFillView.valid) {
+        QRhiTexture *fullTexture = nullptr;
+        for (int bi = 0; bi < textureFillView.batchCount; ++bi) {
+            QRhiTexture *candidate = textureFillView.batches[bi].texture;
+            if (candidate) {
+                fullTexture = candidate;
+                break;
+            }
+        }
+        if (fullTexture) {
+            RenderSettings textureBgSettings = meshSettings;
+            textureBgSettings.fillLighting = false;
+            updateStyleUbuf(textureBgSettings);
+            cb->setGraphicsPipeline(m_uvTextureFillPipeline.get());
+            cb->setShaderResources(shaderResourcesForTexture(fullTexture));
+            const QRhiCommandBuffer::VertexInput binding(m_uvTextureQuadVbuf.get(), 0);
+            cb->setVertexInput(0, 1, &binding);
+            cb->draw(m_uvTextureQuadVertexCount);
+        }
+    }
+
+    int uvLineSlot = 0;
+    auto ensureUvLineSlot = [&](int slot) -> bool {
+        if (slot < 0 || slot >= int(m_uvLineUbufs.size()))
+            return false;
+        if (!m_uvLineUbufs[size_t(slot)]) {
+            m_uvLineUbufs[size_t(slot)].reset(
+                m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorUbufSize));
+            if (!m_uvLineUbufs[size_t(slot)] || !m_uvLineUbufs[size_t(slot)]->create())
+                m_uvLineUbufs[size_t(slot)].reset();
+        }
+        if (!m_uvLineSrbs[size_t(slot)] && m_uvLineUbufs[size_t(slot)]) {
+            m_uvLineSrbs[size_t(slot)].reset(m_rhi->newShaderResourceBindings());
+            m_uvLineSrbs[size_t(slot)]->setBindings({
+                QRhiShaderResourceBinding::uniformBuffer(
+                    0,
+                    QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                    m_uvLineUbufs[size_t(slot)].get())
+            });
+            if (!m_uvLineSrbs[size_t(slot)]->create())
+                m_uvLineSrbs[size_t(slot)].reset();
+        }
+        return m_uvLineUbufs[size_t(slot)] && m_uvLineSrbs[size_t(slot)];
+    };
+
+    auto uvLinePipelineForWidth = [&](float width) -> QRhiGraphicsPipeline * {
+        if (!m_rhi || !renderTarget())
+            return nullptr;
+        const int key = int(std::lround(qMax(0.5f, width) * 10.0f));
+        auto it = m_uvLinePipelinesByKey.find(key);
+        if (it != m_uvLinePipelinesByKey.end())
+            return it->second.get();
+        if (!ensureUvLineSlot(0))
+            return nullptr;
+
+        auto pipeline = std::unique_ptr<QRhiGraphicsPipeline>(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_decorator.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_decorator.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid())
+            return nullptr;
+
+        pipeline->setShaderStages({
+            { QRhiShaderStage::Vertex, vs },
+            { QRhiShaderStage::Fragment, fs }
+        });
+        pipeline->setTopology(QRhiGraphicsPipeline::Lines);
+        pipeline->setDepthTest(false);
+        pipeline->setDepthWrite(false);
+        pipeline->setCullMode(QRhiGraphicsPipeline::None);
+        pipeline->setLineWidth(qMax(0.5f, width));
+        QRhiGraphicsPipeline::TargetBlend blend;
+        blend.enable = true;
+        blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+        blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        blend.opColor = QRhiGraphicsPipeline::Add;
+        blend.srcAlpha = QRhiGraphicsPipeline::One;
+        blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        blend.opAlpha = QRhiGraphicsPipeline::Add;
+        pipeline->setTargetBlends({ blend });
+        QRhiVertexInputLayout layout;
+        layout.setBindings({ { 3 * sizeof(float) } });
+        layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+        pipeline->setVertexInputLayout(layout);
+        pipeline->setShaderResourceBindings(m_uvLineSrbs[0].get());
+        pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+        if (!pipeline->create())
+            return nullptr;
+
+        auto inserted = m_uvLinePipelinesByKey.emplace(key, std::move(pipeline));
+        return inserted.first->second.get();
+    };
+
+    auto drawUvLineSetStable = [&](const QColor &color,
+                                   float width,
+                                   QRhiBuffer *vbuf,
+                                   int vertexCount,
+                                   quint32 firstByteOffset = 0u) {
+        if (!vbuf || vertexCount <= 0)
+            return;
+        if (uvLineSlot >= int(m_uvLineUbufs.size()))
+            return;
+        if (!ensureUvLineSlot(uvLineSlot))
+            return;
+        QRhiGraphicsPipeline *pipeline = uvLinePipelineForWidth(width);
+        if (!pipeline)
+            return;
+
+        float decoData[kDecoratorUbufSize / sizeof(float)] = {};
+        memcpy(decoData, mvp.constData(), 16 * sizeof(float));
+        decoData[16] = color.redF();
+        decoData[17] = color.greenF();
+        decoData[18] = color.blueF();
+        decoData[19] = color.alphaF();
+        QRhiResourceUpdateBatch *uLine = m_rhi->nextResourceUpdateBatch();
+        uLine->updateDynamicBuffer(
+            m_uvLineUbufs[size_t(uvLineSlot)].get(), 0, kDecoratorUbufSize, decoData);
+        cb->resourceUpdate(uLine);
+
+        cb->setGraphicsPipeline(pipeline);
+        cb->setShaderResources(m_uvLineSrbs[size_t(uvLineSlot)].get());
+        const QRhiCommandBuffer::VertexInput binding(vbuf, firstByteOffset);
+        cb->setVertexInput(0, 1, &binding);
+        cb->draw(vertexCount);
+        ++uvLineSlot;
+    };
+
     if (canDraw) {
         const auto &entry = m_doc->mesh(meshIndex);
         auto cacheIt = m_uvMeshGpu.find(entry.meshId);
@@ -745,8 +1040,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 if (meshSettings.fillColorSource == FillColorSource::Texture
                     && m_uvTextureFillPipeline) {
                     updateStyleUbuf(meshSettings);
-                    const Document::FillPassGpuView fillView =
-                        m_doc->fillPassGpuView(m_rhi, meshIndex, Document::FillGpuVariant::Texture);
+                    const Document::FillPassGpuView fillView = textureFillView;
                     if (fillView.valid) {
                         cb->setGraphicsPipeline(m_uvTextureFillPipeline.get());
                         for (int bi = 0; bi < fillView.batchCount; ++bi) {
@@ -791,37 +1085,20 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 }
             }
 
-            auto drawLineSet = [&](const QColor &color, float width, QRhiBuffer *vbuf, int vertexCount) {
-                if (!vbuf || vertexCount <= 0)
-                    return;
-                RenderSettings edgeSettings = meshSettings;
-                edgeSettings.edgeColor = color;
-                edgeSettings.edgeSize = width;
-                QRhiGraphicsPipeline *pipeline = edgesPipelineForSettings(edgeSettings);
-                if (!pipeline)
-                    return;
-                updateStyleUbuf(edgeSettings);
-                cb->setGraphicsPipeline(pipeline);
-                cb->setShaderResources(m_srb.get());
-                const QRhiCommandBuffer::VertexInput binding(vbuf, 0);
-                cb->setVertexInput(0, 1, &binding);
-                cb->draw(vertexCount);
-            };
-
             if (meshSettings.showWire)
-                drawLineSet(
+                drawUvLineSetStable(
                     meshSettings.wireColor, meshSettings.wireSize, uvGpu.wireVbuf.get(), uvGpu.wireVertexCount);
             if (meshSettings.showEdges)
-                drawLineSet(
+                drawUvLineSetStable(
                     meshSettings.edgeColor, meshSettings.edgeSize, uvGpu.wireVbuf.get(), uvGpu.wireVertexCount);
             if (meshMode.decoratorBoundaryEdges)
-                drawLineSet(
+                drawUvLineSetStable(
                     meshMode.decoratorBoundaryEdgeColor,
                     qMax(0.5f, meshSettings.decoratorBoundaryWidth),
                     uvGpu.boundaryEdgesVbuf.get(),
                     uvGpu.boundaryEdgesVertexCount);
             if (meshMode.decoratorTextureSeams)
-                drawLineSet(
+                drawUvLineSetStable(
                     meshMode.decoratorTextureSeamColor,
                     qMax(0.5f, meshSettings.decoratorBoundaryWidth),
                     uvGpu.textureSeamsVbuf.get(),
@@ -848,20 +1125,25 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         }
     }
 
-    if (meshSettings.showBoundingBox && m_uvUnitBoxVbuf && m_uvUnitBoxVertexCount > 0) {
-        RenderSettings boxSettings = meshSettings;
-        boxSettings.edgeColor = meshSettings.bboxWireColor;
-        boxSettings.edgeSize = qMax(1.0f, meshSettings.edgeSize);
-        QRhiGraphicsPipeline *pipeline = edgesPipelineForSettings(boxSettings);
-        if (pipeline) {
-            updateStyleUbuf(boxSettings);
-            cb->setGraphicsPipeline(pipeline);
-            cb->setShaderResources(m_srb.get());
-            const QRhiCommandBuffer::VertexInput binding(m_uvUnitBoxVbuf.get(), 0);
-            cb->setVertexInput(0, 1, &binding);
-            cb->draw(m_uvUnitBoxVertexCount);
-        }
+    const bool drawUnitSquare = meshSettings.uvShowReferenceFrame;
+    if (drawUnitSquare && m_uvUnitBoxVbuf && m_uvUnitBoxVertexCount > 0) {
+        const QColor squareColor(220, 220, 225, 220);
+        const float squareWidth = 1.0f;
+        drawUvLineSetStable(squareColor, squareWidth, m_uvUnitBoxVbuf.get(), m_uvUnitBoxVertexCount);
     }
+
+    if (meshSettings.uvShowReferenceFrame && m_uvAxesVbuf && m_uvAxesVertexCount >= 4) {
+        const float axisWidth = qMax(1.2f, meshSettings.edgeSize);
+        drawUvLineSetStable(QColor(230, 82, 82), axisWidth, m_uvAxesVbuf.get(), 2, 0);
+        drawUvLineSetStable(
+            QColor(80, 200, 120),
+            axisWidth,
+            m_uvAxesVbuf.get(),
+            2,
+            quint32(2 * 3 * sizeof(float)));
+    }
+
+    updateUvScaleOverlay(mvp, sz, meshSettings.uvShowReferenceFrame);
 
     cb->endPass();
 

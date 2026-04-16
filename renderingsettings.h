@@ -53,6 +53,7 @@ enum class CurrentMeshDebugView {
 
 struct RenderSettings {
     bool highlightCurrentMesh = true;
+    bool showTrackballGizmo = true;
     bool showBoundingBox = false;
     bool showBoundingBoxCorners = false;
     bool showBoundingBoxDimensions = false;
@@ -77,6 +78,10 @@ struct RenderSettings {
     bool decoratorBoundaryEdges = false;
     bool decoratorTextureSeams = false;
     bool showQualityHistogram = false;
+    bool uvShowReferenceFrame = true;
+    bool uvShowFullTexture = false;
+    QColor sceneBackgroundTopColor = QColor(0, 0, 0);
+    QColor sceneBackgroundBottomColor = QColor(128, 128, 255);
     QColor decoratorVertexNormalColor = QColor(70, 200, 255);
     QColor decoratorFaceNormalColor = QColor(70, 255, 120);
     QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);
@@ -104,6 +109,7 @@ struct RenderSettings {
     bool operator==(const RenderSettings &other) const
     {
         return highlightCurrentMesh == other.highlightCurrentMesh
+            && showTrackballGizmo == other.showTrackballGizmo
             && showBoundingBox == other.showBoundingBox
             && showBoundingBoxCorners == other.showBoundingBoxCorners
             && showBoundingBoxDimensions == other.showBoundingBoxDimensions
@@ -128,6 +134,10 @@ struct RenderSettings {
             && decoratorBoundaryEdges == other.decoratorBoundaryEdges
             && decoratorTextureSeams == other.decoratorTextureSeams
             && showQualityHistogram == other.showQualityHistogram
+            && uvShowReferenceFrame == other.uvShowReferenceFrame
+            && uvShowFullTexture == other.uvShowFullTexture
+            && sceneBackgroundTopColor == other.sceneBackgroundTopColor
+            && sceneBackgroundBottomColor == other.sceneBackgroundBottomColor
             && decoratorVertexNormalColor == other.decoratorVertexNormalColor
             && decoratorFaceNormalColor == other.decoratorFaceNormalColor
             && decoratorBoundaryEdgeColor == other.decoratorBoundaryEdgeColor

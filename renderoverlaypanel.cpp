@@ -147,7 +147,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         return btn;
     };
 
-    m_currentMeshButton = makeButton(QStringLiteral(":/img/global.png"), tr("Current Mesh Highlight"));
+    m_currentMeshButton = makeButton(QStringLiteral(":/img/global.png"), tr("Viewer Settings"));
     m_currentMeshButton->setCheckable(false);
     m_modeButton = makeButton(QStringLiteral(":/img/options.png"), tr("Rendering Settings"));
     m_modeButton->setCheckable(true);
@@ -205,7 +205,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     modeArrowSpacer->setFixedSize(32, 12);
     arrowLayout->addWidget(modeArrowSpacer);
 
-    m_currentMeshSettingsArrow = makeArrowButton(tr("Settings: Current Mesh"));
+    m_currentMeshSettingsArrow = makeArrowButton(tr("Settings: Viewer"));
     arrowLayout->addWidget(m_currentMeshSettingsArrow);
 
     m_bboxSettingsArrow = makeArrowButton(tr("Settings: Bounding Box"));
@@ -242,18 +242,29 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *currentMeshLayout = new QVBoxLayout(currentMeshPage);
     currentMeshLayout->setContentsMargins(0, 0, 0, 0);
     currentMeshLayout->setSpacing(2);
+    m_viewerSettingsStack = new QStackedWidget(currentMeshPage);
+    currentMeshLayout->addWidget(m_viewerSettingsStack);
+
+    auto *viewer3dPage = new QWidget(m_viewerSettingsStack);
+    auto *viewer3dLayout = new QVBoxLayout(viewer3dPage);
+    viewer3dLayout->setContentsMargins(0, 0, 0, 0);
+    viewer3dLayout->setSpacing(2);
     auto *currentMeshForm = new QFormLayout();
     currentMeshForm->setContentsMargins(0, 0, 0, 0);
     currentMeshForm->setHorizontalSpacing(6);
     currentMeshForm->setVerticalSpacing(2);
     currentMeshForm->setLabelAlignment(kSettingsLabelAlignment);
-    m_currentMeshHighlightCheck = new QCheckBox(currentMeshPage);
+    m_currentMeshHighlightCheck = new QCheckBox(viewer3dPage);
     m_currentMeshHighlightCheck->setChecked(m_settings.highlightCurrentMesh);
-    m_currentMeshOutlineColorButton = makeColorButton(currentMeshPage);
-    m_currentMeshOutlineWidthSpin = new QDoubleSpinBox(currentMeshPage);
-    m_currentMeshDilateRadiusSpin = new QDoubleSpinBox(currentMeshPage);
-    m_currentMeshErodeRadiusSpin = new QDoubleSpinBox(currentMeshPage);
-    m_currentMeshDebugViewCombo = new QComboBox(currentMeshPage);
+    m_showTrackballGizmoCheck = new QCheckBox(viewer3dPage);
+    m_showTrackballGizmoCheck->setChecked(m_settings.showTrackballGizmo);
+    m_currentMeshOutlineColorButton = makeColorButton(viewer3dPage);
+    m_sceneBackgroundTopColorButton = makeColorButton(viewer3dPage);
+    m_sceneBackgroundBottomColorButton = makeColorButton(viewer3dPage);
+    m_currentMeshOutlineWidthSpin = new QDoubleSpinBox(viewer3dPage);
+    m_currentMeshDilateRadiusSpin = new QDoubleSpinBox(viewer3dPage);
+    m_currentMeshErodeRadiusSpin = new QDoubleSpinBox(viewer3dPage);
+    m_currentMeshDebugViewCombo = new QComboBox(viewer3dPage);
     m_currentMeshOutlineWidthSpin->setRange(1.0, 8.0);
     m_currentMeshOutlineWidthSpin->setSingleStep(0.5);
     m_currentMeshOutlineWidthSpin->setDecimals(1);
@@ -289,16 +300,50 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         static_cast<int>(CurrentMeshDebugView::ErodedMask));
     currentMeshForm->addRow(
         tr("Highlight"),
-        makeCenteredFieldContainer(m_currentMeshHighlightCheck, currentMeshPage));
+        makeCenteredFieldContainer(m_currentMeshHighlightCheck, viewer3dPage));
+    currentMeshForm->addRow(
+        tr("Trackball gizmo"),
+        makeCenteredFieldContainer(m_showTrackballGizmoCheck, viewer3dPage));
     currentMeshForm->addRow(
         tr("Outline color"),
-        makeCenteredFieldContainer(m_currentMeshOutlineColorButton, currentMeshPage));
+        makeCenteredFieldContainer(m_currentMeshOutlineColorButton, viewer3dPage));
     currentMeshForm->addRow(tr("Outline width"), m_currentMeshOutlineWidthSpin);
     currentMeshForm->addRow(tr("Dilate"), m_currentMeshDilateRadiusSpin);
     currentMeshForm->addRow(tr("Erode"), m_currentMeshErodeRadiusSpin);
     currentMeshForm->addRow(tr("Debug view"), m_currentMeshDebugViewCombo);
+    currentMeshForm->addRow(
+        tr("Bg top"),
+        makeCenteredFieldContainer(m_sceneBackgroundTopColorButton, viewer3dPage));
+    currentMeshForm->addRow(
+        tr("Bg bottom"),
+        makeCenteredFieldContainer(m_sceneBackgroundBottomColorButton, viewer3dPage));
     applyUniformFormRowHeights(currentMeshForm);
-    currentMeshLayout->addLayout(currentMeshForm);
+    viewer3dLayout->addLayout(currentMeshForm);
+    m_viewerSettingsStack->addWidget(viewer3dPage);
+
+    auto *viewerUvPage = new QWidget(m_viewerSettingsStack);
+    auto *viewerUvLayout = new QVBoxLayout(viewerUvPage);
+    viewerUvLayout->setContentsMargins(0, 0, 0, 0);
+    viewerUvLayout->setSpacing(2);
+    auto *viewerUvForm = new QFormLayout();
+    viewerUvForm->setContentsMargins(0, 0, 0, 0);
+    viewerUvForm->setHorizontalSpacing(6);
+    viewerUvForm->setVerticalSpacing(2);
+    viewerUvForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_uvShowReferenceFrameCheck = new QCheckBox(viewerUvPage);
+    m_uvShowReferenceFrameCheck->setChecked(m_settings.uvShowReferenceFrame);
+    m_uvShowFullTextureCheck = new QCheckBox(viewerUvPage);
+    m_uvShowFullTextureCheck->setChecked(m_settings.uvShowFullTexture);
+    viewerUvForm->addRow(
+        tr("UV axis"),
+        makeCenteredFieldContainer(m_uvShowReferenceFrameCheck, viewerUvPage));
+    viewerUvForm->addRow(
+        tr("Full texture"),
+        makeCenteredFieldContainer(m_uvShowFullTextureCheck, viewerUvPage));
+    applyUniformFormRowHeights(viewerUvForm);
+    viewerUvLayout->addLayout(viewerUvForm);
+    m_viewerSettingsStack->addWidget(viewerUvPage);
+
     m_settingsStack->addWidget(currentMeshPage);
 
     auto *normalDecoratorsPage = new QWidget(m_settingsStack);
@@ -684,10 +729,19 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     });
 
     bindCheckBox(m_currentMeshHighlightCheck, &RenderSettings::highlightCurrentMesh);
+    bindCheckBox(m_showTrackballGizmoCheck, &RenderSettings::showTrackballGizmo);
     bindColorButton(
         m_currentMeshOutlineColorButton,
         &RenderSettings::currentMeshOutlineColor,
         tr("Current Mesh Outline Color"));
+    bindColorButton(
+        m_sceneBackgroundTopColorButton,
+        &RenderSettings::sceneBackgroundTopColor,
+        tr("Scene Background Top Color"));
+    bindColorButton(
+        m_sceneBackgroundBottomColorButton,
+        &RenderSettings::sceneBackgroundBottomColor,
+        tr("Scene Background Bottom Color"));
     bindFloatSpin(m_currentMeshOutlineWidthSpin, &RenderSettings::currentMeshOutlineWidth);
     bindFloatSpin(m_currentMeshDilateRadiusSpin, &RenderSettings::currentMeshDilateRadius);
     bindFloatSpin(m_currentMeshErodeRadiusSpin, &RenderSettings::currentMeshErodeRadius);
@@ -737,6 +791,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindEnumCombo(m_fillShadingCombo, &RenderSettings::fillShading);
     bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
     bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
+    bindCheckBox(m_uvShowReferenceFrameCheck, &RenderSettings::uvShowReferenceFrame);
+    bindCheckBox(m_uvShowFullTextureCheck, &RenderSettings::uvShowFullTexture);
     bindEnumCombo(m_qualityHistogramSourceCombo, &RenderSettings::qualityHistogramSource);
     connect(
         m_qualityHistogramColorMapCombo,
@@ -860,6 +916,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindToolToggle(m_qualityHistogramButton, &RenderSettings::showQualityHistogram);
 
     updateColorButtonStyle(m_currentMeshOutlineColorButton, m_settings.currentMeshOutlineColor);
+    updateColorButtonStyle(m_sceneBackgroundTopColorButton, m_settings.sceneBackgroundTopColor);
+    updateColorButtonStyle(
+        m_sceneBackgroundBottomColorButton,
+        m_settings.sceneBackgroundBottomColor);
     updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_settings.decoratorVertexNormalColor);
     updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_settings.decoratorFaceNormalColor);
     updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_settings.decoratorBoundaryEdgeColor);
@@ -874,6 +934,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     setFillColorSourceAvailability(false, false, false, false, false);
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
+    syncViewerSettingsModeUi();
     if (m_settingsContainer)
         m_settingsContainer->setVisible(m_settings.settingsPanelVisible);
     syncRenderPassUiState();
@@ -912,6 +973,21 @@ void RenderOverlayPanel::setSettingsVisible(bool visible)
         m_modeButton->setChecked(visible);
 }
 
+void RenderOverlayPanel::setViewerModeUv(bool uvMode)
+{
+    if (m_viewerModeUv == uvMode)
+        return;
+    m_viewerModeUv = uvMode;
+    syncViewerSettingsModeUi();
+}
+
+void RenderOverlayPanel::syncViewerSettingsModeUi()
+{
+    if (!m_viewerSettingsStack)
+        return;
+    m_viewerSettingsStack->setCurrentIndex(m_viewerModeUv ? 1 : 0);
+}
+
 void RenderOverlayPanel::setSettings(const RenderSettings &settings)
 {
     m_settings = settings;
@@ -919,6 +995,18 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_currentMeshHighlightCheck) {
         QSignalBlocker blocker(m_currentMeshHighlightCheck);
         m_currentMeshHighlightCheck->setChecked(m_settings.highlightCurrentMesh);
+    }
+    if (m_showTrackballGizmoCheck) {
+        QSignalBlocker blocker(m_showTrackballGizmoCheck);
+        m_showTrackballGizmoCheck->setChecked(m_settings.showTrackballGizmo);
+    }
+    if (m_uvShowReferenceFrameCheck) {
+        QSignalBlocker blocker(m_uvShowReferenceFrameCheck);
+        m_uvShowReferenceFrameCheck->setChecked(m_settings.uvShowReferenceFrame);
+    }
+    if (m_uvShowFullTextureCheck) {
+        QSignalBlocker blocker(m_uvShowFullTextureCheck);
+        m_uvShowFullTextureCheck->setChecked(m_settings.uvShowFullTexture);
     }
     if (m_bboxButton) {
         QSignalBlocker blocker(m_bboxButton);
@@ -1122,8 +1210,13 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
         m_settingsContainer->setVisible(m_settings.settingsPanelVisible);
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
+    syncViewerSettingsModeUi();
 
     updateColorButtonStyle(m_currentMeshOutlineColorButton, m_settings.currentMeshOutlineColor);
+    updateColorButtonStyle(m_sceneBackgroundTopColorButton, m_settings.sceneBackgroundTopColor);
+    updateColorButtonStyle(
+        m_sceneBackgroundBottomColorButton,
+        m_settings.sceneBackgroundBottomColor);
     updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_settings.decoratorVertexNormalColor);
     updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_settings.decoratorFaceNormalColor);
     updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_settings.decoratorBoundaryEdgeColor);
@@ -1218,6 +1311,8 @@ void RenderOverlayPanel::setFillColorSourceAvailability(
             hasTextures ? QVariant() : QVariant(0),
             Qt::UserRole - 1);
     }
+    if (m_uvShowFullTextureCheck)
+        m_uvShowFullTextureCheck->setEnabled(hasTextures);
 }
 
 void RenderOverlayPanel::updateColorButtonStyle(QPushButton *button, const QColor &color)

@@ -18,6 +18,7 @@ public:
 
     const RenderSettings &settings() const { return m_settings; }
     void setSettings(const RenderSettings &settings);
+    void setViewerModeUv(bool uvMode);
     void setPointColorSourceAvailability(bool hasVertexColors, bool hasVertexQuality);
     void setPointLightingAvailability(bool hasVertexNormals);
     void setFillColorSourceAvailability(
@@ -34,14 +35,19 @@ private:
     void setCurrentRenderPass(RenderPass pass);
     void setSettingsVisible(bool visible);
     int renderPassPageIndex(RenderPass pass) const;
+    void syncViewerSettingsModeUi();
     void syncRenderPassUiState();
     void updateColorButtonStyle(QPushButton *button, const QColor &color);
 
     RenderSettings m_settings;
+    bool m_viewerModeUv = false;
 
     QWidget *m_settingsContainer = nullptr;
     QStackedWidget *m_settingsStack = nullptr;
+    QStackedWidget *m_viewerSettingsStack = nullptr;
     QPushButton *m_currentMeshOutlineColorButton = nullptr;
+    QPushButton *m_sceneBackgroundTopColorButton = nullptr;
+    QPushButton *m_sceneBackgroundBottomColorButton = nullptr;
     QPushButton *m_decoratorVertexNormalColorButton = nullptr;
     QPushButton *m_decoratorFaceNormalColorButton = nullptr;
     QPushButton *m_decoratorBoundaryEdgeColorButton = nullptr;
@@ -56,6 +62,7 @@ private:
     QDoubleSpinBox *m_currentMeshErodeRadiusSpin = nullptr;
     QComboBox *m_currentMeshDebugViewCombo = nullptr;
     QCheckBox *m_currentMeshHighlightCheck = nullptr;
+    QCheckBox *m_showTrackballGizmoCheck = nullptr;
     QCheckBox *m_bboxShowCornersCheck = nullptr;
     QCheckBox *m_bboxShowDimensionsCheck = nullptr;
     QCheckBox *m_decoratorVertexNormalsCheck = nullptr;
@@ -79,6 +86,8 @@ private:
     QCheckBox *m_wireBackfaceCullingCheck = nullptr;
     QCheckBox *m_fillLightingCheck = nullptr;
     QCheckBox *m_fillBackfaceCullingCheck = nullptr;
+    QCheckBox *m_uvShowReferenceFrameCheck = nullptr;
+    QCheckBox *m_uvShowFullTextureCheck = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;
     QComboBox *m_fillColorSourceCombo = nullptr;
     QToolButton *m_currentMeshButton = nullptr;
