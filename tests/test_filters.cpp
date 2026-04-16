@@ -23,17 +23,29 @@ void FilterTests::filterRegistryExposesBuiltins()
     bool hasNormalize = false;
     bool hasDuplicate = false;
     bool hasCreateIso = false;
+    bool hasCleanUnref = false;
+    bool hasSelectOutliers = false;
+    bool hasSelectColor = false;
     for (const auto &info : infos) {
         hasMeshInfo = hasMeshInfo || (info.descriptor.id == QStringLiteral("mesh_info"));
         hasNormalize = hasNormalize || (info.descriptor.id == QStringLiteral("normalize_unit_box"));
         hasDuplicate = hasDuplicate || (info.descriptor.id == QStringLiteral("duplicate_current_mesh"));
         hasCreateIso = hasCreateIso || (info.descriptor.id == QStringLiteral("create_noisy_isosurface"));
+        hasCleanUnref =
+            hasCleanUnref || (info.descriptor.id == QStringLiteral("remove_unreferenced_vertices"));
+        hasSelectOutliers =
+            hasSelectOutliers || (info.descriptor.id == QStringLiteral("select_outliers"));
+        hasSelectColor =
+            hasSelectColor || (info.descriptor.id == QStringLiteral("select_by_color"));
     }
 
     QVERIFY(hasMeshInfo);
     QVERIFY(hasNormalize);
     QVERIFY(hasDuplicate);
     QVERIFY(hasCreateIso);
+    QVERIFY(hasCleanUnref);
+    QVERIFY(hasSelectOutliers);
+    QVERIFY(hasSelectColor);
 }
 
 void FilterTests::filterApplicabilityReflectsDocumentState()

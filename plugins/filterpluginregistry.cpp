@@ -14,6 +14,9 @@
 #if QMESH_PLUGIN_FILTER_SELECT_ENABLED
 #include "plugins/filter_select/selectfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_CLEAN_ENABLED
+#include "plugins/filter_clean/cleanfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -28,5 +31,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_SELECT_ENABLED
     registerSelectFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_CLEAN_ENABLED
+    registerCleanFilterPlugin(pluginManager);
 #endif
 }
