@@ -98,9 +98,18 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.shortDescription =
             QObject::tr("Computes volumetric obscurance and stores it in quality.");
         d.longDescriptionMarkdown = QObject::tr(
-            "Computes **ambient obscurance** per face by ray casting from face barycenters.\n"
-            "Face quality is updated, then propagated to vertex quality and mapped to gray colors.\n"
-            "Uses Intel Embree through VCGLib's `EmbreeAdaptor`.");
+            "Computes **ambient obscurance** per face using Embree ray casting.\n\n"
+            "Ambient obscurance is a shading measure related to how much a surface point is visually occluded by nearby geometry. "
+            "For each face barycenter, a set of rays is traced over outward-facing directions.\n\n"
+            "**Parameters**\n"
+            "- `Rays`: number of rays cast per face.\n"
+            "- `Tau`: spatial decay factor controlling the influence of hit distance in obscurance accumulation.\n\n"
+            "**Output**\n"
+            "- Face quality is updated with obscurance values.\n"
+            "- Vertex quality is derived from face quality.\n"
+            "- Vertex color is mapped in grayscale from quality values.\n\n"
+            "Implementation follows the VCGLib Embree adaptor strategy used in MeshLab. "
+            "Reference context: fast ambient obscurance techniques for interactive rendering.");
         d.tags = { QStringLiteral("quality"), QStringLiteral("embree"), QStringLiteral("obscurance") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -131,8 +140,17 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.shortDescription =
             QObject::tr("Computes ambient occlusion and stores it in quality.");
         d.longDescriptionMarkdown = QObject::tr(
-            "Computes **ambient occlusion** per face via Embree ray casting.\n"
-            "Face quality is updated, then propagated to vertex quality and mapped to gray colors.");
+            "Computes **ambient occlusion** per face using Embree ray casting.\n\n"
+            "For each face barycenter, rays are sampled over visible hemisphere directions. "
+            "Rays that reach infinity without intersection contribute as unoccluded directions.\n\n"
+            "**Parameter**\n"
+            "- `Rays`: number of sampled directions per face (higher values improve stability at higher cost).\n\n"
+            "**Output**\n"
+            "- Face quality stores ambient occlusion values.\n"
+            "- Vertex quality is updated from face quality.\n"
+            "- Vertex color is generated in grayscale from quality.\n\n"
+            "As in the original Embree-based MeshLab logic, this pass can also estimate bent-normal data internally "
+            "for AO-style visibility integration.");
         d.tags = { QStringLiteral("quality"), QStringLiteral("embree"), QStringLiteral("ao") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -149,8 +167,18 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.shortDescription =
             QObject::tr("Computes SDF and stores it in quality.");
         d.longDescriptionMarkdown = QObject::tr(
-            "Computes **Shape Diameter Function (SDF)** by tracing rays inside a cone around inward directions.\n"
-            "Face quality is updated, then propagated to vertex quality and mapped with a ramp colormap.");
+            "Computes **Shape Diameter Function (SDF)** per face with Embree ray casting.\n\n"
+            "SDF is a local thickness descriptor: for each face, rays are cast toward inward directions inside a cone, "
+            "and hit distances are aggregated to estimate shape diameter.\n\n"
+            "**Parameters**\n"
+            "- `Rays`: number of sampled directions.\n"
+            "- `Cone Amplitude`: cone opening angle (degrees) defining valid inward shooting directions.\n\n"
+            "**Output**\n"
+            "- Face quality stores SDF values.\n"
+            "- Vertex quality is derived from face quality.\n"
+            "- Vertex color is mapped with a ramp from quality values.\n\n"
+            "Use this filter to highlight local thickness variation and support segmentation/analysis workflows. "
+            "Reference context: Shapira, Shamir, Cohen-Or (2008).");
         d.tags = { QStringLiteral("quality"), QStringLiteral("embree"), QStringLiteral("sdf") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -181,8 +209,15 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.shortDescription =
             QObject::tr("Selects faces visible from a user-defined direction.");
         d.longDescriptionMarkdown = QObject::tr(
-            "Shoots one ray from each face barycenter along the chosen direction and selects faces with no hit.\n"
-            "Selection can be incremental.");
+            "Selects faces visible from a specified direction.\n\n"
+            "For each face barycenter, one directional ray is cast. "
+            "If no intersection is found along that direction, the face is considered visible and gets selected.\n\n"
+            "**Parameters**\n"
+            "- `Dir X`, `Dir Y`, `Dir Z`: components of the view/light direction.\n"
+            "- `Incremental Selection`: when enabled, keeps existing face selection and adds new visible faces; "
+            "otherwise clears previous selection before computing.\n\n"
+            "**Output**\n"
+            "- Face selection flags are updated on the current mesh.");
         d.tags = { QStringLiteral("selection"), QStringLiteral("embree"), QStringLiteral("visibility") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -245,8 +280,19 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.shortDescription =
             QObject::tr("Reorients wrongly oriented faces using Embree ray casting.");
         d.longDescriptionMarkdown = QObject::tr(
-            "Detects inward-facing facets by ray casting and flips them.\n"
-            "Supports parity sampling for difficult configurations.");
+            "Reorients inconsistent face normals via Embree ray casting analysis.\n\n"
+            "The filter evaluates face orientation by tracing rays from face regions and estimating whether each facet "
+            "is more consistent with inward or outward visibility. Faces classified as inverted are flipped.\n\n"
+            "**Parameters**\n"
+            "- `Rays`: number of sampling rays used in orientation analysis.\n"
+            "- `Parity Sampling`: enables parity-based analysis, typically slower but often more robust "
+            "on problematic meshes (e.g., faces not directly visible from outside).\n\n"
+            "**Output**\n"
+            "- Face winding may be changed.\n"
+            "- Face and vertex normals are recomputed.\n"
+            "- Bounding box is refreshed.\n\n"
+            "Reference context: Takayama, Jacobson, Kavan, Sorkine-Hornung (JCGT 2014), "
+            "\"A Simple Method for Correcting Facet Orientations in Polygon Meshes Based on Ray Casting\".");
         d.tags = { QStringLiteral("normals"), QStringLiteral("embree"), QStringLiteral("orientation") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
