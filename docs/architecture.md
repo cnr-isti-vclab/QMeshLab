@@ -231,6 +231,6 @@ RenderWidget (per-view modes, visibility, pipelines, passes, camera)
 2. `Document` loads through plugin, updates metadata/log/progress, emits signals.
 3. Each `RenderWidget` resolves its mode (`Scene3D` or `ParametrizationUV`) and ensures needed resources.
 4. Frame render executes either:
-   - Scene path: layered 3D passes (`fill`, `wire`, `edges` with fat-line path when available, `bbox`, `points`, decorators, gizmo, current-mesh highlight).
-   - UV path: orthographic UV rendering of the current mesh plus UV background, boundary/seam overlays, and optional unit-box overlay.
+   - Scene path: layered 3D passes (`scene background gradient`, `fill`, `wire`, `edges` with fat-line path when available, `bbox`, `points`, decorators, gizmo, current-mesh highlight).
+   - UV path: orthographic UV rendering of the current mesh plus UV background, optional full-texture `[0,1]` preview, boundary/seam overlays, and UV reference overlays (unit square + U/V axes).
 5. Frame CPU/GPU timings are emitted to `MainWindow` and shown in status bar stats.

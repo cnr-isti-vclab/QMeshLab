@@ -13,6 +13,11 @@ Rendering is performed by `RenderWidget` (`QRhiWidget`) in two modes:
 - `Scene3D`: layered mesh rendering with trackball camera, depth picking, and current-mesh highlight.
 - `ParametrizationUV`: orthographic UV-space rendering for the current mesh (when UV coordinates are available).
 
+The world-settings page (global icon in the render overlay) is view-mode aware:
+
+- in `Scene3D` it exposes current-mesh highlight controls plus scene background gradient colors (`top`, `bottom`);
+- in `ParametrizationUV` it exposes UV viewer controls (`UV axis`, `full texture`).
+
 Ownership split:
 
 - `Document` owns canonical mesh data and metadata.
@@ -48,7 +53,7 @@ Cached pass data:
   - geometric boundary edges (line + fat-line)
   - texture seam edges (line + fat-line)
 
-This cache is the primary source for `Scene3D`; UV mode uses a separate widget-local UV cache and only reuses document fill texture batches when textured UV fill is selected.
+This cache is the primary source for `Scene3D`; UV mode uses a separate widget-local UV cache and reuses document textured fill batches when textured UV rendering is needed (mesh textured fill and/or full-texture UV preview).
 
 ### Fat-Line Strategy
 
@@ -81,8 +86,9 @@ Per-widget resources include:
   - UV view controls (`m_uvPan`, `m_uvZoom`, fit request/pan interaction)
   - UV mesh GPU cache (`m_uvMeshGpu`)
 - SRBs:
-  - base SRB (UBO + fallback texture)
+  - base SRB (UBO + fallback texture + quality LUT texture)
   - per-texture SRB cache for textured fill batches
+  - scene-background SRB/UBO (3D gradient background)
   - UV background SRB/UBO
 - pipelines:
   - fill, wire, edges, bbox, points, decorators
@@ -93,6 +99,7 @@ Per-widget resources include:
   - current-mask fat-edge depth-only variant
   - mask morphology/debug/outline extraction/composite
   - trackball gizmo
+  - scene background (full-screen gradient)
   - UV background
   - UV textured fill
 - offscreen targets/textures:
@@ -106,6 +113,13 @@ These stay per widget because they depend on per-view settings and render-pass d
 `RenderWidget` keeps `MeshRenderMode` per mesh id (`m_meshRenderModes`), so each mesh can have independent pass/style toggles.
 In UV mode, the current mesh mode is reused to control fill/wire/edges/points/bounding-box styling in UV space.
 
+Some controls are intentionally view-level (not per-mesh), e.g.:
+
+- current-mesh highlight enable/debug parameters
+- scene background top/bottom colors
+- UV viewer options (`uvShowReferenceFrame`, `uvShowFullTexture`)
+- quality histogram panel controls
+
 Default behavior:
 
 - surface meshes (`FN > 0`): fill on, wire optionally on for small meshes (`FN < 10000`), edges off, points off
@@ -117,7 +131,9 @@ Default color-source preference for surfaces:
 1. texture
 2. per-vertex
 3. per-face
-4. constant
+4. per-vertex-quality
+5. per-face-quality
+6. constant
 
 Color-source and point-lighting availability are clamped against the current mesh `ioMask` + texture availability.
 Boundary/seam decorators share a dedicated width control (`decoratorBoundaryWidth`).
@@ -131,18 +147,20 @@ Per frame:
 1. Ensure resources and dirty GPU buffers for view-visible meshes.
 2. Optionally execute depth picking (if scheduled).
 3. Optionally build/process current-mesh highlight masks.
-4. Run the main onscreen pass.
+4. Upload scene background gradient colors (`bottom`, `top`) to dedicated UBO.
+5. Run the main onscreen pass.
 
 Main pass draw order:
 
-1. fill
-2. wire
-3. edges
-4. bbox
-5. points
-6. decorators
-7. trackball gizmo
-8. current-mesh outline/debug composite
+1. scene background gradient (full-screen triangle)
+2. fill
+3. wire
+4. edges
+5. bbox
+6. points
+7. decorators
+8. trackball gizmo
+9. current-mesh outline/debug composite
 
 ### `ParametrizationUV` Mode
 
@@ -151,23 +169,33 @@ Per frame:
 1. Sync per-mesh mode state and UV cache against the current document.
 2. Ensure UV resources for the current mesh (`m_uvMeshGpu`), and fit the UV view if requested.
 3. Draw UV background (checker/grid shader pair).
-4. Draw the current mesh in UV space using mode-controlled passes:
+4. Optionally draw full texture over `[0,1] x [0,1]` (when `uvShowFullTexture` is on).
+5. Draw the current mesh in UV space using mode-controlled passes:
    - fill (constant/per-vertex/per-face from UV cache, or textured via document fill batches)
    - wire
    - edges
    - boundary edges (decorator)
    - texture seams (decorator)
    - points
-5. Optionally draw the UV unit-box outline (`[0,1] x [0,1]`) when bounding-box display is enabled.
+6. Draw UV reference overlays:
+   - unit square (`[0,1] x [0,1]`) when `uvShowReferenceFrame` is on, and also when bounding-box display is enabled
+   - U/V axes from origin when `uvShowReferenceFrame` is on
 
 ## `Scene3D` Pass Behavior Details
+
+### Scene Background
+
+- Drawn first in the main pass via `scene_background.vert/.frag`.
+- Uses a dedicated per-view UBO with bottom/top RGB values from:
+  - `sceneBackgroundBottomColor`
+  - `sceneBackgroundTopColor`
+- Clear color is set to bottom color; gradient pass then fills the frame.
 
 ### Fill
 
 - Smooth/Flat shading use distinct shader pairs.
 - Depth test/write enabled.
 - Backface culling controlled by `fillBackfaceCulling`.
-- Color source: constant / per-vertex / per-face / texture.
 - Color source: constant / per-vertex / per-face / per-vertex-quality / per-face-quality / texture.
 - Quality variants use LUT sampling in fragment shader (shared per-view colormap texture).
 - Textures are sampled through per-batch SRBs when available.
@@ -198,7 +226,6 @@ Per frame:
 - `QRhiGraphicsPipeline::Points`.
 - Depth test/write enabled.
 - Point size and lighting controlled by settings.
-- Color source: constant or per-vertex.
 - Color source: constant / per-vertex / per-vertex-quality.
 - Per-vertex-quality uses LUT sampling in fragment shader.
 - Vertex payload carries normal + validity flag for point lighting.
@@ -233,20 +260,26 @@ UV-space camera model:
 
 - orthographic projection
 - `m_uvPan` + `m_uvZoom` control translation/scale in UV space
-- reset and UV double click trigger fit-to-current-UV-bounds
+- reset and UV double click trigger fit:
+  - to current mesh UV bounds by default
+  - to `[0,1] x [0,1]` when `uvShowFullTexture` is enabled
 
 UV mode interaction:
 
 - left/middle drag: pan
 - wheel: zoom around cursor anchor
-- left double click: fit UV view to current mesh UV bounds
+- left double click: fit UV view (mesh UV bounds or full `[0,1]` depending on `uvShowFullTexture`)
 
 Additional UV rendering notes:
 
 - UV background is drawn from `uv_background.vert/.frag`.
+- Optional full-texture preview draws a dedicated `[0,1]` quad before mesh overlays.
 - Textured UV fill uses `uv_fill_texture.vert` + the regular fill fragment shader.
 - UV cache also builds boundary-edge and texture-seam line buffers.
 - UV boundary/seam overlays use decorator colors and `decoratorBoundaryWidth`.
+- UV reference overlay (`uvShowReferenceFrame`) draws:
+  - unit square outline
+  - colored U/V axes from origin
 - Scene corner/dimension overlays are hidden in UV mode.
 
 ## `Scene3D` Current Mesh Highlight Pipeline
@@ -317,7 +350,7 @@ Trackball gizmo is depth-aware and scale-stable across dolly/FOV changes.
 
 - left/middle drag: pan in UV space
 - wheel: zoom around the cursor
-- double click: fit UV framing to current mesh UV bounds
+- double click: fit UV framing (mesh UV bounds or full `[0,1]` when full-texture mode is active)
 - `Reset Camera`: requests UV fit instead of trackball reset
 
 ## Snapshot Capture Path
