@@ -47,6 +47,55 @@ constexpr QLatin1StringView kFilterGrid("grid_generator");
 constexpr QLatin1StringView kFilterRefine("refine_user_defined");
 constexpr QLatin1StringView kFilterIso("implicit_surface");
 
+QString parserOperatorsReferenceMarkdown()
+{
+    return QObject::tr(
+        "You can use muparser built-in operators and functions, such as `&&`, `||`, `<`, `<=`, "
+        "`>`, `>=`, `!=`, `==`, and the ternary `cond ? a : b`. "
+        "Custom random helpers are also available: `rnd()` in `[0,1]` and `randInt(a)` in `[0,a)`.\n");
+}
+
+QString perVertexVariablesReferenceMarkdown()
+{
+    return QObject::tr(
+        "Variables for per-vertex expressions:\n"
+        "- Per-vertex: `x,y,z` (position), `nx,ny,nz` (normal), `r,g,b,a` (color), "
+        "`q` (quality), `vi` (vertex index), `vtu,vtv,ti` (texture coordinates/index), "
+        "`vsel` (1 if selected, 0 if not selected).\n"
+        "- Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `xmid,ymid,zmid`, "
+        "`xdim,ydim,zdim`, `bbdiag`.\n"
+        "- User-defined attributes: all custom vertex attributes are available. "
+        "Point3 attributes are available as three variables with `_x`, `_y`, `_z` appended.\n");
+}
+
+QString perFaceVariablesReferenceMarkdown()
+{
+    return QObject::tr(
+        "Variables for per-face expressions:\n"
+        "- Per-face: `fi` (face index), `fr,fg,fb,fa` (face color), `fq` (face quality), "
+        "`fnx,fny,fnz` (face normal), `fsel` (1 if selected, 0 if not selected).\n"
+        "- Per-vertex on the face: `x0,y0,z0`, `x1,y1,z1`, `x2,y2,z2`; "
+        "`nx0,ny0,nz0`, `nx1,ny1,nz1`, `nx2,ny2,nz2`; "
+        "`r0,g0,b0,a0`, `r1,g1,b1,a1`, `r2,g2,b2,a2`; "
+        "`vi0,vi1,vi2`; `q0,q1,q2`; "
+        "`wtu0,wtv0`, `wtu1,wtv1`, `wtu2,wtv2`; `ti`; "
+        "`vsel0,vsel1,vsel2`.\n"
+        "- Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `xmid,ymid,zmid`, "
+        "`xdim,ydim,zdim`, `bbdiag`.\n"
+        "- User-defined attributes: all custom face scalar attributes are available. "
+        "Point3 attributes are available as three variables with `_x`, `_y`, `_z` appended.\n");
+}
+
+QString edgeRefineVariablesReferenceMarkdown()
+{
+    return QObject::tr(
+        "Variables for edge-refinement expressions:\n"
+        "- Edge endpoints: `x0,y0,z0` and `x1,y1,z1`.\n"
+        "- Endpoint normals: `nx0,ny0,nz0` and `nx1,ny1,nz1`.\n"
+        "- Endpoint colors: `r0,g0,b0` and `r1,g1,b1`.\n"
+        "- Endpoint quality: `q0,q1`.\n");
+}
+
 int intParameter(const MeshFilterParameterValues &params, const QString &id, int fallback)
 {
     const auto it = params.constFind(id);
@@ -736,8 +785,9 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.name = QObject::tr("Conditional Vertex Selection");
         d.shortDescription = QObject::tr("Selects vertices for which a boolean expression evaluates true.");
         d.longDescriptionMarkdown =
-            QObject::tr("Expression variables include coordinates, normals, color, quality, selection state, "
-                        "bounding-box values, and user-defined attributes.");
+            QObject::tr("Boolean function using muparser to perform vertex selection on the current mesh.\n")
+            + parserOperatorsReferenceMarkdown()
+            + perVertexVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("selection"), QStringLiteral("muparser"), QStringLiteral("vertex") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireVertices = true;
@@ -761,8 +811,9 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.name = QObject::tr("Conditional Face Selection");
         d.shortDescription = QObject::tr("Selects faces for which a boolean expression evaluates true.");
         d.longDescriptionMarkdown =
-            QObject::tr("Expression variables include face and vertex attributes, indices, selection state, "
-                        "bounding-box values, and user-defined attributes.");
+            QObject::tr("Boolean function using muparser to perform face selection on the current mesh.\n")
+            + parserOperatorsReferenceMarkdown()
+            + perFaceVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("selection"), QStringLiteral("muparser"), QStringLiteral("face") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -814,6 +865,10 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Geometry");
         d.name = QObject::tr("Per Vertex Geometric Function");
         d.shortDescription = QObject::tr("Computes new per-vertex coordinates from expressions.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Geometric function using muparser to generate new coordinates. "
+                        "You can change `x,y,z` for every vertex according to the specified expressions.\n")
+            + perVertexVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("geometry"), QStringLiteral("muparser"), QStringLiteral("vertex") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireVertices = true;
@@ -829,6 +884,9 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Normals");
         d.name = QObject::tr("Per Vertex Normal Function");
         d.shortDescription = QObject::tr("Computes new per-vertex normals from expressions.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Normal function using muparser to generate a new normal for each vertex.\n")
+            + perVertexVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("normal"), QStringLiteral("muparser"), QStringLiteral("vertex") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireVertices = true;
@@ -844,6 +902,9 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Normals");
         d.name = QObject::tr("Per Face Normal Function");
         d.shortDescription = QObject::tr("Computes new per-face normals from expressions.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Normal function using muparser to generate a new normal for each face.\n")
+            + perFaceVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("normal"), QStringLiteral("muparser"), QStringLiteral("face") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -859,6 +920,10 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Color");
         d.name = QObject::tr("Per Vertex Color Function");
         d.shortDescription = QObject::tr("Computes per-vertex RGBA colors from expressions.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Color function using muparser to generate new RGBA values for each vertex. "
+                        "Red, green, blue and alpha channels are defined by expressions.\n")
+            + perVertexVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("color"), QStringLiteral("muparser"), QStringLiteral("vertex") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireVertices = true;
@@ -882,6 +947,10 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Color");
         d.name = QObject::tr("Per Face Color Function");
         d.shortDescription = QObject::tr("Computes per-face RGBA colors from expressions.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Color function using muparser to generate new RGBA values for each face. "
+                        "Red, green, blue and alpha channels are defined by expressions.\n")
+            + perFaceVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("color"), QStringLiteral("muparser"), QStringLiteral("face") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -929,6 +998,9 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Quality");
         d.name = QObject::tr("Per Vertex Quality Function");
         d.shortDescription = QObject::tr("Computes per-vertex scalar quality from an expression.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Quality function using muparser to compute a new scalar quality for each vertex.\n")
+            + perVertexVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("quality"), QStringLiteral("muparser"), QStringLiteral("vertex") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireVertices = true;
@@ -971,6 +1043,9 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Quality");
         d.name = QObject::tr("Per Face Quality Function");
         d.shortDescription = QObject::tr("Computes per-face scalar quality from an expression.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Quality function using muparser to compute a new scalar quality for each face.\n")
+            + perFaceVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("quality"), QStringLiteral("muparser"), QStringLiteral("face") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -1013,6 +1088,9 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Texture");
         d.name = QObject::tr("Per Vertex Texture Function");
         d.shortDescription = QObject::tr("Computes per-vertex texture coordinates from expressions.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Texture function using muparser to generate new per-vertex texture coordinates.\n")
+            + perVertexVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("texture"), QStringLiteral("muparser"), QStringLiteral("vertex") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireVertices = true;
@@ -1044,6 +1122,10 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Texture");
         d.name = QObject::tr("Per Wedge Texture Function");
         d.shortDescription = QObject::tr("Computes per-wedge texture coordinates from expressions.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Texture function using muparser to generate new per-wedge texture coordinates for each face. "
+                        "You can define six expressions (`u0,v0,u1,v1,u2,v2`).\n")
+            + perFaceVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("texture"), QStringLiteral("muparser"), QStringLiteral("face") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -1125,6 +1207,11 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Attributes");
         d.name = QObject::tr("Define New Per Vertex Custom Scalar Attribute");
         d.shortDescription = QObject::tr("Defines and fills a custom per-vertex scalar attribute.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Adds a new per-vertex custom scalar attribute and fills it with the specified expression. "
+                        "Attribute names must contain only letters, numbers and underscores. "
+                        "The chosen name can be used in other function filters.\n")
+            + perVertexVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("attribute"), QStringLiteral("vertex"), QStringLiteral("muparser") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireVertices = true;
@@ -1139,6 +1226,11 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Attributes");
         d.name = QObject::tr("Define New Per Face Custom Scalar Attribute");
         d.shortDescription = QObject::tr("Defines and fills a custom per-face scalar attribute.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Adds a new per-face custom scalar attribute and fills it with the specified expression. "
+                        "Attribute names must contain only letters, numbers and underscores. "
+                        "The chosen name can be used in other function filters.\n")
+            + perFaceVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("attribute"), QStringLiteral("face"), QStringLiteral("muparser") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -1153,6 +1245,11 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Attributes");
         d.name = QObject::tr("Define New Per Vertex Custom Point Attribute");
         d.shortDescription = QObject::tr("Defines and fills a custom per-vertex point attribute.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Adds a new per-vertex custom point attribute and fills it with the specified expressions. "
+                        "Attribute names must contain only letters, numbers and underscores. "
+                        "The chosen name can be used in other function filters.\n")
+            + perVertexVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("attribute"), QStringLiteral("vertex"), QStringLiteral("muparser") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireVertices = true;
@@ -1167,6 +1264,11 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Compute/Attributes");
         d.name = QObject::tr("Define New Per Face Custom Point Attribute");
         d.shortDescription = QObject::tr("Defines and fills a custom per-face point attribute.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Adds a new per-face custom point attribute and fills it with the specified expressions. "
+                        "Attribute names must contain only letters, numbers and underscores. "
+                        "The chosen name can be used in other function filters.\n")
+            + perFaceVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("attribute"), QStringLiteral("face"), QStringLiteral("muparser") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
@@ -1181,6 +1283,9 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Create");
         d.name = QObject::tr("Grid Generator");
         d.shortDescription = QObject::tr("Generates a regular 2D grid mesh.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Generates a new 2D grid mesh with user-defined vertex counts on X and Y, "
+                        "absolute size on both axes, and optional centering on origin.");
         d.tags = { QStringLiteral("create"), QStringLiteral("grid"), QStringLiteral("mesh") };
         d.inputDomain = MeshFilterInputDomain::None;
         d.outputDomain = MeshFilterOutputDomain::NewMeshes;
@@ -1248,6 +1353,9 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Create");
         d.name = QObject::tr("Implicit Surface");
         d.shortDescription = QObject::tr("Extracts an isosurface from an implicit scalar field.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Generates a new mesh corresponding to the `0` isovalue of a scalar field "
+                        "sampled from the given expression inside the specified 3D range.");
         d.tags = { QStringLiteral("create"), QStringLiteral("isosurface"), QStringLiteral("marching cubes") };
         d.inputDomain = MeshFilterInputDomain::None;
         d.outputDomain = MeshFilterOutputDomain::NewMeshes;
@@ -1302,6 +1410,12 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         d.menuPath = QObject::tr("Remeshing");
         d.name = QObject::tr("Refine User-Defined");
         d.shortDescription = QObject::tr("Refines edges selected by an expression and places split points by expressions.");
+        d.longDescriptionMarkdown =
+            QObject::tr("Refines the current mesh with user-defined expressions.\n"
+                        "A boolean predicate selects edges to split, and three expressions define the "
+                        "position of each inserted vertex.\n")
+            + parserOperatorsReferenceMarkdown()
+            + edgeRefineVariablesReferenceMarkdown();
         d.tags = { QStringLiteral("refine"), QStringLiteral("remeshing"), QStringLiteral("muparser") };
         d.inputDomain = MeshFilterInputDomain::SingleMesh;
         d.inputRequirements.requireFaces = true;
