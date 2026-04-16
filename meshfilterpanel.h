@@ -15,6 +15,8 @@ class QPushButton;
 class QScrollArea;
 class QStackedWidget;
 class QFormLayout;
+class QTextBrowser;
+class QToolButton;
 
 class MeshFilterPanel : public QWidget
 {
@@ -81,6 +83,8 @@ private:
     QWidget *m_parametersPage = nullptr;
     QLabel *m_filterTitleLabel = nullptr;
     QLabel *m_filterDescriptionLabel = nullptr;
+    QToolButton *m_longDescriptionToggle = nullptr;
+    QTextBrowser *m_longDescriptionView = nullptr;
     QCheckBox *m_showAdvancedCheck = nullptr;
     QScrollArea *m_parametersScroll = nullptr;
     QWidget *m_parametersWidget = nullptr;

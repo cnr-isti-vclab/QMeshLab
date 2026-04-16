@@ -41,6 +41,7 @@ private slots:
     void openRecentMesh();
     void showAbout();
     void showImportPlugins();
+    void showFilterPlugins();
     void resetCamera();
     void copyCameraState();
     void pasteCameraState();

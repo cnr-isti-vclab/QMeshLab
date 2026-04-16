@@ -17,9 +17,12 @@
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QStackedWidget>
+#include <QTextBrowser>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <limits>
+#include <set>
 
 namespace {
 QString groupDisplayName(const QString &group)
@@ -94,6 +97,20 @@ void MeshFilterPanel::buildUi()
     m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
     paramsPageLayout->addWidget(m_filterDescriptionLabel);
 
+    m_longDescriptionToggle = new QToolButton(m_parametersPage);
+    m_longDescriptionToggle->setCheckable(true);
+    m_longDescriptionToggle->setChecked(false);
+    m_longDescriptionToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_longDescriptionToggle->setText(tr("Show details"));
+    m_longDescriptionToggle->hide();
+    paramsPageLayout->addWidget(m_longDescriptionToggle);
+
+    m_longDescriptionView = new QTextBrowser(m_parametersPage);
+    m_longDescriptionView->setOpenExternalLinks(true);
+    m_longDescriptionView->setVisible(false);
+    m_longDescriptionView->setMaximumHeight(180);
+    paramsPageLayout->addWidget(m_longDescriptionView);
+
     m_showAdvancedCheck = new QCheckBox(tr("Show advanced parameters"), m_parametersPage);
     m_showAdvancedCheck->setChecked(false);
     paramsPageLayout->addWidget(m_showAdvancedCheck);
@@ -120,6 +137,12 @@ void MeshFilterPanel::buildUi()
     connect(m_backButton, &QPushButton::clicked, this, &MeshFilterPanel::onBackClicked);
     connect(m_applyButton, &QPushButton::clicked, this, &MeshFilterPanel::onApplyClicked);
     connect(m_showAdvancedCheck, &QCheckBox::toggled, this, &MeshFilterPanel::onShowAdvancedToggled);
+    connect(m_longDescriptionToggle, &QToolButton::toggled, this, [this](bool checked) {
+        if (m_longDescriptionView)
+            m_longDescriptionView->setVisible(checked);
+        if (m_longDescriptionToggle)
+            m_longDescriptionToggle->setText(checked ? tr("Hide details") : tr("Show details"));
+    });
 }
 
 void MeshFilterPanel::reloadFilters()
@@ -313,6 +336,18 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     m_currentFilterKey = info.key;
     m_filterTitleLabel->setText(info.descriptor.name);
     m_filterDescriptionLabel->setText(info.descriptor.shortDescription);
+    const QString longDescription = info.descriptor.longDescriptionMarkdown.trimmed();
+    const bool hasLongDescription = !longDescription.isEmpty();
+    m_longDescriptionToggle->setVisible(hasLongDescription);
+    if (hasLongDescription) {
+        m_longDescriptionView->setMarkdown(longDescription);
+    } else {
+        m_longDescriptionView->clear();
+    }
+    if (m_longDescriptionToggle->isChecked())
+        m_longDescriptionToggle->setChecked(false);
+    else
+        m_longDescriptionView->setVisible(false);
     if (info.applicable) {
         m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
         m_applyButton->setToolTip(QString());
@@ -346,16 +381,29 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
     clearParameterEditors();
     if (filterInfo.descriptor.parameters.empty()) {
         m_noParametersLabel->show();
+        if (m_showAdvancedCheck) {
+            m_showAdvancedCheck->setChecked(false);
+            m_showAdvancedCheck->hide();
+        }
         return;
     }
     if (m_noParametersLabel)
         m_noParametersLabel->hide();
 
-    QString currentGroup;
+    std::set<QString> uniqueGroups;
     for (const auto &param : filterInfo.descriptor.parameters) {
         if (param.id.trimmed().isEmpty())
             continue;
-        if (currentGroup != param.group) {
+        uniqueGroups.insert(param.group);
+    }
+    const bool showGroupHeaders = uniqueGroups.size() > 1;
+
+    QString currentGroup;
+    bool hasAdvanced = false;
+    for (const auto &param : filterInfo.descriptor.parameters) {
+        if (param.id.trimmed().isEmpty())
+            continue;
+        if (showGroupHeaders && currentGroup != param.group) {
             currentGroup = param.group;
             auto *groupLabel = new QLabel(groupDisplayName(currentGroup), m_parametersWidget);
             QFont f = groupLabel->font();
@@ -363,11 +411,14 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
             groupLabel->setFont(f);
             groupLabel->setStyleSheet(QStringLiteral("color: palette(mid); padding-top: 6px;"));
             m_parametersLayout->addRow(groupLabel);
+        } else {
+            currentGroup = param.group;
         }
 
         ParameterBinding binding;
         binding.descriptor = param;
         binding.advanced = param.isAdvancedGroup();
+        hasAdvanced = hasAdvanced || binding.advanced;
 
         QWidget *editor = nullptr;
         switch (param.type) {
@@ -452,6 +503,15 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
         }
 
         m_parameterBindings.push_back(std::move(binding));
+    }
+
+    if (m_showAdvancedCheck) {
+        if (hasAdvanced) {
+            m_showAdvancedCheck->show();
+        } else {
+            m_showAdvancedCheck->setChecked(false);
+            m_showAdvancedCheck->hide();
+        }
     }
 }
 

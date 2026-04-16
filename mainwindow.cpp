@@ -21,6 +21,7 @@
 #include <QDockWidget>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QElapsedTimer>
 #include <QEventLoop>
 #include <QAction>
 #include <QBrush>
@@ -36,6 +37,7 @@
 #include <QProgressBar>
 #include <QRadioButton>
 #include <QSettings>
+#include <QSet>
 #include <QSpinBox>
 #include <QStringList>
 #include <QTableWidget>
@@ -154,6 +156,32 @@ int defaultSaveMaskForMesh(const Document::MeshEntry &entry, int capabilityMask)
     return mask;
 }
 
+QString filterInputDomainLabel(MeshFilterInputDomain domain)
+{
+    switch (domain) {
+    case MeshFilterInputDomain::None:
+        return QObject::tr("None");
+    case MeshFilterInputDomain::SingleMesh:
+        return QObject::tr("Single Mesh");
+    case MeshFilterInputDomain::WholeDocument:
+        return QObject::tr("Whole Document");
+    }
+    return QObject::tr("Unknown");
+}
+
+QString filterOutputDomainLabel(MeshFilterOutputDomain domain)
+{
+    switch (domain) {
+    case MeshFilterOutputDomain::Information:
+        return QObject::tr("Information");
+    case MeshFilterOutputDomain::ModifyCurrentMesh:
+        return QObject::tr("Modify Current Mesh");
+    case MeshFilterOutputDomain::NewMeshes:
+        return QObject::tr("Create New Meshes");
+    }
+    return QObject::tr("Unknown");
+}
+
 void appendLogItem(QListWidget *logWidget, const QString &message, Document::LogSource source, bool replaceLast)
 {
     QListWidgetItem *item = nullptr;
@@ -227,6 +255,64 @@ MainWindow::MainWindow(QWidget *parent)
     resizeDocks({ m_layerDock, m_filterDock }, { 1, 1 }, Qt::Vertical);
 
     auto *logWidget = new QListWidget(this);
+    logWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    logWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
+
+    auto copyLogSelectionToClipboard = [this, logWidget]() {
+        QStringList lines;
+        const QList<QListWidgetItem *> selected = logWidget->selectedItems();
+        lines.reserve(selected.size());
+        for (QListWidgetItem *item : selected) {
+            if (item)
+                lines.push_back(item->text());
+        }
+        if (lines.isEmpty()) {
+            if (QListWidgetItem *current = logWidget->currentItem())
+                lines.push_back(current->text());
+        }
+        if (lines.isEmpty())
+            return;
+
+        const QString text = lines.join(QLatin1Char('\n'));
+        if (QClipboard *clipboard = QGuiApplication::clipboard()) {
+            clipboard->setText(text, QClipboard::Clipboard);
+            if (clipboard->supportsSelection())
+                clipboard->setText(text, QClipboard::Selection);
+        }
+        statusBar()->showMessage(tr("Copied %1 log line(s)").arg(lines.size()), 1500);
+    };
+
+    auto *copyLogAction = new QAction(tr("Copy"), logWidget);
+    copyLogAction->setShortcut(QKeySequence::Copy);
+    copyLogAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    connect(copyLogAction, &QAction::triggered, this, copyLogSelectionToClipboard);
+    logWidget->addAction(copyLogAction);
+
+    auto *selectAllLogAction = new QAction(tr("Select All"), logWidget);
+    selectAllLogAction->setShortcut(QKeySequence::SelectAll);
+    selectAllLogAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    connect(selectAllLogAction, &QAction::triggered, logWidget, &QListWidget::selectAll);
+    logWidget->addAction(selectAllLogAction);
+
+    auto *copyAllLogAction = new QAction(tr("Copy All"), logWidget);
+    connect(copyAllLogAction, &QAction::triggered, this, [this, logWidget]() {
+        logWidget->selectAll();
+        QStringList lines;
+        lines.reserve(logWidget->count());
+        for (int i = 0; i < logWidget->count(); ++i) {
+            if (QListWidgetItem *item = logWidget->item(i))
+                lines.push_back(item->text());
+        }
+        if (QClipboard *clipboard = QGuiApplication::clipboard()) {
+            const QString text = lines.join(QLatin1Char('\n'));
+            clipboard->setText(text, QClipboard::Clipboard);
+            if (clipboard->supportsSelection())
+                clipboard->setText(text, QClipboard::Selection);
+        }
+        statusBar()->showMessage(tr("Copied all log lines"), 1500);
+    });
+    logWidget->addAction(copyAllLogAction);
+
     auto *logDock = new QDockWidget(tr("Log"), this);
     logDock->setWidget(logWidget);
     addDockWidget(Qt::BottomDockWidgetArea, logDock);
@@ -387,6 +473,7 @@ MainWindow::MainWindow(QWidget *parent)
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
     helpMenu->addAction(tr("I/O &Plugins..."), this, &MainWindow::showImportPlugins);
+    helpMenu->addAction(tr("&Filter Plugins..."), this, &MainWindow::showFilterPlugins);
 
     QSettings settings;
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
@@ -872,22 +959,34 @@ void MainWindow::executeFilter(
     if (!m_doc || filterKey.trimmed().isEmpty())
         return;
 
+    QString label = fallbackLabel;
+    if (label.trimmed().isEmpty())
+        label = tr("Filter");
+
+    QElapsedTimer timer;
+    timer.start();
     const MeshFilterRunResult result = m_doc->runFilter(filterKey, parameters);
+    const double elapsedMs = double(timer.nsecsElapsed()) / 1e6;
+    const QString elapsedText = QString::number(elapsedMs, 'f', 2);
+
     if (!result.success) {
         const QString msg = tr("Filter failed: %1").arg(result.errorMessage);
         statusBar()->showMessage(msg, 4500);
         m_doc->writeLog(msg, Document::LogSource::Application);
+        m_doc->writeLog(
+            tr("Filter '%1' runtime: %2 ms (failed)")
+                .arg(label, elapsedText),
+            Document::LogSource::Application);
         return;
     }
-
-    QString label = fallbackLabel;
-    if (label.trimmed().isEmpty())
-        label = tr("Filter");
 
     QString status = tr("%1 executed").arg(label);
     if (!result.infoMessages.isEmpty())
         status = result.infoMessages.back();
     statusBar()->showMessage(status, 3200);
+    m_doc->writeLog(
+        tr("Filter '%1' runtime: %2 ms").arg(label, elapsedText),
+        Document::LogSource::Application);
 }
 
 void MainWindow::undo()
@@ -1171,7 +1270,9 @@ void MainWindow::showImportPlugins()
     const std::vector<Document::ExportPluginInfo> exportPlugins = m_doc->exportPluginInfos();
     const QStringList exportExtensions = m_doc->exportSupportedExtensions();
 
-    if ((importPlugins.empty() || importExtensions.isEmpty()) && exportPlugins.empty()) {
+    const bool hasImportMatrix = !importPlugins.empty() && !importExtensions.isEmpty();
+    const bool hasExportMatrix = !exportPlugins.empty() && !exportExtensions.isEmpty();
+    if (!hasImportMatrix && !hasExportMatrix) {
         QMessageBox::information(this, tr("I/O Plugins"), tr("No plugins are available."));
         return;
     }
@@ -1183,7 +1284,7 @@ void MainWindow::showImportPlugins()
     layout->addWidget(new QLabel(tr("Import preferences"), &dialog));
 
     std::vector<QButtonGroup *> groups;
-    if (!importPlugins.empty() && !importExtensions.isEmpty()) {
+    if (hasImportMatrix) {
         layout->addWidget(new QLabel(
             tr("Choose the preferred plugin for each file type/extension."),
             &dialog));
@@ -1263,7 +1364,7 @@ void MainWindow::showImportPlugins()
 
     layout->addSpacing(8);
     layout->addWidget(new QLabel(tr("Export support"), &dialog));
-    if (!exportExtensions.isEmpty()) {
+    if (hasExportMatrix) {
         auto *summary = new QLabel(
             tr("Savable formats: %1")
                 .arg(exportExtensions.join(QStringLiteral(", "))),
@@ -1276,35 +1377,55 @@ void MainWindow::showImportPlugins()
         layout->addWidget(summary);
     }
 
-    auto *exportTable = new QTableWidget(static_cast<int>(exportPlugins.size()), 2, &dialog);
-    exportTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    exportTable->setSelectionMode(QAbstractItemView::NoSelection);
-    exportTable->setFocusPolicy(Qt::NoFocus);
-    exportTable->verticalHeader()->setVisible(false);
-    exportTable->setHorizontalHeaderLabels({ tr("Plugin"), tr("Formats") });
-    exportTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    exportTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    exportTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    exportTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    if (hasExportMatrix) {
+        auto *exportTable = new QTableWidget(
+            static_cast<int>(exportPlugins.size()),
+            exportExtensions.size(),
+            &dialog);
+        exportTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        exportTable->setSelectionMode(QAbstractItemView::NoSelection);
+        exportTable->setFocusPolicy(Qt::NoFocus);
+        exportTable->setHorizontalHeaderLabels(exportExtensions);
+        exportTable->verticalHeader()->setVisible(true);
+        exportTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+        exportTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
-    for (int row = 0; row < static_cast<int>(exportPlugins.size()); ++row) {
-        const auto &plugin = exportPlugins[static_cast<size_t>(row)];
-        auto *nameItem = new QTableWidgetItem(plugin.name);
-        nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
-        exportTable->setItem(row, 0, nameItem);
+        QStringList rowLabels;
+        rowLabels.reserve(static_cast<int>(exportPlugins.size()));
+        for (const auto &plugin : exportPlugins)
+            rowLabels << plugin.name;
+        exportTable->setVerticalHeaderLabels(rowLabels);
 
-        QStringList formattedExtensions;
-        formattedExtensions.reserve(plugin.extensions.size());
-        for (const QString &ext : plugin.extensions)
-            formattedExtensions << QStringLiteral(".%1").arg(ext);
-        const QString extensionsText =
-            formattedExtensions.isEmpty() ? QStringLiteral("—") : formattedExtensions.join(QStringLiteral(", "));
-        auto *extItem = new QTableWidgetItem(extensionsText);
-        extItem->setFlags(extItem->flags() & ~Qt::ItemIsEditable);
-        exportTable->setItem(row, 1, extItem);
+        for (int col = 0; col < exportExtensions.size(); ++col) {
+            const QString extension = exportExtensions[col];
+            for (int row = 0; row < static_cast<int>(exportPlugins.size()); ++row) {
+                const bool supports =
+                    exportPlugins[static_cast<size_t>(row)].extensions.contains(extension);
+
+                auto *item = new QTableWidgetItem();
+                item->setFlags(Qt::ItemIsEnabled);
+                item->setTextAlignment(Qt::AlignCenter);
+                if (supports) {
+                    item->setText(QStringLiteral("●"));
+                    item->setToolTip(
+                        tr("\"%1\" can save .%2 files")
+                            .arg(exportPlugins[static_cast<size_t>(row)].name, extension));
+                }
+                exportTable->setItem(row, col, item);
+            }
+        }
+
+        exportTable->resizeColumnsToContents();
+        exportTable->resizeRowsToContents();
+        exportTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        exportTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        exportTable->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+        layout->addWidget(exportTable, 1);
+    } else {
+        auto *label = new QLabel(tr("No export plugins are available."), &dialog);
+        label->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        layout->addWidget(label);
     }
-    exportTable->resizeRowsToContents();
-    layout->addWidget(exportTable, 1);
 
     auto *buttons =
         new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dialog);
@@ -1336,7 +1457,210 @@ void MainWindow::showImportPlugins()
             importPlugins[static_cast<size_t>(selectedRow)].id);
     }
 
-    statusBar()->showMessage(tr("Plugin preferences updated"), 2000);
+    if (hasImportMatrix)
+        statusBar()->showMessage(tr("Plugin preferences updated"), 2000);
+}
+
+void MainWindow::showFilterPlugins()
+{
+    const QStringList pluginSummaries = m_doc->loadedFilterPluginSummaries();
+    const std::vector<Document::FilterInfo> filters = m_doc->filterInfos();
+    if (pluginSummaries.isEmpty() && filters.empty()) {
+        QMessageBox::information(this, tr("Filter Plugins"), tr("No filter plugins are available."));
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Filter Plugins"));
+    auto *layout = new QVBoxLayout(&dialog);
+
+    auto *countLabel = new QLabel(
+        tr("Total filters: %1").arg(static_cast<int>(filters.size())),
+        &dialog);
+    QFont countFont = countLabel->font();
+    countFont.setBold(true);
+    countLabel->setFont(countFont);
+    layout->addWidget(countLabel);
+
+    layout->addWidget(new QLabel(tr("Loaded plugins"), &dialog));
+
+    auto *pluginList = new QListWidget(&dialog);
+    pluginList->setSelectionMode(QAbstractItemView::NoSelection);
+    pluginList->setFocusPolicy(Qt::NoFocus);
+    if (pluginSummaries.isEmpty()) {
+        pluginList->addItem(tr("No loaded plugins."));
+    } else {
+        for (const QString &summary : pluginSummaries)
+            pluginList->addItem(summary);
+    }
+    pluginList->setMaximumHeight(std::min(180, std::max(80, pluginList->sizeHintForRow(0) * 6)));
+    layout->addWidget(pluginList);
+
+    if (!filters.empty()) {
+        struct PluginAggregate {
+            QString id;
+            QString name;
+            int filterCount = 0;
+            int applicableCount = 0;
+            QSet<QString> categories;
+        };
+        std::vector<PluginAggregate> aggregates;
+        aggregates.reserve(filters.size());
+
+        auto getAggregateIndex = [&aggregates](const QString &pluginId) -> int {
+            for (int i = 0; i < static_cast<int>(aggregates.size()); ++i) {
+                if (aggregates[static_cast<size_t>(i)].id == pluginId)
+                    return i;
+            }
+            return -1;
+        };
+
+        for (const auto &info : filters) {
+            int idx = getAggregateIndex(info.pluginId);
+            if (idx < 0) {
+                PluginAggregate aggregate;
+                aggregate.id = info.pluginId;
+                aggregate.name = info.pluginName;
+                aggregates.push_back(std::move(aggregate));
+                idx = static_cast<int>(aggregates.size()) - 1;
+            }
+
+            PluginAggregate &aggregate = aggregates[static_cast<size_t>(idx)];
+            ++aggregate.filterCount;
+            if (info.applicable)
+                ++aggregate.applicableCount;
+
+            QString category = info.descriptor.menuPath.section('/', 0, 0).trimmed();
+            if (category.isEmpty())
+                category = tr("General");
+            aggregate.categories.insert(category);
+        }
+
+        std::sort(aggregates.begin(), aggregates.end(), [](const PluginAggregate &a, const PluginAggregate &b) {
+            return a.name.localeAwareCompare(b.name) < 0;
+        });
+
+        layout->addSpacing(8);
+        layout->addWidget(new QLabel(tr("Plugin details"), &dialog));
+
+        auto *pluginTable = new QTableWidget(static_cast<int>(aggregates.size()), 5, &dialog);
+        pluginTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        pluginTable->setSelectionMode(QAbstractItemView::NoSelection);
+        pluginTable->setFocusPolicy(Qt::NoFocus);
+        pluginTable->verticalHeader()->setVisible(false);
+        pluginTable->setHorizontalHeaderLabels(
+            { tr("Plugin"), tr("Id"), tr("Filters"), tr("Applicable"), tr("Categories") });
+        pluginTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+        pluginTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+        pluginTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+        pluginTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+        pluginTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
+
+        for (int row = 0; row < static_cast<int>(aggregates.size()); ++row) {
+            const PluginAggregate &aggregate = aggregates[static_cast<size_t>(row)];
+            QStringList categoryList = aggregate.categories.values();
+            categoryList.sort(Qt::CaseInsensitive);
+            const QString categories = categoryList.join(QStringLiteral(", "));
+
+            auto *nameItem = new QTableWidgetItem(aggregate.name);
+            nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
+            pluginTable->setItem(row, 0, nameItem);
+
+            auto *idItem = new QTableWidgetItem(aggregate.id);
+            idItem->setFlags(idItem->flags() & ~Qt::ItemIsEditable);
+            pluginTable->setItem(row, 1, idItem);
+
+            auto *countItem = new QTableWidgetItem(QString::number(aggregate.filterCount));
+            countItem->setTextAlignment(Qt::AlignCenter);
+            countItem->setFlags(countItem->flags() & ~Qt::ItemIsEditable);
+            pluginTable->setItem(row, 2, countItem);
+
+            auto *applicableItem = new QTableWidgetItem(
+                QStringLiteral("%1/%2").arg(aggregate.applicableCount).arg(aggregate.filterCount));
+            applicableItem->setTextAlignment(Qt::AlignCenter);
+            applicableItem->setFlags(applicableItem->flags() & ~Qt::ItemIsEditable);
+            pluginTable->setItem(row, 3, applicableItem);
+
+            auto *categoriesItem = new QTableWidgetItem(categories);
+            categoriesItem->setFlags(categoriesItem->flags() & ~Qt::ItemIsEditable);
+            pluginTable->setItem(row, 4, categoriesItem);
+        }
+
+        pluginTable->resizeRowsToContents();
+        layout->addWidget(pluginTable, 1);
+
+        layout->addSpacing(8);
+        layout->addWidget(new QLabel(tr("Declared filters"), &dialog));
+
+        std::vector<Document::FilterInfo> sortedFilters = filters;
+        std::sort(sortedFilters.begin(), sortedFilters.end(),
+            [](const Document::FilterInfo &a, const Document::FilterInfo &b) {
+                const int pluginCmp = a.pluginName.localeAwareCompare(b.pluginName);
+                if (pluginCmp != 0)
+                    return pluginCmp < 0;
+                const int menuCmp = a.descriptor.menuPath.localeAwareCompare(b.descriptor.menuPath);
+                if (menuCmp != 0)
+                    return menuCmp < 0;
+                return a.descriptor.name.localeAwareCompare(b.descriptor.name) < 0;
+            });
+
+        auto *filterTable = new QTableWidget(static_cast<int>(sortedFilters.size()), 6, &dialog);
+        filterTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        filterTable->setSelectionMode(QAbstractItemView::NoSelection);
+        filterTable->setFocusPolicy(Qt::NoFocus);
+        filterTable->verticalHeader()->setVisible(false);
+        filterTable->setHorizontalHeaderLabels(
+            { tr("Filter"), tr("Plugin"), tr("Menu"), tr("Input"), tr("Output"), tr("Status") });
+        filterTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+        filterTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+        filterTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+        filterTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+        filterTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+        filterTable->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
+
+        for (int row = 0; row < static_cast<int>(sortedFilters.size()); ++row) {
+            const auto &info = sortedFilters[static_cast<size_t>(row)];
+
+            auto setTextCell = [filterTable, row](int col, const QString &text, Qt::Alignment align = Qt::AlignLeft) {
+                auto *item = new QTableWidgetItem(text);
+                item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+                item->setTextAlignment(align);
+                filterTable->setItem(row, col, item);
+            };
+
+            setTextCell(0, info.descriptor.name);
+            setTextCell(1, info.pluginName);
+            setTextCell(2, info.descriptor.menuPath.isEmpty() ? tr("General") : info.descriptor.menuPath);
+            setTextCell(3, filterInputDomainLabel(info.descriptor.inputDomain), Qt::AlignCenter);
+            setTextCell(4, filterOutputDomainLabel(info.descriptor.outputDomain), Qt::AlignCenter);
+
+            const QString statusText = info.applicable ? tr("OK") : tr("Unavailable");
+            setTextCell(5, statusText, Qt::AlignCenter);
+            if (!info.applicable && filterTable->item(row, 5))
+                filterTable->item(row, 5)->setToolTip(info.applicabilityError);
+        }
+
+        filterTable->resizeRowsToContents();
+        layout->addWidget(filterTable, 2);
+    }
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok, Qt::Horizontal, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    layout->addWidget(buttons);
+    dialog.adjustSize();
+
+    if (QScreen *screen = dialog.screen()) {
+        const QSize maxDialogSize(
+            screen->availableGeometry().width() * 9 / 10,
+            screen->availableGeometry().height() * 9 / 10);
+        const QSize initialSize = QSize(
+            std::max(maxDialogSize.width() * 8 / 10, dialog.sizeHint().width()),
+            std::max(maxDialogSize.height() * 8 / 10, dialog.sizeHint().height()))
+                                      .boundedTo(maxDialogSize);
+        dialog.resize(initialSize);
+    }
+
+    dialog.exec();
 }
 
 void MainWindow::resetCamera()
