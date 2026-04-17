@@ -15,7 +15,7 @@ Rendering is performed by `RenderWidget` (`QRhiWidget`) in two modes:
 
 The world-settings page (global icon in the render overlay) is view-mode aware:
 
-- in `Scene3D` it exposes current-mesh highlight controls plus scene background gradient colors (`top`, `bottom`);
+- in `Scene3D` it exposes viewer-level controls: current-mesh highlight parameters, trackball gizmo toggle, and scene background gradient colors (`top`, `bottom`);
 - in `ParametrizationUV` it exposes UV viewer controls (`UV axis`, `full texture`).
 
 Ownership split:
@@ -47,6 +47,9 @@ Cached pass data:
 - edges pass: line buffer and fat-line buffer from explicit mesh edges
 - points pass: point buffer (position/color/normal payload + normal-valid flag)
 - bbox pass: line buffer
+- selection pass:
+  - selected-face overlay triangles
+  - selected-vertex overlay points
 - decorator pass buffers:
   - vertex normals
   - face normals
@@ -161,6 +164,7 @@ Main pass draw order:
 7. decorators
 8. trackball gizmo
 9. current-mesh outline/debug composite
+10. selection overlay (semi-transparent red faces/vertices)
 
 ### `ParametrizationUV` Mode
 
@@ -249,6 +253,19 @@ Boundary and seam extraction are done in the cache:
 - geometric boundaries via topological edge incidence (`incidentCount == 1`)
 - seams via per-topological-edge UV sample comparison (including texture-index changes and missing/invalid UV on incident faces)
 
+### Selection Overlay
+
+Selection rendering is a dedicated final scene pass:
+
+- face selection: semi-transparent red triangles
+- vertex selection: red points
+- both overlays are depth-tested (`LessOrEqual`) with depth write disabled
+- data source is `SelectionPassGpuView` from the shared cache
+- visibility is controlled per mesh via:
+  - `showSelection`
+  - `showSelectionFaces`
+  - `showSelectionVertices`
+
 ## `ParametrizationUV` Mode Details
 
 Entry conditions and scope:
@@ -298,6 +315,8 @@ Used when current mesh has fill or edges enabled:
 4. Composite outline in the main pass.
 
 For edge meshes, highlight depth passes prefer fat-edge depth-only geometry when available.
+
+Occluded portions of the outline are composited with half alpha of the configured outline color.
 
 ### Point-cloud path
 
@@ -353,6 +372,19 @@ Trackball gizmo is depth-aware and scale-stable across dolly/FOV changes.
 - double click: fit UV framing (mesh UV bounds or full `[0,1]` when full-texture mode is active)
 - `Reset Camera`: requests UV fit instead of trackball reset
 
+## Quality Histogram Overlay
+
+The quality histogram is a 2D overlay label rendered inside `RenderWidget`:
+
+- controlled by `showQualityHistogram`
+- source:
+  - auto (`vertex` preferred, fallback to `face`)
+  - forced vertex quality
+  - forced face quality
+- supports configurable bin count, optional fixed range, selectable colormap, and colormap inversion
+- color mapping configuration is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned
+- shown in the active view when quality data is available on the current mesh
+
 ## Snapshot Capture Path
 
 `MainWindow::saveSnapshotPng()` captures the active `RenderWidget` offscreen by:
@@ -370,7 +402,7 @@ The saved PNG includes camera JSON metadata under `QMeshLab.CameraTrackballState
 
 When cache rebuilds happen, `Document` logs rebuilt resources among:
 
-- `fill`, `wire`, `edges`, `points`, `bbox`
+- `fill`, `wire`, `edges`, `points`, `bbox`, `selection`
 - `decorator normals`, `decorator boundaries`
 
 plus elapsed rebuild time.
@@ -388,5 +420,5 @@ plus elapsed rebuild time.
 
 - Material/shading model is intentionally minimal (no full PBR pipeline).
 - Post-processing is raster full-screen passes (no compute path).
-- Selection/highlight is centered on the **current mesh** concept rather than element-level selection.
+- Current-mesh highlight is centered on the **current mesh** concept, while element-level vertex/face selection has its own overlay pass.
 - UV mode is currently single-mesh (current mesh only) and requires imported UV attributes.

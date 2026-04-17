@@ -3,8 +3,8 @@
 QMeshLab follows a **single-document, multi-view** architecture:
 
 - one `Document` is the authoritative model
-- UI widgets observe it via Qt signals
-- rendering data and rendering state are intentionally split
+- UI widgets observe it through Qt signals
+- rendering ownership is split between shared mesh GPU data and per-view pipelines/state
 
 See also:
 - [Data Model](data_model.md)
@@ -13,11 +13,11 @@ See also:
 ## Architectural Layers
 
 1. Application shell (`MainWindow`)
-2. Data model (`Document`, `VCGMesh`, log state)
-3. I/O plugins (`MeshIOPlugin*`, plugin registry)
-4. Shared GPU cache (`MeshGpuResourceCache`)
+2. Data model (`Document`, `VCGMesh`, undo/redo, logs, progress/cancel state)
+3. Plugin layer (`MeshIOPlugin*`, `MeshFilterPlugin*`, registries/managers)
+4. Shared mesh GPU cache (`MeshGpuResourceCache`)
 5. Per-view rendering (`RenderWidget`, `ViewTrackball`, `RenderOverlayPanel`)
-6. Auxiliary views (`LayerWidget`, log dock, status-bar progress/frame stats)
+6. Auxiliary views (`LayerWidget`, `MeshFilterPanel`, log dock, status-bar stats/progress)
 
 ## Core Components
 
@@ -28,8 +28,9 @@ See also:
 - ordered mesh list (`MeshEntry`)
 - current mesh index
 - per-document log
-- load progress forwarding
-- plugin manager
+- load/save/filter progress callback forwarding + cancel flag
+- undo/redo stack (`UndoState`, `UndoStep`)
+- I/O plugin manager and filter plugin manager
 - shared GPU mesh cache
 
 `MeshEntry` stores:
@@ -39,7 +40,7 @@ See also:
 - texture metadata (`textureFileNames`, `textureFilePaths`)
 - view-independent mesh state (`visible`, `VCGMesh mesh`)
 
-The document exposes renderer-facing APIs:
+Renderer-facing APIs include:
 
 - `ensureMeshGpuResources(...)`
 - `fillPassGpuView(...)`
@@ -48,163 +49,190 @@ The document exposes renderer-facing APIs:
 - `edgeFatPassGpuView(...)`
 - `pointsPassGpuView(...)`
 - `bboxPassGpuView(...)`
+- `selectionPassGpuView(...)`
 - `decoratorPassGpuView(...)`
 
-It does not own per-widget pipelines, per-widget mesh render modes, or camera state.
-For ownership, signals, and loading specifics, see [Data Model](data_model.md).
+`Document` does not own per-widget pipelines, per-widget render mode preferences, or camera state.
 
 ### `MeshGpuResourceCache`
 
 Central cache for mesh GPU resources, keyed by:
 
-- `QRhi*` backend instance
+- `QRhi*` backend
 - mesh id
-- pass variants (fill/points)
+- fill/point variants
 - geometry/material revisions
 
-What is cached:
+Cached resources:
 
-- fill batches (vertex/index buffers + optional texture)
-- wire vertex buffer
-- edge line buffer + edge fat-line buffer
-- points vertex buffer
-- bbox vertex buffer
+- fill batches (vertex/index buffers, optional texture)
+- wire buffer
+- edge line + edge fat-line buffers
+- points buffer
+- bbox buffer
+- selection buffers (selected faces and selected vertices)
 - decorator buffers:
   - vertex normals
   - face normals
   - geometric boundaries (line + fat-line)
   - texture seams (line + fat-line)
 
-This enables reuse of heavy mesh uploads across rendering mode switches and across views sharing the same `QRhi`.
+This avoids re-uploading mesh data when switching render modes or when multiple views share the same `QRhi`.
 
 ### `LineRenderer`
 
-`LineRenderer` is a small shared utility used to build triangle-expanded "fat line" geometry from line segments:
+Shared utility for generating triangle-expanded fat-line geometry from line segments:
 
-- consumed by `MeshGpuResourceCache` for edge and boundary/seam uploads
-- consumed by `RenderWidget` fat-edge/fat-decorator pipelines
-- keeps line-thickness behavior consistent across Scene and UV modes
+- used by `MeshGpuResourceCache` for edge/boundary/seam uploads
+- used by `RenderWidget` fat-edge/fat-decorator pipelines
 
 ### `RenderWidget`
 
-`RenderWidget` is a `QRhiWidget` and owns per-view rendering state:
+`RenderWidget` (`QRhiWidget`) owns per-view rendering state:
 
-- graphics pipelines
-- per-widget SRBs and uniform buffers
-- offscreen render targets for Scene mode (depth pick, current mesh mask/morph)
-- view mode state (`Scene3D` / `ParametrizationUV`)
-- 3D camera/navigation state (`ViewTrackball`)
-- UV view state (`m_uvPan`, `m_uvZoom`, fit/pan interaction state)
-- per-widget UV mesh GPU cache (rebuilt from document meshes/revisions)
+- graphics pipelines/SRBs/UBOs
+- offscreen targets used in Scene mode (depth pick + current-mesh mask pipeline)
+- view mode (`Scene3D` / `ParametrizationUV`)
+- Scene camera/navigation state (`ViewTrackball`)
+- UV pan/zoom/fit state
+- per-widget UV GPU cache
 - overlay settings panel integration
 - per-mesh render modes (keyed by mesh id)
 - per-view mesh visibility vector
+- per-view quality histogram overlay cache
 
-In `Scene3D` mode it queries pass GPU views from `Document`/`MeshGpuResourceCache`.
-In `ParametrizationUV` mode it renders an orthographic UV view for the current mesh and can reuse textured fill batches from the document cache.
-For pass-level behavior and draw order, see [Rendering](rendering.md).
+In `Scene3D`, it consumes pass views from `Document`/`MeshGpuResourceCache`.
+In `ParametrizationUV`, it renders the current mesh in UV space and can reuse textured fill batches from the document cache.
 
 ### `ViewTrackball`
 
-Navigation logic for `Scene3D` mode is factored into a dedicated class:
+Dedicated Scene navigation math and interaction:
 
-- arcball-like rotate + hyperbola fallback
-- pan
-- dolly
-- `Shift+Wheel` vertigo effect (FOV + compensating dolly)
-- reset-to-frame and animated recenter target support (via `RenderWidget`)
+- arcball-like rotation with hyperbola fallback
+- pan and dolly
+- `Shift+Wheel` vertigo behavior (FOV + compensating dolly)
+- reset/reframe and animated recenter support
 
 ### `RenderOverlayPanel`
 
-Compact pass/settings UI for layered rendering:
+Compact pass/settings panel with:
 
-- pass toggles (current mesh, normal decorators, boundary/seam decorators, bbox, points, edges, wire, fill)
-- per-pass arrow buttons to open settings page
-- one shared settings container with pass-specific pages
-- strongly typed `RenderSettings` synchronization
-- includes width controls for edges and boundary/seam decorators
+- pass toggles + settings arrows
+- mode-specific world settings page (Scene vs UV)
+- strongly typed `RenderSettings` sync
+- per-pass style controls (colors, widths, lighting/culling options, quality histogram options)
+
+### `MeshFilterPanel`
+
+Filter browser/runner dock:
+
+- search box + searchable result list
+- parameter form generated from `MeshFilterDescriptor`
+- optional long markdown description (`?` toggle)
+- advanced-parameter visibility toggle only when needed
+- per-filter parameter-value cache (values persist across runs and undo/redo)
 
 ### `MainWindow`
 
-Composition and global orchestration:
+Composition and orchestration:
 
-- central splitter containing one or more `RenderWidget` views
-- right dock `LayerWidget`
-- bottom dock log list
+- central splitter with one or more `RenderWidget`s
+- right column docks: `LayerWidget` (top) + `MeshFilterPanel` (bottom)
+- bottom log dock
 - status bar:
   - load progress bar
-  - CPU/GPU frame-time label (fixed-width font, rolling 100-frame stats)
-- file/view/help actions:
-  - file: `New`, `New Instance`, multi-file `Open`, `Snapshot PNG`, recent files
-  - view: `3D Scene Mode`, `Parametrization (UV) Mode`, split horizontal/vertical, `Reset Camera`, camera/trackball JSON copy/paste
-  - help: about + import plugin preference dialog
-- active-view management (style border + explicit current-view indicator widget when multiple views are open, context menu split/close)
-- snapshot export:
-  - output resolution options with aspect-ratio lock
-  - offscreen capture from the active view
-  - writes camera state into PNG text metadata (`QMeshLab.CameraTrackballState`)
+  - filter progress bar + cancel button
+  - CPU/GPU frame-time stats (rolling 100-frame window)
+- menus:
+  - file: `New`, `New Instance`, multi-file `Open`, reload current/all, save mesh, snapshot PNG, recent
+  - edit: undo/redo
+  - filters: hierarchical filter menu + filter browser
+  - view: Scene/UV mode, split H/V, reset camera, copy/paste camera JSON
+  - help: about, I/O plugin dialog, filter plugin dialog
+- active-view handling:
+  - split/close per current view
+  - right-click view context menu (mode/split/close)
+  - current-view highlight border when multiple views are open
+  - document visibility proxy synchronized from active view
 
 ## Plugin System
 
-### Plugin Interface
+### I/O Plugin Interface
 
-`MeshIOPlugin` defines:
+`MeshIOPlugin` supports both import and export:
 
-- `canLoad(filename)`
-- `load(filename, mesh, callback, outLoadMask)`
-- `filterString()`
-- `errorString(errCode)`
+- import: `canLoad`, `load`, `filterString`, `errorString`
+- export: `canSave`, `save`, `saveFilterString`, `saveMaskCapability`
 
-### Plugin Manager
+### Filter Plugin Interface
 
-`MeshIOPluginManager`:
+`MeshFilterPlugin` provides:
 
-- stores plugins in registration order
-- supports per-extension preferred plugin selection (persisted in `QSettings`)
-- resolves loader by preferred plugin first, then first registered matching plugin
-- composes file dialog filters from all registered plugins
+- plugin id/name
+- filter descriptors (`filters(const Document&)`)
+- filter execution (`runFilter(filterId, parameters, Document&)`)
+
+Descriptors include domain/codomain, requirements, tags, short/long descriptions, and typed parameters.
+
+### Plugin Managers
+
+- `MeshIOPluginManager`
+- `MeshFilterPluginManager`
+
+Both managers keep plugins in registration order and expose metadata for dialogs/menus.
+I/O manager also stores per-extension preferred import plugin in `QSettings`.
 
 ### Built-in plugin registration
 
-`plugins/meshpluginregistry.*` registers plugins that are enabled/available at build time.
+- I/O: `plugins/meshpluginregistry.*`
+- filters: `plugins/filterpluginregistry.*`
 
-Current plugin families:
+Current built-in families (build-option/dependency gated):
 
-- `plugins/io_obj_rapidobj` (obj, rapidobj-based)
-- `plugins/io_vcg` (ply/obj/stl/off/vmi)
-- `plugins/io_gltf` (gltf/glb, tinygltf)
-- `plugins/io_e57` (optional, dependency-gated)
+- I/O:
+  - `io_vcg`
+  - `io_obj_rapidobj`
+  - `io_gltf`
+  - `io_e57`
+- filters:
+  - `filter_basic`
+  - `filter_func`
+  - `filter_embree`
+  - `filter_select`
+  - `filter_clean`
+  - `filter_meshing`
 
 ## Views and Responsibilities
 
 | View | Widget | Responsibility |
 |------|--------|----------------|
-| Render View (`Scene3D` or `ParametrizationUV`) | `RenderWidget` | Mode-specific rendering and interaction, per-view mesh modes/visibility, frame stats |
-| Layer Panel | `LayerWidget` | Visibility toggles, current mesh selection, mesh/data/texture info |
-| Log Panel | `QListWidget` in dock | Per-document app + VCG/import logs |
+| Render View (`Scene3D` or `ParametrizationUV`) | `RenderWidget` | mode-specific rendering/interaction, per-view mesh modes/visibility, frame stats |
+| Layer Panel | `LayerWidget` | visibility/current mesh selection, compact mesh/data/texture summary |
+| Filter Panel | `MeshFilterPanel` | filter search, parameter editing, run requests |
+| Log Panel | `QListWidget` dock | per-document app + VCG logs |
 
 ## State Ownership Rules
 
 Shared/document state:
 
-- mesh geometry/material data
-- document-level layer visibility + current mesh
-- import metadata and logs
+- mesh geometry/material source data
+- mesh list and current mesh index
+- document-level visibility proxy (`MeshEntry::visible`)
+- import/export/filter metadata and logs
+- undo/redo history
 - shared mesh GPU cache
 
 Per-view state:
 
-- mesh render-mode preferences (show fill/wire/edges/points/decorators, styling)
+- per-mesh render-mode/style preferences
 - per-view mesh visibility vector
-- view mode (`Scene3D` or `ParametrizationUV`)
-- camera/trackball state (Scene mode)
-- UV pan/zoom/fit state + UV temporary GPU cache (UV mode)
-- overlay render settings
-- current-view indicator widget state
-- pipelines/SRBs/uniforms
-- offscreen targets and transient frame resources (Scene-mode highlight/depth pick path)
+- view mode (`Scene3D`/`ParametrizationUV`)
+- camera/trackball and UV pan/zoom state
+- overlay settings
+- pipelines/SRBs/uniforms/render targets
+- transient pass resources (highlight/depth-pick path)
 
-This keeps model consistency while allowing multiple independent views and render styles.
+This keeps one canonical document while allowing independent view styles and navigation.
 
 ## Data Flow
 
@@ -212,25 +240,21 @@ This keeps model consistency while allowing multiple independent views and rende
 User Action
    |
    v
-MainWindow (menu/toolbar/status orchestration)
+MainWindow (menus, docks, split-view orchestration)
    |
-   v
-Document (load/mutate/log/signal)
-   |                     \
-   |                      \--> LayerWidget / Log Dock / Progress UI
-   v
-MeshGpuResourceCache (shared GPU mesh resources)
+   +--> Document (load/save/run filter, undo/redo, logs, progress/cancel)
+   |          |
+   |          +--> MeshGpuResourceCache (shared per-mesh GPU data)
    |
-   v
-RenderWidget (per-view modes, visibility, pipelines, passes, camera)
+   +--> RenderWidget(s) (per-view passes, camera, modes)
+   +--> LayerWidget / MeshFilterPanel / Log Dock
 ```
 
 ## Typical Runtime Sequence
 
-1. User opens one or more files from `MainWindow`.
-2. `Document` loads through plugin, updates metadata/log/progress, emits signals.
-3. Each `RenderWidget` resolves its mode (`Scene3D` or `ParametrizationUV`) and ensures needed resources.
-4. Frame render executes either:
-   - Scene path: layered 3D passes (`scene background gradient`, `fill`, `wire`, `edges` with fat-line path when available, `bbox`, `points`, decorators, gizmo, current-mesh highlight).
-   - UV path: orthographic UV rendering of the current mesh plus UV background, optional full-texture `[0,1]` preview, boundary/seam overlays, and UV reference overlays (unit square + U/V axes).
-5. Frame CPU/GPU timings are emitted to `MainWindow` and shown in status bar stats.
+1. User opens one or more files.
+2. `Document` resolves import plugin, loads mesh, logs file/attribute/texture info, emits signals.
+3. Views sync mesh/mode/visibility state and ensure needed GPU resources through the shared cache.
+4. Rendering runs either Scene layered passes or UV passes (plus overlays).
+5. Optional filter run executes through filter manager, with progress/cancel and undo integration.
+6. Status bar displays load/filter progress and rolling CPU/GPU frame timings.
