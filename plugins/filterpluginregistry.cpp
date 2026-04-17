@@ -17,6 +17,9 @@
 #if QMESH_PLUGIN_FILTER_CLEAN_ENABLED
 #include "plugins/filter_clean/cleanfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_MESHING_ENABLED
+#include "plugins/filter_meshing/meshingfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -34,5 +37,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_CLEAN_ENABLED
     registerCleanFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_MESHING_ENABLED
+    registerMeshingFilterPlugin(pluginManager);
 #endif
 }

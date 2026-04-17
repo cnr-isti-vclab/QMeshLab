@@ -64,6 +64,7 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.meshId = src.meshId;
     dst.geometryRevision = src.geometryRevision;
     dst.materialRevision = src.materialRevision;
+    dst.renderTransform = src.renderTransform;
     dst.name = src.name;
     dst.sourcePath = src.sourcePath;
     dst.textureFileNames = src.textureFileNames;
@@ -412,6 +413,7 @@ int Document::loadMesh(const QString &filename)
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = 1;
     entry->materialRevision = 1;
+    entry->renderTransform.setToIdentity();
     entry->name = QFileInfo(filename).fileName();
     entry->sourcePath = filename;
 
@@ -989,6 +991,7 @@ int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = 1;
     entry->materialRevision = 1;
+    entry->renderTransform.setToIdentity();
     entry->ioMask = ioMask;
     entry->sourcePath.clear();
     entry->name = name.trimmed().isEmpty()
@@ -1052,6 +1055,43 @@ int Document::duplicateMesh(int sourceIndex, const QString &newName)
     if (ownUndoStep)
         endUndoStep(true);
     return newIndex;
+}
+
+QMatrix4x4 Document::meshRenderTransform(int index) const
+{
+    if (index < 0 || index >= meshCount()) {
+        QMatrix4x4 identity;
+        identity.setToIdentity();
+        return identity;
+    }
+    return mesh(index).renderTransform;
+}
+
+void Document::setMeshRenderTransform(
+    int index,
+    const QMatrix4x4 &transform,
+    const QString &contextMessage)
+{
+    if (index < 0 || index >= meshCount())
+        return;
+    MeshEntry &entry = mesh(index);
+    if (entry.renderTransform == transform)
+        return;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Modify Mesh Transform"));
+
+    entry.renderTransform = transform;
+    if (!contextMessage.trimmed().isEmpty()) {
+        writeLog(contextMessage.trimmed(), LogSource::Application);
+    } else {
+        writeLog(tr("Mesh transform updated: '%1'").arg(entry.name), LogSource::Application);
+    }
+    emit meshDataChanged(index);
+
+    if (ownUndoStep)
+        endUndoStep(true);
 }
 
 void Document::setMeshVisible(int index, bool visible)

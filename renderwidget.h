@@ -135,9 +135,7 @@ private:
     QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
     void executePendingDepthPick(
         QRhiCommandBuffer *cb,
-        const QMatrix4x4 &mvp,
-        const QSize &pixelSize,
-        int pointVariantIndex);
+        const QSize &pixelSize);
     void renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &pixelSize);

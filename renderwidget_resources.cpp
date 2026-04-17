@@ -4,6 +4,9 @@
 #include "renderwidget_internal.h"
 #include <QElapsedTimer>
 #include <QImage>
+#include <QVector4D>
+#include <algorithm>
+#include <cmath>
 
 using namespace RenderWidgetInternal;
 
@@ -18,22 +21,51 @@ void RenderWidget::updateCameraFrameIfNeeded()
     if (m_doc->meshCount() == 0)
         return;
 
-    vcg::Box3f bbox;
+    QVector3D sceneMin;
+    QVector3D sceneMax;
     bool hasVisibleMesh = false;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         if (!meshVisible(i))
             continue;
-        bbox.Add(m_doc->mesh(i).mesh.bbox);
-        hasVisibleMesh = true;
+        const auto &entry = m_doc->mesh(i);
+        if (entry.mesh.bbox.IsNull())
+            continue;
+
+        const vcg::Box3f &box = entry.mesh.bbox;
+        const QVector3D corners[8] = {
+            QVector3D(box.min[0], box.min[1], box.min[2]),
+            QVector3D(box.max[0], box.min[1], box.min[2]),
+            QVector3D(box.min[0], box.max[1], box.min[2]),
+            QVector3D(box.max[0], box.max[1], box.min[2]),
+            QVector3D(box.min[0], box.min[1], box.max[2]),
+            QVector3D(box.max[0], box.min[1], box.max[2]),
+            QVector3D(box.min[0], box.max[1], box.max[2]),
+            QVector3D(box.max[0], box.max[1], box.max[2])
+        };
+        for (const QVector3D &corner : corners) {
+            const QVector4D transformed = entry.renderTransform * QVector4D(corner, 1.0f);
+            const QVector3D worldCorner = (std::abs(transformed.w()) > 1e-8f)
+                ? transformed.toVector3DAffine()
+                : transformed.toVector3D();
+            if (!hasVisibleMesh) {
+                sceneMin = worldCorner;
+                sceneMax = worldCorner;
+                hasVisibleMesh = true;
+                continue;
+            }
+            sceneMin.setX(std::min(sceneMin.x(), worldCorner.x()));
+            sceneMin.setY(std::min(sceneMin.y(), worldCorner.y()));
+            sceneMin.setZ(std::min(sceneMin.z(), worldCorner.z()));
+            sceneMax.setX(std::max(sceneMax.x(), worldCorner.x()));
+            sceneMax.setY(std::max(sceneMax.y(), worldCorner.y()));
+            sceneMax.setZ(std::max(sceneMax.z(), worldCorner.z()));
+        }
     }
     if (!hasVisibleMesh)
         return;
-    if (bbox.IsNull())
-        return;
 
-    auto c = bbox.Center();
-    const QVector3D center(c[0], c[1], c[2]);
-    const float radius = qMax(1e-4f, bbox.Diag() / 2.0f);
+    const QVector3D center = 0.5f * (sceneMin + sceneMax);
+    const float radius = qMax(1e-4f, 0.5f * (sceneMax - sceneMin).length());
     if (m_resetTrackballRequested)
         m_trackball.resetToFrame(center, radius, radius * 3.0f);
     else

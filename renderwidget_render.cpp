@@ -122,44 +122,27 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     };
     updateQualityColorMapLut(u);
 
-    QMatrix4x4 mvp;
-    float baseUbufData[kUbufFloatCount] = {};
-    bool haveBaseUbufData = false;
+    QMatrix4x4 proj;
+    QMatrix4x4 view;
+    QMatrix4x4 vp;
+    bool haveCameraMatrices = false;
     if (needMvpForFrame) {
         const float aspect = sz.width() / float(sz.height());
         const float sceneRadius = m_trackball.radius();
 
-        QMatrix4x4 proj;
         proj.perspective(
             m_trackball.fovYDegrees(),
             aspect,
             0.01f * sceneRadius,
             100.0f * sceneRadius);
 
-        const QMatrix4x4 view = m_trackball.viewMatrix();
-
-        QMatrix4x4 modelView = view;
-
-        mvp = proj * view;
-        QMatrix3x3 normalMat = modelView.normalMatrix();
-
-        // Pack uniform: mat4 mvp + mat4 modelView + mat3 as 3 vec4 (std140) + render colors/params.
-        memset(baseUbufData, 0, sizeof(baseUbufData));
-        memcpy(baseUbufData, mvp.constData(), 64);
-        memcpy(baseUbufData + 16, modelView.constData(), 64);
-        // std140: mat3 is stored as 3 columns of vec4
-        const float *n = normalMat.constData();
-        baseUbufData[32] = n[0]; baseUbufData[33] = n[1]; baseUbufData[34] = n[2]; baseUbufData[35] = 0;
-        baseUbufData[36] = n[3]; baseUbufData[37] = n[4]; baseUbufData[38] = n[5]; baseUbufData[39] = 0;
-        baseUbufData[40] = n[6]; baseUbufData[41] = n[7]; baseUbufData[42] = n[8]; baseUbufData[43] = 0;
-        writeMainStyleToUbuf(baseUbufData, m_renderSettings, sz, true);
-
-        if (!u)
-            u = m_rhi->nextResourceUpdateBatch();
-        u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, baseUbufData);
-        haveBaseUbufData = true;
+        view = m_trackball.viewMatrix();
+        vp = proj * view;
+        haveCameraMatrices = true;
 
         if (drawTrackballGizmo && m_trackballGizmoUbuf && m_trackballGizmoVbuf) {
+            if (!u)
+                u = m_rhi->nextResourceUpdateBatch();
             const auto &verts = trackballGizmoVertices();
             u->updateDynamicBuffer(
                 m_trackballGizmoVbuf.get(),
@@ -168,7 +151,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 verts.data());
 
             float gizmoData[kTrackballGizmoUbufSize / sizeof(float)] = {};
-            memcpy(gizmoData, mvp.constData(), 64);
+            memcpy(gizmoData, vp.constData(), 64);
             const QVector3D center = m_trackball.center();
             gizmoData[16] = center.x();
             gizmoData[17] = center.y();
@@ -190,39 +173,37 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
-    MainStyleUbufKey lastStyleKey {};
-    bool hasLastStyleKey = false;
-    if (haveBaseUbufData) {
-        lastStyleKey = mainStyleUbufKeyFromSettings(m_renderSettings);
-        hasLastStyleKey = true;
-    }
+    auto updateMainUbufForMesh = [&](int meshIndex, const RenderSettings &meshSettings) {
+        if (!haveCameraMatrices || !m_ubuf)
+            return;
+        if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
+            return;
 
-    auto updateStyleUbuf = [&](const RenderSettings &meshSettings) {
-        if (!haveBaseUbufData)
-            return;
-        const MainStyleUbufKey nextKey = mainStyleUbufKeyFromSettings(meshSettings);
-        if (hasLastStyleKey && nextKey == lastStyleKey)
-            return;
-        float ubufData[kUbufFloatCount];
-        memcpy(ubufData, baseUbufData, sizeof(ubufData));
+        const QMatrix4x4 model = m_doc->mesh(meshIndex).renderTransform;
+        const QMatrix4x4 modelView = view * model;
+        const QMatrix4x4 mvp = proj * modelView;
+        const QMatrix3x3 normalMat = modelView.normalMatrix();
+
+        float ubufData[kUbufFloatCount] = {};
+        memcpy(ubufData, mvp.constData(), 64);
+        memcpy(ubufData + 16, modelView.constData(), 64);
+        const float *n = normalMat.constData();
+        ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0;
+        ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
+        ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
         writeMainStyleToUbuf(ubufData, meshSettings, sz, true);
 
         QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
         uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
         cb->resourceUpdate(uMesh);
-        lastStyleKey = nextKey;
-        hasLastStyleKey = true;
     };
 
-    const RenderSettings currentMeshSettingsForPick =
-        (currentMeshIndex >= 0) ? renderSettingsForMesh(currentMeshIndex) : m_renderSettings;
-    const int pointVariantIndex = pointGpuVariantIndexForSettings(currentMeshSettingsForPick);
     if (m_depthPickPending) {
         if (u) {
             cb->resourceUpdate(u);
             u = nullptr;
         }
-        executePendingDepthPick(cb, mvp, sz, pointVariantIndex);
+        executePendingDepthPick(cb, sz);
     }
 
     if (drawCurrentMeshHighlight) {
@@ -269,7 +250,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             if (!fillPipeline)
                 continue;
             cb->setGraphicsPipeline(fillPipeline);
-            updateStyleUbuf(meshSettings);
+            updateMainUbufForMesh(mi, meshSettings);
             const auto fillVariant = static_cast<Document::FillGpuVariant>(
                 fillGpuVariantIndexForSettings(meshSettings));
             const Document::FillPassGpuView fillView =
@@ -310,7 +291,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 continue;
             cb->setGraphicsPipeline(wirePipeline);
             cb->setShaderResources(m_srb.get());
-            updateStyleUbuf(meshSettings);
+            updateMainUbufForMesh(mi, meshSettings);
             const Document::WirePassGpuView wireView = m_doc->wirePassGpuView(m_rhi, mi);
             if (!wireView.valid || !wireView.vertexBuffer || wireView.vertexCount <= 0)
                 continue;
@@ -336,7 +317,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 if (fatPipeline && fatView.valid && fatView.vertexBuffer && fatView.vertexCount > 0) {
                     cb->setGraphicsPipeline(fatPipeline);
                     cb->setShaderResources(m_srb.get());
-                    updateStyleUbuf(meshSettings);
+                    updateMainUbufForMesh(mi, meshSettings);
                     const QRhiCommandBuffer::VertexInput ev(fatView.vertexBuffer, 0);
                     cb->setVertexInput(0, 1, &ev);
                     cb->draw(fatView.vertexCount);
@@ -350,7 +331,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                     continue;
                 cb->setGraphicsPipeline(linePipeline);
                 cb->setShaderResources(m_srb.get());
-                updateStyleUbuf(meshSettings);
+                updateMainUbufForMesh(mi, meshSettings);
                 const Document::EdgePassGpuView lineView = m_doc->edgePassGpuView(m_rhi, mi);
                 if (!lineView.valid || !lineView.vertexBuffer || lineView.vertexCount <= 0)
                     continue;
@@ -370,7 +351,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             const RenderSettings meshSettings = renderSettingsForMesh(mi);
             if (!meshSettings.showBoundingBox)
                 continue;
-            updateStyleUbuf(meshSettings);
+            updateMainUbufForMesh(mi, meshSettings);
             const Document::BBoxPassGpuView bboxView = m_doc->bboxPassGpuView(m_rhi, mi);
             if (!bboxView.valid || !bboxView.vertexBuffer || bboxView.vertexCount <= 0)
                 continue;
@@ -389,7 +370,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             const RenderSettings meshSettings = renderSettingsForMesh(mi);
             if (!meshSettings.showPoints)
                 continue;
-            updateStyleUbuf(meshSettings);
+            updateMainUbufForMesh(mi, meshSettings);
             const auto pointVariant = static_cast<Document::PointGpuVariant>(
                 pointGpuVariantIndexForSettings(meshSettings));
             const Document::PointsPassGpuView pointsView =
@@ -403,17 +384,20 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     }
 
     if (drawDecoratorPass) {
-        auto setDecoratorColor = [&](int slot, const QColor &color) -> bool {
+        auto setDecoratorColor = [&](int slot, int meshIndex, const QColor &color) -> bool {
             if (slot < 0 || slot >= kDecoratorSlotCount)
                 return false;
             if (!m_decoratorPipeline)
+                return false;
+            if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
                 return false;
             QRhiBuffer *decoratorUbuf = m_decoratorUbufs[slot].get();
             QRhiShaderResourceBindings *decoratorSrb = m_decoratorSrbs[slot].get();
             if (!decoratorUbuf || !decoratorSrb)
                 return false;
             float decoratorData[kDecoratorUbufSize / sizeof(float)] = {};
-            memcpy(decoratorData, mvp.constData(), 64);
+            const QMatrix4x4 meshMvp = vp * m_doc->mesh(meshIndex).renderTransform;
+            memcpy(decoratorData, meshMvp.constData(), 64);
             decoratorData[16] = color.redF();
             decoratorData[17] = color.greenF();
             decoratorData[18] = color.blueF();
@@ -436,7 +420,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 const MeshRenderMode mode = renderModeForMesh(mi);
                 if (!shouldDraw(mode))
                     continue;
-                if (!setDecoratorColor(slot, colorGetter(mode)))
+                if (!setDecoratorColor(slot, mi, colorGetter(mode)))
                     continue;
                 const Document::DecoratorPassGpuView decorView =
                     m_doc->decoratorPassGpuView(m_rhi, mi);
@@ -478,7 +462,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 if (fatPipeline && m_decoratorFatUbuf && m_decoratorFatSrb
                     && fatVbuf && fatVertexCount > 0) {
                     float fatData[kDecoratorFatUbufSize / sizeof(float)] = {};
-                    memcpy(fatData, mvp.constData(), 64);
+                    const QMatrix4x4 meshMvp = vp * m_doc->mesh(mi).renderTransform;
+                    memcpy(fatData, meshMvp.constData(), 64);
                     fatData[16] = decoColor.redF();
                     fatData[17] = decoColor.greenF();
                     fatData[18] = decoColor.blueF();
@@ -499,7 +484,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                     continue;
                 }
 
-                if (!setDecoratorColor(slot, colorGetter(mode)))
+                if (!setDecoratorColor(slot, mi, colorGetter(mode)))
                     continue;
                 QRhiBuffer *lineVbuf = lineBufferGetter(decorView);
                 const int lineVertexCount = lineCountGetter(decorView);
@@ -619,16 +604,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         && m_selectionUbuf
         && m_selectionSrb
         && (m_selectionFacesPipeline || m_selectionVerticesPipeline)) {
-        float selectionData[kDecoratorUbufSize / sizeof(float)] = {};
-        memcpy(selectionData, mvp.constData(), 64);
-        selectionData[16] = 1.0f;
-        selectionData[17] = 0.0f;
-        selectionData[18] = 0.0f;
-        selectionData[19] = 0.5f;
-        QRhiResourceUpdateBatch *uSel = m_rhi->nextResourceUpdateBatch();
-        uSel->updateDynamicBuffer(
-            m_selectionUbuf.get(), 0, kDecoratorUbufSize, selectionData);
-        cb->resourceUpdate(uSel);
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
 
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
@@ -642,6 +617,18 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 m_doc->selectionPassGpuView(m_rhi, mi);
             if (!selectionView.valid)
                 continue;
+
+            float selectionData[kDecoratorUbufSize / sizeof(float)] = {};
+            const QMatrix4x4 meshMvp = vp * m_doc->mesh(mi).renderTransform;
+            memcpy(selectionData, meshMvp.constData(), 64);
+            selectionData[16] = 1.0f;
+            selectionData[17] = 0.0f;
+            selectionData[18] = 0.0f;
+            selectionData[19] = 0.5f;
+            QRhiResourceUpdateBatch *uSel = m_rhi->nextResourceUpdateBatch();
+            uSel->updateDynamicBuffer(
+                m_selectionUbuf.get(), 0, kDecoratorUbufSize, selectionData);
+            cb->resourceUpdate(uSel);
 
             if (mode.showSelectionFaces
                 && m_selectionFacesPipeline
@@ -670,8 +657,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     }
 
     if (needMvpForFrame) {
-        const QMatrix4x4 view = m_trackball.viewMatrix();
-        updateBoundingBoxCornersOverlayPlacement(mvp, view, sz);
+        updateBoundingBoxCornersOverlayPlacement(vp, view, sz);
     }
 
     cb->endPass();

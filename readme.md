@@ -11,17 +11,28 @@ Minimal Qt 6 SDI mesh viewer using QRhi + vcglib.
 - Single `Document` shared by one or more `RenderWidget` views
 - Split-view UI (horizontal/vertical), active-view indicator, plus layer and log docks
 - Per-view mode switching between `3D Scene` and `Parametrization (UV)` (when the current mesh has UVs)
+- Scene overlays for selection, normals, boundaries, texture seams, current-mesh outline, and quality histogram
 - Fat-edge rendering for edge meshes and decorator boundaries/seams (configurable width)
 - UV mode support for boundary-edge and texture-seam overlays on the current mesh
-- Plugin-based mesh loading with per-extension plugin preference
+- Plugin-based mesh import/export with per-extension preferred import plugin
+- Plugin-based filter framework with searchable filter browser and auto-generated parameter dialogs
+- Undo/redo integrated with mesh operations and filter runs
 - Structured logging for app/VCG import progress and GPU buffer rebuild timing
 - PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata)
 
-Built-in import plugin families (dependency-gated at build time):
+Built-in I/O plugin families (dependency-gated at build time):
 - `io_vcg` (`ply`, `obj`, `stl`, `off`, `vmi`)
 - `io_obj_rapidobj` (`obj`)
 - `io_gltf` (`gltf`, `glb`)
 - `io_e57` (`e57`, optional)
+
+Built-in filter plugin families (dependency-gated at build time):
+- `filter_basic`
+- `filter_func`
+- `filter_embree`
+- `filter_select`
+- `filter_clean`
+- `filter_meshing`
 
 ## Build
 
@@ -42,6 +53,8 @@ Managed non-Qt dependencies:
 - `rapidobj`
 - `libe57format`
 - `xerces-c`
+- `muparser`
+- `embree`
 
 ### Setup
 

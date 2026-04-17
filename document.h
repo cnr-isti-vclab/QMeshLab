@@ -6,6 +6,7 @@
 #include "vcgmesh.h"
 #include <QObject>
 #include <QElapsedTimer>
+#include <QMatrix4x4>
 #include <cstdint>
 #include <QString>
 #include <QStringList>
@@ -37,6 +38,7 @@ public:
         std::uint64_t meshId = 0;
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
+        QMatrix4x4 renderTransform;
         QString name;
         QString sourcePath;
         QStringList textureFileNames;
@@ -103,6 +105,11 @@ public:
     void removeMesh(int index);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
     void setMeshVisible(int index, bool visible);
+    QMatrix4x4 meshRenderTransform(int index) const;
+    void setMeshRenderTransform(
+        int index,
+        const QMatrix4x4 &transform,
+        const QString &contextMessage = {});
     void setCurrentMeshIndex(int index);
     void markMeshGeometryChanged(int index, const QString &contextMessage = {});
     void markMeshMaterialChanged(int index, const QString &contextMessage = {});

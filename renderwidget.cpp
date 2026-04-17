@@ -667,7 +667,8 @@ void RenderWidget::layoutOverlayButtons()
 bool RenderWidget::computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const
 {
     bool hasBox = false;
-    vcg::Box3f sceneBox;
+    QVector3D sceneMin;
+    QVector3D sceneMax;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         const auto &meshEntry = m_doc->mesh(i);
         if (!meshVisible(i))
@@ -676,19 +677,44 @@ bool RenderWidget::computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3
             continue;
         if (meshEntry.mesh.bbox.IsNull())
             continue;
-        if (!hasBox) {
-            sceneBox = meshEntry.mesh.bbox;
-            hasBox = true;
-        } else {
-            sceneBox.Add(meshEntry.mesh.bbox);
+
+        const vcg::Box3f &box = meshEntry.mesh.bbox;
+        const QVector3D corners[8] = {
+            QVector3D(box.min[0], box.min[1], box.min[2]),
+            QVector3D(box.max[0], box.min[1], box.min[2]),
+            QVector3D(box.min[0], box.max[1], box.min[2]),
+            QVector3D(box.max[0], box.max[1], box.min[2]),
+            QVector3D(box.min[0], box.min[1], box.max[2]),
+            QVector3D(box.max[0], box.min[1], box.max[2]),
+            QVector3D(box.min[0], box.max[1], box.max[2]),
+            QVector3D(box.max[0], box.max[1], box.max[2])
+        };
+
+        for (const QVector3D &corner : corners) {
+            const QVector4D transformed = meshEntry.renderTransform * QVector4D(corner, 1.0f);
+            const QVector3D worldCorner = (std::abs(transformed.w()) > 1e-8f)
+                ? transformed.toVector3DAffine()
+                : transformed.toVector3D();
+            if (!hasBox) {
+                sceneMin = worldCorner;
+                sceneMax = worldCorner;
+                hasBox = true;
+                continue;
+            }
+            sceneMin.setX(std::min(sceneMin.x(), worldCorner.x()));
+            sceneMin.setY(std::min(sceneMin.y(), worldCorner.y()));
+            sceneMin.setZ(std::min(sceneMin.z(), worldCorner.z()));
+            sceneMax.setX(std::max(sceneMax.x(), worldCorner.x()));
+            sceneMax.setY(std::max(sceneMax.y(), worldCorner.y()));
+            sceneMax.setZ(std::max(sceneMax.z(), worldCorner.z()));
         }
     }
 
-    if (!hasBox || sceneBox.IsNull())
+    if (!hasBox)
         return false;
 
-    minCorner = QVector3D(sceneBox.min[0], sceneBox.min[1], sceneBox.min[2]);
-    maxCorner = QVector3D(sceneBox.max[0], sceneBox.max[1], sceneBox.max[2]);
+    minCorner = sceneMin;
+    maxCorner = sceneMax;
     return true;
 }
 
