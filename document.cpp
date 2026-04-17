@@ -811,6 +811,27 @@ QString Document::redoText() const
     return m_undoSteps[static_cast<size_t>(m_undoCursor)].label;
 }
 
+QStringList Document::undoHistoryLabels() const
+{
+    QStringList labels;
+    if (m_undoCursor <= 0 || m_undoSteps.empty())
+        return labels;
+
+    labels.reserve(m_undoCursor);
+    for (int i = m_undoCursor - 1; i >= 0; --i)
+        labels.push_back(m_undoSteps[static_cast<size_t>(i)].label);
+    return labels;
+}
+
+QStringList Document::undoStackLabels() const
+{
+    QStringList labels;
+    labels.reserve(static_cast<int>(m_undoSteps.size()));
+    for (const UndoStep &step : m_undoSteps)
+        labels.push_back(step.label);
+    return labels;
+}
+
 bool Document::undo()
 {
     if (!canUndo() || m_undoStepActive)

@@ -4,6 +4,8 @@
 #include <QImage>
 #include <QStringList>
 #include <QList>
+#include <QPixmap>
+#include <QVector>
 #include <QVariantMap>
 #include <array>
 #include <deque>
@@ -19,12 +21,16 @@ class QProgressBar;
 class QSplitter;
 class QDockWidget;
 class QToolButton;
+class QListWidget;
 
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 public:
     explicit MainWindow(QWidget *parent = nullptr);
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void newDocument();
@@ -75,6 +81,9 @@ private:
         RenderWidget *sourceView,
         const QSize &pixelSize,
         QString *errorMessage = nullptr);
+    void refreshUndoHistoryPanel();
+    void jumpToHistoryEntry(int stackIndex);
+    QPixmap captureUndoHistoryThumbnail() const;
 
     Document *m_doc;
     QSplitter *m_viewSplitter = nullptr;
@@ -96,6 +105,11 @@ private:
     QLabel *m_frameStatsLabel = nullptr;
     QAction *m_undoAction = nullptr;
     QAction *m_redoAction = nullptr;
+    QListWidget *m_logListWidget = nullptr;
+    QListWidget *m_undoHistoryListWidget = nullptr;
+    QLabel *m_undoHistoryPreviewPopup = nullptr;
+    QStringList m_undoStackLabelsCache;
+    QVector<QPixmap> m_undoStackThumbnails;
     std::deque<float> m_lastCpuFrameTimes;
     std::deque<float> m_lastGpuFrameTimes;
 };

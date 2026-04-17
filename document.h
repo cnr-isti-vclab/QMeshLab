@@ -96,6 +96,9 @@ public:
     bool canRedo() const;
     QString undoText() const;
     QString redoText() const;
+    QStringList undoHistoryLabels() const;
+    QStringList undoStackLabels() const;
+    int undoCursorPosition() const { return m_undoCursor; }
     bool undo();
     bool redo();
     void clearUndoHistory();

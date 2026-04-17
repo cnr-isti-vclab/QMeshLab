@@ -33,6 +33,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QMouseEvent>
 #include <QProcess>
 #include <QProgressBar>
 #include <QRadioButton>
@@ -275,20 +276,22 @@ MainWindow::MainWindow(QWidget *parent)
     resizeDocks({ m_layerDock }, { rightColumnWidth }, Qt::Horizontal);
     resizeDocks({ m_layerDock, m_filterDock }, { 1, 1 }, Qt::Vertical);
 
-    auto *logWidget = new QListWidget(this);
-    logWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    logWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
+    m_logListWidget = new QListWidget(this);
+    m_logListWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_logListWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
 
-    auto copyLogSelectionToClipboard = [this, logWidget]() {
+    auto copyLogSelectionToClipboard = [this]() {
+        if (!m_logListWidget)
+            return;
         QStringList lines;
-        const QList<QListWidgetItem *> selected = logWidget->selectedItems();
+        const QList<QListWidgetItem *> selected = m_logListWidget->selectedItems();
         lines.reserve(selected.size());
         for (QListWidgetItem *item : selected) {
             if (item)
                 lines.push_back(item->text());
         }
         if (lines.isEmpty()) {
-            if (QListWidgetItem *current = logWidget->currentItem())
+            if (QListWidgetItem *current = m_logListWidget->currentItem())
                 lines.push_back(current->text());
         }
         if (lines.isEmpty())
@@ -303,25 +306,27 @@ MainWindow::MainWindow(QWidget *parent)
         statusBar()->showMessage(tr("Copied %1 log line(s)").arg(lines.size()), 1500);
     };
 
-    auto *copyLogAction = new QAction(tr("Copy"), logWidget);
+    auto *copyLogAction = new QAction(tr("Copy"), m_logListWidget);
     copyLogAction->setShortcut(QKeySequence::Copy);
     copyLogAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     connect(copyLogAction, &QAction::triggered, this, copyLogSelectionToClipboard);
-    logWidget->addAction(copyLogAction);
+    m_logListWidget->addAction(copyLogAction);
 
-    auto *selectAllLogAction = new QAction(tr("Select All"), logWidget);
+    auto *selectAllLogAction = new QAction(tr("Select All"), m_logListWidget);
     selectAllLogAction->setShortcut(QKeySequence::SelectAll);
     selectAllLogAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    connect(selectAllLogAction, &QAction::triggered, logWidget, &QListWidget::selectAll);
-    logWidget->addAction(selectAllLogAction);
+    connect(selectAllLogAction, &QAction::triggered, m_logListWidget, &QListWidget::selectAll);
+    m_logListWidget->addAction(selectAllLogAction);
 
-    auto *copyAllLogAction = new QAction(tr("Copy All"), logWidget);
-    connect(copyAllLogAction, &QAction::triggered, this, [this, logWidget]() {
-        logWidget->selectAll();
+    auto *copyAllLogAction = new QAction(tr("Copy All"), m_logListWidget);
+    connect(copyAllLogAction, &QAction::triggered, this, [this]() {
+        if (!m_logListWidget)
+            return;
+        m_logListWidget->selectAll();
         QStringList lines;
-        lines.reserve(logWidget->count());
-        for (int i = 0; i < logWidget->count(); ++i) {
-            if (QListWidgetItem *item = logWidget->item(i))
+        lines.reserve(m_logListWidget->count());
+        for (int i = 0; i < m_logListWidget->count(); ++i) {
+            if (QListWidgetItem *item = m_logListWidget->item(i))
                 lines.push_back(item->text());
         }
         if (QClipboard *clipboard = QGuiApplication::clipboard()) {
@@ -332,10 +337,46 @@ MainWindow::MainWindow(QWidget *parent)
         }
         statusBar()->showMessage(tr("Copied all log lines"), 1500);
     });
-    logWidget->addAction(copyAllLogAction);
+    m_logListWidget->addAction(copyAllLogAction);
+
+    m_undoHistoryListWidget = new QListWidget(this);
+    m_undoHistoryListWidget->setSelectionMode(QAbstractItemView::NoSelection);
+    m_undoHistoryListWidget->setFocusPolicy(Qt::NoFocus);
+    m_undoHistoryListWidget->setIconSize(QSize(72, 54));
+    m_undoHistoryListWidget->setMouseTracking(true);
+    if (m_undoHistoryListWidget->viewport()) {
+        m_undoHistoryListWidget->viewport()->setMouseTracking(true);
+        m_undoHistoryListWidget->viewport()->installEventFilter(this);
+    }
+
+    m_undoHistoryPreviewPopup = new QLabel(this);
+    m_undoHistoryPreviewPopup->setWindowFlags(Qt::ToolTip);
+    m_undoHistoryPreviewPopup->setStyleSheet(QStringLiteral(
+        "QLabel {"
+        "  background: rgba(24,24,24,235);"
+        "  border: 1px solid rgba(180,180,180,180);"
+        "  padding: 2px;"
+        "}"));
+    m_undoHistoryPreviewPopup->hide();
+
+    auto *historyPanel = new QWidget(this);
+    auto *historyLayout = new QVBoxLayout(historyPanel);
+    historyLayout->setContentsMargins(0, 0, 0, 0);
+    historyLayout->setSpacing(4);
+    auto *historyTitle = new QLabel(tr("Action History"), historyPanel);
+    historyTitle->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    historyLayout->addWidget(historyTitle, 0);
+    historyLayout->addWidget(m_undoHistoryListWidget, 1);
+
+    auto *logSplit = new QSplitter(Qt::Horizontal, this);
+    logSplit->setChildrenCollapsible(false);
+    logSplit->addWidget(m_logListWidget);
+    logSplit->addWidget(historyPanel);
+    logSplit->setStretchFactor(0, 3);
+    logSplit->setStretchFactor(1, 2);
 
     auto *logDock = new QDockWidget(tr("Log"), this);
-    logDock->setWidget(logWidget);
+    logDock->setWidget(logSplit);
     addDockWidget(Qt::BottomDockWidgetArea, logDock);
     // Keep the right column (Layers + Filters) spanning full height.
     // This ensures the bottom Log dock does not extend under the right column.
@@ -343,12 +384,32 @@ MainWindow::MainWindow(QWidget *parent)
     setCorner(Qt::BottomRightCorner, Qt::RightDockWidgetArea);
 
     for (const auto &entry : m_doc->logMessages())
-        appendLogItem(logWidget, entry.message, entry.source, false);
+        appendLogItem(m_logListWidget, entry.message, entry.source, false);
 
-    connect(m_doc, &Document::logCleared, logWidget, &QListWidget::clear);
-    connect(m_doc, &Document::logMessageAdded, logWidget,
-        [logWidget](const QString &message, Document::LogSource source, bool replaceLast) {
-            appendLogItem(logWidget, message, source, replaceLast);
+    connect(m_doc, &Document::logCleared, m_logListWidget, &QListWidget::clear);
+    connect(m_doc, &Document::logMessageAdded, m_logListWidget,
+        [this](const QString &message, Document::LogSource source, bool replaceLast) {
+            if (!m_logListWidget)
+                return;
+            appendLogItem(m_logListWidget, message, source, replaceLast);
+    });
+
+    refreshUndoHistoryPanel();
+    connect(
+        m_doc,
+        &Document::undoRedoStateChanged,
+        this,
+        [this](bool, bool, const QString &, const QString &) {
+            refreshUndoHistoryPanel();
+        });
+    connect(m_undoHistoryListWidget, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
+        if (!item)
+            return;
+        bool ok = false;
+        const int stackIndex = item->data(Qt::UserRole).toInt(&ok);
+        if (!ok)
+            return;
+        jumpToHistoryEntry(stackIndex);
     });
 
     connect(m_doc, &Document::loadProgressStarted, this, [this](const QString &filePath) {
@@ -1955,4 +2016,213 @@ void MainWindow::updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSu
         m_frameStatsLabel->setText(statsText);
     else
         statusBar()->showMessage(statsText);
+}
+
+QPixmap MainWindow::captureUndoHistoryThumbnail() const
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return QPixmap();
+    const QImage frame = view->grabFramebuffer();
+    if (frame.isNull())
+        return QPixmap();
+    return QPixmap::fromImage(
+        frame.scaled(QSize(256, 192), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+}
+
+void MainWindow::jumpToHistoryEntry(int stackIndex)
+{
+    if (!m_doc)
+        return;
+
+    const QStringList stackLabels = m_doc->undoStackLabels();
+    const int stackSize = static_cast<int>(stackLabels.size());
+    if (stackIndex < 0 || stackIndex >= stackSize)
+        return;
+
+    const int targetCursor = stackIndex + 1;
+    const int currentCursor = std::clamp(m_doc->undoCursorPosition(), 0, stackSize);
+    if (targetCursor == currentCursor)
+        return;
+
+    bool changed = false;
+    if (targetCursor < currentCursor) {
+        const int steps = currentCursor - targetCursor;
+        for (int i = 0; i < steps; ++i) {
+            if (!m_doc->undo())
+                break;
+            changed = true;
+        }
+    } else {
+        const int steps = targetCursor - currentCursor;
+        for (int i = 0; i < steps; ++i) {
+            if (!m_doc->redo())
+                break;
+            changed = true;
+        }
+    }
+
+    if (changed) {
+        const QString actionLabel = stackLabels.value(stackIndex);
+        statusBar()->showMessage(
+            tr("History: %1. %2").arg(stackIndex + 1).arg(actionLabel),
+            1800);
+    }
+}
+
+void MainWindow::refreshUndoHistoryPanel()
+{
+    if (!m_doc || !m_undoHistoryListWidget)
+        return;
+
+    const QStringList newLabels = m_doc->undoStackLabels();
+    const int stackSize = static_cast<int>(newLabels.size());
+    const int undoCursor = std::clamp(m_doc->undoCursorPosition(), 0, stackSize);
+
+    QVector<QPixmap> newThumbs(newLabels.size());
+    QVector<bool> usedOld(m_undoStackLabelsCache.size(), false);
+
+    // Reuse thumbnails when labels can be matched (keeps previews stable across undo/redo).
+    for (int i = 0; i < newLabels.size(); ++i) {
+        if (i < m_undoStackLabelsCache.size()
+            && !usedOld[i]
+            && m_undoStackLabelsCache.at(i) == newLabels.at(i)) {
+            newThumbs[i] = m_undoStackThumbnails.value(i);
+            usedOld[i] = true;
+            continue;
+        }
+        int found = -1;
+        for (int j = 0; j < m_undoStackLabelsCache.size(); ++j) {
+            if (usedOld[j])
+                continue;
+            if (m_undoStackLabelsCache.at(j) == newLabels.at(i)) {
+                found = j;
+                break;
+            }
+        }
+        if (found >= 0) {
+            newThumbs[i] = m_undoStackThumbnails.value(found);
+            usedOld[found] = true;
+        }
+    }
+
+    if (undoCursor > 0) {
+        QPixmap captured = captureUndoHistoryThumbnail();
+        if (!captured.isNull()) {
+            // If the latest undoable action has no preview yet, attach current frame.
+            if (newThumbs[undoCursor - 1].isNull())
+                newThumbs[undoCursor - 1] = captured;
+        }
+    }
+
+    m_undoStackLabelsCache = newLabels;
+    m_undoStackThumbnails = newThumbs;
+
+    m_undoHistoryListWidget->clear();
+    if (stackSize <= 0) {
+        auto *item = new QListWidgetItem(tr("No undo history"), m_undoHistoryListWidget);
+        item->setFlags(item->flags() & ~(Qt::ItemIsSelectable | Qt::ItemIsEnabled));
+        item->setForeground(QBrush(palette().brush(QPalette::Mid)));
+        return;
+    }
+
+    const int currentIndex = undoCursor - 1;
+    // Newest-first listing (highest index on top) while preserving stable numbering.
+    for (int i = stackSize - 1; i >= 0; --i) {
+        const QString label = newLabels.at(i);
+        QString text = QStringLiteral("%1. %2").arg(i + 1).arg(label);
+        if (i == currentIndex)
+            text += tr("  [current]");
+        else if (i >= undoCursor)
+            text += tr("  [redo]");
+
+        auto *item = new QListWidgetItem(text, m_undoHistoryListWidget);
+        item->setData(Qt::UserRole, i);
+        const QPixmap thumb = newThumbs.value(i);
+        if (!thumb.isNull())
+            item->setIcon(QIcon(thumb));
+
+        if (i == currentIndex) {
+            QFont f = item->font();
+            f.setBold(true);
+            item->setFont(f);
+            item->setBackground(QBrush(palette().color(QPalette::AlternateBase)));
+            item->setToolTip(tr("Current action"));
+        } else if (i >= undoCursor) {
+            item->setForeground(QBrush(palette().brush(QPalette::Mid)));
+            item->setToolTip(tr("Redo available"));
+        } else {
+            item->setToolTip(tr("Undo available"));
+        }
+    }
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (m_undoHistoryListWidget
+        && watched == m_undoHistoryListWidget->viewport()
+        && event) {
+        if (event->type() == QEvent::Leave) {
+            if (m_undoHistoryPreviewPopup)
+                m_undoHistoryPreviewPopup->hide();
+        } else if (event->type() == QEvent::MouseMove) {
+            auto *mouseEvent = static_cast<QMouseEvent *>(event);
+            QListWidgetItem *item = m_undoHistoryListWidget->itemAt(mouseEvent->pos());
+            if (!item) {
+                if (m_undoHistoryPreviewPopup)
+                    m_undoHistoryPreviewPopup->hide();
+                return false;
+            }
+            bool ok = false;
+            const int idx = item->data(Qt::UserRole).toInt(&ok);
+            if (!ok || idx < 0 || idx >= m_undoStackThumbnails.size()) {
+                if (m_undoHistoryPreviewPopup)
+                    m_undoHistoryPreviewPopup->hide();
+                return false;
+            }
+            const QPixmap src = m_undoStackThumbnails.at(idx);
+            if (src.isNull()) {
+                if (m_undoHistoryPreviewPopup)
+                    m_undoHistoryPreviewPopup->hide();
+                return false;
+            }
+
+            QScreen *screenForPopup = this->screen();
+            const QPoint globalPos = m_undoHistoryListWidget->viewport()->mapToGlobal(mouseEvent->pos());
+            if (QScreen *cursorScreen = QGuiApplication::screenAt(globalPos))
+                screenForPopup = cursorScreen;
+            if (!screenForPopup && !QGuiApplication::screens().isEmpty())
+                screenForPopup = QGuiApplication::screens().front();
+            if (!screenForPopup)
+                return false;
+
+            const QRect avail = screenForPopup->availableGeometry();
+            const QSize maxSize(
+                std::max(64, avail.width() / 3),
+                std::max(64, avail.height() / 3));
+            const QPixmap scaled = src.scaled(maxSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            if (scaled.isNull())
+                return false;
+
+            if (m_undoHistoryPreviewPopup) {
+                m_undoHistoryPreviewPopup->setPixmap(scaled);
+                m_undoHistoryPreviewPopup->adjustSize();
+                QPoint target = globalPos + QPoint(18, 18);
+                const int maxX = avail.right() - m_undoHistoryPreviewPopup->width();
+                const int maxY = avail.bottom() - m_undoHistoryPreviewPopup->height();
+                if (maxX >= avail.left())
+                    target.setX(std::clamp(target.x(), avail.left(), maxX));
+                else
+                    target.setX(avail.left());
+                if (maxY >= avail.top())
+                    target.setY(std::clamp(target.y(), avail.top(), maxY));
+                else
+                    target.setY(avail.top());
+                m_undoHistoryPreviewPopup->move(target);
+                m_undoHistoryPreviewPopup->show();
+                m_undoHistoryPreviewPopup->raise();
+            }
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
