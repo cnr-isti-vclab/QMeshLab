@@ -22,6 +22,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QIcon>
+#include <QRegularExpression>
 #include <algorithm>
 #include <limits>
 #include <set>
@@ -38,6 +39,14 @@ QString groupDisplayName(const QString &group)
     if (!name.isEmpty())
         name[0] = name[0].toUpper();
     return name;
+}
+
+QStringList tokenizeSearchTerms(const QString &text)
+{
+    static const QRegularExpression kSpaceRe(QStringLiteral("\\s+"));
+    QStringList terms = text.trimmed().toLower().split(kSpaceRe, Qt::SkipEmptyParts);
+    terms.removeDuplicates();
+    return terms;
 }
 }
 
@@ -285,19 +294,29 @@ void MeshFilterPanel::rebuildResultsList()
 {
     m_resultsList->clear();
     m_visibleFilterIndices.clear();
-    const QString needle = m_searchEdit->text().trimmed().toLower();
+    const QStringList terms = tokenizeSearchTerms(m_searchEdit->text());
+    std::vector<int> titleFirst;
+    std::vector<int> otherMatches;
 
     for (int i = 0; i < static_cast<int>(m_filters.size()); ++i) {
         const Document::FilterInfo &info = m_filters[static_cast<size_t>(i)];
-        if (!needle.isEmpty() && !matchesSearch(info, needle))
+        if (!matchesSearch(info, terms))
             continue;
 
-        m_visibleFilterIndices.push_back(i);
+        if (titleMatchesAllTerms(info, terms))
+            titleFirst.push_back(i);
+        else
+            otherMatches.push_back(i);
+    }
+
+    auto appendResultItem = [this](int filterIndex) {
+        const Document::FilterInfo &info = m_filters[static_cast<size_t>(filterIndex)];
+        m_visibleFilterIndices.push_back(filterIndex);
         const QString text = info.descriptor.menuPath.trimmed().isEmpty()
             ? info.descriptor.name
             : QStringLiteral("%1 / %2").arg(info.descriptor.menuPath, info.descriptor.name);
         auto *item = new QListWidgetItem(text, m_resultsList);
-        item->setData(Qt::UserRole, i);
+        item->setData(Qt::UserRole, filterIndex);
         QString tip = info.descriptor.shortDescription.trimmed();
         if (!info.applicable && !info.applicabilityError.trimmed().isEmpty()) {
             if (!tip.isEmpty())
@@ -307,7 +326,12 @@ void MeshFilterPanel::rebuildResultsList()
         }
         if (!tip.isEmpty())
             item->setToolTip(tip);
-    }
+    };
+
+    for (int filterIndex : titleFirst)
+        appendResultItem(filterIndex);
+    for (int filterIndex : otherMatches)
+        appendResultItem(filterIndex);
 
     if (m_resultsList->count() > 0 && m_resultsList->currentRow() < 0)
         m_resultsList->setCurrentRow(0);
@@ -370,6 +394,47 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
         applyParameterValuesToEditors(cacheIt.value());
     m_applyButton->setEnabled(info.applicable);
     m_stack->setCurrentWidget(m_parametersPage);
+}
+
+bool MeshFilterPanel::matchesSearch(
+    const Document::FilterInfo &filterInfo,
+    const QStringList &terms) const
+{
+    if (terms.isEmpty())
+        return true;
+
+    const QString name = filterInfo.descriptor.name.toLower();
+    const QString shortDesc = filterInfo.descriptor.shortDescription.toLower();
+    const QString longDesc = filterInfo.descriptor.longDescriptionMarkdown.toLower();
+
+    for (const QString &term : terms) {
+        if (term.isEmpty())
+            continue;
+        const bool termMatched =
+            name.contains(term)
+            || shortDesc.contains(term)
+            || longDesc.contains(term);
+        if (!termMatched)
+            return false;
+    }
+    return true;
+}
+
+bool MeshFilterPanel::titleMatchesAllTerms(
+    const Document::FilterInfo &filterInfo,
+    const QStringList &terms) const
+{
+    if (terms.isEmpty())
+        return true;
+
+    const QString name = filterInfo.descriptor.name.toLower();
+    for (const QString &term : terms) {
+        if (term.isEmpty())
+            continue;
+        if (!name.contains(term))
+            return false;
+    }
+    return true;
 }
 
 void MeshFilterPanel::clearParameterEditors()
@@ -612,28 +677,6 @@ QVariant MeshFilterPanel::parameterValue(const ParameterBinding &binding) const
         return colorFromVariant(editor->property("filterColor"), QColor(Qt::white));
     }
     return {};
-}
-
-bool MeshFilterPanel::matchesSearch(const Document::FilterInfo &filterInfo, const QString &needle) const
-{
-    if (needle.isEmpty())
-        return true;
-    auto contains = [&needle](const QString &value) {
-        return value.toLower().contains(needle);
-    };
-    if (contains(filterInfo.descriptor.name))
-        return true;
-    if (contains(filterInfo.descriptor.menuPath))
-        return true;
-    if (contains(filterInfo.descriptor.shortDescription))
-        return true;
-    if (contains(filterInfo.descriptor.longDescriptionMarkdown))
-        return true;
-    for (const QString &tag : filterInfo.descriptor.tags) {
-        if (contains(tag))
-            return true;
-    }
-    return false;
 }
 
 QColor MeshFilterPanel::colorFromVariant(const QVariant &value, const QColor &fallback) const

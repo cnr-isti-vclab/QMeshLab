@@ -3,6 +3,7 @@
 #include "document.h"
 #include <QColor>
 #include <QHash>
+#include <QStringList>
 #include <QWidget>
 #include <vector>
 
@@ -61,7 +62,8 @@ private:
     void applyParameterValuesToEditors(const MeshFilterParameterValues &values);
     void cacheCurrentFilterParameters();
     QVariant parameterValue(const ParameterBinding &binding) const;
-    bool matchesSearch(const Document::FilterInfo &filterInfo, const QString &needle) const;
+    bool matchesSearch(const Document::FilterInfo &filterInfo, const QStringList &terms) const;
+    bool titleMatchesAllTerms(const Document::FilterInfo &filterInfo, const QStringList &terms) const;
     void openSelectedResult(bool focusApplyButton);
     QColor colorFromVariant(const QVariant &value, const QColor &fallback) const;
     void updateColorButtonStyle(QWidget *button, const QColor &color) const;
