@@ -69,7 +69,7 @@ void MeshFilterPanel::buildUi()
     searchLayout->setSpacing(4);
     m_searchButton = new QToolButton(this);
     m_searchButton->setAutoRaise(true);
-    const QIcon searchIcon = QIcon::fromTheme(QStringLiteral("edit-find"));
+    const QIcon searchIcon = QIcon::fromTheme(QIcon::ThemeIcon::SystemSearch);
     if (!searchIcon.isNull())
         m_searchButton->setIcon(searchIcon);
     else

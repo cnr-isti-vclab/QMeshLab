@@ -1,6 +1,7 @@
 #include "layerwidget.h"
 #include "document.h"
 #include <wrap/io_trimesh/io_mask.h>
+#include <vcg/complex/allocate.h>
 #include <QFileInfo>
 #include <QFontMetrics>
 #include <QHash>
@@ -22,6 +23,103 @@ constexpr int kFirstColumnPadding = 10;
 constexpr int kFirstColumnTreePadding = 28;
 constexpr int kRoleMeshIndex = Qt::UserRole;
 constexpr int kRoleMeshId = Qt::UserRole + 1;
+
+struct MeshCustomAttributeInfo {
+    QStringList vertexScalars;
+    QStringList vertexColors;
+    QStringList vertexPoints;
+    QStringList faceScalars;
+    QStringList faceColors;
+    QStringList facePoints;
+
+    int vertexCount() const
+    {
+        return vertexScalars.size() + vertexColors.size() + vertexPoints.size();
+    }
+    int faceCount() const
+    {
+        return faceScalars.size() + faceColors.size() + facePoints.size();
+    }
+};
+
+template<typename T>
+QStringList collectPerVertexAttributeNames(VCGMesh &mesh)
+{
+    std::vector<std::string> names;
+    vcg::tri::Allocator<VCGMesh>::GetAllPerVertexAttribute<T>(mesh, names);
+    QStringList out;
+    out.reserve(int(names.size()));
+    for (const std::string &name : names) {
+        if (name.empty())
+            continue;
+        out.push_back(QString::fromStdString(name));
+    }
+    out.removeDuplicates();
+    out.sort(Qt::CaseInsensitive);
+    return out;
+}
+
+template<typename T>
+QStringList collectPerFaceAttributeNames(VCGMesh &mesh)
+{
+    std::vector<std::string> names;
+    vcg::tri::Allocator<VCGMesh>::GetAllPerFaceAttribute<T>(mesh, names);
+    QStringList out;
+    out.reserve(int(names.size()));
+    for (const std::string &name : names) {
+        if (name.empty())
+            continue;
+        out.push_back(QString::fromStdString(name));
+    }
+    out.removeDuplicates();
+    out.sort(Qt::CaseInsensitive);
+    return out;
+}
+
+MeshCustomAttributeInfo collectCustomAttributes(const VCGMesh &mesh)
+{
+    VCGMesh &mutableMesh = const_cast<VCGMesh &>(mesh);
+    MeshCustomAttributeInfo attrs;
+    attrs.vertexScalars = collectPerVertexAttributeNames<float>(mutableMesh);
+    attrs.vertexColors = collectPerVertexAttributeNames<vcg::Color4b>(mutableMesh);
+    attrs.vertexPoints = collectPerVertexAttributeNames<vcg::Point3f>(mutableMesh);
+    attrs.faceScalars = collectPerFaceAttributeNames<float>(mutableMesh);
+    attrs.faceColors = collectPerFaceAttributeNames<vcg::Color4b>(mutableMesh);
+    attrs.facePoints = collectPerFaceAttributeNames<vcg::Point3f>(mutableMesh);
+    return attrs;
+}
+
+QString ownerAttributeSummary(
+    const QStringList &scalars,
+    const QStringList &colors,
+    const QStringList &points)
+{
+    QStringList parts;
+    if (!scalars.isEmpty())
+        parts << QObject::tr("S[%1]").arg(scalars.join(QStringLiteral(", ")));
+    if (!colors.isEmpty())
+        parts << QObject::tr("C[%1]").arg(colors.join(QStringLiteral(", ")));
+    if (!points.isEmpty())
+        parts << QObject::tr("P[%1]").arg(points.join(QStringLiteral(", ")));
+    return parts.join(QStringLiteral("  "));
+}
+
+QString ownerAttributeTooltip(
+    const QString &ownerLabel,
+    const QStringList &scalars,
+    const QStringList &colors,
+    const QStringList &points)
+{
+    QStringList lines;
+    lines << QObject::tr("%1 custom attributes:").arg(ownerLabel);
+    if (!scalars.isEmpty())
+        lines << QObject::tr("  Scalar: %1").arg(scalars.join(QStringLiteral(", ")));
+    if (!colors.isEmpty())
+        lines << QObject::tr("  Color: %1").arg(colors.join(QStringLiteral(", ")));
+    if (!points.isEmpty())
+        lines << QObject::tr("  Point3: %1").arg(points.join(QStringLiteral(", ")));
+    return lines.join(QLatin1Char('\n'));
+}
 
 int selectedVertexCount(const VCGMesh &mesh)
 {
@@ -103,6 +201,7 @@ QString meshDataSummary(const Document::MeshEntry &entry)
 
     QStringList tokens;
     const int mask = entry.ioMask;
+    const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
 
     if ((mask & Mask::IOM_VERTCOLOR) != 0)
         tokens << QObject::tr("VC");
@@ -126,6 +225,10 @@ QString meshDataSummary(const Document::MeshEntry &entry)
         tokens << QObject::tr("FQ");
     if ((mask & Mask::IOM_EDGEINDEX) != 0 || entry.mesh.EN() > 0)
         tokens << QObject::tr("EI");
+    if (attrs.vertexCount() > 0)
+        tokens << QObject::tr("VA %1").arg(attrs.vertexCount());
+    if (attrs.faceCount() > 0)
+        tokens << QObject::tr("FA %1").arg(attrs.faceCount());
 
     if (!entry.textureFilePaths.isEmpty()) {
         int foundCount = 0;
@@ -143,6 +246,7 @@ QString meshDataSummary(const Document::MeshEntry &entry)
 
 QString meshDataTooltip(const Document::MeshEntry &entry)
 {
+    const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
     QStringList lines;
     lines << QObject::tr("Data: %1").arg(meshDataSummary(entry));
     lines << QObject::tr("Counts: V=%1 F=%2 E=%3")
@@ -155,6 +259,14 @@ QString meshDataTooltip(const Document::MeshEntry &entry)
                  .arg(selectedEdgeCount(entry.mesh));
     if (!isIdentityTransform(entry.renderTransform))
         lines << QObject::tr("Transform: %1").arg(meshTransformSummary(entry.renderTransform));
+    if (attrs.vertexCount() > 0) {
+        lines << QObject::tr("Vertex custom attributes: %1")
+                     .arg(ownerAttributeSummary(attrs.vertexScalars, attrs.vertexColors, attrs.vertexPoints));
+    }
+    if (attrs.faceCount() > 0) {
+        lines << QObject::tr("Face custom attributes: %1")
+                     .arg(ownerAttributeSummary(attrs.faceScalars, attrs.faceColors, attrs.facePoints));
+    }
     if (!entry.textureFileNames.isEmpty()) {
         lines << QObject::tr("Texture slots:");
         for (int i = 0; i < entry.textureFileNames.size(); ++i) {
@@ -355,6 +467,7 @@ void LayerWidget::rebuild()
     clear();
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         const auto &entry = m_doc->mesh(i);
+        const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
         auto *item = new QTreeWidgetItem(this, {entry.name, QString()});
         item->setData(0, kRoleMeshIndex, i);
         item->setData(0, kRoleMeshId, qulonglong(entry.meshId));
@@ -400,6 +513,36 @@ void LayerWidget::rebuild()
         auto *dItem = new QTreeWidgetItem({QString(), tr("Data"), meshDataSummary(entry)});
         dItem->setFlags(dItem->flags() & ~Qt::ItemIsSelectable);
         item->addChild(dItem);
+
+        if (attrs.vertexCount() > 0) {
+            auto *vAttrItem = new QTreeWidgetItem(
+                {QString(), tr("VAttr"), ownerAttributeSummary(attrs.vertexScalars, attrs.vertexColors, attrs.vertexPoints)});
+            vAttrItem->setFlags(vAttrItem->flags() & ~Qt::ItemIsSelectable);
+            const QString tip = ownerAttributeTooltip(
+                tr("Vertex"),
+                attrs.vertexScalars,
+                attrs.vertexColors,
+                attrs.vertexPoints);
+            vAttrItem->setToolTip(0, tip);
+            vAttrItem->setToolTip(1, tip);
+            vAttrItem->setToolTip(2, tip);
+            item->addChild(vAttrItem);
+        }
+
+        if (attrs.faceCount() > 0) {
+            auto *fAttrItem = new QTreeWidgetItem(
+                {QString(), tr("FAttr"), ownerAttributeSummary(attrs.faceScalars, attrs.faceColors, attrs.facePoints)});
+            fAttrItem->setFlags(fAttrItem->flags() & ~Qt::ItemIsSelectable);
+            const QString tip = ownerAttributeTooltip(
+                tr("Face"),
+                attrs.faceScalars,
+                attrs.faceColors,
+                attrs.facePoints);
+            fAttrItem->setToolTip(0, tip);
+            fAttrItem->setToolTip(1, tip);
+            fAttrItem->setToolTip(2, tip);
+            item->addChild(fAttrItem);
+        }
 
         if (!isIdentityTransform(entry.renderTransform)) {
             auto *xItem = new QTreeWidgetItem(
