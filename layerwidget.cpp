@@ -14,6 +14,7 @@
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <cmath>
 
 namespace {
 constexpr int kFirstColumnMinWidth = 56;
@@ -21,6 +22,80 @@ constexpr int kFirstColumnPadding = 10;
 constexpr int kFirstColumnTreePadding = 28;
 constexpr int kRoleMeshIndex = Qt::UserRole;
 constexpr int kRoleMeshId = Qt::UserRole + 1;
+
+int selectedVertexCount(const VCGMesh &mesh)
+{
+    int count = 0;
+    for (const auto &v : mesh.vert) {
+        if (!v.IsD() && v.IsS())
+            ++count;
+    }
+    return count;
+}
+
+int selectedEdgeCount(const VCGMesh &mesh)
+{
+    int count = 0;
+    for (const auto &e : mesh.edge) {
+        if (!e.IsD() && e.IsS())
+            ++count;
+    }
+    return count;
+}
+
+int selectedFaceCount(const VCGMesh &mesh)
+{
+    int count = 0;
+    for (const auto &f : mesh.face) {
+        if (!f.IsD() && f.IsS())
+            ++count;
+    }
+    return count;
+}
+
+bool isIdentityTransform(const QMatrix4x4 &m, float eps = 1e-6f)
+{
+    for (int r = 0; r < 4; ++r) {
+        for (int c = 0; c < 4; ++c) {
+            const float expected = (r == c) ? 1.0f : 0.0f;
+            if (std::abs(m(r, c) - expected) > eps)
+                return false;
+        }
+    }
+    return true;
+}
+
+QString meshTransformSummary(const QMatrix4x4 &m)
+{
+    const QVector3D t(m(0, 3), m(1, 3), m(2, 3));
+    const QVector3D cx(m(0, 0), m(1, 0), m(2, 0));
+    const QVector3D cy(m(0, 1), m(1, 1), m(2, 1));
+    const QVector3D cz(m(0, 2), m(1, 2), m(2, 2));
+    const float sx = cx.length();
+    const float sy = cy.length();
+    const float sz = cz.length();
+    return QObject::tr("T(%1, %2, %3)  S(%4, %5, %6)")
+        .arg(t.x(), 0, 'g', 4)
+        .arg(t.y(), 0, 'g', 4)
+        .arg(t.z(), 0, 'g', 4)
+        .arg(sx, 0, 'g', 4)
+        .arg(sy, 0, 'g', 4)
+        .arg(sz, 0, 'g', 4);
+}
+
+QString meshTransformTooltip(const QMatrix4x4 &m)
+{
+    QStringList lines;
+    lines << QObject::tr("Mesh transform (4x4):");
+    for (int r = 0; r < 4; ++r) {
+        lines << QStringLiteral("[ %1  %2  %3  %4 ]")
+                     .arg(m(r, 0), 0, 'g', 8)
+                     .arg(m(r, 1), 0, 'g', 8)
+                     .arg(m(r, 2), 0, 'g', 8)
+                     .arg(m(r, 3), 0, 'g', 8);
+    }
+    return lines.join(QLatin1Char('\n'));
+}
 
 QString meshDataSummary(const Document::MeshEntry &entry)
 {
@@ -74,6 +149,12 @@ QString meshDataTooltip(const Document::MeshEntry &entry)
                  .arg(entry.mesh.VN())
                  .arg(entry.mesh.FN())
                  .arg(entry.mesh.EN());
+    lines << QObject::tr("Selected: V=%1 F=%2 E=%3")
+                 .arg(selectedVertexCount(entry.mesh))
+                 .arg(selectedFaceCount(entry.mesh))
+                 .arg(selectedEdgeCount(entry.mesh));
+    if (!isIdentityTransform(entry.renderTransform))
+        lines << QObject::tr("Transform: %1").arg(meshTransformSummary(entry.renderTransform));
     if (!entry.textureFileNames.isEmpty()) {
         lines << QObject::tr("Texture slots:");
         for (int i = 0; i < entry.textureFileNames.size(); ++i) {
@@ -223,11 +304,12 @@ QWidget *textureInfoWidget(
 LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     : QTreeWidget(parent), m_doc(doc)
 {
-    setColumnCount(2);
+    setColumnCount(3);
     setHeaderHidden(true);
     setSelectionMode(QAbstractItemView::SingleSelection);
     header()->setSectionResizeMode(0, QHeaderView::Fixed);
-    header()->setSectionResizeMode(1, QHeaderView::Stretch);
+    header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    header()->setSectionResizeMode(2, QHeaderView::Stretch);
     setColumnWidth(0, kFirstColumnMinWidth);
 
     connect(m_doc, &Document::meshAdded, this, &LayerWidget::rebuild);
@@ -283,43 +365,73 @@ void LayerWidget::rebuild()
         const QString vertCountText = locale.toString(static_cast<qlonglong>(entry.mesh.VN()));
         const QString edgeCountText = locale.toString(static_cast<qlonglong>(entry.mesh.EN()));
         const QString faceCountText = locale.toString(static_cast<qlonglong>(entry.mesh.FN()));
+        const int selectedVertCount = selectedVertexCount(entry.mesh);
+        const int selectedEdgeCountValue = selectedEdgeCount(entry.mesh);
+        const int selectedFaceCountValue = selectedFaceCount(entry.mesh);
+        const QString selectedVertText =
+            selectedVertCount > 0 ? locale.toString(static_cast<qlonglong>(selectedVertCount)) : QString();
+        const QString selectedEdgeText =
+            selectedEdgeCountValue > 0
+                ? locale.toString(static_cast<qlonglong>(selectedEdgeCountValue))
+                : QString();
+        const QString selectedFaceText =
+            selectedFaceCountValue > 0
+                ? locale.toString(static_cast<qlonglong>(selectedFaceCountValue))
+                : QString();
         maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(vertCountText));
         maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(edgeCountText));
         maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(faceCountText));
 
-        auto *vItem = new QTreeWidgetItem({vertCountText, tr("Vert")});
+        auto *vItem = new QTreeWidgetItem({vertCountText, tr("Vert"), selectedVertText});
         vItem->setFlags(vItem->flags() & ~Qt::ItemIsSelectable);
         vItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+        vItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
         item->addChild(vItem);
-        auto *eItem = new QTreeWidgetItem({edgeCountText, tr("Edge")});
+        auto *eItem = new QTreeWidgetItem({edgeCountText, tr("Edge"), selectedEdgeText});
         eItem->setFlags(eItem->flags() & ~Qt::ItemIsSelectable);
         eItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+        eItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
         item->addChild(eItem);
-        auto *fItem = new QTreeWidgetItem({faceCountText, tr("Face")});
+        auto *fItem = new QTreeWidgetItem({faceCountText, tr("Face"), selectedFaceText});
         fItem->setFlags(fItem->flags() & ~Qt::ItemIsSelectable);
         fItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+        fItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
         item->addChild(fItem);
-        auto *dItem = new QTreeWidgetItem({tr("Data"), meshDataSummary(entry)});
+        auto *dItem = new QTreeWidgetItem({QString(), tr("Data"), meshDataSummary(entry)});
         dItem->setFlags(dItem->flags() & ~Qt::ItemIsSelectable);
         item->addChild(dItem);
 
+        if (!isIdentityTransform(entry.renderTransform)) {
+            auto *xItem = new QTreeWidgetItem(
+                {QString(), tr("Xf"), meshTransformSummary(entry.renderTransform)});
+            xItem->setFlags(xItem->flags() & ~Qt::ItemIsSelectable);
+            const QString xfTip = meshTransformTooltip(entry.renderTransform);
+            xItem->setToolTip(0, xfTip);
+            xItem->setToolTip(1, xfTip);
+            xItem->setToolTip(2, xfTip);
+            item->addChild(xItem);
+        }
+
         for (int texIdx = 0; texIdx < entry.textureFilePaths.size(); ++texIdx) {
             const QString texPath = entry.textureFilePaths.at(texIdx);
-            auto *tItem = new QTreeWidgetItem({tr("Tex %1").arg(texIdx), QString()});
+            auto *tItem = new QTreeWidgetItem({QString(), tr("Tex %1").arg(texIdx), QString()});
             tItem->setFlags(tItem->flags() & ~Qt::ItemIsSelectable);
             if (!texPath.isEmpty()) {
                 tItem->setToolTip(0, texPath);
                 tItem->setToolTip(1, texPath);
+                tItem->setToolTip(2, texPath);
             }
             item->addChild(tItem);
-            setItemWidget(tItem, 1, textureInfoWidget(this, entry, texIdx, fm));
+            setItemWidget(tItem, 2, textureInfoWidget(this, entry, texIdx, fm));
         }
 
         const QString dataTip = meshDataTooltip(entry);
         item->setToolTip(0, dataTip);
         item->setToolTip(1, dataTip);
+        item->setToolTip(2, dataTip);
         dItem->setToolTip(0, dataTip);
         dItem->setToolTip(1, dataTip);
+        dItem->setToolTip(2, dataTip);
 
         const auto it = expandedStateByMeshId.constFind(qulonglong(entry.meshId));
         item->setExpanded(it != expandedStateByMeshId.constEnd() ? it.value() : true);
@@ -331,6 +443,7 @@ void LayerWidget::rebuild()
     const int requiredWidth =
         maxCountTextWidth + kFirstColumnPadding + indentation() + kFirstColumnTreePadding;
     setColumnWidth(0, std::max(kFirstColumnMinWidth, requiredWidth));
+    resizeColumnToContents(1);
     m_rebuilding = false;
 }
 
@@ -356,10 +469,13 @@ void LayerWidget::updateCurrentItemVisuals()
         const bool isCurrent = (item->data(0, kRoleMeshIndex).toInt() == currentIdx);
         QFont f0 = item->font(0);
         QFont f1 = item->font(1);
+        QFont f2 = item->font(2);
         f0.setBold(isCurrent);
         f1.setBold(isCurrent);
+        f2.setBold(isCurrent);
         item->setFont(0, f0);
         item->setFont(1, f1);
+        item->setFont(2, f2);
     }
 }
 

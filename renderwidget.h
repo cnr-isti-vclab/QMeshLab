@@ -65,7 +65,7 @@ private:
         bool showEdges = false;
         bool showWire = true;
         bool showFill = true;
-        bool showSelection = false;
+        bool showSelection = true;
         bool showSelectionVertices = true;
         bool showSelectionFaces = true;
         bool decoratorVertexNormals = false;
