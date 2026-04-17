@@ -380,6 +380,7 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterAmbientOcclusion)) {
         adaptor.computeAmbientOcclusion(entry.mesh, rays, cb);
+        adaptor.rayEpsilon = 1e-4f; // Set ray epsilon to a small value to improve AO accuracy on thin features
         if (doc.isOperationCancelRequested())
             return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
