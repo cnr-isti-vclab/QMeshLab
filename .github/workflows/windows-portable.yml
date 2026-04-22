@@ -17,6 +17,7 @@ jobs:
       QT_ARCH: win64_msvc2022_64
       QT_MODULES: qtshadertools
       QT_INSTALL_DIR: ${{ github.workspace }}\Qt
+      AQTINSTALL_SOURCE: git+https://github.com/Holt59/aqtinstall.git#egg=aqtinstall
 
     steps:
       - name: Checkout
@@ -44,7 +45,8 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "aqtinstall==3.3.*"
+          python -m pip install "$env:AQTINSTALL_SOURCE"
+          python -m aqt version
           python -m aqt list-qt windows desktop --spec $env:QT_VERSION_SPEC
           python -m aqt install-qt windows desktop $env:QT_VERSION_SPEC $env:QT_ARCH --outputdir $env:QT_INSTALL_DIR --modules $env:QT_MODULES
 
