@@ -26,11 +26,14 @@ jobs:
 
       - name: Install macOS build dependencies
         run: |
-          brew install ninja
+          brew install ninja libomp
 
-      - name: Expose Ninja
+      - name: Expose build tools
         run: |
           echo "$(brew --prefix ninja)/bin" >> "$GITHUB_PATH"
+          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> "$GITHUB_ENV"
+          echo "CPPFLAGS=-I$(brew --prefix libomp)/include" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$(brew --prefix libomp)/lib" >> "$GITHUB_ENV"
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -46,7 +49,7 @@ jobs:
       - name: Expose Qt tools
         run: |
           echo "$QT_ROOT_DIR/bin" >> "$GITHUB_PATH"
-          echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR;$(brew --prefix libomp)" >> "$GITHUB_ENV"
           echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"
 
       - name: Cache vcpkg artifacts
@@ -77,6 +80,10 @@ jobs:
             -B "$BUILD_DIR" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+            -DOpenMP_ROOT="$OpenMP_ROOT" \
+            -DOpenMP_CXX_INCLUDE_DIR="$OpenMP_ROOT/include" \
+            -DOpenMP_CXX_LIB_NAMES=omp \
+            -DOpenMP_omp_LIBRARY="$OpenMP_ROOT/lib/libomp.dylib" \
             -DCMAKE_MAKE_PROGRAM="$(brew --prefix ninja)/bin/ninja"
 
       - name: Build
@@ -86,6 +93,17 @@ jobs:
       - name: Package unsigned DMG
         run: |
           cd "$BUILD_DIR"
+          macdeployqt "$APP_NAME.app" -always-overwrite
+          APP_BIN="$APP_NAME.app/Contents/MacOS/$APP_NAME"
+          APP_FW="$APP_NAME.app/Contents/Frameworks"
+          OMP_LINK_PATH="$(otool -L "$APP_BIN" | awk '/libomp\.dylib/ {print $1; exit}')"
+          if [ -n "$OMP_LINK_PATH" ]; then
+            mkdir -p "$APP_FW"
+            cp -f "$OpenMP_ROOT/lib/libomp.dylib" "$APP_FW/"
+            install_name_tool -id "@rpath/libomp.dylib" "$APP_FW/libomp.dylib"
+            install_name_tool -change "$OMP_LINK_PATH" "@executable_path/../Frameworks/libomp.dylib" "$APP_BIN"
+            otool -L "$APP_BIN"
+          fi
           macdeployqt "$APP_NAME.app" -always-overwrite -dmg
           ARCH="$(uname -m)"
           DMG_NAME="${APP_NAME}-macos-${ARCH}-unsigned.dmg"

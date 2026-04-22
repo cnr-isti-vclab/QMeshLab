@@ -31,6 +31,38 @@ if (NOT _embree_target AND (NOT EMBREE_INCLUDE_DIR OR NOT EMBREE_LIBRARY))
 endif()
 
 find_package(OpenMP QUIET COMPONENTS CXX)
+if (NOT OpenMP_CXX_FOUND AND APPLE)
+    set(_openmp_root_hints "")
+    if (DEFINED OpenMP_ROOT AND OpenMP_ROOT)
+        list(APPEND _openmp_root_hints "${OpenMP_ROOT}")
+    endif()
+    if (DEFINED ENV{OpenMP_ROOT} AND NOT "$ENV{OpenMP_ROOT}" STREQUAL "")
+        list(APPEND _openmp_root_hints "$ENV{OpenMP_ROOT}")
+    endif()
+    list(APPEND _openmp_root_hints /opt/homebrew/opt/libomp /usr/local/opt/libomp)
+
+    find_path(_openmp_include_dir
+        NAMES omp.h
+        HINTS ${_openmp_root_hints}
+        PATH_SUFFIXES include
+    )
+    find_library(_openmp_library
+        NAMES omp libomp
+        HINTS ${_openmp_root_hints}
+        PATH_SUFFIXES lib
+    )
+
+    if (_openmp_include_dir AND _openmp_library)
+        add_library(OpenMP::OpenMP_CXX INTERFACE IMPORTED)
+        set_target_properties(OpenMP::OpenMP_CXX PROPERTIES
+            INTERFACE_COMPILE_OPTIONS "-Xclang;-fopenmp"
+            INTERFACE_INCLUDE_DIRECTORIES "${_openmp_include_dir}"
+            INTERFACE_LINK_LIBRARIES "${_openmp_library}"
+        )
+        set(OpenMP_CXX_FOUND TRUE)
+    endif()
+endif()
+
 if (NOT OpenMP_CXX_FOUND)
     message(STATUS
         "Skipping filter_embree - OpenMP CXX was not found, "

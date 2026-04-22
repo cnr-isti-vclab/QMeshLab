@@ -121,11 +121,12 @@ The repository includes a manual GitHub Actions workflow at
 
 What it does:
 - checks out the repo with submodules
-- installs `ninja` with Homebrew
+- installs `ninja` and `libomp` with Homebrew
 - installs Qt 6.11 with `install-qt-action`
 - reuses the action cache for Qt downloads/install files when available
 - bootstraps local `vcpkg`
 - configures a `Release` build from the tracked `vcpkg-manifest` preset
+- bundles `libomp.dylib` into the app when OpenMP-linked plugins are present
 - runs `macdeployqt -dmg`
 - uploads the generated `.dmg` as a workflow artifact
 
