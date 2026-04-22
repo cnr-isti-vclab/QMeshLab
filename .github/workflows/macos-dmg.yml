@@ -62,6 +62,13 @@ jobs:
       - name: Bootstrap vcpkg
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          VCPKG_BASELINE="$(python3 - <<'PY'
+          import json
+          with open("vcpkg.json", "r", encoding="utf-8") as f:
+              print(json.load(f)["builtin-baseline"])
+          PY
+          )"
+          git -C "$VCPKG_ROOT" fetch --depth 1 origin "$VCPKG_BASELINE"
           "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Configure
@@ -69,7 +76,8 @@ jobs:
           cmake --preset vcpkg-manifest \
             -B "$BUILD_DIR" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH"
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+            -DCMAKE_MAKE_PROGRAM="$(brew --prefix ninja)/bin/ninja"
 
       - name: Build
         run: |

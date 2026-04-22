@@ -106,7 +106,7 @@ private:
         float edgeSize = 1.0f;
         QColor wireColor = QColor(15, 15, 20);
         float wireSize = 1.5f;
-        QColor fillColor = QColor(153, 153, 179);
+        QColor fillColor = QColor(230, 230, 230);
     };
 
     void createOverlayButtons();

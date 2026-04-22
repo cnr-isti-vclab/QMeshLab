@@ -80,6 +80,8 @@ jobs:
         shell: pwsh
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+          $vcpkgBaseline = (Get-Content (Join-Path $env:GITHUB_WORKSPACE "vcpkg.json") | ConvertFrom-Json)."builtin-baseline"
+          git -C $env:VCPKG_ROOT fetch --depth 1 origin $vcpkgBaseline
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
       - name: Configure
