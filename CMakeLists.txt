@@ -73,6 +73,10 @@ qt_add_executable(QMeshLab
     layerwidget.h layerwidget.cpp
 )
 
+set_target_properties(QMeshLab PROPERTIES
+    MACOSX_BUNDLE TRUE
+)
+
 target_link_libraries(QMeshLab PRIVATE
     QMeshLabPlugins
     Qt6::Widgets
