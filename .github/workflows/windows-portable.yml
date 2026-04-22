@@ -1,0 +1,100 @@
+name: Windows Portable
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-portable:
+    name: Build Portable ZIP
+    runs-on: windows-2022
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      BUILD_DIR: build-win-release
+      QT_VERSION: 6.11.*
+      QT_ARCH: win64_msvc2022_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: ${{ env.QT_ARCH }}
+          modules: qtshadertools
+          cache: true
+          cache-key-prefix: qmeshlab-qt
+
+      - name: Cache vcpkg artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.LOCALAPPDATA }}\vcpkg\archives
+            ${{ github.workspace }}\build-win-release\vcpkg_installed
+          key: windows-portable-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt', 'plugins/**/CMakeLists.txt') }}
+          restore-keys: |
+            windows-portable-vcpkg-${{ runner.os }}-
+
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake --preset vcpkg-manifest -B $env:BUILD_DIR -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cmake --build $env:BUILD_DIR --parallel 4
+
+      - name: Create portable package
+        shell: pwsh
+        run: |
+          $exePath = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\QMeshLab.exe"
+          if (!(Test-Path $exePath)) {
+            $exePath = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\Release\QMeshLab.exe"
+          }
+          if (!(Test-Path $exePath)) {
+            throw "QMeshLab.exe not found in build output"
+          }
+
+          $distRoot = Join-Path $env:GITHUB_WORKSPACE "dist"
+          $portableDir = Join-Path $distRoot "QMeshLab-portable-win64"
+          Remove-Item -Recurse -Force $portableDir -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
+
+          Copy-Item $exePath $portableDir
+
+          & windeployqt --release --compiler-runtime (Join-Path $portableDir "QMeshLab.exe")
+
+          $vcpkgBin = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\vcpkg_installed\x64-windows\bin"
+          if (Test-Path $vcpkgBin) {
+            Copy-Item (Join-Path $vcpkgBin "*.dll") $portableDir -Force -ErrorAction SilentlyContinue
+          }
+
+          $zipPath = Join-Path $distRoot "QMeshLab-portable-win64.zip"
+          Remove-Item -Force $zipPath -ErrorAction SilentlyContinue
+          Compress-Archive -Path $portableDir -DestinationPath $zipPath
+          Get-ChildItem $distRoot
+
+      - name: Upload portable ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qmeshlab-windows-portable
+          path: ${{ github.workspace }}/dist/QMeshLab-portable-win64.zip
+          if-no-files-found: error

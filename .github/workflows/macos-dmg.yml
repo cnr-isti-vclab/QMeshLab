@@ -13,8 +13,9 @@ jobs:
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
       APP_NAME: QMeshLab
-      BUILD_PRESET: vcpkg-release
       BUILD_DIR: build-release
+      QT_VERSION: 6.11.*
+      QT_ARCH: clang_64
 
     steps:
       - name: Checkout
@@ -24,14 +25,24 @@ jobs:
 
       - name: Install macOS build dependencies
         run: |
-          brew install ninja qt@6
+          brew install ninja
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: ${{ env.QT_ARCH }}
+          modules: qtshadertools
+          cache: true
+          cache-key-prefix: qmeshlab-qt-macos
 
       - name: Expose Qt tools
         run: |
-          QT_PREFIX="$(brew --prefix qt@6)"
-          echo "$QT_PREFIX/bin" >> "$GITHUB_PATH"
-          echo "CMAKE_PREFIX_PATH=$QT_PREFIX" >> "$GITHUB_ENV"
-          echo "Qt6_DIR=$QT_PREFIX/lib/cmake/Qt6" >> "$GITHUB_ENV"
+          echo "$QT_ROOT_DIR/bin" >> "$GITHUB_PATH"
+          echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> "$GITHUB_ENV"
+          echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"
 
       - name: Cache vcpkg artifacts
         uses: actions/cache@v4
@@ -50,11 +61,14 @@ jobs:
 
       - name: Configure
         run: |
-          cmake --preset "$BUILD_PRESET" -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH"
+          cmake --preset vcpkg-manifest \
+            -B "$BUILD_DIR" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH"
 
       - name: Build
         run: |
-          cmake --build --preset "$BUILD_PRESET" -j3
+          cmake --build "$BUILD_DIR" -j3
 
       - name: Package unsigned DMG
         run: |

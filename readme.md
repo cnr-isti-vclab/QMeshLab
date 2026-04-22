@@ -121,9 +121,11 @@ The repository includes a manual GitHub Actions workflow at
 
 What it does:
 - checks out the repo with submodules
-- installs `qt@6` and `ninja` with Homebrew
+- installs `ninja` with Homebrew
+- installs Qt 6.11 with `install-qt-action`
+- reuses the action cache for Qt downloads/install files when available
 - bootstraps local `vcpkg`
-- configures and builds the `vcpkg-release` preset
+- configures a `Release` build from the tracked `vcpkg-manifest` preset
 - runs `macdeployqt -dmg`
 - uploads the generated `.dmg` as a workflow artifact
 
@@ -137,3 +139,30 @@ Current status:
 - packaging is unsigned/ad-hoc only
 - the workflow currently runs on `macos-15-intel`, so the produced app is `x86_64`
 - Developer ID signing and notarization can be added later using repository secrets
+
+## GitHub Actions: Windows Portable ZIP
+
+The repository also includes a manual GitHub Actions workflow at
+`.github/workflows/windows-portable.yml` that builds a portable Windows `.zip`.
+
+What it does:
+- checks out the repo with submodules
+- sets up MSVC on `windows-2022`
+- installs Qt 6.11 with `install-qt-action`
+- bootstraps local `vcpkg`
+- configures and builds a release build with the `vcpkg-manifest` preset
+- runs `windeployqt` on `QMeshLab.exe`
+- copies additional runtime `.dll` files from `vcpkg_installed/x64-windows/bin`
+- archives the deploy directory as `QMeshLab-portable-win64.zip`
+- uploads the generated `.zip` as a workflow artifact
+
+How to use it:
+1. Open the `Actions` tab on GitHub
+2. Select `Windows Portable`
+3. Click `Run workflow`
+4. Download the `qmeshlab-windows-portable` artifact from the completed run
+
+Current status:
+- packaging is portable `.zip`, not an installer
+- the workflow targets `x64` on `windows-2022`
+- code signing can be added later if you want a more polished distribution path
