@@ -473,6 +473,12 @@ void RenderWidget::ensureRenderResources()
         m_textureSampler.reset();
         m_fallbackTexture.reset();
         m_fallbackTextureUploadPending = false;
+        m_fallbackNormalTexture.reset();
+        m_fallbackNormalTextureUploadPending = false;
+        m_fallbackOcclusionTexture.reset();
+        m_fallbackOcclusionTextureUploadPending = false;
+        m_fallbackRoughnessTexture.reset();
+        m_fallbackRoughnessTextureUploadPending = false;
         m_qualityColorMapTexture.reset();
         m_qualityColorMapTextureUploadPending = false;
         m_qualityColorMapTextureMapId.clear();
@@ -528,6 +534,36 @@ void RenderWidget::ensureRenderResources()
             m_fallbackTextureUploadPending = false;
         }
     }
+    if (!m_fallbackNormalTexture) {
+        m_fallbackNormalTexture.reset(
+            m_rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1), 1));
+        if (m_fallbackNormalTexture && m_fallbackNormalTexture->create()) {
+            m_fallbackNormalTextureUploadPending = true;
+        } else {
+            m_fallbackNormalTexture.reset();
+            m_fallbackNormalTextureUploadPending = false;
+        }
+    }
+    if (!m_fallbackOcclusionTexture) {
+        m_fallbackOcclusionTexture.reset(
+            m_rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1), 1));
+        if (m_fallbackOcclusionTexture && m_fallbackOcclusionTexture->create()) {
+            m_fallbackOcclusionTextureUploadPending = true;
+        } else {
+            m_fallbackOcclusionTexture.reset();
+            m_fallbackOcclusionTextureUploadPending = false;
+        }
+    }
+    if (!m_fallbackRoughnessTexture) {
+        m_fallbackRoughnessTexture.reset(
+            m_rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1), 1));
+        if (m_fallbackRoughnessTexture && m_fallbackRoughnessTexture->create()) {
+            m_fallbackRoughnessTextureUploadPending = true;
+        } else {
+            m_fallbackRoughnessTexture.reset();
+            m_fallbackRoughnessTextureUploadPending = false;
+        }
+    }
 
     if (!m_qualityColorMapTexture) {
         m_qualityColorMapTexture.reset(
@@ -547,8 +583,15 @@ void RenderWidget::ensureRenderResources()
     ensureCurrentMeshMaskResources(renderTarget()->pixelSize());
 
     if (!m_srb) {
-        if (!m_ubuf || !m_textureSampler || !m_fallbackTexture || !m_qualityColorMapTexture)
+        if (!m_ubuf
+            || !m_textureSampler
+            || !m_fallbackTexture
+            || !m_fallbackNormalTexture
+            || !m_fallbackOcclusionTexture
+            || !m_fallbackRoughnessTexture
+            || !m_qualityColorMapTexture) {
             return;
+        }
         m_srb.reset(m_rhi->newShaderResourceBindings());
         m_srb->setBindings({
             QRhiShaderResourceBinding::uniformBuffer(
@@ -564,6 +607,21 @@ void RenderWidget::ensureRenderResources()
                 2,
                 QRhiShaderResourceBinding::FragmentStage,
                 m_qualityColorMapTexture.get(),
+                m_textureSampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                3,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_fallbackNormalTexture.get(),
+                m_textureSampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                4,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_fallbackOcclusionTexture.get(),
+                m_textureSampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                5,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_fallbackRoughnessTexture.get(),
                 m_textureSampler.get())
         });
         if (!m_srb->create()) {

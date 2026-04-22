@@ -31,6 +31,16 @@ enum class FillColorSource {
     Texture
 };
 
+enum class FillMaterial {
+    Plain = 0,
+    Pbr
+};
+
+enum class FillPbrAlbedoSource {
+    Texture = 0,
+    PlainColor
+};
+
 enum class PointColorSource {
     Constant = 0,
     PerVertex,
@@ -75,6 +85,14 @@ struct RenderSettings {
     bool wireBackfaceCulling = true;
     bool fillLighting = true;
     bool fillBackfaceCulling = true;
+    bool fillUseNormalMap = true;
+    bool fillUseOcclusionMap = true;
+    bool fillUseRoughnessMap = true;
+    float fillNormalMapScale = 1.0f;
+    float fillOcclusionStrength = 1.0f;
+    float fillRoughnessFactor = 1.0f;
+    FillMaterial fillMaterial = FillMaterial::Plain;
+    FillPbrAlbedoSource fillPbrAlbedoSource = FillPbrAlbedoSource::Texture;
     bool settingsPanelVisible = false;
     RenderPass currentPass = RenderPass::Fill;
     bool decoratorVertexNormals = false;
@@ -134,6 +152,14 @@ struct RenderSettings {
             && wireBackfaceCulling == other.wireBackfaceCulling
             && fillLighting == other.fillLighting
             && fillBackfaceCulling == other.fillBackfaceCulling
+            && fillUseNormalMap == other.fillUseNormalMap
+            && fillUseOcclusionMap == other.fillUseOcclusionMap
+            && fillUseRoughnessMap == other.fillUseRoughnessMap
+            && fillNormalMapScale == other.fillNormalMapScale
+            && fillOcclusionStrength == other.fillOcclusionStrength
+            && fillRoughnessFactor == other.fillRoughnessFactor
+            && fillMaterial == other.fillMaterial
+            && fillPbrAlbedoSource == other.fillPbrAlbedoSource
             && settingsPanelVisible == other.settingsPanelVisible
             && currentPass == other.currentPass
             && decoratorVertexNormals == other.decoratorVertexNormals

@@ -173,7 +173,15 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         }
     }
 
-    auto updateMainUbufForMesh = [&](int meshIndex, const RenderSettings &meshSettings) {
+    auto updateMainUbufForMesh =
+        [&](int meshIndex,
+            const RenderSettings &meshSettings,
+            bool useNormalMap = false,
+            bool useOcclusionMap = false,
+            bool useRoughnessMap = false,
+            float normalScale = 1.0f,
+            float occlusionStrength = 1.0f,
+            float roughnessFactor = 1.0f) {
         if (!haveCameraMatrices || !m_ubuf)
             return;
         if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
@@ -192,6 +200,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
         ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
         writeMainStyleToUbuf(ubufData, meshSettings, sz, true);
+        ubufData[kUbufPbrMapUsageOffset + 0] = useNormalMap ? 1.0f : 0.0f;
+        ubufData[kUbufPbrMapUsageOffset + 1] = useOcclusionMap ? 1.0f : 0.0f;
+        ubufData[kUbufPbrMapUsageOffset + 2] = useRoughnessMap ? 1.0f : 0.0f;
+        ubufData[kUbufPbrParamsOffset + 0] = normalScale;
+        ubufData[kUbufPbrParamsOffset + 1] = occlusionStrength;
+        ubufData[kUbufPbrParamsOffset + 2] = roughnessFactor;
 
         QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
         uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
@@ -250,7 +264,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             if (!fillPipeline)
                 continue;
             cb->setGraphicsPipeline(fillPipeline);
-            updateMainUbufForMesh(mi, meshSettings);
             const auto fillVariant = static_cast<Document::FillGpuVariant>(
                 fillGpuVariantIndexForSettings(meshSettings));
             const Document::FillPassGpuView fillView =
@@ -263,7 +276,38 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
                     continue;
 
-                cb->setShaderResources(shaderResourcesForTexture(batch.texture));
+                const bool enableNormalMap =
+                    meshSettings.fillMaterial == FillMaterial::Pbr
+                    &&
+                    meshSettings.fillLighting
+                    && meshSettings.fillUseNormalMap
+                    && batch.normalTexture;
+                const bool enableOcclusionMap =
+                    meshSettings.fillMaterial == FillMaterial::Pbr
+                    &&
+                    meshSettings.fillLighting
+                    && meshSettings.fillUseOcclusionMap
+                    && batch.occlusionTexture;
+                const bool enableRoughnessMap =
+                    meshSettings.fillMaterial == FillMaterial::Pbr
+                    &&
+                    meshSettings.fillLighting
+                    && meshSettings.fillUseRoughnessMap
+                    && batch.roughnessTexture;
+                updateMainUbufForMesh(
+                    mi,
+                    meshSettings,
+                    enableNormalMap,
+                    enableOcclusionMap,
+                    enableRoughnessMap,
+                    meshSettings.fillNormalMapScale * batch.normalScale,
+                    meshSettings.fillOcclusionStrength * batch.occlusionStrength,
+                    meshSettings.fillRoughnessFactor * batch.roughnessFactor);
+                cb->setShaderResources(shaderResourcesForFillTextures(
+                    batch.baseColorTexture,
+                    batch.normalTexture,
+                    batch.occlusionTexture,
+                    batch.roughnessTexture));
                 const QRhiCommandBuffer::VertexInput vbufBinding(batch.vertexBuffer, 0);
                 if (batch.indexCount > 0 && batch.indexBuffer) {
                     cb->setVertexInput(

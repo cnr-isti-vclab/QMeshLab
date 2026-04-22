@@ -7,6 +7,7 @@
 #include <QtGlobal>
 #include <QVector3D>
 #include <rhi/qshader.h>
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -22,7 +23,7 @@ inline QShader loadShader(const QString &path)
     return QShader::fromSerialized(f.readAll());
 }
 
-inline constexpr int kUbufSize = 304;
+inline constexpr int kUbufSize = 336;
 inline constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
 inline constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
 inline constexpr int kUbufPointColorOffset = 192 / sizeof(float);
@@ -32,6 +33,8 @@ inline constexpr int kUbufWireParamsOffset = 240 / sizeof(float);
 inline constexpr int kUbufFillColorOffset = 256 / sizeof(float);
 inline constexpr int kUbufLightingParamsOffset = 272 / sizeof(float);
 inline constexpr int kUbufEdgeColorOffset = 288 / sizeof(float);
+inline constexpr int kUbufPbrMapUsageOffset = 304 / sizeof(float);
+inline constexpr int kUbufPbrParamsOffset = 320 / sizeof(float);
 inline constexpr int kFillVertexStrideFloats = 13;
 inline constexpr int kPointsVertexStrideFloats = 11;
 inline constexpr int kMaskMorphUbufSize = 16;
@@ -60,6 +63,15 @@ struct MainStyleUbufKey {
     bool pointLighting = false;
     bool wireLighting = false;
     bool fillLighting = false;
+    bool fillUseNormalMap = true;
+    bool fillUseOcclusionMap = true;
+    bool fillUseRoughnessMap = true;
+    FillMaterial fillMaterial = FillMaterial::Plain;
+    FillPbrAlbedoSource fillPbrAlbedoSource = FillPbrAlbedoSource::Texture;
+    FillColorSource fillColorSource = FillColorSource::Constant;
+    float fillNormalMapScale = 1.0f;
+    float fillOcclusionStrength = 1.0f;
+    float fillRoughnessFactor = 1.0f;
     QColor edgeColor;
     float edgeSize = 0.0f;
 
@@ -74,6 +86,15 @@ struct MainStyleUbufKey {
             && pointLighting == other.pointLighting
             && wireLighting == other.wireLighting
             && fillLighting == other.fillLighting
+            && fillUseNormalMap == other.fillUseNormalMap
+            && fillUseOcclusionMap == other.fillUseOcclusionMap
+            && fillUseRoughnessMap == other.fillUseRoughnessMap
+            && fillMaterial == other.fillMaterial
+            && fillPbrAlbedoSource == other.fillPbrAlbedoSource
+            && fillColorSource == other.fillColorSource
+            && fillNormalMapScale == other.fillNormalMapScale
+            && fillOcclusionStrength == other.fillOcclusionStrength
+            && fillRoughnessFactor == other.fillRoughnessFactor
             && edgeColor == other.edgeColor
             && edgeSize == other.edgeSize;
     }
@@ -93,6 +114,15 @@ inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
     key.pointLighting = includeLighting ? settings.pointLighting : false;
     key.wireLighting = includeLighting ? settings.wireLighting : false;
     key.fillLighting = includeLighting ? settings.fillLighting : false;
+    key.fillUseNormalMap = settings.fillUseNormalMap;
+    key.fillUseOcclusionMap = settings.fillUseOcclusionMap;
+    key.fillUseRoughnessMap = settings.fillUseRoughnessMap;
+    key.fillMaterial = settings.fillMaterial;
+    key.fillPbrAlbedoSource = settings.fillPbrAlbedoSource;
+    key.fillColorSource = settings.fillColorSource;
+    key.fillNormalMapScale = settings.fillNormalMapScale;
+    key.fillOcclusionStrength = settings.fillOcclusionStrength;
+    key.fillRoughnessFactor = settings.fillRoughnessFactor;
     key.edgeColor = settings.edgeColor;
     key.edgeSize = settings.edgeSize;
     return key;
@@ -140,6 +170,20 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufEdgeColorOffset + 1] = settings.edgeColor.greenF();
     ubufData[kUbufEdgeColorOffset + 2] = settings.edgeColor.blueF();
     ubufData[kUbufEdgeColorOffset + 3] = settings.edgeColor.alphaF();
+
+    const bool enablePbr = settings.fillMaterial == FillMaterial::Pbr;
+    const bool useTextureAlbedo = (settings.fillMaterial == FillMaterial::Pbr)
+        ? (settings.fillPbrAlbedoSource == FillPbrAlbedoSource::Texture)
+        : (settings.fillColorSource == FillColorSource::Texture);
+    ubufData[kUbufPbrMapUsageOffset + 0] = (enablePbr && settings.fillUseNormalMap) ? 1.0f : 0.0f;
+    ubufData[kUbufPbrMapUsageOffset + 1] = (enablePbr && settings.fillUseOcclusionMap) ? 1.0f : 0.0f;
+    ubufData[kUbufPbrMapUsageOffset + 2] = (enablePbr && settings.fillUseRoughnessMap) ? 1.0f : 0.0f;
+    ubufData[kUbufPbrMapUsageOffset + 3] = useTextureAlbedo ? 1.0f : 0.0f;
+
+    ubufData[kUbufPbrParamsOffset + 0] = settings.fillNormalMapScale;
+    ubufData[kUbufPbrParamsOffset + 1] = std::clamp(settings.fillOcclusionStrength, 0.0f, 1.0f);
+    ubufData[kUbufPbrParamsOffset + 2] = std::max(settings.fillRoughnessFactor, 0.0f);
+    ubufData[kUbufPbrParamsOffset + 3] = 0.0f;
 }
 
 inline QVector3D toVec3(const VCGMesh::CoordType &p)

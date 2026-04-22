@@ -16,6 +16,7 @@
 #include <QObject>
 #include <QQuaternion>
 #include <QRegularExpression>
+#include <QStringList>
 #include <QUrl>
 
 #include <algorithm>
@@ -23,6 +24,7 @@
 #include <cstring>
 #include <functional>
 #include <list>
+#include <map>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -48,6 +50,21 @@ constexpr int kErrInvalidData = -4;
 constexpr int kErrSaveUnsupported = -100;
 constexpr int kErrSaveEmpty = -101;
 constexpr int kErrSaveWrite = -102;
+
+QString primitiveModeName(int mode)
+{
+    switch (mode) {
+    case TINYGLTF_MODE_POINTS: return QStringLiteral("POINTS");
+    case TINYGLTF_MODE_LINE: return QStringLiteral("LINES");
+    case TINYGLTF_MODE_LINE_LOOP: return QStringLiteral("LINE_LOOP");
+    case TINYGLTF_MODE_LINE_STRIP: return QStringLiteral("LINE_STRIP");
+    case TINYGLTF_MODE_TRIANGLES: return QStringLiteral("TRIANGLES");
+    case TINYGLTF_MODE_TRIANGLE_STRIP: return QStringLiteral("TRIANGLE_STRIP");
+    case TINYGLTF_MODE_TRIANGLE_FAN: return QStringLiteral("TRIANGLE_FAN");
+    default: break;
+    }
+    return QStringLiteral("MODE_%1").arg(mode);
+}
 
 void reportProgress(vcg::CallBackPos *cb, int pos, const QString &msg, bool replaceLast = false)
 {
@@ -732,8 +749,20 @@ public:
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
+        return load(filename, mesh, cb, outLoadMask, nullptr);
+    }
+
+    int load(
+        const QString &filename,
+        VCGMesh &mesh,
+        vcg::CallBackPos *cb,
+        int *outLoadMask,
+        MeshIOMaterialSet *outMaterialSet) const override
+    {
         if (outLoadMask)
             *outLoadMask = 0;
+        if (outMaterialSet)
+            outMaterialSet->clear();
 
         reportProgress(cb, 0, QObject::tr("Reading glTF file: %1").arg(QFileInfo(filename).fileName()), true);
 
@@ -765,6 +794,184 @@ public:
             return kErrNoMesh;
         }
 
+        int primitiveCount = 0;
+        int trianglePrimitiveCount = 0;
+        int pointPrimitiveCount = 0;
+        int linePrimitiveCount = 0;
+        int otherPrimitiveCount = 0;
+        int primitivesWithPosition = 0;
+        int primitivesWithNormal = 0;
+        int primitivesWithTexcoord = 0;
+        int primitivesWithColor = 0;
+        int primitivesWithTangent = 0;
+        std::map<int, int> primitiveModes;
+        for (const tinygltf::Mesh &srcMesh : model.meshes) {
+            for (const tinygltf::Primitive &prim : srcMesh.primitives) {
+                ++primitiveCount;
+                ++primitiveModes[prim.mode];
+                switch (prim.mode) {
+                case TINYGLTF_MODE_TRIANGLES:
+                    ++trianglePrimitiveCount;
+                    break;
+                case TINYGLTF_MODE_POINTS:
+                    ++pointPrimitiveCount;
+                    break;
+                case TINYGLTF_MODE_LINE:
+                case TINYGLTF_MODE_LINE_LOOP:
+                case TINYGLTF_MODE_LINE_STRIP:
+                    ++linePrimitiveCount;
+                    break;
+                default:
+                    ++otherPrimitiveCount;
+                    break;
+                }
+                const auto hasAttr = [&](const char *name) {
+                    return prim.attributes.find(name) != prim.attributes.end();
+                };
+                if (hasAttr("POSITION"))
+                    ++primitivesWithPosition;
+                if (hasAttr("NORMAL"))
+                    ++primitivesWithNormal;
+                if (hasAttr("TEXCOORD_0"))
+                    ++primitivesWithTexcoord;
+                if (hasAttr("COLOR_0"))
+                    ++primitivesWithColor;
+                if (hasAttr("TANGENT"))
+                    ++primitivesWithTangent;
+            }
+        }
+
+        reportProgress(
+            cb,
+            0,
+            QObject::tr(
+                "glTF source info: scenes=%1 nodes=%2 meshes=%3 primitives=%4 (tri=%5 points=%6 lines=%7 other=%8) materials=%9 textures=%10 images=%11 accessors=%12 bufferViews=%13")
+                .arg(model.scenes.size())
+                .arg(model.nodes.size())
+                .arg(model.meshes.size())
+                .arg(primitiveCount)
+                .arg(trianglePrimitiveCount)
+                .arg(pointPrimitiveCount)
+                .arg(linePrimitiveCount)
+                .arg(otherPrimitiveCount)
+                .arg(model.materials.size())
+                .arg(model.textures.size())
+                .arg(model.images.size())
+                .arg(model.accessors.size())
+                .arg(model.bufferViews.size()));
+        reportProgress(
+            cb,
+            0,
+            QObject::tr(
+                "glTF source attributes (primitive count): POSITION=%1 NORMAL=%2 TEXCOORD_0=%3 COLOR_0=%4 TANGENT=%5")
+                .arg(primitivesWithPosition)
+                .arg(primitivesWithNormal)
+                .arg(primitivesWithTexcoord)
+                .arg(primitivesWithColor)
+                .arg(primitivesWithTangent));
+        if (!primitiveModes.empty()) {
+            QStringList modeItems;
+            modeItems.reserve(int(primitiveModes.size()));
+            for (const auto &kv : primitiveModes) {
+                modeItems.push_back(
+                    QStringLiteral("%1:%2").arg(primitiveModeName(kv.first)).arg(kv.second));
+            }
+            reportProgress(
+                cb,
+                0,
+                QObject::tr("glTF primitive modes: %1")
+                    .arg(modeItems.join(QStringLiteral(", "))));
+        }
+
+        if (!model.extensionsRequired.empty()) {
+            QStringList extensions;
+            extensions.reserve(int(model.extensionsRequired.size()));
+            for (const std::string &extName : model.extensionsRequired)
+                extensions.push_back(QString::fromStdString(extName));
+            reportProgress(
+                cb,
+                0,
+                QObject::tr("glTF required extensions: %1")
+                    .arg(extensions.join(QStringLiteral(", "))));
+        }
+        if (!model.extensionsUsed.empty()) {
+            QStringList extensions;
+            extensions.reserve(int(model.extensionsUsed.size()));
+            for (const std::string &extName : model.extensionsUsed)
+                extensions.push_back(QString::fromStdString(extName));
+            reportProgress(
+                cb,
+                0,
+                QObject::tr("glTF used extensions: %1")
+                    .arg(extensions.join(QStringLiteral(", "))));
+        }
+        const QDir inputDir = QFileInfo(filename).absoluteDir();
+
+        for (size_t ti = 0; ti < model.textures.size(); ++ti) {
+            const tinygltf::Texture &texture = model.textures[ti];
+            const int imageIndex = texture.source;
+            QString imageInfo = QObject::tr("no image");
+            QString textureNameFallback;
+            if (imageIndex >= 0 && imageIndex < int(model.images.size())) {
+                const tinygltf::Image &img = model.images[size_t(imageIndex)];
+                QString uri = QUrl::fromPercentEncoding(QString::fromStdString(img.uri).toUtf8());
+                QString sourceKind = QObject::tr("embedded");
+                textureNameFallback = QString::fromStdString(img.name).trimmed();
+                if (uri.trimmed().isEmpty()) {
+                    if (!img.image.empty())
+                        uri = QObject::tr("embedded");
+                    else if (img.bufferView >= 0)
+                        uri = QObject::tr("bufferView #%1").arg(img.bufferView);
+                    else
+                        uri = QObject::tr("unspecified");
+                }
+                imageInfo = QObject::tr("img=%1 %2x%3 comp=%4 bits=%5 src=%6")
+                                .arg(imageIndex)
+                                .arg(img.width)
+                                .arg(img.height)
+                                .arg(img.component)
+                                .arg(img.bits)
+                                .arg(uri);
+                imageInfo += QObject::tr(" kind=%1").arg(sourceKind);
+            }
+            QString texName = QString::fromStdString(texture.name).trimmed();
+            if (texName.isEmpty())
+                texName = textureNameFallback;
+            if (texName.isEmpty() && imageIndex >= 0)
+                texName = QObject::tr("Image %1").arg(imageIndex);
+            if (texName.isEmpty())
+                texName = QObject::tr("Texture %1").arg(ti);
+            reportProgress(
+                cb,
+                0,
+                QObject::tr("glTF texture %1: '%2' (%3)")
+                    .arg(ti)
+                    .arg(texName)
+                    .arg(imageInfo));
+        }
+        for (size_t mi = 0; mi < model.materials.size(); ++mi) {
+            const tinygltf::Material &mat = model.materials[mi];
+            const int baseTex = mat.pbrMetallicRoughness.baseColorTexture.index;
+            const int normalTex = mat.normalTexture.index;
+            const int occlusionTex = mat.occlusionTexture.index;
+            const int roughTex = mat.pbrMetallicRoughness.metallicRoughnessTexture.index;
+            QString matName = QString::fromStdString(mat.name).trimmed();
+            if (matName.isEmpty())
+                matName = QObject::tr("Material %1").arg(mi);
+            reportProgress(
+                cb,
+                0,
+                QObject::tr(
+                    "glTF material %1: '%2' baseTex=%3 normalTex=%4 occlusionTex=%5 roughnessTex=%6 roughnessFactor=%7")
+                    .arg(mi)
+                    .arg(matName)
+                    .arg(baseTex)
+                    .arg(normalTex)
+                    .arg(occlusionTex)
+                    .arg(roughTex)
+                    .arg(mat.pbrMetallicRoughness.roughnessFactor, 0, 'f', 3));
+        }
+
 #if !defined(QMESHLAB_GLTF_HAS_DRACO)
         if (modelUsesDracoCompression(model)) {
             reportProgress(
@@ -790,23 +997,16 @@ public:
         int textureMissingFileCount = 0;
 
         std::unordered_map<int, int> imageToTextureSlot;
+        std::unordered_map<int, QString> imageToResolvedUri;
         std::vector<std::string> textureFiles;
         const QFileInfo inputInfo(filename);
-        const QDir inputDir = inputInfo.absoluteDir();
 
-        auto textureSlotForMaterial = [&](int materialIndex) -> int {
-            if (materialIndex < 0 || materialIndex >= int(model.materials.size()))
-                return -1;
-            const auto &mat = model.materials[size_t(materialIndex)];
-            const int texIndex = mat.pbrMetallicRoughness.baseColorTexture.index;
-            if (texIndex < 0 || texIndex >= int(model.textures.size()))
-                return -1;
-            const int imageIndex = model.textures[size_t(texIndex)].source;
+        auto resolveImageUri = [&](int imageIndex) -> QString {
             if (imageIndex < 0 || imageIndex >= int(model.images.size()))
-                return -1;
-            const auto existing = imageToTextureSlot.find(imageIndex);
-            if (existing != imageToTextureSlot.end())
-                return existing->second;
+                return QString();
+            const auto cached = imageToResolvedUri.find(imageIndex);
+            if (cached != imageToResolvedUri.end())
+                return cached->second;
 
             const tinygltf::Image &img = model.images[size_t(imageIndex)];
             QString uri = QString::fromStdString(img.uri);
@@ -821,7 +1021,7 @@ public:
                         0,
                         QObject::tr("glTF warning: embedded texture #%1 has no valid pixel data.")
                             .arg(imageIndex));
-                    return -1;
+                    return QString();
                 }
 
                 QImage qimg;
@@ -844,7 +1044,7 @@ public:
                             .arg(img.component)
                             .arg(img.bits)
                             .arg(img.pixel_type));
-                    return -1;
+                    return QString();
                 }
 
                 QDir tmpDir(QDir::tempPath() + QStringLiteral("/qmeshlab_gltf_textures"));
@@ -861,7 +1061,7 @@ public:
                         QObject::tr("glTF warning: failed saving embedded texture #%1 to '%2'.")
                             .arg(imageIndex)
                             .arg(absPath));
-                    return -1;
+                    return QString();
                 }
                 uri = absPath;
             } else {
@@ -876,15 +1076,125 @@ public:
                         QObject::tr("glTF warning: texture file not found '%1' (resolved: '%2').")
                             .arg(uri)
                             .arg(resolvedTexturePath));
-                    return -1;
+                    return QString();
+                }
+                uri = resolvedTexturePath;
+            }
+
+            imageToResolvedUri[imageIndex] = uri;
+            return uri;
+        };
+
+        auto textureRefFromTextureIndex = [&](int texIndex) -> MeshIOMaterialTextureRef {
+            MeshIOMaterialTextureRef ref;
+            if (texIndex < 0 || texIndex >= int(model.textures.size()))
+                return ref;
+            const int imageIndex = model.textures[size_t(texIndex)].source;
+            const QString resolvedUri = resolveImageUri(imageIndex);
+            if (resolvedUri.isEmpty())
+                return ref;
+            ref.filePath = resolvedUri;
+            ref.fileName = QFileInfo(resolvedUri).fileName();
+            return ref;
+        };
+
+        constexpr int kMaxTextureEntriesInLog = 20;
+        if (model.textures.empty()) {
+            reportProgress(cb, 10, QObject::tr("glTF texture files: none"));
+        } else {
+            QStringList textureFileEntries;
+            textureFileEntries.reserve(std::min<size_t>(model.textures.size(), kMaxTextureEntriesInLog));
+            for (size_t ti = 0; ti < model.textures.size(); ++ti) {
+                const tinygltf::Texture &texture = model.textures[ti];
+                const int imageIndex = texture.source;
+                const QString resolvedUri = resolveImageUri(imageIndex);
+
+                QString displayName = QString::fromStdString(texture.name).trimmed();
+                if (displayName.isEmpty() && imageIndex >= 0 && imageIndex < int(model.images.size())) {
+                    const tinygltf::Image &img = model.images[size_t(imageIndex)];
+                    displayName = QString::fromStdString(img.name).trimmed();
+                }
+                if (displayName.isEmpty() && !resolvedUri.trimmed().isEmpty())
+                    displayName = QFileInfo(resolvedUri).fileName().trimmed();
+                if (displayName.isEmpty())
+                    displayName = QObject::tr("Texture %1").arg(ti);
+
+                const QString status =
+                    resolvedUri.trimmed().isEmpty() ? QObject::tr("missing") : QObject::tr("found");
+                const QString source = resolvedUri.trimmed().isEmpty()
+                    ? QObject::tr("unresolved")
+                    : QDir::toNativeSeparators(resolvedUri);
+
+                if (int(textureFileEntries.size()) < kMaxTextureEntriesInLog) {
+                    textureFileEntries.push_back(
+                        QObject::tr("  [%1] %2 -> %3 (%4)")
+                            .arg(ti)
+                            .arg(displayName)
+                            .arg(source)
+                            .arg(status));
                 }
             }
 
+            QStringList details;
+            details.reserve(int(textureFileEntries.size()) + 2);
+            details.push_back(QObject::tr("glTF texture files (%1):").arg(model.textures.size()));
+            details.append(textureFileEntries);
+            if (model.textures.size() > textureFileEntries.size()) {
+                details.push_back(
+                    QObject::tr("  ... +%1 more").arg(model.textures.size() - textureFileEntries.size()));
+            }
+            reportProgress(cb, 10, details.join(QLatin1Char('\n')));
+        }
+
+        auto textureSlotForMaterial = [&](int materialIndex) -> int {
+            if (materialIndex < 0 || materialIndex >= int(model.materials.size()))
+                return -1;
+            const auto &mat = model.materials[size_t(materialIndex)];
+            const int texIndex = mat.pbrMetallicRoughness.baseColorTexture.index;
+            if (texIndex < 0 || texIndex >= int(model.textures.size()))
+                return -1;
+            const int imageIndex = model.textures[size_t(texIndex)].source;
+            if (imageIndex < 0 || imageIndex >= int(model.images.size()))
+                return -1;
+            const auto existing = imageToTextureSlot.find(imageIndex);
+            if (existing != imageToTextureSlot.end())
+                return existing->second;
+
+            const QString resolvedUri = resolveImageUri(imageIndex);
+            if (resolvedUri.isEmpty())
+                return -1;
             const int slot = int(textureFiles.size());
-            textureFiles.push_back(uri.toStdString());
+            textureFiles.push_back(resolvedUri.toStdString());
             imageToTextureSlot[imageIndex] = slot;
             return slot;
         };
+
+        MeshIOMaterialSet materialSet;
+        materialSet.entries.reserve(model.materials.size());
+        for (size_t mi = 0; mi < model.materials.size(); ++mi) {
+            const tinygltf::Material &mat = model.materials[mi];
+            MeshIOMaterialSlot slot;
+            slot.name = QString::fromStdString(mat.name).trimmed();
+            if (slot.name.isEmpty())
+                slot.name = QObject::tr("Material %1").arg(mi + 1);
+
+            slot.baseColorTexture =
+                textureRefFromTextureIndex(mat.pbrMetallicRoughness.baseColorTexture.index);
+            slot.normalTexture = textureRefFromTextureIndex(mat.normalTexture.index);
+            slot.occlusionTexture = textureRefFromTextureIndex(mat.occlusionTexture.index);
+            slot.roughnessTexture =
+                textureRefFromTextureIndex(mat.pbrMetallicRoughness.metallicRoughnessTexture.index);
+
+            if (std::isfinite(mat.normalTexture.scale) && mat.normalTexture.scale >= 0.0)
+                slot.normalScale = static_cast<float>(mat.normalTexture.scale);
+            if (std::isfinite(mat.occlusionTexture.strength) && mat.occlusionTexture.strength >= 0.0)
+                slot.occlusionStrength = static_cast<float>(mat.occlusionTexture.strength);
+            if (std::isfinite(mat.pbrMetallicRoughness.roughnessFactor)
+                && mat.pbrMetallicRoughness.roughnessFactor >= 0.0)
+                slot.roughnessFactor = static_cast<float>(mat.pbrMetallicRoughness.roughnessFactor);
+
+            materialSet.entries.push_back(std::move(slot));
+        }
 
         auto primitiveBaseColor = [&](int materialIndex) -> vcg::Color4b {
             if (materialIndex < 0 || materialIndex >= int(model.materials.size()))
@@ -1086,6 +1396,8 @@ public:
 
         if (outLoadMask)
             *outLoadMask = loadMask;
+        if (outMaterialSet)
+            *outMaterialSet = materialSet;
 
         if (skippedUnsupportedPrimitiveCount > 0) {
             reportProgress(

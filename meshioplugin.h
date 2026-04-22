@@ -3,6 +3,38 @@
 #include "vcgmesh.h"
 #include <QString>
 #include <QStringList>
+#include <vector>
+
+struct MeshIOMaterialTextureRef
+{
+    QString fileName;
+    QString filePath;
+
+    bool isValid() const
+    {
+        return !fileName.trimmed().isEmpty() || !filePath.trimmed().isEmpty();
+    }
+};
+
+struct MeshIOMaterialSlot
+{
+    QString name;
+    MeshIOMaterialTextureRef baseColorTexture;
+    MeshIOMaterialTextureRef normalTexture;
+    MeshIOMaterialTextureRef occlusionTexture;
+    MeshIOMaterialTextureRef roughnessTexture;
+    float normalScale = 1.0f;
+    float occlusionStrength = 1.0f;
+    float roughnessFactor = 1.0f;
+};
+
+struct MeshIOMaterialSet
+{
+    std::vector<MeshIOMaterialSlot> entries;
+
+    bool empty() const { return entries.empty(); }
+    void clear() { entries.clear(); }
+};
 
 struct MeshIOSaveOptions
 {
@@ -43,6 +75,20 @@ public:
     // which attributes were found in the input file.
     // Returns 0 on success, a non-zero error code otherwise.
     virtual int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const = 0;
+
+    // Optional extended load path for material channel metadata (PBR-related texture channels).
+    // Default behavior keeps backward compatibility: clear metadata and fallback to load().
+    virtual int load(
+        const QString &filename,
+        VCGMesh &mesh,
+        vcg::CallBackPos *cb,
+        int *outLoadMask,
+        MeshIOMaterialSet *outMaterialSet) const
+    {
+        if (outMaterialSet)
+            outMaterialSet->clear();
+        return load(filename, mesh, cb, outLoadMask);
+    }
 
     // Qt file dialog filter string for this plugin's formats, e.g. "Mesh Files (*.ply *.obj)".
     virtual QString filterString() const = 0;

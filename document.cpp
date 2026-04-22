@@ -59,6 +59,64 @@ QString resolveTexturePath(const QString &meshFilePath, const QString &declaredT
     return meshInfo.dir().filePath(normalizedName);
 }
 
+MeshIOMaterialTextureRef normalizeMaterialTextureRef(
+    const QString &meshFilePath,
+    const MeshIOMaterialTextureRef &src)
+{
+    MeshIOMaterialTextureRef dst = src;
+    const QString name = src.fileName.trimmed();
+    const QString path = src.filePath.trimmed();
+    const QString source = !path.isEmpty() ? path : name;
+    if (!source.isEmpty()) {
+        if (meshFilePath.trimmed().isEmpty())
+            dst.filePath = QDir::fromNativeSeparators(source);
+        else
+            dst.filePath = resolveTexturePath(meshFilePath, source);
+        if (dst.fileName.trimmed().isEmpty())
+            dst.fileName = QFileInfo(source).fileName();
+    } else {
+        dst.filePath.clear();
+        if (dst.fileName.trimmed().isEmpty())
+            dst.fileName.clear();
+    }
+    return dst;
+}
+
+MeshIOMaterialSet normalizeMaterialSet(
+    const QString &meshFilePath,
+    const MeshIOMaterialSet &src,
+    const VCGMesh &mesh)
+{
+    MeshIOMaterialSet dst;
+    dst.entries.reserve(src.entries.size());
+    for (size_t i = 0; i < src.entries.size(); ++i) {
+        MeshIOMaterialSlot slot = src.entries[i];
+        if (slot.name.trimmed().isEmpty())
+            slot.name = QObject::tr("Material %1").arg(i + 1);
+        slot.baseColorTexture = normalizeMaterialTextureRef(meshFilePath, slot.baseColorTexture);
+        slot.normalTexture = normalizeMaterialTextureRef(meshFilePath, slot.normalTexture);
+        slot.occlusionTexture = normalizeMaterialTextureRef(meshFilePath, slot.occlusionTexture);
+        slot.roughnessTexture = normalizeMaterialTextureRef(meshFilePath, slot.roughnessTexture);
+        dst.entries.push_back(std::move(slot));
+    }
+
+    if (dst.entries.empty() && !mesh.textures.empty()) {
+        dst.entries.reserve(mesh.textures.size());
+        for (size_t i = 0; i < mesh.textures.size(); ++i) {
+            const QString texName = QString::fromStdString(mesh.textures[i]).trimmed();
+            if (texName.isEmpty())
+                continue;
+            MeshIOMaterialSlot slot;
+            slot.name = QObject::tr("Material %1").arg(i + 1);
+            slot.baseColorTexture.fileName = QFileInfo(texName).fileName();
+            slot.baseColorTexture.filePath = resolveTexturePath(meshFilePath, texName);
+            dst.entries.push_back(std::move(slot));
+        }
+    }
+
+    return dst;
+}
+
 void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst)
 {
     dst.meshId = src.meshId;
@@ -69,6 +127,7 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.sourcePath = src.sourcePath;
     dst.textureFileNames = src.textureFileNames;
     dst.textureFilePaths = src.textureFilePaths;
+    dst.materialSet = src.materialSet;
     dst.visible = src.visible;
     dst.ioMask = src.ioMask;
 }
@@ -386,7 +445,8 @@ int Document::loadMesh(const QString &filename)
     m_cancelRequested.store(false, std::memory_order_relaxed);
     g_callbackDocument = this;
     int loadMask = 0;
-    int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask);
+    MeshIOMaterialSet loadedMaterialSet;
+    int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask, &loadedMaterialSet);
     g_callbackDocument = previousCallbackDocument;
     m_callbackMode = previousCallbackMode;
     const qint64 importElapsedMs = loadTimer.elapsed();
@@ -416,6 +476,7 @@ int Document::loadMesh(const QString &filename)
     entry->renderTransform.setToIdentity();
     entry->name = QFileInfo(filename).fileName();
     entry->sourcePath = filename;
+    entry->materialSet = normalizeMaterialSet(filename, loadedMaterialSet, entry->mesh);
 
     QStringList declaredTextureNames;
     QStringList resolvedTexturePaths;
@@ -493,6 +554,31 @@ int Document::loadMesh(const QString &filename)
             .arg(meshEntry.textureFilePaths.size()),
             LogSource::Application);
     }
+    if (!meshEntry.materialSet.empty()) {
+        int baseCount = 0;
+        int normalCount = 0;
+        int aoCount = 0;
+        int roughnessCount = 0;
+        for (const MeshIOMaterialSlot &slot : meshEntry.materialSet.entries) {
+            if (slot.baseColorTexture.isValid())
+                ++baseCount;
+            if (slot.normalTexture.isValid())
+                ++normalCount;
+            if (slot.occlusionTexture.isValid())
+                ++aoCount;
+            if (slot.roughnessTexture.isValid())
+                ++roughnessCount;
+        }
+        writeLog(
+            tr("Material info for '%1': %2 slot(s), base=%3, normal=%4, ao=%5, roughness=%6")
+                .arg(meshEntry.name)
+                .arg(meshEntry.materialSet.entries.size())
+                .arg(baseCount)
+                .arg(normalCount)
+                .arg(aoCount)
+                .arg(roughnessCount),
+            LogSource::Application);
+    }
 
     emit meshAdded(index);
     setCurrentMeshIndex(index);
@@ -558,7 +644,8 @@ int Document::reloadMesh(int index)
     m_cancelRequested.store(false, std::memory_order_relaxed);
     g_callbackDocument = this;
     int loadMask = 0;
-    const int err = plugin->load(sourcePath, reloadedMesh, logCallback(), &loadMask);
+    MeshIOMaterialSet loadedMaterialSet;
+    const int err = plugin->load(sourcePath, reloadedMesh, logCallback(), &loadMask, &loadedMaterialSet);
     g_callbackDocument = previousCallbackDocument;
     m_callbackMode = previousCallbackMode;
     const qint64 importElapsedMs = loadTimer.elapsed();
@@ -616,6 +703,7 @@ int Document::reloadMesh(int index)
     entry.sourcePath = sourcePath;
     entry.textureFileNames = textureFileNames;
     entry.textureFilePaths = textureFilePaths;
+    entry.materialSet = normalizeMaterialSet(sourcePath, loadedMaterialSet, reloadedMesh);
     ++entry.geometryRevision;
     ++entry.materialRevision;
 
@@ -663,6 +751,31 @@ int Document::reloadMesh(int index)
             .arg(selectedTextureName.isEmpty() ? tr("none") : selectedTextureName)
             .arg(existingTextureFiles)
             .arg(entry.textureFilePaths.size()),
+            LogSource::Application);
+    }
+    if (!entry.materialSet.empty()) {
+        int baseCount = 0;
+        int normalCount = 0;
+        int aoCount = 0;
+        int roughnessCount = 0;
+        for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
+            if (slot.baseColorTexture.isValid())
+                ++baseCount;
+            if (slot.normalTexture.isValid())
+                ++normalCount;
+            if (slot.occlusionTexture.isValid())
+                ++aoCount;
+            if (slot.roughnessTexture.isValid())
+                ++roughnessCount;
+        }
+        writeLog(
+            tr("Material info for '%1': %2 slot(s), base=%3, normal=%4, ao=%5, roughness=%6")
+                .arg(entry.name)
+                .arg(entry.materialSet.entries.size())
+                .arg(baseCount)
+                .arg(normalCount)
+                .arg(aoCount)
+                .arg(roughnessCount),
             LogSource::Application);
     }
 
@@ -1026,6 +1139,7 @@ int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
         entry->textureFilePaths.push_back(texturePath);
         entry->textureFileNames.push_back(QFileInfo(texturePath).fileName());
     }
+    entry->materialSet = normalizeMaterialSet(entry->sourcePath, MeshIOMaterialSet{}, entry->mesh);
 
     const int newIndex = meshCount();
     m_meshes.push_back(std::move(entry));
@@ -1213,6 +1327,7 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
         std::swap(source.qualityRangeMin, source.qualityRangeMax);
     source.mesh = &meshEntry.mesh;
     source.textureFilePaths = &meshEntry.textureFilePaths;
+    source.materialSet = &meshEntry.materialSet;
 
     const MeshGpuResourceCache::EnsureStats stats = m_gpuCache->ensureMeshResources(
         rhi,

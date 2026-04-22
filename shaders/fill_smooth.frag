@@ -11,31 +11,92 @@ layout(std140, binding = 0) uniform buf {
     vec4 wireParams;
     vec4 fillColor;
     vec4 lightingParams;
+    vec4 edgeColor;
+    vec4 pbrMapUsage;
+    vec4 pbrParams;
 } ub;
 
 layout(location = 0) in vec3 v_normal;
 layout(location = 1) in vec4 v_meshColor;
 layout(location = 2) in vec3 v_texInfo;
+layout(location = 3) in vec3 v_viewPos;
 
 layout(binding = 1) uniform sampler2D albedoTex;
 layout(binding = 2) uniform sampler2D qualityLutTex;
+layout(binding = 3) uniform sampler2D normalTex;
+layout(binding = 4) uniform sampler2D occlusionTex;
+layout(binding = 5) uniform sampler2D roughnessTex;
 
 layout(location = 0) out vec4 fragColor;
 
+vec3 applyNormalMap(vec3 baseNormal, vec2 uv)
+{
+    vec3 N = normalize(baseNormal);
+    vec3 dp1 = dFdx(v_viewPos);
+    vec3 dp2 = dFdy(v_viewPos);
+    vec2 duv1 = dFdx(uv);
+    vec2 duv2 = dFdy(uv);
+
+    vec3 dp2perp = cross(dp2, N);
+    vec3 dp1perp = cross(N, dp1);
+    vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+    vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+
+    float t2 = dot(T, T);
+    float b2 = dot(B, B);
+    float scale2 = max(t2, b2);
+    if (scale2 <= 1e-20)
+        return N;
+    float invScale = inversesqrt(scale2);
+    T *= invScale;
+    B *= invScale;
+    vec3 mapN = texture(normalTex, uv).xyz * 2.0 - 1.0;
+    mapN.xy *= ub.pbrParams.x;
+    mapN = normalize(mapN);
+    return normalize(mat3(T, B, N) * mapN);
+}
+
 void main()
 {
-    vec3 lightDir = normalize(vec3(0.0, 0.0, 1.0));
-    float diff = max(dot(normalize(v_normal), lightDir), 0.0);
-    float ambient = 0.15;
     vec3 baseColor = ub.fillColor.rgb;
     if (v_meshColor.a < -0.5)
         baseColor = texture(qualityLutTex, vec2(clamp(v_meshColor.r, 0.0, 1.0), 0.5)).rgb;
     else
         baseColor = mix(ub.fillColor.rgb, v_meshColor.rgb, clamp(v_meshColor.a, 0.0, 1.0));
-    if (v_texInfo.z > 0.5)
-        baseColor = texture(albedoTex, vec2(v_texInfo.x, 1.0 - v_texInfo.y)).rgb;
+    const bool hasUv = v_texInfo.z > 0.5;
+    vec2 uv = vec2(v_texInfo.x, 1.0 - v_texInfo.y);
+    if (hasUv && ub.pbrMapUsage.w > 0.5)
+        baseColor = texture(albedoTex, uv).rgb;
+
     vec3 color = baseColor;
-    if (ub.lightingParams.w > 0.5)
-        color *= ambient + (1.0 - ambient) * diff;
+    if (ub.lightingParams.w > 0.5) {
+        vec3 N = normalize(v_normal);
+        if (hasUv && ub.pbrMapUsage.x > 0.5)
+            N = applyNormalMap(N, uv);
+
+        vec3 L = normalize(vec3(0.0, 0.0, 1.0));
+        vec3 V = normalize(-v_viewPos);
+        vec3 H = normalize(L + V);
+        float diff = max(dot(N, L), 0.0);
+
+        float roughness = max(0.02, ub.pbrParams.z);
+        if (hasUv && ub.pbrMapUsage.z > 0.5) {
+            vec3 roughSample = texture(roughnessTex, uv).rgb;
+            roughness *= clamp(dot(roughSample, vec3(0.3333333)), 0.0, 1.0);
+            roughness = clamp(roughness, 0.02, 1.0);
+        }
+
+        float ao = 1.0;
+        if (hasUv && ub.pbrMapUsage.y > 0.5) {
+            float aoSample = clamp(texture(occlusionTex, uv).r, 0.0, 1.0);
+            ao = mix(1.0, aoSample, clamp(ub.pbrParams.y, 0.0, 1.0));
+        }
+
+        float ambient = 0.18 * ao;
+        float specPower = mix(96.0, 8.0, roughness);
+        float spec = pow(max(dot(N, H), 0.0), specPower);
+        float specStrength = mix(0.18, 0.02, roughness);
+        color = baseColor * (ambient + (1.0 - ambient) * diff) + vec3(spec * specStrength);
+    }
     fragColor = vec4(color, 1.0);
 }

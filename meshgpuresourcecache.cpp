@@ -1,5 +1,6 @@
 #include "meshgpuresourcecache.h"
 #include "linerenderer.h"
+#include "meshioplugin.h"
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <rhi/qrhi.h>
@@ -75,7 +76,13 @@ struct MeshGpuResourceCache::CacheState
     struct FillBatchGpu {
         std::unique_ptr<QRhiBuffer> vbuf;
         std::unique_ptr<QRhiBuffer> ibuf;
-        std::unique_ptr<QRhiTexture> texture;
+        std::unique_ptr<QRhiTexture> baseColorTexture;
+        std::unique_ptr<QRhiTexture> normalTexture;
+        std::unique_ptr<QRhiTexture> occlusionTexture;
+        std::unique_ptr<QRhiTexture> roughnessTexture;
+        float normalScale = 1.0f;
+        float occlusionStrength = 1.0f;
+        float roughnessFactor = 1.0f;
         int vertexCount = 0;
         int indexCount = 0;
     };
@@ -203,6 +210,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     static const QStringList kEmptyTexturePaths;
     const QStringList &texturePaths =
         source.textureFilePaths ? *source.textureFilePaths : kEmptyTexturePaths;
+    static const MeshIOMaterialSet kEmptyMaterialSet;
+    const MeshIOMaterialSet &materialSet =
+        source.materialSet ? *source.materialSet : kEmptyMaterialSet;
     auto &meshCache = m_state->byRhi[rhi][source.meshId];
 
     QRhiResourceUpdateBatch *updates = nullptr;
@@ -334,20 +344,70 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     QImage image;
                 };
 
+                struct PreparedGroup {
+                    bool attempted = false;
+                    bool ready = false;
+                    QString basePath;
+                    QString normalPath;
+                    QString occlusionPath;
+                    QString roughnessPath;
+                    PreparedTexture base;
+                    PreparedTexture normal;
+                    PreparedTexture occlusion;
+                    PreparedTexture roughness;
+                };
+
                 std::map<int, std::vector<float>> groupedTriangles;
-                std::unordered_map<int, PreparedTexture> preparedTextures;
+                std::unordered_map<int, PreparedGroup> preparedGroups;
 
-                auto ensureTexturePrepared = [&](int textureIndex) -> bool {
-                    if (textureIndex < 0 || textureIndex >= texturePaths.size())
-                        return false;
+                enum class TextureChannel {
+                    BaseColor,
+                    Normal,
+                    Occlusion,
+                    Roughness
+                };
 
-                    PreparedTexture &prepared = preparedTextures[textureIndex];
+                auto materialEntryForGroup = [&](int textureGroup) -> const MeshIOMaterialSlot * {
+                    if (textureGroup < 0)
+                        return nullptr;
+                    if (textureGroup >= 0 && textureGroup < int(materialSet.entries.size()))
+                        return &materialSet.entries[size_t(textureGroup)];
+                    if (textureGroup >= 0 && textureGroup < texturePaths.size()) {
+                        const QString groupBase = texturePaths.at(textureGroup);
+                        for (const MeshIOMaterialSlot &slot : materialSet.entries) {
+                            if (slot.baseColorTexture.filePath == groupBase)
+                                return &slot;
+                        }
+                    }
+                    if (materialSet.entries.size() == 1)
+                        return &materialSet.entries.front();
+                    return nullptr;
+                };
+
+                auto channelTexturePath = [&](int textureGroup, TextureChannel channel) -> QString {
+                    const MeshIOMaterialSlot *slot = materialEntryForGroup(textureGroup);
+                    switch (channel) {
+                    case TextureChannel::BaseColor:
+                        if (slot && !slot->baseColorTexture.filePath.trimmed().isEmpty())
+                            return slot->baseColorTexture.filePath.trimmed();
+                        if (textureGroup >= 0 && textureGroup < texturePaths.size())
+                            return texturePaths.at(textureGroup).trimmed();
+                        return QString();
+                    case TextureChannel::Normal:
+                        return (slot ? slot->normalTexture.filePath.trimmed() : QString());
+                    case TextureChannel::Occlusion:
+                        return (slot ? slot->occlusionTexture.filePath.trimmed() : QString());
+                    case TextureChannel::Roughness:
+                        return (slot ? slot->roughnessTexture.filePath.trimmed() : QString());
+                    }
+                    return QString();
+                };
+
+                auto prepareTextureFromPath = [&](PreparedTexture &prepared, const QString &texturePath) -> bool {
                     if (prepared.attempted)
                         return prepared.ready;
-
                     prepared.attempted = true;
-                    const QString &texturePath = texturePaths.at(textureIndex);
-                    if (!QFileInfo::exists(texturePath))
+                    if (texturePath.isEmpty() || !QFileInfo::exists(texturePath))
                         return false;
 
                     QImageReader reader(texturePath);
@@ -365,6 +425,29 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
                     prepared.image = std::move(image);
                     prepared.ready = true;
+                    return true;
+                };
+
+                auto ensureGroupPrepared = [&](int textureGroup) -> bool {
+                    if (textureGroup < 0)
+                        return false;
+                    PreparedGroup &group = preparedGroups[textureGroup];
+                    if (group.attempted)
+                        return group.ready;
+                    group.attempted = true;
+
+                    group.basePath = channelTexturePath(textureGroup, TextureChannel::BaseColor);
+                    if (!prepareTextureFromPath(group.base, group.basePath))
+                        return false;
+
+                    group.normalPath = channelTexturePath(textureGroup, TextureChannel::Normal);
+                    group.occlusionPath = channelTexturePath(textureGroup, TextureChannel::Occlusion);
+                    group.roughnessPath = channelTexturePath(textureGroup, TextureChannel::Roughness);
+                    prepareTextureFromPath(group.normal, group.normalPath);
+                    prepareTextureFromPath(group.occlusion, group.occlusionPath);
+                    prepareTextureFromPath(group.roughness, group.roughnessPath);
+
+                    group.ready = true;
                     return true;
                 };
 
@@ -393,10 +476,10 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             textureIndex = static_cast<int>(f.cV(0)->cT().N());
                         }
 
-                        if (ensureTexturePrepared(textureIndex)) {
+                        if (ensureGroupPrepared(textureIndex)) {
                             textureGroup = textureIndex;
                             useTextureForFace = true;
-                        } else if (ensureTexturePrepared(0)) {
+                        } else if (ensureGroupPrepared(0)) {
                             textureGroup = 0;
                             useTextureForFace = true;
                         }
@@ -491,20 +574,64 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     }
                     ensureUpdates()->uploadStaticBuffer(batch.vbuf.get(), groupEntry.second.data());
 
-                    QImage textureUploadImage;
+                    QImage baseTextureUploadImage;
+                    QImage normalTextureUploadImage;
+                    QImage occlusionTextureUploadImage;
+                    QImage roughnessTextureUploadImage;
                     if (groupEntry.first >= 0) {
-                        auto it = preparedTextures.find(groupEntry.first);
-                        if (it != preparedTextures.end() && it->second.ready) {
-                            batch.texture = std::move(it->second.texture);
-                            textureUploadImage = std::move(it->second.image);
+                        auto it = preparedGroups.find(groupEntry.first);
+                        if (it != preparedGroups.end() && it->second.ready) {
+                            PreparedGroup &group = it->second;
+                            if (group.base.ready) {
+                                batch.baseColorTexture = std::move(group.base.texture);
+                                baseTextureUploadImage = std::move(group.base.image);
+                            }
+                            if (group.normal.ready) {
+                                batch.normalTexture = std::move(group.normal.texture);
+                                normalTextureUploadImage = std::move(group.normal.image);
+                            }
+                            if (group.occlusion.ready) {
+                                batch.occlusionTexture = std::move(group.occlusion.texture);
+                                occlusionTextureUploadImage = std::move(group.occlusion.image);
+                            }
+                            if (group.roughness.ready) {
+                                batch.roughnessTexture = std::move(group.roughness.texture);
+                                roughnessTextureUploadImage = std::move(group.roughness.image);
+                            }
+                        }
+                        if (const MeshIOMaterialSlot *slot = materialEntryForGroup(groupEntry.first)) {
+                            batch.normalScale = slot->normalScale;
+                            batch.occlusionStrength = slot->occlusionStrength;
+                            batch.roughnessFactor = slot->roughnessFactor;
                         }
                     }
 
-                    if (batch.texture && !textureUploadImage.isNull()) {
+                    if (batch.baseColorTexture && !baseTextureUploadImage.isNull()) {
                         QRhiTextureUploadEntry textureEntry(
-                            0, 0, QRhiTextureSubresourceUploadDescription(textureUploadImage));
+                            0, 0, QRhiTextureSubresourceUploadDescription(baseTextureUploadImage));
                         ensureUpdates()->uploadTexture(
-                            batch.texture.get(),
+                            batch.baseColorTexture.get(),
+                            QRhiTextureUploadDescription({ textureEntry }));
+                    }
+                    if (batch.normalTexture && !normalTextureUploadImage.isNull()) {
+                        QRhiTextureUploadEntry textureEntry(
+                            0, 0, QRhiTextureSubresourceUploadDescription(normalTextureUploadImage));
+                        ensureUpdates()->uploadTexture(
+                            batch.normalTexture.get(),
+                            QRhiTextureUploadDescription({ textureEntry }));
+                    }
+                    if (batch.occlusionTexture && !occlusionTextureUploadImage.isNull()) {
+                        QRhiTextureUploadEntry textureEntry(
+                            0, 0, QRhiTextureSubresourceUploadDescription(occlusionTextureUploadImage));
+                        ensureUpdates()->uploadTexture(
+                            batch.occlusionTexture.get(),
+                            QRhiTextureUploadDescription({ textureEntry }));
+                    }
+                    if (batch.roughnessTexture && !roughnessTextureUploadImage.isNull()) {
+                        QRhiTextureUploadEntry textureEntry(
+                            0, 0, QRhiTextureSubresourceUploadDescription(roughnessTextureUploadImage));
+                        ensureUpdates()->uploadTexture(
+                            batch.roughnessTexture.get(),
                             QRhiTextureUploadDescription({ textureEntry }));
                     }
 
@@ -1342,7 +1469,13 @@ MeshGpuResourceCache::FillPassView MeshGpuResourceCache::fillPassView(
         fill.viewBatches.push_back({
             batch.vbuf.get(),
             batch.ibuf.get(),
-            batch.texture.get(),
+            batch.baseColorTexture.get(),
+            batch.normalTexture.get(),
+            batch.occlusionTexture.get(),
+            batch.roughnessTexture.get(),
+            batch.normalScale,
+            batch.occlusionStrength,
+            batch.roughnessFactor,
             batch.vertexCount,
             batch.indexCount
         });

@@ -9,6 +9,7 @@ class QRhi;
 class QRhiBuffer;
 class QRhiTexture;
 class QRhiCommandBuffer;
+struct MeshIOMaterialSet;
 
 class MeshGpuResourceCache
 {
@@ -38,12 +39,19 @@ public:
         float qualityRangeMax = 1.0f;
         const VCGMesh *mesh = nullptr;
         const QStringList *textureFilePaths = nullptr;
+        const MeshIOMaterialSet *materialSet = nullptr;
     };
 
     struct FillBatchView {
         QRhiBuffer *vertexBuffer = nullptr;
         QRhiBuffer *indexBuffer = nullptr;
-        QRhiTexture *texture = nullptr;
+        QRhiTexture *baseColorTexture = nullptr;
+        QRhiTexture *normalTexture = nullptr;
+        QRhiTexture *occlusionTexture = nullptr;
+        QRhiTexture *roughnessTexture = nullptr;
+        float normalScale = 1.0f;
+        float occlusionStrength = 1.0f;
+        float roughnessFactor = 1.0f;
         int vertexCount = 0;
         int indexCount = 0;
     };

@@ -27,6 +27,10 @@ public:
         bool hasVertexQuality,
         bool hasFaceQuality,
         bool hasTextures);
+    void setFillPbrMapAvailability(
+        bool hasNormalMap,
+        bool hasOcclusionMap,
+        bool hasRoughnessMap);
 
 signals:
     void settingsChanged(const RenderSettings &settings);
@@ -37,6 +41,7 @@ private:
     int renderPassPageIndex(RenderPass pass) const;
     void syncViewerSettingsModeUi();
     void syncRenderPassUiState();
+    void syncFillPbrUiState();
     void updateColorButtonStyle(QPushButton *button, const QColor &color);
 
     RenderSettings m_settings;
@@ -57,6 +62,7 @@ private:
     QPushButton *m_edgeColorButton = nullptr;
     QPushButton *m_wireColorButton = nullptr;
     QPushButton *m_fillColorButton = nullptr;
+    QPushButton *m_fillPbrColorButton = nullptr;
     QDoubleSpinBox *m_currentMeshOutlineWidthSpin = nullptr;
     QDoubleSpinBox *m_currentMeshDilateRadiusSpin = nullptr;
     QDoubleSpinBox *m_currentMeshErodeRadiusSpin = nullptr;
@@ -86,12 +92,21 @@ private:
     QCheckBox *m_wireBackfaceCullingCheck = nullptr;
     QCheckBox *m_fillLightingCheck = nullptr;
     QCheckBox *m_fillBackfaceCullingCheck = nullptr;
+    QCheckBox *m_fillUseNormalMapCheck = nullptr;
+    QCheckBox *m_fillUseOcclusionMapCheck = nullptr;
+    QCheckBox *m_fillUseRoughnessMapCheck = nullptr;
+    QDoubleSpinBox *m_fillNormalScaleSpin = nullptr;
+    QDoubleSpinBox *m_fillOcclusionStrengthSpin = nullptr;
+    QDoubleSpinBox *m_fillRoughnessFactorSpin = nullptr;
+    QComboBox *m_fillMaterialCombo = nullptr;
+    QComboBox *m_fillPbrAlbedoCombo = nullptr;
     QCheckBox *m_selectionShowVerticesCheck = nullptr;
     QCheckBox *m_selectionShowFacesCheck = nullptr;
     QCheckBox *m_uvShowReferenceFrameCheck = nullptr;
     QCheckBox *m_uvShowFullTextureCheck = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;
     QComboBox *m_fillColorSourceCombo = nullptr;
+    QStackedWidget *m_fillMaterialStack = nullptr;
     QToolButton *m_currentMeshButton = nullptr;
     QToolButton *m_modeButton = nullptr;
     QToolButton *m_normalsDecoratorsButton = nullptr;
@@ -113,4 +128,8 @@ private:
     QToolButton *m_fillSettingsArrow = nullptr;
     QToolButton *m_selectionSettingsArrow = nullptr;
     QToolButton *m_qualityHistogramSettingsArrow = nullptr;
+    bool m_fillHasNormalMap = false;
+    bool m_fillHasOcclusionMap = false;
+    bool m_fillHasRoughnessMap = false;
+    bool m_fillHasTextures = false;
 };

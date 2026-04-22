@@ -23,6 +23,33 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
         cb->resourceUpdate(u);
         m_fallbackTextureUploadPending = false;
     }
+    if (m_fallbackNormalTextureUploadPending && m_fallbackNormalTexture) {
+        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+        QImage flatNormal(1, 1, QImage::Format_RGBA8888);
+        flatNormal.fill(QColor(128, 128, 255, 255));
+        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(flatNormal));
+        u->uploadTexture(m_fallbackNormalTexture.get(), QRhiTextureUploadDescription({ entry }));
+        cb->resourceUpdate(u);
+        m_fallbackNormalTextureUploadPending = false;
+    }
+    if (m_fallbackOcclusionTextureUploadPending && m_fallbackOcclusionTexture) {
+        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+        QImage white(1, 1, QImage::Format_RGBA8888);
+        white.fill(Qt::white);
+        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(white));
+        u->uploadTexture(m_fallbackOcclusionTexture.get(), QRhiTextureUploadDescription({ entry }));
+        cb->resourceUpdate(u);
+        m_fallbackOcclusionTextureUploadPending = false;
+    }
+    if (m_fallbackRoughnessTextureUploadPending && m_fallbackRoughnessTexture) {
+        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
+        QImage white(1, 1, QImage::Format_RGBA8888);
+        white.fill(Qt::white);
+        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(white));
+        u->uploadTexture(m_fallbackRoughnessTexture.get(), QRhiTextureUploadDescription({ entry }));
+        cb->resourceUpdate(u);
+        m_fallbackRoughnessTextureUploadPending = false;
+    }
 
     const int currentMeshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
     const bool needHighlightCurrentMesh =

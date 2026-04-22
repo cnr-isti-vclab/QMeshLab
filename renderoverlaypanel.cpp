@@ -548,6 +548,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillForm->setHorizontalSpacing(6);
     fillForm->setVerticalSpacing(2);
     fillForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_fillMaterialCombo = new QComboBox(fillPage);
+    m_fillMaterialCombo->addItem(tr("Plain"), static_cast<int>(FillMaterial::Plain));
+    m_fillMaterialCombo->addItem(tr("PBR"), static_cast<int>(FillMaterial::Pbr));
+    fillForm->addRow(tr("Material"), m_fillMaterialCombo);
     m_fillColorButton = makeColorButton(fillPage);
     m_fillColorSourceCombo = new QComboBox(fillPage);
     m_fillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
@@ -567,19 +571,95 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillBackfaceCullingCheck->setChecked(m_settings.fillBackfaceCulling);
     m_fillLightingCheck = new QCheckBox(fillPage);
     m_fillLightingCheck->setChecked(m_settings.fillLighting);
-    fillForm->addRow(tr("Color source"), m_fillColorSourceCombo);
-    fillForm->addRow(
+    m_fillUseNormalMapCheck = new QCheckBox(fillPage);
+    m_fillUseNormalMapCheck->setChecked(m_settings.fillUseNormalMap);
+    m_fillNormalScaleSpin = new QDoubleSpinBox(fillPage);
+    m_fillNormalScaleSpin->setRange(0.0, 8.0);
+    m_fillNormalScaleSpin->setSingleStep(0.05);
+    m_fillNormalScaleSpin->setDecimals(2);
+    m_fillNormalScaleSpin->setValue(m_settings.fillNormalMapScale);
+    m_fillUseOcclusionMapCheck = new QCheckBox(fillPage);
+    m_fillUseOcclusionMapCheck->setChecked(m_settings.fillUseOcclusionMap);
+    m_fillOcclusionStrengthSpin = new QDoubleSpinBox(fillPage);
+    m_fillOcclusionStrengthSpin->setRange(0.0, 1.0);
+    m_fillOcclusionStrengthSpin->setSingleStep(0.05);
+    m_fillOcclusionStrengthSpin->setDecimals(2);
+    m_fillOcclusionStrengthSpin->setValue(m_settings.fillOcclusionStrength);
+    m_fillUseRoughnessMapCheck = new QCheckBox(fillPage);
+    m_fillUseRoughnessMapCheck->setChecked(m_settings.fillUseRoughnessMap);
+    m_fillRoughnessFactorSpin = new QDoubleSpinBox(fillPage);
+    m_fillRoughnessFactorSpin->setRange(0.0, 2.0);
+    m_fillRoughnessFactorSpin->setSingleStep(0.05);
+    m_fillRoughnessFactorSpin->setDecimals(2);
+    m_fillRoughnessFactorSpin->setValue(m_settings.fillRoughnessFactor);
+
+    m_fillMaterialStack = new QStackedWidget(fillPage);
+    auto *fillPlainPage = new QWidget(m_fillMaterialStack);
+    auto *fillPlainLayout = new QVBoxLayout(fillPlainPage);
+    fillPlainLayout->setContentsMargins(0, 0, 0, 0);
+    fillPlainLayout->setSpacing(2);
+    auto *fillPlainForm = new QFormLayout();
+    fillPlainForm->setContentsMargins(0, 0, 0, 0);
+    fillPlainForm->setHorizontalSpacing(6);
+    fillPlainForm->setVerticalSpacing(2);
+    fillPlainForm->setLabelAlignment(kSettingsLabelAlignment);
+    fillPlainForm->addRow(tr("Color source"), m_fillColorSourceCombo);
+    fillPlainForm->addRow(
         tr("Fill color"),
         makeCenteredFieldContainer(m_fillColorButton, fillPage));
-    fillForm->addRow(tr("Shading"), m_fillShadingCombo);
-    fillForm->addRow(
+    fillPlainForm->addRow(tr("Shading"), m_fillShadingCombo);
+    fillPlainForm->addRow(
         tr("Backface culling"),
         makeCenteredFieldContainer(m_fillBackfaceCullingCheck, fillPage));
-    fillForm->addRow(
+    fillPlainForm->addRow(
         tr("Lighting"),
         makeCenteredFieldContainer(m_fillLightingCheck, fillPage));
+    applyUniformFormRowHeights(fillPlainForm);
+    fillPlainLayout->addLayout(fillPlainForm);
+    m_fillMaterialStack->addWidget(fillPlainPage);
+
+    auto *fillPbrPage = new QWidget(m_fillMaterialStack);
+    auto *fillPbrLayout = new QVBoxLayout(fillPbrPage);
+    fillPbrLayout->setContentsMargins(0, 0, 0, 0);
+    fillPbrLayout->setSpacing(2);
+    auto *fillPbrForm = new QFormLayout();
+    fillPbrForm->setContentsMargins(0, 0, 0, 0);
+    fillPbrForm->setHorizontalSpacing(6);
+    fillPbrForm->setVerticalSpacing(2);
+    fillPbrForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_fillPbrAlbedoCombo = new QComboBox(fillPage);
+    m_fillPbrAlbedoCombo->addItem(
+        tr("Texture"),
+        static_cast<int>(FillPbrAlbedoSource::Texture));
+    m_fillPbrAlbedoCombo->addItem(
+        tr("Plain color"),
+        static_cast<int>(FillPbrAlbedoSource::PlainColor));
+    m_fillPbrColorButton = makeColorButton(fillPage);
+    fillPbrForm->addRow(tr("Albedo"), m_fillPbrAlbedoCombo);
+    fillPbrForm->addRow(
+        tr("Albedo color"),
+        makeCenteredFieldContainer(m_fillPbrColorButton, fillPage));
+    fillPbrForm->addRow(
+        tr("Normal map"),
+        makeCenteredFieldContainer(m_fillUseNormalMapCheck, fillPage));
+    fillPbrForm->addRow(tr("Normal scale"), m_fillNormalScaleSpin);
+    fillPbrForm->addRow(
+        tr("AO map"),
+        makeCenteredFieldContainer(m_fillUseOcclusionMapCheck, fillPage));
+    fillPbrForm->addRow(tr("AO strength"), m_fillOcclusionStrengthSpin);
+    fillPbrForm->addRow(
+        tr("Rough map"),
+        makeCenteredFieldContainer(m_fillUseRoughnessMapCheck, fillPage));
+    fillPbrForm->addRow(tr("Rough fac"), m_fillRoughnessFactorSpin);
+    applyUniformFormRowHeights(fillPbrForm);
+    fillPbrLayout->addLayout(fillPbrForm);
+    m_fillMaterialStack->addWidget(fillPbrPage);
+
+    if (m_fillMaterialStack)
+        m_fillMaterialStack->setCurrentIndex(m_settings.fillMaterial == FillMaterial::Pbr ? 1 : 0);
     applyUniformFormRowHeights(fillForm);
     fillLayout->addLayout(fillForm);
+    fillLayout->addWidget(m_fillMaterialStack);
     m_settingsStack->addWidget(fillPage);
 
     auto *selectionPage = new QWidget(m_settingsStack);
@@ -815,11 +895,50 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindCheckBox(m_wireBackfaceCullingCheck, &RenderSettings::wireBackfaceCulling);
     bindCheckBox(m_wireLightingCheck, &RenderSettings::wireLighting);
 
+    bindEnumCombo(m_fillMaterialCombo, &RenderSettings::fillMaterial);
+    bindEnumCombo(m_fillPbrAlbedoCombo, &RenderSettings::fillPbrAlbedoSource);
     bindEnumCombo(m_fillColorSourceCombo, &RenderSettings::fillColorSource);
     bindColorButton(m_fillColorButton, &RenderSettings::fillColor, tr("Fill Color"));
+    bindColorButton(m_fillPbrColorButton, &RenderSettings::fillColor, tr("Fill Color"));
     bindEnumCombo(m_fillShadingCombo, &RenderSettings::fillShading);
     bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
     bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
+    bindCheckBox(m_fillUseNormalMapCheck, &RenderSettings::fillUseNormalMap);
+    bindFloatSpin(m_fillNormalScaleSpin, &RenderSettings::fillNormalMapScale);
+    bindCheckBox(m_fillUseOcclusionMapCheck, &RenderSettings::fillUseOcclusionMap);
+    bindFloatSpin(m_fillOcclusionStrengthSpin, &RenderSettings::fillOcclusionStrength);
+    bindCheckBox(m_fillUseRoughnessMapCheck, &RenderSettings::fillUseRoughnessMap);
+    bindFloatSpin(m_fillRoughnessFactorSpin, &RenderSettings::fillRoughnessFactor);
+    connect(
+        m_fillMaterialCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        [this](int) { syncFillPbrUiState(); });
+    connect(
+        m_fillPbrAlbedoCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        [this](int) { syncFillPbrUiState(); });
+    connect(
+        m_fillColorSourceCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        [this](int) { syncFillPbrUiState(); });
+    connect(
+        m_fillUseNormalMapCheck,
+        &QCheckBox::toggled,
+        this,
+        [this](bool) { syncFillPbrUiState(); });
+    connect(
+        m_fillUseOcclusionMapCheck,
+        &QCheckBox::toggled,
+        this,
+        [this](bool) { syncFillPbrUiState(); });
+    connect(
+        m_fillUseRoughnessMapCheck,
+        &QCheckBox::toggled,
+        this,
+        [this](bool) { syncFillPbrUiState(); });
     bindCheckBox(m_selectionShowVerticesCheck, &RenderSettings::showSelectionVertices);
     bindCheckBox(m_selectionShowFacesCheck, &RenderSettings::showSelectionFaces);
     bindCheckBox(m_uvShowReferenceFrameCheck, &RenderSettings::uvShowReferenceFrame);
@@ -963,9 +1082,11 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     updateColorButtonStyle(m_edgeColorButton, m_settings.edgeColor);
     updateColorButtonStyle(m_wireColorButton, m_settings.wireColor);
     updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
+    updateColorButtonStyle(m_fillPbrColorButton, m_settings.fillColor);
     setPointColorSourceAvailability(false, false);
     setPointLightingAvailability(false);
     setFillColorSourceAvailability(false, false, false, false, false);
+    setFillPbrMapAvailability(false, false, false);
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
     syncViewerSettingsModeUi();
@@ -1159,6 +1280,30 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_fillBackfaceCullingCheck);
         m_fillBackfaceCullingCheck->setChecked(m_settings.fillBackfaceCulling);
     }
+    if (m_fillUseNormalMapCheck) {
+        QSignalBlocker blocker(m_fillUseNormalMapCheck);
+        m_fillUseNormalMapCheck->setChecked(m_settings.fillUseNormalMap);
+    }
+    if (m_fillNormalScaleSpin) {
+        QSignalBlocker blocker(m_fillNormalScaleSpin);
+        m_fillNormalScaleSpin->setValue(m_settings.fillNormalMapScale);
+    }
+    if (m_fillUseOcclusionMapCheck) {
+        QSignalBlocker blocker(m_fillUseOcclusionMapCheck);
+        m_fillUseOcclusionMapCheck->setChecked(m_settings.fillUseOcclusionMap);
+    }
+    if (m_fillOcclusionStrengthSpin) {
+        QSignalBlocker blocker(m_fillOcclusionStrengthSpin);
+        m_fillOcclusionStrengthSpin->setValue(m_settings.fillOcclusionStrength);
+    }
+    if (m_fillUseRoughnessMapCheck) {
+        QSignalBlocker blocker(m_fillUseRoughnessMapCheck);
+        m_fillUseRoughnessMapCheck->setChecked(m_settings.fillUseRoughnessMap);
+    }
+    if (m_fillRoughnessFactorSpin) {
+        QSignalBlocker blocker(m_fillRoughnessFactorSpin);
+        m_fillRoughnessFactorSpin->setValue(m_settings.fillRoughnessFactor);
+    }
     if (m_pointSizeSpin) {
         QSignalBlocker blocker(m_pointSizeSpin);
         m_pointSizeSpin->setValue(m_settings.pointSize);
@@ -1243,6 +1388,26 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
             }
         }
     }
+    if (m_fillMaterialCombo) {
+        QSignalBlocker blocker(m_fillMaterialCombo);
+        const int value = static_cast<int>(m_settings.fillMaterial);
+        for (int i = 0; i < m_fillMaterialCombo->count(); ++i) {
+            if (m_fillMaterialCombo->itemData(i).toInt() == value) {
+                m_fillMaterialCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
+    if (m_fillPbrAlbedoCombo) {
+        QSignalBlocker blocker(m_fillPbrAlbedoCombo);
+        const int value = static_cast<int>(m_settings.fillPbrAlbedoSource);
+        for (int i = 0; i < m_fillPbrAlbedoCombo->count(); ++i) {
+            if (m_fillPbrAlbedoCombo->itemData(i).toInt() == value) {
+                m_fillPbrAlbedoCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
     if (m_fillColorSourceCombo) {
         QSignalBlocker blocker(m_fillColorSourceCombo);
         const int value = static_cast<int>(m_settings.fillColorSource);
@@ -1258,6 +1423,7 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
     syncViewerSettingsModeUi();
+    syncFillPbrUiState();
 
     updateColorButtonStyle(m_currentMeshOutlineColorButton, m_settings.currentMeshOutlineColor);
     updateColorButtonStyle(m_sceneBackgroundTopColorButton, m_settings.sceneBackgroundTopColor);
@@ -1273,6 +1439,7 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     updateColorButtonStyle(m_edgeColorButton, m_settings.edgeColor);
     updateColorButtonStyle(m_wireColorButton, m_settings.wireColor);
     updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
+    updateColorButtonStyle(m_fillPbrColorButton, m_settings.fillColor);
     syncRenderPassUiState();
 }
 
@@ -1316,6 +1483,7 @@ void RenderOverlayPanel::setFillColorSourceAvailability(
 {
     if (!m_fillColorSourceCombo)
         return;
+    m_fillHasTextures = hasTextures;
 
     const int vertexIndex =
         m_fillColorSourceCombo->findData(static_cast<int>(FillColorSource::PerVertex));
@@ -1358,8 +1526,61 @@ void RenderOverlayPanel::setFillColorSourceAvailability(
             hasTextures ? QVariant() : QVariant(0),
             Qt::UserRole - 1);
     }
+    if (m_fillPbrAlbedoCombo) {
+        const int pbrTextureIndex =
+            m_fillPbrAlbedoCombo->findData(static_cast<int>(FillPbrAlbedoSource::Texture));
+        if (pbrTextureIndex >= 0) {
+            m_fillPbrAlbedoCombo->setItemData(
+                pbrTextureIndex,
+                hasTextures ? QVariant() : QVariant(0),
+                Qt::UserRole - 1);
+        }
+    }
     if (m_uvShowFullTextureCheck)
         m_uvShowFullTextureCheck->setEnabled(hasTextures);
+    syncFillPbrUiState();
+}
+
+void RenderOverlayPanel::setFillPbrMapAvailability(
+    bool hasNormalMap,
+    bool hasOcclusionMap,
+    bool hasRoughnessMap)
+{
+    m_fillHasNormalMap = hasNormalMap;
+    m_fillHasOcclusionMap = hasOcclusionMap;
+    m_fillHasRoughnessMap = hasRoughnessMap;
+    syncFillPbrUiState();
+}
+
+void RenderOverlayPanel::syncFillPbrUiState()
+{
+    const bool usePbr = (m_settings.fillMaterial == FillMaterial::Pbr);
+    if (m_fillMaterialStack)
+        m_fillMaterialStack->setCurrentIndex(usePbr ? 1 : 0);
+
+    const bool textureAlbedo = (m_settings.fillPbrAlbedoSource == FillPbrAlbedoSource::Texture);
+    if (m_fillPbrAlbedoCombo)
+        m_fillPbrAlbedoCombo->setEnabled(usePbr);
+    if (m_fillPbrColorButton)
+        m_fillPbrColorButton->setEnabled(usePbr && !textureAlbedo);
+
+    const bool normalEnabled = usePbr && m_fillHasNormalMap;
+    if (m_fillUseNormalMapCheck)
+        m_fillUseNormalMapCheck->setEnabled(normalEnabled);
+    if (m_fillNormalScaleSpin)
+        m_fillNormalScaleSpin->setEnabled(normalEnabled && m_settings.fillUseNormalMap);
+
+    const bool occlusionEnabled = usePbr && m_fillHasOcclusionMap;
+    if (m_fillUseOcclusionMapCheck)
+        m_fillUseOcclusionMapCheck->setEnabled(occlusionEnabled);
+    if (m_fillOcclusionStrengthSpin)
+        m_fillOcclusionStrengthSpin->setEnabled(occlusionEnabled && m_settings.fillUseOcclusionMap);
+
+    const bool roughnessEnabled = usePbr && m_fillHasRoughnessMap;
+    if (m_fillUseRoughnessMapCheck)
+        m_fillUseRoughnessMapCheck->setEnabled(roughnessEnabled);
+    if (m_fillRoughnessFactorSpin)
+        m_fillRoughnessFactorSpin->setEnabled(roughnessEnabled && m_settings.fillUseRoughnessMap);
 }
 
 void RenderOverlayPanel::updateColorButtonStyle(QPushButton *button, const QColor &color)

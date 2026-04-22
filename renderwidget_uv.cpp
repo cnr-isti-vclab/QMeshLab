@@ -829,9 +829,13 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     normalMat(2, 2) = 1.0f;
 
     Document::FillPassGpuView textureFillView {};
+    const bool useTextureDrivenFill =
+        hasMeshTextures
+        && (meshSettings.fillColorSource == FillColorSource::Texture
+            || meshSettings.fillMaterial == FillMaterial::Pbr);
     const bool needTextureGeometry = hasMeshTextures
         && (meshSettings.uvShowFullTexture
-            || (meshSettings.showFill && meshSettings.fillColorSource == FillColorSource::Texture));
+            || (meshSettings.showFill && useTextureDrivenFill));
     if (canDraw && needTextureGeometry) {
         m_doc->ensureMeshGpuResources(
             m_rhi,
@@ -866,10 +870,22 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         cb->resourceUpdate(u);
     }
 
-    auto updateStyleUbuf = [&](const RenderSettings &styleSettings) {
+    auto updateStyleUbuf = [&](const RenderSettings &styleSettings,
+                               bool useNormalMap = false,
+                               bool useOcclusionMap = false,
+                               bool useRoughnessMap = false,
+                               float normalScale = 1.0f,
+                               float occlusionStrength = 1.0f,
+                               float roughnessFactor = 1.0f) {
         float ubufData[kUbufFloatCount];
         memcpy(ubufData, baseUbufData, sizeof(ubufData));
         writeMainStyleToUbuf(ubufData, styleSettings, sz, false);
+        ubufData[kUbufPbrMapUsageOffset + 0] = useNormalMap ? 1.0f : 0.0f;
+        ubufData[kUbufPbrMapUsageOffset + 1] = useOcclusionMap ? 1.0f : 0.0f;
+        ubufData[kUbufPbrMapUsageOffset + 2] = useRoughnessMap ? 1.0f : 0.0f;
+        ubufData[kUbufPbrParamsOffset + 0] = normalScale;
+        ubufData[kUbufPbrParamsOffset + 1] = occlusionStrength;
+        ubufData[kUbufPbrParamsOffset + 2] = roughnessFactor;
 
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
@@ -906,7 +922,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         && textureFillView.valid) {
         QRhiTexture *fullTexture = nullptr;
         for (int bi = 0; bi < textureFillView.batchCount; ++bi) {
-            QRhiTexture *candidate = textureFillView.batches[bi].texture;
+            QRhiTexture *candidate = textureFillView.batches[bi].baseColorTexture;
             if (candidate) {
                 fullTexture = candidate;
                 break;
@@ -917,7 +933,8 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             textureBgSettings.fillLighting = false;
             updateStyleUbuf(textureBgSettings);
             cb->setGraphicsPipeline(m_uvTextureFillPipeline.get());
-            cb->setShaderResources(shaderResourcesForTexture(fullTexture));
+            cb->setShaderResources(
+                shaderResourcesForFillTextures(fullTexture, nullptr, nullptr, nullptr));
             const QRhiCommandBuffer::VertexInput binding(m_uvTextureQuadVbuf.get(), 0);
             cb->setVertexInput(0, 1, &binding);
             cb->draw(m_uvTextureQuadVertexCount);
@@ -1037,7 +1054,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             const MeshRenderMode meshMode = renderModeForMesh(meshIndex);
 
             if (meshSettings.showFill) {
-                if (meshSettings.fillColorSource == FillColorSource::Texture
+                if (useTextureDrivenFill
                     && m_uvTextureFillPipeline) {
                     updateStyleUbuf(meshSettings);
                     const Document::FillPassGpuView fillView = textureFillView;
@@ -1047,7 +1064,37 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                             const auto &batch = fillView.batches[bi];
                             if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
                                 continue;
-                            cb->setShaderResources(shaderResourcesForTexture(batch.texture));
+                            const bool enableNormalMap =
+                                meshSettings.fillMaterial == FillMaterial::Pbr
+                                &&
+                                meshSettings.fillLighting
+                                && meshSettings.fillUseNormalMap
+                                && batch.normalTexture;
+                            const bool enableOcclusionMap =
+                                meshSettings.fillMaterial == FillMaterial::Pbr
+                                &&
+                                meshSettings.fillLighting
+                                && meshSettings.fillUseOcclusionMap
+                                && batch.occlusionTexture;
+                            const bool enableRoughnessMap =
+                                meshSettings.fillMaterial == FillMaterial::Pbr
+                                &&
+                                meshSettings.fillLighting
+                                && meshSettings.fillUseRoughnessMap
+                                && batch.roughnessTexture;
+                            updateStyleUbuf(
+                                meshSettings,
+                                enableNormalMap,
+                                enableOcclusionMap,
+                                enableRoughnessMap,
+                                meshSettings.fillNormalMapScale * batch.normalScale,
+                                meshSettings.fillOcclusionStrength * batch.occlusionStrength,
+                                meshSettings.fillRoughnessFactor * batch.roughnessFactor);
+                            cb->setShaderResources(shaderResourcesForFillTextures(
+                                batch.baseColorTexture,
+                                batch.normalTexture,
+                                batch.occlusionTexture,
+                                batch.roughnessTexture));
                             const QRhiCommandBuffer::VertexInput binding(batch.vertexBuffer, 0);
                             if (batch.indexCount > 0 && batch.indexBuffer) {
                                 cb->setVertexInput(
@@ -1077,7 +1124,8 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     if (fillPipeline && fillVariant.vbuf && fillVariant.vertexCount > 0) {
                         updateStyleUbuf(fillSettings);
                         cb->setGraphicsPipeline(fillPipeline);
-                        cb->setShaderResources(shaderResourcesForTexture(nullptr));
+                        cb->setShaderResources(shaderResourcesForFillTextures(
+                            nullptr, nullptr, nullptr, nullptr));
                         const QRhiCommandBuffer::VertexInput binding(fillVariant.vbuf.get(), 0);
                         cb->setVertexInput(0, 1, &binding);
                         cb->draw(fillVariant.vertexCount);

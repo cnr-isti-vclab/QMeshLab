@@ -12,6 +12,7 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <functional>
 #include <unordered_map>
 #include <vector>
 
@@ -77,6 +78,14 @@ private:
         bool wireBackfaceCulling = true;
         bool fillLighting = true;
         bool fillBackfaceCulling = true;
+        bool fillUseNormalMap = true;
+        bool fillUseOcclusionMap = true;
+        bool fillUseRoughnessMap = true;
+        float fillNormalMapScale = 1.0f;
+        float fillOcclusionStrength = 1.0f;
+        float fillRoughnessFactor = 1.0f;
+        FillMaterial fillMaterial = FillMaterial::Plain;
+        FillPbrAlbedoSource fillPbrAlbedoSource = FillPbrAlbedoSource::Texture;
         FillShading fillShading = FillShading::Smooth;
         PointColorSource pointColorSource = PointColorSource::Constant;
         FillColorSource fillColorSource = FillColorSource::Constant;
@@ -132,6 +141,11 @@ private:
     QRhiGraphicsPipeline *wirePipelineForSettings(const RenderSettings &settings);
     QRhiGraphicsPipeline *edgesPipelineForSettings(const RenderSettings &settings);
     QRhiGraphicsPipeline *fatEdgesPipelineForSettings(const RenderSettings &settings);
+    QRhiShaderResourceBindings *shaderResourcesForFillTextures(
+        QRhiTexture *baseColorTexture,
+        QRhiTexture *normalTexture,
+        QRhiTexture *occlusionTexture,
+        QRhiTexture *roughnessTexture);
     QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
     void executePendingDepthPick(
         QRhiCommandBuffer *cb,
@@ -160,6 +174,12 @@ private:
     std::unique_ptr<QRhiSampler> m_textureSampler;
     std::unique_ptr<QRhiTexture> m_fallbackTexture;
     bool m_fallbackTextureUploadPending = false;
+    std::unique_ptr<QRhiTexture> m_fallbackNormalTexture;
+    bool m_fallbackNormalTextureUploadPending = false;
+    std::unique_ptr<QRhiTexture> m_fallbackOcclusionTexture;
+    bool m_fallbackOcclusionTextureUploadPending = false;
+    std::unique_ptr<QRhiTexture> m_fallbackRoughnessTexture;
+    bool m_fallbackRoughnessTextureUploadPending = false;
     std::unique_ptr<QRhiTexture> m_qualityColorMapTexture;
     bool m_qualityColorMapTextureUploadPending = false;
     QString m_qualityColorMapTextureMapId;
@@ -168,7 +188,41 @@ private:
     std::unique_ptr<QRhiBuffer> m_sceneBackgroundUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_sceneBackgroundSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_sceneBackgroundPipeline;
-    std::unordered_map<QRhiTexture *, std::unique_ptr<QRhiShaderResourceBindings>> m_textureSrbs;
+    struct FillTextureSetKey {
+        QRhiTexture *baseColorTexture = nullptr;
+        QRhiTexture *normalTexture = nullptr;
+        QRhiTexture *occlusionTexture = nullptr;
+        QRhiTexture *roughnessTexture = nullptr;
+
+        bool operator==(const FillTextureSetKey &other) const
+        {
+            return baseColorTexture == other.baseColorTexture
+                && normalTexture == other.normalTexture
+                && occlusionTexture == other.occlusionTexture
+                && roughnessTexture == other.roughnessTexture;
+        }
+    };
+    struct FillTextureSetKeyHash {
+        size_t operator()(const FillTextureSetKey &key) const noexcept
+        {
+            auto h = [](QRhiTexture *ptr) -> size_t {
+                return std::hash<std::uintptr_t>{}(std::uintptr_t(ptr));
+            };
+            const size_t b = h(key.baseColorTexture);
+            const size_t n = h(key.normalTexture);
+            const size_t o = h(key.occlusionTexture);
+            const size_t r = h(key.roughnessTexture);
+            size_t seed = b;
+            seed ^= n + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            seed ^= o + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            seed ^= r + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            return seed;
+        }
+    };
+    std::unordered_map<
+        FillTextureSetKey,
+        std::unique_ptr<QRhiShaderResourceBindings>,
+        FillTextureSetKeyHash> m_textureSrbs;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_fillPipelinesByKey;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_wirePipelinesByKey;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_edgesPipelinesByKey;

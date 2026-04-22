@@ -26,6 +26,17 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
         || (mask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
     const bool hasTextures = hasTextureCoords && !entry.textureFilePaths.isEmpty();
+    bool hasNormalMap = false;
+    bool hasOcclusionMap = false;
+    bool hasRoughnessMap = false;
+    for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
+        hasNormalMap = hasNormalMap || slot.normalTexture.isValid();
+        hasOcclusionMap = hasOcclusionMap || slot.occlusionTexture.isValid();
+        hasRoughnessMap = hasRoughnessMap || slot.roughnessTexture.isValid();
+        if (hasNormalMap && hasOcclusionMap && hasRoughnessMap)
+            break;
+    }
+    const bool hasAnyPbrMap = hasNormalMap || hasOcclusionMap || hasRoughnessMap;
 
     if (faceCount > 0) {
         mode.showFill = true;
@@ -47,6 +58,10 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
             ? PointColorSource::PerVertex
             : (hasVertexQuality ? PointColorSource::PerVertexQuality : PointColorSource::Constant);
         mode.fillLighting = true;
+        mode.fillMaterial = (hasTextures && hasAnyPbrMap) ? FillMaterial::Pbr : FillMaterial::Plain;
+        mode.fillPbrAlbedoSource = hasTextures
+            ? FillPbrAlbedoSource::Texture
+            : FillPbrAlbedoSource::PlainColor;
         mode.pointLighting = false;
         mode.wireLighting = false;
     } else if (edgeCount > 0) {
@@ -185,6 +200,23 @@ bool RenderWidget::applyRenderSettingsToCurrentMesh(
         &MeshRenderMode::fillBackfaceCulling,
         prev.fillBackfaceCulling,
         next.fillBackfaceCulling);
+    apply(&MeshRenderMode::fillUseNormalMap, prev.fillUseNormalMap, next.fillUseNormalMap);
+    apply(
+        &MeshRenderMode::fillUseOcclusionMap,
+        prev.fillUseOcclusionMap,
+        next.fillUseOcclusionMap);
+    apply(
+        &MeshRenderMode::fillUseRoughnessMap,
+        prev.fillUseRoughnessMap,
+        next.fillUseRoughnessMap);
+    if (prev.fillMaterial != next.fillMaterial) {
+        mode->fillMaterial = next.fillMaterial;
+        changed = true;
+    }
+    if (prev.fillPbrAlbedoSource != next.fillPbrAlbedoSource) {
+        mode->fillPbrAlbedoSource = next.fillPbrAlbedoSource;
+        changed = true;
+    }
 
     if (prev.fillShading != next.fillShading) {
         mode->fillShading = next.fillShading;
@@ -232,6 +264,18 @@ bool RenderWidget::applyRenderSettingsToCurrentMesh(
     applyColor(&MeshRenderMode::wireColor, prev.wireColor, next.wireColor);
     applyFloat(&MeshRenderMode::wireSize, prev.wireSize, next.wireSize);
     applyColor(&MeshRenderMode::fillColor, prev.fillColor, next.fillColor);
+    applyFloat(
+        &MeshRenderMode::fillNormalMapScale,
+        prev.fillNormalMapScale,
+        next.fillNormalMapScale);
+    applyFloat(
+        &MeshRenderMode::fillOcclusionStrength,
+        prev.fillOcclusionStrength,
+        next.fillOcclusionStrength);
+    applyFloat(
+        &MeshRenderMode::fillRoughnessFactor,
+        prev.fillRoughnessFactor,
+        next.fillRoughnessFactor);
 
     return changed;
 }
@@ -257,6 +301,11 @@ void RenderWidget::applyRenderModeToSettings(
     settings.wireBackfaceCulling = mode.wireBackfaceCulling;
     settings.fillLighting = mode.fillLighting;
     settings.fillBackfaceCulling = mode.fillBackfaceCulling;
+    settings.fillUseNormalMap = mode.fillUseNormalMap;
+    settings.fillUseOcclusionMap = mode.fillUseOcclusionMap;
+    settings.fillUseRoughnessMap = mode.fillUseRoughnessMap;
+    settings.fillMaterial = mode.fillMaterial;
+    settings.fillPbrAlbedoSource = mode.fillPbrAlbedoSource;
     settings.fillShading = mode.fillShading;
     settings.pointColorSource = mode.pointColorSource;
     settings.fillColorSource = mode.fillColorSource;
@@ -273,6 +322,9 @@ void RenderWidget::applyRenderModeToSettings(
     settings.wireColor = mode.wireColor;
     settings.wireSize = mode.wireSize;
     settings.fillColor = mode.fillColor;
+    settings.fillNormalMapScale = mode.fillNormalMapScale;
+    settings.fillOcclusionStrength = mode.fillOcclusionStrength;
+    settings.fillRoughnessFactor = mode.fillRoughnessFactor;
 }
 
 RenderSettings RenderWidget::renderSettingsForMesh(int meshIndex) const
@@ -303,6 +355,9 @@ void RenderWidget::refreshColorSourceAvailability()
     bool hasFaceQuality = false;
     bool hasTextures = false;
     bool hasVertexNormals = false;
+    bool hasNormalMap = false;
+    bool hasOcclusionMap = false;
+    bool hasRoughnessMap = false;
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
     if (meshIndex >= 0 && meshIndex < m_doc->meshCount()) {
         const auto &meshEntry = m_doc->mesh(meshIndex);
@@ -316,6 +371,13 @@ void RenderWidget::refreshColorSourceAvailability()
         hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
         hasTextures = hasTextureCoords && !meshEntry.textureFilePaths.isEmpty();
         hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
+        for (const MeshIOMaterialSlot &slot : meshEntry.materialSet.entries) {
+            hasNormalMap = hasNormalMap || slot.normalTexture.isValid();
+            hasOcclusionMap = hasOcclusionMap || slot.occlusionTexture.isValid();
+            hasRoughnessMap = hasRoughnessMap || slot.roughnessTexture.isValid();
+            if (hasNormalMap && hasOcclusionMap && hasRoughnessMap)
+                break;
+        }
     }
 
     if (m_overlayPanel)
@@ -329,6 +391,11 @@ void RenderWidget::refreshColorSourceAvailability()
             hasVertexQuality,
             hasFaceQuality,
             hasTextures);
+    if (m_overlayPanel)
+        m_overlayPanel->setFillPbrMapAvailability(
+            hasNormalMap,
+            hasOcclusionMap,
+            hasRoughnessMap);
 
     RenderSettings corrected = m_renderSettings;
     if (corrected.pointColorSource == PointColorSource::PerVertex && !hasVertexColors)
@@ -347,6 +414,8 @@ void RenderWidget::refreshColorSourceAvailability()
         corrected.fillColorSource = FillColorSource::Constant;
     if (corrected.fillColorSource == FillColorSource::Texture && !hasTextures)
         corrected.fillColorSource = FillColorSource::Constant;
+    if (corrected.fillPbrAlbedoSource == FillPbrAlbedoSource::Texture && !hasTextures)
+        corrected.fillPbrAlbedoSource = FillPbrAlbedoSource::PlainColor;
 
     if (corrected != m_renderSettings) {
         const RenderSettings prev = m_renderSettings;
@@ -359,7 +428,12 @@ void RenderWidget::refreshColorSourceAvailability()
 
 int RenderWidget::fillGpuVariantIndexForSettings(const RenderSettings &settings) const
 {
-    switch (settings.fillColorSource) {
+    // PBR relies on UV/material textures for normal/occlusion/roughness maps regardless
+    // of whether albedo comes from texture or a plain color.
+    FillColorSource source = (settings.fillMaterial == FillMaterial::Pbr)
+        ? FillColorSource::Texture
+        : settings.fillColorSource;
+    switch (source) {
     case FillColorSource::PerVertex: return static_cast<int>(Document::FillGpuVariant::PerVertex);
     case FillColorSource::PerFace: return static_cast<int>(Document::FillGpuVariant::PerFace);
     case FillColorSource::PerVertexQuality:
@@ -605,16 +679,41 @@ QRhiGraphicsPipeline *RenderWidget::fatEdgesPipelineForSettings(const RenderSett
     return inserted.first->second.get();
 }
 
-QRhiShaderResourceBindings *RenderWidget::shaderResourcesForTexture(QRhiTexture *texture)
+QRhiShaderResourceBindings *RenderWidget::shaderResourcesForFillTextures(
+    QRhiTexture *baseColorTexture,
+    QRhiTexture *normalTexture,
+    QRhiTexture *occlusionTexture,
+    QRhiTexture *roughnessTexture)
 {
-    if (!texture || !m_rhi || !m_ubuf || !m_textureSampler || !m_qualityColorMapTexture)
+    if (!m_rhi
+        || !m_ubuf
+        || !m_textureSampler
+        || !m_qualityColorMapTexture
+        || !m_fallbackTexture
+        || !m_fallbackNormalTexture
+        || !m_fallbackOcclusionTexture
+        || !m_fallbackRoughnessTexture) {
         return m_srb.get();
+    }
 
-    auto it = m_textureSrbs.find(texture);
+    QRhiTexture *resolvedBase = baseColorTexture ? baseColorTexture : m_fallbackTexture.get();
+    QRhiTexture *resolvedNormal = normalTexture ? normalTexture : m_fallbackNormalTexture.get();
+    QRhiTexture *resolvedOcclusion =
+        occlusionTexture ? occlusionTexture : m_fallbackOcclusionTexture.get();
+    QRhiTexture *resolvedRoughness =
+        roughnessTexture ? roughnessTexture : m_fallbackRoughnessTexture.get();
+
+    FillTextureSetKey key;
+    key.baseColorTexture = resolvedBase;
+    key.normalTexture = resolvedNormal;
+    key.occlusionTexture = resolvedOcclusion;
+    key.roughnessTexture = resolvedRoughness;
+    auto it = m_textureSrbs.find(key);
     if (it != m_textureSrbs.end())
         return it->second.get();
 
-    auto textureSrb = std::unique_ptr<QRhiShaderResourceBindings>(m_rhi->newShaderResourceBindings());
+    auto textureSrb =
+        std::unique_ptr<QRhiShaderResourceBindings>(m_rhi->newShaderResourceBindings());
     textureSrb->setBindings({
         QRhiShaderResourceBinding::uniformBuffer(
             0,
@@ -623,18 +722,38 @@ QRhiShaderResourceBindings *RenderWidget::shaderResourcesForTexture(QRhiTexture 
         QRhiShaderResourceBinding::sampledTexture(
             1,
             QRhiShaderResourceBinding::FragmentStage,
-            texture,
+            resolvedBase,
             m_textureSampler.get()),
         QRhiShaderResourceBinding::sampledTexture(
             2,
             QRhiShaderResourceBinding::FragmentStage,
             m_qualityColorMapTexture.get(),
+            m_textureSampler.get()),
+        QRhiShaderResourceBinding::sampledTexture(
+            3,
+            QRhiShaderResourceBinding::FragmentStage,
+            resolvedNormal,
+            m_textureSampler.get()),
+        QRhiShaderResourceBinding::sampledTexture(
+            4,
+            QRhiShaderResourceBinding::FragmentStage,
+            resolvedOcclusion,
+            m_textureSampler.get()),
+        QRhiShaderResourceBinding::sampledTexture(
+            5,
+            QRhiShaderResourceBinding::FragmentStage,
+            resolvedRoughness,
             m_textureSampler.get())
     });
     if (!textureSrb->create())
         return m_srb.get();
 
     QRhiShaderResourceBindings *raw = textureSrb.get();
-    m_textureSrbs.emplace(texture, std::move(textureSrb));
+    m_textureSrbs.emplace(key, std::move(textureSrb));
     return raw;
+}
+
+QRhiShaderResourceBindings *RenderWidget::shaderResourcesForTexture(QRhiTexture *texture)
+{
+    return shaderResourcesForFillTextures(texture, nullptr, nullptr, nullptr);
 }

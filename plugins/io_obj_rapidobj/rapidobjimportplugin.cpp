@@ -119,10 +119,22 @@ public:
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
+        return load(filename, mesh, cb, outLoadMask, nullptr);
+    }
+
+    int load(
+        const QString &filename,
+        VCGMesh &mesh,
+        vcg::CallBackPos *cb,
+        int *outLoadMask,
+        MeshIOMaterialSet *outMaterialSet) const override
+    {
         m_lastDetailedError.clear();
 
         if (outLoadMask)
             *outLoadMask = 0;
+        if (outMaterialSet)
+            outMaterialSet->clear();
 
         mesh.Clear();
 
@@ -365,6 +377,28 @@ public:
             appendTexture(seenTextures, mesh, material.ambient_texname);
         }
 
+        MeshIOMaterialSet materialSet;
+        materialSet.entries.reserve(result.materials.size());
+        for (size_t materialIndex = 0; materialIndex < result.materials.size(); ++materialIndex) {
+            const auto &material = result.materials[materialIndex];
+            MeshIOMaterialSlot slot;
+            slot.name = QString::fromStdString(material.name).trimmed();
+            if (slot.name.isEmpty())
+                slot.name = QObject::tr("Material %1").arg(materialIndex + 1);
+
+            slot.baseColorTexture.fileName = QString::fromStdString(material.diffuse_texname).trimmed();
+            slot.normalTexture.fileName = QString::fromStdString(
+                material.normal_texname.empty() ? material.bump_texname : material.normal_texname)
+                                             .trimmed();
+            slot.occlusionTexture.fileName = QString::fromStdString(material.ambient_texname).trimmed();
+            slot.roughnessTexture.fileName = QString::fromStdString(material.roughness_texname).trimmed();
+
+            if (std::isfinite(material.roughness) && material.roughness >= 0.0f)
+                slot.roughnessFactor = material.roughness;
+
+            materialSet.entries.push_back(std::move(slot));
+        }
+
         if (mesh.VN() == 0) {
             size_t totalShapeIndices = 0;
             for (const auto &shape : result.shapes)
@@ -434,6 +468,8 @@ public:
 
         if (outLoadMask)
             *outLoadMask = loadMask;
+        if (outMaterialSet)
+            *outMaterialSet = std::move(materialSet);
 
         return 0;
     }

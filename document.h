@@ -43,6 +43,7 @@ public:
         QString sourcePath;
         QStringList textureFileNames;
         QStringList textureFilePaths;
+        MeshIOMaterialSet materialSet;
         bool visible = true;
         int ioMask = 0;
         VCGMesh mesh;

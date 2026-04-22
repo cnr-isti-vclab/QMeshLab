@@ -2,6 +2,7 @@
 #include "document.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
+#include <QDir>
 #include <QFileInfo>
 #include <QFontMetrics>
 #include <QHash>
@@ -16,6 +17,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace {
 constexpr int kFirstColumnMinWidth = 56;
@@ -41,6 +43,14 @@ struct MeshCustomAttributeInfo {
         return faceScalars.size() + faceColors.size() + facePoints.size();
     }
 };
+
+struct LayerTextureInfo {
+    QString displayName;
+    QString path;
+    QStringList usage;
+};
+
+std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry);
 
 template<typename T>
 QStringList collectPerVertexAttributeNames(VCGMesh &mesh)
@@ -230,13 +240,15 @@ QString meshDataSummary(const Document::MeshEntry &entry)
     if (attrs.faceCount() > 0)
         tokens << QObject::tr("FA %1").arg(attrs.faceCount());
 
-    if (!entry.textureFilePaths.isEmpty()) {
+    const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
+    if (!textures.empty()) {
         int foundCount = 0;
-        for (const QString &path : entry.textureFilePaths) {
+        for (const LayerTextureInfo &tex : textures) {
+            const QString &path = tex.path;
             if (QFileInfo::exists(path))
                 ++foundCount;
         }
-        tokens << QObject::tr("TX %1/%2").arg(foundCount).arg(entry.textureFilePaths.size());
+        tokens << QObject::tr("TX %1/%2").arg(foundCount).arg(textures.size());
     }
 
     if (tokens.isEmpty())
@@ -267,36 +279,94 @@ QString meshDataTooltip(const Document::MeshEntry &entry)
         lines << QObject::tr("Face custom attributes: %1")
                      .arg(ownerAttributeSummary(attrs.faceScalars, attrs.faceColors, attrs.facePoints));
     }
-    if (!entry.textureFileNames.isEmpty()) {
-        lines << QObject::tr("Texture slots:");
-        for (int i = 0; i < entry.textureFileNames.size(); ++i) {
-            const QString name = entry.textureFileNames.at(i);
-            const QString path = (i < entry.textureFilePaths.size()) ? entry.textureFilePaths.at(i) : QString();
-            const bool exists = !path.isEmpty() && QFileInfo::exists(path);
-            lines << QObject::tr("  [%1] %2 (%3)")
+    const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
+    if (!textures.empty()) {
+        lines << QObject::tr("Textures:");
+        for (size_t i = 0; i < textures.size(); ++i) {
+            const LayerTextureInfo &tex = textures[i];
+            const bool exists = !tex.path.isEmpty() && QFileInfo::exists(tex.path);
+            const QString usage = tex.usage.isEmpty()
+                ? QString()
+                : QObject::tr(" (%1)").arg(tex.usage.join(QStringLiteral(", ")));
+            lines << QObject::tr("  [%1] %2%3 (%4)")
                         .arg(i)
-                        .arg(name)
+                        .arg(tex.displayName)
+                        .arg(usage)
                         .arg(exists ? QObject::tr("found") : QObject::tr("missing"));
         }
     }
     return lines.join(QLatin1Char('\n'));
 }
 
-QString textureDisplayName(const Document::MeshEntry &entry, int index)
+void appendLayerTexture(
+    std::vector<LayerTextureInfo> &out,
+    QHash<QString, int> &byKey,
+    const MeshIOMaterialTextureRef &ref,
+    const QString &usage)
 {
-    if (index >= 0 && index < entry.textureFileNames.size() && !entry.textureFileNames.at(index).isEmpty()) {
-        const QString n = QFileInfo(entry.textureFileNames.at(index)).fileName();
-        if (!n.isEmpty())
-            return n;
-        return entry.textureFileNames.at(index);
+    if (!ref.isValid())
+        return;
+
+    const QString path = QDir::fromNativeSeparators(ref.filePath.trimmed());
+    QString displayName = QFileInfo(ref.fileName.trimmed()).fileName();
+    if (displayName.isEmpty())
+        displayName = QFileInfo(path).fileName();
+    if (displayName.isEmpty())
+        displayName = QObject::tr("texture");
+
+    const QString key = !path.isEmpty()
+        ? QStringLiteral("path:%1").arg(path.toLower())
+        : QStringLiteral("name:%1").arg(displayName.toLower());
+    const auto it = byKey.constFind(key);
+    if (it != byKey.constEnd()) {
+        LayerTextureInfo &existing = out[size_t(it.value())];
+        if (existing.path.isEmpty() && !path.isEmpty())
+            existing.path = path;
+        if (!usage.isEmpty() && !existing.usage.contains(usage))
+            existing.usage.push_back(usage);
+        return;
     }
 
-    if (index >= 0 && index < entry.textureFilePaths.size()) {
-        const QString fileName = QFileInfo(entry.textureFilePaths.at(index)).fileName();
-        if (!fileName.isEmpty())
-            return fileName;
+    LayerTextureInfo info;
+    info.displayName = displayName;
+    info.path = path;
+    if (!usage.isEmpty())
+        info.usage.push_back(usage);
+    byKey.insert(key, int(out.size()));
+    out.push_back(std::move(info));
+}
+
+std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry)
+{
+    std::vector<LayerTextureInfo> out;
+    QHash<QString, int> byKey;
+
+    if (!entry.materialSet.empty()) {
+        for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
+            const QString materialName = slot.name.trimmed();
+            const QString prefix = materialName.isEmpty() ? QString() : materialName + QStringLiteral(":");
+            appendLayerTexture(out, byKey, slot.baseColorTexture, prefix + QObject::tr("Base"));
+            appendLayerTexture(out, byKey, slot.normalTexture, prefix + QObject::tr("Normal"));
+            appendLayerTexture(out, byKey, slot.occlusionTexture, prefix + QObject::tr("AO"));
+            appendLayerTexture(out, byKey, slot.roughnessTexture, prefix + QObject::tr("Rough"));
+        }
     }
-    return QObject::tr("texture_%1").arg(index);
+
+    if (out.empty()) {
+        for (int i = 0; i < entry.textureFilePaths.size(); ++i) {
+            MeshIOMaterialTextureRef ref;
+            ref.filePath = entry.textureFilePaths.at(i);
+            if (i >= 0 && i < entry.textureFileNames.size())
+                ref.fileName = entry.textureFileNames.at(i);
+            appendLayerTexture(out, byKey, ref, QObject::tr("Base"));
+        }
+    }
+
+    for (size_t i = 0; i < out.size(); ++i) {
+        if (out[i].displayName.trimmed().isEmpty())
+            out[i].displayName = QObject::tr("texture_%1").arg(int(i));
+    }
+    return out;
 }
 
 QString textureDisplaySize(const QString &path)
@@ -360,14 +430,13 @@ QPixmap textureThumbnail(const QString &path, int side)
 
 QWidget *textureInfoWidget(
     QTreeWidget *owner,
-    const Document::MeshEntry &entry,
-    int index,
+    const LayerTextureInfo &textureInfo,
     const QFontMetrics &fm)
 {
-    const QString path =
-        (index >= 0 && index < entry.textureFilePaths.size()) ? entry.textureFilePaths.at(index) : QString();
-    const QString name = textureDisplayName(entry, index);
+    const QString path = textureInfo.path;
+    const QString name = textureInfo.displayName;
     const QString size = textureDisplaySize(path);
+    const QString usageText = textureInfo.usage.join(QStringLiteral(", "));
     const int lineH = std::max(8, fm.lineSpacing());
     const int thumbSide = std::max(14, lineH * 2);
 
@@ -390,7 +459,11 @@ QWidget *textureInfoWidget(
     nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     nameLabel->setFixedHeight(lineH);
 
-    auto *sizeLabel = new QLabel(size, textCol);
+    QString metaLine = size;
+    if (!usageText.isEmpty())
+        metaLine = QObject::tr("%1  %2").arg(size, usageText);
+
+    auto *sizeLabel = new QLabel(metaLine, textCol);
     sizeLabel->setTextFormat(Qt::PlainText);
     sizeLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     sizeLabel->setFixedHeight(lineH);
@@ -402,11 +475,18 @@ QWidget *textureInfoWidget(
     h->addWidget(thumb, 0, Qt::AlignVCenter);
     h->addWidget(textCol, 1);
 
-    if (!path.isEmpty()) {
-        container->setToolTip(path);
-        thumb->setToolTip(path);
-        nameLabel->setToolTip(path);
-        sizeLabel->setToolTip(path);
+    QString tooltip;
+    if (!path.isEmpty())
+        tooltip = path;
+    if (!textureInfo.usage.isEmpty()) {
+        const QString usageLine = QObject::tr("Usage: %1").arg(textureInfo.usage.join(QStringLiteral(", ")));
+        tooltip = tooltip.isEmpty() ? usageLine : (tooltip + QLatin1Char('\n') + usageLine);
+    }
+    if (!tooltip.isEmpty()) {
+        container->setToolTip(tooltip);
+        thumb->setToolTip(tooltip);
+        nameLabel->setToolTip(tooltip);
+        sizeLabel->setToolTip(tooltip);
     }
 
     return container;
@@ -468,6 +548,7 @@ void LayerWidget::rebuild()
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         const auto &entry = m_doc->mesh(i);
         const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
+        const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
         auto *item = new QTreeWidgetItem(this, {entry.name, QString()});
         item->setData(0, kRoleMeshIndex, i);
         item->setData(0, kRoleMeshId, qulonglong(entry.meshId));
@@ -555,17 +636,24 @@ void LayerWidget::rebuild()
             item->addChild(xItem);
         }
 
-        for (int texIdx = 0; texIdx < entry.textureFilePaths.size(); ++texIdx) {
-            const QString texPath = entry.textureFilePaths.at(texIdx);
+        for (int texIdx = 0; texIdx < int(textures.size()); ++texIdx) {
+            const LayerTextureInfo &tex = textures[size_t(texIdx)];
             auto *tItem = new QTreeWidgetItem({QString(), tr("Tex %1").arg(texIdx), QString()});
             tItem->setFlags(tItem->flags() & ~Qt::ItemIsSelectable);
-            if (!texPath.isEmpty()) {
-                tItem->setToolTip(0, texPath);
-                tItem->setToolTip(1, texPath);
-                tItem->setToolTip(2, texPath);
+            QString texTip;
+            if (!tex.path.isEmpty())
+                texTip = tex.path;
+            if (!tex.usage.isEmpty()) {
+                const QString usageLine = tr("Usage: %1").arg(tex.usage.join(QStringLiteral(", ")));
+                texTip = texTip.isEmpty() ? usageLine : (texTip + QLatin1Char('\n') + usageLine);
+            }
+            if (!texTip.isEmpty()) {
+                tItem->setToolTip(0, texTip);
+                tItem->setToolTip(1, texTip);
+                tItem->setToolTip(2, texTip);
             }
             item->addChild(tItem);
-            setItemWidget(tItem, 2, textureInfoWidget(this, entry, texIdx, fm));
+            setItemWidget(tItem, 2, textureInfoWidget(this, tex, fm));
         }
 
         const QString dataTip = meshDataTooltip(entry);
