@@ -17,7 +17,7 @@ See also:
 3. Plugin layer (`MeshIOPlugin*`, `MeshFilterPlugin*`, registries/managers)
 4. Shared mesh GPU cache (`MeshGpuResourceCache`)
 5. Per-view rendering (`RenderWidget`, `ViewTrackball`, `RenderOverlayPanel`)
-6. Auxiliary views (`LayerWidget`, `MeshFilterPanel`, log dock, status-bar stats/progress)
+6. Auxiliary views (`LayerWidget`, `MeshFilterPanel`, log dock, undo-history panel, status-bar stats/progress)
 
 ## Core Components
 
@@ -32,12 +32,15 @@ See also:
 - undo/redo stack (`UndoState`, `UndoStep`)
 - I/O plugin manager and filter plugin manager
 - shared GPU mesh cache
+- memory accounting APIs (CPU meshes, undo history, GPU cache)
 
 `MeshEntry` stores:
 
 - identity/revisions (`meshId`, `geometryRevision`, `materialRevision`)
+- render placement (`renderTransform`)
 - source metadata (`name`, `sourcePath`, `ioMask`)
 - texture metadata (`textureFileNames`, `textureFilePaths`)
+- material metadata (`materialSet`)
 - view-independent mesh state (`visible`, `VCGMesh mesh`)
 
 Renderer-facing APIs include:
@@ -62,10 +65,11 @@ Central cache for mesh GPU resources, keyed by:
 - mesh id
 - fill/point variants
 - geometry/material revisions
+- quality-range mode for quality variants (auto vs fixed range + min/max)
 
 Cached resources:
 
-- fill batches (vertex/index buffers, optional texture)
+- fill batches (vertex/index buffers + optional base/normal/occlusion/roughness textures and per-batch factors)
 - wire buffer
 - edge line + edge fat-line buffers
 - points buffer
@@ -91,7 +95,9 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 `RenderWidget` (`QRhiWidget`) owns per-view rendering state:
 
 - graphics pipelines/SRBs/UBOs
+- fallback textures (base/normal/occlusion/roughness) + quality LUT texture
 - offscreen targets used in Scene mode (depth pick + current-mesh mask pipeline)
+- Radiance Scaling gradient pre-pass resources
 - view mode (`Scene3D` / `ParametrizationUV`)
 - Scene camera/navigation state (`ViewTrackball`)
 - UV pan/zoom/fit state
@@ -103,6 +109,7 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 
 In `Scene3D`, it consumes pass views from `Document`/`MeshGpuResourceCache`.
 In `ParametrizationUV`, it renders the current mesh in UV space and can reuse textured fill batches from the document cache.
+Implementation is split across `renderwidget_*.cpp` translation units (`render`, `resources`, `selection`, `uv`, `modes`) with shared declarations in `renderwidget.h`.
 
 ### `ViewTrackball`
 
@@ -143,12 +150,13 @@ Composition and orchestration:
   - load progress bar
   - filter progress bar + cancel button
   - CPU/GPU frame-time stats (rolling 100-frame window)
+- undo-history panel with stack labels and thumbnails
 - menus:
   - file: `New`, `New Instance`, multi-file `Open`, reload current/all, save mesh, snapshot PNG, recent
   - edit: undo/redo
   - filters: hierarchical filter menu + filter browser
   - view: Scene/UV mode, split H/V, reset camera, copy/paste camera JSON
-  - help: about, I/O plugin dialog, filter plugin dialog
+  - help: about, I/O plugin dialog, filter plugin dialog, memory info
 - active-view handling:
   - split/close per current view
   - right-click view context menu (mode/split/close)
@@ -210,12 +218,14 @@ Current built-in families (build-option/dependency gated):
 | Layer Panel | `LayerWidget` | visibility/current mesh selection, compact mesh/data/texture summary |
 | Filter Panel | `MeshFilterPanel` | filter search, parameter editing, run requests |
 | Log Panel | `QListWidget` dock | per-document app + VCG logs |
+| Undo History | `QListWidget` dock panel | undo stack navigation with labels/thumbnails |
 
 ## State Ownership Rules
 
 Shared/document state:
 
 - mesh geometry/material source data
+- per-mesh render transforms
 - mesh list and current mesh index
 - document-level visibility proxy (`MeshEntry::visible`)
 - import/export/filter metadata and logs

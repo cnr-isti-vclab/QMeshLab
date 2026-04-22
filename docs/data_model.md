@@ -24,12 +24,16 @@ Each entry stores:
   - `meshId`
   - `geometryRevision`
   - `materialRevision`
+- render placement:
+  - `renderTransform`
 - source metadata:
   - `name`
   - `sourcePath`
 - texture metadata:
   - `textureFileNames`
   - `textureFilePaths`
+- material metadata:
+  - `materialSet`
 - mesh state:
   - `visible`
   - `ioMask`
@@ -44,6 +48,7 @@ Each entry stores:
 - shared mesh GPU cache (`MeshGpuResourceCache`)
 - undo/redo history (`UndoState`, `UndoStep`)
 - operation cancel flag used by load/save/filter callbacks
+- memory accounting APIs (`cpuMeshMemoryStats`, `undoMemoryStats`, `gpuMemoryStats`)
 
 ## Mesh Data Type
 
@@ -85,9 +90,10 @@ These drive `RenderWidget`, `LayerWidget`, `MeshFilterPanel`, status-bar progres
 1. resolves import plugin by filename/extension preference
 2. runs plugin load with `vcg::CallBackPos`
 3. updates bbox and normals (preserves imported vertex normals if present)
-4. resolves texture paths, updates mesh/texture metadata
-5. logs mesh counts, mask summary, texture info, timing, callback stats
-6. appends mesh entry, emits signals, sets current mesh
+4. initializes identity transform and normalizes imported material set (`materialSet`)
+5. resolves texture paths, updates mesh/texture metadata, and adds PBR-channel textures from `materialSet` when not present in `mesh.textures`
+6. logs mesh counts, mask summary, texture info, timing, callback stats
+7. appends mesh entry, emits signals, sets current mesh
 
 `Document::reloadMesh(index)` follows a similar path and keeps mesh identity while bumping revisions.
 
@@ -127,7 +133,7 @@ Filter keys are fully qualified (`pluginId + local filter id`) in the manager la
 
 `Document` snapshots full mesh state for undo steps:
 
-- entry metadata
+- full entry metadata (`renderTransform`, `materialSet`, names/paths, mask, visibility, revisions)
 - full `VCGMesh` deep copy
 - current mesh index
 - mesh id allocator state
@@ -141,6 +147,14 @@ APIs:
 - `setUndoLimit(limit)`
 
 Mesh mutations (`add/remove/duplicate/reload/mark changed/visibility`) are integrated with this framework.
+Additional mutation APIs (`setMeshRenderTransform`, `markMeshGeometryChanged`, `markMeshMaterialChanged`) are also undo-integrated.
+
+## Revision and Transform Model
+
+- `setMeshRenderTransform(index, transform, context)` updates `MeshEntry::renderTransform`, emits `meshDataChanged`, and records undo.
+- `markMeshGeometryChanged(...)` increments `geometryRevision`.
+- `markMeshMaterialChanged(...)` increments `materialRevision`.
+- GPU resources are rebuilt lazily according to these revisions.
 
 ## Layer Widget Model
 
@@ -165,6 +179,7 @@ UV mode availability uses document metadata:
 Shared/document state:
 
 - canonical mesh list and source/material metadata
+- per-mesh render transforms
 - document visibility proxy (`MeshEntry::visible`)
 - current mesh index
 - logs and operation progress
@@ -199,6 +214,21 @@ Renderer-facing document APIs:
 - `decoratorPassGpuView(...)`
 
 `ensureMeshGpuResources(...)` accepts explicit pass needs, fill/point variants, and quality-range hints.
-The underlying cache is keyed by `(QRhi*, meshId, variant, revision)` and can be invalidated per-RHI or globally.
+The underlying cache is keyed by `(QRhi*, meshId, variant, revision, quality-range mode for quality variants)` and can be invalidated per-RHI or globally.
+
+Selection and decorators are first-class cache outputs:
+
+- `selectionPassGpuView(...)` exposes selected-face and selected-vertex buffers
+- `decoratorPassGpuView(...)` exposes vertex/face normals and boundary/seam line + fat-line buffers
+
+## Memory Diagnostics Model
+
+`MainWindow::showMemoryInfo()` reads three document-owned models:
+
+- CPU mesh storage (`cpuMeshMemoryStats`)
+- CPU undo history snapshots (`undoMemoryStats`)
+- GPU cache usage (`gpuMemoryStats`)
+
+This keeps memory reporting aligned with the same ownership boundaries used by rendering and undo.
 
 For scene/UV pass execution details, see [Rendering](rendering.md).

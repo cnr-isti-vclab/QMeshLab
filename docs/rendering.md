@@ -39,10 +39,12 @@ Cache key shape:
 - revision checks:
   - fill depends on `geometryRevision` + `materialRevision`
   - wire/edges/points/bbox/decorators depend on `geometryRevision`
+- quality checks:
+  - quality fill/points variants also include fixed-range mode and min/max range
 
 Cached pass data:
 
-- fill pass: one or more batches (`vbuf`, optional `ibuf`, optional `texture`)
+- fill pass: one or more batches (`vbuf`, optional `ibuf`, optional base/normal/occlusion/roughness textures + per-batch factors)
 - wire pass: barycentric-expanded triangle buffer
 - edges pass: line buffer and fat-line buffer from explicit mesh edges
 - points pass: point buffer (position/color/normal payload + normal-valid flag)
@@ -76,6 +78,7 @@ Two fill upload paths are used:
   - texture batching by texture slot
 
 For textured fill, faces are grouped by texture slot; each batch can carry its own uploaded `QRhiTexture`.
+When `materialSet` is available, cache batches also attach normal/occlusion/roughness textures and their factors (`normalScale`, `occlusionStrength`, `roughnessFactor`) per material slot.
 For quality fill/points, buffers store normalized quality values and the final color is resolved in shaders via a small LUT texture, so changing colormap no longer requires rebuilding those GPU buffers.
 
 ## Per-Widget GPU State (`RenderWidget`)
@@ -83,13 +86,14 @@ For quality fill/points, buffers store normalized quality values and the final c
 Per-widget resources include:
 
 - dynamic UBOs (`m_ubuf`, outline/morph/debug/decorator/trackball UBOs)
-- widget-local samplers and fallback 1x1 white texture
+- widget-local samplers and fallback 1x1 textures (base/normal/occlusion/roughness)
+- quality colormap LUT texture
 - mode state:
   - `Scene3D` / `ParametrizationUV`
   - UV view controls (`m_uvPan`, `m_uvZoom`, fit request/pan interaction)
   - UV mesh GPU cache (`m_uvMeshGpu`)
 - SRBs:
-  - base SRB (UBO + fallback texture + quality LUT texture)
+  - base SRB (UBO + fallback textures + quality LUT texture)
   - per-texture SRB cache for textured fill batches
   - scene-background SRB/UBO (3D gradient background)
   - UV background SRB/UBO
@@ -97,6 +101,7 @@ Per-widget resources include:
   - fill, wire, edges, bbox, points, decorators
   - fat edges
   - fat boundary/seam decorators
+  - Radiance Scaling gradient pre-pass
   - depth pick
   - current-mesh mask/depth-only variants
   - current-mask fat-edge depth-only variant
@@ -115,6 +120,14 @@ These stay per widget because they depend on per-view settings and render-pass d
 
 `RenderWidget` keeps `MeshRenderMode` per mesh id (`m_meshRenderModes`), so each mesh can have independent pass/style toggles.
 In UV mode, the current mesh mode is reused to control fill/wire/edges/points/bounding-box styling in UV space.
+
+Fill material choices are per mesh:
+
+- `Plain`
+- `Pbr`
+- `RadianceScaling`
+
+For `Pbr`, each channel has independent source/index controls (albedo, normal, occlusion, roughness), resolved against the mesh texture list.
 
 Some controls are intentionally view-level (not per-mesh), e.g.:
 
@@ -151,7 +164,8 @@ Per frame:
 2. Optionally execute depth picking (if scheduled).
 3. Optionally build/process current-mesh highlight masks.
 4. Upload scene background gradient colors (`bottom`, `top`) to dedicated UBO.
-5. Run the main onscreen pass.
+5. For meshes using `FillMaterial::RadianceScaling`, render the RS gradient pre-pass into a float render target.
+6. Run the main onscreen pass.
 
 Main pass draw order:
 
@@ -182,7 +196,7 @@ Per frame:
    - texture seams (decorator)
    - points
 6. Draw UV reference overlays:
-   - unit square (`[0,1] x [0,1]`) when `uvShowReferenceFrame` is on, and also when bounding-box display is enabled
+   - unit square (`[0,1] x [0,1]`) when `uvShowReferenceFrame` is on
    - U/V axes from origin when `uvShowReferenceFrame` is on
 
 ## `Scene3D` Pass Behavior Details
@@ -198,11 +212,24 @@ Per frame:
 ### Fill
 
 - Smooth/Flat shading use distinct shader pairs.
+- `RadianceScaling` uses smooth layout and a dedicated fragment shader.
 - Depth test/write enabled.
 - Backface culling controlled by `fillBackfaceCulling`.
 - Color source: constant / per-vertex / per-face / per-vertex-quality / per-face-quality / texture.
 - Quality variants use LUT sampling in fragment shader (shared per-view colormap texture).
 - Textures are sampled through per-batch SRBs when available.
+- For `Pbr`, bindings include base/normal/occlusion/roughness textures (selected per mesh settings or taken from the batch).
+- For `RadianceScaling`, pass 2 samples the RS gradient texture bound on the normal-texture slot.
+
+### Radiance Scaling Pre-Pass
+
+When at least one visible mesh uses `FillMaterial::RadianceScaling`, `RenderWidget` executes an additional offscreen pass:
+
+1. render RS-enabled fill batches into `m_rsGradTexture` (`RGBA32F`)
+2. store gradient payload used by RS shading (`gx`, `gy`, `logZ`, `1`)
+3. consume this texture in the normal fill pass for final RS shading
+
+This is a view-local resource path (`ensureRsGradResources`) and is rebuilt on render-target size changes.
 
 ### Wireframe
 
@@ -418,7 +445,7 @@ plus elapsed rebuild time.
 
 ## Current Scope and Limits
 
-- Material/shading model is intentionally minimal (no full PBR pipeline).
+- Material/shading model is intentionally focused: plain + lightweight PBR + Radiance Scaling (no full material graph).
 - Post-processing is raster full-screen passes (no compute path).
 - Current-mesh highlight is centered on the **current mesh** concept, while element-level vertex/face selection has its own overlay pass.
 - UV mode is currently single-mesh (current mesh only) and requires imported UV attributes.
