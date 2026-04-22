@@ -113,3 +113,27 @@ cmake --build --preset local-no-vcpkg
 ```
 
 The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`).
+
+## GitHub Actions: macOS DMG
+
+The repository includes a manual GitHub Actions workflow at
+`.github/workflows/macos-dmg.yml` that builds an unsigned macOS `.dmg`.
+
+What it does:
+- checks out the repo with submodules
+- installs `qt@6` and `ninja` with Homebrew
+- bootstraps local `vcpkg`
+- configures and builds the `vcpkg-release` preset
+- runs `macdeployqt -dmg`
+- uploads the generated `.dmg` as a workflow artifact
+
+How to use it:
+1. Open the `Actions` tab on GitHub
+2. Select `macOS DMG`
+3. Click `Run workflow`
+4. Download the `qmeshlab-macos-dmg` artifact from the completed run
+
+Current status:
+- packaging is unsigned/ad-hoc only
+- the workflow currently runs on `macos-15-intel`, so the produced app is `x86_64`
+- Developer ID signing and notarization can be added later using repository secrets

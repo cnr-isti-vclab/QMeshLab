@@ -1,0 +1,74 @@
+name: macOS DMG
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-dmg:
+    name: Build Unsigned DMG
+    runs-on: macos-15-intel
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      APP_NAME: QMeshLab
+      BUILD_PRESET: vcpkg-release
+      BUILD_DIR: build-release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install macOS build dependencies
+        run: |
+          brew install ninja qt@6
+
+      - name: Expose Qt tools
+        run: |
+          QT_PREFIX="$(brew --prefix qt@6)"
+          echo "$QT_PREFIX/bin" >> "$GITHUB_PATH"
+          echo "CMAKE_PREFIX_PATH=$QT_PREFIX" >> "$GITHUB_ENV"
+          echo "Qt6_DIR=$QT_PREFIX/lib/cmake/Qt6" >> "$GITHUB_ENV"
+
+      - name: Cache vcpkg artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/vcpkg/archives
+            ${{ github.workspace }}/build-release/vcpkg_installed
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt', 'plugins/**/CMakeLists.txt') }}
+          restore-keys: |
+            macos-dmg-vcpkg-${{ runner.os }}-
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg "$GITHUB_WORKSPACE/vcpkg"
+          "$GITHUB_WORKSPACE/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Configure
+        run: |
+          cmake --preset "$BUILD_PRESET" -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH"
+
+      - name: Build
+        run: |
+          cmake --build --preset "$BUILD_PRESET" -j3
+
+      - name: Package unsigned DMG
+        run: |
+          cd "$BUILD_DIR"
+          macdeployqt "$APP_NAME.app" -always-overwrite -dmg
+          ARCH="$(uname -m)"
+          DMG_NAME="${APP_NAME}-macos-${ARCH}-unsigned.dmg"
+          rm -f "$DMG_NAME"
+          mv "${APP_NAME}.dmg" "$DMG_NAME"
+          ls -lah "$DMG_NAME"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qmeshlab-macos-dmg
+          path: ${{ github.workspace }}/build-release/*.dmg
+          if-no-files-found: error
