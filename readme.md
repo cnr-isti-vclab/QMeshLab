@@ -148,8 +148,7 @@ The repository also includes a manual GitHub Actions workflow at
 What it does:
 - checks out the repo with submodules
 - sets up MSVC on `windows-2022`
-- installs Qt 6.11 with `aqtinstall` and caches the local Qt SDK directory
-  - the workflow currently uses the `Holt59/aqtinstall` workaround fork on Windows because upstream `aqtinstall 3.3.0` has issues with newer `win64_msvc2022_64` Qt repository layouts
+- installs Qt 6.11 from the public `download.qt.io` package archives and caches the local Qt SDK directory
 - bootstraps local `vcpkg`
 - configures and builds a release build with the `vcpkg-manifest` preset
 - runs `windeployqt` on `QMeshLab.exe`
