@@ -197,9 +197,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
         ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
         writeMainStyleToUbuf(ubufData, meshSettings, sz, true);
-        ubufData[kUbufPbrParamsOffset + 0] = normalScale;
-        ubufData[kUbufPbrParamsOffset + 1] = occlusionStrength;
-        ubufData[kUbufPbrParamsOffset + 2] = roughnessFactor;
+        ubufData[kUbufMaterialParamsOffset + 0] = normalScale;
+        ubufData[kUbufMaterialParamsOffset + 1] = occlusionStrength;
+        ubufData[kUbufMaterialParamsOffset + 2] = roughnessFactor;
 
         QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
         uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
@@ -238,8 +238,65 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         u->updateDynamicBuffer(m_sceneBackgroundUbuf.get(), 0, sizeof(bgData), bgData);
     }
 
-    cb->beginPass(renderTarget(), m_renderSettings.sceneBackgroundBottomColor, { 1.0f, 0 }, u);
-    cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+    // ── RS gradient pre-pass (pass 1) ─────────────────────────────────────────
+    // For any mesh rendered with Radiance Scaling, we first render the whole
+    // scene into a floating-point gradient texture (gx, gy, logZ, 1.0).
+    // Pass 2 (the normal fill pass) then samples the 3×3 neighbourhood from
+    // that texture — exactly as in the original two-pass MeshLab RS plugin.
+    bool anyRsMesh = false;
+    if (drawFillPass) {
+        for (int mi = 0; mi < m_doc->meshCount() && !anyRsMesh; ++mi) {
+            if (!meshVisible(mi))
+                continue;
+            const RenderSettings ms = renderSettingsForMesh(mi);
+            if (ms.showFill && ms.fillMaterial == FillMaterial::RadianceScaling)
+                anyRsMesh = true;
+        }
+    }
+    if (anyRsMesh) {
+        ensureRsGradResources(sz);
+        if (m_rsGradRt && m_rsGradPipeline && m_rsGradSrb) {
+            cb->beginPass(m_rsGradRt.get(), QColor(0, 0, 0, 0), { 1.0f, 0 }, nullptr);
+            cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+            cb->setGraphicsPipeline(m_rsGradPipeline.get());
+            for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+                if (!meshVisible(mi))
+                    continue;
+                const RenderSettings meshSettings = renderSettingsForMesh(mi);
+                if (!meshSettings.showFill
+                    || meshSettings.fillMaterial != FillMaterial::RadianceScaling)
+                    continue;
+                const auto fillVariant = static_cast<Document::FillGpuVariant>(
+                    fillGpuVariantIndexForSettings(meshSettings));
+                const Document::FillPassGpuView fillView =
+                    m_doc->fillPassGpuView(m_rhi, mi, fillVariant);
+                if (!fillView.valid)
+                    continue;
+                for (int bi = 0; bi < fillView.batchCount; ++bi) {
+                    const auto &batch = fillView.batches[bi];
+                    if (!batch.vertexBuffer
+                        || (batch.indexCount == 0 && batch.vertexCount == 0))
+                        continue;
+                    updateMainUbufForMesh(mi, meshSettings,
+                                         meshSettings.fillRsEnhancement, 1.0f, 1.0f);
+                    cb->setShaderResources(m_rsGradSrb.get());
+                    const QRhiCommandBuffer::VertexInput vb(batch.vertexBuffer, 0);
+                    if (batch.indexCount > 0 && batch.indexBuffer) {
+                        cb->setVertexInput(0, 1, &vb,
+                                           batch.indexBuffer, 0,
+                                           QRhiCommandBuffer::IndexUInt32);
+                        cb->drawIndexed(batch.indexCount);
+                    } else {
+                        cb->setVertexInput(0, 1, &vb);
+                        cb->draw(batch.vertexCount);
+                    }
+                }
+            }
+            cb->endPass();
+        }
+    }
+
+    cb->beginPass(renderTarget(), m_renderSettings.sceneBackgroundBottomColor, { 1.0f, 0 }, u);    cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
 
     if (m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
         cb->setGraphicsPipeline(m_sceneBackgroundPipeline.get());
@@ -301,17 +358,30 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                         meshSettings.fillPbrRoughnessTextureIndex,
                         fillView)
                     : nullptr;
+                // materialParams.x meaning differs per material:
+                //   RS  → enhancement (fillRsEnhancement, no per-batch scale)
+                //   PBR → normalScale (fillNormalMapScale * batch.normalScale)
+                const float materialParam0 =
+                    (meshSettings.fillMaterial == FillMaterial::RadianceScaling)
+                    ? meshSettings.fillRsEnhancement
+                    : meshSettings.fillNormalMapScale * batch.normalScale;
                 updateMainUbufForMesh(
                     mi,
                     meshSettings,
-                    meshSettings.fillNormalMapScale * batch.normalScale,
+                    materialParam0,
                     meshSettings.fillOcclusionStrength * batch.occlusionStrength,
                     meshSettings.fillRoughnessFactor * batch.roughnessFactor);
                 QRhiTexture *albedoTexture =
                     selectedAlbedoTexture ? selectedAlbedoTexture : batch.baseColorTexture;
+                // For RS pass 2, bind the gradient texture at slot 3 (normalTex position).
+                QRhiTexture *normalTextureForSrb =
+                    (meshSettings.fillMaterial == FillMaterial::RadianceScaling
+                     && m_rsGradTexture)
+                    ? m_rsGradTexture.get()
+                    : (selectedNormalTexture ? selectedNormalTexture : nullptr);
                 cb->setShaderResources(shaderResourcesForFillTextures(
                     albedoTexture,
-                    selectedNormalTexture ? selectedNormalTexture : batch.normalTexture,
+                    normalTextureForSrb,
                     selectedOcclusionTexture ? selectedOcclusionTexture : batch.occlusionTexture,
                     selectedRoughnessTexture ? selectedRoughnessTexture : batch.roughnessTexture));
                 const QRhiCommandBuffer::VertexInput vbufBinding(batch.vertexBuffer, 0);

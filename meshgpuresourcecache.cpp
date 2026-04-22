@@ -1687,3 +1687,65 @@ void MeshGpuResourceCache::clearAll()
         return;
     m_state->byRhi.clear();
 }
+
+std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> MeshGpuResourceCache::gpuMemoryStats() const
+{
+    std::map<std::uint64_t, GpuMeshMemoryStats> byMesh;
+
+    auto bufBytes = [](const std::unique_ptr<QRhiBuffer> &buf) -> qint64 {
+        return buf ? qint64(buf->size()) : 0LL;
+    };
+    auto texBytes = [](const std::unique_ptr<QRhiTexture> &tex) -> qint64 {
+        if (!tex)
+            return 0LL;
+        const QSize sz = tex->pixelSize();
+        return qint64(sz.width()) * sz.height() * 4; // RGBA8 = 4 bytes/pixel, 1 mip level
+    };
+
+    for (const auto &[rhi, byId] : m_state->byRhi) {
+        for (const auto &[meshId, meshGpu] : byId) {
+            auto &s = byMesh[meshId];
+            s.meshId = meshId;
+
+            for (const auto &fv : meshGpu.fill) {
+                if (!fv.valid)
+                    continue;
+                for (const auto &batch : fv.batches) {
+                    s.fillBufferBytes += bufBytes(batch.vbuf) + bufBytes(batch.ibuf);
+                    s.textureBytes += texBytes(batch.baseColorTexture)
+                                    + texBytes(batch.normalTexture)
+                                    + texBytes(batch.occlusionTexture)
+                                    + texBytes(batch.roughnessTexture);
+                }
+            }
+            if (meshGpu.wire.valid)
+                s.wireBufferBytes += bufBytes(meshGpu.wire.vbuf);
+            if (meshGpu.edges.valid)
+                s.edgeBufferBytes += bufBytes(meshGpu.edges.vbuf) + bufBytes(meshGpu.edges.fatVbuf);
+            for (const auto &pv : meshGpu.points) {
+                if (pv.valid)
+                    s.pointsBufferBytes += bufBytes(pv.vbuf);
+            }
+            if (meshGpu.bbox.valid)
+                s.bboxBufferBytes += bufBytes(meshGpu.bbox.vbuf);
+            if (meshGpu.selection.valid)
+                s.selectionBufferBytes += bufBytes(meshGpu.selection.selectedFacesVbuf)
+                                        + bufBytes(meshGpu.selection.selectedVerticesVbuf);
+            if (meshGpu.decoratorNormals.valid)
+                s.decoratorBufferBytes += bufBytes(meshGpu.decoratorNormals.vertexNormalsVbuf)
+                                        + bufBytes(meshGpu.decoratorNormals.faceNormalsVbuf);
+            if (meshGpu.decoratorBoundaries.valid)
+                s.decoratorBufferBytes +=
+                    bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesVbuf)
+                    + bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesFatVbuf)
+                    + bufBytes(meshGpu.decoratorBoundaries.textureSeamsVbuf)
+                    + bufBytes(meshGpu.decoratorBoundaries.textureSeamsFatVbuf);
+        }
+    }
+
+    std::vector<GpuMeshMemoryStats> result;
+    result.reserve(byMesh.size());
+    for (auto &[id, s] : byMesh)
+        result.push_back(s);
+    return result;
+}

@@ -134,6 +134,7 @@ private:
     void ensureRenderResources();
     void ensureCurrentMeshMaskResources(const QSize &pixelSize);
     void ensureDepthPickResources(const QSize &pixelSize);
+    void ensureRsGradResources(const QSize &pixelSize);
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
     void startCenterAnimation(const QVector3D &targetCenter);
     void cancelCenterAnimation();
@@ -248,8 +249,16 @@ private:
     std::unique_ptr<QRhiBuffer> m_decoratorFatUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_decoratorFatSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorFatPipeline;
-    std::unique_ptr<QRhiTexture> m_depthPickTexture;
-    std::unique_ptr<QRhiRenderBuffer> m_depthPickDepth;
+    // Radiance Scaling gradient buffer (pass 1 pre-pass)
+    std::unique_ptr<QRhiTexture> m_rsGradTexture;          // RGBA32F (gx,gy,logZ,1)
+    std::unique_ptr<QRhiRenderBuffer> m_rsGradDepth;
+    std::unique_ptr<QRhiTextureRenderTarget> m_rsGradRt;
+    std::unique_ptr<QRhiRenderPassDescriptor> m_rsGradRp;
+    std::unique_ptr<QRhiShaderResourceBindings> m_rsGradSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_rsGradPipeline;
+    QSize m_rsGradSize;
+
+    std::unique_ptr<QRhiTexture> m_depthPickTexture;    std::unique_ptr<QRhiRenderBuffer> m_depthPickDepth;
     std::unique_ptr<QRhiTextureRenderTarget> m_depthPickRt;
     std::unique_ptr<QRhiRenderPassDescriptor> m_depthPickRp;
     QSize m_depthPickSize;

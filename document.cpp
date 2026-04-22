@@ -1596,3 +1596,66 @@ bool Document::dispatchLogCallback(int pos, const char *message)
 
     return g_callbackDocument->handleLogCallback(pos, message);
 }
+
+// ---------------------------------------------------------------------------
+// Memory stats
+// ---------------------------------------------------------------------------
+
+namespace {
+
+qint64 vcgMeshCpuBytes(const VCGMesh &mesh)
+{
+    return qint64(mesh.vert.capacity()) * sizeof(VCGVertex)
+         + qint64(mesh.edge.capacity()) * sizeof(VCGEdge)
+         + qint64(mesh.face.capacity()) * sizeof(VCGFace);
+}
+
+qint64 meshEntryCpuBytes(const Document::MeshEntry &entry)
+{
+    return vcgMeshCpuBytes(entry.mesh);
+}
+
+} // namespace
+
+std::vector<Document::CpuMeshMemoryStats> Document::cpuMeshMemoryStats() const
+{
+    std::vector<CpuMeshMemoryStats> result;
+    result.reserve(m_meshes.size());
+    for (int i = 0; i < meshCount(); ++i) {
+        const MeshEntry &entry = mesh(i);
+        CpuMeshMemoryStats s;
+        s.meshId = entry.meshId;
+        s.meshIndex = i;
+        s.name = entry.name;
+        s.vertexCapacity = static_cast<int>(entry.mesh.vert.capacity());
+        s.edgeCapacity   = static_cast<int>(entry.mesh.edge.capacity());
+        s.faceCapacity   = static_cast<int>(entry.mesh.face.capacity());
+        s.vertexBytes    = qint64(entry.mesh.vert.capacity()) * sizeof(VCGVertex);
+        s.edgeBytes      = qint64(entry.mesh.edge.capacity()) * sizeof(VCGEdge);
+        s.faceBytes      = qint64(entry.mesh.face.capacity()) * sizeof(VCGFace);
+        result.push_back(s);
+    }
+    return result;
+}
+
+Document::UndoMemoryStats Document::undoMemoryStats() const
+{
+    UndoMemoryStats stats;
+    stats.steps.reserve(m_undoSteps.size());
+    for (const auto &step : m_undoSteps) {
+        UndoStepMemoryInfo info;
+        info.label = step.label;
+        for (const auto &m : step.before.meshes)
+            if (m) info.beforeBytes += meshEntryCpuBytes(*m);
+        for (const auto &m : step.after.meshes)
+            if (m) info.afterBytes += meshEntryCpuBytes(*m);
+        stats.totalBytes += info.totalBytes();
+        stats.steps.push_back(info);
+    }
+    return stats;
+}
+
+std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> Document::gpuMemoryStats() const
+{
+    return m_gpuCache->gpuMemoryStats();
+}

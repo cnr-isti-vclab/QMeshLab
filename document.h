@@ -70,6 +70,31 @@ public:
         QString applicabilityError;
     };
 
+    struct CpuMeshMemoryStats {
+        std::uint64_t meshId = 0;
+        int meshIndex = -1;
+        QString name;
+        int vertexCapacity = 0;
+        int edgeCapacity = 0;
+        int faceCapacity = 0;
+        qint64 vertexBytes = 0;
+        qint64 edgeBytes = 0;
+        qint64 faceBytes = 0;
+        qint64 totalBytes() const { return vertexBytes + edgeBytes + faceBytes; }
+    };
+
+    struct UndoStepMemoryInfo {
+        QString label;
+        qint64 beforeBytes = 0;
+        qint64 afterBytes = 0;
+        qint64 totalBytes() const { return beforeBytes + afterBytes; }
+    };
+
+    struct UndoMemoryStats {
+        std::vector<UndoStepMemoryInfo> steps;
+        qint64 totalBytes = 0;
+    };
+
     using FillGpuVariant = MeshGpuResourceCache::FillVariant;
     using PointGpuVariant = MeshGpuResourceCache::PointVariant;
     using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
@@ -171,6 +196,10 @@ public:
     DecoratorPassGpuView decoratorPassGpuView(QRhi *rhi, int meshIndex) const;
     void releaseRhiGpuResources(QRhi *rhi);
     void clearAllGpuResources();
+
+    std::vector<CpuMeshMemoryStats> cpuMeshMemoryStats() const;
+    UndoMemoryStats undoMemoryStats() const;
+    std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> gpuMemoryStats() const;
 
 signals:
     void meshAdded(int index);

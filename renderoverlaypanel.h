@@ -105,6 +105,9 @@ private:
     QDoubleSpinBox *m_fillNormalScaleSpin = nullptr;
     QDoubleSpinBox *m_fillOcclusionStrengthSpin = nullptr;
     QDoubleSpinBox *m_fillRoughnessFactorSpin = nullptr;
+    QDoubleSpinBox *m_fillRsEnhancementSpin = nullptr;
+    QComboBox *m_fillRsDisplayModeCombo = nullptr;
+    QCheckBox *m_fillRsInvertCheck = nullptr;
     QComboBox *m_fillMaterialCombo = nullptr;
     QComboBox *m_fillPbrAlbedoCombo = nullptr;
     QComboBox *m_fillPbrNormalCombo = nullptr;

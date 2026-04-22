@@ -49,6 +49,7 @@ private slots:
     void showAbout();
     void showImportPlugins();
     void showFilterPlugins();
+    void showMemoryInfo();
     void resetCamera();
     void copyCameraState();
     void pasteCameraState();

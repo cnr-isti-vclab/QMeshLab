@@ -33,7 +33,8 @@ enum class FillColorSource {
 
 enum class FillMaterial {
     Plain = 0,
-    Pbr
+    Pbr,
+    RadianceScaling
 };
 
 enum class FillPbrTextureSource {
@@ -89,6 +90,9 @@ struct RenderSettings {
     float fillNormalMapScale = 1.0f;
     float fillOcclusionStrength = 1.0f;
     float fillRoughnessFactor = 1.0f;
+    float fillRsEnhancement = 0.5f;
+    int   fillRsDisplayMode = 0;   // 0=Lambertian, 1=Colored Descriptor, 2=Grey Descriptor
+    bool  fillRsInvert = false;
     FillMaterial fillMaterial = FillMaterial::Plain;
     FillPbrTextureSource fillPbrAlbedoSource = FillPbrTextureSource::Texture;
     int fillPbrAlbedoTextureIndex = -1;
@@ -160,6 +164,9 @@ struct RenderSettings {
             && fillNormalMapScale == other.fillNormalMapScale
             && fillOcclusionStrength == other.fillOcclusionStrength
             && fillRoughnessFactor == other.fillRoughnessFactor
+            && fillRsEnhancement == other.fillRsEnhancement
+            && fillRsDisplayMode == other.fillRsDisplayMode
+            && fillRsInvert == other.fillRsInvert
             && fillMaterial == other.fillMaterial
             && fillPbrAlbedoSource == other.fillPbrAlbedoSource
             && fillPbrAlbedoTextureIndex == other.fillPbrAlbedoTextureIndex

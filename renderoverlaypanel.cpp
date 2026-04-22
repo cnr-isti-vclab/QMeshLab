@@ -553,6 +553,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillMaterialCombo = new QComboBox(fillPage);
     m_fillMaterialCombo->addItem(tr("Plain"), static_cast<int>(FillMaterial::Plain));
     m_fillMaterialCombo->addItem(tr("PBR"), static_cast<int>(FillMaterial::Pbr));
+    m_fillMaterialCombo->addItem(tr("Radiance Scaling"), static_cast<int>(FillMaterial::RadianceScaling));
     fillForm->addRow(tr("Material"), m_fillMaterialCombo);
     m_fillColorButton = makeColorButton(fillPage);
     m_fillColorSourceCombo = new QComboBox(fillPage);
@@ -643,8 +644,33 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillPbrLayout->addLayout(fillPbrForm);
     m_fillMaterialStack->addWidget(fillPbrPage);
 
-    if (m_fillMaterialStack)
-        m_fillMaterialStack->setCurrentIndex(m_settings.fillMaterial == FillMaterial::Pbr ? 1 : 0);
+    auto *fillRsPage = new QWidget(m_fillMaterialStack);
+    auto *fillRsLayout = new QVBoxLayout(fillRsPage);
+    fillRsLayout->setContentsMargins(0, 0, 0, 0);
+    fillRsLayout->setSpacing(2);
+    auto *fillRsForm = new QFormLayout();
+    fillRsForm->setContentsMargins(0, 0, 0, 0);
+    fillRsForm->setHorizontalSpacing(6);
+    fillRsForm->setVerticalSpacing(2);
+    fillRsForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_fillRsEnhancementSpin = new QDoubleSpinBox(fillPage);
+    m_fillRsEnhancementSpin->setRange(0.0, 1.0);
+    m_fillRsEnhancementSpin->setSingleStep(0.05);
+    m_fillRsEnhancementSpin->setDecimals(2);
+    m_fillRsEnhancementSpin->setValue(m_settings.fillRsEnhancement);
+    fillRsForm->addRow(tr("Enhancement"), m_fillRsEnhancementSpin);
+    m_fillRsDisplayModeCombo = new QComboBox(fillPage);
+    m_fillRsDisplayModeCombo->addItem(tr("Lambertian RS"), 0);
+    m_fillRsDisplayModeCombo->addItem(tr("Colored Descriptor"), 1);
+    m_fillRsDisplayModeCombo->addItem(tr("Grey Descriptor"), 2);
+    fillRsForm->addRow(tr("Display"), m_fillRsDisplayModeCombo);
+    m_fillRsInvertCheck = new QCheckBox(fillPage);
+    m_fillRsInvertCheck->setChecked(m_settings.fillRsInvert);
+    fillRsForm->addRow(tr("Invert"), makeCenteredFieldContainer(m_fillRsInvertCheck, fillPage));
+    applyUniformFormRowHeights(fillRsForm);
+    fillRsLayout->addLayout(fillRsForm);
+    m_fillMaterialStack->addWidget(fillRsPage);
+
     applyUniformFormRowHeights(fillForm);
     fillLayout->addLayout(fillForm);
     fillLayout->addWidget(m_fillMaterialStack);
@@ -941,6 +967,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
     bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
     bindFloatSpin(m_fillNormalScaleSpin, &RenderSettings::fillNormalMapScale);
+    bindFloatSpin(m_fillRsEnhancementSpin, &RenderSettings::fillRsEnhancement);
+    bindEnumCombo(m_fillRsDisplayModeCombo, &RenderSettings::fillRsDisplayMode);
+    bindCheckBox(m_fillRsInvertCheck, &RenderSettings::fillRsInvert);
     bindFloatSpin(m_fillOcclusionStrengthSpin, &RenderSettings::fillOcclusionStrength);
     bindFloatSpin(m_fillRoughnessFactorSpin, &RenderSettings::fillRoughnessFactor);
     connect(
@@ -1318,6 +1347,23 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_fillNormalScaleSpin);
         m_fillNormalScaleSpin->setValue(m_settings.fillNormalMapScale);
     }
+    if (m_fillRsEnhancementSpin) {
+        QSignalBlocker blocker(m_fillRsEnhancementSpin);
+        m_fillRsEnhancementSpin->setValue(m_settings.fillRsEnhancement);
+    }
+    if (m_fillRsDisplayModeCombo) {
+        QSignalBlocker blocker(m_fillRsDisplayModeCombo);
+        for (int i = 0; i < m_fillRsDisplayModeCombo->count(); ++i) {
+            if (m_fillRsDisplayModeCombo->itemData(i).toInt() == m_settings.fillRsDisplayMode) {
+                m_fillRsDisplayModeCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
+    if (m_fillRsInvertCheck) {
+        QSignalBlocker blocker(m_fillRsInvertCheck);
+        m_fillRsInvertCheck->setChecked(m_settings.fillRsInvert);
+    }
     if (m_fillOcclusionStrengthSpin) {
         QSignalBlocker blocker(m_fillOcclusionStrengthSpin);
         m_fillOcclusionStrengthSpin->setValue(m_settings.fillOcclusionStrength);
@@ -1664,8 +1710,20 @@ void RenderOverlayPanel::syncFillPbrSourceCombo(
 void RenderOverlayPanel::syncFillPbrUiState()
 {
     const bool usePbr = (m_settings.fillMaterial == FillMaterial::Pbr);
-    if (m_fillMaterialStack)
-        m_fillMaterialStack->setCurrentIndex(usePbr ? 1 : 0);
+    const bool useRs  = (m_settings.fillMaterial == FillMaterial::RadianceScaling);
+    if (m_fillMaterialStack) {
+        int stackIdx = 0;
+        if (usePbr)  stackIdx = 1;
+        if (useRs)   stackIdx = 2;
+        m_fillMaterialStack->setCurrentIndex(stackIdx);
+    }
+
+    if (m_fillRsEnhancementSpin)
+        m_fillRsEnhancementSpin->setEnabled(useRs);
+    if (m_fillRsDisplayModeCombo)
+        m_fillRsDisplayModeCombo->setEnabled(useRs);
+    if (m_fillRsInvertCheck)
+        m_fillRsInvertCheck->setEnabled(useRs);
 
     const bool constantAlbedo = (m_settings.fillPbrAlbedoSource == FillPbrTextureSource::Constant);
     if (m_fillPbrAlbedoCombo)

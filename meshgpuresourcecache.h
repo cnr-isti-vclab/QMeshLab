@@ -140,6 +140,23 @@ public:
         }
     };
 
+    struct GpuMeshMemoryStats {
+        std::uint64_t meshId = 0;
+        qint64 fillBufferBytes = 0;
+        qint64 textureBytes = 0;
+        qint64 wireBufferBytes = 0;
+        qint64 edgeBufferBytes = 0;
+        qint64 pointsBufferBytes = 0;
+        qint64 bboxBufferBytes = 0;
+        qint64 selectionBufferBytes = 0;
+        qint64 decoratorBufferBytes = 0;
+        qint64 totalBytes() const
+        {
+            return fillBufferBytes + textureBytes + wireBufferBytes + edgeBufferBytes
+                + pointsBufferBytes + bboxBufferBytes + selectionBufferBytes + decoratorBufferBytes;
+        }
+    };
+
     MeshGpuResourceCache();
     ~MeshGpuResourceCache();
 
@@ -169,6 +186,7 @@ public:
     void purgeMesh(std::uint64_t meshId);
     void releaseRhiResources(QRhi *rhi);
     void clearAll();
+    std::vector<GpuMeshMemoryStats> gpuMemoryStats() const;
 
 private:
     struct CacheState;

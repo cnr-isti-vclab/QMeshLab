@@ -611,28 +611,48 @@ QRhiTexture *RenderWidget::resolveSelectedPbrTexture(
     return nullptr;
 }
 
+// Returns the vertex and fragment shader resource paths for a given material/shading combination.
+// Each fill shader pair must share the same SRB layout (5 texture samplers + shared UBO).
+static std::pair<QString, QString> fillShaderPaths(FillMaterial material, FillShading shading)
+{
+    switch (material) {
+    case FillMaterial::RadianceScaling:
+        // RS always uses smooth per-vertex normals; the vert shader is shared with plain/smooth.
+        return { QStringLiteral(":/shaders/fill_smooth.vert.qsb"),
+                 QStringLiteral(":/shaders/fill_radscale.frag.qsb") };
+    default:
+        break;
+    }
+    // Plain and PBR are differentiated purely by UBO data; they share the same shader pairs.
+    if (shading == FillShading::Flat)
+        return { QStringLiteral(":/shaders/fill_flat.vert.qsb"),
+                 QStringLiteral(":/shaders/fill_flat.frag.qsb") };
+    return { QStringLiteral(":/shaders/fill_smooth.vert.qsb"),
+             QStringLiteral(":/shaders/fill_smooth.frag.qsb") };
+}
+
 QRhiGraphicsPipeline *RenderWidget::fillPipelineForSettings(const RenderSettings &settings)
 {
     if (!m_rhi || !m_srb || !renderTarget())
         return nullptr;
-    const int key = int(settings.fillShading) * 2 + (settings.fillBackfaceCulling ? 1 : 0);
+
+    // RadianceScaling always uses the smooth vertex layout (per-vertex normals required).
+    // Normalise shading so RS+Flat and RS+Smooth hit the same cache entry.
+    const FillShading effectiveShading =
+        (settings.fillMaterial == FillMaterial::RadianceScaling)
+            ? FillShading::Smooth
+            : settings.fillShading;
+
+    // Key encodes: material * 4 + shading * 2 + backfaceCulling
+    const int key = int(settings.fillMaterial) * 4
+                  + int(effectiveShading) * 2
+                  + (settings.fillBackfaceCulling ? 1 : 0);
     auto it = m_fillPipelinesByKey.find(key);
     if (it != m_fillPipelinesByKey.end())
         return it->second.get();
 
     auto pipeline = std::unique_ptr<QRhiGraphicsPipeline>(m_rhi->newGraphicsPipeline());
-    QString vsPath;
-    QString fsPath;
-    switch (settings.fillShading) {
-    case FillShading::Smooth:
-        vsPath = QStringLiteral(":/shaders/fill_smooth.vert.qsb");
-        fsPath = QStringLiteral(":/shaders/fill_smooth.frag.qsb");
-        break;
-    case FillShading::Flat:
-        vsPath = QStringLiteral(":/shaders/fill_flat.vert.qsb");
-        fsPath = QStringLiteral(":/shaders/fill_flat.frag.qsb");
-        break;
-    }
+    const auto [vsPath, fsPath] = fillShaderPaths(settings.fillMaterial, effectiveShading);
     QShader vs = loadShader(vsPath);
     QShader fs = loadShader(fsPath);
     if (!vs.isValid() || !fs.isValid())
@@ -649,9 +669,11 @@ QRhiGraphicsPipeline *RenderWidget::fillPipelineForSettings(const RenderSettings
             ? QRhiGraphicsPipeline::Back
             : QRhiGraphicsPipeline::None);
 
+    // Flat layout has no per-vertex normal attribute; RS always uses the smooth layout.
+    const bool useFlatLayout = (effectiveShading == FillShading::Flat);
     QRhiVertexInputLayout inputLayout;
     inputLayout.setBindings({ { kFillVertexStrideFloats * sizeof(float) } });
-    if (settings.fillShading == FillShading::Flat) {
+    if (useFlatLayout) {
         inputLayout.setAttributes({
             { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
             { 0, 1, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) },

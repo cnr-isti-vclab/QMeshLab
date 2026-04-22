@@ -17,8 +17,8 @@ layout(std140, binding = 0) uniform buf {
     vec4 fillColor;
     vec4 lightingParams;
     vec4 edgeColor;
-    vec4 pbrMapUsage;
-    vec4 pbrParams;
+    vec4 materialFlags;  // x=normalMode, y=aoMode, z=roughnessMode, w=albedoMode (PBR only)
+    vec4 materialParams; // x=param0 (normalScale/enhancement), y=occlusionStrength, z=roughnessFactor, w=material-id
 };
 
 layout(location = 0) out vec3 v_normal;

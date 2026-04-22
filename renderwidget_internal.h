@@ -33,8 +33,8 @@ inline constexpr int kUbufWireParamsOffset = 240 / sizeof(float);
 inline constexpr int kUbufFillColorOffset = 256 / sizeof(float);
 inline constexpr int kUbufLightingParamsOffset = 272 / sizeof(float);
 inline constexpr int kUbufEdgeColorOffset = 288 / sizeof(float);
-inline constexpr int kUbufPbrMapUsageOffset = 304 / sizeof(float);
-inline constexpr int kUbufPbrParamsOffset = 320 / sizeof(float);
+inline constexpr int kUbufMaterialFlagsOffset = 304 / sizeof(float);  // was kUbufPbrMapUsageOffset
+inline constexpr int kUbufMaterialParamsOffset = 320 / sizeof(float); // was kUbufPbrParamsOffset
 inline constexpr int kFillVertexStrideFloats = 13;
 inline constexpr int kPointsVertexStrideFloats = 11;
 inline constexpr int kMaskMorphUbufSize = 16;
@@ -72,6 +72,9 @@ struct MainStyleUbufKey {
     float fillNormalMapScale = 1.0f;
     float fillOcclusionStrength = 1.0f;
     float fillRoughnessFactor = 1.0f;
+    float fillRsEnhancement = 0.5f;
+    int   fillRsDisplayMode = 0;
+    bool  fillRsInvert = false;
     QColor edgeColor;
     float edgeSize = 0.0f;
 
@@ -95,6 +98,9 @@ struct MainStyleUbufKey {
             && fillNormalMapScale == other.fillNormalMapScale
             && fillOcclusionStrength == other.fillOcclusionStrength
             && fillRoughnessFactor == other.fillRoughnessFactor
+            && fillRsEnhancement == other.fillRsEnhancement
+            && fillRsDisplayMode == other.fillRsDisplayMode
+            && fillRsInvert == other.fillRsInvert
             && edgeColor == other.edgeColor
             && edgeSize == other.edgeSize;
     }
@@ -123,6 +129,9 @@ inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
     key.fillNormalMapScale = settings.fillNormalMapScale;
     key.fillOcclusionStrength = settings.fillOcclusionStrength;
     key.fillRoughnessFactor = settings.fillRoughnessFactor;
+    key.fillRsEnhancement = settings.fillRsEnhancement;
+    key.fillRsDisplayMode = settings.fillRsDisplayMode;
+    key.fillRsInvert = settings.fillRsInvert;
     key.edgeColor = settings.edgeColor;
     key.edgeSize = settings.edgeSize;
     return key;
@@ -172,20 +181,31 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufEdgeColorOffset + 3] = settings.edgeColor.alphaF();
 
     const bool enablePbr = settings.fillMaterial == FillMaterial::Pbr;
+    const bool enableRs  = settings.fillMaterial == FillMaterial::RadianceScaling;
     auto encodePbrSource = [enablePbr](FillPbrTextureSource source) -> float {
         if (!enablePbr)
             return 0.0f;
         return static_cast<float>(static_cast<int>(source));
     };
-    ubufData[kUbufPbrMapUsageOffset + 0] = encodePbrSource(settings.fillPbrNormalSource);
-    ubufData[kUbufPbrMapUsageOffset + 1] = encodePbrSource(settings.fillPbrOcclusionSource);
-    ubufData[kUbufPbrMapUsageOffset + 2] = encodePbrSource(settings.fillPbrRoughnessSource);
-    ubufData[kUbufPbrMapUsageOffset + 3] = encodePbrSource(settings.fillPbrAlbedoSource);
+    // materialFlags: PBR → source modes (x=normal, y=ao, z=roughness, w=albedo)
+    //                RS  → invert flag (x) + display mode (y)
+    if (enableRs) {
+        ubufData[kUbufMaterialFlagsOffset + 0] = settings.fillRsInvert ? 1.0f : 0.0f;
+        ubufData[kUbufMaterialFlagsOffset + 1] = static_cast<float>(settings.fillRsDisplayMode);
+        ubufData[kUbufMaterialFlagsOffset + 2] = 0.0f;
+        ubufData[kUbufMaterialFlagsOffset + 3] = 0.0f;
+    } else {
+        ubufData[kUbufMaterialFlagsOffset + 0] = encodePbrSource(settings.fillPbrNormalSource);
+        ubufData[kUbufMaterialFlagsOffset + 1] = encodePbrSource(settings.fillPbrOcclusionSource);
+        ubufData[kUbufMaterialFlagsOffset + 2] = encodePbrSource(settings.fillPbrRoughnessSource);
+        ubufData[kUbufMaterialFlagsOffset + 3] = encodePbrSource(settings.fillPbrAlbedoSource);
+    }
 
-    ubufData[kUbufPbrParamsOffset + 0] = settings.fillNormalMapScale;
-    ubufData[kUbufPbrParamsOffset + 1] = std::clamp(settings.fillOcclusionStrength, 0.0f, 1.0f);
-    ubufData[kUbufPbrParamsOffset + 2] = std::max(settings.fillRoughnessFactor, 0.0f);
-    ubufData[kUbufPbrParamsOffset + 3] = 0.0f;
+    // materialParams: x=param0 (RS enhancement OR PBR normal scale), y=aoStrength, z=roughness, w=material-id
+    ubufData[kUbufMaterialParamsOffset + 0] = enableRs ? settings.fillRsEnhancement : settings.fillNormalMapScale;
+    ubufData[kUbufMaterialParamsOffset + 1] = std::clamp(settings.fillOcclusionStrength, 0.0f, 1.0f);
+    ubufData[kUbufMaterialParamsOffset + 2] = std::max(settings.fillRoughnessFactor, 0.0f);
+    ubufData[kUbufMaterialParamsOffset + 3] = enablePbr ? 1.0f : 0.0f;
 }
 
 inline QVector3D toVec3(const VCGMesh::CoordType &p)

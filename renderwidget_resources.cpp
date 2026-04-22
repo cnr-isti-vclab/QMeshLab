@@ -384,6 +384,128 @@ void RenderWidget::ensureDepthPickResources(const QSize &pixelSize)
     m_depthPickSize = pixelSize;
 }
 
+void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
+{
+    if (!m_rhi || !m_ubuf || pixelSize.isEmpty())
+        return;
+
+    // Already up to date?
+    if (m_rsGradRt && m_rsGradSize == pixelSize)
+        return;
+
+    // Tear down everything that depends on the render target size.
+    m_rsGradPipeline.reset();
+    m_rsGradSrb.reset();
+    m_rsGradRp.reset();
+    m_rsGradRt.reset();
+    m_rsGradDepth.reset();
+    m_rsGradTexture.reset();
+    m_rsGradSize = QSize();
+
+    // RGBA32F gradient texture: stores (gx, gy, logZ, 1.0) per fragment.
+    m_rsGradTexture.reset(
+        m_rhi->newTexture(
+            QRhiTexture::RGBA32F,
+            pixelSize,
+            1,
+            QRhiTexture::RenderTarget));
+    if (!m_rsGradTexture || !m_rsGradTexture->create()) {
+        m_rsGradTexture.reset();
+        return;
+    }
+
+    m_rsGradDepth.reset(m_rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, pixelSize, 1));
+    if (!m_rsGradDepth || !m_rsGradDepth->create()) {
+        m_rsGradDepth.reset();
+        m_rsGradTexture.reset();
+        return;
+    }
+
+    QRhiTextureRenderTargetDescription rtDesc(QRhiColorAttachment(m_rsGradTexture.get()));
+    rtDesc.setDepthStencilBuffer(m_rsGradDepth.get());
+    m_rsGradRt.reset(m_rhi->newTextureRenderTarget(rtDesc));
+    if (!m_rsGradRt) {
+        m_rsGradDepth.reset();
+        m_rsGradTexture.reset();
+        return;
+    }
+
+    m_rsGradRp.reset(m_rsGradRt->newCompatibleRenderPassDescriptor());
+    m_rsGradRt->setRenderPassDescriptor(m_rsGradRp.get());
+    if (!m_rsGradRt->create()) {
+        m_rsGradRp.reset();
+        m_rsGradRt.reset();
+        m_rsGradDepth.reset();
+        m_rsGradTexture.reset();
+        return;
+    }
+
+    // Minimal SRB: only the shared UBO at binding 0.
+    m_rsGradSrb.reset(m_rhi->newShaderResourceBindings());
+    m_rsGradSrb->setBindings({
+        QRhiShaderResourceBinding::uniformBuffer(
+            0,
+            QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+            m_ubuf.get())
+    });
+    if (!m_rsGradSrb->create()) {
+        m_rsGradSrb.reset();
+        m_rsGradRp.reset();
+        m_rsGradRt.reset();
+        m_rsGradDepth.reset();
+        m_rsGradTexture.reset();
+        return;
+    }
+
+    // Gradient buffer pipeline: fill_smooth.vert + fill_radscale_buf.frag.
+    // Uses smooth vertex layout (position + normal), no backface culling
+    // (depth test handles front-surface selection), depth test + write enabled.
+    m_rsGradPipeline.reset(m_rhi->newGraphicsPipeline());
+    QShader vs = loadShader(QStringLiteral(":/shaders/fill_smooth.vert.qsb"));
+    QShader fs = loadShader(QStringLiteral(":/shaders/fill_radscale_buf.frag.qsb"));
+    if (!vs.isValid() || !fs.isValid()) {
+        qWarning("Failed to load RS gradient buffer shaders");
+        m_rsGradPipeline.reset();
+        m_rsGradSrb.reset();
+        m_rsGradRp.reset();
+        m_rsGradRt.reset();
+        m_rsGradDepth.reset();
+        m_rsGradTexture.reset();
+        return;
+    }
+    m_rsGradPipeline->setShaderStages({
+        { QRhiShaderStage::Vertex, vs },
+        { QRhiShaderStage::Fragment, fs }
+    });
+    m_rsGradPipeline->setDepthTest(true);
+    m_rsGradPipeline->setDepthWrite(true);
+    m_rsGradPipeline->setCullMode(QRhiGraphicsPipeline::None);
+
+    QRhiVertexInputLayout inputLayout;
+    inputLayout.setBindings({ { kFillVertexStrideFloats * sizeof(float) } });
+    inputLayout.setAttributes({
+        { 0, 0, QRhiVertexInputAttribute::Float3, 0 },                   // position
+        { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },   // normal
+        { 0, 2, QRhiVertexInputAttribute::Float4, 6 * sizeof(float) },   // meshColor
+        { 0, 3, QRhiVertexInputAttribute::Float3, 10 * sizeof(float) }   // texInfo
+    });
+    m_rsGradPipeline->setVertexInputLayout(inputLayout);
+    m_rsGradPipeline->setShaderResourceBindings(m_rsGradSrb.get());
+    m_rsGradPipeline->setRenderPassDescriptor(m_rsGradRp.get());
+    if (!m_rsGradPipeline->create()) {
+        qWarning("Failed to create RS gradient pipeline");
+        m_rsGradPipeline.reset();
+        m_rsGradSrb.reset();
+        m_rsGradRp.reset();
+        m_rsGradRt.reset();
+        m_rsGradDepth.reset();
+        m_rsGradTexture.reset();
+        return;
+    }
+
+    m_rsGradSize = pixelSize;
+}
+
 void RenderWidget::ensureRenderResources()
 {
     if (m_rhi != rhi()) {
@@ -465,6 +587,13 @@ void RenderWidget::ensureRenderResources()
         m_trackballGizmoSrb.reset();
         m_trackballGizmoPipeline.reset();
         m_trackballGizmoVertexCount = 0;
+        m_rsGradPipeline.reset();
+        m_rsGradSrb.reset();
+        m_rsGradRp.reset();
+        m_rsGradRt.reset();
+        m_rsGradDepth.reset();
+        m_rsGradTexture.reset();
+        m_rsGradSize = QSize();
         m_srb.reset();
         m_ubuf.reset();
         m_sceneBackgroundUbuf.reset();

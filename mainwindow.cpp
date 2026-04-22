@@ -43,6 +43,7 @@
 #include <QStringList>
 #include <QTableWidget>
 #include <QTimer>
+#include <QTreeWidget>
 #include <QToolButton>
 #include <QVector3D>
 #include <QVBoxLayout>
@@ -569,7 +570,11 @@ MainWindow::MainWindow(QWidget *parent)
     viewMenu->addAction(tr("Split Horizontally"), this, &MainWindow::splitViewHorizontally);
     viewMenu->addAction(tr("Split Vertically"), this, &MainWindow::splitViewVertically);
     viewMenu->addSeparator();
-    viewMenu->addAction(tr("Reset Camera"), this, &MainWindow::resetCamera);
+    viewMenu->addAction(
+        tr("Reset Camera"),
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H),
+        this,
+        &MainWindow::resetCamera);
     viewMenu->addSeparator();
     viewMenu->addAction(
         tr("Copy Camera/Trackball JSON"),
@@ -586,6 +591,7 @@ MainWindow::MainWindow(QWidget *parent)
     helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
     helpMenu->addAction(tr("I/O &Plugins..."), this, &MainWindow::showImportPlugins);
     helpMenu->addAction(tr("&Filter Plugins..."), this, &MainWindow::showFilterPlugins);
+    helpMenu->addAction(tr("&Memory Info..."), this, &MainWindow::showMemoryInfo);
 
     QSettings settings;
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
@@ -1366,6 +1372,170 @@ void MainWindow::openRecentMesh()
         return;
 
     loadMeshFromPath(filePath);
+}
+
+void MainWindow::showMemoryInfo()
+{
+    auto formatBytes = [](qint64 bytes) -> QString {
+        if (bytes < 0)
+            return QStringLiteral("?");
+        if (bytes < 1024LL)
+            return QStringLiteral("%1 B").arg(bytes);
+        if (bytes < 1024LL * 1024)
+            return QStringLiteral("%1 KB").arg(bytes / 1024.0, 0, 'f', 1);
+        if (bytes < 1024LL * 1024 * 1024)
+            return QStringLiteral("%1 MB").arg(bytes / (1024.0 * 1024.0), 0, 'f', 2);
+        return QStringLiteral("%1 GB").arg(bytes / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
+    };
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Memory Info"));
+    dialog.resize(640, 520);
+
+    auto *layout = new QVBoxLayout(&dialog);
+
+    auto *tree = new QTreeWidget(&dialog);
+    tree->setColumnCount(2);
+    tree->setHeaderLabels({tr("Component"), tr("Size")});
+    tree->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    tree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    tree->setAlternatingRowColors(true);
+    tree->setUniformRowHeights(true);
+
+    auto makeCategory = [&](const QString &title, qint64 total) -> QTreeWidgetItem * {
+        auto *item = new QTreeWidgetItem(tree);
+        item->setText(0, title);
+        item->setText(1, formatBytes(total));
+        QFont f = item->font(0);
+        f.setBold(true);
+        item->setFont(0, f);
+        item->setFont(1, f);
+        item->setExpanded(true);
+        return item;
+    };
+
+    auto addRow = [](QTreeWidgetItem *parent,
+                     const QString &name,
+                     qint64 bytes,
+                     const QString &detail = {}) {
+        auto *item = new QTreeWidgetItem(parent);
+        item->setText(0, detail.isEmpty() ? name
+                                          : QStringLiteral("%1  (%2)").arg(name, detail));
+        auto formatB = [](qint64 b) -> QString {
+            if (b < 0) return QStringLiteral("?");
+            if (b < 1024LL) return QStringLiteral("%1 B").arg(b);
+            if (b < 1024LL * 1024) return QStringLiteral("%1 KB").arg(b / 1024.0, 0, 'f', 1);
+            if (b < 1024LL * 1024 * 1024) return QStringLiteral("%1 MB").arg(b / (1024.0 * 1024.0), 0, 'f', 2);
+            return QStringLiteral("%1 GB").arg(b / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
+        };
+        item->setText(1, formatB(bytes));
+    };
+
+    qint64 grandTotal = 0;
+
+    // --- CPU mesh data ---
+    const auto cpuStats = m_doc->cpuMeshMemoryStats();
+    qint64 cpuMeshTotal = 0;
+    for (const auto &s : cpuStats)
+        cpuMeshTotal += s.totalBytes();
+    grandTotal += cpuMeshTotal;
+
+    auto *cpuSection = makeCategory(
+        tr("CPU Mesh Data  (%1 mesh%2)")
+            .arg(cpuStats.size())
+            .arg(cpuStats.size() == 1 ? "" : "es"),
+        cpuMeshTotal);
+
+    for (const auto &s : cpuStats) {
+        auto *meshItem = new QTreeWidgetItem(cpuSection);
+        meshItem->setText(0, s.name);
+        meshItem->setText(1, formatBytes(s.totalBytes()));
+        meshItem->setExpanded(true);
+        addRow(meshItem, tr("Vertices"), s.vertexBytes,
+               tr("%1 × %2 B").arg(s.vertexCapacity).arg(sizeof(VCGVertex)));
+        if (s.edgeCapacity > 0)
+            addRow(meshItem, tr("Edges"), s.edgeBytes,
+                   tr("%1 × %2 B").arg(s.edgeCapacity).arg(sizeof(VCGEdge)));
+        if (s.faceCapacity > 0)
+            addRow(meshItem, tr("Faces"), s.faceBytes,
+                   tr("%1 × %2 B").arg(s.faceCapacity).arg(sizeof(VCGFace)));
+    }
+
+    // --- CPU undo history ---
+    const auto undoStats = m_doc->undoMemoryStats();
+    grandTotal += undoStats.totalBytes;
+
+    auto *undoSection = makeCategory(
+        tr("CPU Undo History  (%1 step%2)")
+            .arg(undoStats.steps.size())
+            .arg(undoStats.steps.size() == 1 ? "" : "s"),
+        undoStats.totalBytes);
+
+    for (const auto &step : undoStats.steps) {
+        auto *stepItem = new QTreeWidgetItem(undoSection);
+        stepItem->setText(0, step.label);
+        stepItem->setText(1, formatBytes(step.totalBytes()));
+        addRow(stepItem, tr("Before state"), step.beforeBytes);
+        addRow(stepItem, tr("After state"),  step.afterBytes);
+    }
+
+    // --- GPU buffers & textures ---
+    const auto gpuStats = m_doc->gpuMemoryStats();
+    qint64 gpuTotal = 0;
+    for (const auto &s : gpuStats)
+        gpuTotal += s.totalBytes();
+    grandTotal += gpuTotal;
+
+    auto *gpuSection = makeCategory(
+        tr("GPU Buffers & Textures  (%1 mesh%2 in cache)")
+            .arg(gpuStats.size())
+            .arg(gpuStats.size() == 1 ? "" : "es"),
+        gpuTotal);
+
+    for (const auto &s : gpuStats) {
+        QString meshName;
+        for (int i = 0; i < m_doc->meshCount(); ++i) {
+            if (m_doc->mesh(i).meshId == s.meshId) {
+                meshName = m_doc->mesh(i).name;
+                break;
+            }
+        }
+        if (meshName.isEmpty())
+            meshName = tr("Mesh [id %1]").arg(s.meshId);
+
+        auto *meshItem = new QTreeWidgetItem(gpuSection);
+        meshItem->setText(0, meshName);
+        meshItem->setText(1, formatBytes(s.totalBytes()));
+        meshItem->setExpanded(true);
+        if (s.fillBufferBytes > 0)
+            addRow(meshItem, tr("Fill vertex buffers"), s.fillBufferBytes);
+        if (s.textureBytes > 0)
+            addRow(meshItem, tr("Textures"),            s.textureBytes);
+        if (s.wireBufferBytes > 0)
+            addRow(meshItem, tr("Wire buffer"),         s.wireBufferBytes);
+        if (s.edgeBufferBytes > 0)
+            addRow(meshItem, tr("Edge buffers"),        s.edgeBufferBytes);
+        if (s.pointsBufferBytes > 0)
+            addRow(meshItem, tr("Points buffers"),      s.pointsBufferBytes);
+        if (s.bboxBufferBytes > 0)
+            addRow(meshItem, tr("BBox buffer"),         s.bboxBufferBytes);
+        if (s.selectionBufferBytes > 0)
+            addRow(meshItem, tr("Selection buffers"),   s.selectionBufferBytes);
+        if (s.decoratorBufferBytes > 0)
+            addRow(meshItem, tr("Decorator buffers"),   s.decoratorBufferBytes);
+    }
+
+    // --- Grand total ---
+    makeCategory(tr("TOTAL"), grandTotal);
+
+    tree->resizeColumnToContents(1);
+    layout->addWidget(tree);
+
+    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::accept);
+    layout->addWidget(buttonBox);
+
+    dialog.exec();
 }
 
 void MainWindow::showAbout()

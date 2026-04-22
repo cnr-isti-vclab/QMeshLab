@@ -877,9 +877,9 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         float ubufData[kUbufFloatCount];
         memcpy(ubufData, baseUbufData, sizeof(ubufData));
         writeMainStyleToUbuf(ubufData, styleSettings, sz, false);
-        ubufData[kUbufPbrParamsOffset + 0] = normalScale;
-        ubufData[kUbufPbrParamsOffset + 1] = occlusionStrength;
-        ubufData[kUbufPbrParamsOffset + 2] = roughnessFactor;
+        ubufData[kUbufMaterialParamsOffset + 0] = normalScale;
+        ubufData[kUbufMaterialParamsOffset + 1] = occlusionStrength;
+        ubufData[kUbufMaterialParamsOffset + 2] = roughnessFactor;
 
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
