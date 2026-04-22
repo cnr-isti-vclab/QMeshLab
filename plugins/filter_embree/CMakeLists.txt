@@ -30,6 +30,14 @@ if (NOT _embree_target AND (NOT EMBREE_INCLUDE_DIR OR NOT EMBREE_LIBRARY))
         "Add embree to vcpkg.json dependencies and configure with the vcpkg toolchain.")
 endif()
 
+find_package(OpenMP QUIET COMPONENTS CXX)
+if (NOT OpenMP_CXX_FOUND)
+    message(STATUS
+        "Skipping filter_embree - OpenMP CXX was not found, "
+        "and vcglib's EmbreeAdaptor requires omp.h")
+    return()
+endif()
+
 add_library(QMeshLabPluginFilterEmbree STATIC
     embreefilterplugin.h
     embreefilterplugin.cpp
@@ -57,8 +65,4 @@ else()
     target_link_libraries(QMeshLabPluginFilterEmbree PUBLIC ${EMBREE_LIBRARY})
 endif()
 
-find_package(OpenMP QUIET COMPONENTS CXX)
-if (OpenMP_CXX_FOUND)
-    target_link_libraries(QMeshLabPluginFilterEmbree PUBLIC OpenMP::OpenMP_CXX)
-endif()
-
+target_link_libraries(QMeshLabPluginFilterEmbree PUBLIC OpenMP::OpenMP_CXX)
