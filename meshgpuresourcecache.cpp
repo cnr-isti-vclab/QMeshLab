@@ -80,6 +80,10 @@ struct MeshGpuResourceCache::CacheState
         std::unique_ptr<QRhiTexture> normalTexture;
         std::unique_ptr<QRhiTexture> occlusionTexture;
         std::unique_ptr<QRhiTexture> roughnessTexture;
+        QString baseColorTexturePath;
+        QString normalTexturePath;
+        QString occlusionTexturePath;
+        QString roughnessTexturePath;
         float normalScale = 1.0f;
         float occlusionStrength = 1.0f;
         float roughnessFactor = 1.0f;
@@ -582,22 +586,31 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         auto it = preparedGroups.find(groupEntry.first);
                         if (it != preparedGroups.end() && it->second.ready) {
                             PreparedGroup &group = it->second;
+                            batch.baseColorTexturePath = group.basePath;
                             if (group.base.ready) {
                                 batch.baseColorTexture = std::move(group.base.texture);
                                 baseTextureUploadImage = std::move(group.base.image);
                             }
                             if (group.normal.ready) {
                                 batch.normalTexture = std::move(group.normal.texture);
+                                batch.normalTexturePath = group.normalPath;
                                 normalTextureUploadImage = std::move(group.normal.image);
                             }
                             if (group.occlusion.ready) {
                                 batch.occlusionTexture = std::move(group.occlusion.texture);
+                                batch.occlusionTexturePath = group.occlusionPath;
                                 occlusionTextureUploadImage = std::move(group.occlusion.image);
                             }
                             if (group.roughness.ready) {
                                 batch.roughnessTexture = std::move(group.roughness.texture);
+                                batch.roughnessTexturePath = group.roughnessPath;
                                 roughnessTextureUploadImage = std::move(group.roughness.image);
                             }
+                        }
+                        if (batch.baseColorTexturePath.isEmpty()) {
+                            batch.baseColorTexturePath = channelTexturePath(
+                                groupEntry.first,
+                                TextureChannel::BaseColor);
                         }
                         if (const MeshIOMaterialSlot *slot = materialEntryForGroup(groupEntry.first)) {
                             batch.normalScale = slot->normalScale;
@@ -1473,6 +1486,10 @@ MeshGpuResourceCache::FillPassView MeshGpuResourceCache::fillPassView(
             batch.normalTexture.get(),
             batch.occlusionTexture.get(),
             batch.roughnessTexture.get(),
+            batch.baseColorTexturePath,
+            batch.normalTexturePath,
+            batch.occlusionTexturePath,
+            batch.roughnessTexturePath,
             batch.normalScale,
             batch.occlusionStrength,
             batch.roughnessFactor,

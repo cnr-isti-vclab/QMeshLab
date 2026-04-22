@@ -3,6 +3,7 @@
 #include "vcgmesh.h"
 #include <cstdint>
 #include <memory>
+#include <QString>
 #include <QStringList>
 
 class QRhi;
@@ -49,6 +50,10 @@ public:
         QRhiTexture *normalTexture = nullptr;
         QRhiTexture *occlusionTexture = nullptr;
         QRhiTexture *roughnessTexture = nullptr;
+        QString baseColorTexturePath;
+        QString normalTexturePath;
+        QString occlusionTexturePath;
+        QString roughnessTexturePath;
         float normalScale = 1.0f;
         float occlusionStrength = 1.0f;
         float roughnessFactor = 1.0f;

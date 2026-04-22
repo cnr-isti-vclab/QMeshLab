@@ -36,9 +36,10 @@ enum class FillMaterial {
     Pbr
 };
 
-enum class FillPbrAlbedoSource {
-    Texture = 0,
-    PlainColor
+enum class FillPbrTextureSource {
+    None = 0,
+    Constant,
+    Texture
 };
 
 enum class PointColorSource {
@@ -85,14 +86,18 @@ struct RenderSettings {
     bool wireBackfaceCulling = true;
     bool fillLighting = true;
     bool fillBackfaceCulling = true;
-    bool fillUseNormalMap = true;
-    bool fillUseOcclusionMap = true;
-    bool fillUseRoughnessMap = true;
     float fillNormalMapScale = 1.0f;
     float fillOcclusionStrength = 1.0f;
     float fillRoughnessFactor = 1.0f;
     FillMaterial fillMaterial = FillMaterial::Plain;
-    FillPbrAlbedoSource fillPbrAlbedoSource = FillPbrAlbedoSource::Texture;
+    FillPbrTextureSource fillPbrAlbedoSource = FillPbrTextureSource::Texture;
+    int fillPbrAlbedoTextureIndex = -1;
+    FillPbrTextureSource fillPbrNormalSource = FillPbrTextureSource::Texture;
+    int fillPbrNormalTextureIndex = -1;
+    FillPbrTextureSource fillPbrOcclusionSource = FillPbrTextureSource::Texture;
+    int fillPbrOcclusionTextureIndex = -1;
+    FillPbrTextureSource fillPbrRoughnessSource = FillPbrTextureSource::Texture;
+    int fillPbrRoughnessTextureIndex = -1;
     bool settingsPanelVisible = false;
     RenderPass currentPass = RenderPass::Fill;
     bool decoratorVertexNormals = false;
@@ -152,14 +157,18 @@ struct RenderSettings {
             && wireBackfaceCulling == other.wireBackfaceCulling
             && fillLighting == other.fillLighting
             && fillBackfaceCulling == other.fillBackfaceCulling
-            && fillUseNormalMap == other.fillUseNormalMap
-            && fillUseOcclusionMap == other.fillUseOcclusionMap
-            && fillUseRoughnessMap == other.fillUseRoughnessMap
             && fillNormalMapScale == other.fillNormalMapScale
             && fillOcclusionStrength == other.fillOcclusionStrength
             && fillRoughnessFactor == other.fillRoughnessFactor
             && fillMaterial == other.fillMaterial
             && fillPbrAlbedoSource == other.fillPbrAlbedoSource
+            && fillPbrAlbedoTextureIndex == other.fillPbrAlbedoTextureIndex
+            && fillPbrNormalSource == other.fillPbrNormalSource
+            && fillPbrNormalTextureIndex == other.fillPbrNormalTextureIndex
+            && fillPbrOcclusionSource == other.fillPbrOcclusionSource
+            && fillPbrOcclusionTextureIndex == other.fillPbrOcclusionTextureIndex
+            && fillPbrRoughnessSource == other.fillPbrRoughnessSource
+            && fillPbrRoughnessTextureIndex == other.fillPbrRoughnessTextureIndex
             && settingsPanelVisible == other.settingsPanelVisible
             && currentPass == other.currentPass
             && decoratorVertexNormals == other.decoratorVertexNormals

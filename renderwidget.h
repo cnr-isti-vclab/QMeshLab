@@ -1,6 +1,7 @@
 #pragma once
 
 #include "renderingsettings.h"
+#include "meshgpuresourcecache.h"
 #include "viewtrackball.h"
 #include <QRhiWidget>
 #include <rhi/qrhi.h>
@@ -78,14 +79,18 @@ private:
         bool wireBackfaceCulling = true;
         bool fillLighting = true;
         bool fillBackfaceCulling = true;
-        bool fillUseNormalMap = true;
-        bool fillUseOcclusionMap = true;
-        bool fillUseRoughnessMap = true;
         float fillNormalMapScale = 1.0f;
         float fillOcclusionStrength = 1.0f;
         float fillRoughnessFactor = 1.0f;
         FillMaterial fillMaterial = FillMaterial::Plain;
-        FillPbrAlbedoSource fillPbrAlbedoSource = FillPbrAlbedoSource::Texture;
+        FillPbrTextureSource fillPbrAlbedoSource = FillPbrTextureSource::Texture;
+        int fillPbrAlbedoTextureIndex = -1;
+        FillPbrTextureSource fillPbrNormalSource = FillPbrTextureSource::Texture;
+        int fillPbrNormalTextureIndex = -1;
+        FillPbrTextureSource fillPbrOcclusionSource = FillPbrTextureSource::Texture;
+        int fillPbrOcclusionTextureIndex = -1;
+        FillPbrTextureSource fillPbrRoughnessSource = FillPbrTextureSource::Texture;
+        int fillPbrRoughnessTextureIndex = -1;
         FillShading fillShading = FillShading::Smooth;
         PointColorSource pointColorSource = PointColorSource::Constant;
         FillColorSource fillColorSource = FillColorSource::Constant;
@@ -147,6 +152,10 @@ private:
         QRhiTexture *occlusionTexture,
         QRhiTexture *roughnessTexture);
     QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
+    QRhiTexture *resolveSelectedPbrTexture(
+        int meshIndex,
+        int textureIndex,
+        const MeshGpuResourceCache::FillPassView &fillView) const;
     void executePendingDepthPick(
         QRhiCommandBuffer *cb,
         const QSize &pixelSize);

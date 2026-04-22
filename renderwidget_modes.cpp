@@ -3,9 +3,70 @@
 #include "renderoverlaypanel.h"
 #include "renderwidget_internal.h"
 #include <wrap/io_trimesh/io_mask.h>
+#include <QDir>
+#include <QFileInfo>
+#include <QHash>
 #include <algorithm>
 
 using namespace RenderWidgetInternal;
+
+namespace {
+QString normalizeTexturePath(const QString &path)
+{
+    return QDir::cleanPath(QDir::fromNativeSeparators(path.trimmed())).toLower();
+}
+
+int findTextureIndexByPath(const Document::MeshEntry &entry, const QString &path)
+{
+    const QString wanted = normalizeTexturePath(path);
+    if (wanted.isEmpty())
+        return -1;
+    for (int i = 0; i < entry.textureFilePaths.size(); ++i) {
+        if (normalizeTexturePath(entry.textureFilePaths.at(i)) == wanted)
+            return i;
+    }
+    return -1;
+}
+
+enum class MaterialTextureChannel {
+    BaseColor,
+    Normal,
+    Occlusion,
+    Roughness
+};
+
+int defaultTextureIndexForChannel(
+    const Document::MeshEntry &entry,
+    MaterialTextureChannel channel)
+{
+    for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
+        const MeshIOMaterialTextureRef *ref = nullptr;
+        switch (channel) {
+        case MaterialTextureChannel::BaseColor: ref = &slot.baseColorTexture; break;
+        case MaterialTextureChannel::Normal: ref = &slot.normalTexture; break;
+        case MaterialTextureChannel::Occlusion: ref = &slot.occlusionTexture; break;
+        case MaterialTextureChannel::Roughness: ref = &slot.roughnessTexture; break;
+        }
+        if (!ref || !ref->isValid())
+            continue;
+        const int textureIndex = findTextureIndexByPath(entry, ref->filePath);
+        if (textureIndex >= 0)
+            return textureIndex;
+    }
+    if (channel == MaterialTextureChannel::BaseColor && !entry.textureFilePaths.isEmpty())
+        return 0;
+    return -1;
+}
+
+QStringList pbrTextureSelectorEntries(const Document::MeshEntry &entry)
+{
+    QStringList labels;
+    labels.reserve(entry.textureFilePaths.size());
+    for (int i = 0; i < entry.textureFilePaths.size(); ++i)
+        labels.push_back(QObject::tr("Tex %1").arg(i));
+    return labels;
+}
+}
 
 RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshIndex) const
 {
@@ -26,17 +87,18 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
         || (mask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
     const bool hasTextures = hasTextureCoords && !entry.textureFilePaths.isEmpty();
-    bool hasNormalMap = false;
-    bool hasOcclusionMap = false;
-    bool hasRoughnessMap = false;
-    for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
-        hasNormalMap = hasNormalMap || slot.normalTexture.isValid();
-        hasOcclusionMap = hasOcclusionMap || slot.occlusionTexture.isValid();
-        hasRoughnessMap = hasRoughnessMap || slot.roughnessTexture.isValid();
-        if (hasNormalMap && hasOcclusionMap && hasRoughnessMap)
-            break;
-    }
-    const bool hasAnyPbrMap = hasNormalMap || hasOcclusionMap || hasRoughnessMap;
+    const int defaultAlbedoTextureIndex =
+        defaultTextureIndexForChannel(entry, MaterialTextureChannel::BaseColor);
+    const int defaultNormalTextureIndex =
+        defaultTextureIndexForChannel(entry, MaterialTextureChannel::Normal);
+    const int defaultOcclusionTextureIndex =
+        defaultTextureIndexForChannel(entry, MaterialTextureChannel::Occlusion);
+    const int defaultRoughnessTextureIndex =
+        defaultTextureIndexForChannel(entry, MaterialTextureChannel::Roughness);
+    const bool hasAnyPbrMap =
+        defaultNormalTextureIndex >= 0
+        || defaultOcclusionTextureIndex >= 0
+        || defaultRoughnessTextureIndex >= 0;
 
     if (faceCount > 0) {
         mode.showFill = true;
@@ -60,8 +122,21 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         mode.fillLighting = true;
         mode.fillMaterial = (hasTextures && hasAnyPbrMap) ? FillMaterial::Pbr : FillMaterial::Plain;
         mode.fillPbrAlbedoSource = hasTextures
-            ? FillPbrAlbedoSource::Texture
-            : FillPbrAlbedoSource::PlainColor;
+            ? FillPbrTextureSource::Texture
+            : FillPbrTextureSource::Constant;
+        mode.fillPbrAlbedoTextureIndex = defaultAlbedoTextureIndex;
+        mode.fillPbrNormalSource = defaultNormalTextureIndex >= 0
+            ? FillPbrTextureSource::Texture
+            : FillPbrTextureSource::None;
+        mode.fillPbrNormalTextureIndex = defaultNormalTextureIndex;
+        mode.fillPbrOcclusionSource = defaultOcclusionTextureIndex >= 0
+            ? FillPbrTextureSource::Texture
+            : FillPbrTextureSource::None;
+        mode.fillPbrOcclusionTextureIndex = defaultOcclusionTextureIndex;
+        mode.fillPbrRoughnessSource = defaultRoughnessTextureIndex >= 0
+            ? FillPbrTextureSource::Texture
+            : FillPbrTextureSource::Constant;
+        mode.fillPbrRoughnessTextureIndex = defaultRoughnessTextureIndex;
         mode.pointLighting = false;
         mode.wireLighting = false;
     } else if (edgeCount > 0) {
@@ -200,21 +275,40 @@ bool RenderWidget::applyRenderSettingsToCurrentMesh(
         &MeshRenderMode::fillBackfaceCulling,
         prev.fillBackfaceCulling,
         next.fillBackfaceCulling);
-    apply(&MeshRenderMode::fillUseNormalMap, prev.fillUseNormalMap, next.fillUseNormalMap);
-    apply(
-        &MeshRenderMode::fillUseOcclusionMap,
-        prev.fillUseOcclusionMap,
-        next.fillUseOcclusionMap);
-    apply(
-        &MeshRenderMode::fillUseRoughnessMap,
-        prev.fillUseRoughnessMap,
-        next.fillUseRoughnessMap);
     if (prev.fillMaterial != next.fillMaterial) {
         mode->fillMaterial = next.fillMaterial;
         changed = true;
     }
     if (prev.fillPbrAlbedoSource != next.fillPbrAlbedoSource) {
         mode->fillPbrAlbedoSource = next.fillPbrAlbedoSource;
+        changed = true;
+    }
+    if (prev.fillPbrAlbedoTextureIndex != next.fillPbrAlbedoTextureIndex) {
+        mode->fillPbrAlbedoTextureIndex = next.fillPbrAlbedoTextureIndex;
+        changed = true;
+    }
+    if (prev.fillPbrNormalSource != next.fillPbrNormalSource) {
+        mode->fillPbrNormalSource = next.fillPbrNormalSource;
+        changed = true;
+    }
+    if (prev.fillPbrNormalTextureIndex != next.fillPbrNormalTextureIndex) {
+        mode->fillPbrNormalTextureIndex = next.fillPbrNormalTextureIndex;
+        changed = true;
+    }
+    if (prev.fillPbrOcclusionSource != next.fillPbrOcclusionSource) {
+        mode->fillPbrOcclusionSource = next.fillPbrOcclusionSource;
+        changed = true;
+    }
+    if (prev.fillPbrOcclusionTextureIndex != next.fillPbrOcclusionTextureIndex) {
+        mode->fillPbrOcclusionTextureIndex = next.fillPbrOcclusionTextureIndex;
+        changed = true;
+    }
+    if (prev.fillPbrRoughnessSource != next.fillPbrRoughnessSource) {
+        mode->fillPbrRoughnessSource = next.fillPbrRoughnessSource;
+        changed = true;
+    }
+    if (prev.fillPbrRoughnessTextureIndex != next.fillPbrRoughnessTextureIndex) {
+        mode->fillPbrRoughnessTextureIndex = next.fillPbrRoughnessTextureIndex;
         changed = true;
     }
 
@@ -301,11 +395,15 @@ void RenderWidget::applyRenderModeToSettings(
     settings.wireBackfaceCulling = mode.wireBackfaceCulling;
     settings.fillLighting = mode.fillLighting;
     settings.fillBackfaceCulling = mode.fillBackfaceCulling;
-    settings.fillUseNormalMap = mode.fillUseNormalMap;
-    settings.fillUseOcclusionMap = mode.fillUseOcclusionMap;
-    settings.fillUseRoughnessMap = mode.fillUseRoughnessMap;
     settings.fillMaterial = mode.fillMaterial;
     settings.fillPbrAlbedoSource = mode.fillPbrAlbedoSource;
+    settings.fillPbrAlbedoTextureIndex = mode.fillPbrAlbedoTextureIndex;
+    settings.fillPbrNormalSource = mode.fillPbrNormalSource;
+    settings.fillPbrNormalTextureIndex = mode.fillPbrNormalTextureIndex;
+    settings.fillPbrOcclusionSource = mode.fillPbrOcclusionSource;
+    settings.fillPbrOcclusionTextureIndex = mode.fillPbrOcclusionTextureIndex;
+    settings.fillPbrRoughnessSource = mode.fillPbrRoughnessSource;
+    settings.fillPbrRoughnessTextureIndex = mode.fillPbrRoughnessTextureIndex;
     settings.fillShading = mode.fillShading;
     settings.pointColorSource = mode.pointColorSource;
     settings.fillColorSource = mode.fillColorSource;
@@ -355,9 +453,6 @@ void RenderWidget::refreshColorSourceAvailability()
     bool hasFaceQuality = false;
     bool hasTextures = false;
     bool hasVertexNormals = false;
-    bool hasNormalMap = false;
-    bool hasOcclusionMap = false;
-    bool hasRoughnessMap = false;
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
     if (meshIndex >= 0 && meshIndex < m_doc->meshCount()) {
         const auto &meshEntry = m_doc->mesh(meshIndex);
@@ -371,13 +466,6 @@ void RenderWidget::refreshColorSourceAvailability()
         hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
         hasTextures = hasTextureCoords && !meshEntry.textureFilePaths.isEmpty();
         hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
-        for (const MeshIOMaterialSlot &slot : meshEntry.materialSet.entries) {
-            hasNormalMap = hasNormalMap || slot.normalTexture.isValid();
-            hasOcclusionMap = hasOcclusionMap || slot.occlusionTexture.isValid();
-            hasRoughnessMap = hasRoughnessMap || slot.roughnessTexture.isValid();
-            if (hasNormalMap && hasOcclusionMap && hasRoughnessMap)
-                break;
-        }
     }
 
     if (m_overlayPanel)
@@ -392,10 +480,13 @@ void RenderWidget::refreshColorSourceAvailability()
             hasFaceQuality,
             hasTextures);
     if (m_overlayPanel)
-        m_overlayPanel->setFillPbrMapAvailability(
-            hasNormalMap,
-            hasOcclusionMap,
-            hasRoughnessMap);
+        m_overlayPanel->setFillPbrMapAvailability(hasTextures, hasTextures, hasTextures);
+    if (m_overlayPanel) {
+        QStringList textureLabels;
+        if (meshIndex >= 0 && meshIndex < m_doc->meshCount())
+            textureLabels = pbrTextureSelectorEntries(m_doc->mesh(meshIndex));
+        m_overlayPanel->setFillPbrTextureNames(textureLabels);
+    }
 
     RenderSettings corrected = m_renderSettings;
     if (corrected.pointColorSource == PointColorSource::PerVertex && !hasVertexColors)
@@ -414,8 +505,32 @@ void RenderWidget::refreshColorSourceAvailability()
         corrected.fillColorSource = FillColorSource::Constant;
     if (corrected.fillColorSource == FillColorSource::Texture && !hasTextures)
         corrected.fillColorSource = FillColorSource::Constant;
-    if (corrected.fillPbrAlbedoSource == FillPbrAlbedoSource::Texture && !hasTextures)
-        corrected.fillPbrAlbedoSource = FillPbrAlbedoSource::PlainColor;
+    auto clampPbrSource = [hasTextures](FillPbrTextureSource &source, int &index) {
+        if (!hasTextures && source == FillPbrTextureSource::Texture)
+            source = FillPbrTextureSource::None;
+        if (!hasTextures)
+            index = -1;
+    };
+    clampPbrSource(corrected.fillPbrAlbedoSource, corrected.fillPbrAlbedoTextureIndex);
+    clampPbrSource(corrected.fillPbrNormalSource, corrected.fillPbrNormalTextureIndex);
+    clampPbrSource(corrected.fillPbrOcclusionSource, corrected.fillPbrOcclusionTextureIndex);
+    clampPbrSource(corrected.fillPbrRoughnessSource, corrected.fillPbrRoughnessTextureIndex);
+    if (corrected.fillPbrAlbedoSource == FillPbrTextureSource::Texture && !hasTextures) {
+        corrected.fillPbrAlbedoSource = FillPbrTextureSource::Constant;
+        corrected.fillPbrAlbedoTextureIndex = -1;
+    }
+    const int textureCount =
+        (meshIndex >= 0 && meshIndex < m_doc->meshCount())
+        ? m_doc->mesh(meshIndex).textureFilePaths.size()
+        : 0;
+    auto clampTextureIndex = [textureCount](int &index) {
+        if (index < -1 || index >= textureCount)
+            index = -1;
+    };
+    clampTextureIndex(corrected.fillPbrAlbedoTextureIndex);
+    clampTextureIndex(corrected.fillPbrNormalTextureIndex);
+    clampTextureIndex(corrected.fillPbrOcclusionTextureIndex);
+    clampTextureIndex(corrected.fillPbrRoughnessTextureIndex);
 
     if (corrected != m_renderSettings) {
         const RenderSettings prev = m_renderSettings;
@@ -457,6 +572,43 @@ int RenderWidget::pointGpuVariantIndexForSettings(const RenderSettings &settings
     default:
         return static_cast<int>(Document::PointGpuVariant::Constant);
     }
+}
+
+QRhiTexture *RenderWidget::resolveSelectedPbrTexture(
+    int meshIndex,
+    int textureIndex,
+    const MeshGpuResourceCache::FillPassView &fillView) const
+{
+    if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount() || !fillView.valid)
+        return nullptr;
+    if (textureIndex < 0) {
+        return nullptr;
+    }
+
+    const auto &meshEntry = m_doc->mesh(meshIndex);
+    if (textureIndex >= meshEntry.textureFilePaths.size())
+        return nullptr;
+
+    const QString wantedPath = normalizeTexturePath(meshEntry.textureFilePaths.at(textureIndex));
+    if (wantedPath.isEmpty())
+        return nullptr;
+
+    for (int bi = 0; bi < fillView.batchCount; ++bi) {
+        const auto &batch = fillView.batches[bi];
+        const QString basePath = normalizeTexturePath(batch.baseColorTexturePath);
+        const QString normalPath = normalizeTexturePath(batch.normalTexturePath);
+        const QString occlusionPath = normalizeTexturePath(batch.occlusionTexturePath);
+        const QString roughnessPath = normalizeTexturePath(batch.roughnessTexturePath);
+        if (batch.baseColorTexture && !basePath.isEmpty() && basePath == wantedPath)
+            return batch.baseColorTexture;
+        if (batch.normalTexture && !normalPath.isEmpty() && normalPath == wantedPath)
+            return batch.normalTexture;
+        if (batch.occlusionTexture && !occlusionPath.isEmpty() && occlusionPath == wantedPath)
+            return batch.occlusionTexture;
+        if (batch.roughnessTexture && !roughnessPath.isEmpty() && roughnessPath == wantedPath)
+            return batch.roughnessTexture;
+    }
+    return nullptr;
 }
 
 QRhiGraphicsPipeline *RenderWidget::fillPipelineForSettings(const RenderSettings &settings)

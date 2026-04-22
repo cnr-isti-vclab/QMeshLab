@@ -63,11 +63,11 @@ struct MainStyleUbufKey {
     bool pointLighting = false;
     bool wireLighting = false;
     bool fillLighting = false;
-    bool fillUseNormalMap = true;
-    bool fillUseOcclusionMap = true;
-    bool fillUseRoughnessMap = true;
     FillMaterial fillMaterial = FillMaterial::Plain;
-    FillPbrAlbedoSource fillPbrAlbedoSource = FillPbrAlbedoSource::Texture;
+    FillPbrTextureSource fillPbrAlbedoSource = FillPbrTextureSource::Texture;
+    FillPbrTextureSource fillPbrNormalSource = FillPbrTextureSource::Texture;
+    FillPbrTextureSource fillPbrOcclusionSource = FillPbrTextureSource::Texture;
+    FillPbrTextureSource fillPbrRoughnessSource = FillPbrTextureSource::Texture;
     FillColorSource fillColorSource = FillColorSource::Constant;
     float fillNormalMapScale = 1.0f;
     float fillOcclusionStrength = 1.0f;
@@ -86,11 +86,11 @@ struct MainStyleUbufKey {
             && pointLighting == other.pointLighting
             && wireLighting == other.wireLighting
             && fillLighting == other.fillLighting
-            && fillUseNormalMap == other.fillUseNormalMap
-            && fillUseOcclusionMap == other.fillUseOcclusionMap
-            && fillUseRoughnessMap == other.fillUseRoughnessMap
             && fillMaterial == other.fillMaterial
             && fillPbrAlbedoSource == other.fillPbrAlbedoSource
+            && fillPbrNormalSource == other.fillPbrNormalSource
+            && fillPbrOcclusionSource == other.fillPbrOcclusionSource
+            && fillPbrRoughnessSource == other.fillPbrRoughnessSource
             && fillColorSource == other.fillColorSource
             && fillNormalMapScale == other.fillNormalMapScale
             && fillOcclusionStrength == other.fillOcclusionStrength
@@ -114,11 +114,11 @@ inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
     key.pointLighting = includeLighting ? settings.pointLighting : false;
     key.wireLighting = includeLighting ? settings.wireLighting : false;
     key.fillLighting = includeLighting ? settings.fillLighting : false;
-    key.fillUseNormalMap = settings.fillUseNormalMap;
-    key.fillUseOcclusionMap = settings.fillUseOcclusionMap;
-    key.fillUseRoughnessMap = settings.fillUseRoughnessMap;
     key.fillMaterial = settings.fillMaterial;
     key.fillPbrAlbedoSource = settings.fillPbrAlbedoSource;
+    key.fillPbrNormalSource = settings.fillPbrNormalSource;
+    key.fillPbrOcclusionSource = settings.fillPbrOcclusionSource;
+    key.fillPbrRoughnessSource = settings.fillPbrRoughnessSource;
     key.fillColorSource = settings.fillColorSource;
     key.fillNormalMapScale = settings.fillNormalMapScale;
     key.fillOcclusionStrength = settings.fillOcclusionStrength;
@@ -172,13 +172,15 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufEdgeColorOffset + 3] = settings.edgeColor.alphaF();
 
     const bool enablePbr = settings.fillMaterial == FillMaterial::Pbr;
-    const bool useTextureAlbedo = (settings.fillMaterial == FillMaterial::Pbr)
-        ? (settings.fillPbrAlbedoSource == FillPbrAlbedoSource::Texture)
-        : (settings.fillColorSource == FillColorSource::Texture);
-    ubufData[kUbufPbrMapUsageOffset + 0] = (enablePbr && settings.fillUseNormalMap) ? 1.0f : 0.0f;
-    ubufData[kUbufPbrMapUsageOffset + 1] = (enablePbr && settings.fillUseOcclusionMap) ? 1.0f : 0.0f;
-    ubufData[kUbufPbrMapUsageOffset + 2] = (enablePbr && settings.fillUseRoughnessMap) ? 1.0f : 0.0f;
-    ubufData[kUbufPbrMapUsageOffset + 3] = useTextureAlbedo ? 1.0f : 0.0f;
+    auto encodePbrSource = [enablePbr](FillPbrTextureSource source) -> float {
+        if (!enablePbr)
+            return 0.0f;
+        return static_cast<float>(static_cast<int>(source));
+    };
+    ubufData[kUbufPbrMapUsageOffset + 0] = encodePbrSource(settings.fillPbrNormalSource);
+    ubufData[kUbufPbrMapUsageOffset + 1] = encodePbrSource(settings.fillPbrOcclusionSource);
+    ubufData[kUbufPbrMapUsageOffset + 2] = encodePbrSource(settings.fillPbrRoughnessSource);
+    ubufData[kUbufPbrMapUsageOffset + 3] = encodePbrSource(settings.fillPbrAlbedoSource);
 
     ubufData[kUbufPbrParamsOffset + 0] = settings.fillNormalMapScale;
     ubufData[kUbufPbrParamsOffset + 1] = std::clamp(settings.fillOcclusionStrength, 0.0f, 1.0f);

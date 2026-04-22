@@ -871,18 +871,12 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     }
 
     auto updateStyleUbuf = [&](const RenderSettings &styleSettings,
-                               bool useNormalMap = false,
-                               bool useOcclusionMap = false,
-                               bool useRoughnessMap = false,
                                float normalScale = 1.0f,
                                float occlusionStrength = 1.0f,
                                float roughnessFactor = 1.0f) {
         float ubufData[kUbufFloatCount];
         memcpy(ubufData, baseUbufData, sizeof(ubufData));
         writeMainStyleToUbuf(ubufData, styleSettings, sz, false);
-        ubufData[kUbufPbrMapUsageOffset + 0] = useNormalMap ? 1.0f : 0.0f;
-        ubufData[kUbufPbrMapUsageOffset + 1] = useOcclusionMap ? 1.0f : 0.0f;
-        ubufData[kUbufPbrMapUsageOffset + 2] = useRoughnessMap ? 1.0f : 0.0f;
         ubufData[kUbufPbrParamsOffset + 0] = normalScale;
         ubufData[kUbufPbrParamsOffset + 1] = occlusionStrength;
         ubufData[kUbufPbrParamsOffset + 2] = roughnessFactor;
@@ -920,11 +914,19 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         && m_uvTextureQuadVbuf
         && m_uvTextureQuadVertexCount > 0
         && textureFillView.valid) {
-        QRhiTexture *fullTexture = nullptr;
+        QRhiTexture *fullTexture =
+            (meshSettings.fillMaterial == FillMaterial::Pbr
+             && meshSettings.fillPbrAlbedoSource == FillPbrTextureSource::Texture)
+            ? resolveSelectedPbrTexture(
+                meshIndex,
+                meshSettings.fillPbrAlbedoTextureIndex,
+                textureFillView)
+            : nullptr;
         for (int bi = 0; bi < textureFillView.batchCount; ++bi) {
             QRhiTexture *candidate = textureFillView.batches[bi].baseColorTexture;
             if (candidate) {
-                fullTexture = candidate;
+                if (!fullTexture)
+                    fullTexture = candidate;
                 break;
             }
         }
@@ -1064,37 +1066,50 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                             const auto &batch = fillView.batches[bi];
                             if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
                                 continue;
-                            const bool enableNormalMap =
-                                meshSettings.fillMaterial == FillMaterial::Pbr
-                                &&
-                                meshSettings.fillLighting
-                                && meshSettings.fillUseNormalMap
-                                && batch.normalTexture;
-                            const bool enableOcclusionMap =
-                                meshSettings.fillMaterial == FillMaterial::Pbr
-                                &&
-                                meshSettings.fillLighting
-                                && meshSettings.fillUseOcclusionMap
-                                && batch.occlusionTexture;
-                            const bool enableRoughnessMap =
-                                meshSettings.fillMaterial == FillMaterial::Pbr
-                                &&
-                                meshSettings.fillLighting
-                                && meshSettings.fillUseRoughnessMap
-                                && batch.roughnessTexture;
+                            QRhiTexture *selectedAlbedoTexture =
+                                (meshSettings.fillMaterial == FillMaterial::Pbr
+                                 && meshSettings.fillPbrAlbedoSource == FillPbrTextureSource::Texture)
+                                ? resolveSelectedPbrTexture(
+                                    meshIndex,
+                                    meshSettings.fillPbrAlbedoTextureIndex,
+                                    fillView)
+                                : nullptr;
+                            QRhiTexture *selectedNormalTexture =
+                                (meshSettings.fillMaterial == FillMaterial::Pbr
+                                 && meshSettings.fillPbrNormalSource == FillPbrTextureSource::Texture)
+                                ? resolveSelectedPbrTexture(
+                                    meshIndex,
+                                    meshSettings.fillPbrNormalTextureIndex,
+                                    fillView)
+                                : nullptr;
+                            QRhiTexture *selectedOcclusionTexture =
+                                (meshSettings.fillMaterial == FillMaterial::Pbr
+                                 && meshSettings.fillPbrOcclusionSource == FillPbrTextureSource::Texture)
+                                ? resolveSelectedPbrTexture(
+                                    meshIndex,
+                                    meshSettings.fillPbrOcclusionTextureIndex,
+                                    fillView)
+                                : nullptr;
+                            QRhiTexture *selectedRoughnessTexture =
+                                (meshSettings.fillMaterial == FillMaterial::Pbr
+                                 && meshSettings.fillPbrRoughnessSource == FillPbrTextureSource::Texture)
+                                ? resolveSelectedPbrTexture(
+                                    meshIndex,
+                                    meshSettings.fillPbrRoughnessTextureIndex,
+                                    fillView)
+                                : nullptr;
                             updateStyleUbuf(
                                 meshSettings,
-                                enableNormalMap,
-                                enableOcclusionMap,
-                                enableRoughnessMap,
                                 meshSettings.fillNormalMapScale * batch.normalScale,
                                 meshSettings.fillOcclusionStrength * batch.occlusionStrength,
                                 meshSettings.fillRoughnessFactor * batch.roughnessFactor);
+                            QRhiTexture *albedoTexture =
+                                selectedAlbedoTexture ? selectedAlbedoTexture : batch.baseColorTexture;
                             cb->setShaderResources(shaderResourcesForFillTextures(
-                                batch.baseColorTexture,
-                                batch.normalTexture,
-                                batch.occlusionTexture,
-                                batch.roughnessTexture));
+                                albedoTexture,
+                                selectedNormalTexture ? selectedNormalTexture : batch.normalTexture,
+                                selectedOcclusionTexture ? selectedOcclusionTexture : batch.occlusionTexture,
+                                selectedRoughnessTexture ? selectedRoughnessTexture : batch.roughnessTexture));
                             const QRhiCommandBuffer::VertexInput binding(batch.vertexBuffer, 0);
                             if (batch.indexCount > 0 && batch.indexBuffer) {
                                 cb->setVertexInput(

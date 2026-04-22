@@ -28,6 +28,8 @@ const QColor kActiveArrowColor(36, 132, 210, 235);
 constexpr int kSettingsRowHeight = 24;
 constexpr int kColorButtonSize = 18;
 constexpr Qt::Alignment kSettingsLabelAlignment = Qt::AlignRight | Qt::AlignVCenter;
+constexpr int kPbrSourceRole = Qt::UserRole + 100;
+constexpr int kPbrTextureIndexRole = Qt::UserRole + 101;
 
 QWidget *makeCenteredFieldContainer(QWidget *fieldWidget, QWidget *parentWidget)
 {
@@ -571,22 +573,16 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillBackfaceCullingCheck->setChecked(m_settings.fillBackfaceCulling);
     m_fillLightingCheck = new QCheckBox(fillPage);
     m_fillLightingCheck->setChecked(m_settings.fillLighting);
-    m_fillUseNormalMapCheck = new QCheckBox(fillPage);
-    m_fillUseNormalMapCheck->setChecked(m_settings.fillUseNormalMap);
     m_fillNormalScaleSpin = new QDoubleSpinBox(fillPage);
     m_fillNormalScaleSpin->setRange(0.0, 8.0);
     m_fillNormalScaleSpin->setSingleStep(0.05);
     m_fillNormalScaleSpin->setDecimals(2);
     m_fillNormalScaleSpin->setValue(m_settings.fillNormalMapScale);
-    m_fillUseOcclusionMapCheck = new QCheckBox(fillPage);
-    m_fillUseOcclusionMapCheck->setChecked(m_settings.fillUseOcclusionMap);
     m_fillOcclusionStrengthSpin = new QDoubleSpinBox(fillPage);
     m_fillOcclusionStrengthSpin->setRange(0.0, 1.0);
     m_fillOcclusionStrengthSpin->setSingleStep(0.05);
     m_fillOcclusionStrengthSpin->setDecimals(2);
     m_fillOcclusionStrengthSpin->setValue(m_settings.fillOcclusionStrength);
-    m_fillUseRoughnessMapCheck = new QCheckBox(fillPage);
-    m_fillUseRoughnessMapCheck->setChecked(m_settings.fillUseRoughnessMap);
     m_fillRoughnessFactorSpin = new QDoubleSpinBox(fillPage);
     m_fillRoughnessFactorSpin->setRange(0.0, 2.0);
     m_fillRoughnessFactorSpin->setSingleStep(0.05);
@@ -628,28 +624,20 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillPbrForm->setVerticalSpacing(2);
     fillPbrForm->setLabelAlignment(kSettingsLabelAlignment);
     m_fillPbrAlbedoCombo = new QComboBox(fillPage);
-    m_fillPbrAlbedoCombo->addItem(
-        tr("Texture"),
-        static_cast<int>(FillPbrAlbedoSource::Texture));
-    m_fillPbrAlbedoCombo->addItem(
-        tr("Plain color"),
-        static_cast<int>(FillPbrAlbedoSource::PlainColor));
+    m_fillPbrNormalCombo = new QComboBox(fillPage);
+    m_fillPbrOcclusionCombo = new QComboBox(fillPage);
+    m_fillPbrRoughnessCombo = new QComboBox(fillPage);
+    rebuildFillPbrSourceCombos();
     m_fillPbrColorButton = makeColorButton(fillPage);
     fillPbrForm->addRow(tr("Albedo"), m_fillPbrAlbedoCombo);
+    fillPbrForm->addRow(tr("Normal"), m_fillPbrNormalCombo);
+    fillPbrForm->addRow(tr("AO Map"), m_fillPbrOcclusionCombo);
+    fillPbrForm->addRow(tr("Roughness Map"), m_fillPbrRoughnessCombo);
     fillPbrForm->addRow(
         tr("Albedo color"),
         makeCenteredFieldContainer(m_fillPbrColorButton, fillPage));
-    fillPbrForm->addRow(
-        tr("Normal map"),
-        makeCenteredFieldContainer(m_fillUseNormalMapCheck, fillPage));
     fillPbrForm->addRow(tr("Normal scale"), m_fillNormalScaleSpin);
-    fillPbrForm->addRow(
-        tr("AO map"),
-        makeCenteredFieldContainer(m_fillUseOcclusionMapCheck, fillPage));
     fillPbrForm->addRow(tr("AO strength"), m_fillOcclusionStrengthSpin);
-    fillPbrForm->addRow(
-        tr("Rough map"),
-        makeCenteredFieldContainer(m_fillUseRoughnessMapCheck, fillPage));
     fillPbrForm->addRow(tr("Rough fac"), m_fillRoughnessFactorSpin);
     applyUniformFormRowHeights(fillPbrForm);
     fillPbrLayout->addLayout(fillPbrForm);
@@ -896,18 +884,64 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindCheckBox(m_wireLightingCheck, &RenderSettings::wireLighting);
 
     bindEnumCombo(m_fillMaterialCombo, &RenderSettings::fillMaterial);
-    bindEnumCombo(m_fillPbrAlbedoCombo, &RenderSettings::fillPbrAlbedoSource);
+    auto bindPbrSourceCombo =
+        [this](QComboBox *combo,
+               FillPbrTextureSource RenderSettings::*sourceMember,
+               int RenderSettings::*indexMember) {
+            connect(
+                combo,
+                qOverload<int>(&QComboBox::currentIndexChanged),
+                this,
+                [this, combo, sourceMember, indexMember](int idx) {
+                    if (!combo || idx < 0 || idx >= combo->count())
+                        return;
+                    const QVariant sourceData = combo->itemData(idx, kPbrSourceRole);
+                    const QVariant textureData = combo->itemData(idx, kPbrTextureIndexRole);
+                    if (!sourceData.isValid())
+                        return;
+
+                    bool changed = false;
+                    const FillPbrTextureSource source =
+                        static_cast<FillPbrTextureSource>(sourceData.toInt());
+                    const int textureIndex = textureData.isValid() ? textureData.toInt() : -1;
+                    if (m_settings.*sourceMember != source) {
+                        m_settings.*sourceMember = source;
+                        changed = true;
+                    }
+                    if (m_settings.*indexMember != textureIndex) {
+                        m_settings.*indexMember = textureIndex;
+                        changed = true;
+                    }
+                    if (!changed)
+                        return;
+                    syncFillPbrUiState();
+                    emit settingsChanged(m_settings);
+                });
+        };
+    bindPbrSourceCombo(
+        m_fillPbrAlbedoCombo,
+        &RenderSettings::fillPbrAlbedoSource,
+        &RenderSettings::fillPbrAlbedoTextureIndex);
+    bindPbrSourceCombo(
+        m_fillPbrNormalCombo,
+        &RenderSettings::fillPbrNormalSource,
+        &RenderSettings::fillPbrNormalTextureIndex);
+    bindPbrSourceCombo(
+        m_fillPbrOcclusionCombo,
+        &RenderSettings::fillPbrOcclusionSource,
+        &RenderSettings::fillPbrOcclusionTextureIndex);
+    bindPbrSourceCombo(
+        m_fillPbrRoughnessCombo,
+        &RenderSettings::fillPbrRoughnessSource,
+        &RenderSettings::fillPbrRoughnessTextureIndex);
     bindEnumCombo(m_fillColorSourceCombo, &RenderSettings::fillColorSource);
     bindColorButton(m_fillColorButton, &RenderSettings::fillColor, tr("Fill Color"));
     bindColorButton(m_fillPbrColorButton, &RenderSettings::fillColor, tr("Fill Color"));
     bindEnumCombo(m_fillShadingCombo, &RenderSettings::fillShading);
     bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
     bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
-    bindCheckBox(m_fillUseNormalMapCheck, &RenderSettings::fillUseNormalMap);
     bindFloatSpin(m_fillNormalScaleSpin, &RenderSettings::fillNormalMapScale);
-    bindCheckBox(m_fillUseOcclusionMapCheck, &RenderSettings::fillUseOcclusionMap);
     bindFloatSpin(m_fillOcclusionStrengthSpin, &RenderSettings::fillOcclusionStrength);
-    bindCheckBox(m_fillUseRoughnessMapCheck, &RenderSettings::fillUseRoughnessMap);
     bindFloatSpin(m_fillRoughnessFactorSpin, &RenderSettings::fillRoughnessFactor);
     connect(
         m_fillMaterialCombo,
@@ -920,25 +954,25 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         this,
         [this](int) { syncFillPbrUiState(); });
     connect(
-        m_fillColorSourceCombo,
+        m_fillPbrNormalCombo,
         qOverload<int>(&QComboBox::currentIndexChanged),
         this,
         [this](int) { syncFillPbrUiState(); });
     connect(
-        m_fillUseNormalMapCheck,
-        &QCheckBox::toggled,
+        m_fillPbrOcclusionCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
         this,
-        [this](bool) { syncFillPbrUiState(); });
+        [this](int) { syncFillPbrUiState(); });
     connect(
-        m_fillUseOcclusionMapCheck,
-        &QCheckBox::toggled,
+        m_fillPbrRoughnessCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
         this,
-        [this](bool) { syncFillPbrUiState(); });
+        [this](int) { syncFillPbrUiState(); });
     connect(
-        m_fillUseRoughnessMapCheck,
-        &QCheckBox::toggled,
+        m_fillColorSourceCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
         this,
-        [this](bool) { syncFillPbrUiState(); });
+        [this](int) { syncFillPbrUiState(); });
     bindCheckBox(m_selectionShowVerticesCheck, &RenderSettings::showSelectionVertices);
     bindCheckBox(m_selectionShowFacesCheck, &RenderSettings::showSelectionFaces);
     bindCheckBox(m_uvShowReferenceFrameCheck, &RenderSettings::uvShowReferenceFrame);
@@ -1280,25 +1314,13 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_fillBackfaceCullingCheck);
         m_fillBackfaceCullingCheck->setChecked(m_settings.fillBackfaceCulling);
     }
-    if (m_fillUseNormalMapCheck) {
-        QSignalBlocker blocker(m_fillUseNormalMapCheck);
-        m_fillUseNormalMapCheck->setChecked(m_settings.fillUseNormalMap);
-    }
     if (m_fillNormalScaleSpin) {
         QSignalBlocker blocker(m_fillNormalScaleSpin);
         m_fillNormalScaleSpin->setValue(m_settings.fillNormalMapScale);
     }
-    if (m_fillUseOcclusionMapCheck) {
-        QSignalBlocker blocker(m_fillUseOcclusionMapCheck);
-        m_fillUseOcclusionMapCheck->setChecked(m_settings.fillUseOcclusionMap);
-    }
     if (m_fillOcclusionStrengthSpin) {
         QSignalBlocker blocker(m_fillOcclusionStrengthSpin);
         m_fillOcclusionStrengthSpin->setValue(m_settings.fillOcclusionStrength);
-    }
-    if (m_fillUseRoughnessMapCheck) {
-        QSignalBlocker blocker(m_fillUseRoughnessMapCheck);
-        m_fillUseRoughnessMapCheck->setChecked(m_settings.fillUseRoughnessMap);
     }
     if (m_fillRoughnessFactorSpin) {
         QSignalBlocker blocker(m_fillRoughnessFactorSpin);
@@ -1398,16 +1420,22 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
             }
         }
     }
-    if (m_fillPbrAlbedoCombo) {
-        QSignalBlocker blocker(m_fillPbrAlbedoCombo);
-        const int value = static_cast<int>(m_settings.fillPbrAlbedoSource);
-        for (int i = 0; i < m_fillPbrAlbedoCombo->count(); ++i) {
-            if (m_fillPbrAlbedoCombo->itemData(i).toInt() == value) {
-                m_fillPbrAlbedoCombo->setCurrentIndex(i);
-                break;
-            }
-        }
-    }
+    syncFillPbrSourceCombo(
+        m_fillPbrAlbedoCombo,
+        m_settings.fillPbrAlbedoSource,
+        m_settings.fillPbrAlbedoTextureIndex);
+    syncFillPbrSourceCombo(
+        m_fillPbrNormalCombo,
+        m_settings.fillPbrNormalSource,
+        m_settings.fillPbrNormalTextureIndex);
+    syncFillPbrSourceCombo(
+        m_fillPbrOcclusionCombo,
+        m_settings.fillPbrOcclusionSource,
+        m_settings.fillPbrOcclusionTextureIndex);
+    syncFillPbrSourceCombo(
+        m_fillPbrRoughnessCombo,
+        m_settings.fillPbrRoughnessSource,
+        m_settings.fillPbrRoughnessTextureIndex);
     if (m_fillColorSourceCombo) {
         QSignalBlocker blocker(m_fillColorSourceCombo);
         const int value = static_cast<int>(m_settings.fillColorSource);
@@ -1526,16 +1554,7 @@ void RenderOverlayPanel::setFillColorSourceAvailability(
             hasTextures ? QVariant() : QVariant(0),
             Qt::UserRole - 1);
     }
-    if (m_fillPbrAlbedoCombo) {
-        const int pbrTextureIndex =
-            m_fillPbrAlbedoCombo->findData(static_cast<int>(FillPbrAlbedoSource::Texture));
-        if (pbrTextureIndex >= 0) {
-            m_fillPbrAlbedoCombo->setItemData(
-                pbrTextureIndex,
-                hasTextures ? QVariant() : QVariant(0),
-                Qt::UserRole - 1);
-        }
-    }
+    rebuildFillPbrSourceCombos();
     if (m_uvShowFullTextureCheck)
         m_uvShowFullTextureCheck->setEnabled(hasTextures);
     syncFillPbrUiState();
@@ -1552,35 +1571,126 @@ void RenderOverlayPanel::setFillPbrMapAvailability(
     syncFillPbrUiState();
 }
 
+void RenderOverlayPanel::setFillPbrTextureNames(const QStringList &textureNames)
+{
+    if (m_fillTextureNames == textureNames)
+        return;
+    m_fillTextureNames = textureNames;
+    rebuildFillPbrSourceCombos();
+}
+
+void RenderOverlayPanel::rebuildFillPbrSourceCombos()
+{
+    rebuildFillPbrSourceCombo(
+        m_fillPbrAlbedoCombo,
+        m_settings.fillPbrAlbedoSource,
+        m_settings.fillPbrAlbedoTextureIndex);
+    rebuildFillPbrSourceCombo(
+        m_fillPbrNormalCombo,
+        m_settings.fillPbrNormalSource,
+        m_settings.fillPbrNormalTextureIndex);
+    rebuildFillPbrSourceCombo(
+        m_fillPbrOcclusionCombo,
+        m_settings.fillPbrOcclusionSource,
+        m_settings.fillPbrOcclusionTextureIndex);
+    rebuildFillPbrSourceCombo(
+        m_fillPbrRoughnessCombo,
+        m_settings.fillPbrRoughnessSource,
+        m_settings.fillPbrRoughnessTextureIndex);
+}
+
+void RenderOverlayPanel::rebuildFillPbrSourceCombo(
+    QComboBox *combo,
+    FillPbrTextureSource currentSource,
+    int currentTextureIndex)
+{
+    if (!combo)
+        return;
+
+    QSignalBlocker blocker(combo);
+    combo->clear();
+
+    auto addItem = [this, combo](const QString &label, FillPbrTextureSource source, int textureIndex) {
+        combo->addItem(label);
+        const int idx = combo->count() - 1;
+        combo->setItemData(idx, static_cast<int>(source), kPbrSourceRole);
+        combo->setItemData(idx, textureIndex, kPbrTextureIndexRole);
+        if (source == FillPbrTextureSource::Texture && !m_fillHasTextures)
+            combo->setItemData(idx, QVariant(0), Qt::UserRole - 1);
+    };
+
+    addItem(tr("None"), FillPbrTextureSource::None, -1);
+    addItem(tr("Constant"), FillPbrTextureSource::Constant, -1);
+    for (int i = 0; i < m_fillTextureNames.size(); ++i)
+        addItem(m_fillTextureNames.at(i), FillPbrTextureSource::Texture, i);
+
+    syncFillPbrSourceCombo(combo, currentSource, currentTextureIndex);
+}
+
+void RenderOverlayPanel::syncFillPbrSourceCombo(
+    QComboBox *combo,
+    FillPbrTextureSource currentSource,
+    int currentTextureIndex)
+{
+    if (!combo)
+        return;
+
+    QSignalBlocker blocker(combo);
+    int selected = -1;
+    const int sourceValue = static_cast<int>(currentSource);
+    for (int i = 0; i < combo->count(); ++i) {
+        const int itemSource = combo->itemData(i, kPbrSourceRole).toInt();
+        const int itemTexIndex = combo->itemData(i, kPbrTextureIndexRole).toInt();
+        if (itemSource == sourceValue && itemTexIndex == currentTextureIndex) {
+            selected = i;
+            break;
+        }
+    }
+    if (selected < 0) {
+        for (int i = 0; i < combo->count(); ++i) {
+            const int itemSource = combo->itemData(i, kPbrSourceRole).toInt();
+            const int itemTexIndex = combo->itemData(i, kPbrTextureIndexRole).toInt();
+            if (itemSource == sourceValue && itemTexIndex == -1) {
+                selected = i;
+                break;
+            }
+        }
+    }
+    if (selected < 0)
+        selected = 0;
+    combo->setCurrentIndex(selected);
+}
+
 void RenderOverlayPanel::syncFillPbrUiState()
 {
     const bool usePbr = (m_settings.fillMaterial == FillMaterial::Pbr);
     if (m_fillMaterialStack)
         m_fillMaterialStack->setCurrentIndex(usePbr ? 1 : 0);
 
-    const bool textureAlbedo = (m_settings.fillPbrAlbedoSource == FillPbrAlbedoSource::Texture);
+    const bool constantAlbedo = (m_settings.fillPbrAlbedoSource == FillPbrTextureSource::Constant);
     if (m_fillPbrAlbedoCombo)
         m_fillPbrAlbedoCombo->setEnabled(usePbr);
+    if (m_fillPbrNormalCombo)
+        m_fillPbrNormalCombo->setEnabled(usePbr);
+    if (m_fillPbrOcclusionCombo)
+        m_fillPbrOcclusionCombo->setEnabled(usePbr);
+    if (m_fillPbrRoughnessCombo)
+        m_fillPbrRoughnessCombo->setEnabled(usePbr);
     if (m_fillPbrColorButton)
-        m_fillPbrColorButton->setEnabled(usePbr && !textureAlbedo);
+        m_fillPbrColorButton->setEnabled(usePbr && constantAlbedo);
 
-    const bool normalEnabled = usePbr && m_fillHasNormalMap;
-    if (m_fillUseNormalMapCheck)
-        m_fillUseNormalMapCheck->setEnabled(normalEnabled);
+    const bool normalEnabled =
+        usePbr && m_settings.fillPbrNormalSource == FillPbrTextureSource::Texture;
     if (m_fillNormalScaleSpin)
-        m_fillNormalScaleSpin->setEnabled(normalEnabled && m_settings.fillUseNormalMap);
+        m_fillNormalScaleSpin->setEnabled(normalEnabled);
 
-    const bool occlusionEnabled = usePbr && m_fillHasOcclusionMap;
-    if (m_fillUseOcclusionMapCheck)
-        m_fillUseOcclusionMapCheck->setEnabled(occlusionEnabled);
+    const bool occlusionEnabled = usePbr && m_settings.fillPbrOcclusionSource != FillPbrTextureSource::None;
     if (m_fillOcclusionStrengthSpin)
-        m_fillOcclusionStrengthSpin->setEnabled(occlusionEnabled && m_settings.fillUseOcclusionMap);
+        m_fillOcclusionStrengthSpin->setEnabled(occlusionEnabled);
 
-    const bool roughnessEnabled = usePbr && m_fillHasRoughnessMap;
-    if (m_fillUseRoughnessMapCheck)
-        m_fillUseRoughnessMapCheck->setEnabled(roughnessEnabled);
+    const bool roughnessEnabled = usePbr && m_settings.fillPbrRoughnessSource != FillPbrTextureSource::None;
     if (m_fillRoughnessFactorSpin)
-        m_fillRoughnessFactorSpin->setEnabled(roughnessEnabled && m_settings.fillUseRoughnessMap);
+        m_fillRoughnessFactorSpin->setEnabled(roughnessEnabled);
 }
 
 void RenderOverlayPanel::updateColorButtonStyle(QPushButton *button, const QColor &color)

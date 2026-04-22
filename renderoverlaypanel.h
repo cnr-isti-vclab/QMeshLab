@@ -31,6 +31,7 @@ public:
         bool hasNormalMap,
         bool hasOcclusionMap,
         bool hasRoughnessMap);
+    void setFillPbrTextureNames(const QStringList &textureNames);
 
 signals:
     void settingsChanged(const RenderSettings &settings);
@@ -42,6 +43,15 @@ private:
     void syncViewerSettingsModeUi();
     void syncRenderPassUiState();
     void syncFillPbrUiState();
+    void rebuildFillPbrSourceCombos();
+    void rebuildFillPbrSourceCombo(
+        QComboBox *combo,
+        FillPbrTextureSource currentSource,
+        int currentTextureIndex);
+    void syncFillPbrSourceCombo(
+        QComboBox *combo,
+        FillPbrTextureSource currentSource,
+        int currentTextureIndex);
     void updateColorButtonStyle(QPushButton *button, const QColor &color);
 
     RenderSettings m_settings;
@@ -92,14 +102,14 @@ private:
     QCheckBox *m_wireBackfaceCullingCheck = nullptr;
     QCheckBox *m_fillLightingCheck = nullptr;
     QCheckBox *m_fillBackfaceCullingCheck = nullptr;
-    QCheckBox *m_fillUseNormalMapCheck = nullptr;
-    QCheckBox *m_fillUseOcclusionMapCheck = nullptr;
-    QCheckBox *m_fillUseRoughnessMapCheck = nullptr;
     QDoubleSpinBox *m_fillNormalScaleSpin = nullptr;
     QDoubleSpinBox *m_fillOcclusionStrengthSpin = nullptr;
     QDoubleSpinBox *m_fillRoughnessFactorSpin = nullptr;
     QComboBox *m_fillMaterialCombo = nullptr;
     QComboBox *m_fillPbrAlbedoCombo = nullptr;
+    QComboBox *m_fillPbrNormalCombo = nullptr;
+    QComboBox *m_fillPbrOcclusionCombo = nullptr;
+    QComboBox *m_fillPbrRoughnessCombo = nullptr;
     QCheckBox *m_selectionShowVerticesCheck = nullptr;
     QCheckBox *m_selectionShowFacesCheck = nullptr;
     QCheckBox *m_uvShowReferenceFrameCheck = nullptr;
@@ -132,4 +142,5 @@ private:
     bool m_fillHasOcclusionMap = false;
     bool m_fillHasRoughnessMap = false;
     bool m_fillHasTextures = false;
+    QStringList m_fillTextureNames;
 };

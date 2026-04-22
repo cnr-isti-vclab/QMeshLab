@@ -504,6 +504,22 @@ int Document::loadMesh(const QString &filename)
     if (!normalizedMeshTexturePaths.empty())
         entry->mesh.textures = std::move(normalizedMeshTexturePaths);
 
+    // Also register any PBR channel textures from materialSet that were not listed in
+    // mesh.textures (e.g. glTF normal / occlusion / roughness maps that have no UV slot).
+    for (const MeshIOMaterialSlot &slot : entry->materialSet.entries) {
+        auto addIfNew = [&](const MeshIOMaterialTextureRef &ref) {
+            const QString p = ref.filePath.trimmed();
+            if (p.isEmpty() || entry->textureFilePaths.contains(p))
+                return;
+            entry->textureFileNames.append(QFileInfo(p).fileName());
+            entry->textureFilePaths.append(p);
+        };
+        addIfNew(slot.baseColorTexture);
+        addIfNew(slot.normalTexture);
+        addIfNew(slot.occlusionTexture);
+        addIfNew(slot.roughnessTexture);
+    }
+
     int index = meshCount();
     m_meshes.push_back(std::move(entry));
 

@@ -477,7 +477,6 @@ MainWindow::MainWindow(QWidget *parent)
             return;
         view->setMeshVisible(index, visible);
     });
-
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(tr("&New"), QKeySequence::New, this, &MainWindow::newDocument);
     fileMenu->addAction(

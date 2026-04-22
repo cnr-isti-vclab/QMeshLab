@@ -63,13 +63,19 @@ void main()
         baseColor = mix(ub.fillColor.rgb, v_meshColor.rgb, clamp(v_meshColor.a, 0.0, 1.0));
     const bool hasUv = v_texInfo.z > 0.5;
     vec2 uv = vec2(v_texInfo.x, 1.0 - v_texInfo.y);
-    if (hasUv && ub.pbrMapUsage.w > 0.5)
+    int albedoMode = int(ub.pbrMapUsage.w + 0.5);
+    int normalMode = int(ub.pbrMapUsage.x + 0.5);
+    int aoMode = int(ub.pbrMapUsage.y + 0.5);
+    int roughnessMode = int(ub.pbrMapUsage.z + 0.5);
+    if (albedoMode == 0)
+        baseColor = vec3(1.0);
+    else if (hasUv && albedoMode == 2)
         baseColor = texture(albedoTex, uv).rgb;
 
     vec3 color = baseColor;
     if (ub.lightingParams.w > 0.5) {
         vec3 N = normalize(cross(dFdy(vViewPos), dFdx(vViewPos)));
-        if (hasUv && ub.pbrMapUsage.x > 0.5)
+        if (hasUv && normalMode == 2)
             N = applyNormalMap(N, uv);
 
         vec3 L = normalize(vec3(0.0, 0.0, 1.0));
@@ -77,15 +83,17 @@ void main()
         vec3 H = normalize(L + V);
         float diff = max(dot(N, L), 0.0);
 
-        float roughness = max(0.02, ub.pbrParams.z);
-        if (hasUv && ub.pbrMapUsage.z > 0.5) {
+        float roughness = (roughnessMode == 0) ? 1.0 : max(0.02, ub.pbrParams.z);
+        if (hasUv && roughnessMode == 2) {
             vec3 roughSample = texture(roughnessTex, uv).rgb;
             roughness *= clamp(dot(roughSample, vec3(0.3333333)), 0.0, 1.0);
             roughness = clamp(roughness, 0.02, 1.0);
         }
 
         float ao = 1.0;
-        if (hasUv && ub.pbrMapUsage.y > 0.5) {
+        if (aoMode == 1) {
+            ao = clamp(ub.pbrParams.y, 0.0, 1.0);
+        } else if (hasUv && aoMode == 2) {
             float aoSample = clamp(texture(occlusionTex, uv).r, 0.0, 1.0);
             ao = mix(1.0, aoSample, clamp(ub.pbrParams.y, 0.0, 1.0));
         }
