@@ -13,8 +13,10 @@ jobs:
     env:
       VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       BUILD_DIR: build-win-release
-      QT_VERSION: 6.11.*
+      QT_VERSION_SPEC: 6.11
       QT_ARCH: win64_msvc2022_64
+      QT_MODULES: qtshadertools
+      QT_INSTALL_DIR: ${{ github.workspace }}\Qt
 
     steps:
       - name: Checkout
@@ -25,16 +27,42 @@ jobs:
       - name: Setup MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          version: ${{ env.QT_VERSION }}
-          host: windows
-          target: desktop
-          arch: ${{ env.QT_ARCH }}
-          modules: qtshadertools
-          cache: true
-          cache-key-prefix: qmeshlab-qt
+          python-version: "3.12"
+
+      - name: Cache Qt SDK
+        id: cache-qt
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.QT_INSTALL_DIR }}
+          key: windows-qt-${{ runner.os }}-${{ env.QT_VERSION_SPEC }}-${{ env.QT_ARCH }}-${{ env.QT_MODULES }}
+
+      - name: Install Qt with aqt
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "aqtinstall==3.3.*"
+          python -m aqt list-qt windows desktop --spec $env:QT_VERSION_SPEC
+          python -m aqt install-qt windows desktop $env:QT_VERSION_SPEC $env:QT_ARCH --outputdir $env:QT_INSTALL_DIR --modules $env:QT_MODULES
+
+      - name: Expose Qt tools
+        shell: pwsh
+        run: |
+          $qtVersionDir = Get-ChildItem $env:QT_INSTALL_DIR -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          if ($null -eq $qtVersionDir) {
+            throw "Qt installation directory not found under $env:QT_INSTALL_DIR"
+          }
+          $qtRootDir = Join-Path $qtVersionDir.FullName $env:QT_ARCH
+          if (!(Test-Path $qtRootDir)) {
+            throw "Qt root directory not found: $qtRootDir"
+          }
+          "$qtRootDir\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "QT_ROOT_DIR=$qtRootDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CMAKE_PREFIX_PATH=$qtRootDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "Qt6_DIR=$qtRootDir\lib\cmake\Qt6" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Cache vcpkg artifacts
         uses: actions/cache@v4
@@ -55,7 +83,7 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          cmake --preset vcpkg-manifest -B $env:BUILD_DIR -DCMAKE_BUILD_TYPE=Release
+          cmake --preset vcpkg-manifest -B $env:BUILD_DIR -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH"
 
       - name: Build
         shell: pwsh
