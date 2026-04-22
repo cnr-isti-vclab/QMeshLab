@@ -16,6 +16,7 @@ jobs:
       BUILD_DIR: build-release
       QT_VERSION: 6.11.*
       QT_ARCH: clang_64
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
     steps:
       - name: Checkout
@@ -26,6 +27,10 @@ jobs:
       - name: Install macOS build dependencies
         run: |
           brew install ninja
+
+      - name: Expose Ninja
+        run: |
+          echo "$(brew --prefix ninja)/bin" >> "$GITHUB_PATH"
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -56,8 +61,8 @@ jobs:
 
       - name: Bootstrap vcpkg
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg "$GITHUB_WORKSPACE/vcpkg"
-          "$GITHUB_WORKSPACE/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          git clone --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Configure
         run: |
