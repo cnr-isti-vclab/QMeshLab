@@ -77,6 +77,28 @@ set_target_properties(QMeshLab PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
+if (APPLE)
+    set(QMESHLAB_APP_ICON_PNG "${CMAKE_SOURCE_DIR}/img/MeshLab_Icon_512x512.png")
+    set(QMESHLAB_APP_ICON_ICNS "${CMAKE_CURRENT_BINARY_DIR}/QMeshLab.icns")
+    add_custom_command(
+        OUTPUT "${QMESHLAB_APP_ICON_ICNS}"
+        COMMAND "${CMAKE_COMMAND}"
+            -DINPUT_PNG=${QMESHLAB_APP_ICON_PNG}
+            -DOUTPUT_ICNS=${QMESHLAB_APP_ICON_ICNS}
+            -P "${CMAKE_SOURCE_DIR}/cmake/generate_mac_icon.cmake"
+        DEPENDS "${QMESHLAB_APP_ICON_PNG}" "${CMAKE_SOURCE_DIR}/cmake/generate_mac_icon.cmake"
+        COMMENT "Generating macOS app icon"
+        VERBATIM
+    )
+    target_sources(QMeshLab PRIVATE "${QMESHLAB_APP_ICON_ICNS}")
+    set_source_files_properties("${QMESHLAB_APP_ICON_ICNS}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+    set_target_properties(QMeshLab PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE "QMeshLab.icns"
+    )
+endif()
+
 target_link_libraries(QMeshLab PRIVATE
     QMeshLabPlugins
     Qt6::Widgets

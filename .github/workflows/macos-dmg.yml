@@ -102,6 +102,7 @@ jobs:
           macdeployqt "$APP_BUNDLE" -always-overwrite
           APP_BIN="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
           APP_FW="$APP_BUNDLE/Contents/Frameworks"
+          APP_ICON="$(find "$APP_BUNDLE/Contents/Resources" -maxdepth 1 -type f -name "*.icns" -print -quit)"
           OMP_LINK_PATH="$(otool -L "$APP_BIN" | awk '/libomp\.dylib/ {print $1; exit}')"
           if [ -n "$OMP_LINK_PATH" ]; then
             mkdir -p "$APP_FW"
@@ -119,6 +120,30 @@ jobs:
             echo "macdeployqt did not produce ${APP_NAME}.dmg"
             find . -maxdepth 3 -type f -name "*.dmg"
             exit 1
+          fi
+          if [ -n "$APP_ICON" ] && xcrun -f SetFile >/dev/null 2>&1; then
+            RW_DMG_BASE="${APP_NAME}-rw"
+            RW_DMG_PATH="${RW_DMG_BASE}.dmg"
+            FINAL_DMG_BASE="${APP_NAME}-icon"
+            FINAL_DMG_PATH="${FINAL_DMG_BASE}.dmg"
+            MOUNT_POINT="$(mktemp -d "/tmp/${APP_NAME}.XXXXXX")"
+            rm -f "$RW_DMG_PATH" "$FINAL_DMG_PATH"
+            hdiutil convert "$GENERATED_DMG" -format UDRW -o "$RW_DMG_BASE"
+            DEVICE_NAME="$(hdiutil attach "$RW_DMG_PATH" -mountpoint "$MOUNT_POINT" -nobrowse -readwrite | awk -v mp="$MOUNT_POINT" '$NF == mp {print $1; exit}')"
+            if [ -n "$DEVICE_NAME" ]; then
+              cp -f "$APP_ICON" "$MOUNT_POINT/.VolumeIcon.icns"
+              xcrun SetFile -a C "$MOUNT_POINT"
+              xcrun SetFile -a V "$MOUNT_POINT/.VolumeIcon.icns"
+              sync
+              hdiutil detach "$DEVICE_NAME"
+              hdiutil convert "$RW_DMG_PATH" -format UDZO -imagekey zlib-level=9 -o "$FINAL_DMG_BASE"
+              rm -f "$GENERATED_DMG" "$RW_DMG_PATH"
+              GENERATED_DMG="$FINAL_DMG_PATH"
+            else
+              echo "Could not determine mounted dmg device; leaving default dmg icon"
+              hdiutil detach "$MOUNT_POINT" || true
+            fi
+            rmdir "$MOUNT_POINT" || true
           fi
           mv "$GENERATED_DMG" "$DMG_NAME"
           ls -lah "$DMG_NAME"

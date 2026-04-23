@@ -13,6 +13,8 @@ jobs:
     env:
       BUILD_DIR: build-win-release
       VCPKG_ROOT_WORKSPACE: ${{ github.workspace }}\vcpkg
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}\ci\vcpkg-triplets
+      VCPKG_TARGET_TRIPLET: x64-windows-release
       QT_VERSION: 6.11.0
       QT_ARCH: msvc2022_64
       QT_INSTALL_DIR: ${{ github.workspace }}\Qt
@@ -112,21 +114,11 @@ jobs:
           if ($null -eq $qtConfig) {
             throw "Qt6Config.cmake not found under $env:QT_INSTALL_DIR"
           }
-          $qtRootDir = Split-Path (Split-Path (Split-Path $qtConfig.FullName -Parent) -Parent) -Parent
+          $qtRootDir = Split-Path (Split-Path (Split-Path (Split-Path $qtConfig.FullName -Parent) -Parent) -Parent) -Parent
           "$qtRootDir\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           "QT_ROOT_DIR=$qtRootDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "CMAKE_PREFIX_PATH=$qtRootDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "Qt6_DIR=$qtRootDir\lib\cmake\Qt6" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Cache vcpkg artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.LOCALAPPDATA }}\vcpkg\archives
-            ${{ github.workspace }}\build-win-release\vcpkg_installed
-          key: windows-portable-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt', 'plugins/**/CMakeLists.txt') }}
-          restore-keys: |
-            windows-portable-vcpkg-${{ runner.os }}-
 
       - name: Bootstrap vcpkg
         shell: pwsh
@@ -136,10 +128,31 @@ jobs:
           git -C $env:VCPKG_ROOT fetch --depth 1 origin $vcpkgBaseline
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
+      - name: Cache vcpkg artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.LOCALAPPDATA }}\vcpkg\archives
+            ${{ env.VCPKG_ROOT_WORKSPACE }}\downloads
+            ${{ github.workspace }}\build-win-release\vcpkg_installed
+          key: windows-portable-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}
+          restore-keys: |
+            windows-portable-vcpkg-${{ runner.os }}-
+
+      - name: Install vcpkg dependencies
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_ROOT\vcpkg.exe" install `
+            --triplet "$env:VCPKG_TARGET_TRIPLET" `
+            --overlay-triplets="$env:VCPKG_OVERLAY_TRIPLETS" `
+            --x-manifest-root="$env:GITHUB_WORKSPACE" `
+            --x-install-root="$env:GITHUB_WORKSPACE\$env:BUILD_DIR\vcpkg_installed" `
+            --clean-after-build
+
       - name: Configure
         shell: pwsh
         run: |
-          cmake --preset vcpkg-manifest -B $env:BUILD_DIR -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH"
+          cmake --preset vcpkg-manifest -B $env:BUILD_DIR -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:CMAKE_PREFIX_PATH" -DQt6_DIR="$env:Qt6_DIR" -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TARGET_TRIPLET" -DVCPKG_OVERLAY_TRIPLETS="$env:VCPKG_OVERLAY_TRIPLETS" -DVCPKG_INSTALLED_DIR="$env:GITHUB_WORKSPACE\$env:BUILD_DIR\vcpkg_installed" -DVCPKG_MANIFEST_INSTALL=OFF
 
       - name: Build
         shell: pwsh
@@ -166,7 +179,7 @@ jobs:
 
           & windeployqt --release --compiler-runtime (Join-Path $portableDir "QMeshLab.exe")
 
-          $vcpkgBin = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\vcpkg_installed\x64-windows\bin"
+          $vcpkgBin = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\vcpkg_installed\$env:VCPKG_TARGET_TRIPLET\bin"
           if (Test-Path $vcpkgBin) {
             Copy-Item (Join-Path $vcpkgBin "*.dll") $portableDir -Force -ErrorAction SilentlyContinue
           }
