@@ -607,12 +607,16 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillPbrForm->setHorizontalSpacing(6);
     fillPbrForm->setVerticalSpacing(2);
     fillPbrForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_fillPbrShadingCombo = new QComboBox(fillPage);
+    m_fillPbrShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
+    m_fillPbrShadingCombo->addItem(tr("Flat"), static_cast<int>(FillShading::Flat));
     m_fillPbrAlbedoCombo = new QComboBox(fillPage);
     m_fillPbrNormalCombo = new QComboBox(fillPage);
     m_fillPbrOcclusionCombo = new QComboBox(fillPage);
     m_fillPbrRoughnessCombo = new QComboBox(fillPage);
     rebuildFillPbrSourceCombos();
     m_fillPbrColorButton = makeColorButton(fillPage);
+    fillPbrForm->addRow(tr("Shading"), m_fillPbrShadingCombo);
     fillPbrForm->addRow(tr("Albedo"), m_fillPbrAlbedoCombo);
     fillPbrForm->addRow(tr("Normal"), m_fillPbrNormalCombo);
     fillPbrForm->addRow(tr("AO Map"), m_fillPbrOcclusionCombo);

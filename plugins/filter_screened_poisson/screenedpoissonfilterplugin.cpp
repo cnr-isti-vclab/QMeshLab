@@ -3,6 +3,7 @@
 #include "document.h"
 #include "meshfilterpluginmanager.h"
 #include "poisson_utils.h"
+#include "upstream_backend.h"
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
@@ -160,6 +161,7 @@ QString invalidNormalsMessage()
 std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
 {
     std::vector<MeshFilterDescriptor> out;
+    const auto upstreamStatus = ScreenedPoissonUpstream::inspectBackend();
 
     const unsigned int hwThreads = std::thread::hardware_concurrency();
     const int defaultThreads = hwThreads > 0 ? static_cast<int>(hwThreads) : 8;
@@ -175,6 +177,11 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         "based on the code by Michael Kazhdan and Matthew Bolitho implementing the algorithm described in:\n\n"
         "*Michael Kazhdan, Hugues Hoppe*  \n"
         "**Screened Poisson Surface Reconstruction**");
+    if (upstreamStatus.vendoredSourcesPresent) {
+        d.longDescriptionMarkdown += QObject::tr(
+            "\n\nAn upstream `PoissonRecon` source subtree is also vendored inside the plugin "
+            "as scaffolding for the next migration phase, while the current runtime path stays on the stable legacy backend.");
+    }
     d.tags = {
         QStringLiteral("reconstruction"),
         QStringLiteral("surface"),
@@ -343,6 +350,10 @@ MeshFilterRunResult ScreenedPoissonFilterPlugin::runFilter(
         } else {
             doc.markMeshMaterialChanged(meshIndex);
         }
+    }
+
+    if (ScreenedPoissonUpstream::isEnabledByEnvironment()) {
+        return ScreenedPoissonUpstream::runSingleMeshFilter(doc, meshIndices, mergeVisible, parameters);
     }
 
     Box3m bbox = ComputePointStreamBounds<Scalarm>(doc, meshIndices);

@@ -42,6 +42,10 @@ add_library(QMeshLabPluginFilterScreenedPoisson STATIC
     screenedpoissonfilterplugin.h
     screenedpoissonfilterplugin.cpp
     poisson_utils.h
+    upstream_backend.h
+    upstream_backend.cpp
+    upstream_qmeshlab_adapter.h
+    upstream_qmeshlab_adapter.cpp
     Src/MarchingCubes.cpp
     Src/Factor.cpp
     Src/Geometry.cpp
@@ -51,6 +55,7 @@ target_include_directories(QMeshLabPluginFilterScreenedPoisson
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/upstream
 )
 
 target_link_libraries(QMeshLabPluginFilterScreenedPoisson
