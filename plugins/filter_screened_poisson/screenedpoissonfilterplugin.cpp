@@ -13,6 +13,8 @@
 
 namespace {
 constexpr QLatin1StringView kFilterScreenedPoisson("surface_reconstruction_screened_poisson");
+constexpr QLatin1StringView kFilterSSDRecon("surface_reconstruction_ssd");
+constexpr QLatin1StringView kFilterSurfaceTrimmer("surface_reconstruction_surface_trimmer");
 
 int intParameter(const MeshFilterParameterValues &params, const QString &id, int fallback)
 {
@@ -295,6 +297,233 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
         256);
 
     out.push_back(std::move(d));
+
+    d = MeshFilterDescriptor();
+    d.id = QString::fromLatin1(kFilterSSDRecon);
+    d.menuPath = QObject::tr("Remeshing/Surface Reconstruction");
+    d.name = QObject::tr("Surface Reconstruction: SSD");
+    d.shortDescription = QObject::tr("Creates a watertight surface using smooth signed distance reconstruction.");
+    d.longDescriptionMarkdown = QObject::tr(
+        "This filter reconstructs a surface from an oriented point set using the SSD reconstruction formulation "
+        "provided by the `PoissonRecon` code base.\n\n"
+        "Compared to Screened Poisson, the SSD formulation exposes separate weights for zero-crossing, gradient, "
+        "and bi-Laplacian terms, making it useful when you want more direct control over smoothness and interpolation.");
+    d.tags = {
+        QStringLiteral("reconstruction"),
+        QStringLiteral("surface"),
+        QStringLiteral("ssd"),
+        QStringLiteral("point cloud")
+    };
+    d.inputDomain = MeshFilterInputDomain::SingleMesh;
+    d.inputRequirements.requireVertices = true;
+    d.outputDomain = MeshFilterOutputDomain::NewMeshes;
+
+    addBoolParam(
+        d,
+        QStringLiteral("visibleLayer"),
+        QObject::tr("Merge All Visible Layers"),
+        QObject::tr("Enabling this flag means that all the visible layers will be used for providing the points."),
+        false);
+    addIntParam(
+        d,
+        QStringLiteral("depth"),
+        QObject::tr("Reconstruction Depth"),
+        QObject::tr("This integer is the maximum depth of the tree that will be used for reconstruction. Running at depth d corresponds to solving on a grid whose resolution is no larger than 2^d x 2^d x 2^d. The default value for this parameter is 8."),
+        8,
+        1,
+        20);
+    addIntParam(
+        d,
+        QStringLiteral("fullDepth"),
+        QObject::tr("Adaptive Octree Depth"),
+        QObject::tr("This integer specifies the depth beyond which the tree will be adapted to the sampling density. The default value for this parameter is 5."),
+        5,
+        1,
+        20,
+        QStringLiteral("advanced.tree"));
+    addIntParam(
+        d,
+        QStringLiteral("baseDepth"),
+        QObject::tr("Coarse Solver Depth"),
+        QObject::tr("This integer specifies the depth of the coarsest multigrid solve level. Larger values make the coarse solve finer and more expensive."),
+        0,
+        0,
+        20,
+        QStringLiteral("advanced.solver"));
+    addDoubleParam(
+        d,
+        QStringLiteral("scale"),
+        QObject::tr("Scale Factor"),
+        QObject::tr("This floating point value specifies the ratio between the diameter of the cube used for reconstruction and the diameter of the samples' bounding cube. The default value is 1.1."),
+        1.1,
+        0.1,
+        100.0,
+        3,
+        QStringLiteral("advanced.tree"));
+    addDoubleParam(
+        d,
+        QStringLiteral("samplesPerNode"),
+        QObject::tr("Minimum Number of Samples"),
+        QObject::tr("This floating point value specifies the minimum number of sample points that should fall within a node as the tree construction is adapted to sampling density. The default value is 1.5."),
+        1.5,
+        0.01,
+        1000.0,
+        3);
+    addDoubleParam(
+        d,
+        QStringLiteral("valueWeight"),
+        QObject::tr("Zero-Crossing Weight"),
+        QObject::tr("This floating point value specifies the weight associated with the zero-crossing term of the SSD energy. Larger values make the reconstruction interpolate the input points more strongly."),
+        1.0,
+        0.0,
+        100000.0,
+        4);
+    addDoubleParam(
+        d,
+        QStringLiteral("gradientWeight"),
+        QObject::tr("Gradient Weight"),
+        QObject::tr("This floating point value specifies the weight associated with the gradient fitting term of the SSD energy. The value must be strictly positive."),
+        1.0,
+        0.000001,
+        100000.0,
+        4);
+    addDoubleParam(
+        d,
+        QStringLiteral("biLapWeight"),
+        QObject::tr("Bi-Laplacian Weight"),
+        QObject::tr("This floating point value specifies the weight associated with the bi-Laplacian smoothing term of the SSD energy. Larger values produce smoother surfaces. The value must be strictly positive."),
+        1.0,
+        0.000001,
+        100000.0,
+        4);
+    addIntParam(
+        d,
+        QStringLiteral("iters"),
+        QObject::tr("Gauss-Seidel Relaxations"),
+        QObject::tr("This integer value specifies the number of Gauss-Seidel relaxations to be performed at each level of the hierarchy. The default value is 8."),
+        8,
+        1,
+        100,
+        QStringLiteral("advanced.solver"));
+    addBoolParam(
+        d,
+        QStringLiteral("exactInterpolation"),
+        QObject::tr("Exact Interpolation"),
+        QObject::tr("If enabled, the exact interpolation formulation is used when building the SSD system."),
+        false,
+        QStringLiteral("advanced.solver"));
+    addBoolParam(
+        d,
+        QStringLiteral("nonLinearFit"),
+        QObject::tr("Non Linear Fit"),
+        QObject::tr("If enabled, the extracted iso-surface uses the non-linear fit. If disabled, the linear fit is used."),
+        false,
+        QStringLiteral("advanced.output"));
+    addBoolParam(
+        d,
+        QStringLiteral("nonManifold"),
+        QObject::tr("Allow Non Manifold"),
+        QObject::tr("If enabled, the extractor does not force the output mesh to be manifold."),
+        false,
+        QStringLiteral("advanced.output"));
+    addDoubleParam(
+        d,
+        QStringLiteral("cgAccuracy"),
+        QObject::tr("CG Solver Accuracy"),
+        QObject::tr("This floating point value specifies the accuracy used by the conjugate gradients solver. Smaller values make the linear solve more accurate and more expensive."),
+        1e-3,
+        1e-8,
+        1.0,
+        6,
+        QStringLiteral("advanced.solver"));
+    addDoubleParam(
+        d,
+        QStringLiteral("dataScale"),
+        QObject::tr("Per Level Data Scale"),
+        QObject::tr("This floating point value specifies the pull factor used by the hierarchical SSD formulation. The default value is 32."),
+        32.0,
+        0.0,
+        1000.0,
+        3,
+        QStringLiteral("advanced.solver"));
+    addBoolParam(
+        d,
+        QStringLiteral("confidence"),
+        QObject::tr("Confidence Flag"),
+        QObject::tr("Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction."),
+        false);
+    addBoolParam(
+        d,
+        QStringLiteral("preClean"),
+        QObject::tr("Pre-Clean"),
+        QObject::tr("Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals."),
+        false);
+    addIntParam(
+        d,
+        QStringLiteral("threads"),
+        QObject::tr("Number of Threads"),
+        QObject::tr("Maximum number of threads that the reconstruction algorithm can use."),
+        defaultThreads,
+        1,
+        256);
+
+    out.push_back(std::move(d));
+
+    d = MeshFilterDescriptor();
+    d.id = QString::fromLatin1(kFilterSurfaceTrimmer);
+    d.menuPath = QObject::tr("Remeshing/Surface Reconstruction");
+    d.name = QObject::tr("Surface Reconstruction: Surface Trimmer");
+    d.shortDescription = QObject::tr("Trims a reconstructed mesh using the scalar values stored on the vertices.");
+    d.longDescriptionMarkdown = QObject::tr(
+        "This filter trims a reconstructed surface by cutting the mesh along an isovalue defined over the vertices.\n\n"
+        "It is especially useful after Poisson-based reconstruction when the vertex quality stores the reconstruction "
+        "density, allowing low-confidence regions to be removed.");
+    d.tags = {
+        QStringLiteral("reconstruction"),
+        QStringLiteral("trimming"),
+        QStringLiteral("density"),
+        QStringLiteral("surface")
+    };
+    d.inputDomain = MeshFilterInputDomain::SingleMesh;
+    d.inputRequirements.requireVertices = true;
+    d.inputRequirements.requireFaces = true;
+    d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
+
+    addDoubleParam(
+        d,
+        QStringLiteral("trim"),
+        QObject::tr("Trim Threshold"),
+        QObject::tr("This floating point value specifies the trimming value. Faces whose scalar field is below this threshold are trimmed away; crossing faces are split along the threshold."),
+        0.0,
+        -1000000.0,
+        1000000.0,
+        6);
+    addDoubleParam(
+        d,
+        QStringLiteral("islandAreaRatio"),
+        QObject::tr("Island Area Ratio"),
+        QObject::tr("This floating point value specifies the relative area threshold used to detect small disconnected islands. Smaller components may be merged or removed according to the selected options."),
+        0.001,
+        0.0,
+        1.0,
+        6,
+        QStringLiteral("advanced.cleanup"));
+    addBoolParam(
+        d,
+        QStringLiteral("removeIslands"),
+        QObject::tr("Remove Islands"),
+        QObject::tr("If enabled, disconnected components whose area is below the island area ratio are removed instead of being preserved."),
+        false,
+        QStringLiteral("advanced.cleanup"));
+    addBoolParam(
+        d,
+        QStringLiteral("polygonMesh"),
+        QObject::tr("Polygon Mesh"),
+        QObject::tr("The original tool can preserve polygonal output. QMeshLab stores triangle meshes, so the result is always triangulated even when this option is enabled."),
+        false,
+        QStringLiteral("advanced.output"));
+
+    out.push_back(std::move(d));
     return out;
 }
 }
@@ -306,7 +535,7 @@ QString ScreenedPoissonFilterPlugin::pluginId() const
 
 QString ScreenedPoissonFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Screened Poisson Filters");
+    return QObject::tr("QMeshLab PoissonRecon Filters");
 }
 
 std::vector<MeshFilterDescriptor> ScreenedPoissonFilterPlugin::filters(const Document &doc) const
@@ -319,40 +548,50 @@ MeshFilterRunResult ScreenedPoissonFilterPlugin::runFilter(
     const MeshFilterParameterValues &parameters,
     Document &doc) const
 {
-    if (filterId != QString::fromLatin1(kFilterScreenedPoisson))
-        return { false, false, QObject::tr("Unknown filter id: %1").arg(filterId) };
-
-    const bool mergeVisible = boolParameter(parameters, QStringLiteral("visibleLayer"), false);
-    const std::vector<int> meshIndices = selectedMeshIndices(doc, mergeVisible);
-    if (meshIndices.empty()) {
-        return {
-            false,
-            false,
-            mergeVisible
-                ? QObject::tr("No visible meshes available for Screened Poisson reconstruction.")
-                : QObject::tr("No current mesh selected.")
-        };
-    }
-
-    const bool confidence = boolParameter(parameters, QStringLiteral("confidence"), false);
-    const bool preClean = boolParameter(parameters, QStringLiteral("preClean"), false);
-
-    for (int meshIndex : meshIndices) {
+    if (filterId == QString::fromLatin1(kFilterSurfaceTrimmer)) {
+        const int meshIndex = doc.currentMeshIndex();
         if (meshIndex < 0 || meshIndex >= doc.meshCount())
-            continue;
-        Document::MeshEntry &entry = doc.mesh(meshIndex);
-        cleanInputMesh(entry.mesh, confidence, preClean);
-        if (!hasGoodNormals(entry.mesh))
-            return { false, false, invalidNormalsMessage() };
-
-        if (preClean) {
-            doc.markMeshGeometryChanged(meshIndex);
-        } else {
-            doc.markMeshMaterialChanged(meshIndex);
-        }
+            return { false, false, QObject::tr("No current mesh selected.") };
+        return ScreenedPoisson::runSurfaceTrimmerFilter(doc, meshIndex, parameters);
     }
 
-    return ScreenedPoisson::runSingleMeshFilter(doc, meshIndices, mergeVisible, parameters);
+    if (filterId == QString::fromLatin1(kFilterScreenedPoisson) || filterId == QString::fromLatin1(kFilterSSDRecon)) {
+        const bool mergeVisible = boolParameter(parameters, QStringLiteral("visibleLayer"), false);
+        const std::vector<int> meshIndices = selectedMeshIndices(doc, mergeVisible);
+        if (meshIndices.empty()) {
+            return {
+                false,
+                false,
+                mergeVisible
+                    ? QObject::tr("No visible meshes available for reconstruction.")
+                    : QObject::tr("No current mesh selected.")
+            };
+        }
+
+        const bool confidence = boolParameter(parameters, QStringLiteral("confidence"), false);
+        const bool preClean = boolParameter(parameters, QStringLiteral("preClean"), false);
+
+        for (int meshIndex : meshIndices) {
+            if (meshIndex < 0 || meshIndex >= doc.meshCount())
+                continue;
+            Document::MeshEntry &entry = doc.mesh(meshIndex);
+            cleanInputMesh(entry.mesh, confidence, preClean);
+            if (!hasGoodNormals(entry.mesh))
+                return { false, false, invalidNormalsMessage() };
+
+            if (preClean) {
+                doc.markMeshGeometryChanged(meshIndex);
+            } else {
+                doc.markMeshMaterialChanged(meshIndex);
+            }
+        }
+
+        if (filterId == QString::fromLatin1(kFilterSSDRecon))
+            return ScreenedPoisson::runSSDReconFilter(doc, meshIndices, mergeVisible, parameters);
+        return ScreenedPoisson::runScreenedPoissonFilter(doc, meshIndices, mergeVisible, parameters);
+    }
+
+    return { false, false, QObject::tr("Unknown filter id: %1").arg(filterId) };
 }
 
 void registerScreenedPoissonFilterPlugin(MeshFilterPluginManager &pluginManager)

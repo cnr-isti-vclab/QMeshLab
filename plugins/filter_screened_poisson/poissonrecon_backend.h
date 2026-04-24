@@ -22,10 +22,19 @@ struct BackendStatus
 BackendStatus inspectBackend();
 QString placeholderErrorMessage();
 bool isEnabledByEnvironment();
-MeshFilterRunResult runSingleMeshFilter(
+MeshFilterRunResult runScreenedPoissonFilter(
     Document &doc,
     const std::vector<int> &meshIndices,
     bool mergeVisible,
+    const MeshFilterParameterValues &parameters);
+MeshFilterRunResult runSSDReconFilter(
+    Document &doc,
+    const std::vector<int> &meshIndices,
+    bool mergeVisible,
+    const MeshFilterParameterValues &parameters);
+MeshFilterRunResult runSurfaceTrimmerFilter(
+    Document &doc,
+    int meshIndex,
     const MeshFilterParameterValues &parameters);
 
 } // namespace ScreenedPoisson
