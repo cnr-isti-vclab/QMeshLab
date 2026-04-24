@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 REFERENCE_DIR="${REPO_ROOT}/.reference/PoissonRecon/Src"
 VENDORED_DIR="${SCRIPT_DIR}/Src"
 

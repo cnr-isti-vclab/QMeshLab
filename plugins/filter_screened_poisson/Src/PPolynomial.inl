@@ -26,8 +26,6 @@ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF S
 DAMAGE.
 */
 
-#include "Factor.h"
-
 ////////////////////////
 // StartingPolynomial //
 ////////////////////////
@@ -172,7 +170,7 @@ template<int Degree>
 double PPolynomial<Degree>::operator ()( double t ) const
 {
 	double v=0;
-	for( int i=0 ; i<int(polyCount) && t>polys[i].start ; i++ ) v += polys[i].p(t);
+	for( int i=0 ; i<int(polyCount) && t>polys[i].start ; i++ ) v+=polys[i].p(t);
 	return v;
 }
 
@@ -403,7 +401,7 @@ void PPolynomial<Degree>::printnl(void) const{
 	printf("\n");
 }
 template< >
-PPolynomial< 0 > PPolynomial< 0 >::BSpline( double radius )
+inline PPolynomial< 0 > PPolynomial< 0 >::BSpline( double radius )
 {
 	PPolynomial q;
 	q.set(2);

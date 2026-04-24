@@ -1,4 +1,4 @@
-#include "upstream_qmeshlab_adapter.h"
+#include "poissonrecon_adapter.h"
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
@@ -21,10 +21,10 @@ vcg::Point3<Scalar> qMatrixMapDirection(const QMatrix4x4 &matrix, const vcg::Poi
     return vcg::Point3<Scalar>(Scalar(mapped.x()), Scalar(mapped.y()), Scalar(mapped.z()));
 }
 
-void appendToMeshImpl(const std::vector<ScreenedPoissonUpstream::VertexRecord> &vertices, const std::vector<ScreenedPoissonUpstream::Face> &faces, VCGMesh &mesh)
+void appendToMeshImpl(const std::vector<ScreenedPoisson::VertexRecord> &vertices, const std::vector<ScreenedPoisson::Face> &faces, VCGMesh &mesh)
 {
     const int baseVertexIndex = mesh.VN();
-    for (const ScreenedPoissonUpstream::VertexRecord &vertex : vertices) {
+    for (const ScreenedPoisson::VertexRecord &vertex : vertices) {
         vcg::tri::Allocator<VCGMesh>::AddVertex(
             mesh,
             vcg::Point3f(vertex.position[0], vertex.position[1], vertex.position[2]));
@@ -42,10 +42,10 @@ void appendToMeshImpl(const std::vector<ScreenedPoissonUpstream::VertexRecord> &
     }
 }
 
-void appendToMeshImpl(const std::vector<ScreenedPoissonUpstream::VertexColorRecord> &vertices, const std::vector<ScreenedPoissonUpstream::Face> &faces, VCGMesh &mesh)
+void appendToMeshImpl(const std::vector<ScreenedPoisson::VertexColorRecord> &vertices, const std::vector<ScreenedPoisson::Face> &faces, VCGMesh &mesh)
 {
     const int baseVertexIndex = mesh.VN();
-    for (const ScreenedPoissonUpstream::VertexColorRecord &vertex : vertices) {
+    for (const ScreenedPoisson::VertexColorRecord &vertex : vertices) {
         vcg::tri::Allocator<VCGMesh>::AddVertex(
             mesh,
             vcg::Point3f(vertex.position[0], vertex.position[1], vertex.position[2]));
@@ -70,12 +70,12 @@ void appendToMeshImpl(const std::vector<ScreenedPoissonUpstream::VertexColorReco
 bool nextSampleImpl(
     const Document &doc,
     const std::vector<int> &meshIndices,
-    const ScreenedPoissonUpstream::SelectionOptions &options,
+    const ScreenedPoisson::SelectionOptions &options,
     std::size_t &meshCursor,
     std::size_t &vertexCursor,
-    ScreenedPoissonUpstream::Position &p,
-    ScreenedPoissonUpstream::Normal &n,
-    ScreenedPoissonUpstream::Color *color)
+    ScreenedPoisson::Position &p,
+    ScreenedPoisson::Normal &n,
+    ScreenedPoisson::Color *color)
 {
     while (meshCursor < meshIndices.size()) {
         const Document::MeshEntry &entry = doc.mesh(meshIndices[meshCursor]);
@@ -90,7 +90,7 @@ bool nextSampleImpl(
             if (options.confidenceFromQuality)
                 normal *= vertex.cQ();
 
-            for (unsigned int i = 0; i < ScreenedPoissonUpstream::Dim; ++i) {
+            for (unsigned int i = 0; i < ScreenedPoisson::Dim; ++i) {
                 p[i] = pos[i];
                 n[i] = normal[i];
             }
@@ -110,7 +110,7 @@ bool nextSampleImpl(
 
 } // namespace
 
-namespace ScreenedPoissonUpstream
+namespace ScreenedPoisson
 {
 
 std::vector<int> selectedMeshIndices(const Document &doc, bool mergeVisible)
@@ -261,4 +261,4 @@ void appendToMesh(const std::vector<VertexColorRecord> &vertices, const std::vec
     appendToMeshImpl(vertices, faces, mesh);
 }
 
-} // namespace ScreenedPoissonUpstream
+} // namespace ScreenedPoisson

@@ -1,16 +1,16 @@
-#ifndef QMESH_SCREENED_POISSON_UPSTREAM_QMESHLAB_ADAPTER_H
-#define QMESH_SCREENED_POISSON_UPSTREAM_QMESHLAB_ADAPTER_H
+#ifndef QMESH_SCREENED_POISSON_POISSONRECON_ADAPTER_H
+#define QMESH_SCREENED_POISSON_POISSONRECON_ADAPTER_H
 
 #include "document.h"
 #include "vcgmesh.h"
 
-#include "upstream/Src/PreProcessor.h"
-#include "upstream/Src/Reconstructors.h"
+#include "Src/PreProcessor.h"
+#include "Src/Reconstructors.h"
 
 #include <QMatrix4x4>
 #include <vector>
 
-namespace ScreenedPoissonUpstream
+namespace ScreenedPoisson
 {
 
 using Real = float;
@@ -127,6 +127,6 @@ private:
 void appendToMesh(const std::vector<VertexRecord> &vertices, const std::vector<Face> &faces, VCGMesh &mesh);
 void appendToMesh(const std::vector<VertexColorRecord> &vertices, const std::vector<Face> &faces, VCGMesh &mesh);
 
-} // namespace ScreenedPoissonUpstream
+} // namespace ScreenedPoisson
 
 #endif

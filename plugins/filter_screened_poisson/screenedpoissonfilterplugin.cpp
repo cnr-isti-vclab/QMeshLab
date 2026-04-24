@@ -2,16 +2,14 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
-#include "poisson_utils.h"
-#include "upstream_backend.h"
-
-#include <wrap/io_trimesh/io_mask.h>
-#include <vcg/complex/allocate.h>
-#include <vcg/complex/algorithms/update/bounding.h>
-#include <vcg/complex/algorithms/update/normal.h>
+#include "poissonrecon_backend.h"
 
 #include <algorithm>
+#include <limits>
 #include <thread>
+
+#include <vcg/complex/allocate.h>
+#include <vcg/complex/algorithms/update/normal.h>
 
 namespace {
 constexpr QLatin1StringView kFilterScreenedPoisson("surface_reconstruction_screened_poisson");
@@ -133,18 +131,6 @@ std::vector<int> selectedMeshIndices(const Document &doc, bool mergeVisible)
     return indices;
 }
 
-bool allInputsHaveVertexColor(const Document &doc, const std::vector<int> &meshIndices)
-{
-    using Mask = vcg::tri::io::Mask;
-    for (int index : meshIndices) {
-        if (index < 0 || index >= doc.meshCount())
-            return false;
-        if ((doc.mesh(index).ioMask & Mask::IOM_VERTCOLOR) == 0)
-            return false;
-    }
-    return !meshIndices.empty();
-}
-
 QString invalidNormalsMessage()
 {
     return QObject::tr(
@@ -158,11 +144,42 @@ QString invalidNormalsMessage()
         "  and then delete the selected vertices.");
 }
 
+template<class MeshType>
+void cleanInputMesh(MeshType &mesh, bool scaleNormalByQuality, bool cleanFlag)
+{
+    vcg::tri::UpdateNormal<MeshType>::NormalizePerVertex(mesh);
+
+    if (cleanFlag) {
+        for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
+            if (vcg::SquaredNorm(vi->N()) < std::numeric_limits<float>::min() * 10.0f)
+                vcg::tri::Allocator<MeshType>::DeleteVertex(mesh, *vi);
+        }
+
+        for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
+            if (fi->V(0)->IsD() || fi->V(1)->IsD() || fi->V(2)->IsD())
+                vcg::tri::Allocator<MeshType>::DeleteFace(mesh, *fi);
+        }
+    }
+
+    vcg::tri::Allocator<MeshType>::CompactEveryVector(mesh);
+    if (scaleNormalByQuality) {
+        for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi)
+            vi->N() *= vi->Q();
+    }
+}
+
+bool hasGoodNormals(VCGMesh &mesh)
+{
+    for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
+        if (vcg::SquaredNorm(vi->N()) < std::numeric_limits<float>::min() * 10.0f)
+            return false;
+    }
+    return true;
+}
+
 std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
 {
     std::vector<MeshFilterDescriptor> out;
-    const auto upstreamStatus = ScreenedPoissonUpstream::inspectBackend();
-
     const unsigned int hwThreads = std::thread::hardware_concurrency();
     const int defaultThreads = hwThreads > 0 ? static_cast<int>(hwThreads) : 8;
 
@@ -173,15 +190,10 @@ std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
     d.shortDescription = QObject::tr("Creates a watertight surface from an oriented point set.");
     d.longDescriptionMarkdown = QObject::tr(
         "This surface reconstruction algorithm creates watertight surfaces from oriented point sets.\n\n"
-        "This first QMeshLab port keeps the original MeshLab integrated Screened Poisson implementation, "
-        "based on the code by Michael Kazhdan and Matthew Bolitho implementing the algorithm described in:\n\n"
+        "This QMeshLab implementation is based on the `PoissonRecon` code by Michael Kazhdan and Matthew Bolitho, "
+        "implementing the algorithm described in:\n\n"
         "*Michael Kazhdan, Hugues Hoppe*  \n"
         "**Screened Poisson Surface Reconstruction**");
-    if (upstreamStatus.vendoredSourcesPresent) {
-        d.longDescriptionMarkdown += QObject::tr(
-            "\n\nAn upstream `PoissonRecon` source subtree is also vendored inside the plugin "
-            "as scaffolding for the next migration phase, while the current runtime path stays on the stable legacy backend.");
-    }
     d.tags = {
         QStringLiteral("reconstruction"),
         QStringLiteral("surface"),
@@ -322,101 +334,25 @@ MeshFilterRunResult ScreenedPoissonFilterPlugin::runFilter(
         };
     }
 
-    PoissonParam<Scalarm> pp;
-    pp.MaxDepthVal = std::max(1, intParameter(parameters, QStringLiteral("depth"), 8));
-    pp.FullDepthVal = std::clamp(intParameter(parameters, QStringLiteral("fullDepth"), 5), 1, pp.MaxDepthVal);
-    pp.CGDepthVal = std::max(0, intParameter(parameters, QStringLiteral("cgDepth"), 0));
-    pp.ScaleVal = Scalarm(std::max(0.1, doubleParameter(parameters, QStringLiteral("scale"), 1.1)));
-    pp.SamplesPerNodeVal = Scalarm(std::max(0.01, doubleParameter(parameters, QStringLiteral("samplesPerNode"), 1.5)));
-    pp.PointWeightVal = Scalarm(std::max(0.0, doubleParameter(parameters, QStringLiteral("pointWeight"), 4.0)));
-    pp.ItersVal = std::max(1, intParameter(parameters, QStringLiteral("iters"), 8));
-    pp.ConfidenceFlag = boolParameter(parameters, QStringLiteral("confidence"), false);
-    pp.DensityFlag = true;
-    pp.CleanFlag = boolParameter(parameters, QStringLiteral("preClean"), false);
-    pp.ThreadsVal = std::max(1, intParameter(parameters, QStringLiteral("threads"), pp.ThreadsVal));
-
-    const bool preserveColor = allInputsHaveVertexColor(doc, meshIndices);
+    const bool confidence = boolParameter(parameters, QStringLiteral("confidence"), false);
+    const bool preClean = boolParameter(parameters, QStringLiteral("preClean"), false);
 
     for (int meshIndex : meshIndices) {
         if (meshIndex < 0 || meshIndex >= doc.meshCount())
             continue;
         Document::MeshEntry &entry = doc.mesh(meshIndex);
-        PoissonClean(entry.mesh, pp.ConfidenceFlag, pp.CleanFlag);
-        if (!HasGoodNormal(entry.mesh))
+        cleanInputMesh(entry.mesh, confidence, preClean);
+        if (!hasGoodNormals(entry.mesh))
             return { false, false, invalidNormalsMessage() };
 
-        if (pp.CleanFlag) {
+        if (preClean) {
             doc.markMeshGeometryChanged(meshIndex);
         } else {
             doc.markMeshMaterialChanged(meshIndex);
         }
     }
 
-    if (ScreenedPoissonUpstream::isEnabledByEnvironment()) {
-        return ScreenedPoissonUpstream::runSingleMeshFilter(doc, meshIndices, mergeVisible, parameters);
-    }
-
-    Box3m bbox = ComputePointStreamBounds<Scalarm>(doc, meshIndices);
-    if (bbox.IsNull())
-        return { false, false, QObject::tr("Screened Poisson reconstruction received an empty point set.") };
-
-    DocumentMeshPointStream<Scalarm> stream(doc, meshIndices);
-    VCGMesh outputMesh;
-    const int execOk = _Execute<Scalarm, 2, BOUNDARY_NEUMANN, PlyColorAndValueVertex<Scalarm>>(
-        &stream,
-        bbox,
-        outputMesh,
-        pp,
-        doc.progressCallback());
-
-    if (doc.isOperationCancelRequested())
-        return { false, false, QObject::tr("Filter interrupted by user.") };
-    if (!execOk) {
-        const QString detailedError = QString::fromStdString(LastPoissonErrorMessage()).trimmed();
-        return {
-            false,
-            false,
-            detailedError.isEmpty()
-                ? QObject::tr("Screened Poisson reconstruction failed.")
-                : QObject::tr("Screened Poisson reconstruction failed: %1").arg(detailedError)
-        };
-    }
-    if (outputMesh.VN() <= 0 || outputMesh.FN() <= 0)
-        return { false, false, QObject::tr("Screened Poisson reconstruction produced an empty mesh.") };
-
-    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(outputMesh);
-    vcg::tri::UpdateBounding<VCGMesh>::Box(outputMesh);
-    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(outputMesh);
-
-    int ioMask =
-        vcg::tri::io::Mask::IOM_VERTQUALITY
-        | vcg::tri::io::Mask::IOM_VERTNORMAL
-        | vcg::tri::io::Mask::IOM_FACENORMAL;
-    if (preserveColor)
-        ioMask |= vcg::tri::io::Mask::IOM_VERTCOLOR;
-
-    const QString meshName = QObject::tr("Poisson mesh");
-    const int newIndex = doc.addMesh(outputMesh, meshName, ioMask);
-    if (newIndex < 0)
-        return { false, false, QObject::tr("Failed to add reconstructed mesh to the document.") };
-
-    MeshFilterRunResult result;
-    result.success = true;
-    result.documentModified = true;
-    result.newMeshIndices = { newIndex };
-    result.infoMessages = {
-        mergeVisible
-            ? QObject::tr("Created '%1' from %2 visible layers (%3 vertices, %4 faces)")
-                  .arg(doc.mesh(newIndex).name)
-                  .arg(meshIndices.size())
-                  .arg(doc.mesh(newIndex).mesh.VN())
-                  .arg(doc.mesh(newIndex).mesh.FN())
-            : QObject::tr("Created '%1' from current mesh (%2 vertices, %3 faces)")
-                  .arg(doc.mesh(newIndex).name)
-                  .arg(doc.mesh(newIndex).mesh.VN())
-                  .arg(doc.mesh(newIndex).mesh.FN())
-    };
-    return result;
+    return ScreenedPoisson::runSingleMeshFilter(doc, meshIndices, mergeVisible, parameters);
 }
 
 void registerScreenedPoissonFilterPlugin(MeshFilterPluginManager &pluginManager)

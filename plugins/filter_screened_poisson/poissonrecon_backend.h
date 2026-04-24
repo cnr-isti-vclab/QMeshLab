@@ -1,5 +1,5 @@
-#ifndef QMESH_SCREENED_POISSON_UPSTREAM_BACKEND_H
-#define QMESH_SCREENED_POISSON_UPSTREAM_BACKEND_H
+#ifndef QMESH_SCREENED_POISSON_POISSONRECON_BACKEND_H
+#define QMESH_SCREENED_POISSON_POISSONRECON_BACKEND_H
 
 #include "meshfilterplugin.h"
 
@@ -8,7 +8,7 @@
 
 class Document;
 
-namespace ScreenedPoissonUpstream
+namespace ScreenedPoisson
 {
 
 struct BackendStatus
@@ -28,6 +28,6 @@ MeshFilterRunResult runSingleMeshFilter(
     bool mergeVisible,
     const MeshFilterParameterValues &parameters);
 
-} // namespace ScreenedPoissonUpstream
+} // namespace ScreenedPoisson
 
 #endif

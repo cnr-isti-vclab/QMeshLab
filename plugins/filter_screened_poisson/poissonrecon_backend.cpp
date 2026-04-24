@@ -1,10 +1,10 @@
-#include "upstream_backend.h"
+#include "poissonrecon_backend.h"
 
 #include "document.h"
-#include "upstream_qmeshlab_adapter.h"
+#include "poissonrecon_adapter.h"
 
-#include "upstream/Src/MultiThreading.h"
-#include "upstream/Src/Reconstructors.h"
+#include "Src/MultiThreading.h"
+#include "Src/Reconstructors.h"
 
 #include <QByteArray>
 #include <QFileInfo>
@@ -21,7 +21,7 @@ namespace {
 
 QString sourceRootPath()
 {
-    return QStringLiteral("plugins/filter_screened_poisson/upstream/Src");
+    return QStringLiteral("plugins/filter_screened_poisson/Src");
 }
 
 QStringList keyEntryPoints()
@@ -33,8 +33,8 @@ QStringList keyEntryPoints()
         QStringLiteral("FEMTree.h"),
         QStringLiteral("DataStream.h"),
         QStringLiteral("MultiThreading.h"),
-        QStringLiteral("../upstream_qmeshlab_adapter.h"),
-        QStringLiteral("../upstream_qmeshlab_adapter.cpp")
+        QStringLiteral("../poissonrecon_adapter.h"),
+        QStringLiteral("../poissonrecon_adapter.cpp")
     };
 }
 
@@ -56,12 +56,6 @@ double doubleParameter(const MeshFilterParameterValues &params, const QString &i
     bool ok = false;
     const double value = it.value().toDouble(&ok);
     return ok ? value : fallback;
-}
-
-bool envFlagDisabled(const char *name)
-{
-    const QByteArray value = qgetenv(name).trimmed().toLower();
-    return value == "0" || value == "false" || value == "no" || value == "off";
 }
 
 void reportProgress(vcg::CallBackPos *cb, int pos, const QString &msg, bool replaceLast = false)
@@ -101,7 +95,7 @@ void extractLevelSet(
     bool preserveDensity,
     int requestedThreads,
     VertexStreamT &vertexStream,
-    ScreenedPoissonUpstream::VectorFaceStream &faceStream)
+    ScreenedPoisson::VectorFaceStream &faceStream)
 {
     // Upstream level-set extraction appears unstable on macOS when executed
     // with multiple workers. Keep the solve parallel, but force extraction to
@@ -121,7 +115,7 @@ void extractLevelSet(
 
 } // namespace
 
-namespace ScreenedPoissonUpstream
+namespace ScreenedPoisson
 {
 
 BackendStatus inspectBackend()
@@ -135,24 +129,26 @@ BackendStatus inspectBackend()
     status.vendoredSourcesPresent = true;
     status.summary =
         status.vendoredSourcesPresent
-            ? QStringLiteral("Vendored upstream PoissonRecon sources are available for the next migration phase.")
-            : QStringLiteral("Vendored upstream PoissonRecon sources are not complete yet.");
+            ? QStringLiteral("Vendored PoissonRecon sources are available.")
+            : QStringLiteral("Vendored PoissonRecon sources are not complete.");
     return status;
 }
 
 QString placeholderErrorMessage()
 {
     return QStringLiteral(
-        "The upstream PoissonRecon backend is scaffolded but not wired yet. "
-        "The plugin is still running on the stable legacy MeshLab backend for now.");
+        "The PoissonRecon backend is not available.");
 }
 
 bool isEnabledByEnvironment()
 {
-    const QByteArray value = qgetenv("QMESHLAB_POISSON_UPSTREAM").trimmed();
+    const QByteArray primary = qgetenv("QMESHLAB_POISSONRECON").trimmed();
+    const QByteArray legacy = qgetenv("QMESHLAB_POISSON_UPSTREAM").trimmed();
+    const QByteArray value = primary.isEmpty() ? legacy : primary;
     if (value.isEmpty())
         return true;
-    return !envFlagDisabled("QMESHLAB_POISSON_UPSTREAM");
+    const QByteArray normalized = value.toLower();
+    return !(normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off");
 }
 
 MeshFilterRunResult runSingleMeshFilter(
@@ -191,10 +187,10 @@ MeshFilterRunResult runSingleMeshFilter(
         cb,
         0,
         mergeVisible
-            ? QObject::tr("Preparing upstream Screened Poisson input from %1 visible layers (%2 samples)...")
+            ? QObject::tr("Preparing Screened Poisson input from %1 visible layers (%2 samples)...")
                   .arg(meshIndices.size())
                   .arg(inputSampleCount)
-            : QObject::tr("Preparing upstream Screened Poisson input (%1 samples)...")
+            : QObject::tr("Preparing Screened Poisson input (%1 samples)...")
                   .arg(inputSampleCount),
         true);
 
@@ -342,14 +338,14 @@ MeshFilterRunResult runSingleMeshFilter(
     result.infoMessages = {
         mergeVisible
             ? QObject::tr(
-                  "Created '%1' with upstream PoissonRecon backend from %2 visible layers (%3 input samples, %4 vertices, %5 faces)")
+                  "Created '%1' with PoissonRecon backend from %2 visible layers (%3 input samples, %4 vertices, %5 faces)")
                   .arg(doc.mesh(newIndex).name)
                   .arg(meshIndices.size())
                   .arg(inputSampleCount)
                   .arg(doc.mesh(newIndex).mesh.VN())
                   .arg(doc.mesh(newIndex).mesh.FN())
             : QObject::tr(
-                  "Created '%1' with upstream PoissonRecon backend from current mesh (%2 input samples, %3 vertices, %4 faces)")
+                  "Created '%1' with PoissonRecon backend from current mesh (%2 input samples, %3 vertices, %4 faces)")
                   .arg(doc.mesh(newIndex).name)
                   .arg(inputSampleCount)
                   .arg(doc.mesh(newIndex).mesh.VN())
@@ -362,4 +358,4 @@ MeshFilterRunResult runSingleMeshFilter(
     return result;
 }
 
-} // namespace ScreenedPoissonUpstream
+} // namespace ScreenedPoisson
