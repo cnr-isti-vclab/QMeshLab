@@ -9,6 +9,9 @@ CMakeUserPresets.json
 # Local dependencies
 vcpkg/
 
+# Local references
+.reference/
+
 # macOS
 .DS_Store
 
