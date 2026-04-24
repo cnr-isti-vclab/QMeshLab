@@ -212,7 +212,7 @@ RenderWidget::MeshRenderMode *RenderWidget::mutableRenderModeForMesh(int meshInd
 void RenderWidget::setCurrentMeshSettings(const PerMeshRenderSettings &next)
 {
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-    if (meshIndex < 0)
+    if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
         return;
     const std::uint64_t meshId = m_doc->mesh(meshIndex).meshId;
     m_meshRenderModes[meshId] = next;
@@ -223,8 +223,10 @@ void RenderWidget::setCurrentMeshSettings(const PerMeshRenderSettings &next)
 void RenderWidget::syncOverlaySettingsToCurrentMesh()
 {
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-    if (m_overlayPanel && meshIndex >= 0)
+    if (m_overlayPanel && meshIndex >= 0 && m_doc && meshIndex < m_doc->meshCount())
         m_overlayPanel->setMeshSettings(renderModeForMesh(meshIndex));
+    else if (m_overlayPanel)
+        m_overlayPanel->setMeshSettings(PerMeshRenderSettings{});
     updateBoundingBoxCornersOverlay();
 }
 
@@ -237,7 +239,9 @@ void RenderWidget::refreshColorSourceAvailability()
     bool hasTextures = false;
     bool hasVertexNormals = false;
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-    if (meshIndex >= 0 && meshIndex < m_doc->meshCount()) {
+    const bool hasCurrentMesh =
+        m_doc && meshIndex >= 0 && meshIndex < m_doc->meshCount();
+    if (hasCurrentMesh) {
         const auto &meshEntry = m_doc->mesh(meshIndex);
         const int mask = meshEntry.ioMask;
         const bool hasTextureCoords =
@@ -266,14 +270,15 @@ void RenderWidget::refreshColorSourceAvailability()
         m_overlayPanel->setFillPbrMapAvailability(hasTextures, hasTextures, hasTextures);
     if (m_overlayPanel) {
         QStringList textureLabels;
-        if (meshIndex >= 0 && meshIndex < m_doc->meshCount())
+        if (hasCurrentMesh)
             textureLabels = pbrTextureSelectorEntries(m_doc->mesh(meshIndex));
         m_overlayPanel->setFillPbrTextureNames(textureLabels);
         m_overlayPanel->setUvTextureNames(textureLabels);
     }
 
     // Correct per-mesh settings for the current mesh.
-    PerMeshRenderSettings meshCorrected = (meshIndex >= 0) ? renderModeForMesh(meshIndex) : PerMeshRenderSettings{};
+    PerMeshRenderSettings meshCorrected =
+        hasCurrentMesh ? renderModeForMesh(meshIndex) : PerMeshRenderSettings{};
     if (meshCorrected.pointColorSource == PointColorSource::PerVertex && !hasVertexColors)
         meshCorrected.pointColorSource = PointColorSource::Constant;
     if (meshCorrected.pointColorSource == PointColorSource::PerVertexQuality && !hasVertexQuality)
@@ -305,7 +310,7 @@ void RenderWidget::refreshColorSourceAvailability()
         meshCorrected.fillPbr.albedoIndex = -1;
     }
     const int textureCount =
-        (meshIndex >= 0 && meshIndex < m_doc->meshCount())
+        hasCurrentMesh
         ? m_doc->mesh(meshIndex).textureFilePaths.size()
         : 0;
     auto clampTextureIndex = [textureCount](int &index) {
@@ -318,11 +323,13 @@ void RenderWidget::refreshColorSourceAvailability()
     clampTextureIndex(meshCorrected.fillPbr.roughnessIndex);
     clampTextureIndex(meshCorrected.fillPlain.textureIndex);
 
-    if (meshIndex >= 0 && meshCorrected != renderModeForMesh(meshIndex)) {
+    if (hasCurrentMesh && meshCorrected != renderModeForMesh(meshIndex)) {
         const std::uint64_t meshId = m_doc->mesh(meshIndex).meshId;
         m_meshRenderModes[meshId] = meshCorrected;
         if (m_overlayPanel)
             m_overlayPanel->setMeshSettings(meshCorrected);
+    } else if (!hasCurrentMesh && m_overlayPanel) {
+        m_overlayPanel->setMeshSettings(meshCorrected);
     }
 
     // Correct global settings (uvTextureIndex only).

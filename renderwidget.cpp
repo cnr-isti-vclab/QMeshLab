@@ -635,7 +635,7 @@ void RenderWidget::createOverlayButtons()
             [this](const PerMeshRenderSettings &meshSettings) {
         emit viewActivated(this);
         const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-        if (meshIndex >= 0) {
+        if (m_doc && meshIndex >= 0 && meshIndex < m_doc->meshCount()) {
             const std::uint64_t meshId = m_doc->mesh(meshIndex).meshId;
             m_meshRenderModes[meshId] = meshSettings;
         }
