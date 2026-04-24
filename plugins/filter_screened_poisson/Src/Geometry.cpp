@@ -26,11 +26,35 @@ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF S
 DAMAGE.
 */
 #include "Geometry.h"
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #ifdef _WIN32
 #include <io.h>
 #endif // _WIN32
+
+namespace
+{
+const char* GetTemporaryDirectory( void )
+{
+#ifdef _WIN32
+	const char* tempDir = getenv( "TEMP" );
+	if( !tempDir || !tempDir[0] ) tempDir = getenv( "TMP" );
+	return tempDir && tempDir[0] ? tempDir : ".";
+#else // !_WIN32
+	const char* tempDir = getenv( "TMPDIR" );
+	return tempDir && tempDir[0] ? tempDir : "/tmp";
+#endif // _WIN32
+}
+
+void BuildTemporaryFileTemplate( char* fileName , size_t fileNameSize )
+{
+	const char* tempDir = GetTemporaryDirectory();
+	size_t len = strlen( tempDir );
+	bool hasSeparator = len && ( tempDir[len-1]=='/' || tempDir[len-1]=='\\' );
+	snprintf( fileName , fileNameSize , hasSeparator ? "%sPR_XXXXXX" : "%s/PR_XXXXXX" , tempDir );
+}
+}
 
 ///////////////////
 // CoredMeshData //
@@ -49,7 +73,7 @@ BufferedReadWriteFile::BufferedReadWriteFile( char* fileName , int bufferSize )
 	if( fileName ) strcpy( _fileName , fileName ) , tempFile = false , _fp = fopen( _fileName , "w+b" );
 	else
 	{
-		strcpy( _fileName , "PR_XXXXXX" );
+		BuildTemporaryFileTemplate( _fileName , sizeof( _fileName ) );
 #ifdef _WIN32
 		_mktemp( _fileName );
 		_fp = fopen( _fileName , "w+b" );
@@ -61,6 +85,8 @@ BufferedReadWriteFile::BufferedReadWriteFile( char* fileName , int bufferSize )
 	if( !_fp ) fprintf( stderr , "[ERROR] Failed to open file: %s\n" , _fileName ) , exit( 0 );
 	_buffer = (char*) malloc( _bufferSize );
 }
+const char* BufferedReadWriteFile::fileName( void ) const { return _fileName; }
+bool BufferedReadWriteFile::isTemporary( void ) const { return tempFile; }
 BufferedReadWriteFile::~BufferedReadWriteFile( void )
 {
 	free( _buffer );

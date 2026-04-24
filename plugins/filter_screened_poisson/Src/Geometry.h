@@ -385,6 +385,8 @@ public:
 	bool write( const void* data , size_t size );
 	bool read ( void* data , size_t size );
 	void reset( void );
+	const char* fileName( void ) const;
+	bool isTemporary( void ) const;
 };
 template< class Vertex >
 class CoredFileMeshData : public CoredMeshData< Vertex >
@@ -408,6 +410,8 @@ public:
 
 	int outOfCorePointCount( void );
 	int polygonCount( void );
+	const char* outOfCorePointFileName( void ) const;
+	const char* polygonFileNameStr( void ) const;
 };
 #include "Geometry.inl"
 

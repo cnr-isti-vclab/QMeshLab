@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <limits>
+#include <memory>
 #include <string>
 #include <stdexcept>
 #include <vector>
@@ -473,7 +474,38 @@ int _Execute(
     if (cb && !(*cb)(75, "Extracting surface"))
         return 0;
 
-    CoredFileMeshData<Vertex> mesh;
+    constexpr int kInMemoryIsoSurfaceSampleThreshold = 100000;
+    const bool useInMemoryIsoSurfaceMesh = static_cast<int>(samples->size()) <= kInMemoryIsoSurfaceSampleThreshold;
+
+    std::unique_ptr<CoredVectorMeshData<Vertex>> vectorMesh;
+    std::unique_ptr<CoredFileMeshData<Vertex>> fileMesh;
+    CoredMeshData<Vertex> *mesh = nullptr;
+
+    if (useInMemoryIsoSurfaceMesh) {
+        vectorMesh = std::make_unique<CoredVectorMeshData<Vertex>>();
+        mesh = vectorMesh.get();
+        DumpOutput(
+            "Using in-memory iso-surface mesh storage (%d samples <= %d threshold)",
+            static_cast<int>(samples->size()),
+            kInMemoryIsoSurfaceSampleThreshold);
+    }
+    else {
+        fileMesh = std::make_unique<CoredFileMeshData<Vertex>>();
+        mesh = fileMesh.get();
+        DumpOutput(
+            "Using file-backed iso-surface mesh storage (%d samples > %d threshold)",
+            static_cast<int>(samples->size()),
+            kInMemoryIsoSurfaceSampleThreshold);
+#if !defined(NDEBUG)
+        const bool logTemporaryMeshFiles = true;
+#else
+        const bool logTemporaryMeshFiles = pp.VerboseFlag;
+#endif
+        if (logTemporaryMeshFiles) {
+            DumpOutput("Temporary Poisson point file: %s", fileMesh->outOfCorePointFileName());
+            DumpOutput("Temporary Poisson polygon file: %s", fileMesh->polygonFileNameStr());
+        }
+    }
 
     {
         profiler.start();
@@ -511,7 +543,7 @@ int _Execute(
             colorData,
             solution,
             isoValue,
-            mesh,
+            *mesh,
             !pp.LinearFitFlag,
             !pp.NonManifoldFlag,
             false);
@@ -529,8 +561,8 @@ int _Execute(
         }
         DumpOutput(
             "Vertices / Polygons: %d / %d",
-            static_cast<int>(mesh.outOfCorePointCount() + mesh.inCorePoints.size()),
-            mesh.polygonCount());
+            static_cast<int>(mesh->outOfCorePointCount() + mesh->inCorePoints.size()),
+            mesh->polygonCount());
         profiler.dumpOutput2(comments, "#        Got triangles:");
         delete colorData;
     }
@@ -538,8 +570,8 @@ int _Execute(
     if (cb && !(*cb)(90, "Creating Mesh"))
         return 0;
 
-    mesh.resetIterator();
-    for (auto pt = mesh.inCorePoints.begin(); pt != mesh.inCorePoints.end(); ++pt) {
+    mesh->resetIterator();
+    for (auto pt = mesh->inCorePoints.begin(); pt != mesh->inCorePoints.end(); ++pt) {
         Point3D<Real> outPoint = iXForm * pt->point;
         vcg::tri::Allocator<CMeshO>::AddVertex(pm, Point3m(outPoint[0], outPoint[1], outPoint[2]));
         pm.vert.back().Q() = pt->value;
@@ -547,9 +579,9 @@ int _Execute(
         pm.vert.back().C()[1] = pt->color[1];
         pm.vert.back().C()[2] = pt->color[2];
     }
-    for (int ii = 0; ii < mesh.outOfCorePointCount(); ++ii) {
+    for (int ii = 0; ii < mesh->outOfCorePointCount(); ++ii) {
         Vertex pt;
-        mesh.nextOutOfCorePoint(pt);
+        mesh->nextOutOfCorePoint(pt);
         Point3D<Real> outPoint = iXForm * pt.point;
         vcg::tri::Allocator<CMeshO>::AddVertex(pm, Point3m(outPoint[0], outPoint[1], outPoint[2]));
         pm.vert.back().Q() = pt.value;
@@ -559,7 +591,7 @@ int _Execute(
     }
 
     std::vector<CoredVertexIndex> polygon;
-    while (mesh.nextPolygon(polygon)) {
+    while (mesh->nextPolygon(polygon)) {
         if (polygon.size() != 3)
             continue;
         int indV[3];
@@ -567,7 +599,7 @@ int _Execute(
             if (polygon[i].inCore)
                 indV[i] = polygon[i].idx;
             else
-                indV[i] = polygon[i].idx + static_cast<int>(mesh.inCorePoints.size());
+                indV[i] = polygon[i].idx + static_cast<int>(mesh->inCorePoints.size());
         }
         vcg::tri::Allocator<CMeshO>::AddFace(pm, &pm.vert[indV[0]], &pm.vert[indV[1]], &pm.vert[indV[2]]);
     }

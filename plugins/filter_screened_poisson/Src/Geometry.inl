@@ -589,3 +589,7 @@ template< class Vertex >
 int CoredFileMeshData< Vertex >::outOfCorePointCount( void ){ return oocPoints; }
 template< class Vertex >
 int CoredFileMeshData< Vertex >::polygonCount( void ) { return polygons; }
+template< class Vertex >
+const char* CoredFileMeshData< Vertex >::outOfCorePointFileName( void ) const { return oocPointFile->fileName(); }
+template< class Vertex >
+const char* CoredFileMeshData< Vertex >::polygonFileNameStr( void ) const { return polygonFile->fileName(); }
