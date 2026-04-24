@@ -175,7 +175,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     auto updateMainUbufForMesh =
         [&](int meshIndex,
-            const RenderSettings &meshSettings,
+            const PerMeshRenderSettings &meshSettings,
             float normalScale = 1.0f,
             float occlusionStrength = 1.0f,
             float roughnessFactor = 1.0f) {
@@ -248,7 +248,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         for (int mi = 0; mi < m_doc->meshCount() && !anyRsMesh; ++mi) {
             if (!meshVisible(mi))
                 continue;
-            const RenderSettings ms = renderSettingsForMesh(mi);
+            const PerMeshRenderSettings ms = renderModeForMesh(mi);
             if (ms.showFill && ms.fillMaterial == FillMaterial::RadianceScaling)
                 anyRsMesh = true;
         }
@@ -262,7 +262,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
                 if (!meshVisible(mi))
                     continue;
-                const RenderSettings meshSettings = renderSettingsForMesh(mi);
+                const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
                 if (!meshSettings.showFill
                     || meshSettings.fillMaterial != FillMaterial::RadianceScaling)
                     continue;
@@ -278,7 +278,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                         || (batch.indexCount == 0 && batch.vertexCount == 0))
                         continue;
                     updateMainUbufForMesh(mi, meshSettings,
-                                         meshSettings.fillRsEnhancement, 1.0f, 1.0f);
+                                         meshSettings.fillRs.enhancement, 1.0f, 1.0f);
                     cb->setShaderResources(m_rsGradSrb.get());
                     const QRhiCommandBuffer::VertexInput vb(batch.vertexBuffer, 0);
                     if (batch.indexCount > 0 && batch.indexBuffer) {
@@ -308,7 +308,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;
-            const RenderSettings meshSettings = renderSettingsForMesh(mi);
+            const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
             if (!meshSettings.showFill)
                 continue;
             QRhiGraphicsPipeline *fillPipeline = fillPipelineForSettings(meshSettings);
@@ -322,76 +322,89 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             if (!fillView.valid)
                 continue;
 
+            // ── Per-material draw helpers (Suggestion B) ─────────────────────
+            // Each lambda encapsulates the UBO update, SRB selection, and draw
+            // call for one material type.  The batch loop below dispatches to
+            // the right helper via a switch, keeping material-specific logic
+            // isolated and easy to extend.
+
+            auto submitBatch = [&](const auto &batch) {
+                const QRhiCommandBuffer::VertexInput vb(batch.vertexBuffer, 0);
+                if (batch.indexCount > 0 && batch.indexBuffer) {
+                    cb->setVertexInput(
+                        0, 1, &vb, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
+                    cb->drawIndexed(batch.indexCount);
+                } else {
+                    cb->setVertexInput(0, 1, &vb);
+                    cb->draw(batch.vertexCount);
+                }
+            };
+
+            // Plain material: constant/vertex/face/quality colour or a single
+            // albedo texture.  No normal-map, occlusion or roughness inputs.
+            auto drawFillBatchPlain = [&](const auto &batch) {
+                updateMainUbufForMesh(mi, meshSettings,
+                                      meshSettings.fillPbr.normalScale * batch.normalScale,
+                                      1.0f, 1.0f);
+                // When Texture source is selected, resolve the user-chosen texture
+                // by index; fall back to the batch's baked base-colour texture if
+                // the index is unspecified or the texture can't be found.
+                QRhiTexture *albedo = batch.baseColorTexture;
+                if (meshSettings.fillPlain.colorSource == FillColorSource::Texture) {
+                    if (QRhiTexture *t = resolveSelectedPbrTexture(mi, meshSettings.fillPlain.textureIndex, fillView))
+                        albedo = t;
+                }
+                cb->setShaderResources(shaderResourcesForFillTextures(albedo, nullptr, nullptr, nullptr));
+                submitBatch(batch);
+            };
+
+            // PBR material: resolves all four texture channels from the per-
+            // mesh PbrFillParams and falls back to the batch's baked textures.
+            auto drawFillBatchPbr = [&](const auto &batch) {
+                const auto &pbr = meshSettings.fillPbr;
+                QRhiTexture *albedo =
+                    (pbr.albedoSource == FillPbrTextureSource::Texture)
+                    ? resolveSelectedPbrTexture(mi, pbr.albedoIndex, fillView) : nullptr;
+                QRhiTexture *normal =
+                    (pbr.normalSource == FillPbrTextureSource::Texture)
+                    ? resolveSelectedPbrTexture(mi, pbr.normalIndex, fillView) : nullptr;
+                QRhiTexture *occlusion =
+                    (pbr.occlusionSource == FillPbrTextureSource::Texture)
+                    ? resolveSelectedPbrTexture(mi, pbr.occlusionIndex, fillView) : nullptr;
+                QRhiTexture *roughness =
+                    (pbr.roughnessSource == FillPbrTextureSource::Texture)
+                    ? resolveSelectedPbrTexture(mi, pbr.roughnessIndex, fillView) : nullptr;
+                updateMainUbufForMesh(mi, meshSettings,
+                                      pbr.normalScale     * batch.normalScale,
+                                      pbr.occlusionStrength * batch.occlusionStrength,
+                                      pbr.roughnessFactor * batch.roughnessFactor);
+                cb->setShaderResources(shaderResourcesForFillTextures(
+                    albedo    ? albedo    : batch.baseColorTexture,
+                    normal,
+                    occlusion ? occlusion : batch.occlusionTexture,
+                    roughness ? roughness : batch.roughnessTexture));
+                submitBatch(batch);
+            };
+
+            // Radiance Scaling: pass 1 gradient is already in m_rsGradTexture;
+            // bind it at the normal-map slot (slot 3) for the RS fragment shader.
+            auto drawFillBatchRs = [&](const auto &batch) {
+                updateMainUbufForMesh(mi, meshSettings,
+                                      meshSettings.fillRs.enhancement, 1.0f, 1.0f);
+                QRhiTexture *gradTex = m_rsGradTexture ? m_rsGradTexture.get() : nullptr;
+                cb->setShaderResources(shaderResourcesForFillTextures(
+                    batch.baseColorTexture, gradTex, nullptr, nullptr));
+                submitBatch(batch);
+            };
+
             for (int bi = 0; bi < fillView.batchCount; ++bi) {
                 const auto &batch = fillView.batches[bi];
                 if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
                     continue;
-                QRhiTexture *selectedAlbedoTexture =
-                    (meshSettings.fillMaterial == FillMaterial::Pbr
-                     && meshSettings.fillPbrAlbedoSource == FillPbrTextureSource::Texture)
-                    ? resolveSelectedPbrTexture(
-                        mi,
-                        meshSettings.fillPbrAlbedoTextureIndex,
-                        fillView)
-                    : nullptr;
-                QRhiTexture *selectedNormalTexture =
-                    (meshSettings.fillMaterial == FillMaterial::Pbr
-                     && meshSettings.fillPbrNormalSource == FillPbrTextureSource::Texture)
-                    ? resolveSelectedPbrTexture(
-                        mi,
-                        meshSettings.fillPbrNormalTextureIndex,
-                        fillView)
-                    : nullptr;
-                QRhiTexture *selectedOcclusionTexture =
-                    (meshSettings.fillMaterial == FillMaterial::Pbr
-                     && meshSettings.fillPbrOcclusionSource == FillPbrTextureSource::Texture)
-                    ? resolveSelectedPbrTexture(
-                        mi,
-                        meshSettings.fillPbrOcclusionTextureIndex,
-                        fillView)
-                    : nullptr;
-                QRhiTexture *selectedRoughnessTexture =
-                    (meshSettings.fillMaterial == FillMaterial::Pbr
-                     && meshSettings.fillPbrRoughnessSource == FillPbrTextureSource::Texture)
-                    ? resolveSelectedPbrTexture(
-                        mi,
-                        meshSettings.fillPbrRoughnessTextureIndex,
-                        fillView)
-                    : nullptr;
-                // materialParams.x meaning differs per material:
-                //   RS  → enhancement (fillRsEnhancement, no per-batch scale)
-                //   PBR → normalScale (fillNormalMapScale * batch.normalScale)
-                const float materialParam0 =
-                    (meshSettings.fillMaterial == FillMaterial::RadianceScaling)
-                    ? meshSettings.fillRsEnhancement
-                    : meshSettings.fillNormalMapScale * batch.normalScale;
-                updateMainUbufForMesh(
-                    mi,
-                    meshSettings,
-                    materialParam0,
-                    meshSettings.fillOcclusionStrength * batch.occlusionStrength,
-                    meshSettings.fillRoughnessFactor * batch.roughnessFactor);
-                QRhiTexture *albedoTexture =
-                    selectedAlbedoTexture ? selectedAlbedoTexture : batch.baseColorTexture;
-                // For RS pass 2, bind the gradient texture at slot 3 (normalTex position).
-                QRhiTexture *normalTextureForSrb =
-                    (meshSettings.fillMaterial == FillMaterial::RadianceScaling
-                     && m_rsGradTexture)
-                    ? m_rsGradTexture.get()
-                    : (selectedNormalTexture ? selectedNormalTexture : nullptr);
-                cb->setShaderResources(shaderResourcesForFillTextures(
-                    albedoTexture,
-                    normalTextureForSrb,
-                    selectedOcclusionTexture ? selectedOcclusionTexture : batch.occlusionTexture,
-                    selectedRoughnessTexture ? selectedRoughnessTexture : batch.roughnessTexture));
-                const QRhiCommandBuffer::VertexInput vbufBinding(batch.vertexBuffer, 0);
-                if (batch.indexCount > 0 && batch.indexBuffer) {
-                    cb->setVertexInput(
-                        0, 1, &vbufBinding, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
-                    cb->drawIndexed(batch.indexCount);
-                } else {
-                    cb->setVertexInput(0, 1, &vbufBinding);
-                    cb->draw(batch.vertexCount);
+                switch (meshSettings.fillMaterial) {
+                case FillMaterial::Plain:            drawFillBatchPlain(batch); break;
+                case FillMaterial::Pbr:              drawFillBatchPbr(batch);   break;
+                case FillMaterial::RadianceScaling:  drawFillBatchRs(batch);    break;
                 }
             }
         }
@@ -403,7 +416,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;
-            const RenderSettings meshSettings = renderSettingsForMesh(mi);
+            const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
             if (!meshSettings.showWire)
                 continue;
             QRhiGraphicsPipeline *wirePipeline = wirePipelineForSettings(meshSettings);
@@ -426,7 +439,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;
-            const RenderSettings meshSettings = renderSettingsForMesh(mi);
+            const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
             if (!meshSettings.showEdges)
                 continue;
 
@@ -468,7 +481,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;
-            const RenderSettings meshSettings = renderSettingsForMesh(mi);
+            const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
             if (!meshSettings.showBoundingBox)
                 continue;
             updateMainUbufForMesh(mi, meshSettings);
@@ -487,7 +500,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;
-            const RenderSettings meshSettings = renderSettingsForMesh(mi);
+            const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
             if (!meshSettings.showPoints)
                 continue;
             updateMainUbufForMesh(mi, meshSettings);

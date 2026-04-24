@@ -11,7 +11,14 @@
 #include <cmath>
 #include <vector>
 
+#include <QDir>
+
 namespace RenderWidgetInternal {
+
+inline QString normalizeTexturePath(const QString &path)
+{
+    return QDir::cleanPath(QDir::fromNativeSeparators(path.trimmed())).toLower();
+}
 
 inline QShader loadShader(const QString &path)
 {
@@ -64,17 +71,9 @@ struct MainStyleUbufKey {
     bool wireLighting = false;
     bool fillLighting = false;
     FillMaterial fillMaterial = FillMaterial::Plain;
-    FillPbrTextureSource fillPbrAlbedoSource = FillPbrTextureSource::Texture;
-    FillPbrTextureSource fillPbrNormalSource = FillPbrTextureSource::Texture;
-    FillPbrTextureSource fillPbrOcclusionSource = FillPbrTextureSource::Texture;
-    FillPbrTextureSource fillPbrRoughnessSource = FillPbrTextureSource::Texture;
-    FillColorSource fillColorSource = FillColorSource::Constant;
-    float fillNormalMapScale = 1.0f;
-    float fillOcclusionStrength = 1.0f;
-    float fillRoughnessFactor = 1.0f;
-    float fillRsEnhancement = 0.5f;
-    int   fillRsDisplayMode = 0;
-    bool  fillRsInvert = false;
+    PbrFillParams fillPbr;
+    RsFillParams  fillRs;
+    PlainFillParams fillPlain;
     QColor edgeColor;
     float edgeSize = 0.0f;
 
@@ -90,24 +89,16 @@ struct MainStyleUbufKey {
             && wireLighting == other.wireLighting
             && fillLighting == other.fillLighting
             && fillMaterial == other.fillMaterial
-            && fillPbrAlbedoSource == other.fillPbrAlbedoSource
-            && fillPbrNormalSource == other.fillPbrNormalSource
-            && fillPbrOcclusionSource == other.fillPbrOcclusionSource
-            && fillPbrRoughnessSource == other.fillPbrRoughnessSource
-            && fillColorSource == other.fillColorSource
-            && fillNormalMapScale == other.fillNormalMapScale
-            && fillOcclusionStrength == other.fillOcclusionStrength
-            && fillRoughnessFactor == other.fillRoughnessFactor
-            && fillRsEnhancement == other.fillRsEnhancement
-            && fillRsDisplayMode == other.fillRsDisplayMode
-            && fillRsInvert == other.fillRsInvert
+            && fillPbr == other.fillPbr
+            && fillRs == other.fillRs
+            && fillPlain == other.fillPlain
             && edgeColor == other.edgeColor
             && edgeSize == other.edgeSize;
     }
 };
 
 inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
-    const RenderSettings &settings,
+    const PerMeshRenderSettings &settings,
     bool includeLighting = true)
 {
     MainStyleUbufKey key;
@@ -121,17 +112,9 @@ inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
     key.wireLighting = includeLighting ? settings.wireLighting : false;
     key.fillLighting = includeLighting ? settings.fillLighting : false;
     key.fillMaterial = settings.fillMaterial;
-    key.fillPbrAlbedoSource = settings.fillPbrAlbedoSource;
-    key.fillPbrNormalSource = settings.fillPbrNormalSource;
-    key.fillPbrOcclusionSource = settings.fillPbrOcclusionSource;
-    key.fillPbrRoughnessSource = settings.fillPbrRoughnessSource;
-    key.fillColorSource = settings.fillColorSource;
-    key.fillNormalMapScale = settings.fillNormalMapScale;
-    key.fillOcclusionStrength = settings.fillOcclusionStrength;
-    key.fillRoughnessFactor = settings.fillRoughnessFactor;
-    key.fillRsEnhancement = settings.fillRsEnhancement;
-    key.fillRsDisplayMode = settings.fillRsDisplayMode;
-    key.fillRsInvert = settings.fillRsInvert;
+    key.fillPbr = settings.fillPbr;
+    key.fillRs = settings.fillRs;
+    key.fillPlain = settings.fillPlain;
     key.edgeColor = settings.edgeColor;
     key.edgeSize = settings.edgeSize;
     return key;
@@ -139,7 +122,7 @@ inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
 
 inline void writeMainStyleToUbuf(
     float *ubufData,
-    const RenderSettings &settings,
+    const PerMeshRenderSettings &settings,
     const QSize &pixelSize,
     bool enableLighting)
 {
@@ -190,21 +173,25 @@ inline void writeMainStyleToUbuf(
     // materialFlags: PBR → source modes (x=normal, y=ao, z=roughness, w=albedo)
     //                RS  → invert flag (x) + display mode (y)
     if (enableRs) {
-        ubufData[kUbufMaterialFlagsOffset + 0] = settings.fillRsInvert ? 1.0f : 0.0f;
-        ubufData[kUbufMaterialFlagsOffset + 1] = static_cast<float>(settings.fillRsDisplayMode);
+        ubufData[kUbufMaterialFlagsOffset + 0] = settings.fillRs.invert ? 1.0f : 0.0f;
+        ubufData[kUbufMaterialFlagsOffset + 1] = static_cast<float>(settings.fillRs.displayMode);
         ubufData[kUbufMaterialFlagsOffset + 2] = 0.0f;
         ubufData[kUbufMaterialFlagsOffset + 3] = 0.0f;
     } else {
-        ubufData[kUbufMaterialFlagsOffset + 0] = encodePbrSource(settings.fillPbrNormalSource);
-        ubufData[kUbufMaterialFlagsOffset + 1] = encodePbrSource(settings.fillPbrOcclusionSource);
-        ubufData[kUbufMaterialFlagsOffset + 2] = encodePbrSource(settings.fillPbrRoughnessSource);
-        ubufData[kUbufMaterialFlagsOffset + 3] = encodePbrSource(settings.fillPbrAlbedoSource);
+        ubufData[kUbufMaterialFlagsOffset + 0] = encodePbrSource(settings.fillPbr.normalSource);
+        ubufData[kUbufMaterialFlagsOffset + 1] = encodePbrSource(settings.fillPbr.occlusionSource);
+        ubufData[kUbufMaterialFlagsOffset + 2] = encodePbrSource(settings.fillPbr.roughnessSource);
+        // PBR: encode the chosen albedo source.  Plain: signal texture usage via
+        // the same slot so the shader can sample albedoTex in plain mode too.
+        ubufData[kUbufMaterialFlagsOffset + 3] = enablePbr
+            ? encodePbrSource(settings.fillPbr.albedoSource)
+            : (settings.fillPlain.colorSource == FillColorSource::Texture ? 2.0f : 0.0f);
     }
 
     // materialParams: x=param0 (RS enhancement OR PBR normal scale), y=aoStrength, z=roughness, w=material-id
-    ubufData[kUbufMaterialParamsOffset + 0] = enableRs ? settings.fillRsEnhancement : settings.fillNormalMapScale;
-    ubufData[kUbufMaterialParamsOffset + 1] = std::clamp(settings.fillOcclusionStrength, 0.0f, 1.0f);
-    ubufData[kUbufMaterialParamsOffset + 2] = std::max(settings.fillRoughnessFactor, 0.0f);
+    ubufData[kUbufMaterialParamsOffset + 0] = enableRs ? settings.fillRs.enhancement : settings.fillPbr.normalScale;
+    ubufData[kUbufMaterialParamsOffset + 1] = settings.fillPbr.occlusionStrength;
+    ubufData[kUbufMaterialParamsOffset + 2] = std::max(settings.fillPbr.roughnessFactor, 0.0f);
     ubufData[kUbufMaterialParamsOffset + 3] = enablePbr ? 1.0f : 0.0f;
 }
 

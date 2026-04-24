@@ -261,10 +261,9 @@ void RenderWidget::setRenderSettings(const RenderSettings &settings)
         || prev.qualityHistogramInvertColorMap != m_renderSettings.qualityHistogramInvertColorMap) {
         m_qualityHistogram.valid = false;
     }
-    applyRenderSettingsToCurrentMesh(prev, m_renderSettings);
     syncOverlaySettingsToCurrentMesh();
     if (m_overlayPanel)
-        m_overlayPanel->setSettings(m_renderSettings);
+        m_overlayPanel->setGlobalSettings(m_renderSettings);
     updateBoundingBoxCornersOverlay();
     updateQualityHistogramOverlay();
     layoutOverlayButtons();
@@ -546,7 +545,7 @@ void RenderWidget::createOverlayButtons()
 {
     m_overlayPanel = new RenderOverlayPanel(this);
     m_overlayPanel->setViewerModeUv(m_viewMode == ViewMode::ParametrizationUV);
-    m_overlayPanel->setSettings(m_renderSettings);
+    m_overlayPanel->setGlobalSettings(m_renderSettings);
     auto makeCornerLabel = [this](const QColor &textColor) {
         auto *label = new QLabel(this);
         label->setVisible(false);
@@ -611,13 +610,11 @@ void RenderWidget::createOverlayButtons()
         m_uvScaleYTickLabels[size_t(i)] = yLabel;
     }
 
-    connect(m_overlayPanel, &RenderOverlayPanel::settingsChanged, this,
+    connect(m_overlayPanel, &RenderOverlayPanel::globalSettingsChanged, this,
             [this](const RenderSettings &settings) {
         emit viewActivated(this);
         const RenderSettings prev = m_renderSettings;
         m_renderSettings = settings;
-        applyRenderSettingsToCurrentMesh(prev, m_renderSettings);
-        syncOverlaySettingsToCurrentMesh();
 
         updateBoundingBoxCornersOverlay();
         if (prev.qualityHistogramBins != m_renderSettings.qualityHistogramBins
@@ -630,6 +627,19 @@ void RenderWidget::createOverlayButtons()
             m_qualityHistogram.valid = false;
         }
         updateQualityHistogramOverlay();
+        update();
+        layoutOverlayButtons();
+    });
+
+    connect(m_overlayPanel, &RenderOverlayPanel::meshSettingsChanged, this,
+            [this](const PerMeshRenderSettings &meshSettings) {
+        emit viewActivated(this);
+        const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+        if (meshIndex >= 0) {
+            const std::uint64_t meshId = m_doc->mesh(meshIndex).meshId;
+            m_meshRenderModes[meshId] = meshSettings;
+        }
+        updateBoundingBoxCornersOverlay();
         update();
         layoutOverlayButtons();
     });

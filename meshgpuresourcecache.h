@@ -59,6 +59,7 @@ public:
         float roughnessFactor = 1.0f;
         int vertexCount = 0;
         int indexCount = 0;
+        int textureGroupIndex = -1;
     };
 
     struct FillPassView {

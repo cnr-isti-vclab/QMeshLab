@@ -112,7 +112,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             || needHighlightForMesh;
         if (!needResourcesForMesh)
             continue;
-        const RenderSettings meshSettings = renderSettingsForMesh(mi);
+        const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
         const auto pointVariant = static_cast<Document::PointGpuVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
         const auto fillVariant = static_cast<Document::FillGpuVariant>(
@@ -132,9 +132,9 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
                 || mode.decoratorFaceNormals,
             mode.decoratorBoundaryEdges
                 || mode.decoratorTextureSeams,
-            meshSettings.qualityHistogramFixedRange,
-            meshSettings.qualityHistogramMin,
-            meshSettings.qualityHistogramMax,
+            m_renderSettings.qualityHistogramFixedRange,
+            m_renderSettings.qualityHistogramMin,
+            m_renderSettings.qualityHistogramMax,
             mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces));
     }
 }
@@ -184,7 +184,7 @@ void RenderWidget::executePendingDepthPick(
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         if (!meshVisible(mi))
             continue;
-        const RenderSettings meshSettings = renderSettingsForMesh(mi);
+        const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
         const auto pointVariant = static_cast<Document::PointGpuVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
         m_doc->ensureMeshGpuResources(
@@ -200,9 +200,9 @@ void RenderWidget::executePendingDepthPick(
             false,  // bbox
             false,  // decorator normals
             false,  // decorator boundaries
-            meshSettings.qualityHistogramFixedRange,
-            meshSettings.qualityHistogramMin,
-            meshSettings.qualityHistogramMax);
+            m_renderSettings.qualityHistogramFixedRange,
+            m_renderSettings.qualityHistogramMin,
+            m_renderSettings.qualityHistogramMax);
     }
 
     cb->beginPass(m_depthPickRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
@@ -212,7 +212,7 @@ void RenderWidget::executePendingDepthPick(
         if (!meshVisible(mi))
             continue;
 
-        const RenderSettings meshSettings = renderSettingsForMesh(mi);
+        const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
         const auto pointVariant = static_cast<Document::PointGpuVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
 
@@ -364,7 +364,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         100.0f * sceneRadius);
     const QMatrix4x4 view = m_trackball.viewMatrix();
 
-    auto updateMainUbufForMesh = [&](int meshIndex, const RenderSettings &meshSettings) {
+    auto updateMainUbufForMesh = [&](int meshIndex, const PerMeshRenderSettings &meshSettings) {
         if (!m_ubuf)
             return;
         if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
@@ -386,7 +386,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         cb->resourceUpdate(uMesh);
     };
 
-    const RenderSettings currentMeshSettings = renderSettingsForMesh(currentMeshIndex);
+    const PerMeshRenderSettings currentMeshSettings = renderModeForMesh(currentMeshIndex);
     const MeshRenderMode currentMeshMode = renderModeForMesh(currentMeshIndex);
     const auto pointVariant = static_cast<Document::PointGpuVariant>(
         pointGpuVariantIndexForSettings(currentMeshSettings));
@@ -444,7 +444,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     }
 
     auto drawFillDepth = [&](int meshIndex,
-                             const RenderSettings &meshSettings,
+                             const PerMeshRenderSettings &meshSettings,
                              const Document::FillPassGpuView &fillView) {
         if (!m_currentMaskFillDepthOnlyPipeline)
             return;
@@ -468,7 +468,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     };
 
     auto drawEdgeDepth = [&](int meshIndex,
-                             const RenderSettings &meshSettings,
+                             const PerMeshRenderSettings &meshSettings,
                              const Document::EdgePassGpuView &edgeView,
                              const Document::EdgeFatPassGpuView &fatEdgeView) {
         updateMainUbufForMesh(meshIndex, meshSettings);
@@ -510,7 +510,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     };
 
     auto drawPointsDepth = [&](int meshIndex,
-                               const RenderSettings &meshSettings,
+                               const PerMeshRenderSettings &meshSettings,
                                const Document::PointsPassGpuView &pointsView) {
         if (!m_currentMaskPointsDepthOnlyPipeline)
             return;
@@ -565,7 +565,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         if (mi == currentMeshIndex)
             continue;
         const MeshRenderMode mode = renderModeForMesh(mi);
-        const RenderSettings meshSettings = renderSettingsForMesh(mi);
+        const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
 
         const Document::FillPassGpuView fillView =
             m_doc->fillPassGpuView(

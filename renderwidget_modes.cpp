@@ -3,7 +3,6 @@
 #include "renderoverlaypanel.h"
 #include "renderwidget_internal.h"
 #include <wrap/io_trimesh/io_mask.h>
-#include <QDir>
 #include <QFileInfo>
 #include <QHash>
 #include <algorithm>
@@ -11,11 +10,6 @@
 using namespace RenderWidgetInternal;
 
 namespace {
-QString normalizeTexturePath(const QString &path)
-{
-    return QDir::cleanPath(QDir::fromNativeSeparators(path.trimmed())).toLower();
-}
-
 int findTextureIndexByPath(const Document::MeshEntry &entry, const QString &path)
 {
     const QString wanted = normalizeTexturePath(path);
@@ -105,38 +99,38 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         mode.showWire = faceCount < kWireframeDefaultFaceThreshold;
         mode.showEdges = false;
         mode.showPoints = false;
-        mode.fillColorSource = FillColorSource::Constant;
+        mode.fillPlain.colorSource = FillColorSource::Constant;
         if (hasTextures)
-            mode.fillColorSource = FillColorSource::Texture;
+            mode.fillPlain.colorSource = FillColorSource::Texture;
         else if (hasVertexColors)
-            mode.fillColorSource = FillColorSource::PerVertex;
+            mode.fillPlain.colorSource = FillColorSource::PerVertex;
         else if (hasFaceColors)
-            mode.fillColorSource = FillColorSource::PerFace;
+            mode.fillPlain.colorSource = FillColorSource::PerFace;
         else if (hasVertexQuality)
-            mode.fillColorSource = FillColorSource::PerVertexQuality;
+            mode.fillPlain.colorSource = FillColorSource::PerVertexQuality;
         else if (hasFaceQuality)
-            mode.fillColorSource = FillColorSource::PerFaceQuality;
+            mode.fillPlain.colorSource = FillColorSource::PerFaceQuality;
         mode.pointColorSource = hasVertexColors
             ? PointColorSource::PerVertex
             : (hasVertexQuality ? PointColorSource::PerVertexQuality : PointColorSource::Constant);
         mode.fillLighting = true;
         mode.fillMaterial = (hasTextures && hasAnyPbrMap) ? FillMaterial::Pbr : FillMaterial::Plain;
-        mode.fillPbrAlbedoSource = hasTextures
+        mode.fillPbr.albedoSource = hasTextures
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::Constant;
-        mode.fillPbrAlbedoTextureIndex = defaultAlbedoTextureIndex;
-        mode.fillPbrNormalSource = defaultNormalTextureIndex >= 0
+        mode.fillPbr.albedoIndex = defaultAlbedoTextureIndex;
+        mode.fillPbr.normalSource = defaultNormalTextureIndex >= 0
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::None;
-        mode.fillPbrNormalTextureIndex = defaultNormalTextureIndex;
-        mode.fillPbrOcclusionSource = defaultOcclusionTextureIndex >= 0
+        mode.fillPbr.normalIndex = defaultNormalTextureIndex;
+        mode.fillPbr.occlusionSource = defaultOcclusionTextureIndex >= 0
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::None;
-        mode.fillPbrOcclusionTextureIndex = defaultOcclusionTextureIndex;
-        mode.fillPbrRoughnessSource = defaultRoughnessTextureIndex >= 0
+        mode.fillPbr.occlusionIndex = defaultOcclusionTextureIndex;
+        mode.fillPbr.roughnessSource = defaultRoughnessTextureIndex >= 0
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::Constant;
-        mode.fillPbrRoughnessTextureIndex = defaultRoughnessTextureIndex;
+        mode.fillPbr.roughnessIndex = defaultRoughnessTextureIndex;
         mode.pointLighting = false;
         mode.wireLighting = false;
     } else if (edgeCount > 0) {
@@ -215,233 +209,22 @@ RenderWidget::MeshRenderMode *RenderWidget::mutableRenderModeForMesh(int meshInd
     return &it->second;
 }
 
-bool RenderWidget::applyRenderSettingsToCurrentMesh(
-    const RenderSettings &prev,
-    const RenderSettings &next)
+void RenderWidget::setCurrentMeshSettings(const PerMeshRenderSettings &next)
 {
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-    MeshRenderMode *mode = mutableRenderModeForMesh(meshIndex);
-    if (!mode)
-        return false;
-
-    bool changed = false;
-    auto apply = [&](bool MeshRenderMode::*field, bool before, bool after) {
-        if (before == after)
-            return;
-        if (mode->*field == after)
-            return;
-        mode->*field = after;
-        changed = true;
-    };
-
-    apply(&MeshRenderMode::showBoundingBox, prev.showBoundingBox, next.showBoundingBox);
-    apply(&MeshRenderMode::showPoints, prev.showPoints, next.showPoints);
-    apply(&MeshRenderMode::showEdges, prev.showEdges, next.showEdges);
-    apply(&MeshRenderMode::showWire, prev.showWire, next.showWire);
-    apply(&MeshRenderMode::showFill, prev.showFill, next.showFill);
-    apply(&MeshRenderMode::showSelection, prev.showSelection, next.showSelection);
-    apply(
-        &MeshRenderMode::showSelectionVertices,
-        prev.showSelectionVertices,
-        next.showSelectionVertices);
-    apply(
-        &MeshRenderMode::showSelectionFaces,
-        prev.showSelectionFaces,
-        next.showSelectionFaces);
-    apply(
-        &MeshRenderMode::decoratorVertexNormals,
-        prev.decoratorVertexNormals,
-        next.decoratorVertexNormals);
-    apply(
-        &MeshRenderMode::decoratorFaceNormals,
-        prev.decoratorFaceNormals,
-        next.decoratorFaceNormals);
-    apply(
-        &MeshRenderMode::decoratorBoundaryEdges,
-        prev.decoratorBoundaryEdges,
-        next.decoratorBoundaryEdges);
-    apply(
-        &MeshRenderMode::decoratorTextureSeams,
-        prev.decoratorTextureSeams,
-        next.decoratorTextureSeams);
-    apply(&MeshRenderMode::pointLighting, prev.pointLighting, next.pointLighting);
-    apply(&MeshRenderMode::wireLighting, prev.wireLighting, next.wireLighting);
-    apply(
-        &MeshRenderMode::wireBackfaceCulling,
-        prev.wireBackfaceCulling,
-        next.wireBackfaceCulling);
-    apply(&MeshRenderMode::fillLighting, prev.fillLighting, next.fillLighting);
-    apply(
-        &MeshRenderMode::fillBackfaceCulling,
-        prev.fillBackfaceCulling,
-        next.fillBackfaceCulling);
-    if (prev.fillMaterial != next.fillMaterial) {
-        mode->fillMaterial = next.fillMaterial;
-        changed = true;
-    }
-    if (prev.fillPbrAlbedoSource != next.fillPbrAlbedoSource) {
-        mode->fillPbrAlbedoSource = next.fillPbrAlbedoSource;
-        changed = true;
-    }
-    if (prev.fillPbrAlbedoTextureIndex != next.fillPbrAlbedoTextureIndex) {
-        mode->fillPbrAlbedoTextureIndex = next.fillPbrAlbedoTextureIndex;
-        changed = true;
-    }
-    if (prev.fillPbrNormalSource != next.fillPbrNormalSource) {
-        mode->fillPbrNormalSource = next.fillPbrNormalSource;
-        changed = true;
-    }
-    if (prev.fillPbrNormalTextureIndex != next.fillPbrNormalTextureIndex) {
-        mode->fillPbrNormalTextureIndex = next.fillPbrNormalTextureIndex;
-        changed = true;
-    }
-    if (prev.fillPbrOcclusionSource != next.fillPbrOcclusionSource) {
-        mode->fillPbrOcclusionSource = next.fillPbrOcclusionSource;
-        changed = true;
-    }
-    if (prev.fillPbrOcclusionTextureIndex != next.fillPbrOcclusionTextureIndex) {
-        mode->fillPbrOcclusionTextureIndex = next.fillPbrOcclusionTextureIndex;
-        changed = true;
-    }
-    if (prev.fillPbrRoughnessSource != next.fillPbrRoughnessSource) {
-        mode->fillPbrRoughnessSource = next.fillPbrRoughnessSource;
-        changed = true;
-    }
-    if (prev.fillPbrRoughnessTextureIndex != next.fillPbrRoughnessTextureIndex) {
-        mode->fillPbrRoughnessTextureIndex = next.fillPbrRoughnessTextureIndex;
-        changed = true;
-    }
-
-    if (prev.fillShading != next.fillShading) {
-        mode->fillShading = next.fillShading;
-        changed = true;
-    }
-    if (prev.pointColorSource != next.pointColorSource) {
-        mode->pointColorSource = next.pointColorSource;
-        changed = true;
-    }
-    if (prev.fillColorSource != next.fillColorSource) {
-        mode->fillColorSource = next.fillColorSource;
-        changed = true;
-    }
-
-    auto applyColor = [&](QColor MeshRenderMode::*field, const QColor &before, const QColor &after) {
-        if (before == after)
-            return;
-        if (mode->*field == after)
-            return;
-        mode->*field = after;
-        changed = true;
-    };
-    auto applyFloat = [&](float MeshRenderMode::*field, float before, float after) {
-        if (before == after)
-            return;
-        if (mode->*field == after)
-            return;
-        mode->*field = after;
-        changed = true;
-    };
-
-    applyColor(&MeshRenderMode::decoratorVertexNormalColor, prev.decoratorVertexNormalColor, next.decoratorVertexNormalColor);
-    applyColor(&MeshRenderMode::decoratorFaceNormalColor, prev.decoratorFaceNormalColor, next.decoratorFaceNormalColor);
-    applyColor(&MeshRenderMode::decoratorBoundaryEdgeColor, prev.decoratorBoundaryEdgeColor, next.decoratorBoundaryEdgeColor);
-    applyColor(&MeshRenderMode::decoratorTextureSeamColor, prev.decoratorTextureSeamColor, next.decoratorTextureSeamColor);
-    applyFloat(
-        &MeshRenderMode::decoratorBoundaryWidth,
-        prev.decoratorBoundaryWidth,
-        next.decoratorBoundaryWidth);
-    applyColor(&MeshRenderMode::bboxWireColor, prev.bboxWireColor, next.bboxWireColor);
-    applyColor(&MeshRenderMode::pointColor, prev.pointColor, next.pointColor);
-    applyFloat(&MeshRenderMode::pointSize, prev.pointSize, next.pointSize);
-    applyColor(&MeshRenderMode::edgeColor, prev.edgeColor, next.edgeColor);
-    applyFloat(&MeshRenderMode::edgeSize, prev.edgeSize, next.edgeSize);
-    applyColor(&MeshRenderMode::wireColor, prev.wireColor, next.wireColor);
-    applyFloat(&MeshRenderMode::wireSize, prev.wireSize, next.wireSize);
-    applyColor(&MeshRenderMode::fillColor, prev.fillColor, next.fillColor);
-    applyFloat(
-        &MeshRenderMode::fillNormalMapScale,
-        prev.fillNormalMapScale,
-        next.fillNormalMapScale);
-    applyFloat(
-        &MeshRenderMode::fillOcclusionStrength,
-        prev.fillOcclusionStrength,
-        next.fillOcclusionStrength);
-    applyFloat(
-        &MeshRenderMode::fillRoughnessFactor,
-        prev.fillRoughnessFactor,
-        next.fillRoughnessFactor);
-
-    return changed;
-}
-
-void RenderWidget::applyRenderModeToSettings(
-    RenderSettings &settings,
-    const MeshRenderMode &mode) const
-{
-    settings.showBoundingBox = mode.showBoundingBox;
-    settings.showPoints = mode.showPoints;
-    settings.showEdges = mode.showEdges;
-    settings.showWire = mode.showWire;
-    settings.showFill = mode.showFill;
-    settings.showSelection = mode.showSelection;
-    settings.showSelectionVertices = mode.showSelectionVertices;
-    settings.showSelectionFaces = mode.showSelectionFaces;
-    settings.decoratorVertexNormals = mode.decoratorVertexNormals;
-    settings.decoratorFaceNormals = mode.decoratorFaceNormals;
-    settings.decoratorBoundaryEdges = mode.decoratorBoundaryEdges;
-    settings.decoratorTextureSeams = mode.decoratorTextureSeams;
-    settings.pointLighting = mode.pointLighting;
-    settings.wireLighting = mode.wireLighting;
-    settings.wireBackfaceCulling = mode.wireBackfaceCulling;
-    settings.fillLighting = mode.fillLighting;
-    settings.fillBackfaceCulling = mode.fillBackfaceCulling;
-    settings.fillMaterial = mode.fillMaterial;
-    settings.fillPbrAlbedoSource = mode.fillPbrAlbedoSource;
-    settings.fillPbrAlbedoTextureIndex = mode.fillPbrAlbedoTextureIndex;
-    settings.fillPbrNormalSource = mode.fillPbrNormalSource;
-    settings.fillPbrNormalTextureIndex = mode.fillPbrNormalTextureIndex;
-    settings.fillPbrOcclusionSource = mode.fillPbrOcclusionSource;
-    settings.fillPbrOcclusionTextureIndex = mode.fillPbrOcclusionTextureIndex;
-    settings.fillPbrRoughnessSource = mode.fillPbrRoughnessSource;
-    settings.fillPbrRoughnessTextureIndex = mode.fillPbrRoughnessTextureIndex;
-    settings.fillShading = mode.fillShading;
-    settings.pointColorSource = mode.pointColorSource;
-    settings.fillColorSource = mode.fillColorSource;
-    settings.decoratorVertexNormalColor = mode.decoratorVertexNormalColor;
-    settings.decoratorFaceNormalColor = mode.decoratorFaceNormalColor;
-    settings.decoratorBoundaryEdgeColor = mode.decoratorBoundaryEdgeColor;
-    settings.decoratorTextureSeamColor = mode.decoratorTextureSeamColor;
-    settings.decoratorBoundaryWidth = mode.decoratorBoundaryWidth;
-    settings.bboxWireColor = mode.bboxWireColor;
-    settings.pointColor = mode.pointColor;
-    settings.pointSize = mode.pointSize;
-    settings.edgeColor = mode.edgeColor;
-    settings.edgeSize = mode.edgeSize;
-    settings.wireColor = mode.wireColor;
-    settings.wireSize = mode.wireSize;
-    settings.fillColor = mode.fillColor;
-    settings.fillNormalMapScale = mode.fillNormalMapScale;
-    settings.fillOcclusionStrength = mode.fillOcclusionStrength;
-    settings.fillRoughnessFactor = mode.fillRoughnessFactor;
-}
-
-RenderSettings RenderWidget::renderSettingsForMesh(int meshIndex) const
-{
-    RenderSettings meshSettings = m_renderSettings;
-    if (meshIndex >= 0 && meshIndex < m_doc->meshCount())
-        applyRenderModeToSettings(meshSettings, renderModeForMesh(meshIndex));
-    return meshSettings;
+    if (meshIndex < 0)
+        return;
+    const std::uint64_t meshId = m_doc->mesh(meshIndex).meshId;
+    m_meshRenderModes[meshId] = next;
+    if (m_overlayPanel)
+        m_overlayPanel->setMeshSettings(next);
 }
 
 void RenderWidget::syncOverlaySettingsToCurrentMesh()
 {
-    RenderSettings synced = m_renderSettings;
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-    if (meshIndex >= 0)
-        applyRenderModeToSettings(synced, renderModeForMesh(meshIndex));
-    m_renderSettings = synced;
-    if (m_overlayPanel)
-        m_overlayPanel->setSettings(m_renderSettings);
+    if (m_overlayPanel && meshIndex >= 0)
+        m_overlayPanel->setMeshSettings(renderModeForMesh(meshIndex));
     updateBoundingBoxCornersOverlay();
 }
 
@@ -486,38 +269,40 @@ void RenderWidget::refreshColorSourceAvailability()
         if (meshIndex >= 0 && meshIndex < m_doc->meshCount())
             textureLabels = pbrTextureSelectorEntries(m_doc->mesh(meshIndex));
         m_overlayPanel->setFillPbrTextureNames(textureLabels);
+        m_overlayPanel->setUvTextureNames(textureLabels);
     }
 
-    RenderSettings corrected = m_renderSettings;
-    if (corrected.pointColorSource == PointColorSource::PerVertex && !hasVertexColors)
-        corrected.pointColorSource = PointColorSource::Constant;
-    if (corrected.pointColorSource == PointColorSource::PerVertexQuality && !hasVertexQuality)
-        corrected.pointColorSource = PointColorSource::Constant;
-    if (corrected.pointLighting && !hasVertexNormals)
-        corrected.pointLighting = false;
-    if (corrected.fillColorSource == FillColorSource::PerVertex && !hasVertexColors)
-        corrected.fillColorSource = FillColorSource::Constant;
-    if (corrected.fillColorSource == FillColorSource::PerFace && !hasFaceColors)
-        corrected.fillColorSource = FillColorSource::Constant;
-    if (corrected.fillColorSource == FillColorSource::PerVertexQuality && !hasVertexQuality)
-        corrected.fillColorSource = FillColorSource::Constant;
-    if (corrected.fillColorSource == FillColorSource::PerFaceQuality && !hasFaceQuality)
-        corrected.fillColorSource = FillColorSource::Constant;
-    if (corrected.fillColorSource == FillColorSource::Texture && !hasTextures)
-        corrected.fillColorSource = FillColorSource::Constant;
+    // Correct per-mesh settings for the current mesh.
+    PerMeshRenderSettings meshCorrected = (meshIndex >= 0) ? renderModeForMesh(meshIndex) : PerMeshRenderSettings{};
+    if (meshCorrected.pointColorSource == PointColorSource::PerVertex && !hasVertexColors)
+        meshCorrected.pointColorSource = PointColorSource::Constant;
+    if (meshCorrected.pointColorSource == PointColorSource::PerVertexQuality && !hasVertexQuality)
+        meshCorrected.pointColorSource = PointColorSource::Constant;
+    if (meshCorrected.pointLighting && !hasVertexNormals)
+        meshCorrected.pointLighting = false;
+    if (meshCorrected.fillPlain.colorSource == FillColorSource::PerVertex && !hasVertexColors)
+        meshCorrected.fillPlain.colorSource = FillColorSource::Constant;
+    if (meshCorrected.fillPlain.colorSource == FillColorSource::PerFace && !hasFaceColors)
+        meshCorrected.fillPlain.colorSource = FillColorSource::Constant;
+    if (meshCorrected.fillPlain.colorSource == FillColorSource::PerVertexQuality && !hasVertexQuality)
+        meshCorrected.fillPlain.colorSource = FillColorSource::Constant;
+    if (meshCorrected.fillPlain.colorSource == FillColorSource::PerFaceQuality && !hasFaceQuality)
+        meshCorrected.fillPlain.colorSource = FillColorSource::Constant;
+    if (meshCorrected.fillPlain.colorSource == FillColorSource::Texture && !hasTextures)
+        meshCorrected.fillPlain.colorSource = FillColorSource::Constant;
     auto clampPbrSource = [hasTextures](FillPbrTextureSource &source, int &index) {
         if (!hasTextures && source == FillPbrTextureSource::Texture)
             source = FillPbrTextureSource::None;
         if (!hasTextures)
             index = -1;
     };
-    clampPbrSource(corrected.fillPbrAlbedoSource, corrected.fillPbrAlbedoTextureIndex);
-    clampPbrSource(corrected.fillPbrNormalSource, corrected.fillPbrNormalTextureIndex);
-    clampPbrSource(corrected.fillPbrOcclusionSource, corrected.fillPbrOcclusionTextureIndex);
-    clampPbrSource(corrected.fillPbrRoughnessSource, corrected.fillPbrRoughnessTextureIndex);
-    if (corrected.fillPbrAlbedoSource == FillPbrTextureSource::Texture && !hasTextures) {
-        corrected.fillPbrAlbedoSource = FillPbrTextureSource::Constant;
-        corrected.fillPbrAlbedoTextureIndex = -1;
+    clampPbrSource(meshCorrected.fillPbr.albedoSource, meshCorrected.fillPbr.albedoIndex);
+    clampPbrSource(meshCorrected.fillPbr.normalSource, meshCorrected.fillPbr.normalIndex);
+    clampPbrSource(meshCorrected.fillPbr.occlusionSource, meshCorrected.fillPbr.occlusionIndex);
+    clampPbrSource(meshCorrected.fillPbr.roughnessSource, meshCorrected.fillPbr.roughnessIndex);
+    if (meshCorrected.fillPbr.albedoSource == FillPbrTextureSource::Texture && !hasTextures) {
+        meshCorrected.fillPbr.albedoSource = FillPbrTextureSource::Constant;
+        meshCorrected.fillPbr.albedoIndex = -1;
     }
     const int textureCount =
         (meshIndex >= 0 && meshIndex < m_doc->meshCount())
@@ -527,27 +312,41 @@ void RenderWidget::refreshColorSourceAvailability()
         if (index < -1 || index >= textureCount)
             index = -1;
     };
-    clampTextureIndex(corrected.fillPbrAlbedoTextureIndex);
-    clampTextureIndex(corrected.fillPbrNormalTextureIndex);
-    clampTextureIndex(corrected.fillPbrOcclusionTextureIndex);
-    clampTextureIndex(corrected.fillPbrRoughnessTextureIndex);
+    clampTextureIndex(meshCorrected.fillPbr.albedoIndex);
+    clampTextureIndex(meshCorrected.fillPbr.normalIndex);
+    clampTextureIndex(meshCorrected.fillPbr.occlusionIndex);
+    clampTextureIndex(meshCorrected.fillPbr.roughnessIndex);
+    clampTextureIndex(meshCorrected.fillPlain.textureIndex);
 
-    if (corrected != m_renderSettings) {
-        const RenderSettings prev = m_renderSettings;
-        m_renderSettings = corrected;
-        applyRenderSettingsToCurrentMesh(prev, m_renderSettings);
+    if (meshIndex >= 0 && meshCorrected != renderModeForMesh(meshIndex)) {
+        const std::uint64_t meshId = m_doc->mesh(meshIndex).meshId;
+        m_meshRenderModes[meshId] = meshCorrected;
         if (m_overlayPanel)
-            m_overlayPanel->setSettings(m_renderSettings);
+            m_overlayPanel->setMeshSettings(meshCorrected);
+    }
+
+    // Correct global settings (uvTextureIndex only).
+    GlobalRenderSettings globalCorrected = m_renderSettings;
+    if (!hasTextures) {
+        globalCorrected.uvTextureIndex = -1;
+    } else {
+        if (globalCorrected.uvTextureIndex < 0 || globalCorrected.uvTextureIndex >= textureCount)
+            globalCorrected.uvTextureIndex = 0;
+    }
+    if (globalCorrected != m_renderSettings) {
+        m_renderSettings = globalCorrected;
+        if (m_overlayPanel)
+            m_overlayPanel->setGlobalSettings(m_renderSettings);
     }
 }
 
-int RenderWidget::fillGpuVariantIndexForSettings(const RenderSettings &settings) const
+int RenderWidget::fillGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const
 {
     // PBR relies on UV/material textures for normal/occlusion/roughness maps regardless
     // of whether albedo comes from texture or a plain color.
     FillColorSource source = (settings.fillMaterial == FillMaterial::Pbr)
         ? FillColorSource::Texture
-        : settings.fillColorSource;
+        : settings.fillPlain.colorSource;
     switch (source) {
     case FillColorSource::PerVertex: return static_cast<int>(Document::FillGpuVariant::PerVertex);
     case FillColorSource::PerFace: return static_cast<int>(Document::FillGpuVariant::PerFace);
@@ -562,7 +361,7 @@ int RenderWidget::fillGpuVariantIndexForSettings(const RenderSettings &settings)
     }
 }
 
-int RenderWidget::pointGpuVariantIndexForSettings(const RenderSettings &settings) const
+int RenderWidget::pointGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const
 {
     switch (settings.pointColorSource) {
     case PointColorSource::PerVertex: return static_cast<int>(Document::PointGpuVariant::PerVertex);
@@ -631,17 +430,18 @@ static std::pair<QString, QString> fillShaderPaths(FillMaterial material, FillSh
              QStringLiteral(":/shaders/fill_smooth.frag.qsb") };
 }
 
-QRhiGraphicsPipeline *RenderWidget::fillPipelineForSettings(const RenderSettings &settings)
+QRhiGraphicsPipeline *RenderWidget::fillPipelineForSettings(const PerMeshRenderSettings &settings)
 {
     if (!m_rhi || !m_srb || !renderTarget())
         return nullptr;
 
-    // RadianceScaling always uses the smooth vertex layout (per-vertex normals required).
-    // Normalise shading so RS+Flat and RS+Smooth hit the same cache entry.
-    const FillShading effectiveShading =
-        (settings.fillMaterial == FillMaterial::RadianceScaling)
-            ? FillShading::Smooth
-            : settings.fillShading;
+    // PBR has its own per-material shading setting; RS always needs smooth normals.
+    FillShading effectiveShading;
+    switch (settings.fillMaterial) {
+    case FillMaterial::Pbr:             effectiveShading = settings.fillPbr.shading; break;
+    case FillMaterial::RadianceScaling: effectiveShading = FillShading::Smooth;      break;
+    default: /* Plain */                effectiveShading = settings.fillPlain.shading;   break;
+    }
 
     // Key encodes: material * 4 + shading * 2 + backfaceCulling
     const int key = int(settings.fillMaterial) * 4
@@ -697,7 +497,7 @@ QRhiGraphicsPipeline *RenderWidget::fillPipelineForSettings(const RenderSettings
     return inserted.first->second.get();
 }
 
-QRhiGraphicsPipeline *RenderWidget::wirePipelineForSettings(const RenderSettings &settings)
+QRhiGraphicsPipeline *RenderWidget::wirePipelineForSettings(const PerMeshRenderSettings &settings)
 {
     if (!m_rhi || !m_srb || !renderTarget())
         return nullptr;
@@ -749,7 +549,7 @@ QRhiGraphicsPipeline *RenderWidget::wirePipelineForSettings(const RenderSettings
     return inserted.first->second.get();
 }
 
-QRhiGraphicsPipeline *RenderWidget::edgesPipelineForSettings(const RenderSettings &settings)
+QRhiGraphicsPipeline *RenderWidget::edgesPipelineForSettings(const PerMeshRenderSettings &settings)
 {
     if (!m_rhi || !m_srb || !renderTarget())
         return nullptr;
@@ -799,7 +599,7 @@ QRhiGraphicsPipeline *RenderWidget::edgesPipelineForSettings(const RenderSetting
     return inserted.first->second.get();
 }
 
-QRhiGraphicsPipeline *RenderWidget::fatEdgesPipelineForSettings(const RenderSettings &settings)
+QRhiGraphicsPipeline *RenderWidget::fatEdgesPipelineForSettings(const PerMeshRenderSettings &settings)
 {
     if (!m_rhi || !m_srb || !renderTarget())
         return nullptr;
@@ -857,11 +657,13 @@ QRhiShaderResourceBindings *RenderWidget::shaderResourcesForFillTextures(
     QRhiTexture *baseColorTexture,
     QRhiTexture *normalTexture,
     QRhiTexture *occlusionTexture,
-    QRhiTexture *roughnessTexture)
+    QRhiTexture *roughnessTexture,
+    bool nearest)
 {
     if (!m_rhi
         || !m_ubuf
         || !m_textureSampler
+        || !m_textureSamplerNearest
         || !m_qualityColorMapTexture
         || !m_fallbackTexture
         || !m_fallbackNormalTexture
@@ -882,9 +684,12 @@ QRhiShaderResourceBindings *RenderWidget::shaderResourcesForFillTextures(
     key.normalTexture = resolvedNormal;
     key.occlusionTexture = resolvedOcclusion;
     key.roughnessTexture = resolvedRoughness;
+    key.nearest = nearest;
     auto it = m_textureSrbs.find(key);
     if (it != m_textureSrbs.end())
         return it->second.get();
+
+    QRhiSampler *sampler = nearest ? m_textureSamplerNearest.get() : m_textureSampler.get();
 
     auto textureSrb =
         std::unique_ptr<QRhiShaderResourceBindings>(m_rhi->newShaderResourceBindings());
@@ -897,7 +702,7 @@ QRhiShaderResourceBindings *RenderWidget::shaderResourcesForFillTextures(
             1,
             QRhiShaderResourceBinding::FragmentStage,
             resolvedBase,
-            m_textureSampler.get()),
+            sampler),
         QRhiShaderResourceBinding::sampledTexture(
             2,
             QRhiShaderResourceBinding::FragmentStage,
@@ -907,17 +712,17 @@ QRhiShaderResourceBindings *RenderWidget::shaderResourcesForFillTextures(
             3,
             QRhiShaderResourceBinding::FragmentStage,
             resolvedNormal,
-            m_textureSampler.get()),
+            sampler),
         QRhiShaderResourceBinding::sampledTexture(
             4,
             QRhiShaderResourceBinding::FragmentStage,
             resolvedOcclusion,
-            m_textureSampler.get()),
+            sampler),
         QRhiShaderResourceBinding::sampledTexture(
             5,
             QRhiShaderResourceBinding::FragmentStage,
             resolvedRoughness,
-            m_textureSampler.get())
+            sampler)
     });
     if (!textureSrb->create())
         return m_srb.get();

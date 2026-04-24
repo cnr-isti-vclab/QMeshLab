@@ -263,9 +263,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->setVerticalSpacing(2);
     currentMeshForm->setLabelAlignment(kSettingsLabelAlignment);
     m_currentMeshHighlightCheck = new QCheckBox(viewer3dPage);
-    m_currentMeshHighlightCheck->setChecked(m_settings.highlightCurrentMesh);
+    m_currentMeshHighlightCheck->setChecked(m_globalSettings.highlightCurrentMesh);
     m_showTrackballGizmoCheck = new QCheckBox(viewer3dPage);
-    m_showTrackballGizmoCheck->setChecked(m_settings.showTrackballGizmo);
+    m_showTrackballGizmoCheck->setChecked(m_globalSettings.showTrackballGizmo);
     m_currentMeshOutlineColorButton = makeColorButton(viewer3dPage);
     m_sceneBackgroundTopColorButton = makeColorButton(viewer3dPage);
     m_sceneBackgroundBottomColorButton = makeColorButton(viewer3dPage);
@@ -277,17 +277,17 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_currentMeshOutlineWidthSpin->setSingleStep(0.5);
     m_currentMeshOutlineWidthSpin->setDecimals(1);
     m_currentMeshOutlineWidthSpin->setSuffix(tr(" px"));
-    m_currentMeshOutlineWidthSpin->setValue(m_settings.currentMeshOutlineWidth);
+    m_currentMeshOutlineWidthSpin->setValue(m_globalSettings.currentMeshOutlineWidth);
     m_currentMeshDilateRadiusSpin->setRange(0.0, 16.0);
     m_currentMeshDilateRadiusSpin->setSingleStep(0.5);
     m_currentMeshDilateRadiusSpin->setDecimals(1);
     m_currentMeshDilateRadiusSpin->setSuffix(tr(" px"));
-    m_currentMeshDilateRadiusSpin->setValue(m_settings.currentMeshDilateRadius);
+    m_currentMeshDilateRadiusSpin->setValue(m_globalSettings.currentMeshDilateRadius);
     m_currentMeshErodeRadiusSpin->setRange(0.0, 16.0);
     m_currentMeshErodeRadiusSpin->setSingleStep(0.5);
     m_currentMeshErodeRadiusSpin->setDecimals(1);
     m_currentMeshErodeRadiusSpin->setSuffix(tr(" px"));
-    m_currentMeshErodeRadiusSpin->setValue(m_settings.currentMeshErodeRadius);
+    m_currentMeshErodeRadiusSpin->setValue(m_globalSettings.currentMeshErodeRadius);
     m_currentMeshDebugViewCombo->addItem(
         tr("Outline"),
         static_cast<int>(CurrentMeshDebugView::Outline));
@@ -329,28 +329,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     viewer3dLayout->addLayout(currentMeshForm);
     m_viewerSettingsStack->addWidget(viewer3dPage);
 
-    auto *viewerUvPage = new QWidget(m_viewerSettingsStack);
-    auto *viewerUvLayout = new QVBoxLayout(viewerUvPage);
-    viewerUvLayout->setContentsMargins(0, 0, 0, 0);
-    viewerUvLayout->setSpacing(2);
-    auto *viewerUvForm = new QFormLayout();
-    viewerUvForm->setContentsMargins(0, 0, 0, 0);
-    viewerUvForm->setHorizontalSpacing(6);
-    viewerUvForm->setVerticalSpacing(2);
-    viewerUvForm->setLabelAlignment(kSettingsLabelAlignment);
-    m_uvShowReferenceFrameCheck = new QCheckBox(viewerUvPage);
-    m_uvShowReferenceFrameCheck->setChecked(m_settings.uvShowReferenceFrame);
-    m_uvShowFullTextureCheck = new QCheckBox(viewerUvPage);
-    m_uvShowFullTextureCheck->setChecked(m_settings.uvShowFullTexture);
-    viewerUvForm->addRow(
-        tr("UV axis"),
-        makeCenteredFieldContainer(m_uvShowReferenceFrameCheck, viewerUvPage));
-    viewerUvForm->addRow(
-        tr("Full texture"),
-        makeCenteredFieldContainer(m_uvShowFullTextureCheck, viewerUvPage));
-    applyUniformFormRowHeights(viewerUvForm);
-    viewerUvLayout->addLayout(viewerUvForm);
-    m_viewerSettingsStack->addWidget(viewerUvPage);
+    // Page 1 of m_viewerSettingsStack is no longer used for UV options;
+    // UV fill options live in the dedicated UV fill page of m_settingsStack instead.
+    m_viewerSettingsStack->addWidget(new QWidget(m_viewerSettingsStack));
 
     m_settingsStack->addWidget(currentMeshPage);
 
@@ -367,10 +348,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_decoratorFaceNormalsCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorBoundaryEdgesCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorTextureSeamsCheck = new QCheckBox(normalDecoratorsPage);
-    m_decoratorVertexNormalsCheck->setChecked(m_settings.decoratorVertexNormals);
-    m_decoratorFaceNormalsCheck->setChecked(m_settings.decoratorFaceNormals);
-    m_decoratorBoundaryEdgesCheck->setChecked(m_settings.decoratorBoundaryEdges);
-    m_decoratorTextureSeamsCheck->setChecked(m_settings.decoratorTextureSeams);
+    m_decoratorVertexNormalsCheck->setChecked(m_meshSettings.decoratorVertexNormals);
+    m_decoratorFaceNormalsCheck->setChecked(m_meshSettings.decoratorFaceNormals);
+    m_decoratorBoundaryEdgesCheck->setChecked(m_meshSettings.decoratorBoundaryEdges);
+    m_decoratorTextureSeamsCheck->setChecked(m_meshSettings.decoratorTextureSeams);
     m_decoratorVertexNormalColorButton = makeColorButton(normalDecoratorsPage);
     m_decoratorFaceNormalColorButton = makeColorButton(normalDecoratorsPage);
     m_decoratorBoundaryEdgeColorButton = makeColorButton(normalDecoratorsPage);
@@ -405,7 +386,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_decoratorBoundaryWidthSpin->setSingleStep(0.5);
     m_decoratorBoundaryWidthSpin->setDecimals(1);
     m_decoratorBoundaryWidthSpin->setSuffix(tr(" px"));
-    m_decoratorBoundaryWidthSpin->setValue(m_settings.decoratorBoundaryWidth);
+    m_decoratorBoundaryWidthSpin->setValue(m_meshSettings.decoratorBoundaryWidth);
     boundaryDecoratorsForm->addRow(
         tr("Boundary edges"),
         makeCenteredFieldContainer(m_decoratorBoundaryEdgesCheck, boundaryDecoratorsPage));
@@ -434,9 +415,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bboxForm->setLabelAlignment(kSettingsLabelAlignment);
     m_bboxColorButton = makeColorButton(bboxPage);
     m_bboxShowCornersCheck = new QCheckBox(bboxPage);
-    m_bboxShowCornersCheck->setChecked(m_settings.showBoundingBoxCorners);
+    m_bboxShowCornersCheck->setChecked(m_globalSettings.showBoundingBoxCorners);
     m_bboxShowDimensionsCheck = new QCheckBox(bboxPage);
-    m_bboxShowDimensionsCheck->setChecked(m_settings.showBoundingBoxDimensions);
+    m_bboxShowDimensionsCheck->setChecked(m_globalSettings.showBoundingBoxDimensions);
     bboxForm->addRow(
         tr("Wire color"),
         makeCenteredFieldContainer(m_bboxColorButton, bboxPage));
@@ -471,9 +452,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_pointSizeSpin->setSingleStep(0.5);
     m_pointSizeSpin->setDecimals(1);
     m_pointSizeSpin->setSuffix(tr(" px"));
-    m_pointSizeSpin->setValue(m_settings.pointSize);
+    m_pointSizeSpin->setValue(m_meshSettings.pointSize);
     m_pointLightingCheck = new QCheckBox(pointsPage);
-    m_pointLightingCheck->setChecked(m_settings.pointLighting);
+    m_pointLightingCheck->setChecked(m_meshSettings.pointLighting);
     pointsForm->addRow(tr("Color source"), m_pointColorSourceCombo);
     pointsForm->addRow(
         tr("Point color"),
@@ -500,7 +481,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_edgeSizeSpin->setSingleStep(0.5);
     m_edgeSizeSpin->setDecimals(1);
     m_edgeSizeSpin->setSuffix(tr(" px"));
-    m_edgeSizeSpin->setValue(m_settings.edgeSize);
+    m_edgeSizeSpin->setValue(m_meshSettings.edgeSize);
     edgesForm->addRow(
         tr("Edge color"),
         makeCenteredFieldContainer(m_edgeColorButton, edgesPage));
@@ -523,11 +504,11 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_wireSizeSpin->setSingleStep(0.1);
     m_wireSizeSpin->setDecimals(1);
     m_wireSizeSpin->setSuffix(tr(" px"));
-    m_wireSizeSpin->setValue(m_settings.wireSize);
+    m_wireSizeSpin->setValue(m_meshSettings.wireSize);
     m_wireBackfaceCullingCheck = new QCheckBox(wirePage);
-    m_wireBackfaceCullingCheck->setChecked(m_settings.wireBackfaceCulling);
+    m_wireBackfaceCullingCheck->setChecked(m_meshSettings.wireBackfaceCulling);
     m_wireLightingCheck = new QCheckBox(wirePage);
-    m_wireLightingCheck->setChecked(m_settings.wireLighting);
+    m_wireLightingCheck->setChecked(m_meshSettings.wireLighting);
     wireForm->addRow(
         tr("Wire color"),
         makeCenteredFieldContainer(m_wireColorButton, wirePage));
@@ -571,48 +552,50 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
     m_fillShadingCombo->addItem(tr("Flat"), static_cast<int>(FillShading::Flat));
     m_fillBackfaceCullingCheck = new QCheckBox(fillPage);
-    m_fillBackfaceCullingCheck->setChecked(m_settings.fillBackfaceCulling);
+    m_fillBackfaceCullingCheck->setChecked(m_meshSettings.fillBackfaceCulling);
     m_fillLightingCheck = new QCheckBox(fillPage);
-    m_fillLightingCheck->setChecked(m_settings.fillLighting);
+    m_fillLightingCheck->setChecked(m_meshSettings.fillLighting);
     m_fillNormalScaleSpin = new QDoubleSpinBox(fillPage);
-    m_fillNormalScaleSpin->setRange(0.0, 8.0);
+    m_fillNormalScaleSpin->setRange(-2.0, 2.0);
     m_fillNormalScaleSpin->setSingleStep(0.05);
     m_fillNormalScaleSpin->setDecimals(2);
-    m_fillNormalScaleSpin->setValue(m_settings.fillNormalMapScale);
+    m_fillNormalScaleSpin->setValue(m_meshSettings.fillPbr.normalScale);
     m_fillOcclusionStrengthSpin = new QDoubleSpinBox(fillPage);
-    m_fillOcclusionStrengthSpin->setRange(0.0, 1.0);
+    m_fillOcclusionStrengthSpin->setRange(-2.0, 2.0);
     m_fillOcclusionStrengthSpin->setSingleStep(0.05);
     m_fillOcclusionStrengthSpin->setDecimals(2);
-    m_fillOcclusionStrengthSpin->setValue(m_settings.fillOcclusionStrength);
+    m_fillOcclusionStrengthSpin->setValue(m_meshSettings.fillPbr.occlusionStrength);
     m_fillRoughnessFactorSpin = new QDoubleSpinBox(fillPage);
     m_fillRoughnessFactorSpin->setRange(0.0, 2.0);
     m_fillRoughnessFactorSpin->setSingleStep(0.05);
     m_fillRoughnessFactorSpin->setDecimals(2);
-    m_fillRoughnessFactorSpin->setValue(m_settings.fillRoughnessFactor);
+    m_fillRoughnessFactorSpin->setValue(m_meshSettings.fillPbr.roughnessFactor);
 
     m_fillMaterialStack = new QStackedWidget(fillPage);
     auto *fillPlainPage = new QWidget(m_fillMaterialStack);
     auto *fillPlainLayout = new QVBoxLayout(fillPlainPage);
     fillPlainLayout->setContentsMargins(0, 0, 0, 0);
     fillPlainLayout->setSpacing(2);
-    auto *fillPlainForm = new QFormLayout();
-    fillPlainForm->setContentsMargins(0, 0, 0, 0);
-    fillPlainForm->setHorizontalSpacing(6);
-    fillPlainForm->setVerticalSpacing(2);
-    fillPlainForm->setLabelAlignment(kSettingsLabelAlignment);
-    fillPlainForm->addRow(tr("Color source"), m_fillColorSourceCombo);
-    fillPlainForm->addRow(
+    m_fillPlainForm = new QFormLayout();
+    m_fillPlainForm->setContentsMargins(0, 0, 0, 0);
+    m_fillPlainForm->setHorizontalSpacing(6);
+    m_fillPlainForm->setVerticalSpacing(2);
+    m_fillPlainForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_fillPlainForm->addRow(tr("Color source"), m_fillColorSourceCombo);
+    m_fillPlainTextureCombo = new QComboBox(fillPage);
+    m_fillPlainForm->addRow(tr("Texture"), m_fillPlainTextureCombo);
+    m_fillPlainForm->addRow(
         tr("Fill color"),
         makeCenteredFieldContainer(m_fillColorButton, fillPage));
-    fillPlainForm->addRow(tr("Shading"), m_fillShadingCombo);
-    fillPlainForm->addRow(
+    m_fillPlainForm->addRow(tr("Shading"), m_fillShadingCombo);
+    m_fillPlainForm->addRow(
         tr("Backface culling"),
         makeCenteredFieldContainer(m_fillBackfaceCullingCheck, fillPage));
-    fillPlainForm->addRow(
+    m_fillPlainForm->addRow(
         tr("Lighting"),
         makeCenteredFieldContainer(m_fillLightingCheck, fillPage));
-    applyUniformFormRowHeights(fillPlainForm);
-    fillPlainLayout->addLayout(fillPlainForm);
+    applyUniformFormRowHeights(m_fillPlainForm);
+    fillPlainLayout->addLayout(m_fillPlainForm);
     m_fillMaterialStack->addWidget(fillPlainPage);
 
     auto *fillPbrPage = new QWidget(m_fillMaterialStack);
@@ -657,7 +640,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillRsEnhancementSpin->setRange(0.0, 1.0);
     m_fillRsEnhancementSpin->setSingleStep(0.05);
     m_fillRsEnhancementSpin->setDecimals(2);
-    m_fillRsEnhancementSpin->setValue(m_settings.fillRsEnhancement);
+    m_fillRsEnhancementSpin->setValue(m_meshSettings.fillRs.enhancement);
     fillRsForm->addRow(tr("Enhancement"), m_fillRsEnhancementSpin);
     m_fillRsDisplayModeCombo = new QComboBox(fillPage);
     m_fillRsDisplayModeCombo->addItem(tr("Lambertian RS"), 0);
@@ -665,7 +648,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillRsDisplayModeCombo->addItem(tr("Grey Descriptor"), 2);
     fillRsForm->addRow(tr("Display"), m_fillRsDisplayModeCombo);
     m_fillRsInvertCheck = new QCheckBox(fillPage);
-    m_fillRsInvertCheck->setChecked(m_settings.fillRsInvert);
+    m_fillRsInvertCheck->setChecked(m_meshSettings.fillRs.invert);
     fillRsForm->addRow(tr("Invert"), makeCenteredFieldContainer(m_fillRsInvertCheck, fillPage));
     applyUniformFormRowHeights(fillRsForm);
     fillRsLayout->addLayout(fillRsForm);
@@ -686,9 +669,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     selectionForm->setVerticalSpacing(2);
     selectionForm->setLabelAlignment(kSettingsLabelAlignment);
     m_selectionShowVerticesCheck = new QCheckBox(selectionPage);
-    m_selectionShowVerticesCheck->setChecked(m_settings.showSelectionVertices);
+    m_selectionShowVerticesCheck->setChecked(m_meshSettings.showSelectionVertices);
     m_selectionShowFacesCheck = new QCheckBox(selectionPage);
-    m_selectionShowFacesCheck->setChecked(m_settings.showSelectionFaces);
+    m_selectionShowFacesCheck->setChecked(m_meshSettings.showSelectionFaces);
     selectionForm->addRow(
         tr("Vertices"),
         makeCenteredFieldContainer(m_selectionShowVerticesCheck, selectionPage));
@@ -724,7 +707,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     if (m_qualityHistogramColorMapCombo->count() == 0)
         m_qualityHistogramColorMapCombo->addItem(tr("Rainbow"), QStringLiteral("rainbow"));
     int initialColorMapIndex = m_qualityHistogramColorMapCombo->findData(
-        m_settings.qualityHistogramColorMapId.trimmed().toLower());
+        m_globalSettings.qualityHistogramColorMapId.trimmed().toLower());
     if (initialColorMapIndex < 0)
         initialColorMapIndex = m_qualityHistogramColorMapCombo->findData(
             colorMapRegistry.fallbackMapId());
@@ -732,17 +715,17 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         initialColorMapIndex = 0;
     if (initialColorMapIndex >= 0) {
         m_qualityHistogramColorMapCombo->setCurrentIndex(initialColorMapIndex);
-        m_settings.qualityHistogramColorMapId =
+        m_globalSettings.qualityHistogramColorMapId =
             m_qualityHistogramColorMapCombo->itemData(initialColorMapIndex).toString();
     }
     histogramForm->addRow(tr("Color map"), m_qualityHistogramColorMapCombo);
     m_qualityHistogramInvertCheck = new QCheckBox(histogramPage);
-    m_qualityHistogramInvertCheck->setChecked(m_settings.qualityHistogramInvertColorMap);
+    m_qualityHistogramInvertCheck->setChecked(m_globalSettings.qualityHistogramInvertColorMap);
     histogramForm->addRow(
         tr("Invert"),
         makeCenteredFieldContainer(m_qualityHistogramInvertCheck, histogramPage));
     m_qualityHistogramFixedRangeCheck = new QCheckBox(histogramPage);
-    m_qualityHistogramFixedRangeCheck->setChecked(m_settings.qualityHistogramFixedRange);
+    m_qualityHistogramFixedRangeCheck->setChecked(m_globalSettings.qualityHistogramFixedRange);
     histogramForm->addRow(
         tr("Fixed range"),
         makeCenteredFieldContainer(m_qualityHistogramFixedRangeCheck, histogramPage));
@@ -750,85 +733,190 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_qualityHistogramMinSpin->setRange(-1e12, 1e12);
     m_qualityHistogramMinSpin->setDecimals(6);
     m_qualityHistogramMinSpin->setSingleStep(0.1);
-    m_qualityHistogramMinSpin->setValue(m_settings.qualityHistogramMin);
+    m_qualityHistogramMinSpin->setValue(m_globalSettings.qualityHistogramMin);
     histogramForm->addRow(tr("Min"), m_qualityHistogramMinSpin);
     m_qualityHistogramMaxSpin = new QDoubleSpinBox(histogramPage);
     m_qualityHistogramMaxSpin->setRange(-1e12, 1e12);
     m_qualityHistogramMaxSpin->setDecimals(6);
     m_qualityHistogramMaxSpin->setSingleStep(0.1);
-    m_qualityHistogramMaxSpin->setValue(m_settings.qualityHistogramMax);
+    m_qualityHistogramMaxSpin->setValue(m_globalSettings.qualityHistogramMax);
     histogramForm->addRow(tr("Max"), m_qualityHistogramMaxSpin);
-    m_qualityHistogramMinSpin->setEnabled(m_settings.qualityHistogramFixedRange);
-    m_qualityHistogramMaxSpin->setEnabled(m_settings.qualityHistogramFixedRange);
+    m_qualityHistogramMinSpin->setEnabled(m_globalSettings.qualityHistogramFixedRange);
+    m_qualityHistogramMaxSpin->setEnabled(m_globalSettings.qualityHistogramFixedRange);
     m_qualityHistogramBinsSpin = new QDoubleSpinBox(histogramPage);
     m_qualityHistogramBinsSpin->setRange(4.0, 512.0);
     m_qualityHistogramBinsSpin->setSingleStep(1.0);
     m_qualityHistogramBinsSpin->setDecimals(0);
-    m_qualityHistogramBinsSpin->setValue(m_settings.qualityHistogramBins);
+    m_qualityHistogramBinsSpin->setValue(m_globalSettings.qualityHistogramBins);
     histogramForm->addRow(tr("Bins"), m_qualityHistogramBinsSpin);
     applyUniformFormRowHeights(histogramForm);
     histogramLayout->addLayout(histogramForm);
     m_settingsStack->addWidget(histogramPage);
 
+    // UV fill page (index 10): shown instead of the regular fill page when in UV mode.
+    auto *uvFillPage = new QWidget(m_settingsStack);
+    auto *uvFillLayout = new QVBoxLayout(uvFillPage);
+    uvFillLayout->setContentsMargins(0, 0, 0, 0);
+    uvFillLayout->setSpacing(2);
+    auto *uvFillForm = new QFormLayout();
+    uvFillForm->setContentsMargins(0, 0, 0, 0);
+    uvFillForm->setHorizontalSpacing(6);
+    uvFillForm->setVerticalSpacing(2);
+    uvFillForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_uvFillColorSourceCombo = new QComboBox(uvFillPage);
+    m_uvFillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
+    m_uvFillColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(FillColorSource::PerVertex));
+    m_uvFillColorSourceCombo->addItem(tr("Per-Face"), static_cast<int>(FillColorSource::PerFace));
+    m_uvFillColorSourceCombo->addItem(
+        tr("Per-Vertex Quality"),
+        static_cast<int>(FillColorSource::PerVertexQuality));
+    m_uvFillColorSourceCombo->addItem(
+        tr("Per-Face Quality"),
+        static_cast<int>(FillColorSource::PerFaceQuality));
+    m_uvFillColorSourceCombo->addItem(tr("Texture"), static_cast<int>(FillColorSource::Texture));
+    uvFillForm->addRow(tr("Color source"), m_uvFillColorSourceCombo);
+    m_uvFillColorButton = makeColorButton(uvFillPage);
+    uvFillForm->addRow(tr("Fill color"), makeCenteredFieldContainer(m_uvFillColorButton, uvFillPage));
+    m_uvTextureCombo = new QComboBox(uvFillPage);
+    m_uvTextureCombo->addItem(tr("Auto"), -1);
+    uvFillForm->addRow(tr("Texture"), m_uvTextureCombo);
+    m_uvTextureNearestCheck = new QCheckBox(uvFillPage);
+    m_uvTextureNearestCheck->setChecked(m_globalSettings.uvTextureNearestSampling);
+    uvFillForm->addRow(
+        tr("Nearest sampling"),
+        makeCenteredFieldContainer(m_uvTextureNearestCheck, uvFillPage));
+    m_uvShowFullTextureCheck = new QCheckBox(uvFillPage);
+    m_uvShowFullTextureCheck->setChecked(m_globalSettings.uvShowFullTexture);
+    uvFillForm->addRow(
+        tr("Full texture"),
+        makeCenteredFieldContainer(m_uvShowFullTextureCheck, uvFillPage));
+    m_uvShowReferenceFrameCheck = new QCheckBox(uvFillPage);
+    m_uvShowReferenceFrameCheck->setChecked(m_globalSettings.uvShowReferenceFrame);
+    uvFillForm->addRow(
+        tr("UV axis"),
+        makeCenteredFieldContainer(m_uvShowReferenceFrameCheck, uvFillPage));
+    applyUniformFormRowHeights(uvFillForm);
+    uvFillLayout->addLayout(uvFillForm);
+    m_settingsStack->addWidget(uvFillPage);  // index 10
+
     panelLayout->addWidget(m_settingsContainer);
 
-    auto setField = [this](auto member, const auto &value, bool syncUi = false) {
-        if (m_settings.*member == value)
+    auto setGlobalField = [this](auto member, const auto &value, bool syncUi = false) {
+        if (m_globalSettings.*member == value)
             return false;
-        m_settings.*member = value;
+        m_globalSettings.*member = value;
         if (syncUi)
-            setSettings(m_settings);
-        emit settingsChanged(m_settings);
+            setGlobalSettings(m_globalSettings);
+        emit globalSettingsChanged(m_globalSettings);
+        return true;
+    };
+    auto setMeshField = [this](auto member, const auto &value, bool syncUi = false) {
+        if (m_meshSettings.*member == value)
+            return false;
+        m_meshSettings.*member = value;
+        if (syncUi)
+            setMeshSettings(m_meshSettings);
+        emit meshSettingsChanged(m_meshSettings);
         return true;
     };
 
-    auto bindCheckBox = [this, setField](
-                            QCheckBox *checkBox,
-                            bool RenderSettings::*member,
-                            bool syncUi = false) {
-        connect(checkBox, &QCheckBox::toggled, this, [this, setField, member, syncUi](bool checked) {
-            setField(member, checked, syncUi);
+    auto bindGlobalCheckBox = [this, setGlobalField](
+                                QCheckBox *checkBox,
+                                bool GlobalRenderSettings::*member,
+                                bool syncUi = false) {
+        connect(checkBox, &QCheckBox::toggled, this, [this, setGlobalField, member, syncUi](bool checked) {
+            setGlobalField(member, checked, syncUi);
+        });
+    };
+    auto bindMeshCheckBox = [this, setMeshField](
+                                QCheckBox *checkBox,
+                                bool PerMeshRenderSettings::*member,
+                                bool syncUi = false) {
+        connect(checkBox, &QCheckBox::toggled, this, [this, setMeshField, member, syncUi](bool checked) {
+            setMeshField(member, checked, syncUi);
         });
     };
 
-    auto bindToolToggle = [this, setField](
-                              QToolButton *button,
-                              bool RenderSettings::*member,
-                              bool syncUi = false) {
-        connect(button, &QToolButton::toggled, this, [this, setField, member, syncUi](bool checked) {
-            setField(member, checked, syncUi);
+    auto bindGlobalToolToggle = [this, setGlobalField](
+                                  QToolButton *button,
+                                  bool GlobalRenderSettings::*member,
+                                  bool syncUi = false) {
+        connect(button, &QToolButton::toggled, this, [this, setGlobalField, member, syncUi](bool checked) {
+            setGlobalField(member, checked, syncUi);
+        });
+    };
+    auto bindMeshToolToggle = [this, setMeshField](
+                                  QToolButton *button,
+                                  bool PerMeshRenderSettings::*member,
+                                  bool syncUi = false) {
+        connect(button, &QToolButton::toggled, this, [this, setMeshField, member, syncUi](bool checked) {
+            setMeshField(member, checked, syncUi);
         });
     };
 
-    auto bindFloatSpin = [this, setField](QDoubleSpinBox *spin, float RenderSettings::*member) {
-        connect(spin, &QDoubleSpinBox::valueChanged, this, [this, setField, member](double value) {
-            setField(member, static_cast<float>(value));
+    auto bindGlobalFloatSpin = [this, setGlobalField](
+                                   QDoubleSpinBox *spin,
+                                   float GlobalRenderSettings::*member) {
+        connect(spin, &QDoubleSpinBox::valueChanged, this, [this, setGlobalField, member](double value) {
+            setGlobalField(member, static_cast<float>(value));
+        });
+    };
+    auto bindMeshFloatSpin = [this, setMeshField](
+                                 QDoubleSpinBox *spin,
+                                 float PerMeshRenderSettings::*member) {
+        connect(spin, &QDoubleSpinBox::valueChanged, this, [this, setMeshField, member](double value) {
+            setMeshField(member, static_cast<float>(value));
         });
     };
 
-    auto bindEnumCombo = [this, setField](QComboBox *combo, auto member) {
-        using EnumType = std::decay_t<decltype(m_settings.*member)>;
+    auto bindGlobalEnumCombo = [this, setGlobalField](QComboBox *combo, auto member) {
+        using EnumType = std::decay_t<decltype(m_globalSettings.*member)>;
         connect(
             combo,
             qOverload<int>(&QComboBox::currentIndexChanged),
             this,
-            [this, setField, combo, member](int idx) {
+            [this, setGlobalField, combo, member](int idx) {
                 const QVariant data = combo->itemData(idx);
                 if (!data.isValid())
                     return;
-                setField(member, static_cast<EnumType>(data.toInt()));
+                setGlobalField(member, static_cast<EnumType>(data.toInt()));
+            });
+    };
+    auto bindMeshEnumCombo = [this, setMeshField](QComboBox *combo, auto member) {
+        using EnumType = std::decay_t<decltype(m_meshSettings.*member)>;
+        connect(
+            combo,
+            qOverload<int>(&QComboBox::currentIndexChanged),
+            this,
+            [this, setMeshField, combo, member](int idx) {
+                const QVariant data = combo->itemData(idx);
+                if (!data.isValid())
+                    return;
+                setMeshField(member, static_cast<EnumType>(data.toInt()));
             });
     };
 
-    auto bindColorButton = [this, setField](
-                               QPushButton *button,
-                               QColor RenderSettings::*member,
-                               const QString &dialogTitle) {
-        connect(button, &QPushButton::clicked, this, [this, setField, button, member, dialogTitle]() {
-            const QColor picked = QColorDialog::getColor(m_settings.*member, this, dialogTitle);
+    auto bindGlobalColorButton = [this, setGlobalField](
+                                   QPushButton *button,
+                                   QColor GlobalRenderSettings::*member,
+                                   const QString &dialogTitle) {
+        connect(button, &QPushButton::clicked, this, [this, setGlobalField, button, member, dialogTitle]() {
+            const QColor picked = QColorDialog::getColor(m_globalSettings.*member, this, dialogTitle);
             if (!picked.isValid())
                 return;
-            if (setField(member, picked))
+            if (setGlobalField(member, picked))
+                updateColorButtonStyle(button, picked);
+        });
+    };
+    auto bindMeshColorButton = [this, setMeshField](
+                                   QPushButton *button,
+                                   QColor PerMeshRenderSettings::*member,
+                                   const QString &dialogTitle) {
+        connect(button, &QPushButton::clicked, this, [this, setMeshField, button, member, dialogTitle]() {
+            const QColor picked = QColorDialog::getColor(m_meshSettings.*member, this, dialogTitle);
+            if (!picked.isValid())
+                return;
+            if (setMeshField(member, picked))
                 updateColorButtonStyle(button, picked);
         });
     };
@@ -842,136 +930,216 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     };
 
     connect(m_modeButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (m_settings.settingsPanelVisible == checked)
+        if (m_globalSettings.settingsPanelVisible == checked)
             return;
-        m_settings.settingsPanelVisible = checked;
+        m_globalSettings.settingsPanelVisible = checked;
         if (m_settingsContainer)
             m_settingsContainer->setVisible(checked);
         adjustSize();
-        emit settingsChanged(m_settings);
+        emit globalSettingsChanged(m_globalSettings);
     });
 
-    bindCheckBox(m_currentMeshHighlightCheck, &RenderSettings::highlightCurrentMesh);
-    bindCheckBox(m_showTrackballGizmoCheck, &RenderSettings::showTrackballGizmo);
-    bindColorButton(
+    bindGlobalCheckBox(m_currentMeshHighlightCheck, &GlobalRenderSettings::highlightCurrentMesh);
+    bindGlobalCheckBox(m_showTrackballGizmoCheck, &GlobalRenderSettings::showTrackballGizmo);
+    bindGlobalColorButton(
         m_currentMeshOutlineColorButton,
-        &RenderSettings::currentMeshOutlineColor,
+        &GlobalRenderSettings::currentMeshOutlineColor,
         tr("Current Mesh Outline Color"));
-    bindColorButton(
+    bindGlobalColorButton(
         m_sceneBackgroundTopColorButton,
-        &RenderSettings::sceneBackgroundTopColor,
+        &GlobalRenderSettings::sceneBackgroundTopColor,
         tr("Scene Background Top Color"));
-    bindColorButton(
+    bindGlobalColorButton(
         m_sceneBackgroundBottomColorButton,
-        &RenderSettings::sceneBackgroundBottomColor,
+        &GlobalRenderSettings::sceneBackgroundBottomColor,
         tr("Scene Background Bottom Color"));
-    bindFloatSpin(m_currentMeshOutlineWidthSpin, &RenderSettings::currentMeshOutlineWidth);
-    bindFloatSpin(m_currentMeshDilateRadiusSpin, &RenderSettings::currentMeshDilateRadius);
-    bindFloatSpin(m_currentMeshErodeRadiusSpin, &RenderSettings::currentMeshErodeRadius);
-    bindEnumCombo(m_currentMeshDebugViewCombo, &RenderSettings::currentMeshDebugView);
+    bindGlobalFloatSpin(m_currentMeshOutlineWidthSpin, &GlobalRenderSettings::currentMeshOutlineWidth);
+    bindGlobalFloatSpin(m_currentMeshDilateRadiusSpin, &GlobalRenderSettings::currentMeshDilateRadius);
+    bindGlobalFloatSpin(m_currentMeshErodeRadiusSpin, &GlobalRenderSettings::currentMeshErodeRadius);
+    bindGlobalEnumCombo(m_currentMeshDebugViewCombo, &GlobalRenderSettings::currentMeshDebugView);
 
-    bindCheckBox(m_decoratorVertexNormalsCheck, &RenderSettings::decoratorVertexNormals, true);
-    bindCheckBox(m_decoratorFaceNormalsCheck, &RenderSettings::decoratorFaceNormals, true);
-    bindCheckBox(m_decoratorBoundaryEdgesCheck, &RenderSettings::decoratorBoundaryEdges, true);
-    bindCheckBox(m_decoratorTextureSeamsCheck, &RenderSettings::decoratorTextureSeams, true);
-    bindColorButton(
+    bindMeshCheckBox(m_decoratorVertexNormalsCheck, &PerMeshRenderSettings::decoratorVertexNormals, true);
+    bindMeshCheckBox(m_decoratorFaceNormalsCheck, &PerMeshRenderSettings::decoratorFaceNormals, true);
+    bindMeshCheckBox(m_decoratorBoundaryEdgesCheck, &PerMeshRenderSettings::decoratorBoundaryEdges, true);
+    bindMeshCheckBox(m_decoratorTextureSeamsCheck, &PerMeshRenderSettings::decoratorTextureSeams, true);
+    bindMeshColorButton(
         m_decoratorVertexNormalColorButton,
-        &RenderSettings::decoratorVertexNormalColor,
+        &PerMeshRenderSettings::decoratorVertexNormalColor,
         tr("Decorator Vertex Normal Color"));
-    bindColorButton(
+    bindMeshColorButton(
         m_decoratorFaceNormalColorButton,
-        &RenderSettings::decoratorFaceNormalColor,
+        &PerMeshRenderSettings::decoratorFaceNormalColor,
         tr("Decorator Face Normal Color"));
-    bindColorButton(
+    bindMeshColorButton(
         m_decoratorBoundaryEdgeColorButton,
-        &RenderSettings::decoratorBoundaryEdgeColor,
+        &PerMeshRenderSettings::decoratorBoundaryEdgeColor,
         tr("Decorator Boundary Edge Color"));
-    bindColorButton(
+    bindMeshColorButton(
         m_decoratorTextureSeamColorButton,
-        &RenderSettings::decoratorTextureSeamColor,
+        &PerMeshRenderSettings::decoratorTextureSeamColor,
         tr("Decorator Texture Seam Color"));
-    bindFloatSpin(m_decoratorBoundaryWidthSpin, &RenderSettings::decoratorBoundaryWidth);
+    bindMeshFloatSpin(m_decoratorBoundaryWidthSpin, &PerMeshRenderSettings::decoratorBoundaryWidth);
 
-    bindColorButton(m_bboxColorButton, &RenderSettings::bboxWireColor, tr("Bounding Box Wire Color"));
-    bindCheckBox(m_bboxShowCornersCheck, &RenderSettings::showBoundingBoxCorners);
-    bindCheckBox(m_bboxShowDimensionsCheck, &RenderSettings::showBoundingBoxDimensions);
+    bindMeshColorButton(m_bboxColorButton, &PerMeshRenderSettings::bboxWireColor, tr("Bounding Box Wire Color"));
+    bindGlobalCheckBox(m_bboxShowCornersCheck, &GlobalRenderSettings::showBoundingBoxCorners);
+    bindGlobalCheckBox(m_bboxShowDimensionsCheck, &GlobalRenderSettings::showBoundingBoxDimensions);
 
-    bindEnumCombo(m_pointColorSourceCombo, &RenderSettings::pointColorSource);
-    bindColorButton(m_pointsColorButton, &RenderSettings::pointColor, tr("Point Color"));
-    bindFloatSpin(m_pointSizeSpin, &RenderSettings::pointSize);
-    bindCheckBox(m_pointLightingCheck, &RenderSettings::pointLighting);
+    bindMeshEnumCombo(m_pointColorSourceCombo, &PerMeshRenderSettings::pointColorSource);
+    bindMeshColorButton(m_pointsColorButton, &PerMeshRenderSettings::pointColor, tr("Point Color"));
+    bindMeshFloatSpin(m_pointSizeSpin, &PerMeshRenderSettings::pointSize);
+    bindMeshCheckBox(m_pointLightingCheck, &PerMeshRenderSettings::pointLighting);
 
-    bindColorButton(m_edgeColorButton, &RenderSettings::edgeColor, tr("Edge Color"));
-    bindFloatSpin(m_edgeSizeSpin, &RenderSettings::edgeSize);
+    bindMeshColorButton(m_edgeColorButton, &PerMeshRenderSettings::edgeColor, tr("Edge Color"));
+    bindMeshFloatSpin(m_edgeSizeSpin, &PerMeshRenderSettings::edgeSize);
 
-    bindColorButton(m_wireColorButton, &RenderSettings::wireColor, tr("Wire Color"));
-    bindFloatSpin(m_wireSizeSpin, &RenderSettings::wireSize);
-    bindCheckBox(m_wireBackfaceCullingCheck, &RenderSettings::wireBackfaceCulling);
-    bindCheckBox(m_wireLightingCheck, &RenderSettings::wireLighting);
+    bindMeshColorButton(m_wireColorButton, &PerMeshRenderSettings::wireColor, tr("Wire Color"));
+    bindMeshFloatSpin(m_wireSizeSpin, &PerMeshRenderSettings::wireSize);
+    bindMeshCheckBox(m_wireBackfaceCullingCheck, &PerMeshRenderSettings::wireBackfaceCulling);
+    bindMeshCheckBox(m_wireLightingCheck, &PerMeshRenderSettings::wireLighting);
 
-    bindEnumCombo(m_fillMaterialCombo, &RenderSettings::fillMaterial);
+    bindMeshEnumCombo(m_fillMaterialCombo, &PerMeshRenderSettings::fillMaterial);
+
+    // PBR source combos: use reference-returning lambdas so each combo writes
+    // directly into the PbrFillParams sub-struct fields.
     auto bindPbrSourceCombo =
         [this](QComboBox *combo,
-               FillPbrTextureSource RenderSettings::*sourceMember,
-               int RenderSettings::*indexMember) {
+               std::function<FillPbrTextureSource &(PerMeshRenderSettings &)> getSource,
+               std::function<int &(PerMeshRenderSettings &)> getIndex) {
             connect(
                 combo,
                 qOverload<int>(&QComboBox::currentIndexChanged),
                 this,
-                [this, combo, sourceMember, indexMember](int idx) {
+                [this, combo, getSource, getIndex](int idx) {
                     if (!combo || idx < 0 || idx >= combo->count())
                         return;
                     const QVariant sourceData = combo->itemData(idx, kPbrSourceRole);
                     const QVariant textureData = combo->itemData(idx, kPbrTextureIndexRole);
                     if (!sourceData.isValid())
                         return;
-
                     bool changed = false;
                     const FillPbrTextureSource source =
                         static_cast<FillPbrTextureSource>(sourceData.toInt());
                     const int textureIndex = textureData.isValid() ? textureData.toInt() : -1;
-                    if (m_settings.*sourceMember != source) {
-                        m_settings.*sourceMember = source;
+                    if (getSource(m_meshSettings) != source) {
+                        getSource(m_meshSettings) = source;
                         changed = true;
                     }
-                    if (m_settings.*indexMember != textureIndex) {
-                        m_settings.*indexMember = textureIndex;
+                    if (getIndex(m_meshSettings) != textureIndex) {
+                        getIndex(m_meshSettings) = textureIndex;
                         changed = true;
                     }
                     if (!changed)
                         return;
                     syncFillPbrUiState();
-                    emit settingsChanged(m_settings);
+                    emit meshSettingsChanged(m_meshSettings);
                 });
         };
     bindPbrSourceCombo(
         m_fillPbrAlbedoCombo,
-        &RenderSettings::fillPbrAlbedoSource,
-        &RenderSettings::fillPbrAlbedoTextureIndex);
+        [](PerMeshRenderSettings &s) -> FillPbrTextureSource & { return s.fillPbr.albedoSource; },
+        [](PerMeshRenderSettings &s) -> int & { return s.fillPbr.albedoIndex; });
     bindPbrSourceCombo(
         m_fillPbrNormalCombo,
-        &RenderSettings::fillPbrNormalSource,
-        &RenderSettings::fillPbrNormalTextureIndex);
+        [](PerMeshRenderSettings &s) -> FillPbrTextureSource & { return s.fillPbr.normalSource; },
+        [](PerMeshRenderSettings &s) -> int & { return s.fillPbr.normalIndex; });
     bindPbrSourceCombo(
         m_fillPbrOcclusionCombo,
-        &RenderSettings::fillPbrOcclusionSource,
-        &RenderSettings::fillPbrOcclusionTextureIndex);
+        [](PerMeshRenderSettings &s) -> FillPbrTextureSource & { return s.fillPbr.occlusionSource; },
+        [](PerMeshRenderSettings &s) -> int & { return s.fillPbr.occlusionIndex; });
     bindPbrSourceCombo(
         m_fillPbrRoughnessCombo,
-        &RenderSettings::fillPbrRoughnessSource,
-        &RenderSettings::fillPbrRoughnessTextureIndex);
-    bindEnumCombo(m_fillColorSourceCombo, &RenderSettings::fillColorSource);
-    bindColorButton(m_fillColorButton, &RenderSettings::fillColor, tr("Fill Color"));
-    bindColorButton(m_fillPbrColorButton, &RenderSettings::fillColor, tr("Fill Color"));
-    bindEnumCombo(m_fillShadingCombo, &RenderSettings::fillShading);
-    bindCheckBox(m_fillBackfaceCullingCheck, &RenderSettings::fillBackfaceCulling);
-    bindCheckBox(m_fillLightingCheck, &RenderSettings::fillLighting);
-    bindFloatSpin(m_fillNormalScaleSpin, &RenderSettings::fillNormalMapScale);
-    bindFloatSpin(m_fillRsEnhancementSpin, &RenderSettings::fillRsEnhancement);
-    bindEnumCombo(m_fillRsDisplayModeCombo, &RenderSettings::fillRsDisplayMode);
-    bindCheckBox(m_fillRsInvertCheck, &RenderSettings::fillRsInvert);
-    bindFloatSpin(m_fillOcclusionStrengthSpin, &RenderSettings::fillOcclusionStrength);
-    bindFloatSpin(m_fillRoughnessFactorSpin, &RenderSettings::fillRoughnessFactor);
+        [](PerMeshRenderSettings &s) -> FillPbrTextureSource & { return s.fillPbr.roughnessSource; },
+        [](PerMeshRenderSettings &s) -> int & { return s.fillPbr.roughnessIndex; });
+    connect(m_fillColorSourceCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        if (!m_fillColorSourceCombo || idx < 0 || idx >= m_fillColorSourceCombo->count()) return;
+        const QVariant data = m_fillColorSourceCombo->itemData(idx);
+        if (!data.isValid()) return;
+        const auto value = static_cast<FillColorSource>(data.toInt());
+        if (m_meshSettings.fillPlain.colorSource == value) return;
+        m_meshSettings.fillPlain.colorSource = value;
+        syncFillPbrUiState();
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    connect(m_uvFillColorSourceCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        if (!m_uvFillColorSourceCombo || idx < 0 || idx >= m_uvFillColorSourceCombo->count()) return;
+        const QVariant data = m_uvFillColorSourceCombo->itemData(idx);
+        if (!data.isValid()) return;
+        const auto value = static_cast<FillColorSource>(data.toInt());
+        if (m_meshSettings.fillPlain.colorSource == value) return;
+        m_meshSettings.fillPlain.colorSource = value;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    bindMeshColorButton(m_fillColorButton, &PerMeshRenderSettings::fillColor, tr("Fill Color"));
+    bindMeshColorButton(m_fillPbrColorButton, &PerMeshRenderSettings::fillColor, tr("Fill Color"));
+    bindMeshColorButton(m_uvFillColorButton, &PerMeshRenderSettings::fillColor, tr("Fill Color"));
+    connect(m_fillShadingCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        if (!m_fillShadingCombo || idx < 0 || idx >= m_fillShadingCombo->count()) return;
+        const QVariant data = m_fillShadingCombo->itemData(idx);
+        if (!data.isValid()) return;
+        const auto value = static_cast<FillShading>(data.toInt());
+        if (m_meshSettings.fillPlain.shading == value) return;
+        m_meshSettings.fillPlain.shading = value;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    bindMeshCheckBox(m_fillBackfaceCullingCheck, &PerMeshRenderSettings::fillBackfaceCulling);
+    bindMeshCheckBox(m_fillLightingCheck, &PerMeshRenderSettings::fillLighting);
+    connect(m_fillPlainTextureCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        if (!m_fillPlainTextureCombo) return;
+        const int texIndex = m_fillPlainTextureCombo->itemData(idx).toInt();
+        if (m_meshSettings.fillPlain.textureIndex == texIndex) return;
+        m_meshSettings.fillPlain.textureIndex = texIndex;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    // Sub-struct fields: use direct connects instead of member-pointer helpers.
+    connect(m_fillPbrShadingCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        if (!m_fillPbrShadingCombo) return;
+        const auto value = static_cast<FillShading>(m_fillPbrShadingCombo->itemData(idx).toInt());
+        if (m_meshSettings.fillPbr.shading == value) return;
+        m_meshSettings.fillPbr.shading = value;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    connect(m_fillNormalScaleSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
+        const float fv = static_cast<float>(v);
+        if (m_meshSettings.fillPbr.normalScale == fv) return;
+        m_meshSettings.fillPbr.normalScale = fv;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    connect(m_fillRsEnhancementSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
+        const float fv = static_cast<float>(v);
+        if (m_meshSettings.fillRs.enhancement == fv) return;
+        m_meshSettings.fillRs.enhancement = fv;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    connect(
+        m_fillRsDisplayModeCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        [this](int idx) {
+            if (!m_fillRsDisplayModeCombo) return;
+            const QVariant data = m_fillRsDisplayModeCombo->itemData(idx);
+            if (!data.isValid()) return;
+            const int value = data.toInt();
+            if (m_meshSettings.fillRs.displayMode == value) return;
+            m_meshSettings.fillRs.displayMode = value;
+            emit meshSettingsChanged(m_meshSettings);
+        });
+    connect(m_fillRsInvertCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_meshSettings.fillRs.invert == checked) return;
+        m_meshSettings.fillRs.invert = checked;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    connect(m_fillOcclusionStrengthSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
+        const float fv = static_cast<float>(v);
+        if (m_meshSettings.fillPbr.occlusionStrength == fv) return;
+        m_meshSettings.fillPbr.occlusionStrength = fv;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    connect(m_fillRoughnessFactorSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
+        const float fv = static_cast<float>(v);
+        if (m_meshSettings.fillPbr.roughnessFactor == fv) return;
+        m_meshSettings.fillPbr.roughnessFactor = fv;
+        emit meshSettingsChanged(m_meshSettings);
+    });
     connect(
         m_fillMaterialCombo,
         qOverload<int>(&QComboBox::currentIndexChanged),
@@ -1002,11 +1170,23 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         qOverload<int>(&QComboBox::currentIndexChanged),
         this,
         [this](int) { syncFillPbrUiState(); });
-    bindCheckBox(m_selectionShowVerticesCheck, &RenderSettings::showSelectionVertices);
-    bindCheckBox(m_selectionShowFacesCheck, &RenderSettings::showSelectionFaces);
-    bindCheckBox(m_uvShowReferenceFrameCheck, &RenderSettings::uvShowReferenceFrame);
-    bindCheckBox(m_uvShowFullTextureCheck, &RenderSettings::uvShowFullTexture);
-    bindEnumCombo(m_qualityHistogramSourceCombo, &RenderSettings::qualityHistogramSource);
+    bindMeshCheckBox(m_selectionShowVerticesCheck, &PerMeshRenderSettings::showSelectionVertices);
+    bindMeshCheckBox(m_selectionShowFacesCheck, &PerMeshRenderSettings::showSelectionFaces);
+    bindGlobalCheckBox(m_uvShowReferenceFrameCheck, &GlobalRenderSettings::uvShowReferenceFrame);
+    bindGlobalCheckBox(m_uvShowFullTextureCheck, &GlobalRenderSettings::uvShowFullTexture);
+    bindGlobalCheckBox(m_uvTextureNearestCheck, &GlobalRenderSettings::uvTextureNearestSampling);
+    connect(
+        m_uvTextureCombo,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        [this](int idx) {
+            const int texIndex = m_uvTextureCombo->itemData(idx).toInt();
+            if (m_globalSettings.uvTextureIndex == texIndex)
+                return;
+            m_globalSettings.uvTextureIndex = texIndex;
+            emit globalSettingsChanged(m_globalSettings);
+        });
+    bindGlobalEnumCombo(m_qualityHistogramSourceCombo, &GlobalRenderSettings::qualityHistogramSource);
     connect(
         m_qualityHistogramColorMapCombo,
         qOverload<int>(&QComboBox::currentIndexChanged),
@@ -1016,34 +1196,34 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
                 m_qualityHistogramColorMapCombo->itemData(idx).toString().trimmed().toLower();
             if (colorMapId.isEmpty())
                 return;
-            if (m_settings.qualityHistogramColorMapId == colorMapId)
+            if (m_globalSettings.qualityHistogramColorMapId == colorMapId)
                 return;
-            m_settings.qualityHistogramColorMapId = colorMapId;
-            emit settingsChanged(m_settings);
+            m_globalSettings.qualityHistogramColorMapId = colorMapId;
+            emit globalSettingsChanged(m_globalSettings);
         });
     connect(
         m_qualityHistogramInvertCheck,
         &QCheckBox::toggled,
         this,
         [this](bool checked) {
-            if (m_settings.qualityHistogramInvertColorMap == checked)
+            if (m_globalSettings.qualityHistogramInvertColorMap == checked)
                 return;
-            m_settings.qualityHistogramInvertColorMap = checked;
-            emit settingsChanged(m_settings);
+            m_globalSettings.qualityHistogramInvertColorMap = checked;
+            emit globalSettingsChanged(m_globalSettings);
         });
     connect(
         m_qualityHistogramFixedRangeCheck,
         &QCheckBox::toggled,
         this,
         [this](bool checked) {
-            if (m_settings.qualityHistogramFixedRange == checked)
+            if (m_globalSettings.qualityHistogramFixedRange == checked)
                 return;
-            m_settings.qualityHistogramFixedRange = checked;
+            m_globalSettings.qualityHistogramFixedRange = checked;
             if (m_qualityHistogramMinSpin)
                 m_qualityHistogramMinSpin->setEnabled(checked);
             if (m_qualityHistogramMaxSpin)
                 m_qualityHistogramMaxSpin->setEnabled(checked);
-            emit settingsChanged(m_settings);
+            emit globalSettingsChanged(m_globalSettings);
         });
     connect(
         m_qualityHistogramMinSpin,
@@ -1051,10 +1231,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         this,
         [this](double value) {
             const float v = static_cast<float>(value);
-            if (m_settings.qualityHistogramMin == v)
+            if (m_globalSettings.qualityHistogramMin == v)
                 return;
-            m_settings.qualityHistogramMin = v;
-            emit settingsChanged(m_settings);
+            m_globalSettings.qualityHistogramMin = v;
+            emit globalSettingsChanged(m_globalSettings);
         });
     connect(
         m_qualityHistogramMaxSpin,
@@ -1062,10 +1242,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         this,
         [this](double value) {
             const float v = static_cast<float>(value);
-            if (m_settings.qualityHistogramMax == v)
+            if (m_globalSettings.qualityHistogramMax == v)
                 return;
-            m_settings.qualityHistogramMax = v;
-            emit settingsChanged(m_settings);
+            m_globalSettings.qualityHistogramMax = v;
+            emit globalSettingsChanged(m_globalSettings);
         });
     connect(
         m_qualityHistogramBinsSpin,
@@ -1073,10 +1253,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         this,
         [this](double value) {
             const int bins = std::clamp(int(std::lround(value)), 4, 512);
-            if (m_settings.qualityHistogramBins == bins)
+            if (m_globalSettings.qualityHistogramBins == bins)
                 return;
-            m_settings.qualityHistogramBins = bins;
-            emit settingsChanged(m_settings);
+            m_globalSettings.qualityHistogramBins = bins;
+            emit globalSettingsChanged(m_globalSettings);
         });
 
     bindPassButton(m_currentMeshButton, RenderPass::CurrentMesh, true);
@@ -1101,65 +1281,67 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_selectionSettingsArrow, RenderPass::Selection, true);
     bindPassButton(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram, true);
 
-    bindToolToggle(m_bboxButton, &RenderSettings::showBoundingBox);
+    bindMeshToolToggle(m_bboxButton, &PerMeshRenderSettings::showBoundingBox);
     connect(m_normalsDecoratorsButton, &QToolButton::toggled, this, [this](bool checked) {
         const bool changed =
-            (m_settings.decoratorVertexNormals != checked)
-            || (m_settings.decoratorFaceNormals != checked);
+            (m_meshSettings.decoratorVertexNormals != checked)
+            || (m_meshSettings.decoratorFaceNormals != checked);
         if (!changed)
             return;
-        m_settings.decoratorVertexNormals = checked;
-        m_settings.decoratorFaceNormals = checked;
-        setSettings(m_settings);
-        emit settingsChanged(m_settings);
+        m_meshSettings.decoratorVertexNormals = checked;
+        m_meshSettings.decoratorFaceNormals = checked;
+        setMeshSettings(m_meshSettings);
+        emit meshSettingsChanged(m_meshSettings);
     });
     connect(m_boundaryDecoratorsButton, &QToolButton::toggled, this, [this](bool checked) {
         const bool changed =
-            (m_settings.decoratorBoundaryEdges != checked)
-            || (m_settings.decoratorTextureSeams != checked);
+            (m_meshSettings.decoratorBoundaryEdges != checked)
+            || (m_meshSettings.decoratorTextureSeams != checked);
         if (!changed)
             return;
-        m_settings.decoratorBoundaryEdges = checked;
-        m_settings.decoratorTextureSeams = checked;
-        setSettings(m_settings);
-        emit settingsChanged(m_settings);
+        m_meshSettings.decoratorBoundaryEdges = checked;
+        m_meshSettings.decoratorTextureSeams = checked;
+        setMeshSettings(m_meshSettings);
+        emit meshSettingsChanged(m_meshSettings);
     });
-    bindToolToggle(m_pointsButton, &RenderSettings::showPoints);
-    bindToolToggle(m_edgesButton, &RenderSettings::showEdges);
-    bindToolToggle(m_wireButton, &RenderSettings::showWire);
-    bindToolToggle(m_fillButton, &RenderSettings::showFill);
-    bindToolToggle(m_selectionButton, &RenderSettings::showSelection);
-    bindToolToggle(m_qualityHistogramButton, &RenderSettings::showQualityHistogram);
+    bindMeshToolToggle(m_pointsButton, &PerMeshRenderSettings::showPoints);
+    bindMeshToolToggle(m_edgesButton, &PerMeshRenderSettings::showEdges);
+    bindMeshToolToggle(m_wireButton, &PerMeshRenderSettings::showWire);
+    bindMeshToolToggle(m_fillButton, &PerMeshRenderSettings::showFill);
+    bindMeshToolToggle(m_selectionButton, &PerMeshRenderSettings::showSelection);
+    bindGlobalToolToggle(m_qualityHistogramButton, &GlobalRenderSettings::showQualityHistogram);
 
-    updateColorButtonStyle(m_currentMeshOutlineColorButton, m_settings.currentMeshOutlineColor);
-    updateColorButtonStyle(m_sceneBackgroundTopColorButton, m_settings.sceneBackgroundTopColor);
+    updateColorButtonStyle(m_currentMeshOutlineColorButton, m_globalSettings.currentMeshOutlineColor);
+    updateColorButtonStyle(m_sceneBackgroundTopColorButton, m_globalSettings.sceneBackgroundTopColor);
     updateColorButtonStyle(
         m_sceneBackgroundBottomColorButton,
-        m_settings.sceneBackgroundBottomColor);
-    updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_settings.decoratorVertexNormalColor);
-    updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_settings.decoratorFaceNormalColor);
-    updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_settings.decoratorBoundaryEdgeColor);
-    updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_settings.decoratorTextureSeamColor);
-    updateColorButtonStyle(m_bboxColorButton, m_settings.bboxWireColor);
-    updateColorButtonStyle(m_pointsColorButton, m_settings.pointColor);
-    updateColorButtonStyle(m_edgeColorButton, m_settings.edgeColor);
-    updateColorButtonStyle(m_wireColorButton, m_settings.wireColor);
-    updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
-    updateColorButtonStyle(m_fillPbrColorButton, m_settings.fillColor);
+        m_globalSettings.sceneBackgroundBottomColor);
+    updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_meshSettings.decoratorVertexNormalColor);
+    updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_meshSettings.decoratorFaceNormalColor);
+    updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_meshSettings.decoratorBoundaryEdgeColor);
+    updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_meshSettings.decoratorTextureSeamColor);
+    updateColorButtonStyle(m_bboxColorButton, m_meshSettings.bboxWireColor);
+    updateColorButtonStyle(m_pointsColorButton, m_meshSettings.pointColor);
+    updateColorButtonStyle(m_edgeColorButton, m_meshSettings.edgeColor);
+    updateColorButtonStyle(m_wireColorButton, m_meshSettings.wireColor);
+    updateColorButtonStyle(m_fillColorButton, m_meshSettings.fillColor);
+    updateColorButtonStyle(m_fillPbrColorButton, m_meshSettings.fillColor);
     setPointColorSourceAvailability(false, false);
     setPointLightingAvailability(false);
     setFillColorSourceAvailability(false, false, false, false, false);
     setFillPbrMapAvailability(false, false, false);
     if (m_settingsStack)
-        m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
+        m_settingsStack->setCurrentIndex(renderPassPageIndex(m_globalSettings.currentPass));
     syncViewerSettingsModeUi();
     if (m_settingsContainer)
-        m_settingsContainer->setVisible(m_settings.settingsPanelVisible);
+        m_settingsContainer->setVisible(m_globalSettings.settingsPanelVisible);
     syncRenderPassUiState();
 }
 
 int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
 {
+    if (m_viewerModeUv && pass == RenderPass::Fill)
+        return 10;
     switch (pass) {
     case RenderPass::CurrentMesh: return 0;
     case RenderPass::DecoratorNormals: return 1;
@@ -1177,13 +1359,13 @@ int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
 
 void RenderOverlayPanel::setCurrentRenderPass(RenderPass pass)
 {
-    if (m_settings.currentPass == pass)
+    if (m_globalSettings.currentPass == pass)
         return;
-    m_settings.currentPass = pass;
+    m_globalSettings.currentPass = pass;
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(pass));
     syncRenderPassUiState();
-    emit settingsChanged(m_settings);
+    emit globalSettingsChanged(m_globalSettings);
 }
 
 void RenderOverlayPanel::setSettingsVisible(bool visible)
@@ -1198,108 +1380,85 @@ void RenderOverlayPanel::setViewerModeUv(bool uvMode)
         return;
     m_viewerModeUv = uvMode;
     syncViewerSettingsModeUi();
+    // If currently showing the fill pass, switch between the 3D and UV fill pages.
+    if (m_globalSettings.currentPass == RenderPass::Fill && m_settingsStack)
+        m_settingsStack->setCurrentIndex(renderPassPageIndex(RenderPass::Fill));
 }
 
 void RenderOverlayPanel::syncViewerSettingsModeUi()
 {
     if (!m_viewerSettingsStack)
         return;
-    m_viewerSettingsStack->setCurrentIndex(m_viewerModeUv ? 1 : 0);
+    m_viewerSettingsStack->setCurrentIndex(0);
 }
 
-void RenderOverlayPanel::setSettings(const RenderSettings &settings)
+void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
 {
-    m_settings = settings;
+    m_globalSettings = settings;
 
     if (m_currentMeshHighlightCheck) {
         QSignalBlocker blocker(m_currentMeshHighlightCheck);
-        m_currentMeshHighlightCheck->setChecked(m_settings.highlightCurrentMesh);
+        m_currentMeshHighlightCheck->setChecked(m_globalSettings.highlightCurrentMesh);
     }
     if (m_showTrackballGizmoCheck) {
         QSignalBlocker blocker(m_showTrackballGizmoCheck);
-        m_showTrackballGizmoCheck->setChecked(m_settings.showTrackballGizmo);
+        m_showTrackballGizmoCheck->setChecked(m_globalSettings.showTrackballGizmo);
     }
     if (m_uvShowReferenceFrameCheck) {
         QSignalBlocker blocker(m_uvShowReferenceFrameCheck);
-        m_uvShowReferenceFrameCheck->setChecked(m_settings.uvShowReferenceFrame);
+        m_uvShowReferenceFrameCheck->setChecked(m_globalSettings.uvShowReferenceFrame);
     }
     if (m_uvShowFullTextureCheck) {
         QSignalBlocker blocker(m_uvShowFullTextureCheck);
-        m_uvShowFullTextureCheck->setChecked(m_settings.uvShowFullTexture);
+        m_uvShowFullTextureCheck->setChecked(m_globalSettings.uvShowFullTexture);
     }
-    if (m_bboxButton) {
-        QSignalBlocker blocker(m_bboxButton);
-        m_bboxButton->setChecked(m_settings.showBoundingBox);
+    if (m_uvTextureCombo) {
+        QSignalBlocker blocker(m_uvTextureCombo);
+        const int count = m_uvTextureCombo->count();
+        int selectIdx = 0;
+        for (int i = 0; i < count; ++i) {
+            if (m_uvTextureCombo->itemData(i).toInt() == m_globalSettings.uvTextureIndex) {
+                selectIdx = i;
+                break;
+            }
+        }
+        m_uvTextureCombo->setCurrentIndex(selectIdx);
+    }
+    if (m_uvTextureNearestCheck) {
+        QSignalBlocker blocker(m_uvTextureNearestCheck);
+        m_uvTextureNearestCheck->setChecked(m_globalSettings.uvTextureNearestSampling);
     }
     if (m_bboxShowCornersCheck) {
         QSignalBlocker blocker(m_bboxShowCornersCheck);
-        m_bboxShowCornersCheck->setChecked(m_settings.showBoundingBoxCorners);
+        m_bboxShowCornersCheck->setChecked(m_globalSettings.showBoundingBoxCorners);
     }
     if (m_bboxShowDimensionsCheck) {
         QSignalBlocker blocker(m_bboxShowDimensionsCheck);
-        m_bboxShowDimensionsCheck->setChecked(m_settings.showBoundingBoxDimensions);
-    }
-    if (m_normalsDecoratorsButton) {
-        QSignalBlocker blocker(m_normalsDecoratorsButton);
-        m_normalsDecoratorsButton->setChecked(
-            m_settings.decoratorVertexNormals || m_settings.decoratorFaceNormals);
-    }
-    if (m_boundaryDecoratorsButton) {
-        QSignalBlocker blocker(m_boundaryDecoratorsButton);
-        m_boundaryDecoratorsButton->setChecked(
-            m_settings.decoratorBoundaryEdges || m_settings.decoratorTextureSeams);
-    }
-    if (m_pointsButton) {
-        QSignalBlocker blocker(m_pointsButton);
-        m_pointsButton->setChecked(m_settings.showPoints);
-    }
-    if (m_edgesButton) {
-        QSignalBlocker blocker(m_edgesButton);
-        m_edgesButton->setChecked(m_settings.showEdges);
-    }
-    if (m_wireButton) {
-        QSignalBlocker blocker(m_wireButton);
-        m_wireButton->setChecked(m_settings.showWire);
-    }
-    if (m_fillButton) {
-        QSignalBlocker blocker(m_fillButton);
-        m_fillButton->setChecked(m_settings.showFill);
-    }
-    if (m_selectionButton) {
-        QSignalBlocker blocker(m_selectionButton);
-        m_selectionButton->setChecked(m_settings.showSelection);
-    }
-    if (m_selectionShowVerticesCheck) {
-        QSignalBlocker blocker(m_selectionShowVerticesCheck);
-        m_selectionShowVerticesCheck->setChecked(m_settings.showSelectionVertices);
-    }
-    if (m_selectionShowFacesCheck) {
-        QSignalBlocker blocker(m_selectionShowFacesCheck);
-        m_selectionShowFacesCheck->setChecked(m_settings.showSelectionFaces);
+        m_bboxShowDimensionsCheck->setChecked(m_globalSettings.showBoundingBoxDimensions);
     }
     if (m_qualityHistogramButton) {
         QSignalBlocker blocker(m_qualityHistogramButton);
-        m_qualityHistogramButton->setChecked(m_settings.showQualityHistogram);
+        m_qualityHistogramButton->setChecked(m_globalSettings.showQualityHistogram);
     }
     if (m_modeButton) {
         QSignalBlocker blocker(m_modeButton);
-        m_modeButton->setChecked(m_settings.settingsPanelVisible);
+        m_modeButton->setChecked(m_globalSettings.settingsPanelVisible);
     }
     if (m_currentMeshOutlineWidthSpin) {
         QSignalBlocker blocker(m_currentMeshOutlineWidthSpin);
-        m_currentMeshOutlineWidthSpin->setValue(m_settings.currentMeshOutlineWidth);
+        m_currentMeshOutlineWidthSpin->setValue(m_globalSettings.currentMeshOutlineWidth);
     }
     if (m_currentMeshDilateRadiusSpin) {
         QSignalBlocker blocker(m_currentMeshDilateRadiusSpin);
-        m_currentMeshDilateRadiusSpin->setValue(m_settings.currentMeshDilateRadius);
+        m_currentMeshDilateRadiusSpin->setValue(m_globalSettings.currentMeshDilateRadius);
     }
     if (m_currentMeshErodeRadiusSpin) {
         QSignalBlocker blocker(m_currentMeshErodeRadiusSpin);
-        m_currentMeshErodeRadiusSpin->setValue(m_settings.currentMeshErodeRadius);
+        m_currentMeshErodeRadiusSpin->setValue(m_globalSettings.currentMeshErodeRadius);
     }
     if (m_currentMeshDebugViewCombo) {
         QSignalBlocker blocker(m_currentMeshDebugViewCombo);
-        const int value = static_cast<int>(m_settings.currentMeshDebugView);
+        const int value = static_cast<int>(m_globalSettings.currentMeshDebugView);
         for (int i = 0; i < m_currentMeshDebugViewCombo->count(); ++i) {
             if (m_currentMeshDebugViewCombo->itemData(i).toInt() == value) {
                 m_currentMeshDebugViewCombo->setCurrentIndex(i);
@@ -1307,108 +1466,27 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
             }
         }
     }
-    if (m_decoratorVertexNormalsCheck) {
-        QSignalBlocker blocker(m_decoratorVertexNormalsCheck);
-        m_decoratorVertexNormalsCheck->setChecked(m_settings.decoratorVertexNormals);
-    }
-    if (m_decoratorFaceNormalsCheck) {
-        QSignalBlocker blocker(m_decoratorFaceNormalsCheck);
-        m_decoratorFaceNormalsCheck->setChecked(m_settings.decoratorFaceNormals);
-    }
-    if (m_decoratorBoundaryEdgesCheck) {
-        QSignalBlocker blocker(m_decoratorBoundaryEdgesCheck);
-        m_decoratorBoundaryEdgesCheck->setChecked(m_settings.decoratorBoundaryEdges);
-    }
-    if (m_decoratorTextureSeamsCheck) {
-        QSignalBlocker blocker(m_decoratorTextureSeamsCheck);
-        m_decoratorTextureSeamsCheck->setChecked(m_settings.decoratorTextureSeams);
-    }
-    if (m_pointLightingCheck) {
-        QSignalBlocker blocker(m_pointLightingCheck);
-        m_pointLightingCheck->setChecked(m_settings.pointLighting);
-    }
-    if (m_wireLightingCheck) {
-        QSignalBlocker blocker(m_wireLightingCheck);
-        m_wireLightingCheck->setChecked(m_settings.wireLighting);
-    }
-    if (m_wireBackfaceCullingCheck) {
-        QSignalBlocker blocker(m_wireBackfaceCullingCheck);
-        m_wireBackfaceCullingCheck->setChecked(m_settings.wireBackfaceCulling);
-    }
-    if (m_fillLightingCheck) {
-        QSignalBlocker blocker(m_fillLightingCheck);
-        m_fillLightingCheck->setChecked(m_settings.fillLighting);
-    }
-    if (m_fillBackfaceCullingCheck) {
-        QSignalBlocker blocker(m_fillBackfaceCullingCheck);
-        m_fillBackfaceCullingCheck->setChecked(m_settings.fillBackfaceCulling);
-    }
-    if (m_fillNormalScaleSpin) {
-        QSignalBlocker blocker(m_fillNormalScaleSpin);
-        m_fillNormalScaleSpin->setValue(m_settings.fillNormalMapScale);
-    }
-    if (m_fillRsEnhancementSpin) {
-        QSignalBlocker blocker(m_fillRsEnhancementSpin);
-        m_fillRsEnhancementSpin->setValue(m_settings.fillRsEnhancement);
-    }
-    if (m_fillRsDisplayModeCombo) {
-        QSignalBlocker blocker(m_fillRsDisplayModeCombo);
-        for (int i = 0; i < m_fillRsDisplayModeCombo->count(); ++i) {
-            if (m_fillRsDisplayModeCombo->itemData(i).toInt() == m_settings.fillRsDisplayMode) {
-                m_fillRsDisplayModeCombo->setCurrentIndex(i);
-                break;
-            }
-        }
-    }
-    if (m_fillRsInvertCheck) {
-        QSignalBlocker blocker(m_fillRsInvertCheck);
-        m_fillRsInvertCheck->setChecked(m_settings.fillRsInvert);
-    }
-    if (m_fillOcclusionStrengthSpin) {
-        QSignalBlocker blocker(m_fillOcclusionStrengthSpin);
-        m_fillOcclusionStrengthSpin->setValue(m_settings.fillOcclusionStrength);
-    }
-    if (m_fillRoughnessFactorSpin) {
-        QSignalBlocker blocker(m_fillRoughnessFactorSpin);
-        m_fillRoughnessFactorSpin->setValue(m_settings.fillRoughnessFactor);
-    }
-    if (m_pointSizeSpin) {
-        QSignalBlocker blocker(m_pointSizeSpin);
-        m_pointSizeSpin->setValue(m_settings.pointSize);
-    }
-    if (m_wireSizeSpin) {
-        QSignalBlocker blocker(m_wireSizeSpin);
-        m_wireSizeSpin->setValue(m_settings.wireSize);
-    }
-    if (m_edgeSizeSpin) {
-        QSignalBlocker blocker(m_edgeSizeSpin);
-        m_edgeSizeSpin->setValue(m_settings.edgeSize);
-    }
-    if (m_decoratorBoundaryWidthSpin) {
-        QSignalBlocker blocker(m_decoratorBoundaryWidthSpin);
-        m_decoratorBoundaryWidthSpin->setValue(m_settings.decoratorBoundaryWidth);
-    }
     if (m_qualityHistogramBinsSpin) {
         QSignalBlocker blocker(m_qualityHistogramBinsSpin);
-        m_qualityHistogramBinsSpin->setValue(m_settings.qualityHistogramBins);
+        m_qualityHistogramBinsSpin->setValue(m_globalSettings.qualityHistogramBins);
     }
     if (m_qualityHistogramFixedRangeCheck) {
         QSignalBlocker blocker(m_qualityHistogramFixedRangeCheck);
-        m_qualityHistogramFixedRangeCheck->setChecked(m_settings.qualityHistogramFixedRange);
+        m_qualityHistogramFixedRangeCheck->setChecked(m_globalSettings.qualityHistogramFixedRange);
     }
     if (m_qualityHistogramMinSpin) {
         QSignalBlocker blocker(m_qualityHistogramMinSpin);
-        m_qualityHistogramMinSpin->setValue(m_settings.qualityHistogramMin);
-        m_qualityHistogramMinSpin->setEnabled(m_settings.qualityHistogramFixedRange);
+        m_qualityHistogramMinSpin->setValue(m_globalSettings.qualityHistogramMin);
+        m_qualityHistogramMinSpin->setEnabled(m_globalSettings.qualityHistogramFixedRange);
     }
     if (m_qualityHistogramMaxSpin) {
         QSignalBlocker blocker(m_qualityHistogramMaxSpin);
-        m_qualityHistogramMaxSpin->setValue(m_settings.qualityHistogramMax);
-        m_qualityHistogramMaxSpin->setEnabled(m_settings.qualityHistogramFixedRange);
+        m_qualityHistogramMaxSpin->setValue(m_globalSettings.qualityHistogramMax);
+        m_qualityHistogramMaxSpin->setEnabled(m_globalSettings.qualityHistogramFixedRange);
     }
     if (m_qualityHistogramSourceCombo) {
         QSignalBlocker blocker(m_qualityHistogramSourceCombo);
-        const int value = static_cast<int>(m_settings.qualityHistogramSource);
+        const int value = static_cast<int>(m_globalSettings.qualityHistogramSource);
         for (int i = 0; i < m_qualityHistogramSourceCombo->count(); ++i) {
             if (m_qualityHistogramSourceCombo->itemData(i).toInt() == value) {
                 m_qualityHistogramSourceCombo->setCurrentIndex(i);
@@ -1418,7 +1496,7 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     }
     if (m_qualityHistogramColorMapCombo) {
         QSignalBlocker blocker(m_qualityHistogramColorMapCombo);
-        QString value = m_settings.qualityHistogramColorMapId.trimmed().toLower();
+        QString value = m_globalSettings.qualityHistogramColorMapId.trimmed().toLower();
         int idx = m_qualityHistogramColorMapCombo->findData(value);
         if (idx < 0) {
             idx = m_qualityHistogramColorMapCombo->findData(
@@ -1428,17 +1506,158 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
             idx = 0;
         if (idx >= 0) {
             m_qualityHistogramColorMapCombo->setCurrentIndex(idx);
-            m_settings.qualityHistogramColorMapId =
+            m_globalSettings.qualityHistogramColorMapId =
                 m_qualityHistogramColorMapCombo->itemData(idx).toString();
         }
     }
     if (m_qualityHistogramInvertCheck) {
         QSignalBlocker blocker(m_qualityHistogramInvertCheck);
-        m_qualityHistogramInvertCheck->setChecked(m_settings.qualityHistogramInvertColorMap);
+        m_qualityHistogramInvertCheck->setChecked(m_globalSettings.qualityHistogramInvertColorMap);
+    }
+    if (m_settingsContainer)
+        m_settingsContainer->setVisible(m_globalSettings.settingsPanelVisible);
+    if (m_settingsStack)
+        m_settingsStack->setCurrentIndex(renderPassPageIndex(m_globalSettings.currentPass));
+    syncViewerSettingsModeUi();
+
+    updateColorButtonStyle(m_currentMeshOutlineColorButton, m_globalSettings.currentMeshOutlineColor);
+    updateColorButtonStyle(m_sceneBackgroundTopColorButton, m_globalSettings.sceneBackgroundTopColor);
+    updateColorButtonStyle(
+        m_sceneBackgroundBottomColorButton,
+        m_globalSettings.sceneBackgroundBottomColor);
+    syncRenderPassUiState();
+}
+
+void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
+{
+    m_meshSettings = settings;
+
+    if (m_bboxButton) {
+        QSignalBlocker blocker(m_bboxButton);
+        m_bboxButton->setChecked(m_meshSettings.showBoundingBox);
+    }
+    if (m_normalsDecoratorsButton) {
+        QSignalBlocker blocker(m_normalsDecoratorsButton);
+        m_normalsDecoratorsButton->setChecked(
+            m_meshSettings.decoratorVertexNormals || m_meshSettings.decoratorFaceNormals);
+    }
+    if (m_boundaryDecoratorsButton) {
+        QSignalBlocker blocker(m_boundaryDecoratorsButton);
+        m_boundaryDecoratorsButton->setChecked(
+            m_meshSettings.decoratorBoundaryEdges || m_meshSettings.decoratorTextureSeams);
+    }
+    if (m_pointsButton) {
+        QSignalBlocker blocker(m_pointsButton);
+        m_pointsButton->setChecked(m_meshSettings.showPoints);
+    }
+    if (m_edgesButton) {
+        QSignalBlocker blocker(m_edgesButton);
+        m_edgesButton->setChecked(m_meshSettings.showEdges);
+    }
+    if (m_wireButton) {
+        QSignalBlocker blocker(m_wireButton);
+        m_wireButton->setChecked(m_meshSettings.showWire);
+    }
+    if (m_fillButton) {
+        QSignalBlocker blocker(m_fillButton);
+        m_fillButton->setChecked(m_meshSettings.showFill);
+    }
+    if (m_selectionButton) {
+        QSignalBlocker blocker(m_selectionButton);
+        m_selectionButton->setChecked(m_meshSettings.showSelection);
+    }
+    if (m_selectionShowVerticesCheck) {
+        QSignalBlocker blocker(m_selectionShowVerticesCheck);
+        m_selectionShowVerticesCheck->setChecked(m_meshSettings.showSelectionVertices);
+    }
+    if (m_selectionShowFacesCheck) {
+        QSignalBlocker blocker(m_selectionShowFacesCheck);
+        m_selectionShowFacesCheck->setChecked(m_meshSettings.showSelectionFaces);
+    }
+    if (m_decoratorVertexNormalsCheck) {
+        QSignalBlocker blocker(m_decoratorVertexNormalsCheck);
+        m_decoratorVertexNormalsCheck->setChecked(m_meshSettings.decoratorVertexNormals);
+    }
+    if (m_decoratorFaceNormalsCheck) {
+        QSignalBlocker blocker(m_decoratorFaceNormalsCheck);
+        m_decoratorFaceNormalsCheck->setChecked(m_meshSettings.decoratorFaceNormals);
+    }
+    if (m_decoratorBoundaryEdgesCheck) {
+        QSignalBlocker blocker(m_decoratorBoundaryEdgesCheck);
+        m_decoratorBoundaryEdgesCheck->setChecked(m_meshSettings.decoratorBoundaryEdges);
+    }
+    if (m_decoratorTextureSeamsCheck) {
+        QSignalBlocker blocker(m_decoratorTextureSeamsCheck);
+        m_decoratorTextureSeamsCheck->setChecked(m_meshSettings.decoratorTextureSeams);
+    }
+    if (m_pointLightingCheck) {
+        QSignalBlocker blocker(m_pointLightingCheck);
+        m_pointLightingCheck->setChecked(m_meshSettings.pointLighting);
+    }
+    if (m_wireLightingCheck) {
+        QSignalBlocker blocker(m_wireLightingCheck);
+        m_wireLightingCheck->setChecked(m_meshSettings.wireLighting);
+    }
+    if (m_wireBackfaceCullingCheck) {
+        QSignalBlocker blocker(m_wireBackfaceCullingCheck);
+        m_wireBackfaceCullingCheck->setChecked(m_meshSettings.wireBackfaceCulling);
+    }
+    if (m_fillLightingCheck) {
+        QSignalBlocker blocker(m_fillLightingCheck);
+        m_fillLightingCheck->setChecked(m_meshSettings.fillLighting);
+    }
+    if (m_fillBackfaceCullingCheck) {
+        QSignalBlocker blocker(m_fillBackfaceCullingCheck);
+        m_fillBackfaceCullingCheck->setChecked(m_meshSettings.fillBackfaceCulling);
+    }
+    if (m_fillNormalScaleSpin) {
+        QSignalBlocker blocker(m_fillNormalScaleSpin);
+        m_fillNormalScaleSpin->setValue(m_meshSettings.fillPbr.normalScale);
+    }
+    if (m_fillRsEnhancementSpin) {
+        QSignalBlocker blocker(m_fillRsEnhancementSpin);
+        m_fillRsEnhancementSpin->setValue(m_meshSettings.fillRs.enhancement);
+    }
+    if (m_fillRsDisplayModeCombo) {
+        QSignalBlocker blocker(m_fillRsDisplayModeCombo);
+        for (int i = 0; i < m_fillRsDisplayModeCombo->count(); ++i) {
+            if (m_fillRsDisplayModeCombo->itemData(i).toInt() == m_meshSettings.fillRs.displayMode) {
+                m_fillRsDisplayModeCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
+    if (m_fillRsInvertCheck) {
+        QSignalBlocker blocker(m_fillRsInvertCheck);
+        m_fillRsInvertCheck->setChecked(m_meshSettings.fillRs.invert);
+    }
+    if (m_fillOcclusionStrengthSpin) {
+        QSignalBlocker blocker(m_fillOcclusionStrengthSpin);
+        m_fillOcclusionStrengthSpin->setValue(m_meshSettings.fillPbr.occlusionStrength);
+    }
+    if (m_fillRoughnessFactorSpin) {
+        QSignalBlocker blocker(m_fillRoughnessFactorSpin);
+        m_fillRoughnessFactorSpin->setValue(m_meshSettings.fillPbr.roughnessFactor);
+    }
+    if (m_pointSizeSpin) {
+        QSignalBlocker blocker(m_pointSizeSpin);
+        m_pointSizeSpin->setValue(m_meshSettings.pointSize);
+    }
+    if (m_wireSizeSpin) {
+        QSignalBlocker blocker(m_wireSizeSpin);
+        m_wireSizeSpin->setValue(m_meshSettings.wireSize);
+    }
+    if (m_edgeSizeSpin) {
+        QSignalBlocker blocker(m_edgeSizeSpin);
+        m_edgeSizeSpin->setValue(m_meshSettings.edgeSize);
+    }
+    if (m_decoratorBoundaryWidthSpin) {
+        QSignalBlocker blocker(m_decoratorBoundaryWidthSpin);
+        m_decoratorBoundaryWidthSpin->setValue(m_meshSettings.decoratorBoundaryWidth);
     }
     if (m_pointColorSourceCombo) {
         QSignalBlocker blocker(m_pointColorSourceCombo);
-        const int value = static_cast<int>(m_settings.pointColorSource);
+        const int value = static_cast<int>(m_meshSettings.pointColorSource);
         for (int i = 0; i < m_pointColorSourceCombo->count(); ++i) {
             if (m_pointColorSourceCombo->itemData(i).toInt() == value) {
                 m_pointColorSourceCombo->setCurrentIndex(i);
@@ -1448,7 +1667,7 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     }
     if (m_fillShadingCombo) {
         QSignalBlocker blocker(m_fillShadingCombo);
-        const int value = static_cast<int>(m_settings.fillShading);
+        const int value = static_cast<int>(m_meshSettings.fillPlain.shading);
         for (int i = 0; i < m_fillShadingCombo->count(); ++i) {
             if (m_fillShadingCombo->itemData(i).toInt() == value) {
                 m_fillShadingCombo->setCurrentIndex(i);
@@ -1456,9 +1675,19 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
             }
         }
     }
+    if (m_fillPbrShadingCombo) {
+        QSignalBlocker blocker(m_fillPbrShadingCombo);
+        const int value = static_cast<int>(m_meshSettings.fillPbr.shading);
+        for (int i = 0; i < m_fillPbrShadingCombo->count(); ++i) {
+            if (m_fillPbrShadingCombo->itemData(i).toInt() == value) {
+                m_fillPbrShadingCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
     if (m_fillMaterialCombo) {
         QSignalBlocker blocker(m_fillMaterialCombo);
-        const int value = static_cast<int>(m_settings.fillMaterial);
+        const int value = static_cast<int>(m_meshSettings.fillMaterial);
         for (int i = 0; i < m_fillMaterialCombo->count(); ++i) {
             if (m_fillMaterialCombo->itemData(i).toInt() == value) {
                 m_fillMaterialCombo->setCurrentIndex(i);
@@ -1468,23 +1697,23 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
     }
     syncFillPbrSourceCombo(
         m_fillPbrAlbedoCombo,
-        m_settings.fillPbrAlbedoSource,
-        m_settings.fillPbrAlbedoTextureIndex);
+        m_meshSettings.fillPbr.albedoSource,
+        m_meshSettings.fillPbr.albedoIndex);
     syncFillPbrSourceCombo(
         m_fillPbrNormalCombo,
-        m_settings.fillPbrNormalSource,
-        m_settings.fillPbrNormalTextureIndex);
+        m_meshSettings.fillPbr.normalSource,
+        m_meshSettings.fillPbr.normalIndex);
     syncFillPbrSourceCombo(
         m_fillPbrOcclusionCombo,
-        m_settings.fillPbrOcclusionSource,
-        m_settings.fillPbrOcclusionTextureIndex);
+        m_meshSettings.fillPbr.occlusionSource,
+        m_meshSettings.fillPbr.occlusionIndex);
     syncFillPbrSourceCombo(
         m_fillPbrRoughnessCombo,
-        m_settings.fillPbrRoughnessSource,
-        m_settings.fillPbrRoughnessTextureIndex);
+        m_meshSettings.fillPbr.roughnessSource,
+        m_meshSettings.fillPbr.roughnessIndex);
     if (m_fillColorSourceCombo) {
         QSignalBlocker blocker(m_fillColorSourceCombo);
-        const int value = static_cast<int>(m_settings.fillColorSource);
+        const int value = static_cast<int>(m_meshSettings.fillPlain.colorSource);
         for (int i = 0; i < m_fillColorSourceCombo->count(); ++i) {
             if (m_fillColorSourceCombo->itemData(i).toInt() == value) {
                 m_fillColorSourceCombo->setCurrentIndex(i);
@@ -1492,29 +1721,40 @@ void RenderOverlayPanel::setSettings(const RenderSettings &settings)
             }
         }
     }
-    if (m_settingsContainer)
-        m_settingsContainer->setVisible(m_settings.settingsPanelVisible);
-    if (m_settingsStack)
-        m_settingsStack->setCurrentIndex(renderPassPageIndex(m_settings.currentPass));
-    syncViewerSettingsModeUi();
+    if (m_uvFillColorSourceCombo) {
+        QSignalBlocker blocker(m_uvFillColorSourceCombo);
+        const int value = static_cast<int>(m_meshSettings.fillPlain.colorSource);
+        for (int i = 0; i < m_uvFillColorSourceCombo->count(); ++i) {
+            if (m_uvFillColorSourceCombo->itemData(i).toInt() == value) {
+                m_uvFillColorSourceCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
+    if (m_fillPlainTextureCombo) {
+        QSignalBlocker blocker(m_fillPlainTextureCombo);
+        int selectIdx = 0;
+        for (int i = 0; i < m_fillPlainTextureCombo->count(); ++i) {
+            if (m_fillPlainTextureCombo->itemData(i).toInt() == m_meshSettings.fillPlain.textureIndex) {
+                selectIdx = i;
+                break;
+            }
+        }
+        m_fillPlainTextureCombo->setCurrentIndex(selectIdx);
+    }
     syncFillPbrUiState();
 
-    updateColorButtonStyle(m_currentMeshOutlineColorButton, m_settings.currentMeshOutlineColor);
-    updateColorButtonStyle(m_sceneBackgroundTopColorButton, m_settings.sceneBackgroundTopColor);
-    updateColorButtonStyle(
-        m_sceneBackgroundBottomColorButton,
-        m_settings.sceneBackgroundBottomColor);
-    updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_settings.decoratorVertexNormalColor);
-    updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_settings.decoratorFaceNormalColor);
-    updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_settings.decoratorBoundaryEdgeColor);
-    updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_settings.decoratorTextureSeamColor);
-    updateColorButtonStyle(m_bboxColorButton, m_settings.bboxWireColor);
-    updateColorButtonStyle(m_pointsColorButton, m_settings.pointColor);
-    updateColorButtonStyle(m_edgeColorButton, m_settings.edgeColor);
-    updateColorButtonStyle(m_wireColorButton, m_settings.wireColor);
-    updateColorButtonStyle(m_fillColorButton, m_settings.fillColor);
-    updateColorButtonStyle(m_fillPbrColorButton, m_settings.fillColor);
-    syncRenderPassUiState();
+    updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_meshSettings.decoratorVertexNormalColor);
+    updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_meshSettings.decoratorFaceNormalColor);
+    updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_meshSettings.decoratorBoundaryEdgeColor);
+    updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_meshSettings.decoratorTextureSeamColor);
+    updateColorButtonStyle(m_bboxColorButton, m_meshSettings.bboxWireColor);
+    updateColorButtonStyle(m_pointsColorButton, m_meshSettings.pointColor);
+    updateColorButtonStyle(m_edgeColorButton, m_meshSettings.edgeColor);
+    updateColorButtonStyle(m_wireColorButton, m_meshSettings.wireColor);
+    updateColorButtonStyle(m_fillColorButton, m_meshSettings.fillColor);
+    updateColorButtonStyle(m_fillPbrColorButton, m_meshSettings.fillColor);
+    updateColorButtonStyle(m_uvFillColorButton, m_meshSettings.fillColor);
 }
 
 void RenderOverlayPanel::setPointColorSourceAvailability(
@@ -1623,26 +1863,66 @@ void RenderOverlayPanel::setFillPbrTextureNames(const QStringList &textureNames)
         return;
     m_fillTextureNames = textureNames;
     rebuildFillPbrSourceCombos();
+    // Also rebuild the plain material texture picker.
+    if (m_fillPlainTextureCombo) {
+        QSignalBlocker blocker(m_fillPlainTextureCombo);
+        const int prevIndex = m_meshSettings.fillPlain.textureIndex;
+        m_fillPlainTextureCombo->clear();
+        for (int i = 0; i < m_fillTextureNames.size(); ++i)
+            m_fillPlainTextureCombo->addItem(m_fillTextureNames.at(i), i);
+        int selectIdx = 0;
+        for (int i = 0; i < m_fillPlainTextureCombo->count(); ++i) {
+            if (m_fillPlainTextureCombo->itemData(i).toInt() == prevIndex) {
+                selectIdx = i;
+                break;
+            }
+        }
+        m_fillPlainTextureCombo->setCurrentIndex(selectIdx);
+    }
+}
+
+void RenderOverlayPanel::setUvTextureNames(const QStringList &textureNames)
+{
+    if (m_uvTextureNames == textureNames)
+        return;
+    m_uvTextureNames = textureNames;
+    if (!m_uvTextureCombo)
+        return;
+    QSignalBlocker blocker(m_uvTextureCombo);
+    const int prevIndex = m_globalSettings.uvTextureIndex;
+    m_uvTextureCombo->clear();
+    for (int i = 0; i < m_uvTextureNames.size(); ++i)
+        m_uvTextureCombo->addItem(m_uvTextureNames.at(i), i);
+    // Restore selection
+    int selectIdx = 0;
+    for (int i = 0; i < m_uvTextureCombo->count(); ++i) {
+        if (m_uvTextureCombo->itemData(i).toInt() == prevIndex) {
+            selectIdx = i;
+            break;
+        }
+    }
+    m_uvTextureCombo->setCurrentIndex(selectIdx);
+    m_uvTextureCombo->setEnabled(m_uvTextureNames.size() > 1);
 }
 
 void RenderOverlayPanel::rebuildFillPbrSourceCombos()
 {
     rebuildFillPbrSourceCombo(
         m_fillPbrAlbedoCombo,
-        m_settings.fillPbrAlbedoSource,
-        m_settings.fillPbrAlbedoTextureIndex);
+        m_meshSettings.fillPbr.albedoSource,
+        m_meshSettings.fillPbr.albedoIndex);
     rebuildFillPbrSourceCombo(
         m_fillPbrNormalCombo,
-        m_settings.fillPbrNormalSource,
-        m_settings.fillPbrNormalTextureIndex);
+        m_meshSettings.fillPbr.normalSource,
+        m_meshSettings.fillPbr.normalIndex);
     rebuildFillPbrSourceCombo(
         m_fillPbrOcclusionCombo,
-        m_settings.fillPbrOcclusionSource,
-        m_settings.fillPbrOcclusionTextureIndex);
+        m_meshSettings.fillPbr.occlusionSource,
+        m_meshSettings.fillPbr.occlusionIndex);
     rebuildFillPbrSourceCombo(
         m_fillPbrRoughnessCombo,
-        m_settings.fillPbrRoughnessSource,
-        m_settings.fillPbrRoughnessTextureIndex);
+        m_meshSettings.fillPbr.roughnessSource,
+        m_meshSettings.fillPbr.roughnessIndex);
 }
 
 void RenderOverlayPanel::rebuildFillPbrSourceCombo(
@@ -1709,8 +1989,14 @@ void RenderOverlayPanel::syncFillPbrSourceCombo(
 
 void RenderOverlayPanel::syncFillPbrUiState()
 {
-    const bool usePbr = (m_settings.fillMaterial == FillMaterial::Pbr);
-    const bool useRs  = (m_settings.fillMaterial == FillMaterial::RadianceScaling);
+    const bool usePbr = (m_meshSettings.fillMaterial == FillMaterial::Pbr);
+    const bool useRs  = (m_meshSettings.fillMaterial == FillMaterial::RadianceScaling);
+    const bool usePlain = !usePbr && !useRs;
+    const bool textureColorSource =
+        (m_meshSettings.fillPlain.colorSource == FillColorSource::Texture);
+    if (m_fillPlainForm)
+        m_fillPlainForm->setRowVisible(m_fillPlainTextureCombo, usePlain && textureColorSource);
+
     if (m_fillMaterialStack) {
         int stackIdx = 0;
         if (usePbr)  stackIdx = 1;
@@ -1725,7 +2011,7 @@ void RenderOverlayPanel::syncFillPbrUiState()
     if (m_fillRsInvertCheck)
         m_fillRsInvertCheck->setEnabled(useRs);
 
-    const bool constantAlbedo = (m_settings.fillPbrAlbedoSource == FillPbrTextureSource::Constant);
+    const bool constantAlbedo = (m_meshSettings.fillPbr.albedoSource == FillPbrTextureSource::Constant);
     if (m_fillPbrAlbedoCombo)
         m_fillPbrAlbedoCombo->setEnabled(usePbr);
     if (m_fillPbrNormalCombo)
@@ -1738,15 +2024,15 @@ void RenderOverlayPanel::syncFillPbrUiState()
         m_fillPbrColorButton->setEnabled(usePbr && constantAlbedo);
 
     const bool normalEnabled =
-        usePbr && m_settings.fillPbrNormalSource == FillPbrTextureSource::Texture;
+        usePbr && m_meshSettings.fillPbr.normalSource == FillPbrTextureSource::Texture;
     if (m_fillNormalScaleSpin)
         m_fillNormalScaleSpin->setEnabled(normalEnabled);
 
-    const bool occlusionEnabled = usePbr && m_settings.fillPbrOcclusionSource != FillPbrTextureSource::None;
+    const bool occlusionEnabled = usePbr && m_meshSettings.fillPbr.occlusionSource != FillPbrTextureSource::None;
     if (m_fillOcclusionStrengthSpin)
         m_fillOcclusionStrengthSpin->setEnabled(occlusionEnabled);
 
-    const bool roughnessEnabled = usePbr && m_settings.fillPbrRoughnessSource != FillPbrTextureSource::None;
+    const bool roughnessEnabled = usePbr && m_meshSettings.fillPbr.roughnessSource != FillPbrTextureSource::None;
     if (m_fillRoughnessFactorSpin)
         m_fillRoughnessFactorSpin->setEnabled(roughnessEnabled);
 }
@@ -1768,7 +2054,7 @@ void RenderOverlayPanel::syncRenderPassUiState()
     auto setPassMarker = [this](QToolButton *btn, RenderPass pass) {
         if (!btn)
             return;
-        const bool isTarget = (m_settings.currentPass == pass);
+        const bool isTarget = (m_globalSettings.currentPass == pass);
         if (btn->property("settingsTarget").toBool() == isTarget)
             return;
         btn->setProperty("settingsTarget", isTarget);
@@ -1780,7 +2066,7 @@ void RenderOverlayPanel::syncRenderPassUiState()
     auto setArrowChecked = [this](QToolButton *btn, RenderPass pass) {
         if (!btn)
             return;
-        const bool isTarget = (m_settings.currentPass == pass);
+        const bool isTarget = (m_globalSettings.currentPass == pass);
         QSignalBlocker blocker(btn);
         btn->setChecked(isTarget);
         btn->update();

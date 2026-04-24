@@ -61,53 +61,8 @@ protected:
     void wheelEvent(QWheelEvent *e) override;
 
 private:
-    struct MeshRenderMode {
-        bool showBoundingBox = false;
-        bool showPoints = false;
-        bool showEdges = false;
-        bool showWire = true;
-        bool showFill = true;
-        bool showSelection = true;
-        bool showSelectionVertices = true;
-        bool showSelectionFaces = true;
-        bool decoratorVertexNormals = false;
-        bool decoratorFaceNormals = false;
-        bool decoratorBoundaryEdges = false;
-        bool decoratorTextureSeams = false;
-        bool pointLighting = false;
-        bool wireLighting = false;
-        bool wireBackfaceCulling = true;
-        bool fillLighting = true;
-        bool fillBackfaceCulling = true;
-        float fillNormalMapScale = 1.0f;
-        float fillOcclusionStrength = 1.0f;
-        float fillRoughnessFactor = 1.0f;
-        FillMaterial fillMaterial = FillMaterial::Plain;
-        FillPbrTextureSource fillPbrAlbedoSource = FillPbrTextureSource::Texture;
-        int fillPbrAlbedoTextureIndex = -1;
-        FillPbrTextureSource fillPbrNormalSource = FillPbrTextureSource::Texture;
-        int fillPbrNormalTextureIndex = -1;
-        FillPbrTextureSource fillPbrOcclusionSource = FillPbrTextureSource::Texture;
-        int fillPbrOcclusionTextureIndex = -1;
-        FillPbrTextureSource fillPbrRoughnessSource = FillPbrTextureSource::Texture;
-        int fillPbrRoughnessTextureIndex = -1;
-        FillShading fillShading = FillShading::Smooth;
-        PointColorSource pointColorSource = PointColorSource::Constant;
-        FillColorSource fillColorSource = FillColorSource::Constant;
-        QColor decoratorVertexNormalColor = QColor(70, 200, 255);
-        QColor decoratorFaceNormalColor = QColor(70, 255, 120);
-        QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);
-        QColor decoratorTextureSeamColor = QColor(255, 80, 255);
-        float decoratorBoundaryWidth = 4.0f;
-        QColor bboxWireColor = QColor(245, 190, 60);
-        QColor pointColor = QColor(255, 191, 51);
-        float pointSize = 4.0f;
-        QColor edgeColor = QColor(25, 25, 28);
-        float edgeSize = 1.0f;
-        QColor wireColor = QColor(15, 15, 20);
-        float wireSize = 1.5f;
-        QColor fillColor = QColor(230, 230, 230);
-    };
+    // MeshRenderMode is now the public PerMeshRenderSettings type.
+    using MeshRenderMode = PerMeshRenderSettings;
 
     void createOverlayButtons();
     void layoutOverlayButtons();
@@ -126,9 +81,7 @@ private:
     void syncPerMeshRenderModesWithDocument();
     MeshRenderMode renderModeForMesh(int meshIndex) const;
     MeshRenderMode *mutableRenderModeForMesh(int meshIndex);
-    bool applyRenderSettingsToCurrentMesh(const RenderSettings &prev, const RenderSettings &next);
-    void applyRenderModeToSettings(RenderSettings &settings, const MeshRenderMode &mode) const;
-    RenderSettings renderSettingsForMesh(int meshIndex) const;
+    void setCurrentMeshSettings(const PerMeshRenderSettings &next);
     void syncOverlaySettingsToCurrentMesh();
     void refreshColorSourceAvailability();
     void ensureRenderResources();
@@ -141,17 +94,18 @@ private:
     void advanceCenterAnimation();
     void updateCameraFrameIfNeeded();
     void ensureVisibilitySize();
-    int fillGpuVariantIndexForSettings(const RenderSettings &settings) const;
-    int pointGpuVariantIndexForSettings(const RenderSettings &settings) const;
-    QRhiGraphicsPipeline *fillPipelineForSettings(const RenderSettings &settings);
-    QRhiGraphicsPipeline *wirePipelineForSettings(const RenderSettings &settings);
-    QRhiGraphicsPipeline *edgesPipelineForSettings(const RenderSettings &settings);
-    QRhiGraphicsPipeline *fatEdgesPipelineForSettings(const RenderSettings &settings);
+    int fillGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const;
+    int pointGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const;
+    QRhiGraphicsPipeline *fillPipelineForSettings(const PerMeshRenderSettings &settings);
+    QRhiGraphicsPipeline *wirePipelineForSettings(const PerMeshRenderSettings &settings);
+    QRhiGraphicsPipeline *edgesPipelineForSettings(const PerMeshRenderSettings &settings);
+    QRhiGraphicsPipeline *fatEdgesPipelineForSettings(const PerMeshRenderSettings &settings);
     QRhiShaderResourceBindings *shaderResourcesForFillTextures(
         QRhiTexture *baseColorTexture,
         QRhiTexture *normalTexture,
         QRhiTexture *occlusionTexture,
-        QRhiTexture *roughnessTexture);
+        QRhiTexture *roughnessTexture,
+        bool nearest = false);
     QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
     QRhiTexture *resolveSelectedPbrTexture(
         int meshIndex,
@@ -182,6 +136,7 @@ private:
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiSampler> m_textureSampler;
+    std::unique_ptr<QRhiSampler> m_textureSamplerNearest;
     std::unique_ptr<QRhiTexture> m_fallbackTexture;
     bool m_fallbackTextureUploadPending = false;
     std::unique_ptr<QRhiTexture> m_fallbackNormalTexture;
@@ -203,13 +158,15 @@ private:
         QRhiTexture *normalTexture = nullptr;
         QRhiTexture *occlusionTexture = nullptr;
         QRhiTexture *roughnessTexture = nullptr;
+        bool nearest = false;
 
         bool operator==(const FillTextureSetKey &other) const
         {
             return baseColorTexture == other.baseColorTexture
                 && normalTexture == other.normalTexture
                 && occlusionTexture == other.occlusionTexture
-                && roughnessTexture == other.roughnessTexture;
+                && roughnessTexture == other.roughnessTexture
+                && nearest == other.nearest;
         }
     };
     struct FillTextureSetKeyHash {
@@ -226,6 +183,7 @@ private:
             seed ^= n + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             seed ^= o + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             seed ^= r + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            seed ^= (key.nearest ? size_t(1) : size_t(0)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             return seed;
         }
     };

@@ -488,7 +488,7 @@ void RenderWidget::fitUvViewToCurrentMesh(const QSize &pixelSize)
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
     const bool fitWholeTexture =
         (meshIndex >= 0 && meshIndex < m_doc->meshCount())
-        ? renderSettingsForMesh(meshIndex).uvShowFullTexture
+        ? m_renderSettings.uvShowFullTexture
         : m_renderSettings.uvShowFullTexture;
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
         m_uvPan = QVector2D(0.5f, 0.5f);
@@ -641,10 +641,10 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
 
     const QSize sz = renderTarget()->pixelSize();
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-    const RenderSettings meshSettings =
+    const PerMeshRenderSettings meshSettings =
         (meshIndex >= 0 && meshIndex < m_doc->meshCount())
-        ? renderSettingsForMesh(meshIndex)
-        : m_renderSettings;
+        ? renderModeForMesh(meshIndex)
+        : PerMeshRenderSettings{};
     const bool hasMeshTextures =
         (m_doc && meshIndex >= 0 && meshIndex < m_doc->meshCount())
         ? !m_doc->mesh(meshIndex).textureFilePaths.isEmpty()
@@ -831,10 +831,9 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     Document::FillPassGpuView textureFillView {};
     const bool useTextureDrivenFill =
         hasMeshTextures
-        && (meshSettings.fillColorSource == FillColorSource::Texture
-            || meshSettings.fillMaterial == FillMaterial::Pbr);
+        && (meshSettings.fillPlain.colorSource == FillColorSource::Texture);
     const bool needTextureGeometry = hasMeshTextures
-        && (meshSettings.uvShowFullTexture
+        && (m_renderSettings.uvShowFullTexture
             || (meshSettings.showFill && useTextureDrivenFill));
     if (canDraw && needTextureGeometry) {
         m_doc->ensureMeshGpuResources(
@@ -870,7 +869,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         cb->resourceUpdate(u);
     }
 
-    auto updateStyleUbuf = [&](const RenderSettings &styleSettings,
+    auto updateStyleUbuf = [&](const PerMeshRenderSettings &styleSettings,
                                float normalScale = 1.0f,
                                float occlusionStrength = 1.0f,
                                float roughnessFactor = 1.0f) {
@@ -909,34 +908,40 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         cb->draw(3);
     }
 
-    if (meshSettings.uvShowFullTexture
+    if (m_renderSettings.uvShowFullTexture
         && m_uvTextureFillPipeline
         && m_uvTextureQuadVbuf
         && m_uvTextureQuadVertexCount > 0
         && textureFillView.valid) {
-        QRhiTexture *fullTexture =
-            (meshSettings.fillMaterial == FillMaterial::Pbr
-             && meshSettings.fillPbrAlbedoSource == FillPbrTextureSource::Texture)
-            ? resolveSelectedPbrTexture(
-                meshIndex,
-                meshSettings.fillPbrAlbedoTextureIndex,
-                textureFillView)
-            : nullptr;
-        for (int bi = 0; bi < textureFillView.batchCount; ++bi) {
-            QRhiTexture *candidate = textureFillView.batches[bi].baseColorTexture;
-            if (candidate) {
-                if (!fullTexture)
+        // Look up the background texture by texture group index.
+        QRhiTexture *fullTexture = nullptr;
+        if (m_renderSettings.uvTextureIndex >= 0) {
+            for (int bi = 0; bi < textureFillView.batchCount; ++bi) {
+                const auto &b = textureFillView.batches[bi];
+                if (b.baseColorTexture
+                    && b.textureGroupIndex == m_renderSettings.uvTextureIndex) {
+                    fullTexture = b.baseColorTexture;
+                    break;
+                }
+            }
+        }
+        if (!fullTexture) {
+            for (int bi = 0; bi < textureFillView.batchCount; ++bi) {
+                QRhiTexture *candidate = textureFillView.batches[bi].baseColorTexture;
+                if (candidate) {
                     fullTexture = candidate;
-                break;
+                    break;
+                }
             }
         }
         if (fullTexture) {
-            RenderSettings textureBgSettings = meshSettings;
+            PerMeshRenderSettings textureBgSettings = meshSettings;
             textureBgSettings.fillLighting = false;
             updateStyleUbuf(textureBgSettings);
             cb->setGraphicsPipeline(m_uvTextureFillPipeline.get());
             cb->setShaderResources(
-                shaderResourcesForFillTextures(fullTexture, nullptr, nullptr, nullptr));
+                shaderResourcesForFillTextures(fullTexture, nullptr, nullptr, nullptr,
+                                               m_renderSettings.uvTextureNearestSampling));
             const QRhiCommandBuffer::VertexInput binding(m_uvTextureQuadVbuf.get(), 0);
             cb->setVertexInput(0, 1, &binding);
             cb->draw(m_uvTextureQuadVertexCount);
@@ -1062,54 +1067,52 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     const Document::FillPassGpuView fillView = textureFillView;
                     if (fillView.valid) {
                         cb->setGraphicsPipeline(m_uvTextureFillPipeline.get());
+                        // Find the texture requested by uvTextureIndex.
+                        // We match against textureFilePaths[uvTextureIndex] which may be
+                        // any texture (base color, PBR map, etc.) — the face group index
+                        // alone is insufficient because textureFilePaths includes all maps.
+                        QRhiTexture *selectedTexture = nullptr;
+                        if (m_renderSettings.uvTextureIndex >= 0
+                            && meshIndex >= 0 && meshIndex < m_doc->meshCount()) {
+                            const auto &meshEntry = m_doc->mesh(meshIndex);
+                            if (m_renderSettings.uvTextureIndex < meshEntry.textureFilePaths.size()) {
+                                const QString wantedPath = normalizeTexturePath(
+                                    meshEntry.textureFilePaths.at(m_renderSettings.uvTextureIndex));
+                                if (!wantedPath.isEmpty()) {
+                                    for (int bi2 = 0; bi2 < fillView.batchCount && !selectedTexture; ++bi2) {
+                                        const auto &b = fillView.batches[bi2];
+                                        // Check base color first, then PBR maps.
+                                        if (b.baseColorTexture
+                                            && normalizeTexturePath(b.baseColorTexturePath) == wantedPath)
+                                            selectedTexture = b.baseColorTexture;
+                                        else if (b.normalTexture
+                                            && normalizeTexturePath(b.normalTexturePath) == wantedPath)
+                                            selectedTexture = b.normalTexture;
+                                        else if (b.occlusionTexture
+                                            && normalizeTexturePath(b.occlusionTexturePath) == wantedPath)
+                                            selectedTexture = b.occlusionTexture;
+                                        else if (b.roughnessTexture
+                                            && normalizeTexturePath(b.roughnessTexturePath) == wantedPath)
+                                            selectedTexture = b.roughnessTexture;
+                                    }
+                                }
+                            }
+                        }
+                        // Draw ALL batches — no geometry filtering by texture group.
+                        // The UV layout always shows all faces; only the texture image changes.
+                        updateStyleUbuf(meshSettings);
                         for (int bi = 0; bi < fillView.batchCount; ++bi) {
                             const auto &batch = fillView.batches[bi];
                             if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
                                 continue;
-                            QRhiTexture *selectedAlbedoTexture =
-                                (meshSettings.fillMaterial == FillMaterial::Pbr
-                                 && meshSettings.fillPbrAlbedoSource == FillPbrTextureSource::Texture)
-                                ? resolveSelectedPbrTexture(
-                                    meshIndex,
-                                    meshSettings.fillPbrAlbedoTextureIndex,
-                                    fillView)
-                                : nullptr;
-                            QRhiTexture *selectedNormalTexture =
-                                (meshSettings.fillMaterial == FillMaterial::Pbr
-                                 && meshSettings.fillPbrNormalSource == FillPbrTextureSource::Texture)
-                                ? resolveSelectedPbrTexture(
-                                    meshIndex,
-                                    meshSettings.fillPbrNormalTextureIndex,
-                                    fillView)
-                                : nullptr;
-                            QRhiTexture *selectedOcclusionTexture =
-                                (meshSettings.fillMaterial == FillMaterial::Pbr
-                                 && meshSettings.fillPbrOcclusionSource == FillPbrTextureSource::Texture)
-                                ? resolveSelectedPbrTexture(
-                                    meshIndex,
-                                    meshSettings.fillPbrOcclusionTextureIndex,
-                                    fillView)
-                                : nullptr;
-                            QRhiTexture *selectedRoughnessTexture =
-                                (meshSettings.fillMaterial == FillMaterial::Pbr
-                                 && meshSettings.fillPbrRoughnessSource == FillPbrTextureSource::Texture)
-                                ? resolveSelectedPbrTexture(
-                                    meshIndex,
-                                    meshSettings.fillPbrRoughnessTextureIndex,
-                                    fillView)
-                                : nullptr;
-                            updateStyleUbuf(
-                                meshSettings,
-                                meshSettings.fillNormalMapScale * batch.normalScale,
-                                meshSettings.fillOcclusionStrength * batch.occlusionStrength,
-                                meshSettings.fillRoughnessFactor * batch.roughnessFactor);
-                            QRhiTexture *albedoTexture =
-                                selectedAlbedoTexture ? selectedAlbedoTexture : batch.baseColorTexture;
+                            // Use selected texture if found, otherwise use batch's own base color.
+                            QRhiTexture *texToUse = selectedTexture ? selectedTexture : batch.baseColorTexture;
                             cb->setShaderResources(shaderResourcesForFillTextures(
-                                albedoTexture,
-                                selectedNormalTexture ? selectedNormalTexture : batch.normalTexture,
-                                selectedOcclusionTexture ? selectedOcclusionTexture : batch.occlusionTexture,
-                                selectedRoughnessTexture ? selectedRoughnessTexture : batch.roughnessTexture));
+                                texToUse,
+                                batch.normalTexture,
+                                batch.occlusionTexture,
+                                batch.roughnessTexture,
+                                m_renderSettings.uvTextureNearestSampling));
                             const QRhiCommandBuffer::VertexInput binding(batch.vertexBuffer, 0);
                             if (batch.indexCount > 0 && batch.indexBuffer) {
                                 cb->setVertexInput(
@@ -1122,25 +1125,27 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                         }
                     }
                 } else {
-                    RenderSettings fillSettings = meshSettings;
+                    PerMeshRenderSettings fillSettings = meshSettings;
+                    fillSettings.fillMaterial = FillMaterial::Plain;
                     fillSettings.fillLighting = false;
                     fillSettings.fillBackfaceCulling = false;
                     QRhiGraphicsPipeline *fillPipeline = fillPipelineForSettings(fillSettings);
                     int fillVariantIdx = 0;
-                    if (meshSettings.fillColorSource == FillColorSource::PerVertex)
+                    if (meshSettings.fillPlain.colorSource == FillColorSource::PerVertex)
                         fillVariantIdx = 1;
-                    else if (meshSettings.fillColorSource == FillColorSource::PerFace)
+                    else if (meshSettings.fillPlain.colorSource == FillColorSource::PerFace)
                         fillVariantIdx = 2;
-                    else if (meshSettings.fillColorSource == FillColorSource::PerVertexQuality)
+                    else if (meshSettings.fillPlain.colorSource == FillColorSource::PerVertexQuality)
                         fillVariantIdx = 3;
-                    else if (meshSettings.fillColorSource == FillColorSource::PerFaceQuality)
+                    else if (meshSettings.fillPlain.colorSource == FillColorSource::PerFaceQuality)
                         fillVariantIdx = 4;
                     const auto &fillVariant = uvGpu.fillVariants[size_t(fillVariantIdx)];
                     if (fillPipeline && fillVariant.vbuf && fillVariant.vertexCount > 0) {
                         updateStyleUbuf(fillSettings);
                         cb->setGraphicsPipeline(fillPipeline);
                         cb->setShaderResources(shaderResourcesForFillTextures(
-                            nullptr, nullptr, nullptr, nullptr));
+                            nullptr, nullptr, nullptr, nullptr,
+                            m_renderSettings.uvTextureNearestSampling));
                         const QRhiCommandBuffer::VertexInput binding(fillVariant.vbuf.get(), 0);
                         cb->setVertexInput(0, 1, &binding);
                         cb->draw(fillVariant.vertexCount);
@@ -1175,7 +1180,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     pointVariantIdx = 2;
                 const auto &pointVariant = uvGpu.pointsVariants[size_t(pointVariantIdx)];
                 if (pointVariant.vbuf && pointVariant.vertexCount > 0) {
-                    RenderSettings pointSettings = meshSettings;
+                    PerMeshRenderSettings pointSettings = meshSettings;
                     pointSettings.pointLighting = false;
                     updateStyleUbuf(pointSettings);
                     cb->setGraphicsPipeline(m_pointsPipeline.get());
@@ -1188,14 +1193,14 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         }
     }
 
-    const bool drawUnitSquare = meshSettings.uvShowReferenceFrame;
+    const bool drawUnitSquare = m_renderSettings.uvShowReferenceFrame;
     if (drawUnitSquare && m_uvUnitBoxVbuf && m_uvUnitBoxVertexCount > 0) {
         const QColor squareColor(220, 220, 225, 220);
         const float squareWidth = 1.0f;
         drawUvLineSetStable(squareColor, squareWidth, m_uvUnitBoxVbuf.get(), m_uvUnitBoxVertexCount);
     }
 
-    if (meshSettings.uvShowReferenceFrame && m_uvAxesVbuf && m_uvAxesVertexCount >= 4) {
+    if (m_renderSettings.uvShowReferenceFrame && m_uvAxesVbuf && m_uvAxesVertexCount >= 4) {
         const float axisWidth = qMax(1.2f, meshSettings.edgeSize);
         drawUvLineSetStable(QColor(230, 82, 82), axisWidth, m_uvAxesVbuf.get(), 2, 0);
         drawUvLineSetStable(
@@ -1206,7 +1211,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             quint32(2 * 3 * sizeof(float)));
     }
 
-    updateUvScaleOverlay(mvp, sz, meshSettings.uvShowReferenceFrame);
+    updateUvScaleOverlay(mvp, sz, m_renderSettings.uvShowReferenceFrame);
 
     cb->endPass();
 

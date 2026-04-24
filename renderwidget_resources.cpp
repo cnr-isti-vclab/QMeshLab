@@ -600,6 +600,7 @@ void RenderWidget::ensureRenderResources()
         m_sceneBackgroundSrb.reset();
         m_sceneBackgroundPipeline.reset();
         m_textureSampler.reset();
+        m_textureSamplerNearest.reset();
         m_fallbackTexture.reset();
         m_fallbackTextureUploadPending = false;
         m_fallbackNormalTexture.reset();
@@ -649,6 +650,16 @@ void RenderWidget::ensureRenderResources()
                               QRhiSampler::Repeat, QRhiSampler::Repeat));
         if (!m_textureSampler || !m_textureSampler->create()) {
             m_textureSampler.reset();
+            return;
+        }
+    }
+
+    if (!m_textureSamplerNearest) {
+        m_textureSamplerNearest.reset(
+            m_rhi->newSampler(QRhiSampler::Nearest, QRhiSampler::Nearest, QRhiSampler::None,
+                              QRhiSampler::Repeat, QRhiSampler::Repeat));
+        if (!m_textureSamplerNearest || !m_textureSamplerNearest->create()) {
+            m_textureSamplerNearest.reset();
             return;
         }
     }

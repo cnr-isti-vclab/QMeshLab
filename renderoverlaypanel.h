@@ -9,6 +9,7 @@ class QComboBox;
 class QCheckBox;
 class QStackedWidget;
 class QToolButton;
+class QFormLayout;
 
 class RenderOverlayPanel : public QWidget
 {
@@ -16,8 +17,10 @@ class RenderOverlayPanel : public QWidget
 public:
     explicit RenderOverlayPanel(QWidget *parent = nullptr);
 
-    const RenderSettings &settings() const { return m_settings; }
-    void setSettings(const RenderSettings &settings);
+    const RenderSettings &globalSettings() const { return m_globalSettings; }
+    const PerMeshRenderSettings &meshSettings() const { return m_meshSettings; }
+    void setGlobalSettings(const RenderSettings &settings);
+    void setMeshSettings(const PerMeshRenderSettings &settings);
     void setViewerModeUv(bool uvMode);
     void setPointColorSourceAvailability(bool hasVertexColors, bool hasVertexQuality);
     void setPointLightingAvailability(bool hasVertexNormals);
@@ -32,9 +35,11 @@ public:
         bool hasOcclusionMap,
         bool hasRoughnessMap);
     void setFillPbrTextureNames(const QStringList &textureNames);
+    void setUvTextureNames(const QStringList &textureNames);
 
 signals:
-    void settingsChanged(const RenderSettings &settings);
+    void globalSettingsChanged(const RenderSettings &settings);
+    void meshSettingsChanged(const PerMeshRenderSettings &settings);
 
 private:
     void setCurrentRenderPass(RenderPass pass);
@@ -54,7 +59,8 @@ private:
         int currentTextureIndex);
     void updateColorButtonStyle(QPushButton *button, const QColor &color);
 
-    RenderSettings m_settings;
+    RenderSettings m_globalSettings;
+    PerMeshRenderSettings m_meshSettings;
     bool m_viewerModeUv = false;
 
     QWidget *m_settingsContainer = nullptr;
@@ -117,7 +123,14 @@ private:
     QCheckBox *m_selectionShowFacesCheck = nullptr;
     QCheckBox *m_uvShowReferenceFrameCheck = nullptr;
     QCheckBox *m_uvShowFullTextureCheck = nullptr;
+    QComboBox *m_uvTextureCombo = nullptr;
+    QCheckBox *m_uvTextureNearestCheck = nullptr;
+    QPushButton *m_uvFillColorButton = nullptr;
+    QComboBox *m_uvFillColorSourceCombo = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;
+    QComboBox *m_fillPbrShadingCombo = nullptr;
+    QComboBox *m_fillPlainTextureCombo = nullptr;
+    QFormLayout *m_fillPlainForm = nullptr;
     QComboBox *m_fillColorSourceCombo = nullptr;
     QStackedWidget *m_fillMaterialStack = nullptr;
     QToolButton *m_currentMeshButton = nullptr;
@@ -146,4 +159,5 @@ private:
     bool m_fillHasRoughnessMap = false;
     bool m_fillHasTextures = false;
     QStringList m_fillTextureNames;
+    QStringList m_uvTextureNames;
 };

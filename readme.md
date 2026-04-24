@@ -126,7 +126,9 @@ What it does:
 - reuses the action cache for Qt downloads/install files when available
 - bootstraps local `vcpkg`
 - configures a `Release` build from the tracked `vcpkg-manifest` preset
+- generates a proper macOS `.icns` from the MeshLab app icon and embeds it in the app bundle
 - bundles `libomp.dylib` into the app when OpenMP-linked plugins are present
+- applies the same icon to the mounted DMG volume when the runner provides `SetFile`
 - runs `macdeployqt -dmg`
 - uploads the generated `.dmg` as a workflow artifact
 
@@ -151,9 +153,11 @@ What it does:
 - sets up MSVC on `windows-2022`
 - installs Qt 6.11 from the public `download.qt.io` package archives and caches the local Qt SDK directory
 - bootstraps local `vcpkg`
+- installs vcpkg dependencies in a separate manifest step before CMake configure
+- uses a custom release-only Windows vcpkg triplet so CI does not build debug dependency variants too
 - configures and builds a release build with the `vcpkg-manifest` preset
 - runs `windeployqt` on `QMeshLab.exe`
-- copies additional runtime `.dll` files from `vcpkg_installed/x64-windows/bin`
+- copies additional runtime `.dll` files from the release-only manifest `vcpkg_installed/<triplet>/bin`
 - archives the deploy directory as `QMeshLab-portable-win64.zip`
 - uploads the generated `.zip` as a workflow artifact
 

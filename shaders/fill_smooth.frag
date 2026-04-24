@@ -77,6 +77,10 @@ void main()
             baseColor = vec3(1.0);
         else if (hasUv && albedoMode == 2)
             baseColor = texture(albedoTex, uv).rgb;
+    } else if (hasUv && albedoMode == 2) {
+        // Plain material with Texture color source: sample the albedo texture
+        // without any PBR overrides to the base colour pipeline.
+        baseColor = texture(albedoTex, uv).rgb;
     }
 
     vec3 color = baseColor;
@@ -99,17 +103,18 @@ void main()
 
         float ao = 1.0;
         if (aoMode == 1) {
-            ao = clamp(ub.materialParams.y, 0.0, 1.0);
+            ao = ub.materialParams.y;
         } else if (hasUv && aoMode == 2) {
             float aoSample = clamp(texture(occlusionTex, uv).r, 0.0, 1.0);
-            ao = mix(1.0, aoSample, clamp(ub.materialParams.y, 0.0, 1.0));
+            ao = mix(1.0, aoSample, ub.materialParams.y);
         }
 
-        float ambient = 0.18 * ao;
+        const float kAmbient = 0.18;
+        float ambient = kAmbient * ao;
         float specPower = mix(96.0, 8.0, roughness);
         float spec = pow(max(dot(N, H), 0.0), specPower);
         float specStrength = mix(0.18, 0.02, roughness);
-        color = baseColor * (ambient + (1.0 - ambient) * diff) + vec3(spec * specStrength);
+        color = baseColor * (ambient + (1.0 - kAmbient) * diff) + vec3(spec * specStrength);
     }
     fragColor = vec4(color, 1.0);
 }

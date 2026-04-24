@@ -89,6 +89,7 @@ struct MeshGpuResourceCache::CacheState
         float roughnessFactor = 1.0f;
         int vertexCount = 0;
         int indexCount = 0;
+        int textureGroupIndex = -1;
     };
 
     struct FillVariantGpu {
@@ -564,6 +565,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         continue;
 
                     CacheState::FillBatchGpu batch;
+                    batch.textureGroupIndex = groupEntry.first;
                     batch.vertexCount =
                         static_cast<int>(groupEntry.second.size() / kFillVertexStrideFloats);
                     batch.indexCount = 0;
@@ -1494,7 +1496,8 @@ MeshGpuResourceCache::FillPassView MeshGpuResourceCache::fillPassView(
             batch.occlusionStrength,
             batch.roughnessFactor,
             batch.vertexCount,
-            batch.indexCount
+            batch.indexCount,
+            batch.textureGroupIndex
         });
     }
 
