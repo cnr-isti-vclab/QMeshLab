@@ -228,11 +228,10 @@ private:
         std::uint64_t nextMeshId = 1;
     };
 
-    struct UndoStep {
-        QString label;
-        UndoState before;
-        UndoState after;
-    };
+    // No UndoStep: history is stored as a flat checkpoint list.
+    // m_undoCheckpoints[i] is the state after i committed actions.
+    // m_undoLabels[i] is the label of the action from checkpoint i → i+1.
+    // m_undoCursor is the index of the current checkpoint.
 
     enum class CallbackMode {
         None,
@@ -266,7 +265,8 @@ private:
     qint64 m_loadProcessEventsNs = 0;
     qint64 m_lastProgressEmitMs = -1;
     qint64 m_lastProcessEventsMs = -1;
-    std::vector<UndoStep> m_undoSteps;
+    std::vector<UndoState> m_undoCheckpoints;
+    std::vector<QString> m_undoLabels;
     int m_undoCursor = 0;
     int m_undoLimit = 20;
     bool m_undoStepActive = false;

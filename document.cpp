@@ -918,47 +918,43 @@ void Document::endUndoStep(bool commit, bool restoreOnCancel)
 
 bool Document::canUndo() const
 {
-    return m_undoCursor > 0 && !m_undoSteps.empty();
+    return m_undoCursor > 0;
 }
 
 bool Document::canRedo() const
 {
-    return m_undoCursor >= 0 && m_undoCursor < static_cast<int>(m_undoSteps.size());
+    return m_undoCursor < static_cast<int>(m_undoLabels.size());
 }
 
 QString Document::undoText() const
 {
     if (!canUndo())
         return {};
-    return m_undoSteps[static_cast<size_t>(m_undoCursor - 1)].label;
+    return m_undoLabels[static_cast<size_t>(m_undoCursor - 1)];
 }
 
 QString Document::redoText() const
 {
     if (!canRedo())
         return {};
-    return m_undoSteps[static_cast<size_t>(m_undoCursor)].label;
+    return m_undoLabels[static_cast<size_t>(m_undoCursor)];
 }
 
 QStringList Document::undoHistoryLabels() const
 {
     QStringList labels;
-    if (m_undoCursor <= 0 || m_undoSteps.empty())
+    if (m_undoCursor <= 0 || m_undoLabels.empty())
         return labels;
 
     labels.reserve(m_undoCursor);
     for (int i = m_undoCursor - 1; i >= 0; --i)
-        labels.push_back(m_undoSteps[static_cast<size_t>(i)].label);
+        labels.push_back(m_undoLabels[static_cast<size_t>(i)]);
     return labels;
 }
 
 QStringList Document::undoStackLabels() const
 {
-    QStringList labels;
-    labels.reserve(static_cast<int>(m_undoSteps.size()));
-    for (const UndoStep &step : m_undoSteps)
-        labels.push_back(step.label);
-    return labels;
+    return QStringList(m_undoLabels.begin(), m_undoLabels.end());
 }
 
 bool Document::undo()
@@ -966,11 +962,10 @@ bool Document::undo()
     if (!canUndo() || m_undoStepActive)
         return false;
 
-    const int stepIndex = m_undoCursor - 1;
     m_restoringUndoRedo = true;
-    restoreUndoState(m_undoSteps[static_cast<size_t>(stepIndex)].before);
+    restoreUndoState(m_undoCheckpoints[static_cast<size_t>(m_undoCursor - 1)]);
     m_restoringUndoRedo = false;
-    m_undoCursor = stepIndex;
+    --m_undoCursor;
     emitUndoRedoStateChanged();
     return true;
 }
@@ -980,21 +975,21 @@ bool Document::redo()
     if (!canRedo() || m_undoStepActive)
         return false;
 
-    const int stepIndex = m_undoCursor;
     m_restoringUndoRedo = true;
-    restoreUndoState(m_undoSteps[static_cast<size_t>(stepIndex)].after);
+    restoreUndoState(m_undoCheckpoints[static_cast<size_t>(m_undoCursor + 1)]);
     m_restoringUndoRedo = false;
-    m_undoCursor = stepIndex + 1;
+    ++m_undoCursor;
     emitUndoRedoStateChanged();
     return true;
 }
 
 void Document::clearUndoHistory()
 {
-    if (m_undoSteps.empty() && m_undoCursor == 0 && !m_undoStepActive)
+    if (m_undoCheckpoints.empty() && m_undoLabels.empty() && m_undoCursor == 0 && !m_undoStepActive)
         return;
 
-    m_undoSteps.clear();
+    m_undoCheckpoints.clear();
+    m_undoLabels.clear();
     m_undoCursor = 0;
     m_undoStepActive = false;
     m_undoStepLabel.clear();
@@ -1005,12 +1000,13 @@ void Document::clearUndoHistory()
 void Document::setUndoLimit(int limit)
 {
     m_undoLimit = std::max(1, limit);
-    const int stepCount = static_cast<int>(m_undoSteps.size());
-    if (stepCount <= m_undoLimit)
+    const int labelCount = static_cast<int>(m_undoLabels.size());
+    if (labelCount <= m_undoLimit)
         return;
 
-    const int dropCount = stepCount - m_undoLimit;
-    m_undoSteps.erase(m_undoSteps.begin(), m_undoSteps.begin() + dropCount);
+    const int dropCount = labelCount - m_undoLimit;
+    m_undoLabels.erase(m_undoLabels.begin(), m_undoLabels.begin() + dropCount);
+    m_undoCheckpoints.erase(m_undoCheckpoints.begin(), m_undoCheckpoints.begin() + dropCount);
     m_undoCursor = std::max(0, m_undoCursor - dropCount);
     emitUndoRedoStateChanged();
 }
@@ -1075,18 +1071,28 @@ void Document::restoreUndoState(const UndoState &state)
 
 void Document::pushUndoStep(const QString &label, UndoState &&before, UndoState &&after)
 {
-    if (m_undoCursor < static_cast<int>(m_undoSteps.size())) {
-        m_undoSteps.erase(
-            m_undoSteps.begin() + m_undoCursor,
-            m_undoSteps.end());
-    }
+    // Truncate any redo history beyond the current cursor.
+    if (m_undoCursor + 1 < static_cast<int>(m_undoCheckpoints.size()))
+        m_undoCheckpoints.erase(m_undoCheckpoints.begin() + m_undoCursor + 1, m_undoCheckpoints.end());
+    if (m_undoCursor < static_cast<int>(m_undoLabels.size()))
+        m_undoLabels.erase(m_undoLabels.begin() + m_undoCursor, m_undoLabels.end());
 
-    m_undoSteps.push_back(UndoStep{label, std::move(before), std::move(after)});
-    m_undoCursor = static_cast<int>(m_undoSteps.size());
+    // Write (or create) the "before" checkpoint at the current cursor position.
+    if (static_cast<int>(m_undoCheckpoints.size()) <= m_undoCursor)
+        m_undoCheckpoints.push_back(std::move(before));
+    else
+        m_undoCheckpoints[static_cast<size_t>(m_undoCursor)] = std::move(before);
 
-    if (static_cast<int>(m_undoSteps.size()) > m_undoLimit) {
-        const int dropCount = static_cast<int>(m_undoSteps.size()) - m_undoLimit;
-        m_undoSteps.erase(m_undoSteps.begin(), m_undoSteps.begin() + dropCount);
+    // Append the transition label and the "after" checkpoint.
+    m_undoLabels.push_back(label);
+    m_undoCheckpoints.push_back(std::move(after));
+    ++m_undoCursor;
+
+    // Enforce the undo limit (measured in transitions, not checkpoints).
+    if (static_cast<int>(m_undoLabels.size()) > m_undoLimit) {
+        const int dropCount = static_cast<int>(m_undoLabels.size()) - m_undoLimit;
+        m_undoLabels.erase(m_undoLabels.begin(), m_undoLabels.begin() + dropCount);
+        m_undoCheckpoints.erase(m_undoCheckpoints.begin(), m_undoCheckpoints.begin() + dropCount);
         m_undoCursor = std::max(0, m_undoCursor - dropCount);
     }
 
@@ -1641,16 +1647,24 @@ std::vector<Document::CpuMeshMemoryStats> Document::cpuMeshMemoryStats() const
 Document::UndoMemoryStats Document::undoMemoryStats() const
 {
     UndoMemoryStats stats;
-    stats.steps.reserve(m_undoSteps.size());
-    for (const auto &step : m_undoSteps) {
+    stats.steps.reserve(m_undoLabels.size());
+    for (size_t i = 0; i < m_undoLabels.size(); ++i) {
         UndoStepMemoryInfo info;
-        info.label = step.label;
-        for (const auto &m : step.before.meshes)
-            if (m) info.beforeBytes += meshEntryCpuBytes(*m);
-        for (const auto &m : step.after.meshes)
-            if (m) info.afterBytes += meshEntryCpuBytes(*m);
-        stats.totalBytes += info.totalBytes();
+        info.label = m_undoLabels[i];
+        if (i < m_undoCheckpoints.size()) {
+            for (const auto &m : m_undoCheckpoints[i].meshes)
+                if (m) info.beforeBytes += meshEntryCpuBytes(*m);
+        }
+        if (i + 1 < m_undoCheckpoints.size()) {
+            for (const auto &m : m_undoCheckpoints[i + 1].meshes)
+                if (m) info.afterBytes += meshEntryCpuBytes(*m);
+        }
         stats.steps.push_back(info);
+    }
+    // totalBytes = sum of all unique checkpoints (each stored once, not per step).
+    for (const auto &checkpoint : m_undoCheckpoints) {
+        for (const auto &m : checkpoint.meshes)
+            if (m) stats.totalBytes += meshEntryCpuBytes(*m);
     }
     return stats;
 }
