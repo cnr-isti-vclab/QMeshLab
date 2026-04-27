@@ -13,6 +13,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <algorithm>
+#include <set>
 
 namespace {
 Document *g_callbackDocument = nullptr;
@@ -1020,10 +1021,41 @@ Document::UndoState Document::captureUndoState() const
     for (const auto &entry : m_meshes) {
         if (!entry)
             continue;
-        auto snapshot = std::make_unique<MeshEntry>();
-        copyMeshEntryMetadata(*entry, *snapshot);
-        deepCopyMesh(entry->mesh, snapshot->mesh);
-        state.meshes.push_back(std::move(snapshot));
+
+        UndoState::MeshSnapshot snap;
+        // Copy all cheap metadata by value; this is O(1) for numeric/bool fields
+        // and O(n_textures) for the string lists — negligible compared to geometry.
+        snap.meshId             = entry->meshId;
+        snap.geometryRevision   = entry->geometryRevision;
+        snap.materialRevision   = entry->materialRevision;
+        snap.renderTransform    = entry->renderTransform;
+        snap.name               = entry->name;
+        snap.sourcePath         = entry->sourcePath;
+        snap.textureFileNames   = entry->textureFileNames;
+        snap.textureFilePaths   = entry->textureFilePaths;
+        snap.materialSet        = entry->materialSet;
+        snap.visible            = entry->visible;
+        snap.ioMask             = entry->ioMask;
+
+        // Attempt to reuse an already-interned geometry object.
+        // Key: (meshId, geometryRevision). As long as the revision hasn't changed
+        // since the last capture, every subsequent checkpoint shares the same
+        // VCGMesh allocation — zero extra deep-copy cost for non-geometry actions.
+        const auto key = std::make_pair(entry->meshId, entry->geometryRevision);
+        auto it = m_undoGeometryCache.find(key);
+        if (it != m_undoGeometryCache.end())
+            snap.geometry = it->second.lock(); // null if all checkpoints were evicted
+
+        if (!snap.geometry) {
+            // Cache miss (first capture after a geometry change, or after the cached
+            // weak_ptr expired). Deep-copy now and intern for future captures.
+            auto g = std::make_shared<VCGMesh>();
+            deepCopyMesh(entry->mesh, *g);
+            snap.geometry = g;
+            m_undoGeometryCache[key] = g; // weak_ptr — does not keep g alive on its own
+        }
+
+        state.meshes.push_back(std::move(snap));
     }
     return state;
 }
@@ -1039,13 +1071,24 @@ void Document::restoreUndoState(const UndoState &state)
 
     m_meshes.clear();
     m_meshes.reserve(state.meshes.size());
-    for (size_t i = 0; i < state.meshes.size(); ++i) {
-        const std::unique_ptr<MeshEntry> &snapshot = state.meshes[i];
-        if (!snapshot)
-            continue;
+    for (const auto &snap : state.meshes) {
         auto entry = std::make_unique<MeshEntry>();
-        copyMeshEntryMetadata(*snapshot, *entry);
-        deepCopyMesh(snapshot->mesh, entry->mesh);
+        // Restore cheap metadata.
+        entry->meshId           = snap.meshId;
+        entry->geometryRevision = snap.geometryRevision;
+        entry->materialRevision = snap.materialRevision;
+        entry->renderTransform  = snap.renderTransform;
+        entry->name             = snap.name;
+        entry->sourcePath       = snap.sourcePath;
+        entry->textureFileNames = snap.textureFileNames;
+        entry->textureFilePaths = snap.textureFilePaths;
+        entry->materialSet      = snap.materialSet;
+        entry->visible          = snap.visible;
+        entry->ioMask           = snap.ioMask;
+        // The live MeshEntry needs its own mutable copy of the geometry so that
+        // subsequent operations (filters, transforms) can modify it freely without
+        // corrupting the shared undo snapshot.
+        deepCopyMesh(*snap.geometry, entry->mesh);
         m_meshes.push_back(std::move(entry));
         emit meshAdded(static_cast<int>(m_meshes.size() - 1));
     }
@@ -1651,20 +1694,25 @@ Document::UndoMemoryStats Document::undoMemoryStats() const
     for (size_t i = 0; i < m_undoLabels.size(); ++i) {
         UndoStepMemoryInfo info;
         info.label = m_undoLabels[i];
+        // "before" = checkpoint[i], "after" = checkpoint[i+1].
         if (i < m_undoCheckpoints.size()) {
-            for (const auto &m : m_undoCheckpoints[i].meshes)
-                if (m) info.beforeBytes += meshEntryCpuBytes(*m);
+            for (const auto &snap : m_undoCheckpoints[i].meshes)
+                info.beforeBytes += vcgMeshCpuBytes(*snap.geometry);
         }
         if (i + 1 < m_undoCheckpoints.size()) {
-            for (const auto &m : m_undoCheckpoints[i + 1].meshes)
-                if (m) info.afterBytes += meshEntryCpuBytes(*m);
+            for (const auto &snap : m_undoCheckpoints[i + 1].meshes)
+                info.afterBytes += vcgMeshCpuBytes(*snap.geometry);
         }
         stats.steps.push_back(info);
     }
-    // totalBytes = sum of all unique checkpoints (each stored once, not per step).
+    // Compute total bytes without double-counting shared geometry objects.
+    // Collect the raw pointer of every geometry encountered; skip duplicates.
+    std::set<const VCGMesh *> seen;
     for (const auto &checkpoint : m_undoCheckpoints) {
-        for (const auto &m : checkpoint.meshes)
-            if (m) stats.totalBytes += meshEntryCpuBytes(*m);
+        for (const auto &snap : checkpoint.meshes) {
+            if (seen.insert(snap.geometry.get()).second)
+                stats.totalBytes += vcgMeshCpuBytes(*snap.geometry);
+        }
     }
     return stats;
 }

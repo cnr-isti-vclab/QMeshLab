@@ -11,8 +11,10 @@
 #include <QString>
 #include <QStringList>
 #include <atomic>
+#include <map>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 class MeshIOPluginManager;
@@ -223,7 +225,28 @@ signals:
 
 private:
     struct UndoState {
-        std::vector<std::unique_ptr<MeshEntry>> meshes;
+        // A lightweight snapshot of a single mesh, suitable for long-term undo storage.
+        // Cheap metadata fields are copied by value. Geometry (VCGMesh) is held behind a
+        // shared_ptr so that multiple checkpoints with the same (meshId, geometryRevision)
+        // can share a single copy — the common case when an action does not touch geometry
+        // (e.g. toggle visibility, change transform, rename).
+        struct MeshSnapshot {
+            std::uint64_t meshId = 0;
+            std::uint64_t geometryRevision = 0;
+            std::uint64_t materialRevision = 0;
+            QMatrix4x4 renderTransform;
+            QString name;
+            QString sourcePath;
+            QStringList textureFileNames;
+            QStringList textureFilePaths;
+            MeshIOMaterialSet materialSet;
+            bool visible = false;
+            int ioMask = 0;
+            // Shared, immutable geometry; never null after capture.
+            std::shared_ptr<const VCGMesh> geometry;
+        };
+
+        std::vector<MeshSnapshot> meshes;
         int currentMeshIndex = -1;
         std::uint64_t nextMeshId = 1;
     };
@@ -265,6 +288,13 @@ private:
     qint64 m_loadProcessEventsNs = 0;
     qint64 m_lastProgressEmitMs = -1;
     qint64 m_lastProcessEventsMs = -1;
+    // Interning cache for undo geometry objects, keyed by (meshId, geometryRevision).
+    // Maps to a weak_ptr so the cache never artificially extends the lifetime of a
+    // geometry beyond the checkpoints that reference it — entries expire automatically
+    // when the last referencing checkpoint is dropped (e.g. after undo-limit eviction).
+    mutable std::map<std::pair<std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>>
+        m_undoGeometryCache;
+
     std::vector<UndoState> m_undoCheckpoints;
     std::vector<QString> m_undoLabels;
     int m_undoCursor = 0;
