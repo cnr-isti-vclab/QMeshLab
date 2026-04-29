@@ -922,6 +922,19 @@ bool Document::canUndo() const
     return m_undoCursor > 0;
 }
 
+bool Document::isRestoringUndoRedo() const
+{
+    return m_restoringUndoRedo;
+}
+
+void Document::setViewStateFunctions(
+    std::function<ViewState()> capture,
+    std::function<void(const ViewState &)> restore)
+{
+    m_captureViewState = std::move(capture);
+    m_restoreViewState = std::move(restore);
+}
+
 bool Document::canRedo() const
 {
     return m_undoCursor < static_cast<int>(m_undoLabels.size());
@@ -1057,6 +1070,8 @@ Document::UndoState Document::captureUndoState() const
 
         state.meshes.push_back(std::move(snap));
     }
+    if (m_captureViewState)
+        state.viewState = m_captureViewState();
     return state;
 }
 
@@ -1110,6 +1125,8 @@ void Document::restoreUndoState(const UndoState &state)
         if (!entry.visible)
             emit meshVisibilityChanged(i, false);
     }
+    if (m_restoreViewState)
+        m_restoreViewState(state.viewState);
 }
 
 void Document::pushUndoStep(const QString &label, UndoState &&before, UndoState &&after)

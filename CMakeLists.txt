@@ -71,6 +71,7 @@ qt_add_executable(QMeshLab
     renderwidget_render.cpp
     renderwidget_uv.cpp
     viewtrackball.h viewtrackball.cpp
+    viewstate.h
     renderoverlaypanel.h renderoverlaypanel.cpp
     layerwidget.h layerwidget.cpp
 )

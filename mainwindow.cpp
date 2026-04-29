@@ -226,6 +226,18 @@ MainWindow::MainWindow(QWidget *parent)
     RenderWidget *initialView = createRenderWidget(m_viewSplitter);
     setCurrentRenderWidget(initialView);
 
+    // Capture/restore camera and render settings alongside mesh undo checkpoints.
+    m_doc->setViewStateFunctions(
+        [this]() -> ViewState {
+            RenderWidget *v = m_currentRenderWidget;
+            return v ? v->captureViewState() : ViewState{};
+        },
+        [this](const ViewState &vs) {
+            RenderWidget *v = m_currentRenderWidget;
+            if (v)
+                v->restoreViewState(vs);
+        });
+
     m_loadProgressBar = new QProgressBar(this);
     m_loadProgressBar->setRange(0, 100);
     m_loadProgressBar->setTextVisible(false);

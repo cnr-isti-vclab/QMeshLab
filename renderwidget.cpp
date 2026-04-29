@@ -180,7 +180,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
             m_meshVisibility.insert(m_meshVisibility.begin() + index, true);
         else
             ensureVisibilitySize();
-        m_reframeCameraRequested = true;
+        if (!m_doc->isRestoringUndoRedo())
+            m_reframeCameraRequested = true;
         syncPerMeshRenderModesWithDocument();
         syncOverlaySettingsToCurrentMesh();
         refreshColorSourceAvailability();
@@ -198,7 +199,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
             m_meshVisibility.erase(m_meshVisibility.begin() + index);
         else
             ensureVisibilitySize();
-        m_reframeCameraRequested = true;
+        if (!m_doc->isRestoringUndoRedo())
+            m_reframeCameraRequested = true;
         syncPerMeshRenderModesWithDocument();
         syncOverlaySettingsToCurrentMesh();
         refreshColorSourceAvailability();
@@ -314,6 +316,29 @@ void RenderWidget::copyPerMeshRenderModesFrom(const RenderWidget *other)
         return;
     m_meshRenderModes = other->m_meshRenderModes;
     syncPerMeshRenderModesWithDocument();
+    syncOverlaySettingsToCurrentMesh();
+    update();
+}
+
+ViewState RenderWidget::captureViewState() const
+{
+    ViewState vs;
+    vs.trackball      = m_trackball.state();
+    vs.renderSettings = m_renderSettings;
+    vs.meshRenderModes = m_meshRenderModes;
+    return vs;
+}
+
+void RenderWidget::restoreViewState(const ViewState &vs)
+{
+    m_trackball.setState(vs.trackball);
+    // Prevent the pending reframe from overriding the restored camera.
+    m_reframeCameraRequested = false;
+    m_resetTrackballRequested = false;
+    cancelCenterAnimation();
+
+    m_meshRenderModes = vs.meshRenderModes;
+    setRenderSettings(vs.renderSettings);   // also updates overlay panel + calls update()
     syncOverlaySettingsToCurrentMesh();
     update();
 }

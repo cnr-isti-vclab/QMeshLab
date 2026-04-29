@@ -4,10 +4,12 @@
 #include "meshioplugin.h"
 #include "meshgpuresourcecache.h"
 #include "vcgmesh.h"
+#include "viewstate.h"
 #include <QObject>
 #include <QElapsedTimer>
 #include <QMatrix4x4>
 #include <cstdint>
+#include <functional>
 #include <QString>
 #include <QStringList>
 #include <atomic>
@@ -120,10 +122,13 @@ public:
     int saveCurrentMesh(const QString &filename);
     void beginUndoStep(const QString &label);
     void endUndoStep(bool commit = true, bool restoreOnCancel = false);
+    void setViewStateFunctions(std::function<ViewState()> capture,
+                               std::function<void(const ViewState &)> restore);
     bool canUndo() const;
     bool canRedo() const;
     QString undoText() const;
     QString redoText() const;
+    bool isRestoringUndoRedo() const;
     QStringList undoHistoryLabels() const;
     QStringList undoStackLabels() const;
     int undoCursorPosition() const { return m_undoCursor; }
@@ -249,6 +254,7 @@ private:
         std::vector<MeshSnapshot> meshes;
         int currentMeshIndex = -1;
         std::uint64_t nextMeshId = 1;
+        ViewState viewState;
     };
 
     // No UndoStep: history is stored as a flat checkpoint list.
@@ -305,4 +311,6 @@ private:
     bool m_restoringUndoRedo = false;
     CallbackMode m_callbackMode = CallbackMode::None;
     std::atomic<bool> m_cancelRequested = false;
+    std::function<ViewState()> m_captureViewState;
+    std::function<void(const ViewState &)> m_restoreViewState;
 };

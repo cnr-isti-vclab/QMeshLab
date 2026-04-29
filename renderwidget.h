@@ -3,6 +3,7 @@
 #include "renderingsettings.h"
 #include "meshgpuresourcecache.h"
 #include "viewtrackball.h"
+#include "viewstate.h"
 #include <QRhiWidget>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
@@ -44,6 +45,9 @@ public:
     std::vector<bool> meshVisibilityState() const { return m_meshVisibility; }
     void setMeshVisibilityState(const std::vector<bool> &visibility);
     void copyPerMeshRenderModesFrom(const RenderWidget *other);
+
+    ViewState captureViewState() const;
+    void restoreViewState(const ViewState &vs);
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
