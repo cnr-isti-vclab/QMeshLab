@@ -16,6 +16,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QStatusBar>
+#include <QTextBrowser>
 #include <QScreen>
 #include <QSplitter>
 #include <QDockWidget>
@@ -116,6 +117,117 @@ bool saveFormatSupportsBinary(const QString &extension)
 bool saveFormatSupportsEmbeddedTextures(const QString &extension)
 {
     return extension == QLatin1String("gltf") || extension == QLatin1String("glb");
+}
+
+QString filterParameterTypeLabel(MeshFilterParameterType type)
+{
+    switch (type) {
+    case MeshFilterParameterType::Bool:
+        return QObject::tr("Boolean");
+    case MeshFilterParameterType::Int:
+        return QObject::tr("Integer");
+    case MeshFilterParameterType::Double:
+        return QObject::tr("Double");
+    case MeshFilterParameterType::AbsPerc:
+        return QObject::tr("Abs / %");
+    case MeshFilterParameterType::String:
+        return QObject::tr("String");
+    case MeshFilterParameterType::Enum:
+        return QObject::tr("Enum");
+    case MeshFilterParameterType::Color:
+        return QObject::tr("Color");
+    }
+    return QObject::tr("Unknown");
+}
+
+QString filterParameterValueText(const QVariant &value, MeshFilterParameterType type, int decimals)
+{
+    if (!value.isValid() || value.isNull())
+        return QObject::tr("none");
+
+    switch (type) {
+    case MeshFilterParameterType::Bool:
+        return value.toBool() ? QObject::tr("true") : QObject::tr("false");
+    case MeshFilterParameterType::Int:
+        return QString::number(value.toInt());
+    case MeshFilterParameterType::Double:
+    case MeshFilterParameterType::AbsPerc:
+        return QLocale().toString(value.toDouble(), 'f', std::max(0, decimals));
+    case MeshFilterParameterType::String:
+    case MeshFilterParameterType::Enum:
+    case MeshFilterParameterType::Color:
+        return value.toString();
+    }
+    return value.toString();
+}
+
+QString formatFilterParameterDetails(const MeshFilterDescriptor &descriptor)
+{
+    if (descriptor.parameters.empty()) {
+        return QObject::tr(
+            "<p style=\"margin:0; color: palette(mid);\">This filter declares no parameters.</p>");
+    }
+
+    QString html = QStringLiteral(
+        "<html><body style=\"margin:0; font-size:11px; line-height:1.3;\">");
+    for (size_t i = 0; i < descriptor.parameters.size(); ++i) {
+        const MeshFilterParameterDescriptor &param = descriptor.parameters[i];
+        const QString group = param.group.trimmed();
+        const bool hasGroup = !group.isEmpty()
+            && group.compare(QStringLiteral("main"), Qt::CaseInsensitive) != 0;
+        QStringList summaryParts;
+        summaryParts.push_back(
+            QObject::tr("Type: %1").arg(filterParameterTypeLabel(param.type)).toHtmlEscaped());
+        summaryParts.push_back(
+            QObject::tr("Default: %1")
+                .arg(filterParameterValueText(param.defaultValue, param.type, param.decimals))
+                .toHtmlEscaped());
+
+        if (hasGroup) {
+            summaryParts.push_back(QObject::tr("Group: %1").arg(group).toHtmlEscaped());
+        }
+
+        if ((param.type == MeshFilterParameterType::Int
+                || param.type == MeshFilterParameterType::Double
+                || param.type == MeshFilterParameterType::AbsPerc)
+            && param.minValue.isValid() && param.maxValue.isValid()) {
+            summaryParts.push_back(QObject::tr("Range: %1-%2")
+                                       .arg(filterParameterValueText(
+                                           param.minValue, param.type, param.decimals))
+                                       .arg(filterParameterValueText(
+                                           param.maxValue, param.type, param.decimals))
+                                       .toHtmlEscaped());
+        }
+
+        html += QStringLiteral("<div style=\"margin-bottom:5px;\">");
+        html += QStringLiteral(
+                    "<div style=\"font-size:12px;\"><b>%1</b> <span style=\"color:#666;\">(%2)</span></div>")
+                    .arg(param.label.toHtmlEscaped(), param.id.toHtmlEscaped());
+        html += QStringLiteral("<div style=\"margin-top:1px; color:#444;\">%1</div>")
+                    .arg(summaryParts.join(QStringLiteral(" &nbsp;&middot;&nbsp; ")));
+
+        if (param.type == MeshFilterParameterType::Enum && !param.enumOptions.empty()) {
+            QStringList options;
+            options.reserve(static_cast<int>(param.enumOptions.size()));
+            for (const MeshFilterEnumOption &option : param.enumOptions) {
+                options.push_back(option.label.trimmed().isEmpty() ? option.id : option.label);
+            }
+            html += QStringLiteral("<div style=\"margin-top:2px; color:#444;\">%1</div>")
+                        .arg(QObject::tr("Options: %1").arg(options.join(QStringLiteral(", "))).toHtmlEscaped());
+        }
+
+        if (!param.helpMarkdown.trimmed().isEmpty()) {
+            html += QStringLiteral(
+                        "<div style=\"margin-top:2px; font-size:10px; color:#555; white-space:pre-wrap;\">%1</div>")
+                        .arg(param.helpMarkdown.toHtmlEscaped());
+        }
+
+        html += QStringLiteral("</div>");
+        if (i + 1 < descriptor.parameters.size())
+            html += QStringLiteral("<div style=\"height:2px;\"></div>");
+    }
+    html += QStringLiteral("</body></html>");
+    return html;
 }
 
 bool saveFormatSupportsDracoCompression(const QString &extension)
@@ -1765,12 +1877,12 @@ void MainWindow::showFilterPlugins()
 {
     const std::vector<Document::FilterInfo> filters = m_doc->filterInfos();
     if (filters.empty()) {
-        QMessageBox::information(this, tr("Filter Plugins"), tr("No filter plugins are available."));
+        QMessageBox::information(this, tr("Filter Plugins Info"), tr("No filter plugins are available."));
         return;
     }
 
     QDialog dialog(this);
-    dialog.setWindowTitle(tr("Filter Plugins"));
+    dialog.setWindowTitle(tr("Filter Plugins Info"));
     auto *layout = new QVBoxLayout(&dialog);
 
     auto *countLabel = new QLabel(
@@ -1911,8 +2023,9 @@ void MainWindow::showFilterPlugins()
 
     auto *filterTable = new QTableWidget(static_cast<int>(sortedFilters.size()), 6, &dialog);
     filterTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    filterTable->setSelectionMode(QAbstractItemView::NoSelection);
-    filterTable->setFocusPolicy(Qt::NoFocus);
+    filterTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    filterTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    filterTable->setFocusPolicy(Qt::StrongFocus);
     filterTable->setSortingEnabled(false);
     filterTable->verticalHeader()->setVisible(false);
     filterTable->setHorizontalHeaderLabels(
@@ -1936,6 +2049,8 @@ void MainWindow::showFilterPlugins()
         };
 
         setTextCell(0, info.descriptor.name);
+        if (QTableWidgetItem *nameItem = filterTable->item(row, 0))
+            nameItem->setData(Qt::UserRole, info.key);
         setTextCell(1, info.pluginName);
         setTextCell(2, info.descriptor.menuPath.isEmpty() ? tr("General") : info.descriptor.menuPath);
         setTextCell(3, filterInputDomainLabel(info.descriptor.inputDomain), Qt::AlignCenter);
@@ -1950,6 +2065,59 @@ void MainWindow::showFilterPlugins()
     filterTable->setSortingEnabled(true);
     filterTable->sortItems(0, Qt::AscendingOrder);
     layout->addWidget(filterTable, 2);
+
+    auto *parametersToggle = new QToolButton(&dialog);
+    parametersToggle->setText(tr("Parameters"));
+    parametersToggle->setCheckable(true);
+    parametersToggle->setChecked(false);
+    parametersToggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    parametersToggle->setArrowType(Qt::RightArrow);
+    parametersToggle->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    layout->addWidget(parametersToggle);
+
+    auto *parametersPanel = new QWidget(&dialog);
+    auto *parametersLayout = new QVBoxLayout(parametersPanel);
+    parametersLayout->setContentsMargins(0, 0, 0, 0);
+
+    auto *parametersBrowser = new QTextBrowser(parametersPanel);
+    parametersBrowser->setReadOnly(true);
+    parametersBrowser->setOpenLinks(false);
+    parametersBrowser->setOpenExternalLinks(false);
+    parametersBrowser->setPlaceholderText(tr("Select a filter to inspect its parameters."));
+    parametersBrowser->setHtml(
+        tr("<p style=\"margin:0; color: palette(mid);\">Select a filter to inspect its parameters.</p>"));
+    parametersLayout->addWidget(parametersBrowser);
+
+    parametersPanel->setVisible(false);
+    layout->addWidget(parametersPanel, 1);
+
+    auto updateParametersPanel = [&sortedFilters, filterTable, parametersBrowser]() {
+        const QList<QTableWidgetItem *> selectedItems = filterTable->selectedItems();
+        if (selectedItems.isEmpty()) {
+            parametersBrowser->setHtml(
+                QObject::tr("<p style=\"margin:0; color: palette(mid);\">Select a filter to inspect its parameters.</p>"));
+            return;
+        }
+
+        const int row = selectedItems.constFirst()->row();
+        const QTableWidgetItem *nameItem = filterTable->item(row, 0);
+        const QString filterKey = nameItem ? nameItem->data(Qt::UserRole).toString() : QString();
+        for (const auto &info : sortedFilters) {
+            if (info.key == filterKey) {
+                parametersBrowser->setHtml(formatFilterParameterDetails(info.descriptor));
+                return;
+            }
+        }
+
+        parametersBrowser->setHtml(
+            QObject::tr("<p style=\"margin:0; color: palette(mid);\">Unable to resolve the selected filter.</p>"));
+    };
+
+    connect(filterTable, &QTableWidget::itemSelectionChanged, &dialog, updateParametersPanel);
+    connect(parametersToggle, &QToolButton::toggled, &dialog, [parametersToggle, parametersPanel](bool checked) {
+        parametersToggle->setArrowType(checked ? Qt::DownArrow : Qt::RightArrow);
+        parametersPanel->setVisible(checked);
+    });
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok, Qt::Horizontal, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);

@@ -14,7 +14,7 @@
       "parameters": [
         { "id": "LoopWeight", "label": "Weighting Scheme", "help": "Change the weights used. Allows one to optimize some behaviors over others.", "group": "main", "type": "enum", "default": "loop", "enumOptions": [ { "id": "loop", "label": "Loop" }, { "id": "regularity", "label": "Enhance regularity" }, { "id": "continuity", "label": "Enhance continuity" } ] },
         { "id": "Iterations", "label": "Iterations", "help": "Number of times the model is subdivided.", "group": "main", "type": "int", "default": 3, "min": 1, "max": 64 },
-        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined. Zero means uniform refinement.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined. Zero means uniform refinement.", "group": "main", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
         { "id": "Selected", "label": "Affect only selected faces", "help": "If selected the filter affects only selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
       ]
     },
@@ -30,7 +30,7 @@
       "inputRequirements": { "requireFaces": true },
       "parameters": [
         { "id": "Iterations", "label": "Iterations", "help": "Number of times the model is subdivided.", "group": "main", "type": "int", "default": 3, "min": 1, "max": 64 },
-        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined.", "group": "main", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
         { "id": "Selected", "label": "Affect only selected faces", "help": "If selected the filter affects only selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
       ]
     },
@@ -46,7 +46,7 @@
       "inputRequirements": { "requireFaces": true },
       "parameters": [
         { "id": "Iterations", "label": "Iterations", "help": "Number of times the model is subdivided.", "group": "main", "type": "int", "default": 3, "min": 1, "max": 64 },
-        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined.", "group": "main", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
         { "id": "Selected", "label": "Affect only selected faces", "help": "If selected the filter affects only selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
       ]
     },
@@ -63,7 +63,7 @@
       "parameters": [
         { "id": "LoopWeight", "label": "Weighting Scheme", "help": "Change the weights used.", "group": "main", "type": "enum", "default": "loop", "enumOptions": [ { "id": "loop", "label": "Loop" }, { "id": "regularity", "label": "Enhance regularity" }, { "id": "continuity", "label": "Enhance continuity" } ] },
         { "id": "Iterations", "label": "Iterations", "help": "Number of times the model is subdivided.", "group": "main", "type": "int", "default": 3, "min": 1, "max": 64 },
-        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined.", "group": "main", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
         { "id": "Selected", "label": "Affect only selected faces", "help": "If selected the filter affects only selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
       ]
     },
@@ -77,7 +77,7 @@
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "parameters": [
-        { "id": "Threshold", "label": "Cell Size", "help": "Cell size of clustering grid.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 }
+        { "id": "Threshold", "label": "Cell Size", "help": "Cell size of clustering grid.", "group": "main", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 }
       ]
     },
     {
@@ -143,10 +143,10 @@
         { "id": "Iterations", "label": "Iterations", "help": "Number of remeshing iterations.", "group": "main", "type": "int", "default": 10, "min": 1, "max": 1000 },
         { "id": "Adaptive", "label": "Adaptive remeshing", "help": "Toggle adaptive isotropic remeshing.", "group": "main", "type": "bool", "default": false },
         { "id": "SelectedOnly", "label": "Remesh only selected faces", "help": "Apply remeshing only to selected faces.", "group": "main", "type": "bool", "default": false },
-        { "id": "TargetLen", "label": "Target Length", "help": "Target length for remeshed edges.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "TargetLen", "label": "Target Length", "help": "Target length for remeshed edges.", "group": "main", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
         { "id": "FeatureDeg", "label": "Crease Angle", "help": "Minimum angle to treat an edge as feature.", "group": "main", "type": "double", "default": 30.0, "min": 0.0, "max": 180.0, "decimals": 3 },
         { "id": "CheckSurfDist", "label": "Check Surface Distance", "help": "Each operation must satisfy max surface distance.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "MaxSurfDist", "label": "Max. Surface Distance", "help": "Maximum allowed local surface deviation.", "group": "advanced", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "MaxSurfDist", "label": "Max. Surface Distance", "help": "Maximum allowed local surface deviation.", "group": "advanced", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
         { "id": "SplitFlag", "label": "Refine Step", "help": "Include refine step.", "group": "advanced", "type": "bool", "default": true },
         { "id": "CollapseFlag", "label": "Collapse Step", "help": "Include collapse step.", "group": "advanced", "type": "bool", "default": true },
         { "id": "SwapFlag", "label": "Edge-Swap Step", "help": "Include edge-swap step.", "group": "advanced", "type": "bool", "default": true },
@@ -443,7 +443,7 @@
       "parameters": [
         { "id": "Method", "label": "Method", "help": "Choose method.", "group": "main", "type": "enum", "default": "quadric_fitting", "enumOptions": [ { "id": "taubin", "label": "Taubin approximation" }, { "id": "pca", "label": "Principal Component Analysis" }, { "id": "normal_cycle", "label": "Normal Cycles" }, { "id": "quadric_fitting", "label": "Quadric Fitting" }, { "id": "sd_quadric", "label": "Scale Dependent Quadric Fitting" } ] },
         { "id": "CurvColorMethod", "label": "Quality/Color Mapping", "help": "Choose curvature mapped to quality/color.", "group": "main", "type": "enum", "default": "mean", "enumOptions": [ { "id": "mean", "label": "Mean Curvature" }, { "id": "gaussian", "label": "Gaussian Curvature" }, { "id": "min", "label": "Min Curvature" }, { "id": "max", "label": "Max Curvature" }, { "id": "shape", "label": "Shape Index" }, { "id": "curvedness", "label": "Curvedness" }, { "id": "none", "label": "None" } ] },
-        { "id": "Scale", "label": "Curvature Scale", "help": "Scale for scale-dependent methods.", "group": "main", "type": "double", "default": "@bboxDiagTenth", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Scale", "label": "Curvature Scale", "help": "Scale for scale-dependent methods.", "group": "main", "type": "absperc", "default": "@bboxDiagTenth", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
         { "id": "Autoclean", "label": "Remove Unreferenced Vertices", "help": "Remove unreferenced vertices before computing.", "group": "main", "type": "bool", "default": true }
       ]
     },
@@ -463,7 +463,7 @@
         { "id": "NewFaceSelected", "label": "Select newly created faces", "help": "Leave newly created faces selected.", "group": "main", "type": "bool", "default": true },
         { "id": "SelfIntersection", "label": "Prevent self intersecting faces", "help": "Try to avoid creating self-intersecting faces.", "group": "main", "type": "bool", "default": true },
         { "id": "RefineHole", "label": "Refine Filled Hole", "help": "Refine newly created hole triangles.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "RefineHoleEdgeLen", "label": "Hole Refinement Edge Len", "help": "Target edge length for hole refinement.", "group": "advanced", "type": "double", "default": "@bboxDiag003", "min": 0.0, "max": "@bboxDiag", "decimals": 6 }
+        { "id": "RefineHoleEdgeLen", "label": "Hole Refinement Edge Len", "help": "Target edge length for hole refinement.", "group": "advanced", "type": "absperc", "default": "@bboxDiag003", "min": 0.0, "max": "@bboxDiag", "decimals": 6 }
       ]
     },
     {

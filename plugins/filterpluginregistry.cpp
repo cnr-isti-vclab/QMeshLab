@@ -23,6 +23,9 @@
 #if QMESH_PLUGIN_FILTER_SCREENED_POISSON_ENABLED
 #include "plugins/filter_screened_poisson/screenedpoissonfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_CREATE_ENABLED
+#include "plugins/filter_create/createfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -46,5 +49,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_SCREENED_POISSON_ENABLED
     registerScreenedPoissonFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_CREATE_ENABLED
+    registerCreateFilterPlugin(pluginManager);
 #endif
 }

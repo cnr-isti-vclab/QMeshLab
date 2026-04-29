@@ -321,7 +321,7 @@
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireFaces": true },
       "parameters": [
-        { "id": "Threshold", "label": "Edge Threshold", "help": "Faces with an edge longer than this threshold will be selected.", "group": "main", "type": "double", "default": "@bboxDiag0005", "min": 0.0, "max": "@bboxDiagHalf", "decimals": 6 }
+        { "id": "Threshold", "label": "Edge Threshold", "help": "Faces with an edge longer than this threshold will be selected.", "group": "main", "type": "absperc", "default": "@bboxDiag0005", "min": 0.0, "max": "@bboxDiagHalf", "decimals": 6 }
       ]
     },
     {

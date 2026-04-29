@@ -1,0 +1,384 @@
+{
+  "pluginId": "qmeshlab.filter.create",
+  "filters": [
+    {
+      "id": "create_tetrahedron",
+      "menuPath": "Create",
+      "name": "Tetrahedron",
+      "shortDescription": "Creates a Tetrahedron.",
+      "longDescriptionMarkdown": "Creates a Tetrahedron mesh.",
+      "tags": ["create", "platonic"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": []
+    },
+    {
+      "id": "create_icosahedron",
+      "menuPath": "Create",
+      "name": "Icosahedron",
+      "shortDescription": "Creates an Icosahedron.",
+      "longDescriptionMarkdown": "Creates an Icosahedron mesh.",
+      "tags": ["create", "platonic"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": []
+    },
+    {
+      "id": "create_dodecahedron",
+      "menuPath": "Create",
+      "name": "Dodecahedron",
+      "shortDescription": "Creates a Dodecahedron.",
+      "longDescriptionMarkdown": "Creates a Dodecahedron mesh.",
+      "tags": ["create", "platonic"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": []
+    },
+    {
+      "id": "create_dodecahedron_sym",
+      "menuPath": "Create",
+      "name": "Dodecahedron (symmetric)",
+      "shortDescription": "Creates a symmetrically triangulated Dodecahedron.",
+      "longDescriptionMarkdown": "Creates a Dodecahedron triangulated with an additional vertex in the middle of each face to preserve symmetry.",
+      "tags": ["create", "platonic"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": []
+    },
+    {
+      "id": "create_octahedron",
+      "menuPath": "Create",
+      "name": "Octahedron",
+      "shortDescription": "Creates an Octahedron.",
+      "longDescriptionMarkdown": "Creates an Octahedron mesh.",
+      "tags": ["create", "platonic"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": []
+    },
+    {
+      "id": "create_box",
+      "menuPath": "Create",
+      "name": "Box/Cube",
+      "shortDescription": "Creates a Box or Cube.",
+      "longDescriptionMarkdown": "Creates a Box/Cube mesh centered at the origin.",
+      "tags": ["create", "box", "cube"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "size",
+          "label": "Side Length",
+          "help": "Length of each side of the box.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-8,
+          "max": 1e8,
+          "decimals": 4
+        }
+      ]
+    },
+    {
+      "id": "create_annulus",
+      "menuPath": "Create",
+      "name": "Annulus",
+      "shortDescription": "Creates a flat annulus (holed disk).",
+      "longDescriptionMarkdown": "Creates an Annulus — a flat region bounded by two concentric circles.",
+      "tags": ["create", "annulus", "disk"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "inner_radius",
+          "label": "Inner Radius",
+          "help": "Inner radius of the annulus.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1e8,
+          "decimals": 4
+        },
+        {
+          "id": "outer_radius",
+          "label": "Outer Radius",
+          "help": "Outer radius of the annulus.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-8,
+          "max": 1e8,
+          "decimals": 4
+        },
+        {
+          "id": "sides",
+          "label": "Sides",
+          "help": "Number of sides of the polygonal approximation.",
+          "group": "main",
+          "type": "int",
+          "default": 32,
+          "min": 3,
+          "max": 1024
+        }
+      ]
+    },
+    {
+      "id": "create_sphere",
+      "menuPath": "Create",
+      "name": "Sphere",
+      "shortDescription": "Creates a Sphere by recursive subdivision of an Icosahedron.",
+      "longDescriptionMarkdown": "Creates a Sphere mesh. Topology is obtained by recursive subdivision of an icosahedron.",
+      "tags": ["create", "sphere"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "radius",
+          "label": "Radius",
+          "help": "Radius of the sphere.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-8,
+          "max": 1e8,
+          "decimals": 4
+        },
+        {
+          "id": "subdiv",
+          "label": "Subdivision Level",
+          "help": "Number of recursive subdivisions. 0=icosahedron, 3=1280 faces, max=8.",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 0,
+          "max": 8
+        }
+      ]
+    },
+    {
+      "id": "create_sphere_cap",
+      "menuPath": "Create",
+      "name": "Sphere Cap",
+      "shortDescription": "Creates a spherical dome subtended by a cone of given angle.",
+      "longDescriptionMarkdown": "Creates a Sphere Cap (spherical dome) subtended by a cone of given half-angle.",
+      "tags": ["create", "sphere", "cap"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "angle",
+          "label": "Cone Angle (degrees)",
+          "help": "Angle of the cone subtending the cap. Must be less than 180.",
+          "group": "main",
+          "type": "double",
+          "default": 60.0,
+          "min": 1.0,
+          "max": 179.0,
+          "decimals": 2
+        },
+        {
+          "id": "subdiv",
+          "label": "Subdivision Level",
+          "help": "Number of recursive subdivisions.",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 0,
+          "max": 8
+        }
+      ]
+    },
+    {
+      "id": "create_sphere_points",
+      "menuPath": "Create",
+      "name": "Points on a Sphere",
+      "shortDescription": "Creates a point cloud distributed on a unit sphere.",
+      "longDescriptionMarkdown": "Creates a spherical point cloud using various distribution techniques.",
+      "tags": ["create", "point cloud", "sphere", "sampling"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "point_num",
+          "label": "Number of Points",
+          "help": "Approximate number of points to generate.",
+          "group": "main",
+          "type": "int",
+          "default": 100,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "id": "technique",
+          "label": "Generation Technique",
+          "help": "Strategy used to distribute points on the sphere.",
+          "group": "main",
+          "type": "enum",
+          "default": "fibonacci",
+          "enumOptions": [
+            { "id": "montecarlo",  "label": "Montecarlo (random)" },
+            { "id": "discoball",   "label": "Disco Ball (regular)" },
+            { "id": "octahedron",  "label": "Recursive Octahedron" },
+            { "id": "fibonacci",   "label": "Fibonacci" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "create_cone",
+      "menuPath": "Create",
+      "name": "Cone",
+      "shortDescription": "Creates a Cone or truncated cone.",
+      "longDescriptionMarkdown": "Creates a Cone (or truncated cone) mesh between two parallel circles of different radii.",
+      "tags": ["create", "cone"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "r0",
+          "label": "Bottom Radius",
+          "help": "Radius of the bottom circle.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1e8,
+          "decimals": 4
+        },
+        {
+          "id": "r1",
+          "label": "Top Radius",
+          "help": "Radius of the top circle.",
+          "group": "main",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 1e8,
+          "decimals": 4
+        },
+        {
+          "id": "h",
+          "label": "Height",
+          "help": "Height of the cone.",
+          "group": "main",
+          "type": "double",
+          "default": 3.0,
+          "min": 1e-8,
+          "max": 1e8,
+          "decimals": 4
+        },
+        {
+          "id": "subdiv",
+          "label": "Sides",
+          "help": "Number of sides of the polygonal approximation.",
+          "group": "main",
+          "type": "int",
+          "default": 36,
+          "min": 3,
+          "max": 1024
+        }
+      ]
+    },
+    {
+      "id": "create_torus",
+      "menuPath": "Create",
+      "name": "Torus",
+      "shortDescription": "Creates a Torus.",
+      "longDescriptionMarkdown": "Creates a Torus mesh.",
+      "tags": ["create", "torus"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "h_radius",
+          "label": "Horizontal Radius",
+          "help": "Radius of the whole horizontal ring of the torus.",
+          "group": "main",
+          "type": "double",
+          "default": 3.0,
+          "min": 1e-8,
+          "max": 1e8,
+          "decimals": 4
+        },
+        {
+          "id": "v_radius",
+          "label": "Vertical Radius",
+          "help": "Radius of the vertical cross-section of the ring.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-8,
+          "max": 1e8,
+          "decimals": 4
+        },
+        {
+          "id": "h_subdiv",
+          "label": "Horizontal Subdivisions",
+          "help": "Subdivision steps around the ring.",
+          "group": "main",
+          "type": "int",
+          "default": 24,
+          "min": 3,
+          "max": 1024
+        },
+        {
+          "id": "v_subdiv",
+          "label": "Vertical Subdivisions",
+          "help": "Subdivision steps of the cross-section circle.",
+          "group": "main",
+          "type": "int",
+          "default": 12,
+          "min": 3,
+          "max": 1024
+        }
+      ]
+    },
+    {
+      "id": "fit_plane_to_selection",
+      "menuPath": "Create",
+      "name": "Fit Plane to Selection",
+      "shortDescription": "Creates a quad on the plane fitting the current selection.",
+      "longDescriptionMarkdown": "Fits a plane to the selected vertices (or vertices of selected faces) of the current mesh and creates a new planar quad mesh aligned to that plane.",
+      "tags": ["create", "plane", "selection", "fitting"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        {
+          "id": "extent",
+          "label": "Extent",
+          "help": "Size of the plane relative to the selection bounding box on the plane. 1.0 = same size, 1.1 = 10% larger.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.01,
+          "max": 10.0,
+          "decimals": 3
+        },
+        {
+          "id": "subdiv",
+          "label": "Subdivisions",
+          "help": "Number of subdivisions along each side of the plane.",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 1,
+          "max": 256
+        }
+      ]
+    }
+  ]
+}

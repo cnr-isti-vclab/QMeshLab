@@ -914,6 +914,18 @@ void Document::endUndoStep(bool commit, bool restoreOnCancel)
         return;
     }
 
+    // Prune redo history BEFORE capturing the "after" state so that any
+    // weak_ptrs in m_undoGeometryCache at revisions beyond the current cursor
+    // are evicted first.  Without this, captureUndoState() could find a live
+    // weak_ptr at the newly-bumped geometryRevision (previously used by an
+    // abandoned redo step) and return the wrong (stale) geometry instead of
+    // doing a fresh deep-copy of the current live mesh.
+    if (m_undoCursor + 1 < static_cast<int>(m_undoCheckpoints.size()))
+        m_undoCheckpoints.erase(
+            m_undoCheckpoints.begin() + m_undoCursor + 1, m_undoCheckpoints.end());
+    if (m_undoCursor < static_cast<int>(m_undoLabels.size()))
+        m_undoLabels.erase(m_undoLabels.begin() + m_undoCursor, m_undoLabels.end());
+
     pushUndoStep(label, std::move(*before), captureUndoState());
 }
 
@@ -1359,6 +1371,28 @@ void Document::markMeshMaterialChanged(int index, const QString &contextMessage)
         writeLog(contextMessage.trimmed(), LogSource::Application);
     } else {
         writeLog(tr("Mesh material updated: '%1'").arg(entry.name), LogSource::Application);
+    }
+    emit meshDataChanged(index);
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::markMeshSelectionChanged(int index, const QString &contextMessage)
+{
+    // Selection flags live in per-vertex/per-face BitFlags captured by deepCopyMesh.
+    // Bump geometryRevision so the undo cache stores a fresh copy that includes the
+    // new selection — identical to markMeshGeometryChanged but with a distinct label.
+    if (index < 0 || index >= meshCount())
+        return;
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Change Selection"));
+    MeshEntry &entry = mesh(index);
+    ++entry.geometryRevision;
+    if (!contextMessage.trimmed().isEmpty()) {
+        writeLog(contextMessage.trimmed(), LogSource::Application);
+    } else {
+        writeLog(tr("Selection changed on '%1'").arg(entry.name), LogSource::Application);
     }
     emit meshDataChanged(index);
     if (ownUndoStep)

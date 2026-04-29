@@ -14,6 +14,7 @@
 #include <QListWidgetItem>
 #include <QPalette>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QStackedWidget>
@@ -24,10 +25,112 @@
 #include <QIcon>
 #include <QRegularExpression>
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <set>
 
 namespace {
+class AbsPercEditor : public QWidget
+{
+public:
+    explicit AbsPercEditor(
+        double minValue,
+        double maxValue,
+        int decimals,
+        QWidget *parent = nullptr)
+        : QWidget(parent)
+        , m_minValue(minValue)
+        , m_maxValue(maxValue)
+    {
+        auto *layout = new QHBoxLayout(this);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(4);
+
+        m_absSpin = new QDoubleSpinBox(this);
+        m_absSpin->setRange(minValue, maxValue);
+        m_absSpin->setDecimals(std::clamp(decimals, 0, 10));
+        m_absSpin->setAlignment(Qt::AlignRight);
+        m_absSpin->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        const double span = maxValue - minValue;
+        if (std::isfinite(span) && std::fabs(span) > 1e-12)
+            m_absSpin->setSingleStep(std::max(span / 100.0, 1e-12));
+
+        auto *absLabel = new QLabel(tr("abs"), this);
+        absLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+
+        m_percentSpin = new QDoubleSpinBox(this);
+        m_percentSpin->setRange(-200.0, 200.0);
+        m_percentSpin->setDecimals(3);
+        m_percentSpin->setSingleStep(0.5);
+        m_percentSpin->setAlignment(Qt::AlignRight);
+        m_percentSpin->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+        auto *percentLabel = new QLabel(tr("%"), this);
+        percentLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+
+        layout->addWidget(m_absSpin, 1);
+        layout->addWidget(absLabel);
+        layout->addSpacing(6);
+        layout->addWidget(m_percentSpin, 1);
+        layout->addWidget(percentLabel);
+
+        const QString rangeText = tr("Percentage is mapped over the range %1 .. %2.")
+                                      .arg(QLocale().toString(m_minValue))
+                                      .arg(QLocale().toString(m_maxValue));
+        m_percentSpin->setToolTip(rangeText);
+        percentLabel->setToolTip(rangeText);
+
+        connect(m_absSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double value) {
+            updatePercentFromAbsolute(value);
+        });
+        connect(m_percentSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double value) {
+            updateAbsoluteFromPercent(value);
+        });
+
+        updatePercentFromAbsolute(m_absSpin->value());
+    }
+
+    void setAbsoluteValue(double value)
+    {
+        m_absSpin->setValue(value);
+    }
+
+    double absoluteValue() const
+    {
+        return m_absSpin->value();
+    }
+
+private:
+    void updatePercentFromAbsolute(double value)
+    {
+        const double denom = m_maxValue - m_minValue;
+        if (!std::isfinite(denom) || std::fabs(denom) <= 1e-12) {
+            m_percentSpin->setEnabled(false);
+            m_percentSpin->setValue(0.0);
+            return;
+        }
+
+        const QSignalBlocker blocker(m_percentSpin);
+        m_percentSpin->setEnabled(true);
+        m_percentSpin->setValue((100.0 * (value - m_minValue)) / denom);
+    }
+
+    void updateAbsoluteFromPercent(double value)
+    {
+        const double denom = m_maxValue - m_minValue;
+        if (!std::isfinite(denom) || std::fabs(denom) <= 1e-12)
+            return;
+
+        const QSignalBlocker blocker(m_absSpin);
+        m_absSpin->setValue(m_minValue + (denom * value * 0.01));
+    }
+
+    double m_minValue = 0.0;
+    double m_maxValue = 0.0;
+    QDoubleSpinBox *m_absSpin = nullptr;
+    QDoubleSpinBox *m_percentSpin = nullptr;
+};
+
 QString groupDisplayName(const QString &group)
 {
     const QString trimmed = group.trimmed();
@@ -518,6 +621,14 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
             editor = w;
             break;
         }
+        case MeshFilterParameterType::AbsPerc: {
+            const double minV = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
+            const double maxV = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
+            auto *w = new AbsPercEditor(minV, maxV, param.decimals, m_parametersWidget);
+            w->setAbsoluteValue(param.defaultValue.isValid() ? param.defaultValue.toDouble() : minV);
+            editor = w;
+            break;
+        }
         case MeshFilterParameterType::String: {
             auto *w = new QLineEdit(m_parametersWidget);
             w->setText(param.defaultValue.toString());
@@ -625,6 +736,11 @@ void MeshFilterPanel::applyParameterValuesToEditors(const MeshFilterParameterVal
                 w->setValue(value.toDouble());
             break;
         }
+        case MeshFilterParameterType::AbsPerc: {
+            if (auto *w = dynamic_cast<AbsPercEditor *>(editor))
+                w->setAbsoluteValue(value.toDouble());
+            break;
+        }
         case MeshFilterParameterType::String: {
             if (auto *w = qobject_cast<QLineEdit *>(editor))
                 w->setText(value.toString());
@@ -669,6 +785,8 @@ QVariant MeshFilterPanel::parameterValue(const ParameterBinding &binding) const
         return qobject_cast<QSpinBox *>(editor)->value();
     case MeshFilterParameterType::Double:
         return qobject_cast<QDoubleSpinBox *>(editor)->value();
+    case MeshFilterParameterType::AbsPerc:
+        return dynamic_cast<AbsPercEditor *>(editor)->absoluteValue();
     case MeshFilterParameterType::String:
         return qobject_cast<QLineEdit *>(editor)->text();
     case MeshFilterParameterType::Enum:

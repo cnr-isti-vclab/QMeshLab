@@ -34,6 +34,7 @@ QVariant defaultValueForParameter(const MeshFilterParameterDescriptor &parameter
     case MeshFilterParameterType::Int:
         return 0;
     case MeshFilterParameterType::Double:
+    case MeshFilterParameterType::AbsPerc:
         return 0.0;
     case MeshFilterParameterType::String:
         return QString();
@@ -399,7 +400,8 @@ bool MeshFilterPluginManager::convertParameterValue(
         outputValue = static_cast<int>(value);
         return true;
     }
-    case MeshFilterParameterType::Double: {
+    case MeshFilterParameterType::Double:
+    case MeshFilterParameterType::AbsPerc: {
         bool ok = false;
         const double value = inputValue.toDouble(&ok);
         if (!ok || !std::isfinite(value)) {

@@ -34,7 +34,7 @@ class Document;
 //     "parameters": [
 //       {
 //         "id": "...", "label": "...", "help": "...", "group": "...",
-//         "type": "bool" | "int" | "double" | "string" | "enum" | "color",
+//         "type": "bool" | "int" | "double" | "absperc" | "string" | "enum" | "color",
 //         "default": <value>,   // may be "@token" string for dynamic values
 //         "min": <value>,       // optional; may be "@token"
 //         "max": <value>,       // optional; may be "@token"

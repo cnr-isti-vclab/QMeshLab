@@ -39,6 +39,7 @@ MeshFilterParameterType parseParamType(const QString &s)
     if (s == QStringLiteral("bool"))   return MeshFilterParameterType::Bool;
     if (s == QStringLiteral("int"))    return MeshFilterParameterType::Int;
     if (s == QStringLiteral("double")) return MeshFilterParameterType::Double;
+    if (s == QStringLiteral("absperc")) return MeshFilterParameterType::AbsPerc;
     if (s == QStringLiteral("string")) return MeshFilterParameterType::String;
     if (s == QStringLiteral("enum"))   return MeshFilterParameterType::Enum;
     if (s == QStringLiteral("color"))  return MeshFilterParameterType::Color;

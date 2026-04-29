@@ -30,6 +30,7 @@ enum class MeshFilterParameterType
     Bool,
     Int,
     Double,
+    AbsPerc,
     String,
     Enum,
     Color

@@ -149,6 +149,10 @@ public:
     void setCurrentMeshIndex(int index);
     void markMeshGeometryChanged(int index, const QString &contextMessage = {});
     void markMeshMaterialChanged(int index, const QString &contextMessage = {});
+    // Selection is stored in per-vertex/per-face BitFlags, which are captured by the
+    // undo geometry snapshot.  Changes to selection must therefore bump geometryRevision
+    // so the undo cache produces a fresh deep-copy for the "after" checkpoint.
+    void markMeshSelectionChanged(int index, const QString &contextMessage = {});
     void clearLog();
     void writeLog(const QString &message, LogSource source = LogSource::Application, bool replaceLast = false);
 

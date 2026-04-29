@@ -94,7 +94,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
     auto selectionResult = [&](int meshIndex, Document::MeshEntry &entry, const QString &changeMsg, QStringList extra = {}) {
         entry.ioMask |= (Mask::IOM_VERTFLAGS | Mask::IOM_FACEFLAGS);
-        doc.markMeshMaterialChanged(meshIndex, changeMsg);
+        doc.markMeshSelectionChanged(meshIndex, changeMsg);
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
