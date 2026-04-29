@@ -21,13 +21,13 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md)
 
 ### `Document`
 
-Owns the ordered mesh list (`MeshEntry`), current mesh index, per-document log, undo/redo history, I/O and filter plugin managers, the shared GPU cache, and memory accounting APIs. Does not own per-widget pipelines, render mode preferences, or camera state.
+Owns the ordered mesh list (`MeshEntry`), current mesh index, per-document log, undo/redo history, I/O and filter plugin managers, the shared GPU cache, and memory accounting APIs. Does not own live per-widget pipelines/camera state; those remain in `RenderWidget`. Undo checkpoints can still include a serialized `ViewState` snapshot (captured/restored through callbacks).
 
 Each `MeshEntry` stores: identity/revision keys (`meshId`, `geometryRevision`, `materialRevision`), render placement (`renderTransform`), source metadata (`name`, `sourcePath`, `ioMask`), texture metadata, material set, `visible` flag, and the `VCGMesh`.
 
 ### `MeshGpuResourceCache`
 
-Central cache for mesh GPU resources, keyed by `(QRhi*, meshId, variant, revision)`. Caches fill batches (vertex/index buffers + PBR textures), wire, edge, points, bbox, selection, and decorator buffers (normals, boundaries, seams). Allows GPU buffer reuse across render-mode changes and across views sharing the same `QRhi`.
+Central cache for mesh GPU resources, keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max where applicable)`. Caches fill batches (vertex/index buffers + PBR textures), wire, edge, points, bbox, selection, and decorator buffers (normals, boundaries, seams). Allows GPU buffer reuse across render-mode changes and across views sharing the same `QRhi`.
 
 ### `LineRenderer`
 
@@ -36,6 +36,10 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 ### `RenderWidget`
 
 `QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV`), `ViewTrackball`, UV pan/zoom/cache, per-mesh render modes, per-view visibility vector, and quality histogram cache. Implementation split across `renderwidget_{render,resources,selection,uv,modes}.cpp`.
+
+### `ViewState`
+
+Lightweight snapshot type (`viewstate.h`) for one `RenderWidget`: `ViewTrackball::State`, `GlobalRenderSettings`, and per-mesh `PerMeshRenderSettings` map. `MainWindow` wires `Document::setViewStateFunctions(...)` so each undo checkpoint captures/restores the current view's camera/render-style state together with mesh data.
 
 ### `ViewTrackball`
 
@@ -84,6 +88,8 @@ Built-in filters: `filter_basic`, `filter_func`, `filter_embree`, `filter_select
 | undo/redo history | UV-local GPU cache |
 | shared mesh GPU cache | |
 
+Note: undo history stores `ViewState` snapshots, but this is serialized view data attached to checkpoints, not live ownership of render widgets.
+
 ## Data Flow
 
 ```text
@@ -105,5 +111,6 @@ MainWindow (menus, docks, split-view orchestration)
 1. User opens files → `Document` resolves plugin, loads mesh, emits signals.
 2. Views sync mesh/mode/visibility and ensure GPU resources via the shared cache.
 3. Rendering runs Scene layered passes or UV passes plus overlays.
-4. Filter runs through the filter manager with progress/cancel and undo integration.
-5. Status bar shows load/filter progress and rolling CPU/GPU frame timings.
+4. Undo/redo restores mesh checkpoints and the active view snapshot (`ViewState`).
+5. Filter runs through the filter manager with progress/cancel and undo integration.
+6. Status bar shows load/filter progress and rolling CPU/GPU frame timings.

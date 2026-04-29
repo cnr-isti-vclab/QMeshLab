@@ -11,6 +11,8 @@ See also: [Architecture](architecture.md) · [Data Model](data_model.md)
 
 Ownership: `Document` owns canonical mesh data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, and per-mesh render modes.
 
+Undo/redo integration: checkpoints include one `ViewState` snapshot (active view camera + render settings + per-mesh style map) captured/restored via `Document::setViewStateFunctions(...)`.
+
 ## Shared GPU Cache (`MeshGpuResourceCache`)
 
 Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision)`. Quality variants also include fixed-range mode and min/max.
@@ -92,15 +94,19 @@ Double click schedules an offscreen depth-pick frame: depth encoded in RGB → o
 1. Sync per-mesh mode state and UV cache against current document.
 2. Ensure UV resources (`m_uvMeshGpu`); fit UV view if requested.
 3. Draw UV background (`uv_background.vert/.frag`).
-4. If `uvShowFullTexture`: draw the texture selected by `uvTextureIndex` over `[0,1]²` (`uvTextureNearestSampling` switches bilinear → nearest).
+4. If `uvShowFullTexture`: draw the requested background texture over `[0,1]²` (best-effort from `uvTextureIndex`, with fallback to first available base-color texture; `uvTextureNearestSampling` switches bilinear → nearest).
 5. Draw current mesh in UV space: fill · wire · edges · boundary edges · texture seams · points.
 6. If `uvShowReferenceFrame`: draw unit square outline + colored U/V axes from origin.
 
-UV fill: color source from `fillPlain.colorSource`. When `Texture`, `renderParametrization()` matches `uvTextureIndex` (an index into the full PBR texture path list) by path across all four PBR channels (base, normal, occlusion, roughness) to find the `QRhiTexture*` pointer, then draws all fill batches with it. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
+UV full-texture background: selection is resolved from fill batches by `textureGroupIndex` (base-color textures); if not found, falls back to the first available base-color texture.
+
+UV fill: color source from `fillPlain.colorSource`. When `Texture`, `renderParametrization()` resolves `uvTextureIndex` against `meshEntry.textureFilePaths` and matches by normalized path across all four PBR channels (base, normal, occlusion, roughness) to choose a texture pointer. All fill batches are still drawn (no geometry filtering by texture group), using that selected texture when available, otherwise each batch's base-color texture. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
 
 ## `ParametrizationUV` Camera and Interaction
 
 Orthographic projection; `m_uvPan` + `m_uvZoom`. Left/middle drag = pan; wheel = zoom around cursor; double click = fit to mesh UV bounds (or `[0,1]²` when `uvShowFullTexture`); `Reset Camera` = UV fit.
+
+Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view visibility remain local runtime state.
 
 ## Quality Histogram Overlay
 

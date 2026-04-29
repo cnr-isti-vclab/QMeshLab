@@ -54,6 +54,8 @@ History is stored as two parallel vectors:
 
 Each checkpoint holds a `std::vector<UndoState::MeshSnapshot>`. A `MeshSnapshot` copies all cheap metadata fields by value and holds geometry behind a `shared_ptr<const VCGMesh>`. `captureUndoState()` interns geometry objects in `m_undoGeometryCache` (keyed by `(meshId, geometryRevision)`, stored as `weak_ptr`): if the revision is unchanged since the last capture, all checkpoints share the same allocation — no deep copy. A cache miss triggers a deep copy. On undo/redo, `restoreUndoState()` deep-copies geometry out of the shared pointer so the live document is always freely mutable. `undoMemoryStats()` de-duplicates shared geometry pointers before summing total bytes.
 
+Each `UndoState` also stores a `ViewState` snapshot (`viewstate.h`) captured via `Document::setViewStateFunctions(...)`. Current wiring captures/restores the active `RenderWidget` camera/render-style state (`ViewTrackball::State`, `GlobalRenderSettings`, per-mesh `PerMeshRenderSettings`) with each checkpoint. Per-view visibility vectors and view mode are not part of `ViewState`.
+
 APIs: `beginUndoStep(label)`, `endUndoStep(commit, restoreOnCancel)`, `undo()`, `redo()`, `clearUndoHistory()`, `setUndoLimit(limit)`. Integrated with all mesh mutations (`add/remove/duplicate/reload/mark changed/visibility`, `setMeshRenderTransform`, `markMeshGeometryChanged`, `markMeshMaterialChanged`).
 
 ## Revision and Transform Model
@@ -103,6 +105,8 @@ One instance per view in `m_renderSettings`. Holds:
 
 `MainWindow` synchronizes document visibility from the active view so the layer panel reflects it; each view keeps its own local visibility vector independently.
 
+Undo stores serialized `ViewState` snapshots in checkpoint history, but live render-widget ownership remains per-view.
+
 ## GPU Cache Integration
 
 Renderer-facing APIs on `Document`: `ensureMeshGpuResources(...)`, `fillPassGpuView(...)`, `wirePassGpuView(...)`, `edgePassGpuView(...)`, `edgeFatPassGpuView(...)`, `pointsPassGpuView(...)`, `bboxPassGpuView(...)`, `selectionPassGpuView(...)`, `decoratorPassGpuView(...)`.
@@ -112,5 +116,7 @@ Cache keyed by `(QRhi*, meshId, variant, revision, quality-range mode)`. Invalid
 ## Memory Diagnostics
 
 `MainWindow::showMemoryInfo()` reads `cpuMeshMemoryStats`, `undoMemoryStats` (de-duplicates shared geometry), and `gpuMemoryStats` from `Document`.
+
+These values are implementation-level mesh/cache estimates (capacity-based for VCG containers and cache-owned GPU allocations), not full process RSS/Activity-Monitor memory.
 
 For rendering pipeline details, see [Rendering](rendering.md).
