@@ -928,7 +928,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
             }
         }
         entry.ioMask |= Mask::IOM_VERTFLAGS;
-        doc.markMeshMaterialChanged(
+        doc.markMeshSelectionChanged(
             meshIndex,
             QObject::tr("Conditional vertex selection on '%1': selected %2 / %3 vertices.")
                 .arg(entry.name)
@@ -977,7 +977,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
             }
         }
         entry.ioMask |= Mask::IOM_FACEFLAGS;
-        doc.markMeshMaterialChanged(
+        doc.markMeshSelectionChanged(
             meshIndex,
             QObject::tr("Conditional face selection on '%1': selected %2 / %3 faces.")
                 .arg(entry.name)

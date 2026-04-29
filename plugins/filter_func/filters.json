@@ -10,6 +10,7 @@
       "tags": ["selection", "muparser", "vertex"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": { "requireVertices": true },
       "parameters": [
         {
@@ -31,6 +32,7 @@
       "tags": ["selection", "muparser", "face"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": { "requireFaces": true },
       "parameters": [
         {

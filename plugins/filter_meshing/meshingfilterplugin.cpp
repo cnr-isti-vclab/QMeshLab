@@ -1285,7 +1285,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const float pos = float(params.getDouble(QStringLiteral("AngleDegPos")));
             vcg::tri::UpdateFlags<VCGMesh>::FaceEdgeSelSignedCrease(mesh, vcg::math::ToRad(neg), vcg::math::ToRad(pos));
             entry.ioMask |= Mask::IOM_FACEFLAGS;
-            doc.markMeshMaterialChanged(ci, QObject::tr("Selected crease edges on '%1'").arg(entry.name));
+            doc.markMeshSelectionChanged(ci, QObject::tr("Selected crease edges on '%1'").arg(entry.name));
             return success(true);
         }
 

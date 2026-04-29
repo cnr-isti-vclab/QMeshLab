@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "filterparam.h"
+#include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <QColor>
 #include <QObject>
@@ -220,12 +221,50 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     if (wrapUndo)
         doc.beginUndoStep(targetDescriptor->name);
 
+    // Framework-level incremental selection: save the current face/vertex selection
+    // bits before running the filter, then OR them back afterwards.
+    const bool saveSelection =
+        targetDescriptor->incrementalSelection
+        && FilterParams(normalizedParameters).getBool(
+               QStringLiteral("incremental_selection"));
+
+    std::vector<bool> savedFaceSel;
+    std::vector<bool> savedVertSel;
+    if (saveSelection) {
+        const int meshIdx = doc.currentMeshIndex();
+        if (meshIdx >= 0 && meshIdx < doc.meshCount()) {
+            const VCGMesh &m = doc.mesh(meshIdx).mesh;
+            savedFaceSel.reserve(m.face.size());
+            for (const VCGFace &f : m.face)
+                savedFaceSel.push_back(!f.IsD() && f.IsS());
+            savedVertSel.reserve(m.vert.size());
+            for (const VCGVertex &v : m.vert)
+                savedVertSel.push_back(!v.IsD() && v.IsS());
+        }
+    }
+
     const FilterParams typedParams(normalizedParameters);
     MeshFilterRunResult result = targetPlugin->runFilter(filterId, typedParams, doc);
     if (!result.success) {
         if (wrapUndo)
             doc.endUndoStep(false, true);
         return result;
+    }
+
+    // OR back the previously saved selection (if incremental was requested).
+    if (saveSelection) {
+        const int meshIdx = doc.currentMeshIndex();
+        if (meshIdx >= 0 && meshIdx < doc.meshCount()) {
+            VCGMesh &m = doc.mesh(meshIdx).mesh;
+            for (size_t i = 0; i < savedFaceSel.size() && i < m.face.size(); ++i) {
+                if (savedFaceSel[i] && !m.face[i].IsD())
+                    m.face[i].SetS();
+            }
+            for (size_t i = 0; i < savedVertSel.size() && i < m.vert.size(); ++i) {
+                if (savedVertSel[i] && !m.vert[i].IsD())
+                    m.vert[i].SetS();
+            }
+        }
     }
 
     if (wrapUndo)

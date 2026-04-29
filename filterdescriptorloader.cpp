@@ -137,6 +137,24 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
     for (const QJsonValue &pv : params) {
         d.parameters.push_back(parseParameter(pv.toObject()));
     }
+
+    d.incrementalSelection = obj.value(QStringLiteral("incrementalSelection")).toBool(false);
+    if (d.incrementalSelection) {
+        // Inject the standard "incremental_selection" bool parameter at the end
+        // (in the "main" group, so it always appears).  Plugins don't need to
+        // declare it themselves — the framework manager handles the save/OR logic.
+        MeshFilterParameterDescriptor p;
+        p.id           = QStringLiteral("incremental_selection");
+        p.label        = QObject::tr("Preserve Existing Selection");
+        p.helpMarkdown = QObject::tr(
+            "When enabled, the new selection is added (OR) to the existing one "
+            "instead of replacing it.");
+        p.group        = QStringLiteral("main");
+        p.type         = MeshFilterParameterType::Bool;
+        p.defaultValue = false;
+        d.parameters.push_back(std::move(p));
+    }
+
     return d;
 }
 

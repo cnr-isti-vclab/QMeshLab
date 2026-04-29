@@ -115,7 +115,7 @@
       "menuPath": "Selection/Embree",
       "name": "Select Visible Faces",
       "shortDescription": "Selects faces visible from a user-defined direction.",
-      "longDescriptionMarkdown": "Selects faces visible from a specified direction.\n\nFor each face barycenter, one directional ray is cast. If no intersection is found along that direction, the face is considered visible and gets selected.\n\n**Parameters**\n- `Dir X`, `Dir Y`, `Dir Z`: components of the view/light direction.\n- `Incremental Selection`: when enabled, keeps existing face selection and adds new visible faces; otherwise clears previous selection before computing.\n\n**Output**\n- Face selection flags are updated on the current mesh.",
+      "longDescriptionMarkdown": "Selects faces visible from a specified direction.\n\nFor each face barycenter, one directional ray is cast. If no intersection is found along that direction, the face is considered visible and gets selected.\n\n**Parameters**\n- `Dir X`, `Dir Y`, `Dir Z`: components of the view/light direction.\n\n**Output**\n- Face selection flags are updated on the current mesh.",
       "tags": [
         "selection",
         "embree",
@@ -123,6 +123,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true
       },
@@ -139,14 +140,6 @@
             1.0,
             0.0
           ]
-        },
-        {
-          "id": "incremental_selection",
-          "label": "Incremental Selection",
-          "help": "If enabled, keep existing selection and add newly visible faces.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ]
     },

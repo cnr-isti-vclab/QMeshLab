@@ -90,6 +90,9 @@ struct MeshFilterDescriptor
     MeshFilterInputDomain inputDomain = MeshFilterInputDomain::SingleMesh;
     MeshFilterMeshRequirements inputRequirements;
     MeshFilterOutputDomain outputDomain = MeshFilterOutputDomain::Information;
+    // When true the framework automatically appends an "incremental_selection" bool
+    // parameter and, when enabled, ORs the pre-run selection back after the filter.
+    bool incrementalSelection = false;
     std::vector<MeshFilterParameterDescriptor> parameters;
 };
 

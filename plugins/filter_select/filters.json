@@ -74,6 +74,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true
       },
@@ -125,6 +126,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true
       },
@@ -420,6 +422,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true
       },
@@ -438,6 +441,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true,
         "requireFaceQuality": true
@@ -488,6 +492,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireVertices": true,
         "requireVertexQuality": true
@@ -538,6 +543,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireVertices": true,
         "requireVertexColor": true
@@ -625,6 +631,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true
       },
@@ -643,6 +650,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true,
         "requireTextureCoordinates": true
@@ -662,6 +670,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true
       },
@@ -680,6 +689,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true
       },
@@ -698,6 +708,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true
       },
@@ -728,6 +739,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireVertices": true
       },

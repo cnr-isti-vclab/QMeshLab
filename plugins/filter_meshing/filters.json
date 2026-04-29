@@ -2097,6 +2097,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
       "inputRequirements": {
         "requireFaces": true
       },

@@ -146,11 +146,12 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterSelectVisibleFaces)) {
         const QVector3D dv = params.getPoint3f(QStringLiteral("direction"));
         const vcg::Point3f dir { -float(dv.x()), -float(dv.y()), -float(dv.z()) };
-        const bool incremental = params.getBool(QStringLiteral("incremental_selection"));
         if (dir.SquaredNorm() <= 1e-20f)
             return { false, false, QObject::tr("Direction vector must be non-zero.") };
 
-        adaptor.selectVisibleFaces(entry.mesh, dir, incremental, cb);
+        // Always pass incremental=false: the framework manager handles incremental
+        // selection by ORing back the pre-run selection when requested.
+        adaptor.selectVisibleFaces(entry.mesh, dir, false, cb);
         if (doc.isOperationCancelRequested())
             return interruptedResult();
 
@@ -161,7 +162,7 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         }
 
         entry.ioMask |= Mask::IOM_FACEFLAGS;
-        doc.markMeshMaterialChanged(
+        doc.markMeshSelectionChanged(
             current->index,
             QObject::tr("Selected visible faces for '%1'").arg(entry.name));
 
