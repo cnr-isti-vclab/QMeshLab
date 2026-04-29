@@ -22,8 +22,10 @@ find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 add_library(QMeshLabCore STATIC
     colormap.h colormap.cpp
     document.h document.cpp
+    filterdescriptorloader.h filterdescriptorloader.cpp
+    filterparam.h filterparam.cpp
     linerenderer.h linerenderer.cpp
-    meshfilterplugin.h
+    meshfilterplugin.h meshfilterplugin.cpp
     meshfilterpluginmanager.h meshfilterpluginmanager.cpp
     meshgpuresourcecache.h meshgpuresourcecache.cpp
     meshioplugin.h

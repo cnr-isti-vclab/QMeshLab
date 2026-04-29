@@ -56,3 +56,8 @@ else()
     target_link_libraries(QMeshLabPluginFilterFunc PUBLIC ${MUPARSER_LIBRARY})
 endif()
 
+
+qt_add_resources(QMeshLabPluginFilterFunc "filter_func_descriptors"
+    PREFIX "/filters/qmeshlab.filter.func"
+    FILES filters.json
+)

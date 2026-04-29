@@ -69,3 +69,8 @@ target_compile_definitions(QMeshLabPluginFilterScreenedPoisson
 if (OpenMP_CXX_FOUND)
     target_link_libraries(QMeshLabPluginFilterScreenedPoisson PUBLIC OpenMP::OpenMP_CXX)
 endif()
+
+qt_add_resources(QMeshLabPluginFilterScreenedPoisson "filter_screened_poisson_descriptors"
+    PREFIX "/filters/qmeshlab.filter.screened_poisson"
+    FILES filters.json
+)

@@ -21,3 +21,8 @@ target_link_libraries(QMeshLabPluginFilterBasic
         QMeshLabCore
         Qt6::Core
 )
+
+qt_add_resources(QMeshLabPluginFilterBasic "filter_basic_descriptors"
+    PREFIX "/filters/qmeshlab.filter.basic"
+    FILES filters.json
+)

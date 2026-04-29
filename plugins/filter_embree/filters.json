@@ -1,0 +1,181 @@
+{
+  "pluginId": "qmeshlab.filter.embree",
+  "filters": [
+    {
+      "id": "compute_obscurance",
+      "menuPath": "Quality/Embree",
+      "name": "Compute Obscurance",
+      "shortDescription": "Computes volumetric obscurance and stores it in quality.",
+      "longDescriptionMarkdown": "Computes **ambient obscurance** per face using Embree ray casting.\n\nAmbient obscurance is a shading measure related to how much a surface point is visually occluded by nearby geometry. For each face barycenter, a set of rays is traced over outward-facing directions.\n\n**Parameters**\n- `Rays`: number of rays cast per face.\n- `Tau`: spatial decay factor controlling the influence of hit distance in obscurance accumulation.\n\n**Output**\n- Face quality is updated with obscurance values.\n- Vertex quality is derived from face quality.\n- Vertex color is mapped in grayscale from quality values.",
+      "tags": ["quality", "embree", "obscurance"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        {
+          "id": "rays",
+          "label": "Rays",
+          "help": "Number of rays shot from each face barycenter.",
+          "group": "main",
+          "type": "int",
+          "default": 64,
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "id": "tau",
+          "label": "Tau",
+          "help": "Spatial decay factor used in obscurance accumulation.",
+          "group": "main",
+          "type": "double",
+          "default": 0.1,
+          "min": 0.0,
+          "max": 10.0,
+          "decimals": 4
+        }
+      ]
+    },
+    {
+      "id": "compute_ambient_occlusion",
+      "menuPath": "Quality/Embree",
+      "name": "Compute Ambient Occlusion",
+      "shortDescription": "Computes ambient occlusion and stores it in quality.",
+      "longDescriptionMarkdown": "Computes **ambient occlusion** per face using Embree ray casting.\n\nFor each face barycenter, rays are sampled over visible hemisphere directions. Rays that reach infinity without intersection contribute as unoccluded directions.\n\n**Parameter**\n- `Rays`: number of sampled directions per face (higher values improve stability at higher cost).\n\n**Output**\n- Face quality stores ambient occlusion values.\n- Vertex quality is updated from face quality.\n- Vertex color is generated in grayscale from quality.",
+      "tags": ["quality", "embree", "ao"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        {
+          "id": "rays",
+          "label": "Rays",
+          "help": "Number of rays shot from each face barycenter.",
+          "group": "main",
+          "type": "int",
+          "default": 64,
+          "min": 1,
+          "max": 8192
+        }
+      ]
+    },
+    {
+      "id": "compute_shape_diameter_function",
+      "menuPath": "Quality/Embree",
+      "name": "Compute Shape Diameter Function",
+      "shortDescription": "Computes SDF and stores it in quality.",
+      "longDescriptionMarkdown": "Computes **Shape Diameter Function (SDF)** per face with Embree ray casting.\n\nSDF is a local thickness descriptor: for each face, rays are cast toward inward directions inside a cone, and hit distances are aggregated to estimate shape diameter.\n\n**Parameters**\n- `Rays`: number of sampled directions.\n- `Cone Amplitude`: cone opening angle (degrees) defining valid inward shooting directions.\n\n**Output**\n- Face quality stores SDF values.\n- Vertex quality is derived from face quality.\n- Vertex color is mapped with a ramp from quality values.\n\nReference context: Shapira, Shamir, Cohen-Or (2008).",
+      "tags": ["quality", "embree", "sdf"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        {
+          "id": "rays",
+          "label": "Rays",
+          "help": "Number of rays shot from each face barycenter.",
+          "group": "main",
+          "type": "int",
+          "default": 64,
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "id": "cone_amplitude",
+          "label": "Cone Amplitude",
+          "help": "Cone opening angle in degrees used for SDF ray directions.",
+          "group": "main",
+          "type": "double",
+          "default": 90.0,
+          "min": 1.0,
+          "max": 179.0,
+          "decimals": 2
+        }
+      ]
+    },
+    {
+      "id": "select_visible_faces",
+      "menuPath": "Selection/Embree",
+      "name": "Select Visible Faces",
+      "shortDescription": "Selects faces visible from a user-defined direction.",
+      "longDescriptionMarkdown": "Selects faces visible from a specified direction.\n\nFor each face barycenter, one directional ray is cast. If no intersection is found along that direction, the face is considered visible and gets selected.\n\n**Parameters**\n- `Dir X`, `Dir Y`, `Dir Z`: components of the view/light direction.\n- `Incremental Selection`: when enabled, keeps existing face selection and adds new visible faces; otherwise clears previous selection before computing.\n\n**Output**\n- Face selection flags are updated on the current mesh.",
+      "tags": ["selection", "embree", "visibility"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        {
+          "id": "dir_x",
+          "label": "Dir X",
+          "help": "X component of visibility direction.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": -1000000.0,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "dir_y",
+          "label": "Dir Y",
+          "help": "Y component of visibility direction.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": -1000000.0,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "dir_z",
+          "label": "Dir Z",
+          "help": "Z component of visibility direction.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": -1000000.0,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "incremental_selection",
+          "label": "Incremental Selection",
+          "help": "If enabled, keep existing selection and add newly visible faces.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    },
+    {
+      "id": "analyze_normals",
+      "menuPath": "Normals/Embree",
+      "name": "Reorient Face Normals by Geometry",
+      "shortDescription": "Reorients wrongly oriented faces using Embree ray casting.",
+      "longDescriptionMarkdown": "Reorients inconsistent face normals via Embree ray casting analysis.\n\nThe filter evaluates face orientation by tracing rays from face regions and estimating whether each facet is more consistent with inward or outward visibility. Faces classified as inverted are flipped.\n\n**Parameters**\n- `Rays`: number of sampling rays used in orientation analysis.\n- `Parity Sampling`: enables parity-based analysis, typically slower but often more robust on problematic meshes.\n\n**Output**\n- Face winding may be changed.\n- Face and vertex normals are recomputed.\n- Bounding box is refreshed.",
+      "tags": ["normals", "embree", "orientation"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        {
+          "id": "rays",
+          "label": "Rays",
+          "help": "Number of rays shot from each face barycenter.",
+          "group": "main",
+          "type": "int",
+          "default": 64,
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "id": "parity_sampling",
+          "label": "Parity Sampling",
+          "help": "Uses parity sampling instead of visibility sampling.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    }
+  ]
+}

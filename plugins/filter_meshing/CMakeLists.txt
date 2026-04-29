@@ -22,3 +22,8 @@ target_link_libraries(QMeshLabPluginFilterMeshing
         Qt6::Core
 )
 
+
+qt_add_resources(QMeshLabPluginFilterMeshing "filter_meshing_descriptors"
+    PREFIX "/filters/qmeshlab.filter.meshing"
+    FILES filters.json
+)

@@ -1,0 +1,324 @@
+{
+  "pluginId": "qmeshlab.filter.func",
+  "filters": [
+    {
+      "id": "conditional_vertex_selection",
+      "menuPath": "Selection",
+      "name": "Conditional Vertex Selection",
+      "shortDescription": "Selects vertices for which a boolean expression evaluates true.",
+      "longDescriptionMarkdown": "Boolean function using muparser to perform vertex selection on the current mesh.\nYou can use muparser built-in operators and functions, such as `&&`, `||`, `<`, `<=`, `>`, `>=`, `!=`, `==`, and the ternary `cond ? a : b`. Custom random helpers are also available: `rnd()` in `[0,1]` and `randInt(a)` in `[0,a)`.\nVariables: `x,y,z` (position), `nx,ny,nz` (normal), `r,g,b,a` (color), `q` (quality), `vi` (index), `vtu,vtv,ti` (texture), `vsel` (selection). Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `xmid,ymid,zmid`, `xdim,ydim,zdim`, `bbdiag`.",
+      "tags": ["selection", "muparser", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        {
+          "id": "condSelect",
+          "label": "Boolean Function",
+          "help": "Boolean expression evaluated per vertex.",
+          "group": "main",
+          "type": "string",
+          "default": "(q < 0)"
+        }
+      ]
+    },
+    {
+      "id": "conditional_face_selection",
+      "menuPath": "Selection",
+      "name": "Conditional Face Selection",
+      "shortDescription": "Selects faces for which a boolean expression evaluates true.",
+      "longDescriptionMarkdown": "Boolean function using muparser to perform face selection on the current mesh.\nYou can use muparser built-in operators and functions, such as `&&`, `||`, `<`, `<=`, `>`, `>=`, `!=`, `==`, and the ternary `cond ? a : b`. Custom random helpers are also available: `rnd()` in `[0,1]` and `randInt(a)` in `[0,a)`.\nVariables: `fi` (face index), `fr,fg,fb,fa` (face color), `fq` (face quality), `fnx,fny,fnz` (face normal), `fsel` (selection). Per-vertex: `x0,y0,z0`, `x1,y1,z1`, `x2,y2,z2`, `q0,q1,q2`, `vsel0,vsel1,vsel2`. Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`.",
+      "tags": ["selection", "muparser", "face"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        {
+          "id": "condSelect",
+          "label": "Boolean Function",
+          "help": "Boolean expression evaluated per face.",
+          "group": "main",
+          "type": "string",
+          "default": "(fi == 0)"
+        }
+      ]
+    },
+    {
+      "id": "per_vertex_geometric_function",
+      "menuPath": "Compute/Geometry",
+      "name": "Per Vertex Geometric Function",
+      "shortDescription": "Computes new per-vertex coordinates from expressions.",
+      "longDescriptionMarkdown": "Geometric function using muparser to generate new coordinates. You can change `x,y,z` for every vertex according to the specified expressions.\nVariables: `x,y,z` (position), `nx,ny,nz` (normal), `r,g,b,a` (color), `q` (quality), `vi` (index), `vtu,vtv,ti` (texture), `vsel` (selection). Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`.",
+      "tags": ["geometry", "muparser", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "x", "label": "X Function", "help": "Expression for X output.", "group": "main", "type": "string", "default": "x" },
+        { "id": "y", "label": "Y Function", "help": "Expression for Y output.", "group": "main", "type": "string", "default": "y" },
+        { "id": "z", "label": "Z Function", "help": "Expression for Z output.", "group": "main", "type": "string", "default": "sin(x+y)" },
+        { "id": "onselected", "label": "Only On Selection", "help": "If enabled, the filter affects only selected elements.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "per_vertex_normal_function",
+      "menuPath": "Compute/Normals",
+      "name": "Per Vertex Normal Function",
+      "shortDescription": "Computes new per-vertex normals from expressions.",
+      "longDescriptionMarkdown": "Normal function using muparser to generate a new normal for each vertex.\nVariables: `x,y,z` (position), `nx,ny,nz` (normal), `r,g,b,a` (color), `q` (quality), `vi` (index), `vtu,vtv,ti` (texture), `vsel` (selection). Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`.",
+      "tags": ["normal", "muparser", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "x", "label": "X Function", "help": "Expression for X output.", "group": "main", "type": "string", "default": "-nx" },
+        { "id": "y", "label": "Y Function", "help": "Expression for Y output.", "group": "main", "type": "string", "default": "-ny" },
+        { "id": "z", "label": "Z Function", "help": "Expression for Z output.", "group": "main", "type": "string", "default": "-nz" },
+        { "id": "onselected", "label": "Only On Selection", "help": "If enabled, the filter affects only selected elements.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "per_face_normal_function",
+      "menuPath": "Compute/Normals",
+      "name": "Per Face Normal Function",
+      "shortDescription": "Computes new per-face normals from expressions.",
+      "longDescriptionMarkdown": "Normal function using muparser to generate a new normal for each face.\nVariables: `fi` (face index), `fnx,fny,fnz` (face normal), `fr,fg,fb,fa` (face color), `fq` (face quality), `fsel` (selection). Per-vertex: `x0,y0,z0`, `x1,y1,z1`, `x2,y2,z2`. Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`.",
+      "tags": ["normal", "muparser", "face"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "x", "label": "X Function", "help": "Expression for X output.", "group": "main", "type": "string", "default": "-fnx" },
+        { "id": "y", "label": "Y Function", "help": "Expression for Y output.", "group": "main", "type": "string", "default": "-fny" },
+        { "id": "z", "label": "Z Function", "help": "Expression for Z output.", "group": "main", "type": "string", "default": "-fnz" },
+        { "id": "onselected", "label": "Only On Selection", "help": "If enabled, the filter affects only selected elements.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "per_vertex_color_function",
+      "menuPath": "Compute/Color",
+      "name": "Per Vertex Color Function",
+      "shortDescription": "Computes per-vertex RGBA colors from expressions.",
+      "longDescriptionMarkdown": "Color function using muparser to generate new RGBA values for each vertex. Red, green, blue and alpha channels are defined by expressions.\nVariables: `x,y,z` (position), `nx,ny,nz` (normal), `r,g,b,a` (color, 0-255), `q` (quality), `vi` (index), `vtu,vtv,ti` (texture), `vsel` (selection). Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`.",
+      "tags": ["color", "muparser", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "x", "label": "X Function", "help": "Expression for X output.", "group": "main", "type": "string", "default": "255" },
+        { "id": "y", "label": "Y Function", "help": "Expression for Y output.", "group": "main", "type": "string", "default": "255" },
+        { "id": "z", "label": "Z Function", "help": "Expression for Z output.", "group": "main", "type": "string", "default": "0" },
+        { "id": "a", "label": "Alpha Function", "help": "Expression for alpha output in range [0, 255].", "group": "main", "type": "string", "default": "255" },
+        { "id": "onselected", "label": "Only On Selection", "help": "If enabled, the filter affects only selected elements.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "per_face_color_function",
+      "menuPath": "Compute/Color",
+      "name": "Per Face Color Function",
+      "shortDescription": "Computes per-face RGBA colors from expressions.",
+      "longDescriptionMarkdown": "Color function using muparser to generate new RGBA values for each face. Red, green, blue and alpha channels are defined by expressions.\nVariables: `fi` (face index), `fr,fg,fb,fa` (face color, 0-255), `fq` (face quality), `fnx,fny,fnz` (face normal), `fsel` (selection). Per-vertex: `x0,y0,z0`, `x1,y1,z1`, `x2,y2,z2`. Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`.",
+      "tags": ["color", "muparser", "face"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "r", "label": "Red Function", "help": "Expression for red output in range [0, 255].", "group": "main", "type": "string", "default": "255" },
+        { "id": "g", "label": "Green Function", "help": "Expression for green output in range [0, 255].", "group": "main", "type": "string", "default": "0" },
+        { "id": "b", "label": "Blue Function", "help": "Expression for blue output in range [0, 255].", "group": "main", "type": "string", "default": "255" },
+        { "id": "a", "label": "Alpha Function", "help": "Expression for alpha output in range [0, 255].", "group": "main", "type": "string", "default": "255" },
+        { "id": "onselected", "label": "Only On Selection", "help": "If enabled, the filter affects only selected elements.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "per_vertex_quality_function",
+      "menuPath": "Compute/Quality",
+      "name": "Per Vertex Quality Function",
+      "shortDescription": "Computes per-vertex scalar quality from an expression.",
+      "longDescriptionMarkdown": "Quality function using muparser to compute a new scalar quality for each vertex.\nVariables: `x,y,z` (position), `nx,ny,nz` (normal), `r,g,b,a` (color), `q` (quality), `vi` (index), `vtu,vtv,ti` (texture), `vsel` (selection). Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`. User-defined per-vertex attributes are also available.",
+      "tags": ["quality", "muparser", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "q", "label": "Quality Function", "help": "Expression for quality output.", "group": "main", "type": "string", "default": "vi" },
+        { "id": "normalize", "label": "Normalize", "help": "Normalize computed quality into range [0, 1].", "group": "main", "type": "bool", "default": false },
+        { "id": "map", "label": "Map To Color", "help": "Maps computed quality into per-vertex color.", "group": "main", "type": "bool", "default": false },
+        { "id": "onselected", "label": "Only On Selection", "help": "If enabled, the filter affects only selected elements.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "per_face_quality_function",
+      "menuPath": "Compute/Quality",
+      "name": "Per Face Quality Function",
+      "shortDescription": "Computes per-face scalar quality from an expression.",
+      "longDescriptionMarkdown": "Quality function using muparser to compute a new scalar quality for each face.\nVariables: `fi` (face index), `fr,fg,fb,fa` (face color), `fq` (face quality), `fnx,fny,fnz` (face normal), `fsel` (selection). Per-vertex: `x0,y0,z0`, `x1,y1,z1`, `x2,y2,z2`, `q0,q1,q2`. Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`. User-defined per-face attributes are also available.",
+      "tags": ["quality", "muparser", "face"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "q", "label": "Quality Function", "help": "Expression for quality output.", "group": "main", "type": "string", "default": "x0+y0+z0" },
+        { "id": "normalize", "label": "Normalize", "help": "Normalize computed quality into range [0, 1].", "group": "main", "type": "bool", "default": false },
+        { "id": "map", "label": "Map To Color", "help": "Maps computed quality into per-face color.", "group": "main", "type": "bool", "default": false },
+        { "id": "onselected", "label": "Only On Selection", "help": "If enabled, the filter affects only selected elements.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "per_vertex_texture_function",
+      "menuPath": "Compute/Texture",
+      "name": "Per Vertex Texture Function",
+      "shortDescription": "Computes per-vertex texture coordinates from expressions.",
+      "longDescriptionMarkdown": "Texture function using muparser to generate new per-vertex texture coordinates.\nVariables: `x,y,z` (position), `nx,ny,nz` (normal), `r,g,b,a` (color), `q` (quality), `vi` (index), `vtu,vtv,ti` (texture), `vsel` (selection). Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`.",
+      "tags": ["texture", "muparser", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "u", "label": "U Function", "help": "Expression for U texture coordinate.", "group": "main", "type": "string", "default": "x" },
+        { "id": "v", "label": "V Function", "help": "Expression for V texture coordinate.", "group": "main", "type": "string", "default": "y" },
+        { "id": "onselected", "label": "Only On Selection", "help": "If enabled, the filter affects only selected elements.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "per_wedge_texture_function",
+      "menuPath": "Compute/Texture",
+      "name": "Per Wedge Texture Function",
+      "shortDescription": "Computes per-wedge texture coordinates from expressions.",
+      "longDescriptionMarkdown": "Texture function using muparser to generate new per-wedge texture coordinates for each face. You can define six expressions (`u0,v0,u1,v1,u2,v2`).\nVariables: `fi` (face index), `fr,fg,fb,fa` (face color), `fq` (face quality), `fnx,fny,fnz` (face normal), `fsel` (selection). Per-vertex: `x0,y0,z0`, `x1,y1,z1`, `x2,y2,z2`, `wtu0,wtv0`, `wtu1,wtv1`, `wtu2,wtv2`, `ti`. Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`.",
+      "tags": ["texture", "muparser", "face"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "u0", "label": "U0 Function", "help": "Expression for wedge texture coordinate.", "group": "main", "type": "string", "default": "x0" },
+        { "id": "v0", "label": "V0 Function", "help": "Expression for wedge texture coordinate.", "group": "main", "type": "string", "default": "y0" },
+        { "id": "u1", "label": "U1 Function", "help": "Expression for wedge texture coordinate.", "group": "main", "type": "string", "default": "x1" },
+        { "id": "v1", "label": "V1 Function", "help": "Expression for wedge texture coordinate.", "group": "main", "type": "string", "default": "y1" },
+        { "id": "u2", "label": "U2 Function", "help": "Expression for wedge texture coordinate.", "group": "main", "type": "string", "default": "x2" },
+        { "id": "v2", "label": "V2 Function", "help": "Expression for wedge texture coordinate.", "group": "main", "type": "string", "default": "y2" },
+        { "id": "onselected", "label": "Only On Selection", "help": "If enabled, the filter affects only selected elements.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "define_per_vertex_scalar_attribute",
+      "menuPath": "Compute/Attributes",
+      "name": "Define New Per Vertex Custom Scalar Attribute",
+      "shortDescription": "Defines and fills a custom per-vertex scalar attribute.",
+      "longDescriptionMarkdown": "Adds a new per-vertex custom scalar attribute and fills it with the specified expression. Attribute names must contain only letters, numbers and underscores. The chosen name can be used in other function filters.\nVariables: `x,y,z` (position), `nx,ny,nz` (normal), `r,g,b,a` (color), `q` (quality), `vi` (index), `vtu,vtv,ti` (texture), `vsel` (selection). Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`. All custom vertex attributes are available.",
+      "tags": ["attribute", "vertex", "muparser"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "name", "label": "Attribute Name", "help": "Name of the new custom attribute.", "group": "main", "type": "string", "default": "CustomAttrName" },
+        { "id": "expr", "label": "Scalar Function", "help": "Expression used to compute the scalar attribute.", "group": "main", "type": "string", "default": "x" }
+      ]
+    },
+    {
+      "id": "define_per_face_scalar_attribute",
+      "menuPath": "Compute/Attributes",
+      "name": "Define New Per Face Custom Scalar Attribute",
+      "shortDescription": "Defines and fills a custom per-face scalar attribute.",
+      "longDescriptionMarkdown": "Adds a new per-face custom scalar attribute and fills it with the specified expression. Attribute names must contain only letters, numbers and underscores. The chosen name can be used in other function filters.\nVariables: `fi` (face index), `fr,fg,fb,fa` (face color), `fq` (face quality), `fnx,fny,fnz` (face normal), `fsel` (selection). Per-vertex: `x0,y0,z0`, `x1,y1,z1`, `x2,y2,z2`. Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`. All custom face attributes are available.",
+      "tags": ["attribute", "face", "muparser"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "name", "label": "Attribute Name", "help": "Name of the new custom attribute.", "group": "main", "type": "string", "default": "CustomAttrName" },
+        { "id": "expr", "label": "Scalar Function", "help": "Expression used to compute the scalar attribute.", "group": "main", "type": "string", "default": "fi" }
+      ]
+    },
+    {
+      "id": "define_per_vertex_point_attribute",
+      "menuPath": "Compute/Attributes",
+      "name": "Define New Per Vertex Custom Point Attribute",
+      "shortDescription": "Defines and fills a custom per-vertex point attribute.",
+      "longDescriptionMarkdown": "Adds a new per-vertex custom point attribute and fills it with the specified expressions. Attribute names must contain only letters, numbers and underscores. The chosen name can be used in other function filters.\nVariables: `x,y,z` (position), `nx,ny,nz` (normal), `r,g,b,a` (color), `q` (quality), `vi` (index). Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`. All custom vertex attributes are available.",
+      "tags": ["attribute", "vertex", "muparser"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "name", "label": "Attribute Name", "help": "Name of the new custom attribute.", "group": "main", "type": "string", "default": "CustomAttrName" },
+        { "id": "x_expr", "label": "X Function", "help": "Expression for X component.", "group": "main", "type": "string", "default": "x" },
+        { "id": "y_expr", "label": "Y Function", "help": "Expression for Y component.", "group": "main", "type": "string", "default": "y" },
+        { "id": "z_expr", "label": "Z Function", "help": "Expression for Z component.", "group": "main", "type": "string", "default": "z" }
+      ]
+    },
+    {
+      "id": "define_per_face_point_attribute",
+      "menuPath": "Compute/Attributes",
+      "name": "Define New Per Face Custom Point Attribute",
+      "shortDescription": "Defines and fills a custom per-face point attribute.",
+      "longDescriptionMarkdown": "Adds a new per-face custom point attribute and fills it with the specified expressions. Attribute names must contain only letters, numbers and underscores. The chosen name can be used in other function filters.\nVariables: `fi` (face index), `fnx,fny,fnz` (face normal), `fq` (face quality), `fsel` (selection). Per-vertex: `x0,y0,z0`, `x1,y1,z1`, `x2,y2,z2`. Bounding box: `xmin,ymin,zmin`, `xmax,ymax,zmax`, `bbdiag`. All custom face attributes are available.",
+      "tags": ["attribute", "face", "muparser"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "name", "label": "Attribute Name", "help": "Name of the new custom attribute.", "group": "main", "type": "string", "default": "CustomAttrName" },
+        { "id": "x_expr", "label": "X Function", "help": "Expression for X component.", "group": "main", "type": "string", "default": "x0" },
+        { "id": "y_expr", "label": "Y Function", "help": "Expression for Y component.", "group": "main", "type": "string", "default": "y0" },
+        { "id": "z_expr", "label": "Z Function", "help": "Expression for Z component.", "group": "main", "type": "string", "default": "z0" }
+      ]
+    },
+    {
+      "id": "grid_generator",
+      "menuPath": "Create",
+      "name": "Grid Generator",
+      "shortDescription": "Generates a regular 2D grid mesh.",
+      "longDescriptionMarkdown": "Generates a new 2D grid mesh with user-defined vertex counts on X and Y, absolute size on both axes, and optional centering on origin.",
+      "tags": ["create", "grid", "mesh"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        { "id": "numVertX", "label": "Vertices X", "help": "Number of vertices along X.", "group": "main", "type": "int", "default": 10, "min": 2, "max": 100000 },
+        { "id": "numVertY", "label": "Vertices Y", "help": "Number of vertices along Y.", "group": "main", "type": "int", "default": 10, "min": 2, "max": 100000 },
+        { "id": "absScaleX", "label": "Scale X", "help": "Absolute scale along X.", "group": "main", "type": "double", "default": 0.3, "min": 1e-9, "max": 1000000000.0, "decimals": 6 },
+        { "id": "absScaleY", "label": "Scale Y", "help": "Absolute scale along Y.", "group": "main", "type": "double", "default": 0.3, "min": 1e-9, "max": 1000000000.0, "decimals": 6 },
+        { "id": "center", "label": "Center On Origin", "help": "Centers the generated grid on origin.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "implicit_surface",
+      "menuPath": "Create",
+      "name": "Implicit Surface",
+      "shortDescription": "Extracts an isosurface from an implicit scalar field.",
+      "longDescriptionMarkdown": "Generates a new mesh corresponding to the `0` isovalue of a scalar field sampled from the given expression inside the specified 3D range.",
+      "tags": ["create", "isosurface", "marching cubes"],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        { "id": "voxelSize", "label": "Voxel Size", "help": "Sampling step used for volumetric evaluation.", "group": "main", "type": "double", "default": 0.05, "min": 1e-6, "max": 1000.0, "decimals": 6 },
+        { "id": "minX", "label": "Min X", "help": "Sampling range parameter.", "group": "main", "type": "double", "default": -1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "minY", "label": "Min Y", "help": "Sampling range parameter.", "group": "main", "type": "double", "default": -1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "minZ", "label": "Min Z", "help": "Sampling range parameter.", "group": "main", "type": "double", "default": -1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "maxX", "label": "Max X", "help": "Sampling range parameter.", "group": "main", "type": "double", "default": 1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "maxY", "label": "Max Y", "help": "Sampling range parameter.", "group": "main", "type": "double", "default": 1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "maxZ", "label": "Max Z", "help": "Sampling range parameter.", "group": "main", "type": "double", "default": 1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "expr", "label": "Field Function", "help": "Scalar field expression f(x,y,z). The 0-isovalue is extracted.", "group": "main", "type": "string", "default": "x*x+y*y+z*z-0.5" }
+      ]
+    },
+    {
+      "id": "refine_user_defined",
+      "menuPath": "Remeshing",
+      "name": "Refine User-Defined",
+      "shortDescription": "Refines edges selected by an expression and places split points by expressions.",
+      "longDescriptionMarkdown": "Refines the current mesh with user-defined expressions.\nA boolean predicate selects edges to split, and three expressions define the position of each inserted vertex.\nYou can use muparser built-in operators and functions, such as `&&`, `||`, `<`, `<=`, `>`, `>=`, `!=`, `==`, and the ternary `cond ? a : b`. Custom random helpers: `rnd()` in `[0,1]` and `randInt(a)` in `[0,a)`.\nEdge endpoint variables: `x0,y0,z0` and `x1,y1,z1`, normals `nx0,ny0,nz0` and `nx1,ny1,nz1`, colors `r0,g0,b0` and `r1,g1,b1`, quality `q0,q1`.",
+      "tags": ["refine", "remeshing", "muparser"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "condSelect", "label": "Edge Predicate", "help": "Boolean expression used to decide whether an edge is refined.", "group": "main", "type": "string", "default": "(q0 >= 0 && q1 >= 0)" },
+        { "id": "x", "label": "X Function", "help": "Expression for X output.", "group": "main", "type": "string", "default": "(x0+x1)/2" },
+        { "id": "y", "label": "Y Function", "help": "Expression for Y output.", "group": "main", "type": "string", "default": "(y0+y1)/2" },
+        { "id": "z", "label": "Z Function", "help": "Expression for Z output.", "group": "main", "type": "string", "default": "(z0+z1)/2" }
+      ]
+    }
+  ]
+}

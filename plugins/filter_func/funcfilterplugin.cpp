@@ -96,48 +96,6 @@ QString edgeRefineVariablesReferenceMarkdown()
         "- Endpoint quality: `q0,q1`.\n");
 }
 
-int intParameter(const MeshFilterParameterValues &params, const QString &id, int fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    bool ok = false;
-    const int value = it.value().toInt(&ok);
-    return ok ? value : fallback;
-}
-
-double doubleParameter(const MeshFilterParameterValues &params, const QString &id, double fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    bool ok = false;
-    const double value = it.value().toDouble(&ok);
-    return ok ? value : fallback;
-}
-
-bool boolParameter(const MeshFilterParameterValues &params, const QString &id, bool fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    if (it.value().userType() == QMetaType::Bool)
-        return it.value().toBool();
-    const QString text = it.value().toString().trimmed().toLower();
-    if (text == QStringLiteral("true") || text == QStringLiteral("1"))
-        return true;
-    if (text == QStringLiteral("false") || text == QStringLiteral("0"))
-        return false;
-    return fallback;
-}
-
-QString stringParameter(const MeshFilterParameterValues &params, const QString &id, const QString &fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    return it.value().toString();
-}
 
 uint8_t clampToByte(double value)
 {
@@ -761,680 +719,6 @@ bool checkCustomAttributeName(const QString &name, QString &error)
     }
     return true;
 }
-
-std::vector<MeshFilterDescriptor> buildDescriptors(const Document &)
-{
-    std::vector<MeshFilterDescriptor> out;
-    auto add = [&](MeshFilterDescriptor d) { out.push_back(std::move(d)); };
-
-    auto addOnSelected = [](MeshFilterDescriptor &d, const QString &label) {
-        MeshFilterParameterDescriptor p;
-        p.id = QStringLiteral("onselected");
-        p.label = label;
-        p.helpMarkdown = QObject::tr("If enabled, the filter affects only selected elements.");
-        p.group = QStringLiteral("main");
-        p.type = MeshFilterParameterType::Bool;
-        p.defaultValue = false;
-        d.parameters.push_back(std::move(p));
-    };
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterVertSelection);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Conditional Vertex Selection");
-        d.shortDescription = QObject::tr("Selects vertices for which a boolean expression evaluates true.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Boolean function using muparser to perform vertex selection on the current mesh.\n")
-            + parserOperatorsReferenceMarkdown()
-            + perVertexVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("selection"), QStringLiteral("muparser"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor p;
-        p.id = QStringLiteral("condSelect");
-        p.label = QObject::tr("Boolean Function");
-        p.helpMarkdown = QObject::tr("Boolean expression evaluated per vertex.");
-        p.group = QStringLiteral("main");
-        p.type = MeshFilterParameterType::String;
-        p.defaultValue = QStringLiteral("(q < 0)");
-        d.parameters.push_back(std::move(p));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterFaceSelection);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Conditional Face Selection");
-        d.shortDescription = QObject::tr("Selects faces for which a boolean expression evaluates true.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Boolean function using muparser to perform face selection on the current mesh.\n")
-            + parserOperatorsReferenceMarkdown()
-            + perFaceVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("selection"), QStringLiteral("muparser"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor p;
-        p.id = QStringLiteral("condSelect");
-        p.label = QObject::tr("Boolean Function");
-        p.helpMarkdown = QObject::tr("Boolean expression evaluated per face.");
-        p.group = QStringLiteral("main");
-        p.type = MeshFilterParameterType::String;
-        p.defaultValue = QStringLiteral("(fi == 0)");
-        d.parameters.push_back(std::move(p));
-        add(std::move(d));
-    }
-
-    auto addXYZParams = [](MeshFilterDescriptor &d, const QString &dx, const QString &dy, const QString &dz) {
-        MeshFilterParameterDescriptor px;
-        px.id = QStringLiteral("x");
-        px.label = QObject::tr("X Function");
-        px.helpMarkdown = QObject::tr("Expression for X output.");
-        px.group = QStringLiteral("main");
-        px.type = MeshFilterParameterType::String;
-        px.defaultValue = dx;
-        d.parameters.push_back(std::move(px));
-
-        MeshFilterParameterDescriptor py;
-        py.id = QStringLiteral("y");
-        py.label = QObject::tr("Y Function");
-        py.helpMarkdown = QObject::tr("Expression for Y output.");
-        py.group = QStringLiteral("main");
-        py.type = MeshFilterParameterType::String;
-        py.defaultValue = dy;
-        d.parameters.push_back(std::move(py));
-
-        MeshFilterParameterDescriptor pz;
-        pz.id = QStringLiteral("z");
-        pz.label = QObject::tr("Z Function");
-        pz.helpMarkdown = QObject::tr("Expression for Z output.");
-        pz.group = QStringLiteral("main");
-        pz.type = MeshFilterParameterType::String;
-        pz.defaultValue = dz;
-        d.parameters.push_back(std::move(pz));
-    };
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterGeomFunc);
-        d.menuPath = QObject::tr("Compute/Geometry");
-        d.name = QObject::tr("Per Vertex Geometric Function");
-        d.shortDescription = QObject::tr("Computes new per-vertex coordinates from expressions.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Geometric function using muparser to generate new coordinates. "
-                        "You can change `x,y,z` for every vertex according to the specified expressions.\n")
-            + perVertexVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("geometry"), QStringLiteral("muparser"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addXYZParams(d, QStringLiteral("x"), QStringLiteral("y"), QStringLiteral("sin(x+y)"));
-        addOnSelected(d, QObject::tr("Only On Selection"));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterVertNormal);
-        d.menuPath = QObject::tr("Compute/Normals");
-        d.name = QObject::tr("Per Vertex Normal Function");
-        d.shortDescription = QObject::tr("Computes new per-vertex normals from expressions.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Normal function using muparser to generate a new normal for each vertex.\n")
-            + perVertexVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("normal"), QStringLiteral("muparser"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addXYZParams(d, QStringLiteral("-nx"), QStringLiteral("-ny"), QStringLiteral("-nz"));
-        addOnSelected(d, QObject::tr("Only On Selection"));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterFaceNormal);
-        d.menuPath = QObject::tr("Compute/Normals");
-        d.name = QObject::tr("Per Face Normal Function");
-        d.shortDescription = QObject::tr("Computes new per-face normals from expressions.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Normal function using muparser to generate a new normal for each face.\n")
-            + perFaceVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("normal"), QStringLiteral("muparser"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addXYZParams(d, QStringLiteral("-fnx"), QStringLiteral("-fny"), QStringLiteral("-fnz"));
-        addOnSelected(d, QObject::tr("Only On Selection"));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterVertColor);
-        d.menuPath = QObject::tr("Compute/Color");
-        d.name = QObject::tr("Per Vertex Color Function");
-        d.shortDescription = QObject::tr("Computes per-vertex RGBA colors from expressions.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Color function using muparser to generate new RGBA values for each vertex. "
-                        "Red, green, blue and alpha channels are defined by expressions.\n")
-            + perVertexVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("color"), QStringLiteral("muparser"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addXYZParams(d, QStringLiteral("255"), QStringLiteral("255"), QStringLiteral("0"));
-        MeshFilterParameterDescriptor pa;
-        pa.id = QStringLiteral("a");
-        pa.label = QObject::tr("Alpha Function");
-        pa.helpMarkdown = QObject::tr("Expression for alpha output in range [0, 255].");
-        pa.group = QStringLiteral("main");
-        pa.type = MeshFilterParameterType::String;
-        pa.defaultValue = QStringLiteral("255");
-        d.parameters.push_back(std::move(pa));
-        addOnSelected(d, QObject::tr("Only On Selection"));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterFaceColor);
-        d.menuPath = QObject::tr("Compute/Color");
-        d.name = QObject::tr("Per Face Color Function");
-        d.shortDescription = QObject::tr("Computes per-face RGBA colors from expressions.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Color function using muparser to generate new RGBA values for each face. "
-                        "Red, green, blue and alpha channels are defined by expressions.\n")
-            + perFaceVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("color"), QStringLiteral("muparser"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pr;
-        pr.id = QStringLiteral("r");
-        pr.label = QObject::tr("Red Function");
-        pr.helpMarkdown = QObject::tr("Expression for red output in range [0, 255].");
-        pr.group = QStringLiteral("main");
-        pr.type = MeshFilterParameterType::String;
-        pr.defaultValue = QStringLiteral("255");
-        d.parameters.push_back(std::move(pr));
-        MeshFilterParameterDescriptor pg;
-        pg.id = QStringLiteral("g");
-        pg.label = QObject::tr("Green Function");
-        pg.helpMarkdown = QObject::tr("Expression for green output in range [0, 255].");
-        pg.group = QStringLiteral("main");
-        pg.type = MeshFilterParameterType::String;
-        pg.defaultValue = QStringLiteral("0");
-        d.parameters.push_back(std::move(pg));
-        MeshFilterParameterDescriptor pb;
-        pb.id = QStringLiteral("b");
-        pb.label = QObject::tr("Blue Function");
-        pb.helpMarkdown = QObject::tr("Expression for blue output in range [0, 255].");
-        pb.group = QStringLiteral("main");
-        pb.type = MeshFilterParameterType::String;
-        pb.defaultValue = QStringLiteral("255");
-        d.parameters.push_back(std::move(pb));
-        MeshFilterParameterDescriptor pa;
-        pa.id = QStringLiteral("a");
-        pa.label = QObject::tr("Alpha Function");
-        pa.helpMarkdown = QObject::tr("Expression for alpha output in range [0, 255].");
-        pa.group = QStringLiteral("main");
-        pa.type = MeshFilterParameterType::String;
-        pa.defaultValue = QStringLiteral("255");
-        d.parameters.push_back(std::move(pa));
-        addOnSelected(d, QObject::tr("Only On Selection"));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterVertQuality);
-        d.menuPath = QObject::tr("Compute/Quality");
-        d.name = QObject::tr("Per Vertex Quality Function");
-        d.shortDescription = QObject::tr("Computes per-vertex scalar quality from an expression.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Quality function using muparser to compute a new scalar quality for each vertex.\n")
-            + perVertexVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("quality"), QStringLiteral("muparser"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pq;
-        pq.id = QStringLiteral("q");
-        pq.label = QObject::tr("Quality Function");
-        pq.helpMarkdown = QObject::tr("Expression for quality output.");
-        pq.group = QStringLiteral("main");
-        pq.type = MeshFilterParameterType::String;
-        pq.defaultValue = QStringLiteral("vi");
-        d.parameters.push_back(std::move(pq));
-
-        MeshFilterParameterDescriptor pnorm;
-        pnorm.id = QStringLiteral("normalize");
-        pnorm.label = QObject::tr("Normalize");
-        pnorm.helpMarkdown = QObject::tr("Normalize computed quality into range [0, 1].");
-        pnorm.group = QStringLiteral("main");
-        pnorm.type = MeshFilterParameterType::Bool;
-        pnorm.defaultValue = false;
-        d.parameters.push_back(std::move(pnorm));
-
-        MeshFilterParameterDescriptor pmap;
-        pmap.id = QStringLiteral("map");
-        pmap.label = QObject::tr("Map To Color");
-        pmap.helpMarkdown = QObject::tr("Maps computed quality into per-vertex color.");
-        pmap.group = QStringLiteral("main");
-        pmap.type = MeshFilterParameterType::Bool;
-        pmap.defaultValue = false;
-        d.parameters.push_back(std::move(pmap));
-
-        addOnSelected(d, QObject::tr("Only On Selection"));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterFaceQuality);
-        d.menuPath = QObject::tr("Compute/Quality");
-        d.name = QObject::tr("Per Face Quality Function");
-        d.shortDescription = QObject::tr("Computes per-face scalar quality from an expression.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Quality function using muparser to compute a new scalar quality for each face.\n")
-            + perFaceVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("quality"), QStringLiteral("muparser"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pq;
-        pq.id = QStringLiteral("q");
-        pq.label = QObject::tr("Quality Function");
-        pq.helpMarkdown = QObject::tr("Expression for quality output.");
-        pq.group = QStringLiteral("main");
-        pq.type = MeshFilterParameterType::String;
-        pq.defaultValue = QStringLiteral("x0+y0+z0");
-        d.parameters.push_back(std::move(pq));
-
-        MeshFilterParameterDescriptor pnorm;
-        pnorm.id = QStringLiteral("normalize");
-        pnorm.label = QObject::tr("Normalize");
-        pnorm.helpMarkdown = QObject::tr("Normalize computed quality into range [0, 1].");
-        pnorm.group = QStringLiteral("main");
-        pnorm.type = MeshFilterParameterType::Bool;
-        pnorm.defaultValue = false;
-        d.parameters.push_back(std::move(pnorm));
-
-        MeshFilterParameterDescriptor pmap;
-        pmap.id = QStringLiteral("map");
-        pmap.label = QObject::tr("Map To Color");
-        pmap.helpMarkdown = QObject::tr("Maps computed quality into per-face color.");
-        pmap.group = QStringLiteral("main");
-        pmap.type = MeshFilterParameterType::Bool;
-        pmap.defaultValue = false;
-        d.parameters.push_back(std::move(pmap));
-
-        addOnSelected(d, QObject::tr("Only On Selection"));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterVertTex);
-        d.menuPath = QObject::tr("Compute/Texture");
-        d.name = QObject::tr("Per Vertex Texture Function");
-        d.shortDescription = QObject::tr("Computes per-vertex texture coordinates from expressions.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Texture function using muparser to generate new per-vertex texture coordinates.\n")
-            + perVertexVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("texture"), QStringLiteral("muparser"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pu;
-        pu.id = QStringLiteral("u");
-        pu.label = QObject::tr("U Function");
-        pu.helpMarkdown = QObject::tr("Expression for U texture coordinate.");
-        pu.group = QStringLiteral("main");
-        pu.type = MeshFilterParameterType::String;
-        pu.defaultValue = QStringLiteral("x");
-        d.parameters.push_back(std::move(pu));
-        MeshFilterParameterDescriptor pv;
-        pv.id = QStringLiteral("v");
-        pv.label = QObject::tr("V Function");
-        pv.helpMarkdown = QObject::tr("Expression for V texture coordinate.");
-        pv.group = QStringLiteral("main");
-        pv.type = MeshFilterParameterType::String;
-        pv.defaultValue = QStringLiteral("y");
-        d.parameters.push_back(std::move(pv));
-        addOnSelected(d, QObject::tr("Only On Selection"));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterWedgeTex);
-        d.menuPath = QObject::tr("Compute/Texture");
-        d.name = QObject::tr("Per Wedge Texture Function");
-        d.shortDescription = QObject::tr("Computes per-wedge texture coordinates from expressions.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Texture function using muparser to generate new per-wedge texture coordinates for each face. "
-                        "You can define six expressions (`u0,v0,u1,v1,u2,v2`).\n")
-            + perFaceVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("texture"), QStringLiteral("muparser"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        auto addFunc = [&](const char *id, const QString &label, const QString &defValue) {
-            MeshFilterParameterDescriptor p;
-            p.id = QString::fromLatin1(id);
-            p.label = label;
-            p.helpMarkdown = QObject::tr("Expression for wedge texture coordinate.");
-            p.group = QStringLiteral("main");
-            p.type = MeshFilterParameterType::String;
-            p.defaultValue = defValue;
-            d.parameters.push_back(std::move(p));
-        };
-        addFunc("u0", QObject::tr("U0 Function"), QStringLiteral("x0"));
-        addFunc("v0", QObject::tr("V0 Function"), QStringLiteral("y0"));
-        addFunc("u1", QObject::tr("U1 Function"), QStringLiteral("x1"));
-        addFunc("v1", QObject::tr("V1 Function"), QStringLiteral("y1"));
-        addFunc("u2", QObject::tr("U2 Function"), QStringLiteral("x2"));
-        addFunc("v2", QObject::tr("V2 Function"), QStringLiteral("y2"));
-        addOnSelected(d, QObject::tr("Only On Selection"));
-        add(std::move(d));
-    }
-
-    auto addCustomAttributeParams = [](MeshFilterDescriptor &d, bool point, bool face) {
-        MeshFilterParameterDescriptor pname;
-        pname.id = QStringLiteral("name");
-        pname.label = QObject::tr("Attribute Name");
-        pname.helpMarkdown = QObject::tr("Name of the new custom attribute.");
-        pname.group = QStringLiteral("main");
-        pname.type = MeshFilterParameterType::String;
-        pname.defaultValue = QStringLiteral("CustomAttrName");
-        d.parameters.push_back(std::move(pname));
-
-        if (!point) {
-            MeshFilterParameterDescriptor pexpr;
-            pexpr.id = QStringLiteral("expr");
-            pexpr.label = QObject::tr("Scalar Function");
-            pexpr.helpMarkdown = QObject::tr("Expression used to compute the scalar attribute.");
-            pexpr.group = QStringLiteral("main");
-            pexpr.type = MeshFilterParameterType::String;
-            pexpr.defaultValue = face ? QStringLiteral("fi") : QStringLiteral("x");
-            d.parameters.push_back(std::move(pexpr));
-            return;
-        }
-
-        MeshFilterParameterDescriptor px;
-        px.id = QStringLiteral("x_expr");
-        px.label = QObject::tr("X Function");
-        px.helpMarkdown = QObject::tr("Expression for X component.");
-        px.group = QStringLiteral("main");
-        px.type = MeshFilterParameterType::String;
-        px.defaultValue = face ? QStringLiteral("x0") : QStringLiteral("x");
-        d.parameters.push_back(std::move(px));
-
-        MeshFilterParameterDescriptor py;
-        py.id = QStringLiteral("y_expr");
-        py.label = QObject::tr("Y Function");
-        py.helpMarkdown = QObject::tr("Expression for Y component.");
-        py.group = QStringLiteral("main");
-        py.type = MeshFilterParameterType::String;
-        py.defaultValue = face ? QStringLiteral("y0") : QStringLiteral("y");
-        d.parameters.push_back(std::move(py));
-
-        MeshFilterParameterDescriptor pz;
-        pz.id = QStringLiteral("z_expr");
-        pz.label = QObject::tr("Z Function");
-        pz.helpMarkdown = QObject::tr("Expression for Z component.");
-        pz.group = QStringLiteral("main");
-        pz.type = MeshFilterParameterType::String;
-        pz.defaultValue = face ? QStringLiteral("z0") : QStringLiteral("z");
-        d.parameters.push_back(std::move(pz));
-    };
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterDefVertScalar);
-        d.menuPath = QObject::tr("Compute/Attributes");
-        d.name = QObject::tr("Define New Per Vertex Custom Scalar Attribute");
-        d.shortDescription = QObject::tr("Defines and fills a custom per-vertex scalar attribute.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Adds a new per-vertex custom scalar attribute and fills it with the specified expression. "
-                        "Attribute names must contain only letters, numbers and underscores. "
-                        "The chosen name can be used in other function filters.\n")
-            + perVertexVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("attribute"), QStringLiteral("vertex"), QStringLiteral("muparser") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addCustomAttributeParams(d, false, false);
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterDefFaceScalar);
-        d.menuPath = QObject::tr("Compute/Attributes");
-        d.name = QObject::tr("Define New Per Face Custom Scalar Attribute");
-        d.shortDescription = QObject::tr("Defines and fills a custom per-face scalar attribute.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Adds a new per-face custom scalar attribute and fills it with the specified expression. "
-                        "Attribute names must contain only letters, numbers and underscores. "
-                        "The chosen name can be used in other function filters.\n")
-            + perFaceVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("attribute"), QStringLiteral("face"), QStringLiteral("muparser") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addCustomAttributeParams(d, false, true);
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterDefVertPoint);
-        d.menuPath = QObject::tr("Compute/Attributes");
-        d.name = QObject::tr("Define New Per Vertex Custom Point Attribute");
-        d.shortDescription = QObject::tr("Defines and fills a custom per-vertex point attribute.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Adds a new per-vertex custom point attribute and fills it with the specified expressions. "
-                        "Attribute names must contain only letters, numbers and underscores. "
-                        "The chosen name can be used in other function filters.\n")
-            + perVertexVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("attribute"), QStringLiteral("vertex"), QStringLiteral("muparser") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addCustomAttributeParams(d, true, false);
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterDefFacePoint);
-        d.menuPath = QObject::tr("Compute/Attributes");
-        d.name = QObject::tr("Define New Per Face Custom Point Attribute");
-        d.shortDescription = QObject::tr("Defines and fills a custom per-face point attribute.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Adds a new per-face custom point attribute and fills it with the specified expressions. "
-                        "Attribute names must contain only letters, numbers and underscores. "
-                        "The chosen name can be used in other function filters.\n")
-            + perFaceVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("attribute"), QStringLiteral("face"), QStringLiteral("muparser") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addCustomAttributeParams(d, true, true);
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterGrid);
-        d.menuPath = QObject::tr("Create");
-        d.name = QObject::tr("Grid Generator");
-        d.shortDescription = QObject::tr("Generates a regular 2D grid mesh.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Generates a new 2D grid mesh with user-defined vertex counts on X and Y, "
-                        "absolute size on both axes, and optional centering on origin.");
-        d.tags = { QStringLiteral("create"), QStringLiteral("grid"), QStringLiteral("mesh") };
-        d.inputDomain = MeshFilterInputDomain::None;
-        d.outputDomain = MeshFilterOutputDomain::NewMeshes;
-
-        MeshFilterParameterDescriptor px;
-        px.id = QStringLiteral("numVertX");
-        px.label = QObject::tr("Vertices X");
-        px.helpMarkdown = QObject::tr("Number of vertices along X.");
-        px.group = QStringLiteral("main");
-        px.type = MeshFilterParameterType::Int;
-        px.defaultValue = 10;
-        px.minValue = 2;
-        px.maxValue = 100000;
-        d.parameters.push_back(std::move(px));
-
-        MeshFilterParameterDescriptor py;
-        py.id = QStringLiteral("numVertY");
-        py.label = QObject::tr("Vertices Y");
-        py.helpMarkdown = QObject::tr("Number of vertices along Y.");
-        py.group = QStringLiteral("main");
-        py.type = MeshFilterParameterType::Int;
-        py.defaultValue = 10;
-        py.minValue = 2;
-        py.maxValue = 100000;
-        d.parameters.push_back(std::move(py));
-
-        MeshFilterParameterDescriptor sx;
-        sx.id = QStringLiteral("absScaleX");
-        sx.label = QObject::tr("Scale X");
-        sx.helpMarkdown = QObject::tr("Absolute scale along X.");
-        sx.group = QStringLiteral("main");
-        sx.type = MeshFilterParameterType::Double;
-        sx.defaultValue = 0.3;
-        sx.minValue = 1e-9;
-        sx.maxValue = 1e9;
-        sx.decimals = 6;
-        d.parameters.push_back(std::move(sx));
-
-        MeshFilterParameterDescriptor sy;
-        sy.id = QStringLiteral("absScaleY");
-        sy.label = QObject::tr("Scale Y");
-        sy.helpMarkdown = QObject::tr("Absolute scale along Y.");
-        sy.group = QStringLiteral("main");
-        sy.type = MeshFilterParameterType::Double;
-        sy.defaultValue = 0.3;
-        sy.minValue = 1e-9;
-        sy.maxValue = 1e9;
-        sy.decimals = 6;
-        d.parameters.push_back(std::move(sy));
-
-        MeshFilterParameterDescriptor center;
-        center.id = QStringLiteral("center");
-        center.label = QObject::tr("Center On Origin");
-        center.helpMarkdown = QObject::tr("Centers the generated grid on origin.");
-        center.group = QStringLiteral("main");
-        center.type = MeshFilterParameterType::Bool;
-        center.defaultValue = false;
-        d.parameters.push_back(std::move(center));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterIso);
-        d.menuPath = QObject::tr("Create");
-        d.name = QObject::tr("Implicit Surface");
-        d.shortDescription = QObject::tr("Extracts an isosurface from an implicit scalar field.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Generates a new mesh corresponding to the `0` isovalue of a scalar field "
-                        "sampled from the given expression inside the specified 3D range.");
-        d.tags = { QStringLiteral("create"), QStringLiteral("isosurface"), QStringLiteral("marching cubes") };
-        d.inputDomain = MeshFilterInputDomain::None;
-        d.outputDomain = MeshFilterOutputDomain::NewMeshes;
-
-        auto addRange = [&](const char *id, const QString &label, double defVal) {
-            MeshFilterParameterDescriptor p;
-            p.id = QString::fromLatin1(id);
-            p.label = label;
-            p.helpMarkdown = QObject::tr("Sampling range parameter.");
-            p.group = QStringLiteral("main");
-            p.type = MeshFilterParameterType::Double;
-            p.defaultValue = defVal;
-            p.minValue = -1e9;
-            p.maxValue = 1e9;
-            p.decimals = 6;
-            d.parameters.push_back(std::move(p));
-        };
-
-        MeshFilterParameterDescriptor voxel;
-        voxel.id = QStringLiteral("voxelSize");
-        voxel.label = QObject::tr("Voxel Size");
-        voxel.helpMarkdown = QObject::tr("Sampling step used for volumetric evaluation.");
-        voxel.group = QStringLiteral("main");
-        voxel.type = MeshFilterParameterType::Double;
-        voxel.defaultValue = 0.05;
-        voxel.minValue = 1e-6;
-        voxel.maxValue = 1e3;
-        voxel.decimals = 6;
-        d.parameters.push_back(std::move(voxel));
-
-        addRange("minX", QObject::tr("Min X"), -1.0);
-        addRange("minY", QObject::tr("Min Y"), -1.0);
-        addRange("minZ", QObject::tr("Min Z"), -1.0);
-        addRange("maxX", QObject::tr("Max X"), 1.0);
-        addRange("maxY", QObject::tr("Max Y"), 1.0);
-        addRange("maxZ", QObject::tr("Max Z"), 1.0);
-
-        MeshFilterParameterDescriptor expr;
-        expr.id = QStringLiteral("expr");
-        expr.label = QObject::tr("Field Function");
-        expr.helpMarkdown = QObject::tr("Scalar field expression f(x,y,z). The 0-isovalue is extracted.");
-        expr.group = QStringLiteral("main");
-        expr.type = MeshFilterParameterType::String;
-        expr.defaultValue = QStringLiteral("x*x+y*y+z*z-0.5");
-        d.parameters.push_back(std::move(expr));
-        add(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRefine);
-        d.menuPath = QObject::tr("Remeshing");
-        d.name = QObject::tr("Refine User-Defined");
-        d.shortDescription = QObject::tr("Refines edges selected by an expression and places split points by expressions.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Refines the current mesh with user-defined expressions.\n"
-                        "A boolean predicate selects edges to split, and three expressions define the "
-                        "position of each inserted vertex.\n")
-            + parserOperatorsReferenceMarkdown()
-            + edgeRefineVariablesReferenceMarkdown();
-        d.tags = { QStringLiteral("refine"), QStringLiteral("remeshing"), QStringLiteral("muparser") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor cond;
-        cond.id = QStringLiteral("condSelect");
-        cond.label = QObject::tr("Edge Predicate");
-        cond.helpMarkdown = QObject::tr("Boolean expression used to decide whether an edge is refined.");
-        cond.group = QStringLiteral("main");
-        cond.type = MeshFilterParameterType::String;
-        cond.defaultValue = QStringLiteral("(q0 >= 0 && q1 >= 0)");
-        d.parameters.push_back(std::move(cond));
-        addXYZParams(d, QStringLiteral("(x0+x1)/2"), QStringLiteral("(y0+y1)/2"), QStringLiteral("(z0+z1)/2"));
-        add(std::move(d));
-    }
-
-    return out;
-}
 }
 
 QString FuncFilterPlugin::pluginId() const
@@ -1447,14 +731,9 @@ QString FuncFilterPlugin::name() const
     return QObject::tr("QMeshLab Function Filters");
 }
 
-std::vector<MeshFilterDescriptor> FuncFilterPlugin::filters(const Document &doc) const
-{
-    return buildDescriptors(doc);
-}
-
 MeshFilterRunResult FuncFilterPlugin::runFilter(
     const QString &filterId,
-    const MeshFilterParameterValues &parameters,
+    const FilterParams &params,
     Document &doc) const
 {
     using Mask = vcg::tri::io::Mask;
@@ -1467,11 +746,11 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     };
 
     if (filterId == QString::fromLatin1(kFilterGrid)) {
-        const int w = intParameter(parameters, QStringLiteral("numVertX"), 10);
-        const int h = intParameter(parameters, QStringLiteral("numVertY"), 10);
-        const double sx = doubleParameter(parameters, QStringLiteral("absScaleX"), 0.3);
-        const double sy = doubleParameter(parameters, QStringLiteral("absScaleY"), 0.3);
-        const bool center = boolParameter(parameters, QStringLiteral("center"), false);
+        const int w = params.getInt(QStringLiteral("numVertX"));
+        const int h = params.getInt(QStringLiteral("numVertY"));
+        const double sx = params.getDouble(QStringLiteral("absScaleX"));
+        const double sy = params.getDouble(QStringLiteral("absScaleY"));
+        const bool center = params.getBool(QStringLiteral("center"));
         if (w <= 1 || h <= 1)
             return fail(QObject::tr("Grid vertex counts must be greater than 1."));
         if (!std::isfinite(sx) || !std::isfinite(sy) || sx <= 0.0 || sy <= 0.0)
@@ -1516,14 +795,14 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterIso)) {
-        const double voxelSize = doubleParameter(parameters, QStringLiteral("voxelSize"), 0.05);
-        const double minX = doubleParameter(parameters, QStringLiteral("minX"), -1.0);
-        const double minY = doubleParameter(parameters, QStringLiteral("minY"), -1.0);
-        const double minZ = doubleParameter(parameters, QStringLiteral("minZ"), -1.0);
-        const double maxX = doubleParameter(parameters, QStringLiteral("maxX"), 1.0);
-        const double maxY = doubleParameter(parameters, QStringLiteral("maxY"), 1.0);
-        const double maxZ = doubleParameter(parameters, QStringLiteral("maxZ"), 1.0);
-        const QString expression = stringParameter(parameters, QStringLiteral("expr"), QStringLiteral("x*x+y*y+z*z-0.5"));
+        const double voxelSize = params.getDouble(QStringLiteral("voxelSize"));
+        const double minX = params.getDouble(QStringLiteral("minX"));
+        const double minY = params.getDouble(QStringLiteral("minY"));
+        const double minZ = params.getDouble(QStringLiteral("minZ"));
+        const double maxX = params.getDouble(QStringLiteral("maxX"));
+        const double maxY = params.getDouble(QStringLiteral("maxY"));
+        const double maxZ = params.getDouble(QStringLiteral("maxZ"));
+        const QString expression = params.getString(QStringLiteral("expr"));
         if (!std::isfinite(voxelSize) || voxelSize <= 0.0)
             return fail(QObject::tr("Voxel size must be finite and greater than zero."));
         if (!(minX < maxX && minY < maxY && minZ < maxZ))
@@ -1619,7 +898,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     setBBoxRuntime(runtime, mesh);
 
     if (filterId == QString::fromLatin1(kFilterVertSelection)) {
-        const QString expr = stringParameter(parameters, QStringLiteral("condSelect"), QStringLiteral("(q < 0)"));
+        const QString expr = params.getString(QStringLiteral("condSelect"));
         mu::Parser parser;
         setPerVertexVariables(parser, runtime, mesh);
         try {
@@ -1668,7 +947,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceSelection)) {
-        const QString expr = stringParameter(parameters, QStringLiteral("condSelect"), QStringLiteral("(fi == 0)"));
+        const QString expr = params.getString(QStringLiteral("condSelect"));
         mu::Parser parser;
         setPerFaceVariables(parser, runtime, mesh);
         try {
@@ -1719,11 +998,11 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterGeomFunc)
         || filterId == QString::fromLatin1(kFilterVertColor)
         || filterId == QString::fromLatin1(kFilterVertNormal)) {
-        const QString exprX = stringParameter(parameters, QStringLiteral("x"), QStringLiteral("x"));
-        const QString exprY = stringParameter(parameters, QStringLiteral("y"), QStringLiteral("y"));
-        const QString exprZ = stringParameter(parameters, QStringLiteral("z"), QStringLiteral("z"));
-        const QString exprA = stringParameter(parameters, QStringLiteral("a"), QStringLiteral("255"));
-        const bool onSelected = boolParameter(parameters, QStringLiteral("onselected"), false);
+        const QString exprX = params.getString(QStringLiteral("x"));
+        const QString exprY = params.getString(QStringLiteral("y"));
+        const QString exprZ = params.getString(QStringLiteral("z"));
+        const QString exprA = params.getString(QStringLiteral("a"));
+        const bool onSelected = params.getBool(QStringLiteral("onselected"));
         if (onSelected && !ensureVertexSelectionReady(mesh, meshError))
             return fail(meshError);
 
@@ -1801,10 +1080,10 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterVertQuality)) {
-        const QString exprQ = stringParameter(parameters, QStringLiteral("q"), QStringLiteral("vi"));
-        const bool normalize = boolParameter(parameters, QStringLiteral("normalize"), false);
-        const bool mapToColor = boolParameter(parameters, QStringLiteral("map"), false);
-        const bool onSelected = boolParameter(parameters, QStringLiteral("onselected"), false);
+        const QString exprQ = params.getString(QStringLiteral("q"));
+        const bool normalize = params.getBool(QStringLiteral("normalize"));
+        const bool mapToColor = params.getBool(QStringLiteral("map"));
+        const bool onSelected = params.getBool(QStringLiteral("onselected"));
         if (onSelected && !ensureVertexSelectionReady(mesh, meshError))
             return fail(meshError);
 
@@ -1849,9 +1128,9 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterVertTex)) {
-        const QString exprU = stringParameter(parameters, QStringLiteral("u"), QStringLiteral("x"));
-        const QString exprV = stringParameter(parameters, QStringLiteral("v"), QStringLiteral("y"));
-        const bool onSelected = boolParameter(parameters, QStringLiteral("onselected"), false);
+        const QString exprU = params.getString(QStringLiteral("u"));
+        const QString exprV = params.getString(QStringLiteral("v"));
+        const bool onSelected = params.getBool(QStringLiteral("onselected"));
         if (onSelected && !ensureVertexSelectionReady(mesh, meshError))
             return fail(meshError);
 
@@ -1894,13 +1173,13 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterWedgeTex)) {
-        const QString exprU0 = stringParameter(parameters, QStringLiteral("u0"), QStringLiteral("x0"));
-        const QString exprV0 = stringParameter(parameters, QStringLiteral("v0"), QStringLiteral("y0"));
-        const QString exprU1 = stringParameter(parameters, QStringLiteral("u1"), QStringLiteral("x1"));
-        const QString exprV1 = stringParameter(parameters, QStringLiteral("v1"), QStringLiteral("y1"));
-        const QString exprU2 = stringParameter(parameters, QStringLiteral("u2"), QStringLiteral("x2"));
-        const QString exprV2 = stringParameter(parameters, QStringLiteral("v2"), QStringLiteral("y2"));
-        const bool onSelected = boolParameter(parameters, QStringLiteral("onselected"), false);
+        const QString exprU0 = params.getString(QStringLiteral("u0"));
+        const QString exprV0 = params.getString(QStringLiteral("v0"));
+        const QString exprU1 = params.getString(QStringLiteral("u1"));
+        const QString exprV1 = params.getString(QStringLiteral("v1"));
+        const QString exprU2 = params.getString(QStringLiteral("u2"));
+        const QString exprV2 = params.getString(QStringLiteral("v2"));
+        const bool onSelected = params.getBool(QStringLiteral("onselected"));
         if (onSelected && !ensureFaceSelectionReady(mesh, meshError))
             return fail(meshError);
 
@@ -1959,10 +1238,10 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceNormal)) {
-        const QString exprX = stringParameter(parameters, QStringLiteral("x"), QStringLiteral("-fnx"));
-        const QString exprY = stringParameter(parameters, QStringLiteral("y"), QStringLiteral("-fny"));
-        const QString exprZ = stringParameter(parameters, QStringLiteral("z"), QStringLiteral("-fnz"));
-        const bool onSelected = boolParameter(parameters, QStringLiteral("onselected"), false);
+        const QString exprX = params.getString(QStringLiteral("x"));
+        const QString exprY = params.getString(QStringLiteral("y"));
+        const QString exprZ = params.getString(QStringLiteral("z"));
+        const bool onSelected = params.getBool(QStringLiteral("onselected"));
         if (onSelected && !ensureFaceSelectionReady(mesh, meshError))
             return fail(meshError);
 
@@ -2007,11 +1286,11 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceColor)) {
-        const QString exprR = stringParameter(parameters, QStringLiteral("r"), QStringLiteral("255"));
-        const QString exprG = stringParameter(parameters, QStringLiteral("g"), QStringLiteral("0"));
-        const QString exprB = stringParameter(parameters, QStringLiteral("b"), QStringLiteral("255"));
-        const QString exprA = stringParameter(parameters, QStringLiteral("a"), QStringLiteral("255"));
-        const bool onSelected = boolParameter(parameters, QStringLiteral("onselected"), false);
+        const QString exprR = params.getString(QStringLiteral("r"));
+        const QString exprG = params.getString(QStringLiteral("g"));
+        const QString exprB = params.getString(QStringLiteral("b"));
+        const QString exprA = params.getString(QStringLiteral("a"));
+        const bool onSelected = params.getBool(QStringLiteral("onselected"));
         if (onSelected && !ensureFaceSelectionReady(mesh, meshError))
             return fail(meshError);
 
@@ -2063,10 +1342,10 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceQuality)) {
-        const QString exprQ = stringParameter(parameters, QStringLiteral("q"), QStringLiteral("x0+y0+z0"));
-        const bool normalize = boolParameter(parameters, QStringLiteral("normalize"), false);
-        const bool mapToColor = boolParameter(parameters, QStringLiteral("map"), false);
-        const bool onSelected = boolParameter(parameters, QStringLiteral("onselected"), false);
+        const QString exprQ = params.getString(QStringLiteral("q"));
+        const bool normalize = params.getBool(QStringLiteral("normalize"));
+        const bool mapToColor = params.getBool(QStringLiteral("map"));
+        const bool onSelected = params.getBool(QStringLiteral("onselected"));
         if (onSelected && !ensureFaceSelectionReady(mesh, meshError))
             return fail(meshError);
 
@@ -2111,8 +1390,8 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterDefVertScalar)) {
-        const QString name = stringParameter(parameters, QStringLiteral("name"), QStringLiteral("CustomAttrName")).trimmed();
-        const QString expr = stringParameter(parameters, QStringLiteral("expr"), QStringLiteral("x"));
+        const QString name = params.getString(QStringLiteral("name")).trimmed();
+        const QString expr = params.getString(QStringLiteral("expr"));
         if (!checkCustomAttributeName(name, meshError))
             return fail(meshError);
 
@@ -2159,8 +1438,8 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterDefFaceScalar)) {
-        const QString name = stringParameter(parameters, QStringLiteral("name"), QStringLiteral("CustomAttrName")).trimmed();
-        const QString expr = stringParameter(parameters, QStringLiteral("expr"), QStringLiteral("fi"));
+        const QString name = params.getString(QStringLiteral("name")).trimmed();
+        const QString expr = params.getString(QStringLiteral("expr"));
         if (!checkCustomAttributeName(name, meshError))
             return fail(meshError);
 
@@ -2207,10 +1486,10 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterDefVertPoint)) {
-        const QString name = stringParameter(parameters, QStringLiteral("name"), QStringLiteral("CustomAttrName")).trimmed();
-        const QString exprX = stringParameter(parameters, QStringLiteral("x_expr"), QStringLiteral("x"));
-        const QString exprY = stringParameter(parameters, QStringLiteral("y_expr"), QStringLiteral("y"));
-        const QString exprZ = stringParameter(parameters, QStringLiteral("z_expr"), QStringLiteral("z"));
+        const QString name = params.getString(QStringLiteral("name")).trimmed();
+        const QString exprX = params.getString(QStringLiteral("x_expr"));
+        const QString exprY = params.getString(QStringLiteral("y_expr"));
+        const QString exprZ = params.getString(QStringLiteral("z_expr"));
         if (!checkCustomAttributeName(name, meshError))
             return fail(meshError);
 
@@ -2263,10 +1542,10 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterDefFacePoint)) {
-        const QString name = stringParameter(parameters, QStringLiteral("name"), QStringLiteral("CustomAttrName")).trimmed();
-        const QString exprX = stringParameter(parameters, QStringLiteral("x_expr"), QStringLiteral("x0"));
-        const QString exprY = stringParameter(parameters, QStringLiteral("y_expr"), QStringLiteral("y0"));
-        const QString exprZ = stringParameter(parameters, QStringLiteral("z_expr"), QStringLiteral("z0"));
+        const QString name = params.getString(QStringLiteral("name")).trimmed();
+        const QString exprX = params.getString(QStringLiteral("x_expr"));
+        const QString exprY = params.getString(QStringLiteral("y_expr"));
+        const QString exprZ = params.getString(QStringLiteral("z_expr"));
         if (!checkCustomAttributeName(name, meshError))
             return fail(meshError);
 
@@ -2320,14 +1599,14 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterRefine)) {
         const std::string condSelect =
-            stringParameter(parameters, QStringLiteral("condSelect"), QStringLiteral("(q0 >= 0 && q1 >= 0)"))
+            params.getString(QStringLiteral("condSelect"))
                 .toStdString();
         const std::string exprX =
-            stringParameter(parameters, QStringLiteral("x"), QStringLiteral("(x0+x1)/2")).toStdString();
+            params.getString(QStringLiteral("x")).toStdString();
         const std::string exprY =
-            stringParameter(parameters, QStringLiteral("y"), QStringLiteral("(y0+y1)/2")).toStdString();
+            params.getString(QStringLiteral("y")).toStdString();
         const std::string exprZ =
-            stringParameter(parameters, QStringLiteral("z"), QStringLiteral("(z0+z1)/2")).toStdString();
+            params.getString(QStringLiteral("z")).toStdString();
 
         bool midpointError = false;
         bool edgeError = false;

@@ -21,3 +21,8 @@ target_link_libraries(QMeshLabPluginFilterSelect
         QMeshLabCore
         Qt6::Core
 )
+
+qt_add_resources(QMeshLabPluginFilterSelect "filter_select_descriptors"
+    PREFIX "/filters/qmeshlab.filter.select"
+    FILES filters.json
+)

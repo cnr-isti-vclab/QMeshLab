@@ -1,0 +1,640 @@
+{
+  "pluginId": "qmeshlab.filter.meshing",
+  "filters": [
+    {
+      "id": "meshing_surface_subdivision_loop",
+      "menuPath": "Meshing",
+      "name": "Subdivision Surfaces: Loop",
+      "shortDescription": "Apply Loop subdivision.",
+      "longDescriptionMarkdown": "Apply Loop's Subdivision Surface algorithm. It is an approximant refinement method and it works for every triangle and has rules for extraordinary vertices.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "LoopWeight", "label": "Weighting Scheme", "help": "Change the weights used. Allows one to optimize some behaviors over others.", "group": "main", "type": "enum", "default": "loop", "enumOptions": [ { "id": "loop", "label": "Loop" }, { "id": "regularity", "label": "Enhance regularity" }, { "id": "continuity", "label": "Enhance continuity" } ] },
+        { "id": "Iterations", "label": "Iterations", "help": "Number of times the model is subdivided.", "group": "main", "type": "int", "default": 3, "min": 1, "max": 64 },
+        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined. Zero means uniform refinement.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Selected", "label": "Affect only selected faces", "help": "If selected the filter affects only selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
+      ]
+    },
+    {
+      "id": "meshing_surface_subdivision_butterfly",
+      "menuPath": "Meshing",
+      "name": "Subdivision Surfaces: Butterfly Subdivision",
+      "shortDescription": "Apply Butterfly subdivision.",
+      "longDescriptionMarkdown": "Apply Butterfly Subdivision Surface algorithm. It is an interpolated refinement method defined on arbitrary triangular meshes.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "Iterations", "label": "Iterations", "help": "Number of times the model is subdivided.", "group": "main", "type": "int", "default": 3, "min": 1, "max": 64 },
+        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Selected", "label": "Affect only selected faces", "help": "If selected the filter affects only selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
+      ]
+    },
+    {
+      "id": "meshing_surface_subdivision_midpoint",
+      "menuPath": "Meshing",
+      "name": "Subdivision Surfaces: Midpoint",
+      "shortDescription": "Apply midpoint subdivision.",
+      "longDescriptionMarkdown": "Apply a plain subdivision scheme where every edge is split on its midpoint.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "Iterations", "label": "Iterations", "help": "Number of times the model is subdivided.", "group": "main", "type": "int", "default": 3, "min": 1, "max": 64 },
+        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Selected", "label": "Affect only selected faces", "help": "If selected the filter affects only selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
+      ]
+    },
+    {
+      "id": "meshing_surface_subdivision_ls3_loop",
+      "menuPath": "Meshing",
+      "name": "Subdivision Surfaces: LS3 Loop",
+      "shortDescription": "Apply LS3 Loop subdivision.",
+      "longDescriptionMarkdown": "Apply LS3 Subdivision Surface algorithm using Loop's weights.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "LoopWeight", "label": "Weighting Scheme", "help": "Change the weights used.", "group": "main", "type": "enum", "default": "loop", "enumOptions": [ { "id": "loop", "label": "Loop" }, { "id": "regularity", "label": "Enhance regularity" }, { "id": "continuity", "label": "Enhance continuity" } ] },
+        { "id": "Iterations", "label": "Iterations", "help": "Number of times the model is subdivided.", "group": "main", "type": "int", "default": 3, "min": 1, "max": 64 },
+        { "id": "Threshold", "label": "Edge Threshold", "help": "All edges longer than this threshold are refined.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Selected", "label": "Affect only selected faces", "help": "If selected the filter affects only selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
+      ]
+    },
+    {
+      "id": "meshing_decimation_clustering",
+      "menuPath": "Meshing",
+      "name": "Simplification: Clustering Decimation",
+      "shortDescription": "Simplify mesh by clustering vertices on a grid.",
+      "longDescriptionMarkdown": "Simplify the mesh by clustering vertices using a uniform grid.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "Threshold", "label": "Cell Size", "help": "Cell size of clustering grid.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 }
+      ]
+    },
+    {
+      "id": "meshing_decimation_quadric_edge_collapse",
+      "menuPath": "Meshing",
+      "name": "Simplification: Quadric Edge Collapse Decimation",
+      "shortDescription": "Simplify using quadric-based edge-collapse.",
+      "longDescriptionMarkdown": "Simplify a mesh using a quadric based edge-collapse strategy.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "TargetFaceNum", "label": "Target number of faces", "help": "Desired final number of faces.", "group": "main", "type": "int", "default": "@selOrFaceCountHalf", "min": 1, "max": "@faceCount" },
+        { "id": "TargetPerc", "label": "Percentage reduction (0..1)", "help": "Desired final size as percentage of initial size.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 1.0, "decimals": 6 },
+        { "id": "QualityThr", "label": "Quality threshold", "help": "Quality threshold for penalizing bad shaped faces.", "group": "main", "type": "double", "default": 0.3, "min": 0.0, "max": 1.0, "decimals": 4 },
+        { "id": "PreserveBoundary", "label": "Preserve Boundary", "help": "Try to preserve mesh boundaries.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "BoundaryWeight", "label": "Boundary Preserving Weight", "help": "Boundary importance during simplification.", "group": "advanced", "type": "double", "default": 1.0, "min": 0.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "PreserveNormal", "label": "Preserve Normal", "help": "Try to avoid face flipping effects.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "PreserveTopology", "label": "Preserve Topology", "help": "Avoid collapses causing topology changes.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "OptimalPlacement", "label": "Optimal placement", "help": "Place collapsed vertices minimizing quadric error.", "group": "main", "type": "bool", "default": true },
+        { "id": "PlanarQuadric", "label": "Planar Simplification", "help": "Additional constraints preserving planar areas.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "PlanarWeight", "label": "Planar Simp. Weight", "help": "Weight for preserving planar regions.", "group": "advanced", "type": "double", "default": 0.001, "min": 0.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "QualityWeight", "label": "Weighted Simplification", "help": "Use per-vertex quality as weighting factor.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "AutoClean", "label": "Post-simplification cleaning", "help": "Run cleaning after simplification.", "group": "main", "type": "bool", "default": true },
+        { "id": "Selected", "label": "Simplify only selected faces", "help": "Apply simplification only to selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
+      ]
+    },
+    {
+      "id": "meshing_decimation_quadric_edge_collapse_with_texture",
+      "menuPath": "Meshing",
+      "name": "Simplification: Quadric Edge Collapse Decimation (with texture)",
+      "shortDescription": "Simplify textured meshes preserving UVs.",
+      "longDescriptionMarkdown": "Simplify a textured mesh using a quadric based edge-collapse strategy preserving UV parametrization.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireTextureCoordinates": true },
+      "parameters": [
+        { "id": "TargetFaceNum", "label": "Target number of faces", "help": "Desired final number of faces.", "group": "main", "type": "int", "default": "@selOrFaceCountHalf", "min": 1, "max": "@faceCount" },
+        { "id": "TargetPerc", "label": "Percentage reduction (0..1)", "help": "Desired final size as percentage of initial size.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 1.0, "decimals": 6 },
+        { "id": "QualityThr", "label": "Quality threshold", "help": "Quality threshold for penalizing bad shaped faces.", "group": "main", "type": "double", "default": 0.3, "min": 0.0, "max": 1.0, "decimals": 4 },
+        { "id": "Extratcoordw", "label": "Texture Weight", "help": "Additional weight for extra texture coordinates.", "group": "advanced", "type": "double", "default": 1.0, "min": 0.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "PreserveBoundary", "label": "Preserve Boundary", "help": "Try to preserve mesh boundaries.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "BoundaryWeight", "label": "Boundary Preserving Weight", "help": "Boundary importance during simplification.", "group": "advanced", "type": "double", "default": 1.0, "min": 0.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "OptimalPlacement", "label": "Optimal placement", "help": "Place collapsed vertices minimizing quadric error.", "group": "main", "type": "bool", "default": true },
+        { "id": "PreserveNormal", "label": "Preserve Normal", "help": "Try to avoid face flipping effects.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "PlanarQuadric", "label": "Planar Simplification", "help": "Additional constraints preserving planar areas.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "Selected", "label": "Simplify only selected faces", "help": "Apply simplification only to selected faces.", "group": "main", "type": "bool", "default": "@hasSelectedFaces" }
+      ]
+    },
+    {
+      "id": "meshing_isotropic_explicit_remeshing",
+      "menuPath": "Meshing",
+      "name": "Remeshing: Isotropic Explicit Remeshing",
+      "shortDescription": "Explicit isotropic remeshing by local operations.",
+      "longDescriptionMarkdown": "Perform explicit remeshing by repeatedly applying edge flip, collapse, relax and refine operations.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "Iterations", "label": "Iterations", "help": "Number of remeshing iterations.", "group": "main", "type": "int", "default": 10, "min": 1, "max": 1000 },
+        { "id": "Adaptive", "label": "Adaptive remeshing", "help": "Toggle adaptive isotropic remeshing.", "group": "main", "type": "bool", "default": false },
+        { "id": "SelectedOnly", "label": "Remesh only selected faces", "help": "Apply remeshing only to selected faces.", "group": "main", "type": "bool", "default": false },
+        { "id": "TargetLen", "label": "Target Length", "help": "Target length for remeshed edges.", "group": "main", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "FeatureDeg", "label": "Crease Angle", "help": "Minimum angle to treat an edge as feature.", "group": "main", "type": "double", "default": 30.0, "min": 0.0, "max": 180.0, "decimals": 3 },
+        { "id": "CheckSurfDist", "label": "Check Surface Distance", "help": "Each operation must satisfy max surface distance.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "MaxSurfDist", "label": "Max. Surface Distance", "help": "Maximum allowed local surface deviation.", "group": "advanced", "type": "double", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "SplitFlag", "label": "Refine Step", "help": "Include refine step.", "group": "advanced", "type": "bool", "default": true },
+        { "id": "CollapseFlag", "label": "Collapse Step", "help": "Include collapse step.", "group": "advanced", "type": "bool", "default": true },
+        { "id": "SwapFlag", "label": "Edge-Swap Step", "help": "Include edge-swap step.", "group": "advanced", "type": "bool", "default": true },
+        { "id": "SmoothFlag", "label": "Smooth Step", "help": "Include smoothing step.", "group": "advanced", "type": "bool", "default": true },
+        { "id": "ReprojectFlag", "label": "Reproject Step", "help": "Include projection step.", "group": "advanced", "type": "bool", "default": true }
+      ]
+    },
+    {
+      "id": "meshing_re_orient_faces_coherently",
+      "menuPath": "Meshing",
+      "name": "Re-Orient all faces coherently",
+      "shortDescription": "Orient faces consistently.",
+      "longDescriptionMarkdown": "Re-orient in a consistent way all faces of the mesh.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": []
+    },
+    {
+      "id": "meshing_invert_face_orientation",
+      "menuPath": "Meshing",
+      "name": "Invert Faces Orientation",
+      "shortDescription": "Flip mesh face orientation.",
+      "longDescriptionMarkdown": "Invert faces orientation, flipping mesh normals.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "forceFlip", "label": "Force Flip", "help": "Always flip normals; otherwise try to set normals outside.", "group": "main", "type": "bool", "default": true },
+        { "id": "onlySelected", "label": "Flip only selected faces", "help": "If selected, only selected faces are affected.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "apply_matrix_flip_or_swap_axis",
+      "menuPath": "Meshing",
+      "name": "Transform: Flip and/or swap axis",
+      "shortDescription": "Flip or swap axes.",
+      "longDescriptionMarkdown": "Generate a transformation that flips and/or swaps axes.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "flipX", "label": "Flip X axis", "help": "Mirror along YZ plane.", "group": "main", "type": "bool", "default": false },
+        { "id": "flipY", "label": "Flip Y axis", "help": "Mirror along XZ plane.", "group": "main", "type": "bool", "default": false },
+        { "id": "flipZ", "label": "Flip Z axis", "help": "Mirror along XY plane.", "group": "main", "type": "bool", "default": false },
+        { "id": "swapXY", "label": "Swap X-Y axis", "help": "Swap X and Y.", "group": "main", "type": "bool", "default": false },
+        { "id": "swapXZ", "label": "Swap X-Z axis", "help": "Swap X and Z.", "group": "main", "type": "bool", "default": false },
+        { "id": "swapYZ", "label": "Swap Y-Z axis", "help": "Swap Y and Z.", "group": "main", "type": "bool", "default": false },
+        { "id": "Freeze", "label": "Freeze Matrix", "help": "Transformation is explicitly applied to vertices.", "group": "main", "type": "bool", "default": true },
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "compute_matrix_from_rotation",
+      "menuPath": "Meshing",
+      "name": "Transform: Rotate",
+      "shortDescription": "Rotate mesh.",
+      "longDescriptionMarkdown": "Generate a matrix transformation that rotates the mesh.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "rotAxis", "label": "Rotation on", "help": "Choose rotation axis.", "group": "main", "type": "enum", "default": "x", "enumOptions": [ { "id": "x", "label": "X axis" }, { "id": "y", "label": "Y axis" }, { "id": "z", "label": "Z axis" }, { "id": "custom", "label": "Custom axis" } ] },
+        { "id": "rotCenter", "label": "Center of rotation", "help": "Choose center of rotation.", "group": "main", "type": "enum", "default": "origin", "enumOptions": [ { "id": "origin", "label": "origin" }, { "id": "barycenter", "label": "barycenter" }, { "id": "custom", "label": "custom point" } ] },
+        { "id": "angle", "label": "Rotation Angle", "help": "Angle in degrees.", "group": "main", "type": "double", "default": 0.0, "min": -360.0, "max": 360.0, "decimals": 3 },
+        { "id": "customAxisX", "label": "Custom axis X", "help": "X component.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "customAxisY", "label": "Custom axis Y", "help": "Y component.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "customAxisZ", "label": "Custom axis Z", "help": "Z component.", "group": "advanced", "type": "double", "default": 1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "customCenterX", "label": "Custom center X", "help": "X center.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "customCenterY", "label": "Custom center Y", "help": "Y center.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "customCenterZ", "label": "Custom center Z", "help": "Z center.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "snapFlag", "label": "Snap angle", "help": "Snap angle according to snap value.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "snapAngle", "label": "Snapping Value", "help": "Snap step in degrees.", "group": "advanced", "type": "double", "default": 30.0, "min": 0.0001, "max": 360.0, "decimals": 4 },
+        { "id": "Freeze", "label": "Freeze Matrix", "help": "Transformation is explicitly applied to vertices.", "group": "main", "type": "bool", "default": true },
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "compute_matrix_by_fitting_to_plane",
+      "menuPath": "Meshing",
+      "name": "Transform: Rotate to Fit to a plane",
+      "shortDescription": "Rotate selection to fit a reference plane.",
+      "longDescriptionMarkdown": "Generate a transformation rotating selection to fit XY/YZ/ZX plane.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "targetPlane", "label": "Rotate to fit", "help": "Target plane.", "group": "main", "type": "enum", "default": "xy", "enumOptions": [ { "id": "xy", "label": "XY plane" }, { "id": "yz", "label": "YZ plane" }, { "id": "zx", "label": "ZX plane" } ] },
+        { "id": "rotAxis", "label": "Rotate on", "help": "Rotation axis constraint.", "group": "main", "type": "enum", "default": "any", "enumOptions": [ { "id": "any", "label": "any axis" }, { "id": "x", "label": "X axis" }, { "id": "y", "label": "Y axis" }, { "id": "z", "label": "Z axis" } ] },
+        { "id": "ToOrigin", "label": "Move to Origin", "help": "Translate so selection centroid rests on origin.", "group": "main", "type": "bool", "default": true },
+        { "id": "Freeze", "label": "Freeze Matrix", "help": "Transformation is explicitly applied to vertices.", "group": "main", "type": "bool", "default": true },
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "compute_matrix_by_principal_axis",
+      "menuPath": "Meshing",
+      "name": "Transform: Align to Principal Axis",
+      "shortDescription": "Align mesh to principal axis.",
+      "longDescriptionMarkdown": "Generate a transformation aligning mesh to principal inertia axis.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "pointsFlag", "label": "Use vertex", "help": "Use vertices only (suitable for point clouds/open meshes).", "group": "main", "type": "bool", "default": true },
+        { "id": "Freeze", "label": "Freeze Matrix", "help": "Transformation is explicitly applied to vertices.", "group": "main", "type": "bool", "default": true },
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "compute_matrix_from_scaling_or_normalization",
+      "menuPath": "Meshing",
+      "name": "Transform: Scale, Normalize",
+      "shortDescription": "Scale mesh.",
+      "longDescriptionMarkdown": "Generate a scaling transformation; optionally normalize to unit bounding box.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "axisX", "label": "X Axis", "help": "Scale X.", "group": "main", "type": "double", "default": 1.0, "min": -1000000.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "axisY", "label": "Y Axis", "help": "Scale Y.", "group": "main", "type": "double", "default": 1.0, "min": -1000000.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "axisZ", "label": "Z Axis", "help": "Scale Z.", "group": "main", "type": "double", "default": 1.0, "min": -1000000.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "uniformFlag", "label": "Uniform Scaling", "help": "Use same scale for all axes (axisX value).", "group": "main", "type": "bool", "default": true },
+        { "id": "scaleCenter", "label": "Center of scaling", "help": "Scaling center.", "group": "main", "type": "enum", "default": "origin", "enumOptions": [ { "id": "origin", "label": "origin" }, { "id": "barycenter", "label": "barycenter" }, { "id": "custom", "label": "custom point" } ] },
+        { "id": "customCenterX", "label": "Custom center X", "help": "X center.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "customCenterY", "label": "Custom center Y", "help": "Y center.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "customCenterZ", "label": "Custom center Z", "help": "Z center.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "unitFlag", "label": "Scale to Unit bbox", "help": "Scale object to unit bounding box.", "group": "main", "type": "bool", "default": false },
+        { "id": "Freeze", "label": "Freeze Matrix", "help": "Transformation is explicitly applied to vertices.", "group": "main", "type": "bool", "default": true },
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "compute_matrix_from_translation",
+      "menuPath": "Meshing",
+      "name": "Transform: Translate, Center, set Origin",
+      "shortDescription": "Translate mesh.",
+      "longDescriptionMarkdown": "Generate translation matrix by offsets or centering modes.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "traslMethod", "label": "Transformation", "help": "Translation strategy.", "group": "main", "type": "enum", "default": "xyz", "enumOptions": [ { "id": "xyz", "label": "XYZ translation" }, { "id": "scene_bbox", "label": "Center on Scene BBox" }, { "id": "layer_bbox", "label": "Center on Layer BBox" }, { "id": "new_origin", "label": "Set new Origin" } ] },
+        { "id": "axisX", "label": "X Axis", "help": "Translation X.", "group": "main", "type": "double", "default": 0.0, "min": -1000000000.0, "max": "@bboxDiag5x", "decimals": 6 },
+        { "id": "axisY", "label": "Y Axis", "help": "Translation Y.", "group": "main", "type": "double", "default": 0.0, "min": -1000000000.0, "max": "@bboxDiag5x", "decimals": 6 },
+        { "id": "axisZ", "label": "Z Axis", "help": "Translation Z.", "group": "main", "type": "double", "default": 0.0, "min": -1000000000.0, "max": "@bboxDiag5x", "decimals": 6 },
+        { "id": "newOriginX", "label": "New Origin X", "help": "X of new origin.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "newOriginY", "label": "New Origin Y", "help": "Y of new origin.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "newOriginZ", "label": "New Origin Z", "help": "Z of new origin.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "Freeze", "label": "Freeze Matrix", "help": "Transformation is explicitly applied to vertices.", "group": "main", "type": "bool", "default": true },
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "set_matrix_identity",
+      "menuPath": "Meshing",
+      "name": "Matrix: Reset Current Matrix",
+      "shortDescription": "Reset transform matrix to identity.",
+      "longDescriptionMarkdown": "Set the current transformation matrix to identity.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "apply_matrix_freeze",
+      "menuPath": "Meshing",
+      "name": "Matrix: Freeze Current Matrix",
+      "shortDescription": "Apply current matrix to geometry.",
+      "longDescriptionMarkdown": "Freeze current transformation matrix into vertex coordinates.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "apply_matrix_inverse",
+      "menuPath": "Meshing",
+      "name": "Matrix: Invert Current Matrix",
+      "shortDescription": "Invert current transformation matrix.",
+      "longDescriptionMarkdown": "Invert the current transformation matrix.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "Freeze", "label": "Freeze Matrix", "help": "Transformation is explicitly applied to vertices.", "group": "main", "type": "bool", "default": true },
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "compute_matrix_from_translation_rotation_scale",
+      "menuPath": "Meshing",
+      "name": "Matrix: Set from translation/rotation/scale",
+      "shortDescription": "Build transformation from T/R/S parameters.",
+      "longDescriptionMarkdown": "Set transformation matrix from translation, Euler rotation and scale parameters.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "translationX", "label": "X Translation", "help": "Translation X.", "group": "main", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "translationY", "label": "Y Translation", "help": "Translation Y.", "group": "main", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "translationZ", "label": "Z Translation", "help": "Translation Z.", "group": "main", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "rotationX", "label": "X Rotation", "help": "Euler rotation X (deg).", "group": "main", "type": "double", "default": 0.0, "min": -360.0, "max": 360.0, "decimals": 4 },
+        { "id": "rotationY", "label": "Y Rotation", "help": "Euler rotation Y (deg).", "group": "main", "type": "double", "default": 0.0, "min": -360.0, "max": 360.0, "decimals": 4 },
+        { "id": "rotationZ", "label": "Z Rotation", "help": "Euler rotation Z (deg).", "group": "main", "type": "double", "default": 0.0, "min": -360.0, "max": 360.0, "decimals": 4 },
+        { "id": "scaleX", "label": "X Scale", "help": "Scale X.", "group": "main", "type": "double", "default": 1.0, "min": -1000000.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "scaleY", "label": "Y Scale", "help": "Scale Y.", "group": "main", "type": "double", "default": 1.0, "min": -1000000.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "scaleZ", "label": "Z Scale", "help": "Scale Z.", "group": "main", "type": "double", "default": 1.0, "min": -1000000.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "compose", "label": "Compose with current", "help": "Compose with current matrix.", "group": "main", "type": "bool", "default": false },
+        { "id": "Freeze", "label": "Freeze Matrix", "help": "Transformation is explicitly applied to vertices.", "group": "main", "type": "bool", "default": true },
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "set_matrix",
+      "menuPath": "Meshing",
+      "name": "Matrix: Set/Copy Transformation",
+      "shortDescription": "Set transformation matrix values.",
+      "longDescriptionMarkdown": "Set current transformation matrix by filling matrix coefficients.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "m00", "label": "m00", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m01", "label": "m01", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m02", "label": "m02", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m03", "label": "m03", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m10", "label": "m10", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m11", "label": "m11", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m12", "label": "m12", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m13", "label": "m13", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m20", "label": "m20", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m21", "label": "m21", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m22", "label": "m22", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m23", "label": "m23", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m30", "label": "m30", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m31", "label": "m31", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m32", "label": "m32", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "m33", "label": "m33", "help": "Matrix coefficient.", "group": "advanced.matrix", "type": "double", "default": 1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "compose", "label": "Compose with current", "help": "Compose with current matrix.", "group": "main", "type": "bool", "default": false },
+        { "id": "Freeze", "label": "Freeze Matrix", "help": "Transformation is explicitly applied to vertices.", "group": "main", "type": "bool", "default": true },
+        { "id": "allLayers", "label": "Apply to all visible Layers", "help": "Apply to all visible mesh layers.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "compute_normal_for_point_clouds",
+      "menuPath": "Meshing",
+      "name": "Compute normals for point sets",
+      "shortDescription": "Estimate normals for point clouds.",
+      "longDescriptionMarkdown": "Compute normals of vertices without relying on triangle connectivity.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "K", "label": "Neighbour num", "help": "Number of neighbors used to estimate normals.", "group": "main", "type": "int", "default": 10, "min": 1, "max": 100000 },
+        { "id": "smoothIter", "label": "Smooth Iteration", "help": "Number of smoothing iterations.", "group": "main", "type": "int", "default": 0, "min": 0, "max": 1000 },
+        { "id": "flipFlag", "label": "Flip normals w.r.t viewpoint", "help": "Use viewpoint to orient normals consistently.", "group": "main", "type": "bool", "default": false },
+        { "id": "viewPosX", "label": "Viewpoint X", "help": "Viewpoint X.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "viewPosY", "label": "Viewpoint Y", "help": "Viewpoint Y.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "viewPosZ", "label": "Viewpoint Z", "help": "Viewpoint Z.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 }
+      ]
+    },
+    {
+      "id": "apply_normal_point_cloud_smoothing",
+      "menuPath": "Meshing",
+      "name": "Smooth normals on point sets",
+      "shortDescription": "Smooth point-cloud normals.",
+      "longDescriptionMarkdown": "Smooth vertex normals on point sets.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "K", "label": "Number of neighbors", "help": "Number of neighbors used to smooth normals.", "group": "main", "type": "int", "default": 10, "min": 1, "max": 100000 },
+        { "id": "useDist", "label": "Weight using neighbour distance", "help": "Weight neighbor normals according to distance.", "group": "main", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "id": "compute_curvature_principal_directions_per_vertex",
+      "menuPath": "Meshing",
+      "name": "Compute curvature principal directions",
+      "shortDescription": "Compute principal curvature directions.",
+      "longDescriptionMarkdown": "Compute principal directions of curvature with different algorithms.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "Method", "label": "Method", "help": "Choose method.", "group": "main", "type": "enum", "default": "quadric_fitting", "enumOptions": [ { "id": "taubin", "label": "Taubin approximation" }, { "id": "pca", "label": "Principal Component Analysis" }, { "id": "normal_cycle", "label": "Normal Cycles" }, { "id": "quadric_fitting", "label": "Quadric Fitting" }, { "id": "sd_quadric", "label": "Scale Dependent Quadric Fitting" } ] },
+        { "id": "CurvColorMethod", "label": "Quality/Color Mapping", "help": "Choose curvature mapped to quality/color.", "group": "main", "type": "enum", "default": "mean", "enumOptions": [ { "id": "mean", "label": "Mean Curvature" }, { "id": "gaussian", "label": "Gaussian Curvature" }, { "id": "min", "label": "Min Curvature" }, { "id": "max", "label": "Max Curvature" }, { "id": "shape", "label": "Shape Index" }, { "id": "curvedness", "label": "Curvedness" }, { "id": "none", "label": "None" } ] },
+        { "id": "Scale", "label": "Curvature Scale", "help": "Scale for scale-dependent methods.", "group": "main", "type": "double", "default": "@bboxDiagTenth", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
+        { "id": "Autoclean", "label": "Remove Unreferenced Vertices", "help": "Remove unreferenced vertices before computing.", "group": "main", "type": "bool", "default": true }
+      ]
+    },
+    {
+      "id": "meshing_close_holes",
+      "menuPath": "Meshing",
+      "name": "Close Holes",
+      "shortDescription": "Close holes under a size threshold.",
+      "longDescriptionMarkdown": "Close holes whose boundary has less edges than threshold.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "MaxHoleSize", "label": "Max size to be closed", "help": "Hole size threshold in boundary-edge count.", "group": "main", "type": "int", "default": 30, "min": 1, "max": 1000000 },
+        { "id": "Selected", "label": "Close holes with selected faces", "help": "Only holes with selected boundary faces are closed.", "group": "main", "type": "bool", "default": false },
+        { "id": "NewFaceSelected", "label": "Select newly created faces", "help": "Leave newly created faces selected.", "group": "main", "type": "bool", "default": true },
+        { "id": "SelfIntersection", "label": "Prevent self intersecting faces", "help": "Try to avoid creating self-intersecting faces.", "group": "main", "type": "bool", "default": true },
+        { "id": "RefineHole", "label": "Refine Filled Hole", "help": "Refine newly created hole triangles.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "RefineHoleEdgeLen", "label": "Hole Refinement Edge Len", "help": "Target edge length for hole refinement.", "group": "advanced", "type": "double", "default": "@bboxDiag003", "min": 0.0, "max": "@bboxDiag", "decimals": 6 }
+      ]
+    },
+    {
+      "id": "generate_cylindrical_unwrapping",
+      "menuPath": "Meshing",
+      "name": "Geometric Cylindrical Unwrapping",
+      "shortDescription": "Unwrap geometry along cylindrical projection.",
+      "longDescriptionMarkdown": "Unwrap geometry of current mesh along a cylindrical projection.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "startAngle", "label": "Start angle (deg)", "help": "Starting angle of unrolling.", "group": "main", "type": "double", "default": 0.0, "min": -1000000.0, "max": 1000000.0, "decimals": 4 },
+        { "id": "endAngle", "label": "End angle (deg)", "help": "Ending angle of unrolling.", "group": "main", "type": "double", "default": 360.0, "min": -1000000.0, "max": 1000000.0, "decimals": 4 },
+        { "id": "radius", "label": "Projection Radius", "help": "Reference cylinder radius. 0 = auto.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 1000000000.0, "decimals": 6 }
+      ]
+    },
+    {
+      "id": "meshing_surface_subdivision_catmull_clark",
+      "menuPath": "Meshing",
+      "name": "Subdivision Surfaces: Catmull-Clark",
+      "shortDescription": "Apply Catmull-Clark subdivision.",
+      "longDescriptionMarkdown": "Apply Catmull-Clark Subdivision Surfaces.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "Iterations", "label": "Iterations", "help": "Number of times model is subdivided.", "group": "main", "type": "int", "default": 2, "min": 1, "max": 16 }
+      ]
+    },
+    {
+      "id": "meshing_tri_to_quad_by_4_8_subdivision",
+      "menuPath": "Meshing",
+      "name": "Tri to Quad by 4-8 Subdivision",
+      "shortDescription": "Convert tri mesh into quad mesh by 4-8 subdivision.",
+      "longDescriptionMarkdown": "Convert a tri mesh into a quad mesh by applying 4-8 subdivision.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": []
+    },
+    {
+      "id": "meshing_surface_subdivision_doo_sabin",
+      "menuPath": "Meshing",
+      "name": "Subdivision Surfaces: Doo Sabin",
+      "shortDescription": "Apply Doo-Sabin subdivision.",
+      "longDescriptionMarkdown": "Apply Doo-Sabin Subdivision Surfaces.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "Iterations", "label": "Iterations", "help": "Number of times model is subdivided.", "group": "main", "type": "int", "default": 2, "min": 1, "max": 16 }
+      ]
+    },
+    {
+      "id": "meshing_tri_to_quad_dominant",
+      "menuPath": "Meshing",
+      "name": "Turn into Quad-Dominant mesh",
+      "shortDescription": "Convert tri mesh to quad-dominant mesh.",
+      "longDescriptionMarkdown": "Convert tri-mesh to quad-dominant mesh by pairing suitable triangles.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "level", "label": "Optimize For", "help": "Greedy strategy.", "group": "main", "type": "enum", "default": "fewest", "enumOptions": [ { "id": "fewest", "label": "Fewest triangles" }, { "id": "mid", "label": "(in between)" }, { "id": "shape", "label": "Better quad shape" } ] }
+      ]
+    },
+    {
+      "id": "meshing_poly_to_tri",
+      "menuPath": "Meshing",
+      "name": "Turn into a Pure-Triangular mesh",
+      "shortDescription": "Split any polygonal face into triangles.",
+      "longDescriptionMarkdown": "Convert into tri-mesh by splitting polygonal faces.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": []
+    },
+    {
+      "id": "meshing_tri_to_quad_by_smart_triangle_pairing",
+      "menuPath": "Meshing",
+      "name": "Tri to Quad by smart triangle pairing",
+      "shortDescription": "Pair triangles into quads.",
+      "longDescriptionMarkdown": "Convert tri-mesh into quad mesh by pairing triangles.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": []
+    },
+    {
+      "id": "compute_selection_crease_per_edge",
+      "menuPath": "Meshing",
+      "name": "Select Crease Edges",
+      "shortDescription": "Select crease edges from dihedral angles.",
+      "longDescriptionMarkdown": "Select crease edges according to signed dihedral angle.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "AngleDegNeg", "label": "Concave Angle Thr. (deg)", "help": "Concave dihedral threshold.", "group": "main", "type": "double", "default": -45.0, "min": -180.0, "max": 180.0, "decimals": 4 },
+        { "id": "AngleDegPos", "label": "Convex Angle Thr. (deg)", "help": "Convex dihedral threshold.", "group": "main", "type": "double", "default": 45.0, "min": -180.0, "max": 180.0, "decimals": 4 }
+      ]
+    },
+    {
+      "id": "generate_polyline_from_selected_edges",
+      "menuPath": "Meshing",
+      "name": "Build a Polyline from Selected Edges",
+      "shortDescription": "Create edge mesh from selected edges.",
+      "longDescriptionMarkdown": "Create a new layer with edge mesh composed only by selected edges.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": []
+    },
+    {
+      "id": "meshing_vertex_attribute_seam",
+      "menuPath": "Meshing",
+      "name": "Vertex Attribute Seam",
+      "shortDescription": "Split vertices to make attributes seam-independent.",
+      "longDescriptionMarkdown": "Make selected vertex attributes connectivity-independent by splitting vertices.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "NormalMode", "label": "Normal Source", "help": "Choose normal source.", "group": "main", "type": "enum", "default": "none", "enumOptions": [ { "id": "none", "label": "None" }, { "id": "vertex", "label": "Vertex" }, { "id": "face", "label": "Face" } ] },
+        { "id": "ColorMode", "label": "Color Source", "help": "Choose color source.", "group": "main", "type": "enum", "default": "none", "enumOptions": [ { "id": "none", "label": "None" }, { "id": "vertex", "label": "Vertex" }, { "id": "face", "label": "Face" } ] },
+        { "id": "TexcoordMode", "label": "Texcoord Source", "help": "Choose texcoord source.", "group": "main", "type": "enum", "default": "none", "enumOptions": [ { "id": "none", "label": "None" }, { "id": "vertex", "label": "Vertex" }, { "id": "wedge", "label": "Wedge" } ] }
+      ]
+    },
+    {
+      "id": "generate_polyline_from_selection_perimeter",
+      "menuPath": "Meshing",
+      "name": "Create Selection Perimeter Polyline",
+      "shortDescription": "Create polyline from selection perimeter.",
+      "longDescriptionMarkdown": "Create a new layer with edge mesh composed by selection perimeter edges.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": []
+    },
+    {
+      "id": "generate_polyline_from_planar_section",
+      "menuPath": "Meshing",
+      "name": "Compute Planar Section",
+      "shortDescription": "Compute planar section polyline.",
+      "longDescriptionMarkdown": "Compute polyline representing planar section of a mesh.",
+      "tags": ["meshing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "planeAxis", "label": "Plane perpendicular to", "help": "Slicing plane normal axis.", "group": "main", "type": "enum", "default": "x", "enumOptions": [ { "id": "x", "label": "X Axis" }, { "id": "y", "label": "Y Axis" }, { "id": "z", "label": "Z Axis" }, { "id": "custom", "label": "Custom Axis" } ] },
+        { "id": "customAxisX", "label": "Custom axis X", "help": "Custom axis X.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "customAxisY", "label": "Custom axis Y", "help": "Custom axis Y.", "group": "advanced", "type": "double", "default": 1.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "customAxisZ", "label": "Custom axis Z", "help": "Custom axis Z.", "group": "advanced", "type": "double", "default": 0.0, "min": -1000000000.0, "max": 1000000000.0, "decimals": 6 },
+        { "id": "planeOffset", "label": "Cross plane offset", "help": "Offset from reference point.", "group": "main", "type": "double", "default": 0.0, "min": -1000000.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "relativeTo", "label": "Plane reference", "help": "Reference frame for plane offset.", "group": "main", "type": "enum", "default": "origin", "enumOptions": [ { "id": "center", "label": "Bounding box center" }, { "id": "min", "label": "Bounding box min" }, { "id": "origin", "label": "Origin" } ] },
+        { "id": "createSectionSurface", "label": "Create also section surface", "help": "Create triangulated section if polyline is closed.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "splitSurfaceWithSection", "label": "Create also split surfaces", "help": "Create under/over split layers (requires manifold mesh).", "group": "advanced", "type": "bool", "default": false }
+      ]
+    }
+  ]
+}

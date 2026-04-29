@@ -98,3 +98,8 @@ else()
 endif()
 
 target_link_libraries(QMeshLabPluginFilterEmbree PUBLIC OpenMP::OpenMP_CXX)
+
+qt_add_resources(QMeshLabPluginFilterEmbree "filter_embree_descriptors"
+    PREFIX "/filters/qmeshlab.filter.embree"
+    FILES filters.json
+)

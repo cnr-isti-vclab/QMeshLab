@@ -39,53 +39,6 @@ constexpr QLatin1StringView kFilterRemoveUnrefVertex("remove_unreferenced_vertic
 constexpr QLatin1StringView kFilterRemoveDuplicatedVertex("remove_duplicated_vertices");
 constexpr QLatin1StringView kFilterRemoveFaceZeroArea("remove_zero_area_faces");
 
-int intParameter(const MeshFilterParameterValues &params, const QString &id, int fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    bool ok = false;
-    const int value = it.value().toInt(&ok);
-    return ok ? value : fallback;
-}
-
-double doubleParameter(const MeshFilterParameterValues &params, const QString &id, double fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    bool ok = false;
-    const double value = it.value().toDouble(&ok);
-    return ok ? value : fallback;
-}
-
-bool boolParameter(const MeshFilterParameterValues &params, const QString &id, bool fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    if (it.value().userType() == QMetaType::Bool)
-        return it.value().toBool();
-    const QString text = it.value().toString().trimmed().toLower();
-    if (text == QStringLiteral("true") || text == QStringLiteral("1"))
-        return true;
-    if (text == QStringLiteral("false") || text == QStringLiteral("0"))
-        return false;
-    return fallback;
-}
-
-QString enumParameter(
-    const MeshFilterParameterValues &params,
-    const QString &id,
-    const QString &fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    const QString value = it.value().toString().trimmed();
-    return value.isEmpty() ? fallback : value;
-}
-
 struct CurrentMeshRef {
     int index = -1;
     Document::MeshEntry *entry = nullptr;
@@ -236,525 +189,6 @@ SnapBorderResult snapMismatchedBorder(
     return { int(splitVertices.size()), false };
 }
 
-std::vector<MeshFilterDescriptor> buildDescriptors(const Document &doc)
-{
-    float bboxDiag = 1.0f;
-    float qualityMin = 0.0f;
-    float qualityMax = 1.0f;
-
-    const int meshIndex = doc.currentMeshIndex();
-    if (meshIndex >= 0 && meshIndex < doc.meshCount()) {
-        const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
-        bboxDiag = std::max(1e-9f, mesh.bbox.Diag());
-        if (mesh.VN() > 0) {
-            const auto minMax = vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityMinMax(mesh);
-            qualityMin = std::min(minMax.first, minMax.second);
-            qualityMax = std::max(minMax.first, minMax.second);
-        }
-    }
-
-    std::vector<MeshFilterDescriptor> out;
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterBallPivoting);
-        d.menuPath = QObject::tr("Remeshing");
-        d.name = QObject::tr("Surface Reconstruction: Ball Pivoting");
-        d.shortDescription = QObject::tr("Reconstruct a surface from oriented points using Ball Pivoting.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Given a point cloud with normals it reconstructs a surface using the **Ball Pivoting "
-            "Algorithm**.\n"
-            "Starting with a seed triangle, the BPA algorithm pivots a ball of the given radius "
-            "around the already formed edges until it touches another point, forming another "
-            "triangle. The process continues until all reachable edges have been tried. This "
-            "surface reconstruction algorithm uses the existing points without creating new ones. "
-            "Works better with uniformly sampled point clouds. If needed first perform a poisson "
-            "disk subsampling of the point cloud.\n\n"
-            "Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.\n"
-            "**The ball-pivoting algorithm for surface reconstruction.**\n"
-            "IEEE TVCG 1999");
-        d.tags = { QStringLiteral("remeshing"), QStringLiteral("reconstruction"), QStringLiteral("point cloud") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pBall;
-        pBall.id = QStringLiteral("ball_radius");
-        pBall.label = QObject::tr("Pivoting Ball Radius");
-        pBall.helpMarkdown = QObject::tr(
-            "The radius of the ball pivoting (rolling) over the set of points. "
-            "Gaps that are larger than the ball radius will not be filled; similarly "
-            "small pits smaller than the ball radius will be filled. Use `0` for autoguess.");
-        pBall.group = QStringLiteral("main");
-        pBall.type = MeshFilterParameterType::Double;
-        pBall.defaultValue = 0.0;
-        pBall.minValue = 0.0;
-        pBall.maxValue = double(bboxDiag);
-        pBall.decimals = 6;
-        d.parameters.push_back(std::move(pBall));
-
-        MeshFilterParameterDescriptor pCluster;
-        pCluster.id = QStringLiteral("clustering_percent");
-        pCluster.label = QObject::tr("Clustering Radius (%)");
-        pCluster.helpMarkdown = QObject::tr(
-            "To avoid creation of too small triangles, if a vertex is found too close to a "
-            "previous one, it is clustered/merged with it.");
-        pCluster.group = QStringLiteral("main");
-        pCluster.type = MeshFilterParameterType::Double;
-        pCluster.defaultValue = 20.0;
-        pCluster.minValue = 0.0;
-        pCluster.maxValue = 100.0;
-        pCluster.decimals = 3;
-        d.parameters.push_back(std::move(pCluster));
-
-        MeshFilterParameterDescriptor pCrease;
-        pCrease.id = QStringLiteral("crease_threshold_deg");
-        pCrease.label = QObject::tr("Angle Threshold (degrees)");
-        pCrease.helpMarkdown = QObject::tr(
-            "If we encounter a crease angle that is too large we should stop the ball rolling.");
-        pCrease.group = QStringLiteral("main");
-        pCrease.type = MeshFilterParameterType::Double;
-        pCrease.defaultValue = 90.0;
-        pCrease.minValue = 0.0;
-        pCrease.maxValue = 180.0;
-        pCrease.decimals = 3;
-        d.parameters.push_back(std::move(pCrease));
-
-        MeshFilterParameterDescriptor pDeleteFaces;
-        pDeleteFaces.id = QStringLiteral("delete_initial_faces");
-        pDeleteFaces.label = QObject::tr("Delete Initial Set of Faces");
-        pDeleteFaces.helpMarkdown = QObject::tr(
-            "If true all the initial faces of the mesh are deleted and the whole surface is "
-            "rebuilt from scratch. Otherwise current faces are used as a starting point.");
-        pDeleteFaces.group = QStringLiteral("main");
-        pDeleteFaces.type = MeshFilterParameterType::Bool;
-        pDeleteFaces.defaultValue = false;
-        d.parameters.push_back(std::move(pDeleteFaces));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveWrtQ);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Remove Vertices wrt Quality");
-        d.shortDescription =
-            QObject::tr("Delete all vertices with quality lower than a threshold.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete all the vertices with a quality lower smaller than the specified constant.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("quality"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.inputRequirements.requireVertexQuality = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pThr;
-        pThr.id = QStringLiteral("max_quality_thr");
-        pThr.label = QObject::tr("Delete all vertices with quality under");
-        pThr.helpMarkdown = QObject::tr("Vertices with quality lower than this threshold are deleted.");
-        pThr.group = QStringLiteral("main");
-        pThr.type = MeshFilterParameterType::Double;
-        pThr.defaultValue = double(qualityMax);
-        pThr.minValue = double(qualityMin);
-        pThr.maxValue = double(qualityMax);
-        pThr.decimals = 6;
-        d.parameters.push_back(std::move(pThr));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveIsolatedComplexity);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Remove Isolated Pieces (wrt Face Num.)");
-        d.shortDescription =
-            QObject::tr("Delete isolated connected components composed by few triangles.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete isolated connected components composed by a limited number of triangles.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("components"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pSize;
-        pSize.id = QStringLiteral("min_component_size");
-        pSize.label = QObject::tr("Enter minimum conn. comp size");
-        pSize.helpMarkdown = QObject::tr(
-            "Delete all the connected components (floating pieces) composed by a number of "
-            "triangles smaller than the specified one.");
-        pSize.group = QStringLiteral("main");
-        pSize.type = MeshFilterParameterType::Int;
-        pSize.defaultValue = 25;
-        pSize.minValue = 0;
-        pSize.maxValue = 1000000000;
-        d.parameters.push_back(std::move(pSize));
-
-        MeshFilterParameterDescriptor pRemoveUnref;
-        pRemoveUnref.id = QStringLiteral("remove_unref");
-        pRemoveUnref.label = QObject::tr("Remove unreferenced vertices");
-        pRemoveUnref.helpMarkdown = QObject::tr(
-            "If true, the unreferenced vertices remaining after face deletion are removed.");
-        pRemoveUnref.group = QStringLiteral("main");
-        pRemoveUnref.type = MeshFilterParameterType::Bool;
-        pRemoveUnref.defaultValue = true;
-        d.parameters.push_back(std::move(pRemoveUnref));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveIsolatedDiameter);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Remove Isolated Pieces (wrt Diameter)");
-        d.shortDescription =
-            QObject::tr("Delete isolated connected components whose diameter is below a threshold.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete isolated connected components whose diameter is smaller than the specified "
-            "constant.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("components"), QStringLiteral("diameter") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pDiag;
-        pDiag.id = QStringLiteral("min_component_diag");
-        pDiag.label = QObject::tr("Enter max diameter of isolated pieces");
-        pDiag.helpMarkdown = QObject::tr(
-            "Delete all connected components (floating pieces) with a diameter smaller than "
-            "the specified one.");
-        pDiag.group = QStringLiteral("main");
-        pDiag.type = MeshFilterParameterType::Double;
-        pDiag.defaultValue = double(bboxDiag / 10.0f);
-        pDiag.minValue = 0.0;
-        pDiag.maxValue = double(bboxDiag);
-        pDiag.decimals = 6;
-        d.parameters.push_back(std::move(pDiag));
-
-        MeshFilterParameterDescriptor pRemoveUnref;
-        pRemoveUnref.id = QStringLiteral("remove_unref");
-        pRemoveUnref.label = QObject::tr("Remove unreferenced vertices");
-        pRemoveUnref.helpMarkdown = QObject::tr(
-            "If true, the unreferenced vertices remaining after face deletion are removed.");
-        pRemoveUnref.group = QStringLiteral("main");
-        pRemoveUnref.type = MeshFilterParameterType::Bool;
-        pRemoveUnref.defaultValue = true;
-        d.parameters.push_back(std::move(pRemoveUnref));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveTVertex);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Remove T-Vertices");
-        d.shortDescription =
-            QObject::tr("Remove T-vertices using edge collapse or edge flip.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete t-vertices from the mesh by edge collapse (collapsing the shortest of the "
-            "incident edges) or edge flip (flipping the opposite edge on the degenerate face if "
-            "the triangulation quality improves).");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("t-vertex"), QStringLiteral("topology") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pMethod;
-        pMethod.id = QStringLiteral("method");
-        pMethod.label = QObject::tr("Method");
-        pMethod.helpMarkdown = QObject::tr(
-            "Selects whether to remove t-vertices by edge collapse or edge flip.");
-        pMethod.group = QStringLiteral("main");
-        pMethod.type = MeshFilterParameterType::Enum;
-        pMethod.defaultValue = QStringLiteral("edge_collapse");
-        pMethod.enumOptions = {
-            { QStringLiteral("edge_collapse"), QObject::tr("Edge Collapse"), {} },
-            { QStringLiteral("edge_flip"), QObject::tr("Edge Flip"), {} }
-        };
-        d.parameters.push_back(std::move(pMethod));
-
-        MeshFilterParameterDescriptor pRatio;
-        pRatio.id = QStringLiteral("threshold");
-        pRatio.label = QObject::tr("Ratio");
-        pRatio.helpMarkdown = QObject::tr(
-            "Detects faces where the base/height ratio is lower than this value.");
-        pRatio.group = QStringLiteral("main");
-        pRatio.type = MeshFilterParameterType::Double;
-        pRatio.defaultValue = 40.0;
-        pRatio.minValue = 0.0;
-        pRatio.maxValue = 1e9;
-        pRatio.decimals = 6;
-        d.parameters.push_back(std::move(pRatio));
-
-        MeshFilterParameterDescriptor pRepeat;
-        pRepeat.id = QStringLiteral("repeat");
-        pRepeat.label = QObject::tr("Iterate until convergence");
-        pRepeat.helpMarkdown = QObject::tr("Iterates the algorithm until it reaches convergence.");
-        pRepeat.group = QStringLiteral("main");
-        pRepeat.type = MeshFilterParameterType::Bool;
-        pRepeat.defaultValue = true;
-        d.parameters.push_back(std::move(pRepeat));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSnapMismatchedBorder);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Snap Mismatched Borders");
-        d.shortDescription =
-            QObject::tr("Try to snap together slightly mismatched adjacent borders.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Try to snap together adjacent borders that are slightly mismatched.\n"
-            "This situation can happen on badly triangulated adjacent patches defined by high "
-            "order surfaces.\n"
-            "For each border vertex the filter snaps it onto the closest boundary edge only if "
-            "it is closer than `edge_length * threshold`. When a vertex is snapped the "
-            "corresponding face is split and a new vertex is created.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("border"), QStringLiteral("snap") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pRatio;
-        pRatio.id = QStringLiteral("edge_dist_ratio");
-        pRatio.label = QObject::tr("Edge Distance Ratio");
-        pRatio.helpMarkdown = QObject::tr(
-            "Collapse edge when the edge / distance ratio is greater than this value. "
-            "Larger values enforce that only vertices very close to the line are removed.");
-        pRatio.group = QStringLiteral("main");
-        pRatio.type = MeshFilterParameterType::Double;
-        pRatio.defaultValue = 1.0 / 100.0;
-        pRatio.minValue = 0.0;
-        pRatio.maxValue = 1000.0;
-        pRatio.decimals = 6;
-        d.parameters.push_back(std::move(pRatio));
-
-        MeshFilterParameterDescriptor pUnify;
-        pUnify.id = QStringLiteral("unify_vertices");
-        pUnify.label = QObject::tr("Unify Vertices");
-        pUnify.helpMarkdown = QObject::tr("If true, snapped vertices are welded together.");
-        pUnify.group = QStringLiteral("main");
-        pUnify.type = MeshFilterParameterType::Bool;
-        pUnify.defaultValue = true;
-        d.parameters.push_back(std::move(pUnify));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterMergeCloseVertex);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Merge Close Vertices");
-        d.shortDescription = QObject::tr("Merge vertices that are nearer than a threshold.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Merge together all the vertices that are nearer than the specified threshold. "
-            "Like a unify duplicated vertices but with some tolerance.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("merge"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pThr;
-        pThr.id = QStringLiteral("threshold");
-        pThr.label = QObject::tr("Merging Distance");
-        pThr.helpMarkdown = QObject::tr(
-            "All vertices closer than this threshold are merged together. "
-            "Use very small values; default is 1/10000 of bounding box diagonal.");
-        pThr.group = QStringLiteral("main");
-        pThr.type = MeshFilterParameterType::Double;
-        pThr.defaultValue = double(bboxDiag / 10000.0f);
-        pThr.minValue = 0.0;
-        pThr.maxValue = double(bboxDiag / 100.0f);
-        pThr.decimals = 8;
-        d.parameters.push_back(std::move(pThr));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterMergeWedgeTex);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Merge Wedge Texture Coord");
-        d.shortDescription = QObject::tr("Merge very close per-wedge texture coordinates.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Merge together per-wedge texture coords that are very close. "
-            "Used to correct apparent texture seams that can arise from numerical "
-            "approximations when saving in ascii formats.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("texture"), QStringLiteral("uv") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.inputRequirements.requireTextureCoordinates = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pThr;
-        pThr.id = QStringLiteral("merge_thr");
-        pThr.label = QObject::tr("Merging Threshold");
-        pThr.helpMarkdown = QObject::tr(
-            "All per-wedge texture coords that are on the same vertex and are distant less "
-            "than the threshold are merged together. Distance is in texture space.");
-        pThr.group = QStringLiteral("main");
-        pThr.type = MeshFilterParameterType::Double;
-        pThr.defaultValue = 1.0 / 10000.0;
-        pThr.minValue = 0.0;
-        pThr.maxValue = 1.0;
-        pThr.decimals = 8;
-        d.parameters.push_back(std::move(pThr));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveDuplicateFace);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Remove Duplicate Faces");
-        d.shortDescription = QObject::tr("Delete all duplicate faces.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete all the duplicate faces. Two faces are considered equal if they are composed "
-            "by the same set of vertices, regardless of the order of the vertices.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("duplicate"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveFoldFace);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Remove Isolated Folded Faces by Edge Flip");
-        d.shortDescription = QObject::tr("Remove isolated folded faces by edge flipping.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete all the single folded faces. A face is considered folded if its normal is "
-            "opposite to all adjacent faces. It is removed by flipping it against the adjacent "
-            "face across the edge where the opposite vertex falls inside the adjacent face.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("folded"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRepairNonManifEdge);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Repair non Manifold Edges");
-        d.shortDescription =
-            QObject::tr("Repair non-manifold edges by removing faces or splitting vertices.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Remove non-manifold edges by removing faces (for each non manifold edge it "
-            "iteratively deletes the smallest area face until it becomes 2-manifold) or by "
-            "splitting vertices (each non manifold edge chain becomes a border).");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("non-manifold"), QStringLiteral("edge") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pMethod;
-        pMethod.id = QStringLiteral("method");
-        pMethod.label = QObject::tr("Method");
-        pMethod.helpMarkdown = QObject::tr(
-            "Selects whether to repair non manifold edges by removing faces or by splitting "
-            "vertices.");
-        pMethod.group = QStringLiteral("main");
-        pMethod.type = MeshFilterParameterType::Enum;
-        pMethod.defaultValue = QStringLiteral("remove_faces");
-        pMethod.enumOptions = {
-            { QStringLiteral("remove_faces"), QObject::tr("Remove Faces"), {} },
-            { QStringLiteral("split_vertices"), QObject::tr("Split Vertices"), {} }
-        };
-        d.parameters.push_back(std::move(pMethod));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveNonManifVert);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Repair non Manifold Vertices by Splitting");
-        d.shortDescription = QObject::tr("Split non-manifold vertices until the mesh becomes 2-manifold.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Split non Manifold vertices until it becomes 2-Manifold.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("non-manifold"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-
-        MeshFilterParameterDescriptor pDisp;
-        pDisp.id = QStringLiteral("vert_disp_ratio");
-        pDisp.label = QObject::tr("Vertex Displacement Ratio");
-        pDisp.helpMarkdown = QObject::tr(
-            "This parameter denotes the displacement ratio α. When a vertex is split, it is "
-            "moved towards the barycenter of the FF-connected faces sharing it by "
-            "(v-barycenter)*α. Reasonable values are in [0..0.1].");
-        pDisp.group = QStringLiteral("main");
-        pDisp.type = MeshFilterParameterType::Double;
-        pDisp.defaultValue = 0.0;
-        pDisp.minValue = 0.0;
-        pDisp.maxValue = 1.0;
-        pDisp.decimals = 6;
-        d.parameters.push_back(std::move(pDisp));
-
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveUnrefVertex);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Remove Unreferenced Vertices");
-        d.shortDescription = QObject::tr("Remove vertices that are not referenced by any face.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Check for every vertex on the mesh: if it is not referenced by a face, remove it.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("vertex"), QStringLiteral("unreferenced") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveDuplicatedVertex);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Remove Duplicate Vertices");
-        d.shortDescription = QObject::tr("Merge vertices that have exactly the same coordinates.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Check for every vertex on the mesh: if two vertices have the same coordinates they "
-            "are merged into a single one.");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("duplicate"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterRemoveFaceZeroArea);
-        d.menuPath = QObject::tr("Cleaning");
-        d.name = QObject::tr("Remove Zero Area Faces");
-        d.shortDescription = QObject::tr("Remove null faces with zero area.");
-        d.longDescriptionMarkdown = QObject::tr("Remove null faces (the ones with area equal to zero).");
-        d.tags = { QStringLiteral("cleaning"), QStringLiteral("face"), QStringLiteral("degenerate") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    return out;
-}
 }
 
 QString CleanFilterPlugin::pluginId() const
@@ -767,14 +201,9 @@ QString CleanFilterPlugin::name() const
     return QObject::tr("QMeshLab Cleaning Filters");
 }
 
-std::vector<MeshFilterDescriptor> CleanFilterPlugin::filters(const Document &doc) const
-{
-    return buildDescriptors(doc);
-}
-
 MeshFilterRunResult CleanFilterPlugin::runFilter(
     const QString &filterId,
-    const MeshFilterParameterValues &parameters,
+    const FilterParams &params,
     Document &doc) const
 {
     using Mask = vcg::tri::io::Mask;
@@ -806,13 +235,13 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
 
         vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
         const float radius =
-            float(doubleParameter(parameters, QStringLiteral("ball_radius"), 0.0));
+            float(params.getDouble(QStringLiteral("ball_radius")));
         const float clustering =
-            float(doubleParameter(parameters, QStringLiteral("clustering_percent"), 20.0) / 100.0);
+            float(params.getDouble(QStringLiteral("clustering_percent")) / 100.0);
         const float creaseThrDeg =
-            float(doubleParameter(parameters, QStringLiteral("crease_threshold_deg"), 90.0));
+            float(params.getDouble(QStringLiteral("crease_threshold_deg")));
         const float creaseThr = vcg::math::ToRad(creaseThrDeg);
-        const bool deleteFaces = boolParameter(parameters, QStringLiteral("delete_initial_faces"), false);
+        const bool deleteFaces = params.getBool(QStringLiteral("delete_initial_faces"));
         if (deleteFaces) {
             mesh.fn = 0;
             mesh.face.clear();
@@ -843,7 +272,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
             return { false, false, QObject::tr("Current mesh has no vertices.") };
 
         const float threshold =
-            float(doubleParameter(parameters, QStringLiteral("max_quality_thr"), 1.0));
+            float(params.getDouble(QStringLiteral("max_quality_thr")));
         int deletedVertices = 0;
         int deletedFaces = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
@@ -883,12 +312,12 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
         const float minComponentDiag =
-            float(doubleParameter(parameters, QStringLiteral("min_component_diag"), mesh.bbox.Diag() / 10.0));
+            float(params.getDouble(QStringLiteral("min_component_diag")));
         const auto delInfo =
             vcg::tri::Clean<VCGMesh>::RemoveSmallConnectedComponentsDiameter(mesh, minComponentDiag);
 
         int delVert = 0;
-        if (boolParameter(parameters, QStringLiteral("remove_unref"), true))
+        if (params.getBool(QStringLiteral("remove_unref")))
             delVert = vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(mesh);
 
         const bool modified = delInfo.second > 0 || delVert > 0;
@@ -912,12 +341,12 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
         const int minComponentSize =
-            std::max(0, intParameter(parameters, QStringLiteral("min_component_size"), 25));
+            std::max(0, params.getInt(QStringLiteral("min_component_size")));
         const auto delInfo =
             vcg::tri::Clean<VCGMesh>::RemoveSmallConnectedComponentsSize(mesh, minComponentSize);
 
         int delVert = 0;
-        if (boolParameter(parameters, QStringLiteral("remove_unref"), true))
+        if (params.getBool(QStringLiteral("remove_unref")))
             delVert = vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(mesh);
 
         const bool modified = delInfo.second > 0 || delVert > 0;
@@ -941,10 +370,9 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
 
-        const QString method =
-            enumParameter(parameters, QStringLiteral("method"), QStringLiteral("edge_collapse"));
-        const float threshold = float(doubleParameter(parameters, QStringLiteral("threshold"), 40.0));
-        const bool repeat = boolParameter(parameters, QStringLiteral("repeat"), true);
+        const QString method = params.getEnum(QStringLiteral("method"));
+        const float threshold = float(params.getDouble(QStringLiteral("threshold")));
+        const bool repeat = params.getBool(QStringLiteral("repeat"));
 
         int total = 0;
         if (method == QStringLiteral("edge_flip")) {
@@ -972,8 +400,8 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
         const float edgeDistRatio =
-            float(doubleParameter(parameters, QStringLiteral("edge_dist_ratio"), 1.0 / 100.0));
-        const bool unifyVertices = boolParameter(parameters, QStringLiteral("unify_vertices"), true);
+            float(params.getDouble(QStringLiteral("edge_dist_ratio")));
+        const bool unifyVertices = params.getBool(QStringLiteral("unify_vertices"));
 
         const SnapBorderResult snapResult = snapMismatchedBorder(mesh, edgeDistRatio, cb);
         if (snapResult.interrupted || doc.isOperationCancelRequested())
@@ -1002,7 +430,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterMergeCloseVertex)) {
         if (mesh.VN() <= 0)
             return { false, false, QObject::tr("Current mesh has no vertices.") };
-        const float threshold = float(doubleParameter(parameters, QStringLiteral("threshold"), mesh.bbox.Diag() / 10000.0));
+        const float threshold = float(params.getDouble(QStringLiteral("threshold")));
         const int total = vcg::tri::Clean<VCGMesh>::MergeCloseVertex(mesh, threshold);
         if (total > 0) {
             compactAndUpdateGeometry(mesh);
@@ -1018,7 +446,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterMergeWedgeTex)) {
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
-        const float mergeThr = float(doubleParameter(parameters, QStringLiteral("merge_thr"), 1.0 / 10000.0));
+        const float mergeThr = float(params.getDouble(QStringLiteral("merge_thr")));
         vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
         const int total = vcg::tri::UpdateTexture<VCGMesh>::WedgeTexMergeClose(mesh, mergeThr);
         entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
@@ -1069,8 +497,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterRepairNonManifEdge)) {
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
-        const QString method =
-            enumParameter(parameters, QStringLiteral("method"), QStringLiteral("remove_faces"));
+        const QString method = params.getEnum(QStringLiteral("method"));
         int total = 0;
         QString info;
         if (method == QStringLiteral("split_vertices")) {
@@ -1098,7 +525,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterRemoveNonManifVert)) {
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
-        const float vertDispRatio = float(doubleParameter(parameters, QStringLiteral("vert_disp_ratio"), 0.0));
+        const float vertDispRatio = float(params.getDouble(QStringLiteral("vert_disp_ratio")));
         const int total = vcg::tri::Clean<VCGMesh>::SplitNonManifoldVertex(mesh, vertDispRatio);
         if (total > 0) {
             compactAndUpdateGeometry(mesh);

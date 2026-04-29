@@ -47,167 +47,6 @@ constexpr QLatin1StringView kFilterSelectNonManifoldVertex("select_non_manifold_
 constexpr QLatin1StringView kFilterSelectFacesByEdge("select_faces_by_edge_length");
 constexpr QLatin1StringView kFilterSelectOutlier("select_outliers");
 
-bool boolParameter(const MeshFilterParameterValues &params, const QString &id, bool fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    if (it.value().userType() == QMetaType::Bool)
-        return it.value().toBool();
-    const QString text = it.value().toString().trimmed().toLower();
-    if (text == QStringLiteral("true") || text == QStringLiteral("1"))
-        return true;
-    if (text == QStringLiteral("false") || text == QStringLiteral("0"))
-        return false;
-    return fallback;
-}
-
-int intParameter(const MeshFilterParameterValues &params, const QString &id, int fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    bool ok = false;
-    const int value = it.value().toInt(&ok);
-    return ok ? value : fallback;
-}
-
-double doubleParameter(const MeshFilterParameterValues &params, const QString &id, double fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    bool ok = false;
-    const double value = it.value().toDouble(&ok);
-    return ok ? value : fallback;
-}
-
-QString enumParameter(
-    const MeshFilterParameterValues &params,
-    const QString &id,
-    const QString &fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    const QString value = it.value().toString().trimmed();
-    return value.isEmpty() ? fallback : value;
-}
-
-QColor colorParameter(const MeshFilterParameterValues &params, const QString &id, const QColor &fallback)
-{
-    const auto it = params.constFind(id);
-    if (it == params.constEnd())
-        return fallback;
-    if (it.value().userType() == QMetaType::QColor) {
-        const QColor c = it.value().value<QColor>();
-        return c.isValid() ? c : fallback;
-    }
-    const QColor c(it.value().toString().trimmed());
-    return c.isValid() ? c : fallback;
-}
-
-void addBoolParam(
-    MeshFilterDescriptor &d,
-    const QString &id,
-    const QString &label,
-    const QString &helpMarkdown,
-    bool defaultValue,
-    const QString &group = QStringLiteral("main"))
-{
-    MeshFilterParameterDescriptor p;
-    p.id = id;
-    p.label = label;
-    p.helpMarkdown = helpMarkdown;
-    p.group = group;
-    p.type = MeshFilterParameterType::Bool;
-    p.defaultValue = defaultValue;
-    d.parameters.push_back(std::move(p));
-}
-
-void addIntParam(
-    MeshFilterDescriptor &d,
-    const QString &id,
-    const QString &label,
-    const QString &helpMarkdown,
-    int defaultValue,
-    int minValue,
-    int maxValue,
-    const QString &group = QStringLiteral("main"))
-{
-    MeshFilterParameterDescriptor p;
-    p.id = id;
-    p.label = label;
-    p.helpMarkdown = helpMarkdown;
-    p.group = group;
-    p.type = MeshFilterParameterType::Int;
-    p.defaultValue = defaultValue;
-    p.minValue = minValue;
-    p.maxValue = maxValue;
-    d.parameters.push_back(std::move(p));
-}
-
-void addDoubleParam(
-    MeshFilterDescriptor &d,
-    const QString &id,
-    const QString &label,
-    const QString &helpMarkdown,
-    double defaultValue,
-    double minValue,
-    double maxValue,
-    int decimals,
-    const QString &group = QStringLiteral("main"))
-{
-    MeshFilterParameterDescriptor p;
-    p.id = id;
-    p.label = label;
-    p.helpMarkdown = helpMarkdown;
-    p.group = group;
-    p.type = MeshFilterParameterType::Double;
-    p.defaultValue = defaultValue;
-    p.minValue = minValue;
-    p.maxValue = maxValue;
-    p.decimals = decimals;
-    d.parameters.push_back(std::move(p));
-}
-
-void addColorParam(
-    MeshFilterDescriptor &d,
-    const QString &id,
-    const QString &label,
-    const QString &helpMarkdown,
-    const QColor &defaultValue,
-    const QString &group = QStringLiteral("main"))
-{
-    MeshFilterParameterDescriptor p;
-    p.id = id;
-    p.label = label;
-    p.helpMarkdown = helpMarkdown;
-    p.group = group;
-    p.type = MeshFilterParameterType::Color;
-    p.defaultValue = defaultValue;
-    d.parameters.push_back(std::move(p));
-}
-
-void addEnumParam(
-    MeshFilterDescriptor &d,
-    const QString &id,
-    const QString &label,
-    const QString &helpMarkdown,
-    const QString &defaultValue,
-    std::vector<MeshFilterEnumOption> options,
-    const QString &group = QStringLiteral("main"))
-{
-    MeshFilterParameterDescriptor p;
-    p.id = id;
-    p.label = label;
-    p.helpMarkdown = helpMarkdown;
-    p.group = group;
-    p.type = MeshFilterParameterType::Enum;
-    p.defaultValue = defaultValue;
-    p.enumOptions = std::move(options);
-    d.parameters.push_back(std::move(p));
-}
 
 void updateGeometryAfterDeletion(VCGMesh &mesh)
 {
@@ -217,707 +56,6 @@ void updateGeometryAfterDeletion(VCGMesh &mesh)
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 }
 
-std::vector<MeshFilterDescriptor> buildDescriptors(const Document &doc)
-{
-    using Sel = vcg::tri::UpdateSelection<VCGMesh>;
-    std::vector<MeshFilterDescriptor> out;
-
-    bool defaultInvertFaces = true;
-    bool defaultInvertVerts = true;
-    double bboxDiag = 1.0;
-    double qualityVMin = 0.0;
-    double qualityVMax = 1.0;
-    double qualityFMin = 0.0;
-    double qualityFMax = 1.0;
-
-    const int currentMeshIndex = doc.currentMeshIndex();
-    if (currentMeshIndex >= 0 && currentMeshIndex < doc.meshCount()) {
-        const VCGMesh &mesh = doc.mesh(currentMeshIndex).mesh;
-        defaultInvertFaces = (Sel::FaceCount(mesh) > 0);
-        defaultInvertVerts = (Sel::VertexCount(mesh) > 0);
-        bboxDiag = std::max(1e-9, double(mesh.bbox.Diag()));
-        if (mesh.VN() > 0) {
-            const auto vRange = vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityMinMax(mesh);
-            qualityVMin = std::min(double(vRange.first), double(vRange.second));
-            qualityVMax = std::max(double(vRange.first), double(vRange.second));
-        }
-        if (mesh.FN() > 0) {
-            const auto fRange = vcg::tri::Stat<VCGMesh>::ComputePerFaceQualityMinMax(mesh);
-            qualityFMin = std::min(double(fRange.first), double(fRange.second));
-            qualityFMax = std::max(double(fRange.first), double(fRange.second));
-        }
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectAll);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select All");
-        d.shortDescription = QObject::tr("Select all the faces/vertices of the current mesh.");
-        d.longDescriptionMarkdown = QObject::tr("Select all the faces/vertices of the current mesh.");
-        d.tags = { QStringLiteral("selection") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addBoolParam(
-            d,
-            QStringLiteral("allFaces"),
-            QObject::tr("Select all Faces"),
-            QObject::tr("If true the filter will select all the faces."),
-            true);
-        addBoolParam(
-            d,
-            QStringLiteral("allVerts"),
-            QObject::tr("Select all Vertices"),
-            QObject::tr("If true the filter will select all the vertices."),
-            true);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectNone);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select None");
-        d.shortDescription = QObject::tr("Clear the current set of selected faces/vertices.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Clear the current set of selected faces/vertices.");
-        d.tags = { QStringLiteral("selection") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addBoolParam(
-            d,
-            QStringLiteral("allFaces"),
-            QObject::tr("De-select all Faces"),
-            QObject::tr("If true the filter will de-select all the faces."),
-            true);
-        addBoolParam(
-            d,
-            QStringLiteral("allVerts"),
-            QObject::tr("De-select all Vertices"),
-            QObject::tr("If true the filter will de-select all the vertices."),
-            true);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectByAngle);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Faces by View Angle");
-        d.shortDescription = QObject::tr("Select faces according to angle with view direction.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Select faces according to the angle between their normal and the view direction. "
-            "It is used in range map processing to select and delete steep faces parallel to "
-            "view direction.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("angle"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addDoubleParam(
-            d,
-            QStringLiteral("anglelimit"),
-            QObject::tr("Angle Threshold (deg)"),
-            QObject::tr("Faces with normals at higher angle w.r.t. the view direction are selected."),
-            75.0,
-            0.0,
-            180.0,
-            3);
-        addBoolParam(
-            d,
-            QStringLiteral("usecamera"),
-            QObject::tr("Use ViewPoint from Mesh Camera"),
-            QObject::tr(
-                "Uses the ViewPoint from the camera associated to the current mesh. "
-                "If there is no camera, an error occurs."),
-            false);
-        addDoubleParam(
-            d,
-            QStringLiteral("viewpoint_x"),
-            QObject::tr("ViewPoint X"),
-            QObject::tr("X coordinate of viewpoint (ignored when UseCamera is true)."),
-            0.0,
-            -1e9,
-            1e9,
-            6);
-        addDoubleParam(
-            d,
-            QStringLiteral("viewpoint_y"),
-            QObject::tr("ViewPoint Y"),
-            QObject::tr("Y coordinate of viewpoint (ignored when UseCamera is true)."),
-            0.0,
-            -1e9,
-            1e9,
-            6);
-        addDoubleParam(
-            d,
-            QStringLiteral("viewpoint_z"),
-            QObject::tr("ViewPoint Z"),
-            QObject::tr("Z coordinate of viewpoint (ignored when UseCamera is true)."),
-            0.0,
-            -1e9,
-            1e9,
-            6);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectUgly);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select 'Problematic' Faces");
-        d.shortDescription =
-            QObject::tr("Select problematic faces: elongated, flipped, or folded.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Select faces with 'problems', like normal inverted w.r.t. surrounding areas, "
-            "extremely elongated, or folded.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("quality"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addBoolParam(
-            d,
-            QStringLiteral("useAR"),
-            QObject::tr("Select by Aspect Ratio"),
-            QObject::tr("If true, faces with aspect ratio below the limit will be selected."),
-            true);
-        addDoubleParam(
-            d,
-            QStringLiteral("ARatio"),
-            QObject::tr("Aspect Ratio"),
-            QObject::tr(
-                "Triangle face aspect ratio [1 (equilateral) - 0 (line)]: face is selected if "
-                "below this threshold."),
-            0.02,
-            0.0,
-            1.0,
-            5);
-        addBoolParam(
-            d,
-            QStringLiteral("useNF"),
-            QObject::tr("Select by Normal Angle"),
-            QObject::tr(
-                "If true, adjacent faces with normals forming an angle above the limit are selected."),
-            false);
-        addDoubleParam(
-            d,
-            QStringLiteral("NFRatio"),
-            QObject::tr("Angle Flip"),
-            QObject::tr(
-                "Angle between adjacent faces: face is selected if above this threshold."),
-            60.0,
-            0.0,
-            180.0,
-            3);
-        addBoolParam(
-            d,
-            QStringLiteral("select_folded_faces"),
-            QObject::tr("Select Folded Faces"),
-            QObject::tr(
-                "If true, folded faces created by quadric edge-collapse decimation are selected."),
-            false);
-        addDoubleParam(
-            d,
-            QStringLiteral("folded_faces_angle_threshold"),
-            QObject::tr("Folded Faces Angle Threshold"),
-            QObject::tr(
-                "Angle between face normal and best-fitting plane of neighboring vertices. "
-                "If above threshold, face is selected."),
-            160.0,
-            90.0,
-            180.0,
-            3);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectInvert);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Invert Selection");
-        d.shortDescription = QObject::tr("Invert the current set of selected faces/vertices.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Invert the current set of selected faces/vertices.");
-        d.tags = { QStringLiteral("selection") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addBoolParam(
-            d,
-            QStringLiteral("InvFaces"),
-            QObject::tr("Invert Faces"),
-            QObject::tr("If true the filter will invert the set of selected faces."),
-            defaultInvertFaces);
-        addBoolParam(
-            d,
-            QStringLiteral("InvVerts"),
-            QObject::tr("Invert Vertices"),
-            QObject::tr("If true the filter will invert the set of selected vertices."),
-            defaultInvertVerts);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectConnected);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Connected Faces");
-        d.shortDescription = QObject::tr("Expand selected faces to their connected components.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Expand current face selection so it includes all faces in connected components "
-            "where there is at least one selected face.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("connected"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectFaceFromVert);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Faces from Vertices");
-        d.shortDescription = QObject::tr("Transfer selection from selected vertices to faces.");
-        d.longDescriptionMarkdown = QObject::tr("Select faces from selected vertices.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("transfer"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addBoolParam(
-            d,
-            QStringLiteral("Inclusive"),
-            QObject::tr("Strict Selection"),
-            QObject::tr(
-                "If true only faces with all selected vertices are selected. "
-                "Otherwise any face with at least one selected vertex is selected."),
-            true);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectVertFromFace);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Vertices from Faces");
-        d.shortDescription = QObject::tr("Transfer selection from selected faces to vertices.");
-        d.longDescriptionMarkdown = QObject::tr("Select vertices from selected faces.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("transfer"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addBoolParam(
-            d,
-            QStringLiteral("Inclusive"),
-            QObject::tr("Strict Selection"),
-            QObject::tr(
-                "If true only vertices with all incident faces selected are selected. "
-                "Otherwise any vertex with at least one incident selected face is selected."),
-            true);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterDeleteSelectedVerts);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Delete Selected Vertices");
-        d.shortDescription = QObject::tr(
-            "Delete selected vertices; incident faces are deleted too.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete the current set of selected vertices; faces that share one of the deleted "
-            "vertices are deleted too.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("delete"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterDeleteAllFaces);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Delete ALL Faces");
-        d.shortDescription = QObject::tr("Delete all faces, turning mesh into point cloud.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete all faces, turning the mesh into a point cloud. "
-            "May be applied also to all visible layers.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("delete"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::WholeDocument;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addBoolParam(
-            d,
-            QStringLiteral("allLayers"),
-            QObject::tr("Apply to all visible Layers"),
-            QObject::tr("If true, filter is applied to all visible mesh layers."),
-            false);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterDeleteSelectedFaces);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Delete Selected Faces");
-        d.shortDescription =
-            QObject::tr("Delete selected faces; unreferenced vertices are not deleted.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete the current set of selected faces, vertices that remain unreferenced are not "
-            "deleted.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("delete"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterDeleteSelectedFaceVerts);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Delete Selected Faces and Vertices");
-        d.shortDescription =
-            QObject::tr("Delete selected faces and enclosed selected vertices.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Delete the current set of selected faces and all vertices surrounded by those faces.");
-        d.tags = {
-            QStringLiteral("selection"),
-            QStringLiteral("delete"),
-            QStringLiteral("face"),
-            QStringLiteral("vertex")
-        };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectErode);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Erode Selection");
-        d.shortDescription = QObject::tr("Erode (reduce) current selected faces.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Erode (reduce) the current set of selected faces.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("morphology"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectDilate);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Dilate Selection");
-        d.shortDescription = QObject::tr("Dilate (expand) current selected faces.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Dilate (expand) the current set of selected faces.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("morphology"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectBorder);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Border");
-        d.shortDescription = QObject::tr("Select vertices and faces on mesh boundary.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Select vertices and faces on the boundary.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("border") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectByFaceQuality);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select by Face Quality");
-        d.shortDescription = QObject::tr("Select elements using per-face quality range.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Select all the faces/vertices within the specified face quality range.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("quality"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.inputRequirements.requireFaceQuality = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addDoubleParam(
-            d,
-            QStringLiteral("minQ"),
-            QObject::tr("Min Quality"),
-            QObject::tr("Minimum acceptable quality value."),
-            qualityFMin,
-            qualityFMin,
-            qualityFMax,
-            6);
-        addDoubleParam(
-            d,
-            QStringLiteral("maxQ"),
-            QObject::tr("Max Quality"),
-            QObject::tr("Maximum acceptable quality value."),
-            qualityFMax,
-            qualityFMin,
-            qualityFMax,
-            6);
-        addBoolParam(
-            d,
-            QStringLiteral("Inclusive"),
-            QObject::tr("Inclusive Selection"),
-            QObject::tr(
-                "If true only vertices with all adjacent faces within range are selected. "
-                "Otherwise any vertex with at least one face in range is selected."),
-            true);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectByVertQuality);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select by Vertex Quality");
-        d.shortDescription = QObject::tr("Select elements using per-vertex quality range.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Select all the faces/vertices within the specified vertex quality range.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("quality"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.inputRequirements.requireVertexQuality = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addDoubleParam(
-            d,
-            QStringLiteral("minQ"),
-            QObject::tr("Min Quality"),
-            QObject::tr("Minimum acceptable quality value."),
-            qualityVMin,
-            qualityVMin,
-            qualityVMax,
-            6);
-        addDoubleParam(
-            d,
-            QStringLiteral("maxQ"),
-            QObject::tr("Max Quality"),
-            QObject::tr("Maximum acceptable quality value."),
-            qualityVMax,
-            qualityVMin,
-            qualityVMax,
-            6);
-        addBoolParam(
-            d,
-            QStringLiteral("Inclusive"),
-            QObject::tr("Inclusive Face Selection"),
-            QObject::tr(
-                "If true only faces with all vertices within range are selected. "
-                "Otherwise any face with at least one vertex in range is selected."),
-            true);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectByColor);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Faces by Color");
-        d.shortDescription = QObject::tr("Select part of the mesh based on vertex color.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Select part of the mesh based on its color.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("color"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.inputRequirements.requireVertexColor = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addColorParam(
-            d,
-            QStringLiteral("Color"),
-            QObject::tr("Color To Select"),
-            QObject::tr("Color that you want to be selected."),
-            QColor(Qt::black));
-        addEnumParam(
-            d,
-            QStringLiteral("ColorSpace"),
-            QObject::tr("Pick Color Space"),
-            QObject::tr("The color space that the sliders will manipulate."),
-            QStringLiteral("hsv"),
-            {
-                { QStringLiteral("hsv"), QStringLiteral("HSV"), {} },
-                { QStringLiteral("rgb"), QStringLiteral("RGB"), {} }
-            });
-        addBoolParam(
-            d,
-            QStringLiteral("Inclusive"),
-            QObject::tr("Inclusive Selection"),
-            QObject::tr(
-                "If true only faces with all vertices within range are selected. "
-                "Otherwise any face with at least one vertex in range is selected."),
-            true);
-        addDoubleParam(
-            d,
-            QStringLiteral("PercentRH"),
-            QObject::tr("Variation from Red or Hue"),
-            QObject::tr(
-                "A float in [0,1] representing accepted variation from selected Red/Hue."),
-            0.2,
-            0.0,
-            1.0,
-            4);
-        addDoubleParam(
-            d,
-            QStringLiteral("PercentGS"),
-            QObject::tr("Variation from Green or Saturation"),
-            QObject::tr(
-                "A float in [0,1] representing accepted variation from selected Green/Saturation."),
-            0.2,
-            0.0,
-            1.0,
-            4);
-        addDoubleParam(
-            d,
-            QStringLiteral("PercentBV"),
-            QObject::tr("Variation from Blue or Value"),
-            QObject::tr(
-                "A float in [0,1] representing accepted variation from selected Blue/Value."),
-            0.2,
-            0.0,
-            1.0,
-            4);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectSelfIntersect);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Self Intersecting Faces");
-        d.shortDescription = QObject::tr("Select only self intersecting faces.");
-        d.longDescriptionMarkdown =
-            QObject::tr("Select only self intersecting faces.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("cleaning"), QStringLiteral("intersection") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectTexBorder);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Vertex Texture Seams");
-        d.shortDescription = QObject::tr("Select vertices on texture seams.");
-        d.longDescriptionMarkdown = QObject::tr("Colorize only border edges.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("texture"), QStringLiteral("seam") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.inputRequirements.requireTextureCoordinates = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectNonManifoldFace);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select non Manifold Edges");
-        d.shortDescription =
-            QObject::tr("Select faces and vertices incident on non manifold edges.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Select faces and vertices incident on non manifold edges (e.g. edges where "
-            "more than two faces are incident).");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("non-manifold"), QStringLiteral("edge") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectNonManifoldVertex);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select non Manifold Vertices");
-        d.shortDescription = QObject::tr("Select non manifold vertices.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Select non manifold vertices that do not belong to non manifold edges.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("non-manifold"), QStringLiteral("vertex") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectFacesByEdge);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Faces with Edges Longer Than...");
-        d.shortDescription =
-            QObject::tr("Select all triangles having an edge longer than threshold.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Select all triangles having an edge with length greater or equal than a given "
-            "threshold.");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("edge"), QStringLiteral("face") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireFaces = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addDoubleParam(
-            d,
-            QStringLiteral("Threshold"),
-            QObject::tr("Edge Threshold"),
-            QObject::tr(
-                "Faces with an edge longer than this threshold will be selected."),
-            bboxDiag * 0.005,
-            0.0,
-            bboxDiag * 0.5,
-            6);
-        out.push_back(std::move(d));
-    }
-
-    {
-        MeshFilterDescriptor d;
-        d.id = QString::fromLatin1(kFilterSelectOutlier);
-        d.menuPath = QObject::tr("Selection");
-        d.name = QObject::tr("Select Outliers");
-        d.shortDescription = QObject::tr("Select outlier vertices using LoOP.");
-        d.longDescriptionMarkdown = QObject::tr(
-            "Select vertices classified as outliers using Local Outlier Probability "
-            "described in: **LoOP: Local Outlier Probabilities** (Kriegel et al., CIKM 2009).");
-        d.tags = { QStringLiteral("selection"), QStringLiteral("outlier"), QStringLiteral("point cloud") };
-        d.inputDomain = MeshFilterInputDomain::SingleMesh;
-        d.inputRequirements.requireVertices = true;
-        d.outputDomain = MeshFilterOutputDomain::ModifyCurrentMesh;
-        addDoubleParam(
-            d,
-            QStringLiteral("PropThreshold"),
-            QObject::tr("Probability"),
-            QObject::tr(
-                "Threshold to select a vertex. Vertex is selected if LoOP value is above threshold."),
-            0.8,
-            0.0,
-            1.0,
-            4);
-        addIntParam(
-            d,
-            QStringLiteral("KNearest"),
-            QObject::tr("Number of neighbors"),
-            QObject::tr("Number of neighbors used to compute LoOP."),
-            32,
-            1,
-            1000000);
-        out.push_back(std::move(d));
-    }
-
-    return out;
-}
 }
 
 QString SelectFilterPlugin::pluginId() const
@@ -930,14 +68,9 @@ QString SelectFilterPlugin::name() const
     return QObject::tr("QMeshLab Selection Filters");
 }
 
-std::vector<MeshFilterDescriptor> SelectFilterPlugin::filters(const Document &doc) const
-{
-    return buildDescriptors(doc);
-}
-
 MeshFilterRunResult SelectFilterPlugin::runFilter(
     const QString &filterId,
-    const MeshFilterParameterValues &parameters,
+    const FilterParams &params,
     Document &doc) const
 {
     using Mask = vcg::tri::io::Mask;
@@ -983,9 +116,9 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     vcg::CallBackPos *cb = doc.progressCallback();
 
     if (filterId == QString::fromLatin1(kFilterSelectAll)) {
-        if (boolParameter(parameters, QStringLiteral("allVerts"), true))
+        if (params.getBool(QStringLiteral("allVerts")))
             Sel::VertexAll(mesh);
-        if (boolParameter(parameters, QStringLiteral("allFaces"), true))
+        if (params.getBool(QStringLiteral("allFaces")))
             Sel::FaceAll(mesh);
         return selectionResult(
             meshIndex,
@@ -994,9 +127,9 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectNone)) {
-        if (boolParameter(parameters, QStringLiteral("allVerts"), true))
+        if (params.getBool(QStringLiteral("allVerts")))
             Sel::VertexClear(mesh);
-        if (boolParameter(parameters, QStringLiteral("allFaces"), true))
+        if (params.getBool(QStringLiteral("allFaces")))
             Sel::FaceClear(mesh);
         return selectionResult(
             meshIndex,
@@ -1008,17 +141,17 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         if (mesh.FN() <= 0)
             return fail(QObject::tr("Current mesh has no faces."));
 
-        if (boolParameter(parameters, QStringLiteral("usecamera"), false)) {
+        if (params.getBool(QStringLiteral("usecamera"))) {
             return fail(QObject::tr(
                 "Use ViewPoint from Mesh Camera is not supported in current QMeshLab data model."));
         }
 
         vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
         const vcg::Point3f viewpoint(
-            float(doubleParameter(parameters, QStringLiteral("viewpoint_x"), 0.0)),
-            float(doubleParameter(parameters, QStringLiteral("viewpoint_y"), 0.0)),
-            float(doubleParameter(parameters, QStringLiteral("viewpoint_z"), 0.0)));
-        const float angleDeg = float(doubleParameter(parameters, QStringLiteral("anglelimit"), 75.0));
+            float(params.getDouble(QStringLiteral("viewpoint_x"))),
+            float(params.getDouble(QStringLiteral("viewpoint_y"))),
+            float(params.getDouble(QStringLiteral("viewpoint_z"))));
+        const float angleDeg = float(params.getDouble(QStringLiteral("anglelimit")));
         const float limit = std::cos(vcg::math::ToRad(angleDeg));
 
         int selected = 0;
@@ -1060,8 +193,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         int selectedByNF = 0;
         int selectedByFolded = 0;
 
-        if (boolParameter(parameters, QStringLiteral("useAR"), true)) {
-            const float aRatio = float(doubleParameter(parameters, QStringLiteral("ARatio"), 0.02));
+        if (params.getBool(QStringLiteral("useAR"))) {
+            const float aRatio = float(params.getDouble(QStringLiteral("ARatio")));
             for (VCGFace &f : mesh.face) {
                 if (f.IsD())
                     continue;
@@ -1074,10 +207,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             }
         }
 
-        if (boolParameter(parameters, QStringLiteral("useNF"), false)) {
+        if (params.getBool(QStringLiteral("useNF"))) {
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
-            const float nfRatio = float(doubleParameter(parameters, QStringLiteral("NFRatio"), 60.0));
+            const float nfRatio = float(params.getDouble(QStringLiteral("NFRatio")));
             for (VCGFace &f : mesh.face) {
                 if (f.IsD())
                     continue;
@@ -1106,9 +239,9 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             }
         }
 
-        if (boolParameter(parameters, QStringLiteral("select_folded_faces"), false)) {
+        if (params.getBool(QStringLiteral("select_folded_faces"))) {
             const float angleThr =
-                float(doubleParameter(parameters, QStringLiteral("folded_faces_angle_threshold"), 160.0));
+                float(params.getDouble(QStringLiteral("folded_faces_angle_threshold")));
             const int beforeSel = int(Sel::FaceCount(mesh));
             vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
             vcg::tri::Clean<VCGMesh>::SelectFoldedFaceFromOneRingFaces(
@@ -1129,9 +262,9 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectInvert)) {
-        if (boolParameter(parameters, QStringLiteral("InvVerts"), true))
+        if (params.getBool(QStringLiteral("InvVerts")))
             Sel::VertexInvert(mesh);
-        if (boolParameter(parameters, QStringLiteral("InvFaces"), true))
+        if (params.getBool(QStringLiteral("InvFaces")))
             Sel::FaceInvert(mesh);
         return selectionResult(
             meshIndex,
@@ -1151,7 +284,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectFaceFromVert)) {
-        const bool strict = boolParameter(parameters, QStringLiteral("Inclusive"), true);
+        const bool strict = params.getBool(QStringLiteral("Inclusive"));
         if (strict)
             Sel::FaceFromVertexStrict(mesh);
         else
@@ -1163,7 +296,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectVertFromFace)) {
-        const bool strict = boolParameter(parameters, QStringLiteral("Inclusive"), true);
+        const bool strict = params.getBool(QStringLiteral("Inclusive"));
         if (strict)
             Sel::VertexFromFaceStrict(mesh);
         else
@@ -1213,7 +346,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterDeleteAllFaces)) {
-        const bool allLayers = boolParameter(parameters, QStringLiteral("allLayers"), false);
+        const bool allLayers = params.getBool(QStringLiteral("allLayers"));
         int changedLayers = 0;
         int totalDeletedFaces = 0;
         QStringList info;
@@ -1368,9 +501,9 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectByVertQuality)) {
-        const float minQ = float(doubleParameter(parameters, QStringLiteral("minQ"), 0.0));
-        const float maxQ = float(doubleParameter(parameters, QStringLiteral("maxQ"), 1.0));
-        const bool inclusive = boolParameter(parameters, QStringLiteral("Inclusive"), true);
+        const float minQ = float(params.getDouble(QStringLiteral("minQ")));
+        const float maxQ = float(params.getDouble(QStringLiteral("maxQ")));
+        const bool inclusive = params.getBool(QStringLiteral("Inclusive"));
         Sel::VertexFromQualityRange(mesh, minQ, maxQ);
         if (inclusive)
             Sel::FaceFromVertexStrict(mesh);
@@ -1383,9 +516,9 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectByFaceQuality)) {
-        const float minQ = float(doubleParameter(parameters, QStringLiteral("minQ"), 0.0));
-        const float maxQ = float(doubleParameter(parameters, QStringLiteral("maxQ"), 1.0));
-        const bool inclusive = boolParameter(parameters, QStringLiteral("Inclusive"), true);
+        const float minQ = float(params.getDouble(QStringLiteral("minQ")));
+        const float maxQ = float(params.getDouble(QStringLiteral("maxQ")));
+        const bool inclusive = params.getBool(QStringLiteral("Inclusive"));
         Sel::FaceFromQualityRange(mesh, minQ, maxQ);
         if (inclusive)
             Sel::VertexFromFaceStrict(mesh);
@@ -1398,13 +531,13 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectByColor)) {
-        const QColor targetColor = colorParameter(parameters, QStringLiteral("Color"), QColor(Qt::black));
+        const QColor targetColor = params.getColor(QStringLiteral("Color"));
         const QString colorSpace =
-            enumParameter(parameters, QStringLiteral("ColorSpace"), QStringLiteral("hsv")).toLower();
-        const bool inclusive = boolParameter(parameters, QStringLiteral("Inclusive"), true);
-        const float valueRH = float(doubleParameter(parameters, QStringLiteral("PercentRH"), 0.2));
-        const float valueGS = float(doubleParameter(parameters, QStringLiteral("PercentGS"), 0.2));
-        const float valueBV = float(doubleParameter(parameters, QStringLiteral("PercentBV"), 0.2));
+            params.getEnum(QStringLiteral("ColorSpace")).toLower();
+        const bool inclusive = params.getBool(QStringLiteral("Inclusive"));
+        const float valueRH = float(params.getDouble(QStringLiteral("PercentRH")));
+        const float valueGS = float(params.getDouble(QStringLiteral("PercentGS")));
+        const float valueBV = float(params.getDouble(QStringLiteral("PercentBV")));
 
         const float red = targetColor.redF();
         const float green = targetColor.greenF();
@@ -1499,7 +632,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectFacesByEdge)) {
-        const float threshold = float(doubleParameter(parameters, QStringLiteral("Threshold"), mesh.bbox.Diag() * 0.005));
+        const float threshold = float(params.getDouble(QStringLiteral("Threshold")));
         const int selFaceNum = Sel::FaceOutOfRangeEdge(mesh, 0.0f, threshold);
         return selectionResult(
             meshIndex,
@@ -1513,8 +646,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterSelectOutlier)) {
         if (mesh.VN() <= 0)
             return fail(QObject::tr("Current mesh has no vertices."));
-        const float threshold = float(doubleParameter(parameters, QStringLiteral("PropThreshold"), 0.8));
-        const int kNearest = std::max(1, intParameter(parameters, QStringLiteral("KNearest"), 32));
+        const float threshold = float(params.getDouble(QStringLiteral("PropThreshold")));
+        const int kNearest = std::max(1, params.getInt(QStringLiteral("KNearest")));
         vcg::VertexConstDataWrapper<VCGMesh> wrapper(mesh);
         vcg::KdTree<VCGMesh::ScalarType> kdTree(wrapper);
         const int selVertexNum =

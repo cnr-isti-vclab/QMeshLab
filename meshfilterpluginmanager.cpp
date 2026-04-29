@@ -1,6 +1,7 @@
 #include "meshfilterpluginmanager.h"
 
 #include "document.h"
+#include "filterparam.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <QColor>
 #include <QObject>
@@ -215,7 +216,8 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     if (wrapUndo)
         doc.beginUndoStep(targetDescriptor->name);
 
-    MeshFilterRunResult result = targetPlugin->runFilter(filterId, normalizedParameters, doc);
+    const FilterParams typedParams(normalizedParameters);
+    MeshFilterRunResult result = targetPlugin->runFilter(filterId, typedParams, doc);
     if (!result.success) {
         if (wrapUndo)
             doc.endUndoStep(false, true);
