@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include <QVector3D>
 #include <wrap/embree/EmbreeAdaptor.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -143,11 +144,9 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectVisibleFaces)) {
-        const double dx = params.getDouble(QStringLiteral("dir_x"));
-        const double dy = params.getDouble(QStringLiteral("dir_y"));
-        const double dz = params.getDouble(QStringLiteral("dir_z"));
+        const QVector3D dv = params.getPoint3f(QStringLiteral("direction"));
+        const vcg::Point3f dir { -float(dv.x()), -float(dv.y()), -float(dv.z()) };
         const bool incremental = params.getBool(QStringLiteral("incremental_selection"));
-        const vcg::Point3f dir { float(dx), float(dy), float(dz) };
         if (dir.SquaredNorm() <= 1e-20f)
             return { false, false, QObject::tr("Direction vector must be non-zero.") };
 

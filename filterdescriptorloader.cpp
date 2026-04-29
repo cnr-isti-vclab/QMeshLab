@@ -10,6 +10,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QVector3D>
 #include <algorithm>
 #include <cmath>
 #include <thread>
@@ -43,6 +44,7 @@ MeshFilterParameterType parseParamType(const QString &s)
     if (s == QStringLiteral("string")) return MeshFilterParameterType::String;
     if (s == QStringLiteral("enum"))   return MeshFilterParameterType::Enum;
     if (s == QStringLiteral("color"))  return MeshFilterParameterType::Color;
+    if (s == QStringLiteral("point3f")) return MeshFilterParameterType::Point3f;
     return MeshFilterParameterType::String;
 }
 
@@ -72,10 +74,25 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
     p.helpMarkdown = obj.value(QStringLiteral("help")).toString();
     p.group        = obj.value(QStringLiteral("group")).toString(QStringLiteral("main"));
     p.type         = parseParamType(obj.value(QStringLiteral("type")).toString());
-    p.defaultValue = parseJsonValue(obj.value(QStringLiteral("default")));
-    p.minValue     = parseJsonValue(obj.value(QStringLiteral("min")));
-    p.maxValue     = parseJsonValue(obj.value(QStringLiteral("max")));
     p.decimals     = obj.value(QStringLiteral("decimals")).toInt(3);
+
+    if (p.type == MeshFilterParameterType::Point3f) {
+        // Default is a JSON array [x, y, z]; min/max are not applicable.
+        const QJsonValue defVal = obj.value(QStringLiteral("default"));
+        float x = 0.0f, y = 0.0f, z = 0.0f;
+        if (defVal.isArray()) {
+            const QJsonArray arr = defVal.toArray();
+            if (arr.size() > 0) x = float(arr[0].toDouble());
+            if (arr.size() > 1) y = float(arr[1].toDouble());
+            if (arr.size() > 2) z = float(arr[2].toDouble());
+        }
+        p.defaultValue = QVariant::fromValue(QVector3D(x, y, z));
+        p.point3fRole  = obj.value(QStringLiteral("point3fRole")).toString(QStringLiteral("point"));
+    } else {
+        p.defaultValue = parseJsonValue(obj.value(QStringLiteral("default")));
+        p.minValue     = parseJsonValue(obj.value(QStringLiteral("min")));
+        p.maxValue     = parseJsonValue(obj.value(QStringLiteral("max")));
+    }
 
     const QJsonArray opts = obj.value(QStringLiteral("enumOptions")).toArray();
     for (const QJsonValue &ov : opts) {

@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include <QVector3D>
 #if defined(__APPLE__)
 #include <OpenGL/gl.h>
 #else
@@ -723,12 +724,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 axis = { 0, 1, 0 };
             else if (axisMode == QStringLiteral("z"))
                 axis = { 0, 0, 1 };
-            else if (axisMode == QStringLiteral("custom"))
-                axis = {
-                    float(params.getDouble(QStringLiteral("customAxisX"))),
-                    float(params.getDouble(QStringLiteral("customAxisY"))),
-                    float(params.getDouble(QStringLiteral("customAxisZ")))
-                };
+            else if (axisMode == QStringLiteral("custom")) {
+                const QVector3D av = params.getPoint3f(QStringLiteral("customAxis"));
+                axis = { float(av.x()), float(av.y()), float(av.z()) };
+            }
 
             const float n2 = axis.SquaredNorm();
             if (n2 <= 1e-20f)
@@ -739,12 +738,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const QString centerMode = params.getEnum(QStringLiteral("rotCenter"));
             if (centerMode == QStringLiteral("barycenter"))
                 center = mesh.bbox.Center();
-            else if (centerMode == QStringLiteral("custom"))
-                center = {
-                    float(params.getDouble(QStringLiteral("customCenterX"))),
-                    float(params.getDouble(QStringLiteral("customCenterY"))),
-                    float(params.getDouble(QStringLiteral("customCenterZ")))
-                };
+            else if (centerMode == QStringLiteral("custom")) {
+                const QVector3D cv = params.getPoint3f(QStringLiteral("customCenter"));
+                center = { float(cv.x()), float(cv.y()), float(cv.z()) };
+            }
 
             float angleDeg = float(params.getDouble(QStringLiteral("angle")));
             if (params.getBool(QStringLiteral("snapFlag"))) {
@@ -876,21 +873,18 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdCenter)) {
-            vcg::Point3f translation(
-                float(params.getDouble(QStringLiteral("axisX"))),
-                float(params.getDouble(QStringLiteral("axisY"))),
-                float(params.getDouble(QStringLiteral("axisZ"))));
+            const QVector3D axv = params.getPoint3f(QStringLiteral("axis"));
+            vcg::Point3f translation(float(axv.x()), float(axv.y()), float(axv.z()));
 
             const QString method = params.getEnum(QStringLiteral("traslMethod"));
             if (method == QStringLiteral("scene_bbox"))
                 translation = -sceneBBox(doc, true).Center();
             else if (method == QStringLiteral("layer_bbox"))
                 translation = -mesh.bbox.Center();
-            else if (method == QStringLiteral("new_origin"))
-                translation = -vcg::Point3f(
-                    float(params.getDouble(QStringLiteral("newOriginX"))),
-                    float(params.getDouble(QStringLiteral("newOriginY"))),
-                    float(params.getDouble(QStringLiteral("newOriginZ"))));
+            else if (method == QStringLiteral("new_origin")) {
+                const QVector3D nov = params.getPoint3f(QStringLiteral("newOrigin"));
+                translation = -vcg::Point3f(float(nov.x()), float(nov.y()), float(nov.z()));
+            }
 
             vcg::Matrix44f tr;
             tr.SetTranslate(translation);
@@ -917,12 +911,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const QString centerMode = params.getEnum(QStringLiteral("scaleCenter"));
             if (centerMode == QStringLiteral("barycenter"))
                 c = sb.Center();
-            else if (centerMode == QStringLiteral("custom"))
-                c = {
-                    float(params.getDouble(QStringLiteral("customCenterX"))),
-                    float(params.getDouble(QStringLiteral("customCenterY"))),
-                    float(params.getDouble(QStringLiteral("customCenterZ")))
-                };
+            else if (centerMode == QStringLiteral("custom")) {
+                const QVector3D cv = params.getPoint3f(QStringLiteral("customCenter"));
+                c = { float(cv.x()), float(cv.y()), float(cv.z()) };
+            }
 
             vcg::Matrix44f s;
             s.SetScale(sx, sy, sz);
@@ -981,11 +973,8 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             p.fittingAdjNum = std::max(1, params.getInt(QStringLiteral("K")));
             p.smoothingIterNum = std::max(0, params.getInt(QStringLiteral("smoothIter")));
             p.useViewPoint = params.getBool(QStringLiteral("flipFlag"));
-            p.viewPoint = {
-                float(params.getDouble(QStringLiteral("viewPosX"))),
-                float(params.getDouble(QStringLiteral("viewPosY"))),
-                float(params.getDouble(QStringLiteral("viewPosZ")))
-            };
+            const QVector3D vpv = params.getPoint3f(QStringLiteral("viewPos"));
+            p.viewPoint = { float(vpv.x()), float(vpv.y()), float(vpv.z()) };
             vcg::tri::PointCloudNormal<VCGMesh>::Compute(mesh, p, doc.progressCallback());
             entry.ioMask |= Mask::IOM_VERTNORMAL;
             doc.markMeshMaterialChanged(ci, QObject::tr("Computed point-set normals for '%1'").arg(entry.name));
@@ -1393,12 +1382,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 axis = { 0, 1, 0 };
             else if (am == QStringLiteral("z"))
                 axis = { 0, 0, 1 };
-            else if (am == QStringLiteral("custom"))
-                axis = {
-                    float(params.getDouble(QStringLiteral("customAxisX"))),
-                    float(params.getDouble(QStringLiteral("customAxisY"))),
-                    float(params.getDouble(QStringLiteral("customAxisZ")))
-                };
+            else if (am == QStringLiteral("custom")) {
+                const QVector3D av = params.getPoint3f(QStringLiteral("customAxis"));
+                axis = { float(av.x()), float(av.y()), float(av.z()) };
+            }
             const float axn = std::sqrt(axis.SquaredNorm());
             if (axn <= 1e-20f)
                 return fail(QObject::tr("Custom slicing axis must be non-zero."));

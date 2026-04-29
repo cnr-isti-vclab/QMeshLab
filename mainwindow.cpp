@@ -136,6 +136,8 @@ QString filterParameterTypeLabel(MeshFilterParameterType type)
         return QObject::tr("Enum");
     case MeshFilterParameterType::Color:
         return QObject::tr("Color");
+    case MeshFilterParameterType::Point3f:
+        return QObject::tr("3D Point");
     }
     return QObject::tr("Unknown");
 }
@@ -156,6 +158,12 @@ QString filterParameterValueText(const QVariant &value, MeshFilterParameterType 
     case MeshFilterParameterType::String:
     case MeshFilterParameterType::Enum:
     case MeshFilterParameterType::Color:
+        return value.toString();
+    case MeshFilterParameterType::Point3f:
+        if (value.userType() == QMetaType::QVector3D) {
+            const QVector3D v = value.value<QVector3D>();
+            return QStringLiteral("%1, %2, %3").arg(v.x()).arg(v.y()).arg(v.z());
+        }
         return value.toString();
     }
     return value.toString();
@@ -390,6 +398,12 @@ MainWindow::MainWindow(QWidget *parent)
     addDockWidget(Qt::RightDockWidgetArea, m_layerDock);
 
     m_filterPanel = new MeshFilterPanel(m_doc, this);
+    m_filterPanel->setViewContextProvider([this]() -> MeshFilterPanel::ViewContext {
+        if (m_renderWidgets.isEmpty())
+            return {};
+        RenderWidget *v = m_renderWidgets.constFirst();
+        return { v->trackballCenter(), v->cameraEyePosition(), v->cameraViewDirection() };
+    });
     m_filterDock = new QDockWidget(tr("Filters"), this);
     m_filterDock->setWidget(m_filterPanel);
     m_filterDock->setFeatures(QDockWidget::NoDockWidgetFeatures);

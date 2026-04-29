@@ -3,6 +3,7 @@
 #include "document.h"
 #include "meshfilterpluginmanager.h"
 #include <QColor>
+#include <QVector3D>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/clean.h>
@@ -147,10 +148,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         }
 
         vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
-        const vcg::Point3f viewpoint(
-            float(params.getDouble(QStringLiteral("viewpoint_x"))),
-            float(params.getDouble(QStringLiteral("viewpoint_y"))),
-            float(params.getDouble(QStringLiteral("viewpoint_z"))));
+        const QVector3D vp = params.getPoint3f(QStringLiteral("viewpoint"));
+        const vcg::Point3f viewpoint(float(vp.x()), float(vp.y()), float(vp.z()));
         const float angleDeg = float(params.getDouble(QStringLiteral("anglelimit")));
         const float limit = std::cos(vcg::math::ToRad(angleDeg));
 

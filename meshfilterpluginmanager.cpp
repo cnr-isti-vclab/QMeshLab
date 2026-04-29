@@ -6,6 +6,7 @@
 #include <QColor>
 #include <QObject>
 #include <QSet>
+#include <QVector3D>
 #include <algorithm>
 #include <cmath>
 
@@ -44,6 +45,8 @@ QVariant defaultValueForParameter(const MeshFilterParameterDescriptor &parameter
         return QString();
     case MeshFilterParameterType::Color:
         return QColor(Qt::white);
+    case MeshFilterParameterType::Point3f:
+        return QVariant::fromValue(QVector3D(0.0f, 0.0f, 0.0f));
     }
     return {};
 }
@@ -453,6 +456,26 @@ bool MeshFilterPluginManager::convertParameterValue(
         }
         outputValue = color;
         return true;
+    }
+    case MeshFilterParameterType::Point3f: {
+        if (inputValue.userType() == QMetaType::QVector3D) {
+            outputValue = inputValue;
+            return true;
+        }
+        // Accept "x,y,z" string
+        const QStringList parts = inputValue.toString().trimmed().split(QLatin1Char(','));
+        if (parts.size() == 3) {
+            bool okX = false, okY = false, okZ = false;
+            const float x = parts[0].trimmed().toFloat(&okX);
+            const float y = parts[1].trimmed().toFloat(&okY);
+            const float z = parts[2].trimmed().toFloat(&okZ);
+            if (okX && okY && okZ) {
+                outputValue = QVariant::fromValue(QVector3D(x, y, z));
+                return true;
+            }
+        }
+        errorMessage = QObject::tr("%1 must be a 3D point (QVector3D or \"x,y,z\" string).").arg(prefix);
+        return false;
     }
     }
 

@@ -48,6 +48,9 @@ public:
 
     ViewState captureViewState() const;
     void restoreViewState(const ViewState &vs);
+    QVector3D trackballCenter() const { return m_trackball.center(); }
+    QVector3D cameraEyePosition() const { return m_trackball.cameraEyePosition(); }
+    QVector3D cameraViewDirection() const { return m_trackball.cameraViewDirection(); }
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);

@@ -32,6 +32,14 @@ public:
     void setState(const State &state);
     void setCenter(const QVector3D &center) { m_center = center; }
     QVector3D center() const { return m_center; }
+    QVector3D cameraEyePosition() const
+    {
+        return m_center + m_rotation.inverted().rotatedVector(QVector3D(0.0f, 0.0f, m_distance));
+    }
+    QVector3D cameraViewDirection() const
+    {
+        return m_rotation.inverted().rotatedVector(QVector3D(0.0f, 0.0f, -1.0f)).normalized();
+    }
     float radius() const { return m_radius; }
     float fovYDegrees() const { return m_fovYDeg; }
     float gizmoWorldRadius() const;

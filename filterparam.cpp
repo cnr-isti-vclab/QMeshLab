@@ -1,5 +1,7 @@
 #include "filterparam.h"
 
+#include <QVector3D>
+
 FilterParams::FilterParams(const MeshFilterParameterValues &values)
     : m_values(values)
 {
@@ -33,6 +35,11 @@ QString FilterParams::getEnum(const QString &id) const
 QColor FilterParams::getColor(const QString &id) const
 {
     return getColor(id, QColor(Qt::white));
+}
+
+QVector3D FilterParams::getPoint3f(const QString &id) const
+{
+    return getPoint3f(id, QVector3D(0.0f, 0.0f, 0.0f));
 }
 
 bool FilterParams::getBool(const QString &id, bool fallback) const
@@ -92,4 +99,24 @@ QColor FilterParams::getColor(const QString &id, const QColor &fallback) const
         return it.value().value<QColor>();
     const QColor c(it.value().toString().trimmed());
     return c.isValid() ? c : fallback;
+}
+
+QVector3D FilterParams::getPoint3f(const QString &id, const QVector3D &fallback) const
+{
+    const auto it = m_values.constFind(id);
+    if (it == m_values.constEnd())
+        return fallback;
+    if (it.value().userType() == QMetaType::QVector3D)
+        return it.value().value<QVector3D>();
+    // Accept "x,y,z" string encoding (used in tests / scripting)
+    const QStringList parts = it.value().toString().trimmed().split(QLatin1Char(','));
+    if (parts.size() == 3) {
+        bool okX = false, okY = false, okZ = false;
+        const float x = parts[0].trimmed().toFloat(&okX);
+        const float y = parts[1].trimmed().toFloat(&okY);
+        const float z = parts[2].trimmed().toFloat(&okZ);
+        if (okX && okY && okZ)
+            return QVector3D(x, y, z);
+    }
+    return fallback;
 }

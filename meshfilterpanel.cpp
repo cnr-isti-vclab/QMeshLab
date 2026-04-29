@@ -3,6 +3,7 @@
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
+#include <QCursor>
 #include <QDoubleSpinBox>
 #include <QEvent>
 #include <QFormLayout>
@@ -12,6 +13,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QMenu>
 #include <QPalette>
 #include <QPushButton>
 #include <QSignalBlocker>
@@ -22,6 +24,7 @@
 #include <QTextBrowser>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QVector3D>
 #include <QIcon>
 #include <QRegularExpression>
 #include <algorithm>
@@ -151,7 +154,235 @@ QStringList tokenizeSearchTerms(const QString &text)
     terms.removeDuplicates();
     return terms;
 }
-}
+
+// Editor widget for Point3f parameters.
+// Editor widget for Point3f parameters.
+// Shows a preset combo-box that auto-fills three X/Y/Z spinboxes when a named
+// source is selected.  Manually editing a spinbox switches the combo to "Custom".
+class Point3fEditor : public QWidget
+{
+public:
+    explicit Point3fEditor(
+        const QString &role, // "point" or "direction"
+        Document *doc,
+        std::function<MeshFilterPanel::ViewContext()> viewContextProvider,
+        QWidget *parent = nullptr)
+        : QWidget(parent)
+        , m_role(role)
+        , m_doc(doc)
+        , m_viewContextProvider(std::move(viewContextProvider))
+    {
+        auto *outer = new QVBoxLayout(this);
+        outer->setContentsMargins(0, 0, 0, 0);
+        outer->setSpacing(2);
+
+        // --- Preset combo row ---
+        m_combo = new QComboBox(this);
+        m_combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        populateCombo();
+
+        auto *comboRow = new QHBoxLayout();
+        comboRow->setContentsMargins(0, 0, 0, 0);
+        comboRow->setSpacing(2);
+        comboRow->addWidget(m_combo, 1);
+
+        // Refresh button — re-fetches the dynamic preset (e.g. current view direction)
+        m_refreshBtn = new QToolButton(this);
+        m_refreshBtn->setText(QStringLiteral("\u21ba")); // ↺
+        m_refreshBtn->setToolTip(QObject::tr("Re-fetch value from selected source"));
+        m_refreshBtn->setVisible(false);
+        comboRow->addWidget(m_refreshBtn, 0);
+        outer->addLayout(comboRow);
+
+        // --- Spinbox row ---
+        auto *spinRow = new QHBoxLayout();
+        spinRow->setContentsMargins(0, 0, 0, 0);
+        spinRow->setSpacing(2);
+
+        const QString labels[3] = { QStringLiteral("X"), QStringLiteral("Y"), QStringLiteral("Z") };
+        for (int i = 0; i < 3; ++i) {
+            auto *lbl = new QLabel(labels[i], this);
+            lbl->setStyleSheet(QStringLiteral("color: palette(mid); padding: 0 1px;"));
+            spinRow->addWidget(lbl, 0);
+            m_spin[i] = new QDoubleSpinBox(this);
+            m_spin[i]->setRange(-1e9, 1e9);
+            m_spin[i]->setDecimals(4);
+            m_spin[i]->setSingleStep(0.1);
+            m_spin[i]->setAlignment(Qt::AlignRight);
+            // Fixed compact width so three spinboxes fit side-by-side
+            m_spin[i]->setFixedWidth(70);
+            spinRow->addWidget(m_spin[i], 0);
+        }
+        spinRow->addStretch(1);
+        outer->addLayout(spinRow);
+
+        // Editing a spinbox switches combo to "Custom"
+        for (int i = 0; i < 3; ++i) {
+            connect(m_spin[i], qOverload<double>(&QDoubleSpinBox::valueChanged),
+                    this, &Point3fEditor::onSpinEdited);
+        }
+        // Selecting a combo preset fills spinboxes
+        connect(m_combo, qOverload<int>(&QComboBox::currentIndexChanged),
+                this, &Point3fEditor::onPresetSelected);
+        // Refresh button re-applies the current dynamic preset
+        connect(m_refreshBtn, &QToolButton::clicked,
+                this, [this]() { onPresetSelected(m_combo->currentIndex()); });
+    }
+
+    void setValue(const QVector3D &v)
+    {
+        // Set spinboxes quietly, then select "Custom" so the combo reflects the explicit value
+        setSpinsQuiet(v);
+        selectCustom();
+    }
+
+    QVector3D value() const
+    {
+        return QVector3D(float(m_spin[0]->value()),
+                         float(m_spin[1]->value()),
+                         float(m_spin[2]->value()));
+    }
+
+private:
+    // Preset entry: displayed name + optional fixed value (nullopt = dynamic/custom)
+    struct Preset {
+        QString label;
+        QVector3D vec;    // only used when !dynamic
+        bool dynamic = false; // requires context provider
+    };
+
+    static constexpr int kCustomIndex = 0; // "Custom" is always first
+
+    void setSpinsReadOnly(bool ro)
+    {
+        for (int i = 0; i < 3; ++i) {
+            m_spin[i]->setReadOnly(ro);
+            m_spin[i]->setButtonSymbols(ro ? QAbstractSpinBox::NoButtons
+                                           : QAbstractSpinBox::UpDownArrows);
+            m_spin[i]->setStyleSheet(ro ? QStringLiteral("color: palette(mid);") : QString());
+        }
+    }
+
+    void updatePresetUi(int idx)
+    {
+        const bool isCustom = (idx == kCustomIndex);
+        const bool isDynamic = !isCustom && idx < int(m_presets.size()) && m_presets[idx].dynamic;
+        setSpinsReadOnly(!isCustom);
+        m_refreshBtn->setVisible(isDynamic);
+    }
+
+    void populateCombo()
+    {
+        m_presets.clear();
+        m_combo->blockSignals(true);
+
+        // Always first: Custom (user-edited)
+        m_presets.push_back({ QObject::tr("Custom"), {}, false });
+        m_combo->addItem(m_presets.back().label);
+
+        if (m_role == QStringLiteral("direction")) {
+            m_presets.push_back({ QObject::tr("+X Axis"),  QVector3D( 1, 0, 0), false });
+            m_presets.push_back({ QObject::tr("-X Axis"),  QVector3D(-1, 0, 0), false });
+            m_presets.push_back({ QObject::tr("+Y Axis"),  QVector3D( 0, 1, 0), false });
+            m_presets.push_back({ QObject::tr("-Y Axis"),  QVector3D( 0,-1, 0), false });
+            m_presets.push_back({ QObject::tr("+Z Axis"),  QVector3D( 0, 0, 1), false });
+            m_presets.push_back({ QObject::tr("-Z Axis"),  QVector3D( 0, 0,-1), false });
+            m_presets.push_back({ QObject::tr("View Direction"),     {}, true });
+        } else {
+            // "point" role
+            m_presets.push_back({ QObject::tr("Origin"),         QVector3D(0, 0, 0), false });
+            m_presets.push_back({ QObject::tr("Mesh BBox Center"),   {}, true });
+            m_presets.push_back({ QObject::tr("Camera Eye Position"),{}, true });
+            m_presets.push_back({ QObject::tr("Trackball Center"),   {}, true });
+        }
+
+        for (int i = 1; i < int(m_presets.size()); ++i)
+            m_combo->addItem(m_presets[i].label);
+
+        m_combo->blockSignals(false);
+    }
+
+    void setSpinsQuiet(const QVector3D &v)
+    {
+        for (int i = 0; i < 3; ++i) {
+            const QSignalBlocker b(m_spin[i]);
+            m_spin[i]->setValue(double(v[i]));
+        }
+    }
+
+    void selectCustom()
+    {
+        const QSignalBlocker b(m_combo);
+        m_combo->setCurrentIndex(kCustomIndex);
+        updatePresetUi(kCustomIndex);
+    }
+
+    void onSpinEdited()
+    {
+        // User changed a spinbox manually — switch to Custom (spinboxes stay editable)
+        const QSignalBlocker b(m_combo);
+        if (m_combo->currentIndex() != kCustomIndex) {
+            m_combo->setCurrentIndex(kCustomIndex);
+            updatePresetUi(kCustomIndex);
+        }
+    }
+
+    void onPresetSelected(int idx)
+    {
+        if (idx < 0 || idx >= int(m_presets.size()))
+            return;
+
+        updatePresetUi(idx);
+
+        if (idx == kCustomIndex)
+            return; // spinboxes already editable, nothing to fill
+
+        const Preset &p = m_presets[idx];
+        if (!p.dynamic) {
+            setSpinsQuiet(p.vec);
+            return;
+        }
+
+        // Dynamic — requires context
+        const bool hasMesh = m_doc
+            && m_doc->currentMeshIndex() >= 0
+            && m_doc->currentMeshIndex() < m_doc->meshCount();
+
+        if (m_role == QStringLiteral("direction")) {
+            if (p.label == QObject::tr("View Direction") && m_viewContextProvider) {
+                setSpinsQuiet(m_viewContextProvider().viewDirection);
+                return;
+            }
+        } else {
+            if (p.label == QObject::tr("Mesh BBox Center") && hasMesh) {
+                const vcg::Point3f c = m_doc->mesh(m_doc->currentMeshIndex()).mesh.bbox.Center();
+                setSpinsQuiet(QVector3D(c[0], c[1], c[2]));
+                return;
+            }
+            if (p.label == QObject::tr("Camera Eye Position") && m_viewContextProvider) {
+                setSpinsQuiet(m_viewContextProvider().eyePosition);
+                return;
+            }
+            if (p.label == QObject::tr("Trackball Center") && m_viewContextProvider) {
+                setSpinsQuiet(m_viewContextProvider().trackballCenter);
+                return;
+            }
+        }
+
+        // Provider unavailable — fall back to Custom
+        selectCustom();
+    }
+
+    QString m_role;
+    Document *m_doc = nullptr;
+    std::function<MeshFilterPanel::ViewContext()> m_viewContextProvider;
+    std::vector<Preset> m_presets;
+    QComboBox *m_combo = nullptr;
+    QToolButton *m_refreshBtn = nullptr;
+    QDoubleSpinBox *m_spin[3] = { nullptr, nullptr, nullptr };
+};
+
+} // namespace
 
 MeshFilterPanel::MeshFilterPanel(Document *doc, QWidget *parent)
     : QWidget(parent)
@@ -160,6 +391,21 @@ MeshFilterPanel::MeshFilterPanel(Document *doc, QWidget *parent)
     buildUi();
     reloadFilters();
 }
+
+void MeshFilterPanel::setViewContextProvider(std::function<ViewContext()> fn)
+{
+    m_viewContextProvider = std::move(fn);
+}
+
+void MeshFilterPanel::setTrackballCenterProvider(std::function<QVector3D()> fn)
+{
+    // Legacy wrapper: build a ViewContext provider from the old trackball-center-only provider
+    m_viewContextProvider = [fn = std::move(fn)]() -> ViewContext {
+        const QVector3D c = fn ? fn() : QVector3D(0, 0, 0);
+        return ViewContext{ c, c, QVector3D(0, 0, -1) };
+    };
+}
+
 
 void MeshFilterPanel::buildUi()
 {
@@ -664,6 +910,15 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
             editor = w;
             break;
         }
+        case MeshFilterParameterType::Point3f: {
+            auto *w = new Point3fEditor(param.point3fRole, m_doc, m_viewContextProvider, m_parametersWidget);
+            const QVector3D defVal = (param.defaultValue.userType() == QMetaType::QVector3D)
+                ? param.defaultValue.value<QVector3D>()
+                : QVector3D(0.0f, 0.0f, 0.0f);
+            w->setValue(defVal);
+            editor = w;
+            break;
+        }
         }
 
         if (!editor)
@@ -762,6 +1017,15 @@ void MeshFilterPanel::applyParameterValuesToEditors(const MeshFilterParameterVal
             updateColorButtonStyle(editor, c);
             break;
         }
+        case MeshFilterParameterType::Point3f: {
+            if (auto *w = dynamic_cast<Point3fEditor *>(editor)) {
+                const QVector3D v = (value.userType() == QMetaType::QVector3D)
+                    ? value.value<QVector3D>()
+                    : QVector3D(0.0f, 0.0f, 0.0f);
+                w->setValue(v);
+            }
+            break;
+        }
         }
     }
 }
@@ -793,6 +1057,8 @@ QVariant MeshFilterPanel::parameterValue(const ParameterBinding &binding) const
         return qobject_cast<QComboBox *>(editor)->currentData().toString();
     case MeshFilterParameterType::Color:
         return colorFromVariant(editor->property("filterColor"), QColor(Qt::white));
+    case MeshFilterParameterType::Point3f:
+        return QVariant::fromValue(dynamic_cast<Point3fEditor *>(editor)->value());
     }
     return {};
 }

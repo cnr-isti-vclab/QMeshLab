@@ -4,7 +4,9 @@
 #include <QColor>
 #include <QHash>
 #include <QStringList>
+#include <QVector3D>
 #include <QWidget>
+#include <functional>
 #include <vector>
 
 class QCheckBox;
@@ -29,6 +31,19 @@ public:
     void showSearchResults();
     void focusSearch();
     void selectFilterByKey(const QString &filterKey, bool openParameters = true);
+
+    struct ViewContext {
+        QVector3D trackballCenter;
+        QVector3D eyePosition;
+        QVector3D viewDirection;
+    };
+
+    // Provide a function that returns the current camera view context.
+    // When set, the Point3f editor exposes context-fill shortcuts.
+    void setViewContextProvider(std::function<ViewContext()> fn);
+
+    // Legacy name kept for compatibility.
+    void setTrackballCenterProvider(std::function<QVector3D()> fn);
 
 signals:
     void runRequested(
@@ -72,6 +87,7 @@ private:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
     Document *m_doc = nullptr;
+    std::function<ViewContext()> m_viewContextProvider;
     std::vector<Document::FilterInfo> m_filters;
     std::vector<int> m_visibleFilterIndices;
     std::vector<ParameterBinding> m_parameterBindings;
