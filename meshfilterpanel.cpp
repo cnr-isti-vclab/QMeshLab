@@ -455,6 +455,7 @@ void MeshFilterPanel::buildUi()
     resultsLayout->setSpacing(4);
     m_resultsList = new QListWidget(m_resultsPage);
     m_resultsList->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_resultsList->installEventFilter(this);
     resultsLayout->addWidget(m_resultsList, 1);
     m_stack->addWidget(m_resultsPage);
 
@@ -1160,6 +1161,25 @@ bool MeshFilterPanel::eventFilter(QObject *watched, QEvent *event)
                     m_resultsList->setCurrentRow(0);
                 m_resultsList->setFocus(Qt::OtherFocusReason);
             }
+            return true;
+        }
+    }
+    if (watched == m_resultsList && event && event->type() == QEvent::KeyPress) {
+        auto *keyEvent = static_cast<QKeyEvent *>(event);
+        const int key = keyEvent->key();
+        if ((key == Qt::Key_Return || key == Qt::Key_Enter)
+            && keyEvent->modifiers() == Qt::NoModifier) {
+            openSelectedResult(true);
+            return true;
+        }
+        if (key == Qt::Key_Up && keyEvent->modifiers() == Qt::NoModifier
+            && m_resultsList->currentRow() <= 0) {
+            if (m_searchEdit)
+                m_searchEdit->setFocus(Qt::OtherFocusReason);
+            return true;
+        }
+        if (key == Qt::Key_Escape) {
+            showSearchResultsFromUi(true);
             return true;
         }
     }
