@@ -126,6 +126,8 @@ QString filterParameterTypeLabel(MeshFilterParameterType type)
         return QObject::tr("Boolean");
     case MeshFilterParameterType::Int:
         return QObject::tr("Integer");
+    case MeshFilterParameterType::Mesh:
+        return QObject::tr("Mesh Layer");
     case MeshFilterParameterType::Double:
         return QObject::tr("Double");
     case MeshFilterParameterType::AbsPerc:
@@ -151,6 +153,8 @@ QString filterParameterValueText(const QVariant &value, MeshFilterParameterType 
     case MeshFilterParameterType::Bool:
         return value.toBool() ? QObject::tr("true") : QObject::tr("false");
     case MeshFilterParameterType::Int:
+        return QString::number(value.toInt());
+    case MeshFilterParameterType::Mesh:
         return QString::number(value.toInt());
     case MeshFilterParameterType::Double:
     case MeshFilterParameterType::AbsPerc:

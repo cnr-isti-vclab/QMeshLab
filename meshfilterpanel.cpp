@@ -147,6 +147,20 @@ QString groupDisplayName(const QString &group)
     return name;
 }
 
+QString meshComboLabel(const Document &doc, int meshIndex)
+{
+    if (meshIndex < 0 || meshIndex >= doc.meshCount())
+        return QObject::tr("Mesh %1").arg(meshIndex);
+
+    const Document::MeshEntry &entry = doc.mesh(meshIndex);
+    QString label = entry.name.trimmed();
+    if (label.isEmpty())
+        label = QObject::tr("Mesh %1").arg(meshIndex + 1);
+    if (meshIndex == doc.currentMeshIndex())
+        label += QObject::tr(" (current)");
+    return label;
+}
+
 QStringList tokenizeSearchTerms(const QString &text)
 {
     static const QRegularExpression kSpaceRe(QStringLiteral("\\s+"));
@@ -857,6 +871,21 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
             editor = w;
             break;
         }
+        case MeshFilterParameterType::Mesh: {
+            auto *w = new QComboBox(m_parametersWidget);
+            for (int mi = 0; mi < m_doc->meshCount(); ++mi)
+                w->addItem(meshComboLabel(*m_doc, mi), mi);
+            int defaultIndex = param.defaultValue.isValid() ? param.defaultValue.toInt() : m_doc->currentMeshIndex();
+            if (defaultIndex < 0 || defaultIndex >= m_doc->meshCount())
+                defaultIndex = m_doc->currentMeshIndex();
+            if (defaultIndex >= 0) {
+                const int pos = w->findData(defaultIndex);
+                if (pos >= 0)
+                    w->setCurrentIndex(pos);
+            }
+            editor = w;
+            break;
+        }
         case MeshFilterParameterType::Double: {
             auto *w = new QDoubleSpinBox(m_parametersWidget);
             const double minV = param.minValue.isValid() ? param.minValue.toDouble() : -1e12;
@@ -986,6 +1015,14 @@ void MeshFilterPanel::applyParameterValuesToEditors(const MeshFilterParameterVal
                 w->setValue(value.toInt());
             break;
         }
+        case MeshFilterParameterType::Mesh: {
+            if (auto *w = qobject_cast<QComboBox *>(editor)) {
+                const int pos = w->findData(value.toInt());
+                if (pos >= 0)
+                    w->setCurrentIndex(pos);
+            }
+            break;
+        }
         case MeshFilterParameterType::Double: {
             if (auto *w = qobject_cast<QDoubleSpinBox *>(editor))
                 w->setValue(value.toDouble());
@@ -1047,6 +1084,8 @@ QVariant MeshFilterPanel::parameterValue(const ParameterBinding &binding) const
         return qobject_cast<QCheckBox *>(editor)->isChecked();
     case MeshFilterParameterType::Int:
         return qobject_cast<QSpinBox *>(editor)->value();
+    case MeshFilterParameterType::Mesh:
+        return qobject_cast<QComboBox *>(editor)->currentData().toInt();
     case MeshFilterParameterType::Double:
         return qobject_cast<QDoubleSpinBox *>(editor)->value();
     case MeshFilterParameterType::AbsPerc:

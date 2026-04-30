@@ -15,6 +15,7 @@ public:
     // Typed access — no fallback (parameter must be present, i.e. declared in descriptor)
     bool    getBool  (const QString &id) const;
     int     getInt   (const QString &id) const;
+    int     getMesh  (const QString &id) const;
     double  getDouble(const QString &id) const;
     QString getString(const QString &id) const;
     QString getEnum  (const QString &id) const;  // returns the selected option id
@@ -24,6 +25,7 @@ public:
     // Typed access with explicit fallback (use when parameter may be absent)
     bool    getBool  (const QString &id, bool fallback) const;
     int     getInt   (const QString &id, int fallback) const;
+    int     getMesh  (const QString &id, int fallback) const;
     double  getDouble(const QString &id, double fallback) const;
     QString getString(const QString &id, const QString &fallback) const;
     QString getEnum  (const QString &id, const QString &fallback) const;

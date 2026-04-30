@@ -83,6 +83,12 @@ if (TARGET QMeshLabPluginFilterScreenedPoisson)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_SCREENED_POISSON_ENABLED=1)
 endif()
 
+add_subdirectory(filter_sampling)
+if (TARGET QMeshLabPluginFilterSampling)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterSampling)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_SAMPLING_ENABLED=1)
+endif()
+
 add_subdirectory(filter_create)
 if (TARGET QMeshLabPluginFilterCreate)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterCreate)

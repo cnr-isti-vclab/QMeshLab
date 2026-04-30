@@ -41,6 +41,7 @@ MeshFilterParameterType parseParamType(const QString &s)
     if (s == QStringLiteral("int"))    return MeshFilterParameterType::Int;
     if (s == QStringLiteral("double")) return MeshFilterParameterType::Double;
     if (s == QStringLiteral("absperc")) return MeshFilterParameterType::AbsPerc;
+    if (s == QStringLiteral("mesh"))   return MeshFilterParameterType::Mesh;
     if (s == QStringLiteral("string")) return MeshFilterParameterType::String;
     if (s == QStringLiteral("enum"))   return MeshFilterParameterType::Enum;
     if (s == QStringLiteral("color"))  return MeshFilterParameterType::Color;
@@ -165,7 +166,9 @@ QVariant resolveToken(const QVariant &v, double bboxDiag,
                       double qualityFMin, double qualityFMax,
                       bool hasSelectedFaces, bool hasSelectedVerts,
                       int faceCount, int selFaces,
-                      int hardwareThreads)
+                      int hardwareThreads,
+                      int currentMeshIndex,
+                      int otherMeshIndex)
 {
     if (v.userType() != QMetaType::QString)
         return v;
@@ -198,6 +201,8 @@ QVariant resolveToken(const QVariant &v, double bboxDiag,
         return std::max(1, base / 2);
     }
     if (token == QStringLiteral("hardwareThreads"))    return hardwareThreads;
+    if (token == QStringLiteral("currentMeshIndex"))   return currentMeshIndex;
+    if (token == QStringLiteral("otherMeshIndex"))     return otherMeshIndex;
 
     return v; // unknown token → leave as-is
 }
@@ -268,18 +273,29 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
 
     const unsigned int hw = std::thread::hardware_concurrency();
     const int hardwareThreads = static_cast<int>(hw > 0 ? hw : 8);
+    const int currentMeshIndex = ci;
+    int otherMeshIndex = currentMeshIndex;
+    for (int i = 0; i < doc.meshCount(); ++i) {
+        if (i != currentMeshIndex) {
+            otherMeshIndex = i;
+            break;
+        }
+    }
 
     for (MeshFilterDescriptor &fd : descriptors) {
         for (MeshFilterParameterDescriptor &p : fd.parameters) {
             p.defaultValue = resolveToken(p.defaultValue, bboxDiag,
                 qualityVMin, qualityVMax, qualityFMin, qualityFMax,
-                hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads);
+                hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads,
+                currentMeshIndex, otherMeshIndex);
             p.minValue = resolveToken(p.minValue, bboxDiag,
                 qualityVMin, qualityVMax, qualityFMin, qualityFMax,
-                hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads);
+                hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads,
+                currentMeshIndex, otherMeshIndex);
             p.maxValue = resolveToken(p.maxValue, bboxDiag,
                 qualityVMin, qualityVMax, qualityFMin, qualityFMax,
-                hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads);
+                hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads,
+                currentMeshIndex, otherMeshIndex);
         }
     }
 }

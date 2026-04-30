@@ -17,6 +17,11 @@ int FilterParams::getInt(const QString &id) const
     return getInt(id, 0);
 }
 
+int FilterParams::getMesh(const QString &id) const
+{
+    return getMesh(id, -1);
+}
+
 double FilterParams::getDouble(const QString &id) const
 {
     return getDouble(id, 0.0);
@@ -65,6 +70,11 @@ int FilterParams::getInt(const QString &id, int fallback) const
     bool ok = false;
     const int v = it.value().toInt(&ok);
     return ok ? v : fallback;
+}
+
+int FilterParams::getMesh(const QString &id, int fallback) const
+{
+    return getInt(id, fallback);
 }
 
 double FilterParams::getDouble(const QString &id, double fallback) const

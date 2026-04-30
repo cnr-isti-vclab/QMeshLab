@@ -34,6 +34,7 @@ QVariant defaultValueForParameter(const MeshFilterParameterDescriptor &parameter
     case MeshFilterParameterType::Bool:
         return false;
     case MeshFilterParameterType::Int:
+    case MeshFilterParameterType::Mesh:
         return 0;
     case MeshFilterParameterType::Double:
     case MeshFilterParameterType::AbsPerc:
@@ -420,7 +421,8 @@ bool MeshFilterPluginManager::convertParameterValue(
         outputValue = value;
         return true;
     }
-    case MeshFilterParameterType::Int: {
+    case MeshFilterParameterType::Int:
+    case MeshFilterParameterType::Mesh: {
         bool ok = false;
         const qlonglong value = inputValue.toLongLong(&ok);
         if (!ok) {
