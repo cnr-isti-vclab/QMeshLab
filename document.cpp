@@ -1330,13 +1330,8 @@ void Document::setMeshVisible(int index, bool visible)
     MeshEntry &entry = mesh(index);
     if (entry.visible == visible)
         return;
-    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
-    if (ownUndoStep)
-        beginUndoStep(tr("Toggle Visibility"));
     entry.visible = visible;
     emit meshVisibilityChanged(index, visible);
-    if (ownUndoStep)
-        endUndoStep(true);
 }
 
 void Document::markMeshGeometryChanged(int index, const QString &contextMessage)
@@ -1423,7 +1418,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
                                       bool qualityFixedRange,
                                       float qualityRangeMin,
                                       float qualityRangeMax,
-                                      bool needSelection)
+                                      bool needSelection,
+                                      bool wireRespectFaux)
 {
     if (!m_gpuCache || !rhi || !cb)
         return;
@@ -1441,6 +1437,7 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
     source.qualityRangeMax = qualityRangeMax;
     if (source.qualityRangeMin > source.qualityRangeMax)
         std::swap(source.qualityRangeMin, source.qualityRangeMax);
+    source.wireRespectFaux = wireRespectFaux;
     source.mesh = &meshEntry.mesh;
     source.textureFilePaths = &meshEntry.textureFilePaths;
     source.materialSet = &meshEntry.materialSet;

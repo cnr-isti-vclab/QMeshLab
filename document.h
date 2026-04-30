@@ -196,7 +196,8 @@ public:
                                 bool qualityFixedRange = false,
                                 float qualityRangeMin = 0.0f,
                                 float qualityRangeMax = 1.0f,
-                                bool needSelection = false);
+                                bool needSelection = false,
+                                bool wireRespectFaux = true);
     FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
     WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
     EdgePassGpuView edgePassGpuView(QRhi *rhi, int meshIndex) const;

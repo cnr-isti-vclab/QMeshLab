@@ -108,6 +108,7 @@ private:
     QCheckBox *m_pointLightingCheck = nullptr;
     QCheckBox *m_wireLightingCheck = nullptr;
     QCheckBox *m_wireBackfaceCullingCheck = nullptr;
+    QCheckBox *m_wireRespectFauxCheck = nullptr;
     QCheckBox *m_fillLightingCheck = nullptr;
     QCheckBox *m_fillBackfaceCullingCheck = nullptr;
     QDoubleSpinBox *m_fillNormalScaleSpin = nullptr;

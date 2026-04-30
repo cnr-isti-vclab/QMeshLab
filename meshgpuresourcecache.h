@@ -38,6 +38,7 @@ public:
         bool qualityFixedRange = false;
         float qualityRangeMin = 0.0f;
         float qualityRangeMax = 1.0f;
+        bool wireRespectFaux = true;
         const VCGMesh *mesh = nullptr;
         const QStringList *textureFilePaths = nullptr;
         const MeshIOMaterialSet *materialSet = nullptr;

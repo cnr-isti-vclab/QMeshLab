@@ -105,6 +105,7 @@ struct MeshGpuResourceCache::CacheState
 
     struct WireGpu {
         std::uint64_t geometryRevision = 0;
+        bool wireRespectFaux = true;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -732,11 +733,13 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         };
 
     auto rebuildWire = [&](CacheState::WireGpu &dst) -> bool {
-        if (dst.valid && dst.geometryRevision == source.geometryRevision)
+        if (dst.valid && dst.geometryRevision == source.geometryRevision
+            && dst.wireRespectFaux == source.wireRespectFaux)
             return false;
 
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
+        dst.wireRespectFaux = source.wireRespectFaux;
         dst.vbuf.reset();
         dst.vertexCount = 0;
 
@@ -745,23 +748,40 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
         const int vertexCount = meshData.FN() * 3;
         std::vector<float> vdata(vertexCount * 6);
-        static constexpr float barycentrics[3][3] = {
-            { 1.0f, 0.0f, 0.0f },
-            { 0.0f, 1.0f, 0.0f },
-            { 0.0f, 0.0f, 1.0f }
-        };
-        for (int fi = 0; fi < meshData.FN(); ++fi) {
+        int outFi = 0;
+        for (int fi = 0; fi < static_cast<int>(meshData.face.size()); ++fi) {
             const auto &f = meshData.face[fi];
+            if (f.IsD())
+                continue;
+            // Standard barycentric assignment: corner k → (0…1…0) with 1 at position k.
+            // To suppress a FAUX edge e (between corners e and (e+1)%3):
+            // set component (e+2)%3 to 1.0 at both those corners, so that
+            // component never reaches 0 along the suppressed edge.
+            float bary[3][3] = {
+                { 1.0f, 0.0f, 0.0f },
+                { 0.0f, 1.0f, 0.0f },
+                { 0.0f, 0.0f, 1.0f }
+            };
+            if (source.wireRespectFaux) {
+                for (int e = 0; e < 3; ++e) {
+                    if (f.IsF(e)) {
+                        const int k = (e + 2) % 3;
+                        bary[e][k]           = 1.0f;
+                        bary[(e + 1) % 3][k] = 1.0f;
+                    }
+                }
+            }
             for (int corner = 0; corner < 3; ++corner) {
                 const auto *vertex = f.cV(corner);
-                const int base = (fi * 3 + corner) * 6;
+                const int base = (outFi * 3 + corner) * 6;
                 vdata[base + 0] = vertex->cP()[0];
                 vdata[base + 1] = vertex->cP()[1];
                 vdata[base + 2] = vertex->cP()[2];
-                vdata[base + 3] = barycentrics[corner][0];
-                vdata[base + 4] = barycentrics[corner][1];
-                vdata[base + 5] = barycentrics[corner][2];
+                vdata[base + 3] = bary[corner][0];
+                vdata[base + 4] = bary[corner][1];
+                vdata[base + 5] = bary[corner][2];
             }
+            ++outFi;
         }
 
         dst.vbuf.reset(

@@ -509,6 +509,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_wireBackfaceCullingCheck->setChecked(m_meshSettings.wireBackfaceCulling);
     m_wireLightingCheck = new QCheckBox(wirePage);
     m_wireLightingCheck->setChecked(m_meshSettings.wireLighting);
+    m_wireRespectFauxCheck = new QCheckBox(wirePage);
+    m_wireRespectFauxCheck->setChecked(m_meshSettings.wireRespectFaux);
     wireForm->addRow(
         tr("Wire color"),
         makeCenteredFieldContainer(m_wireColorButton, wirePage));
@@ -519,6 +521,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     wireForm->addRow(
         tr("Lighting"),
         makeCenteredFieldContainer(m_wireLightingCheck, wirePage));
+    wireForm->addRow(
+        tr("Respect polygon edges"),
+        makeCenteredFieldContainer(m_wireRespectFauxCheck, wirePage));
     applyUniformFormRowHeights(wireForm);
     wireLayout->addLayout(wireForm);
     m_settingsStack->addWidget(wirePage);
@@ -1013,6 +1018,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindMeshFloatSpin(m_wireSizeSpin, &PerMeshRenderSettings::wireSize);
     bindMeshCheckBox(m_wireBackfaceCullingCheck, &PerMeshRenderSettings::wireBackfaceCulling);
     bindMeshCheckBox(m_wireLightingCheck, &PerMeshRenderSettings::wireLighting);
+    bindMeshCheckBox(m_wireRespectFauxCheck, &PerMeshRenderSettings::wireRespectFaux);
 
     bindMeshEnumCombo(m_fillMaterialCombo, &PerMeshRenderSettings::fillMaterial);
 
@@ -1641,6 +1647,10 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
     if (m_wireBackfaceCullingCheck) {
         QSignalBlocker blocker(m_wireBackfaceCullingCheck);
         m_wireBackfaceCullingCheck->setChecked(m_meshSettings.wireBackfaceCulling);
+    }
+    if (m_wireRespectFauxCheck) {
+        QSignalBlocker blocker(m_wireRespectFauxCheck);
+        m_wireRespectFauxCheck->setChecked(m_meshSettings.wireRespectFaux);
     }
     if (m_fillLightingCheck) {
         QSignalBlocker blocker(m_fillLightingCheck);

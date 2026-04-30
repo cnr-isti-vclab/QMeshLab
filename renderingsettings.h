@@ -147,6 +147,7 @@ struct PerMeshRenderSettings {
     bool pointLighting = false;
     bool wireLighting = false;
     bool wireBackfaceCulling = true;
+    bool wireRespectFaux = true;
     bool fillLighting = true;
     bool fillBackfaceCulling = true;
     FillMaterial fillMaterial = FillMaterial::Plain;
@@ -185,6 +186,7 @@ struct PerMeshRenderSettings {
             && pointLighting == o.pointLighting
             && wireLighting == o.wireLighting
             && wireBackfaceCulling == o.wireBackfaceCulling
+            && wireRespectFaux == o.wireRespectFaux
             && fillLighting == o.fillLighting
             && fillBackfaceCulling == o.fillBackfaceCulling
             && fillMaterial == o.fillMaterial
