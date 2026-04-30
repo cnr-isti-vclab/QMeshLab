@@ -66,7 +66,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         QString msg = QObject::tr("Geodesic distance from border computed on '%1'.").arg(meshName);
         if (unreachedCnt > 0)
             msg += QObject::tr(" Warning: %1 vertices were unreachable (isolated components).").arg(unreachedCnt);
-        return { true, false, msg };
+        return { true, true, msg };
     }
 
     if (filterId == QString::fromLatin1(kFilterPointGeodesic)) {
@@ -108,7 +108,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         QString msg = QObject::tr("Geodesic distance from point computed on '%1'.").arg(meshName);
         if (unreachedCnt > 0)
             msg += QObject::tr(" Warning: %1 vertices were unreachable.").arg(unreachedCnt);
-        return { true, false, msg };
+        return { true, true, msg };
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectedGeodesic)) {
@@ -145,7 +145,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
             .arg(seedVec.size()).arg(meshName);
         if (unreachedCnt > 0)
             msg += QObject::tr(" Warning: %1 vertices were unreachable.").arg(unreachedCnt);
-        return { true, false, msg };
+        return { true, true, msg };
     }
 
     if (filterId == QString::fromLatin1(kFilterHeatGeodesic)) {
@@ -168,7 +168,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         doc.markMeshGeometryChanged(meshIndex,
             QObject::tr("Heat geodesic distance from selection on '%1'").arg(meshName));
 
-        return { true, false,
+        return { true, true,
             QObject::tr("Heat geodesic distance from %1 selected vertices computed on '%2'.")
                 .arg(seedVec.size()).arg(meshName) };
     }
