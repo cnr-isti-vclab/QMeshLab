@@ -708,6 +708,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     const QStringList colorMapIds = colorMapRegistry.mapIds();
     for (const QString &id : colorMapIds)
         m_qualityHistogramColorMapCombo->addItem(colorMapRegistry.displayName(id), id);
+    m_qualityHistogramColorMapCombo->addItem(tr("Constant"), QStringLiteral("constant"));
     if (m_qualityHistogramColorMapCombo->count() == 0)
         m_qualityHistogramColorMapCombo->addItem(tr("Rainbow"), QStringLiteral("rainbow"));
     int initialColorMapIndex = m_qualityHistogramColorMapCombo->findData(
@@ -728,6 +729,18 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     histogramForm->addRow(
         tr("Invert"),
         makeCenteredFieldContainer(m_qualityHistogramInvertCheck, histogramPage));
+    m_qualityIsolinesCheck = new QCheckBox(histogramPage);
+    m_qualityIsolinesCheck->setChecked(m_globalSettings.qualityIsolinesEnabled);
+    histogramForm->addRow(
+        tr("Isolines"),
+        makeCenteredFieldContainer(m_qualityIsolinesCheck, histogramPage));
+    m_qualityIsolineCountSpin = new QDoubleSpinBox(histogramPage);
+    m_qualityIsolineCountSpin->setRange(1.0, 100.0);
+    m_qualityIsolineCountSpin->setSingleStep(1.0);
+    m_qualityIsolineCountSpin->setDecimals(0);
+    m_qualityIsolineCountSpin->setValue(m_globalSettings.qualityIsolineCount);
+    m_qualityIsolineCountSpin->setEnabled(m_globalSettings.qualityIsolinesEnabled);
+    histogramForm->addRow(tr("Isoline count"), m_qualityIsolineCountSpin);
     m_qualityHistogramFixedRangeCheck = new QCheckBox(histogramPage);
     m_qualityHistogramFixedRangeCheck->setChecked(m_globalSettings.qualityHistogramFixedRange);
     histogramForm->addRow(
@@ -1213,6 +1226,29 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             if (m_globalSettings.qualityHistogramInvertColorMap == checked)
                 return;
             m_globalSettings.qualityHistogramInvertColorMap = checked;
+            emit globalSettingsChanged(m_globalSettings);
+        });
+    connect(
+        m_qualityIsolinesCheck,
+        &QCheckBox::toggled,
+        this,
+        [this](bool checked) {
+            if (m_globalSettings.qualityIsolinesEnabled == checked)
+                return;
+            m_globalSettings.qualityIsolinesEnabled = checked;
+            if (m_qualityIsolineCountSpin)
+                m_qualityIsolineCountSpin->setEnabled(checked);
+            emit globalSettingsChanged(m_globalSettings);
+        });
+    connect(
+        m_qualityIsolineCountSpin,
+        &QDoubleSpinBox::valueChanged,
+        this,
+        [this](double value) {
+            const int count = std::clamp(int(std::lround(value)), 1, 100);
+            if (m_globalSettings.qualityIsolineCount == count)
+                return;
+            m_globalSettings.qualityIsolineCount = count;
             emit globalSettingsChanged(m_globalSettings);
         });
     connect(

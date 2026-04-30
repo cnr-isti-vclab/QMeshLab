@@ -238,6 +238,8 @@ struct GlobalRenderSettings {
     float qualityHistogramMax = 1.0f;
     QString qualityHistogramColorMapId = QStringLiteral("rainbow");
     bool qualityHistogramInvertColorMap = false;
+    bool qualityIsolinesEnabled = false;
+    int qualityIsolineCount = 10;
 
     bool operator==(const GlobalRenderSettings &o) const
     {
@@ -265,7 +267,9 @@ struct GlobalRenderSettings {
             && qualityHistogramMin == o.qualityHistogramMin
             && qualityHistogramMax == o.qualityHistogramMax
             && qualityHistogramColorMapId == o.qualityHistogramColorMapId
-            && qualityHistogramInvertColorMap == o.qualityHistogramInvertColorMap;
+            && qualityHistogramInvertColorMap == o.qualityHistogramInvertColorMap
+            && qualityIsolinesEnabled == o.qualityIsolinesEnabled
+            && qualityIsolineCount == o.qualityIsolineCount;
     }
     bool operator!=(const GlobalRenderSettings &o) const { return !(*this == o); }
 };

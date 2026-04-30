@@ -613,6 +613,8 @@ void RenderWidget::ensureRenderResources()
         m_qualityColorMapTextureUploadPending = false;
         m_qualityColorMapTextureMapId.clear();
         m_qualityColorMapTextureInverted = false;
+        m_qualityColorMapTextureIsolinesEnabled = false;
+        m_qualityColorMapTextureIsolineCount = 0;
         m_textureSrbs.clear();
         m_uvBackgroundUbuf.reset();
         m_uvBackgroundSrb.reset();
@@ -707,16 +709,20 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_qualityColorMapTexture) {
         m_qualityColorMapTexture.reset(
-            m_rhi->newTexture(QRhiTexture::RGBA8, QSize(256, 1), 1));
+            m_rhi->newTexture(QRhiTexture::RGBA8, QSize(1024, 1), 1));
         if (m_qualityColorMapTexture && m_qualityColorMapTexture->create()) {
             m_qualityColorMapTextureUploadPending = true;
             m_qualityColorMapTextureMapId.clear();
             m_qualityColorMapTextureInverted = false;
+            m_qualityColorMapTextureIsolinesEnabled = false;
+            m_qualityColorMapTextureIsolineCount = 0;
         } else {
             m_qualityColorMapTexture.reset();
             m_qualityColorMapTextureUploadPending = false;
             m_qualityColorMapTextureMapId.clear();
             m_qualityColorMapTextureInverted = false;
+            m_qualityColorMapTextureIsolinesEnabled = false;
+            m_qualityColorMapTextureIsolineCount = 0;
         }
     }
 

@@ -156,6 +156,8 @@ private:
     bool m_qualityColorMapTextureUploadPending = false;
     QString m_qualityColorMapTextureMapId;
     bool m_qualityColorMapTextureInverted = false;
+    bool m_qualityColorMapTextureIsolinesEnabled = false;
+    int m_qualityColorMapTextureIsolineCount = 0;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiBuffer> m_sceneBackgroundUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_sceneBackgroundSrb;
