@@ -74,7 +74,7 @@ Defined in `renderingsettings.h`:
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 
 Built-in I/O: `io_vcg`, `io_obj_rapidobj`, `io_gltf`, `io_e57`.  
-Built-in filters: `filter_basic`, `filter_func`, `filter_embree`, `filter_select`, `filter_clean`, `filter_meshing`.
+Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `filter_embree`, `filter_select`, `filter_clean`, `filter_meshing`, `filter_screened_poisson`, `filter_sampling`, `filter_create`, `filter_geodesic`.
 
 ## State Ownership
 
