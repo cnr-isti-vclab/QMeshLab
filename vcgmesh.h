@@ -32,7 +32,8 @@ class VCGFace : public vcg::Face<VCGUsedTypes,
     vcg::face::Qualityf,
     vcg::face::BitFlags,
     vcg::face::FFAdj,
-    vcg::face::VFAdj> {};
+    vcg::face::VFAdj, 
+    vcg::face::Mark> {};
 
 class VCGMesh : public vcg::tri::TriMesh<
     std::vector<VCGVertex>,

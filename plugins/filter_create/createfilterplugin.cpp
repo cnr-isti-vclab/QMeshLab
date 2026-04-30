@@ -9,6 +9,7 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/selection.h>
+#include <wrap/io_trimesh/io_mask.h>
 #include <vcg/math/gen_normal.h>
 #include <vcg/space/fitting3.h>
 
@@ -130,7 +131,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::UpdatePosition<VCGMesh>::Scale(m, radius);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Sphere"));
+        const int idx = doc.addMesh(m, QStringLiteral("Sphere"), vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -142,7 +143,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::SphericalCap(m, vcg::math::ToRad(angleDeg), subdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Sphere Cap"));
+        const int idx = doc.addMesh(m, QStringLiteral("Sphere Cap"), vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -184,7 +185,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Cone<VCGMesh>(m, r0, r1, h, subdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Cone"));
+        const int idx = doc.addMesh(m, QStringLiteral("Cone"), vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -197,7 +198,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Torus(m, hRadius, vRadius, hSubdiv, vSubdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Torus"));
+        const int idx = doc.addMesh(m, QStringLiteral("Torus"), vcg::tri::io::Mask::IOM_VERTNORMAL);
         return success(doc.mesh(idx).name, idx);
     }
 

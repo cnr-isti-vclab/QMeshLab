@@ -131,6 +131,10 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::Constant;
         mode.fillPbr.roughnessIndex = defaultRoughnessTextureIndex;
+        if (faceCount < kWireframeDefaultFaceThreshold) {
+            mode.fillPlain.shading = FillShading::Flat;
+            mode.fillPbr.shading   = FillShading::Flat;
+        }
         mode.pointLighting = false;
         mode.wireLighting = false;
     } else if (edgeCount > 0) {
