@@ -1,0 +1,98 @@
+{
+  "pluginId": "qmeshlab.filter.geodesic",
+  "filters": [
+    {
+      "id": "compute_scalar_by_border_distance_per_vertex",
+      "menuPath": "Quality/Geodesic",
+      "name": "Colorize by Border Distance",
+      "shortDescription": "Compute geodesic distance from mesh borders and colorize.",
+      "longDescriptionMarkdown": "Stores in the per-vertex quality field the geodesic distance from the nearest mesh border vertex, then colorizes the mesh with a quality ramp. Meshes with no border produce no output.",
+      "tags": ["geodesic", "quality", "color", "border", "distance"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": []
+    },
+    {
+      "id": "compute_scalar_by_geodesic_distance_from_given_point_per_vertex",
+      "menuPath": "Quality/Geodesic",
+      "name": "Colorize by Geodesic Distance from Point",
+      "shortDescription": "Compute geodesic distance from a given point and colorize.",
+      "longDescriptionMarkdown": "Finds the closest surface vertex to the specified point and computes the geodesic distance from it to all other vertices. The result is stored in the per-vertex quality field and mapped to vertex colors.",
+      "tags": ["geodesic", "quality", "color", "point", "distance"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        {
+          "id": "startPoint",
+          "label": "Starting Point",
+          "help": "The point from which geodesic distance is measured. The closest surface vertex is used as seed.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [0.0, 0.0, 0.0]
+        },
+        {
+          "id": "maxDistance",
+          "label": "Max Distance",
+          "help": "Cut-off distance. Vertices beyond this threshold are assigned distance 0. Set to 0 to compute everywhere.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "id": "compute_scalar_by_geodesic_distance_from_selection_per_vertex",
+      "menuPath": "Quality/Geodesic",
+      "name": "Colorize by Geodesic Distance from Selection",
+      "shortDescription": "Compute geodesic distance from selected vertices and colorize.",
+      "longDescriptionMarkdown": "Computes the geodesic distance from all currently selected vertices to every other vertex. The result is stored in per-vertex quality and mapped to vertex colors. Requires at least one selected vertex.",
+      "tags": ["geodesic", "quality", "color", "selection", "distance"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireVertices": true },
+      "parameters": [
+        {
+          "id": "maxDistance",
+          "label": "Max Distance",
+          "help": "Cut-off distance. Vertices beyond this threshold are assigned distance 0. Set to 0 to compute everywhere.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "id": "compute_scalar_by_heat_geodesic_distance_from_selection_per_vertex",
+      "menuPath": "Quality/Geodesic",
+      "name": "Colorize by Heat Geodesic Distance from Selection",
+      "shortDescription": "Approximate geodesic distance via the heat method and colorize.",
+      "longDescriptionMarkdown": "Computes an approximation of geodesic distance using the Heat Method (Crane et al.) from all selected vertices. The result is stored in per-vertex quality and mapped to vertex colors. This method is sensitive to mesh quality — degenerate triangles or near-zero angles can cause failures. Requires at least one selected vertex.",
+      "tags": ["geodesic", "quality", "color", "selection", "heat", "distance"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireVertices": true },
+      "parameters": [
+        {
+          "id": "m",
+          "label": "Euler Step Multiplier",
+          "help": "Multiplier applied to the squared average edge length to compute the backward-Euler timestep. Larger values give smoother but less accurate results.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.001,
+          "max": 100.0,
+          "decimals": 3
+        }
+      ]
+    }
+  ]
+}

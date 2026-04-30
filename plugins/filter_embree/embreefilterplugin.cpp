@@ -80,7 +80,7 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
 
         entry.ioMask |=
             Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY | Mask::IOM_FACECOLOR | Mask::IOM_VERTCOLOR;
-        doc.markMeshMaterialChanged(
+        doc.markMeshGeometryChanged(
             current->index,
             QObject::tr("Computed obscurance for '%1'").arg(entry.name));
 
@@ -105,7 +105,7 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
 
         entry.ioMask |=
             Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY | Mask::IOM_FACECOLOR | Mask::IOM_VERTCOLOR;
-        doc.markMeshMaterialChanged(
+        doc.markMeshGeometryChanged(
             current->index,
             QObject::tr("Computed ambient occlusion for '%1'").arg(entry.name));
 
@@ -128,7 +128,7 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
 
         entry.ioMask |=
             Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY | Mask::IOM_FACECOLOR | Mask::IOM_VERTCOLOR;
-        doc.markMeshMaterialChanged(
+        doc.markMeshGeometryChanged(
             current->index,
             QObject::tr("Computed shape diameter function for '%1'").arg(entry.name));
 

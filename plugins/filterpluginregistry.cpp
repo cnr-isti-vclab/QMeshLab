@@ -29,6 +29,9 @@
 #if QMESH_PLUGIN_FILTER_CREATE_ENABLED
 #include "plugins/filter_create/createfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_GEODESIC_ENABLED
+#include "plugins/filter_geodesic/geodesicfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -58,5 +61,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_CREATE_ENABLED
     registerCreateFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_GEODESIC_ENABLED
+    registerGeodesicFilterPlugin(pluginManager);
 #endif
 }

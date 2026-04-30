@@ -1033,7 +1033,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityHistogram(mesh, h);
             vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh, h.Percentile(0.1f), h.Percentile(0.9f));
             entry.ioMask |= Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY;
-            doc.markMeshMaterialChanged(ci, QObject::tr("Computed principal curvature directions for '%1'").arg(entry.name));
+            doc.markMeshGeometryChanged(ci, QObject::tr("Computed principal curvature directions for '%1'").arg(entry.name));
             return success(true);
         }
 

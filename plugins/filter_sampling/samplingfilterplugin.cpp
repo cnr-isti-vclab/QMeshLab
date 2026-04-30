@@ -1076,7 +1076,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         vcg::tri::SurfaceSampling<VCGMesh, SimpleDistanceSampler>::AllVertex(*measuredMesh, distanceSampler);
         copyPerVertexAppearance(*measuredMesh, measuredEntry.mesh, false, true, false, false);
         measuredEntry.ioMask |= Mask::IOM_VERTQUALITY;
-        doc.markMeshMaterialChanged(
+        doc.markMeshGeometryChanged(
             measuredMeshIndex,
             QObject::tr("Computed distance from '%1'").arg(referenceEntry.name));
         return modifiedResult(
@@ -1218,7 +1218,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
                 targetMeshIndex,
                 QObject::tr("Transferred vertex selection from '%1'").arg(sourceEntry.name));
         } else {
-            doc.markMeshMaterialChanged(
+            doc.markMeshGeometryChanged(
                 targetMeshIndex,
                 QObject::tr("Transferred vertex attributes from '%1'").arg(sourceEntry.name));
         }
@@ -1316,7 +1316,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
 
         copyPerVertexAppearance(*coloredMesh, coloredEntry.mesh, true, true, false, false);
         coloredEntry.ioMask |= (Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
-        doc.markMeshMaterialChanged(
+        doc.markMeshGeometryChanged(
             coloredMeshIndex,
             QObject::tr("Computed Voronoi coloring from '%1'").arg(vertexEntry.name));
         return modifiedResult(
@@ -1373,7 +1373,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
 
         copyPerVertexAppearance(*coloredMesh, coloredEntry.mesh, true, true, false, false);
         coloredEntry.ioMask |= (Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
-        doc.markMeshMaterialChanged(
+        doc.markMeshGeometryChanged(
             coloredMeshIndex,
             QObject::tr("Computed disk coloring from '%1'").arg(vertexEntry.name));
         return modifiedResult(

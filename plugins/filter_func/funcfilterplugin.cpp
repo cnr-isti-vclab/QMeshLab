@@ -1072,7 +1072,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
                 QObject::tr("Applied per-vertex normal function to '%1'.").arg(entry.name));
         } else {
             entry.ioMask |= Mask::IOM_VERTCOLOR;
-            doc.markMeshMaterialChanged(
+            doc.markMeshGeometryChanged(
                 meshIndex,
                 QObject::tr("Applied per-vertex color function to '%1'.").arg(entry.name));
         }
@@ -1116,7 +1116,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
             entry.ioMask |= Mask::IOM_VERTCOLOR;
         }
         entry.ioMask |= Mask::IOM_VERTQUALITY;
-        doc.markMeshMaterialChanged(
+        doc.markMeshGeometryChanged(
             meshIndex,
             QObject::tr("Applied per-vertex quality function to '%1'.").arg(entry.name));
 
@@ -1330,7 +1330,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
             ++processed;
         }
         entry.ioMask |= Mask::IOM_FACECOLOR;
-        doc.markMeshMaterialChanged(
+        doc.markMeshGeometryChanged(
             meshIndex,
             QObject::tr("Applied per-face color function to '%1'.").arg(entry.name));
 
@@ -1378,7 +1378,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
             entry.ioMask |= Mask::IOM_FACECOLOR;
         }
         entry.ioMask |= Mask::IOM_FACEQUALITY;
-        doc.markMeshMaterialChanged(
+        doc.markMeshGeometryChanged(
             meshIndex,
             QObject::tr("Applied per-face quality function to '%1'.").arg(entry.name));
 
