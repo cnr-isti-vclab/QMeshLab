@@ -550,17 +550,24 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         if (filterId == QString::fromLatin1(kIdClustering)) {
             const float threshold = float(params.getDouble(QStringLiteral("Threshold")));
             vcg::tri::Clustering<VCGMesh, vcg::tri::AverageColorCell<VCGMesh>> grid(mesh.bbox, 100000, threshold);
-            if (mesh.FN() == 0) {
+            VCGMesh output;
+            const int srcVN = mesh.VN();
+            const int srcFN = mesh.FN();
+            if (srcFN == 0) {
                 grid.AddPointSet(mesh);
-                grid.ExtractPointSet(mesh);
+                grid.ExtractPointSet(output);
             } else {
                 grid.AddMesh(mesh);
-                grid.ExtractMesh(mesh);
+                grid.ExtractMesh(output);
             }
-            vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
-            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
-            markGeometry(ci, QObject::tr("Applied clustering decimation on '%1'").arg(entry.name));
-            return success(true);
+            vcg::tri::UpdateBounding<VCGMesh>::Box(output);
+            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
+            const QString newName = QObject::tr("%1_clustered").arg(entry.name);
+            const int newIndex = doc.addMesh(output, newName, entry.ioMask);
+            return success(true,
+                { QObject::tr("Clustering decimation: %1 → %2 vertices, %3 → %4 faces.")
+                    .arg(srcVN).arg(output.VN()).arg(srcFN).arg(output.FN()) },
+                { newIndex });
         }
 
         if (filterId == QString::fromLatin1(kIdInvertFaces)) {

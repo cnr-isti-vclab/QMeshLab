@@ -239,7 +239,7 @@
         "meshing"
       ],
       "inputDomain": "SingleMesh",
-      "outputDomain": "ModifyCurrentMesh",
+      "outputDomain": "NewMeshes",
       "parameters": [
         {
           "id": "Threshold",
