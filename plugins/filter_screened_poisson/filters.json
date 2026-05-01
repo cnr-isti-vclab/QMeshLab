@@ -6,23 +6,126 @@
       "menuPath": "Remeshing/Surface Reconstruction",
       "name": "Surface Reconstruction: Screened Poisson",
       "shortDescription": "Creates a watertight surface from an oriented point set.",
-      "longDescriptionMarkdown": "This surface reconstruction algorithm creates watertight surfaces from oriented point sets.\n\nThis QMeshLab implementation is based on the `PoissonRecon` code by Michael Kazhdan and Matthew Bolitho, implementing the algorithm described in:\n\n*Michael Kazhdan, Hugues Hoppe*  \n**Screened Poisson Surface Reconstruction**",
-      "tags": ["reconstruction", "surface", "poisson", "point cloud"],
+      "longDescriptionMarkdown": "This surface reconstruction algorithm creates watertight surfaces from oriented point sets.<br>The filter uses the original code of Michael Kazhdan and Matthew Bolitho implementing the algorithm described in the following paper:<br><i>Michael Kazhdan, Hugues Hoppe</i>,<br><b>\"Screened Poisson surface reconstruction\"</b><br>",
+      "tags": [
+        "reconstruction",
+        "surface",
+        "poisson",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
-        { "id": "visibleLayer", "label": "Merge All Visible Layers", "help": "Enabling this flag means that all the visible layers will be used for providing the points.", "group": "main", "type": "bool", "default": false },
-        { "id": "depth", "label": "Reconstruction Depth", "help": "This integer is the maximum depth of the tree that will be used for surface reconstruction. Running at depth d corresponds to solving on a voxel grid whose resolution is no larger than 2^d x 2^d x 2^d. The default value for this parameter is 8.", "group": "main", "type": "int", "default": 8, "min": 1, "max": 20 },
-        { "id": "fullDepth", "label": "Adaptive Octree Depth", "help": "This integer specifies the depth beyond which the octree will be adapted. At coarser depths, the octree will be complete, containing all 2^d x 2^d x 2^d nodes. The default value for this parameter is 5.", "group": "advanced.tree", "type": "int", "default": 5, "min": 1, "max": 20 },
-        { "id": "cgDepth", "label": "Conjugate Gradients Depth", "help": "This integer is the depth up to which a conjugate-gradients solver will be used to solve the linear system. Beyond this depth, Gauss-Seidel relaxation will be used. The default value for this parameter is 0.", "group": "advanced.solver", "type": "int", "default": 0, "min": 0, "max": 20 },
-        { "id": "scale", "label": "Scale Factor", "help": "This floating point value specifies the ratio between the diameter of the cube used for reconstruction and the diameter of the samples' bounding cube. The default value is 1.1.", "group": "advanced.tree", "type": "double", "default": 1.1, "min": 0.1, "max": 100.0, "decimals": 3 },
-        { "id": "samplesPerNode", "label": "Minimum Number of Samples", "help": "This floating point value specifies the minimum number of sample points that should fall within an octree node as the octree construction is adapted to sampling density. For noise-free samples, small values in the range [1.0 - 5.0] can be used. For noisy samples, larger values in the range [15.0 - 20.0] may be needed to provide a smoother, noise-reduced reconstruction. The default value is 1.5.", "group": "main", "type": "double", "default": 1.5, "min": 0.01, "max": 1000.0, "decimals": 3 },
-        { "id": "pointWeight", "label": "Interpolation Weight", "help": "This floating point value specifies the importance that interpolation of the point samples is given in the formulation of the screened Poisson equation. The results of the original unscreened Poisson reconstruction can be obtained by setting this value to 0. The default value for this parameter is 4.", "group": "main", "type": "double", "default": 4.0, "min": 0.0, "max": 1000.0, "decimals": 3 },
-        { "id": "iters", "label": "Gauss-Seidel Relaxations", "help": "This integer value specifies the number of Gauss-Seidel relaxations to be performed at each level of the hierarchy. The default value for this parameter is 8.", "group": "advanced.solver", "type": "int", "default": 8, "min": 1, "max": 100 },
-        { "id": "confidence", "label": "Confidence Flag", "help": "Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction.", "group": "main", "type": "bool", "default": false },
-        { "id": "preClean", "label": "Pre-Clean", "help": "Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.", "group": "main", "type": "bool", "default": false },
-        { "id": "threads", "label": "Number of Threads", "help": "Maximum number of threads that the reconstruction algorithm can use.", "group": "main", "type": "int", "default": "@hardwareThreads", "min": 1, "max": 256 }
+        {
+          "id": "visibleLayer",
+          "label": "Merge All Visible Layers",
+          "help": "Enabling this flag means that all the visible layers will be used for providing the points.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "depth",
+          "label": "Reconstruction Depth",
+          "help": "This integer is the maximum depth of the tree that will be used for surface reconstruction. Running at depth d corresponds to solving on a voxel grid whose resolution is no larger than 2^d x 2^d x 2^d. The default value for this parameter is 8.",
+          "group": "main",
+          "type": "int",
+          "default": 8,
+          "min": 1,
+          "max": 20
+        },
+        {
+          "id": "fullDepth",
+          "label": "Adaptive Octree Depth",
+          "help": "This integer specifies the depth beyond which the octree will be adapted. At coarser depths, the octree will be complete, containing all 2^d x 2^d x 2^d nodes. The default value for this parameter is 5.",
+          "group": "advanced.tree",
+          "type": "int",
+          "default": 5,
+          "min": 1,
+          "max": 20
+        },
+        {
+          "id": "cgDepth",
+          "label": "Conjugate Gradients Depth",
+          "help": "This integer is the depth up to which a conjugate-gradients solver will be used to solve the linear system. Beyond this depth, Gauss-Seidel relaxation will be used. The default value for this parameter is 0.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 20
+        },
+        {
+          "id": "scale",
+          "label": "Scale Factor",
+          "help": "This floating point value specifies the ratio between the diameter of the cube used for reconstruction and the diameter of the samples' bounding cube. The default value is 1.1.",
+          "group": "advanced.tree",
+          "type": "double",
+          "default": 1.1,
+          "min": 0.1,
+          "max": 100.0,
+          "decimals": 3
+        },
+        {
+          "id": "samplesPerNode",
+          "label": "Minimum Number of Samples",
+          "help": "This floating point value specifies the minimum number of sample points that should fall within an octree node as the octree construction is adapted to sampling density. For noise-free samples, small values in the range [1.0 - 5.0] can be used. For noisy samples, larger values in the range [15.0 - 20.0] may be needed to provide a smoother, noise-reduced reconstruction. The default value is 1.5.",
+          "group": "main",
+          "type": "double",
+          "default": 1.5,
+          "min": 0.01,
+          "max": 1000.0,
+          "decimals": 3
+        },
+        {
+          "id": "pointWeight",
+          "label": "Interpolation Weight",
+          "help": "This floating point value specifies the importance that interpolation of the point samples is given in the formulation of the screened Poisson equation. The results of the original unscreened Poisson reconstruction can be obtained by setting this value to 0. The default value for this parameter is 4.",
+          "group": "main",
+          "type": "double",
+          "default": 4.0,
+          "min": 0.0,
+          "max": 1000.0,
+          "decimals": 3
+        },
+        {
+          "id": "iters",
+          "label": "Gauss-Seidel Relaxations",
+          "help": "This integer value specifies the number of Gauss-Seidel relaxations to be performed at each level of the hierarchy. The default value for this parameter is 8.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 8,
+          "min": 1,
+          "max": 100
+        },
+        {
+          "id": "confidence",
+          "label": "Confidence Flag",
+          "help": "Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "preClean",
+          "label": "Pre-Clean",
+          "help": "Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "threads",
+          "label": "Number of Threads",
+          "help": "Maximum number of threads that the reconstruction algorithm can use.",
+          "group": "main",
+          "type": "int",
+          "default": "@hardwareThreads",
+          "min": 1,
+          "max": 256
+        }
       ]
     },
     {
@@ -31,29 +134,193 @@
       "name": "Surface Reconstruction: SSD",
       "shortDescription": "Creates a watertight surface using smooth signed distance reconstruction.",
       "longDescriptionMarkdown": "This filter reconstructs a surface from an oriented point set using the SSD reconstruction formulation provided by the `PoissonRecon` code base.\n\nCompared to Screened Poisson, the SSD formulation exposes separate weights for zero-crossing, gradient, and bi-Laplacian terms, making it useful when you want more direct control over smoothness and interpolation.",
-      "tags": ["reconstruction", "surface", "ssd", "point cloud"],
+      "tags": [
+        "reconstruction",
+        "surface",
+        "ssd",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
-        { "id": "visibleLayer", "label": "Merge All Visible Layers", "help": "Enabling this flag means that all the visible layers will be used for providing the points.", "group": "main", "type": "bool", "default": false },
-        { "id": "depth", "label": "Reconstruction Depth", "help": "This integer is the maximum depth of the tree that will be used for reconstruction. Running at depth d corresponds to solving on a grid whose resolution is no larger than 2^d x 2^d x 2^d. The default value for this parameter is 8.", "group": "main", "type": "int", "default": 8, "min": 1, "max": 20 },
-        { "id": "fullDepth", "label": "Adaptive Octree Depth", "help": "This integer specifies the depth beyond which the tree will be adapted to the sampling density. The default value for this parameter is 5.", "group": "advanced.tree", "type": "int", "default": 5, "min": 1, "max": 20 },
-        { "id": "baseDepth", "label": "Coarse Solver Depth", "help": "This integer specifies the depth of the coarsest multigrid solve level. Larger values make the coarse solve finer and more expensive.", "group": "advanced.solver", "type": "int", "default": 0, "min": 0, "max": 20 },
-        { "id": "scale", "label": "Scale Factor", "help": "This floating point value specifies the ratio between the diameter of the cube used for reconstruction and the diameter of the samples' bounding cube. The default value is 1.1.", "group": "advanced.tree", "type": "double", "default": 1.1, "min": 0.1, "max": 100.0, "decimals": 3 },
-        { "id": "samplesPerNode", "label": "Minimum Number of Samples", "help": "This floating point value specifies the minimum number of sample points that should fall within a node as the tree construction is adapted to sampling density. The default value is 1.5.", "group": "main", "type": "double", "default": 1.5, "min": 0.01, "max": 1000.0, "decimals": 3 },
-        { "id": "valueWeight", "label": "Zero-Crossing Weight", "help": "This floating point value specifies the weight associated with the zero-crossing term of the SSD energy. Larger values make the reconstruction interpolate the input points more strongly.", "group": "main", "type": "double", "default": 1.0, "min": 0.0, "max": 100000.0, "decimals": 4 },
-        { "id": "gradientWeight", "label": "Gradient Weight", "help": "This floating point value specifies the weight associated with the gradient fitting term of the SSD energy. The value must be strictly positive.", "group": "main", "type": "double", "default": 1.0, "min": 0.000001, "max": 100000.0, "decimals": 4 },
-        { "id": "biLapWeight", "label": "Bi-Laplacian Weight", "help": "This floating point value specifies the weight associated with the bi-Laplacian smoothing term of the SSD energy. Larger values produce smoother surfaces. The value must be strictly positive.", "group": "main", "type": "double", "default": 1.0, "min": 0.000001, "max": 100000.0, "decimals": 4 },
-        { "id": "iters", "label": "Gauss-Seidel Relaxations", "help": "This integer value specifies the number of Gauss-Seidel relaxations to be performed at each level of the hierarchy. The default value is 8.", "group": "advanced.solver", "type": "int", "default": 8, "min": 1, "max": 100 },
-        { "id": "exactInterpolation", "label": "Exact Interpolation", "help": "If enabled, the exact interpolation formulation is used when building the SSD system.", "group": "advanced.solver", "type": "bool", "default": false },
-        { "id": "nonLinearFit", "label": "Non Linear Fit", "help": "If enabled, the extracted iso-surface uses the non-linear fit. If disabled, the linear fit is used.", "group": "advanced.output", "type": "bool", "default": false },
-        { "id": "nonManifold", "label": "Allow Non Manifold", "help": "If enabled, the extractor does not force the output mesh to be manifold.", "group": "advanced.output", "type": "bool", "default": false },
-        { "id": "cgAccuracy", "label": "CG Solver Accuracy", "help": "This floating point value specifies the accuracy used by the conjugate gradients solver. Smaller values make the linear solve more accurate and more expensive.", "group": "advanced.solver", "type": "double", "default": 0.001, "min": 1e-8, "max": 1.0, "decimals": 6 },
-        { "id": "dataScale", "label": "Per Level Data Scale", "help": "This floating point value specifies the pull factor used by the hierarchical SSD formulation. The default value is 32.", "group": "advanced.solver", "type": "double", "default": 32.0, "min": 0.0, "max": 1000.0, "decimals": 3 },
-        { "id": "confidence", "label": "Confidence Flag", "help": "Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction.", "group": "main", "type": "bool", "default": false },
-        { "id": "preClean", "label": "Pre-Clean", "help": "Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.", "group": "main", "type": "bool", "default": false },
-        { "id": "threads", "label": "Number of Threads", "help": "Maximum number of threads that the reconstruction algorithm can use.", "group": "main", "type": "int", "default": "@hardwareThreads", "min": 1, "max": 256 }
+        {
+          "id": "visibleLayer",
+          "label": "Merge All Visible Layers",
+          "help": "Enabling this flag means that all the visible layers will be used for providing the points.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "depth",
+          "label": "Reconstruction Depth",
+          "help": "This integer is the maximum depth of the tree that will be used for reconstruction. Running at depth d corresponds to solving on a grid whose resolution is no larger than 2^d x 2^d x 2^d. The default value for this parameter is 8.",
+          "group": "main",
+          "type": "int",
+          "default": 8,
+          "min": 1,
+          "max": 20
+        },
+        {
+          "id": "fullDepth",
+          "label": "Adaptive Octree Depth",
+          "help": "This integer specifies the depth beyond which the tree will be adapted to the sampling density. The default value for this parameter is 5.",
+          "group": "advanced.tree",
+          "type": "int",
+          "default": 5,
+          "min": 1,
+          "max": 20
+        },
+        {
+          "id": "baseDepth",
+          "label": "Coarse Solver Depth",
+          "help": "This integer specifies the depth of the coarsest multigrid solve level. Larger values make the coarse solve finer and more expensive.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 20
+        },
+        {
+          "id": "scale",
+          "label": "Scale Factor",
+          "help": "This floating point value specifies the ratio between the diameter of the cube used for reconstruction and the diameter of the samples' bounding cube. The default value is 1.1.",
+          "group": "advanced.tree",
+          "type": "double",
+          "default": 1.1,
+          "min": 0.1,
+          "max": 100.0,
+          "decimals": 3
+        },
+        {
+          "id": "samplesPerNode",
+          "label": "Minimum Number of Samples",
+          "help": "This floating point value specifies the minimum number of sample points that should fall within a node as the tree construction is adapted to sampling density. The default value is 1.5.",
+          "group": "main",
+          "type": "double",
+          "default": 1.5,
+          "min": 0.01,
+          "max": 1000.0,
+          "decimals": 3
+        },
+        {
+          "id": "valueWeight",
+          "label": "Zero-Crossing Weight",
+          "help": "This floating point value specifies the weight associated with the zero-crossing term of the SSD energy. Larger values make the reconstruction interpolate the input points more strongly.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 100000.0,
+          "decimals": 4
+        },
+        {
+          "id": "gradientWeight",
+          "label": "Gradient Weight",
+          "help": "This floating point value specifies the weight associated with the gradient fitting term of the SSD energy. The value must be strictly positive.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-06,
+          "max": 100000.0,
+          "decimals": 4
+        },
+        {
+          "id": "biLapWeight",
+          "label": "Bi-Laplacian Weight",
+          "help": "This floating point value specifies the weight associated with the bi-Laplacian smoothing term of the SSD energy. Larger values produce smoother surfaces. The value must be strictly positive.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-06,
+          "max": 100000.0,
+          "decimals": 4
+        },
+        {
+          "id": "iters",
+          "label": "Gauss-Seidel Relaxations",
+          "help": "This integer value specifies the number of Gauss-Seidel relaxations to be performed at each level of the hierarchy. The default value is 8.",
+          "group": "advanced.solver",
+          "type": "int",
+          "default": 8,
+          "min": 1,
+          "max": 100
+        },
+        {
+          "id": "exactInterpolation",
+          "label": "Exact Interpolation",
+          "help": "If enabled, the exact interpolation formulation is used when building the SSD system.",
+          "group": "advanced.solver",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "nonLinearFit",
+          "label": "Non Linear Fit",
+          "help": "If enabled, the extracted iso-surface uses the non-linear fit. If disabled, the linear fit is used.",
+          "group": "advanced.output",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "nonManifold",
+          "label": "Allow Non Manifold",
+          "help": "If enabled, the extractor does not force the output mesh to be manifold.",
+          "group": "advanced.output",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "cgAccuracy",
+          "label": "CG Solver Accuracy",
+          "help": "This floating point value specifies the accuracy used by the conjugate gradients solver. Smaller values make the linear solve more accurate and more expensive.",
+          "group": "advanced.solver",
+          "type": "double",
+          "default": 0.001,
+          "min": 1e-08,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "dataScale",
+          "label": "Per Level Data Scale",
+          "help": "This floating point value specifies the pull factor used by the hierarchical SSD formulation. The default value is 32.",
+          "group": "advanced.solver",
+          "type": "double",
+          "default": 32.0,
+          "min": 0.0,
+          "max": 1000.0,
+          "decimals": 3
+        },
+        {
+          "id": "confidence",
+          "label": "Confidence Flag",
+          "help": "Enabling this flag tells the reconstructor to use the quality as confidence information. This is done by scaling the unit normals with the quality values. When the flag is not enabled, all normals are normalized to have unit length prior to reconstruction.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "preClean",
+          "label": "Pre-Clean",
+          "help": "Enabling this flag forces a cleaning pre-pass on the data, removing all unreferenced vertices or vertices with null normals.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "threads",
+          "label": "Number of Threads",
+          "help": "Maximum number of threads that the reconstruction algorithm can use.",
+          "group": "main",
+          "type": "int",
+          "default": "@hardwareThreads",
+          "min": 1,
+          "max": 256
+        }
       ]
     },
     {
@@ -62,15 +329,57 @@
       "name": "Surface Reconstruction: Surface Trimmer",
       "shortDescription": "Trims a reconstructed mesh using the scalar values stored on the vertices.",
       "longDescriptionMarkdown": "This filter trims a reconstructed surface by cutting the mesh along an isovalue defined over the vertices.\n\nIt is especially useful after Poisson-based reconstruction when the vertex quality stores the reconstruction density, allowing low-confidence regions to be removed.",
-      "tags": ["reconstruction", "trimming", "density", "surface"],
+      "tags": [
+        "reconstruction",
+        "trimming",
+        "density",
+        "surface"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireVertices": true, "requireFaces": true },
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
       "parameters": [
-        { "id": "trim", "label": "Trim Threshold", "help": "This floating point value specifies the trimming value. Faces whose scalar field is below this threshold are trimmed away; crossing faces are split along the threshold.", "group": "main", "type": "double", "default": 0.0, "min": -1000000.0, "max": 1000000.0, "decimals": 6 },
-        { "id": "islandAreaRatio", "label": "Island Area Ratio", "help": "This floating point value specifies the relative area threshold used to detect small disconnected islands. Smaller components may be merged or removed according to the selected options.", "group": "advanced.cleanup", "type": "double", "default": 0.001, "min": 0.0, "max": 1.0, "decimals": 6 },
-        { "id": "removeIslands", "label": "Remove Islands", "help": "If enabled, disconnected components whose area is below the island area ratio are removed instead of being preserved.", "group": "advanced.cleanup", "type": "bool", "default": false },
-        { "id": "polygonMesh", "label": "Polygon Mesh", "help": "The original tool can preserve polygonal output. QMeshLab stores triangle meshes, so the result is always triangulated even when this option is enabled.", "group": "advanced.output", "type": "bool", "default": false }
+        {
+          "id": "trim",
+          "label": "Trim Threshold",
+          "help": "This floating point value specifies the trimming value. Faces whose scalar field is below this threshold are trimmed away; crossing faces are split along the threshold.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": -1000000.0,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "islandAreaRatio",
+          "label": "Island Area Ratio",
+          "help": "This floating point value specifies the relative area threshold used to detect small disconnected islands. Smaller components may be merged or removed according to the selected options.",
+          "group": "advanced.cleanup",
+          "type": "double",
+          "default": 0.001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "removeIslands",
+          "label": "Remove Islands",
+          "help": "If enabled, disconnected components whose area is below the island area ratio are removed instead of being preserved.",
+          "group": "advanced.cleanup",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "polygonMesh",
+          "label": "Polygon Mesh",
+          "help": "The original tool can preserve polygonal output. QMeshLab stores triangle meshes, so the result is always triangulated even when this option is enabled.",
+          "group": "advanced.output",
+          "type": "bool",
+          "default": false
+        }
       ]
     }
   ]

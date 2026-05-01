@@ -66,7 +66,7 @@
       "menuPath": "Selection",
       "name": "Select Faces by View Angle",
       "shortDescription": "Select faces according to angle with view direction.",
-      "longDescriptionMarkdown": "Select faces according to the angle between their normal and the view direction. It is used in range map processing to select and delete steep faces parallel to view direction.",
+      "longDescriptionMarkdown": "Select faces according to the angle between their normal and the view direction. It is used in range map processing to select and delete steep faces parallel to viewdirection.",
       "tags": [
         "selection",
         "angle",
@@ -118,7 +118,7 @@
       "menuPath": "Selection",
       "name": "Select 'Problematic' Faces",
       "shortDescription": "Select problematic faces: elongated, flipped, or folded.",
-      "longDescriptionMarkdown": "Select faces with 'problems', like normal inverted w.r.t. surrounding areas, extremely elongated, or folded.",
+      "longDescriptionMarkdown": "Select faces with 'problems', like normal inverted w.r.t the surrounding areas, extremely elongated or folded.",
       "tags": [
         "selection",
         "quality",
@@ -225,7 +225,7 @@
       "menuPath": "Selection",
       "name": "Select Connected Faces",
       "shortDescription": "Expand selected faces to their connected components.",
-      "longDescriptionMarkdown": "Expand current face selection so it includes all faces in connected components where there is at least one selected face.",
+      "longDescriptionMarkdown": "Expand the current face selection so that it includes all the faces in the connected components where there is at least a selected face.",
       "tags": [
         "selection",
         "connected",
@@ -317,7 +317,7 @@
       "menuPath": "Selection",
       "name": "Delete ALL Faces",
       "shortDescription": "Delete all faces, turning mesh into point cloud.",
-      "longDescriptionMarkdown": "Delete all faces, turning the mesh into a point cloud. May be applied also to all visible layers.",
+      "longDescriptionMarkdown": "Delete ALL faces, turning the mesh into a pointcloud. May be applied also to all visible layers.",
       "tags": [
         "selection",
         "delete",
@@ -341,7 +341,7 @@
       "menuPath": "Selection",
       "name": "Delete Selected Faces",
       "shortDescription": "Delete selected faces; unreferenced vertices are not deleted.",
-      "longDescriptionMarkdown": "Delete the current set of selected faces, vertices that remain unreferenced are not deleted.",
+      "longDescriptionMarkdown": "Delete the current set of selected faces, vertices that remains unreferenced are not deleted.",
       "tags": [
         "selection",
         "delete",
@@ -359,7 +359,7 @@
       "menuPath": "Selection",
       "name": "Delete Selected Faces and Vertices",
       "shortDescription": "Delete selected faces and enclosed selected vertices.",
-      "longDescriptionMarkdown": "Delete the current set of selected faces and all vertices surrounded by those faces.",
+      "longDescriptionMarkdown": "Delete the current set of selected faces and all the vertices surrounded by that faces.",
       "tags": [
         "selection",
         "delete",
@@ -433,7 +433,7 @@
       "menuPath": "Selection",
       "name": "Select by Face Quality",
       "shortDescription": "Select elements using per-face quality range.",
-      "longDescriptionMarkdown": "Select all the faces/vertices within the specified face quality range.",
+      "longDescriptionMarkdown": "Select all the faces/vertices with within the specified face quality range.",
       "tags": [
         "selection",
         "quality",
@@ -662,7 +662,7 @@
       "menuPath": "Selection",
       "name": "Select non Manifold Edges",
       "shortDescription": "Select faces and vertices incident on non manifold edges.",
-      "longDescriptionMarkdown": "Select faces and vertices incident on non manifold edges (e.g. edges where more than two faces are incident).",
+      "longDescriptionMarkdown": "Select the faces and the vertices incident on non manifold edges (e.g. edges where more than two faces are incident); note that this function select the components that",
       "tags": [
         "selection",
         "non-manifold",
@@ -681,7 +681,7 @@
       "menuPath": "Selection",
       "name": "Select non Manifold Vertices",
       "shortDescription": "Select non manifold vertices.",
-      "longDescriptionMarkdown": "Select non manifold vertices that do not belong to non manifold edges.",
+      "longDescriptionMarkdown": "Select the non manifold vertices that do not belong to non manifold edges. For example two cones connected by their apex. Vertices incident on non manifold edges are ignored.",
       "tags": [
         "selection",
         "non-manifold",
@@ -731,7 +731,7 @@
       "menuPath": "Selection",
       "name": "Select Outliers",
       "shortDescription": "Select outlier vertices using LoOP.",
-      "longDescriptionMarkdown": "Select vertices classified as outliers using Local Outlier Probability described in: **LoOP: Local Outlier Probabilities** (Kriegel et al., CIKM 2009).",
+      "longDescriptionMarkdown": "Select the vertex classified as outlier using Local Outlier Propabilty measure described in:<br> <b>'LoOP: Local Outlier Probabilities'</b> Kriegel et al.<br>CIKM 2009",
       "tags": [
         "selection",
         "outlier",

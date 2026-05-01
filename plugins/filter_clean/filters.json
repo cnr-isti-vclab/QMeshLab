@@ -6,11 +6,17 @@
       "menuPath": "Remeshing",
       "name": "Surface Reconstruction: Ball Pivoting",
       "shortDescription": "Reconstruct a surface from oriented points using Ball Pivoting.",
-      "longDescriptionMarkdown": "Given a point cloud with normals it reconstructs a surface using the **Ball Pivoting Algorithm**.\nStarting with a seed triangle, the BPA algorithm pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud.\n\nBernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.\n**The ball-pivoting algorithm for surface reconstruction.**\nIEEE TVCG 1999",
-      "tags": ["remeshing", "reconstruction", "point cloud"],
+      "longDescriptionMarkdown": "Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud. <br>Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.<br><b>The ball-pivoting algorithm for surface reconstruction.</b><br>IEEE TVCG 1999",
+      "tags": [
+        "remeshing",
+        "reconstruction",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "ball_radius",
@@ -60,11 +66,18 @@
       "menuPath": "Cleaning",
       "name": "Remove Vertices wrt Quality",
       "shortDescription": "Delete all vertices with quality lower than a threshold.",
-      "longDescriptionMarkdown": "Delete all the vertices with a quality lower smaller than the specified constant.",
-      "tags": ["cleaning", "quality", "vertex"],
+      "longDescriptionMarkdown": "Delete all the vertices with a quality lower smaller than the specified constant",
+      "tags": [
+        "cleaning",
+        "quality",
+        "vertex"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireVertices": true, "requireVertexQuality": true },
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireVertexQuality": true
+      },
       "parameters": [
         {
           "id": "max_quality_thr",
@@ -84,11 +97,17 @@
       "menuPath": "Cleaning",
       "name": "Remove Isolated Pieces (wrt Face Num.)",
       "shortDescription": "Delete isolated connected components composed by few triangles.",
-      "longDescriptionMarkdown": "Delete isolated connected components composed by a limited number of triangles.",
-      "tags": ["cleaning", "components", "face"],
+      "longDescriptionMarkdown": "Delete isolated connected components composed by a limited number of triangles",
+      "tags": [
+        "cleaning",
+        "components",
+        "face"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": [
         {
           "id": "min_component_size",
@@ -115,11 +134,17 @@
       "menuPath": "Cleaning",
       "name": "Remove Isolated Pieces (wrt Diameter)",
       "shortDescription": "Delete isolated connected components whose diameter is below a threshold.",
-      "longDescriptionMarkdown": "Delete isolated connected components whose diameter is smaller than the specified constant.",
-      "tags": ["cleaning", "components", "diameter"],
+      "longDescriptionMarkdown": "Delete isolated connected components whose diameter is smaller than the specified constant",
+      "tags": [
+        "cleaning",
+        "components",
+        "diameter"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": [
         {
           "id": "min_component_diag",
@@ -148,10 +173,16 @@
       "name": "Remove T-Vertices",
       "shortDescription": "Remove T-vertices using edge collapse or edge flip.",
       "longDescriptionMarkdown": "Delete t-vertices from the mesh by edge collapse (collapsing the shortest of the incident edges) or edge flip (flipping the opposite edge on the degenerate face if the triangulation quality improves).",
-      "tags": ["cleaning", "t-vertex", "topology"],
+      "tags": [
+        "cleaning",
+        "t-vertex",
+        "topology"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": [
         {
           "id": "method",
@@ -161,8 +192,14 @@
           "type": "enum",
           "default": "edge_collapse",
           "enumOptions": [
-            { "id": "edge_collapse", "label": "Edge Collapse" },
-            { "id": "edge_flip", "label": "Edge Flip" }
+            {
+              "id": "edge_collapse",
+              "label": "Edge Collapse"
+            },
+            {
+              "id": "edge_flip",
+              "label": "Edge Flip"
+            }
           ]
         },
         {
@@ -191,11 +228,17 @@
       "menuPath": "Cleaning",
       "name": "Snap Mismatched Borders",
       "shortDescription": "Try to snap together slightly mismatched adjacent borders.",
-      "longDescriptionMarkdown": "Try to snap together adjacent borders that are slightly mismatched.\nThis situation can happen on badly triangulated adjacent patches defined by high order surfaces.\nFor each border vertex the filter snaps it onto the closest boundary edge only if it is closer than `edge_length * threshold`. When a vertex is snapped the corresponding face is split and a new vertex is created.",
-      "tags": ["cleaning", "border", "snap"],
+      "longDescriptionMarkdown": "Try to snap together adjacent borders that are slightly mismatched.<br>This situation can happen on badly triangulated adjacent patches defined by high order surfaces.<br>For each border vertex the filter snap it onto the closest boundary edge only if it is closest of <i>edge_length*threshold</i>. When vertex is snapped the corresponding face is split and a new vertex is created.",
+      "tags": [
+        "cleaning",
+        "border",
+        "snap"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": [
         {
           "id": "edge_dist_ratio",
@@ -224,10 +267,16 @@
       "name": "Merge Close Vertices",
       "shortDescription": "Merge vertices that are nearer than a threshold.",
       "longDescriptionMarkdown": "Merge together all the vertices that are nearer than the specified threshold. Like a unify duplicated vertices but with some tolerance.",
-      "tags": ["cleaning", "merge", "vertex"],
+      "tags": [
+        "cleaning",
+        "merge",
+        "vertex"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "threshold",
@@ -248,10 +297,17 @@
       "name": "Merge Wedge Texture Coord",
       "shortDescription": "Merge very close per-wedge texture coordinates.",
       "longDescriptionMarkdown": "Merge together per-wedge texture coords that are very close. Used to correct apparent texture seams that can arise from numerical approximations when saving in ascii formats.",
-      "tags": ["cleaning", "texture", "uv"],
+      "tags": [
+        "cleaning",
+        "texture",
+        "uv"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true, "requireTextureCoordinates": true },
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
       "parameters": [
         {
           "id": "merge_thr",
@@ -272,10 +328,16 @@
       "name": "Remove Duplicate Faces",
       "shortDescription": "Delete all duplicate faces.",
       "longDescriptionMarkdown": "Delete all the duplicate faces. Two faces are considered equal if they are composed by the same set of vertices, regardless of the order of the vertices.",
-      "tags": ["cleaning", "duplicate", "face"],
+      "tags": [
+        "cleaning",
+        "duplicate",
+        "face"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": []
     },
     {
@@ -283,11 +345,17 @@
       "menuPath": "Cleaning",
       "name": "Remove Isolated Folded Faces by Edge Flip",
       "shortDescription": "Remove isolated folded faces by edge flipping.",
-      "longDescriptionMarkdown": "Delete all the single folded faces. A face is considered folded if its normal is opposite to all adjacent faces. It is removed by flipping it against the adjacent face across the edge where the opposite vertex falls inside the adjacent face.",
-      "tags": ["cleaning", "folded", "face"],
+      "longDescriptionMarkdown": "Delete all the single folded faces. A face is considered folded if its normal is opposite to all the adjacent faces. It is removed by flipping it against the face f adjacent along the edge e such that the vertex opposite to e fall inside f",
+      "tags": [
+        "cleaning",
+        "folded",
+        "face"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": []
     },
     {
@@ -295,11 +363,17 @@
       "menuPath": "Cleaning",
       "name": "Repair non Manifold Edges",
       "shortDescription": "Repair non-manifold edges by removing faces or splitting vertices.",
-      "longDescriptionMarkdown": "Remove non-manifold edges by removing faces (for each non manifold edge it iteratively deletes the smallest area face until it becomes 2-manifold) or by splitting vertices (each non manifold edge chain becomes a border).",
-      "tags": ["cleaning", "non-manifold", "edge"],
+      "longDescriptionMarkdown": "Remove non-manifold edges by removing faces (for each non Manifold edge it iteratively deletes the smallest area face until it becomes 2-Manifold) or by splitting vertices (each non manifold edges chain will become a border).",
+      "tags": [
+        "cleaning",
+        "non-manifold",
+        "edge"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": [
         {
           "id": "method",
@@ -309,8 +383,14 @@
           "type": "enum",
           "default": "remove_faces",
           "enumOptions": [
-            { "id": "remove_faces", "label": "Remove Faces" },
-            { "id": "split_vertices", "label": "Split Vertices" }
+            {
+              "id": "remove_faces",
+              "label": "Remove Faces"
+            },
+            {
+              "id": "split_vertices",
+              "label": "Split Vertices"
+            }
           ]
         }
       ]
@@ -321,10 +401,16 @@
       "name": "Repair non Manifold Vertices by Splitting",
       "shortDescription": "Split non-manifold vertices until the mesh becomes 2-manifold.",
       "longDescriptionMarkdown": "Split non Manifold vertices until it becomes 2-Manifold.",
-      "tags": ["cleaning", "non-manifold", "vertex"],
+      "tags": [
+        "cleaning",
+        "non-manifold",
+        "vertex"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": [
         {
           "id": "vert_disp_ratio",
@@ -344,11 +430,17 @@
       "menuPath": "Cleaning",
       "name": "Remove Unreferenced Vertices",
       "shortDescription": "Remove vertices that are not referenced by any face.",
-      "longDescriptionMarkdown": "Check for every vertex on the mesh: if it is not referenced by a face, remove it.",
-      "tags": ["cleaning", "vertex", "unreferenced"],
+      "longDescriptionMarkdown": "Check for every vertex on the mesh: if it is NOT referenced by a face, removes it",
+      "tags": [
+        "cleaning",
+        "vertex",
+        "unreferenced"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": []
     },
     {
@@ -356,11 +448,17 @@
       "menuPath": "Cleaning",
       "name": "Remove Duplicate Vertices",
       "shortDescription": "Merge vertices that have exactly the same coordinates.",
-      "longDescriptionMarkdown": "Check for every vertex on the mesh: if two vertices have the same coordinates they are merged into a single one.",
-      "tags": ["cleaning", "duplicate", "vertex"],
+      "longDescriptionMarkdown": "Check for every vertex on the mesh: if there are two vertices with same coordinates they are merged into a single one.",
+      "tags": [
+        "cleaning",
+        "duplicate",
+        "vertex"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": []
     },
     {
@@ -368,11 +466,17 @@
       "menuPath": "Cleaning",
       "name": "Remove Zero Area Faces",
       "shortDescription": "Remove null faces with zero area.",
-      "longDescriptionMarkdown": "Remove null faces (the ones with area equal to zero).",
-      "tags": ["cleaning", "face", "degenerate"],
+      "longDescriptionMarkdown": "Remove null faces (the one with area equal to zero)",
+      "tags": [
+        "cleaning",
+        "face",
+        "degenerate"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": []
     }
   ]

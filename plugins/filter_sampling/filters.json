@@ -6,18 +6,50 @@
       "menuPath": "Sampling",
       "name": "Mesh Element Sampling",
       "shortDescription": "Create a point set by subsampling mesh vertices, edges, or faces.",
-      "longDescriptionMarkdown": "Generates a new point cloud by sampling one point per chosen mesh element. The output can be based on vertices, edges, or faces.",
-      "tags": ["sampling", "subsampling", "point cloud"],
+      "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; at most one sample for each element of the mesh is created. Samples are taking in a uniform way, one for each element (vertex/edge/face); all the elements have the same probability of being chosen.",
+      "tags": [
+        "sampling",
+        "subsampling",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
-        { "id": "Sampling", "label": "Element to sample", "help": "Choose which mesh elements are sampled.", "group": "main", "type": "enum", "default": "vertex", "enumOptions": [
-          { "id": "vertex", "label": "Vertex" },
-          { "id": "edge", "label": "Edge" },
-          { "id": "face", "label": "Face" }
-        ] },
-        { "id": "SampleNum", "label": "Number of samples", "help": "Desired number of sampled elements.", "group": "main", "type": "int", "default": 1000, "min": 1, "max": 100000000 }
+        {
+          "id": "Sampling",
+          "label": "Element to sample",
+          "help": "Choose which mesh elements are sampled.",
+          "group": "main",
+          "type": "enum",
+          "default": "vertex",
+          "enumOptions": [
+            {
+              "id": "vertex",
+              "label": "Vertex"
+            },
+            {
+              "id": "edge",
+              "label": "Edge"
+            },
+            {
+              "id": "face",
+              "label": "Face"
+            }
+          ]
+        },
+        {
+          "id": "SampleNum",
+          "label": "Number of samples",
+          "help": "Desired number of sampled elements.",
+          "group": "main",
+          "type": "int",
+          "default": 1000,
+          "min": 1,
+          "max": 100000000
+        }
       ]
     },
     {
@@ -25,18 +57,72 @@
       "menuPath": "Sampling",
       "name": "Montecarlo Sampling",
       "shortDescription": "Create a random point cloud from the current surface.",
-      "longDescriptionMarkdown": "Generates a new point cloud by randomly sampling the current mesh surface. It supports face-area Montecarlo sampling, crease-edge sampling, and quality-weighted sampling.",
-      "tags": ["sampling", "montecarlo", "point cloud"],
+      "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; samples are generated in a randomly uniform way, or with a distribution biased by the per-vertex quality values of the mesh.",
+      "tags": [
+        "sampling",
+        "montecarlo",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true, "requireFaces": true },
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
       "parameters": [
-        { "id": "SampleNum", "label": "Number of samples", "help": "Desired number of generated samples.", "group": "main", "type": "int", "default": 1000, "min": 1, "max": 100000000 },
-        { "id": "Weighted", "label": "Quality Weighted Sampling", "help": "Use per-vertex quality to bias the sampling density.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "PerFaceNormal", "label": "Per-Face Normal", "help": "Store the face normal on each sample instead of interpolated vertex normals.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "RadiusVariance", "label": "Radius Variance", "help": "When quality-weighted sampling is used, the sampling radius may vary between r/var and r*var.", "group": "advanced", "type": "double", "default": 1.0, "min": 0.001, "max": 1000.0, "decimals": 6 },
-        { "id": "ExactNum", "label": "Exact Sample Number", "help": "If enabled, try to generate exactly the requested number of samples.", "group": "advanced", "type": "bool", "default": true },
-        { "id": "EdgeSampling", "label": "Sample Crease Edges Only", "help": "Restrict sampling to mesh edges.", "group": "advanced", "type": "bool", "default": false }
+        {
+          "id": "SampleNum",
+          "label": "Number of samples",
+          "help": "Desired number of generated samples.",
+          "group": "main",
+          "type": "int",
+          "default": 1000,
+          "min": 1,
+          "max": 100000000
+        },
+        {
+          "id": "Weighted",
+          "label": "Quality Weighted Sampling",
+          "help": "Use per-vertex quality to bias the sampling density.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "PerFaceNormal",
+          "label": "Per-Face Normal",
+          "help": "Store the face normal on each sample instead of interpolated vertex normals.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "RadiusVariance",
+          "label": "Radius Variance",
+          "help": "When quality-weighted sampling is used, the sampling radius may vary between r/var and r*var.",
+          "group": "advanced",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.001,
+          "max": 1000.0,
+          "decimals": 6
+        },
+        {
+          "id": "ExactNum",
+          "label": "Exact Sample Number",
+          "help": "If enabled, try to generate exactly the requested number of samples.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "EdgeSampling",
+          "label": "Sample Crease Edges Only",
+          "help": "Restrict sampling to mesh edges.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
       ]
     },
     {
@@ -44,21 +130,67 @@
       "menuPath": "Sampling",
       "name": "Stratified Triangle Sampling",
       "shortDescription": "Generate structured samples over the triangle mesh.",
-      "longDescriptionMarkdown": "Generates samples using regular or recursive per-triangle subdivision schemes, or by uniformly sampling mesh edges.",
-      "tags": ["sampling", "stratified", "triangle"],
+      "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; to generate multiple samples inside a triangle each triangle is subdivided according to various <i>stratified</i> strategies. Distribution is often biased by triangle shape.",
+      "tags": [
+        "sampling",
+        "stratified",
+        "triangle"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true, "requireFaces": true },
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
       "parameters": [
-        { "id": "SampleNum", "label": "Number of samples", "help": "Desired number of generated samples.", "group": "main", "type": "int", "default": 5000, "min": 1, "max": 100000000 },
-        { "id": "Sampling", "label": "Sampling strategy", "help": "Choose the structured sampling strategy.", "group": "main", "type": "enum", "default": "similar_triangle", "enumOptions": [
-          { "id": "similar_triangle", "label": "Similar Triangle" },
-          { "id": "dual_similar_triangle", "label": "Dual Similar Triangle" },
-          { "id": "long_edge_subdiv", "label": "Long Edge Subdivision" },
-          { "id": "sample_edges", "label": "Sample Edges" },
-          { "id": "sample_nonfaux_edges", "label": "Sample Non-Faux Edges" }
-        ] },
-        { "id": "Random", "label": "Random Sampling", "help": "For each virtual cell, choose a random sample instead of the midpoint.", "group": "advanced", "type": "bool", "default": false }
+        {
+          "id": "SampleNum",
+          "label": "Number of samples",
+          "help": "Desired number of generated samples.",
+          "group": "main",
+          "type": "int",
+          "default": 5000,
+          "min": 1,
+          "max": 100000000
+        },
+        {
+          "id": "Sampling",
+          "label": "Sampling strategy",
+          "help": "Choose the structured sampling strategy.",
+          "group": "main",
+          "type": "enum",
+          "default": "similar_triangle",
+          "enumOptions": [
+            {
+              "id": "similar_triangle",
+              "label": "Similar Triangle"
+            },
+            {
+              "id": "dual_similar_triangle",
+              "label": "Dual Similar Triangle"
+            },
+            {
+              "id": "long_edge_subdiv",
+              "label": "Long Edge Subdivision"
+            },
+            {
+              "id": "sample_edges",
+              "label": "Sample Edges"
+            },
+            {
+              "id": "sample_nonfaux_edges",
+              "label": "Sample Non-Faux Edges"
+            }
+          ]
+        },
+        {
+          "id": "Random",
+          "label": "Random Sampling",
+          "help": "For each virtual cell, choose a random sample instead of the midpoint.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
       ]
     },
     {
@@ -66,18 +198,55 @@
       "menuPath": "Sampling",
       "name": "Clustered Vertex Sampling",
       "shortDescription": "Cluster the point set into grid cells and keep one representative per cell.",
-      "longDescriptionMarkdown": "Partitions the current point set into a regular grid and generates one representative point per occupied cell.",
-      "tags": ["sampling", "clustering", "point cloud"],
+      "longDescriptionMarkdown": "Create a new layer populated with a subsampling of the vertices of the current mesh; the subsampling is driven by a simple one-per-gridded cell strategy.",
+      "tags": [
+        "sampling",
+        "clustering",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
-        { "id": "Threshold", "label": "Cell Size", "help": "Size of the clustering grid cell. Smaller cells preserve more detail.", "group": "main", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
-        { "id": "Sampling", "label": "Representative Strategy", "help": "Choose how each cell representative is computed.", "group": "main", "type": "enum", "default": "closest_to_center", "enumOptions": [
-          { "id": "average", "label": "Average" },
-          { "id": "closest_to_center", "label": "Closest to center" }
-        ] },
-        { "id": "Selected", "label": "Only on Selection", "help": "If enabled, use only the selected subset of the mesh as input.", "group": "advanced", "type": "bool", "default": false }
+        {
+          "id": "Threshold",
+          "label": "Cell Size",
+          "help": "Size of the clustering grid cell. Smaller cells preserve more detail.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "Sampling",
+          "label": "Representative Strategy",
+          "help": "Choose how each cell representative is computed.",
+          "group": "main",
+          "type": "enum",
+          "default": "closest_to_center",
+          "enumOptions": [
+            {
+              "id": "average",
+              "label": "Average"
+            },
+            {
+              "id": "closest_to_center",
+              "label": "Closest to center"
+            }
+          ]
+        },
+        {
+          "id": "Selected",
+          "label": "Only on Selection",
+          "help": "If enabled, use only the selected subset of the mesh as input.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
       ]
     },
     {
@@ -85,25 +254,137 @@
       "menuPath": "Sampling",
       "name": "Poisson-disk Sampling",
       "shortDescription": "Generate well-spaced samples over a surface or point cloud.",
-      "longDescriptionMarkdown": "Creates a new point cloud using Poisson-disk pruning over either a Montecarlo surface sampling or the original vertex set.",
-      "tags": ["sampling", "poisson disk", "point cloud"],
+      "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012",
+      "tags": [
+        "sampling",
+        "poisson disk",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
-        { "id": "SampleNum", "label": "Number of samples", "help": "Desired number of samples. Ignored if an explicit radius is provided.", "group": "main", "type": "int", "default": 1000, "min": 0, "max": 100000000 },
-        { "id": "Radius", "label": "Explicit Radius", "help": "If non-zero, overrides the sample number and uses this radius directly.", "group": "main", "type": "absperc", "default": 0.0, "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
-        { "id": "MontecarloRate", "label": "Montecarlo Oversampling", "help": "Oversampling factor used to generate the initial Montecarlo candidates.", "group": "advanced", "type": "int", "default": 20, "min": 1, "max": 10000 },
-        { "id": "SaveMontecarlo", "label": "Save Montecarlo", "help": "Also create a layer containing the raw Montecarlo candidates.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "ApproximateGeodesicDistance", "label": "Approximate Geodesic Distance", "help": "Use a normal-aware approximate geodesic distance during Poisson pruning.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "Subsample", "label": "Base Mesh Subsampling", "help": "Use the original vertices as the candidate set instead of generating Montecarlo samples.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "RefineFlag", "label": "Refine Existing Samples", "help": "Use an existing sample layer as pre-generated seeds that are refined further.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "RefineMesh", "label": "Samples to refine", "help": "Layer used as the initial sample set when Refine Existing Samples is enabled.", "group": "advanced", "type": "mesh", "default": "@currentMeshIndex" },
-        { "id": "BestSampleFlag", "label": "Best Sample Heuristic", "help": "Use a heuristic to improve the maximality of the chosen sample set.", "group": "advanced", "type": "bool", "default": true },
-        { "id": "BestSamplePool", "label": "Best Sample Pool Size", "help": "Number of candidate attempts used when the best-sample heuristic is enabled.", "group": "advanced", "type": "int", "default": 10, "min": 1, "max": 1000 },
-        { "id": "ExactNumFlag", "label": "Precise Sample Number", "help": "Search for a radius that matches the requested number of samples within the given tolerance.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "ExactNumTolerance", "label": "Precise Sample Tolerance", "help": "Tolerance used by precise sample count search, expressed as a fraction of the requested sample count.", "group": "advanced", "type": "double", "default": 0.005, "min": 0.0, "max": 1.0, "decimals": 6 },
-        { "id": "RadiusVariance", "label": "Radius Variance", "help": "Allow the Poisson disk radius to vary between r and r*var using vertex quality as a density bias.", "group": "advanced", "type": "double", "default": 1.0, "min": 0.001, "max": 1000.0, "decimals": 6 }
+        {
+          "id": "SampleNum",
+          "label": "Number of samples",
+          "help": "Desired number of samples. Ignored if an explicit radius is provided.",
+          "group": "main",
+          "type": "int",
+          "default": 1000,
+          "min": 0,
+          "max": 100000000
+        },
+        {
+          "id": "Radius",
+          "label": "Explicit Radius",
+          "help": "If non-zero, overrides the sample number and uses this radius directly.",
+          "group": "main",
+          "type": "absperc",
+          "default": 0.0,
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "MontecarloRate",
+          "label": "Montecarlo Oversampling",
+          "help": "Oversampling factor used to generate the initial Montecarlo candidates.",
+          "group": "advanced",
+          "type": "int",
+          "default": 20,
+          "min": 1,
+          "max": 10000
+        },
+        {
+          "id": "SaveMontecarlo",
+          "label": "Save Montecarlo",
+          "help": "Also create a layer containing the raw Montecarlo candidates.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "ApproximateGeodesicDistance",
+          "label": "Approximate Geodesic Distance",
+          "help": "Use a normal-aware approximate geodesic distance during Poisson pruning.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "Subsample",
+          "label": "Base Mesh Subsampling",
+          "help": "Use the original vertices as the candidate set instead of generating Montecarlo samples.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "RefineFlag",
+          "label": "Refine Existing Samples",
+          "help": "Use an existing sample layer as pre-generated seeds that are refined further.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "RefineMesh",
+          "label": "Samples to refine",
+          "help": "Layer used as the initial sample set when Refine Existing Samples is enabled.",
+          "group": "advanced",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "BestSampleFlag",
+          "label": "Best Sample Heuristic",
+          "help": "Use a heuristic to improve the maximality of the chosen sample set.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "BestSamplePool",
+          "label": "Best Sample Pool Size",
+          "help": "Number of candidate attempts used when the best-sample heuristic is enabled.",
+          "group": "advanced",
+          "type": "int",
+          "default": 10,
+          "min": 1,
+          "max": 1000
+        },
+        {
+          "id": "ExactNumFlag",
+          "label": "Precise Sample Number",
+          "help": "Search for a radius that matches the requested number of samples within the given tolerance.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "ExactNumTolerance",
+          "label": "Precise Sample Tolerance",
+          "help": "Tolerance used by precise sample count search, expressed as a fraction of the requested sample count.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.005,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "RadiusVariance",
+          "label": "Radius Variance",
+          "help": "Allow the Poisson disk radius to vary between r and r*var using vertex quality as a density bias.",
+          "group": "advanced",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.001,
+          "max": 1000.0,
+          "decimals": 6
+        }
       ]
     },
     {
@@ -111,20 +392,93 @@
       "menuPath": "Sampling",
       "name": "Hausdorff Distance",
       "shortDescription": "Compute directional Hausdorff distance statistics between two meshes.",
-      "longDescriptionMarkdown": "Samples one mesh and measures the closest-point distance to another mesh or point cloud. Optionally stores the sampled and closest points as new layers.",
-      "tags": ["sampling", "distance", "hausdorff", "analysis"],
+      "longDescriptionMarkdown": "Compute the Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. Distance is stored in vertex quality of the sampled mesh.",
+      "tags": [
+        "sampling",
+        "distance",
+        "hausdorff",
+        "analysis"
+      ],
       "inputDomain": "WholeDocument",
       "outputDomain": "Information",
       "parameters": [
-        { "id": "SampledMesh", "label": "Sampled mesh", "help": "The mesh whose surface is sampled.", "group": "main", "type": "mesh", "default": "@currentMeshIndex" },
-        { "id": "TargetMesh", "label": "Target mesh", "help": "The reference mesh searched for closest points.", "group": "main", "type": "mesh", "default": "@otherMeshIndex" },
-        { "id": "SaveSample", "label": "Save Samples", "help": "Create two new layers with the used sample points and closest points.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "SampleVert", "label": "Sample Vertices", "help": "Sample vertices of the sampled mesh.", "group": "advanced", "type": "bool", "default": true },
-        { "id": "SampleEdge", "label": "Sample Edges", "help": "Sample edges of the sampled mesh.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "SampleFauxEdge", "label": "Sample Faux Edges", "help": "Include faux edges when edge sampling is enabled.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "SampleFace", "label": "Sample Faces", "help": "Sample faces of the sampled mesh by Montecarlo sampling.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "SampleNum", "label": "Number of samples", "help": "Desired number of samples for each enabled sampling strategy.", "group": "advanced", "type": "int", "default": 1000, "min": 1, "max": 100000000 },
-        { "id": "MaxDist", "label": "Max Distance", "help": "Discard sample points whose closest point is farther than this threshold.", "group": "advanced", "type": "absperc", "default": "@bboxDiagHalf", "min": 0.0, "max": "@bboxDiag5x", "decimals": 6 }
+        {
+          "id": "SampledMesh",
+          "label": "Sampled mesh",
+          "help": "The mesh whose surface is sampled.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "TargetMesh",
+          "label": "Target mesh",
+          "help": "The reference mesh searched for closest points.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "SaveSample",
+          "label": "Save Samples",
+          "help": "Create two new layers with the used sample points and closest points.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "SampleVert",
+          "label": "Sample Vertices",
+          "help": "Sample vertices of the sampled mesh.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "SampleEdge",
+          "label": "Sample Edges",
+          "help": "Sample edges of the sampled mesh.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "SampleFauxEdge",
+          "label": "Sample Faux Edges",
+          "help": "Include faux edges when edge sampling is enabled.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "SampleFace",
+          "label": "Sample Faces",
+          "help": "Sample faces of the sampled mesh by Montecarlo sampling.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "SampleNum",
+          "label": "Number of samples",
+          "help": "Desired number of samples for each enabled sampling strategy.",
+          "group": "advanced",
+          "type": "int",
+          "default": 1000,
+          "min": 1,
+          "max": 100000000
+        },
+        {
+          "id": "MaxDist",
+          "label": "Max Distance",
+          "help": "Discard sample points whose closest point is farther than this threshold.",
+          "group": "advanced",
+          "type": "absperc",
+          "default": "@bboxDiagHalf",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
+        }
       ]
     },
     {
@@ -132,15 +486,51 @@
       "menuPath": "Sampling",
       "name": "Distance from Reference Mesh",
       "shortDescription": "Compute per-vertex distance from another mesh or point cloud.",
-      "longDescriptionMarkdown": "Measures each vertex of one mesh against another mesh or point cloud and stores the result in vertex quality.",
-      "tags": ["sampling", "distance", "quality", "analysis"],
+      "longDescriptionMarkdown": "Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality.",
+      "tags": [
+        "sampling",
+        "distance",
+        "quality",
+        "analysis"
+      ],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
       "parameters": [
-        { "id": "MeasureMesh", "label": "Measured mesh", "help": "The mesh that will receive the computed distances in vertex quality.", "group": "main", "type": "mesh", "default": "@currentMeshIndex" },
-        { "id": "RefMesh", "label": "Reference mesh", "help": "The mesh or point cloud used as the reference.", "group": "main", "type": "mesh", "default": "@otherMeshIndex" },
-        { "id": "SignedDist", "label": "Compute Signed Distance", "help": "If enabled, compute a signed distance instead of the absolute value.", "group": "advanced", "type": "bool", "default": true },
-        { "id": "MaxDist", "label": "Max Distance", "help": "Search is interrupted when nothing is found within this range.", "group": "advanced", "type": "absperc", "default": "@bboxDiag", "min": 0.0, "max": "@bboxDiag5x", "decimals": 6 }
+        {
+          "id": "MeasureMesh",
+          "label": "Measured mesh",
+          "help": "The mesh that will receive the computed distances in vertex quality.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "RefMesh",
+          "label": "Reference mesh",
+          "help": "The mesh or point cloud used as the reference.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "SignedDist",
+          "label": "Compute Signed Distance",
+          "help": "If enabled, compute a signed distance instead of the absolute value.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "MaxDist",
+          "label": "Max Distance",
+          "help": "Search is interrupted when nothing is found within this range.",
+          "group": "advanced",
+          "type": "absperc",
+          "default": "@bboxDiag",
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
+        }
       ]
     },
     {
@@ -148,16 +538,57 @@
       "menuPath": "Sampling",
       "name": "Texel Sampling",
       "shortDescription": "Create one point sample per covered texel in texture space.",
-      "longDescriptionMarkdown": "Generates a point cloud by rasterizing the parameterized triangles in texture space. Optionally stores the sampled texture colors.",
-      "tags": ["sampling", "texture", "uv", "point cloud"],
+      "longDescriptionMarkdown": "Create a new layer with a point sampling of the current mesh, a sample for each texel of the mesh is generated",
+      "tags": [
+        "sampling",
+        "texture",
+        "uv",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true, "requireFaces": true, "requireTextureCoordinates": true },
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
       "parameters": [
-        { "id": "TextureW", "label": "Texture Width", "help": "Sampling resolution in texels. If 0 and Recover Color is enabled, use the current texture width.", "group": "main", "type": "int", "default": 512, "min": 0, "max": 16384 },
-        { "id": "TextureH", "label": "Texture Height", "help": "Sampling resolution in texels. If 0 and Recover Color is enabled, use the current texture height.", "group": "main", "type": "int", "default": 512, "min": 0, "max": 16384 },
-        { "id": "TextureSpace", "label": "UV Space Sampling", "help": "Place output points in UV space instead of the original mesh space.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "RecoverColor", "label": "Recover Color", "help": "Sample the current texture image and store its colors on the generated points.", "group": "advanced", "type": "bool", "default": true }
+        {
+          "id": "TextureW",
+          "label": "Texture Width",
+          "help": "Sampling resolution in texels. If 0 and Recover Color is enabled, use the current texture width.",
+          "group": "main",
+          "type": "int",
+          "default": 512,
+          "min": 0,
+          "max": 16384
+        },
+        {
+          "id": "TextureH",
+          "label": "Texture Height",
+          "help": "Sampling resolution in texels. If 0 and Recover Color is enabled, use the current texture height.",
+          "group": "main",
+          "type": "int",
+          "default": 512,
+          "min": 0,
+          "max": 16384
+        },
+        {
+          "id": "TextureSpace",
+          "label": "UV Space Sampling",
+          "help": "Place output points in UV space instead of the original mesh space.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "RecoverColor",
+          "label": "Recover Color",
+          "help": "Sample the current texture image and store its colors on the generated points.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        }
       ]
     },
     {
@@ -165,23 +596,115 @@
       "menuPath": "Sampling",
       "name": "Vertex Attribute Transfer",
       "shortDescription": "Transfer attributes from one mesh to another by closest-point projection.",
-      "longDescriptionMarkdown": "For each vertex of a target mesh, finds the closest point on a source mesh or point cloud and transfers geometry, normals, colors, qualities, selection, and optional barycentric data.",
-      "tags": ["sampling", "transfer", "attributes", "projection"],
+      "longDescriptionMarkdown": "Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.<br>For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.<br>The algorithm assumes that the two meshes are reasonably similar and aligned.",
+      "tags": [
+        "sampling",
+        "transfer",
+        "attributes",
+        "projection"
+      ],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
       "parameters": [
-        { "id": "SourceMesh", "label": "Source mesh", "help": "The mesh that provides the attributes to transfer.", "group": "main", "type": "mesh", "default": "@currentMeshIndex" },
-        { "id": "TargetMesh", "label": "Target mesh", "help": "The mesh whose vertices receive the transferred attributes.", "group": "main", "type": "mesh", "default": "@otherMeshIndex" },
-        { "id": "VertexSampling", "label": "Vertex Sampling", "help": "If enabled, transfer attributes from the closest source vertex instead of the closest point on the source surface.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "GeomTransfer", "label": "Transfer Geometry", "help": "Snap target vertices onto the corresponding closest point on the source.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "NormalTransfer", "label": "Transfer Normal", "help": "Transfer interpolated normals from the source.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "ColorTransfer", "label": "Transfer Color", "help": "Transfer vertex colors from the source.", "group": "advanced", "type": "bool", "default": true },
-        { "id": "QualityTransfer", "label": "Transfer Quality", "help": "Transfer vertex quality from the source.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "SelectionTransfer", "label": "Transfer Selection", "help": "Select target vertices whose corresponding closest point lies on selected source elements.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "QualityDistance", "label": "Store Distance as Quality", "help": "Store the transfer distance in the target vertex quality.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "SaveBarycentric", "label": "Save Barycentric Coords", "help": "Store barycentric coordinates and nearest face or vertex indices as per-vertex attributes on the target mesh.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "UpperBound", "label": "Max Dist Search", "help": "Closest-point searches farther than this threshold are rejected.", "group": "advanced", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
-        { "id": "onSelected", "label": "Only on Selection", "help": "If enabled, transfer only to selected target vertices.", "group": "advanced", "type": "bool", "default": false }
+        {
+          "id": "SourceMesh",
+          "label": "Source mesh",
+          "help": "The mesh that provides the attributes to transfer.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "TargetMesh",
+          "label": "Target mesh",
+          "help": "The mesh whose vertices receive the transferred attributes.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "VertexSampling",
+          "label": "Vertex Sampling",
+          "help": "If enabled, transfer attributes from the closest source vertex instead of the closest point on the source surface.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "GeomTransfer",
+          "label": "Transfer Geometry",
+          "help": "Snap target vertices onto the corresponding closest point on the source.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "NormalTransfer",
+          "label": "Transfer Normal",
+          "help": "Transfer interpolated normals from the source.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "ColorTransfer",
+          "label": "Transfer Color",
+          "help": "Transfer vertex colors from the source.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "QualityTransfer",
+          "label": "Transfer Quality",
+          "help": "Transfer vertex quality from the source.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "SelectionTransfer",
+          "label": "Transfer Selection",
+          "help": "Select target vertices whose corresponding closest point lies on selected source elements.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "QualityDistance",
+          "label": "Store Distance as Quality",
+          "help": "Store the transfer distance in the target vertex quality.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "SaveBarycentric",
+          "label": "Save Barycentric Coords",
+          "help": "Store barycentric coordinates and nearest face or vertex indices as per-vertex attributes on the target mesh.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "UpperBound",
+          "label": "Max Dist Search",
+          "help": "Closest-point searches farther than this threshold are rejected.",
+          "group": "advanced",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "onSelected",
+          "label": "Only on Selection",
+          "help": "If enabled, transfer only to selected target vertices.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
       ]
     },
     {
@@ -189,18 +712,74 @@
       "menuPath": "Sampling",
       "name": "Uniform Mesh Resampling",
       "shortDescription": "Build an offset mesh from a signed distance field sampled on a regular grid.",
-      "longDescriptionMarkdown": "Resamples the current surface into a regular volume and extracts an isosurface with marching cubes.",
-      "tags": ["sampling", "resampling", "offset", "marching cubes"],
+      "longDescriptionMarkdown": "Create a new mesh that is a resampled version of the current one.<br>The resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.",
+      "tags": [
+        "sampling",
+        "resampling",
+        "offset",
+        "marching cubes"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true, "requireFaces": true },
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
       "parameters": [
-        { "id": "CellSize", "label": "Precision", "help": "Sampling cell size. Smaller cells give more precise results at higher cost.", "group": "main", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
-        { "id": "Offset", "label": "Offset", "help": "Offset of the extracted surface relative to the original mesh.", "group": "main", "type": "absperc", "default": 0.0, "min": "@bboxDiagTenth", "max": "@bboxDiagTenth", "decimals": 6 },
-        { "id": "mergeCloseVert", "label": "Clean Vertices", "help": "Merge nearly coincident vertices in the generated mesh.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "discretize", "label": "Discretize", "help": "Use fixed edge midpoints instead of linear interpolation for a stair-step appearance.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "multisample", "label": "Multi-sample", "help": "Compute the distance field more accurately by multisampling the volume.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "absDist", "label": "Absolute Distance", "help": "Use an unsigned distance field to create an inner and outer shell around the input mesh.", "group": "advanced", "type": "bool", "default": false }
+        {
+          "id": "CellSize",
+          "label": "Precision",
+          "help": "Sampling cell size. Smaller cells give more precise results at higher cost.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "Offset",
+          "label": "Offset",
+          "help": "Offset of the extracted surface relative to the original mesh.",
+          "group": "main",
+          "type": "absperc",
+          "default": 0.0,
+          "min": "@bboxDiagTenth",
+          "max": "@bboxDiagTenth",
+          "decimals": 6
+        },
+        {
+          "id": "mergeCloseVert",
+          "label": "Clean Vertices",
+          "help": "Merge nearly coincident vertices in the generated mesh.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "discretize",
+          "label": "Discretize",
+          "help": "Use fixed edge midpoints instead of linear interpolation for a stair-step appearance.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "multisample",
+          "label": "Multi-sample",
+          "help": "Compute the distance field more accurately by multisampling the volume.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "absDist",
+          "label": "Absolute Distance",
+          "help": "Use an unsigned distance field to create an inner and outer shell around the input mesh.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
       ]
     },
     {
@@ -208,14 +787,40 @@
       "menuPath": "Sampling",
       "name": "Voronoi Vertex Coloring",
       "shortDescription": "Color a mesh according to projected seed points from another layer.",
-      "longDescriptionMarkdown": "Projects a point set over a mesh and colors the mesh according to the Voronoi partition induced by those seeds.",
-      "tags": ["sampling", "coloring", "voronoi", "projection"],
+      "longDescriptionMarkdown": "Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of P over M and color M according to the geodesic distance from these projected points. Projection and coloring are done on a per vertex basis.",
+      "tags": [
+        "sampling",
+        "coloring",
+        "voronoi",
+        "projection"
+      ],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
       "parameters": [
-        { "id": "ColoredMesh", "label": "To be colored mesh", "help": "The mesh whose surface will be colored.", "group": "main", "type": "mesh", "default": "@currentMeshIndex" },
-        { "id": "VertexMesh", "label": "Vertex mesh", "help": "The point cloud whose vertices are used as Voronoi seeds.", "group": "main", "type": "mesh", "default": "@otherMeshIndex" },
-        { "id": "backward", "label": "BackDistance", "help": "Color according to the distance from the Voronoi frontier instead of from the seed.", "group": "advanced", "type": "bool", "default": false }
+        {
+          "id": "ColoredMesh",
+          "label": "To be colored mesh",
+          "help": "The mesh whose surface will be colored.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "VertexMesh",
+          "label": "Vertex mesh",
+          "help": "The point cloud whose vertices are used as Voronoi seeds.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "backward",
+          "label": "BackDistance",
+          "help": "Color according to the distance from the Voronoi frontier instead of from the seed.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
       ]
     },
     {
@@ -223,16 +828,59 @@
       "menuPath": "Sampling",
       "name": "Disk Vertex Coloring",
       "shortDescription": "Color a mesh according to the distance from projected point-cloud disks.",
-      "longDescriptionMarkdown": "Projects each point of a point cloud onto a mesh and colors nearby mesh vertices according to Euclidean or approximate geodesic distance.",
-      "tags": ["sampling", "coloring", "distance", "point cloud"],
+      "longDescriptionMarkdown": "Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of P over M and color M according to the Euclidean distance from these projected points. Projection and coloring are done on a per vertex basis.",
+      "tags": [
+        "sampling",
+        "coloring",
+        "distance",
+        "point cloud"
+      ],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
       "parameters": [
-        { "id": "ColoredMesh", "label": "To be colored mesh", "help": "The mesh whose vertices will be colored.", "group": "main", "type": "mesh", "default": "@currentMeshIndex" },
-        { "id": "VertexMesh", "label": "Vertex mesh", "help": "The point cloud whose vertices are used as disk centers.", "group": "main", "type": "mesh", "default": "@otherMeshIndex" },
-        { "id": "Radius", "label": "Radius", "help": "Disk radius around each point-cloud seed.", "group": "main", "type": "absperc", "default": "@bboxDiagTenth", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
-        { "id": "SampleRadius", "label": "Use sample radius", "help": "Use the per-vertex quality of the seed cloud as the disk radius.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "ApproximateGeodetic", "label": "Use Approximate Geodetic", "help": "Weight the Euclidean distance by the normal difference between the two points.", "group": "advanced", "type": "bool", "default": false }
+        {
+          "id": "ColoredMesh",
+          "label": "To be colored mesh",
+          "help": "The mesh whose vertices will be colored.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "VertexMesh",
+          "label": "Vertex mesh",
+          "help": "The point cloud whose vertices are used as disk centers.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "Radius",
+          "label": "Radius",
+          "help": "Disk radius around each point-cloud seed.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiagTenth",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "SampleRadius",
+          "label": "Use sample radius",
+          "help": "Use the per-vertex quality of the seed cloud as the disk radius.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "ApproximateGeodetic",
+          "label": "Use Approximate Geodetic",
+          "help": "Weight the Euclidean distance by the normal difference between the two points.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
       ]
     },
     {
@@ -240,14 +888,42 @@
       "menuPath": "Sampling",
       "name": "Regular Recursive Sampling",
       "shortDescription": "Generate offset surface samples by recursively subdividing the bounding box.",
-      "longDescriptionMarkdown": "Recursively subdivides the bounding box octree-style and projects accepted cell centers onto the surface. Useful for offset sample generation.",
-      "tags": ["sampling", "recursive", "offset", "point cloud"],
+      "longDescriptionMarkdown": "The bounding box is recursively partitioned in a octree style, center of bbox are considered, when the center is nearer to the surface than a given threshold it is projected on it. It works also for building offsetted samples.",
+      "tags": [
+        "sampling",
+        "recursive",
+        "offset",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true, "requireFaces": true },
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
       "parameters": [
-        { "id": "CellSize", "label": "Precision", "help": "Subdivision threshold. Smaller values generate denser samples.", "group": "main", "type": "absperc", "default": "@bboxDiag01", "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
-        { "id": "Offset", "label": "Offset", "help": "Offset distance applied to the projected samples.", "group": "main", "type": "absperc", "default": 0.0, "min": "@bboxDiagTenth", "max": "@bboxDiagTenth", "decimals": 6 }
+        {
+          "id": "CellSize",
+          "label": "Precision",
+          "help": "Subdivision threshold. Smaller values generate denser samples.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "Offset",
+          "label": "Offset",
+          "help": "Offset distance applied to the projected samples.",
+          "group": "main",
+          "type": "absperc",
+          "default": 0.0,
+          "min": "@bboxDiagTenth",
+          "max": "@bboxDiagTenth",
+          "decimals": 6
+        }
       ]
     },
     {
@@ -255,18 +931,76 @@
       "menuPath": "Sampling",
       "name": "Point Cloud Simplification",
       "shortDescription": "Simplify a point cloud with Poisson-disk pruning.",
-      "longDescriptionMarkdown": "Simplifies the current point cloud by Poisson-disk pruning, either using a target sample count or an explicit radius.",
-      "tags": ["sampling", "simplification", "point cloud"],
+      "longDescriptionMarkdown": "Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy  using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012",
+      "tags": [
+        "sampling",
+        "simplification",
+        "point cloud"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
-        { "id": "SampleNum", "label": "Number of samples", "help": "Desired number of samples. Ignored if an explicit radius is provided.", "group": "main", "type": "int", "default": 1000, "min": 0, "max": 100000000 },
-        { "id": "Radius", "label": "Explicit Radius", "help": "If non-zero, overrides the sample number and uses this radius directly.", "group": "main", "type": "absperc", "default": 0.0, "min": 0.0, "max": "@bboxDiag", "decimals": 6 },
-        { "id": "BestSampleFlag", "label": "Best Sample Heuristic", "help": "Use a heuristic to improve the maximality of the chosen sample set.", "group": "advanced", "type": "bool", "default": true },
-        { "id": "BestSamplePool", "label": "Best Sample Pool Size", "help": "Number of candidate attempts used when the best-sample heuristic is enabled.", "group": "advanced", "type": "int", "default": 10, "min": 1, "max": 1000 },
-        { "id": "ExactNumFlag", "label": "Precise Sample Number", "help": "Search for a radius that matches the requested number of samples within the given tolerance.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "ExactNumTolerance", "label": "Precise Sample Tolerance", "help": "Tolerance used by precise sample count search, expressed as a fraction of the requested sample count.", "group": "advanced", "type": "double", "default": 0.005, "min": 0.0, "max": 1.0, "decimals": 6 }
+        {
+          "id": "SampleNum",
+          "label": "Number of samples",
+          "help": "Desired number of samples. Ignored if an explicit radius is provided.",
+          "group": "main",
+          "type": "int",
+          "default": 1000,
+          "min": 0,
+          "max": 100000000
+        },
+        {
+          "id": "Radius",
+          "label": "Explicit Radius",
+          "help": "If non-zero, overrides the sample number and uses this radius directly.",
+          "group": "main",
+          "type": "absperc",
+          "default": 0.0,
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "BestSampleFlag",
+          "label": "Best Sample Heuristic",
+          "help": "Use a heuristic to improve the maximality of the chosen sample set.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "BestSamplePool",
+          "label": "Best Sample Pool Size",
+          "help": "Number of candidate attempts used when the best-sample heuristic is enabled.",
+          "group": "advanced",
+          "type": "int",
+          "default": 10,
+          "min": 1,
+          "max": 1000
+        },
+        {
+          "id": "ExactNumFlag",
+          "label": "Precise Sample Number",
+          "help": "Search for a radius that matches the requested number of samples within the given tolerance.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "ExactNumTolerance",
+          "label": "Precise Sample Tolerance",
+          "help": "Tolerance used by precise sample count search, expressed as a fraction of the requested sample count.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.005,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        }
       ]
     }
   ]

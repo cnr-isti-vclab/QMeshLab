@@ -6,8 +6,11 @@
       "menuPath": "Create",
       "name": "Tetrahedron",
       "shortDescription": "Creates a Tetrahedron.",
-      "longDescriptionMarkdown": "Creates a Tetrahedron mesh.",
-      "tags": ["create", "platonic"],
+      "longDescriptionMarkdown": "Create a Tetrahedron",
+      "tags": [
+        "create",
+        "platonic"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -18,8 +21,11 @@
       "menuPath": "Create",
       "name": "Icosahedron",
       "shortDescription": "Creates an Icosahedron.",
-      "longDescriptionMarkdown": "Creates an Icosahedron mesh.",
-      "tags": ["create", "platonic"],
+      "longDescriptionMarkdown": "Create an Icosahedron",
+      "tags": [
+        "create",
+        "platonic"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -30,8 +36,11 @@
       "menuPath": "Create",
       "name": "Dodecahedron",
       "shortDescription": "Creates a Dodecahedron.",
-      "longDescriptionMarkdown": "Creates a Dodecahedron mesh.",
-      "tags": ["create", "platonic"],
+      "longDescriptionMarkdown": "Create a Dodecahedron",
+      "tags": [
+        "create",
+        "platonic"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -42,8 +51,11 @@
       "menuPath": "Create",
       "name": "Dodecahedron (symmetric)",
       "shortDescription": "Creates a symmetrically triangulated Dodecahedron.",
-      "longDescriptionMarkdown": "Creates a Dodecahedron triangulated with an additional vertex in the middle of each face to preserve symmetry.",
-      "tags": ["create", "platonic"],
+      "longDescriptionMarkdown": "Create a Dodecahedron, but triangulated with an additional vertex in the middle of each face to preserve symmetry.",
+      "tags": [
+        "create",
+        "platonic"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -54,8 +66,11 @@
       "menuPath": "Create",
       "name": "Octahedron",
       "shortDescription": "Creates an Octahedron.",
-      "longDescriptionMarkdown": "Creates an Octahedron mesh.",
-      "tags": ["create", "platonic"],
+      "longDescriptionMarkdown": "Create an Octahedron",
+      "tags": [
+        "create",
+        "platonic"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -66,8 +81,12 @@
       "menuPath": "Create",
       "name": "Box/Cube",
       "shortDescription": "Creates a Box or Cube.",
-      "longDescriptionMarkdown": "Creates a Box/Cube mesh centered at the origin.",
-      "tags": ["create", "box", "cube"],
+      "longDescriptionMarkdown": "Create a Box, Cube, Hexahedron. You can specify the side length.",
+      "tags": [
+        "create",
+        "box",
+        "cube"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -79,8 +98,8 @@
           "group": "main",
           "type": "double",
           "default": 1.0,
-          "min": 1e-8,
-          "max": 1e8,
+          "min": 1e-08,
+          "max": 100000000.0,
           "decimals": 4
         }
       ]
@@ -90,8 +109,12 @@
       "menuPath": "Create",
       "name": "Annulus",
       "shortDescription": "Creates a flat annulus (holed disk).",
-      "longDescriptionMarkdown": "Creates an Annulus — a flat region bounded by two concentric circles.",
-      "tags": ["create", "annulus", "disk"],
+      "longDescriptionMarkdown": "Create an Annulus e.g. a flat region bounded by two concentric circles, or a holed disk.",
+      "tags": [
+        "create",
+        "annulus",
+        "disk"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -104,7 +127,7 @@
           "type": "double",
           "default": 0.5,
           "min": 0.0,
-          "max": 1e8,
+          "max": 100000000.0,
           "decimals": 4
         },
         {
@@ -114,8 +137,8 @@
           "group": "main",
           "type": "double",
           "default": 1.0,
-          "min": 1e-8,
-          "max": 1e8,
+          "min": 1e-08,
+          "max": 100000000.0,
           "decimals": 4
         },
         {
@@ -135,8 +158,11 @@
       "menuPath": "Create",
       "name": "Sphere",
       "shortDescription": "Creates a Sphere by recursive subdivision of an Icosahedron.",
-      "longDescriptionMarkdown": "Creates a Sphere mesh. Topology is obtained by recursive subdivision of an icosahedron.",
-      "tags": ["create", "sphere"],
+      "longDescriptionMarkdown": "Create a Sphere, whose topology is obtained as regular subdivision of an icosahedron.",
+      "tags": [
+        "create",
+        "sphere"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -148,8 +174,8 @@
           "group": "main",
           "type": "double",
           "default": 1.0,
-          "min": 1e-8,
-          "max": 1e8,
+          "min": 1e-08,
+          "max": 100000000.0,
           "decimals": 4
         },
         {
@@ -169,8 +195,12 @@
       "menuPath": "Create",
       "name": "Sphere Cap",
       "shortDescription": "Creates a spherical dome subtended by a cone of given angle.",
-      "longDescriptionMarkdown": "Creates a Sphere Cap (spherical dome) subtended by a cone of given half-angle.",
-      "tags": ["create", "sphere", "cap"],
+      "longDescriptionMarkdown": "Create a Sphere Cap, or spherical dome, subtended by a cone of given angle",
+      "tags": [
+        "create",
+        "sphere",
+        "cap"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -203,8 +233,13 @@
       "menuPath": "Create",
       "name": "Points on a Sphere",
       "shortDescription": "Creates a point cloud distributed on a unit sphere.",
-      "longDescriptionMarkdown": "Creates a spherical point cloud using various distribution techniques.",
-      "tags": ["create", "point cloud", "sphere", "sampling"],
+      "longDescriptionMarkdown": "Create a spherical point cloud, it can be random or regularly distributed.",
+      "tags": [
+        "create",
+        "point cloud",
+        "sphere",
+        "sampling"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -227,10 +262,22 @@
           "type": "enum",
           "default": "fibonacci",
           "enumOptions": [
-            { "id": "montecarlo",  "label": "Montecarlo (random)" },
-            { "id": "discoball",   "label": "Disco Ball (regular)" },
-            { "id": "octahedron",  "label": "Recursive Octahedron" },
-            { "id": "fibonacci",   "label": "Fibonacci" }
+            {
+              "id": "montecarlo",
+              "label": "Montecarlo (random)"
+            },
+            {
+              "id": "discoball",
+              "label": "Disco Ball (regular)"
+            },
+            {
+              "id": "octahedron",
+              "label": "Recursive Octahedron"
+            },
+            {
+              "id": "fibonacci",
+              "label": "Fibonacci"
+            }
           ]
         }
       ]
@@ -240,8 +287,11 @@
       "menuPath": "Create",
       "name": "Cone",
       "shortDescription": "Creates a Cone or truncated cone.",
-      "longDescriptionMarkdown": "Creates a Cone (or truncated cone) mesh between two parallel circles of different radii.",
-      "tags": ["create", "cone"],
+      "longDescriptionMarkdown": "Create a Cone",
+      "tags": [
+        "create",
+        "cone"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -254,7 +304,7 @@
           "type": "double",
           "default": 1.0,
           "min": 0.0,
-          "max": 1e8,
+          "max": 100000000.0,
           "decimals": 4
         },
         {
@@ -265,7 +315,7 @@
           "type": "double",
           "default": 2.0,
           "min": 0.0,
-          "max": 1e8,
+          "max": 100000000.0,
           "decimals": 4
         },
         {
@@ -275,8 +325,8 @@
           "group": "main",
           "type": "double",
           "default": 3.0,
-          "min": 1e-8,
-          "max": 1e8,
+          "min": 1e-08,
+          "max": 100000000.0,
           "decimals": 4
         },
         {
@@ -296,8 +346,11 @@
       "menuPath": "Create",
       "name": "Torus",
       "shortDescription": "Creates a Torus.",
-      "longDescriptionMarkdown": "Creates a Torus mesh.",
-      "tags": ["create", "torus"],
+      "longDescriptionMarkdown": "Create a Torus",
+      "tags": [
+        "create",
+        "torus"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -309,8 +362,8 @@
           "group": "main",
           "type": "double",
           "default": 3.0,
-          "min": 1e-8,
-          "max": 1e8,
+          "min": 1e-08,
+          "max": 100000000.0,
           "decimals": 4
         },
         {
@@ -320,8 +373,8 @@
           "group": "main",
           "type": "double",
           "default": 1.0,
-          "min": 1e-8,
-          "max": 1e8,
+          "min": 1e-08,
+          "max": 100000000.0,
           "decimals": 4
         },
         {
@@ -352,10 +405,17 @@
       "name": "Fit Plane to Selection",
       "shortDescription": "Creates a quad on the plane fitting the current selection.",
       "longDescriptionMarkdown": "Fits a plane to the selected vertices (or vertices of selected faces) of the current mesh and creates a new planar quad mesh aligned to that plane.",
-      "tags": ["create", "plane", "selection", "fitting"],
+      "tags": [
+        "create",
+        "plane",
+        "selection",
+        "fitting"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "extent",

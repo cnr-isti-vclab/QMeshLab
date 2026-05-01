@@ -6,11 +6,19 @@
       "menuPath": "Quality/Geodesic",
       "name": "Colorize by Border Distance",
       "shortDescription": "Compute geodesic distance from mesh borders and colorize.",
-      "longDescriptionMarkdown": "Stores in the per-vertex quality field the geodesic distance from the nearest mesh border vertex, then colorizes the mesh with a quality ramp. Meshes with no border produce no output.",
-      "tags": ["geodesic", "quality", "color", "border", "distance"],
+      "longDescriptionMarkdown": "Store in the quality field the geodesic distance from borders and color the mesh accordingly.",
+      "tags": [
+        "geodesic",
+        "quality",
+        "color",
+        "border",
+        "distance"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": []
     },
     {
@@ -18,11 +26,19 @@
       "menuPath": "Quality/Geodesic",
       "name": "Colorize by Geodesic Distance from Point",
       "shortDescription": "Compute geodesic distance from a given point and colorize.",
-      "longDescriptionMarkdown": "Finds the closest surface vertex to the specified point and computes the geodesic distance from it to all other vertices. The result is stored in the per-vertex quality field and mapped to vertex colors.",
-      "tags": ["geodesic", "quality", "color", "point", "distance"],
+      "longDescriptionMarkdown": "Store in the quality field the geodesic distance from a given point on the mesh surface and color the mesh accordingly.",
+      "tags": [
+        "geodesic",
+        "quality",
+        "color",
+        "point",
+        "distance"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true },
+      "inputRequirements": {
+        "requireFaces": true
+      },
       "parameters": [
         {
           "id": "startPoint",
@@ -31,7 +47,11 @@
           "group": "main",
           "type": "point3f",
           "point3fRole": "point",
-          "default": [0.0, 0.0, 0.0]
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ]
         },
         {
           "id": "maxDistance",
@@ -51,11 +71,20 @@
       "menuPath": "Quality/Geodesic",
       "name": "Colorize by Geodesic Distance from Selection",
       "shortDescription": "Compute geodesic distance from selected vertices and colorize.",
-      "longDescriptionMarkdown": "Computes the geodesic distance from all currently selected vertices to every other vertex. The result is stored in per-vertex quality and mapped to vertex colors. Requires at least one selected vertex.",
-      "tags": ["geodesic", "quality", "color", "selection", "distance"],
+      "longDescriptionMarkdown": "Store in the quality field the geodesic distance from the selected points on the mesh surface and color the mesh accordingly.",
+      "tags": [
+        "geodesic",
+        "quality",
+        "color",
+        "selection",
+        "distance"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true, "requireVertices": true },
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "maxDistance",
@@ -75,11 +104,21 @@
       "menuPath": "Quality/Geodesic",
       "name": "Colorize by Heat Geodesic Distance from Selection",
       "shortDescription": "Approximate geodesic distance via the heat method and colorize.",
-      "longDescriptionMarkdown": "Computes an approximation of geodesic distance using the Heat Method (Crane et al.) from all selected vertices. The result is stored in per-vertex quality and mapped to vertex colors. This method is sensitive to mesh quality — degenerate triangles or near-zero angles can cause failures. Requires at least one selected vertex.",
-      "tags": ["geodesic", "quality", "color", "selection", "heat", "distance"],
+      "longDescriptionMarkdown": "Store in the quality field the approximated geodesic distance, computed via heat method (Crane et al.), from the selected points on the mesh surface and color the mesh accordingly. As this implementation does not use intrinsic triangulation it is very sensitive to trinagulation. First run takes longer as factorization has to be build.",
+      "tags": [
+        "geodesic",
+        "quality",
+        "color",
+        "selection",
+        "heat",
+        "distance"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireFaces": true, "requireVertices": true },
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "m",
