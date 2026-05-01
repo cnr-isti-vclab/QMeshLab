@@ -5,6 +5,7 @@
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <QColor>
+#include <QFileInfo>
 #include <QObject>
 #include <QSet>
 #include <QVector3D>
@@ -40,6 +41,8 @@ QVariant defaultValueForParameter(const MeshFilterParameterDescriptor &parameter
     case MeshFilterParameterType::AbsPerc:
         return 0.0;
     case MeshFilterParameterType::String:
+    case MeshFilterParameterType::FileOpen:
+    case MeshFilterParameterType::FileSave:
         return QString();
     case MeshFilterParameterType::Enum:
         if (!parameter.enumOptions.empty())
@@ -88,6 +91,15 @@ bool parseBoolFromVariant(const QVariant &value, bool &out)
 QString parameterErrorPrefix(const MeshFilterParameterDescriptor &parameter)
 {
     return QObject::tr("Parameter '%1'").arg(parameter.id);
+}
+
+QString appendSuffixIfMissing(const QString &path, const QString &suffix)
+{
+    if (path.trimmed().isEmpty() || suffix.trimmed().isEmpty())
+        return path;
+    if (!QFileInfo(path).suffix().isEmpty())
+        return path;
+    return QStringLiteral("%1.%2").arg(path, suffix);
 }
 }
 
@@ -467,10 +479,28 @@ bool MeshFilterPluginManager::convertParameterValue(
         outputValue = value;
         return true;
     }
-    case MeshFilterParameterType::String: {
-        outputValue = inputValue.toString();
+    case MeshFilterParameterType::String:
+    case MeshFilterParameterType::FileOpen: {
+        const QString value = inputValue.toString().trimmed();
+        if (parameter.type == MeshFilterParameterType::FileOpen && !value.isEmpty()) {
+            const QFileInfo info(value);
+            if (!info.exists()) {
+                errorMessage = QObject::tr("%1 does not exist.").arg(prefix);
+                return false;
+            }
+            if (!info.isFile()) {
+                errorMessage = QObject::tr("%1 must point to a file.").arg(prefix);
+                return false;
+            }
+        }
+        outputValue = value;
         return true;
     }
+    case MeshFilterParameterType::FileSave:
+        outputValue = appendSuffixIfMissing(
+            inputValue.toString().trimmed(),
+            parameter.fileDefaultSuffix.trimmed());
+        return true;
     case MeshFilterParameterType::Enum: {
         const QString value = inputValue.toString();
         const bool valid =

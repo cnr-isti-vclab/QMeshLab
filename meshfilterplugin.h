@@ -33,6 +33,8 @@ enum class MeshFilterParameterType
     AbsPerc,
     Mesh,
     String,
+    FileOpen,
+    FileSave,
     Enum,
     Color,
     Point3f    // 3D point or direction — editor shows X/Y/Z spinboxes with fill-from-context buttons
@@ -71,6 +73,10 @@ struct MeshFilterParameterDescriptor
     QVariant maxValue;
     int decimals = 3;
     std::vector<MeshFilterEnumOption> enumOptions;
+    // Only used when type == FileOpen / FileSave.
+    QString fileDialogTitle;
+    QStringList fileNameFilters;
+    QString fileDefaultSuffix;
     // Only used when type == Point3f: "point" (position) or "direction" (unit vector).
     QString point3fRole = QStringLiteral("point");
 

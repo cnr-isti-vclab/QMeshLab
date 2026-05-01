@@ -18,6 +18,8 @@ public:
     int     getMesh  (const QString &id) const;
     double  getDouble(const QString &id) const;
     QString getString(const QString &id) const;
+    QString getFileOpen(const QString &id) const;
+    QString getFileSave(const QString &id) const;
     QString getEnum  (const QString &id) const;  // returns the selected option id
     QColor  getColor (const QString &id) const;
     QVector3D getPoint3f(const QString &id) const;
@@ -28,6 +30,8 @@ public:
     int     getMesh  (const QString &id, int fallback) const;
     double  getDouble(const QString &id, double fallback) const;
     QString getString(const QString &id, const QString &fallback) const;
+    QString getFileOpen(const QString &id, const QString &fallback) const;
+    QString getFileSave(const QString &id, const QString &fallback) const;
     QString getEnum  (const QString &id, const QString &fallback) const;
     QColor  getColor (const QString &id, const QColor &fallback) const;
     QVector3D getPoint3f(const QString &id, const QVector3D &fallback) const;

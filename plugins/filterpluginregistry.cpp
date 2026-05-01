@@ -26,11 +26,17 @@
 #if QMESH_PLUGIN_FILTER_SAMPLING_ENABLED
 #include "plugins/filter_sampling/samplingfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_UNSHARP_ENABLED
+#include "plugins/filter_unsharp/unsharpfilterplugin.h"
+#endif
 #if QMESH_PLUGIN_FILTER_CREATE_ENABLED
 #include "plugins/filter_create/createfilterplugin.h"
 #endif
 #if QMESH_PLUGIN_FILTER_GEODESIC_ENABLED
 #include "plugins/filter_geodesic/geodesicfilterplugin.h"
+#endif
+#if QMESH_PLUGIN_FILTER_TEXTURE_ENABLED
+#include "plugins/filter_texture/texturefilterplugin.h"
 #endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
@@ -59,10 +65,16 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #if QMESH_PLUGIN_FILTER_SAMPLING_ENABLED
     registerSamplingFilterPlugin(pluginManager);
 #endif
+#if QMESH_PLUGIN_FILTER_UNSHARP_ENABLED
+    registerUnsharpFilterPlugin(pluginManager);
+#endif
 #if QMESH_PLUGIN_FILTER_CREATE_ENABLED
     registerCreateFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_GEODESIC_ENABLED
     registerGeodesicFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_TEXTURE_ENABLED
+    registerTextureFilterPlugin(pluginManager);
 #endif
 }

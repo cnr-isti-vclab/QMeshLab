@@ -134,6 +134,10 @@ QString filterParameterTypeLabel(MeshFilterParameterType type)
         return QObject::tr("Abs / %");
     case MeshFilterParameterType::String:
         return QObject::tr("String");
+    case MeshFilterParameterType::FileOpen:
+        return QObject::tr("File Open");
+    case MeshFilterParameterType::FileSave:
+        return QObject::tr("File Save");
     case MeshFilterParameterType::Enum:
         return QObject::tr("Enum");
     case MeshFilterParameterType::Color:
@@ -160,6 +164,8 @@ QString filterParameterValueText(const QVariant &value, MeshFilterParameterType 
     case MeshFilterParameterType::AbsPerc:
         return QLocale().toString(value.toDouble(), 'f', std::max(0, decimals));
     case MeshFilterParameterType::String:
+    case MeshFilterParameterType::FileOpen:
+    case MeshFilterParameterType::FileSave:
     case MeshFilterParameterType::Enum:
     case MeshFilterParameterType::Color:
         return value.toString();

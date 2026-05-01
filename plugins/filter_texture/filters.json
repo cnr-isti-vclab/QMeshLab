@@ -1,0 +1,113 @@
+{
+  "pluginId": "qmeshlab.filter.texture",
+  "filters": [
+    {
+      "id": "set_texture_per_mesh",
+      "menuPath": "Texture",
+      "name": "Set Texture",
+      "shortDescription": "Associate an existing image file with the current mesh texture coordinates.",
+      "longDescriptionMarkdown": "Set a texture associated with current mesh parametrization. If the texture provided exists, then it will be simply associated to the current mesh; else the filter will fail with no further actions.",
+      "tags": [
+        "texture",
+        "uv",
+        "material"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
+      "parameters": [
+        {
+          "id": "textName",
+          "label": "Texture file",
+          "help": "Sets the given input image as unique texture of the mesh.",
+          "group": "main",
+          "type": "fileopen",
+          "default": "",
+          "fileDialogTitle": "Choose Texture Image",
+          "fileNameFilters": [
+            "Images (*.png *.jpg *.jpeg *.dds *.bmp *.tif *.tiff)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compute_texmap_from_color",
+      "menuPath": "Texture",
+      "name": "Transfer: Vertex Color to Texture",
+      "shortDescription": "Bake per-vertex color into texture image(s) using the current UV parametrization.",
+      "longDescriptionMarkdown": "Fills the specified texture using per-vertex color data of the mesh.",
+      "tags": [
+        "texture",
+        "vertex color",
+        "bake",
+        "uv"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requireVertexColor": true,
+        "requireTextureCoordinates": true
+      },
+      "parameters": [
+        {
+          "id": "textName",
+          "label": "Texture file",
+          "help": "Base path of the texture image to be created. If more than one texture slot is used, numeric suffixes are added automatically.",
+          "group": "main",
+          "type": "filesave",
+          "default": "texture.png",
+          "fileDialogTitle": "Choose Output Texture",
+          "fileNameFilters": [
+            "PNG Image (*.png)",
+            "JPEG Image (*.jpg *.jpeg)",
+            "BMP Image (*.bmp)",
+            "TIFF Image (*.tif *.tiff)"
+          ],
+          "fileDefaultSuffix": "png"
+        },
+        {
+          "id": "textW",
+          "label": "Texture width (px)",
+          "help": "The texture width.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 1,
+          "max": 32768
+        },
+        {
+          "id": "textH",
+          "label": "Texture height (px)",
+          "help": "The texture height.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 1,
+          "max": 32768
+        },
+        {
+          "id": "overwrite",
+          "label": "Overwrite texture",
+          "help": "If current mesh has associated textures, overwrite them instead of creating new files.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "pullpush",
+          "label": "Fill texture",
+          "help": "If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        }
+      ]
+    }
+  ]
+}

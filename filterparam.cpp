@@ -32,6 +32,16 @@ QString FilterParams::getString(const QString &id) const
     return getString(id, QString());
 }
 
+QString FilterParams::getFileOpen(const QString &id) const
+{
+    return getFileOpen(id, QString());
+}
+
+QString FilterParams::getFileSave(const QString &id) const
+{
+    return getFileSave(id, QString());
+}
+
 QString FilterParams::getEnum(const QString &id) const
 {
     return getEnum(id, QString());
@@ -93,6 +103,16 @@ QString FilterParams::getString(const QString &id, const QString &fallback) cons
     if (it == m_values.constEnd())
         return fallback;
     return it.value().toString();
+}
+
+QString FilterParams::getFileOpen(const QString &id, const QString &fallback) const
+{
+    return getString(id, fallback);
+}
+
+QString FilterParams::getFileSave(const QString &id, const QString &fallback) const
+{
+    return getString(id, fallback);
 }
 
 QString FilterParams::getEnum(const QString &id, const QString &fallback) const

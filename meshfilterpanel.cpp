@@ -6,6 +6,8 @@
 #include <QCursor>
 #include <QDoubleSpinBox>
 #include <QEvent>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QKeyEvent>
@@ -132,6 +134,97 @@ private:
     double m_maxValue = 0.0;
     QDoubleSpinBox *m_absSpin = nullptr;
     QDoubleSpinBox *m_percentSpin = nullptr;
+};
+
+class FilePathEditor : public QWidget
+{
+public:
+    enum class Mode {
+        OpenFile,
+        SaveFile
+    };
+
+    explicit FilePathEditor(
+        Mode mode,
+        const QString &dialogTitle,
+        const QStringList &nameFilters,
+        const QString &defaultSuffix,
+        const Document *doc,
+        QWidget *parent = nullptr)
+        : QWidget(parent)
+        , m_mode(mode)
+        , m_dialogTitle(dialogTitle)
+        , m_nameFilters(nameFilters)
+        , m_defaultSuffix(defaultSuffix)
+        , m_doc(doc)
+    {
+        auto *layout = new QHBoxLayout(this);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(4);
+
+        m_lineEdit = new QLineEdit(this);
+        m_lineEdit->setClearButtonEnabled(true);
+        m_lineEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+        auto *browseButton = new QToolButton(this);
+        browseButton->setText(QStringLiteral("..."));
+        browseButton->setToolTip(QObject::tr("Choose file"));
+
+        layout->addWidget(m_lineEdit, 1);
+        layout->addWidget(browseButton, 0);
+
+        connect(browseButton, &QToolButton::clicked, this, [this]() {
+            QString startPath = m_lineEdit->text().trimmed();
+            if (startPath.isEmpty() && m_doc) {
+                const int meshIndex = m_doc->currentMeshIndex();
+                if (meshIndex >= 0 && meshIndex < m_doc->meshCount()) {
+                    const QString sourcePath = m_doc->mesh(meshIndex).sourcePath;
+                    if (!sourcePath.isEmpty())
+                        startPath = QFileInfo(sourcePath).absolutePath();
+                }
+            }
+
+            QString chosenPath;
+            if (m_mode == Mode::SaveFile) {
+                chosenPath = QFileDialog::getSaveFileName(
+                    this,
+                    m_dialogTitle.isEmpty() ? QObject::tr("Choose File") : m_dialogTitle,
+                    startPath,
+                    m_nameFilters.join(QStringLiteral(";;")));
+                if (!chosenPath.isEmpty()
+                    && QFileInfo(chosenPath).suffix().isEmpty()
+                    && !m_defaultSuffix.trimmed().isEmpty()) {
+                    chosenPath = QStringLiteral("%1.%2").arg(chosenPath, m_defaultSuffix);
+                }
+            } else {
+                chosenPath = QFileDialog::getOpenFileName(
+                    this,
+                    m_dialogTitle.isEmpty() ? QObject::tr("Choose File") : m_dialogTitle,
+                    startPath,
+                    m_nameFilters.join(QStringLiteral(";;")));
+            }
+            if (!chosenPath.isEmpty())
+                m_lineEdit->setText(chosenPath);
+        });
+    }
+
+    void setValue(const QString &value)
+    {
+        m_lineEdit->setText(value);
+    }
+
+    QString value() const
+    {
+        return m_lineEdit->text();
+    }
+
+private:
+    Mode m_mode = Mode::OpenFile;
+    QString m_dialogTitle;
+    QStringList m_nameFilters;
+    QString m_defaultSuffix;
+    const Document *m_doc = nullptr;
+    QLineEdit *m_lineEdit = nullptr;
 };
 
 QString groupDisplayName(const QString &group)
@@ -911,6 +1004,30 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
             editor = w;
             break;
         }
+        case MeshFilterParameterType::FileOpen: {
+            auto *w = new FilePathEditor(
+                FilePathEditor::Mode::OpenFile,
+                param.fileDialogTitle,
+                param.fileNameFilters,
+                param.fileDefaultSuffix,
+                m_doc,
+                m_parametersWidget);
+            w->setValue(param.defaultValue.toString());
+            editor = w;
+            break;
+        }
+        case MeshFilterParameterType::FileSave: {
+            auto *w = new FilePathEditor(
+                FilePathEditor::Mode::SaveFile,
+                param.fileDialogTitle,
+                param.fileNameFilters,
+                param.fileDefaultSuffix,
+                m_doc,
+                m_parametersWidget);
+            w->setValue(param.defaultValue.toString());
+            editor = w;
+            break;
+        }
         case MeshFilterParameterType::Enum: {
             auto *w = new QComboBox(m_parametersWidget);
             for (const auto &opt : param.enumOptions)
@@ -1039,6 +1156,16 @@ void MeshFilterPanel::applyParameterValuesToEditors(const MeshFilterParameterVal
                 w->setText(value.toString());
             break;
         }
+        case MeshFilterParameterType::FileOpen: {
+            if (auto *w = dynamic_cast<FilePathEditor *>(editor))
+                w->setValue(value.toString());
+            break;
+        }
+        case MeshFilterParameterType::FileSave: {
+            if (auto *w = dynamic_cast<FilePathEditor *>(editor))
+                w->setValue(value.toString());
+            break;
+        }
         case MeshFilterParameterType::Enum: {
             if (auto *w = qobject_cast<QComboBox *>(editor)) {
                 const QString enumId = value.toString();
@@ -1093,6 +1220,10 @@ QVariant MeshFilterPanel::parameterValue(const ParameterBinding &binding) const
         return dynamic_cast<AbsPercEditor *>(editor)->absoluteValue();
     case MeshFilterParameterType::String:
         return qobject_cast<QLineEdit *>(editor)->text();
+    case MeshFilterParameterType::FileOpen:
+        return dynamic_cast<FilePathEditor *>(editor)->value();
+    case MeshFilterParameterType::FileSave:
+        return dynamic_cast<FilePathEditor *>(editor)->value();
     case MeshFilterParameterType::Enum:
         return qobject_cast<QComboBox *>(editor)->currentData().toString();
     case MeshFilterParameterType::Color:

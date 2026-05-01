@@ -43,6 +43,8 @@ MeshFilterParameterType parseParamType(const QString &s)
     if (s == QStringLiteral("absperc")) return MeshFilterParameterType::AbsPerc;
     if (s == QStringLiteral("mesh"))   return MeshFilterParameterType::Mesh;
     if (s == QStringLiteral("string")) return MeshFilterParameterType::String;
+    if (s == QStringLiteral("fileopen")) return MeshFilterParameterType::FileOpen;
+    if (s == QStringLiteral("filesave")) return MeshFilterParameterType::FileSave;
     if (s == QStringLiteral("enum"))   return MeshFilterParameterType::Enum;
     if (s == QStringLiteral("color"))  return MeshFilterParameterType::Color;
     if (s == QStringLiteral("point3f")) return MeshFilterParameterType::Point3f;
@@ -76,6 +78,12 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
     p.group        = obj.value(QStringLiteral("group")).toString(QStringLiteral("main"));
     p.type         = parseParamType(obj.value(QStringLiteral("type")).toString());
     p.decimals     = obj.value(QStringLiteral("decimals")).toInt(3);
+    p.fileDialogTitle = obj.value(QStringLiteral("fileDialogTitle")).toString();
+
+    const QJsonArray nameFilters = obj.value(QStringLiteral("fileNameFilters")).toArray();
+    for (const QJsonValue &fv : nameFilters)
+        p.fileNameFilters.push_back(fv.toString());
+    p.fileDefaultSuffix = obj.value(QStringLiteral("fileDefaultSuffix")).toString();
 
     if (p.type == MeshFilterParameterType::Point3f) {
         // Default is a JSON array [x, y, z]; min/max are not applicable.
