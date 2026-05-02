@@ -1918,6 +1918,7 @@ void RenderOverlayPanel::setFillPbrTextureNames(const QStringList &textureNames)
         QSignalBlocker blocker(m_fillPlainTextureCombo);
         const int prevIndex = m_meshSettings.fillPlain.textureIndex;
         m_fillPlainTextureCombo->clear();
+        m_fillPlainTextureCombo->addItem(tr("Automatic (per-face assignment)"), -1);
         for (int i = 0; i < m_fillTextureNames.size(); ++i)
             m_fillPlainTextureCombo->addItem(m_fillTextureNames.at(i), i);
         int selectIdx = 0;
@@ -1997,6 +1998,7 @@ void RenderOverlayPanel::rebuildFillPbrSourceCombo(
 
     addItem(tr("None"), FillPbrTextureSource::None, -1);
     addItem(tr("Constant"), FillPbrTextureSource::Constant, -1);
+    addItem(tr("Automatic (per-face assignment)"), FillPbrTextureSource::Texture, -1);
     for (int i = 0; i < m_fillTextureNames.size(); ++i)
         addItem(m_fillTextureNames.at(i), FillPbrTextureSource::Texture, i);
 

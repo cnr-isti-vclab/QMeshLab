@@ -5,17 +5,40 @@
 #include "meshioplugin.h"
 #include "pushpull.h"
 #include "rastering.h"
+#include <vcg/complex/append.h>
+#include <vcg/complex/algorithms/clean.h>
+#include <vcg/complex/algorithms/attribute_seam.h>
+#include <vcg/complex/algorithms/parametrization/voronoi_atlas.h>
 #include <vcg/complex/algorithms/point_sampling.h>
+#include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/flag.h>
+#include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/topology.h>
+#include <vcg/complex/algorithms/update/texture.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <QDir>
 #include <QFileInfo>
 #include <QImage>
+#include <QMatrix4x4>
+#include <QStandardPaths>
+#include <QTemporaryFile>
+#include <QVector4D>
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
+#include <memory>
+#include <optional>
 
 namespace {
+constexpr QLatin1StringView kFilterVoronoiAtlas("generate_voronoi_atlas_parametrization");
+constexpr QLatin1StringView kFilterWedgeToVertex("compute_texcoord_transfer_wedge_to_vertex");
+constexpr QLatin1StringView kFilterVertexToWedge("compute_texcoord_transfer_vertex_to_wedge");
+constexpr QLatin1StringView kFilterPlanarMapping("compute_texcoord_parametrization_flat_plane_per_wedge");
+constexpr QLatin1StringView kFilterTriangleMapping("compute_texcoord_parametrization_triangle_trivial_per_wedge");
 constexpr QLatin1StringView kFilterSetTexture("set_texture_per_mesh");
 constexpr QLatin1StringView kFilterColorToTexture("compute_texmap_from_color");
+constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_texture_to_color_per_vertex");
+constexpr QLatin1StringView kFilterTransferToTexture("transfer_attributes_to_texture_per_vertex");
 
 using Mask = vcg::tri::io::Mask;
 
@@ -35,6 +58,50 @@ QString normalizeExistingPath(const QString &path)
     if (!canonical.isEmpty())
         return canonical;
     return info.absoluteFilePath();
+}
+
+QString writeGeneratedTextureToTemp(const QImage &image, const QString &baseName, QString &error)
+{
+    QString templatePath = QDir(QDir::tempPath()).filePath(baseName + QStringLiteral("_XXXXXX.png"));
+    QTemporaryFile file(templatePath);
+    file.setAutoRemove(false);
+    if (!file.open()) {
+        error = QObject::tr("Failed to create temporary texture file.");
+        return {};
+    }
+    const QString path = file.fileName();
+    file.close();
+    if (!image.save(path)) {
+        QFile::remove(path);
+        error = QObject::tr("Failed to save generated texture '%1'.").arg(path);
+        return {};
+    }
+    return QDir::toNativeSeparators(path);
+}
+
+QImage makeDummyTexture(int imageSize, int checkSize, bool checkerboard)
+{
+    QImage image(imageSize, imageSize, QImage::Format_RGB32);
+    if (checkerboard) {
+        for (int y = 0; y < imageSize; ++y) {
+            for (int x = 0; x < imageSize; ++x) {
+                image.setPixel(
+                    x,
+                    y,
+                    (((x / checkSize) % 2) == ((y / checkSize) % 2)) ? 0xFFFFFF : 0x808080);
+            }
+        }
+    } else {
+        for (int y = 0; y < imageSize; ++y) {
+            for (int x = 0; x < imageSize; ++x) {
+                image.setPixel(
+                    x,
+                    y,
+                    ((x % checkSize) == 0 || (y % checkSize) == 0) ? 0xFFFFFF : 0x808080);
+            }
+        }
+    }
+    return image;
 }
 
 QString withSlotSuffix(const QString &basePath, int slotIndex, int slotCount)
@@ -117,6 +184,24 @@ bool saveImages(const QStringList &paths, const std::vector<QImage> &images, QSt
     return true;
 }
 
+int textureAssociationCount(const Document::MeshEntry &entry)
+{
+    int count = std::max(entry.textureFileNames.size(), entry.textureFilePaths.size());
+    count = std::max(count, int(entry.mesh.textures.size()));
+    count = std::max(count, int(entry.materialSet.entries.size()));
+    return count;
+}
+
+MeshIOMaterialSlot makeMaterialSlotForTexturePath(const QString &path, int slotIndex)
+{
+    const QFileInfo info(path);
+    MeshIOMaterialSlot slot;
+    slot.name = QObject::tr("Material %1").arg(slotIndex + 1);
+    slot.baseColorTexture.fileName = info.fileName();
+    slot.baseColorTexture.filePath = QDir::toNativeSeparators(path);
+    return slot;
+}
+
 void applyTextureAssociation(Document::MeshEntry &entry, const QStringList &paths)
 {
     entry.mesh.textures.clear();
@@ -130,13 +215,194 @@ void applyTextureAssociation(Document::MeshEntry &entry, const QStringList &path
         entry.mesh.textures.push_back(QDir::toNativeSeparators(path).toStdString());
         entry.textureFileNames.push_back(info.fileName());
         entry.textureFilePaths.push_back(QDir::toNativeSeparators(path));
-
-        MeshIOMaterialSlot slot;
-        slot.name = QObject::tr("Material %1").arg(i + 1);
-        slot.baseColorTexture.fileName = info.fileName();
-        slot.baseColorTexture.filePath = QDir::toNativeSeparators(path);
-        entry.materialSet.entries.push_back(std::move(slot));
+        entry.materialSet.entries.push_back(makeMaterialSlotForTexturePath(path, i));
     }
+}
+
+void appendTextureAssociation(Document::MeshEntry &entry, const QStringList &paths)
+{
+    int slotBase = textureAssociationCount(entry);
+    for (int i = 0; i < paths.size(); ++i) {
+        const QString path = paths.at(i);
+        const QFileInfo info(path);
+        entry.mesh.textures.push_back(QDir::toNativeSeparators(path).toStdString());
+        entry.textureFileNames.push_back(info.fileName());
+        entry.textureFilePaths.push_back(QDir::toNativeSeparators(path));
+        entry.materialSet.entries.push_back(makeMaterialSlotForTexturePath(path, slotBase + i));
+    }
+}
+
+void offsetTextureSlotIndices(VCGMesh &mesh, int slotOffset)
+{
+    if (slotOffset == 0)
+        return;
+    for (VCGFace &face : mesh.face) {
+        if (face.IsD())
+            continue;
+        for (int k = 0; k < 3; ++k) {
+            if (face.WT(k).N() >= 0)
+                face.WT(k).N() = short(face.WT(k).N() + slotOffset);
+        }
+    }
+}
+
+template<class Scalar>
+vcg::Point3<Scalar> qMatrixMapPoint(const QMatrix4x4 &matrix, const vcg::Point3<Scalar> &point)
+{
+    const QVector4D mapped = matrix * QVector4D(point[0], point[1], point[2], 1.0f);
+    return vcg::Point3<Scalar>(Scalar(mapped.x()), Scalar(mapped.y()), Scalar(mapped.z()));
+}
+
+template<class Scalar>
+vcg::Point3<Scalar> qMatrixMapDirection(const QMatrix4x4 &matrix, const vcg::Point3<Scalar> &direction)
+{
+    const QVector4D mapped = matrix * QVector4D(direction[0], direction[1], direction[2], 0.0f);
+    return vcg::Point3<Scalar>(Scalar(mapped.x()), Scalar(mapped.y()), Scalar(mapped.z()));
+}
+
+std::unique_ptr<VCGMesh> makeWorldMesh(const Document::MeshEntry &entry, bool recomputeNormals = false)
+{
+    auto mesh = std::make_unique<VCGMesh>();
+    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(*mesh, entry.mesh);
+    const QMatrix4x4 transform = entry.renderTransform;
+    for (VCGVertex &vertex : mesh->vert) {
+        if (vertex.IsD())
+            continue;
+        vertex.P() = qMatrixMapPoint(transform, vertex.cP());
+        if (!recomputeNormals)
+            vertex.N() = qMatrixMapDirection(transform, vertex.cN());
+    }
+    if (mesh->FN() > 0 && recomputeNormals)
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(*mesh);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(*mesh);
+    return mesh;
+}
+
+QStringList associatedTexturePaths(const Document::MeshEntry &entry)
+{
+    QStringList paths;
+    for (const QString &path : entry.textureFilePaths) {
+        const QString trimmed = path.trimmed();
+        if (!trimmed.isEmpty())
+            paths.push_back(normalizeExistingPath(trimmed));
+    }
+    if (!paths.isEmpty())
+        return paths;
+
+    const QFileInfo meshInfo(entry.sourcePath);
+    const QDir meshDir = meshInfo.absoluteDir();
+    for (const std::string &declared : entry.mesh.textures) {
+        const QString name = QString::fromStdString(declared).trimmed();
+        if (name.isEmpty())
+            continue;
+        QFileInfo texInfo(name);
+        const QString resolved = texInfo.isAbsolute()
+            ? texInfo.absoluteFilePath()
+            : meshDir.filePath(name);
+        paths.push_back(normalizeExistingPath(resolved));
+    }
+    return paths;
+}
+
+void extractVertexForWedgeTexcoord(
+    const VCGMesh &srcMesh,
+    const VCGFace &face,
+    int whichWedge,
+    const VCGMesh &dstMesh,
+    VCGVertex &vertex)
+{
+    (void) srcMesh;
+    (void) dstMesh;
+    vertex.ImportData(*face.cV(whichWedge));
+    vertex.T() = face.cWT(whichWedge);
+}
+
+bool compareVertexTexcoord(const VCGMesh &mesh, const VCGVertex &a, const VCGVertex &b)
+{
+    (void) mesh;
+    return a.cT() == b.cT();
+}
+
+int longestEdgeIndex(const VCGFace &face)
+{
+    const VCGMesh::CoordType &p0 = face.cP(0);
+    const VCGMesh::CoordType &p1 = face.cP(1);
+    const VCGMesh::CoordType &p2 = face.cP(2);
+    const double d01 = vcg::SquaredDistance(p0, p1);
+    const double d12 = vcg::SquaredDistance(p1, p2);
+    const double d20 = vcg::SquaredDistance(p2, p0);
+    if (d01 > d12)
+        return d01 > d20 ? 0 : 2;
+    return d12 > d20 ? 1 : 2;
+}
+
+using TexTriangle2 = vcg::Triangle2<VCGFace::TexCoordType::ScalarType>;
+
+void buildTrianglesCache(
+    std::vector<TexTriangle2> &triangles,
+    int maxLevels,
+    float border,
+    float quadSize,
+    int index = -1)
+{
+    TexTriangle2 &t0 = triangles[size_t(2 * index + 2)];
+    TexTriangle2 &t1 = triangles[size_t(2 * index + 3)];
+    if (index == -1) {
+        t0.P(1).X() = quadSize - (0.5f + float(M_SQRT1_2)) * border;
+        t0.P(0).X() = 0.5f * border;
+        t0.P(1).Y() = 1.0f - t0.P(0).X();
+        t0.P(0).Y() = 1.0f - t0.P(1).X();
+        t0.P(2).X() = t0.P(0).X();
+        t0.P(2).Y() = t0.P(1).Y();
+
+        t1.P(1).X() = (0.5f + float(M_SQRT1_2)) * border;
+        t1.P(0).X() = quadSize - 0.5f * border;
+        t1.P(1).Y() = 1.0f - t1.P(0).X();
+        t1.P(0).Y() = 1.0f - t1.P(1).X();
+        t1.P(2).X() = t1.P(0).X();
+        t1.P(2).Y() = t1.P(1).Y();
+    } else {
+        TexTriangle2 &t = triangles[size_t(index)];
+        TexTriangle2::CoordType midPoint = (t.P(0) + t.P(1)) / 2;
+        TexTriangle2::CoordType vec10 = (t.P(0) - t.P(1)).Normalize() * (border / 2.0f);
+        t0.P(1) = t.P(0);
+        t1.P(0) = t.P(1);
+        t0.P(2) = midPoint + vec10;
+        t1.P(2) = midPoint - vec10;
+        t0.P(0) = t.P(2) + ((t.P(0) - t.P(2)).Normalize() * border / float(M_SQRT2));
+        t1.P(1) = t.P(2) + ((t.P(1) - t.P(2)).Normalize() * border / float(M_SQRT2));
+    }
+    if (--maxLevels <= 0)
+        return;
+    buildTrianglesCache(triangles, maxLevels, border, quadSize, 2 * index + 2);
+    buildTrianglesCache(triangles, maxLevels, border, quadSize, 2 * index + 3);
+}
+
+template<class T>
+T logBase2(T num)
+{
+    return T(std::log(num) / std::log(T(2)));
+}
+
+enum class TransferAttributeMode
+{
+    VertexColor,
+    VertexNormal,
+    VertexQuality,
+    TextureColor
+};
+
+std::optional<TransferAttributeMode> transferModeFromId(const QString &id)
+{
+    if (id == QStringLiteral("vertex_color"))
+        return TransferAttributeMode::VertexColor;
+    if (id == QStringLiteral("vertex_normal"))
+        return TransferAttributeMode::VertexNormal;
+    if (id == QStringLiteral("vertex_quality"))
+        return TransferAttributeMode::VertexQuality;
+    if (id == QStringLiteral("texture_color"))
+        return TransferAttributeMode::TextureColor;
+    return std::nullopt;
 }
 
 } // namespace
@@ -163,6 +429,391 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
     auto &entry = doc.mesh(meshIndex);
     auto &mesh = entry.mesh;
 
+    if (filterId == QString::fromLatin1(kFilterVoronoiAtlas)) {
+        if (mesh.FN() <= 0)
+            return fail(QObject::tr("Current mesh must have faces."));
+
+        const int regionNum = params.getInt(QStringLiteral("regionNum"));
+        const bool overlap = params.getBool(QStringLiteral("overlapFlag"));
+        if (regionNum <= 0)
+            return fail(QObject::tr("Approx. Region Num must be positive."));
+
+        doc.beginFilterProgress(QObject::tr("Parametrization: Voronoi Atlas"));
+
+        VCGMesh baseMesh;
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(baseMesh, mesh);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(baseMesh);
+        const int nonManifoldVertices = vcg::tri::Clean<VCGMesh>::CountNonManifoldVertexFF(baseMesh, false);
+        const int nonManifoldEdges = vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(baseMesh, false);
+        if (nonManifoldVertices > 0 || nonManifoldEdges > 0) {
+            const QString message =
+                QObject::tr("Mesh is not manifold (%1 non-manifold vertices, %2 non-manifold edges).")
+                    .arg(nonManifoldVertices)
+                    .arg(nonManifoldEdges);
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+
+        VCGMesh paraMesh;
+        vcg::tri::VoronoiAtlas<VCGMesh>::VoronoiAtlasParam pp;
+        pp.sampleNum = regionNum;
+        pp.overlap = overlap;
+        pp.cb = doc.progressCallback() ? doc.progressCallback() : vcg::DummyCallBackPos;
+
+        vcg::tri::VoronoiAtlas<VCGMesh>::Build(baseMesh, paraMesh, pp);
+        if (!overlap)
+            vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(paraMesh);
+        vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(paraMesh);
+        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(paraMesh);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(paraMesh);
+        if (paraMesh.FN() > 0)
+            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(paraMesh);
+
+        const int ioMask =
+            Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL | Mask::IOM_VERTCOLOR;
+        const int newIndex = doc.addMesh(paraMesh, QStringLiteral("VoroAtlas"), ioMask);
+        doc.finishFilterProgress(true, QObject::tr("Generated Voronoi atlas mesh."));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.newMeshIndices = { newIndex };
+        result.infoMessages = {
+            QObject::tr("Generated Voronoi atlas with %1 regions after %2 iterations.")
+                .arg(pp.vas.regionNum)
+                .arg(pp.vas.iterNum)
+        };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterWedgeToVertex)) {
+        if (mesh.VN() <= 0 || mesh.FN() <= 0)
+            return fail(QObject::tr("Current mesh must have vertices and faces."));
+        if ((entry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
+            return fail(QObject::tr("Current mesh does not have per-wedge texture coordinates."));
+
+        const int originalVertexCount = mesh.VN();
+        const bool ok = vcg::tri::AttributeSeam::SplitVertex(
+            mesh,
+            extractVertexForWedgeTexcoord,
+            compareVertexTexcoord);
+        if (!ok)
+            return fail(QObject::tr("Failed converting per-wedge UVs to per-vertex UVs."));
+
+        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+        entry.ioMask |= Mask::IOM_VERTTEXCOORD;
+
+        const bool vertexCountChanged = (mesh.VN() != originalVertexCount);
+        doc.markMeshGeometryChanged(
+            meshIndex,
+            QObject::tr("Converted per-wedge UVs to per-vertex UVs on '%1'.").arg(entry.name));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = {
+            vertexCountChanged
+                ? QObject::tr("Converted UVs and split vertices where wedge coordinates disagreed.")
+                : QObject::tr("Converted UVs without splitting vertices.")
+        };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterVertexToWedge)) {
+        if (mesh.VN() <= 0 || mesh.FN() <= 0)
+            return fail(QObject::tr("Current mesh must have vertices and faces."));
+        if ((entry.ioMask & Mask::IOM_VERTTEXCOORD) == 0)
+            return fail(QObject::tr("Current mesh does not have per-vertex texture coordinates."));
+
+        vcg::tri::UpdateTexture<VCGMesh>::WedgeTexFromVertexTex(mesh);
+        entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
+        doc.markMeshMaterialChanged(
+            meshIndex,
+            QObject::tr("Converted per-vertex UVs to per-wedge UVs on '%1'.").arg(entry.name));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = {
+            QObject::tr("Converted per-vertex UVs to per-wedge UVs.")
+        };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterPlanarMapping)) {
+        if (mesh.FN() <= 0)
+            return fail(QObject::tr("Current mesh must have faces."));
+
+        const QString projectionId = params.getEnum(QStringLiteral("projectionPlane"));
+        int projectionPlane = -1;
+        if (projectionId == QStringLiteral("xy"))
+            projectionPlane = 0;
+        else if (projectionId == QStringLiteral("xz"))
+            projectionPlane = 1;
+        else if (projectionId == QStringLiteral("yz"))
+            projectionPlane = 2;
+        if (projectionPlane < 0)
+            return fail(QObject::tr("Unsupported projection plane '%1'.").arg(projectionId));
+
+        const bool preserveAspect = params.getBool(QStringLiteral("aspectRatio"));
+        const float sideGutter = float(params.getDouble(QStringLiteral("sideGutter")));
+        if (sideGutter < 0.0f || sideGutter > 0.5f)
+            return fail(QObject::tr("Side Gutter must be in the range [0.0, 0.5]."));
+
+        const VCGMesh::CoordType planeVectors[3][2] = {
+            { VCGMesh::CoordType(1, 0, 0), VCGMesh::CoordType(0, 1, 0) },
+            { VCGMesh::CoordType(0, 0, 1), VCGMesh::CoordType(1, 0, 0) },
+            { VCGMesh::CoordType(0, 1, 0), VCGMesh::CoordType(0, 0, 1) }
+        };
+
+        std::unique_ptr<VCGMesh> worldMesh = makeWorldMesh(entry, false);
+        vcg::tri::UpdateTexture<VCGMesh>::WedgeTexFromPlane(
+            *worldMesh,
+            planeVectors[projectionPlane][0],
+            planeVectors[projectionPlane][1],
+            preserveAspect,
+            sideGutter);
+
+        for (size_t i = 0; i < mesh.face.size() && i < worldMesh->face.size(); ++i) {
+            if (mesh.face[i].IsD() || worldMesh->face[i].IsD())
+                continue;
+            for (int k = 0; k < 3; ++k)
+                mesh.face[i].WT(k) = worldMesh->face[i].WT(k);
+        }
+
+        entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
+        doc.markMeshMaterialChanged(
+            meshIndex,
+            QObject::tr("Computed planar UV parametrization for '%1'.").arg(entry.name));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = {
+            QObject::tr("Generated flat-plane UVs on the %1 projection plane.")
+                .arg(projectionId.toUpper())
+        };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterTriangleMapping)) {
+        if (mesh.FN() <= 0)
+            return fail(QObject::tr("Current mesh must have faces."));
+
+        int sideDim = params.getInt(QStringLiteral("sidedim"));
+        const int textDim = params.getInt(QStringLiteral("textdim"));
+        const int pixelBorder = params.getInt(QStringLiteral("border"));
+        const QString methodId = params.getEnum(QStringLiteral("method"));
+        const bool advanced = (methodId == QStringLiteral("space_optimizing"));
+        if (!advanced && methodId != QStringLiteral("basic"))
+            return fail(QObject::tr("Unsupported parametrization method '%1'.").arg(methodId));
+
+        if (textDim <= 0)
+            return fail(QObject::tr("Texture Dimension has an incorrect value."));
+        if (pixelBorder < 0)
+            return fail(QObject::tr("Inter-Triangle border has an incorrect value."));
+        if (sideDim < 0)
+            return fail(QObject::tr("Quads per line has an incorrect value."));
+
+        vcg::CallBackPos *cb = doc.progressCallback();
+
+        if (advanced) {
+            const float border = float(pixelBorder) / float(textDim);
+            double maxArea = -1.0;
+            double minArea = DBL_MAX;
+            std::vector<double> areas(mesh.face.size(), -1.0);
+            int faceCount = 0;
+            for (size_t i = 0; i < mesh.face.size(); ++i) {
+                if (mesh.face[i].IsD())
+                    continue;
+                double area = vcg::DoubleArea(mesh.face[i]);
+                if (area == 0.0)
+                    area = DBL_MIN;
+                maxArea = std::max(maxArea, area);
+                minArea = std::min(minArea, area);
+                areas[i] = area;
+                ++faceCount;
+            }
+            if (faceCount == 0)
+                return fail(QObject::tr("Current mesh must have at least one face."));
+
+            const int bucketSize = int(std::ceil(logBase2(maxArea) - logBase2(minArea) + DBL_EPSILON));
+            std::vector<std::vector<size_t>> buckets{size_t(bucketSize)};
+            for (size_t i = 0; i < areas.size(); ++i) {
+                if (areas[i] < 0.0)
+                    continue;
+                const int slot = int(std::ceil(logBase2(maxArea) - logBase2(areas[i]) + DBL_EPSILON)) - 1;
+                if (slot < 0 || slot >= bucketSize)
+                    continue;
+                buckets[size_t(slot)].push_back(i);
+            }
+
+            int dim = 0;
+            int halfeningLevels = 0;
+            double qn = 0.0;
+            double divisor = 2.0;
+            int rest = faceCount;
+            int oneFactor = 1;
+            int sqrt2Factor = 1;
+            bool enough = false;
+            while (halfeningLevels < bucketSize) {
+                int tmp = int(std::ceil(std::sqrt(qn + rest / divisor)));
+                bool newEnough = true;
+                if (sideDim != 0) {
+                    newEnough = sideDim >= tmp;
+                    tmp = sideDim;
+                }
+                if (newEnough
+                    && 1.0 / tmp < (sqrt2Factor / double(M_SQRT2) + oneFactor) * border
+                        + (oneFactor != sqrt2Factor
+                               ? oneFactor * double(M_SQRT2) * 2.0 / textDim
+                               : oneFactor * 2.0 / textDim)) {
+                    break;
+                }
+
+                enough = newEnough;
+                rest -= int(buckets[size_t(halfeningLevels)].size());
+                qn += buckets[size_t(halfeningLevels)].size() / divisor;
+                divisor *= 2.0;
+                if (halfeningLevels % 2)
+                    oneFactor *= 2;
+                else
+                    sqrt2Factor *= 2;
+                dim = tmp;
+                ++halfeningLevels;
+            }
+
+            if (!enough && halfeningLevels == bucketSize) {
+                return fail(
+                    QObject::tr("Quads per line aren't enough to obtain a correct parametrization. Try setting at least %1.")
+                        .arg(int(std::ceil(std::sqrt(qn)))));
+            }
+            if (halfeningLevels == 0 || !enough)
+                return fail(QObject::tr("Inter-Triangle border is too much."));
+
+            std::vector<TexTriangle2> cache(size_t((1 << (halfeningLevels + 1)) - 2));
+            buildTrianglesCache(cache, halfeningLevels, border, 1.0f / dim);
+
+            TexTriangle2::CoordType origin;
+            TexTriangle2::CoordType tmp;
+            int bucketIndex = 0;
+            int faceCounter = 0;
+            auto it = buckets[0].begin();
+            int currentLevel = 1;
+            for (int i = 0; i < dim && faceCounter < faceCount; ++i) {
+                origin.Y() = -float(i) / dim;
+                for (int j = 0; j < dim && faceCounter < faceCount; ++j) {
+                    origin.X() = float(j) / dim;
+                    for (int pos = (1 << currentLevel) - 2;
+                         pos < (1 << (currentLevel + 1)) - 2 && faceCounter < faceCount;
+                         ++pos, ++faceCounter) {
+                        while (it == buckets[size_t(bucketIndex)].end()) {
+                            if (++bucketIndex < halfeningLevels) {
+                                ++currentLevel;
+                                pos = 2 * pos + 2;
+                            }
+                            it = buckets[size_t(bucketIndex)].begin();
+                        }
+                        const size_t faceIndex = *it;
+                        int longestEdge = longestEdgeIndex(mesh.face[faceIndex]);
+                        TexTriangle2 &triangle = cache[size_t(pos)];
+                        tmp = triangle.P(0) + origin;
+                        mesh.face[faceIndex].WT(longestEdge) = VCGFace::TexCoordType(tmp.X(), tmp.Y());
+                        mesh.face[faceIndex].WT(longestEdge).N() = 0;
+                        longestEdge = (longestEdge + 1) % 3;
+                        tmp = triangle.P(1) + origin;
+                        mesh.face[faceIndex].WT(longestEdge) = VCGFace::TexCoordType(tmp.X(), tmp.Y());
+                        mesh.face[faceIndex].WT(longestEdge).N() = 0;
+                        longestEdge = (longestEdge + 1) % 3;
+                        tmp = triangle.P(2) + origin;
+                        mesh.face[faceIndex].WT(longestEdge) = VCGFace::TexCoordType(tmp.X(), tmp.Y());
+                        mesh.face[faceIndex].WT(longestEdge).N() = 0;
+                        ++it;
+                        if (cb && !(*cb)(faceCounter * 100 / faceCount, "Generating parametrization..."))
+                            return fail(QObject::tr("Operation canceled."));
+                    }
+                }
+            }
+        } else {
+            const int faceNo = int(mesh.face.size());
+            int undeletedFaces = 0;
+            for (const VCGFace &face : mesh.face) {
+                if (!face.IsD())
+                    ++undeletedFaces;
+            }
+            const int optimalDim = int(std::ceil(std::sqrt(undeletedFaces / 2.0)));
+            if (sideDim == 0)
+                sideDim = optimalDim;
+            else if (optimalDim > sideDim) {
+                return fail(
+                    QObject::tr("Quads per line aren't enough to obtain a correct parametrization. Try setting at least %1.")
+                        .arg(optimalDim));
+            }
+
+            const float border = float(pixelBorder) / float(textDim);
+            if (border * (1.0f + float(M_SQRT2)) + 2.0f / textDim > 1.0f / sideDim)
+                return fail(QObject::tr("Inter-Triangle border is too much."));
+
+            const float borderSq2 = border / float(M_SQRT2);
+            const float halfBorder = border / 2.0f;
+            bool odd = true;
+            VCGFace::TexCoordType bottomLeft, topRight;
+            int faceCounter = 0;
+            bottomLeft.V() = 1.0f;
+            for (int i = 0; i < sideDim && faceCounter < faceNo; ++i) {
+                topRight.V() = bottomLeft.V();
+                topRight.U() = 0.0f;
+                bottomLeft.V() = 1.0f - 1.0f / sideDim * (i + 1);
+                for (int j = 0; j < 2 * sideDim && faceCounter < faceNo; ++faceCounter) {
+                    if (mesh.face[size_t(faceCounter)].IsD())
+                        continue;
+                    int longestEdge = longestEdgeIndex(mesh.face[size_t(faceCounter)]);
+                    if (odd) {
+                        bottomLeft.U() = topRight.U();
+                        topRight.U() = 1.0f / sideDim * (j / 2 + 1);
+                        VCGFace::TexCoordType bl(bottomLeft.U() + halfBorder, bottomLeft.V() + halfBorder + borderSq2);
+                        VCGFace::TexCoordType tr(topRight.U() - (halfBorder + borderSq2), topRight.V() - halfBorder);
+                        bl.N() = 0;
+                        tr.N() = 0;
+                        mesh.face[size_t(faceCounter)].WT(longestEdge) = bl;
+                        mesh.face[size_t(faceCounter)].WT((++longestEdge) % 3) = tr;
+                        mesh.face[size_t(faceCounter)].WT((++longestEdge) % 3) = VCGFace::TexCoordType(bl.U(), tr.V());
+                        mesh.face[size_t(faceCounter)].WT(longestEdge % 3).N() = 0;
+                    } else {
+                        VCGFace::TexCoordType bl(bottomLeft.U() + (halfBorder + borderSq2), bottomLeft.V() + halfBorder);
+                        VCGFace::TexCoordType tr(topRight.U() - halfBorder, topRight.V() - (halfBorder + borderSq2));
+                        bl.N() = 0;
+                        tr.N() = 0;
+                        mesh.face[size_t(faceCounter)].WT(longestEdge) = tr;
+                        mesh.face[size_t(faceCounter)].WT((++longestEdge) % 3) = bl;
+                        mesh.face[size_t(faceCounter)].WT((++longestEdge) % 3) = VCGFace::TexCoordType(tr.U(), bl.V());
+                        mesh.face[size_t(faceCounter)].WT(longestEdge % 3).N() = 0;
+                    }
+                    if (cb && !(*cb)(faceCounter * 100 / faceNo, "Generating parametrization..."))
+                        return fail(QObject::tr("Operation canceled."));
+                    odd = !odd;
+                    ++j;
+                }
+            }
+        }
+
+        entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
+        doc.markMeshMaterialChanged(
+            meshIndex,
+            QObject::tr("Computed trivial per-triangle UV parametrization for '%1'.").arg(entry.name));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = {
+            advanced
+                ? QObject::tr("Generated space-optimizing triangle-by-triangle UVs.")
+                : QObject::tr("Generated basic triangle-by-triangle UVs.")
+        };
+        return result;
+    }
+
     if (filterId == QString::fromLatin1(kFilterSetTexture)) {
         if (mesh.VN() <= 0 || mesh.FN() <= 0)
             return fail(QObject::tr("Current mesh must have vertices and faces."));
@@ -171,27 +822,52 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (!hasTexCoords)
             return fail(QObject::tr("Current mesh does not have texture coordinates."));
 
-        const QString chosenPath = params.getFileOpen(QStringLiteral("textName")).trimmed();
-        if (chosenPath.isEmpty())
-            return fail(QObject::tr("Texture file not specified."));
+        QString finalPath;
+        QString displayName;
+        if (params.getBool(QStringLiteral("use_dummy_texture"))) {
+            const int imageSize = params.getInt(QStringLiteral("dummy_img_size"));
+            const int checkSize = params.getInt(QStringLiteral("dummy_check_size"));
+            const QString dummyType = params.getEnum(QStringLiteral("dummy_type"));
+            if (imageSize <= 0)
+                return fail(QObject::tr("Dummy size has an incorrect value."));
+            if (checkSize <= 0)
+                return fail(QObject::tr("Check size has an incorrect value."));
+            const bool checkerboard = (dummyType != QStringLiteral("grid"));
+            const QImage dummyTexture = makeDummyTexture(imageSize, checkSize, checkerboard);
+            QString tempError;
+            finalPath = writeGeneratedTextureToTemp(
+                dummyTexture,
+                checkerboard ? QStringLiteral("qmeshlab_dummy_checkerboard")
+                             : QStringLiteral("qmeshlab_dummy_grid"),
+                tempError);
+            if (finalPath.isEmpty())
+                return fail(tempError);
+            displayName = QFileInfo(finalPath).fileName();
+        } else {
+            const QString chosenPath = params.getFileOpen(QStringLiteral("textName")).trimmed();
+            if (chosenPath.isEmpty())
+                return fail(QObject::tr("Texture file not specified."));
 
-        const QString normalizedPath = normalizeExistingPath(chosenPath);
-        const QFileInfo info(normalizedPath);
-        if (!info.exists() || !info.isFile())
-            return fail(QObject::tr("Texture file '%1' does not exist.").arg(chosenPath));
+            const QString normalizedPath = normalizeExistingPath(chosenPath);
+            const QFileInfo info(normalizedPath);
+            if (!info.exists() || !info.isFile())
+                return fail(QObject::tr("Texture file '%1' does not exist.").arg(chosenPath));
+            finalPath = QDir::toNativeSeparators(normalizedPath);
+            displayName = info.fileName();
+        }
 
-        applyTextureAssociation(entry, { QDir::toNativeSeparators(normalizedPath) });
+        applyTextureAssociation(entry, { finalPath });
 
         doc.markMeshMaterialChanged(
             meshIndex,
             QObject::tr("Associated texture '%1' with '%2'.")
-                .arg(info.fileName(), entry.name));
+                .arg(displayName, entry.name));
 
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
         result.infoMessages = {
-            QObject::tr("Set '%1' as the mesh base texture.").arg(info.fileName())
+            QObject::tr("Set '%1' as the mesh base texture.").arg(displayName)
         };
         return result;
     }
@@ -220,6 +896,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             return fail(QObject::tr("Mesh has no associated texture to overwrite."));
 
         const int slotCount = std::max(1, ensureTextureSlotIndices(mesh));
+        const int previousTextureCount = textureAssociationCount(entry);
         const QStringList outputPaths = overwrite
             ? overwriteOutputPaths(entry, slotCount)
             : makeOutputPaths(requestedPath, slotCount);
@@ -261,19 +938,333 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (!saveImages(outputPaths, targetImages, saveError))
             return fail(saveError);
 
-        applyTextureAssociation(entry, outputPaths);
-
-        doc.markMeshMaterialChanged(
-            meshIndex,
-            QObject::tr("Baked vertex color to %1 texture image(s) for '%2'.")
-                .arg(slotCount)
-                .arg(entry.name));
+        const bool appendNewTextures = !overwrite && previousTextureCount > 0;
+        if (appendNewTextures) {
+            offsetTextureSlotIndices(entry.mesh, previousTextureCount);
+            appendTextureAssociation(entry, outputPaths);
+            ++entry.materialRevision;
+            doc.markMeshGeometryChanged(
+                meshIndex,
+                QObject::tr("Baked vertex color to %1 new texture image(s) and appended them to '%2'.")
+                    .arg(slotCount)
+                    .arg(entry.name));
+        } else {
+            applyTextureAssociation(entry, outputPaths);
+            doc.markMeshMaterialChanged(
+                meshIndex,
+                QObject::tr("Baked vertex color to %1 texture image(s) for '%2'.")
+                    .arg(slotCount)
+                    .arg(entry.name));
+        }
 
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
         result.infoMessages = {
-            QObject::tr("Saved %1 texture image(s).").arg(slotCount)
+            appendNewTextures
+                ? QObject::tr("Saved %1 texture image(s) and appended them to the existing texture list.").arg(slotCount)
+                : QObject::tr("Saved %1 texture image(s).").arg(slotCount)
+        };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterTextureToVertexColor)) {
+        const int sourceMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+        const int targetMeshIndex = params.getMesh(QStringLiteral("targetMesh"), doc.currentMeshIndex());
+        if (sourceMeshIndex < 0 || sourceMeshIndex >= doc.meshCount()
+            || targetMeshIndex < 0 || targetMeshIndex >= doc.meshCount()) {
+            return fail(QObject::tr("Invalid mesh selection."));
+        }
+
+        const Document::MeshEntry &sourceEntry = doc.mesh(sourceMeshIndex);
+        Document::MeshEntry &targetEntry = doc.mesh(targetMeshIndex);
+        if (sourceEntry.mesh.FN() <= 0)
+            return fail(QObject::tr("Source mesh requires faces."));
+        if ((sourceEntry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
+            return fail(QObject::tr("Source mesh doesn't have per-wedge texture coordinates."));
+
+        const QStringList texturePaths = associatedTexturePaths(sourceEntry);
+        if (texturePaths.isEmpty())
+            return fail(QObject::tr("Source mesh doesn't have any associated texture."));
+
+        std::vector<QImage> sourceImages;
+        sourceImages.reserve(size_t(texturePaths.size()));
+        for (const QString &path : texturePaths) {
+            const QFileInfo info(path);
+            if (!info.exists() || !info.isFile())
+                return fail(QObject::tr("Source texture '%1' does not exist.").arg(path));
+            QImage image(path);
+            if (image.isNull())
+                return fail(QObject::tr("Failed to load source texture '%1'.").arg(path));
+            sourceImages.push_back(std::move(image));
+        }
+
+        const int requestedTextureSlot = params.getTextureRef(QStringLiteral("sourceTexture"), 0);
+        if (requestedTextureSlot < 0)
+            return fail(QObject::tr("Source Texture must be automatic or a positive selection."));
+        if (requestedTextureSlot > int(sourceImages.size())) {
+            return fail(
+                QObject::tr("Source Texture %1 is out of range. The source mesh has %2 associated texture(s).")
+                    .arg(requestedTextureSlot)
+                    .arg(sourceImages.size()));
+        }
+
+        std::unique_ptr<VCGMesh> sourceWorldMesh = makeWorldMesh(sourceEntry, true);
+        std::unique_ptr<VCGMesh> targetWorldMesh = makeWorldMesh(targetEntry, false);
+        if (targetWorldMesh->VN() <= 0)
+            return fail(QObject::tr("Target mesh must have vertices."));
+
+        if (requestedTextureSlot > 0) {
+            const short forcedSlot = short(requestedTextureSlot - 1);
+            for (VCGFace &face : sourceWorldMesh->face) {
+                if (face.IsD())
+                    continue;
+                for (int k = 0; k < 3; ++k)
+                    face.WT(k).N() = forcedSlot;
+            }
+        }
+
+        VertexSampler sampler(*sourceWorldMesh, sourceImages, float(params.getDouble(QStringLiteral("upperBound"))));
+        sampler.InitCallback(doc.progressCallback(), targetWorldMesh->VN(), 0, 100);
+        vcg::tri::SurfaceSampling<VCGMesh, VertexSampler>::VertexUniform(
+            *targetWorldMesh,
+            sampler,
+            targetWorldMesh->VN());
+
+        const int count = std::min(targetWorldMesh->VN(), targetEntry.mesh.VN());
+        for (int i = 0; i < count; ++i) {
+            const VCGVertex &src = targetWorldMesh->vert[i];
+            VCGVertex &dst = targetEntry.mesh.vert[i];
+            if (src.IsD() || dst.IsD())
+                continue;
+            dst.C() = src.C();
+        }
+
+        targetEntry.ioMask |= Mask::IOM_VERTCOLOR;
+        doc.markMeshGeometryChanged(
+            targetMeshIndex,
+            QObject::tr("Transferred texture colors from '%1' to vertex colors of '%2'.")
+                .arg(sourceEntry.name, targetEntry.name));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        if (requestedTextureSlot > 0) {
+            result.infoMessages = {
+                QObject::tr("Transferred texture slot %1 from '%2' to '%3'.")
+                    .arg(requestedTextureSlot)
+                    .arg(sourceEntry.name, targetEntry.name)
+            };
+        } else {
+            result.infoMessages = {
+                QObject::tr("Transferred texture colors from '%1' to '%2'.")
+                    .arg(sourceEntry.name, targetEntry.name)
+            };
+        }
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterTransferToTexture)) {
+        const int sourceMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+        const int targetMeshIndex = params.getMesh(QStringLiteral("targetMesh"), doc.currentMeshIndex());
+        if (sourceMeshIndex < 0 || sourceMeshIndex >= doc.meshCount()
+            || targetMeshIndex < 0 || targetMeshIndex >= doc.meshCount()) {
+            return fail(QObject::tr("Invalid mesh selection."));
+        }
+
+        const QString attributeModeId = params.getEnum(QStringLiteral("AttributeEnum"));
+        const std::optional<TransferAttributeMode> mode = transferModeFromId(attributeModeId);
+        if (!mode)
+            return fail(QObject::tr("Unsupported source attribute mode '%1'.").arg(attributeModeId));
+
+        const int textW = params.getInt(QStringLiteral("textW"));
+        const int textH = params.getInt(QStringLiteral("textH"));
+        const bool overwrite = params.getBool(QStringLiteral("overwrite"));
+        const bool pullPush = params.getBool(QStringLiteral("pullpush"));
+        const QString requestedPath = params.getFileSave(QStringLiteral("textName")).trimmed();
+        if (textW <= 0)
+            return fail(QObject::tr("Texture Width has an incorrect value."));
+        if (textH <= 0)
+            return fail(QObject::tr("Texture Height has an incorrect value."));
+
+        const Document::MeshEntry &sourceEntry = doc.mesh(sourceMeshIndex);
+        Document::MeshEntry &targetEntry = doc.mesh(targetMeshIndex);
+        if (targetEntry.mesh.FN() <= 0)
+            return fail(QObject::tr("Target mesh needs to have faces."));
+        if ((targetEntry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
+            return fail(QObject::tr("Target mesh does not have per-wedge texture coordinates."));
+        if (overwrite && targetEntry.textureFilePaths.isEmpty())
+            return fail(QObject::tr("Target mesh has no associated texture to overwrite."));
+        if (!overwrite && requestedPath.isEmpty())
+            return fail(QObject::tr("Texture file not specified."));
+
+        bool samplingFromTexture = false;
+        switch (*mode) {
+        case TransferAttributeMode::VertexColor:
+            if ((sourceEntry.ioMask & Mask::IOM_VERTCOLOR) == 0)
+                return fail(QObject::tr("Source mesh doesn't have per-vertex color."));
+            break;
+        case TransferAttributeMode::VertexNormal:
+            if ((sourceEntry.ioMask & Mask::IOM_VERTNORMAL) == 0)
+                return fail(QObject::tr("Source mesh doesn't have per-vertex normal."));
+            break;
+        case TransferAttributeMode::VertexQuality:
+            if ((sourceEntry.ioMask & Mask::IOM_VERTQUALITY) == 0)
+                return fail(QObject::tr("Source mesh doesn't have per-vertex quality."));
+            break;
+        case TransferAttributeMode::TextureColor:
+            samplingFromTexture = true;
+            if (sourceEntry.mesh.FN() <= 0)
+                return fail(QObject::tr("Source mesh needs to have faces."));
+            if ((sourceEntry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
+                return fail(QObject::tr("Source mesh does not have per-wedge texture coordinates."));
+            break;
+        }
+
+        const QStringList sourceTexturePaths = samplingFromTexture ? associatedTexturePaths(sourceEntry) : QStringList{};
+        if (samplingFromTexture && sourceTexturePaths.isEmpty())
+            return fail(QObject::tr("Source mesh does not have any associated texture."));
+
+        std::vector<QImage> sourceImages;
+        if (samplingFromTexture) {
+            sourceImages.reserve(size_t(sourceTexturePaths.size()));
+            for (const QString &path : sourceTexturePaths) {
+                const QFileInfo info(path);
+                if (!info.exists() || !info.isFile())
+                    return fail(QObject::tr("Source texture '%1' does not exist.").arg(path));
+                QImage image(path);
+                if (image.isNull())
+                    return fail(QObject::tr("Failed to load source texture '%1'.").arg(path));
+                sourceImages.push_back(std::move(image));
+            }
+        }
+
+        if (targetEntry.textureFilePaths.isEmpty())
+            ensureTextureSlotIndices(targetEntry.mesh);
+        const int targetSlotCount = std::max(1, ensureTextureSlotIndices(targetEntry.mesh));
+        const int previousTextureCount = textureAssociationCount(targetEntry);
+        const QStringList outputPaths = overwrite
+            ? overwriteOutputPaths(targetEntry, targetSlotCount)
+            : makeOutputPaths(requestedPath, targetSlotCount);
+        if (outputPaths.size() != targetSlotCount)
+            return fail(QObject::tr("Existing target texture association does not match the used texture slots."));
+
+        std::vector<QImage> targetImages;
+        targetImages.reserve(size_t(targetSlotCount));
+        for (int texIndex = 0; texIndex < targetSlotCount; ++texIndex) {
+            QImage img(QSize(textW, textH), QImage::Format_ARGB32);
+            img.fill(qRgba(0, 0, 0, 0));
+            targetImages.push_back(std::move(img));
+        }
+
+        std::unique_ptr<VCGMesh> sourceWorldMesh = makeWorldMesh(sourceEntry, true);
+        std::unique_ptr<VCGMesh> targetWorldMesh = makeWorldMesh(targetEntry, false);
+        ensureTextureSlotIndices(*targetWorldMesh);
+
+        if (samplingFromTexture) {
+            const int requestedTextureSlot = params.getTextureRef(QStringLiteral("sourceTexture"), 0);
+            if (requestedTextureSlot < 0)
+                return fail(QObject::tr("Source Texture must be zero or positive."));
+            if (requestedTextureSlot > int(sourceImages.size())) {
+                return fail(
+                    QObject::tr("Source Texture %1 is out of range. The source mesh has %2 associated texture(s).")
+                        .arg(requestedTextureSlot)
+                        .arg(sourceImages.size()));
+            }
+            if (requestedTextureSlot > 0) {
+                const short forcedSlot = short(requestedTextureSlot - 1);
+                for (VCGFace &face : sourceWorldMesh->face) {
+                    if (face.IsD())
+                        continue;
+                    for (int k = 0; k < 3; ++k)
+                        face.WT(k).N() = forcedSlot;
+                }
+            }
+        }
+
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(*targetWorldMesh);
+        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(*targetWorldMesh);
+        vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(*sourceWorldMesh);
+
+        if (!samplingFromTexture) {
+            int vertexMode = 0;
+            if (*mode == TransferAttributeMode::VertexNormal)
+                vertexMode = 1;
+            else if (*mode == TransferAttributeMode::VertexQuality)
+                vertexMode = 2;
+
+            TransferColorSampler sampler(*sourceWorldMesh, targetImages, float(params.getDouble(QStringLiteral("upperBound"))), vertexMode);
+            sampler.InitCallback(doc.progressCallback(), targetWorldMesh->FN(), 0, 80);
+            vcg::tri::SurfaceSampling<VCGMesh, TransferColorSampler>::Texture(
+                *targetWorldMesh,
+                sampler,
+                textW,
+                textH,
+                false);
+        } else {
+            TransferColorSampler sampler(*sourceWorldMesh, targetImages, &sourceImages, float(params.getDouble(QStringLiteral("upperBound"))));
+            sampler.InitCallback(doc.progressCallback(), targetWorldMesh->FN(), 0, 80);
+            vcg::tri::SurfaceSampling<VCGMesh, TransferColorSampler>::Texture(
+                *targetWorldMesh,
+                sampler,
+                textW,
+                textH,
+                false);
+        }
+
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(*targetWorldMesh);
+        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(*targetWorldMesh);
+
+        for (int texIndex = 0; texIndex < targetSlotCount; ++texIndex) {
+            for (int y = 0; y < textH; ++y) {
+                for (int x = 0; x < textW; ++x) {
+                    const QRgb px = targetImages[size_t(texIndex)].pixel(x, y);
+                    if (qAlpha(px) < 255 && (!pullPush || qAlpha(px) > 0))
+                        targetImages[size_t(texIndex)].setPixel(x, y, px | 0xff000000);
+                }
+            }
+            if (pullPush)
+                vcg::PullPush(targetImages[size_t(texIndex)], qRgba(0, 0, 0, 0));
+        }
+
+        QString saveError;
+        if (!saveImages(outputPaths, targetImages, saveError))
+            return fail(saveError);
+
+        QString attributeLabel = attributeModeId;
+        attributeLabel.replace(QLatin1Char('_'), QLatin1Char(' '));
+        const bool appendNewTextures = !overwrite && previousTextureCount > 0;
+        if (appendNewTextures) {
+            offsetTextureSlotIndices(targetEntry.mesh, previousTextureCount);
+            appendTextureAssociation(targetEntry, outputPaths);
+            ++targetEntry.materialRevision;
+            doc.markMeshGeometryChanged(
+                targetMeshIndex,
+                QObject::tr("Transferred %1 into %2 new texture image(s) and appended them to '%3'.")
+                    .arg(attributeLabel)
+                    .arg(targetSlotCount)
+                    .arg(targetEntry.name));
+        } else {
+            applyTextureAssociation(targetEntry, outputPaths);
+            doc.markMeshMaterialChanged(
+                targetMeshIndex,
+                QObject::tr("Transferred %1 into %2 texture image(s) for '%3'.")
+                    .arg(attributeLabel)
+                    .arg(targetSlotCount)
+                    .arg(targetEntry.name));
+        }
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = {
+            appendNewTextures
+                ? QObject::tr("Saved %1 texture image(s) on '%2' and appended them to the existing texture list.")
+                      .arg(targetSlotCount)
+                      .arg(targetEntry.name)
+                : QObject::tr("Saved %1 texture image(s) on '%2'.")
+                      .arg(targetSlotCount)
+                      .arg(targetEntry.name)
         };
         return result;
     }

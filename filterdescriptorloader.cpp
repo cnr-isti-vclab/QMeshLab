@@ -45,6 +45,7 @@ MeshFilterParameterType parseParamType(const QString &s)
     if (s == QStringLiteral("string")) return MeshFilterParameterType::String;
     if (s == QStringLiteral("fileopen")) return MeshFilterParameterType::FileOpen;
     if (s == QStringLiteral("filesave")) return MeshFilterParameterType::FileSave;
+    if (s == QStringLiteral("textureref")) return MeshFilterParameterType::TextureRef;
     if (s == QStringLiteral("enum"))   return MeshFilterParameterType::Enum;
     if (s == QStringLiteral("color"))  return MeshFilterParameterType::Color;
     if (s == QStringLiteral("point3f")) return MeshFilterParameterType::Point3f;
@@ -84,6 +85,8 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
     for (const QJsonValue &fv : nameFilters)
         p.fileNameFilters.push_back(fv.toString());
     p.fileDefaultSuffix = obj.value(QStringLiteral("fileDefaultSuffix")).toString();
+    p.textureSourceMeshParameter = obj.value(QStringLiteral("sourceMeshParameter")).toString();
+    p.textureAllowAutomatic = obj.value(QStringLiteral("allowAutomatic")).toBool(true);
 
     if (p.type == MeshFilterParameterType::Point3f) {
         // Default is a JSON array [x, y, z]; min/max are not applicable.
@@ -192,6 +195,7 @@ QVariant resolveToken(const QVariant &v, double bboxDiag,
     if (token == QStringLiteral("bboxDiag0001"))       return bboxDiag * 0.0001;
     if (token == QStringLiteral("bboxDiag00001"))      return bboxDiag * 0.00001;
     if (token == QStringLiteral("bboxDiag0005"))       return bboxDiag * 0.005;
+    if (token == QStringLiteral("bboxDiag002"))        return bboxDiag * 0.02;
     if (token == QStringLiteral("bboxDiag003"))        return bboxDiag * 0.03;
     if (token == QStringLiteral("bboxDiagTenth"))      return bboxDiag * 0.1;
     if (token == QStringLiteral("bboxDiagHalf"))       return bboxDiag * 0.5;

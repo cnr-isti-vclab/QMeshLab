@@ -368,4 +368,5 @@ private:
     QVector2D m_uvPan = QVector2D(0.5f, 0.5f);
     std::vector<bool> m_meshVisibility;
     std::unordered_map<std::uint64_t, MeshRenderMode> m_meshRenderModes;
+    std::unordered_map<std::uint64_t, std::pair<std::uint64_t, std::uint64_t>> m_meshRenderModeRevisions;
 };

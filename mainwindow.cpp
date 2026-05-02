@@ -138,6 +138,8 @@ QString filterParameterTypeLabel(MeshFilterParameterType type)
         return QObject::tr("File Open");
     case MeshFilterParameterType::FileSave:
         return QObject::tr("File Save");
+    case MeshFilterParameterType::TextureRef:
+        return QObject::tr("Texture Choice");
     case MeshFilterParameterType::Enum:
         return QObject::tr("Enum");
     case MeshFilterParameterType::Color:
@@ -166,6 +168,7 @@ QString filterParameterValueText(const QVariant &value, MeshFilterParameterType 
     case MeshFilterParameterType::String:
     case MeshFilterParameterType::FileOpen:
     case MeshFilterParameterType::FileSave:
+    case MeshFilterParameterType::TextureRef:
     case MeshFilterParameterType::Enum:
     case MeshFilterParameterType::Color:
         return value.toString();

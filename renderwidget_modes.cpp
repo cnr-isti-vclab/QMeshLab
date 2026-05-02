@@ -56,8 +56,16 @@ QStringList pbrTextureSelectorEntries(const Document::MeshEntry &entry)
 {
     QStringList labels;
     labels.reserve(entry.textureFilePaths.size());
-    for (int i = 0; i < entry.textureFilePaths.size(); ++i)
-        labels.push_back(QObject::tr("Tex %1").arg(i));
+    for (int i = 0; i < entry.textureFilePaths.size(); ++i) {
+        QString name;
+        if (i >= 0 && i < entry.textureFileNames.size())
+            name = entry.textureFileNames.at(i).trimmed();
+        if (name.isEmpty())
+            name = QFileInfo(entry.textureFilePaths.at(i)).fileName().trimmed();
+        if (name.isEmpty())
+            name = QObject::tr("Tex %1").arg(i);
+        labels.push_back(QObject::tr("%1: %2").arg(i).arg(name));
+    }
     return labels;
 }
 }
@@ -118,19 +126,19 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         mode.fillPbr.albedoSource = hasTextures
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::Constant;
-        mode.fillPbr.albedoIndex = defaultAlbedoTextureIndex;
+        mode.fillPbr.albedoIndex = hasTextures ? -1 : defaultAlbedoTextureIndex;
         mode.fillPbr.normalSource = defaultNormalTextureIndex >= 0
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::None;
-        mode.fillPbr.normalIndex = defaultNormalTextureIndex;
+        mode.fillPbr.normalIndex = defaultNormalTextureIndex >= 0 ? -1 : defaultNormalTextureIndex;
         mode.fillPbr.occlusionSource = defaultOcclusionTextureIndex >= 0
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::None;
-        mode.fillPbr.occlusionIndex = defaultOcclusionTextureIndex;
+        mode.fillPbr.occlusionIndex = defaultOcclusionTextureIndex >= 0 ? -1 : defaultOcclusionTextureIndex;
         mode.fillPbr.roughnessSource = defaultRoughnessTextureIndex >= 0
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::Constant;
-        mode.fillPbr.roughnessIndex = defaultRoughnessTextureIndex;
+        mode.fillPbr.roughnessIndex = defaultRoughnessTextureIndex >= 0 ? -1 : defaultRoughnessTextureIndex;
         if (faceCount < kWireframeDefaultFaceThreshold) {
             mode.fillPlain.shading = FillShading::Flat;
             mode.fillPbr.shading   = FillShading::Flat;
@@ -180,11 +188,47 @@ void RenderWidget::syncPerMeshRenderModesWithDocument()
         else
             ++it;
     }
+    for (auto it = m_meshRenderModeRevisions.begin(); it != m_meshRenderModeRevisions.end();) {
+        if (aliveMeshIds.find(it->first) == aliveMeshIds.end())
+            it = m_meshRenderModeRevisions.erase(it);
+        else
+            ++it;
+    }
 
     for (int i = 0; i < m_doc->meshCount(); ++i) {
+        const auto &entry = m_doc->mesh(i);
         const std::uint64_t meshId = m_doc->mesh(i).meshId;
-        if (m_meshRenderModes.find(meshId) == m_meshRenderModes.end())
+        const std::pair<std::uint64_t, std::uint64_t> revisions{
+            entry.geometryRevision,
+            entry.materialRevision
+        };
+        auto it = m_meshRenderModes.find(meshId);
+        if (it == m_meshRenderModes.end()) {
             m_meshRenderModes.emplace(meshId, defaultRenderModeForMesh(i));
+            m_meshRenderModeRevisions[meshId] = revisions;
+            continue;
+        }
+
+        auto revIt = m_meshRenderModeRevisions.find(meshId);
+        if (revIt == m_meshRenderModeRevisions.end()) {
+            m_meshRenderModeRevisions[meshId] = revisions;
+            continue;
+        }
+
+        if (revIt->second.second != entry.materialRevision) {
+            MeshRenderMode &mode = it->second;
+            if (mode.fillPlain.colorSource == FillColorSource::Texture)
+                mode.fillPlain.textureIndex = -1;
+            if (mode.fillPbr.albedoSource == FillPbrTextureSource::Texture)
+                mode.fillPbr.albedoIndex = -1;
+            if (mode.fillPbr.normalSource == FillPbrTextureSource::Texture)
+                mode.fillPbr.normalIndex = -1;
+            if (mode.fillPbr.occlusionSource == FillPbrTextureSource::Texture)
+                mode.fillPbr.occlusionIndex = -1;
+            if (mode.fillPbr.roughnessSource == FillPbrTextureSource::Texture)
+                mode.fillPbr.roughnessIndex = -1;
+        }
+        revIt->second = revisions;
     }
 }
 

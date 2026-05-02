@@ -2,11 +2,219 @@
   "pluginId": "qmeshlab.filter.texture",
   "filters": [
     {
+      "id": "generate_voronoi_atlas_parametrization",
+      "menuPath": "Texture",
+      "name": "Parametrization: Voronoi Atlas",
+      "shortDescription": "Build an atlased parametrization using a geodesic Voronoi partition of the surface.",
+      "longDescriptionMarkdown": "Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. For the parametrization of the disk like voronoi regions the used method is: <br><b>Ulrich Pinkall, Konrad Polthier</b><br><i>Computing Discrete Minimal Surfaces and Their Conjugates</i> <br>Experimental Mathematics, Vol 2 (1), 1993.",
+      "tags": [
+        "texture",
+        "uv",
+        "atlas",
+        "parametrization"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "regionNum",
+          "label": "Approx. Region Num",
+          "help": "An estimation of the number of regions that must be generated. Smaller regions could lead to parametrizations with smaller distortion.",
+          "group": "main",
+          "type": "int",
+          "default": 10,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "id": "overlapFlag",
+          "label": "Overlap",
+          "help": "If checked the resulting parametrization will be composed by overlapping regions, e.g. the resulting mesh will have duplicated faces: each region will have a ring of ovelapping duplicate faces that will ensure that border regions will be parametrized in the atlas twice. This is quite useful for building mipmap robust atlases.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    },
+    {
+      "id": "compute_texcoord_transfer_wedge_to_vertex",
+      "menuPath": "Texture",
+      "name": "Convert PerWedge UV into PerVertex UV",
+      "shortDescription": "Convert per-wedge texture coordinates into per-vertex texture coordinates, splitting vertices when needed.",
+      "longDescriptionMarkdown": "Converts per Wedge Texture Coordinates to per Vertex Texture Coordinates splitting vertices with not coherent Wedge coordinates.",
+      "tags": [
+        "texture",
+        "uv",
+        "conversion"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
+      "parameters": []
+    },
+    {
+      "id": "compute_texcoord_transfer_vertex_to_wedge",
+      "menuPath": "Texture",
+      "name": "Convert PerVertex UV into PerWedge UV",
+      "shortDescription": "Convert per-vertex texture coordinates into per-wedge texture coordinates.",
+      "longDescriptionMarkdown": "Converts per Vertex Texture Coordinates to per Wedge Texture Coordinates. It does not merge superfluous vertices...",
+      "tags": [
+        "texture",
+        "uv",
+        "conversion"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requireTextureCoordinates": true
+      },
+      "parameters": []
+    },
+    {
+      "id": "compute_texcoord_parametrization_flat_plane_per_wedge",
+      "menuPath": "Texture",
+      "name": "Parametrization: Flat Plane",
+      "shortDescription": "Generate a trivial flat-plane parametrization.",
+      "longDescriptionMarkdown": "Builds a trivial flat-plane parametrization.",
+      "tags": [
+        "texture",
+        "uv",
+        "parametrization"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "projectionPlane",
+          "label": "Projection plane",
+          "help": "Choose the projection plane.",
+          "group": "main",
+          "type": "enum",
+          "default": "xy",
+          "enumOptions": [
+            {
+              "id": "xy",
+              "label": "XY"
+            },
+            {
+              "id": "xz",
+              "label": "XZ"
+            },
+            {
+              "id": "yz",
+              "label": "YZ"
+            }
+          ]
+        },
+        {
+          "id": "aspectRatio",
+          "label": "Preserve Ratio",
+          "help": "If checked the resulting parametrization will preserve the original apsect ratio of the model otherwise it will fill up the whole 0..1 uv space.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "sideGutter",
+          "label": "Side Gutter",
+          "help": "Leave an empty space around the parametrization area of the specified size (in texture space); accepted range [0.0 - 0.5].",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 0.5,
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "id": "compute_texcoord_parametrization_triangle_trivial_per_wedge",
+      "menuPath": "Texture",
+      "name": "Parametrization: Trivial Per-Triangle",
+      "shortDescription": "Generate a triangle-by-triangle parametrization using either equal-size or space-optimizing layout.",
+      "longDescriptionMarkdown": "Builds a trivial triangle-by-triangle parametrization. <br> Two methods are provided, the first maps all triangles into equal sized triangles, while the second one adapt the size of the triangles in texture space to their original size.",
+      "tags": [
+        "texture",
+        "uv",
+        "parametrization"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "sidedim",
+          "label": "Quads per line",
+          "help": "Indicates how many triangles have to be put on each line (every quad contains two triangles)\nLeave 0 for automatic calculation.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "textdim",
+          "label": "Texture Dimension (px)",
+          "help": "Gives an indication on how big the texture is.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "id": "border",
+          "label": "Inter-Triangle border (px)",
+          "help": "Specifies how many pixels to be left between triangles in parametrization domain.",
+          "group": "main",
+          "type": "int",
+          "default": 2,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "method",
+          "label": "Method",
+          "help": "Choose space optimizing to map smaller faces into smaller triangles in parametrizazion domain.",
+          "group": "main",
+          "type": "enum",
+          "default": "space_optimizing",
+          "enumOptions": [
+            {
+              "id": "basic",
+              "label": "Basic"
+            },
+            {
+              "id": "space_optimizing",
+              "label": "Space-optimizing"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "set_texture_per_mesh",
       "menuPath": "Texture",
       "name": "Set Texture",
       "shortDescription": "Associate an existing image file with the current mesh texture coordinates.",
-      "longDescriptionMarkdown": "Set a texture associated with current mesh parametrization. If the texture provided exists, then it will be simply associated to the current mesh; else the filter will fail with no further actions.",
+      "longDescriptionMarkdown": "Set a texture associated with current mesh parametrization.<br>If the texture provided exists, then it will be simply associated to the current mesh; else the filter will fail with no further actions. If specified it can create and associate a dummy texture with a specified grid or checkboard pattern.",
       "tags": [
         "texture",
         "uv",
@@ -30,6 +238,52 @@
           "fileDialogTitle": "Choose Texture Image",
           "fileNameFilters": [
             "Images (*.png *.jpg *.jpeg *.dds *.bmp *.tif *.tiff)"
+          ]
+        },
+        {
+          "id": "use_dummy_texture",
+          "label": "Use dummy texture",
+          "help": "If checked, the filter will set a dummy texture instead of loading an image. The 'Texture file' parameter will be ignored.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "dummy_img_size",
+          "label": "Dummy size",
+          "help": "Size in pixel of the square dummy texture.",
+          "group": "main",
+          "type": "int",
+          "default": 512,
+          "min": 1,
+          "max": 32768
+        },
+        {
+          "id": "dummy_check_size",
+          "label": "Check size",
+          "help": "Size in pixel of the checkerboard or grid cell of the dummy texture.",
+          "group": "main",
+          "type": "int",
+          "default": 8,
+          "min": 1,
+          "max": 32768
+        },
+        {
+          "id": "dummy_type",
+          "label": "Dummy Texture Type",
+          "help": "Choose what kind of dummy texture you want, a grid with lines or a checkboard.",
+          "group": "main",
+          "type": "enum",
+          "default": "checkboard",
+          "enumOptions": [
+            {
+              "id": "checkboard",
+              "label": "Checkboard"
+            },
+            {
+              "id": "grid",
+              "label": "Grid"
+            }
           ]
         }
       ]
@@ -106,6 +360,192 @@
           "group": "main",
           "type": "bool",
           "default": true
+        }
+      ]
+    },
+    {
+      "id": "transfer_texture_to_color_per_vertex",
+      "menuPath": "Texture",
+      "name": "Transfer: Texture to Vertex Color",
+      "shortDescription": "Generate vertex colors by sampling texture colors from the same mesh or another mesh.",
+      "longDescriptionMarkdown": "Generates Vertex Color values picking color from a texture (same mesh or another mesh).",
+      "tags": [
+        "texture",
+        "vertex color",
+        "transfer",
+        "uv"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Source Mesh",
+          "help": "The mesh with associated texture that we want to sample from.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "targetMesh",
+          "label": "Target Mesh",
+          "help": "The mesh whose vertex color will be filled according to source mesh texture.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "upperBound",
+          "label": "Max Dist Search",
+          "help": "Sample points for which we do not find anything within this distance are rejected and not considered for recovering color.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag002",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "sourceTexture",
+          "label": "Source Texture",
+          "help": "Choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.",
+          "group": "main",
+          "type": "textureref",
+          "default": 0,
+          "sourceMeshParameter": "sourceMesh",
+          "allowAutomatic": true
+        }
+      ]
+    },
+    {
+      "id": "transfer_attributes_to_texture_per_vertex",
+      "menuPath": "Texture",
+      "name": "Transfer: Vertex Attributes to Texture",
+      "shortDescription": "Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.",
+      "longDescriptionMarkdown": "Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.",
+      "tags": [
+        "texture",
+        "transfer",
+        "bake",
+        "uv"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Source Mesh",
+          "help": "The mesh that contains the source data that we want to transfer.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "targetMesh",
+          "label": "Target Mesh",
+          "help": "The mesh whose texture will be filled according to source mesh data.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "AttributeEnum",
+          "label": "Color Data Source",
+          "help": "Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.",
+          "group": "main",
+          "type": "enum",
+          "default": "vertex_color",
+          "enumOptions": [
+            {
+              "id": "vertex_color",
+              "label": "Vertex Color"
+            },
+            {
+              "id": "vertex_normal",
+              "label": "Vertex Normal"
+            },
+            {
+              "id": "vertex_quality",
+              "label": "Vertex Quality"
+            },
+            {
+              "id": "texture_color",
+              "label": "Texture Color"
+            }
+          ]
+        },
+        {
+          "id": "upperBound",
+          "label": "Max Dist Search",
+          "help": "Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag002",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "textName",
+          "label": "Texture file",
+          "help": "Base path of the texture image to be created. If more than one target texture slot is used, numeric suffixes are added automatically.",
+          "group": "main",
+          "type": "filesave",
+          "default": "texture.png",
+          "fileDialogTitle": "Choose Output Texture",
+          "fileNameFilters": [
+            "PNG Image (*.png)",
+            "JPEG Image (*.jpg *.jpeg)",
+            "BMP Image (*.bmp)",
+            "TIFF Image (*.tif *.tiff)"
+          ],
+          "fileDefaultSuffix": "png"
+        },
+        {
+          "id": "textW",
+          "label": "Texture width (px)",
+          "help": "The texture width.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 1,
+          "max": 32768
+        },
+        {
+          "id": "textH",
+          "label": "Texture height (px)",
+          "help": "The texture height.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 1,
+          "max": 32768
+        },
+        {
+          "id": "overwrite",
+          "label": "Overwrite Target Mesh Texture",
+          "help": "If target mesh has associated textures, overwrite them instead of creating new files.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "pullpush",
+          "label": "Fill texture",
+          "help": "If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "sourceTexture",
+          "label": "Source Texture",
+          "help": "When Texture Color is selected, choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.",
+          "group": "advanced",
+          "type": "textureref",
+          "default": 0,
+          "sourceMeshParameter": "sourceMesh",
+          "allowAutomatic": true
         }
       ]
     }

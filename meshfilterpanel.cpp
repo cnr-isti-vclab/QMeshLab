@@ -227,6 +227,108 @@ private:
     QLineEdit *m_lineEdit = nullptr;
 };
 
+QString textureChoiceLabel(const Document::MeshEntry &entry, int slotIndex)
+{
+    const int oneBased = slotIndex + 1;
+    QString name;
+    if (slotIndex >= 0 && slotIndex < entry.textureFileNames.size())
+        name = entry.textureFileNames.at(slotIndex).trimmed();
+    if (name.isEmpty() && slotIndex >= 0 && slotIndex < entry.textureFilePaths.size())
+        name = QFileInfo(entry.textureFilePaths.at(slotIndex)).fileName().trimmed();
+    if (name.isEmpty() && slotIndex >= 0 && slotIndex < int(entry.mesh.textures.size()))
+        name = QFileInfo(QString::fromStdString(entry.mesh.textures[size_t(slotIndex)])).fileName().trimmed();
+    if (name.isEmpty())
+        name = QObject::tr("Texture %1").arg(oneBased);
+    return QObject::tr("%1: %2").arg(oneBased).arg(name);
+}
+
+class TextureRefEditor : public QWidget
+{
+public:
+    explicit TextureRefEditor(
+        Document *doc,
+        bool allowAutomatic,
+        QWidget *parent = nullptr)
+        : QWidget(parent)
+        , m_doc(doc)
+        , m_allowAutomatic(allowAutomatic)
+    {
+        auto *layout = new QHBoxLayout(this);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(0);
+
+        m_combo = new QComboBox(this);
+        m_combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        layout->addWidget(m_combo);
+        repopulate(0);
+    }
+
+    void setSourceMeshIndex(int meshIndex)
+    {
+        if (m_sourceMeshIndex == meshIndex)
+            return;
+        const int preferred = value();
+        m_sourceMeshIndex = meshIndex;
+        repopulate(preferred);
+    }
+
+    void setValue(int value)
+    {
+        const int pos = m_combo->findData(value);
+        if (pos >= 0) {
+            m_combo->setCurrentIndex(pos);
+            return;
+        }
+        repopulate(value);
+    }
+
+    int value() const
+    {
+        return m_combo->currentData().toInt();
+    }
+
+private:
+    void repopulate(int preferredValue)
+    {
+        const QSignalBlocker blocker(m_combo);
+        m_combo->clear();
+
+        bool hasTextures = false;
+        if (m_allowAutomatic)
+            m_combo->addItem(QObject::tr("Automatic (per-face assignment)"), 0);
+
+        if (m_doc && m_sourceMeshIndex >= 0 && m_sourceMeshIndex < m_doc->meshCount()) {
+            const Document::MeshEntry &entry = m_doc->mesh(m_sourceMeshIndex);
+            int textureCount = std::max(entry.textureFileNames.size(), entry.textureFilePaths.size());
+            textureCount = std::max(textureCount, int(entry.mesh.textures.size()));
+            for (int i = 0; i < textureCount; ++i)
+                m_combo->addItem(textureChoiceLabel(entry, i), i + 1);
+            hasTextures = textureCount > 0;
+        }
+
+        if (!hasTextures && !m_allowAutomatic)
+            m_combo->addItem(QObject::tr("No textures available"), -1);
+
+        int targetValue = preferredValue;
+        if (targetValue <= 0 && m_allowAutomatic)
+            targetValue = 0;
+        const int pos = m_combo->findData(targetValue);
+        if (pos >= 0)
+            m_combo->setCurrentIndex(pos);
+        else if (m_allowAutomatic && m_combo->count() > 0)
+            m_combo->setCurrentIndex(0);
+        else if (m_combo->count() > 0)
+            m_combo->setCurrentIndex(0);
+
+        m_combo->setEnabled(m_combo->count() > 0);
+    }
+
+    Document *m_doc = nullptr;
+    bool m_allowAutomatic = true;
+    int m_sourceMeshIndex = -1;
+    QComboBox *m_combo = nullptr;
+};
+
 QString groupDisplayName(const QString &group)
 {
     const QString trimmed = group.trimmed();
@@ -977,6 +1079,9 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
                 if (pos >= 0)
                     w->setCurrentIndex(pos);
             }
+            connect(w, qOverload<int>(&QComboBox::currentIndexChanged), this, [this]() {
+                refreshDependentParameterEditors();
+            });
             editor = w;
             break;
         }
@@ -1025,6 +1130,11 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
                 m_doc,
                 m_parametersWidget);
             w->setValue(param.defaultValue.toString());
+            editor = w;
+            break;
+        }
+        case MeshFilterParameterType::TextureRef: {
+            auto *w = new TextureRefEditor(m_doc, param.textureAllowAutomatic, m_parametersWidget);
             editor = w;
             break;
         }
@@ -1089,6 +1199,8 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
         m_parameterBindings.push_back(std::move(binding));
     }
 
+    refreshDependentParameterEditors();
+
     if (m_showAdvancedCheck) {
         if (hasAdvanced) {
             m_showAdvancedCheck->show();
@@ -1096,6 +1208,26 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
             m_showAdvancedCheck->setChecked(false);
             m_showAdvancedCheck->hide();
         }
+    }
+}
+
+void MeshFilterPanel::refreshDependentParameterEditors()
+{
+    for (const ParameterBinding &binding : m_parameterBindings) {
+        if (binding.descriptor.type != MeshFilterParameterType::TextureRef)
+            continue;
+        auto *editor = dynamic_cast<TextureRefEditor *>(binding.editor);
+        if (!editor)
+            continue;
+
+        int sourceMeshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+        if (!binding.descriptor.textureSourceMeshParameter.trimmed().isEmpty()) {
+            if (const ParameterBinding *sourceBinding = bindingById(binding.descriptor.textureSourceMeshParameter)) {
+                if (auto *combo = qobject_cast<QComboBox *>(sourceBinding->editor))
+                    sourceMeshIndex = combo->currentData().toInt();
+            }
+        }
+        editor->setSourceMeshIndex(sourceMeshIndex);
     }
 }
 
@@ -1166,6 +1298,11 @@ void MeshFilterPanel::applyParameterValuesToEditors(const MeshFilterParameterVal
                 w->setValue(value.toString());
             break;
         }
+        case MeshFilterParameterType::TextureRef: {
+            if (auto *w = dynamic_cast<TextureRefEditor *>(editor))
+                w->setValue(value.toInt());
+            break;
+        }
         case MeshFilterParameterType::Enum: {
             if (auto *w = qobject_cast<QComboBox *>(editor)) {
                 const QString enumId = value.toString();
@@ -1193,6 +1330,7 @@ void MeshFilterPanel::applyParameterValuesToEditors(const MeshFilterParameterVal
         }
         }
     }
+    refreshDependentParameterEditors();
 }
 
 void MeshFilterPanel::cacheCurrentFilterParameters()
@@ -1224,6 +1362,8 @@ QVariant MeshFilterPanel::parameterValue(const ParameterBinding &binding) const
         return dynamic_cast<FilePathEditor *>(editor)->value();
     case MeshFilterParameterType::FileSave:
         return dynamic_cast<FilePathEditor *>(editor)->value();
+    case MeshFilterParameterType::TextureRef:
+        return dynamic_cast<TextureRefEditor *>(editor)->value();
     case MeshFilterParameterType::Enum:
         return qobject_cast<QComboBox *>(editor)->currentData().toString();
     case MeshFilterParameterType::Color:
@@ -1245,6 +1385,18 @@ QColor MeshFilterPanel::colorFromVariant(const QVariant &value, const QColor &fa
         return fallback;
     const QColor c(s);
     return c.isValid() ? c : fallback;
+}
+
+const MeshFilterPanel::ParameterBinding *MeshFilterPanel::bindingById(const QString &parameterId) const
+{
+    const QString trimmed = parameterId.trimmed();
+    if (trimmed.isEmpty())
+        return nullptr;
+    for (const ParameterBinding &binding : m_parameterBindings) {
+        if (binding.descriptor.id == trimmed)
+            return &binding;
+    }
+    return nullptr;
 }
 
 void MeshFilterPanel::updateColorButtonStyle(QWidget *button, const QColor &color) const

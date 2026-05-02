@@ -42,6 +42,11 @@ QString FilterParams::getFileSave(const QString &id) const
     return getFileSave(id, QString());
 }
 
+int FilterParams::getTextureRef(const QString &id) const
+{
+    return getTextureRef(id, 0);
+}
+
 QString FilterParams::getEnum(const QString &id) const
 {
     return getEnum(id, QString());
@@ -113,6 +118,11 @@ QString FilterParams::getFileOpen(const QString &id, const QString &fallback) co
 QString FilterParams::getFileSave(const QString &id, const QString &fallback) const
 {
     return getString(id, fallback);
+}
+
+int FilterParams::getTextureRef(const QString &id, int fallback) const
+{
+    return getInt(id, fallback);
 }
 
 QString FilterParams::getEnum(const QString &id, const QString &fallback) const

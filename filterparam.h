@@ -20,6 +20,7 @@ public:
     QString getString(const QString &id) const;
     QString getFileOpen(const QString &id) const;
     QString getFileSave(const QString &id) const;
+    int     getTextureRef(const QString &id) const;
     QString getEnum  (const QString &id) const;  // returns the selected option id
     QColor  getColor (const QString &id) const;
     QVector3D getPoint3f(const QString &id) const;
@@ -32,6 +33,7 @@ public:
     QString getString(const QString &id, const QString &fallback) const;
     QString getFileOpen(const QString &id, const QString &fallback) const;
     QString getFileSave(const QString &id, const QString &fallback) const;
+    int     getTextureRef(const QString &id, int fallback) const;
     QString getEnum  (const QString &id, const QString &fallback) const;
     QColor  getColor (const QString &id, const QColor &fallback) const;
     QVector3D getPoint3f(const QString &id, const QVector3D &fallback) const;

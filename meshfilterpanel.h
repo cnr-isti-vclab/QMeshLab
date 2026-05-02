@@ -73,10 +73,12 @@ private:
     void openFilterAtIndex(int filterIndex);
     void clearParameterEditors();
     void buildParameterEditors(const Document::FilterInfo &filterInfo);
+    void refreshDependentParameterEditors();
     MeshFilterParameterValues collectCurrentParameterValues() const;
     void applyParameterValuesToEditors(const MeshFilterParameterValues &values);
     void cacheCurrentFilterParameters();
     QVariant parameterValue(const ParameterBinding &binding) const;
+    const ParameterBinding *bindingById(const QString &parameterId) const;
     bool matchesSearch(const Document::FilterInfo &filterInfo, const QStringList &terms) const;
     bool titleMatchesAllTerms(const Document::FilterInfo &filterInfo, const QStringList &terms) const;
     void openSelectedResult(bool focusApplyButton);

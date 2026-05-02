@@ -30,6 +30,16 @@
 #include <vcg/space/triangle2.h>
 #include <QImage>
 
+inline bool validImageIndex(const std::vector<QImage> &images, int index)
+{
+    return index >= 0 && size_t(index) < images.size();
+}
+
+inline bool validPixelCoord(const QImage &image, int x, int y)
+{
+    return x >= 0 && y >= 0 && x < image.width() && y < image.height();
+}
+
 class VertexSampler
 {
     typedef vcg::GridStaticPtr<VCGFace, VCGMesh::ScalarType > MetroMeshGrid;
@@ -100,6 +110,10 @@ public:
                 v.C() = VCGVertex::ColorType(255, 255, 255, 255);
             }
         }
+        if (cb) {
+            ++vertexCnt;
+            cb(start + vertexCnt * offset / vertexNo, "Sampling texture colors ...");
+        }
     }
 };
 
@@ -141,10 +155,19 @@ public:
         if (edgeDist != 0.0)
             alpha=254-edgeDist*128;
 
-        if (alpha == 255 || qAlpha(trgImgs[f.cWT(0).N()].pixel(tp.X(), trgImgs[f.cWT(0).N()].height() - 1 - tp.Y())) < alpha)
+        const int targetIndex = f.cWT(0).N();
+        if (!validImageIndex(trgImgs, targetIndex))
+            return;
+        QImage &targetImage = trgImgs[size_t(targetIndex)];
+        const int tx = tp.X();
+        const int ty = targetImage.height() - 1 - tp.Y();
+        if (!validPixelCoord(targetImage, tx, ty))
+            return;
+
+        if (alpha == 255 || qAlpha(targetImage.pixel(tx, ty)) < alpha)
         {
             c.lerp(f.cV(0)->cC(), f.cV(1)->cC(), f.cV(2)->cC(), p);
-			trgImgs[f.cWT(0).N()].setPixel(tp.X(), trgImgs[f.cWT(0).N()].height() - 1 - tp.Y(), qRgba(c[0], c[1], c[2], alpha));
+			targetImage.setPixel(tx, ty, qRgba(c[0], c[1], c[2], alpha));
         }
         if (cb)
         {
@@ -303,13 +326,14 @@ public:
                     rr = gg = bb = q;
                 } break;
             }
+            const int targetIndex = f.cWT(0).N();
+            if (!validImageIndex(trgImgs, targetIndex))
+                return;
+            QImage &targetImage = trgImgs[size_t(targetIndex)];
             int cx = tp.X();
-            int cy = trgImgs[f.cWT(0).N()].height() - 1 - tp.Y();
-            if (cx >= 0 && cx < trgImgs[f.cWT(0).N()].size().width()) {
-                if (cy >= 0 && cy < trgImgs[f.cWT(0).N()].size().height()){
-                    trgImgs[f.cWT(0).N()].setPixel(cx, cy, qRgba(rr, gg, bb, 255));
-                }
-            }
+            int cy = targetImage.height() - 1 - tp.Y();
+            if (validPixelCoord(targetImage, cx, cy))
+                targetImage.setPixel(cx, cy, qRgba(rr, gg, bb, 255));
         }
         else // sampling from a mesh
         {
@@ -341,19 +365,33 @@ public:
               interp[2]=1.0-interp[1]-interp[0];
             }
 
-		if (alpha == 255 || qAlpha(trgImgs[f.cWT(0).N()].pixel(tp.X(), trgImgs[f.cWT(0).N()].height() - 1 - tp.Y())) < alpha)
+        const int targetIndex = f.cWT(0).N();
+        if (!validImageIndex(trgImgs, targetIndex))
+            return;
+        QImage &targetImage = trgImgs[size_t(targetIndex)];
+        const int tx = tp.X();
+        const int ty = targetImage.height() - 1 - tp.Y();
+        if (!validPixelCoord(targetImage, tx, ty))
+            return;
+
+		if (alpha == 255 || qAlpha(targetImage.pixel(tx, ty)) < alpha)
         {
             if (fromTexture)
             {
-				int w = (*srcImgs)[nearestF->cWT(0).N()].width(), h = (*srcImgs)[nearestF->cWT(0).N()].height();
+                const int sourceIndex = nearestF->cWT(0).N();
+                if (!srcImgs || !validImageIndex(*srcImgs, sourceIndex))
+                    return;
+                int w = (*srcImgs)[size_t(sourceIndex)].width(), h = (*srcImgs)[size_t(sourceIndex)].height();
+                if (w <= 0 || h <= 0)
+                    return;
                 int x, y;
                 x = w * (interp[0]*nearestF->cWT(0).U()+interp[1]*nearestF->cWT(1).U()+interp[2]*nearestF->cWT(2).U());
                 y = h * (1.0 - (interp[0]*nearestF->cWT(0).V()+interp[1]*nearestF->cWT(1).V()+interp[2]*nearestF->cWT(2).V()));
                 // texture repeat mode
                 x = (x%w + w)%w;
                 y = (y%h + h)%h;
-				QRgb px = (*srcImgs)[nearestF->cWT(0).N()].pixel(x, y);
-				trgImgs[f.cWT(0).N()].setPixel(tp.X(), trgImgs[f.cWT(0).N()].height() - 1 - tp.Y(), qRgba(qRed(px), qGreen(px), qBlue(px), alpha));
+				QRgb px = (*srcImgs)[size_t(sourceIndex)].pixel(x, y);
+				targetImage.setPixel(tx, ty, qRgba(qRed(px), qGreen(px), qBlue(px), alpha));
             }
             else
             {
@@ -376,11 +414,14 @@ public:
                     float q = nearestF->V(0)->cQ()*interp[0]+
                             nearestF->V(1)->cQ()*interp[1]+
                             nearestF->V(2)->cQ()*interp[2];
-                    c=vcg::Color4b::GrayShade(255.0*(q-minQ)/(maxQ-minQ));
+                    if (maxQ == minQ)
+                        c = vcg::Color4b::GrayShade(255);
+                    else
+                        c=vcg::Color4b::GrayShade(255.0*(q-minQ)/(maxQ-minQ));
                 } break;
                 default: assert(0);
                 }
-				trgImgs[f.cWT(0).N()].setPixel(tp.X(), trgImgs[f.cWT(0).N()].height() - 1 - tp.Y(), qRgba(c[0], c[1], c[2], alpha));
+				targetImage.setPixel(tx, ty, qRgba(c[0], c[1], c[2], alpha));
             }
         }
             if (cb)

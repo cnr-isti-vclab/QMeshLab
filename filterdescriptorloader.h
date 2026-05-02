@@ -34,11 +34,13 @@ class Document;
 //     "parameters": [
 //       {
 //         "id": "...", "label": "...", "help": "...", "group": "...",
-//         "type": "bool" | "int" | "double" | "absperc" | "string" | "enum" | "color",
+//         "type": "bool" | "int" | "double" | "absperc" | "string" | "fileopen" | "filesave" | "textureref" | "enum" | "color",
 //         "default": <value>,   // may be "@token" string for dynamic values
 //         "min": <value>,       // optional; may be "@token"
 //         "max": <value>,       // optional; may be "@token"
 //         "decimals": 3,        // optional, only for double
+//         "sourceMeshParameter": "sourceMesh", // only for textureref
+//         "allowAutomatic": true,               // only for textureref
 //         "enumOptions": [      // only for enum type
 //           { "id": "...", "label": "...", "help": "..." }, ...
 //         ]
@@ -52,6 +54,7 @@ class Document;
 //   @bboxDiag001           - bboxDiag * 0.001
 //   @bboxDiag0001          - bboxDiag * 0.0001
 //   @bboxDiag0005          - bboxDiag * 0.005
+//   @bboxDiag002           - bboxDiag * 0.02
 //   @bboxDiag003           - bboxDiag * 0.03
 //   @bboxDiag01            - bboxDiag * 0.01  (alias)
 //   @bboxDiagTenth         - bboxDiag * 0.1
