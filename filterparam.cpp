@@ -47,6 +47,11 @@ int FilterParams::getTextureRef(const QString &id) const
     return getTextureRef(id, 0);
 }
 
+TextureOutputRefValue FilterParams::getTextureOutputRef(const QString &id) const
+{
+    return getTextureOutputRef(id, {});
+}
+
 QString FilterParams::getEnum(const QString &id) const
 {
     return getEnum(id, QString());
@@ -123,6 +128,47 @@ QString FilterParams::getFileSave(const QString &id, const QString &fallback) co
 int FilterParams::getTextureRef(const QString &id, int fallback) const
 {
     return getInt(id, fallback);
+}
+
+TextureOutputRefValue FilterParams::getTextureOutputRef(
+    const QString &id,
+    const TextureOutputRefValue &fallback) const
+{
+    const auto it = m_values.constFind(id);
+    if (it == m_values.constEnd())
+        return fallback;
+
+    TextureOutputRefValue out = fallback;
+    const QVariantMap map = it.value().toMap();
+    if (map.isEmpty()) {
+        const QString path = it.value().toString().trimmed();
+        if (!path.isEmpty()) {
+            out.overwriteExisting = false;
+            out.textureSlot = -1;
+            out.filePath = path;
+        }
+        return out;
+    }
+
+    const QString mode = map.value(QStringLiteral("mode")).toString().trimmed().toLower();
+    if (mode == QStringLiteral("existing")) {
+        bool ok = false;
+        const int oneBasedSlot = map.value(QStringLiteral("slot")).toInt(&ok);
+        if (ok && oneBasedSlot > 0) {
+            out.overwriteExisting = true;
+            out.textureSlot = oneBasedSlot - 1;
+            out.filePath.clear();
+            return out;
+        }
+    }
+
+    const QString path = map.value(QStringLiteral("path")).toString().trimmed();
+    if (!path.isEmpty()) {
+        out.overwriteExisting = false;
+        out.textureSlot = -1;
+        out.filePath = path;
+    }
+    return out;
 }
 
 QString FilterParams::getEnum(const QString &id, const QString &fallback) const

@@ -21,6 +21,7 @@ public:
         const MeshIOSaveOptions &initialOptions,
         bool binarySupported,
         bool supportsEmbeddedTextures = false,
+        bool supportsCopyAssociatedTextures = false,
         bool supportsDracoCompression = false,
         QWidget *parent = nullptr);
 
@@ -30,10 +31,12 @@ private:
     QList<std::pair<int, QCheckBox *>> m_maskCheckBoxes;
     QCheckBox *m_binaryCheckBox = nullptr;
     QCheckBox *m_embedTexturesCheckBox = nullptr;
+    QCheckBox *m_copyAssociatedTexturesCheckBox = nullptr;
     QCheckBox *m_dracoCompressionCheckBox = nullptr;
     QSpinBox *m_dracoCompressionLevelSpinBox = nullptr;
     int m_requiredMask = 0;
     bool m_binarySupported = false;
     bool m_supportsEmbeddedTextures = false;
+    bool m_supportsCopyAssociatedTextures = false;
     bool m_supportsDracoCompression = false;
 };

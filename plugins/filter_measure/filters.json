@@ -1,0 +1,197 @@
+{
+  "pluginId": "qmeshlab.filter.measure",
+  "filters": [
+    {
+      "id": "compute_topological_measures",
+      "menuPath": "Measure",
+      "name": "Compute Topological Measures",
+      "shortDescription": "Compute a set of topological measures over a mesh.",
+      "longDescriptionMarkdown": "Compute a set of topological measures over a mesh.",
+      "tags": ["measure", "topology", "inspection", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireVertices": true
+      },
+      "parameters": []
+    },
+    {
+      "id": "compute_topological_measures_quad_meshes",
+      "menuPath": "Measure",
+      "name": "Compute Topological Measures for Quad Meshes",
+      "shortDescription": "Compute a set of topological measures over a quad mesh.",
+      "longDescriptionMarkdown": "Compute a set of topological measures over a quad mesh.",
+      "tags": ["measure", "topology", "quad", "inspection", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireVertices": true
+      },
+      "parameters": []
+    },
+    {
+      "id": "compute_geometric_measures",
+      "menuPath": "Measure",
+      "name": "Compute Geometric Measures",
+      "shortDescription": "Compute a set of geometric measures of a mesh or point cloud.",
+      "longDescriptionMarkdown": "Compute a set of geometric measures of a mesh/pointcloud. Bounding box extents and diagonal, principal axis, thin shell barycenter (mesh only), vertex barycenter and quality-weighted barycenter (pointcloud only), surface area (mesh only), volume (closed mesh) and inertia tensor matrix (closed mesh).",
+      "tags": ["measure", "geometry", "pointcloud", "inspection", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": []
+    },
+    {
+      "id": "compute_area_perimeter_selection",
+      "menuPath": "Measure",
+      "name": "Compute Area/Perimeter of Selection",
+      "shortDescription": "Compute area and perimeter of the face selection.",
+      "longDescriptionMarkdown": "Compute area and perimeter of the FACE selection.",
+      "tags": ["measure", "selection", "area", "perimeter", "inspection", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "parameters": []
+    },
+    {
+      "id": "per_vertex_quality_stat",
+      "menuPath": "Measure/Quality",
+      "name": "Per Vertex Quality Stat",
+      "shortDescription": "Compute aggregate statistics over per-vertex quality.",
+      "longDescriptionMarkdown": "Compute some aggregate statistics over the per vertex quality, like Min, Max, Average, StdDev and Variance.",
+      "tags": ["measure", "quality", "vertex", "statistics", "inspection", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireVertexQuality": true
+      },
+      "parameters": []
+    },
+    {
+      "id": "per_face_quality_stat",
+      "menuPath": "Measure/Quality",
+      "name": "Per Face Quality Stat",
+      "shortDescription": "Compute aggregate statistics over per-face quality.",
+      "longDescriptionMarkdown": "Compute some aggregate statistics over the per face quality, like Min, Max, Average, StdDev and Variance.",
+      "tags": ["measure", "quality", "face", "statistics", "inspection", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireFaceQuality": true
+      },
+      "parameters": []
+    },
+    {
+      "id": "per_vertex_quality_histogram",
+      "menuPath": "Measure/Quality",
+      "name": "Per Vertex Quality Histogram",
+      "shortDescription": "Compute a histogram of per-vertex quality values.",
+      "longDescriptionMarkdown": "Compute an histogram of the values of the per-vertex quality. It can be useful to evaluate the distribution of the quality value over the surface. It can be discrete (e.g. based on vertex count or area weighted).",
+      "tags": ["measure", "quality", "vertex", "histogram", "inspection", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireVertexQuality": true
+      },
+      "parameters": [
+        {
+          "id": "HistMin",
+          "label": "Hist Min",
+          "help": "Lower bound of the histogram range.",
+          "group": "main",
+          "type": "double",
+          "default": "@qualityVMin",
+          "decimals": 7
+        },
+        {
+          "id": "HistMax",
+          "label": "Hist Max",
+          "help": "Upper bound of the histogram range.",
+          "group": "main",
+          "type": "double",
+          "default": "@qualityVMax",
+          "decimals": 7
+        },
+        {
+          "id": "areaWeighted",
+          "label": "Area Weighted",
+          "help": "If false, each bin reports the number of vertices in the range. If true, each bin reports the approximate mesh area associated with those values.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "binNum",
+          "label": "Bin Number",
+          "help": "The number of bins of the histogram.",
+          "group": "main",
+          "type": "int",
+          "default": 20,
+          "min": 1,
+          "max": 100000
+        }
+      ]
+    },
+    {
+      "id": "per_face_quality_histogram",
+      "menuPath": "Measure/Quality",
+      "name": "Per Face Quality Histogram",
+      "shortDescription": "Compute a histogram of per-face quality values.",
+      "longDescriptionMarkdown": "Compute an histogram of the values of the per-face quality.",
+      "tags": ["measure", "quality", "face", "histogram", "inspection", "info"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireFaceQuality": true
+      },
+      "parameters": [
+        {
+          "id": "HistMin",
+          "label": "Hist Min",
+          "help": "Lower bound of the histogram range.",
+          "group": "main",
+          "type": "double",
+          "default": "@qualityFMin",
+          "decimals": 7
+        },
+        {
+          "id": "HistMax",
+          "label": "Hist Max",
+          "help": "Upper bound of the histogram range.",
+          "group": "main",
+          "type": "double",
+          "default": "@qualityFMax",
+          "decimals": 7
+        },
+        {
+          "id": "areaWeighted",
+          "label": "Area Weighted",
+          "help": "If false, each bin reports the number of faces in the range. If true, each bin reports the approximate area in that range.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "binNum",
+          "label": "Bin Number",
+          "help": "The number of bins of the histogram.",
+          "group": "main",
+          "type": "int",
+          "default": 20,
+          "min": 1,
+          "max": 100000
+        }
+      ]
+    }
+  ]
+}

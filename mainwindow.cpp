@@ -119,6 +119,11 @@ bool saveFormatSupportsEmbeddedTextures(const QString &extension)
     return extension == QLatin1String("gltf") || extension == QLatin1String("glb");
 }
 
+bool saveFormatSupportsCopyAssociatedTextures(const QString &extension)
+{
+    return extension == QLatin1String("ply");
+}
+
 QString filterParameterTypeLabel(MeshFilterParameterType type)
 {
     switch (type) {
@@ -140,6 +145,8 @@ QString filterParameterTypeLabel(MeshFilterParameterType type)
         return QObject::tr("File Save");
     case MeshFilterParameterType::TextureRef:
         return QObject::tr("Texture Choice");
+    case MeshFilterParameterType::TextureOutputRef:
+        return QObject::tr("Texture Output");
     case MeshFilterParameterType::Enum:
         return QObject::tr("Enum");
     case MeshFilterParameterType::Color:
@@ -169,8 +176,22 @@ QString filterParameterValueText(const QVariant &value, MeshFilterParameterType 
     case MeshFilterParameterType::FileOpen:
     case MeshFilterParameterType::FileSave:
     case MeshFilterParameterType::TextureRef:
+    case MeshFilterParameterType::TextureOutputRef:
     case MeshFilterParameterType::Enum:
     case MeshFilterParameterType::Color:
+        if (type == MeshFilterParameterType::TextureOutputRef && value.userType() == QMetaType::QVariantMap) {
+            const QVariantMap map = value.toMap();
+            const QString mode = map.value(QStringLiteral("mode")).toString().trimmed().toLower();
+            if (mode == QStringLiteral("existing")) {
+                const int slot = map.value(QStringLiteral("slot")).toInt();
+                if (slot > 0)
+                    return QObject::tr("overwrite texture %1").arg(slot);
+            }
+            const QString path = map.value(QStringLiteral("path")).toString().trimmed();
+            if (!path.isEmpty())
+                return QObject::tr("create new: %1").arg(path);
+            return QObject::tr("create new");
+        }
         return value.toString();
     case MeshFilterParameterType::Point3f:
         if (value.userType() == QMetaType::QVector3D) {
@@ -1321,12 +1342,14 @@ void MainWindow::saveCurrentMesh()
     const QString extension = fileExtensionLower(targetPath);
     const bool binarySupported = saveFormatSupportsBinary(extension);
     const bool supportsEmbeddedTextures = saveFormatSupportsEmbeddedTextures(extension);
+    const bool supportsCopyAssociatedTextures = saveFormatSupportsCopyAssociatedTextures(extension);
     const bool supportsDracoCompression = saveFormatSupportsDracoCompression(extension);
 
     MeshIOSaveOptions initialOptions;
     initialOptions.mask = defaultSaveMaskForMesh(entry, capabilityMask);
     initialOptions.binary = binarySupported;
     initialOptions.embedTextures = (extension == QLatin1String("glb"));
+    initialOptions.copyAssociatedTextures = false;
     initialOptions.dracoCompression = false;
     initialOptions.dracoCompressionLevel = 7;
 
@@ -1338,6 +1361,7 @@ void MainWindow::saveCurrentMesh()
         initialOptions,
         binarySupported,
         supportsEmbeddedTextures,
+        supportsCopyAssociatedTextures,
         supportsDracoCompression,
         this);
     if (optionsDialog.exec() != QDialog::Accepted)

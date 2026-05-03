@@ -548,6 +548,107 @@
           "allowAutomatic": true
         }
       ]
+    },
+    {
+      "id": "convert_object_space_normal_map_to_tangent_space",
+      "menuPath": "Texture",
+      "name": "Convert: Object-Space Normal Map to Tangent-Space",
+      "shortDescription": "Convert an object-space normal map into a tangent-space normal map for the current mesh UV slot.",
+      "longDescriptionMarkdown": "Converts an object-space normal map into a tangent-space normal map using the current mesh geometry, normals, and UV parametrization. The result is suitable for direct use in QMeshLab's PBR normal-texture channel.",
+      "tags": [
+        "texture",
+        "normal map",
+        "pbr",
+        "conversion",
+        "uv"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requireTextureCoordinates": true,
+        "requireTextures": true
+      },
+      "parameters": [
+        {
+          "id": "targetTexture",
+          "label": "Target Material / UV Slot",
+          "help": "Choose the mesh texture slot whose UV layout will be used for the conversion and, if requested, whose PBR normal channel will be updated.",
+          "group": "main",
+          "type": "textureref",
+          "default": 1,
+          "allowAutomatic": false
+        },
+        {
+          "id": "sourceNormalMap",
+          "label": "Source Object-Space Normal Map",
+          "help": "Choose which associated texture image should be interpreted as the object-space normal map to convert.",
+          "group": "main",
+          "type": "textureref",
+          "default": 1,
+          "allowAutomatic": false
+        },
+        {
+          "id": "targetNormalMap",
+          "label": "Target Tangent-Space Normal Map",
+          "help": "Choose an existing associated texture to overwrite, or create a new texture file for the converted tangent-space normal map.",
+          "group": "main",
+          "type": "textureoutputref",
+          "default": "tangent_normal.png",
+          "fileDialogTitle": "Choose Output Tangent-Space Normal Map",
+          "fileNameFilters": [
+            "PNG Image (*.png)",
+            "JPEG Image (*.jpg *.jpeg)",
+            "BMP Image (*.bmp)",
+            "TIFF Image (*.tif *.tiff)"
+          ],
+          "fileDefaultSuffix": "png"
+        },
+        {
+          "id": "bindAsPbrNormal",
+          "label": "Bind As PBR Normal Map",
+          "help": "If enabled, the converted texture is added to the mesh associated texture list and assigned to the selected slot's PBR normal channel.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "invertX",
+          "label": "Invert X",
+          "help": "Invert the tangent-space X channel in the generated normal map.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "invertY",
+          "label": "Invert Y",
+          "help": "Invert the tangent-space Y channel in the generated normal map.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "invertZ",
+          "label": "Invert Z",
+          "help": "Invert the tangent-space Z channel in the generated normal map.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "normalScale",
+          "label": "PBR Normal Scale",
+          "help": "Normal intensity stored in the selected material slot when binding the converted map as a PBR normal texture.",
+          "group": "advanced",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 10.0,
+          "decimals": 3
+        }
+      ]
     }
   ]
 }

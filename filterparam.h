@@ -4,6 +4,13 @@
 #include <QColor>
 #include <QVector3D>
 
+struct TextureOutputRefValue
+{
+    bool overwriteExisting = false;
+    int textureSlot = -1; // zero-based when overwriteExisting is true
+    QString filePath;
+};
+
 // Typed wrapper around a pre-normalized MeshFilterParameterValues map.
 // The manager guarantees every declared parameter is present with a valid value
 // before runFilter is called, so the no-fallback overloads are always safe.
@@ -21,6 +28,7 @@ public:
     QString getFileOpen(const QString &id) const;
     QString getFileSave(const QString &id) const;
     int     getTextureRef(const QString &id) const;
+    TextureOutputRefValue getTextureOutputRef(const QString &id) const;
     QString getEnum  (const QString &id) const;  // returns the selected option id
     QColor  getColor (const QString &id) const;
     QVector3D getPoint3f(const QString &id) const;
@@ -34,6 +42,9 @@ public:
     QString getFileOpen(const QString &id, const QString &fallback) const;
     QString getFileSave(const QString &id, const QString &fallback) const;
     int     getTextureRef(const QString &id, int fallback) const;
+    TextureOutputRefValue getTextureOutputRef(
+        const QString &id,
+        const TextureOutputRefValue &fallback) const;
     QString getEnum  (const QString &id, const QString &fallback) const;
     QColor  getColor (const QString &id, const QColor &fallback) const;
     QVector3D getPoint3f(const QString &id, const QVector3D &fallback) const;

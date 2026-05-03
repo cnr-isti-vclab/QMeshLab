@@ -46,6 +46,7 @@ MeshFilterParameterType parseParamType(const QString &s)
     if (s == QStringLiteral("fileopen")) return MeshFilterParameterType::FileOpen;
     if (s == QStringLiteral("filesave")) return MeshFilterParameterType::FileSave;
     if (s == QStringLiteral("textureref")) return MeshFilterParameterType::TextureRef;
+    if (s == QStringLiteral("textureoutputref")) return MeshFilterParameterType::TextureOutputRef;
     if (s == QStringLiteral("enum"))   return MeshFilterParameterType::Enum;
     if (s == QStringLiteral("color"))  return MeshFilterParameterType::Color;
     if (s == QStringLiteral("point3f")) return MeshFilterParameterType::Point3f;

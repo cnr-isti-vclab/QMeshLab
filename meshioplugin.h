@@ -44,6 +44,8 @@ struct MeshIOSaveOptions
     bool binary = true;
     // Optional hint used by formats supporting embedded textures (e.g. glTF/glb).
     bool embedTextures = false;
+    // Optional hint used by formats supporting external texture references (e.g. PLY TextureFile comments).
+    bool copyAssociatedTextures = false;
     // Optional hint for formats supporting Draco geometry compression (e.g. glTF/glb).
     bool dracoCompression = false;
     // Compression level in [0, 10], where 10 prefers smaller output over speed.

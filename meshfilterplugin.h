@@ -36,6 +36,7 @@ enum class MeshFilterParameterType
     FileOpen,
     FileSave,
     TextureRef,
+    TextureOutputRef,
     Enum,
     Color,
     Point3f    // 3D point or direction — editor shows X/Y/Z spinboxes with fill-from-context buttons
@@ -78,7 +79,7 @@ struct MeshFilterParameterDescriptor
     QString fileDialogTitle;
     QStringList fileNameFilters;
     QString fileDefaultSuffix;
-    // Only used when type == TextureRef.
+    // Only used when type == TextureRef / TextureOutputRef.
     QString textureSourceMeshParameter;
     bool textureAllowAutomatic = true;
     // Only used when type == Point3f: "point" (position) or "direction" (unit vector).

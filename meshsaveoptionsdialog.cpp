@@ -44,12 +44,14 @@ MeshSaveOptionsDialog::MeshSaveOptionsDialog(
     const MeshIOSaveOptions &initialOptions,
     bool binarySupported,
     bool supportsEmbeddedTextures,
+    bool supportsCopyAssociatedTextures,
     bool supportsDracoCompression,
     QWidget *parent)
     : QDialog(parent)
     , m_requiredMask(requiredMask)
     , m_binarySupported(binarySupported)
     , m_supportsEmbeddedTextures(supportsEmbeddedTextures)
+    , m_supportsCopyAssociatedTextures(supportsCopyAssociatedTextures)
     , m_supportsDracoCompression(supportsDracoCompression)
 {
     setWindowTitle(tr("Save Mesh Options"));
@@ -120,6 +122,16 @@ MeshSaveOptionsDialog::MeshSaveOptionsDialog(
         layout->addWidget(m_embedTexturesCheckBox);
     }
 
+    m_copyAssociatedTexturesCheckBox = new QCheckBox(tr("Copy associated textures next to the mesh"), this);
+    m_copyAssociatedTexturesCheckBox->setVisible(m_supportsCopyAssociatedTextures);
+    m_copyAssociatedTexturesCheckBox->setChecked(
+        m_supportsCopyAssociatedTextures ? initialOptions.copyAssociatedTextures : false);
+    if (m_supportsCopyAssociatedTextures) {
+        m_copyAssociatedTexturesCheckBox->setToolTip(
+            tr("Copy associated texture images into the destination folder and write relative references in the saved mesh."));
+        layout->addWidget(m_copyAssociatedTexturesCheckBox);
+    }
+
     m_dracoCompressionCheckBox = new QCheckBox(tr("Draco compression"), this);
     m_dracoCompressionCheckBox->setVisible(m_supportsDracoCompression);
     m_dracoCompressionCheckBox->setChecked(
@@ -166,6 +178,9 @@ MeshIOSaveOptions MeshSaveOptionsDialog::selectedOptions() const
     options.binary = m_binarySupported && m_binaryCheckBox && m_binaryCheckBox->isChecked();
     options.embedTextures =
         m_supportsEmbeddedTextures && m_embedTexturesCheckBox && m_embedTexturesCheckBox->isChecked();
+    options.copyAssociatedTextures =
+        m_supportsCopyAssociatedTextures && m_copyAssociatedTexturesCheckBox
+        && m_copyAssociatedTexturesCheckBox->isChecked();
     options.dracoCompression =
         m_supportsDracoCompression && m_dracoCompressionCheckBox && m_dracoCompressionCheckBox->isChecked();
     options.dracoCompressionLevel =

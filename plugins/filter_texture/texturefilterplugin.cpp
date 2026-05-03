@@ -39,6 +39,7 @@ constexpr QLatin1StringView kFilterSetTexture("set_texture_per_mesh");
 constexpr QLatin1StringView kFilterColorToTexture("compute_texmap_from_color");
 constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_texture_to_color_per_vertex");
 constexpr QLatin1StringView kFilterTransferToTexture("transfer_attributes_to_texture_per_vertex");
+constexpr QLatin1StringView kFilterObjectToTangentNormal("convert_object_space_normal_map_to_tangent_space");
 
 using Mask = vcg::tri::io::Mask;
 
@@ -232,6 +233,33 @@ void appendTextureAssociation(Document::MeshEntry &entry, const QStringList &pat
     }
 }
 
+void ensureMaterialSlotCount(Document::MeshEntry &entry, int count)
+{
+    if (count <= 0)
+        return;
+    while (int(entry.materialSet.entries.size()) < count) {
+        MeshIOMaterialSlot slot;
+        slot.name = QObject::tr("Material %1").arg(int(entry.materialSet.entries.size()) + 1);
+        entry.materialSet.entries.push_back(std::move(slot));
+    }
+}
+
+int ensureTextureListed(Document::MeshEntry &entry, const QString &path)
+{
+    const QString normalized = normalizeExistingPath(path);
+    for (int i = 0; i < entry.textureFilePaths.size(); ++i) {
+        if (normalizeExistingPath(entry.textureFilePaths.at(i)) == normalized)
+            return i;
+    }
+
+    const QFileInfo info(path);
+    const QString nativePath = QDir::toNativeSeparators(path);
+    entry.textureFileNames.push_back(info.fileName());
+    entry.textureFilePaths.push_back(nativePath);
+    entry.mesh.textures.push_back(nativePath.toStdString());
+    return entry.textureFilePaths.size() - 1;
+}
+
 void offsetTextureSlotIndices(VCGMesh &mesh, int slotOffset)
 {
     if (slotOffset == 0)
@@ -404,6 +432,178 @@ std::optional<TransferAttributeMode> transferModeFromId(const QString &id)
         return TransferAttributeMode::TextureColor;
     return std::nullopt;
 }
+
+vcg::Point3f decodeNormalMapPixel(QRgb px)
+{
+    vcg::Point3f n(
+        (float(qRed(px)) / 255.0f) * 2.0f - 1.0f,
+        (float(qGreen(px)) / 255.0f) * 2.0f - 1.0f,
+        (float(qBlue(px)) / 255.0f) * 2.0f - 1.0f);
+    const float len = n.Norm();
+    if (!(len > 1e-12f))
+        return vcg::Point3f(0.0f, 0.0f, 1.0f);
+    return n / len;
+}
+
+QRgb encodeNormalMapPixel(const vcg::Point3f &n)
+{
+    vcg::Point3f nn = n;
+    const float len = nn.Norm();
+    if (!(len > 1e-12f))
+        nn = vcg::Point3f(0.0f, 0.0f, 1.0f);
+    else
+        nn /= len;
+
+    const int r = std::clamp(int(std::lround((nn.X() * 0.5f + 0.5f) * 255.0f)), 0, 255);
+    const int g = std::clamp(int(std::lround((nn.Y() * 0.5f + 0.5f) * 255.0f)), 0, 255);
+    const int b = std::clamp(int(std::lround((nn.Z() * 0.5f + 0.5f) * 255.0f)), 0, 255);
+    return qRgba(r, g, b, 255);
+}
+
+vcg::Point3f fallbackTangentForNormal(const vcg::Point3f &normal)
+{
+    vcg::Point3f axis = (std::abs(normal.Z()) < 0.999f)
+        ? vcg::Point3f(0.0f, 0.0f, 1.0f)
+        : vcg::Point3f(0.0f, 1.0f, 0.0f);
+    vcg::Point3f tangent = axis ^ normal;
+    if (tangent.Norm() <= 1e-12f)
+        tangent = vcg::Point3f(1.0f, 0.0f, 0.0f);
+    else
+        tangent.Normalize();
+    return tangent;
+}
+
+class ObjectToTangentNormalSampler
+{
+public:
+    ObjectToTangentNormalSampler(
+        const QImage &sourceImage,
+        QImage &targetImage,
+        bool invertX,
+        bool invertY,
+        bool invertZ)
+        : m_sourceImage(sourceImage)
+        , m_targetImage(targetImage)
+        , m_invertX(invertX)
+        , m_invertY(invertY)
+        , m_invertZ(invertZ)
+    {
+    }
+
+    void InitCallback(vcg::CallBackPos *cb, int faceNo, int start = 0, int offset = 100)
+    {
+        m_cb = cb;
+        m_faceNo = std::max(faceNo, 1);
+        m_start = start;
+        m_offset = offset;
+        m_faceCnt = 0;
+        m_currFace = nullptr;
+    }
+
+    void AddTextureSample(const VCGFace &f, const VCGMesh::CoordType &bary, const vcg::Point2i &tp, float edgeDist = 0.0f)
+    {
+        (void) edgeDist;
+        const int tx = tp.X();
+        const int ty = m_targetImage.height() - 1 - tp.Y();
+        if (!validPixelCoord(m_targetImage, tx, ty))
+            return;
+
+        const float u = bary[0] * f.cWT(0).U() + bary[1] * f.cWT(1).U() + bary[2] * f.cWT(2).U();
+        const float v = bary[0] * f.cWT(0).V() + bary[1] * f.cWT(1).V() + bary[2] * f.cWT(2).V();
+
+        const int sx = ((int)std::floor(u * m_sourceImage.width())) % m_sourceImage.width();
+        const int sy = ((int)std::floor((1.0f - v) * m_sourceImage.height())) % m_sourceImage.height();
+        const int wrappedSx = (sx + m_sourceImage.width()) % m_sourceImage.width();
+        const int wrappedSy = (sy + m_sourceImage.height()) % m_sourceImage.height();
+        const vcg::Point3f objectNormal = decodeNormalMapPixel(m_sourceImage.pixel(wrappedSx, wrappedSy));
+
+        const vcg::Point3f p0 = f.cV(0)->cP();
+        const vcg::Point3f p1 = f.cV(1)->cP();
+        const vcg::Point3f p2 = f.cV(2)->cP();
+        const vcg::Point2f uv0(f.cWT(0).U(), 1.0f - f.cWT(0).V());
+        const vcg::Point2f uv1(f.cWT(1).U(), 1.0f - f.cWT(1).V());
+        const vcg::Point2f uv2(f.cWT(2).U(), 1.0f - f.cWT(2).V());
+
+        const vcg::Point3f dp1 = p1 - p0;
+        const vcg::Point3f dp2 = p2 - p0;
+        const vcg::Point2f duv1 = uv1 - uv0;
+        const vcg::Point2f duv2 = uv2 - uv0;
+        const float det = duv1.X() * duv2.Y() - duv1.Y() * duv2.X();
+
+        vcg::Point3f shadingNormal =
+            f.cV(0)->cN() * bary[0]
+            + f.cV(1)->cN() * bary[1]
+            + f.cV(2)->cN() * bary[2];
+        if (!(shadingNormal.Norm() > 1e-12f))
+            shadingNormal = vcg::NormalizedTriangleNormal(f);
+        shadingNormal.Normalize();
+
+        vcg::Point3f tangent(1.0f, 0.0f, 0.0f);
+        vcg::Point3f bitangent(0.0f, 1.0f, 0.0f);
+        if (std::abs(det) > 1e-20f) {
+            tangent = (dp1 * duv2.Y() - dp2 * duv1.Y()) / det;
+            bitangent = (dp2 * duv1.X() - dp1 * duv2.X()) / det;
+
+            tangent = tangent - shadingNormal * (tangent * shadingNormal);
+            if (tangent.Norm() > 1e-12f)
+                tangent.Normalize();
+            else
+                tangent = fallbackTangentForNormal(shadingNormal);
+
+            bitangent = bitangent - shadingNormal * (bitangent * shadingNormal) - tangent * (bitangent * tangent);
+            if (bitangent.Norm() > 1e-12f)
+                bitangent.Normalize();
+            else
+                bitangent = (shadingNormal ^ tangent);
+            if (bitangent.Norm() > 1e-12f)
+                bitangent.Normalize();
+        } else {
+            tangent = fallbackTangentForNormal(shadingNormal);
+            bitangent = shadingNormal ^ tangent;
+            if (bitangent.Norm() > 1e-12f)
+                bitangent.Normalize();
+        }
+
+        vcg::Point3f tangentNormal(
+            objectNormal * tangent,
+            objectNormal * bitangent,
+            objectNormal * shadingNormal);
+        if (!(tangentNormal.Norm() > 1e-12f))
+            tangentNormal = vcg::Point3f(0.0f, 0.0f, 1.0f);
+        else
+            tangentNormal.Normalize();
+
+        if (m_invertX)
+            tangentNormal.X() = -tangentNormal.X();
+        if (m_invertY)
+            tangentNormal.Y() = -tangentNormal.Y();
+        if (m_invertZ)
+            tangentNormal.Z() = -tangentNormal.Z();
+
+        m_targetImage.setPixel(tx, ty, encodeNormalMapPixel(tangentNormal));
+
+        if (m_cb) {
+            if (&f != m_currFace) {
+                m_currFace = &f;
+                ++m_faceCnt;
+            }
+            m_cb(m_start + m_faceCnt * m_offset / m_faceNo, "Converting normal map...");
+        }
+    }
+
+private:
+    const QImage &m_sourceImage;
+    QImage &m_targetImage;
+    vcg::CallBackPos *m_cb = nullptr;
+    const VCGFace *m_currFace = nullptr;
+    int m_faceNo = 1;
+    int m_faceCnt = 0;
+    int m_start = 0;
+    int m_offset = 100;
+    bool m_invertX = false;
+    bool m_invertY = false;
+    bool m_invertZ = false;
+};
 
 } // namespace
 
@@ -1265,6 +1465,126 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 : QObject::tr("Saved %1 texture image(s) on '%2'.")
                       .arg(targetSlotCount)
                       .arg(targetEntry.name)
+        };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterObjectToTangentNormal)) {
+        if (mesh.FN() <= 0)
+            return fail(QObject::tr("Current mesh must have faces."));
+        if ((entry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
+            return fail(QObject::tr("Current mesh requires per-wedge texture coordinates for this filter."));
+        if (entry.textureFilePaths.isEmpty())
+            return fail(QObject::tr("Current mesh must already have at least one associated texture slot."));
+
+        const int chosenSlotValue = params.getTextureRef(QStringLiteral("targetTexture"), -1);
+        if (chosenSlotValue <= 0)
+            return fail(QObject::tr("Choose the target texture slot to convert."));
+        const int selectedSlot = chosenSlotValue - 1;
+        if (selectedSlot >= entry.textureFilePaths.size())
+            return fail(QObject::tr("Selected texture slot is out of range."));
+
+        const int sourceSlotValue = params.getTextureRef(QStringLiteral("sourceNormalMap"), -1);
+        if (sourceSlotValue <= 0)
+            return fail(QObject::tr("Choose the source object-space normal map texture."));
+        const int sourceSlot = sourceSlotValue - 1;
+        if (sourceSlot >= entry.textureFilePaths.size())
+            return fail(QObject::tr("Selected source normal map texture is out of range."));
+
+        const TextureOutputRefValue outputTarget =
+            params.getTextureOutputRef(QStringLiteral("targetNormalMap"));
+        const QString sourcePath = entry.textureFilePaths.at(sourceSlot).trimmed();
+        QString outputPath;
+        if (outputTarget.overwriteExisting) {
+            if (outputTarget.textureSlot < 0 || outputTarget.textureSlot >= entry.textureFilePaths.size())
+                return fail(QObject::tr("Selected output texture slot is out of range."));
+            outputPath = entry.textureFilePaths.at(outputTarget.textureSlot).trimmed();
+        } else {
+            outputPath = outputTarget.filePath.trimmed();
+        }
+        const bool bindToPbr = params.getBool(QStringLiteral("bindAsPbrNormal"));
+        const bool invertX = params.getBool(QStringLiteral("invertX"), false);
+        const bool invertY = params.getBool(QStringLiteral("invertY"), false);
+        const bool invertZ = params.getBool(QStringLiteral("invertZ"), false);
+        const double normalScale = params.getDouble(QStringLiteral("normalScale"), 1.0);
+        if (sourcePath.isEmpty())
+            return fail(QObject::tr("Source object-space normal map not specified."));
+        if (outputPath.isEmpty())
+            return fail(QObject::tr("Output tangent-space normal map path not specified."));
+
+        QImage sourceImage(sourcePath);
+        if (sourceImage.isNull())
+            return fail(QObject::tr("Failed to load source normal map '%1'.").arg(sourcePath));
+
+        VCGMesh workMesh;
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(workMesh, mesh);
+        int keptFaceCount = 0;
+        for (VCGFace &face : workMesh.face) {
+            if (face.IsD())
+                continue;
+            const int faceSlot = std::max(0, int(face.cWT(0).N()));
+            if (faceSlot != selectedSlot) {
+                face.SetD();
+                continue;
+            }
+            for (int k = 0; k < 3; ++k)
+                face.WT(k).N() = 0;
+            ++keptFaceCount;
+        }
+        if (keptFaceCount == 0)
+            return fail(QObject::tr("No faces use the selected texture slot."));
+
+        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(workMesh);
+        if ((entry.ioMask & Mask::IOM_VERTNORMAL) == 0)
+            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(workMesh);
+
+        QImage targetImage(sourceImage.size(), QImage::Format_ARGB32);
+        targetImage.fill(qRgba(128, 128, 255, 255));
+
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(workMesh);
+        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(workMesh);
+        ObjectToTangentNormalSampler sampler(sourceImage, targetImage, invertX, invertY, invertZ);
+        sampler.InitCallback(doc.progressCallback(), std::max(1, keptFaceCount), 0, 90);
+        vcg::tri::SurfaceSampling<VCGMesh, ObjectToTangentNormalSampler>::Texture(
+            workMesh,
+            sampler,
+            targetImage.width(),
+            targetImage.height(),
+            false);
+
+        QString saveError;
+        if (!saveImages({ QDir::toNativeSeparators(outputPath) }, std::vector<QImage>{ targetImage }, saveError))
+            return fail(saveError);
+
+        if (bindToPbr) {
+            const QString nativeOutputPath = QDir::toNativeSeparators(outputPath);
+            const int associatedIndex = ensureTextureListed(entry, nativeOutputPath);
+            ensureMaterialSlotCount(entry, selectedSlot + 1);
+            MeshIOMaterialSlot &slot = entry.materialSet.entries[size_t(selectedSlot)];
+            slot.normalTexture.fileName = QFileInfo(nativeOutputPath).fileName();
+            slot.normalTexture.filePath = nativeOutputPath;
+            slot.normalScale = float(std::max(0.0, normalScale));
+
+            doc.markMeshMaterialChanged(
+                meshIndex,
+                QObject::tr("Converted object-space normal map to tangent space for '%1'.").arg(entry.name));
+
+            MeshFilterRunResult result;
+            result.success = true;
+            result.documentModified = true;
+            result.infoMessages = {
+                QObject::tr("Saved tangent-space normal map for slot %1 and bound it as the PBR normal texture (associated texture index %2).")
+                    .arg(selectedSlot + 1)
+                    .arg(associatedIndex + 1)
+            };
+            return result;
+        }
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = false;
+        result.infoMessages = {
+            QObject::tr("Saved tangent-space normal map for slot %1.").arg(selectedSlot + 1)
         };
         return result;
     }

@@ -38,6 +38,11 @@ QVariant defaultValueForParameter(const MeshFilterParameterDescriptor &parameter
     case MeshFilterParameterType::Mesh:
     case MeshFilterParameterType::TextureRef:
         return 0;
+    case MeshFilterParameterType::TextureOutputRef:
+        return QVariantMap{
+            { QStringLiteral("mode"), QStringLiteral("new") },
+            { QStringLiteral("path"), parameter.defaultValue.toString() }
+        };
     case MeshFilterParameterType::Double:
     case MeshFilterParameterType::AbsPerc:
         return 0.0;
@@ -456,6 +461,50 @@ bool MeshFilterPluginManager::convertParameterValue(
             return false;
         }
         outputValue = static_cast<int>(value);
+        return true;
+    }
+    case MeshFilterParameterType::TextureOutputRef: {
+        QVariantMap map = inputValue.toMap();
+        if (map.isEmpty()) {
+            const QString path = appendSuffixIfMissing(
+                inputValue.toString().trimmed(),
+                parameter.fileDefaultSuffix.trimmed());
+            if (path.isEmpty()) {
+                errorMessage = QObject::tr("%1 requires either an existing texture choice or a new output file path.")
+                                   .arg(prefix);
+                return false;
+            }
+            map.insert(QStringLiteral("mode"), QStringLiteral("new"));
+            map.insert(QStringLiteral("path"), path);
+        }
+
+        const QString mode = map.value(QStringLiteral("mode")).toString().trimmed().toLower();
+        if (mode == QStringLiteral("existing")) {
+            bool ok = false;
+            const int oneBasedSlot = map.value(QStringLiteral("slot")).toInt(&ok);
+            if (!ok || oneBasedSlot <= 0) {
+                errorMessage = QObject::tr("%1 has an invalid existing texture selection.").arg(prefix);
+                return false;
+            }
+            outputValue = QVariantMap{
+                { QStringLiteral("mode"), QStringLiteral("existing") },
+                { QStringLiteral("slot"), oneBasedSlot }
+            };
+            return true;
+        }
+
+        const QString path = appendSuffixIfMissing(
+            map.value(QStringLiteral("path")).toString().trimmed(),
+            parameter.fileDefaultSuffix.trimmed());
+        if (path.isEmpty()) {
+            errorMessage = QObject::tr("%1 requires a destination file path when creating a new texture.")
+                               .arg(prefix);
+            return false;
+        }
+        outputValue = QVariantMap{
+            { QStringLiteral("mode"), QStringLiteral("new") },
+            { QStringLiteral("path"), path }
+        };
         return true;
     }
     case MeshFilterParameterType::Double:

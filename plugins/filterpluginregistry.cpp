@@ -38,6 +38,9 @@
 #if QMESH_PLUGIN_FILTER_TEXTURE_ENABLED
 #include "plugins/filter_texture/texturefilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_MEASURE_ENABLED
+#include "plugins/filter_measure/measurefilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -76,5 +79,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_TEXTURE_ENABLED
     registerTextureFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_MEASURE_ENABLED
+    registerMeasureFilterPlugin(pluginManager);
 #endif
 }
