@@ -212,14 +212,15 @@ QString meshDataSummary(const Document::MeshEntry &entry)
     QStringList tokens;
     const int mask = entry.ioMask;
     const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
+    const bool hasFaces = entry.mesh.FN() > 0;
 
     if ((mask & Mask::IOM_VERTCOLOR) != 0)
         tokens << QObject::tr("VC");
     if ((mask & Mask::IOM_FACECOLOR) != 0)
         tokens << QObject::tr("FC");
-    if ((mask & Mask::IOM_VERTNORMAL) != 0)
+    if (hasFaces || (mask & Mask::IOM_VERTNORMAL) != 0)
         tokens << QObject::tr("VN");
-    if ((mask & Mask::IOM_FACENORMAL) != 0)
+    if (hasFaces || (mask & Mask::IOM_FACENORMAL) != 0)
         tokens << QObject::tr("FN");
     if ((mask & Mask::IOM_WEDGNORMAL) != 0)
         tokens << QObject::tr("WN");

@@ -41,6 +41,12 @@
 #if QMESH_PLUGIN_FILTER_MEASURE_ENABLED
 #include "plugins/filter_measure/measurefilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_MLS_ENABLED
+#include "plugins/filter_mls/mlsfilterplugin.h"
+#endif
+#if QMESH_PLUGIN_FILTER_SAMPLE_ENABLED
+#include "plugins/filter_sample/samplefilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -82,5 +88,11 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_MEASURE_ENABLED
     registerMeasureFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_MLS_ENABLED
+    registerMlsFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_SAMPLE_ENABLED
+    registerSampleFilterPlugin(pluginManager);
 #endif
 }

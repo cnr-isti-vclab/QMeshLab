@@ -17,6 +17,7 @@ class VCGVertex : public vcg::Vertex<VCGUsedTypes,
     vcg::vertex::TexCoord2f,
     vcg::vertex::Color4b,
     vcg::vertex::Qualityf,
+    vcg::vertex::CurvatureDirf,
     vcg::vertex::BitFlags,
     vcg::vertex::VFAdj> {};
 

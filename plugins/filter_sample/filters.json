@@ -1,0 +1,49 @@
+{
+  "pluginId": "qmeshlab.filter.sample",
+  "filters": [
+    {
+      "id": "apply_coord_random_displacement",
+      "menuPath": "Smoothing",
+      "name": "Random Vertex Displacement",
+      "shortDescription": "Move the vertices of the current mesh by a bounded random amount.",
+      "longDescriptionMarkdown": "Move the vertices of the mesh of a random quantity.",
+      "tags": ["sample", "random", "displacement", "smoothing"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "UpdateNormals",
+          "label": "Recompute normals",
+          "help": "Toggle the recomputation of the normals after the random displacement. If disabled the face normals will remain unchanged, resulting in a visually pleasant effect.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "Displacement",
+          "label": "Max displacement",
+          "help": "The vertices are displaced by a vector whose norm is bounded by this value.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "RandomSeed",
+          "label": "Random Seed",
+          "help": "The seed used to generate random values. If seed is zero no fixed random seed is used.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ]
+    }
+  ]
+}

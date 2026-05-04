@@ -1,0 +1,614 @@
+{
+  "pluginId": "qmeshlab.filter.mls",
+  "filters": [
+    {
+      "id": "compute_mls_projection_apss",
+      "menuPath": "MLS",
+      "name": "MLS projection (APSS)",
+      "shortDescription": "Project a mesh or point set onto an Algebraic Point Set Surface.",
+      "longDescriptionMarkdown": "Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
+      "tags": ["mls", "projection", "point set", "apss", "smoothing"],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "ControlMesh",
+          "label": "Point set",
+          "help": "The point set (or mesh) which defines the MLS surface.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "ProxyMesh",
+          "label": "Proxy Mesh",
+          "help": "The mesh that will be projected/resampled onto the MLS surface.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "SelectionOnly",
+          "label": "Selection only",
+          "help": "If checked, only selected vertices will be projected.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "FilterScale",
+          "label": "MLS - Filter scale",
+          "help": "Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.",
+          "group": "main",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.000001,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "SphericalParameter",
+          "label": "MLS - Spherical parameter",
+          "help": "Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": -1000.0,
+          "max": 1000.0,
+          "decimals": 6
+        },
+        {
+          "id": "AccurateNormal",
+          "label": "Accurate normals",
+          "help": "If checked, use the accurate MLS gradient instead of the local approximation to compute the normals.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "MaxSubdivisions",
+          "label": "Refinement - Max subdivisions",
+          "help": "Max number of subdivisions.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "ThAngleInDegree",
+          "label": "Refinement - Crease angle (degree)",
+          "help": "Threshold angle between two faces controlling the refinement.",
+          "group": "advanced",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 6
+        },
+        {
+          "id": "ProjectionAccuracy",
+          "label": "Projection - Accuracy (adv)",
+          "help": "Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 8
+        },
+        {
+          "id": "MaxProjectionIters",
+          "label": "Projection - Max iterations (adv)",
+          "help": "Max number of iterations for the projection.",
+          "group": "advanced",
+          "type": "int",
+          "default": 15,
+          "min": 1,
+          "max": 1000000
+        }
+      ]
+    },
+    {
+      "id": "compute_mls_projection_rimls",
+      "menuPath": "MLS",
+      "name": "MLS projection (RIMLS)",
+      "shortDescription": "Project a mesh or point set onto a Robust Implicit MLS surface.",
+      "longDescriptionMarkdown": "Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",
+      "tags": ["mls", "projection", "point set", "rimls", "smoothing"],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "ControlMesh",
+          "label": "Point set",
+          "help": "The point set (or mesh) which defines the MLS surface.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "ProxyMesh",
+          "label": "Proxy Mesh",
+          "help": "The mesh that will be projected/resampled onto the MLS surface.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "SelectionOnly",
+          "label": "Selection only",
+          "help": "If checked, only selected vertices will be projected.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "FilterScale",
+          "label": "MLS - Filter scale",
+          "help": "Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.",
+          "group": "main",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.000001,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "SigmaN",
+          "label": "MLS - Sharpness",
+          "help": "Width of the filter used by the normal refitting weight. This weight function is a Gaussian on the distance between two unit vectors: the current gradient and the input normal. Typical values range between 0.5 (sharp) and 2 (smooth).",
+          "group": "main",
+          "type": "double",
+          "default": 0.75,
+          "min": 0.000001,
+          "max": 1000.0,
+          "decimals": 6
+        },
+        {
+          "id": "MaxRefittingIters",
+          "label": "MLS - Max fitting iterations",
+          "help": "Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "MaxSubdivisions",
+          "label": "Refinement - Max subdivisions",
+          "help": "Max number of subdivisions.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "ThAngleInDegree",
+          "label": "Refinement - Crease angle (degree)",
+          "help": "Threshold angle between two faces controlling the refinement.",
+          "group": "advanced",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 6
+        },
+        {
+          "id": "ProjectionAccuracy",
+          "label": "Projection - Accuracy (adv)",
+          "help": "Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 8
+        },
+        {
+          "id": "MaxProjectionIters",
+          "label": "Projection - Max iterations (adv)",
+          "help": "Max number of iterations for the projection.",
+          "group": "advanced",
+          "type": "int",
+          "default": 15,
+          "min": 1,
+          "max": 1000000
+        }
+      ]
+    },
+    {
+      "id": "generate_marching_cubes_apss",
+      "menuPath": "MLS",
+      "name": "Marching Cubes (APSS)",
+      "shortDescription": "Extract an APSS iso-surface as a new mesh with marching cubes.",
+      "longDescriptionMarkdown": "Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
+      "tags": ["mls", "marching cubes", "reconstruction", "apss", "point set"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "FilterScale",
+          "label": "MLS - Filter scale",
+          "help": "Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.",
+          "group": "main",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.000001,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "SphericalParameter",
+          "label": "MLS - Spherical parameter",
+          "help": "Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": -1000.0,
+          "max": 1000.0,
+          "decimals": 6
+        },
+        {
+          "id": "AccurateNormal",
+          "label": "Accurate normals",
+          "help": "If checked, use the accurate MLS gradient instead of the local approximation to compute the normals.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "Resolution",
+          "label": "Grid Resolution",
+          "help": "The resolution of the grid on which we run the marching cubes. This marching cubes is memory friendly, so you can safely set large values up to 1000 or even more.",
+          "group": "main",
+          "type": "int",
+          "default": 200,
+          "min": 16,
+          "max": 1000000
+        },
+        {
+          "id": "ProjectionAccuracy",
+          "label": "Projection - Accuracy (adv)",
+          "help": "Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 8
+        },
+        {
+          "id": "MaxProjectionIters",
+          "label": "Projection - Max iterations (adv)",
+          "help": "Max number of iterations for the projection.",
+          "group": "advanced",
+          "type": "int",
+          "default": 15,
+          "min": 1,
+          "max": 1000000
+        }
+      ]
+    },
+    {
+      "id": "generate_marching_cubes_rimls",
+      "menuPath": "MLS",
+      "name": "Marching Cubes (RIMLS)",
+      "shortDescription": "Extract a Robust Implicit MLS iso-surface as a new mesh with marching cubes.",
+      "longDescriptionMarkdown": "Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",
+      "tags": ["mls", "marching cubes", "reconstruction", "rimls", "point set"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "FilterScale",
+          "label": "MLS - Filter scale",
+          "help": "Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.",
+          "group": "main",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.000001,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "SigmaN",
+          "label": "MLS - Sharpness",
+          "help": "Width of the filter used by the normal refitting weight. This weight function is a Gaussian on the distance between two unit vectors: the current gradient and the input normal. Typical values range between 0.5 (sharp) and 2 (smooth).",
+          "group": "main",
+          "type": "double",
+          "default": 0.75,
+          "min": 0.000001,
+          "max": 1000.0,
+          "decimals": 6
+        },
+        {
+          "id": "MaxRefittingIters",
+          "label": "MLS - Max fitting iterations",
+          "help": "Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "Resolution",
+          "label": "Grid Resolution",
+          "help": "The resolution of the grid on which we run the marching cubes. This marching cubes is memory friendly, so you can safely set large values up to 1000 or even more.",
+          "group": "main",
+          "type": "int",
+          "default": 200,
+          "min": 16,
+          "max": 1000000
+        },
+        {
+          "id": "ProjectionAccuracy",
+          "label": "Projection - Accuracy (adv)",
+          "help": "Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 8
+        },
+        {
+          "id": "MaxProjectionIters",
+          "label": "Projection - Max iterations (adv)",
+          "help": "Max number of iterations for the projection.",
+          "group": "advanced",
+          "type": "int",
+          "default": 15,
+          "min": 1,
+          "max": 1000000
+        }
+      ]
+    },
+    {
+      "id": "compute_curvature_and_color_apss_per_vertex",
+      "menuPath": "MLS",
+      "name": "Colorize curvature (APSS)",
+      "shortDescription": "Compute APSS curvature estimates and map them to vertex quality and color.",
+      "longDescriptionMarkdown": "Colorize the vertices of a mesh or point set using the curvature of the underlying surface.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
+      "tags": ["mls", "curvature", "colorize", "apss", "point set"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "SelectionOnly",
+          "label": "Selection only",
+          "help": "If checked, only selected vertices will be projected.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "CurvatureType",
+          "label": "Curvature type",
+          "help": "The type of the curvature to plot.<br>ApproxMean uses the radius of the fitted sphere as an approximation of the mean curvature.",
+          "group": "main",
+          "type": "enum",
+          "default": "mean",
+          "enumOptions": [
+            { "id": "mean", "label": "Mean" },
+            { "id": "gauss", "label": "Gauss" },
+            { "id": "k1", "label": "K1" },
+            { "id": "k2", "label": "K2" },
+            { "id": "approx_mean", "label": "ApproxMean" }
+          ]
+        },
+        {
+          "id": "FilterScale",
+          "label": "MLS - Filter scale",
+          "help": "Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.",
+          "group": "main",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.000001,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "SphericalParameter",
+          "label": "MLS - Spherical parameter",
+          "help": "Control the curvature of the fitted spheres: 0 is equivalent to a pure plane fit, 1 to a pure spherical fit, values between 0 and 1 give intermediate results, while other real values might give interesting results, but take care with extreme settings.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": -1000.0,
+          "max": 1000.0,
+          "decimals": 6
+        },
+        {
+          "id": "ProjectionAccuracy",
+          "label": "Projection - Accuracy (adv)",
+          "help": "Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 8
+        },
+        {
+          "id": "MaxProjectionIters",
+          "label": "Projection - Max iterations (adv)",
+          "help": "Max number of iterations for the projection.",
+          "group": "advanced",
+          "type": "int",
+          "default": 15,
+          "min": 1,
+          "max": 1000000
+        }
+      ]
+    },
+    {
+      "id": "compute_curvature_and_color_rimls_per_vertex",
+      "menuPath": "MLS",
+      "name": "Colorize curvature (RIMLS)",
+      "shortDescription": "Compute RIMLS curvature estimates and map them to vertex quality and color.",
+      "longDescriptionMarkdown": "Colorize the vertices of a mesh or point set using the curvature of the underlying surface.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",
+      "tags": ["mls", "curvature", "colorize", "rimls", "point set"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "SelectionOnly",
+          "label": "Selection only",
+          "help": "If checked, only selected vertices will be projected.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "CurvatureType",
+          "label": "Curvature type",
+          "help": "The type of the curvature to plot.",
+          "group": "main",
+          "type": "enum",
+          "default": "mean",
+          "enumOptions": [
+            { "id": "mean", "label": "Mean" },
+            { "id": "gauss", "label": "Gauss" },
+            { "id": "k1", "label": "K1" },
+            { "id": "k2", "label": "K2" }
+          ]
+        },
+        {
+          "id": "FilterScale",
+          "label": "MLS - Filter scale",
+          "help": "Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.",
+          "group": "main",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.000001,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "SigmaN",
+          "label": "MLS - Sharpness",
+          "help": "Width of the filter used by the normal refitting weight. This weight function is a Gaussian on the distance between two unit vectors: the current gradient and the input normal. Typical values range between 0.5 (sharp) and 2 (smooth).",
+          "group": "main",
+          "type": "double",
+          "default": 0.75,
+          "min": 0.000001,
+          "max": 1000.0,
+          "decimals": 6
+        },
+        {
+          "id": "MaxRefittingIters",
+          "label": "MLS - Max fitting iterations",
+          "help": "Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "ProjectionAccuracy",
+          "label": "Projection - Accuracy (adv)",
+          "help": "Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 8
+        },
+        {
+          "id": "MaxProjectionIters",
+          "label": "Projection - Max iterations (adv)",
+          "help": "Max number of iterations for the projection.",
+          "group": "advanced",
+          "type": "int",
+          "default": 15,
+          "min": 1,
+          "max": 1000000
+        }
+      ]
+    },
+    {
+      "id": "compute_custom_radius_scalar_attribute_per_vertex",
+      "menuPath": "MLS",
+      "name": "Estimate radius from density",
+      "shortDescription": "Estimate local point spacing for each vertex.",
+      "longDescriptionMarkdown": "Estimate the local point spacing (aka radius) around each vertex using a basic estimate of the local density.",
+      "tags": ["mls", "radius", "density", "point set"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "NbNeighbors",
+          "label": "Number of neighbors",
+          "help": "Number of neighbors used to estimate the local density. Larger values lead to smoother variations.",
+          "group": "main",
+          "type": "int",
+          "default": 16,
+          "min": 2,
+          "max": 1000000
+        }
+      ]
+    },
+    {
+      "id": "compute_selection_by_small_disconnected_components_per_face",
+      "menuPath": "MLS",
+      "name": "Select small disconnected component",
+      "shortDescription": "Select the small disconnected components of a mesh.",
+      "longDescriptionMarkdown": "Select the small disconnected components of a mesh.",
+      "tags": ["mls", "selection", "components", "cleanup"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "NbFaceRatio",
+          "label": "Small component ratio",
+          "help": "This ratio (between 0 and 1) defines the meaning of small as the threshold ratio between the number of faces of the largest component and the other ones. A larger value will select more components.",
+          "group": "main",
+          "type": "double",
+          "default": 0.1,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "NonClosedOnly",
+          "label": "Select only non closed components",
+          "help": "If enabled, only non-closed connected components are selected.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    }
+  ]
+}

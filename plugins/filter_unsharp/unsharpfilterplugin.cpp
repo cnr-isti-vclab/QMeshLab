@@ -96,6 +96,13 @@ void updateBBoxAndNormals(VCGMesh &mesh)
     }
 }
 
+void prepareFaceFaceNormalsSmoothing(VCGMesh &mesh)
+{
+    vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+    vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(mesh);
+}
+
 size_t selectedVertexCountFromFaces(VCGMesh &mesh)
 {
     return vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
@@ -220,7 +227,7 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceNormalSmooth)) {
-        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(mesh);
+        prepareFaceFaceNormalsSmoothing(mesh);
         vcg::tri::Smooth<VCGMesh>::FaceNormalLaplacianFF(mesh);
         entry.ioMask |= Mask::IOM_FACENORMAL;
         markGeometry(QObject::tr("Smoothed face normals of '%1'.").arg(meshName(entry, meshIndex)));
@@ -409,13 +416,12 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterUnsharpNormal)) {
-        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(mesh);
+        prepareFaceFaceNormalsSmoothing(mesh);
         const Scalar alpha = Scalar(params.getDouble(QStringLiteral("weight")));
         const Scalar alphaOrig = Scalar(params.getDouble(QStringLiteral("weightOrig")));
         const int smoothIter = params.getInt(QStringLiteral("iterations"));
         if (params.getBool(QStringLiteral("recalc")))
             vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
-        vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
         std::vector<Point> normalOrig(size_t(mesh.fn));
         for (int i = 0; i < mesh.fn; ++i)
             normalOrig[size_t(i)] = mesh.face[size_t(i)].cN();
