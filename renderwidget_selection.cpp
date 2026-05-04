@@ -217,7 +217,7 @@ void RenderWidget::executePendingDepthPick(
         const auto pointVariant = static_cast<Document::PointGpuVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
 
-        const QMatrix4x4 model = m_doc->mesh(mi).renderTransform;
+        const QMatrix4x4 model = m_doc->mesh(mi).transform;
         const QMatrix4x4 modelView = view * model;
         const QMatrix4x4 meshMvp = proj * modelView;
         const QMatrix3x3 normalMat = modelView.normalMatrix();
@@ -370,7 +370,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             return;
         if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
             return;
-        const QMatrix4x4 model = m_doc->mesh(meshIndex).renderTransform;
+        const QMatrix4x4 model = m_doc->mesh(meshIndex).transform;
         const QMatrix4x4 modelView = view * model;
         const QMatrix4x4 mvp = proj * modelView;
         const QMatrix3x3 normalMat = modelView.normalMatrix();

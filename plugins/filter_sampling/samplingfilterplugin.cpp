@@ -448,7 +448,7 @@ int addDerivedMesh(
     int ioMask)
 {
     const int newIndex = doc.addMesh(mesh, name, ioMask);
-    doc.setMeshRenderTransform(newIndex, doc.meshRenderTransform(sourceMeshIndex), QString());
+    doc.setMeshTransform(newIndex, doc.meshTransform(sourceMeshIndex), QString());
     return newIndex;
 }
 
@@ -485,7 +485,7 @@ std::unique_ptr<VCGMesh> makeSelectedPointSet(const VCGMesh &source)
 std::unique_ptr<VCGMesh> makeWorldMesh(const Document::MeshEntry &entry, bool recomputeNormals = false)
 {
     auto mesh = makePreparedSurfaceMesh(entry.mesh);
-    const QMatrix4x4 transform = entry.renderTransform;
+    const QMatrix4x4 transform = entry.transform;
     for (VCGVertex &vertex : mesh->vert) {
         if (vertex.IsD())
             continue;
@@ -968,7 +968,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         const int ioMask = Mask::IOM_VERTNORMAL | (recoverColor ? Mask::IOM_VERTCOLOR : 0);
         const int newIndex = doc.addMesh(output, QObject::tr("Texel Samples"), ioMask);
         if (!textureSpace)
-            doc.setMeshRenderTransform(newIndex, doc.meshRenderTransform(meshIndex), QString());
+            doc.setMeshTransform(newIndex, doc.meshTransform(meshIndex), QString());
         return successResult(
             { QObject::tr("Generated %1 texel samples.").arg(output.VN()) },
             { newIndex });
@@ -1159,7 +1159,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             copyWorldGeometryBackToLocal(
                 *targetWorldMesh,
                 targetEntry.mesh,
-                targetEntry.renderTransform,
+                targetEntry.transform,
                 transferGeometry,
                 transferNormals);
         copyPerVertexAppearance(
@@ -1292,6 +1292,8 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(*coloredMesh);
         vcg::tri::Allocator<VCGMesh>::CompactVertexVector(*coloredMesh);
         vcg::tri::Allocator<VCGMesh>::CompactFaceVector(*coloredMesh);
+        coloredMesh->vert.EnableVFAdjacency();
+        coloredMesh->face.EnableVFAdjacency();
         vcg::tri::UpdateTopology<VCGMesh>::VertexFace(*coloredMesh);
 
         std::vector<Point> pointVector;

@@ -7,7 +7,11 @@
       "name": "Current Mesh Info",
       "shortDescription": "Prints a compact summary for the current mesh.",
       "longDescriptionMarkdown": "Outputs vertex/edge/face counts and bounding-box metrics for the current mesh.",
-      "tags": ["inspection", "document", "info"],
+      "tags": [
+        "inspection",
+        "document",
+        "info"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "Information",
       "inputRequirements": {},
@@ -30,10 +34,16 @@
       "name": "Normalize To Unit Box",
       "shortDescription": "Uniformly scales the current mesh to a target box size.",
       "longDescriptionMarkdown": "Computes current mesh bounding box and applies uniform scale, with optional recentering.",
-      "tags": ["geometry", "normalize", "transform"],
+      "tags": [
+        "geometry",
+        "normalize",
+        "transform"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireVertices": true },
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "target_size",
@@ -42,7 +52,7 @@
           "group": "main",
           "type": "double",
           "default": 1.0,
-          "min": 1e-8,
+          "min": 1e-08,
           "max": 1000000.0,
           "decimals": 6
         },
@@ -54,6 +64,10 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN"
       ]
     },
     {
@@ -62,7 +76,11 @@
       "name": "Duplicate Current Mesh",
       "shortDescription": "Creates a copy of the current mesh as a new layer.",
       "longDescriptionMarkdown": "Duplicates geometry and attributes of the current mesh and appends it to the document.",
-      "tags": ["layer", "duplicate", "new mesh"],
+      "tags": [
+        "layer",
+        "duplicate",
+        "new mesh"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},
@@ -83,7 +101,12 @@
       "name": "Noisy Isosurface",
       "shortDescription": "Creates an isosurface perturbed by 3D Perlin noise.",
       "longDescriptionMarkdown": "Generates a scalar field over a cubic grid and extracts an isosurface using marching cubes.",
-      "tags": ["create", "isosurface", "marching cubes", "noise"],
+      "tags": [
+        "create",
+        "isosurface",
+        "marching cubes",
+        "noise"
+      ],
       "inputDomain": "None",
       "outputDomain": "NewMeshes",
       "inputRequirements": {},

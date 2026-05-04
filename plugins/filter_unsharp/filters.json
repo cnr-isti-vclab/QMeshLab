@@ -30,6 +30,12 @@
           "max": 180.0,
           "decimals": 3
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -84,6 +90,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -102,7 +113,12 @@
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true
-      }
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ]
     },
     {
       "id": "apply_coord_laplacian_smoothing_scale_dependent",
@@ -151,6 +167,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -220,6 +241,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -280,6 +306,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -342,6 +373,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -382,6 +418,11 @@
           ],
           "point3fRole": "point"
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -401,7 +442,10 @@
         "requireVertices": true,
         "requireFaces": true,
         "requireVertexQuality": true
-      }
+      },
+      "outputModifies": [
+        "VQ"
+      ]
     },
     {
       "id": "apply_normal_smoothing_per_face",
@@ -418,7 +462,10 @@
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
-      }
+      },
+      "outputModifies": [
+        "FN"
+      ]
     },
     {
       "id": "apply_normal_unsharp_mask_per_vertex",
@@ -477,6 +524,9 @@
           "min": 1,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VN"
       ]
     },
     {
@@ -529,6 +579,11 @@
           "min": 1,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -582,6 +637,9 @@
           "min": 1,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VQ"
       ]
     },
     {
@@ -635,6 +693,9 @@
           "min": 1,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VC"
       ]
     },
     {
@@ -681,6 +742,9 @@
             }
           ]
         }
+      ],
+      "outputModifies": [
+        "VN"
       ]
     },
     {
@@ -698,7 +762,10 @@
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
-      }
+      },
+      "outputModifies": [
+        "FN"
+      ]
     },
     {
       "id": "compute_normal_polygon_mesh_per_face",
@@ -715,7 +782,10 @@
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
-      }
+      },
+      "outputModifies": [
+        "FN"
+      ]
     },
     {
       "id": "apply_normal_normalization_per_face",
@@ -732,7 +802,10 @@
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true
-      }
+      },
+      "outputModifies": [
+        "FN"
+      ]
     },
     {
       "id": "apply_normal_normalization_per_vertex",
@@ -749,7 +822,10 @@
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireVertices": true
-      }
+      },
+      "outputModifies": [
+        "VN"
+      ]
     },
     {
       "id": "compute_coord_linear_morphing",
@@ -787,6 +863,10 @@
           "max": 250.0,
           "decimals": 3
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN"
       ]
     },
     {
@@ -864,6 +944,9 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "VQ"
       ]
     }
   ]

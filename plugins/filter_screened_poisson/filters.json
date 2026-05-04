@@ -380,6 +380,10 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG"
       ]
     }
   ]

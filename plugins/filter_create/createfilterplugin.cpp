@@ -139,6 +139,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         const float angleDeg = float(params.getDouble(QStringLiteral("angle")));
         const int subdiv     = params.getInt(QStringLiteral("subdiv"));
         VCGMesh m;
+        m.face.EnableFFAdjacency();
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
         vcg::tri::SphericalCap(m, vcg::math::ToRad(angleDeg), subdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);

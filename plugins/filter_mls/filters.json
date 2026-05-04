@@ -7,7 +7,13 @@
       "name": "MLS projection (APSS)",
       "shortDescription": "Project a mesh or point set onto an Algebraic Point Set Surface.",
       "longDescriptionMarkdown": "Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
-      "tags": ["mls", "projection", "point set", "apss", "smoothing"],
+      "tags": [
+        "mls",
+        "projection",
+        "point set",
+        "apss",
+        "smoothing"
+      ],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
@@ -45,7 +51,7 @@
           "group": "main",
           "type": "double",
           "default": 2.0,
-          "min": 0.000001,
+          "min": 1e-06,
           "max": 1000000.0,
           "decimals": 6
         },
@@ -110,6 +116,10 @@
           "min": 1,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN"
       ]
     },
     {
@@ -118,7 +128,13 @@
       "name": "MLS projection (RIMLS)",
       "shortDescription": "Project a mesh or point set onto a Robust Implicit MLS surface.",
       "longDescriptionMarkdown": "Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",
-      "tags": ["mls", "projection", "point set", "rimls", "smoothing"],
+      "tags": [
+        "mls",
+        "projection",
+        "point set",
+        "rimls",
+        "smoothing"
+      ],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
@@ -156,7 +172,7 @@
           "group": "main",
           "type": "double",
           "default": 2.0,
-          "min": 0.000001,
+          "min": 1e-06,
           "max": 1000000.0,
           "decimals": 6
         },
@@ -167,7 +183,7 @@
           "group": "main",
           "type": "double",
           "default": 0.75,
-          "min": 0.000001,
+          "min": 1e-06,
           "max": 1000.0,
           "decimals": 6
         },
@@ -223,6 +239,10 @@
           "min": 1,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN"
       ]
     },
     {
@@ -231,7 +251,13 @@
       "name": "Marching Cubes (APSS)",
       "shortDescription": "Extract an APSS iso-surface as a new mesh with marching cubes.",
       "longDescriptionMarkdown": "Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
-      "tags": ["mls", "marching cubes", "reconstruction", "apss", "point set"],
+      "tags": [
+        "mls",
+        "marching cubes",
+        "reconstruction",
+        "apss",
+        "point set"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
       "inputRequirements": {
@@ -245,7 +271,7 @@
           "group": "main",
           "type": "double",
           "default": 2.0,
-          "min": 0.000001,
+          "min": 1e-06,
           "max": 1000000.0,
           "decimals": 6
         },
@@ -307,7 +333,13 @@
       "name": "Marching Cubes (RIMLS)",
       "shortDescription": "Extract a Robust Implicit MLS iso-surface as a new mesh with marching cubes.",
       "longDescriptionMarkdown": "Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",
-      "tags": ["mls", "marching cubes", "reconstruction", "rimls", "point set"],
+      "tags": [
+        "mls",
+        "marching cubes",
+        "reconstruction",
+        "rimls",
+        "point set"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
       "inputRequirements": {
@@ -321,7 +353,7 @@
           "group": "main",
           "type": "double",
           "default": 2.0,
-          "min": 0.000001,
+          "min": 1e-06,
           "max": 1000000.0,
           "decimals": 6
         },
@@ -332,7 +364,7 @@
           "group": "main",
           "type": "double",
           "default": 0.75,
-          "min": 0.000001,
+          "min": 1e-06,
           "max": 1000.0,
           "decimals": 6
         },
@@ -385,7 +417,13 @@
       "name": "Colorize curvature (APSS)",
       "shortDescription": "Compute APSS curvature estimates and map them to vertex quality and color.",
       "longDescriptionMarkdown": "Colorize the vertices of a mesh or point set using the curvature of the underlying surface.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
-      "tags": ["mls", "curvature", "colorize", "apss", "point set"],
+      "tags": [
+        "mls",
+        "curvature",
+        "colorize",
+        "apss",
+        "point set"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
@@ -408,11 +446,26 @@
           "type": "enum",
           "default": "mean",
           "enumOptions": [
-            { "id": "mean", "label": "Mean" },
-            { "id": "gauss", "label": "Gauss" },
-            { "id": "k1", "label": "K1" },
-            { "id": "k2", "label": "K2" },
-            { "id": "approx_mean", "label": "ApproxMean" }
+            {
+              "id": "mean",
+              "label": "Mean"
+            },
+            {
+              "id": "gauss",
+              "label": "Gauss"
+            },
+            {
+              "id": "k1",
+              "label": "K1"
+            },
+            {
+              "id": "k2",
+              "label": "K2"
+            },
+            {
+              "id": "approx_mean",
+              "label": "ApproxMean"
+            }
           ]
         },
         {
@@ -422,7 +475,7 @@
           "group": "main",
           "type": "double",
           "default": 2.0,
-          "min": 0.000001,
+          "min": 1e-06,
           "max": 1000000.0,
           "decimals": 6
         },
@@ -458,6 +511,9 @@
           "min": 1,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VC"
       ]
     },
     {
@@ -466,7 +522,13 @@
       "name": "Colorize curvature (RIMLS)",
       "shortDescription": "Compute RIMLS curvature estimates and map them to vertex quality and color.",
       "longDescriptionMarkdown": "Colorize the vertices of a mesh or point set using the curvature of the underlying surface.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",
-      "tags": ["mls", "curvature", "colorize", "rimls", "point set"],
+      "tags": [
+        "mls",
+        "curvature",
+        "colorize",
+        "rimls",
+        "point set"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
@@ -489,10 +551,22 @@
           "type": "enum",
           "default": "mean",
           "enumOptions": [
-            { "id": "mean", "label": "Mean" },
-            { "id": "gauss", "label": "Gauss" },
-            { "id": "k1", "label": "K1" },
-            { "id": "k2", "label": "K2" }
+            {
+              "id": "mean",
+              "label": "Mean"
+            },
+            {
+              "id": "gauss",
+              "label": "Gauss"
+            },
+            {
+              "id": "k1",
+              "label": "K1"
+            },
+            {
+              "id": "k2",
+              "label": "K2"
+            }
           ]
         },
         {
@@ -502,7 +576,7 @@
           "group": "main",
           "type": "double",
           "default": 2.0,
-          "min": 0.000001,
+          "min": 1e-06,
           "max": 1000000.0,
           "decimals": 6
         },
@@ -513,7 +587,7 @@
           "group": "main",
           "type": "double",
           "default": 0.75,
-          "min": 0.000001,
+          "min": 1e-06,
           "max": 1000.0,
           "decimals": 6
         },
@@ -548,6 +622,9 @@
           "min": 1,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VC"
       ]
     },
     {
@@ -556,7 +633,12 @@
       "name": "Estimate radius from density",
       "shortDescription": "Estimate local point spacing for each vertex.",
       "longDescriptionMarkdown": "Estimate the local point spacing (aka radius) around each vertex using a basic estimate of the local density.",
-      "tags": ["mls", "radius", "density", "point set"],
+      "tags": [
+        "mls",
+        "radius",
+        "density",
+        "point set"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
@@ -573,6 +655,9 @@
           "min": 2,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VA"
       ]
     },
     {
@@ -581,7 +666,12 @@
       "name": "Select small disconnected component",
       "shortDescription": "Select the small disconnected components of a mesh.",
       "longDescriptionMarkdown": "Select the small disconnected components of a mesh.",
-      "tags": ["mls", "selection", "components", "cleanup"],
+      "tags": [
+        "mls",
+        "selection",
+        "components",
+        "cleanup"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
@@ -608,6 +698,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "FS"
       ]
     }
   ]

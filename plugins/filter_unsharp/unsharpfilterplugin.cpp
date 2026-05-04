@@ -227,6 +227,7 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceNormalSmooth)) {
+        VCGMeshFFAdjScope _ffAdj(mesh);
         prepareFaceFaceNormalsSmoothing(mesh);
         vcg::tri::Smooth<VCGMesh>::FaceNormalLaplacianFF(mesh);
         entry.ioMask |= Mask::IOM_FACENORMAL;
@@ -416,6 +417,7 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterUnsharpNormal)) {
+        VCGMeshFFAdjScope _ffAdj(mesh);
         prepareFaceFaceNormalsSmoothing(mesh);
         const Scalar alpha = Scalar(params.getDouble(QStringLiteral("weight")));
         const Scalar alphaOrig = Scalar(params.getDouble(QStringLiteral("weightOrig")));
@@ -525,6 +527,9 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterScalarHarmonic)) {
         doc.beginFilterProgress(QObject::tr("Computing harmonic field"));
         vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
+        VCGMeshFFAdjScope _ffAdj(mesh);
+        VCGMeshMarkScope _mark(mesh);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         if (vcg::tri::Clean<VCGMesh>::CountConnectedComponents(mesh) > 1) {
             doc.finishFilterProgress(false, QObject::tr("Mesh must have a single connected component."));
             return failResult(QObject::tr("A mesh composed by a single connected component is required by the filter to properly work."));

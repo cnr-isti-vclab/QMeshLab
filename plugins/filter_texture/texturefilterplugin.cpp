@@ -292,7 +292,7 @@ std::unique_ptr<VCGMesh> makeWorldMesh(const Document::MeshEntry &entry, bool re
 {
     auto mesh = std::make_unique<VCGMesh>();
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(*mesh, entry.mesh);
-    const QMatrix4x4 transform = entry.renderTransform;
+    const QMatrix4x4 transform = entry.transform;
     for (VCGVertex &vertex : mesh->vert) {
         if (vertex.IsD())
             continue;
@@ -642,6 +642,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
 
         VCGMesh baseMesh;
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(baseMesh, mesh);
+        baseMesh.face.EnableFFAdjacency();
+        baseMesh.vert.EnableVFAdjacency();
+        baseMesh.face.EnableVFAdjacency();
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(baseMesh);
         const int nonManifoldVertices = vcg::tri::Clean<VCGMesh>::CountNonManifoldVertexFF(baseMesh, false);
         const int nonManifoldEdges = vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(baseMesh, false);
@@ -1112,6 +1115,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             targetImages.push_back(std::move(img));
         }
 
+        VCGMeshFFAdjScope _ffAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(mesh);
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(mesh);
 
@@ -1382,6 +1386,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             }
         }
 
+        VCGMeshFFAdjScope _ffAdjTarget(*targetWorldMesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(*targetWorldMesh);
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(*targetWorldMesh);
         vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(*sourceWorldMesh);
@@ -1541,6 +1546,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         QImage targetImage(sourceImage.size(), QImage::Format_ARGB32);
         targetImage.fill(qRgba(128, 128, 255, 255));
 
+        workMesh.face.EnableFFAdjacency();
         vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(workMesh);
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(workMesh);
         ObjectToTangentNormalSampler sampler(sourceImage, targetImage, invertX, invertY, invertZ);

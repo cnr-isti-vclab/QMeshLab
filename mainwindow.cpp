@@ -205,13 +205,52 @@ QString filterParameterValueText(const QVariant &value, MeshFilterParameterType 
 
 QString formatFilterParameterDetails(const MeshFilterDescriptor &descriptor)
 {
-    if (descriptor.parameters.empty()) {
-        return QObject::tr(
-            "<p style=\"margin:0; color: palette(mid);\">This filter declares no parameters.</p>");
-    }
-
     QString html = QStringLiteral(
         "<html><body style=\"margin:0; font-size:11px; line-height:1.3;\">");
+
+    if (!descriptor.outputModifies.isEmpty()) {
+        // Build a human-readable sentence from the two-letter codes.
+        static const QHash<QString, QString> codeLabels = {
+            { QStringLiteral("VG"), QObject::tr("vertex geometry") },
+            { QStringLiteral("VN"), QObject::tr("vertex normals") },
+            { QStringLiteral("VC"), QObject::tr("vertex color") },
+            { QStringLiteral("VQ"), QObject::tr("vertex quality") },
+            { QStringLiteral("VT"), QObject::tr("vertex texcoords") },
+            { QStringLiteral("VA"), QObject::tr("vertex attributes") },
+            { QStringLiteral("VS"), QObject::tr("vertex selection") },
+            { QStringLiteral("FV"), QObject::tr("face-vertex connectivity") },
+            { QStringLiteral("FN"), QObject::tr("face normals") },
+            { QStringLiteral("FC"), QObject::tr("face color") },
+            { QStringLiteral("FQ"), QObject::tr("face quality") },
+            { QStringLiteral("FA"), QObject::tr("face attributes") },
+            { QStringLiteral("FS"), QObject::tr("face selection") },
+            { QStringLiteral("FP"), QObject::tr("face polygon bits") },
+            { QStringLiteral("WT"), QObject::tr("wedge texcoords") },
+            { QStringLiteral("TX"), QObject::tr("texture images") },
+            { QStringLiteral("TM"), QObject::tr("transform matrix") },
+        };
+        QStringList labels;
+        for (const QString &code : descriptor.outputModifies) {
+            const QString label = codeLabels.value(code);
+            labels.push_back(
+                label.isEmpty()
+                    ? code.toHtmlEscaped()
+                    : QStringLiteral("%1 (%2)").arg(label.toHtmlEscaped(), code.toHtmlEscaped()));
+        }
+        html += QStringLiteral(
+                    "<div style=\"margin-bottom:6px; padding:4px 6px;"
+                    " background:#f0f4f8; border-left:3px solid #5a8fc8;\">")
+                + QStringLiteral("<span style=\"font-size:11px; color:#335;\">")
+                + QObject::tr("<b>Modifies:</b> %1").arg(labels.join(QStringLiteral(", ")))
+                + QStringLiteral("</span></div>");
+    }
+
+    if (descriptor.parameters.empty()) {
+        html += QObject::tr(
+            "<p style=\"margin:0; color: palette(mid);\">This filter declares no parameters.</p>");
+        html += QStringLiteral("</body></html>");
+        return html;
+    }
     for (size_t i = 0; i < descriptor.parameters.size(); ++i) {
         const MeshFilterParameterDescriptor &param = descriptor.parameters[i];
         const QString group = param.group.trimmed();
@@ -2072,7 +2111,7 @@ void MainWindow::showFilterPlugins()
             return a.descriptor.name.localeAwareCompare(b.descriptor.name) < 0;
         });
 
-    auto *filterTable = new QTableWidget(static_cast<int>(sortedFilters.size()), 6, &dialog);
+    auto *filterTable = new QTableWidget(static_cast<int>(sortedFilters.size()), 7, &dialog);
     filterTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     filterTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     filterTable->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -2080,13 +2119,14 @@ void MainWindow::showFilterPlugins()
     filterTable->setSortingEnabled(false);
     filterTable->verticalHeader()->setVisible(false);
     filterTable->setHorizontalHeaderLabels(
-        { tr("Filter"), tr("Plugin"), tr("Menu"), tr("Input"), tr("Output"), tr("Status") });
+        { tr("Filter"), tr("Plugin"), tr("Menu"), tr("Input"), tr("Output"), tr("Modifies"), tr("Status") });
     filterTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     filterTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     filterTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     filterTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     filterTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
     filterTable->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
+    filterTable->horizontalHeader()->setSectionResizeMode(6, QHeaderView::ResizeToContents);
     configureInfoTable(filterTable);
 
     for (int row = 0; row < static_cast<int>(sortedFilters.size()); ++row) {
@@ -2106,11 +2146,12 @@ void MainWindow::showFilterPlugins()
         setTextCell(2, info.descriptor.menuPath.isEmpty() ? tr("General") : info.descriptor.menuPath);
         setTextCell(3, filterInputDomainLabel(info.descriptor.inputDomain), Qt::AlignCenter);
         setTextCell(4, filterOutputDomainLabel(info.descriptor.outputDomain), Qt::AlignCenter);
+        setTextCell(5, info.descriptor.outputModifies.join(QStringLiteral(" ")), Qt::AlignCenter);
 
         const QString statusText = info.applicable ? tr("OK") : tr("Unavailable");
-        setTextCell(5, statusText, Qt::AlignCenter);
-        if (!info.applicable && filterTable->item(row, 5))
-            filterTable->item(row, 5)->setToolTip(info.applicabilityError);
+        setTextCell(6, statusText, Qt::AlignCenter);
+        if (!info.applicable && filterTable->item(row, 6))
+            filterTable->item(row, 6)->setToolTip(info.applicabilityError);
     }
 
     filterTable->setSortingEnabled(true);

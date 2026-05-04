@@ -79,7 +79,7 @@ std::unique_ptr<VCGMesh> transformedCopy(const Document::MeshEntry &entry)
 {
     auto copy = std::make_unique<VCGMesh>();
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(*copy, entry.mesh);
-    const QMatrix4x4 transform = entry.renderTransform;
+    const QMatrix4x4 transform = entry.transform;
     for (VCGVertex &v : copy->vert) {
         if (v.IsD())
             continue;
@@ -192,6 +192,7 @@ void computeProjection(
     GaelMls::MlsSurface<VCGMesh> &mls,
     vcg::CallBackPos *cb)
 {
+    VCGMeshFFAdjScope _ffAdj(mesh);
     if (selectionOnly)
         vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
 
@@ -294,9 +295,11 @@ int computeMarchingCubes(
         mesh.vert[size_t(i)].P() = mls.project(mesh.vert[size_t(i)].P(), &mesh.vert[size_t(i)].N());
     }
 
+    mesh.face.EnableFFAdjacency();
     vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
     vcg::tri::SmallComponent<VCGMesh>::Select(mesh, 0.1f);
     vcg::tri::SmallComponent<VCGMesh>::DeleteFaceVert(mesh);
+    mesh.face.DisableFFAdjacency();
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
@@ -382,6 +385,7 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kIdSelectSmallComponents)) {
         Document::MeshEntry &entry = doc.mesh(currentIndex);
+        VCGMeshFFAdjScope _ffAdj(entry.mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(entry.mesh);
         const int selected = vcg::tri::SmallComponent<VCGMesh>::Select(
             entry.mesh,
@@ -419,7 +423,7 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
             doc.progressCallback());
 
         VCGMesh localResult;
-        if (!inverseTransformMeshToLocal(proxyEntry.renderTransform, *proxyMesh, localResult))
+        if (!inverseTransformMeshToLocal(proxyEntry.transform, *proxyMesh, localResult))
             return fail(QObject::tr("Proxy mesh transform is not invertible."));
         proxyEntry.mesh.Clear();
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(proxyEntry.mesh, localResult);
@@ -450,7 +454,7 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
             marchingMeshName(entry, filterId == QString::fromLatin1(kIdApssMcube) ? QStringLiteral("APSS MC") : QStringLiteral("RIMLS MC")),
             Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL);
         if (newIndex >= 0) {
-            doc.mesh(newIndex).renderTransform.setToIdentity();
+            doc.mesh(newIndex).transform.setToIdentity();
             doc.mesh(newIndex).ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
         }
         MeshFilterRunResult result;

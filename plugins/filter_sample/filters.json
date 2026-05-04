@@ -7,7 +7,12 @@
       "name": "Random Vertex Displacement",
       "shortDescription": "Move the vertices of the current mesh by a bounded random amount.",
       "longDescriptionMarkdown": "Move the vertices of the mesh of a random quantity.",
-      "tags": ["sample", "random", "displacement", "smoothing"],
+      "tags": [
+        "sample",
+        "random",
+        "displacement",
+        "smoothing"
+      ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
@@ -43,6 +48,10 @@
           "min": 0,
           "max": 2147483647
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN"
       ]
     }
   ]

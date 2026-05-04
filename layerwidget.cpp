@@ -270,8 +270,8 @@ QString meshDataTooltip(const Document::MeshEntry &entry)
                  .arg(selectedVertexCount(entry.mesh))
                  .arg(selectedFaceCount(entry.mesh))
                  .arg(selectedEdgeCount(entry.mesh));
-    if (!isIdentityTransform(entry.renderTransform))
-        lines << QObject::tr("Transform: %1").arg(meshTransformSummary(entry.renderTransform));
+    if (!isIdentityTransform(entry.transform))
+        lines << QObject::tr("Transform: %1").arg(meshTransformSummary(entry.transform));
     if (attrs.vertexCount() > 0) {
         lines << QObject::tr("Vertex custom attributes: %1")
                      .arg(ownerAttributeSummary(attrs.vertexScalars, attrs.vertexColors, attrs.vertexPoints));
@@ -626,11 +626,11 @@ void LayerWidget::rebuild()
             item->addChild(fAttrItem);
         }
 
-        if (!isIdentityTransform(entry.renderTransform)) {
+        if (!isIdentityTransform(entry.transform)) {
             auto *xItem = new QTreeWidgetItem(
-                {QString(), tr("Xf"), meshTransformSummary(entry.renderTransform)});
+                {QString(), tr("Xf"), meshTransformSummary(entry.transform)});
             xItem->setFlags(xItem->flags() & ~Qt::ItemIsSelectable);
-            const QString xfTip = meshTransformTooltip(entry.renderTransform);
+            const QString xfTip = meshTransformTooltip(entry.transform);
             xItem->setToolTip(0, xfTip);
             xItem->setToolTip(1, xfTip);
             xItem->setToolTip(2, xfTip);

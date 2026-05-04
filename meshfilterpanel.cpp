@@ -804,6 +804,15 @@ void MeshFilterPanel::buildUi()
     m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
     paramsPageLayout->addWidget(m_filterDescriptionLabel);
 
+    m_filterModifiesLabel = new QLabel(m_parametersPage);
+    m_filterModifiesLabel->setVisible(false);
+    {
+        QFont f = m_filterModifiesLabel->font();
+        f.setFamily(QStringLiteral("Courier New, Courier, monospace"));
+        m_filterModifiesLabel->setFont(f);
+    }
+    paramsPageLayout->addWidget(m_filterModifiesLabel);
+
     m_longDescriptionView = new QTextBrowser(m_parametersPage);
     m_longDescriptionView->setOpenExternalLinks(true);
     m_longDescriptionView->setVisible(false);
@@ -1042,6 +1051,13 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     m_currentFilterKey = info.key;
     m_filterTitleLabel->setText(info.descriptor.name);
     m_filterDescriptionLabel->setText(info.descriptor.shortDescription);
+    const QStringList &mods = info.descriptor.outputModifies;
+    if (!mods.isEmpty()) {
+        m_filterModifiesLabel->setText(tr("Modifies: ") + mods.join(QStringLiteral(" ")));
+        m_filterModifiesLabel->setVisible(true);
+    } else {
+        m_filterModifiesLabel->setVisible(false);
+    }
     const QString longDescription = info.descriptor.longDescriptionMarkdown.trimmed();
     const bool hasLongDescription = !longDescription.isEmpty();
     m_longDescriptionToggle->setVisible(hasLongDescription);

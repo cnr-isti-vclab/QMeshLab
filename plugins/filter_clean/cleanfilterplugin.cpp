@@ -77,6 +77,8 @@ SnapBorderResult snapMismatchedBorder(
     using FacePointer = VCGMesh::FacePointer;
     using MetroMeshFaceGrid = vcg::GridStaticPtr<VCGMesh::FaceType, Scalar>;
 
+    VCGMeshFFAdjScope _ffAdj(mesh);
+    VCGMeshMarkScope _mark(mesh);
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
     vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
     vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(mesh);
@@ -247,6 +249,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
             mesh.face.clear();
         }
 
+        VCGMeshVFAdjScope _vfAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
         const int beforeFaceCount = mesh.FN();
         vcg::tri::BallPivoting<VCGMesh> pivot(mesh, radius, clustering, creaseThr);
@@ -447,6 +450,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
         const float mergeThr = float(params.getDouble(QStringLiteral("merge_thr")));
+        VCGMeshVFAdjScope _vfAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
         const int total = vcg::tri::UpdateTexture<VCGMesh>::WedgeTexMergeClose(mesh, mergeThr);
         entry.ioMask |= Mask::IOM_WEDGTEXCOORD;

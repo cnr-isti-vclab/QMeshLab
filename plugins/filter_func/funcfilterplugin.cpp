@@ -1616,6 +1616,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
         if (midpointError || edgeError)
             return fail(QString::fromStdString(message));
 
+        VCGMeshFFAdjScope _ffAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         vcg::tri::RefineE<
             VCGMesh,

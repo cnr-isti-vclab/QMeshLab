@@ -58,7 +58,13 @@
         "requireFaces": true,
         "requireTextureCoordinates": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VT",
+        "FV",
+        "VG",
+        "VN"
+      ]
     },
     {
       "id": "compute_texcoord_transfer_vertex_to_wedge",
@@ -78,7 +84,10 @@
         "requireFaces": true,
         "requireTextureCoordinates": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "WT"
+      ]
     },
     {
       "id": "compute_texcoord_parametrization_flat_plane_per_wedge",
@@ -139,6 +148,9 @@
           "max": 0.5,
           "decimals": 6
         }
+      ],
+      "outputModifies": [
+        "WT"
       ]
     },
     {
@@ -207,6 +219,9 @@
             }
           ]
         }
+      ],
+      "outputModifies": [
+        "WT"
       ]
     },
     {
@@ -286,6 +301,9 @@
             }
           ]
         }
+      ],
+      "outputModifies": [
+        "TX"
       ]
     },
     {
@@ -361,6 +379,9 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "TX"
       ]
     },
     {
@@ -415,6 +436,9 @@
           "sourceMeshParameter": "sourceMesh",
           "allowAutomatic": true
         }
+      ],
+      "outputModifies": [
+        "VC"
       ]
     },
     {
@@ -547,6 +571,9 @@
           "sourceMeshParameter": "sourceMesh",
           "allowAutomatic": true
         }
+      ],
+      "outputModifies": [
+        "TX"
       ]
     },
     {
@@ -648,6 +675,9 @@
           "max": 10.0,
           "decimals": 3
         }
+      ],
+      "outputModifies": [
+        "TX"
       ]
     }
   ]

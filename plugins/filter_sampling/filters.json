@@ -531,6 +531,9 @@
           "max": "@bboxDiag5x",
           "decimals": 6
         }
+      ],
+      "outputModifies": [
+        "VQ"
       ]
     },
     {
@@ -705,6 +708,13 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "VC",
+        "VQ",
+        "VS"
       ]
     },
     {
@@ -821,6 +831,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "VC"
       ]
     },
     {
@@ -881,6 +894,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "VQ"
       ]
     },
     {

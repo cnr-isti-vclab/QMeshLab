@@ -67,6 +67,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -113,6 +118,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -159,6 +169,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -227,6 +242,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -387,6 +407,11 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -499,6 +524,12 @@
           "type": "bool",
           "default": "@hasSelectedFaces"
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN",
+        "WT"
       ]
     },
     {
@@ -623,6 +654,11 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -639,7 +675,12 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FV",
+        "FN",
+        "VN"
+      ]
     },
     {
       "id": "meshing_invert_face_orientation",
@@ -672,6 +713,10 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "FN",
+        "VN"
       ]
     },
     {
@@ -750,6 +795,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -884,6 +935,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -973,6 +1030,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -1011,6 +1074,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -1125,6 +1194,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -1207,6 +1282,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -1229,6 +1310,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM"
       ]
     },
     {
@@ -1251,6 +1335,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -1281,6 +1371,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -1418,6 +1514,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -1632,6 +1734,12 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "TM",
+        "VG",
+        "VN",
+        "FN"
       ]
     },
     {
@@ -1687,6 +1795,9 @@
             0.0
           ]
         }
+      ],
+      "outputModifies": [
+        "VN"
       ]
     },
     {
@@ -1719,6 +1830,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "VN"
       ]
     },
     {
@@ -1823,6 +1937,11 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "VA",
+        "VQ",
+        "VC"
       ]
     },
     {
@@ -1893,6 +2012,11 @@
           "max": "@bboxDiag",
           "decimals": 6
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -1970,6 +2094,12 @@
           "min": 1,
           "max": 16
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "FP",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -1986,7 +2116,13 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FV",
+        "FP",
+        "VG",
+        "VN"
+      ]
     },
     {
       "id": "meshing_surface_subdivision_doo_sabin",
@@ -2013,6 +2149,12 @@
           "min": 1,
           "max": 16
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "FP",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -2052,6 +2194,9 @@
             }
           ]
         }
+      ],
+      "outputModifies": [
+        "FP"
       ]
     },
     {
@@ -2068,7 +2213,11 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FV",
+        "FP"
+      ]
     },
     {
       "id": "meshing_tri_to_quad_by_smart_triangle_pairing",
@@ -2084,7 +2233,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FP"
+      ]
     },
     {
       "id": "compute_selection_crease_per_edge",
@@ -2124,6 +2276,9 @@
           "max": 180.0,
           "decimals": 4
         }
+      ],
+      "outputModifies": [
+        "FP"
       ]
     },
     {
@@ -2223,6 +2378,13 @@
             }
           ]
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "VC",
+        "VT"
       ]
     },
     {

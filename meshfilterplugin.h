@@ -106,6 +106,16 @@ struct MeshFilterDescriptor
     // parameter and, when enabled, ORs the pre-run selection back after the filter.
     bool incrementalSelection = false;
     std::vector<MeshFilterParameterDescriptor> parameters;
+
+    // Two-letter codes describing which mesh attributes this filter modifies.
+    // Recognised codes: VG VN VC VQ VT VA VS FV FN FC FQ FA FS FP WT TX TM
+    // Used only when outputDomain == ModifyCurrentMesh.
+    // VG=vertex geometry  VN=vertex normals  VC=vertex color  VQ=vertex quality
+    // VT=vertex texcoords VA=vertex attributes VS=vertex selection
+    // FV=face-vertex connectivity  FN=face normals  FC=face color  FQ=face quality
+    // FA=face attributes  FS=face selection  FP=face polygon (faux-edge) bits
+    // WT=wedge texcoords  TX=texture images  TM=per-mesh transform matrix
+    QStringList outputModifies;
 };
 
 using MeshFilterParameterValues = QVariantMap;

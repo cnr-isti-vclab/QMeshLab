@@ -104,6 +104,7 @@ private:
     QWidget *m_parametersPage = nullptr;
     QLabel *m_filterTitleLabel = nullptr;
     QLabel *m_filterDescriptionLabel = nullptr;
+    QLabel *m_filterModifiesLabel = nullptr;
     QToolButton *m_longDescriptionToggle = nullptr;
     QTextBrowser *m_longDescriptionView = nullptr;
     QCheckBox *m_showAdvancedCheck = nullptr;

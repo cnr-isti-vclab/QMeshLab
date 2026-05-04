@@ -212,7 +212,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
             return;
 
-        const QMatrix4x4 model = m_doc->mesh(meshIndex).renderTransform;
+        const QMatrix4x4 model = m_doc->mesh(meshIndex).transform;
         const QMatrix4x4 modelView = view * model;
         const QMatrix4x4 mvp = proj * modelView;
         const QMatrix3x3 normalMat = modelView.normalMatrix();
@@ -557,7 +557,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             if (!decoratorUbuf || !decoratorSrb)
                 return false;
             float decoratorData[kDecoratorUbufSize / sizeof(float)] = {};
-            const QMatrix4x4 meshMvp = vp * m_doc->mesh(meshIndex).renderTransform;
+            const QMatrix4x4 meshMvp = vp * m_doc->mesh(meshIndex).transform;
             memcpy(decoratorData, meshMvp.constData(), 64);
             decoratorData[16] = color.redF();
             decoratorData[17] = color.greenF();
@@ -623,7 +623,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 if (fatPipeline && m_decoratorFatUbuf && m_decoratorFatSrb
                     && fatVbuf && fatVertexCount > 0) {
                     float fatData[kDecoratorFatUbufSize / sizeof(float)] = {};
-                    const QMatrix4x4 meshMvp = vp * m_doc->mesh(mi).renderTransform;
+                    const QMatrix4x4 meshMvp = vp * m_doc->mesh(mi).transform;
                     memcpy(fatData, meshMvp.constData(), 64);
                     fatData[16] = decoColor.redF();
                     fatData[17] = decoColor.greenF();
@@ -780,7 +780,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 continue;
 
             float selectionData[kDecoratorUbufSize / sizeof(float)] = {};
-            const QMatrix4x4 meshMvp = vp * m_doc->mesh(mi).renderTransform;
+            const QMatrix4x4 meshMvp = vp * m_doc->mesh(mi).transform;
             memcpy(selectionData, meshMvp.constData(), 64);
             selectionData[16] = 1.0f;
             selectionData[17] = 0.0f;

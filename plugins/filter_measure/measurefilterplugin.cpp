@@ -110,7 +110,7 @@ std::unique_ptr<VCGMesh> transformedCopy(const Document::MeshEntry &entry)
 {
     auto copy = std::make_unique<VCGMesh>();
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(*copy, entry.mesh);
-    const QMatrix4x4 transform = entry.renderTransform;
+    const QMatrix4x4 transform = entry.transform;
     if (!isIdentityTransform(transform)) {
         for (VCGVertex &v : copy->vert) {
             if (v.IsD())
@@ -197,6 +197,8 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterTopo)) {
         vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
         vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
+        VCGMeshFFAdjScope _ffAdj(mesh);
+        VCGMeshVFAdjScope _vfAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
 
@@ -256,6 +258,7 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterTopoQuad)) {
+        VCGMeshFFAdjScope _ffAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         if (!vcg::tri::Clean<VCGMesh>::IsFFAdjacencyConsistent(mesh))
             return fail(QObject::tr("Error: mesh has inconsistent face-face adjacency."));
@@ -334,7 +337,7 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         const bool pointcloud = (measureMesh->FN() == 0) && (measureMesh->VN() != 0);
         QStringList info;
         info << QObject::tr("Mesh: %1").arg(meshName);
-        if (!isIdentityTransform(entry.renderTransform))
+        if (!isIdentityTransform(entry.transform))
             info << QObject::tr("Beware: measures are computed considering the current transformation matrix.");
 
         const vcg::Box3f &bbox = measureMesh->bbox;
@@ -418,8 +421,9 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         if (selectedFaceCount == 0)
             return fail(QObject::tr("Cannot apply: there is no face selection."));
 
+        VCGMeshFFAdjScope _ffAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
-        const QMatrix4x4 transform = entry.renderTransform;
+        const QMatrix4x4 transform = entry.transform;
         QStringList info;
         info << QObject::tr("Mesh: %1").arg(meshName);
         info << QObject::tr("Selected triangles: %1").arg(selectedFaceCount);

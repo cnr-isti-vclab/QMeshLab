@@ -59,6 +59,11 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN"
       ]
     },
     {
@@ -90,6 +95,10 @@
           "max": "@qualityVMax",
           "decimals": 6
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV"
       ]
     },
     {
@@ -127,6 +136,10 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG"
       ]
     },
     {
@@ -165,6 +178,10 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG"
       ]
     },
     {
@@ -221,6 +238,10 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG"
       ]
     },
     {
@@ -259,6 +280,10 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG"
       ]
     },
     {
@@ -289,6 +314,10 @@
           "max": "@bboxDiag01",
           "decimals": 8
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV"
       ]
     },
     {
@@ -320,6 +349,10 @@
           "max": 1.0,
           "decimals": 8
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "WT"
       ]
     },
     {
@@ -338,7 +371,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FV"
+      ]
     },
     {
       "id": "remove_folded_faces_by_edge_flip",
@@ -356,7 +392,13 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN",
+        "FN"
+      ]
     },
     {
       "id": "repair_non_manifold_edges",
@@ -393,6 +435,10 @@
             }
           ]
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG"
       ]
     },
     {
@@ -423,6 +469,10 @@
           "max": 1.0,
           "decimals": 6
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV"
       ]
     },
     {
@@ -441,7 +491,11 @@
       "inputRequirements": {
         "requireVertices": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VG",
+        "FV"
+      ]
     },
     {
       "id": "remove_duplicated_vertices",
@@ -459,7 +513,11 @@
       "inputRequirements": {
         "requireVertices": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VG",
+        "FV"
+      ]
     },
     {
       "id": "remove_zero_area_faces",
@@ -477,7 +535,11 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FV",
+        "VG"
+      ]
     }
   ]
 }

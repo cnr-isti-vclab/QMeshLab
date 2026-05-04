@@ -39,6 +39,10 @@
           "max": 10.0,
           "decimals": 4
         }
+      ],
+      "outputModifies": [
+        "VQ",
+        "VC"
       ]
     },
     {
@@ -68,6 +72,10 @@
           "min": 1,
           "max": 8192
         }
+      ],
+      "outputModifies": [
+        "VQ",
+        "VC"
       ]
     },
     {
@@ -108,6 +116,10 @@
           "max": 179.0,
           "decimals": 2
         }
+      ],
+      "outputModifies": [
+        "VQ",
+        "VC"
       ]
     },
     {
@@ -141,6 +153,9 @@
             0.0
           ]
         }
+      ],
+      "outputModifies": [
+        "FS"
       ]
     },
     {
@@ -178,6 +193,10 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "FN",
+        "VN"
       ]
     }
   ]

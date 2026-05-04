@@ -151,6 +151,10 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
         d.parameters.push_back(parseParameter(pv.toObject()));
     }
 
+    const QJsonArray mods = obj.value(QStringLiteral("outputModifies")).toArray();
+    for (const QJsonValue &m : mods)
+        d.outputModifies << m.toString();
+
     d.incrementalSelection = obj.value(QStringLiteral("incrementalSelection")).toBool(false);
     if (d.incrementalSelection) {
         // Inject the standard "incremental_selection" bool parameter at the end

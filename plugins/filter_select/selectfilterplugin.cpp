@@ -207,6 +207,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         }
 
         if (params.getBool(QStringLiteral("useNF"))) {
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
             const float nfRatio = float(params.getDouble(QStringLiteral("NFRatio")));
@@ -242,6 +243,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             const float angleThr =
                 float(params.getDouble(QStringLiteral("folded_faces_angle_threshold")));
             const int beforeSel = int(Sel::FaceCount(mesh));
+            VCGMeshVFAdjScope _vfAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
             vcg::tri::Clean<VCGMesh>::SelectFoldedFaceFromOneRingFaces(
                 mesh,
@@ -274,6 +276,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterSelectConnected)) {
         if (mesh.FN() <= 0)
             return fail(QObject::tr("Current mesh has no faces."));
+        VCGMeshFFAdjScope _ffAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         Sel::FaceConnectedFF(mesh);
         return selectionResult(
@@ -581,6 +584,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectTexBorder)) {
+        VCGMeshFFAdjScope _ffAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(mesh);
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(mesh);
         vcg::tri::UpdateFlags<VCGMesh>::VertexBorderFromFaceBorder(mesh);
@@ -596,6 +600,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectNonManifoldFace)) {
+        VCGMeshFFAdjScope _ffAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         const int nm = vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh, true);
         return selectionResult(
@@ -606,6 +611,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectNonManifoldVertex)) {
+        VCGMeshFFAdjScope _ffAdj(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         const int nm = vcg::tri::Clean<VCGMesh>::CountNonManifoldVertexFF(mesh, true);
         return selectionResult(

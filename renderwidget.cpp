@@ -726,7 +726,7 @@ bool RenderWidget::computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3
         };
 
         for (const QVector3D &corner : corners) {
-            const QVector4D transformed = meshEntry.renderTransform * QVector4D(corner, 1.0f);
+            const QVector4D transformed = meshEntry.transform * QVector4D(corner, 1.0f);
             const QVector3D worldCorner = (std::abs(transformed.w()) > 1e-8f)
                 ? transformed.toVector3DAffine()
                 : transformed.toVector3D();

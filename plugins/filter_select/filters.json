@@ -29,6 +29,10 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "VS",
+        "FS"
       ]
     },
     {
@@ -59,6 +63,10 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "VS",
+        "FS"
       ]
     },
     {
@@ -111,6 +119,9 @@
             0.0
           ]
         }
+      ],
+      "outputModifies": [
+        "FS"
       ]
     },
     {
@@ -188,6 +199,9 @@
           "max": 180.0,
           "decimals": 3
         }
+      ],
+      "outputModifies": [
+        "FS"
       ]
     },
     {
@@ -218,6 +232,10 @@
           "type": "bool",
           "default": "@hasSelectedVerts"
         }
+      ],
+      "outputModifies": [
+        "VS",
+        "FS"
       ]
     },
     {
@@ -236,7 +254,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FS"
+      ]
     },
     {
       "id": "select_faces_from_vertices",
@@ -264,6 +285,9 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "FS"
       ]
     },
     {
@@ -292,6 +316,9 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "VS"
       ]
     },
     {
@@ -310,7 +337,11 @@
       "inputRequirements": {
         "requireVertices": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VG",
+        "FV"
+      ]
     },
     {
       "id": "delete_all_faces",
@@ -334,6 +365,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "FV"
       ]
     },
     {
@@ -352,7 +386,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FV"
+      ]
     },
     {
       "id": "delete_selected_faces_and_vertices",
@@ -372,7 +409,11 @@
         "requireFaces": true,
         "requireVertices": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VG",
+        "FV"
+      ]
     },
     {
       "id": "select_erode",
@@ -390,7 +431,11 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VS",
+        "FS"
+      ]
     },
     {
       "id": "select_dilate",
@@ -408,7 +453,11 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VS",
+        "FS"
+      ]
     },
     {
       "id": "select_border",
@@ -426,7 +475,11 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VS",
+        "FS"
+      ]
     },
     {
       "id": "select_by_face_quality",
@@ -477,6 +530,9 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "FS"
       ]
     },
     {
@@ -528,6 +584,9 @@
           "type": "bool",
           "default": true
         }
+      ],
+      "outputModifies": [
+        "VS"
       ]
     },
     {
@@ -616,6 +675,10 @@
           "max": 1.0,
           "decimals": 4
         }
+      ],
+      "outputModifies": [
+        "VS",
+        "FS"
       ]
     },
     {
@@ -635,7 +698,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FS"
+      ]
     },
     {
       "id": "select_vertex_texture_seams",
@@ -655,7 +721,10 @@
         "requireFaces": true,
         "requireTextureCoordinates": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VS"
+      ]
     },
     {
       "id": "select_non_manifold_edges",
@@ -674,7 +743,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "FS"
+      ]
     },
     {
       "id": "select_non_manifold_vertices",
@@ -693,7 +765,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "outputModifies": [
+        "VS"
+      ]
     },
     {
       "id": "select_faces_by_edge_length",
@@ -724,6 +799,9 @@
           "max": "@bboxDiagHalf",
           "decimals": 6
         }
+      ],
+      "outputModifies": [
+        "FS"
       ]
     },
     {
@@ -765,6 +843,9 @@
           "min": 1,
           "max": 1000000
         }
+      ],
+      "outputModifies": [
+        "VS"
       ]
     }
   ]

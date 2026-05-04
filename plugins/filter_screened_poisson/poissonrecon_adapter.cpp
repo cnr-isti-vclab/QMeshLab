@@ -85,8 +85,8 @@ bool nextSampleImpl(
             if (vertex.IsD())
                 continue;
 
-            const vcg::Point3<float> pos = qMatrixMapPoint<float>(entry.renderTransform, vcg::Point3<float>(vertex.cP()));
-            vcg::Point3<float> normal = qMatrixMapDirection<float>(entry.renderTransform, vcg::Point3<float>(vertex.cN()));
+            const vcg::Point3<float> pos = qMatrixMapPoint<float>(entry.transform, vcg::Point3<float>(vertex.cP()));
+            vcg::Point3<float> normal = qMatrixMapDirection<float>(entry.transform, vcg::Point3<float>(vertex.cN()));
             if (options.confidenceFromQuality)
                 normal *= vertex.cQ();
 
@@ -169,7 +169,7 @@ vcg::Box3f computeBounds(const Document &doc, const std::vector<int> &meshIndice
         for (const VCGVertex &vertex : entry.mesh.vert) {
             if (vertex.IsD())
                 continue;
-            bb.Add(qMatrixMapPoint<float>(entry.renderTransform, vcg::Point3<float>(vertex.cP())));
+            bb.Add(qMatrixMapPoint<float>(entry.transform, vcg::Point3<float>(vertex.cP())));
         }
     }
     return bb;

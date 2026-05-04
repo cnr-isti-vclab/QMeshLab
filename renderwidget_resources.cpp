@@ -43,7 +43,7 @@ void RenderWidget::updateCameraFrameIfNeeded()
             QVector3D(box.max[0], box.max[1], box.max[2])
         };
         for (const QVector3D &corner : corners) {
-            const QVector4D transformed = entry.renderTransform * QVector4D(corner, 1.0f);
+            const QVector4D transformed = entry.transform * QVector4D(corner, 1.0f);
             const QVector3D worldCorner = (std::abs(transformed.w()) > 1e-8f)
                 ? transformed.toVector3DAffine()
                 : transformed.toVector3D();

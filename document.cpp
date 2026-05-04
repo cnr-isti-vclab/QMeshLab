@@ -123,7 +123,7 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.meshId = src.meshId;
     dst.geometryRevision = src.geometryRevision;
     dst.materialRevision = src.materialRevision;
-    dst.renderTransform = src.renderTransform;
+    dst.transform = src.transform;
     dst.name = src.name;
     dst.sourcePath = src.sourcePath;
     dst.textureFileNames = src.textureFileNames;
@@ -137,6 +137,16 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
 {
     dst.Clear();
 
+    // Enable storable OCF fields in dst to match src.
+    // Ancillary fields (FFAdj, VFAdj, Mark) are never copied — they are
+    // transient and must be re-computed after use.
+    const bool copyVertTexCoord   = src.vert.IsTexCoordEnabled();
+    const bool copyVertCurvDir    = src.vert.IsCurvatureDirEnabled();
+    const bool copyFaceWedgeTex   = src.face.IsWedgeTexCoordEnabled();
+    if (copyVertTexCoord)  dst.vert.EnableTexCoord();
+    if (copyVertCurvDir)   dst.vert.EnableCurvatureDir();
+    if (copyFaceWedgeTex)  dst.face.EnableWedgeTexCoord();
+
     std::vector<int> vertexMap(src.vert.size(), -1);
     if (src.VN() > 0) {
         vcg::tri::Allocator<VCGMesh>::AddVertices(dst, src.VN());
@@ -148,10 +158,12 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
             VCGVertex &dv = dst.vert[static_cast<size_t>(dstVertexIndex)];
             dv.P() = sv.cP();
             dv.N() = sv.cN();
-            dv.T() = sv.cT();
             dv.C() = sv.cC();
             dv.Q() = sv.cQ();
             dv.Flags() = sv.Flags();
+            if (copyVertTexCoord) dv.T()   = sv.cT();
+            if (copyVertCurvDir)  { dv.PD1() = sv.cPD1(); dv.PD2() = sv.cPD2();
+                                    dv.K1()  = sv.cK1();  dv.K2()  = sv.cK2(); }
             vertexMap[i] = dstVertexIndex;
             ++dstVertexIndex;
         }
@@ -177,7 +189,7 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
                     }
                 }
                 df.V(k) = dv;
-                df.WT(k) = sf.cWT(k);
+                if (copyFaceWedgeTex) df.WT(k) = sf.cWT(k);
             }
             df.N() = sf.cN();
             df.C() = sf.cC();
@@ -447,7 +459,13 @@ int Document::loadMesh(const QString &filename)
     g_callbackDocument = this;
     int loadMask = 0;
     MeshIOMaterialSet loadedMaterialSet;
+    // Pre-enable storable OCF fields so the importer can write into them.
+    entry->mesh.vert.EnableTexCoord();
+    entry->mesh.face.EnableWedgeTexCoord();
     int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask, &loadedMaterialSet);
+    // Disable storable OCF fields that the importer did not actually populate.
+    if (!(loadMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD))  entry->mesh.vert.DisableTexCoord();
+    if (!(loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))  entry->mesh.face.DisableWedgeTexCoord();
     g_callbackDocument = previousCallbackDocument;
     m_callbackMode = previousCallbackMode;
     const qint64 importElapsedMs = loadTimer.elapsed();
@@ -474,7 +492,7 @@ int Document::loadMesh(const QString &filename)
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = 1;
     entry->materialRevision = 1;
-    entry->renderTransform.setToIdentity();
+    entry->transform.setToIdentity();
     entry->name = QFileInfo(filename).fileName();
     entry->sourcePath = filename;
     entry->materialSet = normalizeMaterialSet(filename, loadedMaterialSet, entry->mesh);
@@ -662,7 +680,13 @@ int Document::reloadMesh(int index)
     g_callbackDocument = this;
     int loadMask = 0;
     MeshIOMaterialSet loadedMaterialSet;
+    // Pre-enable storable OCF fields so the importer can write into them.
+    reloadedMesh.vert.EnableTexCoord();
+    reloadedMesh.face.EnableWedgeTexCoord();
     const int err = plugin->load(sourcePath, reloadedMesh, logCallback(), &loadMask, &loadedMaterialSet);
+    // Disable storable OCF fields that the importer did not actually populate.
+    if (!(loadMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD))  reloadedMesh.vert.DisableTexCoord();
+    if (!(loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))  reloadedMesh.face.DisableWedgeTexCoord();
     g_callbackDocument = previousCallbackDocument;
     m_callbackMode = previousCallbackMode;
     const qint64 importElapsedMs = loadTimer.elapsed();
@@ -1053,7 +1077,7 @@ Document::UndoState Document::captureUndoState() const
         snap.meshId             = entry->meshId;
         snap.geometryRevision   = entry->geometryRevision;
         snap.materialRevision   = entry->materialRevision;
-        snap.renderTransform    = entry->renderTransform;
+        snap.transform    = entry->transform;
         snap.name               = entry->name;
         snap.sourcePath         = entry->sourcePath;
         snap.textureFileNames   = entry->textureFileNames;
@@ -1104,7 +1128,7 @@ void Document::restoreUndoState(const UndoState &state)
         entry->meshId           = snap.meshId;
         entry->geometryRevision = snap.geometryRevision;
         entry->materialRevision = snap.materialRevision;
-        entry->renderTransform  = snap.renderTransform;
+        entry->transform  = snap.transform;
         entry->name             = snap.name;
         entry->sourcePath       = snap.sourcePath;
         entry->textureFileNames = snap.textureFileNames;
@@ -1219,7 +1243,7 @@ int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = 1;
     entry->materialRevision = 1;
-    entry->renderTransform.setToIdentity();
+    entry->transform.setToIdentity();
     entry->ioMask = ioMask;
     entry->sourcePath.clear();
     entry->name = name.trimmed().isEmpty()
@@ -1286,17 +1310,17 @@ int Document::duplicateMesh(int sourceIndex, const QString &newName)
     return newIndex;
 }
 
-QMatrix4x4 Document::meshRenderTransform(int index) const
+QMatrix4x4 Document::meshTransform(int index) const
 {
     if (index < 0 || index >= meshCount()) {
         QMatrix4x4 identity;
         identity.setToIdentity();
         return identity;
     }
-    return mesh(index).renderTransform;
+    return mesh(index).transform;
 }
 
-void Document::setMeshRenderTransform(
+void Document::setMeshTransform(
     int index,
     const QMatrix4x4 &transform,
     const QString &contextMessage)
@@ -1304,14 +1328,14 @@ void Document::setMeshRenderTransform(
     if (index < 0 || index >= meshCount())
         return;
     MeshEntry &entry = mesh(index);
-    if (entry.renderTransform == transform)
+    if (entry.transform == transform)
         return;
 
     const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
     if (ownUndoStep)
         beginUndoStep(tr("Modify Mesh Transform"));
 
-    entry.renderTransform = transform;
+    entry.transform = transform;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
     } else {

@@ -27,6 +27,9 @@
           "type": "string",
           "default": "(q < 0)"
         }
+      ],
+      "outputModifies": [
+        "VS"
       ]
     },
     {
@@ -55,6 +58,9 @@
           "type": "string",
           "default": "(fi == 0)"
         }
+      ],
+      "outputModifies": [
+        "FS"
       ]
     },
     {
@@ -106,6 +112,10 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN"
       ]
     },
     {
@@ -157,6 +167,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "VN"
       ]
     },
     {
@@ -208,6 +221,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "FN"
       ]
     },
     {
@@ -267,6 +283,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "VC"
       ]
     },
     {
@@ -326,6 +345,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "FC"
       ]
     },
     {
@@ -377,6 +399,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "VQ"
       ]
     },
     {
@@ -428,6 +453,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "FQ"
       ]
     },
     {
@@ -471,6 +499,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "VT"
       ]
     },
     {
@@ -546,6 +577,9 @@
           "type": "bool",
           "default": false
         }
+      ],
+      "outputModifies": [
+        "WT"
       ]
     },
     {
@@ -581,6 +615,9 @@
           "type": "string",
           "default": "x"
         }
+      ],
+      "outputModifies": [
+        "VA"
       ]
     },
     {
@@ -616,6 +653,9 @@
           "type": "string",
           "default": "fi"
         }
+      ],
+      "outputModifies": [
+        "FA"
       ]
     },
     {
@@ -667,6 +707,9 @@
           "type": "string",
           "default": "z"
         }
+      ],
+      "outputModifies": [
+        "VA"
       ]
     },
     {
@@ -718,6 +761,9 @@
           "type": "string",
           "default": "z0"
         }
+      ],
+      "outputModifies": [
+        "FA"
       ]
     },
     {
@@ -938,6 +984,11 @@
           "type": "string",
           "default": "(z0+z1)/2"
         }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN"
       ]
     }
   ]

@@ -205,6 +205,23 @@ int selectedVertCount(const VCGMesh &mesh)
     return cnt;
 }
 
+static QMatrix4x4 vcgToQt(const vcg::Matrix44f &m)
+{
+    return QMatrix4x4(m[0][0], m[0][1], m[0][2], m[0][3],
+                      m[1][0], m[1][1], m[1][2], m[1][3],
+                      m[2][0], m[2][1], m[2][2], m[2][3],
+                      m[3][0], m[3][1], m[3][2], m[3][3]);
+}
+
+static vcg::Matrix44f qtToVcg(const QMatrix4x4 &m)
+{
+    vcg::Matrix44f r;
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col)
+            r[row][col] = m(row, col);
+    return r;
+}
+
 vcg::Box3f sceneBBox(const Document &doc, bool visibleOnly)
 {
     vcg::Box3f bb;
@@ -213,10 +230,16 @@ vcg::Box3f sceneBBox(const Document &doc, bool visibleOnly)
         const Document::MeshEntry &entry = doc.mesh(i);
         if (visibleOnly && !entry.visible)
             continue;
-        vcg::Box3f mb = entry.mesh.bbox;
-        if (mb.IsNull())
+        if (entry.mesh.bbox.IsNull())
             vcg::tri::UpdateBounding<VCGMesh>::Box(const_cast<VCGMesh &>(entry.mesh));
-        bb.Add(entry.mesh.bbox);
+        const vcg::Matrix44f tr = qtToVcg(entry.transform);
+        for (int c = 0; c < 8; ++c) {
+            vcg::Point3f corner(
+                (c & 1) ? entry.mesh.bbox.max.X() : entry.mesh.bbox.min.X(),
+                (c & 2) ? entry.mesh.bbox.max.Y() : entry.mesh.bbox.min.Y(),
+                (c & 4) ? entry.mesh.bbox.max.Z() : entry.mesh.bbox.min.Z());
+            bb.Add(tr * corner);
+        }
     }
     return bb;
 }
@@ -259,7 +282,18 @@ void applyTransform(
             continue;
         if (!opt.allLayers && i != doc.currentMeshIndex())
             continue;
-        applyTransformToMesh(entry.mesh, tr);
+        // Compose the new filter matrix on top of the existing per-mesh transform.
+        const QMatrix4x4 combined = vcgToQt(tr) * entry.transform;
+        if (opt.freeze) {
+            // Bake the combined transform into vertex positions, then reset the matrix.
+            applyTransformToMesh(entry.mesh, qtToVcg(combined));
+            QMatrix4x4 identity;
+            identity.setToIdentity();
+            doc.setMeshTransform(i, identity);
+        } else {
+            // Store the composed matrix for rendering without touching vertex data.
+            doc.setMeshTransform(i, combined);
+        }
         touched.push_back(i);
     }
 }
@@ -445,6 +479,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
             vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(mesh);
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0) {
@@ -535,6 +570,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         if (filterId == QString::fromLatin1(kIdReorient)) {
             if (mesh.FN() <= 0)
                 return fail(QObject::tr("Current mesh has no faces."));
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0)
                 return fail(QObject::tr("Orientability requires manifoldness."));
@@ -583,6 +619,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadric)) {
+            VCGMeshVFAdjScope _vfAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
             vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromVF(mesh);
 
@@ -623,6 +660,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadricTex)) {
+            VCGMeshVFAdjScope _vfAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
             vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromVF(mesh);
 
@@ -695,8 +733,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         auto applyTransformAndMark = [&](const vcg::Matrix44f &tr, const TransformOptions &opt, const QString &opName) {
             QVector<int> touched;
             applyTransform(doc, tr, opt, touched);
-            for (int idx : touched)
-                markGeometry(idx, QObject::tr("%1 on '%2'").arg(opName, doc.mesh(idx).name));
+            for (int idx : touched) {
+                if (opt.freeze)
+                    markGeometry(idx, QObject::tr("%1 on '%2'").arg(opName, doc.mesh(idx).name));
+            }
             return success(!touched.isEmpty(), { QObject::tr("Affected layers: %1").arg(touched.size()) });
         };
 
@@ -932,12 +972,71 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Scale"));
         }
 
-        if (filterId == QString::fromLatin1(kIdReset)
-            || filterId == QString::fromLatin1(kIdFreeze)
-            || filterId == QString::fromLatin1(kIdInvertTr)) {
-            // QMeshLab currently has no persistent per-layer transform matrix. Treat these
-            // as successful no-op operations for compatibility with MeshLab filter set.
-            return success(false, { QObject::tr("No persistent transform matrix in QMeshLab: no-op.") });
+        if (filterId == QString::fromLatin1(kIdReset)) {
+            // Reset the per-mesh transform to the identity matrix.
+            const bool allLayers = params.getBool(QStringLiteral("allLayers"));
+            QMatrix4x4 identity;
+            identity.setToIdentity();
+            int count = 0;
+            for (int i = 0; i < doc.meshCount(); ++i) {
+                const Document::MeshEntry &e = doc.mesh(i);
+                if (allLayers && !e.visible)
+                    continue;
+                if (!allLayers && i != ci)
+                    continue;
+                doc.setMeshTransform(i, identity);
+                ++count;
+            }
+            return success(count > 0, { QObject::tr("Transform reset on %1 layer(s).").arg(count) });
+        }
+
+        if (filterId == QString::fromLatin1(kIdFreeze)) {
+            // Bake the current per-mesh transform into vertex positions and reset to identity.
+            const bool allLayers = params.getBool(QStringLiteral("allLayers"));
+            QMatrix4x4 identity;
+            identity.setToIdentity();
+            int count = 0;
+            for (int i = 0; i < doc.meshCount(); ++i) {
+                Document::MeshEntry &e = doc.mesh(i);
+                if (allLayers && !e.visible)
+                    continue;
+                if (!allLayers && i != ci)
+                    continue;
+                applyTransformToMesh(e.mesh, qtToVcg(e.transform));
+                doc.setMeshTransform(i, identity);
+                markGeometry(i, QObject::tr("Freeze transform on '%1'").arg(e.name));
+                ++count;
+            }
+            return success(count > 0, { QObject::tr("Transform frozen to vertices on %1 layer(s).").arg(count) });
+        }
+
+        if (filterId == QString::fromLatin1(kIdInvertTr)) {
+            // Invert the current per-mesh transform matrix.
+            const bool allLayers = params.getBool(QStringLiteral("allLayers"));
+            const bool freeze = params.getBool(QStringLiteral("Freeze"));
+            QMatrix4x4 identity;
+            identity.setToIdentity();
+            int count = 0;
+            for (int i = 0; i < doc.meshCount(); ++i) {
+                Document::MeshEntry &e = doc.mesh(i);
+                if (allLayers && !e.visible)
+                    continue;
+                if (!allLayers && i != ci)
+                    continue;
+                bool invertible = false;
+                const QMatrix4x4 inv = e.transform.inverted(&invertible);
+                if (!invertible)
+                    continue;
+                if (freeze) {
+                    applyTransformToMesh(e.mesh, qtToVcg(inv));
+                    doc.setMeshTransform(i, identity);
+                    markGeometry(i, QObject::tr("Invert and freeze transform on '%1'").arg(e.name));
+                } else {
+                    doc.setMeshTransform(i, inv);
+                }
+                ++count;
+            }
+            return success(count > 0, { QObject::tr("Transform inverted on %1 layer(s).").arg(count) });
         }
 
         if (filterId == QString::fromLatin1(kIdSetParams)) {
@@ -998,6 +1097,11 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
         if (filterId == QString::fromLatin1(kIdCurvDir)) {
             const float scale = float(params.getDouble(QStringLiteral("Scale")));
+            VCGMeshFFAdjScope _ffAdj(mesh);
+            VCGMeshVFAdjScope _vfAdj(mesh);
+            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+            vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
+            mesh.vert.EnableCurvatureDir();
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0)
                 return fail(QObject::tr("Cannot compute principal directions on non-manifold faces."));
 
@@ -1203,6 +1307,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (!vcg::tri::BitQuadCreation<VCGMesh>::IsTriQuadOnly(mesh)) {
                 return fail(QObject::tr("Filter requires triangular and/or quad faces only."));
             }
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::BitQuadCreation<VCGMesh>::MakePureByRefine(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerBitQuadFaceNormalized(mesh);
@@ -1215,6 +1320,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         if (filterId == QString::fromLatin1(kIdCatmull)) {
             PMesh baseIn, refinedOut;
             const int it = std::max(1, params.getInt(QStringLiteral("Iterations")));
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::PolygonSupport<VCGMesh, PMesh>::ImportFromTriMesh(baseIn, mesh);
             vcg::tri::Clean<PMesh>::RemoveUnreferencedVertex(baseIn);
@@ -1232,6 +1338,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
         if (filterId == QString::fromLatin1(kIdDooSabin)) {
             PMesh baseIn, refinedOut;
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             if (!vcg::tri::Clean<VCGMesh>::IsFaceFauxConsistent(mesh))
                 return fail(QObject::tr("Mesh has inconsistent faux-edge tagging."));
@@ -1250,6 +1357,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadPairing)) {
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0)
                 return fail(QObject::tr("Filter requires manifoldness."));
@@ -1263,6 +1371,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadDominant)) {
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             const QString lvl = params.getEnum(QStringLiteral("level"));
             int level = 0;
@@ -1287,6 +1396,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdFauxCrease)) {
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             const float neg = float(params.getDouble(QStringLiteral("AngleDegNeg")));
             const float pos = float(params.getDouble(QStringLiteral("AngleDegPos")));
@@ -1351,6 +1461,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (selectedFaceCount(mesh) == 0)
                 return fail(QObject::tr("No selected faces to build perimeter polyline."));
 
+            VCGMeshFFAdjScope _ffAdj(mesh);
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             VCGMesh perimeter;
             perimeter.textures = mesh.textures;

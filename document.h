@@ -42,7 +42,7 @@ public:
         std::uint64_t meshId = 0;
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
-        QMatrix4x4 renderTransform;
+        QMatrix4x4 transform;
         QString name;
         QString sourcePath;
         QStringList textureFileNames;
@@ -141,8 +141,8 @@ public:
     void removeMesh(int index);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
     void setMeshVisible(int index, bool visible);
-    QMatrix4x4 meshRenderTransform(int index) const;
-    void setMeshRenderTransform(
+    QMatrix4x4 meshTransform(int index) const;
+    void setMeshTransform(
         int index,
         const QMatrix4x4 &transform,
         const QString &contextMessage = {});
@@ -244,7 +244,7 @@ private:
             std::uint64_t meshId = 0;
             std::uint64_t geometryRevision = 0;
             std::uint64_t materialRevision = 0;
-            QMatrix4x4 renderTransform;
+            QMatrix4x4 transform;
             QString name;
             QString sourcePath;
             QStringList textureFileNames;
