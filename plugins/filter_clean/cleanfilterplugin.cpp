@@ -56,7 +56,6 @@ std::optional<CurrentMeshRef> currentMesh(Document &doc, QString &errorMessage)
 
 void compactAndUpdateGeometry(VCGMesh &mesh)
 {
-    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
     if (mesh.FN() > 0)
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
@@ -235,7 +234,6 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         if (mesh.VN() <= 0)
             return { false, false, QObject::tr("Current mesh has no vertices.") };
 
-        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
         const float radius =
             float(params.getDouble(QStringLiteral("ball_radius")));
         const float clustering =

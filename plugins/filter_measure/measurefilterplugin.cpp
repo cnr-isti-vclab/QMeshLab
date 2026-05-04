@@ -191,9 +191,6 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
     const QString meshName = entry.name;
 
     if (filterId == QString::fromLatin1(kFilterTopo)) {
-        vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
-        vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
-
         const SavedSelection saved = saveSelectionBits(mesh);
 
         const int edgeNonManifFFNum = vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh, true);
@@ -503,14 +500,12 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
                     .arg(areaWeighted ? QObject::tr(", area weighted") : QString());
 
         if (vertexHistogram) {
-            vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
             std::vector<float> weights(size_t(mesh.VN()), 1.0f);
             if (areaWeighted)
                 vcg::tri::MeshToMatrix<VCGMesh>::PerVertexArea(mesh, weights);
             for (int i = 0; i < mesh.VN(); ++i)
                 hist.Add(mesh.vert[size_t(i)].Q(), weights[size_t(i)]);
         } else {
-            vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
             std::vector<float> weights(size_t(mesh.FN()), 1.0f);
             if (areaWeighted)
                 vcg::tri::MeshToMatrix<VCGMesh>::PerFaceArea(mesh, weights);

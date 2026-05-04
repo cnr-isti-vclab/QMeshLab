@@ -88,7 +88,6 @@ Point toPoint(const QVector3D &v)
 
 void updateBBoxAndNormals(VCGMesh &mesh)
 {
-    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
     if (mesh.FN() > 0) {
         vcg::tri::UpdateNormal<VCGMesh>::PerFace(mesh);
@@ -98,7 +97,6 @@ void updateBBoxAndNormals(VCGMesh &mesh)
 
 void prepareFaceFaceNormalsSmoothing(VCGMesh &mesh)
 {
-    vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
     vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
     vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(mesh);
 }
@@ -441,7 +439,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         const Scalar alpha = Scalar(params.getDouble(QStringLiteral("weight")));
         const Scalar alphaOrig = Scalar(params.getDouble(QStringLiteral("weightOrig")));
         const int smoothIter = params.getInt(QStringLiteral("iterations"));
-        vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
         std::vector<Point> geomOrig(size_t(mesh.vn));
         for (int i = 0; i < mesh.vn; ++i)
             geomOrig[size_t(i)] = mesh.vert[size_t(i)].cP();
@@ -461,7 +458,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         const Scalar alpha = Scalar(params.getDouble(QStringLiteral("weight")));
         const Scalar alphaOrig = Scalar(params.getDouble(QStringLiteral("weightOrig")));
         const int smoothIter = params.getInt(QStringLiteral("iterations"));
-        vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
         std::vector<vcg::Color4f> colorOrig(size_t(mesh.vn));
         for (int i = 0; i < mesh.vn; ++i)
             colorOrig[size_t(i)].Import(mesh.vert[size_t(i)].C());
@@ -482,7 +478,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         const Scalar alpha = Scalar(params.getDouble(QStringLiteral("weight")));
         const Scalar alphaOrig = Scalar(params.getDouble(QStringLiteral("weightOrig")));
         const int smoothIter = params.getInt(QStringLiteral("iterations"));
-        vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
         std::vector<float> qualityOrig(size_t(mesh.vn));
         for (int i = 0; i < mesh.vn; ++i)
             qualityOrig[size_t(i)] = mesh.vert[size_t(i)].Q();
@@ -505,8 +500,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
 
         VCGMesh targetMesh;
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(targetMesh, doc.mesh(targetMeshIndex).mesh);
-        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
-        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(targetMesh);
         if (mesh.vn != targetMesh.vn) {
             return failResult(QObject::tr("Number of vertices is not the same, so you can't morph between these two meshes."));
         }
@@ -524,7 +517,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterScalarHarmonic)) {
         doc.beginFilterProgress(QObject::tr("Computing harmonic field"));
-        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
         VCGMeshFFAdjScope _ffAdj(mesh);
         VCGMeshMarkScope _mark(mesh);
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);

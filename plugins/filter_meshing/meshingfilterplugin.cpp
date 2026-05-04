@@ -471,8 +471,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (mesh.FN() <= 0)
                 return fail(QObject::tr("Current mesh has no faces."));
 
-            vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
-            vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0) {
                 return fail(QObject::tr("Subdivision surfaces require manifoldness."));
             }
@@ -632,8 +630,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 vcg::tri::Clean<VCGMesh>::RemoveFaceOutOfRangeArea(mesh, 0);
                 vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(mesh);
                 vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(mesh);
-                vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
-                vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
             }
 
             vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
@@ -1072,7 +1068,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdNormalSmoothPc)) {
-            vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
             vcg::tri::Smooth<VCGMesh>::VertexNormalPointCloud(mesh, std::max(1, params.getInt(QStringLiteral("K"))), 1);
             entry.ioMask |= Mask::IOM_VERTNORMAL;
             doc.markMeshMaterialChanged(ci, QObject::tr("Smoothed point-set normals for '%1'").arg(entry.name));

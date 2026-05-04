@@ -51,7 +51,6 @@ constexpr QLatin1StringView kFilterSelectOutlier("select_outliers");
 
 void updateGeometryAfterDeletion(VCGMesh &mesh)
 {
-    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
     if (mesh.FN() > 0)
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
