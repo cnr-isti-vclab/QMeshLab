@@ -291,6 +291,8 @@ vcg::Point3<Scalar> qMatrixMapDirection(const QMatrix4x4 &matrix, const vcg::Poi
 std::unique_ptr<VCGMesh> makeWorldMesh(const Document::MeshEntry &entry, bool recomputeNormals = false)
 {
     auto mesh = std::make_unique<VCGMesh>();
+    if (vcg::tri::HasPerWedgeTexCoord(entry.mesh))
+        mesh->face.EnableWedgeTexCoord();
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(*mesh, entry.mesh);
     const QMatrix4x4 transform = entry.transform;
     for (VCGVertex &vertex : mesh->vert) {
@@ -1228,6 +1230,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             }
         }
 
+        VCGMeshMarkScope _markSource(*sourceWorldMesh);
         VertexSampler sampler(*sourceWorldMesh, sourceImages, float(params.getDouble(QStringLiteral("upperBound"))));
         sampler.InitCallback(doc.progressCallback(), targetWorldMesh->VN(), 0, 100);
         vcg::tri::SurfaceSampling<VCGMesh, VertexSampler>::VertexUniform(
@@ -1309,8 +1312,6 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 return fail(QObject::tr("Source mesh doesn't have per-vertex color."));
             break;
         case TransferAttributeMode::VertexNormal:
-            if ((sourceEntry.ioMask & Mask::IOM_VERTNORMAL) == 0)
-                return fail(QObject::tr("Source mesh doesn't have per-vertex normal."));
             break;
         case TransferAttributeMode::VertexQuality:
             if ((sourceEntry.ioMask & Mask::IOM_VERTQUALITY) == 0)
@@ -1391,6 +1392,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(*targetWorldMesh);
         vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(*sourceWorldMesh);
 
+        VCGMeshMarkScope _markSource(*sourceWorldMesh);
         if (!samplingFromTexture) {
             int vertexMode = 0;
             if (*mode == TransferAttributeMode::VertexNormal)

@@ -385,8 +385,6 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kIdSelectSmallComponents)) {
         Document::MeshEntry &entry = doc.mesh(currentIndex);
-        VCGMeshFFAdjScope _ffAdj(entry.mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(entry.mesh);
         const int selected = vcg::tri::SmallComponent<VCGMesh>::Select(
             entry.mesh,
             float(params.getDouble(QStringLiteral("NbFaceRatio"), 0.1)),

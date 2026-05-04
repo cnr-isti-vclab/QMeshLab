@@ -14,7 +14,11 @@
         "requireFaces": true,
         "requireVertices": true
       },
-      "parameters": []
+      "parameters": [],
+      "inputPrepare": [
+        "FF",
+        "VF"
+      ]
     },
     {
       "id": "compute_topological_measures_quad_meshes",
@@ -29,7 +33,10 @@
         "requireFaces": true,
         "requireVertices": true
       },
-      "parameters": []
+      "parameters": [],
+      "inputPrepare": [
+        "FF"
+      ]
     },
     {
       "id": "compute_geometric_measures",
@@ -57,7 +64,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "inputPrepare": [
+        "FF"
+      ]
     },
     {
       "id": "per_vertex_quality_stat",

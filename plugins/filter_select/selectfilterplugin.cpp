@@ -147,7 +147,6 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                 "Use ViewPoint from Mesh Camera is not supported in current QMeshLab data model."));
         }
 
-        vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
         const QVector3D vp = params.getPoint3f(QStringLiteral("viewpoint"));
         const vcg::Point3f viewpoint(float(vp.x()), float(vp.y()), float(vp.z()));
         const float angleDeg = float(params.getDouble(QStringLiteral("anglelimit")));
@@ -276,8 +275,6 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterSelectConnected)) {
         if (mesh.FN() <= 0)
             return fail(QObject::tr("Current mesh has no faces."));
-        VCGMeshFFAdjScope _ffAdj(mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         Sel::FaceConnectedFF(mesh);
         return selectionResult(
             meshIndex,
@@ -600,8 +597,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectNonManifoldFace)) {
-        VCGMeshFFAdjScope _ffAdj(mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+
         const int nm = vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh, true);
         return selectionResult(
             meshIndex,
@@ -611,8 +607,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectNonManifoldVertex)) {
-        VCGMeshFFAdjScope _ffAdj(mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+
         const int nm = vcg::tri::Clean<VCGMesh>::CountNonManifoldVertexFF(mesh, true);
         return selectionResult(
             meshIndex,

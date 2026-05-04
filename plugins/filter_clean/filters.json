@@ -64,6 +64,9 @@
         "FV",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "VF"
       ]
     },
     {
@@ -353,6 +356,9 @@
       "outputModifies": [
         "FV",
         "WT"
+      ],
+      "inputPrepare": [
+        "VF"
       ]
     },
     {

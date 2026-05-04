@@ -197,10 +197,6 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterTopo)) {
         vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
         vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
-        VCGMeshFFAdjScope _ffAdj(mesh);
-        VCGMeshVFAdjScope _vfAdj(mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
 
         const SavedSelection saved = saveSelectionBits(mesh);
 
@@ -258,8 +254,6 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterTopoQuad)) {
-        VCGMeshFFAdjScope _ffAdj(mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         if (!vcg::tri::Clean<VCGMesh>::IsFFAdjacencyConsistent(mesh))
             return fail(QObject::tr("Error: mesh has inconsistent face-face adjacency."));
         if (!vcg::tri::Clean<VCGMesh>::HasConsistentPerFaceFauxFlag(mesh))
@@ -421,8 +415,6 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         if (selectedFaceCount == 0)
             return fail(QObject::tr("Cannot apply: there is no face selection."));
 
-        VCGMeshFFAdjScope _ffAdj(mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         const QMatrix4x4 transform = entry.transform;
         QStringList info;
         info << QObject::tr("Mesh: %1").arg(meshName);

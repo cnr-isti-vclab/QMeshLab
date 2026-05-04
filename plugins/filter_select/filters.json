@@ -122,6 +122,9 @@
       ],
       "outputModifies": [
         "FS"
+      ],
+      "inputPrepare": [
+        "FNorm"
       ]
     },
     {
@@ -257,6 +260,9 @@
       "parameters": [],
       "outputModifies": [
         "FS"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -746,6 +752,9 @@
       "parameters": [],
       "outputModifies": [
         "FS"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -768,6 +777,9 @@
       "parameters": [],
       "outputModifies": [
         "VS"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {

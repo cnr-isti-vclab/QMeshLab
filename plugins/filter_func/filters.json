@@ -989,6 +989,9 @@
         "FV",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     }
   ]

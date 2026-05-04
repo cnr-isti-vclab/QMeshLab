@@ -72,6 +72,9 @@
         "FV",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "BorderFF"
       ]
     },
     {
@@ -123,6 +126,9 @@
         "FV",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "BorderFF"
       ]
     },
     {
@@ -174,6 +180,9 @@
         "FV",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "BorderFF"
       ]
     },
     {
@@ -247,6 +256,9 @@
         "FV",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "BorderFF"
       ]
     },
     {
@@ -412,6 +424,9 @@
         "FV",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "BorderVF"
       ]
     },
     {
@@ -530,6 +545,9 @@
         "VG",
         "VN",
         "WT"
+      ],
+      "inputPrepare": [
+        "BorderVF"
       ]
     },
     {
@@ -537,7 +555,7 @@
       "menuPath": "Meshing",
       "name": "Remeshing: Isotropic Explicit Remeshing",
       "shortDescription": "Explicit isotropic remeshing by local operations.",
-      "longDescriptionMarkdown": "Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:<br>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.<br>Mesh optimization<br>(SIGGRAPH '93). ACM, New York, NY, USA, 19–26. <a href='https://doi.org/10.1145/166117.166119'>DOI</a>",
+      "longDescriptionMarkdown": "Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:<br>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.<br>Mesh optimization<br>(SIGGRAPH '93). ACM, New York, NY, USA, 19\u201326. <a href='https://doi.org/10.1145/166117.166119'>DOI</a>",
       "tags": [
         "meshing"
       ],
@@ -680,6 +698,9 @@
         "FV",
         "FN",
         "VN"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -2100,6 +2121,9 @@
         "FP",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -2122,6 +2146,9 @@
         "FP",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -2155,6 +2182,9 @@
         "FP",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -2197,6 +2227,9 @@
       ],
       "outputModifies": [
         "FP"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -2236,6 +2269,9 @@
       "parameters": [],
       "outputModifies": [
         "FP"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -2279,6 +2315,9 @@
       ],
       "outputModifies": [
         "FP"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -2401,7 +2440,10 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": []
+      "parameters": [],
+      "inputPrepare": [
+        "FF"
+      ]
     },
     {
       "id": "generate_polyline_from_planar_section",

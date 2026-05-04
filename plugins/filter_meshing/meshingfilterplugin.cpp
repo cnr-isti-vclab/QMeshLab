@@ -479,9 +479,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             vcg::tri::Allocator<VCGMesh>::CompactFaceVector(mesh);
             vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
-            VCGMeshFFAdjScope _ffAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
-            vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(mesh);
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0) {
                 return fail(QObject::tr("Subdivision surfaces require manifoldness."));
             }
@@ -570,8 +567,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         if (filterId == QString::fromLatin1(kIdReorient)) {
             if (mesh.FN() <= 0)
                 return fail(QObject::tr("Current mesh has no faces."));
-            VCGMeshFFAdjScope _ffAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0)
                 return fail(QObject::tr("Orientability requires manifoldness."));
             bool oriented = false;
@@ -619,10 +614,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadric)) {
-            VCGMeshVFAdjScope _vfAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
-            vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromVF(mesh);
-
             int targetFaceNum = params.getInt(QStringLiteral("TargetFaceNum"));
             const float targetPerc = float(params.getDouble(QStringLiteral("TargetPerc")));
             if (targetPerc > 0.0f)
@@ -660,10 +651,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadricTex)) {
-            VCGMeshVFAdjScope _vfAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
-            vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromVF(mesh);
-
             if (!vcg::tri::Clean<VCGMesh>::HasConsistentPerWedgeTexCoord(mesh))
                 return fail(QObject::tr("Mesh has inconsistent per-wedge texture coordinates."));
 
@@ -1307,8 +1294,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (!vcg::tri::BitQuadCreation<VCGMesh>::IsTriQuadOnly(mesh)) {
                 return fail(QObject::tr("Filter requires triangular and/or quad faces only."));
             }
-            VCGMeshFFAdjScope _ffAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::BitQuadCreation<VCGMesh>::MakePureByRefine(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerBitQuadFaceNormalized(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexFromCurrentFaceNormal(mesh);
@@ -1320,8 +1305,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         if (filterId == QString::fromLatin1(kIdCatmull)) {
             PMesh baseIn, refinedOut;
             const int it = std::max(1, params.getInt(QStringLiteral("Iterations")));
-            VCGMeshFFAdjScope _ffAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::PolygonSupport<VCGMesh, PMesh>::ImportFromTriMesh(baseIn, mesh);
             vcg::tri::Clean<PMesh>::RemoveUnreferencedVertex(baseIn);
             vcg::tri::Allocator<PMesh>::CompactEveryVector(baseIn);
@@ -1338,8 +1321,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
         if (filterId == QString::fromLatin1(kIdDooSabin)) {
             PMesh baseIn, refinedOut;
-            VCGMeshFFAdjScope _ffAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             if (!vcg::tri::Clean<VCGMesh>::IsFaceFauxConsistent(mesh))
                 return fail(QObject::tr("Mesh has inconsistent faux-edge tagging."));
             vcg::tri::PolygonSupport<VCGMesh, PMesh>::ImportFromTriMesh(baseIn, mesh);
@@ -1357,8 +1338,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadPairing)) {
-            VCGMeshFFAdjScope _ffAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0)
                 return fail(QObject::tr("Filter requires manifoldness."));
             vcg::tri::BitQuadCreation<VCGMesh>::MakeTriEvenBySplit(mesh);
@@ -1371,8 +1350,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdQuadDominant)) {
-            VCGMeshFFAdjScope _ffAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             const QString lvl = params.getEnum(QStringLiteral("level"));
             int level = 0;
             if (lvl == QStringLiteral("mid"))
@@ -1396,8 +1373,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdFauxCrease)) {
-            VCGMeshFFAdjScope _ffAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             const float neg = float(params.getDouble(QStringLiteral("AngleDegNeg")));
             const float pos = float(params.getDouble(QStringLiteral("AngleDegPos")));
             vcg::tri::UpdateFlags<VCGMesh>::FaceEdgeSelSignedCrease(mesh, vcg::math::ToRad(neg), vcg::math::ToRad(pos));
@@ -1461,8 +1436,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (selectedFaceCount(mesh) == 0)
                 return fail(QObject::tr("No selected faces to build perimeter polyline."));
 
-            VCGMeshFFAdjScope _ffAdj(mesh);
-            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             VCGMesh perimeter;
             perimeter.textures = mesh.textures;
 
