@@ -82,8 +82,6 @@ bool nextSampleImpl(
         const auto &vertices = entry.mesh.vert;
         while (vertexCursor < vertices.size()) {
             const VCGVertex &vertex = vertices[vertexCursor++];
-            if (vertex.IsD())
-                continue;
 
             const vcg::Point3<float> pos = qMatrixMapPoint<float>(entry.transform, vcg::Point3<float>(vertex.cP()));
             vcg::Point3<float> normal = qMatrixMapDirection<float>(entry.transform, vcg::Point3<float>(vertex.cN()));
@@ -152,7 +150,7 @@ qsizetype countInputSamples(const Document &doc, const std::vector<int> &meshInd
             continue;
         const Document::MeshEntry &entry = doc.mesh(meshIndex);
         for (const VCGVertex &vertex : entry.mesh.vert) {
-            if (!vertex.IsD())
+            
                 ++count;
         }
     }
@@ -167,8 +165,6 @@ vcg::Box3f computeBounds(const Document &doc, const std::vector<int> &meshIndice
             continue;
         const Document::MeshEntry &entry = doc.mesh(meshIndex);
         for (const VCGVertex &vertex : entry.mesh.vert) {
-            if (vertex.IsD())
-                continue;
             bb.Add(qMatrixMapPoint<float>(entry.transform, vcg::Point3<float>(vertex.cP())));
         }
     }

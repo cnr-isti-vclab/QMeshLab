@@ -50,7 +50,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         int unreachedCnt = 0;
         const float unreached = std::numeric_limits<float>::max();
         for (auto &v : mesh.vert)
-            if (!v.IsD() && v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
+            if (v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
 
         vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
         doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTCOLOR;
@@ -72,7 +72,6 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         VCGMesh::VertexPointer startVertex = nullptr;
         float minDistSq = std::numeric_limits<float>::max();
         for (auto &v : mesh.vert) {
-            if (v.IsD()) continue;
             const float dsq = vcg::SquaredDistance(sp, v.P());
             if (dsq < minDistSq) { minDistSq = dsq; startVertex = &v; }
         }
@@ -88,7 +87,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         int unreachedCnt = 0;
         const float unreached = std::numeric_limits<float>::max();
         for (auto &v : mesh.vert)
-            if (!v.IsD() && v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
+            if (v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
 
         vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
         doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTCOLOR;
@@ -106,7 +105,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
 
         std::vector<VCGMesh::VertexPointer> seedVec;
         for (auto &v : mesh.vert)
-            if (!v.IsD() && v.IsS()) seedVec.push_back(&v);
+            if (v.IsS()) seedVec.push_back(&v);
 
         if (seedVec.empty())
             return { false, false, QObject::tr("No vertices are selected — aborting geodesic computation.") };
@@ -120,7 +119,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         int unreachedCnt = 0;
         const float unreached = std::numeric_limits<float>::max();
         for (auto &v : mesh.vert)
-            if (!v.IsD() && v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
+            if (v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
 
         vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
         doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTCOLOR;
@@ -139,7 +138,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
 
         std::vector<VCGMesh::VertexPointer> seedVec;
         for (auto &v : mesh.vert)
-            if (!v.IsD() && v.IsS()) seedVec.push_back(&v);
+            if (v.IsS()) seedVec.push_back(&v);
 
         if (seedVec.empty())
             return { false, false, QObject::tr("No vertices are selected — aborting heat geodesic computation.") };

@@ -215,9 +215,9 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         int svn = 0;
         int sfn = 0;
         for (const auto &v : src.vert)
-            if (!v.IsD() && v.IsS()) ++svn;
+            if (v.IsS()) ++svn;
         for (const auto &f : src.face)
-            if (!f.IsD() && f.IsS()) ++sfn;
+            if (f.IsS()) ++sfn;
 
         if (svn == 0 && sfn == 0)
             return { false, false, QObject::tr("No selection: select vertices or faces first.") };
@@ -226,14 +226,14 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         if (svn > 0) {
             // Use selected vertices directly
             for (const auto &v : src.vert)
-                if (!v.IsD() && v.IsS()) {
+                if (v.IsS()) {
                     pts.push_back(v.cP());
                     Naccum += v.cN();
                 }
         } else {
             // Expand face selection to vertices
             for (const auto &f : src.face)
-                if (!f.IsD() && f.IsS())
+                if (f.IsS())
                     for (int i = 0; i < 3; ++i) {
                         pts.push_back(f.cV(i)->cP());
                         Naccum += f.cV(i)->cN();

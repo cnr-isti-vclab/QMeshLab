@@ -96,8 +96,6 @@ MeshFilterRunResult BasicFilterPlugin::runFilter(
         const float scale = float(targetSize) / maxDim;
         const vcg::Point3f pivot = recenter ? bbox.Center() : bbox.min;
         for (VCGVertex &v : entry.mesh.vert) {
-            if (v.IsD())
-                continue;
             v.P() = (v.cP() - pivot) * scale;
         }
         vcg::tri::UpdateBounding<VCGMesh>::Box(entry.mesh);

@@ -189,7 +189,7 @@ int selectedFaceCount(const VCGMesh &mesh)
 {
     int cnt = 0;
     for (const VCGFace &f : mesh.face) {
-        if (!f.IsD() && f.IsS())
+        if (f.IsS())
             ++cnt;
     }
     return cnt;
@@ -199,7 +199,7 @@ int selectedVertCount(const VCGMesh &mesh)
 {
     int cnt = 0;
     for (const VCGVertex &v : mesh.vert) {
-        if (!v.IsD() && v.IsS())
+        if (v.IsS())
             ++cnt;
     }
     return cnt;
@@ -256,8 +256,6 @@ vcg::Point3f transformVectorLinear(const vcg::Matrix44f &m, const vcg::Point3f &
 void applyTransformToMesh(VCGMesh &mesh, const vcg::Matrix44f &tr)
 {
     for (VCGVertex &v : mesh.vert) {
-        if (v.IsD())
-            continue;
         v.P() = tr * v.cP();
         vcg::Point3f nn = transformVectorLinear(tr, v.cN());
         const float n2 = nn.SquaredNorm();
@@ -313,8 +311,6 @@ void quadricSimplification(
     if (selected) {
         vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
         for (VCGVertex &v : mesh.vert) {
-            if (v.IsD())
-                continue;
             if (!v.IsS())
                 v.ClearW();
             else
@@ -383,8 +379,6 @@ void quadricTexSimplification(
     if (selected) {
         vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceStrict(mesh);
         for (VCGVertex &v : mesh.vert) {
-            if (v.IsD())
-                continue;
             if (!v.IsS())
                 v.ClearW();
             else
@@ -812,7 +806,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             std::vector<vcg::Point3f> selectedPts;
             selectedPts.reserve(static_cast<size_t>(std::max(1, selectedVertCount(mesh))));
             for (VCGVertex &v : mesh.vert) {
-                if (v.IsD() || !v.IsS())
+                if (!v.IsS())
                     continue;
                 selBox.Add(v.P());
                 selectedPts.push_back(v.P());
@@ -878,8 +872,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             pts.reserve(static_cast<size_t>(mesh.VN()));
             vcg::Point3f bp(0, 0, 0);
             for (const VCGVertex &v : mesh.vert) {
-                if (v.IsD())
-                    continue;
                 pts.push_back(v.cP());
                 bp += v.cP();
             }
@@ -1224,8 +1216,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             int avgCount = 0;
 
             for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-                if (vi->IsD())
-                    continue;
                 vcg::Point3f p = vi->P();
                 p.Y() = 0;
                 VCGMesh::ScalarType ro, theta, phi;
@@ -1257,8 +1247,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 v.P().X() *= avgR;
 
             for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-                if (fi->IsD())
-                    continue;
                 int loopIndex = 0;
                 while (loopIndex < numLoop) {
                     const int endIt = std::min(2, numLoop - loopIndex);
@@ -1445,7 +1433,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             perimeter.textures = mesh.textures;
 
             for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-                if (fi->IsD() || !fi->IsS())
+                if (!fi->IsS())
                     continue;
                 for (int ei = 0; ei < 3; ++ei) {
                     VCGFace *adjf = fi->FFp(ei);

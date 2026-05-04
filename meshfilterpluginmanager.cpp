@@ -4,6 +4,7 @@
 #include "filterparam.h"
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
+#include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/complex/algorithms/update/normal.h>
@@ -390,6 +391,16 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
                 if (savedVertSel[i] && !m.vert[i].IsD())
                     m.vert[i].SetS();
             }
+        }
+    }
+
+    // After a successful ModifyCurrentMesh filter, compact the mesh so that
+    // all subsequent code and filters can assume there are no deleted elements.
+    if (targetDescriptor->outputDomain == MeshFilterOutputDomain::ModifyCurrentMesh) {
+        const int meshIdx = doc.currentMeshIndex();
+        if (meshIdx >= 0 && meshIdx < doc.meshCount()) {
+            VCGMesh &m = doc.mesh(meshIdx).mesh;
+            vcg::tri::Allocator<VCGMesh>::CompactEveryVector(m);
         }
     }
 

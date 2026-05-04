@@ -85,10 +85,10 @@ SavedSelection saveSelectionBits(const VCGMesh &mesh)
     SavedSelection saved;
     saved.faceSelected.reserve(mesh.face.size());
     for (const VCGFace &f : mesh.face)
-        saved.faceSelected.push_back(!f.IsD() && f.IsS());
+        saved.faceSelected.push_back(f.IsS());
     saved.vertexSelected.reserve(mesh.vert.size());
     for (const VCGVertex &v : mesh.vert)
-        saved.vertexSelected.push_back(!v.IsD() && v.IsS());
+        saved.vertexSelected.push_back(v.IsS());
     return saved;
 }
 
@@ -97,11 +97,11 @@ void restoreSelectionBits(VCGMesh &mesh, const SavedSelection &saved)
     vcg::tri::UpdateSelection<VCGMesh>::VertexClear(mesh);
     vcg::tri::UpdateSelection<VCGMesh>::FaceClear(mesh);
     for (size_t i = 0; i < saved.faceSelected.size() && i < mesh.face.size(); ++i) {
-        if (saved.faceSelected[i] && !mesh.face[i].IsD())
+        if (saved.faceSelected[i])
             mesh.face[i].SetS();
     }
     for (size_t i = 0; i < saved.vertexSelected.size() && i < mesh.vert.size(); ++i) {
-        if (saved.vertexSelected[i] && !mesh.vert[i].IsD())
+        if (saved.vertexSelected[i])
             mesh.vert[i].SetS();
     }
 }
@@ -113,8 +113,6 @@ std::unique_ptr<VCGMesh> transformedCopy(const Document::MeshEntry &entry)
     const QMatrix4x4 transform = entry.transform;
     if (!isIdentityTransform(transform)) {
         for (VCGVertex &v : copy->vert) {
-            if (v.IsD())
-                continue;
             v.P() = qMatrixMapPoint<float>(transform, v.cP());
         }
         vcg::tri::UpdateBounding<VCGMesh>::Box(*copy);
@@ -129,8 +127,6 @@ vcg::Matrix33f computePrincipalAxisCloud(const VCGMesh &mesh)
     std::vector<vcg::Point3f> points;
     points.reserve(size_t(mesh.VN()));
     for (const VCGVertex &v : mesh.vert) {
-        if (v.IsD())
-            continue;
         points.push_back(v.cP());
         bary += v.cP();
     }
@@ -273,7 +269,7 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         Distributionf angleDist;
         Distributionf ratioDist;
         for (VCGMesh::FaceIterator fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD() || fi->IsV())
+            if (fi->IsV())
                 continue;
             fi->SetV();
             vcg::Point3f qv[4];
@@ -424,7 +420,7 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
 
         double selectedArea = 0.0;
         for (VCGMesh::FaceIterator fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD() || !fi->IsS())
+            if (!fi->IsS())
                 continue;
             const vcg::Point3f p0 = qMatrixMapPoint<float>(transform, fi->cP(0));
             const vcg::Point3f p1 = qMatrixMapPoint<float>(transform, fi->cP(1));
@@ -436,7 +432,7 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         int borderEdges = 0;
         double perimeter = 0.0;
         for (VCGMesh::FaceIterator fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD() || !fi->IsS())
+            if (!fi->IsS())
                 continue;
             for (int ei = 0; ei < 3; ++ei) {
                 VCGMesh::FacePointer adjf = fi->FFp(ei);

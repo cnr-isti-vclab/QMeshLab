@@ -99,7 +99,7 @@ SnapBorderResult snapMismatchedBorder(
 
     const int vn = std::max(1, mesh.VN());
     for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-        if (vi->IsD() || !vi->IsB())
+        if (!vi->IsB())
             continue;
 
         if (cb) {
@@ -277,14 +277,12 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         int deletedVertices = 0;
         int deletedFaces = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (!vi->IsD() && vi->Q() < threshold) {
+            if (vi->Q() < threshold) {
                 vcg::tri::Allocator<VCGMesh>::DeleteVertex(mesh, *vi);
                 ++deletedVertices;
             }
         }
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
             if (fi->V(0)->IsD() || fi->V(1)->IsD() || fi->V(2)->IsD()) {
                 vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, *fi);
                 ++deletedFaces;

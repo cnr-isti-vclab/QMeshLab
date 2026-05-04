@@ -124,8 +124,6 @@ int ensureTextureSlotIndices(VCGMesh &mesh)
 {
     int maxSlot = -1;
     for (auto &face : mesh.face) {
-        if (face.IsD())
-            continue;
         int faceSlot = face.WT(0).N();
         if (faceSlot < 0)
             faceSlot = 0;
@@ -265,8 +263,6 @@ void offsetTextureSlotIndices(VCGMesh &mesh, int slotOffset)
     if (slotOffset == 0)
         return;
     for (VCGFace &face : mesh.face) {
-        if (face.IsD())
-            continue;
         for (int k = 0; k < 3; ++k) {
             if (face.WT(k).N() >= 0)
                 face.WT(k).N() = short(face.WT(k).N() + slotOffset);
@@ -296,8 +292,6 @@ std::unique_ptr<VCGMesh> makeWorldMesh(const Document::MeshEntry &entry, bool re
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(*mesh, entry.mesh);
     const QMatrix4x4 transform = entry.transform;
     for (VCGVertex &vertex : mesh->vert) {
-        if (vertex.IsD())
-            continue;
         vertex.P() = qMatrixMapPoint(transform, vertex.cP());
         if (!recomputeNormals)
             vertex.N() = qMatrixMapDirection(transform, vertex.cN());
@@ -781,8 +775,6 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             sideGutter);
 
         for (size_t i = 0; i < mesh.face.size() && i < worldMesh->face.size(); ++i) {
-            if (mesh.face[i].IsD() || worldMesh->face[i].IsD())
-                continue;
             for (int k = 0; k < 3; ++k)
                 mesh.face[i].WT(k) = worldMesh->face[i].WT(k);
         }
@@ -830,8 +822,6 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             std::vector<double> areas(mesh.face.size(), -1.0);
             int faceCount = 0;
             for (size_t i = 0; i < mesh.face.size(); ++i) {
-                if (mesh.face[i].IsD())
-                    continue;
                 double area = vcg::DoubleArea(mesh.face[i]);
                 if (area == 0.0)
                     area = DBL_MIN;
@@ -944,7 +934,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             const int faceNo = int(mesh.face.size());
             int undeletedFaces = 0;
             for (const VCGFace &face : mesh.face) {
-                if (!face.IsD())
+                
                     ++undeletedFaces;
             }
             const int optimalDim = int(std::ceil(std::sqrt(undeletedFaces / 2.0)));
@@ -971,8 +961,6 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 topRight.U() = 0.0f;
                 bottomLeft.V() = 1.0f - 1.0f / sideDim * (i + 1);
                 for (int j = 0; j < 2 * sideDim && faceCounter < faceNo; ++faceCounter) {
-                    if (mesh.face[size_t(faceCounter)].IsD())
-                        continue;
                     int longestEdge = longestEdgeIndex(mesh.face[size_t(faceCounter)]);
                     if (odd) {
                         bottomLeft.U() = topRight.U();
@@ -1223,8 +1211,6 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (requestedTextureSlot > 0) {
             const short forcedSlot = short(requestedTextureSlot - 1);
             for (VCGFace &face : sourceWorldMesh->face) {
-                if (face.IsD())
-                    continue;
                 for (int k = 0; k < 3; ++k)
                     face.WT(k).N() = forcedSlot;
             }
@@ -1242,8 +1228,6 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         for (int i = 0; i < count; ++i) {
             const VCGVertex &src = targetWorldMesh->vert[i];
             VCGVertex &dst = targetEntry.mesh.vert[i];
-            if (src.IsD() || dst.IsD())
-                continue;
             dst.C() = src.C();
         }
 
@@ -1379,8 +1363,6 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             if (requestedTextureSlot > 0) {
                 const short forcedSlot = short(requestedTextureSlot - 1);
                 for (VCGFace &face : sourceWorldMesh->face) {
-                    if (face.IsD())
-                        continue;
                     for (int k = 0; k < 3; ++k)
                         face.WT(k).N() = forcedSlot;
                 }

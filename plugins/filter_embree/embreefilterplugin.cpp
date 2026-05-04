@@ -157,7 +157,7 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
 
         int selectedFaces = 0;
         for (const VCGFace &f : entry.mesh.face) {
-            if (!f.IsD() && f.IsS())
+            if (f.IsS())
                 ++selectedFaces;
         }
 

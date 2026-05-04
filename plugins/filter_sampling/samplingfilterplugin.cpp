@@ -487,8 +487,6 @@ std::unique_ptr<VCGMesh> makeWorldMesh(const Document::MeshEntry &entry, bool re
     auto mesh = makePreparedSurfaceMesh(entry.mesh);
     const QMatrix4x4 transform = entry.transform;
     for (VCGVertex &vertex : mesh->vert) {
-        if (vertex.IsD())
-            continue;
         vertex.P() = qMatrixMapPoint(transform, vertex.cP());
         if (!recomputeNormals)
             vertex.N() = qMatrixMapDirection(transform, vertex.cN());
@@ -511,8 +509,6 @@ void copyPerVertexAppearance(
     for (int i = 0; i < count; ++i) {
         const VCGVertex &src = source.vert[i];
         VCGVertex &dst = target.vert[i];
-        if (src.IsD() || dst.IsD())
-            continue;
         if (copyColor)
             dst.C() = src.C();
         if (copyQuality)
@@ -542,8 +538,6 @@ void copyWorldGeometryBackToLocal(
     for (int i = 0; i < count; ++i) {
         const VCGVertex &src = worldMesh.vert[i];
         VCGVertex &dst = targetMesh.vert[i];
-        if (src.IsD() || dst.IsD())
-            continue;
         if (copyPositions) {
             dst.P() = invertible ? qMatrixMapPoint(inverse, src.cP()) : src.cP();
         }
@@ -1299,7 +1293,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         std::vector<Point> pointVector;
         pointVector.reserve(vertexMesh->VN());
         for (const VCGVertex &vertex : vertexMesh->vert) {
-            if (!vertex.IsD())
+            
                 pointVector.push_back(vertex.cP());
         }
 
@@ -1354,8 +1348,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         const bool useSampleRadius = params.getBool(QStringLiteral("SampleRadius"));
         const bool approximateGeodetic = params.getBool(QStringLiteral("ApproximateGeodetic"));
         for (VCGVertex &seed : vertexMesh->vert) {
-            if (seed.IsD())
-                continue;
             Point point = seed.cP();
             if (useSampleRadius)
                 radius = seed.Q();

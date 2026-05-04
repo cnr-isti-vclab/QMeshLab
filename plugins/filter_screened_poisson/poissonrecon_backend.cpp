@@ -682,8 +682,6 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
     vertices.reserve(size_t(mesh.VN()));
     for (size_t i = 0; i < mesh.vert.size(); ++i) {
         const VCGVertex &v = mesh.vert[i];
-        if (v.IsD())
-            continue;
         vertexMap[i] = int(vertices.size());
         Vertex outVertex;
         const auto pos = vcg::Point3f(v.cP());
@@ -702,8 +700,6 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
     std::vector<std::vector<int>> polygons;
     polygons.reserve(size_t(mesh.FN()));
     for (const VCGFace &f : mesh.face) {
-        if (f.IsD())
-            continue;
         const int v0 = vertexMap[vcg::tri::Index(mesh, f.cV(0))];
         const int v1 = vertexMap[vcg::tri::Index(mesh, f.cV(1))];
         const int v2 = vertexMap[vcg::tri::Index(mesh, f.cV(2))];

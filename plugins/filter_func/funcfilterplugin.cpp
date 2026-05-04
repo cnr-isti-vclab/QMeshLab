@@ -910,8 +910,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
         int selectedCount = 0;
         int totalCount = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (vi->IsD())
-                continue;
             ++totalCount;
             setVertexRuntime(runtime, vi, mesh);
             bool selected = false;
@@ -959,8 +957,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
         int selectedCount = 0;
         int totalCount = 0;
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
             ++totalCount;
             setFaceRuntime(runtime, fi, mesh);
             bool selected = false;
@@ -1025,8 +1021,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (vi->IsD())
-                continue;
             if (onSelected && !vi->IsS())
                 continue;
             setVertexRuntime(runtime, vi, mesh);
@@ -1097,8 +1091,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (vi->IsD())
-                continue;
             if (onSelected && !vi->IsS())
                 continue;
             setVertexRuntime(runtime, vi, mesh);
@@ -1147,8 +1139,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (vi->IsD())
-                continue;
             if (onSelected && !vi->IsS())
                 continue;
             setVertexRuntime(runtime, vi, mesh);
@@ -1208,8 +1198,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
             if (onSelected && !fi->IsS())
                 continue;
             setFaceRuntime(runtime, fi, mesh);
@@ -1261,8 +1249,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
             if (onSelected && !fi->IsS())
                 continue;
             setFaceRuntime(runtime, fi, mesh);
@@ -1313,8 +1299,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
             if (onSelected && !fi->IsS())
                 continue;
             setFaceRuntime(runtime, fi, mesh);
@@ -1359,8 +1343,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
             if (onSelected && !fi->IsS())
                 continue;
             setFaceRuntime(runtime, fi, mesh);
@@ -1415,8 +1397,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (vi->IsD())
-                continue;
             setVertexRuntime(runtime, vi, mesh);
             try {
                 handle[vi] = float(parser.Eval());
@@ -1463,8 +1443,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
             setFaceRuntime(runtime, fi, mesh);
             try {
                 handle[fi] = float(parser.Eval());
@@ -1519,8 +1497,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (vi->IsD())
-                continue;
             setVertexRuntime(runtime, vi, mesh);
             try {
                 handle[vi] = vcg::Point3f(float(px.Eval()), float(py.Eval()), float(pz.Eval()));
@@ -1575,8 +1551,6 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
 
         int processed = 0;
         for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            if (fi->IsD())
-                continue;
             setFaceRuntime(runtime, fi, mesh);
             try {
                 handle[fi] = vcg::Point3f(float(px.Eval()), float(py.Eval()), float(pz.Eval()));

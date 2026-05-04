@@ -154,8 +154,6 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         int selected = 0;
         for (VCGFace &f : mesh.face) {
-            if (f.IsD())
-                continue;
             vcg::Point3f viewray = vcg::Barycenter(f) - viewpoint;
             const float nrm = std::sqrt(viewray.SquaredNorm());
             if (nrm <= 1e-20f)
@@ -194,8 +192,6 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         if (params.getBool(QStringLiteral("useAR"))) {
             const float aRatio = float(params.getDouble(QStringLiteral("ARatio")));
             for (VCGFace &f : mesh.face) {
-                if (f.IsD())
-                    continue;
                 const float q = vcg::QualityRadii(f.V(0)->P(), f.V(1)->P(), f.V(2)->P());
                 if (q < aRatio) {
                     if (!f.IsS())
@@ -211,12 +207,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
             const float nfRatio = float(params.getDouble(QStringLiteral("NFRatio")));
             for (VCGFace &f : mesh.face) {
-                if (f.IsD())
-                    continue;
                 float worstAngle = 0.0f;
                 for (int ei = 0; ei < 3; ++ei) {
                     VCGFace *adjf = f.FFp(ei);
-                    if (!adjf || adjf == &f || adjf->IsD())
+                    if (!adjf || adjf == &f)
                         continue;
                     vcg::Point3f n0 = f.N();
                     vcg::Point3f n1 = adjf->N();
@@ -321,11 +315,11 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         Sel::FaceClear(mesh);
         Sel::FaceFromVertexLoose(mesh);
         for (VCGFace &f : mesh.face) {
-            if (!f.IsD() && f.IsS())
+            if (f.IsS())
                 vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, f);
         }
         for (VCGVertex &v : mesh.vert) {
-            if (!v.IsD() && v.IsS())
+            if (v.IsS())
                 vcg::tri::Allocator<VCGMesh>::DeleteVertex(mesh, v);
         }
         updateGeometryAfterDeletion(mesh);
@@ -360,7 +354,6 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                 if (before <= 0)
                     continue;
                 for (VCGFace &f : layerMesh.face) {
-                    if (!f.IsD())
                         vcg::tri::Allocator<VCGMesh>::DeleteFace(layerMesh, f);
                 }
                 updateGeometryAfterDeletion(layerMesh);
@@ -379,7 +372,6 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             const int before = mesh.FN();
             if (before > 0) {
                 for (VCGFace &f : mesh.face) {
-                    if (!f.IsD())
                         vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, f);
                 }
                 updateGeometryAfterDeletion(mesh);
@@ -414,7 +406,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         const int beforeF = mesh.FN();
         for (VCGFace &f : mesh.face) {
-            if (!f.IsD() && f.IsS())
+            if (f.IsS())
                 vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, f);
         }
         updateGeometryAfterDeletion(mesh);
@@ -447,11 +439,11 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         Sel::VertexClear(mesh);
         Sel::VertexFromFaceStrict(mesh);
         for (VCGFace &f : mesh.face) {
-            if (!f.IsD() && f.IsS())
+            if (f.IsS())
                 vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, f);
         }
         for (VCGVertex &v : mesh.vert) {
-            if (!v.IsD() && v.IsS())
+            if (v.IsS())
                 vcg::tri::Allocator<VCGMesh>::DeleteVertex(mesh, v);
         }
         updateGeometryAfterDeletion(mesh);
@@ -551,8 +543,6 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         Sel::VertexClear(mesh);
 
         for (VCGVertex &v : mesh.vert) {
-            if (v.IsD())
-                continue;
             vcg::Color4f cv = vcg::Color4f::Construct(v.C());
             if (colorSpace == QStringLiteral("hsv")) {
                 cv = vcg::ColorSpace<float>::RGBtoHSV(cv);
@@ -621,7 +611,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         vcg::tri::Clean<VCGMesh>::SelfIntersections(mesh, intersFaces);
         Sel::FaceClear(mesh);
         for (VCGFace *f : intersFaces) {
-            if (f && !f->IsD())
+            if (f)
                 f->SetS();
         }
         return selectionResult(

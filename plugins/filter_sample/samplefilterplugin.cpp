@@ -79,8 +79,6 @@ MeshFilterRunResult SampleFilterPlugin::runFilter(
     const int totalVerts = std::max(1, mesh.VN());
     int processed = 0;
     for (VCGVertex &v : mesh.vert) {
-        if (v.IsD())
-            continue;
         if (cb)
             cb((100 * processed) / totalVerts, "Randomly Displacing...");
         v.P() += vcg::Point3f(

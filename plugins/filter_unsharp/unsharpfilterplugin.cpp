@@ -293,8 +293,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
 
         const Point viewpoint = toPoint(params.getPoint3f(QStringLiteral("viewPoint")));
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (vi->IsD())
-                continue;
             Point dir = handle[vi] - viewpoint;
             dir.Normalize();
             const Scalar projection = dir * (vi->cP() - handle[vi]);
@@ -588,8 +586,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         }
 
         for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            if (vi->IsD())
-                continue;
             vi->Q() = handle[vi];
         }
         entry.ioMask |= Mask::IOM_VERTQUALITY;

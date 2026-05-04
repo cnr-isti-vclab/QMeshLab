@@ -81,8 +81,6 @@ std::unique_ptr<VCGMesh> transformedCopy(const Document::MeshEntry &entry)
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(*copy, entry.mesh);
     const QMatrix4x4 transform = entry.transform;
     for (VCGVertex &v : copy->vert) {
-        if (v.IsD())
-            continue;
         v.P() = qMatrixMapPoint<float>(transform, v.cP());
         v.N() = qMatrixMapDirection<float>(transform, v.cN());
     }
@@ -99,8 +97,6 @@ bool inverseTransformMeshToLocal(const QMatrix4x4 &transform, const VCGMesh &wor
 
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(localMesh, worldMesh);
     for (VCGVertex &v : localMesh.vert) {
-        if (v.IsD())
-            continue;
         v.P() = qMatrixMapPoint<float>(invTransform, v.cP());
         v.N() = qMatrixMapDirection<float>(invTransform, v.cN());
         if (v.N().Norm() > 1e-12f)
@@ -116,8 +112,6 @@ bool ensureVertexNormals(VCGMesh &mesh)
         return false;
     if (mesh.FN() <= 0) {
         for (VCGVertex &v : mesh.vert) {
-            if (v.IsD())
-                continue;
             if (v.cN().Norm() <= 1e-12f)
                 return false;
         }
@@ -125,8 +119,6 @@ bool ensureVertexNormals(VCGMesh &mesh)
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
     }
     for (VCGVertex &v : mesh.vert) {
-        if (v.IsD())
-            continue;
         if (v.N().Norm() > 1e-12f)
             v.N().Normalize();
     }
@@ -237,8 +229,6 @@ void computeColorize(
             cb(1 + 98 * i / std::max(1, size), "MLS colorization...");
 
         VCGVertex &v = mesh.vert[size_t(i)];
-        if (v.IsD())
-            continue;
         if (selectionOnly && !v.IsS())
             continue;
 
@@ -316,8 +306,6 @@ QStringList radiusInfo(VCGMesh &mesh)
     float minR = std::numeric_limits<float>::max();
     float maxR = 0.0f;
     for (size_t i = 0; i < mesh.vert.size(); ++i) {
-        if (mesh.vert[i].IsD())
-            continue;
         minR = std::min(minR, h[i]);
         maxR = std::max(maxR, h[i]);
         mesh.vert[i].Q() = h[i];
