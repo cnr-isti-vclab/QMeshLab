@@ -7,8 +7,6 @@
 #include <vcg/complex/algorithms/geodesic.h>
 #include <vcg/complex/algorithms/geodesic_heat.h>
 #include <vcg/complex/algorithms/update/color.h>
-#include <vcg/complex/algorithms/update/flag.h>
-#include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/complex/algorithms/update/quality.h>
 #include <limits>
 
@@ -43,10 +41,6 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
     const QString &meshName = doc.mesh(meshIndex).name;
 
     if (filterId == QString::fromLatin1(kFilterBorderGeodesic)) {
-        vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
-        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromVF(mesh);
-        vcg::tri::UpdateFlags<VCGMesh>::VertexBorderFromFaceBorder(mesh);
-
         const bool hasBorder = vcg::tri::Geodesic<VCGMesh>::DistanceFromBorder(mesh);
         if (!hasBorder) {
             return { true, false, QObject::tr("Mesh '%1' has no borders — no geodesic distance computed.").arg(meshName) };
@@ -72,10 +66,6 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterPointGeodesic)) {
         const QVector3D startPt = params.getPoint3f(QStringLiteral("startPoint"));
         const float maxDist = float(params.getDouble(QStringLiteral("maxDistance")));
-
-        vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
-        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromVF(mesh);
-        vcg::tri::UpdateFlags<VCGMesh>::VertexBorderFromFaceBorder(mesh);
 
         // Find the closest vertex to the given point
         const vcg::Point3f sp(startPt.x(), startPt.y(), startPt.z());
@@ -113,10 +103,6 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterSelectedGeodesic)) {
         const float maxDist = float(params.getDouble(QStringLiteral("maxDistance")));
-
-        vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
-        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromVF(mesh);
-        vcg::tri::UpdateFlags<VCGMesh>::VertexBorderFromFaceBorder(mesh);
 
         std::vector<VCGMesh::VertexPointer> seedVec;
         for (auto &v : mesh.vert)

@@ -20,6 +20,9 @@
         "requireFaces": true
       },
       "parameters": [],
+      "inputPrepare": [
+        "BorderVF"
+      ],
       "outputModifies": [
         "VQ"
       ]
@@ -68,6 +71,9 @@
           "decimals": 6
         }
       ],
+      "inputPrepare": [
+        "BorderVF"
+      ],
       "outputModifies": [
         "VQ"
       ]
@@ -103,6 +109,9 @@
           "max": "@bboxDiag5x",
           "decimals": 6
         }
+      ],
+      "inputPrepare": [
+        "BorderVF"
       ],
       "outputModifies": [
         "VQ"

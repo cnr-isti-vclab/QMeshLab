@@ -4,6 +4,10 @@
 #include "filterparam.h"
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
+#include <vcg/complex/algorithms/update/bounding.h>
+#include <vcg/complex/algorithms/update/flag.h>
+#include <vcg/complex/algorithms/update/normal.h>
+#include <vcg/complex/algorithms/update/topology.h>
 #include <QColor>
 #include <QFileInfo>
 #include <QObject>
@@ -14,6 +18,106 @@
 
 namespace {
 constexpr QLatin1StringView kKeySeparator("::");
+
+// Holds the OCF enable/disable state for one filter invocation.
+// Constructed by prepareMeshForFilter(); must stay alive while the filter runs.
+// The destructor disables whatever components were enabled, releasing memory.
+struct MeshPreparationScope {
+    VCGMesh *mesh = nullptr;
+    bool disableFF   = false;
+    bool disableVF   = false;
+    bool disableMark = false;
+
+    MeshPreparationScope() = default;
+    // Movable so it can be returned by value and held in runFilter.
+    MeshPreparationScope(MeshPreparationScope &&o) noexcept
+        : mesh(o.mesh)
+        , disableFF(o.disableFF)
+        , disableVF(o.disableVF)
+        , disableMark(o.disableMark)
+    {
+        o.mesh = nullptr; // transfer ownership
+    }
+    MeshPreparationScope &operator=(MeshPreparationScope &&) = delete;
+    MeshPreparationScope(const MeshPreparationScope &) = delete;
+    MeshPreparationScope &operator=(const MeshPreparationScope &) = delete;
+
+    ~MeshPreparationScope()
+    {
+        if (!mesh) return;
+        if (disableFF)   mesh->face.DisableFFAdjacency();
+        if (disableVF) {
+            mesh->vert.DisableVFAdjacency();
+            mesh->face.DisableVFAdjacency();
+        }
+        if (disableMark) mesh->face.DisableMark();
+    }
+};
+
+// Enables OCF components, computes topology/normals/bbox as declared in
+// descriptor.inputPrepare, and returns a scope guard that disables the
+// components on destruction.  Must be kept alive for the entire filter call.
+MeshPreparationScope prepareMeshForFilter(
+    const MeshFilterDescriptor &descriptor,
+    Document &doc)
+{
+    MeshPreparationScope scope;
+    if (descriptor.inputPrepare.isEmpty()
+            || descriptor.inputDomain != MeshFilterInputDomain::SingleMesh)
+        return scope;
+
+    const int ci = doc.currentMeshIndex();
+    if (ci < 0 || ci >= doc.meshCount())
+        return scope;
+
+    VCGMesh &mesh = doc.mesh(ci).mesh;
+    scope.mesh = &mesh;
+    const QStringList &prep = descriptor.inputPrepare;
+
+    // Apply in dependency order: enable OCF → topology → border flags → normals → bbox.
+    const bool doFF       = prep.contains(QStringLiteral("FF"))       || prep.contains(QStringLiteral("BorderFF"));
+    const bool doVF       = prep.contains(QStringLiteral("VF"))       || prep.contains(QStringLiteral("BorderVF"));
+    const bool doBorderFF = prep.contains(QStringLiteral("BorderFF"));
+    const bool doBorderVF = prep.contains(QStringLiteral("BorderVF"));
+    const bool doFNorm    = prep.contains(QStringLiteral("FNorm"))    || prep.contains(QStringLiteral("VNorm"));
+    const bool doVNorm    = prep.contains(QStringLiteral("VNorm"));
+    const bool doBBox     = prep.contains(QStringLiteral("BBox"));
+    const bool doMark     = prep.contains(QStringLiteral("Mark"));
+
+    if (doFF) {
+        mesh.face.EnableFFAdjacency();
+        scope.disableFF = true;
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+    }
+    if (doVF) {
+        mesh.vert.EnableVFAdjacency();
+        mesh.face.EnableVFAdjacency();
+        scope.disableVF = true;
+        vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
+    }
+    if (doBorderFF) {
+        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(mesh);
+        vcg::tri::UpdateFlags<VCGMesh>::VertexBorderFromFaceBorder(mesh);
+    }
+    if (doBorderVF) {
+        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromVF(mesh);
+        vcg::tri::UpdateFlags<VCGMesh>::VertexBorderFromFaceBorder(mesh);
+    }
+    if (doFNorm) vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
+    if (doVNorm) {
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexFromCurrentFaceNormal(mesh);
+        vcg::tri::UpdateNormal<VCGMesh>::NormalizePerVertex(mesh);
+    }
+    if (doBBox) vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    if (doMark) {
+        mesh.face.EnableMark();
+        scope.disableMark = true;
+    }
+
+    return scope;
+}
+
+
 
 const MeshFilterDescriptor *findDescriptorById(
     const std::vector<MeshFilterDescriptor> &descriptors,
@@ -263,6 +367,9 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     }
 
     const FilterParams typedParams(normalizedParameters);
+    // Enable OCF components, compute topology/normals, and keep them alive
+    // until the filter returns (scope destructor disables them).
+    const MeshPreparationScope prepScope = prepareMeshForFilter(*targetDescriptor, doc);
     MeshFilterRunResult result = targetPlugin->runFilter(filterId, typedParams, doc);
     if (!result.success) {
         if (wrapUndo)

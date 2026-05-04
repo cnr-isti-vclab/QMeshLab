@@ -116,6 +116,20 @@ struct MeshFilterDescriptor
     // FA=face attributes  FS=face selection  FP=face polygon (faux-edge) bits
     // WT=wedge texcoords  TX=texture images  TM=per-mesh transform matrix
     QStringList outputModifies;
+
+    // Codes declaring volatile mesh data the framework must prepare before
+    // calling runFilter().  The framework executes the corresponding VCG
+    // algorithms automatically, so filter code need not repeat them.
+    //
+    // Recognised codes (applied in dependency order):
+    //   FF        — UpdateTopology::FaceFace
+    //   VF        — UpdateTopology::VertexFace
+    //   BorderFF  — FF + FaceBorderFromFF + VertexBorderFromFaceBorder
+    //   BorderVF  — VF + FaceBorderFromVF + VertexBorderFromFaceBorder
+    //   FNorm     — UpdateNormal::PerFaceNormalized
+    //   VNorm     — UpdateNormal::PerVertexNormalizedPerFaceNormalized
+    //   BBox      — UpdateBounding::Box
+    QStringList inputPrepare;
 };
 
 using MeshFilterParameterValues = QVariantMap;
