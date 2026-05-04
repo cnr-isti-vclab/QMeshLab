@@ -209,6 +209,11 @@ QVariant resolveToken(const QVariant &v, double bboxDiag,
     if (token == QStringLiteral("bboxDiagTenth"))      return bboxDiag * 0.1;
     if (token == QStringLiteral("bboxDiagHalf"))       return bboxDiag * 0.5;
     if (token == QStringLiteral("bboxDiag5x"))         return bboxDiag * 5.0;
+    if (token == QStringLiteral("negBboxDiag"))        return -bboxDiag;
+    if (token == QStringLiteral("negBboxDiag01"))      return -bboxDiag * 0.01;
+    if (token == QStringLiteral("negBboxDiag001"))     return -bboxDiag * 0.001;
+    if (token == QStringLiteral("negBboxDiagTenth"))   return -bboxDiag * 0.1;
+    if (token == QStringLiteral("negBboxDiagHalf"))    return -bboxDiag * 0.5;
     if (token == QStringLiteral("qualityVMin"))        return qualityVMin;
     if (token == QStringLiteral("qualityVMax"))        return qualityVMax;
     if (token == QStringLiteral("qualityFMin"))        return qualityFMin;

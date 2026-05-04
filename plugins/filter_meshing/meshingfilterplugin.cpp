@@ -687,7 +687,12 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 
+            VCGMeshFFAdjScope _ffAdj(mesh);
+            VCGMeshVFAdjScope _vfAdj(mesh);
+            VCGMeshMarkScope _mark(mesh);
+
             VCGMesh toProjectCopy;
+            toProjectCopy.face.EnableMark();
             vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(toProjectCopy, mesh);
             vcg::tri::IsotropicRemeshing<VCGMesh>::Params remeshParams;
             remeshParams.SetTargetLen(float(params.getDouble(QStringLiteral("TargetLen"))));
