@@ -146,7 +146,8 @@ public:
     int undoCursorPosition() const;
     std::vector<UndoTreeNodeInfo> undoTreeInfo() const;
     int undoCurrentNodeId() const;
-    bool jumpToUndoNode(int nodeId);
+    bool jumpToUndoNode(int nodeId, bool restoreCamera = true);
+    bool updateUndoNodeCamera(int nodeId);
     bool undo();
     bool redo();
     void clearUndoHistory();
@@ -340,6 +341,7 @@ private:
     std::optional<UndoState> m_pendingUndoBefore;
     bool m_restoringUndoRedo = false;
     bool m_suppressUndoRedoSignals = false;
+    bool m_restoreCamera = true;
     CallbackMode m_callbackMode = CallbackMode::None;
     std::atomic<bool> m_cancelRequested = false;
     std::function<ViewState()> m_captureViewState;

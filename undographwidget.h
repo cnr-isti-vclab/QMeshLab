@@ -33,7 +33,12 @@ public:
                   const QMap<int, QPixmap> &thumbnails);
 
 signals:
-    void nodeDoubleClicked(int nodeId);
+    // Emitted when the user requests to jump to a node.
+    // withCamera=true  → restore data AND camera (Ctrl/Cmd+double-click or context menu)
+    // withCamera=false → restore data only (plain double-click or context menu)
+    void nodeActivated(int nodeId, bool withCamera);
+    // Emitted when the user requests to store the current view camera into a node.
+    void nodeUpdateCameraRequested(int nodeId);
     void nodeHovered(int nodeId, const QPoint &globalPos); // nodeId==-1 → leave
     void nodeUnhovered();
 
@@ -43,6 +48,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
     QSize sizeHint() const override;
 
 private:
@@ -75,8 +81,9 @@ private:
     int           m_laneCount = 1;
 
     // ---- geometry constants ----
-    static constexpr int kThumbSize   = 48;
-    static constexpr int kRowHeight   = 56;  // must be >= kThumbSize + padding
+    static constexpr int kThumbW     = 96;   // thumbnail width  (2:1 aspect ratio)
+    static constexpr int kThumbH     = 48;   // thumbnail height
+    static constexpr int kRowHeight   = 56;  // must be >= kThumbH + padding
     static constexpr int kLaneWidth   = 20;
     static constexpr int kDotRadius   = 6;
     static constexpr int kTextLeft    = 8;   // gap between graph area and text

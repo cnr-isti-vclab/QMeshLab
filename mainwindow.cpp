@@ -608,13 +608,20 @@ MainWindow::MainWindow(QWidget *parent)
         [this](bool, bool, const QString &, const QString &) {
             refreshUndoHistoryPanel();
         });
-    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeDoubleClicked, this, [this](int nodeId) {
-        jumpToUndoNode(nodeId);
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeActivated, this, [this](int nodeId, bool withCamera) {
+        jumpToUndoNode(nodeId, withCamera);
+    });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeUpdateCameraRequested, this, [this](int nodeId) {
+        if (m_doc && m_doc->updateUndoNodeCamera(nodeId))
+            statusBar()->showMessage(tr("Camera updated for history state %1").arg(nodeId), 1800);
     });
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeHovered, this, [this](int nodeId, const QPoint &globalPos) {
-        if (!m_undoHistoryPreviewPopup || !m_undoNodeThumbnails.contains(nodeId))
+        if (!m_undoHistoryPreviewPopup)
             return;
-        const QPixmap src = m_undoNodeThumbnails.value(nodeId);
+        // Use the 50%-size snapshot for the hover popup; fall back to the thumbnail.
+        const QPixmap src = m_undoNodeSnapshots.contains(nodeId)
+            ? m_undoNodeSnapshots.value(nodeId)
+            : m_undoNodeThumbnails.value(nodeId);
         if (src.isNull()) return;
         QScreen *screenForPopup = this->screen();
         if (QScreen *cursorScreen = QGuiApplication::screenAt(globalPos))
@@ -623,10 +630,14 @@ MainWindow::MainWindow(QWidget *parent)
             screenForPopup = QGuiApplication::screens().front();
         if (!screenForPopup) return;
         const QRect avail = screenForPopup->availableGeometry();
-        const QSize maxSize(std::max(64, avail.width() / 3), std::max(64, avail.height() / 3));
-        const QPixmap scaled = src.scaled(maxSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        if (scaled.isNull()) return;
-        m_undoHistoryPreviewPopup->setPixmap(scaled);
+        // Show the snapshot as-is (already at 50% of the original frame);
+        // only downscale further if it would not fit on screen.
+        const QSize maxSize(std::max(64, avail.width() * 2 / 3), std::max(64, avail.height() * 2 / 3));
+        const QPixmap display = (src.width() > maxSize.width() || src.height() > maxSize.height())
+            ? src.scaled(maxSize, Qt::KeepAspectRatio, Qt::SmoothTransformation)
+            : src;
+        if (display.isNull()) return;
+        m_undoHistoryPreviewPopup->setPixmap(display);
         m_undoHistoryPreviewPopup->adjustSize();
         QPoint target = globalPos + QPoint(18, 18);
         const int maxX = avail.right() - m_undoHistoryPreviewPopup->width();
@@ -2491,21 +2502,32 @@ QPixmap MainWindow::captureUndoHistoryThumbnail() const
     const QImage frame = view->grabFramebuffer();
     if (frame.isNull())
         return QPixmap();
+    // Centre-crop to 2:1 aspect ratio, then scale to kThumbW × kThumbH.
     return QPixmap::fromImage(
         [&]{
-            const QImage big = frame.scaled(
-                QSize(96, 96), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-            const int x = (big.width()  - 96) / 2;
-            const int y = (big.height() - 96) / 2;
-            return big.copy(x, y, 96, 96);
+            const int fw = frame.width();
+            const int fh = frame.height();
+            // Crop to 2:1: pick the dimension that fits without stretching.
+            int cropW, cropH;
+            if (fw * 1 >= fh * 2) {   // frame is wider than 2:1 → crop width
+                cropH = fh;
+                cropW = fh * 2;
+            } else {                   // frame is taller than 2:1 → crop height
+                cropW = fw;
+                cropH = fw / 2;
+            }
+            const int ox = (fw - cropW) / 2;
+            const int oy = (fh - cropH) / 2;
+            const QImage cropped = frame.copy(ox, oy, cropW, std::max(1, cropH));
+            return cropped.scaled(96, 48, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
         }());
 }
 
-void MainWindow::jumpToUndoNode(int nodeId)
+void MainWindow::jumpToUndoNode(int nodeId, bool withCamera)
 {
     if (!m_doc)
         return;
-    if (m_doc->jumpToUndoNode(nodeId)) {
+    if (m_doc->jumpToUndoNode(nodeId, withCamera)) {
         const auto infos = m_doc->undoTreeInfo();
         for (const auto &info : infos) {
             if (info.nodeId == nodeId && !info.label.isEmpty()) {
@@ -2524,11 +2546,33 @@ void MainWindow::refreshUndoHistoryPanel()
     const auto treeInfo = m_doc->undoTreeInfo();
     const int currentNodeId = m_doc->undoCurrentNodeId();
 
-    // Capture a thumbnail for the current node if we don't have one yet.
+    // Capture thumbnail (2:1 row icon) and hover snapshot (50% of frame) for the
+    // current node if we don't have them yet.
     if (currentNodeId >= 0 && !m_undoNodeThumbnails.contains(currentNodeId)) {
-        const QPixmap captured = captureUndoHistoryThumbnail();
-        if (!captured.isNull())
-            m_undoNodeThumbnails[currentNodeId] = captured;
+        RenderWidget *view = currentRenderWidget();
+        if (view) {
+            const QImage frame = view->grabFramebuffer();
+            if (!frame.isNull()) {
+                // 2:1 thumbnail: centre-crop then scale to 96×48.
+                {
+                    const int fw = frame.width();
+                    const int fh = frame.height();
+                    int cropW, cropH;
+                    if (fw >= fh * 2) { cropH = fh; cropW = fh * 2; }
+                    else              { cropW = fw; cropH = fw / 2;   }
+                    const int ox = (fw - cropW) / 2;
+                    const int oy = (fh - cropH) / 2;
+                    const QImage cropped = frame.copy(ox, oy, cropW, std::max(1, cropH));
+                    m_undoNodeThumbnails[currentNodeId] = QPixmap::fromImage(
+                        cropped.scaled(96, 48, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+                }
+                // 50%-size snapshot for the hover popup.
+                m_undoNodeSnapshots[currentNodeId] = QPixmap::fromImage(
+                    frame.scaled(std::max(1, frame.width() / 2),
+                                 std::max(1, frame.height() / 2),
+                                 Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+            }
+        }
     }
 
     // Remove thumbnail entries for nodes that no longer exist.
@@ -2539,6 +2583,12 @@ void MainWindow::refreshUndoHistoryPanel()
         for (auto it = m_undoNodeThumbnails.begin(); it != m_undoNodeThumbnails.end(); ) {
             if (!liveIds.contains(it.key()))
                 it = m_undoNodeThumbnails.erase(it);
+            else
+                ++it;
+        }
+        for (auto it = m_undoNodeSnapshots.begin(); it != m_undoNodeSnapshots.end(); ) {
+            if (!liveIds.contains(it.key()))
+                it = m_undoNodeSnapshots.erase(it);
             else
                 ++it;
         }

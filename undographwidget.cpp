@@ -1,6 +1,8 @@
 #include "undographwidget.h"
 #include <QApplication>
+#include <QContextMenuEvent>
 #include <QMap>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -82,8 +84,8 @@ void UndoGraphWidget::updateScrollBars()
     const int contentH = m_rows.size() * kRowHeight;
     const int graphW   = m_laneCount * kLaneWidth + kLaneWidth / 2;
     // Text column gets the remaining width.
-    const int textW    = std::max(200, viewport()->width() - graphW - kThumbSize - kTextLeft * 2);
-    const int contentW = graphW + kTextLeft + textW + kThumbSize;
+    const int textW    = std::max(200, viewport()->width() - graphW - kThumbW - kTextLeft * 2);
+    const int contentW = graphW + kTextLeft + textW + kThumbW;
 
     verticalScrollBar()->setRange(0, std::max(0, contentH - viewport()->height()));
     verticalScrollBar()->setPageStep(viewport()->height());
@@ -140,7 +142,7 @@ void UndoGraphWidget::paintEvent(QPaintEvent * /*event*/)
     }
 
     const int graphAreaW = m_laneCount * kLaneWidth + kLaneWidth / 2;
-    const int thumbColX  = vw - kThumbSize - 4 + scrollX; // right-aligned
+    const int thumbColX  = vw - kThumbW - 4 + scrollX; // right-aligned
 
     // Build a map nodeId → row index for connector drawing.
     QMap<int, int> nodeRow;
@@ -155,7 +157,7 @@ void UndoGraphWidget::paintEvent(QPaintEvent * /*event*/)
             continue;
         if (row.isCurrent)
             p.fillRect(QRect(0, top, vw, kRowHeight),
-                       palette().color(QPalette::Highlight).darker(220));
+                       QColor(173, 216, 230)); // light blue
         else if (ri == m_hoveredRow)
             p.fillRect(QRect(0, top, vw, kRowHeight),
                        palette().color(QPalette::AlternateBase));
@@ -232,8 +234,8 @@ void UndoGraphWidget::paintEvent(QPaintEvent * /*event*/)
         const QPixmap thumb = m_thumbnails.value(row.nodeId);
         if (!thumb.isNull()) {
             const int tx = thumbColX - scrollX;
-            const int ty = top + (kRowHeight - kThumbSize) / 2;
-            p.drawPixmap(tx, ty, kThumbSize, kThumbSize, thumb);
+            const int ty = top + (kRowHeight - kThumbH) / 2;
+            p.drawPixmap(tx, ty, kThumbW, kThumbH, thumb);
         }
 
         // Text
@@ -258,9 +260,36 @@ void UndoGraphWidget::paintEvent(QPaintEvent * /*event*/)
 void UndoGraphWidget::mouseDoubleClickEvent(QMouseEvent *event)
 {
     const int ri = rowAt(event->pos().y());
-    if (ri >= 0)
-        emit nodeDoubleClicked(m_rows[ri].nodeId);
+    if (ri >= 0) {
+        const bool withCamera =
+            event->modifiers() & (Qt::ControlModifier | Qt::MetaModifier);
+        emit nodeActivated(m_rows[ri].nodeId, withCamera);
+    }
     QAbstractScrollArea::mouseDoubleClickEvent(event);
+}
+
+void UndoGraphWidget::contextMenuEvent(QContextMenuEvent *event)
+{
+    const int ri = rowAt(event->pos().y());
+    if (ri < 0) {
+        QAbstractScrollArea::contextMenuEvent(event);
+        return;
+    }
+    const int nodeId = m_rows[ri].nodeId;
+
+    QMenu menu(this);
+    QAction *restoreAct      = menu.addAction(tr("Restore state"));
+    QAction *restoreCamAct   = menu.addAction(tr("Restore state and camera"));
+    menu.addSeparator();
+    QAction *updateCamAct    = menu.addAction(tr("Update camera"));
+
+    QAction *chosen = menu.exec(event->globalPos());
+    if (chosen == restoreAct)
+        emit nodeActivated(nodeId, false);
+    else if (chosen == restoreCamAct)
+        emit nodeActivated(nodeId, true);
+    else if (chosen == updateCamAct)
+        emit nodeUpdateCameraRequested(nodeId);
 }
 
 void UndoGraphWidget::mouseMoveEvent(QMouseEvent *event)

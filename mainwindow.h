@@ -85,7 +85,7 @@ private:
         const QSize &pixelSize,
         QString *errorMessage = nullptr);
     void refreshUndoHistoryPanel();
-    void jumpToUndoNode(int nodeId);
+    void jumpToUndoNode(int nodeId, bool withCamera = true);
     QPixmap captureUndoHistoryThumbnail() const;
 
     Document *m_doc;
@@ -111,7 +111,8 @@ private:
     QListWidget *m_logListWidget = nullptr;
     UndoGraphWidget *m_undoHistoryLaneWidget = nullptr;
     QLabel *m_undoHistoryPreviewPopup = nullptr;
-    QMap<int, QPixmap> m_undoNodeThumbnails; // keyed by nodeId
+    QMap<int, QPixmap> m_undoNodeThumbnails; // keyed by nodeId — 2:1 row icon
+    QMap<int, QPixmap> m_undoNodeSnapshots;  // keyed by nodeId — 50% size hover image
     std::deque<float> m_lastCpuFrameTimes;
     std::deque<float> m_lastGpuFrameTimes;
 };

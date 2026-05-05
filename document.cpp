@@ -963,6 +963,16 @@ void Document::setViewStateFunctions(
     m_restoreViewState = std::move(restore);
 }
 
+bool Document::updateUndoNodeCamera(int nodeId)
+{
+    if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
+        return false;
+    if (!m_captureViewState)
+        return false;
+    m_undoNodes[static_cast<size_t>(nodeId)].state.viewState = m_captureViewState();
+    return true;
+}
+
 bool Document::canRedo() const
 {
     if (m_undoCurrentNode < 0 || m_undoCurrentNode >= static_cast<int>(m_undoNodes.size()))
@@ -1071,7 +1081,7 @@ std::vector<Document::UndoTreeNodeInfo> Document::undoTreeInfo() const
     return result;
 }
 
-bool Document::jumpToUndoNode(int nodeId)
+bool Document::jumpToUndoNode(int nodeId, bool restoreCamera)
 {
     if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
         return false;
@@ -1124,11 +1134,15 @@ bool Document::jumpToUndoNode(int nodeId)
     // Suppress per-step signals during the multi-step navigation so that
     // intermediate states don't trigger thumbnail capture (grabFramebuffer)
     // or other GUI refreshes that could interfere with the GPU/render state.
+    // Camera is never restored for intermediate steps; only the final redo
+    // restores it (controlled by the restoreCamera parameter).
     m_suppressUndoRedoSignals = true;
+    m_restoreCamera = false;
 
     // Undo until we reach the LCA.
     while (m_undoCurrentNode != lca) {
         if (!undo()) {
+            m_restoreCamera = true;
             m_suppressUndoRedoSignals = false;
             emitUndoRedoStateChanged();
             return false;
@@ -1142,16 +1156,27 @@ bool Document::jumpToUndoNode(int nodeId)
         redoPath.push_back(id);
     }
     std::reverse(redoPath.begin(), redoPath.end());
-    for (int id : redoPath) {
+    for (int i = 0; i < static_cast<int>(redoPath.size()); ++i) {
+        const int id = redoPath[static_cast<size_t>(i)];
+        // Restore camera only on the very last redo step.
+        m_restoreCamera = (i == static_cast<int>(redoPath.size()) - 1) ? restoreCamera : false;
         // Set the preferred child so redo() follows the correct branch.
         m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].preferredChild = id;
         if (!redo()) {
+            m_restoreCamera = true;
             m_suppressUndoRedoSignals = false;
             emitUndoRedoStateChanged();
             return false;
         }
     }
+    // If there were no redo steps (target == lca) handle camera on the undo path.
+    // The last undo already restored lca's state; if restoreCamera is true we need
+    // to explicitly re-apply the view (undo always runs with m_restoreCamera=false).
+    if (redoPath.empty() && restoreCamera && m_restoreViewState) {
+        m_restoreViewState(m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].state.viewState);
+    }
 
+    m_restoreCamera = true;
     m_suppressUndoRedoSignals = false;
     emitUndoRedoStateChanged();
     return m_undoCurrentNode == nodeId;
@@ -1344,7 +1369,7 @@ void Document::restoreUndoState(const UndoState &state)
         if (!entry.visible)
             emit meshVisibilityChanged(i, false);
     }
-    if (m_restoreViewState)
+    if (m_restoreViewState && m_restoreCamera)
         m_restoreViewState(state.viewState);
 }
 
