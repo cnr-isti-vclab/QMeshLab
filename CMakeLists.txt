@@ -74,6 +74,7 @@ qt_add_executable(QMeshLab
     viewstate.h
     renderoverlaypanel.h renderoverlaypanel.cpp
     layerwidget.h layerwidget.cpp
+    undographwidget.h undographwidget.cpp
 )
 
 set_target_properties(QMeshLab PROPERTIES

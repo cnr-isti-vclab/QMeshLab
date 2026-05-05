@@ -4,6 +4,7 @@
 #include "meshsaveoptionsdialog.h"
 #include "renderwidget.h"
 #include "layerwidget.h"
+#include "undographwidget.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <QButtonGroup>
 #include <QClipboard>
@@ -44,7 +45,7 @@
 #include <QStringList>
 #include <QTableWidget>
 #include <QTimer>
-#include <QTreeWidget>
+// QTreeWidget replaced by UndoGraphWidget
 #include <QToolButton>
 #include <QVector3D>
 #include <QVBoxLayout>
@@ -551,15 +552,8 @@ MainWindow::MainWindow(QWidget *parent)
     });
     m_logListWidget->addAction(copyAllLogAction);
 
-    m_undoHistoryListWidget = new QListWidget(this);
-    m_undoHistoryListWidget->setSelectionMode(QAbstractItemView::NoSelection);
-    m_undoHistoryListWidget->setFocusPolicy(Qt::NoFocus);
-    m_undoHistoryListWidget->setIconSize(QSize(72, 54));
-    m_undoHistoryListWidget->setMouseTracking(true);
-    if (m_undoHistoryListWidget->viewport()) {
-        m_undoHistoryListWidget->viewport()->setMouseTracking(true);
-        m_undoHistoryListWidget->viewport()->installEventFilter(this);
-    }
+    m_undoHistoryLaneWidget = new UndoGraphWidget(this);
+    m_undoHistoryLaneWidget->setFocusPolicy(Qt::NoFocus);
 
     m_undoHistoryPreviewPopup = new QLabel(this);
     m_undoHistoryPreviewPopup->setWindowFlags(Qt::ToolTip);
@@ -578,7 +572,7 @@ MainWindow::MainWindow(QWidget *parent)
     auto *historyTitle = new QLabel(tr("Action History"), historyPanel);
     historyTitle->setStyleSheet(QStringLiteral("color: palette(mid);"));
     historyLayout->addWidget(historyTitle, 0);
-    historyLayout->addWidget(m_undoHistoryListWidget, 1);
+    historyLayout->addWidget(m_undoHistoryLaneWidget, 1);
 
     auto *logSplit = new QSplitter(Qt::Horizontal, this);
     logSplit->setChildrenCollapsible(false);
@@ -614,14 +608,37 @@ MainWindow::MainWindow(QWidget *parent)
         [this](bool, bool, const QString &, const QString &) {
             refreshUndoHistoryPanel();
         });
-    connect(m_undoHistoryListWidget, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
-        if (!item)
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeDoubleClicked, this, [this](int nodeId) {
+        jumpToUndoNode(nodeId);
+    });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeHovered, this, [this](int nodeId, const QPoint &globalPos) {
+        if (!m_undoHistoryPreviewPopup || !m_undoNodeThumbnails.contains(nodeId))
             return;
-        bool ok = false;
-        const int stackIndex = item->data(Qt::UserRole).toInt(&ok);
-        if (!ok)
-            return;
-        jumpToHistoryEntry(stackIndex);
+        const QPixmap src = m_undoNodeThumbnails.value(nodeId);
+        if (src.isNull()) return;
+        QScreen *screenForPopup = this->screen();
+        if (QScreen *cursorScreen = QGuiApplication::screenAt(globalPos))
+            screenForPopup = cursorScreen;
+        if (!screenForPopup && !QGuiApplication::screens().isEmpty())
+            screenForPopup = QGuiApplication::screens().front();
+        if (!screenForPopup) return;
+        const QRect avail = screenForPopup->availableGeometry();
+        const QSize maxSize(std::max(64, avail.width() / 3), std::max(64, avail.height() / 3));
+        const QPixmap scaled = src.scaled(maxSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        if (scaled.isNull()) return;
+        m_undoHistoryPreviewPopup->setPixmap(scaled);
+        m_undoHistoryPreviewPopup->adjustSize();
+        QPoint target = globalPos + QPoint(18, 18);
+        const int maxX = avail.right() - m_undoHistoryPreviewPopup->width();
+        const int maxY = avail.bottom() - m_undoHistoryPreviewPopup->height();
+        if (maxX >= avail.left()) target.setX(std::clamp(target.x(), avail.left(), maxX));
+        if (maxY >= avail.top())  target.setY(std::clamp(target.y(), avail.top(),  maxY));
+        m_undoHistoryPreviewPopup->move(target);
+        m_undoHistoryPreviewPopup->show();
+        m_undoHistoryPreviewPopup->raise();
+    });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeUnhovered, this, [this]() {
+        if (m_undoHistoryPreviewPopup) m_undoHistoryPreviewPopup->hide();
     });
 
     connect(m_doc, &Document::loadProgressStarted, this, [this](const QString &filePath) {
@@ -2475,202 +2492,67 @@ QPixmap MainWindow::captureUndoHistoryThumbnail() const
     if (frame.isNull())
         return QPixmap();
     return QPixmap::fromImage(
-        frame.scaled(QSize(256, 192), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        [&]{
+            const QImage big = frame.scaled(
+                QSize(96, 96), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+            const int x = (big.width()  - 96) / 2;
+            const int y = (big.height() - 96) / 2;
+            return big.copy(x, y, 96, 96);
+        }());
 }
 
-void MainWindow::jumpToHistoryEntry(int stackIndex)
+void MainWindow::jumpToUndoNode(int nodeId)
 {
     if (!m_doc)
         return;
-
-    const QStringList stackLabels = m_doc->undoStackLabels();
-    const int stackSize = static_cast<int>(stackLabels.size());
-    if (stackIndex < 0 || stackIndex >= stackSize)
-        return;
-
-    const int targetCursor = stackIndex + 1;
-    const int currentCursor = std::clamp(m_doc->undoCursorPosition(), 0, stackSize);
-    if (targetCursor == currentCursor)
-        return;
-
-    bool changed = false;
-    if (targetCursor < currentCursor) {
-        const int steps = currentCursor - targetCursor;
-        for (int i = 0; i < steps; ++i) {
-            if (!m_doc->undo())
+    if (m_doc->jumpToUndoNode(nodeId)) {
+        const auto infos = m_doc->undoTreeInfo();
+        for (const auto &info : infos) {
+            if (info.nodeId == nodeId && !info.label.isEmpty()) {
+                statusBar()->showMessage(tr("History: %1").arg(info.label), 1800);
                 break;
-            changed = true;
+            }
         }
-    } else {
-        const int steps = targetCursor - currentCursor;
-        for (int i = 0; i < steps; ++i) {
-            if (!m_doc->redo())
-                break;
-            changed = true;
-        }
-    }
-
-    if (changed) {
-        const QString actionLabel = stackLabels.value(stackIndex);
-        statusBar()->showMessage(
-            tr("History: %1. %2").arg(stackIndex + 1).arg(actionLabel),
-            1800);
     }
 }
 
 void MainWindow::refreshUndoHistoryPanel()
 {
-    if (!m_doc || !m_undoHistoryListWidget)
+    if (!m_doc || !m_undoHistoryLaneWidget)
         return;
 
-    const QStringList newLabels = m_doc->undoStackLabels();
-    const int stackSize = static_cast<int>(newLabels.size());
-    const int undoCursor = std::clamp(m_doc->undoCursorPosition(), 0, stackSize);
+    const auto treeInfo = m_doc->undoTreeInfo();
+    const int currentNodeId = m_doc->undoCurrentNodeId();
 
-    QVector<QPixmap> newThumbs(newLabels.size());
-    QVector<bool> usedOld(m_undoStackLabelsCache.size(), false);
+    // Capture a thumbnail for the current node if we don't have one yet.
+    if (currentNodeId >= 0 && !m_undoNodeThumbnails.contains(currentNodeId)) {
+        const QPixmap captured = captureUndoHistoryThumbnail();
+        if (!captured.isNull())
+            m_undoNodeThumbnails[currentNodeId] = captured;
+    }
 
-    // Reuse thumbnails when labels can be matched (keeps previews stable across undo/redo).
-    for (int i = 0; i < newLabels.size(); ++i) {
-        if (i < m_undoStackLabelsCache.size()
-            && !usedOld[i]
-            && m_undoStackLabelsCache.at(i) == newLabels.at(i)) {
-            newThumbs[i] = m_undoStackThumbnails.value(i);
-            usedOld[i] = true;
-            continue;
-        }
-        int found = -1;
-        for (int j = 0; j < m_undoStackLabelsCache.size(); ++j) {
-            if (usedOld[j])
-                continue;
-            if (m_undoStackLabelsCache.at(j) == newLabels.at(i)) {
-                found = j;
-                break;
-            }
-        }
-        if (found >= 0) {
-            newThumbs[i] = m_undoStackThumbnails.value(found);
-            usedOld[found] = true;
+    // Remove thumbnail entries for nodes that no longer exist.
+    {
+        QSet<int> liveIds;
+        for (const auto &info : treeInfo)
+            liveIds.insert(info.nodeId);
+        for (auto it = m_undoNodeThumbnails.begin(); it != m_undoNodeThumbnails.end(); ) {
+            if (!liveIds.contains(it.key()))
+                it = m_undoNodeThumbnails.erase(it);
+            else
+                ++it;
         }
     }
 
-    if (undoCursor > 0) {
-        QPixmap captured = captureUndoHistoryThumbnail();
-        if (!captured.isNull()) {
-            // If the latest undoable action has no preview yet, attach current frame.
-            if (newThumbs[undoCursor - 1].isNull())
-                newThumbs[undoCursor - 1] = captured;
-        }
-    }
-
-    m_undoStackLabelsCache = newLabels;
-    m_undoStackThumbnails = newThumbs;
-
-    m_undoHistoryListWidget->clear();
-    if (stackSize <= 0) {
-        auto *item = new QListWidgetItem(tr("No undo history"), m_undoHistoryListWidget);
-        item->setFlags(item->flags() & ~(Qt::ItemIsSelectable | Qt::ItemIsEnabled));
-        item->setForeground(QBrush(palette().brush(QPalette::Mid)));
-        return;
-    }
-
-    const int currentIndex = undoCursor - 1;
-    // Newest-first listing (highest index on top) while preserving stable numbering.
-    for (int i = stackSize - 1; i >= 0; --i) {
-        const QString label = newLabels.at(i);
-        QString text = QStringLiteral("%1. %2").arg(i + 1).arg(label);
-        if (i == currentIndex)
-            text += tr("  [current]");
-        else if (i >= undoCursor)
-            text += tr("  [redo]");
-
-        auto *item = new QListWidgetItem(text, m_undoHistoryListWidget);
-        item->setData(Qt::UserRole, i);
-        const QPixmap thumb = newThumbs.value(i);
-        if (!thumb.isNull())
-            item->setIcon(QIcon(thumb));
-
-        if (i == currentIndex) {
-            QFont f = item->font();
-            f.setBold(true);
-            item->setFont(f);
-            item->setBackground(QBrush(palette().color(QPalette::AlternateBase)));
-            item->setToolTip(tr("Current action"));
-        } else if (i >= undoCursor) {
-            item->setForeground(QBrush(palette().brush(QPalette::Mid)));
-            item->setToolTip(tr("Redo available"));
-        } else {
-            item->setToolTip(tr("Undo available"));
-        }
-    }
+    // Convert to QVector and hand off to the lane widget.
+    QVector<Document::UndoTreeNodeInfo> vec;
+    vec.reserve(static_cast<int>(treeInfo.size()));
+    for (const auto &info : treeInfo)
+        vec.append(info);
+    m_undoHistoryLaneWidget->setNodes(vec, currentNodeId, m_undoNodeThumbnails);
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
-    if (m_undoHistoryListWidget
-        && watched == m_undoHistoryListWidget->viewport()
-        && event) {
-        if (event->type() == QEvent::Leave) {
-            if (m_undoHistoryPreviewPopup)
-                m_undoHistoryPreviewPopup->hide();
-        } else if (event->type() == QEvent::MouseMove) {
-            auto *mouseEvent = static_cast<QMouseEvent *>(event);
-            QListWidgetItem *item = m_undoHistoryListWidget->itemAt(mouseEvent->pos());
-            if (!item) {
-                if (m_undoHistoryPreviewPopup)
-                    m_undoHistoryPreviewPopup->hide();
-                return false;
-            }
-            bool ok = false;
-            const int idx = item->data(Qt::UserRole).toInt(&ok);
-            if (!ok || idx < 0 || idx >= m_undoStackThumbnails.size()) {
-                if (m_undoHistoryPreviewPopup)
-                    m_undoHistoryPreviewPopup->hide();
-                return false;
-            }
-            const QPixmap src = m_undoStackThumbnails.at(idx);
-            if (src.isNull()) {
-                if (m_undoHistoryPreviewPopup)
-                    m_undoHistoryPreviewPopup->hide();
-                return false;
-            }
-
-            QScreen *screenForPopup = this->screen();
-            const QPoint globalPos = m_undoHistoryListWidget->viewport()->mapToGlobal(mouseEvent->pos());
-            if (QScreen *cursorScreen = QGuiApplication::screenAt(globalPos))
-                screenForPopup = cursorScreen;
-            if (!screenForPopup && !QGuiApplication::screens().isEmpty())
-                screenForPopup = QGuiApplication::screens().front();
-            if (!screenForPopup)
-                return false;
-
-            const QRect avail = screenForPopup->availableGeometry();
-            const QSize maxSize(
-                std::max(64, avail.width() / 3),
-                std::max(64, avail.height() / 3));
-            const QPixmap scaled = src.scaled(maxSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-            if (scaled.isNull())
-                return false;
-
-            if (m_undoHistoryPreviewPopup) {
-                m_undoHistoryPreviewPopup->setPixmap(scaled);
-                m_undoHistoryPreviewPopup->adjustSize();
-                QPoint target = globalPos + QPoint(18, 18);
-                const int maxX = avail.right() - m_undoHistoryPreviewPopup->width();
-                const int maxY = avail.bottom() - m_undoHistoryPreviewPopup->height();
-                if (maxX >= avail.left())
-                    target.setX(std::clamp(target.x(), avail.left(), maxX));
-                else
-                    target.setX(avail.left());
-                if (maxY >= avail.top())
-                    target.setY(std::clamp(target.y(), avail.top(), maxY));
-                else
-                    target.setY(avail.top());
-                m_undoHistoryPreviewPopup->move(target);
-                m_undoHistoryPreviewPopup->show();
-                m_undoHistoryPreviewPopup->raise();
-            }
-        }
-    }
     return QMainWindow::eventFilter(watched, event);
 }

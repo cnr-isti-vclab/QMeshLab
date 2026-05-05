@@ -4,6 +4,7 @@
 #include <QImage>
 #include <QStringList>
 #include <QList>
+#include <QMap>
 #include <QPixmap>
 #include <QVector>
 #include <QVariantMap>
@@ -22,6 +23,7 @@ class QSplitter;
 class QDockWidget;
 class QToolButton;
 class QListWidget;
+class UndoGraphWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -83,7 +85,7 @@ private:
         const QSize &pixelSize,
         QString *errorMessage = nullptr);
     void refreshUndoHistoryPanel();
-    void jumpToHistoryEntry(int stackIndex);
+    void jumpToUndoNode(int nodeId);
     QPixmap captureUndoHistoryThumbnail() const;
 
     Document *m_doc;
@@ -107,10 +109,9 @@ private:
     QAction *m_undoAction = nullptr;
     QAction *m_redoAction = nullptr;
     QListWidget *m_logListWidget = nullptr;
-    QListWidget *m_undoHistoryListWidget = nullptr;
+    UndoGraphWidget *m_undoHistoryLaneWidget = nullptr;
     QLabel *m_undoHistoryPreviewPopup = nullptr;
-    QStringList m_undoStackLabelsCache;
-    QVector<QPixmap> m_undoStackThumbnails;
+    QMap<int, QPixmap> m_undoNodeThumbnails; // keyed by nodeId
     std::deque<float> m_lastCpuFrameTimes;
     std::deque<float> m_lastGpuFrameTimes;
 };

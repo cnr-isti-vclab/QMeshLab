@@ -99,6 +99,18 @@ public:
         qint64 totalBytes = 0;
     };
 
+    // Describes one node of the undo tree for display purposes.
+    // nodeId is stable for the lifetime of the node.  parentId == -1 for the root.
+    struct UndoTreeNodeInfo {
+        int nodeId = -1;
+        int parentId = -1;
+        int depth = 0;   // 0 = root
+        int lane = 0;    // display lane (column); 0 = main, 1+ = branches
+        bool isCurrent = false;
+        bool isOnCurrentPath = false; // lies on the path root → current node
+        QString label;   // label of the action that produced this node ("" for root)
+    };
+
     using FillGpuVariant = MeshGpuResourceCache::FillVariant;
     using PointGpuVariant = MeshGpuResourceCache::PointVariant;
     using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
@@ -131,7 +143,10 @@ public:
     bool isRestoringUndoRedo() const;
     QStringList undoHistoryLabels() const;
     QStringList undoStackLabels() const;
-    int undoCursorPosition() const { return m_undoCursor; }
+    int undoCursorPosition() const;
+    std::vector<UndoTreeNodeInfo> undoTreeInfo() const;
+    int undoCurrentNodeId() const;
+    bool jumpToUndoNode(int nodeId);
     bool undo();
     bool redo();
     void clearUndoHistory();
@@ -262,10 +277,20 @@ private:
         ViewState viewState;
     };
 
-    // No UndoStep: history is stored as a flat checkpoint list.
-    // m_undoCheckpoints[i] is the state after i committed actions.
-    // m_undoLabels[i] is the label of the action from checkpoint i → i+1.
-    // m_undoCursor is the index of the current checkpoint.
+    // Tree-shaped undo history. Each node in m_undoNodes holds a full document
+    // snapshot plus linkage (parentId, children, preferredChild).
+    // Node 0 is always the "before" root (initial state when recording started).
+    // m_undoCurrentNode is the id of the node that represents the current live state.
+    // When a new action is committed, a new child is appended to the current node
+    // instead of truncating siblings — so alternate timelines are preserved.
+    struct UndoNode {
+        UndoState state;
+        QString   label;         // label of the action that led INTO this node ("" for root)
+        int       parentId = -1; // index into m_undoNodes (-1 for root)
+        int       lane = 0;      // display lane assigned at creation time
+        std::vector<int> children;
+        int       preferredChild = -1; // which child to follow on redo() (-1 = none)
+    };
 
     enum class CallbackMode {
         None,
@@ -277,6 +302,7 @@ private:
     UndoState captureUndoState() const;
     void restoreUndoState(const UndoState &state);
     void pushUndoStep(const QString &label, UndoState &&before, UndoState &&after);
+    void pruneUndoTreeToLimit();
     void emitUndoRedoStateChanged();
     vcg::CallBackPos *logCallback();
     bool handleLogCallback(int pos, const char *message);
@@ -306,14 +332,14 @@ private:
     mutable std::map<std::pair<std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>>
         m_undoGeometryCache;
 
-    std::vector<UndoState> m_undoCheckpoints;
-    std::vector<QString> m_undoLabels;
-    int m_undoCursor = 0;
+    std::vector<UndoNode> m_undoNodes;   // flat arena; index == node id
+    int m_undoCurrentNode = -1;          // id of the node representing live state (-1 = no history)
     int m_undoLimit = 20;
     bool m_undoStepActive = false;
     QString m_undoStepLabel;
     std::optional<UndoState> m_pendingUndoBefore;
     bool m_restoringUndoRedo = false;
+    bool m_suppressUndoRedoSignals = false;
     CallbackMode m_callbackMode = CallbackMode::None;
     std::atomic<bool> m_cancelRequested = false;
     std::function<ViewState()> m_captureViewState;
