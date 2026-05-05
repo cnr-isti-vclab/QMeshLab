@@ -135,7 +135,7 @@ public:
     void beginUndoStep(const QString &label);
     void endUndoStep(bool commit = true, bool restoreOnCancel = false);
     void setViewStateFunctions(std::function<ViewState()> capture,
-                               std::function<void(const ViewState &)> restore);
+                                std::function<void(const ViewState &, bool restoreCamera)> restore);
     bool canUndo() const;
     bool canRedo() const;
     QString undoText() const;
@@ -157,6 +157,7 @@ public:
     void removeMesh(int index);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
     void setMeshVisible(int index, bool visible);
+    void setMeshName(int index, const QString &name);
     QMatrix4x4 meshTransform(int index) const;
     void setMeshTransform(
         int index,
@@ -345,5 +346,5 @@ private:
     CallbackMode m_callbackMode = CallbackMode::None;
     std::atomic<bool> m_cancelRequested = false;
     std::function<ViewState()> m_captureViewState;
-    std::function<void(const ViewState &)> m_restoreViewState;
+    std::function<void(const ViewState &, bool restoreCamera)> m_restoreViewState;
 };

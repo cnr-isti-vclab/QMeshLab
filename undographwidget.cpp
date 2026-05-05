@@ -282,6 +282,7 @@ void UndoGraphWidget::contextMenuEvent(QContextMenuEvent *event)
     QAction *restoreCamAct   = menu.addAction(tr("Restore state and camera"));
     menu.addSeparator();
     QAction *updateCamAct    = menu.addAction(tr("Update camera"));
+    updateCamAct->setEnabled(nodeId == m_currentNodeId);
 
     QAction *chosen = menu.exec(event->globalPos());
     if (chosen == restoreAct)

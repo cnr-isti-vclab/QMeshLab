@@ -47,7 +47,7 @@ public:
     void copyPerMeshRenderModesFrom(const RenderWidget *other);
 
     ViewState captureViewState() const;
-    void restoreViewState(const ViewState &vs);
+    void restoreViewState(const ViewState &vs, bool restoreCamera = true);
     QVector3D trackballCenter() const { return m_trackball.center(); }
     QVector3D cameraEyePosition() const { return m_trackball.cameraEyePosition(); }
     QVector3D cameraViewDirection() const { return m_trackball.cameraViewDirection(); }

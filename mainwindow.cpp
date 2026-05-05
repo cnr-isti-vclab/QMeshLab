@@ -426,10 +426,10 @@ MainWindow::MainWindow(QWidget *parent)
             RenderWidget *v = m_currentRenderWidget;
             return v ? v->captureViewState() : ViewState{};
         },
-        [this](const ViewState &vs) {
+        [this](const ViewState &vs, bool restoreCamera) {
             RenderWidget *v = m_currentRenderWidget;
             if (v)
-                v->restoreViewState(vs);
+                v->restoreViewState(vs, restoreCamera);
         });
 
     m_loadProgressBar = new QProgressBar(this);
@@ -612,8 +612,28 @@ MainWindow::MainWindow(QWidget *parent)
         jumpToUndoNode(nodeId, withCamera);
     });
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeUpdateCameraRequested, this, [this](int nodeId) {
-        if (m_doc && m_doc->updateUndoNodeCamera(nodeId))
-            statusBar()->showMessage(tr("Camera updated for history state %1").arg(nodeId), 1800);
+        if (!m_doc || !m_doc->updateUndoNodeCamera(nodeId))
+            return;
+        // Refresh the thumbnail and snapshot for this node with the current frame.
+        RenderWidget *view = currentRenderWidget();
+        if (view) {
+            const QImage frame = view->grabFramebuffer();
+            if (!frame.isNull()) {
+                const int fw = frame.width(), fh = frame.height();
+                int cropW, cropH;
+                if (fw >= fh * 2) { cropH = fh; cropW = fh * 2; }
+                else              { cropW = fw; cropH = fw / 2;   }
+                const int ox = (fw - cropW) / 2, oy = (fh - cropH) / 2;
+                m_undoNodeThumbnails[nodeId] = QPixmap::fromImage(
+                    frame.copy(ox, oy, cropW, std::max(1, cropH))
+                         .scaled(96, 48, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+                m_undoNodeSnapshots[nodeId] = QPixmap::fromImage(
+                    frame.scaled(std::max(1, fw / 2), std::max(1, fh / 2),
+                                 Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+            }
+        }
+        refreshUndoHistoryPanel();
+        statusBar()->showMessage(tr("Camera updated for history state %1").arg(nodeId), 1800);
     });
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeHovered, this, [this](int nodeId, const QPoint &globalPos) {
         if (!m_undoHistoryPreviewPopup)

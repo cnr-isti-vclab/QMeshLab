@@ -47,6 +47,9 @@
 #if QMESH_PLUGIN_FILTER_SAMPLE_ENABLED
 #include "plugins/filter_sample/samplefilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_LAYER_ENABLED
+#include "plugins/filter_layer/layerfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -94,5 +97,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_SAMPLE_ENABLED
     registerSampleFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_LAYER_ENABLED
+    registerLayerFilterPlugin(pluginManager);
 #endif
 }

@@ -957,7 +957,7 @@ bool Document::isRestoringUndoRedo() const
 
 void Document::setViewStateFunctions(
     std::function<ViewState()> capture,
-    std::function<void(const ViewState &)> restore)
+    std::function<void(const ViewState &, bool)> restore)
 {
     m_captureViewState = std::move(capture);
     m_restoreViewState = std::move(restore);
@@ -1085,8 +1085,11 @@ bool Document::jumpToUndoNode(int nodeId, bool restoreCamera)
 {
     if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
         return false;
-    if (nodeId == m_undoCurrentNode)
+    if (nodeId == m_undoCurrentNode) {
+        if (m_restoreViewState)
+            m_restoreViewState(m_undoNodes[static_cast<size_t>(nodeId)].state.viewState, restoreCamera);
         return true;
+    }
     if (m_undoStepActive)
         return false;
 
@@ -1169,11 +1172,11 @@ bool Document::jumpToUndoNode(int nodeId, bool restoreCamera)
             return false;
         }
     }
-    // If there were no redo steps (target == lca) handle camera on the undo path.
-    // The last undo already restored lca's state; if restoreCamera is true we need
-    // to explicitly re-apply the view (undo always runs with m_restoreCamera=false).
-    if (redoPath.empty() && restoreCamera && m_restoreViewState) {
-        m_restoreViewState(m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].state.viewState);
+    // If there were no redo steps (target == lca), the undo steps ran with
+    // m_restoreCamera=false so render modes were restored but camera was not.
+    // Now explicitly re-apply the view with the correct restoreCamera value.
+    if (redoPath.empty() && m_restoreViewState) {
+        m_restoreViewState(m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].state.viewState, restoreCamera);
     }
 
     m_restoreCamera = true;
@@ -1369,8 +1372,8 @@ void Document::restoreUndoState(const UndoState &state)
         if (!entry.visible)
             emit meshVisibilityChanged(i, false);
     }
-    if (m_restoreViewState && m_restoreCamera)
-        m_restoreViewState(state.viewState);
+    if (m_restoreViewState)
+        m_restoreViewState(state.viewState, m_restoreCamera);
 }
 
 void Document::pushUndoStep(const QString &label, UndoState &&before, UndoState &&after)
@@ -1660,6 +1663,34 @@ void Document::setMeshVisible(int index, bool visible)
         return;
     entry.visible = visible;
     emit meshVisibilityChanged(index, visible);
+}
+
+void Document::setMeshName(int index, const QString &name)
+{
+    if (index < 0 || index >= meshCount())
+        return;
+
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty())
+        return;
+
+    MeshEntry &entry = mesh(index);
+    if (entry.name == trimmed)
+        return;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Rename Mesh"));
+
+    const QString oldName = entry.name;
+    entry.name = trimmed;
+    writeLog(
+        tr("Renamed mesh '%1' to '%2'").arg(oldName, entry.name),
+        LogSource::Application);
+    emit meshDataChanged(index);
+
+    if (ownUndoStep)
+        endUndoStep(true);
 }
 
 void Document::markMeshGeometryChanged(int index, const QString &contextMessage)

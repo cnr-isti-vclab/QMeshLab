@@ -329,13 +329,15 @@ ViewState RenderWidget::captureViewState() const
     return vs;
 }
 
-void RenderWidget::restoreViewState(const ViewState &vs)
+void RenderWidget::restoreViewState(const ViewState &vs, bool restoreCamera)
 {
-    m_trackball.setState(vs.trackball);
-    // Prevent the pending reframe from overriding the restored camera.
-    m_reframeCameraRequested = false;
-    m_resetTrackballRequested = false;
-    cancelCenterAnimation();
+    if (restoreCamera) {
+        m_trackball.setState(vs.trackball);
+        // Prevent the pending reframe from overriding the restored camera.
+        m_reframeCameraRequested = false;
+        m_resetTrackballRequested = false;
+        cancelCenterAnimation();
+    }
 
     m_meshRenderModes = vs.meshRenderModes;
     setRenderSettings(vs.renderSettings);   // also updates overlay panel + calls update()

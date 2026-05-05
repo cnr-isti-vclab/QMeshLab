@@ -303,6 +303,8 @@ void quadricSimplification(
     vcg::tri::TriEdgeCollapseQuadricParameter &pp,
     vcg::CallBackPos *cb)
 {
+    VCGMeshVFAdjScope _vfAdj(mesh);
+
     vcg::math::Quadric<double> qZero;
     qZero.SetZero();
     QuadricTemp td(mesh.vert, qZero);
@@ -365,6 +367,8 @@ void quadricTexSimplification(
     vcg::tri::TriEdgeCollapseQuadricTexParameter &pp,
     vcg::CallBackPos *cb)
 {
+    VCGMeshVFAdjScope _vfAdj(mesh);
+
     vcg::tri::UpdateNormal<VCGMesh>::PerFace(mesh);
     vcg::math::Quadric<double> qZero;
     qZero.SetZero();
@@ -680,6 +684,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             VCGMeshFFAdjScope _ffAdj(mesh);
             VCGMeshVFAdjScope _vfAdj(mesh);
             VCGMeshMarkScope _mark(mesh);
+            VCGMeshVertexMarkScope _vertMark(mesh);
 
             VCGMesh toProjectCopy;
             toProjectCopy.face.EnableMark();
@@ -1154,6 +1159,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             }
 
             if (refineHole) {
+                VCGMeshFFAdjScope _refFFAdj(mesh);
+                VCGMeshVFAdjScope _refVFAdj(mesh);
+                VCGMeshMarkScope _refMark(mesh);
+                VCGMeshVertexMarkScope _refVertMark(mesh);
                 vcg::tri::IsotropicRemeshing<VCGMesh>::Params refParams;
                 refParams.SetFeatureAngleDeg(181.0f);
                 refParams.adapt = false;

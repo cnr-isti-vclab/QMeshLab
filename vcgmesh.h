@@ -15,7 +15,7 @@ struct VCGUsedTypes : public vcg::UsedTypes<
 // OCF storable (allocated when data is loaded/computed, preserved in undo):
 //   TexCoordfOcf, CurvatureDirfOcf
 // OCF ancillary (allocated on demand by algorithms, discarded after use):
-//   VFAdjOcf
+//   VFAdjOcf, MarkOcf
 class VCGVertex : public vcg::Vertex<VCGUsedTypes,
     vcg::vertex::InfoOcf,
     vcg::vertex::Coord3f,
@@ -25,7 +25,8 @@ class VCGVertex : public vcg::Vertex<VCGUsedTypes,
     vcg::vertex::BitFlags,
     vcg::vertex::TexCoordfOcf,
     vcg::vertex::CurvatureDirfOcf,
-    vcg::vertex::VFAdjOcf> {};
+    vcg::vertex::VFAdjOcf,
+    vcg::vertex::MarkOcf> {};
 
 class VCGEdge : public vcg::Edge<VCGUsedTypes,
     vcg::edge::VertexRef,
@@ -90,4 +91,13 @@ struct VCGMeshMarkScope {
     ~VCGMeshMarkScope() { m.face.DisableMark(); }
     VCGMeshMarkScope(const VCGMeshMarkScope &) = delete;
     VCGMeshMarkScope &operator=(const VCGMeshMarkScope &) = delete;
+};
+
+// Enables vertex Mark for the scope (required by RemoveTVertex functions).
+struct VCGMeshVertexMarkScope {
+    VCGMesh &m;
+    explicit VCGMeshVertexMarkScope(VCGMesh &m) : m(m) { m.vert.EnableMark(); }
+    ~VCGMeshVertexMarkScope() { m.vert.DisableMark(); }
+    VCGMeshVertexMarkScope(const VCGMeshVertexMarkScope &) = delete;
+    VCGMeshVertexMarkScope &operator=(const VCGMeshVertexMarkScope &) = delete;
 };
