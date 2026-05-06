@@ -53,6 +53,13 @@ MeshFilterParameterType parseParamType(const QString &s)
     return MeshFilterParameterType::String;
 }
 
+MeshFilterCleanupKind parseCleanupKind(const QString &s)
+{
+    if (s == QStringLiteral("removeUnreferencedVertices"))
+        return MeshFilterCleanupKind::RemoveUnreferencedVertices;
+    return MeshFilterCleanupKind::RemoveUnreferencedVertices;
+}
+
 // A QVariant that is a QString starting with "@" is a symbolic token.
 // Non-symbolic values are parsed from JSON numbers/booleans/strings.
 QVariant parseJsonValue(const QJsonValue &v)
@@ -164,6 +171,23 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
     d.inputRequirements.requireTextures           = req.value(QStringLiteral("requireTextures")).toBool(false);
     d.inputRequirements.requireVertexQuality      = req.value(QStringLiteral("requireVertexQuality")).toBool(false);
     d.inputRequirements.requireFaceQuality        = req.value(QStringLiteral("requireFaceQuality")).toBool(false);
+
+    auto parseCleanupArray = [](const QJsonArray &actions) {
+        QVector<MeshFilterCleanupAction> cleanup;
+        cleanup.reserve(actions.size());
+        for (const QJsonValue &value : actions) {
+            const QJsonObject actionObject = value.toObject();
+            MeshFilterCleanupAction action;
+            action.kind = parseCleanupKind(actionObject.value(QStringLiteral("kind")).toString());
+            action.whenBoolParameter = actionObject.value(QStringLiteral("whenBoolParam")).toString();
+            action.meshParameter = actionObject.value(QStringLiteral("meshParameter")).toString();
+            cleanup.push_back(std::move(action));
+        }
+        return cleanup;
+    };
+
+    d.preRunCleanup = parseCleanupArray(obj.value(QStringLiteral("preRunCleanup")).toArray());
+    d.postRunCleanup = parseCleanupArray(obj.value(QStringLiteral("postRunCleanup")).toArray());
 
     const QJsonArray params = obj.value(QStringLiteral("parameters")).toArray();
     for (const QJsonValue &pv : params) {

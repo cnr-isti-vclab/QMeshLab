@@ -112,6 +112,21 @@ struct MeshFilterParameterDescriptor
     }
 };
 
+enum class MeshFilterCleanupKind
+{
+    RemoveUnreferencedVertices
+};
+
+struct MeshFilterCleanupAction
+{
+    MeshFilterCleanupKind kind = MeshFilterCleanupKind::RemoveUnreferencedVertices;
+    // When non-empty, cleanup is applied only if this bool parameter is true.
+    QString whenBoolParameter;
+    // Empty means "current mesh". Otherwise names a Mesh parameter whose selected
+    // mesh is the cleanup target.
+    QString meshParameter;
+};
+
 struct MeshFilterDescriptor
 {
     QString id;
@@ -154,6 +169,21 @@ struct MeshFilterDescriptor
     //   VMark     — Enable per-vertex OCF mark
     //   Mark      — Backward-compatible alias for FMark
     QStringList inputPrepare;
+
+    // Declarative semantic cleanup hooks executed by the framework.
+    //
+    // Recognised kinds:
+    //   RemoveUnreferencedVertices
+    //
+    // preRunCleanup runs after parameter normalization/validation and before
+    // inputPrepare, so filters can rely on a cleaned mesh when building
+    // adjacency or other volatile structures.
+    //
+    // postRunCleanup runs after the filter returns successfully and before the
+    // framework compaction pass, so filters can delegate common cleanup without
+    // duplicating bookkeeping code.
+    QVector<MeshFilterCleanupAction> preRunCleanup;
+    QVector<MeshFilterCleanupAction> postRunCleanup;
 };
 
 using MeshFilterParameterValues = QVariantMap;
@@ -189,6 +219,15 @@ public:
     // Runs one filter declared by filters().
     // filterId is the plugin-local id (MeshFilterDescriptor::id).
     // params contains pre-normalized, validated values for all declared parameters.
+    //
+    // Framework invariant:
+    // - imported meshes and meshes added through Document::addMesh() are compact
+    // - after any successful non-information filter, the framework compacts the
+    //   original current mesh (for SingleMesh filters), every mesh reported in
+    //   MeshFilterRunResult::newMeshIndices, and all document meshes for
+    //   WholeDocument filters
+    // Therefore filter code should not leave deleted elements behind or rely on
+    // them surviving past runFilter() return.
     virtual MeshFilterRunResult runFilter(
         const QString &filterId,
         const FilterParams &params,

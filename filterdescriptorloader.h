@@ -33,6 +33,14 @@ class Document;
 //       "requireTextures": bool,
 //       "requireVertexQuality": bool, "requireFaceQuality": bool
 //     },
+//     "preRunCleanup": [
+//       {
+//         "kind": "removeUnreferencedVertices",
+//         "whenBoolParam": "Autoclean",   // optional
+//         "meshParameter": "sourceMesh"   // optional; default current mesh
+//       }
+//     ],
+//     "postRunCleanup": [ ...same action object format... ],
 //     "parameters": [
 //       {
 //         "id": "...", "label": "...", "help": "...", "group": "...",

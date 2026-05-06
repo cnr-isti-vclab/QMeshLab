@@ -120,6 +120,21 @@ MeshIOMaterialSet normalizeMaterialSet(
     return dst;
 }
 
+bool meshNeedsCompaction(const VCGMesh &mesh)
+{
+    return mesh.VN() != int(mesh.vert.size())
+        || mesh.EN() != int(mesh.edge.size())
+        || mesh.FN() != int(mesh.face.size());
+}
+
+void compactMeshStorageInvariant(VCGMesh &mesh)
+{
+    if (!meshNeedsCompaction(mesh))
+        return;
+
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
+}
+
 void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst)
 {
     dst.meshId = src.meshId;
@@ -496,6 +511,9 @@ int Document::loadMesh(const QString &filename)
         return err;
     }
 
+    // Framework invariant: meshes entering the document from IO must not
+    // retain deleted elements in storage.
+    compactMeshStorageInvariant(entry->mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(entry->mesh);
     const bool hasImportedVertexNormals = (loadMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
     if (!hasImportedVertexNormals && entry->mesh.FN() > 0) {
@@ -718,6 +736,9 @@ int Document::reloadMesh(int index)
         return err;
     }
 
+    // Framework invariant: meshes entering the document from IO must not
+    // retain deleted elements in storage.
+    compactMeshStorageInvariant(reloadedMesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(reloadedMesh);
     const bool hasImportedVertexNormals = (loadMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
     if (!hasImportedVertexNormals && reloadedMesh.FN() > 0) {
@@ -1557,6 +1578,8 @@ int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
         beginUndoStep(tr("Add Mesh"));
 
     auto entry = std::make_unique<MeshEntry>();
+    // deepCopyMesh copies only live elements, so meshes added through the
+    // document API enter already compact.
     deepCopyMesh(meshData, entry->mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(entry->mesh);
 

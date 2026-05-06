@@ -1086,10 +1086,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 return fail(QObject::tr("Cannot compute principal directions on non-manifold faces."));
 
             vcg::tri::UpdateNormal<VCGMesh>::NormalizePerVertex(mesh);
-            if (params.getBool(QStringLiteral("Autoclean"))) {
-                vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(mesh);
-                vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
-            }
 
             const QString method = params.getEnum(QStringLiteral("Method"));
             if (method == QStringLiteral("taubin")) {
@@ -1403,10 +1399,17 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             unsigned int tmask = 0;
             const QString tmode = params.getEnum(QStringLiteral("TexcoordMode"));
-            if (tmode == QStringLiteral("vertex"))
+            if (tmode == QStringLiteral("vertex")) {
+                if (!vcg::tri::HasPerVertexTexCoord(mesh))
+                    return fail(QObject::tr("Vertex texcoord source requires per-vertex texture coordinates."));
                 tmask |= vcg::tri::AttributeSeam::TEXCOORD_PER_VERTEX;
-            else if (tmode == QStringLiteral("wedge"))
+                mesh.vert.EnableTexCoord();
+            } else if (tmode == QStringLiteral("wedge")) {
+                if (!vcg::tri::HasPerWedgeTexCoord(mesh))
+                    return fail(QObject::tr("Wedge texcoord source requires per-wedge texture coordinates."));
                 tmask |= vcg::tri::AttributeSeam::TEXCOORD_PER_WEDGE;
+                mesh.vert.EnableTexCoord();
+            }
 
             const unsigned int mask = vmask | nmask | cmask | tmask;
             if (mask == 0)

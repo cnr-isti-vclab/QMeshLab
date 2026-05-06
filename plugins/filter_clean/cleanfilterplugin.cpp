@@ -313,11 +313,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         const auto delInfo =
             vcg::tri::Clean<VCGMesh>::RemoveSmallConnectedComponentsDiameter(mesh, minComponentDiag);
 
-        int delVert = 0;
-        if (params.getBool(QStringLiteral("remove_unref")))
-            delVert = vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(mesh);
-
-        const bool modified = delInfo.second > 0 || delVert > 0;
+        const bool modified = delInfo.second > 0;
         if (modified) {
             compactAndUpdateGeometry(mesh);
             doc.markMeshGeometryChanged(
@@ -329,8 +325,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
             {
                 QObject::tr("Removed %1 connected components out of %2.")
                     .arg(delInfo.second)
-                    .arg(delInfo.first),
-                QObject::tr("Removed %1 unreferenced vertices.").arg(delVert)
+                    .arg(delInfo.first)
             });
     }
 
@@ -342,11 +337,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         const auto delInfo =
             vcg::tri::Clean<VCGMesh>::RemoveSmallConnectedComponentsSize(mesh, minComponentSize);
 
-        int delVert = 0;
-        if (params.getBool(QStringLiteral("remove_unref")))
-            delVert = vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(mesh);
-
-        const bool modified = delInfo.second > 0 || delVert > 0;
+        const bool modified = delInfo.second > 0;
         if (modified) {
             compactAndUpdateGeometry(mesh);
             doc.markMeshGeometryChanged(
@@ -358,8 +349,7 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
             {
                 QObject::tr("Removed %1 connected components out of %2.")
                     .arg(delInfo.second)
-                    .arg(delInfo.first),
-                QObject::tr("Removed %1 unreferenced vertices.").arg(delVert)
+                    .arg(delInfo.first)
             });
     }
 

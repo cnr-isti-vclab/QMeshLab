@@ -5,6 +5,7 @@
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
+#include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/complex/algorithms/update/normal.h>
@@ -63,9 +64,120 @@ struct MultiMeshPreparationScope {
     std::vector<MeshPreparationScope> scopes;
 };
 
+struct CleanupApplicationResult {
+    bool modified = false;
+    QStringList infoMessages;
+    QSet<int> modifiedMeshIndices;
+};
+
 bool meshHasAnyTextureAssociation(const Document::MeshEntry &entry)
 {
     return Document::hasMeshTextureAssociation(entry);
+}
+
+int cleanupTargetMeshIndex(
+    const MeshFilterCleanupAction &action,
+    const FilterParams &params,
+    const Document &doc,
+    int fallbackCurrentMeshIndex)
+{
+    if (action.meshParameter.trimmed().isEmpty())
+        return fallbackCurrentMeshIndex;
+    return params.getMesh(action.meshParameter, fallbackCurrentMeshIndex);
+}
+
+bool meshNeedsCompaction(const VCGMesh &mesh)
+{
+    return mesh.VN() != int(mesh.vert.size())
+        || mesh.EN() != int(mesh.edge.size())
+        || mesh.FN() != int(mesh.face.size());
+}
+
+void compactMeshStorageInvariant(VCGMesh &mesh)
+{
+    if (!meshNeedsCompaction(mesh))
+        return;
+
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
+    if (mesh.VN() > 0)
+        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    else
+        mesh.bbox.SetNull();
+}
+
+void compactMeshesAfterSuccessfulFilter(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterRunResult &result,
+    Document &doc,
+    int originalCurrentMeshIndex)
+{
+    if (!result.success || !result.documentModified || descriptor.outputDomain == MeshFilterOutputDomain::Information)
+        return;
+
+    QSet<int> targetMeshes;
+    if (descriptor.inputDomain == MeshFilterInputDomain::SingleMesh
+        && originalCurrentMeshIndex >= 0
+        && originalCurrentMeshIndex < doc.meshCount()) {
+        targetMeshes.insert(originalCurrentMeshIndex);
+    }
+
+    if (descriptor.inputDomain == MeshFilterInputDomain::WholeDocument) {
+        for (int i = 0; i < doc.meshCount(); ++i)
+            targetMeshes.insert(i);
+    }
+
+    for (int meshIndex : result.newMeshIndices) {
+        if (meshIndex >= 0 && meshIndex < doc.meshCount())
+            targetMeshes.insert(meshIndex);
+    }
+
+    for (int meshIndex : std::as_const(targetMeshes))
+        compactMeshStorageInvariant(doc.mesh(meshIndex).mesh);
+}
+
+CleanupApplicationResult applyCleanupActions(
+    const QVector<MeshFilterCleanupAction> &actions,
+    const FilterParams &params,
+    Document &doc,
+    int fallbackCurrentMeshIndex,
+    bool compactImmediately)
+{
+    CleanupApplicationResult result;
+
+    for (const MeshFilterCleanupAction &action : actions) {
+        if (!action.whenBoolParameter.trimmed().isEmpty()
+            && !params.getBool(action.whenBoolParameter)) {
+            continue;
+        }
+
+        const int meshIndex = cleanupTargetMeshIndex(action, params, doc, fallbackCurrentMeshIndex);
+        if (meshIndex < 0 || meshIndex >= doc.meshCount())
+            continue;
+
+        VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+        switch (action.kind) {
+        case MeshFilterCleanupKind::RemoveUnreferencedVertices: {
+            const int removedVertices = vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(mesh);
+            if (removedVertices <= 0)
+                break;
+
+            if (compactImmediately)
+                vcg::tri::Allocator<VCGMesh>::CompactVertexVector(mesh);
+
+            result.modified = true;
+            result.modifiedMeshIndices.insert(meshIndex);
+            result.infoMessages.push_back(
+                QObject::tr("Framework cleanup removed %1 unreferenced vertices%2.")
+                    .arg(removedVertices)
+                    .arg(action.meshParameter.trimmed().isEmpty()
+                             ? QString()
+                             : QObject::tr(" on mesh '%1'").arg(doc.mesh(meshIndex).name)));
+            break;
+        }
+        }
+    }
+
+    return result;
 }
 
 QString meshSubjectLabel(const QString &rawLabel)
@@ -480,8 +592,13 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     }
 
     const bool wrapUndo = (targetDescriptor->outputDomain != MeshFilterOutputDomain::Information);
+    const int originalCurrentMeshIndex = doc.currentMeshIndex();
     if (wrapUndo)
         doc.beginUndoStep(targetDescriptor->name);
+
+    const FilterParams typedParams(normalizedParameters);
+    const CleanupApplicationResult preCleanup =
+        applyCleanupActions(targetDescriptor->preRunCleanup, typedParams, doc, originalCurrentMeshIndex, true);
 
     // Framework-level incremental selection: save the current face/vertex selection
     // bits before running the filter, then OR them back afterwards.
@@ -505,42 +622,59 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         }
     }
 
-    const FilterParams typedParams(normalizedParameters);
-    // Enable OCF components, compute topology/normals, and keep them alive
-    // until the filter returns (scope destructor disables them).
-    const MultiMeshPreparationScope prepScope = prepareMeshesForFilter(*targetDescriptor, typedParams, doc);
-    MeshFilterRunResult result = targetPlugin->runFilter(filterId, typedParams, doc);
-    if (!result.success) {
-        if (wrapUndo)
-            doc.endUndoStep(false, true);
-        return result;
-    }
+    MeshFilterRunResult result;
+    {
+        // Enable OCF components, compute topology/normals, and keep them alive
+        // until the filter returns (scope destructor disables them).
+        const MultiMeshPreparationScope prepScope = prepareMeshesForFilter(*targetDescriptor, typedParams, doc);
+        result = targetPlugin->runFilter(filterId, typedParams, doc);
+        if (!result.success) {
+            if (wrapUndo)
+                doc.endUndoStep(false, true);
+            return result;
+        }
 
-    // OR back the previously saved selection (if incremental was requested).
-    if (saveSelection) {
-        const int meshIdx = doc.currentMeshIndex();
-        if (meshIdx >= 0 && meshIdx < doc.meshCount()) {
-            VCGMesh &m = doc.mesh(meshIdx).mesh;
-            for (size_t i = 0; i < savedFaceSel.size() && i < m.face.size(); ++i) {
-                if (savedFaceSel[i] && !m.face[i].IsD())
-                    m.face[i].SetS();
-            }
-            for (size_t i = 0; i < savedVertSel.size() && i < m.vert.size(); ++i) {
-                if (savedVertSel[i] && !m.vert[i].IsD())
-                    m.vert[i].SetS();
+        // OR back the previously saved selection (if incremental was requested).
+        if (saveSelection) {
+            const int meshIdx = doc.currentMeshIndex();
+            if (meshIdx >= 0 && meshIdx < doc.meshCount()) {
+                VCGMesh &m = doc.mesh(meshIdx).mesh;
+                for (size_t i = 0; i < savedFaceSel.size() && i < m.face.size(); ++i) {
+                    if (savedFaceSel[i] && !m.face[i].IsD())
+                        m.face[i].SetS();
+                }
+                for (size_t i = 0; i < savedVertSel.size() && i < m.vert.size(); ++i) {
+                    if (savedVertSel[i] && !m.vert[i].IsD())
+                        m.vert[i].SetS();
+                }
             }
         }
     }
 
-    // After a successful ModifyCurrentMesh filter, compact the mesh so that
-    // all subsequent code and filters can assume there are no deleted elements.
-    if (targetDescriptor->outputDomain == MeshFilterOutputDomain::ModifyCurrentMesh) {
-        const int meshIdx = doc.currentMeshIndex();
-        if (meshIdx >= 0 && meshIdx < doc.meshCount()) {
-            VCGMesh &m = doc.mesh(meshIdx).mesh;
-            vcg::tri::Allocator<VCGMesh>::CompactEveryVector(m);
+    const CleanupApplicationResult postCleanup =
+        applyCleanupActions(targetDescriptor->postRunCleanup, typedParams, doc, originalCurrentMeshIndex, false);
+    const bool pluginAlreadyMarkedModified = result.documentModified;
+    const bool cleanupModifiedByFramework = preCleanup.modified || postCleanup.modified;
+    if (cleanupModifiedByFramework)
+        result.documentModified = true;
+    result.infoMessages.append(preCleanup.infoMessages);
+    result.infoMessages.append(postCleanup.infoMessages);
+
+    if (cleanupModifiedByFramework && !pluginAlreadyMarkedModified) {
+        QSet<int> cleanedMeshIndices = preCleanup.modifiedMeshIndices;
+        cleanedMeshIndices.unite(postCleanup.modifiedMeshIndices);
+        for (int meshIndex : std::as_const(cleanedMeshIndices)) {
+            if (meshIndex >= 0 && meshIndex < doc.meshCount()) {
+                doc.markMeshGeometryChanged(
+                    meshIndex,
+                    QObject::tr("Applied framework cleanup for '%1'").arg(targetDescriptor->name));
+            }
         }
     }
+
+    // Enforce the framework invariant that successful filters never leave
+    // document meshes with deleted elements in storage.
+    compactMeshesAfterSuccessfulFilter(*targetDescriptor, result, doc, originalCurrentMeshIndex);
 
     if (wrapUndo)
         doc.endUndoStep(result.documentModified);

@@ -144,6 +144,12 @@
         "FV",
         "VG"
       ],
+      "postRunCleanup": [
+        {
+          "kind": "removeUnreferencedVertices",
+          "whenBoolParam": "remove_unref"
+        }
+      ],
       "inputPrepare": [
         "VMark"
       ]
@@ -188,6 +194,12 @@
       "outputModifies": [
         "FV",
         "VG"
+      ],
+      "postRunCleanup": [
+        {
+          "kind": "removeUnreferencedVertices",
+          "whenBoolParam": "remove_unref"
+        }
       ]
     },
     {

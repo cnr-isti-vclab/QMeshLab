@@ -272,6 +272,9 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "Threshold",
@@ -443,7 +446,7 @@
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
         "requireFaces": true,
-        "requireTextureCoordinates": true
+        "requirePerWedgeTexCoords": true
       },
       "parameters": [
         {
@@ -978,7 +981,7 @@
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
-        "requireFaces": true
+        "requireVertices": true
       },
       "parameters": [
         {
@@ -1072,6 +1075,9 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "pointsFlag",
@@ -1776,6 +1782,9 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "K",
@@ -1834,6 +1843,9 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
       "parameters": [
         {
           "id": "K",
@@ -1965,6 +1977,12 @@
         "VA",
         "VQ",
         "VC"
+      ],
+      "preRunCleanup": [
+        {
+          "kind": "removeUnreferencedVertices",
+          "whenBoolParam": "Autoclean"
+        }
       ]
     },
     {
