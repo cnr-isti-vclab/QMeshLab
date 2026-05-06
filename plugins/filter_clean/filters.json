@@ -143,6 +143,9 @@
       "outputModifies": [
         "FV",
         "VG"
+      ],
+      "inputPrepare": [
+        "VMark"
       ]
     },
     {
@@ -404,6 +407,10 @@
         "VG",
         "VN",
         "FN"
+      ],
+      "inputPrepare": [
+        "FF",
+        "VMark"
       ]
     },
     {

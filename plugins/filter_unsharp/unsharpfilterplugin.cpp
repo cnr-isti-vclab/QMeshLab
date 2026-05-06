@@ -515,9 +515,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterScalarHarmonic)) {
         doc.beginFilterProgress(QObject::tr("Computing harmonic field"));
-        VCGMeshFFAdjScope _ffAdj(mesh);
-        VCGMeshMarkScope _mark(mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
         if (vcg::tri::Clean<VCGMesh>::CountConnectedComponents(mesh) > 1) {
             doc.finishFilterProgress(false, QObject::tr("Mesh must have a single connected component."));
             return failResult(QObject::tr("A mesh composed by a single connected component is required by the filter to properly work."));

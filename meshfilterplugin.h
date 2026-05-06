@@ -143,13 +143,16 @@ struct MeshFilterDescriptor
     // algorithms automatically, so filter code need not repeat them.
     //
     // Recognised codes (applied in dependency order):
-    //   FF        — UpdateTopology::FaceFace
-    //   VF        — UpdateTopology::VertexFace
+    //   FF        — Enable face-face adjacency + UpdateTopology::FaceFace
+    //   VF        — Enable vertex-face adjacency + UpdateTopology::VertexFace
     //   BorderFF  — FF + FaceBorderFromFF + VertexBorderFromFaceBorder
     //   BorderVF  — VF + FaceBorderFromVF + VertexBorderFromFaceBorder
     //   FNorm     — UpdateNormal::PerFaceNormalized
     //   VNorm     — UpdateNormal::PerVertexNormalizedPerFaceNormalized
     //   BBox      — UpdateBounding::Box
+    //   FMark     — Enable per-face OCF mark
+    //   VMark     — Enable per-vertex OCF mark
+    //   Mark      — Backward-compatible alias for FMark
     QStringList inputPrepare;
 };
 

@@ -950,6 +950,10 @@
       ],
       "outputModifies": [
         "VQ"
+      ],
+      "inputPrepare": [
+        "FF",
+        "FMark"
       ]
     }
   ]

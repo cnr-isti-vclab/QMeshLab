@@ -372,7 +372,6 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         const bool repeat = params.getBool(QStringLiteral("repeat"));
 
         int total = 0;
-        VCGMeshVertexMarkScope _vertMark(mesh);
         if (method == QStringLiteral("edge_flip")) {
             if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0
                 || vcg::tri::Clean<VCGMesh>::CountNonManifoldVertexFF(mesh) > 0) {
@@ -480,8 +479,6 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterRemoveFoldFace)) {
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
-        VCGMeshVertexMarkScope _vertMark(mesh);
-        VCGMeshFFAdjScope _ffAdj(mesh);
         const int total = vcg::tri::Clean<VCGMesh>::RemoveFaceFoldByFlip(mesh);
         if (total > 0) {
             compactAndUpdateGeometry(mesh);

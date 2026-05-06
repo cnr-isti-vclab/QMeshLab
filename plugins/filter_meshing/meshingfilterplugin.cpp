@@ -303,8 +303,6 @@ void quadricSimplification(
     vcg::tri::TriEdgeCollapseQuadricParameter &pp,
     vcg::CallBackPos *cb)
 {
-    VCGMeshVFAdjScope _vfAdj(mesh);
-
     vcg::math::Quadric<double> qZero;
     qZero.SetZero();
     QuadricTemp td(mesh.vert, qZero);
@@ -367,8 +365,6 @@ void quadricTexSimplification(
     vcg::tri::TriEdgeCollapseQuadricTexParameter &pp,
     vcg::CallBackPos *cb)
 {
-    VCGMeshVFAdjScope _vfAdj(mesh);
-
     vcg::tri::UpdateNormal<VCGMesh>::PerFace(mesh);
     vcg::math::Quadric<double> qZero;
     qZero.SetZero();

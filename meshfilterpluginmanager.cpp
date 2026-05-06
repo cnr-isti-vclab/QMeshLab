@@ -29,6 +29,7 @@ struct MeshPreparationScope {
     bool disableFF   = false;
     bool disableVF   = false;
     bool disableMark = false;
+    bool disableVertexMark = false;
 
     MeshPreparationScope() = default;
     // Movable so it can be returned by value and held in runFilter.
@@ -37,6 +38,7 @@ struct MeshPreparationScope {
         , disableFF(o.disableFF)
         , disableVF(o.disableVF)
         , disableMark(o.disableMark)
+        , disableVertexMark(o.disableVertexMark)
     {
         o.mesh = nullptr; // transfer ownership
     }
@@ -53,6 +55,7 @@ struct MeshPreparationScope {
             mesh->face.DisableVFAdjacency();
         }
         if (disableMark) mesh->face.DisableMark();
+        if (disableVertexMark) mesh->vert.DisableMark();
     }
 };
 
@@ -144,7 +147,8 @@ MeshPreparationScope prepareMeshForPrepList(
     const bool doFNorm    = prep.contains(QStringLiteral("FNorm"))    || prep.contains(QStringLiteral("VNorm"));
     const bool doVNorm    = prep.contains(QStringLiteral("VNorm"));
     const bool doBBox     = prep.contains(QStringLiteral("BBox"));
-    const bool doMark     = prep.contains(QStringLiteral("Mark"));
+    const bool doFaceMark   = prep.contains(QStringLiteral("FMark")) || prep.contains(QStringLiteral("Mark"));
+    const bool doVertexMark = prep.contains(QStringLiteral("VMark"));
 
     if (doFF) {
         mesh.face.EnableFFAdjacency();
@@ -171,9 +175,13 @@ MeshPreparationScope prepareMeshForPrepList(
         vcg::tri::UpdateNormal<VCGMesh>::NormalizePerVertex(mesh);
     }
     if (doBBox) vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
-    if (doMark) {
+    if (doFaceMark) {
         mesh.face.EnableMark();
         scope.disableMark = true;
+    }
+    if (doVertexMark) {
+        mesh.vert.EnableMark();
+        scope.disableVertexMark = true;
     }
 
     return scope;
