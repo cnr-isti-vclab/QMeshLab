@@ -971,10 +971,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterHausdorffDistance)) {
         const int sampledMeshIndex = meshIndexFromParam(params, QStringLiteral("SampledMesh"), doc);
         const int targetMeshIndex = meshIndexFromParam(params, QStringLiteral("TargetMesh"), doc);
-        if (sampledMeshIndex < 0 || sampledMeshIndex >= doc.meshCount()
-            || targetMeshIndex < 0 || targetMeshIndex >= doc.meshCount()) {
-            return failResult(QObject::tr("Invalid mesh selection."));
-        }
         if (sampledMeshIndex == targetMeshIndex)
             return failResult(QObject::tr("Hausdorff distance requires two different meshes."));
 
@@ -1047,10 +1043,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterDistanceFromReference)) {
         const int measuredMeshIndex = meshIndexFromParam(params, QStringLiteral("MeasureMesh"), doc);
         const int referenceMeshIndex = meshIndexFromParam(params, QStringLiteral("RefMesh"), doc);
-        if (measuredMeshIndex < 0 || measuredMeshIndex >= doc.meshCount()
-            || referenceMeshIndex < 0 || referenceMeshIndex >= doc.meshCount()) {
-            return failResult(QObject::tr("Invalid mesh selection."));
-        }
         if (measuredMeshIndex == referenceMeshIndex)
             return failResult(QObject::tr("Distance from reference requires two different meshes."));
 
@@ -1087,10 +1079,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterVertexResampling)) {
         const int sourceMeshIndex = meshIndexFromParam(params, QStringLiteral("SourceMesh"), doc);
         const int targetMeshIndex = meshIndexFromParam(params, QStringLiteral("TargetMesh"), doc);
-        if (sourceMeshIndex < 0 || sourceMeshIndex >= doc.meshCount()
-            || targetMeshIndex < 0 || targetMeshIndex >= doc.meshCount()) {
-            return failResult(QObject::tr("Invalid mesh selection."));
-        }
         if (sourceMeshIndex == targetMeshIndex)
             return failResult(QObject::tr("Attribute transfer requires two different meshes."));
 
@@ -1273,10 +1261,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterVoronoiColoring)) {
         const int coloredMeshIndex = meshIndexFromParam(params, QStringLiteral("ColoredMesh"), doc);
         const int vertexMeshIndex = meshIndexFromParam(params, QStringLiteral("VertexMesh"), doc);
-        if (coloredMeshIndex < 0 || coloredMeshIndex >= doc.meshCount()
-            || vertexMeshIndex < 0 || vertexMeshIndex >= doc.meshCount()) {
-            return failResult(QObject::tr("Invalid mesh selection."));
-        }
 
         Document::MeshEntry &coloredEntry = doc.mesh(coloredMeshIndex);
         const Document::MeshEntry &vertexEntry = doc.mesh(vertexMeshIndex);
@@ -1324,10 +1308,6 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterDiskColoring)) {
         const int coloredMeshIndex = meshIndexFromParam(params, QStringLiteral("ColoredMesh"), doc);
         const int vertexMeshIndex = meshIndexFromParam(params, QStringLiteral("VertexMesh"), doc);
-        if (coloredMeshIndex < 0 || coloredMeshIndex >= doc.meshCount()
-            || vertexMeshIndex < 0 || vertexMeshIndex >= doc.meshCount()) {
-            return failResult(QObject::tr("Invalid mesh selection."));
-        }
 
         Document::MeshEntry &coloredEntry = doc.mesh(coloredMeshIndex);
         const Document::MeshEntry &vertexEntry = doc.mesh(vertexMeshIndex);

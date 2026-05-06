@@ -120,6 +120,8 @@ QString withSlotSuffix(const QString &basePath, int slotIndex, int slotCount)
     return QDir(dir).filePath(fileName);
 }
 
+QStringList associatedTexturePaths(const Document::MeshEntry &entry);
+
 int ensureTextureSlotIndices(VCGMesh &mesh)
 {
     int maxSlot = -1;
@@ -147,12 +149,13 @@ QStringList makeOutputPaths(const QString &requestedPath, int slotCount)
 
 QStringList overwriteOutputPaths(const Document::MeshEntry &entry, int slotCount)
 {
+    const QStringList availablePaths = associatedTexturePaths(entry);
     QStringList out;
-    if (entry.textureFilePaths.size() < slotCount)
+    if (availablePaths.size() < slotCount)
         return out;
     out.reserve(slotCount);
     for (int i = 0; i < slotCount; ++i)
-        out.push_back(entry.textureFilePaths.at(i));
+        out.push_back(availablePaths.at(i));
     return out;
 }
 
@@ -185,10 +188,7 @@ bool saveImages(const QStringList &paths, const std::vector<QImage> &images, QSt
 
 int textureAssociationCount(const Document::MeshEntry &entry)
 {
-    int count = std::max(entry.textureFileNames.size(), entry.textureFilePaths.size());
-    count = std::max(count, int(entry.mesh.textures.size()));
-    count = std::max(count, int(entry.materialSet.entries.size()));
-    return count;
+    return Document::meshTextureAssociationCount(entry);
 }
 
 MeshIOMaterialSlot makeMaterialSlotForTexturePath(const QString &path, int slotIndex)
@@ -1066,12 +1066,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterColorToTexture)) {
-        if (mesh.FN() <= 0)
-            return fail(QObject::tr("Current mesh must have faces."));
         if ((entry.ioMask & Mask::IOM_VERTCOLOR) == 0)
             return fail(QObject::tr("Current mesh does not have per-vertex color."));
-        if ((entry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
-            return fail(QObject::tr("Current mesh requires per-wedge texture coordinates for this filter."));
 
         const int textW = params.getInt(QStringLiteral("textW"));
         const int textH = params.getInt(QStringLiteral("textH"));
@@ -1085,7 +1081,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             return fail(QObject::tr("Texture Height has an incorrect value."));
         if (!overwrite && requestedPath.isEmpty())
             return fail(QObject::tr("Texture file not specified."));
-        if (overwrite && entry.textureFilePaths.isEmpty())
+        if (overwrite && !Document::hasMeshTextureAssociation(entry))
             return fail(QObject::tr("Mesh has no associated texture to overwrite."));
 
         const int slotCount = std::max(1, ensureTextureSlotIndices(mesh));
@@ -1165,21 +1161,10 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterTextureToVertexColor)) {
         const int sourceMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
         const int targetMeshIndex = params.getMesh(QStringLiteral("targetMesh"), doc.currentMeshIndex());
-        if (sourceMeshIndex < 0 || sourceMeshIndex >= doc.meshCount()
-            || targetMeshIndex < 0 || targetMeshIndex >= doc.meshCount()) {
-            return fail(QObject::tr("Invalid mesh selection."));
-        }
-
         const Document::MeshEntry &sourceEntry = doc.mesh(sourceMeshIndex);
         Document::MeshEntry &targetEntry = doc.mesh(targetMeshIndex);
-        if (sourceEntry.mesh.FN() <= 0)
-            return fail(QObject::tr("Source mesh requires faces."));
-        if ((sourceEntry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
-            return fail(QObject::tr("Source mesh doesn't have per-wedge texture coordinates."));
 
         const QStringList texturePaths = associatedTexturePaths(sourceEntry);
-        if (texturePaths.isEmpty())
-            return fail(QObject::tr("Source mesh doesn't have any associated texture."));
 
         std::vector<QImage> sourceImages;
         sourceImages.reserve(size_t(texturePaths.size()));
@@ -1258,11 +1243,6 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterTransferToTexture)) {
         const int sourceMeshIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
         const int targetMeshIndex = params.getMesh(QStringLiteral("targetMesh"), doc.currentMeshIndex());
-        if (sourceMeshIndex < 0 || sourceMeshIndex >= doc.meshCount()
-            || targetMeshIndex < 0 || targetMeshIndex >= doc.meshCount()) {
-            return fail(QObject::tr("Invalid mesh selection."));
-        }
-
         const QString attributeModeId = params.getEnum(QStringLiteral("AttributeEnum"));
         const std::optional<TransferAttributeMode> mode = transferModeFromId(attributeModeId);
         if (!mode)
@@ -1280,11 +1260,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
 
         const Document::MeshEntry &sourceEntry = doc.mesh(sourceMeshIndex);
         Document::MeshEntry &targetEntry = doc.mesh(targetMeshIndex);
-        if (targetEntry.mesh.FN() <= 0)
-            return fail(QObject::tr("Target mesh needs to have faces."));
-        if ((targetEntry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
-            return fail(QObject::tr("Target mesh does not have per-wedge texture coordinates."));
-        if (overwrite && targetEntry.textureFilePaths.isEmpty())
+        if (overwrite && !Document::hasMeshTextureAssociation(targetEntry))
             return fail(QObject::tr("Target mesh has no associated texture to overwrite."));
         if (!overwrite && requestedPath.isEmpty())
             return fail(QObject::tr("Texture file not specified."));
@@ -1328,7 +1304,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             }
         }
 
-        if (targetEntry.textureFilePaths.isEmpty())
+        if (!Document::hasMeshTextureAssociation(targetEntry))
             ensureTextureSlotIndices(targetEntry.mesh);
         const int targetSlotCount = std::max(1, ensureTextureSlotIndices(targetEntry.mesh));
         const int previousTextureCount = textureAssociationCount(targetEntry);
@@ -1459,35 +1435,32 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterObjectToTangentNormal)) {
-        if (mesh.FN() <= 0)
-            return fail(QObject::tr("Current mesh must have faces."));
-        if ((entry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
-            return fail(QObject::tr("Current mesh requires per-wedge texture coordinates for this filter."));
-        if (entry.textureFilePaths.isEmpty())
+        const QStringList availableTexturePaths = associatedTexturePaths(entry);
+        if (availableTexturePaths.isEmpty())
             return fail(QObject::tr("Current mesh must already have at least one associated texture slot."));
 
         const int chosenSlotValue = params.getTextureRef(QStringLiteral("targetTexture"), -1);
         if (chosenSlotValue <= 0)
             return fail(QObject::tr("Choose the target texture slot to convert."));
         const int selectedSlot = chosenSlotValue - 1;
-        if (selectedSlot >= entry.textureFilePaths.size())
+        if (selectedSlot >= availableTexturePaths.size())
             return fail(QObject::tr("Selected texture slot is out of range."));
 
         const int sourceSlotValue = params.getTextureRef(QStringLiteral("sourceNormalMap"), -1);
         if (sourceSlotValue <= 0)
             return fail(QObject::tr("Choose the source object-space normal map texture."));
         const int sourceSlot = sourceSlotValue - 1;
-        if (sourceSlot >= entry.textureFilePaths.size())
+        if (sourceSlot >= availableTexturePaths.size())
             return fail(QObject::tr("Selected source normal map texture is out of range."));
 
         const TextureOutputRefValue outputTarget =
             params.getTextureOutputRef(QStringLiteral("targetNormalMap"));
-        const QString sourcePath = entry.textureFilePaths.at(sourceSlot).trimmed();
+        const QString sourcePath = availableTexturePaths.at(sourceSlot).trimmed();
         QString outputPath;
         if (outputTarget.overwriteExisting) {
-            if (outputTarget.textureSlot < 0 || outputTarget.textureSlot >= entry.textureFilePaths.size())
+            if (outputTarget.textureSlot < 0 || outputTarget.textureSlot >= availableTexturePaths.size())
                 return fail(QObject::tr("Selected output texture slot is out of range."));
-            outputPath = entry.textureFilePaths.at(outputTarget.textureSlot).trimmed();
+            outputPath = availableTexturePaths.at(outputTarget.textureSlot).trimmed();
         } else {
             outputPath = outputTarget.filePath.trimmed();
         }

@@ -335,7 +335,10 @@
           "help": "Layer used as the initial sample set when Refine Existing Samples is enabled.",
           "group": "advanced",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "BestSampleFlag",
@@ -408,7 +411,10 @@
           "help": "The mesh whose surface is sampled.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "TargetMesh",
@@ -416,7 +422,10 @@
           "help": "The reference mesh searched for closest points.",
           "group": "main",
           "type": "mesh",
-          "default": "@otherMeshIndex"
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "SaveSample",
@@ -502,7 +511,10 @@
           "help": "The mesh that will receive the computed distances in vertex quality.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "RefMesh",
@@ -510,7 +522,10 @@
           "help": "The mesh or point cloud used as the reference.",
           "group": "main",
           "type": "mesh",
-          "default": "@otherMeshIndex"
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "SignedDist",
@@ -615,7 +630,10 @@
           "help": "The mesh that provides the attributes to transfer.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "TargetMesh",
@@ -623,7 +641,10 @@
           "help": "The mesh whose vertices receive the transferred attributes.",
           "group": "main",
           "type": "mesh",
-          "default": "@otherMeshIndex"
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "VertexSampling",
@@ -813,7 +834,10 @@
           "help": "The mesh whose surface will be colored.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "VertexMesh",
@@ -821,7 +845,10 @@
           "help": "The point cloud whose vertices are used as Voronoi seeds.",
           "group": "main",
           "type": "mesh",
-          "default": "@otherMeshIndex"
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "backward",
@@ -857,7 +884,10 @@
           "help": "The mesh whose vertices will be colored.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "VertexMesh",
@@ -865,7 +895,10 @@
           "help": "The point cloud whose vertices are used as disk centers.",
           "group": "main",
           "type": "mesh",
-          "default": "@otherMeshIndex"
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "Radius",

@@ -11,6 +11,7 @@
 #include <vcg/complex/algorithms/update/topology.h>
 #include <QColor>
 #include <QFileInfo>
+#include <QMap>
 #include <QObject>
 #include <QSet>
 #include <QVector3D>
@@ -55,25 +56,85 @@ struct MeshPreparationScope {
     }
 };
 
+struct MultiMeshPreparationScope {
+    std::vector<MeshPreparationScope> scopes;
+};
+
+bool meshHasAnyTextureAssociation(const Document::MeshEntry &entry)
+{
+    return Document::hasMeshTextureAssociation(entry);
+}
+
+QString meshSubjectLabel(const QString &rawLabel)
+{
+    const QString label = rawLabel.trimmed();
+    return label.isEmpty() ? QObject::tr("Selected Mesh") : label;
+}
+
+bool validateMeshRequirements(
+    const QString &filterName,
+    const QString &subjectLabel,
+    const Document::MeshEntry &meshEntry,
+    const MeshFilterMeshRequirements &req,
+    QString &errorMessage)
+{
+    using Mask = vcg::tri::io::Mask;
+
+    auto fail = [&](const QString &message) {
+        errorMessage = message;
+        return false;
+    };
+
+    const QString subject = meshSubjectLabel(subjectLabel);
+
+    if (req.requireVertices && meshEntry.mesh.VN() <= 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have vertices.").arg(filterName, subject));
+    if (req.requireEdges && meshEntry.mesh.EN() <= 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have edges.").arg(filterName, subject));
+    if (req.requireFaces && meshEntry.mesh.FN() <= 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have faces.").arg(filterName, subject));
+    if (req.requireVertexColor && (meshEntry.ioMask & Mask::IOM_VERTCOLOR) == 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have vertex color.").arg(filterName, subject));
+    if (req.requireFaceColor && (meshEntry.ioMask & Mask::IOM_FACECOLOR) == 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have face color.").arg(filterName, subject));
+    if (req.requirePerVertexTexCoords && (meshEntry.ioMask & Mask::IOM_VERTTEXCOORD) == 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have per-vertex texture coordinates.").arg(filterName, subject));
+    if (req.requirePerWedgeTexCoords && (meshEntry.ioMask & Mask::IOM_WEDGTEXCOORD) == 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have per-wedge texture coordinates.").arg(filterName, subject));
+    if (req.requireTextureCoordinates) {
+        const bool hasTexCoords =
+            (meshEntry.ioMask & (Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTTEXCOORD)) != 0;
+        if (!hasTexCoords)
+            return fail(QObject::tr("Filter '%1' requires %2 to have texture coordinates.").arg(filterName, subject));
+    }
+    if (req.requireTextures && !meshHasAnyTextureAssociation(meshEntry))
+        return fail(QObject::tr("Filter '%1' requires %2 to have associated textures.").arg(filterName, subject));
+    if (req.requireVertexQuality && (meshEntry.ioMask & Mask::IOM_VERTQUALITY) == 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have vertex quality.").arg(filterName, subject));
+    if (req.requireFaceQuality && (meshEntry.ioMask & Mask::IOM_FACEQUALITY) == 0)
+        return fail(QObject::tr("Filter '%1' requires %2 to have face quality.").arg(filterName, subject));
+
+    return true;
+}
+
+int meshIndexFromVariant(const QVariant &value, int fallback)
+{
+    bool ok = false;
+    const int meshIndex = value.toInt(&ok);
+    return ok ? meshIndex : fallback;
+}
+
 // Enables OCF components, computes topology/normals/bbox as declared in
 // descriptor.inputPrepare, and returns a scope guard that disables the
 // components on destruction.  Must be kept alive for the entire filter call.
-MeshPreparationScope prepareMeshForFilter(
-    const MeshFilterDescriptor &descriptor,
-    Document &doc)
+MeshPreparationScope prepareMeshForPrepList(
+    VCGMesh &mesh,
+    const QStringList &prep)
 {
     MeshPreparationScope scope;
-    if (descriptor.inputPrepare.isEmpty()
-            || descriptor.inputDomain != MeshFilterInputDomain::SingleMesh)
+    if (prep.isEmpty())
         return scope;
-
-    const int ci = doc.currentMeshIndex();
-    if (ci < 0 || ci >= doc.meshCount())
-        return scope;
-
-    VCGMesh &mesh = doc.mesh(ci).mesh;
     scope.mesh = &mesh;
-    const QStringList &prep = descriptor.inputPrepare;
 
     // Apply in dependency order: enable OCF → topology → border flags → normals → bbox.
     const bool doFF       = prep.contains(QStringLiteral("FF"))       || prep.contains(QStringLiteral("BorderFF"));
@@ -116,6 +177,40 @@ MeshPreparationScope prepareMeshForFilter(
     }
 
     return scope;
+}
+
+MultiMeshPreparationScope prepareMeshesForFilter(
+    const MeshFilterDescriptor &descriptor,
+    const FilterParams &params,
+    Document &doc)
+{
+    MultiMeshPreparationScope multiScope;
+    QMap<int, QStringList> prepByMeshIndex;
+
+    auto mergePrep = [&](int meshIndex, const QStringList &prep) {
+        if (meshIndex < 0 || meshIndex >= doc.meshCount() || prep.isEmpty())
+            return;
+        QStringList &merged = prepByMeshIndex[meshIndex];
+        for (const QString &item : prep) {
+            if (!merged.contains(item))
+                merged.push_back(item);
+        }
+    };
+
+    if (descriptor.inputDomain == MeshFilterInputDomain::SingleMesh && !descriptor.inputPrepare.isEmpty())
+        mergePrep(doc.currentMeshIndex(), descriptor.inputPrepare);
+
+    for (const MeshFilterParameterDescriptor &parameter : descriptor.parameters) {
+        if (parameter.type != MeshFilterParameterType::Mesh || parameter.meshPrepare.isEmpty())
+            continue;
+        mergePrep(params.getMesh(parameter.id, doc.currentMeshIndex()), parameter.meshPrepare);
+    }
+
+    multiScope.scopes.reserve(prepByMeshIndex.size());
+    for (auto it = prepByMeshIndex.begin(); it != prepByMeshIndex.end(); ++it)
+        multiScope.scopes.push_back(prepareMeshForPrepList(doc.mesh(it.key()).mesh, it.value()));
+
+    return multiScope;
 }
 
 
@@ -211,6 +306,40 @@ QString appendSuffixIfMissing(const QString &path, const QString &suffix)
     if (!QFileInfo(path).suffix().isEmpty())
         return path;
     return QStringLiteral("%1.%2").arg(path, suffix);
+}
+
+bool validateNamedMeshParameters(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterParameterValues &parameterValues,
+    const Document &doc,
+    QString &errorMessage)
+{
+    for (const MeshFilterParameterDescriptor &parameter : descriptor.parameters) {
+        if (parameter.type != MeshFilterParameterType::Mesh)
+            continue;
+
+        const int meshIndex = meshIndexFromVariant(
+            parameterValues.value(parameter.id, parameter.defaultValue),
+            doc.currentMeshIndex());
+        if (meshIndex < 0 || meshIndex >= doc.meshCount()) {
+            errorMessage = QObject::tr("Filter '%1' requires a valid mesh selection for '%2'.")
+                               .arg(descriptor.name, meshSubjectLabel(parameter.label));
+            return false;
+        }
+
+        if (parameter.meshRequirements.hasAnyRequirement()) {
+            if (!validateMeshRequirements(
+                    descriptor.name,
+                    parameter.label,
+                    doc.mesh(meshIndex),
+                    parameter.meshRequirements,
+                    errorMessage)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 }
 
@@ -332,6 +461,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     if (!normalizeAndValidateParameters(
             *targetDescriptor,
             parameters,
+            doc,
             normalizedParameters,
             parameterError)) {
         return {
@@ -370,7 +500,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     const FilterParams typedParams(normalizedParameters);
     // Enable OCF components, compute topology/normals, and keep them alive
     // until the filter returns (scope destructor disables them).
-    const MeshPreparationScope prepScope = prepareMeshForFilter(*targetDescriptor, doc);
+    const MultiMeshPreparationScope prepScope = prepareMeshesForFilter(*targetDescriptor, typedParams, doc);
     MeshFilterRunResult result = targetPlugin->runFilter(filterId, typedParams, doc);
     if (!result.success) {
         if (wrapUndo)
@@ -454,56 +584,39 @@ bool MeshFilterPluginManager::validateDomain(
                                .arg(descriptor.name);
             return false;
         }
-        return true;
     }
 
     const int meshIndex = doc.currentMeshIndex();
-    if (meshIndex < 0 || meshIndex >= doc.meshCount()) {
+    const bool mustValidateCurrentMesh =
+        descriptor.inputDomain == MeshFilterInputDomain::SingleMesh
+        || descriptor.inputRequirements.hasAnyRequirement();
+    if (mustValidateCurrentMesh && (meshIndex < 0 || meshIndex >= doc.meshCount())) {
         errorMessage = QObject::tr("Filter '%1' requires a current mesh.")
                            .arg(descriptor.name);
         return false;
     }
 
-    const auto &meshEntry = doc.mesh(meshIndex);
-    const auto &req = descriptor.inputRequirements;
-    using Mask = vcg::tri::io::Mask;
-
-    auto fail = [&](const QString &msg) {
-        errorMessage = msg;
-        return false;
-    };
-
-    if (req.requireVertices && meshEntry.mesh.VN() <= 0)
-        return fail(QObject::tr("Filter '%1' requires vertices.").arg(descriptor.name));
-    if (req.requireEdges && meshEntry.mesh.EN() <= 0)
-        return fail(QObject::tr("Filter '%1' requires edges.").arg(descriptor.name));
-    if (req.requireFaces && meshEntry.mesh.FN() <= 0)
-        return fail(QObject::tr("Filter '%1' requires faces.").arg(descriptor.name));
-    if (req.requireVertexColor && (meshEntry.ioMask & Mask::IOM_VERTCOLOR) == 0)
-        return fail(QObject::tr("Filter '%1' requires vertex color.").arg(descriptor.name));
-    if (req.requireFaceColor && (meshEntry.ioMask & Mask::IOM_FACECOLOR) == 0)
-        return fail(QObject::tr("Filter '%1' requires face color.").arg(descriptor.name));
-    if (req.requireTextureCoordinates) {
-        const bool hasTex = (meshEntry.ioMask & (Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTTEXCOORD)) != 0;
-        if (!hasTex) {
-            return fail(
-                QObject::tr("Filter '%1' requires texture coordinates.")
-                    .arg(descriptor.name));
+    if (mustValidateCurrentMesh) {
+        if (!validateMeshRequirements(
+                descriptor.name,
+                QObject::tr("Current Mesh"),
+                doc.mesh(meshIndex),
+                descriptor.inputRequirements,
+                errorMessage)) {
+            return false;
         }
     }
-    if (req.requireTextures && meshEntry.textureFilePaths.isEmpty())
-        return fail(QObject::tr("Filter '%1' requires textures.").arg(descriptor.name));
-    if (req.requireVertexQuality && (meshEntry.ioMask & Mask::IOM_VERTQUALITY) == 0)
-        return fail(QObject::tr("Filter '%1' requires vertex quality.").arg(descriptor.name));
-    if (req.requireFaceQuality && (meshEntry.ioMask & Mask::IOM_FACEQUALITY) == 0)
-        return fail(QObject::tr("Filter '%1' requires face quality.").arg(descriptor.name));
 
-    return true;
+    MeshFilterParameterValues defaultParameters;
+    for (const MeshFilterParameterDescriptor &parameter : descriptor.parameters)
+        defaultParameters.insert(parameter.id, defaultValueForParameter(parameter));
+    return validateNamedMeshParameters(descriptor, defaultParameters, doc, errorMessage);
 }
 
 bool MeshFilterPluginManager::normalizeAndValidateParameters(
     const MeshFilterDescriptor &descriptor,
     const MeshFilterParameterValues &inputParameters,
+    const Document &doc,
     MeshFilterParameterValues &normalizedParameters,
     QString &errorMessage) const
 {
@@ -536,7 +649,7 @@ bool MeshFilterPluginManager::normalizeAndValidateParameters(
         }
     }
 
-    return true;
+    return validateNamedMeshParameters(descriptor, normalizedParameters, doc, errorMessage);
 }
 
 bool MeshFilterPluginManager::convertParameterValue(

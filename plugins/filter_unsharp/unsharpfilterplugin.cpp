@@ -493,8 +493,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterLinearMorph)) {
         const int targetMeshIndex = params.getMesh(QStringLiteral("TargetMesh"), doc.currentMeshIndex());
-        if (targetMeshIndex < 0 || targetMeshIndex >= doc.meshCount())
-            return failResult(QObject::tr("Target mesh selection is invalid."));
         if (targetMeshIndex == meshIndex)
             return failResult(QObject::tr("Target mesh must be different from the current mesh."));
 

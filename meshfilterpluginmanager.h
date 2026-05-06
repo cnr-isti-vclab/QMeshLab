@@ -45,6 +45,7 @@ private:
     bool normalizeAndValidateParameters(
         const MeshFilterDescriptor &descriptor,
         const MeshFilterParameterValues &inputParameters,
+        const Document &doc,
         MeshFilterParameterValues &normalizedParameters,
         QString &errorMessage) const;
     static bool convertParameterValue(

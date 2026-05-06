@@ -242,6 +242,19 @@ Document::Document(QObject *parent)
     registerBuiltinMeshFilterPlugins(*m_filterPluginManager);
 }
 
+int Document::meshTextureAssociationCount(const MeshEntry &entry)
+{
+    int count = std::max(entry.textureFileNames.size(), entry.textureFilePaths.size());
+    count = std::max(count, int(entry.mesh.textures.size()));
+    count = std::max(count, int(entry.materialSet.entries.size()));
+    return count;
+}
+
+bool Document::hasMeshTextureAssociation(const MeshEntry &entry)
+{
+    return meshTextureAssociationCount(entry) > 0;
+}
+
 Document::~Document() = default;
 
 QString Document::openDialogFilter() const

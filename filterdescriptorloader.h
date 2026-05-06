@@ -28,7 +28,9 @@ class Document;
 //     "inputRequirements": {
 //       "requireVertices": bool, "requireEdges": bool, "requireFaces": bool,
 //       "requireVertexColor": bool, "requireFaceColor": bool,
-//       "requireTextureCoordinates": bool, "requireTextures": bool,
+//       "requireTextureCoordinates": bool,
+//       "requirePerVertexTexCoords": bool, "requirePerWedgeTexCoords": bool,
+//       "requireTextures": bool,
 //       "requireVertexQuality": bool, "requireFaceQuality": bool
 //     },
 //     "parameters": [
@@ -39,6 +41,8 @@ class Document;
 //         "min": <value>,       // optional; may be "@token"
 //         "max": <value>,       // optional; may be "@token"
 //         "decimals": 3,        // optional, only for double
+//         "meshRequirements": { ...same requirement keys as inputRequirements... },
+//         "meshPrepare": ["FF", "BBox"], // only for type=="mesh"
 //         "sourceMeshParameter": "sourceMesh", // only for textureref
 //         "allowAutomatic": true,               // only for textureref
 //         "enumOptions": [      // only for enum type

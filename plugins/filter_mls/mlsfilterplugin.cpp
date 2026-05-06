@@ -385,8 +385,6 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
         || filterId == QString::fromLatin1(kIdRimlsProjection)) {
         const int controlIndex = params.getMesh(QStringLiteral("ControlMesh"), currentIndex);
         const int proxyIndex = params.getMesh(QStringLiteral("ProxyMesh"), currentIndex);
-        if (controlIndex < 0 || controlIndex >= doc.meshCount() || proxyIndex < 0 || proxyIndex >= doc.meshCount())
-            return fail(QObject::tr("Selected control/proxy mesh is out of range."));
 
         const Document::MeshEntry &controlEntry = doc.mesh(controlIndex);
         Document::MeshEntry &proxyEntry = doc.mesh(proxyIndex);

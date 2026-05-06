@@ -176,6 +176,8 @@ public:
     int meshCount() const { return static_cast<int>(m_meshes.size()); }
     MeshEntry &mesh(int i) { return *m_meshes[i]; }
     const MeshEntry &mesh(int i) const { return *m_meshes[i]; }
+    static int meshTextureAssociationCount(const MeshEntry &entry);
+    static bool hasMeshTextureAssociation(const MeshEntry &entry);
     int currentMeshIndex() const { return m_currentMeshIndex; }
     const std::vector<LogEntry> &logMessages() const { return m_logMessages; }
     QString openDialogFilter() const;

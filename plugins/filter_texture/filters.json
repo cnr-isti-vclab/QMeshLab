@@ -56,7 +56,7 @@
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true,
-        "requireTextureCoordinates": true
+        "requirePerWedgeTexCoords": true
       },
       "parameters": [],
       "outputModifies": [
@@ -82,7 +82,7 @@
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true,
-        "requireTextureCoordinates": true
+        "requirePerVertexTexCoords": true
       },
       "parameters": [],
       "outputModifies": [
@@ -240,7 +240,7 @@
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true,
-        "requireTextureCoordinates": true
+        "requirePerWedgeTexCoords": true
       },
       "parameters": [
         {
@@ -405,7 +405,12 @@
           "help": "The mesh with associated texture that we want to sample from.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireFaces": true,
+            "requirePerWedgeTexCoords": true,
+            "requireTextures": true
+          }
         },
         {
           "id": "targetMesh",
@@ -413,7 +418,10 @@
           "help": "The mesh whose vertex color will be filled according to source mesh texture.",
           "group": "main",
           "type": "mesh",
-          "default": "@otherMeshIndex"
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "upperBound",
@@ -462,7 +470,10 @@
           "help": "The mesh that contains the source data that we want to transfer.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "targetMesh",
@@ -470,7 +481,11 @@
           "help": "The mesh whose texture will be filled according to source mesh data.",
           "group": "main",
           "type": "mesh",
-          "default": "@otherMeshIndex"
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireFaces": true,
+            "requirePerWedgeTexCoords": true
+          }
         },
         {
           "id": "AttributeEnum",
@@ -594,7 +609,7 @@
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true,
-        "requireTextureCoordinates": true,
+        "requirePerWedgeTexCoords": true,
         "requireTextures": true
       },
       "parameters": [

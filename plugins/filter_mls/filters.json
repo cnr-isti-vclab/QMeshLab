@@ -26,7 +26,10 @@
           "help": "The point set (or mesh) which defines the MLS surface.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "ProxyMesh",
@@ -34,7 +37,10 @@
           "help": "The mesh that will be projected/resampled onto the MLS surface.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "SelectionOnly",
@@ -147,7 +153,10 @@
           "help": "The point set (or mesh) which defines the MLS surface.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "ProxyMesh",
@@ -155,7 +164,10 @@
           "help": "The mesh that will be projected/resampled onto the MLS surface.",
           "group": "main",
           "type": "mesh",
-          "default": "@currentMeshIndex"
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "SelectionOnly",

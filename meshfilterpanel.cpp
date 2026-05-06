@@ -299,8 +299,7 @@ private:
 
         if (m_doc && m_sourceMeshIndex >= 0 && m_sourceMeshIndex < m_doc->meshCount()) {
             const Document::MeshEntry &entry = m_doc->mesh(m_sourceMeshIndex);
-            int textureCount = std::max(entry.textureFileNames.size(), entry.textureFilePaths.size());
-            textureCount = std::max(textureCount, int(entry.mesh.textures.size()));
+            const int textureCount = Document::meshTextureAssociationCount(entry);
             for (int i = 0; i < textureCount; ++i)
                 m_combo->addItem(textureChoiceLabel(entry, i), i + 1);
             hasTextures = textureCount > 0;
@@ -407,8 +406,7 @@ private:
 
         if (m_doc && m_sourceMeshIndex >= 0 && m_sourceMeshIndex < m_doc->meshCount()) {
             const Document::MeshEntry &entry = m_doc->mesh(m_sourceMeshIndex);
-            int textureCount = std::max(entry.textureFileNames.size(), entry.textureFilePaths.size());
-            textureCount = std::max(textureCount, int(entry.mesh.textures.size()));
+            const int textureCount = Document::meshTextureAssociationCount(entry);
             for (int i = 0; i < textureCount; ++i)
                 m_combo->addItem(QObject::tr("Overwrite %1").arg(textureChoiceLabel(entry, i)), i + 1);
         }

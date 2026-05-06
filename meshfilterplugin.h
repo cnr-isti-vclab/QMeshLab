@@ -51,9 +51,26 @@ struct MeshFilterMeshRequirements
     bool requireVertexColor = false;
     bool requireFaceColor = false;
     bool requireTextureCoordinates = false;
+    bool requirePerVertexTexCoords = false;
+    bool requirePerWedgeTexCoords = false;
     bool requireTextures = false;
     bool requireVertexQuality = false;
     bool requireFaceQuality = false;
+
+    bool hasAnyRequirement() const
+    {
+        return requireVertices
+            || requireEdges
+            || requireFaces
+            || requireVertexColor
+            || requireFaceColor
+            || requireTextureCoordinates
+            || requirePerVertexTexCoords
+            || requirePerWedgeTexCoords
+            || requireTextures
+            || requireVertexQuality
+            || requireFaceQuality;
+    }
 };
 
 struct MeshFilterEnumOption
@@ -82,6 +99,10 @@ struct MeshFilterParameterDescriptor
     // Only used when type == TextureRef / TextureOutputRef.
     QString textureSourceMeshParameter;
     bool textureAllowAutomatic = true;
+    // Only used when type == Mesh: requirements and volatile-data preparation
+    // applied to the selected mesh parameter before runFilter().
+    MeshFilterMeshRequirements meshRequirements;
+    QStringList meshPrepare;
     // Only used when type == Point3f: "point" (position) or "direction" (unit vector).
     QString point3fRole = QStringLiteral("point");
 

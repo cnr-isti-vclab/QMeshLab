@@ -850,7 +850,10 @@
           "help": "Mesh that acts as the morph target.",
           "group": "main",
           "type": "mesh",
-          "default": "@otherMeshIndex"
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true
+          }
         },
         {
           "id": "PercentMorph",

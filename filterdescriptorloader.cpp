@@ -89,6 +89,23 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
     p.textureSourceMeshParameter = obj.value(QStringLiteral("sourceMeshParameter")).toString();
     p.textureAllowAutomatic = obj.value(QStringLiteral("allowAutomatic")).toBool(true);
 
+    const QJsonObject meshReq = obj.value(QStringLiteral("meshRequirements")).toObject();
+    p.meshRequirements.requireVertices = meshReq.value(QStringLiteral("requireVertices")).toBool(false);
+    p.meshRequirements.requireEdges = meshReq.value(QStringLiteral("requireEdges")).toBool(false);
+    p.meshRequirements.requireFaces = meshReq.value(QStringLiteral("requireFaces")).toBool(false);
+    p.meshRequirements.requireVertexColor = meshReq.value(QStringLiteral("requireVertexColor")).toBool(false);
+    p.meshRequirements.requireFaceColor = meshReq.value(QStringLiteral("requireFaceColor")).toBool(false);
+    p.meshRequirements.requireTextureCoordinates = meshReq.value(QStringLiteral("requireTextureCoordinates")).toBool(false);
+    p.meshRequirements.requirePerVertexTexCoords = meshReq.value(QStringLiteral("requirePerVertexTexCoords")).toBool(false);
+    p.meshRequirements.requirePerWedgeTexCoords = meshReq.value(QStringLiteral("requirePerWedgeTexCoords")).toBool(false);
+    p.meshRequirements.requireTextures = meshReq.value(QStringLiteral("requireTextures")).toBool(false);
+    p.meshRequirements.requireVertexQuality = meshReq.value(QStringLiteral("requireVertexQuality")).toBool(false);
+    p.meshRequirements.requireFaceQuality = meshReq.value(QStringLiteral("requireFaceQuality")).toBool(false);
+
+    const QJsonArray meshPrep = obj.value(QStringLiteral("meshPrepare")).toArray();
+    for (const QJsonValue &pv : meshPrep)
+        p.meshPrepare << pv.toString();
+
     if (p.type == MeshFilterParameterType::Point3f) {
         // Default is a JSON array [x, y, z]; min/max are not applicable.
         const QJsonValue defVal = obj.value(QStringLiteral("default"));
@@ -142,6 +159,8 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
     d.inputRequirements.requireVertexColor        = req.value(QStringLiteral("requireVertexColor")).toBool(false);
     d.inputRequirements.requireFaceColor          = req.value(QStringLiteral("requireFaceColor")).toBool(false);
     d.inputRequirements.requireTextureCoordinates = req.value(QStringLiteral("requireTextureCoordinates")).toBool(false);
+    d.inputRequirements.requirePerVertexTexCoords = req.value(QStringLiteral("requirePerVertexTexCoords")).toBool(false);
+    d.inputRequirements.requirePerWedgeTexCoords  = req.value(QStringLiteral("requirePerWedgeTexCoords")).toBool(false);
     d.inputRequirements.requireTextures           = req.value(QStringLiteral("requireTextures")).toBool(false);
     d.inputRequirements.requireVertexQuality      = req.value(QStringLiteral("requireVertexQuality")).toBool(false);
     d.inputRequirements.requireFaceQuality        = req.value(QStringLiteral("requireFaceQuality")).toBool(false);
