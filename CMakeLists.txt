@@ -242,3 +242,18 @@ target_compile_definitions(QMeshLabFilterTests PRIVATE
 )
 
 add_test(NAME QMeshLabFilterTests COMMAND QMeshLabFilterTests)
+
+qt_add_executable(QMeshLabFilterCreationTests
+    tests/test_filter_creation.cpp
+)
+
+target_include_directories(QMeshLabFilterCreationTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+)
+
+target_link_libraries(QMeshLabFilterCreationTests PRIVATE
+    QMeshLabPlugins
+    Qt6::Test
+)
+
+add_test(NAME QMeshLabFilterCreationTests COMMAND QMeshLabFilterCreationTests)
