@@ -11,23 +11,23 @@ See also: [Architecture](architecture.md) · [Data Model](data_model.md)
 
 Ownership: `Document` owns canonical mesh data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, and per-mesh render modes.
 
-Undo/redo integration: checkpoints include one `ViewState` snapshot (active view camera + render settings + per-mesh style map) captured/restored via `Document::setViewStateFunctions(...)`.
+Undo/redo integration: undo-tree nodes include one `ViewState` snapshot (active view camera + render settings + per-mesh style map) captured/restored via `Document::setViewStateFunctions(...)`. History jumps can restore render style while intentionally leaving the live camera untouched until the final target node.
 
 ## Shared GPU Cache (`MeshGpuResourceCache`)
 
-Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision)`. Quality variants also include fixed-range mode and min/max.
+Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision)`. Quality variants also include fixed-range mode and min/max. Wire resources also track whether faux polygon edges should be respected.
 
 Cached outputs:
 
-- **fill**: one or more batches — vertex/index buffers, optional base/normal/occlusion/roughness textures and per-batch PBR factors. Variants: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`.
-- **wire**: barycentric-expanded triangle buffer.
+- **fill**: one or more batches — vertex/index buffers, optional base/normal/occlusion/roughness textures and per-batch PBR factors. Variants: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`. Texture lookup can use legacy texture paths, `MeshIOTextureAsset` entries, and material slots.
+- **wire**: barycentric-expanded triangle buffer, optionally honoring faux-edge bits for polygonal faces.
 - **edges**: line buffer + fat-line buffer from explicit mesh edges.
 - **points**: position/color/normal payload + normal-valid flag. Variants: `Constant`, `PerVertex`, `PerVertexQuality`.
 - **bbox**: line buffer.
 - **selection**: selected-face triangles, selected-vertex points.
 - **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line).
 
-Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders — changing colormap does not rebuild GPU buffers.
+Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders — changing colormap, inversion, or isoline settings updates only the per-view LUT texture, not mesh buffers.
 
 Boundary extraction: topological edge incidence (`incidentCount == 1`). Seam extraction: per-topological-edge UV sample comparison (texture-index changes, missing/invalid UV).
 
@@ -40,7 +40,7 @@ Default mode for new meshes:
 - edge-only meshes: edges on (`edgeSize = 4.0`)
 - point-only: points on
 
-Default fill color source preference: texture → per-vertex → per-face → per-vertex-quality → per-face-quality → constant, clamped to mesh `ioMask` + texture availability.
+Default fill color source preference: texture → per-vertex → per-face → per-vertex-quality → per-face-quality → constant, clamped to mesh `ioMask` + texture availability. Texture availability is based on `Document::meshTextureAssociationCount(...)`.
 
 ## `Scene3D` Frame Sequence
 
@@ -57,9 +57,9 @@ Main pass draw order: scene background · fill · wire · edges · bbox · point
 
 **Scene background**: full-screen gradient triangle, `sceneBackgroundBottomColor`/`TopColor`, drawn first.
 
-**Fill**: Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture. PBR binds base/normal/occlusion/roughness per batch. Radiance Scaling pre-pass renders fill batches into `m_rsGradTexture` (`RGBA32F`), storing `(gx, gy, logZ, 1)`; the main fill pass samples it for final RS shading.
+**Fill**: Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. PBR binds base/normal/occlusion/roughness per batch. Radiance Scaling pre-pass renders fill batches into `m_rsGradTexture` (`RGBA32F`), storing `(gx, gy, logZ, 1)`; the main fill pass samples it for final RS shading.
 
-**Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`.
+**Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
 
 **Edges**: fat-edge triangles when available, line fallback; depth `LessOrEqual`; alpha blending; width from `edgeSize`.
 
@@ -100,7 +100,7 @@ Double click schedules an offscreen depth-pick frame: depth encoded in RGB → o
 
 UV full-texture background: selection is resolved from fill batches by `textureGroupIndex` (base-color textures); if not found, falls back to the first available base-color texture.
 
-UV fill: color source from `fillPlain.colorSource`. When `Texture`, `renderParametrization()` resolves `uvTextureIndex` against `meshEntry.textureFilePaths` and matches by normalized path across all four PBR channels (base, normal, occlusion, roughness) to choose a texture pointer. All fill batches are still drawn (no geometry filtering by texture group), using that selected texture when available, otherwise each batch's base-color texture. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
+UV fill: color source from `fillPlain.colorSource`. When `Texture`, `renderParametrization()` resolves `uvTextureIndex` against `Document::meshTextureAssociationCount(...)` / texture association helpers and matches by normalized path across all four PBR channels (base, normal, occlusion, roughness) to choose a texture pointer. All fill batches are still drawn (no geometry filtering by texture group), using that selected texture when available, otherwise each batch's base-color texture. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
 
 ## `ParametrizationUV` Camera and Interaction
 
@@ -110,7 +110,7 @@ Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view 
 
 ## Quality Histogram Overlay
 
-2D overlay label inside `RenderWidget`. Controlled by `showQualityHistogram` and `qualityHistogramSource` (auto / forced vertex / forced face). Configurable bin count, optional fixed range (`qualityHistogramFixedRange`/`Min`/`Max`), selectable colormap (`qualityHistogramColorMapId`), colormap inversion. Color mapping is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned.
+2D overlay label inside `RenderWidget`. Controlled by `showQualityHistogram` and `qualityHistogramSource` (auto / forced vertex / forced face). Configurable bin count, optional fixed range (`qualityHistogramFixedRange`/`Min`/`Max`), selectable colormap (`qualityHistogramColorMapId`), colormap inversion, and optional isolines (`qualityIsolinesEnabled`, `qualityIsolineCount`). Color mapping is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned.
 
 ## Snapshot Capture
 
