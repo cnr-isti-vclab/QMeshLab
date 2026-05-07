@@ -4,72 +4,68 @@
 
 // Tests every filter that, according to its manifest descriptor, takes no mesh
 // as input (inputDomain == None) and produces new meshes (outputDomain ==
-// NewMeshes).  Each such filter is run with its default parameter values and
-// the test verifies:
-//   - the run succeeds
-//   - at least one new mesh was added to the document
-//   - every new mesh contains at least one vertex
+// NewMeshes).  Each such filter is run with its default parameter values.
+//
+// The data-driven pattern (runWithDefaults_data / runWithDefaults) gives every
+// filter its own named row in the test output, so it is immediately clear which
+// filters are covered and which ones fail.
 
 class FilterCreationTests : public QObject
 {
     Q_OBJECT
 
 private slots:
-    void allNoneToNewMeshFiltersRunWithDefaults();
+    void runWithDefaults_data();
+    void runWithDefaults();
 };
 
-void FilterCreationTests::allNoneToNewMeshFiltersRunWithDefaults()
+// Populate one row per eligible filter.  The row tag is the filter id, which
+// Qt Test uses as the sub-test name in output and --testcase selectors.
+void FilterCreationTests::runWithDefaults_data()
 {
+    QTest::addColumn<QString>("key");
+
     Document doc;
     const std::vector<Document::FilterInfo> infos = doc.filterInfos();
     QVERIFY2(!infos.empty(), "Filter registry must be non-empty");
 
-    int testedCount = 0;
-    QStringList failures;
-
     for (const auto &info : infos) {
-        const MeshFilterDescriptor &desc = info.descriptor;
-        if (desc.inputDomain != MeshFilterInputDomain::None)
+        if (info.descriptor.inputDomain != MeshFilterInputDomain::None)
             continue;
-        if (desc.outputDomain != MeshFilterOutputDomain::NewMeshes)
+        if (info.descriptor.outputDomain != MeshFilterOutputDomain::NewMeshes)
             continue;
-
-        QVERIFY2(info.applicable,
-                 qPrintable(QStringLiteral("Filter '%1' (%2) should be applicable with no meshes loaded but reports: %3")
-                                .arg(desc.id, desc.name, info.applicabilityError)));
-
-        const int meshCountBefore = doc.meshCount();
-        const MeshFilterRunResult result = doc.runFilter(info.key, {});
-
-        if (!result.success) {
-            failures << QStringLiteral("[%1] run failed: %2").arg(desc.id, result.errorMessage);
-            continue;
-        }
-
-        if (result.newMeshIndices.isEmpty()) {
-            failures << QStringLiteral("[%1] succeeded but created no new meshes").arg(desc.id);
-            continue;
-        }
-
-        QVERIFY(doc.meshCount() > meshCountBefore);
-
-        for (int idx : result.newMeshIndices) {
-            if (idx < 0 || idx >= doc.meshCount()) {
-                failures << QStringLiteral("[%1] returned out-of-range mesh index %2").arg(desc.id).arg(idx);
-                continue;
-            }
-            if (doc.mesh(idx).mesh.VN() <= 0) {
-                failures << QStringLiteral("[%1] new mesh at index %2 has no vertices").arg(desc.id).arg(idx);
-            }
-        }
-
-        ++testedCount;
+        QTest::newRow(qPrintable(info.descriptor.id)) << info.key;
     }
+}
 
-    if (!failures.isEmpty())
-        QFAIL(qPrintable(QStringLiteral("The following creation filters failed:\n  ") + failures.join(QStringLiteral("\n  "))));
+void FilterCreationTests::runWithDefaults()
+{
+    QFETCH(QString, key);
 
-    QVERIFY2(testedCount > 0, "No filters with inputDomain=None and outputDomain=NewMeshes were found");
+    Document doc;
+
+    // Locate the FilterInfo for this filter to check applicability.
+    const std::vector<Document::FilterInfo> infos = doc.filterInfos();
+    const auto it = std::find_if(infos.begin(), infos.end(),
+                                 [&](const Document::FilterInfo &fi) { return fi.key == key; });
+    QVERIFY2(it != infos.end(), qPrintable("Filter key not found in registry: " + key));
+
+    QVERIFY2(it->applicable,
+             qPrintable(QStringLiteral("Filter should be applicable with no meshes loaded: ")
+                        + it->applicabilityError));
+
+    const int meshCountBefore = doc.meshCount();
+    const MeshFilterRunResult result = doc.runFilter(key, {});
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY2(!result.newMeshIndices.isEmpty(), "Filter succeeded but created no new meshes");
+    QVERIFY(doc.meshCount() > meshCountBefore);
+
+    for (int idx : result.newMeshIndices) {
+        QVERIFY2(idx >= 0 && idx < doc.meshCount(),
+                 qPrintable(QStringLiteral("Returned out-of-range mesh index %1").arg(idx)));
+        QVERIFY2(doc.mesh(idx).mesh.VN() > 0, "New mesh has no vertices");
+    }
 }
 
 QTEST_MAIN(FilterCreationTests)
