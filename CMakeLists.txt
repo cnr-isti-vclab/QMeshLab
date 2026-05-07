@@ -256,4 +256,8 @@ target_link_libraries(QMeshLabFilterCreationTests PRIVATE
     Qt6::Test
 )
 
+target_compile_definitions(QMeshLabFilterCreationTests PRIVATE
+    TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
 add_test(NAME QMeshLabFilterCreationTests COMMAND QMeshLabFilterCreationTests)
