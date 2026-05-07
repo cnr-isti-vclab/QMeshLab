@@ -466,6 +466,15 @@ MainWindow::MainWindow(QWidget *parent)
     statusBar()->addPermanentWidget(m_frameStatsLabel, 1);
 
     m_layerWidget = new LayerWidget(m_doc, this);
+    connect(m_layerWidget, &LayerWidget::filterActionRequested, this, [this](const QString &key) {
+        if (m_filterDock) {
+            if (m_filterDock->isFloating())
+                m_filterDock->setFloating(false);
+            m_filterDock->show();
+            m_filterDock->raise();
+        }
+        m_filterPanel->selectFilterByKey(key, true);
+    });
     m_layerDock = new QDockWidget(tr("Layers"), this);
     m_layerDock->setWidget(m_layerWidget);
     m_layerDock->setFeatures(QDockWidget::NoDockWidgetFeatures);

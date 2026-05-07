@@ -10,6 +10,12 @@ class LayerWidget : public QTreeWidget
 public:
     explicit LayerWidget(Document *doc, QWidget *parent = nullptr);
 
+signals:
+    void filterActionRequested(const QString &filterKey);
+
+protected:
+    void contextMenuEvent(QContextMenuEvent *event) override;
+
 private:
     void rebuild();
     int meshIndexForItem(QTreeWidgetItem *item) const;

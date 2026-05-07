@@ -13,6 +13,8 @@
 #include <QLocale>
 #include <QMetaObject>
 #include <QApplication>
+#include <QContextMenuEvent>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QSignalBlocker>
@@ -828,6 +830,31 @@ void LayerWidget::updateCurrentItemVisuals()
         item->setFont(1, f1);
         item->setFont(2, f2);
     }
+}
+
+void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
+{
+    const std::vector<Document::FilterInfo> infos = m_doc->filterInfos();
+
+    QMenu menu(this);
+    bool anyAdded = false;
+    for (const Document::FilterInfo &info : infos) {
+        // Only "Layer" menu filters.
+        if (info.descriptor.menuPath.compare(QStringLiteral("Layer"), Qt::CaseInsensitive) != 0)
+            continue;
+        QAction *action = menu.addAction(info.descriptor.name);
+        action->setData(info.key);
+        action->setEnabled(info.applicable);
+        if (!info.applicable && !info.applicabilityError.isEmpty())
+            action->setToolTip(info.applicabilityError);
+        connect(action, &QAction::triggered, this, [this, key = info.key]() {
+            emit filterActionRequested(key);
+        });
+        anyAdded = true;
+    }
+
+    if (anyAdded)
+        menu.exec(event->globalPos());
 }
 
 void LayerWidget::onItemChanged(QTreeWidgetItem *item, int column)
