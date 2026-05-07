@@ -20,20 +20,26 @@ endif()
 
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 add_library(QMeshLabCore STATIC
-    colormap.h colormap.cpp
-    document.h document.cpp
-    filterdescriptorloader.h filterdescriptorloader.cpp
-    filterparam.h filterparam.cpp
-    linerenderer.h linerenderer.cpp
-    meshfilterplugin.h meshfilterplugin.cpp
-    meshfilterpluginmanager.h meshfilterpluginmanager.cpp
-    meshgpuresourcecache.h meshgpuresourcecache.cpp
-    meshioplugin.h
-    meshiopluginmanager.h meshiopluginmanager.cpp
-    vcgmesh.h
+    src/core/document.h src/core/document.cpp
+    src/core/filterparam.h src/core/filterparam.cpp
+    src/core/vcgmesh.h
+    src/plugins/filterdescriptorloader.h src/plugins/filterdescriptorloader.cpp
+    src/plugins/meshfilterplugin.h src/plugins/meshfilterplugin.cpp
+    src/plugins/meshfilterpluginmanager.h src/plugins/meshfilterpluginmanager.cpp
+    src/plugins/meshioplugin.h
+    src/plugins/meshiopluginmanager.h src/plugins/meshiopluginmanager.cpp
+    src/render/colormap.h src/render/colormap.cpp
+    src/render/linerenderer.h src/render/linerenderer.cpp
+    src/render/meshgpuresourcecache.h src/render/meshgpuresourcecache.cpp
+    src/render/renderingsettings.h
+    src/render/viewstate.h
+    src/render/viewtrackball.h
 )
 
 target_include_directories(QMeshLabCore PUBLIC
+    ${CMAKE_SOURCE_DIR}/src/core
+    ${CMAKE_SOURCE_DIR}/src/render
+    ${CMAKE_SOURCE_DIR}/src/plugins
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/vcglib
     ${CMAKE_SOURCE_DIR}/vcglib/eigenlib
@@ -59,22 +65,22 @@ qt_add_resources(QMeshLabCore "colormaps"
 add_subdirectory(plugins)
 
 qt_add_executable(QMeshLab
-    main.cpp
-    mainwindow.h mainwindow.cpp
-    meshfilterpanel.h meshfilterpanel.cpp
-    meshsaveoptionsdialog.h meshsaveoptionsdialog.cpp
-    renderwidget.h renderwidget.cpp
-    renderwidget_internal.h
-    renderwidget_modes.cpp
-    renderwidget_resources.cpp
-    renderwidget_selection.cpp
-    renderwidget_render.cpp
-    renderwidget_uv.cpp
-    viewtrackball.h viewtrackball.cpp
-    viewstate.h
-    renderoverlaypanel.h renderoverlaypanel.cpp
-    layerwidget.h layerwidget.cpp
-    undographwidget.h undographwidget.cpp
+    src/app/main.cpp
+    src/ui/mainwindow.h src/ui/mainwindow.cpp
+    src/ui/meshfilterpanel.h src/ui/meshfilterpanel.cpp
+    src/ui/meshsaveoptionsdialog.h src/ui/meshsaveoptionsdialog.cpp
+    src/render/renderwidget.h src/render/renderwidget.cpp
+    src/render/renderwidget_internal.h
+    src/render/renderwidget_modes.cpp
+    src/render/renderwidget_resources.cpp
+    src/render/renderwidget_selection.cpp
+    src/render/renderwidget_render.cpp
+    src/render/renderwidget_uv.cpp
+    src/render/viewtrackball.h src/render/viewtrackball.cpp
+    src/render/viewstate.h
+    src/render/renderoverlaypanel.h src/render/renderoverlaypanel.cpp
+    src/ui/layerwidget.h src/ui/layerwidget.cpp
+    src/ui/undographwidget.h src/ui/undographwidget.cpp
 )
 
 set_target_properties(QMeshLab PROPERTIES
@@ -102,6 +108,10 @@ if (APPLE)
         MACOSX_BUNDLE_ICON_FILE "QMeshLab.icns"
     )
 endif()
+
+target_include_directories(QMeshLab PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/ui
+)
 
 target_link_libraries(QMeshLab PRIVATE
     QMeshLabPlugins

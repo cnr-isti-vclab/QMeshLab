@@ -1,7 +1,7 @@
 #pragma once
 
 #include "meshfilterplugin.h"
-#include "../../filterparam.h"
+#include "filterparam.h"
 
 class MeshFilterPluginManager;
 
