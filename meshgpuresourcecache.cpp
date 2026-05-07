@@ -217,6 +217,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     static const QStringList kEmptyTexturePaths;
     const QStringList &texturePaths =
         source.textureFilePaths ? *source.textureFilePaths : kEmptyTexturePaths;
+    static const std::vector<MeshIOTextureAsset> kEmptyTextureAssets;
+    const std::vector<MeshIOTextureAsset> &textureAssets =
+        source.textureAssets ? *source.textureAssets : kEmptyTextureAssets;
     static const MeshIOMaterialSet kEmptyMaterialSet;
     const MeshIOMaterialSet &materialSet =
         source.materialSet ? *source.materialSet : kEmptyMaterialSet;
@@ -283,7 +286,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool useVertexQuality = isPerVertexQualityFillVariant(variant) && meshHasVertexQuality;
             const bool useFaceQuality = isPerFaceQualityFillVariant(variant) && meshHasFaceQuality;
             const bool hasTextureCoords = meshHasWedgeTexcoord || meshHasVertexTexcoord;
-            const bool hasTextureSlots = hasTextureCoords && !texturePaths.isEmpty();
+            const int textureAssociationCount = std::max(int(texturePaths.size()), int(textureAssets.size()));
+            const bool hasTextureSlots = hasTextureCoords && textureAssociationCount > 0;
             const bool useTextureColor = (variant == FillVariant::Texture) && hasTextureSlots;
             const bool useVertexStyleColor = useVertexColor || useVertexQuality;
             const bool useFaceStyleColor = useFaceColor || useFaceQuality;
@@ -391,6 +395,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     return nullptr;
                 };
 
+                auto textureAssetForGroup = [&](int textureGroup) -> const MeshIOTextureAsset * {
+                    if (textureGroup < 0 || textureGroup >= int(textureAssets.size()))
+                        return nullptr;
+                    return &textureAssets[size_t(textureGroup)];
+                };
+
                 auto channelTexturePath = [&](int textureGroup, TextureChannel channel) -> QString {
                     const MeshIOMaterialSlot *slot = materialEntryForGroup(textureGroup);
                     switch (channel) {
@@ -399,6 +409,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             return slot->baseColorTexture.filePath.trimmed();
                         if (textureGroup >= 0 && textureGroup < texturePaths.size())
                             return texturePaths.at(textureGroup).trimmed();
+                        if (const MeshIOTextureAsset *asset = textureAssetForGroup(textureGroup))
+                            return asset->sourcePath.trimmed();
                         return QString();
                     case TextureChannel::Normal:
                         return (slot ? slot->normalTexture.filePath.trimmed() : QString());
@@ -410,15 +422,21 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     return QString();
                 };
 
-                auto prepareTextureFromPath = [&](PreparedTexture &prepared, const QString &texturePath) -> bool {
+                auto prepareTextureFromPath = [&](PreparedTexture &prepared,
+                                                  const QString &texturePath,
+                                                  const MeshIOTextureAsset *asset) -> bool {
                     if (prepared.attempted)
                         return prepared.ready;
                     prepared.attempted = true;
-                    if (texturePath.isEmpty() || !QFileInfo::exists(texturePath))
-                        return false;
-
-                    QImageReader reader(texturePath);
-                    QImage image = reader.read();
+                    QImage image;
+                    if (asset && asset->hasImage()) {
+                        image = asset->image;
+                    } else {
+                        if (texturePath.isEmpty() || !QFileInfo::exists(texturePath))
+                            return false;
+                        QImageReader reader(texturePath);
+                        image = reader.read();
+                    }
                     if (image.isNull())
                         return false;
 
@@ -443,16 +461,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         return group.ready;
                     group.attempted = true;
 
+                    const MeshIOTextureAsset *baseAsset = textureAssetForGroup(textureGroup);
                     group.basePath = channelTexturePath(textureGroup, TextureChannel::BaseColor);
-                    if (!prepareTextureFromPath(group.base, group.basePath))
+                    if (!prepareTextureFromPath(group.base, group.basePath, baseAsset))
                         return false;
 
                     group.normalPath = channelTexturePath(textureGroup, TextureChannel::Normal);
                     group.occlusionPath = channelTexturePath(textureGroup, TextureChannel::Occlusion);
                     group.roughnessPath = channelTexturePath(textureGroup, TextureChannel::Roughness);
-                    prepareTextureFromPath(group.normal, group.normalPath);
-                    prepareTextureFromPath(group.occlusion, group.occlusionPath);
-                    prepareTextureFromPath(group.roughness, group.roughnessPath);
+                    prepareTextureFromPath(group.normal, group.normalPath, nullptr);
+                    prepareTextureFromPath(group.occlusion, group.occlusionPath, nullptr);
+                    prepareTextureFromPath(group.roughness, group.roughnessPath, nullptr);
 
                     group.ready = true;
                     return true;
@@ -662,7 +681,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 }
 
                 const int textureGroupCount = std::max(
-                    int(texturePaths.size()),
+                    textureAssociationCount,
                     int(materialSet.entries.size()));
                 for (int textureGroup = 0; textureGroup < textureGroupCount; ++textureGroup) {
                     if (preparedTextureGroups.contains(textureGroup))

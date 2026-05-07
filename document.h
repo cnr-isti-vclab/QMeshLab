@@ -47,6 +47,7 @@ public:
         QString sourcePath;
         QStringList textureFileNames;
         QStringList textureFilePaths;
+        std::vector<MeshIOTextureAsset> textureAssets;
         MeshIOMaterialSet materialSet;
         bool visible = true;
         int ioMask = 0;
@@ -178,6 +179,9 @@ public:
     const MeshEntry &mesh(int i) const { return *m_meshes[i]; }
     static int meshTextureAssociationCount(const MeshEntry &entry);
     static bool hasMeshTextureAssociation(const MeshEntry &entry);
+    static QString meshTextureDisplayName(const MeshEntry &entry, int textureIndex);
+    static QString meshTextureSourcePath(const MeshEntry &entry, int textureIndex);
+    static const MeshIOTextureAsset *meshTextureAsset(const MeshEntry &entry, int textureIndex);
     int currentMeshIndex() const { return m_currentMeshIndex; }
     const std::vector<LogEntry> &logMessages() const { return m_logMessages; }
     QString openDialogFilter() const;
@@ -268,6 +272,7 @@ private:
             QString sourcePath;
             QStringList textureFileNames;
             QStringList textureFilePaths;
+            std::vector<MeshIOTextureAsset> textureAssets;
             MeshIOMaterialSet materialSet;
             bool visible = false;
             int ioMask = 0;

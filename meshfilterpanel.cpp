@@ -230,15 +230,7 @@ private:
 QString textureChoiceLabel(const Document::MeshEntry &entry, int slotIndex)
 {
     const int oneBased = slotIndex + 1;
-    QString name;
-    if (slotIndex >= 0 && slotIndex < entry.textureFileNames.size())
-        name = entry.textureFileNames.at(slotIndex).trimmed();
-    if (name.isEmpty() && slotIndex >= 0 && slotIndex < entry.textureFilePaths.size())
-        name = QFileInfo(entry.textureFilePaths.at(slotIndex)).fileName().trimmed();
-    if (name.isEmpty() && slotIndex >= 0 && slotIndex < int(entry.mesh.textures.size()))
-        name = QFileInfo(QString::fromStdString(entry.mesh.textures[size_t(slotIndex)])).fileName().trimmed();
-    if (name.isEmpty())
-        name = QObject::tr("Texture %1").arg(oneBased);
+    const QString name = Document::meshTextureDisplayName(entry, slotIndex);
     return QObject::tr("%1: %2").arg(oneBased).arg(name);
 }
 

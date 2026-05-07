@@ -120,6 +120,39 @@ MeshIOMaterialSet normalizeMaterialSet(
     return dst;
 }
 
+std::vector<MeshIOTextureAsset> buildTextureAssetsFromLegacyAssociation(
+    const QStringList &textureFileNames,
+    const QStringList &textureFilePaths,
+    const std::vector<std::string> &meshTextures)
+{
+    int count = std::max(textureFileNames.size(), textureFilePaths.size());
+    count = std::max(count, int(meshTextures.size()));
+
+    std::vector<MeshIOTextureAsset> assets;
+    assets.reserve(std::max(0, count));
+    for (int i = 0; i < count; ++i) {
+        MeshIOTextureAsset asset;
+        if (i >= 0 && i < textureFileNames.size())
+            asset.name = textureFileNames.at(i).trimmed();
+        if (i >= 0 && i < textureFilePaths.size())
+            asset.sourcePath = QDir::toNativeSeparators(textureFilePaths.at(i).trimmed());
+        if (asset.sourcePath.isEmpty() && i >= 0 && i < int(meshTextures.size()))
+            asset.sourcePath = QDir::toNativeSeparators(QString::fromStdString(meshTextures[size_t(i)]).trimmed());
+        if (asset.name.isEmpty() && !asset.sourcePath.isEmpty())
+            asset.name = QFileInfo(asset.sourcePath).fileName();
+        assets.push_back(std::move(asset));
+    }
+    return assets;
+}
+
+void syncTextureAssetsFromLegacyAssociation(Document::MeshEntry &entry)
+{
+    entry.textureAssets = buildTextureAssetsFromLegacyAssociation(
+        entry.textureFileNames,
+        entry.textureFilePaths,
+        entry.mesh.textures);
+}
+
 bool meshNeedsCompaction(const VCGMesh &mesh)
 {
     return mesh.VN() != int(mesh.vert.size())
@@ -145,6 +178,7 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.sourcePath = src.sourcePath;
     dst.textureFileNames = src.textureFileNames;
     dst.textureFilePaths = src.textureFilePaths;
+    dst.textureAssets = src.textureAssets;
     dst.materialSet = src.materialSet;
     dst.visible = src.visible;
     dst.ioMask = src.ioMask;
@@ -261,6 +295,7 @@ int Document::meshTextureAssociationCount(const MeshEntry &entry)
 {
     int count = std::max(entry.textureFileNames.size(), entry.textureFilePaths.size());
     count = std::max(count, int(entry.mesh.textures.size()));
+    count = std::max(count, int(entry.textureAssets.size()));
     count = std::max(count, int(entry.materialSet.entries.size()));
     return count;
 }
@@ -268,6 +303,64 @@ int Document::meshTextureAssociationCount(const MeshEntry &entry)
 bool Document::hasMeshTextureAssociation(const MeshEntry &entry)
 {
     return meshTextureAssociationCount(entry) > 0;
+}
+
+QString Document::meshTextureDisplayName(const MeshEntry &entry, int textureIndex)
+{
+    if (textureIndex < 0)
+        return QString();
+    if (textureIndex < int(entry.textureAssets.size())) {
+        const MeshIOTextureAsset &asset = entry.textureAssets[size_t(textureIndex)];
+        if (!asset.name.trimmed().isEmpty())
+            return asset.name.trimmed();
+        if (!asset.sourcePath.trimmed().isEmpty())
+            return QFileInfo(asset.sourcePath).fileName().trimmed();
+    }
+    if (textureIndex < entry.textureFileNames.size()) {
+        const QString name = entry.textureFileNames.at(textureIndex).trimmed();
+        if (!name.isEmpty())
+            return name;
+    }
+    if (textureIndex < entry.textureFilePaths.size()) {
+        const QString path = entry.textureFilePaths.at(textureIndex).trimmed();
+        if (!path.isEmpty())
+            return QFileInfo(path).fileName().trimmed();
+    }
+    if (textureIndex < int(entry.mesh.textures.size())) {
+        const QString path = QString::fromStdString(entry.mesh.textures[size_t(textureIndex)]).trimmed();
+        if (!path.isEmpty())
+            return QFileInfo(path).fileName().trimmed();
+    }
+    return QObject::tr("Texture %1").arg(textureIndex + 1);
+}
+
+QString Document::meshTextureSourcePath(const MeshEntry &entry, int textureIndex)
+{
+    if (textureIndex < 0)
+        return QString();
+    if (textureIndex < int(entry.textureAssets.size())) {
+        const QString path = entry.textureAssets[size_t(textureIndex)].sourcePath.trimmed();
+        if (!path.isEmpty())
+            return QDir::toNativeSeparators(path);
+    }
+    if (textureIndex < entry.textureFilePaths.size()) {
+        const QString path = entry.textureFilePaths.at(textureIndex).trimmed();
+        if (!path.isEmpty())
+            return QDir::toNativeSeparators(path);
+    }
+    if (textureIndex < int(entry.mesh.textures.size())) {
+        const QString path = QString::fromStdString(entry.mesh.textures[size_t(textureIndex)]).trimmed();
+        if (!path.isEmpty())
+            return QDir::toNativeSeparators(path);
+    }
+    return QString();
+}
+
+const MeshIOTextureAsset *Document::meshTextureAsset(const MeshEntry &entry, int textureIndex)
+{
+    if (textureIndex < 0 || textureIndex >= int(entry.textureAssets.size()))
+        return nullptr;
+    return &entry.textureAssets[size_t(textureIndex)];
 }
 
 Document::~Document() = default;
@@ -555,6 +648,7 @@ int Document::loadMesh(const QString &filename)
     }
     if (!normalizedMeshTexturePaths.empty())
         entry->mesh.textures = std::move(normalizedMeshTexturePaths);
+    syncTextureAssetsFromLegacyAssociation(*entry);
 
     // Also register any PBR channel textures from materialSet that were not listed in
     // mesh.textures (e.g. glTF normal / occlusion / roughness maps that have no UV slot).
@@ -780,6 +874,10 @@ int Document::reloadMesh(int index)
     entry.sourcePath = sourcePath;
     entry.textureFileNames = textureFileNames;
     entry.textureFilePaths = textureFilePaths;
+    entry.textureAssets = buildTextureAssetsFromLegacyAssociation(
+        entry.textureFileNames,
+        entry.textureFilePaths,
+        reloadedMesh.textures);
     entry.materialSet = normalizeMaterialSet(sourcePath, loadedMaterialSet, reloadedMesh);
     ++entry.geometryRevision;
     ++entry.materialRevision;
@@ -1300,6 +1398,7 @@ Document::UndoState Document::captureUndoState() const
         snap.sourcePath         = entry->sourcePath;
         snap.textureFileNames   = entry->textureFileNames;
         snap.textureFilePaths   = entry->textureFilePaths;
+        snap.textureAssets      = entry->textureAssets;
         snap.materialSet        = entry->materialSet;
         snap.visible            = entry->visible;
         snap.ioMask             = entry->ioMask;
@@ -1378,6 +1477,7 @@ void Document::restoreUndoState(const UndoState &state)
         entry->sourcePath       = snap.sourcePath;
         entry->textureFileNames = snap.textureFileNames;
         entry->textureFilePaths = snap.textureFilePaths;
+        entry->textureAssets    = snap.textureAssets;
         entry->materialSet      = snap.materialSet;
         entry->visible          = snap.visible;
         entry->ioMask           = snap.ioMask;
@@ -1600,6 +1700,7 @@ int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
         entry->textureFilePaths.push_back(texturePath);
         entry->textureFileNames.push_back(QFileInfo(texturePath).fileName());
     }
+    syncTextureAssetsFromLegacyAssociation(*entry);
     entry->materialSet = normalizeMaterialSet(entry->sourcePath, MeshIOMaterialSet{}, entry->mesh);
 
     const int newIndex = meshCount();
@@ -1835,6 +1936,7 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
     source.wireRespectFaux = wireRespectFaux;
     source.mesh = &meshEntry.mesh;
     source.textureFilePaths = &meshEntry.textureFilePaths;
+    source.textureAssets = &meshEntry.textureAssets;
     source.materialSet = &meshEntry.materialSet;
 
     const MeshGpuResourceCache::EnsureStats stats = m_gpuCache->ensureMeshResources(

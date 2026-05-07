@@ -1,5 +1,6 @@
 #pragma once
 
+#include "meshioplugin.h"
 #include "vcgmesh.h"
 #include <cstdint>
 #include <memory>
@@ -10,7 +11,6 @@ class QRhi;
 class QRhiBuffer;
 class QRhiTexture;
 class QRhiCommandBuffer;
-struct MeshIOMaterialSet;
 
 class MeshGpuResourceCache
 {
@@ -41,6 +41,7 @@ public:
         bool wireRespectFaux = true;
         const VCGMesh *mesh = nullptr;
         const QStringList *textureFilePaths = nullptr;
+        const std::vector<MeshIOTextureAsset> *textureAssets = nullptr;
         const MeshIOMaterialSet *materialSet = nullptr;
     };
 

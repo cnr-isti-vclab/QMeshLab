@@ -15,8 +15,9 @@ int findTextureIndexByPath(const Document::MeshEntry &entry, const QString &path
     const QString wanted = normalizeTexturePath(path);
     if (wanted.isEmpty())
         return -1;
-    for (int i = 0; i < entry.textureFilePaths.size(); ++i) {
-        if (normalizeTexturePath(entry.textureFilePaths.at(i)) == wanted)
+    const int textureCount = Document::meshTextureAssociationCount(entry);
+    for (int i = 0; i < textureCount; ++i) {
+        if (normalizeTexturePath(Document::meshTextureSourcePath(entry, i)) == wanted)
             return i;
     }
     return -1;
@@ -47,7 +48,7 @@ int defaultTextureIndexForChannel(
         if (textureIndex >= 0)
             return textureIndex;
     }
-    if (channel == MaterialTextureChannel::BaseColor && !entry.textureFilePaths.isEmpty())
+    if (channel == MaterialTextureChannel::BaseColor && Document::meshTextureAssociationCount(entry) > 0)
         return 0;
     return -1;
 }
@@ -55,15 +56,10 @@ int defaultTextureIndexForChannel(
 QStringList pbrTextureSelectorEntries(const Document::MeshEntry &entry)
 {
     QStringList labels;
-    labels.reserve(entry.textureFilePaths.size());
-    for (int i = 0; i < entry.textureFilePaths.size(); ++i) {
-        QString name;
-        if (i >= 0 && i < entry.textureFileNames.size())
-            name = entry.textureFileNames.at(i).trimmed();
-        if (name.isEmpty())
-            name = QFileInfo(entry.textureFilePaths.at(i)).fileName().trimmed();
-        if (name.isEmpty())
-            name = QObject::tr("Tex %1").arg(i);
+    const int textureCount = Document::meshTextureAssociationCount(entry);
+    labels.reserve(textureCount);
+    for (int i = 0; i < textureCount; ++i) {
+        const QString name = Document::meshTextureDisplayName(entry, i);
         labels.push_back(QObject::tr("%1: %2").arg(i).arg(name));
     }
     return labels;
@@ -88,7 +84,7 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
     const bool hasTextureCoords =
         (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
         || (mask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
-    const bool hasTextures = hasTextureCoords && !entry.textureFilePaths.isEmpty();
+    const bool hasTextures = hasTextureCoords && Document::meshTextureAssociationCount(entry) > 0;
     const int defaultAlbedoTextureIndex =
         defaultTextureIndexForChannel(entry, MaterialTextureChannel::BaseColor);
     const int defaultNormalTextureIndex =
@@ -299,7 +295,7 @@ void RenderWidget::refreshColorSourceAvailability()
         hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
         hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
         hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
-        hasTextures = hasTextureCoords && !meshEntry.textureFilePaths.isEmpty();
+        hasTextures = hasTextureCoords && Document::meshTextureAssociationCount(meshEntry) > 0;
         hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
     }
 
@@ -359,7 +355,7 @@ void RenderWidget::refreshColorSourceAvailability()
     }
     const int textureCount =
         hasCurrentMesh
-        ? m_doc->mesh(meshIndex).textureFilePaths.size()
+        ? Document::meshTextureAssociationCount(m_doc->mesh(meshIndex))
         : 0;
     auto clampTextureIndex = [textureCount](int &index) {
         if (index < -1 || index >= textureCount)
@@ -440,15 +436,15 @@ QRhiTexture *RenderWidget::resolveSelectedPbrTexture(
     }
 
     const auto &meshEntry = m_doc->mesh(meshIndex);
-    if (textureIndex >= meshEntry.textureFilePaths.size())
+    if (textureIndex >= Document::meshTextureAssociationCount(meshEntry))
         return nullptr;
 
-    const QString wantedPath = normalizeTexturePath(meshEntry.textureFilePaths.at(textureIndex));
-    if (wantedPath.isEmpty())
-        return nullptr;
+    const QString wantedPath = normalizeTexturePath(Document::meshTextureSourcePath(meshEntry, textureIndex));
 
     for (int bi = 0; bi < fillView.batchCount; ++bi) {
         const auto &batch = fillView.batches[bi];
+        if (wantedPath.isEmpty() && batch.textureGroupIndex == textureIndex && batch.baseColorTexture)
+            return batch.baseColorTexture;
         const QString basePath = normalizeTexturePath(batch.baseColorTexturePath);
         const QString normalPath = normalizeTexturePath(batch.normalTexturePath);
         const QString occlusionPath = normalizeTexturePath(batch.occlusionTexturePath);

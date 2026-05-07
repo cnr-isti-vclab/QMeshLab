@@ -201,33 +201,85 @@ MeshIOMaterialSlot makeMaterialSlotForTexturePath(const QString &path, int slotI
     return slot;
 }
 
-void applyTextureAssociation(Document::MeshEntry &entry, const QStringList &paths)
+MeshIOTextureAsset makeTextureAssetFromPath(const QString &path)
+{
+    const QFileInfo info(path);
+    MeshIOTextureAsset asset;
+    asset.name = info.fileName();
+    asset.sourcePath = QDir::toNativeSeparators(path);
+    return asset;
+}
+
+MeshIOTextureAsset makeTextureAssetFromImage(
+    const QImage &image,
+    const QString &name,
+    const QString &sourcePath = {})
+{
+    MeshIOTextureAsset asset;
+    asset.name = name.trimmed();
+    asset.sourcePath = QDir::toNativeSeparators(sourcePath.trimmed());
+    asset.image = image;
+    return asset;
+}
+
+std::vector<MeshIOTextureAsset> makeTextureAssetsFromSavedImages(
+    const QStringList &paths,
+    const std::vector<QImage> &images)
+{
+    std::vector<MeshIOTextureAsset> assets;
+    assets.reserve(images.size());
+    for (int i = 0; i < paths.size() && size_t(i) < images.size(); ++i) {
+        const QFileInfo info(paths.at(i));
+        assets.push_back(makeTextureAssetFromImage(images[size_t(i)], info.fileName(), paths.at(i)));
+    }
+    return assets;
+}
+
+void rebuildLegacyTextureAssociation(Document::MeshEntry &entry)
 {
     entry.mesh.textures.clear();
     entry.textureFileNames.clear();
     entry.textureFilePaths.clear();
-    entry.materialSet.clear();
-
-    for (int i = 0; i < paths.size(); ++i) {
-        const QString path = paths.at(i);
-        const QFileInfo info(path);
-        entry.mesh.textures.push_back(QDir::toNativeSeparators(path).toStdString());
-        entry.textureFileNames.push_back(info.fileName());
-        entry.textureFilePaths.push_back(QDir::toNativeSeparators(path));
-        entry.materialSet.entries.push_back(makeMaterialSlotForTexturePath(path, i));
+    for (const MeshIOTextureAsset &asset : entry.textureAssets) {
+        entry.textureFileNames.push_back(asset.name.trimmed());
+        entry.textureFilePaths.push_back(asset.sourcePath.trimmed());
+        if (!asset.sourcePath.trimmed().isEmpty())
+            entry.mesh.textures.push_back(QDir::toNativeSeparators(asset.sourcePath).toStdString());
     }
 }
 
-void appendTextureAssociation(Document::MeshEntry &entry, const QStringList &paths)
+void applyTextureAssociation(
+    Document::MeshEntry &entry,
+    const std::vector<MeshIOTextureAsset> &assets)
+{
+    entry.textureAssets = assets;
+    rebuildLegacyTextureAssociation(entry);
+    entry.materialSet.clear();
+    for (int i = 0; i < int(entry.textureAssets.size()); ++i) {
+        const MeshIOTextureAsset &asset = entry.textureAssets[size_t(i)];
+        MeshIOMaterialSlot slot;
+        slot.name = QObject::tr("Material %1").arg(i + 1);
+        slot.baseColorTexture.fileName = asset.name.trimmed();
+        slot.baseColorTexture.filePath = asset.sourcePath.trimmed();
+        entry.materialSet.entries.push_back(std::move(slot));
+    }
+}
+
+void appendTextureAssociation(
+    Document::MeshEntry &entry,
+    const std::vector<MeshIOTextureAsset> &assets)
 {
     int slotBase = textureAssociationCount(entry);
-    for (int i = 0; i < paths.size(); ++i) {
-        const QString path = paths.at(i);
-        const QFileInfo info(path);
-        entry.mesh.textures.push_back(QDir::toNativeSeparators(path).toStdString());
-        entry.textureFileNames.push_back(info.fileName());
-        entry.textureFilePaths.push_back(QDir::toNativeSeparators(path));
-        entry.materialSet.entries.push_back(makeMaterialSlotForTexturePath(path, slotBase + i));
+    for (const MeshIOTextureAsset &asset : assets)
+        entry.textureAssets.push_back(asset);
+    rebuildLegacyTextureAssociation(entry);
+    for (int i = 0; i < int(assets.size()); ++i) {
+        const MeshIOTextureAsset &asset = assets[size_t(i)];
+        MeshIOMaterialSlot slot;
+        slot.name = QObject::tr("Material %1").arg(slotBase + i + 1);
+        slot.baseColorTexture.fileName = asset.name.trimmed();
+        slot.baseColorTexture.filePath = asset.sourcePath.trimmed();
+        entry.materialSet.entries.push_back(std::move(slot));
     }
 }
 
@@ -245,17 +297,14 @@ void ensureMaterialSlotCount(Document::MeshEntry &entry, int count)
 int ensureTextureListed(Document::MeshEntry &entry, const QString &path)
 {
     const QString normalized = normalizeExistingPath(path);
-    for (int i = 0; i < entry.textureFilePaths.size(); ++i) {
-        if (normalizeExistingPath(entry.textureFilePaths.at(i)) == normalized)
+    for (int i = 0; i < int(entry.textureAssets.size()); ++i) {
+        if (normalizeExistingPath(entry.textureAssets[size_t(i)].sourcePath) == normalized)
             return i;
     }
 
-    const QFileInfo info(path);
-    const QString nativePath = QDir::toNativeSeparators(path);
-    entry.textureFileNames.push_back(info.fileName());
-    entry.textureFilePaths.push_back(nativePath);
-    entry.mesh.textures.push_back(nativePath.toStdString());
-    return entry.textureFilePaths.size() - 1;
+    entry.textureAssets.push_back(makeTextureAssetFromPath(path));
+    rebuildLegacyTextureAssociation(entry);
+    return int(entry.textureAssets.size()) - 1;
 }
 
 void offsetTextureSlotIndices(VCGMesh &mesh, int slotOffset)
@@ -305,6 +354,13 @@ std::unique_ptr<VCGMesh> makeWorldMesh(const Document::MeshEntry &entry, bool re
 QStringList associatedTexturePaths(const Document::MeshEntry &entry)
 {
     QStringList paths;
+    for (const MeshIOTextureAsset &asset : entry.textureAssets) {
+        const QString path = asset.sourcePath.trimmed();
+        if (!path.isEmpty())
+            paths.push_back(normalizeExistingPath(path));
+    }
+    if (!paths.isEmpty())
+        return paths;
     for (const QString &path : entry.textureFilePaths) {
         const QString trimmed = path.trimmed();
         if (!trimmed.isEmpty())
@@ -326,6 +382,34 @@ QStringList associatedTexturePaths(const Document::MeshEntry &entry)
         paths.push_back(normalizeExistingPath(resolved));
     }
     return paths;
+}
+
+bool loadAssociatedTextureImage(
+    const Document::MeshEntry &entry,
+    int textureIndex,
+    QImage &image,
+    QString &error)
+{
+    if (const MeshIOTextureAsset *asset = Document::meshTextureAsset(entry, textureIndex)) {
+        if (asset->hasImage()) {
+            image = asset->image;
+            return !image.isNull();
+        }
+    }
+
+    const QString sourcePath = Document::meshTextureSourcePath(entry, textureIndex).trimmed();
+    if (sourcePath.isEmpty()) {
+        error = QObject::tr("Texture %1 does not have image data or a backing file path.")
+                    .arg(Document::meshTextureDisplayName(entry, textureIndex));
+        return false;
+    }
+
+    image = QImage(sourcePath);
+    if (image.isNull()) {
+        error = QObject::tr("Failed to load texture '%1'.").arg(sourcePath);
+        return false;
+    }
+    return true;
 }
 
 void extractVertexForWedgeTexcoord(
@@ -654,6 +738,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         }
 
         VCGMesh paraMesh;
+        paraMesh.face.EnableWedgeTexCoord();
         vcg::tri::VoronoiAtlas<VCGMesh>::VoronoiAtlasParam pp;
         pp.sampleNum = regionNum;
         pp.overlap = overlap;
@@ -1015,8 +1100,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (!hasTexCoords)
             return fail(QObject::tr("Current mesh does not have texture coordinates."));
 
-        QString finalPath;
         QString displayName;
+        std::vector<MeshIOTextureAsset> newAssets;
         if (params.getBool(QStringLiteral("use_dummy_texture"))) {
             const int imageSize = params.getInt(QStringLiteral("dummy_img_size"));
             const int checkSize = params.getInt(QStringLiteral("dummy_check_size"));
@@ -1027,15 +1112,10 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 return fail(QObject::tr("Check size has an incorrect value."));
             const bool checkerboard = (dummyType != QStringLiteral("grid"));
             const QImage dummyTexture = makeDummyTexture(imageSize, checkSize, checkerboard);
-            QString tempError;
-            finalPath = writeGeneratedTextureToTemp(
-                dummyTexture,
-                checkerboard ? QStringLiteral("qmeshlab_dummy_checkerboard")
-                             : QStringLiteral("qmeshlab_dummy_grid"),
-                tempError);
-            if (finalPath.isEmpty())
-                return fail(tempError);
-            displayName = QFileInfo(finalPath).fileName();
+            displayName = checkerboard
+                ? QStringLiteral("Dummy Checkerboard")
+                : QStringLiteral("Dummy Grid");
+            newAssets.push_back(makeTextureAssetFromImage(dummyTexture, displayName));
         } else {
             const QString chosenPath = params.getFileOpen(QStringLiteral("textName")).trimmed();
             if (chosenPath.isEmpty())
@@ -1045,11 +1125,11 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             const QFileInfo info(normalizedPath);
             if (!info.exists() || !info.isFile())
                 return fail(QObject::tr("Texture file '%1' does not exist.").arg(chosenPath));
-            finalPath = QDir::toNativeSeparators(normalizedPath);
             displayName = info.fileName();
+            newAssets.push_back(makeTextureAssetFromPath(normalizedPath));
         }
 
-        applyTextureAssociation(entry, { finalPath });
+        applyTextureAssociation(entry, newAssets);
 
         doc.markMeshMaterialChanged(
             meshIndex,
@@ -1128,10 +1208,13 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (!saveImages(outputPaths, targetImages, saveError))
             return fail(saveError);
 
+        const std::vector<MeshIOTextureAsset> outputAssets =
+            makeTextureAssetsFromSavedImages(outputPaths, targetImages);
+
         const bool appendNewTextures = !overwrite && previousTextureCount > 0;
         if (appendNewTextures) {
             offsetTextureSlotIndices(entry.mesh, previousTextureCount);
-            appendTextureAssociation(entry, outputPaths);
+            appendTextureAssociation(entry, outputAssets);
             ++entry.materialRevision;
             doc.markMeshGeometryChanged(
                 meshIndex,
@@ -1139,7 +1222,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                     .arg(slotCount)
                     .arg(entry.name));
         } else {
-            applyTextureAssociation(entry, outputPaths);
+            applyTextureAssociation(entry, outputAssets);
             doc.markMeshMaterialChanged(
                 meshIndex,
                 QObject::tr("Baked vertex color to %1 texture image(s) for '%2'.")
@@ -1164,17 +1247,14 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         const Document::MeshEntry &sourceEntry = doc.mesh(sourceMeshIndex);
         Document::MeshEntry &targetEntry = doc.mesh(targetMeshIndex);
 
-        const QStringList texturePaths = associatedTexturePaths(sourceEntry);
-
+        const int sourceTextureCount = textureAssociationCount(sourceEntry);
         std::vector<QImage> sourceImages;
-        sourceImages.reserve(size_t(texturePaths.size()));
-        for (const QString &path : texturePaths) {
-            const QFileInfo info(path);
-            if (!info.exists() || !info.isFile())
-                return fail(QObject::tr("Source texture '%1' does not exist.").arg(path));
-            QImage image(path);
-            if (image.isNull())
-                return fail(QObject::tr("Failed to load source texture '%1'.").arg(path));
+        sourceImages.reserve(size_t(std::max(0, sourceTextureCount)));
+        for (int textureIndex = 0; textureIndex < sourceTextureCount; ++textureIndex) {
+            QImage image;
+            QString imageError;
+            if (!loadAssociatedTextureImage(sourceEntry, textureIndex, image, imageError))
+                return fail(imageError);
             sourceImages.push_back(std::move(image));
         }
 
@@ -1286,20 +1366,18 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             break;
         }
 
-        const QStringList sourceTexturePaths = samplingFromTexture ? associatedTexturePaths(sourceEntry) : QStringList{};
-        if (samplingFromTexture && sourceTexturePaths.isEmpty())
+        const int sourceTextureCount = samplingFromTexture ? textureAssociationCount(sourceEntry) : 0;
+        if (samplingFromTexture && sourceTextureCount <= 0)
             return fail(QObject::tr("Source mesh does not have any associated texture."));
 
         std::vector<QImage> sourceImages;
         if (samplingFromTexture) {
-            sourceImages.reserve(size_t(sourceTexturePaths.size()));
-            for (const QString &path : sourceTexturePaths) {
-                const QFileInfo info(path);
-                if (!info.exists() || !info.isFile())
-                    return fail(QObject::tr("Source texture '%1' does not exist.").arg(path));
-                QImage image(path);
-                if (image.isNull())
-                    return fail(QObject::tr("Failed to load source texture '%1'.").arg(path));
+            sourceImages.reserve(size_t(std::max(0, sourceTextureCount)));
+            for (int textureIndex = 0; textureIndex < sourceTextureCount; ++textureIndex) {
+                QImage image;
+                QString imageError;
+                if (!loadAssociatedTextureImage(sourceEntry, textureIndex, image, imageError))
+                    return fail(imageError);
                 sourceImages.push_back(std::move(image));
             }
         }
@@ -1395,13 +1473,15 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         QString saveError;
         if (!saveImages(outputPaths, targetImages, saveError))
             return fail(saveError);
+        const std::vector<MeshIOTextureAsset> outputAssets =
+            makeTextureAssetsFromSavedImages(outputPaths, targetImages);
 
         QString attributeLabel = attributeModeId;
         attributeLabel.replace(QLatin1Char('_'), QLatin1Char(' '));
         const bool appendNewTextures = !overwrite && previousTextureCount > 0;
         if (appendNewTextures) {
             offsetTextureSlotIndices(targetEntry.mesh, previousTextureCount);
-            appendTextureAssociation(targetEntry, outputPaths);
+            appendTextureAssociation(targetEntry, outputAssets);
             ++targetEntry.materialRevision;
             doc.markMeshGeometryChanged(
                 targetMeshIndex,
@@ -1410,7 +1490,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                     .arg(targetSlotCount)
                     .arg(targetEntry.name));
         } else {
-            applyTextureAssociation(targetEntry, outputPaths);
+            applyTextureAssociation(targetEntry, outputAssets);
             doc.markMeshMaterialChanged(
                 targetMeshIndex,
                 QObject::tr("Transferred %1 into %2 texture image(s) for '%3'.")
@@ -1435,48 +1515,49 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterObjectToTangentNormal)) {
-        const QStringList availableTexturePaths = associatedTexturePaths(entry);
-        if (availableTexturePaths.isEmpty())
+        const int availableTextureCount = textureAssociationCount(entry);
+        if (availableTextureCount <= 0)
             return fail(QObject::tr("Current mesh must already have at least one associated texture slot."));
 
         const int chosenSlotValue = params.getTextureRef(QStringLiteral("targetTexture"), -1);
         if (chosenSlotValue <= 0)
             return fail(QObject::tr("Choose the target texture slot to convert."));
         const int selectedSlot = chosenSlotValue - 1;
-        if (selectedSlot >= availableTexturePaths.size())
+        if (selectedSlot >= availableTextureCount)
             return fail(QObject::tr("Selected texture slot is out of range."));
 
         const int sourceSlotValue = params.getTextureRef(QStringLiteral("sourceNormalMap"), -1);
         if (sourceSlotValue <= 0)
             return fail(QObject::tr("Choose the source object-space normal map texture."));
         const int sourceSlot = sourceSlotValue - 1;
-        if (sourceSlot >= availableTexturePaths.size())
+        if (sourceSlot >= availableTextureCount)
             return fail(QObject::tr("Selected source normal map texture is out of range."));
 
         const TextureOutputRefValue outputTarget =
             params.getTextureOutputRef(QStringLiteral("targetNormalMap"));
-        const QString sourcePath = availableTexturePaths.at(sourceSlot).trimmed();
         QString outputPath;
+        bool writeOutputToFile = false;
         if (outputTarget.overwriteExisting) {
-            if (outputTarget.textureSlot < 0 || outputTarget.textureSlot >= availableTexturePaths.size())
+            if (outputTarget.textureSlot < 0 || outputTarget.textureSlot >= availableTextureCount)
                 return fail(QObject::tr("Selected output texture slot is out of range."));
-            outputPath = availableTexturePaths.at(outputTarget.textureSlot).trimmed();
+            outputPath = Document::meshTextureSourcePath(entry, outputTarget.textureSlot).trimmed();
+            writeOutputToFile = !outputPath.isEmpty();
         } else {
             outputPath = outputTarget.filePath.trimmed();
+            writeOutputToFile = !outputPath.isEmpty();
         }
         const bool bindToPbr = params.getBool(QStringLiteral("bindAsPbrNormal"));
         const bool invertX = params.getBool(QStringLiteral("invertX"), false);
         const bool invertY = params.getBool(QStringLiteral("invertY"), false);
         const bool invertZ = params.getBool(QStringLiteral("invertZ"), false);
         const double normalScale = params.getDouble(QStringLiteral("normalScale"), 1.0);
-        if (sourcePath.isEmpty())
-            return fail(QObject::tr("Source object-space normal map not specified."));
-        if (outputPath.isEmpty())
+        if (!writeOutputToFile && !outputTarget.overwriteExisting)
             return fail(QObject::tr("Output tangent-space normal map path not specified."));
 
-        QImage sourceImage(sourcePath);
-        if (sourceImage.isNull())
-            return fail(QObject::tr("Failed to load source normal map '%1'.").arg(sourcePath));
+        QImage sourceImage;
+        QString sourceImageError;
+        if (!loadAssociatedTextureImage(entry, sourceSlot, sourceImage, sourceImageError))
+            return fail(sourceImageError);
 
         VCGMesh workMesh;
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(workMesh, mesh);
@@ -1515,17 +1596,45 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             targetImage.height(),
             false);
 
-        QString saveError;
-        if (!saveImages({ QDir::toNativeSeparators(outputPath) }, std::vector<QImage>{ targetImage }, saveError))
-            return fail(saveError);
+        const QString nativeOutputPath = QDir::toNativeSeparators(outputPath);
+        if (writeOutputToFile) {
+            QString saveError;
+            if (!saveImages({ nativeOutputPath }, std::vector<QImage>{ targetImage }, saveError))
+                return fail(saveError);
+        }
+
+        int associatedIndex = -1;
+        if (outputTarget.overwriteExisting) {
+            associatedIndex = outputTarget.textureSlot;
+            if (associatedIndex >= 0 && associatedIndex < int(entry.textureAssets.size())) {
+                MeshIOTextureAsset &asset = entry.textureAssets[size_t(associatedIndex)];
+                asset.image = targetImage;
+                if (writeOutputToFile) {
+                    asset.sourcePath = nativeOutputPath;
+                    if (asset.name.trimmed().isEmpty())
+                        asset.name = QFileInfo(nativeOutputPath).fileName();
+                } else if (asset.name.trimmed().isEmpty()) {
+                    asset.name = QObject::tr("Generated Tangent Normal");
+                }
+                rebuildLegacyTextureAssociation(entry);
+            }
+        } else {
+            entry.textureAssets.push_back(makeTextureAssetFromImage(
+                targetImage,
+                QFileInfo(nativeOutputPath).fileName(),
+                nativeOutputPath));
+            rebuildLegacyTextureAssociation(entry);
+            associatedIndex = int(entry.textureAssets.size()) - 1;
+        }
 
         if (bindToPbr) {
-            const QString nativeOutputPath = QDir::toNativeSeparators(outputPath);
-            const int associatedIndex = ensureTextureListed(entry, nativeOutputPath);
             ensureMaterialSlotCount(entry, selectedSlot + 1);
             MeshIOMaterialSlot &slot = entry.materialSet.entries[size_t(selectedSlot)];
-            slot.normalTexture.fileName = QFileInfo(nativeOutputPath).fileName();
-            slot.normalTexture.filePath = nativeOutputPath;
+            if (associatedIndex >= 0 && associatedIndex < int(entry.textureAssets.size())) {
+                const MeshIOTextureAsset &asset = entry.textureAssets[size_t(associatedIndex)];
+                slot.normalTexture.fileName = asset.name.trimmed();
+                slot.normalTexture.filePath = asset.sourcePath.trimmed();
+            }
             slot.normalScale = float(std::max(0.0, normalScale));
 
             doc.markMeshMaterialChanged(

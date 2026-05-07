@@ -1,9 +1,27 @@
 #pragma once
 
 #include "vcgmesh.h"
+#include <QImage>
 #include <QString>
 #include <QStringList>
 #include <vector>
+
+struct MeshIOTextureAsset
+{
+    QString name;
+    QString sourcePath;
+    QImage image;
+
+    bool hasImage() const
+    {
+        return !image.isNull();
+    }
+
+    bool hasSourcePath() const
+    {
+        return !sourcePath.trimmed().isEmpty();
+    }
+};
 
 struct MeshIOMaterialTextureRef
 {

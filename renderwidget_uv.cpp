@@ -647,7 +647,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         : PerMeshRenderSettings{};
     const bool hasMeshTextures =
         (m_doc && meshIndex >= 0 && meshIndex < m_doc->meshCount())
-        ? !m_doc->mesh(meshIndex).textureFilePaths.isEmpty()
+        ? (Document::meshTextureAssociationCount(m_doc->mesh(meshIndex)) > 0)
         : false;
     const bool canDraw =
         (meshIndex >= 0)
@@ -1075,25 +1075,31 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                         if (m_renderSettings.uvTextureIndex >= 0
                             && meshIndex >= 0 && meshIndex < m_doc->meshCount()) {
                             const auto &meshEntry = m_doc->mesh(meshIndex);
-                            if (m_renderSettings.uvTextureIndex < meshEntry.textureFilePaths.size()) {
+                            const int textureCount = Document::meshTextureAssociationCount(meshEntry);
+                            if (m_renderSettings.uvTextureIndex < textureCount) {
                                 const QString wantedPath = normalizeTexturePath(
-                                    meshEntry.textureFilePaths.at(m_renderSettings.uvTextureIndex));
-                                if (!wantedPath.isEmpty()) {
-                                    for (int bi2 = 0; bi2 < fillView.batchCount && !selectedTexture; ++bi2) {
-                                        const auto &b = fillView.batches[bi2];
-                                        // Check base color first, then PBR maps.
-                                        if (b.baseColorTexture
-                                            && normalizeTexturePath(b.baseColorTexturePath) == wantedPath)
+                                    Document::meshTextureSourcePath(meshEntry, m_renderSettings.uvTextureIndex));
+                                for (int bi2 = 0; bi2 < fillView.batchCount && !selectedTexture; ++bi2) {
+                                    const auto &b = fillView.batches[bi2];
+                                    if (wantedPath.isEmpty()) {
+                                        if (b.textureGroupIndex == m_renderSettings.uvTextureIndex
+                                            && b.baseColorTexture) {
                                             selectedTexture = b.baseColorTexture;
-                                        else if (b.normalTexture
-                                            && normalizeTexturePath(b.normalTexturePath) == wantedPath)
-                                            selectedTexture = b.normalTexture;
-                                        else if (b.occlusionTexture
-                                            && normalizeTexturePath(b.occlusionTexturePath) == wantedPath)
-                                            selectedTexture = b.occlusionTexture;
-                                        else if (b.roughnessTexture
-                                            && normalizeTexturePath(b.roughnessTexturePath) == wantedPath)
-                                            selectedTexture = b.roughnessTexture;
+                                        }
+                                        continue;
+                                    }
+                                    if (b.baseColorTexture
+                                        && normalizeTexturePath(b.baseColorTexturePath) == wantedPath) {
+                                        selectedTexture = b.baseColorTexture;
+                                    } else if (b.normalTexture
+                                               && normalizeTexturePath(b.normalTexturePath) == wantedPath) {
+                                        selectedTexture = b.normalTexture;
+                                    } else if (b.occlusionTexture
+                                               && normalizeTexturePath(b.occlusionTexturePath) == wantedPath) {
+                                        selectedTexture = b.occlusionTexture;
+                                    } else if (b.roughnessTexture
+                                               && normalizeTexturePath(b.roughnessTexturePath) == wantedPath) {
+                                        selectedTexture = b.roughnessTexture;
                                     }
                                 }
                             }
