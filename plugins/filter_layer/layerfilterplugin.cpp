@@ -301,12 +301,11 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         if (entry.mesh.FN() <= 0)
             return fail(QObject::tr("Current mesh has no faces."));
 
-        auto workMesh = meshCopy(entry.mesh);
-        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(*workMesh);
+        // FF adjacency is already built by the framework via inputPrepare.
         std::vector<std::pair<int, VCGFace::FacePointer>> connectedCompVec;
-        const int numCC = vcg::tri::Clean<VCGMesh>::ConnectedComponents(*workMesh, connectedCompVec);
-        Sel::FaceClear(*workMesh);
-        Sel::VertexClear(*workMesh);
+        const int numCC = vcg::tri::Clean<VCGMesh>::ConnectedComponents(entry.mesh, connectedCompVec);
+        Sel::FaceClear(entry.mesh);
+        Sel::VertexClear(entry.mesh);
 
         QVector<int> newIndices;
         std::vector<std::uint64_t> newMeshIds;
@@ -314,10 +313,10 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
         newMeshIds.reserve(connectedCompVec.size());
         for (size_t i = 0; i < connectedCompVec.size(); ++i) {
             connectedCompVec[i].second->SetS();
-            vcg::tri::UpdateSelection<VCGMesh>::FaceConnectedFF(*workMesh);
-            vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceLoose(*workMesh);
+            vcg::tri::UpdateSelection<VCGMesh>::FaceConnectedFF(entry.mesh);
+            vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceLoose(entry.mesh);
             VCGMesh componentMesh;
-            vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(componentMesh, *workMesh, true);
+            vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(componentMesh, entry.mesh, true);
             vcg::tri::Allocator<VCGMesh>::CompactEveryVector(componentMesh);
             vcg::tri::UpdateBounding<VCGMesh>::Box(componentMesh);
             if (componentMesh.FN() > 0)
@@ -333,8 +332,8 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
                 return fail(QObject::tr("Failed to create connected component layer %1.").arg(i));
             newIndices.push_back(newIndex);
             newMeshIds.push_back(doc.mesh(newIndex).meshId);
-            Sel::FaceClear(*workMesh);
-            Sel::VertexClear(*workMesh);
+            Sel::FaceClear(entry.mesh);
+            Sel::VertexClear(entry.mesh);
         }
 
         const bool deleteSourceMesh = params.getBool(QStringLiteral("delete_source_mesh"), false);

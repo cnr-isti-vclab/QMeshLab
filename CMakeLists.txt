@@ -186,6 +186,8 @@ qt_add_resources(QMeshLab "icons"
         img/splitH.png
         img/splitV.png
         img/MeshLab_Icon_512x512.png
+        img/layer_eye_open.png
+        img/layer_eye_close.png
 )
 
 enable_testing()

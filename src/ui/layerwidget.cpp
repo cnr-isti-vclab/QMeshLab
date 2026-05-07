@@ -12,8 +12,12 @@
 #include <QLabel>
 #include <QLocale>
 #include <QMetaObject>
+#include <QApplication>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QSignalBlocker>
+#include <QStyledItemDelegate>
+#include <functional>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
@@ -51,6 +55,101 @@ struct LayerTextureInfo {
 };
 
 std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry);
+
+// Draws an open/closed eye icon in place of the standard checkbox indicator.
+// Modifier-key clicks on the eye are intercepted in editorEvent and routed
+// to the provided callback instead of toggling the item's own check state.
+class EyeCheckDelegate : public QStyledItemDelegate
+{
+public:
+    enum class EyeAction { HideOthers, ShowOthers, InvertAll };
+    using ModifierCallback = std::function<void(const QModelIndex &, EyeAction)>;
+
+    EyeCheckDelegate(ModifierCallback cb, QObject *parent = nullptr)
+        : QStyledItemDelegate(parent), m_modifierCb(std::move(cb)) {}
+
+    // Intercept mouse-press events that land on the eye icon area.
+    bool editorEvent(QEvent *event, QAbstractItemModel *model,
+                     const QStyleOptionViewItem &option,
+                     const QModelIndex &index) override
+    {
+        if (event->type() != QEvent::MouseButtonPress)
+            return QStyledItemDelegate::editorEvent(event, model, option, index);
+
+        auto *me = static_cast<QMouseEvent *>(event);
+        const Qt::KeyboardModifiers mods = me->modifiers();
+        const bool hasModifier = (mods & (Qt::ShiftModifier | Qt::AltModifier | Qt::ControlModifier)) != 0;
+        if (!hasModifier)
+            return QStyledItemDelegate::editorEvent(event, model, option, index);
+
+        // Determine whether the click lands on the eye icon.
+        const QStyle *style = option.widget ? option.widget->style() : QApplication::style();
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+        const QRect checkRect = style->subElementRect(
+            QStyle::SE_ItemViewItemCheckIndicator, &opt, option.widget);
+        if (!checkRect.contains(me->pos()))
+            return QStyledItemDelegate::editorEvent(event, model, option, index);
+
+        // Modifier-click on eye: invoke callback, do NOT toggle this item.
+        if (m_modifierCb) {
+            EyeAction action;
+            if (mods & Qt::ShiftModifier)
+                action = EyeAction::InvertAll;
+            else if (mods & Qt::AltModifier)
+                action = EyeAction::ShowOthers;
+            else // Qt::ControlModifier == Command on macOS
+                action = EyeAction::HideOthers;
+            m_modifierCb(index, action);
+        }
+        return true; // consumed
+    }
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override
+    {
+        if (!index.data(Qt::CheckStateRole).isValid()) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+
+        // Determine the checkbox rect before suppressing the indicator.
+        const QStyle *style = option.widget ? option.widget->style() : QApplication::style();
+        const QRect checkRect = style->subElementRect(
+            QStyle::SE_ItemViewItemCheckIndicator, &opt, option.widget);
+
+        // Remove checkbox so the base class does not draw it.
+        opt.features &= ~QStyleOptionViewItem::HasCheckIndicator;
+        QStyledItemDelegate::paint(painter, opt, index);
+
+        const bool visible = (index.data(Qt::CheckStateRole).toInt() == Qt::Checked);
+        const QPixmap &px = visible ? eyeOpen() : eyeClose();
+        if (!px.isNull()) {
+            const QPixmap scaled = px.scaled(checkRect.size(),
+                Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            const int dx = (checkRect.width()  - scaled.width())  / 2;
+            const int dy = (checkRect.height() - scaled.height()) / 2;
+            painter->drawPixmap(checkRect.topLeft() + QPoint(dx, dy), scaled);
+        }
+    }
+
+private:
+    static const QPixmap &eyeOpen()
+    {
+        static const QPixmap px(QStringLiteral(":/img/layer_eye_open.png"));
+        return px;
+    }
+    static const QPixmap &eyeClose()
+    {
+        static const QPixmap px(QStringLiteral(":/img/layer_eye_close.png"));
+        return px;
+    }
+
+    ModifierCallback m_modifierCb;
+};
 
 template<typename T>
 QStringList collectPerVertexAttributeNames(VCGMesh &mesh)
@@ -504,6 +603,26 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     header()->setSectionResizeMode(2, QHeaderView::Stretch);
     setColumnWidth(0, kFirstColumnMinWidth);
+    setItemDelegate(new EyeCheckDelegate(
+        [this](const QModelIndex &index, EyeCheckDelegate::EyeAction action) {
+            const int selfIdx = index.data(kRoleMeshIndex).toInt();
+            switch (action) {
+            case EyeCheckDelegate::EyeAction::HideOthers:
+                for (int i = 0; i < m_doc->meshCount(); ++i)
+                    if (i != selfIdx)
+                        m_doc->setMeshVisible(i, false);
+                break;
+            case EyeCheckDelegate::EyeAction::ShowOthers:
+                for (int i = 0; i < m_doc->meshCount(); ++i)
+                    if (i != selfIdx)
+                        m_doc->setMeshVisible(i, true);
+                break;
+            case EyeCheckDelegate::EyeAction::InvertAll:
+                for (int i = 0; i < m_doc->meshCount(); ++i)
+                    m_doc->setMeshVisible(i, !m_doc->mesh(i).visible);
+                break;
+            }
+        }, this));
 
     connect(m_doc, &Document::meshAdded, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
