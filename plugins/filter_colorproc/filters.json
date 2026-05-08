@@ -1,0 +1,539 @@
+{
+  "pluginId": "qmeshlab.filter.colorproc",
+  "filters": [
+    {
+      "id": "set_color_per_vertex",
+      "menuPath": "Color",
+      "name": "Vertex Color Filling",
+      "shortDescription": "Fill vertex colors with a chosen color.",
+      "longDescriptionMarkdown": "Fills the color of the vertices of the mesh with a color chosen by the user.",
+      "tags": ["color", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "color1", "label": "Color", "help": "Sets the color to apply to vertices.", "group": "main", "type": "color", "default": "#000000" },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_thresholding_per_vertex",
+      "menuPath": "Color",
+      "name": "Vertex Color Thresholding",
+      "shortDescription": "Apply two colors according to a lightness threshold.",
+      "longDescriptionMarkdown": "Colors the vertices of the mesh using two colors according to a lightness threshold (on the original color).",
+      "tags": ["color", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
+      "parameters": [
+        { "id": "color1", "label": "Color 1", "help": "Sets the color to apply below the threshold.", "group": "main", "type": "color", "default": "#000000" },
+        { "id": "color2", "label": "Color 2", "help": "Sets the color to apply above the threshold.", "group": "main", "type": "color", "default": "#ffffff" },
+        { "id": "threshold", "label": "Threshold", "help": "Vertices with color above the lightness threshold become Color 2, the others Color 1.", "group": "main", "type": "double", "default": 128.0, "min": 0.0, "max": 255.0, "decimals": 3 },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_brightness_contrast_gamma_per_vertex",
+      "menuPath": "Color",
+      "name": "Vertex Color Brightness Contrast Gamma",
+      "shortDescription": "Adjust vertex-color brightness, contrast, and gamma.",
+      "longDescriptionMarkdown": "Change the color the vertices of the mesh adjusting brightness, contrast and gamma.",
+      "tags": ["color", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
+      "parameters": [
+        { "id": "brightness", "label": "Brightness", "help": "Sets the amount of brightness that will be added/subtracted to the colors.", "group": "main", "type": "double", "default": 0.0, "min": -255.0, "max": 255.0, "decimals": 3 },
+        { "id": "contrast", "label": "Contrast factor", "help": "Sets the amount of contrast of the mesh.", "group": "main", "type": "double", "default": 0.0, "min": -255.0, "max": 255.0, "decimals": 3 },
+        { "id": "gamma", "label": "Gamma", "help": "Sets the values of the exponent gamma.", "group": "main", "type": "double", "default": 1.0, "min": 0.1, "max": 5.0, "decimals": 3 },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_inverse_per_vertex",
+      "menuPath": "Color",
+      "name": "Vertex Color Invert",
+      "shortDescription": "Invert vertex colors.",
+      "longDescriptionMarkdown": "Inverts the colors of the vertices of the mesh.",
+      "tags": ["color", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
+      "parameters": [
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_level_adjustment_per_vertex",
+      "menuPath": "Color",
+      "name": "Vertex Color Levels Adjustment",
+      "shortDescription": "Remap an input color interval into an output interval.",
+      "longDescriptionMarkdown": "The filter allows adjustment of color levels. It is a custom way to map an interval of color into another one. The user can set the input minimum and maximum levels, gamma and the output minimum and maximum levels (many tools call them respectively input black point, white point, gray point, output black point and white point).",
+      "tags": ["color", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
+      "parameters": [
+        { "id": "gamma", "label": "Gamma", "help": "Gamma correction factor.", "group": "main", "type": "double", "default": 1.0, "min": 0.1, "max": 5.0, "decimals": 3 },
+        { "id": "in_min", "label": "Min input level", "help": "Minimum input level.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 255.0, "decimals": 3 },
+        { "id": "in_max", "label": "Max input level", "help": "Maximum input level.", "group": "main", "type": "double", "default": 255.0, "min": 0.0, "max": 255.0, "decimals": 3 },
+        { "id": "out_min", "label": "Min output level", "help": "Minimum output level.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 255.0, "decimals": 3 },
+        { "id": "out_max", "label": "Max output level", "help": "Maximum output level.", "group": "main", "type": "double", "default": 255.0, "min": 0.0, "max": 255.0, "decimals": 3 },
+        { "id": "rCh", "label": "Red Channel", "help": "Apply to red channel.", "group": "advanced", "type": "bool", "default": true },
+        { "id": "gCh", "label": "Green Channel", "help": "Apply to green channel.", "group": "advanced", "type": "bool", "default": true },
+        { "id": "bCh", "label": "Blue Channel", "help": "Apply to blue channel.", "group": "advanced", "type": "bool", "default": true },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "apply_to_all", "label": "All visible layers", "help": "If true, apply to all visible layers.", "group": "advanced", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_intensity_colourisation_per_vertex",
+      "menuPath": "Color",
+      "name": "Vertex Color Colourisation",
+      "shortDescription": "Blend a chosen color into the existing vertex colors.",
+      "longDescriptionMarkdown": "Allows the application of a color to the mesh. In spite of the Fill operation, the color is blended with the mesh according to a given intensity.",
+      "tags": ["color", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "hue", "label": "Hue", "help": "Changes the hue of the mesh.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 360.0, "decimals": 3 },
+        { "id": "saturation", "label": "Saturation", "help": "Changes the saturation of the mesh.", "group": "main", "type": "double", "default": 100.0, "min": 0.0, "max": 100.0, "decimals": 3 },
+        { "id": "luminance", "label": "Luminance", "help": "Changes the luminance of the mesh.", "group": "main", "type": "double", "default": 50.0, "min": 0.0, "max": 100.0, "decimals": 3 },
+        { "id": "intensity", "label": "Blending", "help": "Sets the blending factor used in adding the new color to the existing one.", "group": "main", "type": "double", "default": 50.0, "min": 0.0, "max": 100.0, "decimals": 3 },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_desaturation_per_vertex",
+      "menuPath": "Color",
+      "name": "Vertex Color Desaturation",
+      "shortDescription": "Convert vertex colors to grayscale using a chosen method.",
+      "longDescriptionMarkdown": "The filter desaturates the colors of the mesh. This provides a simple way to convert a mesh in gray tones. The user can choose the desaturation method to apply; they are based on Lightness, Luminosity and Average.",
+      "tags": ["color", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
+      "parameters": [
+        {
+          "id": "method",
+          "label": "Desaturation method",
+          "help": "Lightness is computed as (Max(r,g,b)+Min(r,g,b))/2; Luminosity as 0.212*r + 0.715*g + 0.072*b; Average as (r+g+b)/3.",
+          "group": "main",
+          "type": "enum",
+          "default": "lightness",
+          "enumOptions": [
+            { "id": "lightness", "label": "Lightness" },
+            { "id": "luminosity", "label": "Luminosity" },
+            { "id": "average", "label": "Average" }
+          ]
+        },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_equalization_per_vertex",
+      "menuPath": "Color",
+      "name": "Equalize Vertex Color",
+      "shortDescription": "Equalize the vertex-color histogram.",
+      "longDescriptionMarkdown": "The filter equalizes the colors histogram. It is a kind of automatic regulation of contrast; the colors histogram is expanded to fit all the range of colors.",
+      "tags": ["color", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
+      "parameters": [
+        { "id": "rCh", "label": "Red Channel", "help": "Select the red channel.", "group": "main", "type": "bool", "default": true },
+        { "id": "gCh", "label": "Green Channel", "help": "Select the green channel.", "group": "main", "type": "bool", "default": true },
+        { "id": "bCh", "label": "Blue Channel", "help": "Select the blue channel. If no channel is selected the filter works on Lightness.", "group": "main", "type": "bool", "default": true },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_white_balance_per_vertex",
+      "menuPath": "Color",
+      "name": "Vertex Color White Balance",
+      "shortDescription": "Apply white balance so a chosen color becomes white.",
+      "longDescriptionMarkdown": "The filter provides a standard white balance transformation. It is done correcting the RGB channels with a factor such that, the brighter color in the mesh, that is supposed to be white, becomes really white.",
+      "tags": ["color", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
+      "parameters": [
+        { "id": "color", "label": "Unbalanced white", "help": "The color that is supposed to be white.", "group": "main", "type": "color", "default": "#ffffff" },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "compute_color_perlin_noise_per_vertex",
+      "menuPath": "Color",
+      "name": "Perlin color",
+      "shortDescription": "Color the mesh with a Perlin-based color field.",
+      "longDescriptionMarkdown": "Paints the mesh using PerlinColor function. The color assigned to vertices depends on their position in the space; it means that near vertices will be painted with similar colors.",
+      "tags": ["color", "vertex", "noise"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        { "id": "color1", "label": "Color 1", "help": "Sets the first color to mix with Perlin Noise function.", "group": "main", "type": "color", "default": "#000000" },
+        { "id": "color2", "label": "Color 2", "help": "Sets the second color to mix with Perlin Noise function.", "group": "main", "type": "color", "default": "#ffffff" },
+        { "id": "freq", "label": "Frequency", "help": "Frequency of the Perlin Noise function, expressed as multiples of mesh bbox.", "group": "main", "type": "double", "default": 10.0, "min": 0.1, "max": 100.0, "decimals": 3 },
+        { "id": "offset", "label": "Offset", "help": "XYZ frequency offset of the noise function.", "group": "main", "type": "point3f", "default": [0.0, 0.0, 0.0] },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_noising_per_vertex",
+      "menuPath": "Color",
+      "name": "Color noise",
+      "shortDescription": "Add random noise bits independently to RGB channels.",
+      "longDescriptionMarkdown": "Adds to the color the requested amount of bits of noise. Bits of noise are added independently for each RGB channel.",
+      "tags": ["color", "vertex", "noise"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
+      "parameters": [
+        { "id": "noiseBits", "label": "Noise bits", "help": "Bits of noise added to each RGB channel.", "group": "main", "type": "int", "default": 1, "min": 1, "max": 8 },
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "compute_color_scattering_per_mesh",
+      "menuPath": "Color",
+      "name": "PerMesh Color Scattering",
+      "shortDescription": "Assign a distinct random color to each visible mesh layer.",
+      "longDescriptionMarkdown": "Assigns a random color to each visible mesh layer in the document. Colors change every time the filter is executed, but are always chosen so that they differ as much as possible.",
+      "tags": ["color", "layer"],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "seed", "label": "Seed", "help": "Random seed used to generate scattered colors. Zero means totally random.", "group": "main", "type": "int", "default": 0, "min": 0, "max": 2147483647 }
+      ],
+      "outputModifies": []
+    },
+    {
+      "id": "apply_scalar_clamping_per_vertex",
+      "menuPath": "Color",
+      "name": "Clamp Vertex Quality",
+      "shortDescription": "Clamp vertex quality to a chosen range or percentile crop.",
+      "longDescriptionMarkdown": "Clamp vertex quality values to a given range according to specific values or to percentiles",
+      "tags": ["quality", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexQuality": true },
+      "parameters": [
+        { "id": "minVal", "label": "Min", "help": "Lower clamp bound.", "group": "main", "type": "double", "default": "@qualityVMin", "decimals": 6 },
+        { "id": "maxVal", "label": "Max", "help": "Upper clamp bound.", "group": "main", "type": "double", "default": "@qualityVMax", "decimals": 6 },
+        { "id": "perc", "label": "Percentile Crop [0..100]", "help": "If not zero this value is used for percentile cropping of the quality values.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 100.0, "decimals": 3 },
+        { "id": "zeroSym", "label": "Zero Symmetric", "help": "If true the min/max range is enlarged to be symmetric around zero.", "group": "advanced", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VQ"]
+    },
+    {
+      "id": "apply_scalar_saturation_per_vertex",
+      "menuPath": "Color",
+      "name": "Saturate Vertex Quality",
+      "shortDescription": "Limit the spatial gradient of vertex quality.",
+      "longDescriptionMarkdown": "Saturate vertex quality, so that for each vertex the gradient of the quality is lower than the given threshold value (in absolute value)\nThe saturation is done in a conservative way (quality is always decreased and never increased)",
+      "tags": ["quality", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexQuality": true },
+      "inputPrepare": ["VF"],
+      "parameters": [
+        { "id": "gradientThr", "label": "Gradient Threshold", "help": "The maximum value admitted for the quality gradient (in absolute value).", "group": "main", "type": "double", "default": 1.0, "min": 0.0, "max": 1000000.0, "decimals": 6 },
+        { "id": "updateColor", "label": "Update ColorMap", "help": "If true the color ramp is computed again.", "group": "advanced", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["VQ", "VC"]
+    },
+    {
+      "id": "compute_color_from_scalar_per_vertex",
+      "menuPath": "Color",
+      "name": "Colorize by vertex Quality",
+      "shortDescription": "Map vertex quality into vertex colors.",
+      "longDescriptionMarkdown": "Color vertices depending on their quality field (manually equalized).",
+      "tags": ["quality", "vertex", "color"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexQuality": true },
+      "parameters": [
+        { "id": "minVal", "label": "Min", "help": "The value mapped to the lower end of the scale.", "group": "main", "type": "double", "default": "@qualityVMin", "decimals": 6 },
+        { "id": "maxVal", "label": "Max", "help": "The value mapped to the upper end of the scale.", "group": "main", "type": "double", "default": "@qualityVMax", "decimals": 6 },
+        { "id": "perc", "label": "Percentile Crop [0..100]", "help": "If not zero this value is used for percentile cropping of the quality values.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 100.0, "decimals": 3 },
+        { "id": "zeroSym", "label": "Zero Symmetric", "help": "If true the min/max range is enlarged to be symmetric around zero.", "group": "advanced", "type": "bool", "default": false },
+        {
+          "id": "colorMap",
+          "label": "Color Map",
+          "help": "The color map to use. RGB is the VCGLib default, other colormaps are sampled from Matplotlib.",
+          "group": "advanced",
+          "type": "enum",
+          "default": "rgb",
+          "enumOptions": [
+            { "id": "rgb", "label": "RGB" },
+            { "id": "viridis", "label": "Viridis" },
+            { "id": "plasma", "label": "Plasma" },
+            { "id": "cividis", "label": "Cividis" },
+            { "id": "turbo", "label": "Turbo" },
+            { "id": "rdpu", "label": "RdPu" }
+          ]
+        }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "compute_color_from_scalar_per_face",
+      "menuPath": "Color",
+      "name": "Colorize by face Quality",
+      "shortDescription": "Map face quality into face colors.",
+      "longDescriptionMarkdown": "Color faces depending on their quality field (manually equalized).",
+      "tags": ["quality", "face", "color"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireFaceQuality": true },
+      "parameters": [
+        { "id": "minVal", "label": "Min", "help": "The value mapped to the lower end of the scale.", "group": "main", "type": "double", "default": "@qualityFMin", "decimals": 6 },
+        { "id": "maxVal", "label": "Max", "help": "The value mapped to the upper end of the scale.", "group": "main", "type": "double", "default": "@qualityFMax", "decimals": 6 },
+        { "id": "perc", "label": "Percentile Crop [0..100]", "help": "If not zero this value is used for percentile cropping of the quality values.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 100.0, "decimals": 3 },
+        { "id": "zeroSym", "label": "Zero Symmetric", "help": "If true the min/max range is enlarged to be symmetric around zero.", "group": "advanced", "type": "bool", "default": false },
+        {
+          "id": "colorMap",
+          "label": "Color Map",
+          "help": "The color map to use. RGB is the VCGLib default, other colormaps are sampled from Matplotlib.",
+          "group": "advanced",
+          "type": "enum",
+          "default": "rgb",
+          "enumOptions": [
+            { "id": "rgb", "label": "RGB" },
+            { "id": "viridis", "label": "Viridis" },
+            { "id": "plasma", "label": "Plasma" },
+            { "id": "cividis", "label": "Cividis" },
+            { "id": "turbo", "label": "Turbo" },
+            { "id": "rdpu", "label": "RdPu" }
+          ]
+        }
+      ],
+      "outputModifies": ["FC"]
+    },
+    {
+      "id": "compute_scalar_by_discrete_curvature_per_vertex",
+      "menuPath": "Color",
+      "name": "Discrete Curvatures",
+      "shortDescription": "Compute discrete curvature and colorize the result.",
+      "longDescriptionMarkdown": "Colorize according to various discrete curvature computed as described in:<br>'<i>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</i>' <br>M. Meyer, M. Desbrun, P. Schroder, A. H. Barr",
+      "tags": ["curvature", "quality", "vertex", "bibliography"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireFaces": true },
+      "inputPrepare": ["FF"],
+      "preRunCleanup": [
+        { "kind": "removeUnreferencedVertices" }
+      ],
+      "parameters": [
+        {
+          "id": "CurvatureType",
+          "label": "Type",
+          "help": "Choose the curvature value that you want transferred onto the scalar Quality.",
+          "group": "main",
+          "type": "enum",
+          "default": "mean",
+          "enumOptions": [
+            { "id": "mean", "label": "Mean Curvature" },
+            { "id": "gaussian", "label": "Gaussian Curvature" },
+            { "id": "rms", "label": "RMS Curvature" },
+            { "id": "abs", "label": "ABS Curvature" }
+          ]
+        }
+      ],
+      "outputModifies": ["VQ", "VC"]
+    },
+    {
+      "id": "compute_scalar_by_aspect_ratio_per_face",
+      "menuPath": "Color",
+      "name": "Per Face Quality according to Triangle shape and aspect ratio",
+      "shortDescription": "Compute per-face quality from triangle shape, texture distortion, or polygonal planarity.",
+      "longDescriptionMarkdown": "Compute a quality and colorize faces depending on triangle shape:<ol><li>area/max side of triangle<li>ratio inradius/circumradius (radii of incircle and circumcircle)<li>Mean ratio of triangle = area/(a*a + b*b + c*c)<li>Area<li>Texture Angle Distortion. Difference between angle in 3D space and texture space<li>Texture Area Distortion. Difference between area in 3D space and texture space<li>Polygonal Planarity (max distance to support plane)<li>Polygonal Planarity (relative distance to support plane)</ol>",
+      "tags": ["quality", "face", "distortion"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        {
+          "id": "Metric",
+          "label": "Metric",
+          "help": "Choose a metric to compute triangle quality.",
+          "group": "main",
+          "type": "enum",
+          "default": "area_max_side",
+          "enumOptions": [
+            { "id": "area_max_side", "label": "area/max side" },
+            { "id": "inradius_circumradius", "label": "inradius/circumradius" },
+            { "id": "mean_ratio", "label": "Mean ratio" },
+            { "id": "area", "label": "Area" },
+            { "id": "texture_angle_distortion", "label": "Texture Angle Distortion" },
+            { "id": "texture_area_distortion", "label": "Texture Area Distortion" },
+            { "id": "polygonal_planarity_max", "label": "Polygonal planarity (max)" },
+            { "id": "polygonal_planarity_relative", "label": "Polygonal planarity (relative)" }
+          ]
+        }
+      ],
+      "outputModifies": ["FQ", "FC"]
+    },
+    {
+      "id": "apply_color_laplacian_smoothing_per_vertex",
+      "menuPath": "Color",
+      "name": "Smooth: Laplacian Vertex Color",
+      "shortDescription": "Laplacian smooth vertex colors.",
+      "longDescriptionMarkdown": "Laplacian Smooth Vertex Color",
+      "tags": ["color", "vertex", "smooth"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
+      "parameters": [
+        { "id": "iteration", "label": "Iteration", "help": "The number of iterations of the smoothing algorithm.", "group": "main", "type": "int", "default": 1, "min": 1, "max": 1000000 }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "apply_color_laplacian_smoothing_per_face",
+      "menuPath": "Color",
+      "name": "Smooth: Laplacian Face Color",
+      "shortDescription": "Laplacian smooth face colors.",
+      "longDescriptionMarkdown": "Laplacian Smooth Face Color",
+      "tags": ["color", "face", "smooth"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireFaceColor": true },
+      "inputPrepare": ["FF"],
+      "parameters": [
+        { "id": "iteration", "label": "Iteration", "help": "The number of iterations of the smoothing algorithm.", "group": "main", "type": "int", "default": 1, "min": 1, "max": 1000000 }
+      ],
+      "outputModifies": ["FC"]
+    },
+    {
+      "id": "compute_color_transfer_vertex_to_face",
+      "menuPath": "Color",
+      "name": "Transfer Color: Vertex to Face",
+      "shortDescription": "Transfer vertex colors to face colors.",
+      "longDescriptionMarkdown": "Vertex to Face color transfer",
+      "tags": ["color", "transfer", "face", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireVertexColor": true },
+      "parameters": [],
+      "outputModifies": ["FC"]
+    },
+    {
+      "id": "compute_color_transfer_mesh_to_face",
+      "menuPath": "Color",
+      "name": "Transfer Color: Mesh to Face",
+      "shortDescription": "Transfer the per-mesh color to face colors.",
+      "longDescriptionMarkdown": "Mesh to Face color transfer",
+      "tags": ["color", "transfer", "face"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "parameters": [
+        { "id": "allVisibleMesh", "label": "Apply to all Meshes", "help": "If true the color mapping is applied to all the visible meshes.", "group": "main", "type": "bool", "default": false }
+      ],
+      "outputModifies": ["FC"]
+    },
+    {
+      "id": "compute_color_transfer_face_to_vertex",
+      "menuPath": "Color",
+      "name": "Transfer Color: Face to Vertex",
+      "shortDescription": "Transfer face colors to vertex colors.",
+      "longDescriptionMarkdown": "Face to Vertex color transfer",
+      "tags": ["color", "transfer", "face", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireFaceColor": true },
+      "parameters": [],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "compute_color_from_texture_per_vertex",
+      "menuPath": "Color",
+      "name": "Transfer Color: Texture to Vertex",
+      "shortDescription": "Sample associated textures into vertex colors.",
+      "longDescriptionMarkdown": "Texture to Vertex color transfer",
+      "tags": ["color", "texture", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requirePerWedgeTexCoords": true,
+        "requireTextures": true
+      },
+      "parameters": [],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "compute_color_random_per_face",
+      "menuPath": "Color",
+      "name": "Random Face Color",
+      "shortDescription": "Assign random colors to faces or faux-connected polygons.",
+      "longDescriptionMarkdown": "Colorize Faces randomly. If internal edges are present they are used. Useful for quads.",
+      "tags": ["color", "face", "random"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "inputPrepare": ["FF"],
+      "parameters": [],
+      "outputModifies": ["FC"]
+    },
+    {
+      "id": "compute_color_by_conntected_component_per_face",
+      "menuPath": "Color",
+      "name": "Random Component Color",
+      "shortDescription": "Assign a random color to each connected component.",
+      "longDescriptionMarkdown": "Colorize each connected component randomly.",
+      "tags": ["color", "face", "random", "components"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true },
+      "inputPrepare": ["FF"],
+      "parameters": [],
+      "outputModifies": ["FC"]
+    },
+    {
+      "id": "compute_scalar_transfer_vertex_to_face",
+      "menuPath": "Color",
+      "name": "Transfer Quality: Vertex to Face",
+      "shortDescription": "Transfer vertex quality to face quality.",
+      "longDescriptionMarkdown": "Vertex to Face quality transfer",
+      "tags": ["quality", "transfer", "vertex", "face"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireVertexQuality": true },
+      "parameters": [],
+      "outputModifies": ["FQ"]
+    },
+    {
+      "id": "compute_scalar_transfer_face_to_vertex",
+      "menuPath": "Color",
+      "name": "Transfer Quality: Face to Vertex",
+      "shortDescription": "Transfer face quality to vertex quality.",
+      "longDescriptionMarkdown": "Face to Vertex quality transfer",
+      "tags": ["quality", "transfer", "face", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireFaceQuality": true },
+      "parameters": [
+        { "id": "areaWeight", "label": "Area Weighted", "help": "If true the vertex quality is computed according to the surface of the involved faces.", "group": "main", "type": "bool", "default": true }
+      ],
+      "outputModifies": ["VQ"]
+    }
+  ]
+}

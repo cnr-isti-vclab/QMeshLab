@@ -50,6 +50,9 @@
 #if QMESH_PLUGIN_FILTER_LAYER_ENABLED
 #include "plugins/filter_layer/layerfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_COLORPROC_ENABLED
+#include "plugins/filter_colorproc/colorprocfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -100,5 +103,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_LAYER_ENABLED
     registerLayerFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_COLORPROC_ENABLED
+    registerColorProcFilterPlugin(pluginManager);
 #endif
 }
