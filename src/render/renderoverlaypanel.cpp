@@ -80,6 +80,14 @@ void applyUniformFormRowHeights(QFormLayout *form)
     }
 }
 
+void setHistogramRowVisible(QLabel *label, QWidget *field, bool visible)
+{
+    if (label)
+        label->setVisible(visible);
+    if (field)
+        field->setVisible(visible);
+}
+
 class PassArrowButton final : public QToolButton
 {
 public:
@@ -746,34 +754,48 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_qualityIsolineCountSpin->setValue(m_globalSettings.qualityIsolineCount);
     m_qualityIsolineCountSpin->setEnabled(m_globalSettings.qualityIsolinesEnabled);
     histogramForm->addRow(tr("Isoline count"), m_qualityIsolineCountSpin);
-    m_qualityHistogramFixedRangeCheck = new QCheckBox(histogramPage);
-    m_qualityHistogramFixedRangeCheck->setChecked(m_globalSettings.qualityHistogramFixedRange);
-    histogramForm->addRow(
-        tr("Fixed range"),
-        makeCenteredFieldContainer(m_qualityHistogramFixedRangeCheck, histogramPage));
-    m_qualityHistogramMinSpin = new QDoubleSpinBox(histogramPage);
-    m_qualityHistogramMinSpin->setRange(-1e12, 1e12);
-    m_qualityHistogramMinSpin->setDecimals(6);
-    m_qualityHistogramMinSpin->setSingleStep(0.1);
-    m_qualityHistogramMinSpin->setValue(m_globalSettings.qualityHistogramMin);
-    histogramForm->addRow(tr("Min"), m_qualityHistogramMinSpin);
-    m_qualityHistogramMaxSpin = new QDoubleSpinBox(histogramPage);
-    m_qualityHistogramMaxSpin->setRange(-1e12, 1e12);
-    m_qualityHistogramMaxSpin->setDecimals(6);
-    m_qualityHistogramMaxSpin->setSingleStep(0.1);
-    m_qualityHistogramMaxSpin->setValue(m_globalSettings.qualityHistogramMax);
-    histogramForm->addRow(tr("Max"), m_qualityHistogramMaxSpin);
-    m_qualityHistogramMinSpin->setEnabled(m_globalSettings.qualityHistogramFixedRange);
-    m_qualityHistogramMaxSpin->setEnabled(m_globalSettings.qualityHistogramFixedRange);
     m_qualityHistogramBinsSpin = new QDoubleSpinBox(histogramPage);
     m_qualityHistogramBinsSpin->setRange(4.0, 512.0);
     m_qualityHistogramBinsSpin->setSingleStep(1.0);
     m_qualityHistogramBinsSpin->setDecimals(0);
     m_qualityHistogramBinsSpin->setValue(m_globalSettings.qualityHistogramBins);
     histogramForm->addRow(tr("Bins"), m_qualityHistogramBinsSpin);
+    m_qualityHistogramFixedRangeCheck = new QCheckBox(histogramPage);
+    m_qualityHistogramFixedRangeCheck->setChecked(m_globalSettings.qualityHistogramFixedRange);
+    histogramForm->addRow(
+        tr("Fixed range"),
+        makeCenteredFieldContainer(m_qualityHistogramFixedRangeCheck, histogramPage));
+    m_qualityHistogramCenterOnZeroCheck = new QCheckBox(histogramPage);
+    m_qualityHistogramCenterOnZeroCheck->setChecked(m_globalSettings.qualityHistogramCenterOnZero);
+    m_qualityHistogramCenterOnZeroLabel = new QLabel(tr("Center on zero"), histogramPage);
+    histogramForm->addRow(
+        m_qualityHistogramCenterOnZeroLabel,
+        makeCenteredFieldContainer(m_qualityHistogramCenterOnZeroCheck, histogramPage));
+    m_qualityHistogramPercentileCropSpin = new QDoubleSpinBox(histogramPage);
+    m_qualityHistogramPercentileCropSpin->setRange(0.0, 0.5);
+    m_qualityHistogramPercentileCropSpin->setDecimals(4);
+    m_qualityHistogramPercentileCropSpin->setSingleStep(0.001);
+    m_qualityHistogramPercentileCropSpin->setValue(m_globalSettings.qualityHistogramPercentileCrop);
+    m_qualityHistogramPercentileCropLabel = new QLabel(tr("Percentile crop"), histogramPage);
+    histogramForm->addRow(m_qualityHistogramPercentileCropLabel, m_qualityHistogramPercentileCropSpin);
+    m_qualityHistogramMinSpin = new QDoubleSpinBox(histogramPage);
+    m_qualityHistogramMinSpin->setRange(-1e12, 1e12);
+    m_qualityHistogramMinSpin->setDecimals(6);
+    m_qualityHistogramMinSpin->setSingleStep(0.1);
+    m_qualityHistogramMinSpin->setValue(m_globalSettings.qualityHistogramMin);
+    m_qualityHistogramMinLabel = new QLabel(tr("Min"), histogramPage);
+    histogramForm->addRow(m_qualityHistogramMinLabel, m_qualityHistogramMinSpin);
+    m_qualityHistogramMaxSpin = new QDoubleSpinBox(histogramPage);
+    m_qualityHistogramMaxSpin->setRange(-1e12, 1e12);
+    m_qualityHistogramMaxSpin->setDecimals(6);
+    m_qualityHistogramMaxSpin->setSingleStep(0.1);
+    m_qualityHistogramMaxSpin->setValue(m_globalSettings.qualityHistogramMax);
+    m_qualityHistogramMaxLabel = new QLabel(tr("Max"), histogramPage);
+    histogramForm->addRow(m_qualityHistogramMaxLabel, m_qualityHistogramMaxSpin);
     applyUniformFormRowHeights(histogramForm);
     histogramLayout->addLayout(histogramForm);
     m_settingsStack->addWidget(histogramPage);
+    syncQualityHistogramUiState();
 
     // UV fill page (index 10): shown instead of the regular fill page when in UV mode.
     auto *uvFillPage = new QWidget(m_settingsStack);
@@ -1265,10 +1287,28 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             if (m_globalSettings.qualityHistogramFixedRange == checked)
                 return;
             m_globalSettings.qualityHistogramFixedRange = checked;
-            if (m_qualityHistogramMinSpin)
-                m_qualityHistogramMinSpin->setEnabled(checked);
-            if (m_qualityHistogramMaxSpin)
-                m_qualityHistogramMaxSpin->setEnabled(checked);
+            syncQualityHistogramUiState();
+            emit globalSettingsChanged(m_globalSettings);
+        });
+    connect(
+        m_qualityHistogramCenterOnZeroCheck,
+        &QCheckBox::toggled,
+        this,
+        [this](bool checked) {
+            if (m_globalSettings.qualityHistogramCenterOnZero == checked)
+                return;
+            m_globalSettings.qualityHistogramCenterOnZero = checked;
+            emit globalSettingsChanged(m_globalSettings);
+        });
+    connect(
+        m_qualityHistogramPercentileCropSpin,
+        &QDoubleSpinBox::valueChanged,
+        this,
+        [this](double value) {
+            const float crop = std::clamp(static_cast<float>(value), 0.0f, 0.5f);
+            if (m_globalSettings.qualityHistogramPercentileCrop == crop)
+                return;
+            m_globalSettings.qualityHistogramPercentileCrop = crop;
             emit globalSettingsChanged(m_globalSettings);
         });
     connect(
@@ -1520,15 +1560,21 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_qualityHistogramFixedRangeCheck);
         m_qualityHistogramFixedRangeCheck->setChecked(m_globalSettings.qualityHistogramFixedRange);
     }
+    if (m_qualityHistogramCenterOnZeroCheck) {
+        QSignalBlocker blocker(m_qualityHistogramCenterOnZeroCheck);
+        m_qualityHistogramCenterOnZeroCheck->setChecked(m_globalSettings.qualityHistogramCenterOnZero);
+    }
+    if (m_qualityHistogramPercentileCropSpin) {
+        QSignalBlocker blocker(m_qualityHistogramPercentileCropSpin);
+        m_qualityHistogramPercentileCropSpin->setValue(m_globalSettings.qualityHistogramPercentileCrop);
+    }
     if (m_qualityHistogramMinSpin) {
         QSignalBlocker blocker(m_qualityHistogramMinSpin);
         m_qualityHistogramMinSpin->setValue(m_globalSettings.qualityHistogramMin);
-        m_qualityHistogramMinSpin->setEnabled(m_globalSettings.qualityHistogramFixedRange);
     }
     if (m_qualityHistogramMaxSpin) {
         QSignalBlocker blocker(m_qualityHistogramMaxSpin);
         m_qualityHistogramMaxSpin->setValue(m_globalSettings.qualityHistogramMax);
-        m_qualityHistogramMaxSpin->setEnabled(m_globalSettings.qualityHistogramFixedRange);
     }
     if (m_qualityHistogramSourceCombo) {
         QSignalBlocker blocker(m_qualityHistogramSourceCombo);
@@ -1560,6 +1606,7 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_qualityHistogramInvertCheck);
         m_qualityHistogramInvertCheck->setChecked(m_globalSettings.qualityHistogramInvertColorMap);
     }
+    syncQualityHistogramUiState();
     if (m_settingsContainer)
         m_settingsContainer->setVisible(m_globalSettings.settingsPanelVisible);
     if (m_settingsStack)
@@ -2099,6 +2146,22 @@ void RenderOverlayPanel::updateColorButtonStyle(QPushButton *button, const QColo
         "QPushButton:hover { border-color: rgba(36,132,210,220); }")
             .arg(color.name())
             .arg(kColorButtonSize));
+}
+
+void RenderOverlayPanel::syncQualityHistogramUiState()
+{
+    const bool fixedRange = m_globalSettings.qualityHistogramFixedRange;
+
+    setHistogramRowVisible(
+        m_qualityHistogramCenterOnZeroLabel,
+        m_qualityHistogramCenterOnZeroCheck ? m_qualityHistogramCenterOnZeroCheck->parentWidget() : nullptr,
+        !fixedRange);
+    setHistogramRowVisible(
+        m_qualityHistogramPercentileCropLabel,
+        m_qualityHistogramPercentileCropSpin,
+        !fixedRange);
+    setHistogramRowVisible(m_qualityHistogramMinLabel, m_qualityHistogramMinSpin, fixedRange);
+    setHistogramRowVisible(m_qualityHistogramMaxLabel, m_qualityHistogramMaxSpin, fixedRange);
 }
 
 void RenderOverlayPanel::syncRenderPassUiState()

@@ -7,6 +7,7 @@ class QPushButton;
 class QDoubleSpinBox;
 class QComboBox;
 class QCheckBox;
+class QLabel;
 class QStackedWidget;
 class QToolButton;
 class QFormLayout;
@@ -48,6 +49,7 @@ private:
     void syncViewerSettingsModeUi();
     void syncRenderPassUiState();
     void syncFillPbrUiState();
+    void syncQualityHistogramUiState();
     void rebuildFillPbrSourceCombos();
     void rebuildFillPbrSourceCombo(
         QComboBox *combo,
@@ -99,7 +101,13 @@ private:
     QDoubleSpinBox *m_qualityIsolineCountSpin = nullptr;
     QCheckBox *m_qualityHistogramFixedRangeCheck = nullptr;
     QDoubleSpinBox *m_qualityHistogramBinsSpin = nullptr;
+    QLabel *m_qualityHistogramCenterOnZeroLabel = nullptr;
+    QCheckBox *m_qualityHistogramCenterOnZeroCheck = nullptr;
+    QLabel *m_qualityHistogramPercentileCropLabel = nullptr;
+    QDoubleSpinBox *m_qualityHistogramPercentileCropSpin = nullptr;
+    QLabel *m_qualityHistogramMinLabel = nullptr;
     QDoubleSpinBox *m_qualityHistogramMinSpin = nullptr;
+    QLabel *m_qualityHistogramMaxLabel = nullptr;
     QDoubleSpinBox *m_qualityHistogramMaxSpin = nullptr;
     QDoubleSpinBox *m_pointSizeSpin = nullptr;
     QDoubleSpinBox *m_edgeSizeSpin = nullptr;

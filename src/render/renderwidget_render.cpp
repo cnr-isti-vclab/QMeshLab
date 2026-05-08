@@ -39,6 +39,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     }
 
     advanceCenterAnimation();
+    emitCameraStateChangedIfNeeded();
     syncPerMeshRenderModesWithDocument();
 
     const bool drawTrackballGizmo =

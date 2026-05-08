@@ -52,6 +52,8 @@ public:
 
     ViewState captureViewState() const;
     void restoreViewState(const ViewState &vs, bool restoreCamera = true);
+    ViewTrackball::State trackballState() const { return m_trackball.state(); }
+    void applySynchronizedTrackballState(const ViewTrackball::State &state);
     QVector3D trackballCenter() const { return m_trackball.center(); }
     QVector3D cameraEyePosition() const { return m_trackball.cameraEyePosition(); }
     QVector3D cameraViewDirection() const { return m_trackball.cameraViewDirection(); }
@@ -60,6 +62,7 @@ signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
     void trackballCenterPicked(const QVector3D &worldPos);
     void viewActivated(RenderWidget *view);
+    void cameraStateChanged(RenderWidget *view);
 
 protected:
     void initialize(QRhiCommandBuffer *cb) override;
@@ -78,6 +81,7 @@ private:
     void createOverlayButtons();
     void layoutOverlayButtons();
     void showInteractionStatusOverlay(const QString &text);
+    void emitCameraStateChangedIfNeeded();
     bool computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const;
     void updateBoundingBoxCornersOverlay();
     void updateBoundingBoxCornersOverlayPlacement(
@@ -310,6 +314,8 @@ private:
         bool vertexBased = true;
         QualityHistogramSource sourceSelection = QualityHistogramSource::Auto;
         bool fixedRange = false;
+        bool centerOnZero = false;
+        float percentileCrop = 0.0f;
         float fixedMin = 0.0f;
         float fixedMax = 1.0f;
         QString colorMapId = QStringLiteral("rainbow");
@@ -324,6 +330,8 @@ private:
     };
     QualityHistogramCache m_qualityHistogram;
     bool m_helpOverlayVisible = false;
+    bool m_lastBroadcastTrackballStateValid = false;
+    ViewTrackball::State m_lastBroadcastTrackballState;
     QElapsedTimer m_frameTimer;
     bool m_currentMaskFromPoints = false;
     ViewTrackball m_trackball;

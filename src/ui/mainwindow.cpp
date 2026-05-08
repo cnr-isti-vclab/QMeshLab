@@ -898,6 +898,9 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
     connect(view, &RenderWidget::viewActivated, this, [this](RenderWidget *activatedView) {
         setCurrentRenderWidget(activatedView);
     });
+    connect(view, &RenderWidget::cameraStateChanged, this, [this](RenderWidget *sourceView) {
+        syncCameraViewsFrom(sourceView);
+    });
     connect(view, &RenderWidget::frameRendered, this,
             [this, view](float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid) {
         if (view != currentRenderWidget())
@@ -922,6 +925,11 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
         QAction *sceneModeAction = menu.addAction(tr("3D Scene Mode"));
         QAction *uvModeAction = menu.addAction(tr("Parametrization (UV) Mode"));
         menu.addSeparator();
+        QAction *syncCameraAction = menu.addAction(tr("Synchronize Camera"));
+        syncCameraAction->setCheckable(true);
+        syncCameraAction->setChecked(m_cameraSyncEnabled);
+        syncCameraAction->setEnabled(m_renderWidgets.size() > 1);
+        menu.addSeparator();
         QAction *splitHAction =
             menu.addAction(QIcon(QStringLiteral(":/img/splitV.png")), tr("Split Horizontally"));
         QAction *splitVAction =
@@ -937,6 +945,10 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
             setCurrentViewSceneMode();
         } else if (chosen == uvModeAction) {
             setCurrentViewParametrizationMode();
+        } else if (chosen == syncCameraAction) {
+            m_cameraSyncEnabled = syncCameraAction->isChecked();
+            if (m_cameraSyncEnabled)
+                syncCameraViewsFrom(view);
         } else if (chosen == splitHAction) {
             splitViewHorizontally();
         } else if (chosen == splitVAction) {
@@ -982,6 +994,27 @@ void MainWindow::syncDocumentVisibilityFromCurrentView()
     for (int i = 0; i < m_doc->meshCount(); ++i)
         m_doc->setMeshVisible(i, view->meshVisible(i));
     m_syncingVisibilityProxy = false;
+}
+
+void MainWindow::syncCameraViewsFrom(RenderWidget *sourceView)
+{
+    if (!m_cameraSyncEnabled || m_syncingCameraViews || !sourceView)
+        return;
+    if (m_renderWidgets.size() < 2)
+        return;
+    if (sourceView->viewMode() != RenderWidget::ViewMode::Scene3D)
+        return;
+
+    const ViewTrackball::State sourceState = sourceView->trackballState();
+    m_syncingCameraViews = true;
+    for (RenderWidget *targetView : std::as_const(m_renderWidgets)) {
+        if (!targetView || targetView == sourceView)
+            continue;
+        if (targetView->viewMode() != RenderWidget::ViewMode::Scene3D)
+            continue;
+        targetView->applySynchronizedTrackballState(sourceState);
+    }
+    m_syncingCameraViews = false;
 }
 
 void MainWindow::splitCurrentView(Qt::Orientation orientation)

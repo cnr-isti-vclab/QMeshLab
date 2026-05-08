@@ -236,6 +236,8 @@ struct GlobalRenderSettings {
     int qualityHistogramBins = 32;
     QualityHistogramSource qualityHistogramSource = QualityHistogramSource::Auto;
     bool qualityHistogramFixedRange = false;
+    bool qualityHistogramCenterOnZero = false;
+    float qualityHistogramPercentileCrop = 0.0f;
     float qualityHistogramMin = 0.0f;
     float qualityHistogramMax = 1.0f;
     QString qualityHistogramColorMapId = QStringLiteral("rainbow");
@@ -266,6 +268,8 @@ struct GlobalRenderSettings {
             && qualityHistogramBins == o.qualityHistogramBins
             && qualityHistogramSource == o.qualityHistogramSource
             && qualityHistogramFixedRange == o.qualityHistogramFixedRange
+            && qualityHistogramCenterOnZero == o.qualityHistogramCenterOnZero
+            && qualityHistogramPercentileCrop == o.qualityHistogramPercentileCrop
             && qualityHistogramMin == o.qualityHistogramMin
             && qualityHistogramMax == o.qualityHistogramMax
             && qualityHistogramColorMapId == o.qualityHistogramColorMapId

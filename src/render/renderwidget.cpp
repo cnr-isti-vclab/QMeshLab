@@ -23,6 +23,31 @@
 
 namespace {
 
+bool fuzzyStateEqual(const ViewTrackball::State &a, const ViewTrackball::State &b)
+{
+    auto fuzzy = [](float x, float y, float eps = 1e-6f) {
+        return std::abs(x - y) <= eps;
+    };
+    auto fuzzyVec = [&](const QVector3D &u, const QVector3D &v) {
+        return fuzzy(u.x(), v.x()) && fuzzy(u.y(), v.y()) && fuzzy(u.z(), v.z());
+    };
+    auto fuzzyQuat = [&](const QQuaternion &q1, const QQuaternion &q2) {
+        return fuzzy(q1.x(), q2.x())
+            && fuzzy(q1.y(), q2.y())
+            && fuzzy(q1.z(), q2.z())
+            && fuzzy(q1.scalar(), q2.scalar());
+    };
+    return fuzzyVec(a.center, b.center)
+        && fuzzyQuat(a.rotation, b.rotation)
+        && fuzzy(a.distance, b.distance)
+        && fuzzy(a.radius, b.radius)
+        && fuzzy(a.fovYDeg, b.fovYDeg)
+        && fuzzy(a.nearClipRatio, b.nearClipRatio)
+        && fuzzy(a.gizmoBaseRadius, b.gizmoBaseRadius)
+        && fuzzy(a.gizmoReferenceDistance, b.gizmoReferenceDistance)
+        && fuzzy(a.gizmoReferenceFovYDeg, b.gizmoReferenceFovYDeg);
+}
+
 QString quickHelpOverlayHtml()
 {
     static QString cached;
@@ -280,6 +305,8 @@ void RenderWidget::setRenderSettings(const RenderSettings &settings)
     if (prev.qualityHistogramBins != m_renderSettings.qualityHistogramBins
         || prev.qualityHistogramSource != m_renderSettings.qualityHistogramSource
         || prev.qualityHistogramFixedRange != m_renderSettings.qualityHistogramFixedRange
+        || prev.qualityHistogramCenterOnZero != m_renderSettings.qualityHistogramCenterOnZero
+        || prev.qualityHistogramPercentileCrop != m_renderSettings.qualityHistogramPercentileCrop
         || prev.qualityHistogramMin != m_renderSettings.qualityHistogramMin
         || prev.qualityHistogramMax != m_renderSettings.qualityHistogramMax
         || prev.qualityHistogramColorMapId != m_renderSettings.qualityHistogramColorMapId
@@ -352,10 +379,26 @@ ViewState RenderWidget::captureViewState() const
     return vs;
 }
 
+void RenderWidget::applySynchronizedTrackballState(const ViewTrackball::State &state)
+{
+    if (m_viewMode != ViewMode::Scene3D)
+        return;
+    cancelCenterAnimation();
+    m_trackball.setState(state);
+    m_reframeCameraRequested = false;
+    m_resetTrackballRequested = false;
+    m_lastBroadcastTrackballState = state;
+    m_lastBroadcastTrackballStateValid = true;
+    updateBoundingBoxCornersOverlay();
+    update();
+}
+
 void RenderWidget::restoreViewState(const ViewState &vs, bool restoreCamera)
 {
     if (restoreCamera) {
         m_trackball.setState(vs.trackball);
+        m_lastBroadcastTrackballState = vs.trackball;
+        m_lastBroadcastTrackballStateValid = true;
         // Prevent the pending reframe from overriding the restored camera.
         m_reframeCameraRequested = false;
         m_resetTrackballRequested = false;
@@ -498,6 +541,8 @@ bool RenderWidget::applyCameraStateJson(const QString &jsonText, QString *errorM
     }
 
     m_trackball.setState(state);
+    m_lastBroadcastTrackballState = state;
+    m_lastBroadcastTrackballStateValid = true;
     cancelCenterAnimation();
     m_reframeCameraRequested = false;
     m_resetTrackballRequested = false;
@@ -710,6 +755,8 @@ void RenderWidget::createOverlayButtons()
         if (prev.qualityHistogramBins != m_renderSettings.qualityHistogramBins
             || prev.qualityHistogramSource != m_renderSettings.qualityHistogramSource
             || prev.qualityHistogramFixedRange != m_renderSettings.qualityHistogramFixedRange
+            || prev.qualityHistogramCenterOnZero != m_renderSettings.qualityHistogramCenterOnZero
+            || prev.qualityHistogramPercentileCrop != m_renderSettings.qualityHistogramPercentileCrop
             || prev.qualityHistogramMin != m_renderSettings.qualityHistogramMin
             || prev.qualityHistogramMax != m_renderSettings.qualityHistogramMax
             || prev.qualityHistogramColorMapId != m_renderSettings.qualityHistogramColorMapId
@@ -796,6 +843,20 @@ void RenderWidget::setHelpOverlayVisible(bool visible)
     }
     layoutOverlayButtons();
     update();
+}
+
+void RenderWidget::emitCameraStateChangedIfNeeded()
+{
+    if (m_viewMode != ViewMode::Scene3D)
+        return;
+    const ViewTrackball::State current = m_trackball.state();
+    if (m_lastBroadcastTrackballStateValid
+        && fuzzyStateEqual(current, m_lastBroadcastTrackballState)) {
+        return;
+    }
+    m_lastBroadcastTrackballState = current;
+    m_lastBroadcastTrackballStateValid = true;
+    emit cameraStateChanged(this);
 }
 
 void RenderWidget::showInteractionStatusOverlay(const QString &text)
@@ -1098,6 +1159,9 @@ void RenderWidget::updateQualityHistogramOverlay()
     }
     const int bins = std::clamp(m_renderSettings.qualityHistogramBins, 4, 512);
     const bool fixedRange = m_renderSettings.qualityHistogramFixedRange;
+    const bool centerOnZero = m_renderSettings.qualityHistogramCenterOnZero;
+    const float percentileCrop =
+        std::clamp(m_renderSettings.qualityHistogramPercentileCrop, 0.0f, 0.5f);
     float fixedMin = m_renderSettings.qualityHistogramMin;
     float fixedMax = m_renderSettings.qualityHistogramMax;
     if (fixedMin > fixedMax)
@@ -1166,6 +1230,8 @@ void RenderWidget::updateQualityHistogramOverlay()
         && m_qualityHistogram.bins == bins
         && m_qualityHistogram.sourceSelection == sourceSelection
         && m_qualityHistogram.fixedRange == fixedRange
+        && m_qualityHistogram.centerOnZero == centerOnZero
+        && m_qualityHistogram.percentileCrop == percentileCrop
         && m_qualityHistogram.fixedMin == fixedMin
         && m_qualityHistogram.fixedMax == fixedMax
         && m_qualityHistogram.colorMapId == colorMapId
@@ -1179,6 +1245,8 @@ void RenderWidget::updateQualityHistogramOverlay()
         m_qualityHistogram.bins = bins;
         m_qualityHistogram.sourceSelection = sourceSelection;
         m_qualityHistogram.fixedRange = fixedRange;
+        m_qualityHistogram.centerOnZero = centerOnZero;
+        m_qualityHistogram.percentileCrop = percentileCrop;
         m_qualityHistogram.fixedMin = fixedMin;
         m_qualityHistogram.fixedMax = fixedMax;
         m_qualityHistogram.colorMapId = colorMapId;
@@ -1223,8 +1291,32 @@ void RenderWidget::updateQualityHistogramOverlay()
 
         if (!values.empty()) {
             m_qualityHistogram.sampleCount = int(values.size());
-            const float histMin = fixedRange ? fixedMin : minQ;
-            const float histMax = fixedRange ? fixedMax : maxQ;
+            float histMin = minQ;
+            float histMax = maxQ;
+            if (fixedRange) {
+                histMin = fixedMin;
+                histMax = fixedMax;
+            } else {
+                if (percentileCrop > 0.0f && values.size() > 1) {
+                    std::sort(values.begin(), values.end());
+                    const int lastIndex = int(values.size()) - 1;
+                    const int loIndex = std::clamp(
+                        int(std::floor(percentileCrop * float(lastIndex))),
+                        0,
+                        lastIndex);
+                    const int hiIndex = std::clamp(
+                        int(std::ceil((1.0f - percentileCrop) * float(lastIndex))),
+                        0,
+                        lastIndex);
+                    histMin = values[size_t(std::min(loIndex, hiIndex))];
+                    histMax = values[size_t(std::max(loIndex, hiIndex))];
+                }
+                if (centerOnZero) {
+                    const float absMax = std::max(std::abs(histMin), std::abs(histMax));
+                    histMin = -absMax;
+                    histMax = absMax;
+                }
+            }
             m_qualityHistogram.minQ = histMin;
             m_qualityHistogram.maxQ = histMax;
             const float den = histMax - histMin;

@@ -74,6 +74,7 @@ private:
     void sanitizeRecentMeshes();
     void refreshRecentMeshesMenu();
     void openRecentMeshByIndex(int index);
+    void syncCameraViewsFrom(RenderWidget *sourceView);
     void refreshFiltersMenu();
     void executeFilter(
         const QString &filterKey,
@@ -92,6 +93,8 @@ private:
     QSplitter *m_viewSplitter = nullptr;
     QList<RenderWidget *> m_renderWidgets;
     RenderWidget *m_currentRenderWidget = nullptr;
+    bool m_cameraSyncEnabled = false;
+    bool m_syncingCameraViews = false;
     bool m_syncingVisibilityProxy = false;
     LayerWidget *m_layerWidget;
     MeshFilterPanel *m_filterPanel = nullptr;
