@@ -21,6 +21,7 @@
 class Document;
 class RenderOverlayPanel;
 class QLabel;
+class QTimer;
 
 class RenderWidget : public QRhiWidget
 {
@@ -45,6 +46,9 @@ public:
     std::vector<bool> meshVisibilityState() const { return m_meshVisibility; }
     void setMeshVisibilityState(const std::vector<bool> &visibility);
     void copyPerMeshRenderModesFrom(const RenderWidget *other);
+    bool helpOverlayVisible() const { return m_helpOverlayVisible; }
+    void setHelpOverlayVisible(bool visible);
+    void toggleHelpOverlayVisible() { setHelpOverlayVisible(!m_helpOverlayVisible); }
 
     ViewState captureViewState() const;
     void restoreViewState(const ViewState &vs, bool restoreCamera = true);
@@ -73,6 +77,7 @@ private:
 
     void createOverlayButtons();
     void layoutOverlayButtons();
+    void showInteractionStatusOverlay(const QString &text);
     bool computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const;
     void updateBoundingBoxCornersOverlay();
     void updateBoundingBoxCornersOverlayPlacement(
@@ -292,6 +297,9 @@ private:
     QLabel *m_bboxDimYOverlayLabel = nullptr;
     QLabel *m_bboxDimZOverlayLabel = nullptr;
     QLabel *m_qualityHistogramOverlayLabel = nullptr;
+    QLabel *m_helpOverlayLabel = nullptr;
+    QLabel *m_interactionStatusOverlayLabel = nullptr;
+    QTimer *m_interactionStatusOverlayTimer = nullptr;
     std::array<QLabel *, 11> m_uvScaleXTickLabels {};
     std::array<QLabel *, 11> m_uvScaleYTickLabels {};
     QVector3D m_bboxOverlayMinCorner = QVector3D();
@@ -315,6 +323,7 @@ private:
         std::vector<int> counts;
     };
     QualityHistogramCache m_qualityHistogram;
+    bool m_helpOverlayVisible = false;
     QElapsedTimer m_frameTimer;
     bool m_currentMaskFromPoints = false;
     ViewTrackball m_trackball;

@@ -12,6 +12,9 @@ namespace {
 constexpr float kDefaultTrackballFovYDeg = 45.0f;
 constexpr float kMinTrackballFovYDeg = 10.0f;
 constexpr float kMaxTrackballFovYDeg = 120.0f;
+constexpr float kDefaultNearClipRatio = 1.0f / 300.0f;
+constexpr float kMinNearClipRatio = 1e-5f;
+constexpr float kMaxNearClipRatio = 2.0f;
 constexpr float kTrackballHyperbolaCutAngleDeg = 45.0f;
 const QQuaternion kIdentityRotation;
 QQuaternion defaultTrackballRotation()
@@ -33,6 +36,7 @@ ViewTrackball::State ViewTrackball::state() const
     s.distance = m_distance;
     s.radius = m_radius;
     s.fovYDeg = m_fovYDeg;
+    s.nearClipRatio = m_nearClipRatio;
     s.gizmoBaseRadius = m_gizmoBaseRadius;
     s.gizmoReferenceDistance = m_gizmoReferenceDistance;
     s.gizmoReferenceFovYDeg = m_gizmoReferenceFovYDeg;
@@ -45,6 +49,7 @@ void ViewTrackball::setState(const State &state)
     m_radius = qMax(1e-4f, state.radius);
     m_distance = qMax(0.01f * m_radius, state.distance);
     m_fovYDeg = std::clamp(state.fovYDeg, kMinTrackballFovYDeg, kMaxTrackballFovYDeg);
+    m_nearClipRatio = std::clamp(state.nearClipRatio, kMinNearClipRatio, kMaxNearClipRatio);
 
     const float rotLen2 = state.rotation.lengthSquared();
     if (rotLen2 > 1e-12f)
@@ -77,6 +82,7 @@ void ViewTrackball::setFrame(const QVector3D &center, float radius, float distan
 void ViewTrackball::resetToFrame(const QVector3D &center, float radius, float distance)
 {
     m_fovYDeg = kDefaultTrackballFovYDeg;
+    m_nearClipRatio = kDefaultNearClipRatio;
     setFrame(center, radius, distance);
     m_rotation = defaultTrackballRotation();
     m_navigationMode = NavigationMode::None;
@@ -108,6 +114,13 @@ float ViewTrackball::gizmoWorldRadius() const
     const float tanHalfFovRef = qMax(1e-6f, std::tan(0.5f * refFovRad));
     const float scale = (m_distance / refDist) * (tanHalfFov / tanHalfFovRef);
     return qMax(1e-4f, m_gizmoBaseRadius * scale);
+}
+
+float ViewTrackball::nearClipPlaneDistance() const
+{
+    const float r = qMax(1e-4f, m_radius);
+    const float dist = qMax(1e-4f, m_distance);
+    return std::clamp(dist * m_nearClipRatio, 1e-5f * r, 1000.0f * r);
 }
 
 void ViewTrackball::mousePress(const QMouseEvent *e, const QSize &viewportSize)
@@ -247,8 +260,13 @@ bool ViewTrackball::wheel(const QWheelEvent *e)
     if (qFuzzyIsNull(steps))
         return false;
 
+    const bool nearClipMode = (e->modifiers() & Qt::ControlModifier)
+        && !(e->modifiers() & Qt::ShiftModifier);
     const bool fovMode = (e->modifiers() & Qt::ShiftModifier);
-    if (fovMode) {
+    if (nearClipMode) {
+        m_nearClipRatio =
+            std::clamp(m_nearClipRatio * std::pow(1.1f, steps), kMinNearClipRatio, kMaxNearClipRatio);
+    } else if (fovMode) {
         const float oldFovRad = qDegreesToRadians(m_fovYDeg);
         const float oldTanHalfFov = qMax(1e-6f, std::tan(0.5f * oldFovRad));
         const float constantScreenScale = m_distance * oldTanHalfFov;
@@ -302,8 +320,10 @@ QVector3D ViewTrackball::cameraUp() const
 QMatrix4x4 ViewTrackball::projectionMatrix(float aspect) const
 {
     const float r = qMax(1e-4f, m_radius);
+    const float nearPlane = nearClipPlaneDistance();
+    const float farPlane = qMax(nearPlane + 0.01f * r, 100.0f * r);
     QMatrix4x4 proj;
-    proj.perspective(m_fovYDeg, aspect, 0.01f * r, 100.0f * r);
+    proj.perspective(m_fovYDeg, aspect, nearPlane, farPlane);
     return proj;
 }
 

@@ -190,6 +190,12 @@ qt_add_resources(QMeshLab "icons"
         img/layer_eye_close.png
 )
 
+qt_add_resources(QMeshLab "help"
+    PREFIX "/"
+    FILES
+        resources/quick_help_overlay.html
+)
+
 enable_testing()
 
 qt_add_executable(QMeshLabTests

@@ -3,6 +3,7 @@
 #include "document.h"
 #include "renderoverlaypanel.h"
 #include <wrap/io_trimesh/io_mask.h>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -12,6 +13,7 @@
 #include <QPixmap>
 #include <QMouseEvent>
 #include <QResizeEvent>
+#include <QTimer>
 #include <QWheelEvent>
 #include <QVector3D>
 #include <QVector4D>
@@ -20,6 +22,27 @@
 #include <limits>
 
 namespace {
+
+QString quickHelpOverlayHtml()
+{
+    static QString cached;
+    if (!cached.isEmpty())
+        return cached;
+
+    QFile file(QStringLiteral(":/resources/quick_help_overlay.html"));
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+        cached = QString::fromUtf8(file.readAll());
+
+    if (cached.isEmpty()) {
+        cached = QStringLiteral(
+            "<div style='font-size:11px; line-height:1.35;'>"
+            "<div style='font-size:14px; font-weight:600; margin-bottom:6px;'>Quick Help</div>"
+            "<div>Quick help resource could not be loaded.</div>"
+            "</div>");
+    }
+
+    return cached;
+}
 
 QJsonArray vec3ToJsonArray(const QVector3D &v)
 {
@@ -368,6 +391,7 @@ QString RenderWidget::cameraStateJson() const
     trackball.insert(QStringLiteral("distance"), state.distance);
     trackball.insert(QStringLiteral("radius"), state.radius);
     trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
+    trackball.insert(QStringLiteral("near_clip_ratio"), state.nearClipRatio);
     trackball.insert(QStringLiteral("gizmo_base_radius"), state.gizmoBaseRadius);
     trackball.insert(
         QStringLiteral("gizmo_reference_distance"),
@@ -434,6 +458,11 @@ bool RenderWidget::applyCameraStateJson(const QString &jsonText, QString *errorM
         return fail(tr("Invalid camera JSON: 'radius' must be a number."));
     if (!parseFloatValue(trackballObj.value(QStringLiteral("fov_y_degrees")), state.fovYDeg)) {
         return fail(tr("Invalid camera JSON: 'fov_y_degrees' must be a number."));
+    }
+    if (trackballObj.contains(QStringLiteral("near_clip_ratio"))) {
+        if (!parseFloatValue(trackballObj.value(QStringLiteral("near_clip_ratio")), state.nearClipRatio)) {
+            return fail(tr("Invalid camera JSON: 'near_clip_ratio' must be a number."));
+        }
     }
 
     if (trackballObj.contains(QStringLiteral("gizmo_base_radius"))) {
@@ -607,6 +636,40 @@ void RenderWidget::createOverlayButtons()
         "  border-radius: 4px;"
         "  padding: 2px;"
         "}"));
+    m_helpOverlayLabel = new QLabel(this);
+    m_helpOverlayLabel->setVisible(false);
+    m_helpOverlayLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_helpOverlayLabel->setTextFormat(Qt::RichText);
+    m_helpOverlayLabel->setTextInteractionFlags(Qt::NoTextInteraction);
+    m_helpOverlayLabel->setWordWrap(true);
+    m_helpOverlayLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    m_helpOverlayLabel->setStyleSheet(QStringLiteral(
+        "QLabel {"
+        "  color: rgba(245,245,248,245);"
+        "  background: rgba(18,18,22,178);"
+        "  border: 1px solid rgba(96,96,108,185);"
+        "  border-radius: 8px;"
+        "  padding: 10px 12px;"
+        "}"));
+    m_helpOverlayLabel->setText(quickHelpOverlayHtml());
+    m_interactionStatusOverlayLabel = new QLabel(this);
+    m_interactionStatusOverlayLabel->setVisible(false);
+    m_interactionStatusOverlayLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_interactionStatusOverlayLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+    m_interactionStatusOverlayLabel->setStyleSheet(QStringLiteral(
+        "QLabel {"
+        "  color: rgba(246,246,250,248);"
+        "  background: rgba(20,20,24,188);"
+        "  border: 1px solid rgba(110,110,122,190);"
+        "  border-radius: 6px;"
+        "  padding: 5px 10px;"
+        "}"));
+    m_interactionStatusOverlayTimer = new QTimer(this);
+    m_interactionStatusOverlayTimer->setSingleShot(true);
+    connect(m_interactionStatusOverlayTimer, &QTimer::timeout, this, [this]() {
+        if (m_interactionStatusOverlayLabel)
+            m_interactionStatusOverlayLabel->hide();
+    });
     for (int i = 0; i <= 10; ++i) {
         auto *xLabel = new QLabel(this);
         xLabel->setVisible(false);
@@ -699,6 +762,51 @@ void RenderWidget::layoutOverlayButtons()
             m_qualityHistogramOverlayLabel->raise();
         }
     }
+
+    if (m_helpOverlayLabel && m_helpOverlayVisible) {
+        const int helpWidth = std::clamp(width() - 2 * kOverlayMargin, 260, 460);
+        m_helpOverlayLabel->setFixedWidth(helpWidth);
+        m_helpOverlayLabel->adjustSize();
+        const int x = (width() - m_helpOverlayLabel->width()) / 2;
+        const int y = std::max(
+            kOverlayMargin,
+            (height() - m_helpOverlayLabel->height()) / 2);
+        m_helpOverlayLabel->move(x, y);
+        m_helpOverlayLabel->raise();
+    }
+
+    if (m_interactionStatusOverlayLabel && m_interactionStatusOverlayLabel->isVisible()) {
+        m_interactionStatusOverlayLabel->adjustSize();
+        const int x = (width() - m_interactionStatusOverlayLabel->width()) / 2;
+        const int y = kOverlayMargin + 8;
+        m_interactionStatusOverlayLabel->move(x, y);
+        m_interactionStatusOverlayLabel->raise();
+    }
+}
+
+void RenderWidget::setHelpOverlayVisible(bool visible)
+{
+    if (m_helpOverlayVisible == visible)
+        return;
+    m_helpOverlayVisible = visible;
+    if (m_helpOverlayLabel) {
+        m_helpOverlayLabel->setVisible(visible);
+        if (visible)
+            m_helpOverlayLabel->setText(quickHelpOverlayHtml());
+    }
+    layoutOverlayButtons();
+    update();
+}
+
+void RenderWidget::showInteractionStatusOverlay(const QString &text)
+{
+    if (!m_interactionStatusOverlayLabel || text.isEmpty())
+        return;
+    m_interactionStatusOverlayLabel->setText(text);
+    m_interactionStatusOverlayLabel->show();
+    layoutOverlayButtons();
+    if (m_interactionStatusOverlayTimer)
+        m_interactionStatusOverlayTimer->start(1200);
 }
 
 bool RenderWidget::computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const
@@ -1419,8 +1527,19 @@ void RenderWidget::wheelEvent(QWheelEvent *e)
         return;
     }
     cancelCenterAnimation();
-    if (m_trackball.wheel(e))
+    const Qt::KeyboardModifiers mods = e ? e->modifiers() : Qt::NoModifier;
+    const bool nearClipMode = (mods & Qt::ControlModifier) && !(mods & Qt::ShiftModifier);
+    const bool fovMode = (mods & Qt::ShiftModifier);
+    if (m_trackball.wheel(e)) {
+        if (nearClipMode) {
+            showInteractionStatusOverlay(
+                tr("Near clip: %1").arg(m_trackball.nearClipPlaneDistance(), 0, 'g', 5));
+        } else if (fovMode) {
+            showInteractionStatusOverlay(
+                tr("FOV: %1 deg").arg(m_trackball.fovYDegrees(), 0, 'f', 1));
+        }
         update();
+    }
 }
 
 void RenderWidget::resizeEvent(QResizeEvent *e)

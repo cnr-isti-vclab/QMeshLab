@@ -610,6 +610,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
             const int selfIdx = index.data(kRoleMeshIndex).toInt();
             switch (action) {
             case EyeCheckDelegate::EyeAction::HideOthers:
+                m_doc->setMeshVisible(selfIdx, true);
                 for (int i = 0; i < m_doc->meshCount(); ++i)
                     if (i != selfIdx)
                         m_doc->setMeshVisible(i, false);
@@ -855,6 +856,39 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
 
     if (anyAdded)
         menu.exec(event->globalPos());
+}
+
+void LayerWidget::mousePressEvent(QMouseEvent *event)
+{
+    if (event && event->button() == Qt::LeftButton
+        && (event->modifiers() & Qt::ControlModifier)) {
+        if (QTreeWidgetItem *item = itemAt(event->position().toPoint())) {
+            QTreeWidgetItem *top = item;
+            while (top->parent())
+                top = top->parent();
+
+            if (top && top->childCount() > 0) {
+                const QRect itemRect = visualItemRect(top);
+                const int branchWidth = std::max(14, indentation() + 4);
+                const QRect branchRect(
+                    std::max(0, itemRect.left() - branchWidth),
+                    itemRect.top(),
+                    branchWidth,
+                    itemRect.height());
+                if (branchRect.contains(event->position().toPoint())) {
+                    const bool expandAll = !top->isExpanded();
+                    for (int i = 0; i < topLevelItemCount(); ++i) {
+                        if (QTreeWidgetItem *other = topLevelItem(i))
+                            other->setExpanded(expandAll);
+                    }
+                    event->accept();
+                    return;
+                }
+            }
+        }
+    }
+
+    QTreeWidget::mousePressEvent(event);
 }
 
 void LayerWidget::onItemChanged(QTreeWidgetItem *item, int column)

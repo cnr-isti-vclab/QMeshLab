@@ -156,13 +156,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     bool haveCameraMatrices = false;
     if (needMvpForFrame) {
         const float aspect = sz.width() / float(sz.height());
-        const float sceneRadius = m_trackball.radius();
-
-        proj.perspective(
-            m_trackball.fovYDegrees(),
-            aspect,
-            0.01f * sceneRadius,
-            100.0f * sceneRadius);
+        proj = m_trackball.projectionMatrix(aspect);
 
         view = m_trackball.viewMatrix();
         vp = proj * view;

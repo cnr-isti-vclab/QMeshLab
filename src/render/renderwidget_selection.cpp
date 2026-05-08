@@ -172,13 +172,7 @@ void RenderWidget::executePendingDepthPick(
     const auto fillVariant = Document::FillGpuVariant::Constant;
 
     const float aspect = pixelSize.width() / float(pixelSize.height());
-    const float sceneRadius = m_trackball.radius();
-    QMatrix4x4 proj;
-    proj.perspective(
-        m_trackball.fovYDegrees(),
-        aspect,
-        0.01f * sceneRadius,
-        100.0f * sceneRadius);
+    QMatrix4x4 proj = m_trackball.projectionMatrix(aspect);
     const QMatrix4x4 view = m_trackball.viewMatrix();
     const QMatrix4x4 vp = proj * view;
 
@@ -356,13 +350,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         return;
 
     const float aspect = pixelSize.width() / float(pixelSize.height());
-    const float sceneRadius = m_trackball.radius();
-    QMatrix4x4 proj;
-    proj.perspective(
-        m_trackball.fovYDegrees(),
-        aspect,
-        0.01f * sceneRadius,
-        100.0f * sceneRadius);
+    QMatrix4x4 proj = m_trackball.projectionMatrix(aspect);
     const QMatrix4x4 view = m_trackball.viewMatrix();
 
     auto updateMainUbufForMesh = [&](int meshIndex, const PerMeshRenderSettings &meshSettings) {

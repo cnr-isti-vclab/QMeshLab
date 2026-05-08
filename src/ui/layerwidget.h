@@ -15,6 +15,7 @@ signals:
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
 
 private:
     void rebuild();

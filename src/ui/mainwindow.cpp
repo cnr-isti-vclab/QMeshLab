@@ -856,10 +856,20 @@ MainWindow::MainWindow(QWidget *parent)
         &MainWindow::pasteCameraState);
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
-    helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
-    helpMenu->addAction(tr("I/O &Plugins..."), this, &MainWindow::showImportPlugins);
     helpMenu->addAction(tr("&Filter Plugins..."), this, &MainWindow::showFilterPlugins);
+    helpMenu->addAction(tr("I/O &Plugins..."), this, &MainWindow::showImportPlugins);
     helpMenu->addAction(tr("&Memory Info..."), this, &MainWindow::showMemoryInfo);
+    helpMenu->addSeparator();
+    helpMenu->addAction(
+        tr("On screen &quick help"),
+        QKeySequence(Qt::Key_F1),
+        this,
+        [this]() {
+            if (RenderWidget *view = currentRenderWidget())
+                view->toggleHelpOverlayVisible();
+        });
+    helpMenu->addSeparator();
+    helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
 
     QSettings settings;
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();

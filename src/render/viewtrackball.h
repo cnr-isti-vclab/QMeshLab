@@ -19,6 +19,7 @@ public:
         float distance = 3.0f;
         float radius = 1.0f;
         float fovYDeg = 45.0f;
+        float nearClipRatio = 0.0033333333f;
         float gizmoBaseRadius = 1.0f;
         float gizmoReferenceDistance = 3.0f;
         float gizmoReferenceFovYDeg = 45.0f;
@@ -42,9 +43,12 @@ public:
     }
     float radius() const { return m_radius; }
     float fovYDegrees() const { return m_fovYDeg; }
+    float nearClipRatio() const { return m_nearClipRatio; }
+    float nearClipPlaneDistance() const;
     float gizmoWorldRadius() const;
 
     QMatrix4x4 viewMatrix() const;
+    QMatrix4x4 projectionMatrix(float aspect) const;
 
     void mousePress(const QMouseEvent *e, const QSize &viewportSize);
     void mouseRelease(const QMouseEvent *e);
@@ -61,7 +65,6 @@ private:
     QVector3D projectOnArcball(const QPointF &pos, const QSize &viewportSize) const;
     QVector3D cameraRight() const;
     QVector3D cameraUp() const;
-    QMatrix4x4 projectionMatrix(float aspect) const;
     QMatrix4x4 viewMatrixForRotation(const QQuaternion &rotation) const;
     QVector3D viewPointForRotation(const QQuaternion &rotation) const;
     bool viewRayFromWindow(const QPointF &pos, const QSize &viewportSize, const QQuaternion &rotation, QVector3D &rayOrigin, QVector3D &rayDir) const;
@@ -82,6 +85,7 @@ private:
     float m_distance = 3.0f;
     float m_radius = 1.0f;
     float m_fovYDeg = 45.0f;
+    float m_nearClipRatio = 0.0033333333f;
     float m_gizmoBaseRadius = 1.0f;
     float m_gizmoReferenceDistance = 3.0f;
     float m_gizmoReferenceFovYDeg = 45.0f;
