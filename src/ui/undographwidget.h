@@ -27,6 +27,7 @@ class UndoGraphWidget : public QAbstractScrollArea
     Q_OBJECT
 public:
     explicit UndoGraphWidget(QWidget *parent = nullptr);
+    static QSize thumbnailSize() { return QSize(kThumbW, kThumbH); }
 
     void setNodes(const QVector<Document::UndoTreeNodeInfo> &nodes,
                   int currentNodeId,
@@ -39,7 +40,7 @@ signals:
     void nodeActivated(int nodeId, bool withCamera);
     // Emitted when the user requests to store the current view camera into a node.
     void nodeUpdateCameraRequested(int nodeId);
-    void nodeHovered(int nodeId, const QPoint &globalPos); // nodeId==-1 → leave
+    void nodeHovered(int nodeId, const QPoint &globalPos); // emitted only when hovering a thumbnail
     void nodeUnhovered();
 
 protected:
@@ -68,6 +69,7 @@ private:
     void rebuildRows();
     int  rowAt(int y) const;
     QRect rowRect(int row) const;
+    QRect thumbnailRect(int row) const;
     int  laneX(int lane) const;
     void updateScrollBars();
 
@@ -81,12 +83,13 @@ private:
     int           m_laneCount = 1;
 
     // ---- geometry constants ----
-    static constexpr int kThumbW     = 96;   // thumbnail width  (2:1 aspect ratio)
-    static constexpr int kThumbH     = 48;   // thumbnail height
-    static constexpr int kRowHeight   = 56;  // must be >= kThumbH + padding
+    static constexpr int kThumbW      = 80;  // thumbnail width  (2:1 aspect ratio)
+    static constexpr int kThumbH      = 40;  // thumbnail height
+    static constexpr int kRowHeight   = 40;  // keep rows visually compact
     static constexpr int kLaneWidth   = 20;
     static constexpr int kDotRadius   = 6;
     static constexpr int kTextLeft    = 8;   // gap between graph area and text
 
     int m_hoveredRow = -1;
+    int m_hoveredThumbnailRow = -1;
 };

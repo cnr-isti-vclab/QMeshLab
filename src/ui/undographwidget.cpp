@@ -37,6 +37,7 @@ void UndoGraphWidget::setNodes(const QVector<Document::UndoTreeNodeInfo> &nodes,
     m_currentNodeId = currentNodeId;
     m_thumbnails    = thumbnails;
     m_hoveredRow    = -1;
+    m_hoveredThumbnailRow = -1;
     rebuildRows();
     updateScrollBars();
     viewport()->update();
@@ -112,6 +113,14 @@ QRect UndoGraphWidget::rowRect(int row) const
 {
     const int y = row * kRowHeight - verticalScrollBar()->value();
     return QRect(0, y, viewport()->width(), kRowHeight);
+}
+
+QRect UndoGraphWidget::thumbnailRect(int row) const
+{
+    const int vw = viewport()->width();
+    const int x = vw - kThumbW - 4;
+    const int y = row * kRowHeight - verticalScrollBar()->value();
+    return QRect(x, y, kThumbW, kThumbH);
 }
 
 QSize UndoGraphWidget::sizeHint() const
@@ -234,7 +243,7 @@ void UndoGraphWidget::paintEvent(QPaintEvent * /*event*/)
         const QPixmap thumb = m_thumbnails.value(row.nodeId);
         if (!thumb.isNull()) {
             const int tx = thumbColX - scrollX;
-            const int ty = top + (kRowHeight - kThumbH) / 2;
+            const int ty = top;
             p.drawPixmap(tx, ty, kThumbW, kThumbH, thumb);
         }
 
@@ -300,10 +309,15 @@ void UndoGraphWidget::mouseMoveEvent(QMouseEvent *event)
         m_hoveredRow = ri;
         viewport()->update();
     }
-    if (ri >= 0)
+    const bool hoveringThumb = (ri >= 0) && thumbnailRect(ri).contains(event->pos());
+    if (hoveringThumb) {
+        if (ri != m_hoveredThumbnailRow)
+            m_hoveredThumbnailRow = ri;
         emit nodeHovered(m_rows[ri].nodeId, viewport()->mapToGlobal(event->pos()));
-    else
+    } else {
+        m_hoveredThumbnailRow = -1;
         emit nodeUnhovered();
+    }
     QAbstractScrollArea::mouseMoveEvent(event);
 }
 
@@ -313,6 +327,7 @@ void UndoGraphWidget::leaveEvent(QEvent *event)
         m_hoveredRow = -1;
         viewport()->update();
     }
+    m_hoveredThumbnailRow = -1;
     emit nodeUnhovered();
     QAbstractScrollArea::leaveEvent(event);
 }

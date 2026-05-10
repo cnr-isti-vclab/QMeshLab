@@ -573,6 +573,8 @@ MainWindow::MainWindow(QWidget *parent)
         "  padding: 2px;"
         "}"));
     m_undoHistoryPreviewPopup->hide();
+    m_undoHistoryPreviewTimer = new QTimer(this);
+    m_undoHistoryPreviewTimer->setSingleShot(true);
 
     auto *historyPanel = new QWidget(this);
     auto *historyLayout = new QVBoxLayout(historyPanel);
@@ -633,9 +635,10 @@ MainWindow::MainWindow(QWidget *parent)
                 if (fw >= fh * 2) { cropH = fh; cropW = fh * 2; }
                 else              { cropW = fw; cropH = fw / 2;   }
                 const int ox = (fw - cropW) / 2, oy = (fh - cropH) / 2;
+                const QSize thumbSize = UndoGraphWidget::thumbnailSize();
                 m_undoNodeThumbnails[nodeId] = QPixmap::fromImage(
                     frame.copy(ox, oy, cropW, std::max(1, cropH))
-                         .scaled(96, 48, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+                         .scaled(thumbSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
                 m_undoNodeSnapshots[nodeId] = QPixmap::fromImage(
                     frame.scaled(std::max(1, fw / 2), std::max(1, fh / 2),
                                  Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
@@ -644,7 +647,7 @@ MainWindow::MainWindow(QWidget *parent)
         refreshUndoHistoryPanel();
         statusBar()->showMessage(tr("Camera updated for history state %1").arg(nodeId), 1800);
     });
-    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeHovered, this, [this](int nodeId, const QPoint &globalPos) {
+    const auto showUndoHistoryPreview = [this](int nodeId, const QPoint &globalPos) {
         if (!m_undoHistoryPreviewPopup)
             return;
         // Use the 50%-size snapshot for the hover popup; fall back to the thumbnail.
@@ -668,7 +671,26 @@ MainWindow::MainWindow(QWidget *parent)
         if (display.isNull()) return;
         m_undoHistoryPreviewPopup->setPixmap(display);
         m_undoHistoryPreviewPopup->adjustSize();
-        QPoint target = globalPos + QPoint(18, 18);
+        const QRect historyRect = m_undoHistoryLaneWidget
+            ? QRect(m_undoHistoryLaneWidget->mapToGlobal(QPoint(0, 0)), m_undoHistoryLaneWidget->size())
+            : QRect(globalPos, QSize(1, 1));
+        QPoint target;
+        const int gap = 12;
+        const bool fitsLeft = historyRect.left() - gap - m_undoHistoryPreviewPopup->width() >= avail.left();
+        const bool fitsAbove = historyRect.top() - gap - m_undoHistoryPreviewPopup->height() >= avail.top();
+        if (fitsLeft) {
+            target = QPoint(
+                historyRect.left() - gap - m_undoHistoryPreviewPopup->width(),
+                historyRect.top());
+        } else if (fitsAbove) {
+            target = QPoint(
+                historyRect.right() - m_undoHistoryPreviewPopup->width(),
+                historyRect.top() - gap - m_undoHistoryPreviewPopup->height());
+        } else {
+            target = QPoint(
+                historyRect.left(),
+                historyRect.bottom() + gap);
+        }
         const int maxX = avail.right() - m_undoHistoryPreviewPopup->width();
         const int maxY = avail.bottom() - m_undoHistoryPreviewPopup->height();
         if (maxX >= avail.left()) target.setX(std::clamp(target.x(), avail.left(), maxX));
@@ -676,8 +698,28 @@ MainWindow::MainWindow(QWidget *parent)
         m_undoHistoryPreviewPopup->move(target);
         m_undoHistoryPreviewPopup->show();
         m_undoHistoryPreviewPopup->raise();
+    };
+    connect(m_undoHistoryPreviewTimer, &QTimer::timeout, this, [this, showUndoHistoryPreview]() {
+        if (m_pendingUndoHistoryPreviewNodeId < 0)
+            return;
+        showUndoHistoryPreview(
+            m_pendingUndoHistoryPreviewNodeId,
+            m_pendingUndoHistoryPreviewGlobalPos);
+    });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeHovered, this, [this, showUndoHistoryPreview](int nodeId, const QPoint &globalPos) {
+        m_pendingUndoHistoryPreviewNodeId = nodeId;
+        m_pendingUndoHistoryPreviewGlobalPos = globalPos;
+        if (m_undoHistoryPreviewPopup && m_undoHistoryPreviewPopup->isVisible()) {
+            showUndoHistoryPreview(nodeId, globalPos);
+            return;
+        }
+        if (m_undoHistoryPreviewTimer)
+            m_undoHistoryPreviewTimer->start(150);
     });
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeUnhovered, this, [this]() {
+        m_pendingUndoHistoryPreviewNodeId = -1;
+        if (m_undoHistoryPreviewTimer)
+            m_undoHistoryPreviewTimer->stop();
         if (m_undoHistoryPreviewPopup) m_undoHistoryPreviewPopup->hide();
     });
 
@@ -2629,6 +2671,7 @@ void MainWindow::refreshUndoHistoryPanel()
                 {
                     const int fw = frame.width();
                     const int fh = frame.height();
+                    const QSize thumbSize = UndoGraphWidget::thumbnailSize();
                     int cropW, cropH;
                     if (fw >= fh * 2) { cropH = fh; cropW = fh * 2; }
                     else              { cropW = fw; cropH = fw / 2;   }
@@ -2636,7 +2679,7 @@ void MainWindow::refreshUndoHistoryPanel()
                     const int oy = (fh - cropH) / 2;
                     const QImage cropped = frame.copy(ox, oy, cropW, std::max(1, cropH));
                     m_undoNodeThumbnails[currentNodeId] = QPixmap::fromImage(
-                        cropped.scaled(96, 48, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+                        cropped.scaled(thumbSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
                 }
                 // 50%-size snapshot for the hover popup.
                 m_undoNodeSnapshots[currentNodeId] = QPixmap::fromImage(

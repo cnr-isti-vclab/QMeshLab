@@ -23,6 +23,7 @@ class QSplitter;
 class QDockWidget;
 class QToolButton;
 class QListWidget;
+class QTimer;
 class UndoGraphWidget;
 
 class MainWindow : public QMainWindow
@@ -114,6 +115,9 @@ private:
     QListWidget *m_logListWidget = nullptr;
     UndoGraphWidget *m_undoHistoryLaneWidget = nullptr;
     QLabel *m_undoHistoryPreviewPopup = nullptr;
+    QTimer *m_undoHistoryPreviewTimer = nullptr;
+    int m_pendingUndoHistoryPreviewNodeId = -1;
+    QPoint m_pendingUndoHistoryPreviewGlobalPos;
     QMap<int, QPixmap> m_undoNodeThumbnails; // keyed by nodeId — 2:1 row icon
     QMap<int, QPixmap> m_undoNodeSnapshots;  // keyed by nodeId — 50% size hover image
     std::deque<float> m_lastCpuFrameTimes;
