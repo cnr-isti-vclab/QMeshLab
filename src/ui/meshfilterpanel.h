@@ -74,6 +74,7 @@ private:
     void clearParameterEditors();
     void buildParameterEditors(const Document::FilterInfo &filterInfo);
     void refreshDependentParameterEditors();
+    void refreshCurrentFilterApplicability();
     MeshFilterParameterValues collectCurrentParameterValues() const;
     void applyParameterValuesToEditors(const MeshFilterParameterValues &values);
     void cacheCurrentFilterParameters();
@@ -113,4 +114,5 @@ private:
     QFormLayout *m_parametersLayout = nullptr;
     QLabel *m_noParametersLabel = nullptr;
     QPushButton *m_applyButton = nullptr;
+    QString m_currentFilterUnavailableReason;
 };

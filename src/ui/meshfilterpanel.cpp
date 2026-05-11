@@ -945,10 +945,13 @@ void MeshFilterPanel::onApplyClicked()
     if (m_currentFilterKey.trimmed().isEmpty())
         return;
     const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
-    if (!info || !info->applicable)
+    if (!info)
         return;
 
     const MeshFilterParameterValues parameters = collectCurrentParameterValues();
+    QString applicabilityError;
+    if (!m_doc->validateFilterInvocation(m_currentFilterKey, parameters, applicabilityError))
+        return;
     m_filterParameterCache.insert(m_currentFilterKey, parameters);
     emit runRequested(m_currentFilterKey, parameters, info->descriptor.name);
 }
@@ -1063,18 +1066,20 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     if (info.applicable) {
         m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
         m_applyButton->setToolTip(QString());
+        m_currentFilterUnavailableReason.clear();
     } else {
         const QString reason = info.applicabilityError.trimmed().isEmpty()
             ? tr("This filter is not available in the current context.")
             : info.applicabilityError.trimmed();
         m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: #a13a3a;"));
         m_applyButton->setToolTip(tr("Unavailable: %1").arg(reason));
+        m_currentFilterUnavailableReason = reason;
     }
     buildParameterEditors(info);
     const auto cacheIt = m_filterParameterCache.constFind(info.key);
     if (cacheIt != m_filterParameterCache.constEnd())
         applyParameterValuesToEditors(cacheIt.value());
-    m_applyButton->setEnabled(info.applicable);
+    refreshCurrentFilterApplicability();
     m_stack->setCurrentWidget(m_parametersPage);
 }
 
@@ -1316,6 +1321,12 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
             continue;
         binding.editor = editor;
 
+        auto connectApplicabilityRefresh = [&](QObject *obj) {
+            if (!obj)
+                return;
+            connect(obj, SIGNAL(destroyed(QObject*)), this, SLOT(update()));
+        };
+
         auto *labelWidget = new QLabel(param.label, m_parametersWidget);
         binding.formLabel = labelWidget;
         binding.rowField = editor;
@@ -1331,9 +1342,45 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
         }
 
         m_parameterBindings.push_back(std::move(binding));
+
+        if (auto *w = qobject_cast<QCheckBox *>(editor)) {
+            connect(w, &QCheckBox::toggled, this, [this]() { refreshCurrentFilterApplicability(); });
+        } else if (auto *w = qobject_cast<QSpinBox *>(editor)) {
+            connect(w, qOverload<int>(&QSpinBox::valueChanged), this, [this](int) { refreshCurrentFilterApplicability(); });
+        } else if (auto *w = qobject_cast<QDoubleSpinBox *>(editor)) {
+            connect(w, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double) { refreshCurrentFilterApplicability(); });
+        } else if (auto *w = qobject_cast<QComboBox *>(editor)) {
+            connect(w, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) { refreshCurrentFilterApplicability(); });
+        } else if (auto *w = qobject_cast<QLineEdit *>(editor)) {
+            connect(w, &QLineEdit::textChanged, this, [this](const QString &) { refreshCurrentFilterApplicability(); });
+        } else if (auto *w = dynamic_cast<AbsPercEditor *>(editor)) {
+            for (QDoubleSpinBox *spin : w->findChildren<QDoubleSpinBox *>()) {
+                connect(spin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double) { refreshCurrentFilterApplicability(); });
+            }
+        } else if (auto *w = dynamic_cast<FilePathEditor *>(editor)) {
+            for (QLineEdit *lineEdit : w->findChildren<QLineEdit *>()) {
+                connect(lineEdit, &QLineEdit::textChanged, this, [this](const QString &) { refreshCurrentFilterApplicability(); });
+            }
+        } else if (auto *w = dynamic_cast<TextureRefEditor *>(editor)) {
+            for (QComboBox *combo : w->findChildren<QComboBox *>()) {
+                connect(combo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) { refreshCurrentFilterApplicability(); });
+            }
+        } else if (auto *w = dynamic_cast<TextureOutputRefEditor *>(editor)) {
+            for (QComboBox *combo : w->findChildren<QComboBox *>()) {
+                connect(combo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) { refreshCurrentFilterApplicability(); });
+            }
+            for (QLineEdit *lineEdit : w->findChildren<QLineEdit *>()) {
+                connect(lineEdit, &QLineEdit::textChanged, this, [this](const QString &) { refreshCurrentFilterApplicability(); });
+            }
+        } else if (auto *w = dynamic_cast<Point3fEditor *>(editor)) {
+            for (QDoubleSpinBox *spin : w->findChildren<QDoubleSpinBox *>()) {
+                connect(spin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double) { refreshCurrentFilterApplicability(); });
+            }
+        }
     }
 
     refreshDependentParameterEditors();
+    refreshCurrentFilterApplicability();
 
     if (m_showAdvancedCheck) {
         if (hasAdvanced) {
@@ -1371,6 +1418,31 @@ void MeshFilterPanel::refreshDependentParameterEditors()
         else
             applySourceMeshIndex(dynamic_cast<TextureOutputRefEditor *>(binding.editor));
     }
+}
+
+void MeshFilterPanel::refreshCurrentFilterApplicability()
+{
+    const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
+    if (!info || !m_applyButton || !m_filterDescriptionLabel)
+        return;
+
+    const MeshFilterParameterValues parameters = collectCurrentParameterValues();
+    QString errorMessage;
+    const bool applicable = m_doc->validateFilterInvocation(m_currentFilterKey, parameters, errorMessage);
+
+    if (applicable) {
+        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        m_applyButton->setToolTip(QString());
+    } else {
+        const QString reason = errorMessage.trimmed().isEmpty()
+            ? (!m_currentFilterUnavailableReason.trimmed().isEmpty()
+                   ? m_currentFilterUnavailableReason
+                   : tr("This filter is not available in the current context."))
+            : errorMessage.trimmed();
+        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: #a13a3a;"));
+        m_applyButton->setToolTip(tr("Unavailable: %1").arg(reason));
+    }
+    m_applyButton->setEnabled(applicable);
 }
 
 MeshFilterParameterValues MeshFilterPanel::collectCurrentParameterValues() const

@@ -70,6 +70,14 @@ struct MeshIOSaveOptions
     int dracoCompressionLevel = 7;
 };
 
+struct MeshIOTextureContext
+{
+    const QStringList *textureFileNames = nullptr;
+    const QStringList *textureFilePaths = nullptr;
+    const std::vector<MeshIOTextureAsset> *textureAssets = nullptr;
+    const MeshIOMaterialSet *materialSet = nullptr;
+};
+
 // Abstract interface for a mesh I/O plugin.
 // Implement this to add support for new file formats.
 class MeshIOPlugin
@@ -136,6 +144,20 @@ public:
         (void) options;
         (void) cb;
         return -1;
+    }
+
+    // Optional extended save path for mesh-owned texture assets/materials.
+    // Default behavior keeps backward compatibility with exporters that only
+    // need the legacy VCGMesh fields.
+    virtual int save(
+        const QString &filename,
+        VCGMesh &mesh,
+        const MeshIOSaveOptions &options,
+        vcg::CallBackPos *cb,
+        const MeshIOTextureContext *textureContext) const
+    {
+        (void) textureContext;
+        return save(filename, mesh, options, cb);
     }
 
     // Qt file dialog filter string for save operation, e.g. "PLY (*.ply);;OBJ (*.obj)".

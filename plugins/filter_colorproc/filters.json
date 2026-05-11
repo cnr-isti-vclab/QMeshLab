@@ -476,7 +476,17 @@
         "requirePerWedgeTexCoords": true,
         "requireTextures": true
       },
-      "parameters": [],
+      "parameters": [
+        {
+          "id": "sourceTexture",
+          "label": "Source Texture",
+          "help": "Choose which associated texture to sample. Automatic uses each face's per-wedge texture slot assignment, matching MeshLab's multi-texture behavior.",
+          "group": "main",
+          "type": "textureref",
+          "default": 0,
+          "allowAutomatic": true
+        }
+      ],
       "outputModifies": ["VC"]
     },
     {

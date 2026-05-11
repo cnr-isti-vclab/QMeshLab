@@ -3,6 +3,7 @@
 #include "document.h"
 #include "filterparam.h"
 #include "meshfilterpluginmanager.h"
+#include "textureassociationutils.h"
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/bitquad_support.h>
@@ -25,8 +26,6 @@
 #include <vcg/space/intersection3.h>
 #include <vcg/space/plane3.h>
 #include <vcg/space/triangle3.h>
-#include <QDir>
-#include <QFileInfo>
 #include <QImage>
 #include <algorithm>
 #include <cmath>
@@ -65,6 +64,7 @@ constexpr QLatin1StringView kFilterVertexToFaceQuality("compute_scalar_transfer_
 constexpr QLatin1StringView kFilterFaceToVertexQuality("compute_scalar_transfer_face_to_vertex");
 
 using Mask = vcg::tri::io::Mask;
+namespace Tex = TextureAssociationUtils;
 using Scalar = VCGMesh::ScalarType;
 using Point = vcg::Point3f;
 using Histogramf = vcg::Histogram<float>;
@@ -169,34 +169,6 @@ void ensureVertexQuality(Document::MeshEntry &entry)
 void ensureFaceQuality(Document::MeshEntry &entry)
 {
     entry.ioMask |= Mask::IOM_FACEQUALITY;
-}
-
-bool loadAssociatedTextureImage(
-    const Document::MeshEntry &entry,
-    int textureIndex,
-    QImage &image,
-    QString &error)
-{
-    if (const MeshIOTextureAsset *asset = Document::meshTextureAsset(entry, textureIndex)) {
-        if (asset->hasImage()) {
-            image = asset->image;
-            return !image.isNull();
-        }
-    }
-
-    const QString sourcePath = Document::meshTextureSourcePath(entry, textureIndex).trimmed();
-    if (sourcePath.isEmpty()) {
-        error = QObject::tr("Texture %1 does not have image data or a backing file path.")
-                    .arg(Document::meshTextureDisplayName(entry, textureIndex));
-        return false;
-    }
-
-    image = QImage(sourcePath);
-    if (image.isNull()) {
-        error = QObject::tr("Failed to load texture '%1'.").arg(sourcePath);
-        return false;
-    }
-    return true;
 }
 
 QRgb sampleWrappedTexture(const QImage &image, const vcg::Point2f &uv)
@@ -682,10 +654,20 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         if (textureCount <= 0)
             return fail(QObject::tr("Current mesh has no associated textures."));
 
+        const int requestedTextureSlot = params.getTextureRef(QStringLiteral("sourceTexture"), 0);
+        if (requestedTextureSlot < 0)
+            return fail(QObject::tr("Source Texture must be automatic or a positive selection."));
+        if (requestedTextureSlot > textureCount) {
+            return fail(
+                QObject::tr("Source Texture %1 is out of range. The current mesh has %2 associated texture(s).")
+                    .arg(requestedTextureSlot)
+                    .arg(textureCount));
+        }
+
         std::vector<QImage> images(static_cast<size_t>(textureCount), QImage());
         for (int textureIndex = 0; textureIndex < textureCount; ++textureIndex) {
             QString textureError;
-            if (!loadAssociatedTextureImage(entry, textureIndex, images[size_t(textureIndex)], textureError))
+            if (!Tex::loadAssociatedTextureImage(entry, textureIndex, images[size_t(textureIndex)], textureError))
                 return fail(textureError);
         }
 
@@ -693,7 +675,9 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             if (face.IsD())
                 continue;
             for (int k = 0; k < 3; ++k) {
-                const int texIndex = int(face.WT(k).N());
+                const int texIndex = requestedTextureSlot > 0
+                    ? requestedTextureSlot - 1
+                    : int(face.WT(k).N());
                 if (texIndex >= 0 && texIndex < textureCount) {
                     const QRgb value = sampleWrappedTexture(images[size_t(texIndex)], face.WT(k).P());
                     face.V(k)->C() = vcg::Color4b(qRed(value), qGreen(value), qBlue(value), 255);
@@ -704,7 +688,14 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         }
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Transferred texture colors to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
-        return success();
+        if (requestedTextureSlot > 0) {
+            return success({
+                QObject::tr("Transferred texture slot %1 to vertex colors.").arg(requestedTextureSlot)
+            });
+        }
+        return success({
+            QObject::tr("Transferred texture colors to vertices using per-face texture assignments.")
+        });
     }
 
     if (filterId == QString::fromLatin1(kFilterVertexToFaceQuality)) {

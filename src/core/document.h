@@ -192,6 +192,10 @@ public:
     std::vector<ImportPluginInfo> importPluginInfos() const;
     std::vector<ExportPluginInfo> exportPluginInfos() const;
     std::vector<FilterInfo> filterInfos() const;
+    bool validateFilterInvocation(
+        const QString &filterKey,
+        const MeshFilterParameterValues &parameters,
+        QString &errorMessage) const;
     MeshFilterRunResult runFilter(
         const QString &filterKey,
         const MeshFilterParameterValues &parameters = {});

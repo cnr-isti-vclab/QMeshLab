@@ -522,6 +522,48 @@ std::optional<MeshFilterPluginManager::FilterInfo> MeshFilterPluginManager::filt
     return std::nullopt;
 }
 
+bool MeshFilterPluginManager::validateFilterInvocation(
+    const QString &filterKey,
+    const MeshFilterParameterValues &parameters,
+    const Document &doc,
+    QString &errorMessage) const
+{
+    QString pluginId;
+    QString filterId;
+    if (!splitFilterKey(filterKey, pluginId, filterId)) {
+        errorMessage = QObject::tr("Invalid filter key: %1").arg(filterKey);
+        return false;
+    }
+
+    const MeshFilterPlugin *targetPlugin = nullptr;
+    const MeshFilterDescriptor *targetDescriptor = nullptr;
+    std::vector<MeshFilterDescriptor> descriptors;
+    for (const auto &plugin : m_plugins) {
+        if (plugin->pluginId() != pluginId)
+            continue;
+        targetPlugin = plugin.get();
+        descriptors = plugin->filters(doc);
+        targetDescriptor = findDescriptorById(descriptors, filterId);
+        break;
+    }
+
+    if (!targetPlugin || !targetDescriptor) {
+        errorMessage = QObject::tr("Filter not found: %1").arg(filterKey);
+        return false;
+    }
+
+    if (!validateDomain(*targetDescriptor, doc, errorMessage))
+        return false;
+
+    MeshFilterParameterValues normalizedParameters;
+    return normalizeAndValidateParameters(
+        *targetDescriptor,
+        parameters,
+        doc,
+        normalizedParameters,
+        errorMessage);
+}
+
 QStringList MeshFilterPluginManager::loadedPluginSummaries() const
 {
     QStringList summaries;
@@ -749,10 +791,7 @@ bool MeshFilterPluginManager::validateDomain(
         }
     }
 
-    MeshFilterParameterValues defaultParameters;
-    for (const MeshFilterParameterDescriptor &parameter : descriptor.parameters)
-        defaultParameters.insert(parameter.id, defaultValueForParameter(parameter));
-    return validateNamedMeshParameters(descriptor, defaultParameters, doc, errorMessage);
+    return true;
 }
 
 bool MeshFilterPluginManager::normalizeAndValidateParameters(

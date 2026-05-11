@@ -419,6 +419,18 @@ std::vector<Document::FilterInfo> Document::filterInfos() const
     return infos;
 }
 
+bool Document::validateFilterInvocation(
+    const QString &filterKey,
+    const MeshFilterParameterValues &parameters,
+    QString &errorMessage) const
+{
+    if (!m_filterPluginManager) {
+        errorMessage = tr("Filter manager is not available.");
+        return false;
+    }
+    return m_filterPluginManager->validateFilterInvocation(filterKey, parameters, *this, errorMessage);
+}
+
 MeshFilterRunResult Document::runFilter(
     const QString &filterKey,
     const MeshFilterParameterValues &parameters)
@@ -996,7 +1008,18 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
     m_callbackMode = CallbackMode::Save;
     m_cancelRequested.store(false, std::memory_order_relaxed);
     g_callbackDocument = this;
-    const int err = plugin->save(normalizedFilename, entry.mesh, options, logCallback());
+    const MeshIOTextureContext textureContext{
+        &entry.textureFileNames,
+        &entry.textureFilePaths,
+        &entry.textureAssets,
+        &entry.materialSet
+    };
+    const int err = plugin->save(
+        normalizedFilename,
+        entry.mesh,
+        options,
+        logCallback(),
+        &textureContext);
     g_callbackDocument = previousCallbackDocument;
     m_callbackMode = previousCallbackMode;
 

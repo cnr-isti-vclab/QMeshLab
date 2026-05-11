@@ -44,14 +44,14 @@ class Document;
 //     "parameters": [
 //       {
 //         "id": "...", "label": "...", "help": "...", "group": "...",
-//         "type": "bool" | "int" | "double" | "absperc" | "string" | "fileopen" | "filesave" | "textureref" | "enum" | "color",
+//         "type": "bool" | "int" | "double" | "absperc" | "string" | "fileopen" | "filesave" | "textureref" | "textureoutputref" | "enum" | "color",
 //         "default": <value>,   // may be "@token" string for dynamic values
 //         "min": <value>,       // optional; may be "@token"
 //         "max": <value>,       // optional; may be "@token"
 //         "decimals": 3,        // optional, only for double
 //         "meshRequirements": { ...same requirement keys as inputRequirements... },
 //         "meshPrepare": ["FF", "BBox"], // only for type=="mesh"
-//         "sourceMeshParameter": "sourceMesh", // only for textureref
+//         "sourceMeshParameter": "sourceMesh", // only for textureref/textureoutputref
 //         "allowAutomatic": true,               // only for textureref
 //         "enumOptions": [      // only for enum type
 //           { "id": "...", "label": "...", "help": "..." }, ...

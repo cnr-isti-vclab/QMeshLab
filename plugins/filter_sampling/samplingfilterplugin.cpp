@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include "textureassociationutils.h"
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
@@ -42,6 +43,7 @@ constexpr QLatin1StringView kFilterRegularRecursiveSampling("generate_sampling_r
 constexpr QLatin1StringView kFilterPointCloudSimplification("generate_simplified_point_cloud");
 
 using Mask = vcg::tri::io::Mask;
+namespace Tex = TextureAssociationUtils;
 using Scalar = float;
 using Point = vcg::Point3f;
 
@@ -56,7 +58,8 @@ public:
     }
 
     VCGMesh *m = nullptr;
-    QImage *tex = nullptr;
+    const std::vector<QImage> *textureImages = nullptr;
+    int forcedTextureSlot = -1;
     int texSamplingWidth = 0;
     int texSamplingHeight = 0;
     bool uvSpaceFlag = false;
@@ -119,7 +122,16 @@ public:
             out.P() = f.cP(0) * bary[0] + f.cP(1) * bary[1] + f.cP(2) * bary[2];
         }
         out.N() = f.cV(0)->N() * bary[0] + f.cV(1)->N() * bary[1] + f.cV(2)->N() * bary[2];
-        if (tex) {
+        const QImage *tex = nullptr;
+        if (textureImages && !textureImages->empty()) {
+            const int slot = forcedTextureSlot >= 0
+                ? forcedTextureSlot
+                : int(f.cWT(0).N());
+            if (slot >= 0 && slot < int(textureImages->size()))
+                tex = &textureImages->at(size_t(slot));
+        }
+
+        if (tex && !tex->isNull()) {
             const int texW = std::max(1, texSamplingWidth);
             const int texH = std::max(1, texSamplingHeight);
             int x = int(tex->width() * (float(texturePoint[0]) / float(texW))) % tex->width();
@@ -923,33 +935,43 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         const int requestedH = params.getInt(QStringLiteral("TextureH"));
         const bool textureSpace = params.getBool(QStringLiteral("TextureSpace"));
         const bool recoverColor = params.getBool(QStringLiteral("RecoverColor"));
+        const int requestedTextureSlot = params.getTextureRef(QStringLiteral("sourceTexture"), 0);
 
-        QImage textureImage;
+        std::vector<QImage> textureImages;
         if (recoverColor) {
-            QString texturePath;
-            if (!entry.textureFilePaths.isEmpty())
-                texturePath = entry.textureFilePaths.front();
-            else if (!entry.textureFileNames.isEmpty())
-                texturePath = entry.textureFileNames.front();
-            if (texturePath.isEmpty())
-                return failResult(QObject::tr("Recover Color is enabled, but the current mesh has no texture image."));
-            textureImage = QImage(texturePath);
-            if (textureImage.isNull())
-                return failResult(QObject::tr("Failed to load texture image '%1'.").arg(texturePath));
+            const int textureCount = Document::meshTextureAssociationCount(entry);
+            if (textureCount <= 0)
+                return failResult(QObject::tr("Recover Color is enabled, but the current mesh has no associated textures."));
+            if (requestedTextureSlot < 0)
+                return failResult(QObject::tr("Source Texture must be automatic or a positive selection."));
+            if (requestedTextureSlot > textureCount) {
+                return failResult(
+                    QObject::tr("Source Texture %1 is out of range. The current mesh has %2 associated texture(s).")
+                        .arg(requestedTextureSlot)
+                        .arg(textureCount));
+            }
+
+            textureImages.resize(size_t(textureCount));
+            for (int textureIndex = 0; textureIndex < textureCount; ++textureIndex) {
+                QString textureError;
+                if (!Tex::loadAssociatedTextureImage(entry, textureIndex, textureImages[size_t(textureIndex)], textureError))
+                    return failResult(textureError);
+            }
         }
 
         int textureW = requestedW;
         int textureH = requestedH;
-        if (recoverColor && textureW == 0)
-            textureW = textureImage.width();
-        if (recoverColor && textureH == 0)
-            textureH = textureImage.height();
+        if (recoverColor && textureW == 0 && !textureImages.empty())
+            textureW = textureImages.front().width();
+        if (recoverColor && textureH == 0 && !textureImages.empty())
+            textureH = textureImages.front().height();
         if (textureW <= 0 || textureH <= 0)
             return failResult(QObject::tr("Texture width and height must be greater than zero."));
 
         VCGMesh output;
         BaseSampler sampler(&output, recoverColor, false);
-        sampler.tex = recoverColor ? &textureImage : nullptr;
+        sampler.textureImages = recoverColor ? &textureImages : nullptr;
+        sampler.forcedTextureSlot = requestedTextureSlot > 0 ? requestedTextureSlot - 1 : -1;
         sampler.texSamplingWidth = textureW;
         sampler.texSamplingHeight = textureH;
         sampler.uvSpaceFlag = textureSpace;

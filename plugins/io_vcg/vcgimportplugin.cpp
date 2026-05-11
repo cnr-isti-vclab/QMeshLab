@@ -14,7 +14,9 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
+#include <QImage>
 #include <QObject>
+#include <algorithm>
 #include <memory>
 
 namespace {
@@ -146,6 +148,7 @@ QString uniqueTextureFileName(
 bool preparePlyMeshWithCopiedTextures(
     const QString &filename,
     const VCGMesh &mesh,
+    const MeshIOTextureContext *textureContext,
     VCGMesh &outMesh)
 {
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(outMesh, mesh);
@@ -154,29 +157,70 @@ bool preparePlyMeshWithCopiedTextures(
     QHash<QString, QString> copiedTargetsBySourcePath;
     QHash<QString, QString> reservedNames;
     std::vector<std::string> rewrittenTextures;
-    rewrittenTextures.reserve(outMesh.textures.size());
 
-    for (const std::string &rawTexturePath : mesh.textures) {
-        const QString sourcePath = QString::fromStdString(rawTexturePath).trimmed();
-        if (sourcePath.isEmpty())
-            continue;
+    const QStringList *textureFileNames = textureContext ? textureContext->textureFileNames : nullptr;
+    const QStringList *textureFilePaths = textureContext ? textureContext->textureFilePaths : nullptr;
+    const std::vector<MeshIOTextureAsset> *textureAssets =
+        textureContext ? textureContext->textureAssets : nullptr;
+
+    int textureCount = int(mesh.textures.size());
+    if (textureFileNames)
+        textureCount = std::max(textureCount, int(textureFileNames->size()));
+    if (textureFilePaths)
+        textureCount = std::max(textureCount, int(textureFilePaths->size()));
+    if (textureAssets)
+        textureCount = std::max(textureCount, int(textureAssets->size()));
+    rewrittenTextures.reserve(size_t(std::max(0, textureCount)));
+
+    for (int textureIndex = 0; textureIndex < textureCount; ++textureIndex) {
+        QString sourcePath;
+        QString displayName;
+        QImage image;
+        if (textureAssets && textureIndex < int(textureAssets->size())) {
+            const MeshIOTextureAsset &asset = textureAssets->at(size_t(textureIndex));
+            sourcePath = asset.sourcePath.trimmed();
+            displayName = asset.name.trimmed();
+            if (asset.hasImage())
+                image = asset.image;
+        }
+        if (sourcePath.isEmpty() && textureFilePaths && textureIndex < textureFilePaths->size())
+            sourcePath = textureFilePaths->at(textureIndex).trimmed();
+        if (displayName.isEmpty() && textureFileNames && textureIndex < textureFileNames->size())
+            displayName = textureFileNames->at(textureIndex).trimmed();
+        if (sourcePath.isEmpty() && textureIndex < int(mesh.textures.size()))
+            sourcePath = QString::fromStdString(mesh.textures[size_t(textureIndex)]).trimmed();
+        if (displayName.isEmpty() && !sourcePath.isEmpty())
+            displayName = QFileInfo(sourcePath).fileName();
+        if (displayName.isEmpty())
+            displayName = QStringLiteral("texture_%1.png").arg(textureIndex + 1);
+        if (!image.isNull() && QFileInfo(displayName).suffix().isEmpty())
+            displayName += QStringLiteral(".png");
 
         const QFileInfo sourceInfo(sourcePath);
-        if (!sourceInfo.exists() || !sourceInfo.isFile())
+        if ((sourcePath.isEmpty() || !sourceInfo.exists() || !sourceInfo.isFile()) && image.isNull())
             return false;
 
-        const QString normalizedSource = normalizeExistingPath(sourceInfo.absoluteFilePath());
-        QString destinationName = copiedTargetsBySourcePath.value(normalizedSource);
-        if (destinationName.isEmpty()) {
-            destinationName = uniqueTextureFileName(destinationDir, sourceInfo.fileName(), reservedNames);
-            const QString destinationPath = destinationDir.filePath(destinationName);
-            const QString normalizedDestination = normalizeExistingPath(destinationPath);
-            if (normalizedSource != normalizedDestination) {
-                QFile::remove(destinationPath);
-                if (!QFile::copy(sourceInfo.absoluteFilePath(), destinationPath))
-                    return false;
+        QString destinationName;
+        if (sourceInfo.exists() && sourceInfo.isFile()) {
+            const QString normalizedSource = normalizeExistingPath(sourceInfo.absoluteFilePath());
+            destinationName = copiedTargetsBySourcePath.value(normalizedSource);
+            if (destinationName.isEmpty()) {
+                destinationName = uniqueTextureFileName(destinationDir, sourceInfo.fileName(), reservedNames);
+                const QString destinationPath = destinationDir.filePath(destinationName);
+                const QString normalizedDestination = normalizeExistingPath(destinationPath);
+                if (normalizedSource != normalizedDestination) {
+                    QFile::remove(destinationPath);
+                    if (!QFile::copy(sourceInfo.absoluteFilePath(), destinationPath))
+                        return false;
+                }
+                copiedTargetsBySourcePath.insert(normalizedSource, destinationName);
             }
-            copiedTargetsBySourcePath.insert(normalizedSource, destinationName);
+        } else {
+            destinationName = uniqueTextureFileName(destinationDir, displayName, reservedNames);
+            const QString destinationPath = destinationDir.filePath(destinationName);
+            QFile::remove(destinationPath);
+            if (!image.save(destinationPath))
+                return false;
         }
 
         rewrittenTextures.push_back(QDir::toNativeSeparators(destinationName).toStdString());
@@ -258,6 +302,16 @@ public:
         const MeshIOSaveOptions &options,
         vcg::CallBackPos *cb) const override
     {
+        return save(filename, mesh, options, cb, nullptr);
+    }
+
+    int save(
+        const QString &filename,
+        VCGMesh &mesh,
+        const MeshIOSaveOptions &options,
+        vcg::CallBackPos *cb,
+        const MeshIOTextureContext *textureContext) const override
+    {
         const QString ext = normalizedExtension(filename);
         if (!isSupportedSaveExtension(ext))
             return kErrSaveUnsupportedFormat;
@@ -270,8 +324,14 @@ public:
         if (ext == QLatin1String("ply")) {
             const VCGMesh *meshToSave = &mesh;
             VCGMesh exportMesh;
-            if (options.copyAssociatedTextures && plySaveWritesTextureReferences(saveMask) && !mesh.textures.empty()) {
-                if (!preparePlyMeshWithCopiedTextures(filename, mesh, exportMesh))
+            const bool hasTextureAssociations =
+                !mesh.textures.empty()
+                || (textureContext
+                    && ((textureContext->textureFileNames && !textureContext->textureFileNames->isEmpty())
+                        || (textureContext->textureFilePaths && !textureContext->textureFilePaths->isEmpty())
+                        || (textureContext->textureAssets && !textureContext->textureAssets->empty())));
+            if (options.copyAssociatedTextures && plySaveWritesTextureReferences(saveMask) && hasTextureAssociations) {
+                if (!preparePlyMeshWithCopiedTextures(filename, mesh, textureContext, exportMesh))
                     return kErrSaveTextureCopyFailed;
                 meshToSave = &exportMesh;
             }

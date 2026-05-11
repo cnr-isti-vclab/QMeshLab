@@ -606,6 +606,15 @@
           "group": "advanced",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "sourceTexture",
+          "label": "Source Texture",
+          "help": "When Recover Color is enabled, choose which associated texture to sample. Automatic uses each face's per-wedge texture slot assignment.",
+          "group": "advanced",
+          "type": "textureref",
+          "default": 0,
+          "allowAutomatic": true
         }
       ]
     },

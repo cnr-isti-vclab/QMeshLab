@@ -64,6 +64,52 @@
           "default": false
         },
         {
+          "id": "use_dummy_texture",
+          "label": "Add dummy texture",
+          "help": "If enabled, also attach a generated dummy base-color texture to the mesh after the xatlas UVs are created, so the result is immediately visible in textured and UV views.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "dummy_img_size",
+          "label": "Dummy size",
+          "help": "Size in pixels of the generated dummy texture. Common values are `512`, `1024`, and `2048`.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 1,
+          "max": 32768
+        },
+        {
+          "id": "dummy_check_size",
+          "label": "Check size",
+          "help": "Size of the check or grid cells in pixels. A practical range is usually `8..128` depending on texture resolution.",
+          "group": "main",
+          "type": "int",
+          "default": 32,
+          "min": 1,
+          "max": 4096
+        },
+        {
+          "id": "dummy_type",
+          "label": "Dummy texture type",
+          "help": "Choose between a checkerboard or a grid pattern for the generated dummy texture.",
+          "group": "main",
+          "type": "enum",
+          "default": "checkerboard",
+          "enumOptions": [
+            {
+              "id": "checkerboard",
+              "label": "Checkerboard"
+            },
+            {
+              "id": "grid",
+              "label": "Grid"
+            }
+          ]
+        },
+        {
           "id": "bilinear",
           "label": "Bilinear padding",
           "help": "Leave space around charts for texels that would be sampled by bilinear filtering. Keep this enabled for safer baked textures; disabling it can improve packing density slightly but increases artifact risk.",
@@ -202,7 +248,8 @@
         }
       ],
       "outputModifies": [
-        "WT"
+        "WT",
+        "TX"
       ]
     }
   ]

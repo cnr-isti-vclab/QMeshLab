@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include "textureassociationutils.h"
 #include "upstream/xatlas.h"
 #include <wrap/callback.h>
 #include <wrap/io_trimesh/io_mask.h>
@@ -17,6 +18,7 @@ namespace {
 
 constexpr QLatin1StringView kFilterXAtlas("generate_xatlas_parametrization");
 using Mask = vcg::tri::io::Mask;
+namespace Tex = TextureAssociationUtils;
 
 MeshFilterRunResult fail(const QString &message)
 {
@@ -259,6 +261,35 @@ MeshFilterRunResult XAtlasFilterPlugin::runFilter(
         }
     }
 
+    QString dummyTextureInfo;
+    if (params.getBool(QStringLiteral("use_dummy_texture"))) {
+        const int imageSize = params.getInt(QStringLiteral("dummy_img_size"));
+        const int checkSize = params.getInt(QStringLiteral("dummy_check_size"));
+        const QString dummyType = params.getEnum(QStringLiteral("dummy_type"));
+        if (imageSize <= 0) {
+            const QString message = QObject::tr("Dummy size has an incorrect value.");
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+        if (checkSize <= 0) {
+            const QString message = QObject::tr("Check size has an incorrect value.");
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+        const bool checkerboard = (dummyType != QStringLiteral("grid"));
+        const QString displayName = checkerboard
+            ? QStringLiteral("xatlas Dummy Checkerboard")
+            : QStringLiteral("xatlas Dummy Grid");
+        Tex::replaceTextureAssociations(
+            entry,
+            { Tex::makeTextureAssetFromImage(
+                Tex::makeDummyTexture(imageSize, checkSize, checkerboard),
+                displayName) });
+        dummyTextureInfo = QObject::tr("Added dummy texture: %1 (%2x%2).")
+            .arg(displayName)
+            .arg(imageSize);
+    }
+
     entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
     doc.markMeshMaterialChanged(
@@ -271,6 +302,8 @@ MeshFilterRunResult XAtlasFilterPlugin::runFilter(
          << QObject::tr("Charts: %1").arg(atlas->chartCount)
          << QObject::tr("Output vertices after seam splitting: %1").arg(outputMesh.vertexCount)
          << QObject::tr("Texels per unit: %1").arg(QString::number(atlas->texelsPerUnit, 'f', 3));
+    if (!dummyTextureInfo.isEmpty())
+        info << dummyTextureInfo;
     if (atlas->atlasCount > 0 && atlas->utilization)
         info << QObject::tr("Utilization: %1%").arg(QString::number(atlas->utilization[0] * 100.0f, 'f', 2));
 

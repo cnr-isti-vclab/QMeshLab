@@ -92,11 +92,13 @@ struct MeshFilterParameterDescriptor
     QVariant maxValue;
     int decimals = 3;
     std::vector<MeshFilterEnumOption> enumOptions;
-    // Only used when type == FileOpen / FileSave.
+    // FileOpen/FileSave are raw external paths. Mesh-associated texture slots
+    // should use TextureRef/TextureOutputRef instead.
     QString fileDialogTitle;
     QStringList fileNameFilters;
     QString fileDefaultSuffix;
-    // Only used when type == TextureRef / TextureOutputRef.
+    // TextureRef selects a mesh-associated input texture. TextureOutputRef selects
+    // either an existing mesh-associated output texture or a new texture file.
     QString textureSourceMeshParameter;
     bool textureAllowAutomatic = true;
     // Only used when type == Mesh: requirements and volatile-data preparation
