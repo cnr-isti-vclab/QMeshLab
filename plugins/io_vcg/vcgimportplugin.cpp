@@ -151,6 +151,10 @@ bool preparePlyMeshWithCopiedTextures(
     const MeshIOTextureContext *textureContext,
     VCGMesh &outMesh)
 {
+    if (vcg::tri::HasPerVertexTexCoord(mesh))
+        outMesh.vert.EnableTexCoord();
+    if (vcg::tri::HasPerWedgeTexCoord(mesh))
+        outMesh.face.EnableWedgeTexCoord();
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(outMesh, mesh);
 
     const QDir destinationDir = QFileInfo(filename).absoluteDir();
@@ -334,6 +338,19 @@ public:
                 if (!preparePlyMeshWithCopiedTextures(filename, mesh, textureContext, exportMesh))
                     return kErrSaveTextureCopyFailed;
                 meshToSave = &exportMesh;
+            }
+            if ((saveMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
+                && vcg::tri::HasPerWedgeTexCoord(*meshToSave)
+                && vcg::tri::HasPerVertexTexCoord(*meshToSave)) {
+                if (meshToSave != &exportMesh) {
+                    exportMesh.vert.EnableTexCoord();
+                    exportMesh.face.EnableWedgeTexCoord();
+                    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(exportMesh, mesh);
+                    meshToSave = &exportMesh;
+                }
+                // VCGLib's ASCII PLY exporter checks vertex texcoords before wedge
+                // texcoords; disabling VT on the temporary export mesh preserves WT.
+                exportMesh.vert.DisableTexCoord();
             }
             const int err = vcg::tri::io::ExporterPLY<VCGMesh>::Save(
                 *meshToSave,

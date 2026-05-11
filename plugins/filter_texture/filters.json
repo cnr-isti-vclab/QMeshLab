@@ -615,8 +615,8 @@
       "parameters": [
         {
           "id": "targetTexture",
-          "label": "Target Material / UV Slot",
-          "help": "Choose the mesh texture slot whose UV layout will be used for the conversion and, if requested, whose PBR normal channel will be updated.",
+          "label": "UV / Material Slot",
+          "help": "Choose the mesh texture slot that owns the UV layout to process. Only faces whose per-wedge texture index uses this slot are converted, and this is also the material slot whose PBR normal channel can be updated. This is separate from the source image because the object-space normal map may be stored as another associated texture.",
           "group": "main",
           "type": "textureref",
           "default": 1,
@@ -625,7 +625,7 @@
         {
           "id": "sourceNormalMap",
           "label": "Source Object-Space Normal Map",
-          "help": "Choose which associated texture image should be interpreted as the object-space normal map to convert.",
+          "help": "Choose the associated texture image to interpret as the object-space normal map. Its pixels are sampled through the selected UV / Material Slot.",
           "group": "main",
           "type": "textureref",
           "default": 1,
@@ -634,7 +634,7 @@
         {
           "id": "targetNormalMap",
           "label": "Target Tangent-Space Normal Map",
-          "help": "Choose an existing associated texture to overwrite, or create a new texture file for the converted tangent-space normal map.",
+          "help": "Choose where the generated tangent-space normal map should go: overwrite an existing associated texture, or create a new texture file and add it to the mesh texture list.",
           "group": "main",
           "type": "textureoutputref",
           "default": "tangent_normal.png",

@@ -1301,6 +1301,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             return fail(sourceImageError);
 
         VCGMesh workMesh;
+        if (vcg::tri::HasPerWedgeTexCoord(mesh))
+            workMesh.face.EnableWedgeTexCoord();
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(workMesh, mesh);
         int keptFaceCount = 0;
         for (VCGFace &face : workMesh.face) {

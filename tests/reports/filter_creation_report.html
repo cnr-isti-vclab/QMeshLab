@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Filter Creation Test Report — QMeshLab</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f4f6f9;color:#222}
+.hdr{background:#1e2a3a;color:#fff;padding:1.4rem 2rem}
+.hdr h1{font-size:1.35rem;font-weight:600}
+.hdr .meta{font-size:.82rem;color:#9ab;margin-top:.3rem}
+.summary{display:flex;align-items:center;gap:1.2rem;padding:1rem 2rem;background:#fff;border-bottom:1px solid #dde;flex-wrap:wrap}
+.badge{padding:.35rem 1rem;border-radius:4px;font-weight:700;font-size:.88rem}
+.all-pass{background:#d4edda;color:#155724}
+.some-fail{background:#f8d7da;color:#721c24}
+.stat{font-size:.9rem}
+.stat b{font-weight:700}
+.pv{color:#28a745}.fv{color:#dc3545}
+.content{padding:1.4rem 2rem}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+th{background:#1e2a3a;color:#fff;text-align:left;padding:.65rem 1rem;font-size:.78rem;font-weight:500;letter-spacing:.05em;text-transform:uppercase}
+td{padding:.65rem 1rem;border-bottom:1px solid #eef;font-size:.88rem;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+.rpass{color:#28a745;font-weight:700}
+.rfail{color:#dc3545;font-weight:700}
+.fd{color:#999;font-size:.8rem;margin-top:.2rem}
+code{font-family:"SF Mono",Consolas,monospace;font-size:.83em;background:#f0f2f5;padding:.1em .4em;border-radius:3px}
+.num{text-align:right}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>Filter Creation Test Report &mdash; QMeshLab</h1>
+  <div class="meta">Generated: 2026-05-11T17:14:57</div>
+</div>
+<div class="summary">
+  <span class="badge all-pass">ALL PASSED</span>
+  <div class="stat">Total&nbsp;<b>15</b></div>
+  <div class="stat">Passed&nbsp;<b class="pv">15</b></div>
+  <div class="stat">Failed&nbsp;<b class="fv">0</b></div>
+</div>
+<div class="content">
+<table>
+<thead>
+<tr><th>#</th><th>Filter ID</th><th>Name</th><th>Result</th><th class="num">New meshes</th><th class="num">Vertices</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>1</td>
+  <td><code>create_noisy_isosurface</code></td>
+  <td>Noisy Isosurface</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">29222</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>grid_generator</code></td>
+  <td>Grid Generator</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">100</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>implicit_surface</code></td>
+  <td>Implicit Surface</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">3756</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>create_tetrahedron</code></td>
+  <td>Tetrahedron</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">4</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>create_icosahedron</code></td>
+  <td>Icosahedron</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">12</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>create_dodecahedron</code></td>
+  <td>Dodecahedron</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">20</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>create_dodecahedron_sym</code></td>
+  <td>Dodecahedron (symmetric)</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">32</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>create_octahedron</code></td>
+  <td>Octahedron</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">6</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>create_box</code></td>
+  <td>Box/Cube</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">8</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>create_annulus</code></td>
+  <td>Annulus</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">64</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>create_sphere</code></td>
+  <td>Sphere</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">642</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>create_sphere_cap</code></td>
+  <td>Sphere Cap</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">217</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>create_sphere_points</code></td>
+  <td>Points on a Sphere</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">100</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>create_cone</code></td>
+  <td>Cone</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">74</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>create_torus</code></td>
+  <td>Torus</td>
+  <td><span class="rpass">&#x2713; PASS</span></td>
+  <td class="num">1</td>
+  <td class="num">288</td>
+</tr>
+</tbody>
+</table>
+</div>
+</body>
+</html>

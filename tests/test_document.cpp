@@ -1,7 +1,11 @@
 #include <QtTest/QtTest>
 #include <QSignalSpy>
+#include <QFile>
+#include <QTemporaryDir>
 
 #include "document.h"
+#include <vcg/complex/allocate.h>
+#include <wrap/io_trimesh/io_mask.h>
 
 class DocumentTests : public QObject
 {
@@ -13,6 +17,7 @@ private slots:
     void undoRedoRestoresMeshList();
     void undoTreeBranchingPreservesAlternateFuture();
     void openDialogFilterContainsKnownFormats();
+    void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
     void benchmarkLoadMesh();
 };
 
@@ -127,6 +132,67 @@ void DocumentTests::openDialogFilterContainsKnownFormats()
     QVERIFY(filters.first().contains(QStringLiteral("*.ply")));
     QVERIFY(filters.first().contains(QStringLiteral("*.obj")));
     QVERIFY(filter.contains(QStringLiteral("All Files (*)")));
+}
+
+void DocumentTests::savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist()
+{
+    VCGMesh mesh;
+
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(1.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 1.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    mesh.vert.EnableTexCoord();
+    mesh.face.EnableWedgeTexCoord();
+
+    // Deliberately make vertex UVs different from wedge UVs. ASCII VCGLib PLY
+    // export can otherwise accidentally write VT values in the face texcoord list.
+    mesh.vert[0].T().U() = 0.9f;
+    mesh.vert[0].T().V() = 0.9f;
+    mesh.vert[1].T().U() = 0.8f;
+    mesh.vert[1].T().V() = 0.8f;
+    mesh.vert[2].T().U() = 0.7f;
+    mesh.vert[2].T().V() = 0.7f;
+    mesh.face[0].WT(0).U() = 0.1f;
+    mesh.face[0].WT(0).V() = 0.2f;
+    mesh.face[0].WT(1).U() = 0.3f;
+    mesh.face[0].WT(1).V() = 0.4f;
+    mesh.face[0].WT(2).U() = 0.5f;
+    mesh.face[0].WT(2).V() = 0.6f;
+    QVERIFY(vcg::tri::HasPerVertexTexCoord(mesh));
+    QVERIFY(vcg::tri::HasPerWedgeTexCoord(mesh));
+
+    Document doc;
+    const int meshIndex = doc.addMesh(
+        mesh,
+        QStringLiteral("wedge_uv"),
+        vcg::tri::io::Mask::IOM_VERTCOORD
+            | vcg::tri::io::Mask::IOM_FACEINDEX
+            | vcg::tri::io::Mask::IOM_VERTTEXCOORD
+            | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QVERIFY(meshIndex >= 0);
+    QVERIFY(vcg::tri::HasPerVertexTexCoord(doc.mesh(meshIndex).mesh));
+    QVERIFY(vcg::tri::HasPerWedgeTexCoord(doc.mesh(meshIndex).mesh));
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString plyPath = dir.filePath(QStringLiteral("wedge_uv.ply"));
+
+    MeshIOSaveOptions options;
+    options.binary = false;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+    QCOMPARE(doc.saveMesh(meshIndex, plyPath, options), 0);
+
+    QFile plyFile(plyPath);
+    QVERIFY(plyFile.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString ply = QString::fromUtf8(plyFile.readAll());
+    QVERIFY2(
+        ply.contains(QStringLiteral("property list uchar float texcoord")),
+        qPrintable(ply));
+    QVERIFY(ply.contains(QStringLiteral("6 0.100000 0.200000 0.300000 0.400000 0.500000 0.600000")));
+    QVERIFY(!ply.contains(QStringLiteral("0.900000 0.900000")));
 }
 
 void DocumentTests::benchmarkLoadMesh()
