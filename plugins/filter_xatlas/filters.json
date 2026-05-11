@@ -1,0 +1,209 @@
+{
+  "pluginId": "qmeshlab.filter.xatlas",
+  "filters": [
+    {
+      "id": "generate_xatlas_parametrization",
+      "menuPath": "Texture",
+      "name": "Parametrization: xatlas",
+      "shortDescription": "Generate a charted and packed UV atlas for the current triangular mesh using xatlas.",
+      "longDescriptionMarkdown": "Generates a new UV atlas for the current triangular mesh using **xatlas**, the lightweight atlas-generation library by Jonathan Young, an independent fork of **thekla_atlas**. The resulting UVs are written back to the current mesh as per-wedge texture coordinates and are suitable for baking and texture painting workflows.\n\nThis first QMeshLab integration currently targets **single-atlas output** on the current mesh.\n\nPractical tuning notes:\n- For **denser packing**, try enabling **Brute-force packing**, keep chart rotation enabled, and reduce **Padding** as far as your baking workflow tolerates.\n- For **less fragmented atlases** with fewer, larger charts, try increasing **Max cost**, lowering **Normal deviation weight** and **Normal seam weight**, and leaving **Max chart area** and **Max boundary length** at `0`.\n- These goals trade off against each other: fewer/larger charts usually mean more distortion, while tighter packing with less padding increases the risk of bleeding and mipmap artifacts.",
+      "tags": [
+        "texture",
+        "uv",
+        "parametrization",
+        "atlas",
+        "xatlas"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "VNorm"
+      ],
+      "parameters": [
+        {
+          "id": "padding",
+          "label": "Padding",
+          "help": "Number of texels of padding inserted around charts. Lower values give denser packing, but increase the risk of bleeding and mipmap artifacts. Higher values are safer for baking. Reasonable values are usually `0..8`; `1..4` is a common practical range.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 128
+        },
+        {
+          "id": "texelsPerUnit",
+          "label": "Texels per unit",
+          "help": "Unit-to-texel scale. Leave `0` to let xatlas estimate a suitable value automatically. Higher values allocate more texture area to the mesh and can make it harder to stay within a single atlas. A practical range is highly model-dependent, but values around `1..256` are much more common than very large values.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "resolution",
+          "label": "Resolution",
+          "help": "If `0`, xatlas chooses a single-atlas size automatically. If greater than `0`, xatlas tries to match this atlas resolution. Large requested resolutions, especially with high texels-per-unit or padding, can force xatlas to create multiple atlases. Common values are `512`, `1024`, `2048`, and `4096`.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 65536
+        },
+        {
+          "id": "bruteForce",
+          "label": "Brute-force packing",
+          "help": "Use the slower but higher-quality chart packing strategy. This is the main option to try when you want more aggressive packing and better atlas utilization.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "bilinear",
+          "label": "Bilinear padding",
+          "help": "Leave space around charts for texels that would be sampled by bilinear filtering. Keep this enabled for safer baked textures; disabling it can improve packing density slightly but increases artifact risk.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "blockAlign",
+          "label": "Block align",
+          "help": "Align charts to 4x4 blocks. This can improve packing speed and can help block-compressed textures, but it is usually a little less aggressive in raw packing efficiency.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "maxChartSize",
+          "label": "Max chart size",
+          "help": "Charts larger than this are scaled down. Leave `0` for no limit. A small limit can make the atlas more fragmented by preventing large islands from remaining large. Practical values are typically `256..4096` when you want to constrain very large charts.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 65536
+        },
+        {
+          "id": "rotateChartsToAxis",
+          "label": "Rotate charts to axis",
+          "help": "Rotate charts to the axis of their convex hull before packing. Usually helps packing and gives a cleaner starting orientation for islands.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "rotateCharts",
+          "label": "Rotate charts",
+          "help": "Allow chart rotation during packing to improve utilization. This usually helps create a denser atlas.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "normalDeviationWeight",
+          "label": "Normal deviation weight",
+          "help": "Weight of angle deviation between a face and the average chart normal during chart growth. Higher values resist bending a chart across changing normals and usually increase fragmentation. Lower values can allow larger charts. A good working range is usually about `0.5..8`, with the default `2` being a balanced start.",
+          "group": "advanced",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "roundnessWeight",
+          "label": "Roundness weight",
+          "help": "Weight that encourages compact, rounder charts. Higher values can promote smaller, tidier islands, sometimes at the cost of more fragmentation. Practical values are often in the `0..1` range; the default `0.01` is already fairly gentle.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.01,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "straightnessWeight",
+          "label": "Straightness weight",
+          "help": "Weight that encourages straighter chart boundaries. This mostly affects boundary shape, but can also influence how readily charts split. A useful tuning range is commonly `0..20`, with the default `6` as a solid starting point.",
+          "group": "advanced",
+          "type": "double",
+          "default": 6.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "normalSeamWeight",
+          "label": "Normal seam weight",
+          "help": "Weight applied to chart boundaries crossing normal seams. Very high values preserve such seams strongly and usually create more fragmented atlases. Lower values allow more merging across those seams. A practical range is often `0..16`; values above that become increasingly aggressive about preserving seams.",
+          "group": "advanced",
+          "type": "double",
+          "default": 4.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "maxCost",
+          "label": "Max cost",
+          "help": "Maximum growth cost for charts. Lower values generally produce more charts. Raising this is the first thing to try if you want fewer, larger islands and a less fragmented atlas. A good exploration range is usually `0.5..10`, with the default `2` as a balanced value.",
+          "group": "advanced",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "maxIterations",
+          "label": "Max iterations",
+          "help": "Number of chart seeding and growth iterations. Higher values may improve chart quality and coherence, though they also cost more time. Practical values are typically `1..10`; going much higher is uncommon unless you are explicitly experimenting.",
+          "group": "advanced",
+          "type": "int",
+          "default": 1,
+          "min": 1,
+          "max": 256
+        },
+        {
+          "id": "maxChartArea",
+          "label": "Max chart area",
+          "help": "Upper bound on chart area during growth. Leave `0` for no limit. Setting this to a small value forces more splitting and therefore a more fragmented atlas. This is scene-scale dependent; when used at all, it is usually tuned relative to mesh size rather than by absolute universal values.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1000000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "maxBoundaryLength",
+          "label": "Max boundary length",
+          "help": "Upper bound on chart boundary length during growth. Leave `0` for no limit. Setting this to a small value tends to force more chart splitting. Like max chart area, this is model-scale dependent and is usually left at `0` unless you have a specific reason to constrain chart growth.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1000000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "fixWinding",
+          "label": "Fix winding",
+          "help": "Enforce consistent texture-coordinate winding in the generated charts. This is mainly a robustness option rather than a packing or fragmentation control.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "WT"
+      ]
+    }
+  ]
+}

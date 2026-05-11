@@ -53,6 +53,9 @@
 #if QMESH_PLUGIN_FILTER_COLORPROC_ENABLED
 #include "plugins/filter_colorproc/colorprocfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
+#include "plugins/filter_xatlas/xatlasfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -106,5 +109,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_COLORPROC_ENABLED
     registerColorProcFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
+    registerXAtlasFilterPlugin(pluginManager);
 #endif
 }
