@@ -1,0 +1,111 @@
+{
+  "pluginId": "qmeshlab.filter.texture_defragmentation",
+  "filters": [
+    {
+      "id": "apply_texmap_defragmentation",
+      "menuPath": "Texture",
+      "name": "Texture Map Defragmentation",
+      "shortDescription": "Reduce texture atlas fragmentation by merging compatible charts and resampling the texture map.",
+      "longDescriptionMarkdown": "Reduces texture fragmentation by merging compatible atlas charts, repacking the resulting charts, and resampling the associated texture images onto the optimized atlas.\n\nThe implemented algorithm is described in:\n\n**Texture Defragmentation for Photo-Reconstructed 3D Models**\nAndrea Maggiordomo, Paolo Cignoni, Marco Tarini. Eurographics 2021.\n\nThis QMeshLab port vendors the upstream TextureDefrag reference implementation from `https://github.com/maggio-a/texture-defrag` and adapts it to QMeshLab's mesh-owned texture model. The filter creates a new mesh layer named `texdefrag_<source>` rather than overwriting the input mesh, preserving the original atlas for comparison.\n\nImplementation note: the original reference code used OpenGL to rasterize the new texture atlas. QMeshLab isolates that step behind the original `RenderTexture` boundary; this first integration uses an internal image renderer so the algorithm can run from the filter framework without requiring an OpenGL context. The renderer boundary is intentionally narrow so a QRhi backend can replace it cleanly.",
+      "tags": [
+        "texture",
+        "atlas",
+        "defragmentation",
+        "uv",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requirePerWedgeTexCoords": true,
+        "requireTextures": true
+      },
+      "inputPrepare": [
+        "FF",
+        "FNorm",
+        "VNorm"
+      ],
+      "parameters": [
+        {
+          "id": "matchingThreshold",
+          "label": "Matching Error Threshold",
+          "help": "Threshold on the seam alignment error. Higher values allow more seams to be considered compatible, which can reduce fragmentation, but may increase runtime and risk more distortion. MeshLab default: `2.0`.",
+          "group": "main",
+          "type": "double",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "boundaryTolerance",
+          "label": "Seam to chart-boundary-length tolerance",
+          "help": "Cutoff on the minimum fractional seam length relative to the chart perimeter. Seams with lower fractional length are not merged, helping keep chart borders compact. MeshLab default: `0.2`.",
+          "group": "main",
+          "type": "double",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
+          "id": "distortionTolerance",
+          "label": "Local ARAP distortion tolerance",
+          "help": "Local UV optimization distortion tolerance when merging a seam. If local ARAP energy exceeds this value, the merge is reverted. Smaller values preserve the original parameterization more strictly; larger values can merge more charts. MeshLab default: `0.5`.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "globalDistortionTolerance",
+          "label": "Global ARAP distortion tolerance",
+          "help": "Global atlas ARAP distortion tolerance when accepting a seam merge. If the global atlas energy exceeds this value, the merge is reverted. This is usually kept much smaller than the local tolerance. MeshLab default: `0.025`.",
+          "group": "main",
+          "type": "double",
+          "default": 0.025,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "uvReductionLimit",
+          "label": "UV Length Target (%)",
+          "help": "Target UV boundary length reduction, expressed as a percentage of the input UV boundary length. The algorithm stops once this reduction has been reached, or when no further seams can be merged. `0` means no target reduction stop condition. MeshLab default: `0`.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 100.0,
+          "decimals": 3
+        },
+        {
+          "id": "offsetFactor",
+          "label": "Local expansion coefficient",
+          "help": "Coefficient controlling the extension of the local UV optimization area. Larger values can make defragmentation more effective by giving the optimizer more room, but increase geometric optimization cost and runtime. MeshLab default: `5.0`.",
+          "group": "advanced",
+          "type": "double",
+          "default": 5.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "timelimit",
+          "label": "Time limit (seconds)",
+          "help": "Time limit for the defragmentation process. `0` means unlimited. This is useful for very large atlases where chart merging can be expensive. MeshLab default: `0`.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        }
+      ]
+    }
+  ]
+}

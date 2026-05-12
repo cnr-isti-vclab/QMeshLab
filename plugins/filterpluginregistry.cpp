@@ -20,6 +20,9 @@
 #if QMESH_PLUGIN_FILTER_MESHING_ENABLED
 #include "plugins/filter_meshing/meshingfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_CGAL_ENABLED
+#include "plugins/filter_cgal/cgalfilterplugin.h"
+#endif
 #if QMESH_PLUGIN_FILTER_SCREENED_POISSON_ENABLED
 #include "plugins/filter_screened_poisson/screenedpoissonfilterplugin.h"
 #endif
@@ -37,6 +40,9 @@
 #endif
 #if QMESH_PLUGIN_FILTER_TEXTURE_ENABLED
 #include "plugins/filter_texture/texturefilterplugin.h"
+#endif
+#if QMESH_PLUGIN_FILTER_TEXTURE_DEFRAGMENTATION_ENABLED
+#include "plugins/filter_texture_defragmentation/texturedefragfilterplugin.h"
 #endif
 #if QMESH_PLUGIN_FILTER_MEASURE_ENABLED
 #include "plugins/filter_measure/measurefilterplugin.h"
@@ -77,6 +83,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #if QMESH_PLUGIN_FILTER_MESHING_ENABLED
     registerMeshingFilterPlugin(pluginManager);
 #endif
+#if QMESH_PLUGIN_FILTER_CGAL_ENABLED
+    registerCgalFilterPlugin(pluginManager);
+#endif
 #if QMESH_PLUGIN_FILTER_SCREENED_POISSON_ENABLED
     registerScreenedPoissonFilterPlugin(pluginManager);
 #endif
@@ -94,6 +103,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_TEXTURE_ENABLED
     registerTextureFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_TEXTURE_DEFRAGMENTATION_ENABLED
+    registerTextureDefragFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_MEASURE_ENABLED
     registerMeasureFilterPlugin(pluginManager);

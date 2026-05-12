@@ -11,6 +11,7 @@ private slots:
     void filterApplicabilityReflectsDocumentState();
     void basicFiltersRunOnLoadedMesh();
     void filterParameterValidation();
+    void cgalAlphaWrapRunsWhenAvailable();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -243,6 +244,40 @@ void FilterTests::filterParameterValidation()
         QVERIFY(!result.success);
         QVERIFY(result.errorMessage.contains(QStringLiteral("minimum")));
     }
+}
+
+void FilterTests::cgalAlphaWrapRunsWhenAvailable()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off");
+    QCOMPARE(doc.loadMesh(path), 0);
+
+    QString alphaWrapKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("generate_alpha_wrap")) {
+            alphaWrapKey = info.key;
+            break;
+        }
+    }
+
+    if (alphaWrapKey.isEmpty())
+        QSKIP("CGAL Alpha Wrap plugin is not available in this build.");
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("Alpha"), 0.5);
+    params.insert(QStringLiteral("Offset"), 0.05);
+    const int meshCountBefore = doc.meshCount();
+    const MeshFilterRunResult result = doc.runFilter(alphaWrapKey, params);
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(result.documentModified);
+    QCOMPARE(result.newMeshIndices.size(), 1);
+    QCOMPARE(doc.meshCount(), meshCountBefore + 1);
+
+    const int generatedIndex = result.newMeshIndices.front();
+    QVERIFY(generatedIndex >= 0 && generatedIndex < doc.meshCount());
+    QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
+    QVERIFY(doc.mesh(generatedIndex).mesh.FN() > 0);
 }
 
 QTEST_MAIN(FilterTests)
