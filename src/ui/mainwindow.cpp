@@ -8,6 +8,8 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <QButtonGroup>
 #include <QClipboard>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHeaderView>
@@ -36,6 +38,7 @@
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMouseEvent>
+#include <QMimeData>
 #include <QProcess>
 #include <QProgressBar>
 #include <QRadioButton>
@@ -45,6 +48,7 @@
 #include <QStringList>
 #include <QTableWidget>
 #include <QTimer>
+#include <QUrl>
 // QTreeWidget replaced by UndoGraphWidget
 #include <QToolButton>
 #include <QVector3D>
@@ -404,6 +408,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle(QStringLiteral("QMeshLab"));
+    setAcceptDrops(true);
     if (QScreen *screen = QGuiApplication::primaryScreen()) {
         const QRect avail = screen->availableGeometry();
         resize(avail.width() * 9 / 10, avail.height() * 9 / 10);
@@ -933,6 +938,8 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
 
     auto *view = new RenderWidget(m_doc, parentSplitter);
     view->setAttribute(Qt::WA_StyledBackground, true);
+    view->setAcceptDrops(true);
+    view->installEventFilter(this);
     view->setContextMenuPolicy(Qt::CustomContextMenu);
     parentSplitter->addWidget(view);
     m_renderWidgets.append(view);
@@ -1266,6 +1273,80 @@ void MainWindow::openFile()
                 .arg(loadedCount)
                 .arg(failedCount),
             3500);
+    }
+}
+
+bool MainWindow::handleDragEnterOrMove(QDropEvent *event)
+{
+    if (!event || !event->mimeData() || !event->mimeData()->hasUrls()) {
+        if (event)
+            event->ignore();
+        return false;
+    }
+
+    for (const QUrl &url : event->mimeData()->urls()) {
+        if (!url.isLocalFile())
+            continue;
+        const QString path = url.toLocalFile();
+        if (path.trimmed().isEmpty())
+            continue;
+        if (QFileInfo(path).isFile()) {
+            event->setDropAction(Qt::CopyAction);
+            event->accept();
+            return true;
+        }
+    }
+
+    event->ignore();
+    return false;
+}
+
+void MainWindow::handleDroppedUrls(const QList<QUrl> &urls)
+{
+    QStringList filePaths;
+    filePaths.reserve(urls.size());
+    QSet<QString> seenPaths;
+    for (const QUrl &url : urls) {
+        if (!url.isLocalFile())
+            continue;
+        const QString path = url.toLocalFile();
+        const QFileInfo info(path);
+        if (!info.isFile())
+            continue;
+        const QString normalized = normalizeRecentPath(path);
+        if (normalized.isEmpty() || seenPaths.contains(normalized))
+            continue;
+        seenPaths.insert(normalized);
+        filePaths.push_back(path);
+    }
+
+    if (filePaths.isEmpty()) {
+        statusBar()->showMessage(tr("Drop ignored: no local mesh files found"), 2500);
+        return;
+    }
+
+    const bool groupUndoStep = (filePaths.size() > 1);
+    if (groupUndoStep)
+        m_doc->beginUndoStep(tr("Drop Meshes"));
+
+    int loadedCount = 0;
+    int failedCount = 0;
+    for (const QString &path : filePaths) {
+        if (loadMeshFromPath(path))
+            ++loadedCount;
+        else
+            ++failedCount;
+    }
+
+    if (groupUndoStep)
+        m_doc->endUndoStep(loadedCount > 0);
+
+    if (filePaths.size() > 1 || failedCount > 0) {
+        statusBar()->showMessage(
+            tr("Drop complete: %1 loaded, %2 failed")
+                .arg(loadedCount)
+                .arg(failedCount),
+            failedCount > 0 ? 4500 : 3000);
     }
 }
 
@@ -2719,5 +2800,38 @@ void MainWindow::refreshUndoHistoryPanel()
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
+    if (qobject_cast<RenderWidget *>(watched)) {
+        switch (event->type()) {
+        case QEvent::DragEnter:
+        case QEvent::DragMove:
+            return handleDragEnterOrMove(static_cast<QDropEvent *>(event));
+        case QEvent::Drop: {
+            auto *dropEvent = static_cast<QDropEvent *>(event);
+            if (!handleDragEnterOrMove(dropEvent))
+                return true;
+            handleDroppedUrls(dropEvent->mimeData()->urls());
+            return true;
+        }
+        default:
+            break;
+        }
+    }
     return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    handleDragEnterOrMove(event);
+}
+
+void MainWindow::dragMoveEvent(QDragMoveEvent *event)
+{
+    handleDragEnterOrMove(event);
+}
+
+void MainWindow::dropEvent(QDropEvent *event)
+{
+    if (!handleDragEnterOrMove(event))
+        return;
+    handleDroppedUrls(event->mimeData()->urls());
 }
