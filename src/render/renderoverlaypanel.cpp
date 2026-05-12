@@ -714,6 +714,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillRsInvertCheck = new QCheckBox(fillPage);
     m_fillRsInvertCheck->setChecked(m_meshSettings.fillRs.invert);
     fillRsForm->addRow(tr("Invert"), makeCenteredFieldContainer(m_fillRsInvertCheck, fillPage));
+    m_fillRsFlatCheck = new QCheckBox(fillPage);
+    m_fillRsFlatCheck->setChecked(m_meshSettings.fillRs.shading == FillShading::Flat);
+    fillRsForm->addRow(tr("Flat shading"), makeCenteredFieldContainer(m_fillRsFlatCheck, fillPage));
     applyUniformFormRowHeights(fillRsForm);
     fillRsLayout->addLayout(fillRsForm);
     m_fillMaterialStack->addWidget(fillRsPage);
@@ -1220,6 +1223,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     connect(m_fillRsInvertCheck, &QCheckBox::toggled, this, [this](bool checked) {
         if (m_meshSettings.fillRs.invert == checked) return;
         m_meshSettings.fillRs.invert = checked;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    connect(m_fillRsFlatCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        const FillShading s = checked ? FillShading::Flat : FillShading::Smooth;
+        if (m_meshSettings.fillRs.shading == s) return;
+        m_meshSettings.fillRs.shading = s;
         emit meshSettingsChanged(m_meshSettings);
     });
     connect(m_fillOcclusionStrengthSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
@@ -1836,6 +1845,10 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
         QSignalBlocker blocker(m_fillRsInvertCheck);
         m_fillRsInvertCheck->setChecked(m_meshSettings.fillRs.invert);
     }
+    if (m_fillRsFlatCheck) {
+        QSignalBlocker blocker(m_fillRsFlatCheck);
+        m_fillRsFlatCheck->setChecked(m_meshSettings.fillRs.shading == FillShading::Flat);
+    }
     if (m_fillOcclusionStrengthSpin) {
         QSignalBlocker blocker(m_fillOcclusionStrengthSpin);
         m_fillOcclusionStrengthSpin->setValue(m_meshSettings.fillPbr.occlusionStrength);
@@ -2218,6 +2231,8 @@ void RenderOverlayPanel::syncFillPbrUiState()
         m_fillRsDisplayModeCombo->setEnabled(useRs);
     if (m_fillRsInvertCheck)
         m_fillRsInvertCheck->setEnabled(useRs);
+    if (m_fillRsFlatCheck)
+        m_fillRsFlatCheck->setEnabled(useRs);
 
     const bool constantAlbedo = (m_meshSettings.fillPbr.albedoSource == FillPbrTextureSource::Constant);
     if (m_fillPbrAlbedoCombo)

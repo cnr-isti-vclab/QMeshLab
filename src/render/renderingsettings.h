@@ -94,13 +94,15 @@ struct PlainFillParams {
 };
 
 struct RsFillParams {
+    FillShading shading       = FillShading::Smooth;
     float enhancement = 0.5f;
     int   displayMode = 0;   // 0=Lambertian, 1=Colored Descriptor, 2=Grey Descriptor
     bool  invert      = false;
 
     bool operator==(const RsFillParams &o) const
     {
-        return enhancement == o.enhancement
+        return shading     == o.shading
+            && enhancement == o.enhancement
             && displayMode == o.displayMode
             && invert      == o.invert;
     }

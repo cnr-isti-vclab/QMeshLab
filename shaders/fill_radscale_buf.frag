@@ -23,7 +23,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 fillColor;
     vec4 lightingParams;
     vec4 edgeColor;
-    vec4 materialFlags;
+    vec4 materialFlags;  // z=1.0 means flat shading (face normal via dFdx/dFdy)
     vec4 materialParams;
 } ub;
 
@@ -44,7 +44,24 @@ void main()
     const float eps           = 0.01;
     const float foreshortening = 0.4;
 
-    vec3 n = normalize(v_normal);
+    // Use per-face (flat) normal when materialFlags.z > 0.5, otherwise
+    // use the interpolated per-vertex normal from the vertex shader.
+    vec3 n;
+    if (ub.materialFlags.z > 0.5) {
+        // Derive the constant face normal from view-space position derivatives.
+        // dFdx/dFdy give edge vectors across the triangle; their cross product
+        // is the face normal in view space (pointing toward the camera for
+        // front-facing triangles).
+        vec3 dx = dFdx(v_viewPos);
+        vec3 dy = dFdy(v_viewPos);
+        n = normalize(cross(dx, dy));
+        // Ensure it faces toward the viewer (positive z in view space).
+        if (n.z < 0.0)
+            n = -n;
+    } else {
+        n = normalize(v_normal);
+    }
+
     float gs = pow(max(n.z, eps), -foreshortening);
 
     float gx   = -n.x * gs;

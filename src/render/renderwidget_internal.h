@@ -171,11 +171,11 @@ inline void writeMainStyleToUbuf(
         return static_cast<float>(static_cast<int>(source));
     };
     // materialFlags: PBR → source modes (x=normal, y=ao, z=roughness, w=albedo)
-    //                RS  → invert flag (x) + display mode (y)
+    //                RS  → invert flag (x) + display mode (y) + flat shading (z)
     if (enableRs) {
         ubufData[kUbufMaterialFlagsOffset + 0] = settings.fillRs.invert ? 1.0f : 0.0f;
         ubufData[kUbufMaterialFlagsOffset + 1] = static_cast<float>(settings.fillRs.displayMode);
-        ubufData[kUbufMaterialFlagsOffset + 2] = 0.0f;
+        ubufData[kUbufMaterialFlagsOffset + 2] = (settings.fillRs.shading == FillShading::Flat) ? 1.0f : 0.0f;
         ubufData[kUbufMaterialFlagsOffset + 3] = 0.0f;
     } else {
         ubufData[kUbufMaterialFlagsOffset + 0] = encodePbrSource(settings.fillPbr.normalSource);
