@@ -1,0 +1,57 @@
+{
+  "pluginId": "qmeshlab.filter.cgal",
+  "filters": [
+    {
+      "id": "generate_alpha_wrap",
+      "menuPath": "Remeshing",
+      "name": "Alpha Wrap",
+      "shortDescription": "Generate a watertight alpha wrapping of the current triangular mesh using CGAL.",
+      "longDescriptionMarkdown": "Compute an alpha wrapping with an offset around the current mesh and add the result as a new mesh layer. Alpha wrapping is useful for producing robust watertight approximations of defective, self-intersecting, open, or highly detailed input geometry. Smaller `Alpha` values follow the input more tightly but increase output complexity and computation time. `Offset` controls the clearance added around the input surface and must be strictly positive.\n\nThe filter uses CGAL's 3D Alpha Wrapping implementation.\n\nReference:\nCédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez, **Alpha Wrapping with an Offset**, 2022.\n\nOriginal MeshLab plugin contribution: Lex van der Sluijs, PTC.",
+      "tags": [
+        "cgal",
+        "alpha wrap",
+        "remeshing",
+        "watertight",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "BBox"
+      ],
+      "parameters": [
+        {
+          "id": "Alpha",
+          "label": "Alpha",
+          "help": "Radius of the rolling ball used by CGAL alpha wrapping. Smaller values produce a tighter and more detailed wrap, but increase computation time and output mesh size. MeshLab default: 2% of the bounding-box diagonal.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag002",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "Offset",
+          "label": "Offset",
+          "help": "Positive offset added around the input surface. Larger values make a looser, more conservative envelope; very small values can make the computation heavier. MeshLab default: 0.1% of the bounding-box diagonal.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag001",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ]
+    }
+  ]
+}
