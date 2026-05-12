@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "set_color_per_vertex",
-      "menuPath": "Color",
+      "menuPath": "Quality",
       "name": "Vertex Color Filling",
       "shortDescription": "Fill vertex colors with a chosen color.",
       "longDescriptionMarkdown": "Fills the color of the vertices of the mesh with a color chosen by the user.",
@@ -19,7 +19,7 @@
     },
     {
       "id": "apply_color_thresholding_per_vertex",
-      "menuPath": "Color",
+      "menuPath": "Quality",
       "name": "Vertex Color Thresholding",
       "shortDescription": "Apply two colors according to a lightness threshold.",
       "longDescriptionMarkdown": "Colors the vertices of the mesh using two colors according to a lightness threshold (on the original color).",
@@ -37,7 +37,7 @@
     },
     {
       "id": "apply_color_brightness_contrast_gamma_per_vertex",
-      "menuPath": "Color",
+      "menuPath": "Quality",
       "name": "Vertex Color Brightness Contrast Gamma",
       "shortDescription": "Adjust vertex-color brightness, contrast, and gamma.",
       "longDescriptionMarkdown": "Change the color the vertices of the mesh adjusting brightness, contrast and gamma.",
@@ -55,7 +55,7 @@
     },
     {
       "id": "apply_color_inverse_per_vertex",
-      "menuPath": "Color",
+      "menuPath": "Quality",
       "name": "Vertex Color Invert",
       "shortDescription": "Invert vertex colors.",
       "longDescriptionMarkdown": "Inverts the colors of the vertices of the mesh.",
@@ -253,7 +253,7 @@
       "inputPrepare": ["VF"],
       "parameters": [
         { "id": "gradientThr", "label": "Gradient Threshold", "help": "The maximum value admitted for the quality gradient (in absolute value).", "group": "main", "type": "double", "default": 1.0, "min": 0.0, "max": 1000000.0, "decimals": 6 },
-        { "id": "updateColor", "label": "Update ColorMap", "help": "If true the color ramp is computed again.", "group": "advanced", "type": "bool", "default": false }
+        { "id": "updateColor", "label": "Also Bake To Color", "help": "Also write a per-vertex color ramp after saturating quality. Disabled by default because QMeshLab automatically switches to vertex-quality visualization.", "group": "advanced", "type": "bool", "default": false }
       ],
       "outputModifies": ["VQ", "VC"]
     },
@@ -327,10 +327,10 @@
     },
     {
       "id": "compute_scalar_by_discrete_curvature_per_vertex",
-      "menuPath": "Color",
+      "menuPath": "Quality",
       "name": "Discrete Curvatures",
-      "shortDescription": "Compute discrete curvature and colorize the result.",
-      "longDescriptionMarkdown": "Colorize according to various discrete curvature computed as described in:<br>'<i>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</i>' <br>M. Meyer, M. Desbrun, P. Schroder, A. H. Barr",
+      "shortDescription": "Compute discrete curvature and store it in vertex quality.",
+      "longDescriptionMarkdown": "Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br>Computed as described in:<br>'<i>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</i>' <br>M. Meyer, M. Desbrun, P. Schroder, A. H. Barr",
       "tags": ["curvature", "quality", "vertex", "bibliography"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
@@ -355,14 +355,14 @@
           ]
         }
       ],
-      "outputModifies": ["VQ", "VC"]
+      "outputModifies": ["VQ"]
     },
     {
       "id": "compute_scalar_by_aspect_ratio_per_face",
-      "menuPath": "Color",
+      "menuPath": "Quality",
       "name": "Per Face Quality according to Triangle shape and aspect ratio",
       "shortDescription": "Compute per-face quality from triangle shape, texture distortion, or polygonal planarity.",
-      "longDescriptionMarkdown": "Compute a quality and colorize faces depending on triangle shape:<ol><li>area/max side of triangle<li>ratio inradius/circumradius (radii of incircle and circumcircle)<li>Mean ratio of triangle = area/(a*a + b*b + c*c)<li>Area<li>Texture Angle Distortion. Difference between angle in 3D space and texture space<li>Texture Area Distortion. Difference between area in 3D space and texture space<li>Polygonal Planarity (max distance to support plane)<li>Polygonal Planarity (relative distance to support plane)</ol>",
+      "longDescriptionMarkdown": "Compute a quality depending on triangle shape and store it in face quality. The filter does not bake colors; after it runs QMeshLab switches the view to face-quality color visualization.<ol><li>area/max side of triangle<li>ratio inradius/circumradius (radii of incircle and circumcircle)<li>Mean ratio of triangle = area/(a*a + b*b + c*c)<li>Area<li>Texture Angle Distortion. Difference between angle in 3D space and texture space<li>Texture Area Distortion. Difference between area in 3D space and texture space<li>Polygonal Planarity (max distance to support plane)<li>Polygonal Planarity (relative distance to support plane)</ol>",
       "tags": ["quality", "face", "distortion"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
@@ -387,7 +387,7 @@
           ]
         }
       ],
-      "outputModifies": ["FQ", "FC"]
+      "outputModifies": ["FQ"]
     },
     {
       "id": "apply_color_laplacian_smoothing_per_vertex",

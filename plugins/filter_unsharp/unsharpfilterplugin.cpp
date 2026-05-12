@@ -583,7 +583,12 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         }
         markGeometry(QObject::tr("Computed scalar harmonic field for '%1'.").arg(meshName(entry, meshIndex)));
         doc.finishFilterProgress(true, QObject::tr("Done."));
-        return successResult();
+        MeshFilterRunResult result = successResult();
+        result.visualizationHints.push_back({
+            meshIndex,
+            MeshFilterVisualizationAttribute::VertexQuality
+        });
+        return result;
     }
 
     return failResult(QObject::tr("Unknown filter id '%1'.").arg(filterId));

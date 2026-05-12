@@ -14,9 +14,7 @@
 #include <vcg/complex/algorithms/create/marching_cubes.h>
 #include <vcg/complex/algorithms/refine.h>
 #include <vcg/complex/algorithms/refine_loop.h>
-#include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
-#include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/topology.h>
@@ -31,8 +29,8 @@ constexpr QLatin1StringView kIdRimlsProjection("compute_mls_projection_rimls");
 constexpr QLatin1StringView kIdApssProjection("compute_mls_projection_apss");
 constexpr QLatin1StringView kIdRimlsMcube("generate_marching_cubes_rimls");
 constexpr QLatin1StringView kIdApssMcube("generate_marching_cubes_apss");
-constexpr QLatin1StringView kIdRimlsColorize("compute_curvature_and_color_rimls_per_vertex");
-constexpr QLatin1StringView kIdApssColorize("compute_curvature_and_color_apss_per_vertex");
+constexpr QLatin1StringView kIdRimlsCurvatureQuality("compute_curvature_and_color_rimls_per_vertex");
+constexpr QLatin1StringView kIdApssCurvatureQuality("compute_curvature_and_color_apss_per_vertex");
 constexpr QLatin1StringView kIdRadiusFromDensity("compute_custom_radius_scalar_attribute_per_vertex");
 constexpr QLatin1StringView kIdSelectSmallComponents("compute_selection_by_small_disconnected_components_per_face");
 
@@ -45,7 +43,6 @@ enum CurvatureType {
 };
 
 using Mask = vcg::tri::io::Mask;
-using Histogramf = vcg::Histogram<float>;
 
 MeshFilterRunResult fail(const QString &message)
 {
@@ -58,6 +55,16 @@ MeshFilterRunResult success(bool modified, const QStringList &info = {})
     result.success = true;
     result.documentModified = modified;
     result.infoMessages = info;
+    return result;
+}
+
+MeshFilterRunResult qualitySuccess(int meshIndex, const QStringList &info = {})
+{
+    MeshFilterRunResult result = success(true, info);
+    result.visualizationHints.push_back({
+        meshIndex,
+        MeshFilterVisualizationAttribute::VertexQuality
+    });
     return result;
 }
 
@@ -150,14 +157,17 @@ std::unique_ptr<GaelMls::MlsSurface<VCGMesh>> createRimls(VCGMesh &points, const
     return rimls;
 }
 
-std::unique_ptr<GaelMls::MlsSurface<VCGMesh>> createApss(VCGMesh &points, const FilterParams &params, bool colorize)
+std::unique_ptr<GaelMls::MlsSurface<VCGMesh>> createApss(
+    VCGMesh &points,
+    const FilterParams &params,
+    bool curvatureQualityMode)
 {
     auto apss = std::make_unique<GaelMls::APSS<VCGMesh>>(points);
     apss->setFilterScale(float(params.getDouble(QStringLiteral("FilterScale"), 2.0)));
     apss->setMaxProjectionIters(std::max(1, params.getInt(QStringLiteral("MaxProjectionIters"), 15)));
     apss->setProjectionAccuracy(float(params.getDouble(QStringLiteral("ProjectionAccuracy"), 1e-4)));
     apss->setSphericalParameter(float(params.getDouble(QStringLiteral("SphericalParameter"), 1.0)));
-    if (!colorize) {
+    if (!curvatureQualityMode) {
         apss->setGradientHint(
             params.getBool(QStringLiteral("AccurateNormal"), true)
                 ? GaelMls::MLS_DERIVATIVE_ACCURATE
@@ -216,7 +226,7 @@ void computeProjection(
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
 }
 
-void computeColorize(
+void computeCurvatureQuality(
     VCGMesh &mesh,
     bool selectionOnly,
     int curvatureType,
@@ -258,10 +268,6 @@ void computeColorize(
         }
         v.Q() = c;
     }
-
-    Histogramf hist;
-    vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityHistogram(mesh, hist);
-    vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh, hist.Percentile(0.01f), hist.Percentile(0.99f));
 }
 
 int computeMarchingCubes(
@@ -321,12 +327,12 @@ std::unique_ptr<GaelMls::MlsSurface<VCGMesh>> createMlsForFilter(
     const QString &filterId,
     VCGMesh &points,
     const FilterParams &params,
-    bool colorize)
+    bool curvatureQualityMode)
 {
     if (filterId == QString::fromLatin1(kIdApssProjection)
         || filterId == QString::fromLatin1(kIdApssMcube)
-        || filterId == QString::fromLatin1(kIdApssColorize)) {
-        return createApss(points, params, colorize);
+        || filterId == QString::fromLatin1(kIdApssCurvatureQuality)) {
+        return createApss(points, params, curvatureQualityMode);
     }
     return createRimls(points, params);
 }
@@ -453,8 +459,8 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
         return result;
     }
 
-    if (filterId == QString::fromLatin1(kIdApssColorize)
-        || filterId == QString::fromLatin1(kIdRimlsColorize)) {
+    if (filterId == QString::fromLatin1(kIdApssCurvatureQuality)
+        || filterId == QString::fromLatin1(kIdRimlsCurvatureQuality)) {
         Document::MeshEntry &entry = doc.mesh(currentIndex);
         VCGMesh workMesh;
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(workMesh, entry.mesh);
@@ -471,7 +477,7 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
         else if (curv == QStringLiteral("k2")) curvatureType = CT_K2;
         else if (curv == QStringLiteral("approx_mean")) curvatureType = CT_APSS;
 
-        computeColorize(
+        computeCurvatureQuality(
             workMesh,
             params.getBool(QStringLiteral("SelectionOnly"), false),
             curvatureType,
@@ -480,11 +486,11 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
 
         entry.mesh.Clear();
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(entry.mesh, workMesh);
-        entry.ioMask |= Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY | Mask::IOM_VERTNORMAL;
-        doc.markMeshGeometryChanged(currentIndex, QObject::tr("Computed MLS curvature colors for '%1'").arg(entry.name));
-        return success(true, {
-            QObject::tr("Computed %1 MLS curvature and mapped it to vertex color.")
-                .arg(filterId == QString::fromLatin1(kIdApssColorize) ? QStringLiteral("APSS") : QStringLiteral("RIMLS"))
+        entry.ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTNORMAL;
+        doc.markMeshGeometryChanged(currentIndex, QObject::tr("Computed MLS curvature quality for '%1'").arg(entry.name));
+        return qualitySuccess(currentIndex, {
+            QObject::tr("Computed %1 MLS curvature and stored it in vertex quality.")
+                .arg(filterId == QString::fromLatin1(kIdApssCurvatureQuality) ? QStringLiteral("APSS") : QStringLiteral("RIMLS"))
         });
     }
 

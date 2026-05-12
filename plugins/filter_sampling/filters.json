@@ -395,7 +395,7 @@
       "menuPath": "Sampling",
       "name": "Hausdorff Distance",
       "shortDescription": "Compute directional Hausdorff distance statistics between two meshes.",
-      "longDescriptionMarkdown": "Compute the Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. Distance is stored in vertex quality of the sampled mesh.",
+      "longDescriptionMarkdown": "Compute the Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. If sample layers are saved, distances are stored in vertex quality and QMeshLab switches those layers to vertex-quality color visualization without baking colors.",
       "tags": [
         "sampling",
         "distance",
@@ -495,7 +495,7 @@
       "menuPath": "Sampling",
       "name": "Distance from Reference Mesh",
       "shortDescription": "Compute per-vertex distance from another mesh or point cloud.",
-      "longDescriptionMarkdown": "Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality.",
+      "longDescriptionMarkdown": "Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs QMeshLab switches the measured mesh to vertex-quality color visualization without baking colors.",
       "tags": [
         "sampling",
         "distance",

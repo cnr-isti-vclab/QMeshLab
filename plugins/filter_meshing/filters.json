@@ -1875,7 +1875,7 @@
       "menuPath": "Meshing",
       "name": "Compute curvature principal directions",
       "shortDescription": "Compute principal curvature directions.",
-      "longDescriptionMarkdown": "Compute the principal directions of curvature with different algorithms",
+      "longDescriptionMarkdown": "Compute the principal directions of curvature with different algorithms. The selected curvature scalar is stored in vertex quality; the filter does not bake colors, and QMeshLab switches the view to vertex-quality color visualization after it runs.",
       "tags": [
         "meshing"
       ],
@@ -1917,8 +1917,8 @@
         },
         {
           "id": "CurvColorMethod",
-          "label": "Quality/Color Mapping",
-          "help": "Choose curvature mapped to quality/color.",
+          "label": "Quality Mapping",
+          "help": "Choose the curvature value stored in vertex quality and shown through automatic quality visualization.",
           "group": "main",
           "type": "enum",
           "default": "mean",
@@ -1975,8 +1975,7 @@
       ],
       "outputModifies": [
         "VA",
-        "VQ",
-        "VC"
+        "VQ"
       ],
       "preRunCleanup": [
         {

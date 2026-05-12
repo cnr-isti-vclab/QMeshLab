@@ -1116,6 +1116,10 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
         result.success = true;
         result.documentModified = true;
         result.infoMessages = { QObject::tr("Processed %1 vertices.").arg(processed) };
+        result.visualizationHints.push_back({
+            meshIndex,
+            MeshFilterVisualizationAttribute::VertexQuality
+        });
         return result;
     }
 
@@ -1222,6 +1226,10 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
         result.success = true;
         result.documentModified = true;
         result.infoMessages = { QObject::tr("Processed %1 faces.").arg(processed) };
+        result.visualizationHints.push_back({
+            meshIndex,
+            MeshFilterVisualizationAttribute::FaceQuality
+        });
         return result;
     }
 

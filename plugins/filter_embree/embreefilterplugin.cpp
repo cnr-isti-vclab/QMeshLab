@@ -6,7 +6,6 @@
 #include <wrap/embree/EmbreeAdaptor.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/update/bounding.h>
-#include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/quality.h>
 #include <algorithm>
@@ -35,6 +34,19 @@ std::optional<CurrentMeshRef> currentMesh(Document &doc, QString &errorMessage)
         return std::nullopt;
     }
     return CurrentMeshRef { meshIndex, &doc.mesh(meshIndex) };
+}
+
+MeshFilterRunResult qualityResult(
+    int meshIndex,
+    MeshFilterVisualizationAttribute attribute,
+    const QStringList &messages)
+{
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages = messages;
+    result.visualizationHints.push_back({ meshIndex, attribute });
+    return result;
 }
 }
 
@@ -76,23 +88,18 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         if (doc.isOperationCancelRequested())
             return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityGray(entry.mesh);
 
         entry.ioMask |=
-            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY | Mask::IOM_FACECOLOR | Mask::IOM_VERTCOLOR;
+            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY;
         doc.markMeshGeometryChanged(
             current->index,
             QObject::tr("Computed obscurance for '%1'").arg(entry.name));
 
-        MeshFilterRunResult result;
-        result.success = true;
-        result.documentModified = true;
-        result.infoMessages = {
+        return qualityResult(current->index, MeshFilterVisualizationAttribute::FaceQuality, {
             QObject::tr("Computed obscurance using %1 rays and tau=%2")
                 .arg(rays)
                 .arg(QString::number(tau, 'f', 4))
-        };
-        return result;
+        });
     }
 
     if (filterId == QString::fromLatin1(kFilterAmbientOcclusion)) {
@@ -101,21 +108,16 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         if (doc.isOperationCancelRequested())
             return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityGray(entry.mesh);
 
         entry.ioMask |=
-            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY | Mask::IOM_FACECOLOR | Mask::IOM_VERTCOLOR;
+            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY;
         doc.markMeshGeometryChanged(
             current->index,
             QObject::tr("Computed ambient occlusion for '%1'").arg(entry.name));
 
-        MeshFilterRunResult result;
-        result.success = true;
-        result.documentModified = true;
-        result.infoMessages = {
+        return qualityResult(current->index, MeshFilterVisualizationAttribute::FaceQuality, {
             QObject::tr("Computed ambient occlusion using %1 rays").arg(rays)
-        };
-        return result;
+        });
     }
 
     if (filterId == QString::fromLatin1(kFilterShapeDiameter)) {
@@ -124,23 +126,18 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         if (doc.isOperationCancelRequested())
             return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(entry.mesh);
 
         entry.ioMask |=
-            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY | Mask::IOM_FACECOLOR | Mask::IOM_VERTCOLOR;
+            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY;
         doc.markMeshGeometryChanged(
             current->index,
             QObject::tr("Computed shape diameter function for '%1'").arg(entry.name));
 
-        MeshFilterRunResult result;
-        result.success = true;
-        result.documentModified = true;
-        result.infoMessages = {
+        return qualityResult(current->index, MeshFilterVisualizationAttribute::FaceQuality, {
             QObject::tr("Computed SDF using %1 rays and cone amplitude=%2°")
                 .arg(rays)
                 .arg(QString::number(coneAmplitude, 'f', 2))
-        };
-        return result;
+        });
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectVisibleFaces)) {

@@ -2,6 +2,8 @@
 
 #include "document.h"
 
+#include <wrap/io_trimesh/io_mask.h>
+
 class FilterTests : public QObject
 {
     Q_OBJECT
@@ -12,6 +14,7 @@ private slots:
     void basicFiltersRunOnLoadedMesh();
     void filterParameterValidation();
     void cgalAlphaWrapRunsWhenAvailable();
+    void geodesicQualityFilterDoesNotBakeVertexColors();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -278,6 +281,35 @@ void FilterTests::cgalAlphaWrapRunsWhenAvailable()
     QVERIFY(generatedIndex >= 0 && generatedIndex < doc.meshCount());
     QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
     QVERIFY(doc.mesh(generatedIndex).mesh.FN() > 0);
+}
+
+void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off");
+    QCOMPARE(doc.loadMesh(path), 0);
+
+    QString borderGeodesicKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("compute_scalar_by_border_distance_per_vertex")) {
+            borderGeodesicKey = info.key;
+            break;
+        }
+    }
+
+    QVERIFY(!borderGeodesicKey.isEmpty());
+
+    const MeshFilterRunResult result = doc.runFilter(borderGeodesicKey, {});
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(result.documentModified);
+    QCOMPARE(result.visualizationHints.size(), 1);
+    QCOMPARE(result.visualizationHints.front().meshIndex, 0);
+    QVERIFY(result.visualizationHints.front().attribute ==
+            MeshFilterVisualizationAttribute::VertexQuality);
+
+    const int mask = doc.mesh(0).ioMask;
+    QVERIFY((mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0);
+    QVERIFY((mask & vcg::tri::io::Mask::IOM_VERTCOLOR) == 0);
 }
 
 QTEST_MAIN(FilterTests)

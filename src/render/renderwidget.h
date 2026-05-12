@@ -49,6 +49,7 @@ public:
     bool helpOverlayVisible() const { return m_helpOverlayVisible; }
     void setHelpOverlayVisible(bool visible);
     void toggleHelpOverlayVisible() { setHelpOverlayVisible(!m_helpOverlayVisible); }
+    void showQualityVisualization(int meshIndex, bool faceQuality);
 
     ViewState captureViewState() const;
     void restoreViewState(const ViewState &vs, bool restoreCamera = true);

@@ -35,7 +35,6 @@
 #include <vcg/complex/algorithms/refine_loop.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
-#include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/curvature.h>
 #include <vcg/complex/algorithms/update/curvature_fitting.h>
 #include <vcg/complex/algorithms/update/flag.h>
@@ -432,6 +431,16 @@ MeshFilterRunResult success(bool modified = true, const QStringList &info = {}, 
     r.documentModified = modified;
     r.infoMessages = info;
     r.newMeshIndices = newMeshes;
+    return r;
+}
+
+MeshFilterRunResult qualitySuccess(
+    int meshIndex,
+    MeshFilterVisualizationAttribute attribute,
+    const QStringList &info = {})
+{
+    MeshFilterRunResult r = success(true, info);
+    r.visualizationHints.push_back({ meshIndex, attribute });
     return r;
 }
 }
@@ -1116,12 +1125,9 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             else
                 vcg::tri::UpdateQuality<VCGMesh>::VertexMeanFromCurvatureDir(mesh);
 
-            vcg::Histogram<float> h;
-            vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityHistogram(mesh, h);
-            vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh, h.Percentile(0.1f), h.Percentile(0.9f));
-            entry.ioMask |= Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY;
+            entry.ioMask |= Mask::IOM_VERTQUALITY;
             doc.markMeshGeometryChanged(ci, QObject::tr("Computed principal curvature directions for '%1'").arg(entry.name));
-            return success(true);
+            return qualitySuccess(ci, MeshFilterVisualizationAttribute::VertexQuality);
         }
 
         if (filterId == QString::fromLatin1(kIdCloseHoles)) {

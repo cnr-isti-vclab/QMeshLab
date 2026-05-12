@@ -93,6 +93,16 @@ MeshFilterRunResult success(const QStringList &info = {})
     return result;
 }
 
+MeshFilterRunResult qualitySuccess(
+    int meshIndex,
+    MeshFilterVisualizationAttribute attribute,
+    const QStringList &info = {})
+{
+    MeshFilterRunResult result = success(info);
+    result.visualizationHints.push_back({ meshIndex, attribute });
+    return result;
+}
+
 std::optional<CurrentMeshRef> currentMesh(Document &doc, QString &errorMessage)
 {
     const int meshIndex = doc.currentMeshIndex();
@@ -397,7 +407,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             info << QObject::tr("Updated vertex color ramp from saturated quality values.");
         }
         markGeometry(doc, meshIndex, QObject::tr("Saturated vertex quality of '%1'").arg(meshLabel(entry, meshIndex)));
-        return success(info);
+        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality, info);
     }
 
     if (filterId == QString::fromLatin1(kFilterMapVQuality)) {
@@ -446,7 +456,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             vcg::tri::UpdateQuality<VCGMesh>::VertexClamp(mesh, rangeMin, rangeMax);
         ensureVertexQuality(entry);
         markGeometry(doc, meshIndex, QObject::tr("Clamped vertex quality of '%1'").arg(meshLabel(entry, meshIndex)));
-        return success();
+        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality);
     }
 
     if (filterId == QString::fromLatin1(kFilterMapFQuality)) {
@@ -488,13 +498,11 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         else
             vcg::tri::UpdateQuality<VCGMesh>::VertexAbsoluteCurvatureFromHGAttribute(mesh);
 
+        ensureVertexQuality(entry);
         Histogramf hist;
         vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityHistogram(mesh, hist);
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh, hist.Percentile(0.1f), hist.Percentile(0.9f));
-        ensureVertexQuality(entry);
-        ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Computed discrete curvature on '%1'").arg(meshLabel(entry, meshIndex)));
-        return success({
+        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality, {
             QObject::tr("Curvature Range: %1 %2 (Used 10/90 percentiles %3 %4)")
                 .arg(hist.MinV())
                 .arg(hist.MaxV())
@@ -505,7 +513,6 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
 
     if (filterId == QString::fromLatin1(kFilterTriangleQuality)) {
         ensureFaceQuality(entry);
-        ensureFaceColor(entry);
         Scalar minV = 0;
         Scalar maxV = 1;
         Distributionf distrib;
@@ -585,9 +592,8 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             maxV = distrib.Percentile(0.95f);
         }
 
-        vcg::tri::UpdateColor<VCGMesh>::PerFaceQualityRamp(mesh, minV, maxV, false);
         markGeometry(doc, meshIndex, QObject::tr("Computed per-face quality on '%1'").arg(meshLabel(entry, meshIndex)));
-        return success();
+        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::FaceQuality);
     }
 
     if (filterId == QString::fromLatin1(kFilterRandomConnected)) {
@@ -702,14 +708,14 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         vcg::tri::UpdateQuality<VCGMesh>::FaceFromVertex(mesh);
         ensureFaceQuality(entry);
         markGeometry(doc, meshIndex, QObject::tr("Transferred vertex quality to faces on '%1'").arg(meshLabel(entry, meshIndex)));
-        return success();
+        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::FaceQuality);
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceToVertexQuality)) {
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(mesh, params.getBool(QStringLiteral("areaWeight"), true));
         ensureVertexQuality(entry);
         markGeometry(doc, meshIndex, QObject::tr("Transferred face quality to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
-        return success();
+        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality);
     }
 
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));

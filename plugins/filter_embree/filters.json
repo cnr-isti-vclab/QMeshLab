@@ -6,7 +6,7 @@
       "menuPath": "Quality/Embree",
       "name": "Compute Obscurance",
       "shortDescription": "Computes volumetric obscurance and stores it in quality.",
-      "longDescriptionMarkdown": "Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>\t<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;\t<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved into face quality and mapped on the mesh into a gray shade. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&A 2003 </b> <br />This filter uses Embree3 library by INTEL.",
+      "longDescriptionMarkdown": "Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics technique used to simulate the effect of global ambient light in a 3D scene, making the mesh appear more realistic. <br />This filter requires two values:<ul>\t<li> the number of rays(defined by the user), which will be shot from the barycenter of each face in order to compute how many time it is visible from these directions;\t<li> the tau value which represent the T spatial decay; </li></ul>The resulting values for the obscurance are saved into face quality. The filter does not bake colors; after it runs QMeshLab switches the view to face-quality color visualization. <br /><b>For further details see the reference paper: Iones Krupkin Sbert Zhukov Fast, Realistic Lighting for Video Games IEEECG&A 2003 </b> <br />This filter uses Embree3 library by INTEL.",
       "tags": [
         "quality",
         "embree",
@@ -41,8 +41,8 @@
         }
       ],
       "outputModifies": [
-        "VQ",
-        "VC"
+        "FQ",
+        "VQ"
       ]
     },
     {
@@ -50,7 +50,7 @@
       "menuPath": "Quality/Embree",
       "name": "Compute Ambient Occlusion",
       "shortDescription": "Computes ambient occlusion and stores it in quality.",
-      "longDescriptionMarkdown": "Compute Ambient Occlusion.This filter is a shading technique used in computer graphics to simulate the way light interacts with surfaces in a realistic manner.The parameter for the number of rays is defined by the user; this parameter represents the number of rays that will be shot from the barycenter of each face.The higher the number of rays, the longer the time to compute, but the better the results.These results are saved into face quality and mapped into a gray shade on the mesh.This filter uses the Embree3 library by INTEL.",
+      "longDescriptionMarkdown": "Compute Ambient Occlusion.This filter is a shading technique used in computer graphics to simulate the way light interacts with surfaces in a realistic manner.The parameter for the number of rays is defined by the user; this parameter represents the number of rays that will be shot from the barycenter of each face.The higher the number of rays, the longer the time to compute, but the better the results.These results are saved into face quality. The filter does not bake colors; after it runs QMeshLab switches the view to face-quality color visualization.This filter uses the Embree3 library by INTEL.",
       "tags": [
         "quality",
         "embree",
@@ -74,8 +74,8 @@
         }
       ],
       "outputModifies": [
-        "VQ",
-        "VC"
+        "FQ",
+        "VQ"
       ]
     },
     {
@@ -83,7 +83,7 @@
       "menuPath": "Quality/Embree",
       "name": "Compute Shape Diameter Function",
       "shortDescription": "Computes SDF and stores it in quality.",
-      "longDescriptionMarkdown": "Compute Shape-Diameter Function <br />The SDF defines the distance between a point in 3D space and the nearest point on the object's surface.This filter can be used to find out the thickness of the mesh <br />Given a face, a set of rays are shot inward, and an average of the distance to hit a face is saved in the face quality. The face quality is then mapped into a color ramp.This filter requires two values:<ul>\t<li> the number of rays which will be shot from the barycenter of each face </li>\t<li> the cone amplitude (in degrees) of the cone which we value as valid for the shooting angle </li></ul> <br /><b>For further details see the reference paper: Shapira Shamir Cohen-Or, Consistent Mesh Partitioning and Skeletonisation using the shaper diameter function, Visual Comput. J. (2008) </b> <br />This filter uses Embree3 library by INTEL.",
+      "longDescriptionMarkdown": "Compute Shape-Diameter Function <br />The SDF defines the distance between a point in 3D space and the nearest point on the object's surface.This filter can be used to find out the thickness of the mesh <br />Given a face, a set of rays are shot inward, and an average of the distance to hit a face is saved in the face quality. The filter does not bake colors; after it runs QMeshLab switches the view to face-quality color visualization.This filter requires two values:<ul>\t<li> the number of rays which will be shot from the barycenter of each face </li>\t<li> the cone amplitude (in degrees) of the cone which we value as valid for the shooting angle </li></ul> <br /><b>For further details see the reference paper: Shapira Shamir Cohen-Or, Consistent Mesh Partitioning and Skeletonisation using the shaper diameter function, Visual Comput. J. (2008) </b> <br />This filter uses Embree3 library by INTEL.",
       "tags": [
         "quality",
         "embree",
@@ -118,8 +118,8 @@
         }
       ],
       "outputModifies": [
-        "VQ",
-        "VC"
+        "FQ",
+        "VQ"
       ]
     },
     {

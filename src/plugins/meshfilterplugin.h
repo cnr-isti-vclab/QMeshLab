@@ -194,6 +194,18 @@ using MeshFilterParameterValues = QVariantMap;
 // Declared in filterparam.h; forward-declared here to avoid circular inclusion.
 class FilterParams;
 
+enum class MeshFilterVisualizationAttribute
+{
+    VertexQuality,
+    FaceQuality
+};
+
+struct MeshFilterVisualizationHint
+{
+    int meshIndex = -1;
+    MeshFilterVisualizationAttribute attribute = MeshFilterVisualizationAttribute::VertexQuality;
+};
+
 struct MeshFilterRunResult
 {
     bool success = false;
@@ -201,6 +213,7 @@ struct MeshFilterRunResult
     QString errorMessage;
     QStringList infoMessages;
     QVector<int> newMeshIndices;
+    QVector<MeshFilterVisualizationHint> visualizationHints;
 };
 
 class MeshFilterPlugin

@@ -6,8 +6,6 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/geodesic.h>
 #include <vcg/complex/algorithms/geodesic_heat.h>
-#include <vcg/complex/algorithms/update/color.h>
-#include <vcg/complex/algorithms/update/quality.h>
 #include <limits>
 
 namespace {
@@ -15,6 +13,19 @@ constexpr QLatin1StringView kFilterBorderGeodesic("compute_scalar_by_border_dist
 constexpr QLatin1StringView kFilterPointGeodesic("compute_scalar_by_geodesic_distance_from_given_point_per_vertex");
 constexpr QLatin1StringView kFilterSelectedGeodesic("compute_scalar_by_geodesic_distance_from_selection_per_vertex");
 constexpr QLatin1StringView kFilterHeatGeodesic("compute_scalar_by_heat_geodesic_distance_from_selection_per_vertex");
+
+MeshFilterRunResult vertexQualityResult(int meshIndex, const QString &message)
+{
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages = { message };
+    result.visualizationHints.push_back({
+        meshIndex,
+        MeshFilterVisualizationAttribute::VertexQuality
+    });
+    return result;
+}
 } // namespace
 
 QString GeodesicFilterPlugin::pluginId() const
@@ -52,15 +63,14 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         for (auto &v : mesh.vert)
             if (v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
 
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
-        doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTCOLOR;
+        doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY;
         doc.markMeshGeometryChanged(meshIndex,
             QObject::tr("Geodesic distance from border on '%1'").arg(meshName));
 
         QString msg = QObject::tr("Geodesic distance from border computed on '%1'.").arg(meshName);
         if (unreachedCnt > 0)
             msg += QObject::tr(" Warning: %1 vertices were unreachable (isolated components).").arg(unreachedCnt);
-        return { true, true, msg };
+        return vertexQualityResult(meshIndex, msg);
     }
 
     if (filterId == QString::fromLatin1(kFilterPointGeodesic)) {
@@ -89,15 +99,14 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         for (auto &v : mesh.vert)
             if (v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
 
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
-        doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTCOLOR;
+        doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY;
         doc.markMeshGeometryChanged(meshIndex,
             QObject::tr("Geodesic distance from point on '%1'").arg(meshName));
 
         QString msg = QObject::tr("Geodesic distance from point computed on '%1'.").arg(meshName);
         if (unreachedCnt > 0)
             msg += QObject::tr(" Warning: %1 vertices were unreachable.").arg(unreachedCnt);
-        return { true, true, msg };
+        return vertexQualityResult(meshIndex, msg);
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectedGeodesic)) {
@@ -121,8 +130,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         for (auto &v : mesh.vert)
             if (v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
 
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
-        doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTCOLOR;
+        doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY;
         doc.markMeshGeometryChanged(meshIndex,
             QObject::tr("Geodesic distance from selection on '%1'").arg(meshName));
 
@@ -130,7 +138,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
             .arg(seedVec.size()).arg(meshName);
         if (unreachedCnt > 0)
             msg += QObject::tr(" Warning: %1 vertices were unreachable.").arg(unreachedCnt);
-        return { true, true, msg };
+        return vertexQualityResult(meshIndex, msg);
     }
 
     if (filterId == QString::fromLatin1(kFilterHeatGeodesic)) {
@@ -148,14 +156,14 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
             return { false, false,
                 QObject::tr("Heat geodesic failed on '%1'. The mesh may be badly conditioned (near-degenerate triangles) or have disconnected components.").arg(meshName) };
 
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
-        doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTCOLOR;
+        doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY;
         doc.markMeshGeometryChanged(meshIndex,
             QObject::tr("Heat geodesic distance from selection on '%1'").arg(meshName));
 
-        return { true, true,
+        return vertexQualityResult(
+            meshIndex,
             QObject::tr("Heat geodesic distance from %1 selected vertices computed on '%2'.")
-                .arg(seedVec.size()).arg(meshName) };
+                .arg(seedVec.size()).arg(meshName));
     }
 
     return { false, false, QObject::tr("Unknown filter id: %1").arg(filterId) };

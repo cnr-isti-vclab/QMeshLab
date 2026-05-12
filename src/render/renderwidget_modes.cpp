@@ -264,6 +264,42 @@ void RenderWidget::setCurrentMeshSettings(const PerMeshRenderSettings &next)
         m_overlayPanel->setMeshSettings(next);
 }
 
+void RenderWidget::showQualityVisualization(int meshIndex, bool faceQuality)
+{
+    if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return;
+
+    const auto &entry = m_doc->mesh(meshIndex);
+    const int mask = entry.ioMask;
+    const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
+    const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
+    if ((faceQuality && !hasFaceQuality) || (!faceQuality && !hasVertexQuality))
+        return;
+
+    MeshRenderMode *mode = mutableRenderModeForMesh(meshIndex);
+    if (!mode)
+        return;
+
+    if (faceQuality) {
+        mode->showFill = true;
+        mode->fillMaterial = FillMaterial::Plain;
+        mode->fillPlain.colorSource = FillColorSource::PerFaceQuality;
+    } else if (entry.mesh.FN() > 0) {
+        mode->showFill = true;
+        mode->fillMaterial = FillMaterial::Plain;
+        mode->fillPlain.colorSource = FillColorSource::PerVertexQuality;
+    } else {
+        mode->showPoints = true;
+        mode->pointColorSource = PointColorSource::PerVertexQuality;
+    }
+
+    if (meshIndex == m_doc->currentMeshIndex()) {
+        refreshColorSourceAvailability();
+        syncOverlaySettingsToCurrentMesh();
+    }
+    update();
+}
+
 void RenderWidget::syncOverlaySettingsToCurrentMesh()
 {
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;

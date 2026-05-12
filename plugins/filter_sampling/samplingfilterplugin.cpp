@@ -1047,19 +1047,24 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         if (saveSamples) {
             vcg::tri::UpdateBounding<VCGMesh>::Box(samplePointCloud);
             vcg::tri::UpdateBounding<VCGMesh>::Box(closestPointCloud);
-            vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(samplePointCloud);
-            vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(closestPointCloud);
             const int sampleIdx = doc.addMesh(
                 samplePointCloud,
                 QObject::tr("Hausdorff Sample Points"),
-                Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
+                Mask::IOM_VERTQUALITY);
             const int closestIdx = doc.addMesh(
                 closestPointCloud,
                 QObject::tr("Hausdorff Closest Points"),
-                Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
+                Mask::IOM_VERTQUALITY);
             newMeshIndices << sampleIdx << closestIdx;
         }
-        return successResult(infoMessages, newMeshIndices);
+        MeshFilterRunResult result = successResult(infoMessages, newMeshIndices);
+        for (int newMeshIndex : newMeshIndices) {
+            result.visualizationHints.push_back({
+                newMeshIndex,
+                MeshFilterVisualizationAttribute::VertexQuality
+            });
+        }
+        return result;
     }
 
     if (filterId == QString::fromLatin1(kFilterDistanceFromReference)) {
@@ -1087,15 +1092,19 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         doc.markMeshGeometryChanged(
             measuredMeshIndex,
             QObject::tr("Computed distance from '%1'").arg(referenceEntry.name));
-        return modifiedResult(
-            {
-                QObject::tr("Computed per-vertex distances from '%1' to '%2'.")
-                    .arg(meshName(doc, measuredMeshIndex), meshName(doc, referenceMeshIndex)),
-                QObject::tr("Min: %1").arg(distanceSampler.getMinDist(), 0, 'f', 6),
-                QObject::tr("Max: %1").arg(distanceSampler.getMaxDist(), 0, 'f', 6),
-                QObject::tr("Mean: %1").arg(distanceSampler.getMeanDist(), 0, 'f', 6),
-                QObject::tr("RMS: %1").arg(distanceSampler.getRMSDist(), 0, 'f', 6)
-            });
+        MeshFilterRunResult result = modifiedResult({
+            QObject::tr("Computed per-vertex distances from '%1' to '%2'.")
+                .arg(meshName(doc, measuredMeshIndex), meshName(doc, referenceMeshIndex)),
+            QObject::tr("Min: %1").arg(distanceSampler.getMinDist(), 0, 'f', 6),
+            QObject::tr("Max: %1").arg(distanceSampler.getMaxDist(), 0, 'f', 6),
+            QObject::tr("Mean: %1").arg(distanceSampler.getMeanDist(), 0, 'f', 6),
+            QObject::tr("RMS: %1").arg(distanceSampler.getRMSDist(), 0, 'f', 6)
+        });
+        result.visualizationHints.push_back({
+            measuredMeshIndex,
+            MeshFilterVisualizationAttribute::VertexQuality
+        });
+        return result;
     }
 
     if (filterId == QString::fromLatin1(kFilterVertexResampling)) {

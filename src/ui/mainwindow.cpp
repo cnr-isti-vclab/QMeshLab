@@ -1538,6 +1538,8 @@ void MainWindow::executeFilter(
         return;
     }
 
+    applyFilterVisualizationHints(result);
+
     QString status = tr("%1 executed").arg(label);
     if (!result.infoMessages.isEmpty())
         status = result.infoMessages.back();
@@ -1545,6 +1547,24 @@ void MainWindow::executeFilter(
     m_doc->writeLog(
         tr("Filter '%1' runtime: %2 ms").arg(label, elapsedText),
         Document::LogSource::Application);
+}
+
+void MainWindow::applyFilterVisualizationHints(const MeshFilterRunResult &result)
+{
+    if (!m_doc || result.visualizationHints.isEmpty())
+        return;
+
+    for (const MeshFilterVisualizationHint &hint : result.visualizationHints) {
+        const int meshIndex = hint.meshIndex >= 0 ? hint.meshIndex : m_doc->currentMeshIndex();
+        if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
+            continue;
+        const bool faceQuality =
+            hint.attribute == MeshFilterVisualizationAttribute::FaceQuality;
+        for (RenderWidget *view : std::as_const(m_renderWidgets)) {
+            if (view)
+                view->showQualityVisualization(meshIndex, faceQuality);
+        }
+    }
 }
 
 void MainWindow::undo()

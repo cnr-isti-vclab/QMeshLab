@@ -15,6 +15,7 @@ class Document;
 class RenderWidget;
 class LayerWidget;
 class MeshFilterPanel;
+struct MeshFilterRunResult;
 class QMenu;
 class QAction;
 class QLabel;
@@ -86,6 +87,7 @@ private:
         const QString &filterKey,
         const QString &fallbackLabel,
         const QVariantMap &parameters = {});
+    void applyFilterVisualizationHints(const MeshFilterRunResult &result);
     void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
     QImage renderSnapshotOffscreen(
         RenderWidget *sourceView,
