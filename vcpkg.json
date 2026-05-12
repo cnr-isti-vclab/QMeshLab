@@ -11,6 +11,7 @@
     "xerces-c",
     "rapidobj",
     "muparser",
-    "embree"
+    "embree",
+    "cgal"
   ]
 }

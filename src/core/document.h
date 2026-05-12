@@ -327,6 +327,10 @@ private:
     std::unique_ptr<MeshGpuResourceCache> m_gpuCache;
     std::vector<std::unique_ptr<MeshEntry>> m_meshes;
     std::uint64_t m_nextMeshId = 1;
+    // Globally monotonic counter for geometry revisions. Never reset or restored
+    // during undo/redo, so every distinct geometry snapshot always gets a unique
+    // (meshId, geometryRevision) key — preventing cross-branch cache collisions.
+    std::uint64_t m_nextGeometryRevision = 1;
     int m_currentMeshIndex = -1;
     std::vector<LogEntry> m_logMessages;
     int m_lastCallbackBucket = -1;

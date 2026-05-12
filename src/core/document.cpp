@@ -628,7 +628,7 @@ int Document::loadMesh(const QString &filename)
     }
     entry->ioMask = loadMask;
     entry->meshId = m_nextMeshId++;
-    entry->geometryRevision = 1;
+    entry->geometryRevision = m_nextGeometryRevision++;
     entry->materialRevision = 1;
     entry->transform.setToIdentity();
     entry->name = QFileInfo(filename).fileName();
@@ -891,7 +891,7 @@ int Document::reloadMesh(int index)
         entry.textureFilePaths,
         reloadedMesh.textures);
     entry.materialSet = normalizeMaterialSet(sourcePath, loadedMaterialSet, reloadedMesh);
-    ++entry.geometryRevision;
+    entry.geometryRevision = m_nextGeometryRevision++;
     ++entry.materialRevision;
 
     const qint64 elapsedMs = loadTimer.elapsed();
@@ -1469,10 +1469,14 @@ void Document::restoreUndoState(const UndoState &state)
     }
 
     // Evict geometry cache entries whose revision is strictly greater than the
-    // revision we are about to restore.  After restoring mesh M to revision R,
-    // any subsequent operation will increment R to R+1.  Without eviction,
-    // captureUndoState would find the stale (meshId, R+1) entry left by a
-    // previous branch and return the wrong geometry for the new node.
+    // revision we are about to restore.  Because m_nextGeometryRevision is a
+    // globally monotonic counter that is never reset during undo/redo, each
+    // distinct geometry snapshot always receives a unique (meshId, geometryRevision)
+    // key.  Cross-branch cache collisions are therefore impossible.
+    // The loop below is kept as a memory-hygiene pass: it removes weak_ptr entries
+    // that can never be referenced by any state reachable from the restored node,
+    // letting the map stay compact even before the natural weak_ptr expiry of
+    // pruned nodes.
     for (const auto &snap : state.meshes) {
         auto it = m_undoGeometryCache.lower_bound(
             std::make_pair(snap.meshId, snap.geometryRevision + 1));
@@ -1707,7 +1711,7 @@ int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
     vcg::tri::UpdateBounding<VCGMesh>::Box(entry->mesh);
 
     entry->meshId = m_nextMeshId++;
-    entry->geometryRevision = 1;
+    entry->geometryRevision = m_nextGeometryRevision++;
     entry->materialRevision = 1;
     entry->transform.setToIdentity();
     entry->ioMask = ioMask;
@@ -1757,7 +1761,7 @@ int Document::duplicateMesh(int sourceIndex, const QString &newName)
     copyMeshEntryMetadata(src, *dst);
     deepCopyMesh(src.mesh, dst->mesh);
     dst->meshId = m_nextMeshId++;
-    dst->geometryRevision = 1;
+    dst->geometryRevision = m_nextGeometryRevision++;
     dst->materialRevision = 1;
     dst->sourcePath.clear();
     dst->name = newName.trimmed().isEmpty() ? tr("%1 copy").arg(src.name) : newName.trimmed();
@@ -1861,7 +1865,7 @@ void Document::markMeshGeometryChanged(int index, const QString &contextMessage)
     if (ownUndoStep)
         beginUndoStep(tr("Modify Mesh Geometry"));
     MeshEntry &entry = mesh(index);
-    ++entry.geometryRevision;
+    entry.geometryRevision = m_nextGeometryRevision++;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
     } else {
