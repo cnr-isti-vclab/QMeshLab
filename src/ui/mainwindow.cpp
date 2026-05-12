@@ -1890,12 +1890,18 @@ void MainWindow::showMemoryInfo()
         meshItem->setExpanded(true);
         addRow(meshItem, tr("Vertices"), s.vertexBytes,
                tr("%1 × %2 B").arg(s.vertexCapacity).arg(sizeof(VCGVertex)));
+        if (s.vertexOcfBytes > 0)
+            addRow(meshItem, tr("Vertex OCF side data"), s.vertexOcfBytes,
+                   tr("optional-component vectors"));
         if (s.edgeCapacity > 0)
             addRow(meshItem, tr("Edges"), s.edgeBytes,
                    tr("%1 × %2 B").arg(s.edgeCapacity).arg(sizeof(VCGEdge)));
         if (s.faceCapacity > 0)
             addRow(meshItem, tr("Faces"), s.faceBytes,
                    tr("%1 × %2 B").arg(s.faceCapacity).arg(sizeof(VCGFace)));
+        if (s.faceOcfBytes > 0)
+            addRow(meshItem, tr("Face OCF side data"), s.faceOcfBytes,
+                   tr("optional-component vectors"));
     }
 
     // --- CPU undo history ---

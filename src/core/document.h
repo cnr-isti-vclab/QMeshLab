@@ -83,9 +83,14 @@ public:
         int edgeCapacity = 0;
         int faceCapacity = 0;
         qint64 vertexBytes = 0;
+        qint64 vertexOcfBytes = 0;
         qint64 edgeBytes = 0;
         qint64 faceBytes = 0;
-        qint64 totalBytes() const { return vertexBytes + edgeBytes + faceBytes; }
+        qint64 faceOcfBytes = 0;
+        qint64 totalBytes() const
+        {
+            return vertexBytes + vertexOcfBytes + edgeBytes + faceBytes + faceOcfBytes;
+        }
     };
 
     struct UndoStepMemoryInfo {
