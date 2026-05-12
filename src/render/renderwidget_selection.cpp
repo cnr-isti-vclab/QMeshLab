@@ -136,7 +136,9 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             m_renderSettings.qualityHistogramMin,
             m_renderSettings.qualityHistogramMax,
             mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces),
-            meshSettings.wireRespectFaux);
+            meshSettings.wireRespectFaux,
+            m_renderSettings.qualityHistogramCenterOnZero,
+            m_renderSettings.qualityHistogramPercentileCrop);
     }
 }
 

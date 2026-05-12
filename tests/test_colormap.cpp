@@ -1,6 +1,7 @@
 #include <QtTest/QtTest>
 
 #include "colormap.h"
+#include "src/render/qualityrange.h"
 
 #include <QDir>
 #include <QFile>
@@ -46,6 +47,8 @@ private slots:
     void externalMapIsLoadedFromEnvOverride();
     void externalMapCanOverrideBundledMap();
     void invalidExternalMapIsIgnored();
+    void qualityRangeUsesPercentileCrop();
+    void qualityNormalizationClampsToRange();
 };
 
 void ColorMapRegistryTests::init()
@@ -146,6 +149,27 @@ void ColorMapRegistryTests::invalidExternalMapIsIgnored()
 
     QVERIFY(!registry.hasMap(QStringLiteral("broken")));
     QVERIFY(registry.hasMap(registry.fallbackMapId()));
+}
+
+void ColorMapRegistryTests::qualityRangeUsesPercentileCrop()
+{
+    const RenderQualityRange range = sampledRenderQualityRange(
+        { -100.0f, 0.0f, 1.0f, 2.0f, 100.0f },
+        false,
+        0.25f);
+
+    QVERIFY(range.valid);
+    QCOMPARE(range.minV, 0.0f);
+    QCOMPARE(range.maxV, 2.0f);
+}
+
+void ColorMapRegistryTests::qualityNormalizationClampsToRange()
+{
+    const RenderQualityRange range = fixedRenderQualityRange(10.0f, 20.0f);
+
+    QCOMPARE(normalizedRenderQuality(5.0f, range), 0.0f);
+    QCOMPARE(normalizedRenderQuality(25.0f, range), 1.0f);
+    QCOMPARE(normalizedRenderQuality(15.0f, range), 0.5f);
 }
 
 QTEST_MAIN(ColorMapRegistryTests)

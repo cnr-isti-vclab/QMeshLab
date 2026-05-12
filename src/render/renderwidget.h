@@ -353,6 +353,8 @@ private:
         bool qualityFixedRange = false;
         float qualityRangeMin = 0.0f;
         float qualityRangeMax = 1.0f;
+        bool qualityCenterOnZero = false;
+        float qualityPercentileCrop = 0.0f;
         std::unique_ptr<QRhiBuffer> wireVbuf;
         int wireVertexCount = 0;
         std::unique_ptr<QRhiBuffer> boundaryEdgesVbuf;

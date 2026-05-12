@@ -1,6 +1,7 @@
 #include "meshgpuresourcecache.h"
 #include "linerenderer.h"
 #include "meshioplugin.h"
+#include "qualityrange.h"
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <rhi/qrhi.h>
@@ -14,7 +15,6 @@
 #include <array>
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <map>
 #include <unordered_map>
 
@@ -43,22 +43,6 @@ int pointVariantIndex(MeshGpuResourceCache::PointVariant variant)
     case MeshGpuResourceCache::PointVariant::PerVertexQuality: return 2;
     }
     return 0;
-}
-
-struct QualityRange {
-    float minV = 0.0f;
-    float maxV = 1.0f;
-    bool valid = false;
-};
-
-float normalizedQuality(float q, const QualityRange &range)
-{
-    if (!range.valid)
-        return 0.5f;
-    const float den = range.maxV - range.minV;
-    if (std::abs(den) <= 1e-12f)
-        return 0.5f;
-    return std::clamp((q - range.minV) / den, 0.0f, 1.0f);
 }
 
 bool isPerVertexQualityFillVariant(MeshGpuResourceCache::FillVariant variant)
@@ -99,6 +83,8 @@ struct MeshGpuResourceCache::CacheState
         bool qualityFixedRange = false;
         float qualityRangeMin = 0.0f;
         float qualityRangeMax = 1.0f;
+        bool qualityCenterOnZero = false;
+        float qualityPercentileCrop = 0.0f;
         bool valid = false;
         std::vector<FillBatchGpu> batches;
         mutable std::vector<FillBatchView> viewBatches;
@@ -126,6 +112,8 @@ struct MeshGpuResourceCache::CacheState
         bool qualityFixedRange = false;
         float qualityRangeMin = 0.0f;
         float qualityRangeMax = 1.0f;
+        bool qualityCenterOnZero = false;
+        float qualityPercentileCrop = 0.0f;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -244,16 +232,26 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool requestedRangeFinite =
                 std::isfinite(requestedRangeMin) && std::isfinite(requestedRangeMax);
             const bool useFixedRange = qualityVariant && source.qualityFixedRange && requestedRangeFinite;
+            const bool useCenterOnZero = qualityVariant && !useFixedRange && source.qualityCenterOnZero;
+            const float requestedPercentileCrop = qualityVariant && !useFixedRange
+                ? std::clamp(source.qualityPercentileCrop, 0.0f, 0.5f)
+                : 0.0f;
 
             if (dst.valid
                 && dst.geometryRevision == source.geometryRevision
                 && dst.materialRevision == source.materialRevision) {
                 if (!qualityVariant)
                     return false;
-                if (dst.qualityFixedRange == useFixedRange
+                const bool sameFixedRange =
+                    dst.qualityFixedRange == useFixedRange
                     && (!useFixedRange
                         || (dst.qualityRangeMin == requestedRangeMin
-                            && dst.qualityRangeMax == requestedRangeMax))) {
+                            && dst.qualityRangeMax == requestedRangeMax));
+                const bool sameAutoRange =
+                    useFixedRange
+                    || (dst.qualityCenterOnZero == useCenterOnZero
+                        && dst.qualityPercentileCrop == requestedPercentileCrop);
+                if (sameFixedRange && sameAutoRange) {
                     return false;
                 }
             }
@@ -264,6 +262,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             dst.qualityFixedRange = useFixedRange;
             dst.qualityRangeMin = requestedRangeMin;
             dst.qualityRangeMax = requestedRangeMax;
+            dst.qualityCenterOnZero = useCenterOnZero;
+            dst.qualityPercentileCrop = requestedPercentileCrop;
             dst.batches.clear();
             dst.viewBatches.clear();
 
@@ -293,57 +293,48 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool useFaceStyleColor = useFaceColor || useFaceQuality;
             const bool expandTriangles = useFaceStyleColor || useTextureColor;
 
-            QualityRange vertexQualityRange;
+            auto collectVertexQuality = [&]() {
+                std::vector<float> values;
+                values.reserve(size_t(meshData.VN()));
+                for (int vi = 0; vi < meshData.VN(); ++vi) {
+                    const auto &v = meshData.vert[vi];
+                    if (!v.IsD())
+                        values.push_back(static_cast<float>(v.cQ()));
+                }
+                return values;
+            };
+            auto collectFaceQuality = [&]() {
+                std::vector<float> values;
+                values.reserve(size_t(meshData.FN()));
+                for (int fi = 0; fi < meshData.FN(); ++fi) {
+                    const auto &f = meshData.face[fi];
+                    if (!f.IsD())
+                        values.push_back(static_cast<float>(f.cQ()));
+                }
+                return values;
+            };
+
+            RenderQualityRange vertexQualityRange;
             if (useVertexQuality) {
                 if (useFixedRange) {
-                    vertexQualityRange.minV = requestedRangeMin;
-                    vertexQualityRange.maxV = requestedRangeMax;
-                    vertexQualityRange.valid = true;
+                    vertexQualityRange = fixedRenderQualityRange(requestedRangeMin, requestedRangeMax);
                 } else {
-                    float minQ = std::numeric_limits<float>::max();
-                    float maxQ = -std::numeric_limits<float>::max();
-                    for (int vi = 0; vi < meshData.VN(); ++vi) {
-                        const auto &v = meshData.vert[vi];
-                        if (v.IsD())
-                            continue;
-                        const float q = static_cast<float>(v.cQ());
-                        if (!std::isfinite(q))
-                            continue;
-                        minQ = std::min(minQ, q);
-                        maxQ = std::max(maxQ, q);
-                    }
-                    if (minQ <= maxQ) {
-                        vertexQualityRange.minV = minQ;
-                        vertexQualityRange.maxV = maxQ;
-                        vertexQualityRange.valid = true;
-                    }
+                    vertexQualityRange = sampledRenderQualityRange(
+                        collectVertexQuality(),
+                        useCenterOnZero,
+                        requestedPercentileCrop);
                 }
             }
 
-            QualityRange faceQualityRange;
+            RenderQualityRange faceQualityRange;
             if (useFaceQuality) {
                 if (useFixedRange) {
-                    faceQualityRange.minV = requestedRangeMin;
-                    faceQualityRange.maxV = requestedRangeMax;
-                    faceQualityRange.valid = true;
+                    faceQualityRange = fixedRenderQualityRange(requestedRangeMin, requestedRangeMax);
                 } else {
-                    float minQ = std::numeric_limits<float>::max();
-                    float maxQ = -std::numeric_limits<float>::max();
-                    for (int fi = 0; fi < meshData.FN(); ++fi) {
-                        const auto &f = meshData.face[fi];
-                        if (f.IsD())
-                            continue;
-                        const float q = static_cast<float>(f.cQ());
-                        if (!std::isfinite(q))
-                            continue;
-                        minQ = std::min(minQ, q);
-                        maxQ = std::max(maxQ, q);
-                    }
-                    if (minQ <= maxQ) {
-                        faceQualityRange.minV = minQ;
-                        faceQualityRange.maxV = maxQ;
-                        faceQualityRange.valid = true;
-                    }
+                    faceQualityRange = sampledRenderQualityRange(
+                        collectFaceQuality(),
+                        useCenterOnZero,
+                        requestedPercentileCrop);
                 }
             }
 
@@ -489,7 +480,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             static_cast<float>(fc[2]) / 255.0f);
                     } else if (useFaceQuality) {
                         const float fq = static_cast<float>(f.cQ());
-                        faceQualityT = normalizedQuality(fq, faceQualityRange);
+                        faceQualityT = normalizedRenderQuality(fq, faceQualityRange);
                     }
 
                     int textureGroup = -1;
@@ -526,7 +517,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                                 static_cast<float>(vc[2]) / 255.0f);
                         } else if (useVertexQuality) {
                             const float vq = static_cast<float>(vertex->cQ());
-                            vertexQualityT = normalizedQuality(vq, vertexQualityRange);
+                            vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
                         }
                         const int base = startBase + (corner * kFillVertexStrideFloats);
 
@@ -805,7 +796,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             static_cast<float>(vc[2]) / 255.0f);
                     } else if (useVertexQuality) {
                         const float vq = static_cast<float>(v.cQ());
-                        vertexQualityT = normalizedQuality(vq, vertexQualityRange);
+                        vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
                     }
                     const int base = vi * kFillVertexStrideFloats;
                     vdata[base + 0] = v.cP()[0];
@@ -940,14 +931,24 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool requestedRangeFinite =
                 std::isfinite(requestedRangeMin) && std::isfinite(requestedRangeMax);
             const bool useFixedRange = qualityVariant && source.qualityFixedRange && requestedRangeFinite;
+            const bool useCenterOnZero = qualityVariant && !useFixedRange && source.qualityCenterOnZero;
+            const float requestedPercentileCrop = qualityVariant && !useFixedRange
+                ? std::clamp(source.qualityPercentileCrop, 0.0f, 0.5f)
+                : 0.0f;
 
             if (dst.valid && dst.geometryRevision == source.geometryRevision) {
                 if (!qualityVariant)
                     return false;
-                if (dst.qualityFixedRange == useFixedRange
+                const bool sameFixedRange =
+                    dst.qualityFixedRange == useFixedRange
                     && (!useFixedRange
                         || (dst.qualityRangeMin == requestedRangeMin
-                            && dst.qualityRangeMax == requestedRangeMax))) {
+                            && dst.qualityRangeMax == requestedRangeMax));
+                const bool sameAutoRange =
+                    useFixedRange
+                    || (dst.qualityCenterOnZero == useCenterOnZero
+                        && dst.qualityPercentileCrop == requestedPercentileCrop);
+                if (sameFixedRange && sameAutoRange) {
                     return false;
                 }
             }
@@ -957,6 +958,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             dst.qualityFixedRange = useFixedRange;
             dst.qualityRangeMin = requestedRangeMin;
             dst.qualityRangeMax = requestedRangeMax;
+            dst.qualityCenterOnZero = useCenterOnZero;
+            dst.qualityPercentileCrop = requestedPercentileCrop;
             dst.vbuf.reset();
             dst.vertexCount = 0;
 
@@ -974,30 +977,22 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool useVertexStyleColor = useVertexColor || useVertexQuality;
             const float useMeshColor = useVertexStyleColor ? 1.0f : 0.0f;
 
-            QualityRange vertexQualityRange;
+            RenderQualityRange vertexQualityRange;
             if (useVertexQuality) {
                 if (useFixedRange) {
-                    vertexQualityRange.minV = requestedRangeMin;
-                    vertexQualityRange.maxV = requestedRangeMax;
-                    vertexQualityRange.valid = true;
+                    vertexQualityRange = fixedRenderQualityRange(requestedRangeMin, requestedRangeMax);
                 } else {
-                    float minQ = std::numeric_limits<float>::max();
-                    float maxQ = -std::numeric_limits<float>::max();
+                    std::vector<float> values;
+                    values.reserve(size_t(meshData.VN()));
                     for (int vi = 0; vi < meshData.VN(); ++vi) {
                         const auto &v = meshData.vert[vi];
-                        if (v.IsD())
-                            continue;
-                        const float q = static_cast<float>(v.cQ());
-                        if (!std::isfinite(q))
-                            continue;
-                        minQ = std::min(minQ, q);
-                        maxQ = std::max(maxQ, q);
+                        if (!v.IsD())
+                            values.push_back(static_cast<float>(v.cQ()));
                     }
-                    if (minQ <= maxQ) {
-                        vertexQualityRange.minV = minQ;
-                        vertexQualityRange.maxV = maxQ;
-                        vertexQualityRange.valid = true;
-                    }
+                    vertexQualityRange = sampledRenderQualityRange(
+                        std::move(values),
+                        useCenterOnZero,
+                        requestedPercentileCrop);
                 }
             }
 
@@ -1014,7 +1009,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         static_cast<float>(vc[2]) / 255.0f);
                 } else if (useVertexQuality) {
                     const float vq = static_cast<float>(v.cQ());
-                    vertexQualityT = normalizedQuality(vq, vertexQualityRange);
+                    vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
                 }
                 const int base = vi * kPointsVertexStrideFloats;
                 pdata[base + 0] = v.cP()[0];

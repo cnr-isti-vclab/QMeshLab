@@ -1,6 +1,7 @@
 #include "renderwidget.h"
 #include "colormap.h"
 #include "document.h"
+#include "qualityrange.h"
 #include "renderwidget_internal.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFontDatabase>
@@ -72,6 +73,11 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         m_renderSettings.qualityHistogramFixedRange
         && std::isfinite(qualityRangeMin)
         && std::isfinite(qualityRangeMax);
+    const bool qualityCenterOnZero =
+        !qualityFixedRange && m_renderSettings.qualityHistogramCenterOnZero;
+    const float qualityPercentileCrop = qualityFixedRange
+        ? 0.0f
+        : std::clamp(m_renderSettings.qualityHistogramPercentileCrop, 0.0f, 0.5f);
     if (gpu.valid
         && gpu.geometryRevision == entry.geometryRevision
         && gpu.materialRevision == entry.materialRevision
@@ -80,7 +86,10 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         && gpu.qualityFixedRange == qualityFixedRange
         && (!qualityFixedRange
             || (gpu.qualityRangeMin == qualityRangeMin
-                && gpu.qualityRangeMax == qualityRangeMax))) {
+                && gpu.qualityRangeMax == qualityRangeMax))
+        && (qualityFixedRange
+            || (gpu.qualityCenterOnZero == qualityCenterOnZero
+                && gpu.qualityPercentileCrop == qualityPercentileCrop))) {
         return true;
     }
 
@@ -92,6 +101,8 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     gpu.qualityFixedRange = qualityFixedRange;
     gpu.qualityRangeMin = qualityRangeMin;
     gpu.qualityRangeMax = qualityRangeMax;
+    gpu.qualityCenterOnZero = qualityCenterOnZero;
+    gpu.qualityPercentileCrop = qualityPercentileCrop;
     if (!meshHasParametrization(meshIndex))
         return false;
 
@@ -189,19 +200,6 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         dst.push_back(0.0f);
     };
 
-    struct QualityRange {
-        float minV = 0.0f;
-        float maxV = 1.0f;
-        bool valid = false;
-    };
-    auto normalizedQuality = [](float q, const QualityRange &range) {
-        if (!range.valid)
-            return 0.5f;
-        const float den = range.maxV - range.minV;
-        if (std::abs(den) <= 1e-12f)
-            return 0.5f;
-        return std::clamp((q - range.minV) / den, 0.0f, 1.0f);
-    };
     const ColorMapDefinition *qualityMapDef = registry.definition(qualityColorMapName);
     auto qualityColorMap = [&registry, qualityMapDef, qualityColorMapInverted](float t) {
         if (qualityColorMapInverted)
@@ -209,57 +207,48 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         return registry.sampleRgb(qualityMapDef, t);
     };
 
-    QualityRange vertexQualityRange;
+    auto collectVertexQuality = [&]() {
+        std::vector<float> values;
+        values.reserve(size_t(mesh.VN()));
+        for (int vi = 0; vi < mesh.VN(); ++vi) {
+            const auto &v = mesh.vert[vi];
+            if (!v.IsD())
+                values.push_back(static_cast<float>(v.cQ()));
+        }
+        return values;
+    };
+    auto collectFaceQuality = [&]() {
+        std::vector<float> values;
+        values.reserve(size_t(mesh.FN()));
+        for (int fi = 0; fi < mesh.FN(); ++fi) {
+            const auto &f = mesh.face[fi];
+            if (!f.IsD())
+                values.push_back(static_cast<float>(f.cQ()));
+        }
+        return values;
+    };
+
+    RenderQualityRange vertexQualityRange;
     if (hasVertexQuality) {
         if (qualityFixedRange) {
-            vertexQualityRange.minV = qualityRangeMin;
-            vertexQualityRange.maxV = qualityRangeMax;
-            vertexQualityRange.valid = true;
+            vertexQualityRange = fixedRenderQualityRange(qualityRangeMin, qualityRangeMax);
         } else {
-            float minQ = std::numeric_limits<float>::max();
-            float maxQ = -std::numeric_limits<float>::max();
-            for (int vi = 0; vi < mesh.VN(); ++vi) {
-                const auto &v = mesh.vert[vi];
-                if (v.IsD())
-                    continue;
-                const float q = static_cast<float>(v.cQ());
-                if (!std::isfinite(q))
-                    continue;
-                minQ = std::min(minQ, q);
-                maxQ = std::max(maxQ, q);
-            }
-            if (minQ <= maxQ) {
-                vertexQualityRange.minV = minQ;
-                vertexQualityRange.maxV = maxQ;
-                vertexQualityRange.valid = true;
-            }
+            vertexQualityRange = sampledRenderQualityRange(
+                collectVertexQuality(),
+                qualityCenterOnZero,
+                qualityPercentileCrop);
         }
     }
 
-    QualityRange faceQualityRange;
+    RenderQualityRange faceQualityRange;
     if (hasFaceQuality) {
         if (qualityFixedRange) {
-            faceQualityRange.minV = qualityRangeMin;
-            faceQualityRange.maxV = qualityRangeMax;
-            faceQualityRange.valid = true;
+            faceQualityRange = fixedRenderQualityRange(qualityRangeMin, qualityRangeMax);
         } else {
-            float minQ = std::numeric_limits<float>::max();
-            float maxQ = -std::numeric_limits<float>::max();
-            for (int fi = 0; fi < mesh.FN(); ++fi) {
-                const auto &f = mesh.face[fi];
-                if (f.IsD())
-                    continue;
-                const float q = static_cast<float>(f.cQ());
-                if (!std::isfinite(q))
-                    continue;
-                minQ = std::min(minQ, q);
-                maxQ = std::max(maxQ, q);
-            }
-            if (minQ <= maxQ) {
-                faceQualityRange.minV = minQ;
-                faceQualityRange.maxV = maxQ;
-                faceQualityRange.valid = true;
-            }
+            faceQualityRange = sampledRenderQualityRange(
+                collectFaceQuality(),
+                qualityCenterOnZero,
+                qualityPercentileCrop);
         }
     }
 
@@ -286,7 +275,7 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
             float(fc[2]) / 255.0f);
         const float useFaceColorFlag = hasFaceColors ? 1.0f : 0.0f;
         const QVector3D faceQualityColor = qualityColorMap(
-            normalizedQuality(static_cast<float>(f.cQ()), faceQualityRange));
+            normalizedRenderQuality(static_cast<float>(f.cQ()), faceQualityRange));
         const float useFaceQualityFlag = hasFaceQuality ? 1.0f : 0.0f;
 
         for (int c = 0; c < 3; ++c) {
@@ -314,7 +303,7 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
             float useVertexQualityFlag = 0.0f;
             if (vertex && hasVertexQuality) {
                 vertexQualityColor = qualityColorMap(
-                    normalizedQuality(static_cast<float>(vertex->cQ()), vertexQualityRange));
+                    normalizedRenderQuality(static_cast<float>(vertex->cQ()), vertexQualityRange));
                 useVertexQualityFlag = 1.0f;
             }
 

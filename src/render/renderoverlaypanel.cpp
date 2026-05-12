@@ -1,20 +1,24 @@
 #include "renderoverlaypanel.h"
 #include "colormap.h"
+#include <QApplication>
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QEvent>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QStackedWidget>
 #include <QStyle>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -25,8 +29,13 @@ namespace {
 const QColor kAccentColor(36, 132, 210);
 const QColor kNeutralArrowColor(90, 90, 90, 175);
 const QColor kActiveArrowColor(36, 132, 210, 235);
-constexpr int kSettingsRowHeight = 24;
-constexpr int kColorButtonSize = 18;
+constexpr int kPassButtonSize = 28;
+constexpr int kPassIconSize = 24;
+constexpr int kPassArrowWidth = 28;
+constexpr int kPassArrowHeight = 10;
+constexpr int kSettingsRowHeight = 20;
+constexpr int kColorButtonSize = 16;
+constexpr int kSettingsAutoCloseDelayMs = 5000;
 constexpr Qt::Alignment kSettingsLabelAlignment = Qt::AlignRight | Qt::AlignVCenter;
 constexpr int kPbrSourceRole = Qt::UserRole + 100;
 constexpr int kPbrTextureIndexRole = Qt::UserRole + 101;
@@ -97,7 +106,7 @@ public:
         setCheckable(true);
         setAutoRaise(true);
         setCursor(Qt::PointingHandCursor);
-        setFixedSize(32, 12);
+        setFixedSize(kPassArrowWidth, kPassArrowHeight);
         setToolTip(QObject::tr("Show settings for this pass"));
     }
 
@@ -123,26 +132,63 @@ protected:
         p.drawPolygon(poly);
     }
 };
+
+class CurrentPageStackedWidget final : public QStackedWidget
+{
+public:
+    explicit CurrentPageStackedWidget(QWidget *parent = nullptr)
+        : QStackedWidget(parent)
+    {
+        setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        connect(this, &QStackedWidget::currentChanged, this, [this]() {
+            updateGeometry();
+        });
+    }
+
+    QSize sizeHint() const override
+    {
+        if (QWidget *page = currentWidget())
+            return page->sizeHint();
+        return QStackedWidget::sizeHint();
+    }
+
+    QSize minimumSizeHint() const override
+    {
+        if (QWidget *page = currentWidget())
+            return page->minimumSizeHint();
+        return QStackedWidget::minimumSizeHint();
+    }
+};
 }
 
 RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     : QWidget(parent)
 {
+    m_settingsAutoCloseTimer = new QTimer(this);
+    m_settingsAutoCloseTimer->setSingleShot(true);
+    m_settingsAutoCloseTimer->setInterval(kSettingsAutoCloseDelayMs);
+    connect(m_settingsAutoCloseTimer, &QTimer::timeout, this, [this]() {
+        if (m_settingsContainer && m_settingsContainer->isVisible())
+            setSettingsVisible(false);
+    });
+    if (qApp)
+        qApp->installEventFilter(this);
+
     auto *panelLayout = new QVBoxLayout(this);
     panelLayout->setContentsMargins(0, 0, 0, 0);
-    panelLayout->setSpacing(2);
+    panelLayout->setSpacing(1);
 
     auto *buttonRow = new QWidget(this);
     auto *buttonLayout = new QHBoxLayout(buttonRow);
     buttonLayout->setContentsMargins(0, 0, 0, 0);
-    buttonLayout->setSpacing(4);
+    buttonLayout->setSpacing(3);
     panelLayout->addWidget(buttonRow);
 
     const QString passButtonStyle = QStringLiteral(
-        "QToolButton { background: rgba(250,250,250,210); border: 1px solid rgba(40,40,40,160); border-radius: 4px; }"
-        "QToolButton:checked { background: rgba(%1,%2,%3,220); border-color: rgba(%1,%2,%3,240); }"
-        "QToolButton:hover { background: rgba(220,230,245,220); }"
-        "QToolButton[settingsTarget=\"true\"] { border: 2px solid rgba(%1,%2,%3,240); }")
+        "QToolButton { background: rgba(250,250,250,165); border: 1px solid rgba(40,40,40,115); border-radius: 4px; }"
+        "QToolButton:checked { background: rgba(%1,%2,%3,195); border-color: rgba(%1,%2,%3,220); }"
+        "QToolButton:hover { background: rgba(220,230,245,185); }"
+        "QToolButton[settingsTarget=\"true\"] { border: 2px solid rgba(%1,%2,%3,210); }")
             .arg(kAccentColor.red()).arg(kAccentColor.green()).arg(kAccentColor.blue());
 
     auto makeButton = [this, &passButtonStyle](const QString &iconPath, const QString &tooltip) {
@@ -151,8 +197,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         btn->setToolTip(tooltip);
         btn->setCheckable(true);
         btn->setAutoRaise(false);
-        btn->setIconSize(QSize(32, 32));
-        btn->setFixedSize(32, 32);
+        btn->setIconSize(QSize(kPassIconSize, kPassIconSize));
+        btn->setFixedSize(kPassButtonSize, kPassButtonSize);
         btn->setStyleSheet(passButtonStyle);
         return btn;
     };
@@ -199,7 +245,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *arrowRow = new QWidget(this);
     auto *arrowLayout = new QHBoxLayout(arrowRow);
     arrowLayout->setContentsMargins(0, 0, 0, 0);
-    arrowLayout->setSpacing(4);
+    arrowLayout->setSpacing(3);
     panelLayout->addWidget(arrowRow);
 
     auto makeArrowButton = [this, arrowRow](const QString &tooltip) {
@@ -216,7 +262,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         return btn;
     };
     auto *modeArrowSpacer = new QWidget(arrowRow);
-    modeArrowSpacer->setFixedSize(32, 12);
+    modeArrowSpacer->setFixedSize(kPassButtonSize, kPassArrowHeight);
     arrowLayout->addWidget(modeArrowSpacer);
 
     m_currentMeshSettingsArrow = makeArrowButton(tr("Settings: Viewer"));
@@ -245,20 +291,21 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_settingsContainer->setVisible(false);
     m_settingsContainer->setObjectName(QStringLiteral("settingsContainer"));
     m_settingsContainer->setStyleSheet(QStringLiteral(
-        "#settingsContainer { background: rgba(250,250,250,225); border: 1px solid rgba(40,40,40,160); border-radius: 4px; }"
-        "#settingsContainer QLabel { border: none; background: transparent; }"));
+        "#settingsContainer { background: rgba(250,250,250,170); border: 1px solid rgba(40,40,40,110); border-radius: 4px; }"
+        "#settingsContainer QLabel { border: none; background: transparent; }"
+        "#settingsContainer, #settingsContainer QLabel, #settingsContainer QCheckBox, #settingsContainer QComboBox, #settingsContainer QDoubleSpinBox { font-size: 11px; }"));
 
     auto *settingsContainerLayout = new QVBoxLayout(m_settingsContainer);
-    settingsContainerLayout->setContentsMargins(6, 6, 6, 6);
-    settingsContainerLayout->setSpacing(4);
-    m_settingsStack = new QStackedWidget(m_settingsContainer);
+    settingsContainerLayout->setContentsMargins(4, 4, 4, 4);
+    settingsContainerLayout->setSpacing(2);
+    m_settingsStack = new CurrentPageStackedWidget(m_settingsContainer);
     settingsContainerLayout->addWidget(m_settingsStack);
 
     auto *currentMeshPage = new QWidget(m_settingsStack);
     auto *currentMeshLayout = new QVBoxLayout(currentMeshPage);
     currentMeshLayout->setContentsMargins(0, 0, 0, 0);
     currentMeshLayout->setSpacing(2);
-    m_viewerSettingsStack = new QStackedWidget(currentMeshPage);
+    m_viewerSettingsStack = new CurrentPageStackedWidget(currentMeshPage);
     currentMeshLayout->addWidget(m_viewerSettingsStack);
 
     auto *viewer3dPage = new QWidget(m_viewerSettingsStack);
@@ -268,7 +315,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *currentMeshForm = new QFormLayout();
     currentMeshForm->setContentsMargins(0, 0, 0, 0);
     currentMeshForm->setHorizontalSpacing(6);
-    currentMeshForm->setVerticalSpacing(2);
+    currentMeshForm->setVerticalSpacing(1);
     currentMeshForm->setLabelAlignment(kSettingsLabelAlignment);
     m_currentMeshHighlightCheck = new QCheckBox(viewer3dPage);
     m_currentMeshHighlightCheck->setChecked(m_globalSettings.highlightCurrentMesh);
@@ -350,7 +397,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *normalDecoratorsForm = new QFormLayout();
     normalDecoratorsForm->setContentsMargins(0, 0, 0, 0);
     normalDecoratorsForm->setHorizontalSpacing(6);
-    normalDecoratorsForm->setVerticalSpacing(2);
+    normalDecoratorsForm->setVerticalSpacing(1);
     normalDecoratorsForm->setLabelAlignment(kSettingsLabelAlignment);
     m_decoratorVertexNormalsCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorFaceNormalsCheck = new QCheckBox(normalDecoratorsPage);
@@ -387,7 +434,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *boundaryDecoratorsForm = new QFormLayout();
     boundaryDecoratorsForm->setContentsMargins(0, 0, 0, 0);
     boundaryDecoratorsForm->setHorizontalSpacing(6);
-    boundaryDecoratorsForm->setVerticalSpacing(2);
+    boundaryDecoratorsForm->setVerticalSpacing(1);
     boundaryDecoratorsForm->setLabelAlignment(kSettingsLabelAlignment);
     m_decoratorBoundaryWidthSpin = new QDoubleSpinBox(boundaryDecoratorsPage);
     m_decoratorBoundaryWidthSpin->setRange(0.5, 64.0);
@@ -419,7 +466,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *bboxForm = new QFormLayout();
     bboxForm->setContentsMargins(0, 0, 0, 0);
     bboxForm->setHorizontalSpacing(6);
-    bboxForm->setVerticalSpacing(2);
+    bboxForm->setVerticalSpacing(1);
     bboxForm->setLabelAlignment(kSettingsLabelAlignment);
     m_bboxColorButton = makeColorButton(bboxPage);
     m_bboxShowCornersCheck = new QCheckBox(bboxPage);
@@ -446,7 +493,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *pointsForm = new QFormLayout();
     pointsForm->setContentsMargins(0, 0, 0, 0);
     pointsForm->setHorizontalSpacing(6);
-    pointsForm->setVerticalSpacing(2);
+    pointsForm->setVerticalSpacing(1);
     pointsForm->setLabelAlignment(kSettingsLabelAlignment);
     m_pointsColorButton = makeColorButton(pointsPage);
     m_pointColorSourceCombo = new QComboBox(pointsPage);
@@ -481,7 +528,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *edgesForm = new QFormLayout();
     edgesForm->setContentsMargins(0, 0, 0, 0);
     edgesForm->setHorizontalSpacing(6);
-    edgesForm->setVerticalSpacing(2);
+    edgesForm->setVerticalSpacing(1);
     edgesForm->setLabelAlignment(kSettingsLabelAlignment);
     m_edgeColorButton = makeColorButton(edgesPage);
     m_edgeSizeSpin = new QDoubleSpinBox(edgesPage);
@@ -504,7 +551,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *wireForm = new QFormLayout();
     wireForm->setContentsMargins(0, 0, 0, 0);
     wireForm->setHorizontalSpacing(6);
-    wireForm->setVerticalSpacing(2);
+    wireForm->setVerticalSpacing(1);
     wireForm->setLabelAlignment(kSettingsLabelAlignment);
     m_wireColorButton = makeColorButton(wirePage);
     m_wireSizeSpin = new QDoubleSpinBox(wirePage);
@@ -542,7 +589,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *fillForm = new QFormLayout();
     fillForm->setContentsMargins(0, 0, 0, 0);
     fillForm->setHorizontalSpacing(6);
-    fillForm->setVerticalSpacing(2);
+    fillForm->setVerticalSpacing(1);
     fillForm->setLabelAlignment(kSettingsLabelAlignment);
     m_fillMaterialCombo = new QComboBox(fillPage);
     m_fillMaterialCombo->addItem(tr("Plain"), static_cast<int>(FillMaterial::Plain));
@@ -584,7 +631,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillRoughnessFactorSpin->setDecimals(2);
     m_fillRoughnessFactorSpin->setValue(m_meshSettings.fillPbr.roughnessFactor);
 
-    m_fillMaterialStack = new QStackedWidget(fillPage);
+    m_fillMaterialStack = new CurrentPageStackedWidget(fillPage);
     auto *fillPlainPage = new QWidget(m_fillMaterialStack);
     auto *fillPlainLayout = new QVBoxLayout(fillPlainPage);
     fillPlainLayout->setContentsMargins(0, 0, 0, 0);
@@ -592,7 +639,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillPlainForm = new QFormLayout();
     m_fillPlainForm->setContentsMargins(0, 0, 0, 0);
     m_fillPlainForm->setHorizontalSpacing(6);
-    m_fillPlainForm->setVerticalSpacing(2);
+    m_fillPlainForm->setVerticalSpacing(1);
     m_fillPlainForm->setLabelAlignment(kSettingsLabelAlignment);
     m_fillPlainForm->addRow(tr("Color source"), m_fillColorSourceCombo);
     m_fillPlainTextureCombo = new QComboBox(fillPage);
@@ -618,7 +665,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *fillPbrForm = new QFormLayout();
     fillPbrForm->setContentsMargins(0, 0, 0, 0);
     fillPbrForm->setHorizontalSpacing(6);
-    fillPbrForm->setVerticalSpacing(2);
+    fillPbrForm->setVerticalSpacing(1);
     fillPbrForm->setLabelAlignment(kSettingsLabelAlignment);
     m_fillPbrShadingCombo = new QComboBox(fillPage);
     m_fillPbrShadingCombo->addItem(tr("Smooth"), static_cast<int>(FillShading::Smooth));
@@ -651,7 +698,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *fillRsForm = new QFormLayout();
     fillRsForm->setContentsMargins(0, 0, 0, 0);
     fillRsForm->setHorizontalSpacing(6);
-    fillRsForm->setVerticalSpacing(2);
+    fillRsForm->setVerticalSpacing(1);
     fillRsForm->setLabelAlignment(kSettingsLabelAlignment);
     m_fillRsEnhancementSpin = new QDoubleSpinBox(fillPage);
     m_fillRsEnhancementSpin->setRange(0.0, 1.0);
@@ -683,7 +730,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *selectionForm = new QFormLayout();
     selectionForm->setContentsMargins(0, 0, 0, 0);
     selectionForm->setHorizontalSpacing(6);
-    selectionForm->setVerticalSpacing(2);
+    selectionForm->setVerticalSpacing(1);
     selectionForm->setLabelAlignment(kSettingsLabelAlignment);
     m_selectionShowVerticesCheck = new QCheckBox(selectionPage);
     m_selectionShowVerticesCheck->setChecked(m_meshSettings.showSelectionVertices);
@@ -706,7 +753,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *histogramForm = new QFormLayout();
     histogramForm->setContentsMargins(0, 0, 0, 0);
     histogramForm->setHorizontalSpacing(6);
-    histogramForm->setVerticalSpacing(2);
+    histogramForm->setVerticalSpacing(1);
     histogramForm->setLabelAlignment(kSettingsLabelAlignment);
     m_qualityHistogramSourceCombo = new QComboBox(histogramPage);
     m_qualityHistogramSourceCombo->addItem(
@@ -805,7 +852,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     auto *uvFillForm = new QFormLayout();
     uvFillForm->setContentsMargins(0, 0, 0, 0);
     uvFillForm->setHorizontalSpacing(6);
-    uvFillForm->setVerticalSpacing(2);
+    uvFillForm->setVerticalSpacing(1);
     uvFillForm->setLabelAlignment(kSettingsLabelAlignment);
     m_uvFillColorSourceCombo = new QComboBox(uvFillPage);
     m_uvFillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
@@ -979,6 +1026,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_globalSettings.settingsPanelVisible = checked;
         if (m_settingsContainer)
             m_settingsContainer->setVisible(checked);
+        stopSettingsAutoCloseTimer();
+        updateSettingsPanelGeometry();
         adjustSize();
         emit globalSettingsChanged(m_globalSettings);
     });
@@ -1421,7 +1470,33 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     syncViewerSettingsModeUi();
     if (m_settingsContainer)
         m_settingsContainer->setVisible(m_globalSettings.settingsPanelVisible);
+    if (!m_globalSettings.settingsPanelVisible)
+        stopSettingsAutoCloseTimer();
+    updateSettingsPanelGeometry();
     syncRenderPassUiState();
+}
+
+RenderOverlayPanel::~RenderOverlayPanel()
+{
+    if (qApp)
+        qApp->removeEventFilter(this);
+}
+
+bool RenderOverlayPanel::eventFilter(QObject *watched, QEvent *event)
+{
+    if (m_settingsContainer && m_settingsContainer->isVisible()) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto *mouseEvent = static_cast<QMouseEvent *>(event);
+            const QPoint localPos = mapFromGlobal(mouseEvent->globalPosition().toPoint());
+            if (rect().contains(localPos))
+                stopSettingsAutoCloseTimer();
+            else
+                startSettingsAutoCloseTimer();
+        } else if (event->type() == QEvent::WindowDeactivate) {
+            startSettingsAutoCloseTimer();
+        }
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
@@ -1450,14 +1525,42 @@ void RenderOverlayPanel::setCurrentRenderPass(RenderPass pass)
     m_globalSettings.currentPass = pass;
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(pass));
+    updateSettingsPanelGeometry();
     syncRenderPassUiState();
     emit globalSettingsChanged(m_globalSettings);
 }
 
 void RenderOverlayPanel::setSettingsVisible(bool visible)
 {
+    stopSettingsAutoCloseTimer();
     if (m_modeButton && m_modeButton->isChecked() != visible)
         m_modeButton->setChecked(visible);
+}
+
+void RenderOverlayPanel::startSettingsAutoCloseTimer()
+{
+    if (m_settingsAutoCloseTimer && m_settingsContainer && m_settingsContainer->isVisible())
+        m_settingsAutoCloseTimer->start();
+}
+
+void RenderOverlayPanel::stopSettingsAutoCloseTimer()
+{
+    if (m_settingsAutoCloseTimer)
+        m_settingsAutoCloseTimer->stop();
+}
+
+void RenderOverlayPanel::updateSettingsPanelGeometry()
+{
+    if (m_fillMaterialStack)
+        m_fillMaterialStack->updateGeometry();
+    if (m_viewerSettingsStack)
+        m_viewerSettingsStack->updateGeometry();
+    if (m_settingsStack)
+        m_settingsStack->updateGeometry();
+    if (m_settingsContainer)
+        m_settingsContainer->updateGeometry();
+    updateGeometry();
+    adjustSize();
 }
 
 void RenderOverlayPanel::setViewerModeUv(bool uvMode)
@@ -1467,8 +1570,10 @@ void RenderOverlayPanel::setViewerModeUv(bool uvMode)
     m_viewerModeUv = uvMode;
     syncViewerSettingsModeUi();
     // If currently showing the fill pass, switch between the 3D and UV fill pages.
-    if (m_globalSettings.currentPass == RenderPass::Fill && m_settingsStack)
+    if (m_globalSettings.currentPass == RenderPass::Fill && m_settingsStack) {
         m_settingsStack->setCurrentIndex(renderPassPageIndex(RenderPass::Fill));
+        updateSettingsPanelGeometry();
+    }
 }
 
 void RenderOverlayPanel::syncViewerSettingsModeUi()
@@ -1609,9 +1714,12 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
     syncQualityHistogramUiState();
     if (m_settingsContainer)
         m_settingsContainer->setVisible(m_globalSettings.settingsPanelVisible);
+    if (!m_globalSettings.settingsPanelVisible)
+        stopSettingsAutoCloseTimer();
     if (m_settingsStack)
         m_settingsStack->setCurrentIndex(renderPassPageIndex(m_globalSettings.currentPass));
     syncViewerSettingsModeUi();
+    updateSettingsPanelGeometry();
 
     updateColorButtonStyle(m_currentMeshOutlineColorButton, m_globalSettings.currentMeshOutlineColor);
     updateColorButtonStyle(m_sceneBackgroundTopColorButton, m_globalSettings.sceneBackgroundTopColor);
@@ -2102,6 +2210,7 @@ void RenderOverlayPanel::syncFillPbrUiState()
         if (useRs)   stackIdx = 2;
         m_fillMaterialStack->setCurrentIndex(stackIdx);
     }
+    updateSettingsPanelGeometry();
 
     if (m_fillRsEnhancementSpin)
         m_fillRsEnhancementSpin->setEnabled(useRs);
@@ -2162,6 +2271,7 @@ void RenderOverlayPanel::syncQualityHistogramUiState()
         !fixedRange);
     setHistogramRowVisible(m_qualityHistogramMinLabel, m_qualityHistogramMinSpin, fixedRange);
     setHistogramRowVisible(m_qualityHistogramMaxLabel, m_qualityHistogramMaxSpin, fixedRange);
+    updateSettingsPanelGeometry();
 }
 
 void RenderOverlayPanel::syncRenderPassUiState()

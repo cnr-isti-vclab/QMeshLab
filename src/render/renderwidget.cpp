@@ -1,6 +1,7 @@
 #include "renderwidget.h"
 #include "colormap.h"
 #include "document.h"
+#include "qualityrange.h"
 #include "renderoverlaypanel.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <QFile>
@@ -1258,8 +1259,6 @@ void RenderWidget::updateQualityHistogramOverlay()
         m_qualityHistogram.maxQ = 1.0f;
 
         const VCGMesh &mesh = entry.mesh;
-        float minQ = std::numeric_limits<float>::max();
-        float maxQ = -std::numeric_limits<float>::max();
         std::vector<float> values;
         values.reserve(useVertexQuality ? size_t(mesh.VN()) : size_t(mesh.FN()));
 
@@ -1272,8 +1271,6 @@ void RenderWidget::updateQualityHistogramOverlay()
                 if (!std::isfinite(q))
                     continue;
                 values.push_back(q);
-                minQ = std::min(minQ, q);
-                maxQ = std::max(maxQ, q);
             }
         } else {
             for (int fi = 0; fi < mesh.FN(); ++fi) {
@@ -1284,51 +1281,25 @@ void RenderWidget::updateQualityHistogramOverlay()
                 if (!std::isfinite(q))
                     continue;
                 values.push_back(q);
-                minQ = std::min(minQ, q);
-                maxQ = std::max(maxQ, q);
             }
         }
 
         if (!values.empty()) {
             m_qualityHistogram.sampleCount = int(values.size());
-            float histMin = minQ;
-            float histMax = maxQ;
+            RenderQualityRange histRange;
             if (fixedRange) {
-                histMin = fixedMin;
-                histMax = fixedMax;
+                histRange = fixedRenderQualityRange(fixedMin, fixedMax);
             } else {
-                if (percentileCrop > 0.0f && values.size() > 1) {
-                    std::sort(values.begin(), values.end());
-                    const int lastIndex = int(values.size()) - 1;
-                    const int loIndex = std::clamp(
-                        int(std::floor(percentileCrop * float(lastIndex))),
-                        0,
-                        lastIndex);
-                    const int hiIndex = std::clamp(
-                        int(std::ceil((1.0f - percentileCrop) * float(lastIndex))),
-                        0,
-                        lastIndex);
-                    histMin = values[size_t(std::min(loIndex, hiIndex))];
-                    histMax = values[size_t(std::max(loIndex, hiIndex))];
-                }
-                if (centerOnZero) {
-                    const float absMax = std::max(std::abs(histMin), std::abs(histMax));
-                    histMin = -absMax;
-                    histMax = absMax;
-                }
+                histRange = sampledRenderQualityRange(values, centerOnZero, percentileCrop);
             }
-            m_qualityHistogram.minQ = histMin;
-            m_qualityHistogram.maxQ = histMax;
-            const float den = histMax - histMin;
+            m_qualityHistogram.minQ = histRange.minV;
+            m_qualityHistogram.maxQ = histRange.maxV;
             for (float q : values) {
-                int idx = 0;
-                if (std::abs(den) > 1e-12f) {
-                    const float t = std::clamp((q - histMin) / den, 0.0f, 1.0f);
-                    idx = std::min(bins - 1, int(t * bins));
-                }
+                const float t = normalizedRenderQuality(q, histRange);
+                const int idx = std::clamp(int(t * bins), 0, bins - 1);
                 m_qualityHistogram.counts[size_t(idx)] += 1;
             }
-            m_qualityHistogram.valid = true;
+            m_qualityHistogram.valid = histRange.valid;
         }
     }
 

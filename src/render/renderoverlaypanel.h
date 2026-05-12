@@ -7,16 +7,20 @@ class QPushButton;
 class QDoubleSpinBox;
 class QComboBox;
 class QCheckBox;
+class QEvent;
 class QLabel;
+class QObject;
 class QStackedWidget;
 class QToolButton;
 class QFormLayout;
+class QTimer;
 
 class RenderOverlayPanel : public QWidget
 {
     Q_OBJECT
 public:
     explicit RenderOverlayPanel(QWidget *parent = nullptr);
+    ~RenderOverlayPanel() override;
 
     const RenderSettings &globalSettings() const { return m_globalSettings; }
     const PerMeshRenderSettings &meshSettings() const { return m_meshSettings; }
@@ -42,9 +46,15 @@ signals:
     void globalSettingsChanged(const RenderSettings &settings);
     void meshSettingsChanged(const PerMeshRenderSettings &settings);
 
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     void setCurrentRenderPass(RenderPass pass);
     void setSettingsVisible(bool visible);
+    void startSettingsAutoCloseTimer();
+    void stopSettingsAutoCloseTimer();
+    void updateSettingsPanelGeometry();
     int renderPassPageIndex(RenderPass pass) const;
     void syncViewerSettingsModeUi();
     void syncRenderPassUiState();
@@ -68,6 +78,7 @@ private:
     QWidget *m_settingsContainer = nullptr;
     QStackedWidget *m_settingsStack = nullptr;
     QStackedWidget *m_viewerSettingsStack = nullptr;
+    QTimer *m_settingsAutoCloseTimer = nullptr;
     QPushButton *m_currentMeshOutlineColorButton = nullptr;
     QPushButton *m_sceneBackgroundTopColorButton = nullptr;
     QPushButton *m_sceneBackgroundBottomColorButton = nullptr;

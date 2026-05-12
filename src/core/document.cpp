@@ -1942,7 +1942,9 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
                                       float qualityRangeMin,
                                       float qualityRangeMax,
                                       bool needSelection,
-                                      bool wireRespectFaux)
+                                      bool wireRespectFaux,
+                                      bool qualityCenterOnZero,
+                                      float qualityPercentileCrop)
 {
     if (!m_gpuCache || !rhi || !cb)
         return;
@@ -1960,6 +1962,8 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
     source.qualityRangeMax = qualityRangeMax;
     if (source.qualityRangeMin > source.qualityRangeMax)
         std::swap(source.qualityRangeMin, source.qualityRangeMax);
+    source.qualityCenterOnZero = qualityCenterOnZero;
+    source.qualityPercentileCrop = qualityPercentileCrop;
     source.wireRespectFaux = wireRespectFaux;
     source.mesh = &meshEntry.mesh;
     source.textureFilePaths = &meshEntry.textureFilePaths;
