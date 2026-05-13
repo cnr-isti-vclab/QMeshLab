@@ -151,6 +151,8 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
         if (seedVec.empty())
             return { false, false, QObject::tr("No vertices are selected — aborting heat geodesic computation.") };
 
+        VCGMeshVFAdjScope vfScope(mesh);
+        VCGMeshFFAdjScope ffScope(mesh);
         const bool ok = vcg::tri::GeodesicHeat<VCGMesh>::Compute(mesh, seedVec, m);
         if (!ok)
             return { false, false,
