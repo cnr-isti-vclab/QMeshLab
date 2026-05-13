@@ -1225,12 +1225,21 @@ void MainWindow::splitViewVertically()
 
 void MainWindow::newDocument()
 {
-    const bool hadMeshes = (m_doc->meshCount() > 0);
-    m_doc->beginUndoStep(tr("New Document"));
+    const bool hasContent = (m_doc->meshCount() > 0) || !m_doc->undoStackLabels().isEmpty();
+    if (hasContent) {
+        const auto answer = QMessageBox::question(
+            this,
+            tr("New Document"),
+            tr("This will close all meshes and clear the undo history.\nContinue?"),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        if (answer != QMessageBox::Yes)
+            return;
+    }
     // Remove from back to keep indices valid while emitting meshRemoved/currentMeshChanged.
     while (m_doc->meshCount() > 0)
         m_doc->removeMesh(m_doc->meshCount() - 1);
-    m_doc->endUndoStep(hadMeshes);
+    m_doc->clearUndoHistory();
     m_doc->clearLog();
     statusBar()->showMessage(tr("New document"), 2000);
 }
