@@ -288,10 +288,46 @@ void UndoGraphWidget::contextMenuEvent(QContextMenuEvent *event)
 
     QMenu menu(this);
     QAction *restoreAct      = menu.addAction(tr("Restore state"));
+    restoreAct->setToolTip(tr("Restore the document to this state (data only)"));
     QAction *restoreCamAct   = menu.addAction(tr("Restore state and camera"));
+    restoreCamAct->setToolTip(tr("Restore the document to this state including the camera"));
     menu.addSeparator();
     QAction *updateCamAct    = menu.addAction(tr("Update camera"));
+    updateCamAct->setToolTip(tr("Store the current viewport camera into this history node"));
     updateCamAct->setEnabled(nodeId == m_currentNodeId);
+    menu.addSeparator();
+    QAction *makeRootAct     = menu.addAction(tr("Make Root"));
+    makeRootAct->setToolTip(
+        tr("Make this state the new root of the history tree. "
+           "All ancestor states and any branches attached to them will be permanently deleted."));
+    QAction *purgeBranchAct  = menu.addAction(tr("Purge Branch"));
+    purgeBranchAct->setToolTip(
+        tr("Delete all states derived from this one. "
+           "This state is preserved; all its descendants are permanently removed."));
+    // Disable actions that would be no-ops.
+    const bool isRoot = [&]() {
+        for (int i = 0; i < m_rows.size(); ++i)
+            if (m_rows[i].nodeId == nodeId)
+                return m_rows[i].parentId < 0;
+        return false;
+    }();
+    const bool hasChildren = [&]() {
+        for (int i = 0; i < m_rows.size(); ++i)
+            if (m_rows[i].nodeId == nodeId)
+                return std::any_of(m_rows.begin(), m_rows.end(),
+                                   [nodeId](const Row &r){ return r.parentId == nodeId; });
+        return false;
+    }();
+    makeRootAct->setEnabled(!isRoot);
+    purgeBranchAct->setEnabled(hasChildren);
+
+    // Linearize is useful only when there is more than one branch in the tree.
+    const bool hasAnyBranch = (m_laneCount > 1);
+    QAction *linearizeAct = menu.addAction(tr("Linearize History"));
+    linearizeAct->setToolTip(
+        tr("Remove all branches from the history tree, keeping only the linear path "
+           "from the root to the current state. All branching states are permanently deleted."));
+    linearizeAct->setEnabled(hasAnyBranch);
 
     QAction *chosen = menu.exec(event->globalPos());
     if (chosen == restoreAct)
@@ -300,6 +336,12 @@ void UndoGraphWidget::contextMenuEvent(QContextMenuEvent *event)
         emit nodeActivated(nodeId, true);
     else if (chosen == updateCamAct)
         emit nodeUpdateCameraRequested(nodeId);
+    else if (chosen == makeRootAct)
+        emit nodeMakeRootRequested(nodeId);
+    else if (chosen == purgeBranchAct)
+        emit nodePurgeBranchRequested(nodeId);
+    else if (chosen == linearizeAct)
+        emit linearizeHistoryRequested();
 }
 
 void UndoGraphWidget::mouseMoveEvent(QMouseEvent *event)

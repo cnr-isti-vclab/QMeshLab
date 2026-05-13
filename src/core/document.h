@@ -155,6 +155,9 @@ public:
     int undoCurrentNodeId() const;
     bool jumpToUndoNode(int nodeId, bool restoreCamera = true);
     bool updateUndoNodeCamera(int nodeId);
+    bool makeUndoRoot(int nodeId);
+    bool purgeUndoBranch(int nodeId);
+    bool linearizeUndoHistory();
     bool undo();
     bool redo();
     void clearUndoHistory();

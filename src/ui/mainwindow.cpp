@@ -655,6 +655,61 @@ MainWindow::MainWindow(QWidget *parent)
         refreshUndoHistoryPanel();
         statusBar()->showMessage(tr("Camera updated for history state %1").arg(nodeId), 1800);
     });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeMakeRootRequested, this, [this](int nodeId) {
+        if (!m_doc)
+            return;
+        const auto answer = QMessageBox::question(
+            this,
+            tr("Make Root"),
+            tr("This will permanently delete all ancestor states and any branches attached to them.\n"
+               "This cannot be undone. Continue?"),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        if (answer != QMessageBox::Yes)
+            return;
+        m_doc->makeUndoRoot(nodeId);
+        m_undoNodeThumbnails.clear();
+        m_undoNodeSnapshots.clear();
+        refreshUndoHistoryPanel();
+        statusBar()->showMessage(tr("History root updated"), 2000);
+    });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodePurgeBranchRequested, this, [this](int nodeId) {
+        if (!m_doc)
+            return;
+        const auto answer = QMessageBox::question(
+            this,
+            tr("Purge Branch"),
+            tr("This will permanently delete all states derived from this one.\n"
+               "This cannot be undone. Continue?"),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        if (answer != QMessageBox::Yes)
+            return;
+        m_doc->purgeUndoBranch(nodeId);
+        m_undoNodeThumbnails.clear();
+        m_undoNodeSnapshots.clear();
+        refreshUndoHistoryPanel();
+        statusBar()->showMessage(tr("Branch purged"), 2000);
+    });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::linearizeHistoryRequested, this, [this]() {
+        if (!m_doc)
+            return;
+        const auto answer = QMessageBox::question(
+            this,
+            tr("Linearize History"),
+            tr("This will permanently delete all branches, keeping only the linear path "
+               "from the root to the current state.\n"
+               "This cannot be undone. Continue?"),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        if (answer != QMessageBox::Yes)
+            return;
+        m_doc->linearizeUndoHistory();
+        m_undoNodeThumbnails.clear();
+        m_undoNodeSnapshots.clear();
+        refreshUndoHistoryPanel();
+        statusBar()->showMessage(tr("History linearized"), 2000);
+    });
     const auto showUndoHistoryPreview = [this](int nodeId, const QPoint &globalPos) {
         if (!m_undoHistoryPreviewPopup)
             return;

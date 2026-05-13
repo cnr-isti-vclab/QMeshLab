@@ -15,6 +15,7 @@
 #include <QDebug>
 #include <QDateTime>
 #include <algorithm>
+#include <map>
 #include <set>
 
 namespace {
@@ -1392,6 +1393,181 @@ void Document::clearUndoHistory()
     m_undoStepLabel.clear();
     m_pendingUndoBefore.reset();
     emitUndoRedoStateChanged();
+}
+
+bool Document::makeUndoRoot(int nodeId)
+{
+    if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
+        return false;
+    if (m_undoStepActive)
+        return false;
+    // Already the only node (trivial root) – nothing to do.
+    if (m_undoNodes[static_cast<size_t>(nodeId)].parentId < 0 &&
+        m_undoNodes.size() == 1)
+        return false;
+
+    // Collect all nodes reachable from nodeId (the node itself + all descendants).
+    std::vector<int> reachable;
+    {
+        std::vector<int> stack = { nodeId };
+        while (!stack.empty()) {
+            const int id = stack.back(); stack.pop_back();
+            reachable.push_back(id);
+            for (int c : m_undoNodes[static_cast<size_t>(id)].children)
+                stack.push_back(c);
+        }
+    }
+    std::sort(reachable.begin(), reachable.end());
+
+    // If the current node is not in the surviving subtree, reset it to nodeId.
+    const bool currentSurvives =
+        std::binary_search(reachable.begin(), reachable.end(), m_undoCurrentNode);
+    const int effectiveCurrent = currentSurvives ? m_undoCurrentNode : nodeId;
+
+    // Compact: remap old ids → new compact ids.
+    std::map<int, int> remap;
+    for (int ni = 0; ni < static_cast<int>(reachable.size()); ++ni)
+        remap[reachable[ni]] = ni;
+
+    std::vector<UndoNode> compacted;
+    compacted.reserve(reachable.size());
+    for (int oldId : reachable) {
+        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
+        n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
+        std::vector<int> newChildren;
+        for (int c : n.children)
+            if (remap.count(c)) newChildren.push_back(remap[c]);
+        n.children = std::move(newChildren);
+        if (n.preferredChild >= 0 && remap.count(n.preferredChild))
+            n.preferredChild = remap[n.preferredChild];
+        else
+            n.preferredChild = n.children.empty() ? -1 : n.children.back();
+        compacted.push_back(std::move(n));
+    }
+    // The new root (nodeId) has no parent and no label (it is a root state).
+    compacted[remap[nodeId]].parentId = -1;
+    compacted[remap[nodeId]].label.clear();
+
+    m_undoNodes = std::move(compacted);
+    m_undoCurrentNode = remap.count(effectiveCurrent) ? remap[effectiveCurrent] : remap[nodeId];
+    emitUndoRedoStateChanged();
+    return true;
+}
+
+bool Document::purgeUndoBranch(int nodeId)
+{
+    if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
+        return false;
+    if (m_undoStepActive)
+        return false;
+    // Nothing to purge if the node is already a leaf.
+    if (m_undoNodes[static_cast<size_t>(nodeId)].children.empty())
+        return false;
+
+    // Collect the set of strictly descendant ids (not including nodeId itself).
+    std::set<int> descendants;
+    {
+        std::vector<int> stack;
+        for (int c : m_undoNodes[static_cast<size_t>(nodeId)].children)
+            stack.push_back(c);
+        while (!stack.empty()) {
+            const int id = stack.back(); stack.pop_back();
+            descendants.insert(id);
+            for (int c : m_undoNodes[static_cast<size_t>(id)].children)
+                stack.push_back(c);
+        }
+    }
+
+    // Collect surviving nodes: everything that is not a descendant of nodeId.
+    std::vector<int> reachable;
+    for (int i = 0; i < static_cast<int>(m_undoNodes.size()); ++i)
+        if (!descendants.count(i))
+            reachable.push_back(i);
+    // reachable is already sorted (sequential iteration).
+
+    // The root is always index 0 and is never a descendant, so it always survives.
+    const int rootId = reachable.front(); // always 0
+
+    // If the current node was a descendant, reset it to nodeId.
+    const bool currentSurvives = !descendants.count(m_undoCurrentNode);
+    const int effectiveCurrent = currentSurvives ? m_undoCurrentNode : nodeId;
+
+    // Compact: remap old ids → new compact ids.
+    std::map<int, int> remap;
+    for (int ni = 0; ni < static_cast<int>(reachable.size()); ++ni)
+        remap[reachable[ni]] = ni;
+
+    std::vector<UndoNode> compacted;
+    compacted.reserve(reachable.size());
+    for (int oldId : reachable) {
+        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
+        n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
+        std::vector<int> newChildren;
+        for (int c : n.children)
+            if (remap.count(c)) newChildren.push_back(remap[c]);
+        n.children = std::move(newChildren);
+        if (n.preferredChild >= 0 && remap.count(n.preferredChild))
+            n.preferredChild = remap[n.preferredChild];
+        else
+            n.preferredChild = n.children.empty() ? -1 : n.children.back();
+        compacted.push_back(std::move(n));
+    }
+    compacted[remap[rootId]].parentId = -1;
+
+    m_undoNodes = std::move(compacted);
+    m_undoCurrentNode = remap.count(effectiveCurrent) ? remap[effectiveCurrent] : remap[nodeId];
+    emitUndoRedoStateChanged();
+    return true;
+}
+
+bool Document::linearizeUndoHistory()
+{
+    if (m_undoNodes.empty() || m_undoStepActive)
+        return false;
+
+    // Build the set of node ids on the current path: root → m_undoCurrentNode.
+    std::vector<int> path;
+    {
+        int id = m_undoCurrentNode;
+        while (id >= 0) {
+            path.push_back(id);
+            id = m_undoNodes[static_cast<size_t>(id)].parentId;
+        }
+    }
+    // path is currently ordered current→root; reverse to get root→current.
+    std::reverse(path.begin(), path.end());
+
+    // If the history is already linear (no side branches), nothing to do.
+    if (static_cast<int>(path.size()) == static_cast<int>(m_undoNodes.size()))
+        return false;
+
+    // Keep only path nodes, sorted ascending (they already are after the reverse).
+    std::sort(path.begin(), path.end());
+
+    // Remap old ids → new compact ids (0 = root, 1 = next, …, n-1 = current).
+    std::map<int, int> remap;
+    for (int ni = 0; ni < static_cast<int>(path.size()); ++ni)
+        remap[path[ni]] = ni;
+
+    std::vector<UndoNode> compacted;
+    compacted.reserve(path.size());
+    for (int oldId : path) {
+        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
+        n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
+        // Keep only the single child that is also on the path.
+        std::vector<int> newChildren;
+        for (int c : n.children)
+            if (remap.count(c)) newChildren.push_back(remap[c]);
+        n.children = std::move(newChildren);
+        n.preferredChild = n.children.empty() ? -1 : n.children.front();
+        compacted.push_back(std::move(n));
+    }
+    compacted[0].parentId = -1; // root has no parent
+
+    m_undoNodes = std::move(compacted);
+    m_undoCurrentNode = remap[m_undoCurrentNode];
+    emitUndoRedoStateChanged();
+    return true;
 }
 
 void Document::setUndoLimit(int limit)

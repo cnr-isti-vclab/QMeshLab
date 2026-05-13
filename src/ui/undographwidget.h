@@ -40,6 +40,12 @@ signals:
     void nodeActivated(int nodeId, bool withCamera);
     // Emitted when the user requests to store the current view camera into a node.
     void nodeUpdateCameraRequested(int nodeId);
+    // Emitted when the user requests to make a node the new history root.
+    void nodeMakeRootRequested(int nodeId);
+    // Emitted when the user requests to delete all descendants of a node.
+    void nodePurgeBranchRequested(int nodeId);
+    // Emitted when the user requests to keep only the path root→current, removing all branches.
+    void linearizeHistoryRequested();
     void nodeHovered(int nodeId, const QPoint &globalPos); // emitted only when hovering a thumbnail
     void nodeUnhovered();
 
