@@ -294,6 +294,16 @@ private:
     std::unique_ptr<QRhiShaderResourceBindings> m_trackballGizmoSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_trackballGizmoPipeline;
     int m_trackballGizmoVertexCount = 0;
+    // Light gizmo (shown during Ctrl+Shift drag)
+    std::unique_ptr<QRhiBuffer> m_lightGizmoUbuf;
+    std::unique_ptr<QRhiBuffer> m_lightGizmoVbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_lightGizmoSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_lightGizmoPipeline;
+    int m_lightGizmoVertexCount = 0;
+    // Headlight rotation state
+    QQuaternion m_lightRotation;     // rotates view-space (0,0,1) to current light dir
+    bool m_lightDragActive = false;
+    QPointF m_lightDragLastPos;
     RenderSettings m_renderSettings;
     RenderOverlayPanel *m_overlayPanel = nullptr;
     QWidget *m_currentViewIndicator = nullptr;

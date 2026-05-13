@@ -30,7 +30,7 @@ inline QShader loadShader(const QString &path)
     return QShader::fromSerialized(f.readAll());
 }
 
-inline constexpr int kUbufSize = 336;
+inline constexpr int kUbufSize = 352; // expanded: added vec4 lightDir at offset 336
 inline constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
 inline constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
 inline constexpr int kUbufPointColorOffset = 192 / sizeof(float);
@@ -42,6 +42,7 @@ inline constexpr int kUbufLightingParamsOffset = 272 / sizeof(float);
 inline constexpr int kUbufEdgeColorOffset = 288 / sizeof(float);
 inline constexpr int kUbufMaterialFlagsOffset = 304 / sizeof(float);  // was kUbufPbrMapUsageOffset
 inline constexpr int kUbufMaterialParamsOffset = 320 / sizeof(float); // was kUbufPbrParamsOffset
+inline constexpr int kUbufLightDirOffset = 336 / sizeof(float);        // vec4 lightDir (view-space, w unused)
 inline constexpr int kFillVertexStrideFloats = 13;
 inline constexpr int kPointsVertexStrideFloats = 11;
 inline constexpr int kMaskMorphUbufSize = 16;
@@ -61,6 +62,8 @@ inline constexpr int kDecoratorSlotCurvaturePD2 = 7;
 inline constexpr int kDecoratorSlotCount = 8;
 inline constexpr int kTrackballGizmoUbufSize = 96; // mat4 mvp + vec4(center.xyz, radius) + vec4(camera.xyz, backShade)
 inline constexpr int kTrackballGizmoSteps = 96;
+inline constexpr int kLightGizmoUbufSize = 96;  // mat4 mvp + vec4 lightDir + vec4 params
+inline constexpr int kLightGizmoSteps = 64;
 inline constexpr int kWireframeDefaultFaceThreshold = 10000;
 inline constexpr float kPi = 3.14159265358979323846f;
 
@@ -128,7 +131,8 @@ inline void writeMainStyleToUbuf(
     float *ubufData,
     const PerMeshRenderSettings &settings,
     const QSize &pixelSize,
-    bool enableLighting)
+    bool enableLighting,
+    const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f))
 {
     ubufData[kUbufBBoxColorOffset + 0] = settings.bboxWireColor.redF();
     ubufData[kUbufBBoxColorOffset + 1] = settings.bboxWireColor.greenF();
@@ -197,6 +201,12 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufMaterialParamsOffset + 1] = settings.fillPbr.occlusionStrength;
     ubufData[kUbufMaterialParamsOffset + 2] = std::max(settings.fillPbr.roughnessFactor, 0.0f);
     ubufData[kUbufMaterialParamsOffset + 3] = enablePbr ? 1.0f : 0.0f;
+
+    // lightDir: view-space light direction (w unused)
+    ubufData[kUbufLightDirOffset + 0] = lightDir.x();
+    ubufData[kUbufLightDirOffset + 1] = lightDir.y();
+    ubufData[kUbufLightDirOffset + 2] = lightDir.z();
+    ubufData[kUbufLightDirOffset + 3] = 0.0f;
 }
 
 inline QVector3D toVec3(const VCGMesh::CoordType &p)
@@ -256,6 +266,52 @@ inline std::vector<float> buildTrackballGizmoVertices()
 inline const std::vector<float> &trackballGizmoVertices()
 {
     static const std::vector<float> kVerts = buildTrackballGizmoVertices();
+    return kVerts;
+}
+
+// Light gizmo geometry: rim circle + radial arrow toward projected light position.
+// Vertex format: [x, y, z, r, g, b]  (Lines topology, 2 verts per segment)
+//   z == 0 : rim circle, (x,y) on the unit circle
+//   z == 1 : arrow, x = perpendicular offset, y = scale along L2 (0 = center, 1 = tip)
+//            The shader multiplies y by L2 (= lightDir.xy, not normalised), so the
+//            tip lands at the projected light position inside the rim circle.
+inline std::vector<float> buildLightGizmoVertices()
+{
+    std::vector<float> v;
+    const int N = kLightGizmoSteps;
+    v.reserve((N + 4) * 2 * 6);
+
+    auto append = [&v](const QVector3D &p, const QVector3D &c) {
+        v.push_back(p.x()); v.push_back(p.y()); v.push_back(p.z());
+        v.push_back(c.x()); v.push_back(c.y()); v.push_back(c.z());
+    };
+
+    // Rim circle (z = 0)
+    const QVector3D rimColor(1.0f, 0.85f, 0.1f);
+    for (int i = 0; i < N; ++i) {
+        const float t0 = float(i)     * 2.0f * kPi / float(N);
+        const float t1 = float(i + 1) * 2.0f * kPi / float(N);
+        append(QVector3D(std::cos(t0), std::sin(t0), 0.0f), rimColor);
+        append(QVector3D(std::cos(t1), std::sin(t1), 0.0f), rimColor);
+    }
+
+    // Arrow shaft: from center (y=0) to tip (y=1) along L2  (z = 1)
+    const QVector3D arrowColor(1.0f, 0.5f, 0.0f);
+    append(QVector3D(0.0f,  0.0f, 1.0f), arrowColor);   // centre of circle
+    append(QVector3D(0.0f,  1.0f, 1.0f), arrowColor);   // projected light position
+
+    // Arrowhead wings: perp offsets at y=0.75 toward the tip
+    append(QVector3D(0.0f, 1.0f, 1.0f), arrowColor);
+    append(QVector3D(-0.2f, 0.75f, 1.0f), arrowColor);
+    append(QVector3D(0.0f, 1.0f, 1.0f), arrowColor);
+    append(QVector3D( 0.2f, 0.75f, 1.0f), arrowColor);
+
+    return v;
+}
+
+inline const std::vector<float> &lightGizmoVertices()
+{
+    static const std::vector<float> kVerts = buildLightGizmoVertices();
     return kVerts;
 }
 

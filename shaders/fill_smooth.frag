@@ -14,6 +14,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 edgeColor;
     vec4 materialFlags;  // x=normalMode, y=aoMode, z=roughnessMode, w=albedoMode (PBR only)
     vec4 materialParams; // x=param0 (normalScale/enhancement), y=occlusionStrength, z=roughnessFactor, w=material-id
+    vec4 lightDir;        // view-space light direction (w unused)
 } ub;
 
 layout(location = 0) in vec3 v_normal;
@@ -89,7 +90,7 @@ void main()
         if (hasUv && normalMode == 2)
             N = applyNormalMap(N, uv);
 
-        vec3 L = normalize(vec3(0.0, 0.0, 1.0));
+        vec3 L = normalize(ub.lightDir.xyz);
         vec3 V = normalize(-v_viewPos);
         vec3 H = normalize(L + V);
         float diff = max(dot(N, L), 0.0);

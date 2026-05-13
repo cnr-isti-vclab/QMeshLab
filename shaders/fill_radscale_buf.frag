@@ -25,6 +25,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 edgeColor;
     vec4 materialFlags;  // z=1.0 means flat shading (face normal via dFdx/dFdy)
     vec4 materialParams;
+    vec4 lightDir;        // view-space light direction (w unused)
 } ub;
 
 layout(location = 0) in vec3 v_normal;

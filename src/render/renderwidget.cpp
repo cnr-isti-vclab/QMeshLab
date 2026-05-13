@@ -1460,6 +1460,17 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
         return;
     }
     cancelCenterAnimation();
+    // Ctrl+Shift+Left → rotate headlight
+    if (e
+        && e->button() == Qt::LeftButton
+        && (e->modifiers() & Qt::ShiftModifier)
+        && (e->modifiers() & Qt::ControlModifier)) {
+        m_lightDragActive = true;
+        m_lightDragLastPos = e->position();
+        showInteractionStatusOverlay(tr("Rotating light — Ctrl+Shift+drag"));
+        e->accept();
+        return;
+    }
     m_trackball.mousePress(e, size());
 }
 
@@ -1512,6 +1523,10 @@ void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
         return;
     }
     m_trackball.mouseRelease(e);
+    if (m_lightDragActive && e && e->buttons() == Qt::NoButton) {
+        m_lightDragActive = false;
+        update();
+    }
 }
 
 void RenderWidget::mouseMoveEvent(QMouseEvent *e)
@@ -1538,6 +1553,30 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
         m_uvPan += (uvBefore - uvAfter);
         m_uvLastMousePos = pos.toPoint();
         update();
+        e->accept();
+        return;
+    }
+    if (m_lightDragActive) {
+        if (e && (e->buttons() & Qt::LeftButton)) {
+            const QPointF pos = e->position();
+            const QPointF delta = pos - m_lightDragLastPos;
+            m_lightDragLastPos = pos;
+            if (!delta.isNull()) {
+                // Map pixel delta to rotation: treat the widget as a trackball of radius min(w,h)/2
+                const float r = float(qMin(qMax(1, width()), qMax(1, height()))) * 0.5f;
+                const float dx = float(delta.x()) / r;
+                const float dy = float(delta.y()) / r;
+                // Rotation axis is perpendicular to delta, in view space
+                QVector3D axis(-dy, dx, 0.0f);
+                const float angle = axis.length() * 90.0f; // degrees
+                if (angle > 1e-5f) {
+                    axis.normalize();
+                    const QQuaternion delta3d = QQuaternion::fromAxisAndAngle(axis, angle);
+                    m_lightRotation = (delta3d * m_lightRotation).normalized();
+                    update();
+                }
+            }
+        }
         e->accept();
         return;
     }

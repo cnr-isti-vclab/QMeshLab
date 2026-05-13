@@ -29,6 +29,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 edgeColor;
     vec4 materialFlags;  // x=invert, y=displayMode
     vec4 materialParams; // x=enhancement
+    vec4 lightDir;        // view-space light direction (w unused)
 } ub;
 
 layout(location = 0) in vec3 v_normal;
@@ -174,7 +175,7 @@ void main()
             color = rsGreyDescriptor(c, w);
         } else {
             // Lambertian RS (display mode 0): baseColor * cosine * warp(cosine, c)
-            float cosineTerm = max(dot(N, normalize(vec3(0.0, 0.0, 1.0))), 0.0);
+            float cosineTerm = max(dot(N, normalize(ub.lightDir.xyz)), 0.0);
             color = baseColor * cosineTerm * rsWarp(cosineTerm, c);
         }
     }

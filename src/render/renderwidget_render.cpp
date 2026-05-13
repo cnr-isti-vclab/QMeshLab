@@ -82,7 +82,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         drawFillPass || drawWirePass || drawEdgesPass || drawBBoxPass || drawPointsPass
         || drawSelectionPass || drawDecoratorPass
         || drawCurrentMeshHighlight || drawTrackballGizmo;
-    const bool needMvpForFrame = anyDrawPass || m_depthPickPending;
+    const bool needMvpForFrame = anyDrawPass || m_depthPickPending || m_lightDragActive;
 
     if (anyDrawPass)
         prepareDirtyBuffers(cb);
@@ -197,6 +197,37 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 kTrackballGizmoUbufSize,
                 gizmoData);
         }
+
+        // Light gizmo UBO (always update so light dir is current)
+        if (m_lightGizmoUbuf && m_lightGizmoVbuf) {
+            if (!u)
+                u = m_rhi->nextResourceUpdateBatch();
+            // Upload vertex data once (dynamic buffer, upload every frame is fine)
+            const auto &lgVerts = lightGizmoVertices();
+            u->updateDynamicBuffer(
+                m_lightGizmoVbuf.get(),
+                0,
+                int(lgVerts.size() * sizeof(float)),
+                lgVerts.data());
+
+            const QVector3D lightDir = m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
+            // UBO layout: mat4 (64 bytes unused/padding) + vec4 lightDir + vec4 params
+            float lgData[kLightGizmoUbufSize / sizeof(float)] = {};
+            // [0..15] = padding (mat4 not used by this shader but keeps struct aligned)
+            lgData[16] = lightDir.x();
+            lgData[17] = lightDir.y();
+            lgData[18] = lightDir.z();
+            lgData[19] = 0.0f;
+            // params: x=radius(NDC), y=anchor NDC X, z=anchor NDC Y, w=aspect(w/h)
+            const float gizmoR = 0.12f;
+            const float anchorX = -1.0f + gizmoR * 1.5f;
+            const float anchorY = -1.0f + gizmoR * 1.5f * (float(sz.width()) / float(qMax(1, sz.height())));
+            lgData[20] = gizmoR;
+            lgData[21] = anchorX;
+            lgData[22] = anchorY;
+            lgData[23] = float(sz.width()) / float(qMax(1, sz.height())); // aspect w/h
+            u->updateDynamicBuffer(m_lightGizmoUbuf.get(), 0, kLightGizmoUbufSize, lgData);
+        }
     }
 
     auto updateMainUbufForMesh =
@@ -222,7 +253,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0;
         ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
         ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
-        writeMainStyleToUbuf(ubufData, meshSettings, sz, true);
+        writeMainStyleToUbuf(ubufData, meshSettings, sz, true,
+            m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f)));
         ubufData[kUbufMaterialParamsOffset + 0] = normalScale;
         ubufData[kUbufMaterialParamsOffset + 1] = occlusionStrength;
         ubufData[kUbufMaterialParamsOffset + 2] = roughnessFactor;
@@ -831,6 +863,16 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         const QRhiCommandBuffer::VertexInput gv(m_trackballGizmoVbuf.get(), 0);
         cb->setVertexInput(0, 1, &gv);
         cb->draw(m_trackballGizmoVertexCount);
+    }
+
+    // Draw light gizmo during drag (and always when light is non-default, but at minimum during drag)
+    if (m_lightDragActive && m_lightGizmoPipeline && m_lightGizmoVbuf && m_lightGizmoSrb) {
+        cb->setGraphicsPipeline(m_lightGizmoPipeline.get());
+        cb->setShaderResources(m_lightGizmoSrb.get());
+        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+        const QRhiCommandBuffer::VertexInput lgv(m_lightGizmoVbuf.get(), 0);
+        cb->setVertexInput(0, 1, &lgv);
+        cb->draw(m_lightGizmoVertexCount);
     }
 
     if (drawCurrentMeshHighlight)

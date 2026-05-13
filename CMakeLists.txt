@@ -145,6 +145,8 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/overlay_decorator.frag
         shaders/overlay_trackball_gizmo.vert
         shaders/overlay_trackball_gizmo.frag
+        shaders/overlay_light_gizmo.vert
+        shaders/overlay_light_gizmo.frag
         shaders/selection_mask.vert
         shaders/selection_mask.frag
         shaders/depth_pick.vert
