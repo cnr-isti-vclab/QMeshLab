@@ -442,6 +442,12 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_decoratorBoundaryWidthSpin->setDecimals(1);
     m_decoratorBoundaryWidthSpin->setSuffix(tr(" px"));
     m_decoratorBoundaryWidthSpin->setValue(m_meshSettings.decoratorBoundaryWidth);
+    m_decoratorNonManifoldEdgesCheck = new QCheckBox(boundaryDecoratorsPage);
+    m_decoratorNonManifoldEdgesCheck->setChecked(m_meshSettings.decoratorNonManifoldEdges);
+    m_decoratorNonManifoldEdgeColorButton = makeColorButton(boundaryDecoratorsPage);
+    m_decoratorNonManifoldVerticesCheck = new QCheckBox(boundaryDecoratorsPage);
+    m_decoratorNonManifoldVerticesCheck->setChecked(m_meshSettings.decoratorNonManifoldVertices);
+    m_decoratorNonManifoldVertexColorButton = makeColorButton(boundaryDecoratorsPage);
     boundaryDecoratorsForm->addRow(
         tr("Boundary edges"),
         makeCenteredFieldContainer(m_decoratorBoundaryEdgesCheck, boundaryDecoratorsPage));
@@ -454,6 +460,18 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     boundaryDecoratorsForm->addRow(
         tr("Texture seam color"),
         makeCenteredFieldContainer(m_decoratorTextureSeamColorButton, boundaryDecoratorsPage));
+    boundaryDecoratorsForm->addRow(
+        tr("Non-manifold edges"),
+        makeCenteredFieldContainer(m_decoratorNonManifoldEdgesCheck, boundaryDecoratorsPage));
+    boundaryDecoratorsForm->addRow(
+        tr("Non-manifold edge color"),
+        makeCenteredFieldContainer(m_decoratorNonManifoldEdgeColorButton, boundaryDecoratorsPage));
+    boundaryDecoratorsForm->addRow(
+        tr("Non-manifold vertices"),
+        makeCenteredFieldContainer(m_decoratorNonManifoldVerticesCheck, boundaryDecoratorsPage));
+    boundaryDecoratorsForm->addRow(
+        tr("Non-manifold vertex color"),
+        makeCenteredFieldContainer(m_decoratorNonManifoldVertexColorButton, boundaryDecoratorsPage));
     boundaryDecoratorsForm->addRow(tr("Line width"), m_decoratorBoundaryWidthSpin);
     applyUniformFormRowHeights(boundaryDecoratorsForm);
     boundaryDecoratorsLayout->addLayout(boundaryDecoratorsForm);
@@ -1074,6 +1092,20 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_decoratorTextureSeamColorButton,
         &PerMeshRenderSettings::decoratorTextureSeamColor,
         tr("Decorator Texture Seam Color"));
+    bindMeshCheckBox(
+        m_decoratorNonManifoldEdgesCheck, &PerMeshRenderSettings::decoratorNonManifoldEdges, true);
+    bindMeshColorButton(
+        m_decoratorNonManifoldEdgeColorButton,
+        &PerMeshRenderSettings::decoratorNonManifoldEdgeColor,
+        tr("Non-Manifold Edge Color"));
+    bindMeshCheckBox(
+        m_decoratorNonManifoldVerticesCheck,
+        &PerMeshRenderSettings::decoratorNonManifoldVertices,
+        true);
+    bindMeshColorButton(
+        m_decoratorNonManifoldVertexColorButton,
+        &PerMeshRenderSettings::decoratorNonManifoldVertexColor,
+        tr("Non-Manifold Vertex Color"));
     bindMeshFloatSpin(m_decoratorBoundaryWidthSpin, &PerMeshRenderSettings::decoratorBoundaryWidth);
 
     bindMeshColorButton(m_bboxColorButton, &PerMeshRenderSettings::bboxWireColor, tr("Bounding Box Wire Color"));
@@ -1799,6 +1831,14 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
     if (m_decoratorTextureSeamsCheck) {
         QSignalBlocker blocker(m_decoratorTextureSeamsCheck);
         m_decoratorTextureSeamsCheck->setChecked(m_meshSettings.decoratorTextureSeams);
+    }
+    if (m_decoratorNonManifoldEdgesCheck) {
+        QSignalBlocker blocker(m_decoratorNonManifoldEdgesCheck);
+        m_decoratorNonManifoldEdgesCheck->setChecked(m_meshSettings.decoratorNonManifoldEdges);
+    }
+    if (m_decoratorNonManifoldVerticesCheck) {
+        QSignalBlocker blocker(m_decoratorNonManifoldVerticesCheck);
+        m_decoratorNonManifoldVerticesCheck->setChecked(m_meshSettings.decoratorNonManifoldVertices);
     }
     if (m_pointLightingCheck) {
         QSignalBlocker blocker(m_pointLightingCheck);

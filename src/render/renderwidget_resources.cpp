@@ -526,6 +526,7 @@ void RenderWidget::ensureRenderResources()
         m_decoratorFatUbuf.reset();
         m_decoratorFatSrb.reset();
         m_decoratorFatPipeline.reset();
+        m_decoratorPointPipeline.reset();
         for (auto &srb : m_decoratorSrbs)
             srb.reset();
         for (auto &ubuf : m_decoratorUbufs)
@@ -1209,6 +1210,39 @@ void RenderWidget::ensureRenderResources()
             if (!m_decoratorPipeline->create()) {
                 qWarning("Failed to create decorator pipeline");
                 m_decoratorPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_decoratorPointPipeline && m_decoratorSrbs[kDecoratorSlotNonManifoldVertices]) {
+        m_decoratorPointPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_decorator.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_decorator.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load decorator point shaders");
+            m_decoratorPointPipeline.reset();
+        } else {
+            m_decoratorPointPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_decoratorPointPipeline->setTopology(QRhiGraphicsPipeline::Points);
+            m_decoratorPointPipeline->setDepthTest(true);
+            m_decoratorPointPipeline->setDepthWrite(false);
+            m_decoratorPointPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_decoratorPointPipeline->setDepthBias(-2);
+            m_decoratorPointPipeline->setSlopeScaledDepthBias(-2.0f);
+            m_decoratorPointPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { 3 * sizeof(float) } });
+            layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
+            m_decoratorPointPipeline->setVertexInputLayout(layout);
+            m_decoratorPointPipeline->setShaderResourceBindings(
+                m_decoratorSrbs[kDecoratorSlotNonManifoldVertices].get());
+            m_decoratorPointPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_decoratorPointPipeline->create()) {
+                qWarning("Failed to create decorator point pipeline");
+                m_decoratorPointPipeline.reset();
             }
         }
     }

@@ -83,7 +83,8 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
         needDecoratorNormalsAny =
             needDecoratorNormalsAny || mode.decoratorVertexNormals || mode.decoratorFaceNormals;
         needDecoratorBoundariesAny =
-            needDecoratorBoundariesAny || mode.decoratorBoundaryEdges || mode.decoratorTextureSeams;
+            needDecoratorBoundariesAny || mode.decoratorBoundaryEdges || mode.decoratorTextureSeams
+            || mode.decoratorNonManifoldEdges || mode.decoratorNonManifoldVertices;
     }
     if (!hasAnyVisibleMesh)
         return;
@@ -109,6 +110,8 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             || mode.decoratorFaceNormals
             || mode.decoratorBoundaryEdges
             || mode.decoratorTextureSeams
+            || mode.decoratorNonManifoldEdges
+            || mode.decoratorNonManifoldVertices
             || needHighlightForMesh;
         if (!needResourcesForMesh)
             continue;
@@ -131,7 +134,9 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             mode.decoratorVertexNormals
                 || mode.decoratorFaceNormals,
             mode.decoratorBoundaryEdges
-                || mode.decoratorTextureSeams,
+                || mode.decoratorTextureSeams
+                || mode.decoratorNonManifoldEdges
+                || mode.decoratorNonManifoldVertices,
             m_renderSettings.qualityHistogramFixedRange,
             m_renderSettings.qualityHistogramMin,
             m_renderSettings.qualityHistogramMax,

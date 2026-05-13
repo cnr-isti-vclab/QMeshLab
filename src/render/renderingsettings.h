@@ -146,6 +146,8 @@ struct PerMeshRenderSettings {
     bool decoratorFaceNormals = false;
     bool decoratorBoundaryEdges = false;
     bool decoratorTextureSeams = false;
+    bool decoratorNonManifoldEdges = false;
+    bool decoratorNonManifoldVertices = false;
     bool pointLighting = false;
     bool wireLighting = false;
     bool wireBackfaceCulling = true;
@@ -161,6 +163,8 @@ struct PerMeshRenderSettings {
     QColor decoratorFaceNormalColor = QColor(70, 255, 120);
     QColor decoratorBoundaryEdgeColor = QColor(0, 255, 0);
     QColor decoratorTextureSeamColor = QColor(255, 80, 255);
+    QColor decoratorNonManifoldEdgeColor = QColor(255, 50, 50);
+    QColor decoratorNonManifoldVertexColor = QColor(255, 50, 255);
     float decoratorBoundaryWidth = 4.0f;
     QColor bboxWireColor = QColor(245, 190, 60);
     QColor pointColor = QColor(255, 191, 51);
@@ -185,6 +189,8 @@ struct PerMeshRenderSettings {
             && decoratorFaceNormals == o.decoratorFaceNormals
             && decoratorBoundaryEdges == o.decoratorBoundaryEdges
             && decoratorTextureSeams == o.decoratorTextureSeams
+            && decoratorNonManifoldEdges == o.decoratorNonManifoldEdges
+            && decoratorNonManifoldVertices == o.decoratorNonManifoldVertices
             && pointLighting == o.pointLighting
             && wireLighting == o.wireLighting
             && wireBackfaceCulling == o.wireBackfaceCulling
@@ -200,6 +206,8 @@ struct PerMeshRenderSettings {
             && decoratorFaceNormalColor == o.decoratorFaceNormalColor
             && decoratorBoundaryEdgeColor == o.decoratorBoundaryEdgeColor
             && decoratorTextureSeamColor == o.decoratorTextureSeamColor
+            && decoratorNonManifoldEdgeColor == o.decoratorNonManifoldEdgeColor
+            && decoratorNonManifoldVertexColor == o.decoratorNonManifoldVertexColor
             && decoratorBoundaryWidth == o.decoratorBoundaryWidth
             && bboxWireColor == o.bboxWireColor
             && pointColor == o.pointColor

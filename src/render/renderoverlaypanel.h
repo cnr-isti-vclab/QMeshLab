@@ -104,6 +104,10 @@ private:
     QCheckBox *m_decoratorFaceNormalsCheck = nullptr;
     QCheckBox *m_decoratorBoundaryEdgesCheck = nullptr;
     QCheckBox *m_decoratorTextureSeamsCheck = nullptr;
+    QCheckBox *m_decoratorNonManifoldEdgesCheck = nullptr;
+    QPushButton *m_decoratorNonManifoldEdgeColorButton = nullptr;
+    QCheckBox *m_decoratorNonManifoldVerticesCheck = nullptr;
+    QPushButton *m_decoratorNonManifoldVertexColorButton = nullptr;
     QDoubleSpinBox *m_decoratorBoundaryWidthSpin = nullptr;
     QComboBox *m_qualityHistogramSourceCombo = nullptr;
     QComboBox *m_qualityHistogramColorMapCombo = nullptr;

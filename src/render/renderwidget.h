@@ -1,6 +1,7 @@
 #pragma once
 
 #include "renderingsettings.h"
+#include "renderwidget_internal.h"
 #include "meshgpuresourcecache.h"
 #include "viewtrackball.h"
 #include "viewstate.h"
@@ -216,8 +217,8 @@ private:
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_fatEdgesPipelinesByKey;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
-    std::array<std::unique_ptr<QRhiBuffer>, 4> m_decoratorUbufs;
-    std::array<std::unique_ptr<QRhiShaderResourceBindings>, 4> m_decoratorSrbs;
+    std::array<std::unique_ptr<QRhiBuffer>, RenderWidgetInternal::kDecoratorSlotCount> m_decoratorUbufs;
+    std::array<std::unique_ptr<QRhiShaderResourceBindings>, RenderWidgetInternal::kDecoratorSlotCount> m_decoratorSrbs;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorPipeline;
     std::unique_ptr<QRhiBuffer> m_selectionUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_selectionSrb;
@@ -226,6 +227,7 @@ private:
     std::unique_ptr<QRhiBuffer> m_decoratorFatUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_decoratorFatSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorFatPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_decoratorPointPipeline;
     // Radiance Scaling gradient buffer (pass 1 pre-pass)
     std::unique_ptr<QRhiTexture> m_rsGradTexture;          // RGBA32F (gx,gy,logZ,1)
     std::unique_ptr<QRhiRenderBuffer> m_rsGradDepth;

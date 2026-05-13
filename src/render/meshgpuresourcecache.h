@@ -115,6 +115,12 @@ public:
         int textureSeamsVertexCount = 0;
         QRhiBuffer *textureSeamsFatBuffer = nullptr;
         int textureSeamsFatVertexCount = 0;
+        QRhiBuffer *nonManifoldEdgesBuffer = nullptr;
+        int nonManifoldEdgesVertexCount = 0;
+        QRhiBuffer *nonManifoldEdgesFatBuffer = nullptr;
+        int nonManifoldEdgesFatVertexCount = 0;
+        QRhiBuffer *nonManifoldVerticesBuffer = nullptr;
+        int nonManifoldVerticesVertexCount = 0;
         bool valid = false;
     };
 

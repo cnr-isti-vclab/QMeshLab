@@ -15,8 +15,10 @@
 #include <array>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace {
 constexpr int kFillVertexStrideFloats = 13;
@@ -156,6 +158,12 @@ struct MeshGpuResourceCache::CacheState
         int textureSeamsVertexCount = 0;
         std::unique_ptr<QRhiBuffer> textureSeamsFatVbuf;
         int textureSeamsFatVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> nonManifoldEdgesVbuf;
+        int nonManifoldEdgesVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> nonManifoldEdgesFatVbuf;
+        int nonManifoldEdgesFatVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> nonManifoldVerticesVbuf;
+        int nonManifoldVerticesVertexCount = 0;
     };
 
     struct MeshGpu {
@@ -1401,14 +1409,22 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.textureSeamsVertexCount = 0;
         dst.textureSeamsFatVbuf.reset();
         dst.textureSeamsFatVertexCount = 0;
+        dst.nonManifoldEdgesVbuf.reset();
+        dst.nonManifoldEdgesVertexCount = 0;
+        dst.nonManifoldEdgesFatVbuf.reset();
+        dst.nonManifoldEdgesFatVertexCount = 0;
+        dst.nonManifoldVerticesVbuf.reset();
+        dst.nonManifoldVerticesVertexCount = 0;
 
         if (meshData.VN() <= 0)
             return true;
 
         std::vector<float> boundaryEdgeLines;
         std::vector<float> textureSeamLines;
+        std::vector<float> nonManifoldEdgeLines;
         boundaryEdgeLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
         textureSeamLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
+        nonManifoldEdgeLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
 
         const bool hasWedgeTex =
             (source.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
@@ -1522,6 +1538,10 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             }
         }
 
+        // Track unique non-manifold vertex positions (to avoid duplicates in the point buffer).
+        std::unordered_set<std::uint64_t> nonManifoldVertexSet;
+        std::vector<float> nonManifoldVertexPoints;
+
         for (const auto &kv : edges) {
             const EdgeAccum &acc = kv.second;
             if (acc.incidentCount == 1) {
@@ -1531,6 +1551,33 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 boundaryEdgeLines.push_back(acc.p1[0]);
                 boundaryEdgeLines.push_back(acc.p1[1]);
                 boundaryEdgeLines.push_back(acc.p1[2]);
+            }
+
+            // Non-manifold edges: more than 2 incident faces.
+            if (acc.incidentCount > 2) {
+                nonManifoldEdgeLines.push_back(acc.p0[0]);
+                nonManifoldEdgeLines.push_back(acc.p0[1]);
+                nonManifoldEdgeLines.push_back(acc.p0[2]);
+                nonManifoldEdgeLines.push_back(acc.p1[0]);
+                nonManifoldEdgeLines.push_back(acc.p1[1]);
+                nonManifoldEdgeLines.push_back(acc.p1[2]);
+                // Record the two endpoint positions as non-manifold vertices.
+                auto addNonManifoldVertex = [&](const std::array<float, 3> &p) {
+                    // Build a dedup key from the raw float bits.
+                    std::uint32_t bx, by, bz;
+                    std::memcpy(&bx, &p[0], sizeof(bx));
+                    std::memcpy(&by, &p[1], sizeof(by));
+                    std::memcpy(&bz, &p[2], sizeof(bz));
+                    const std::uint64_t key =
+                        (std::uint64_t(bx) << 42) ^ (std::uint64_t(by) << 21) ^ std::uint64_t(bz);
+                    if (nonManifoldVertexSet.insert(key).second) {
+                        nonManifoldVertexPoints.push_back(p[0]);
+                        nonManifoldVertexPoints.push_back(p[1]);
+                        nonManifoldVertexPoints.push_back(p[2]);
+                    }
+                };
+                addNonManifoldVertex(acc.p0);
+                addNonManifoldVertex(acc.p1);
             }
 
             if (!hasTexCoords)
@@ -1573,6 +1620,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             textureSeamLines, dst.textureSeamsVbuf, dst.textureSeamsVertexCount);
         uploadFatLineBuffer(
             textureSeamLines, dst.textureSeamsFatVbuf, dst.textureSeamsFatVertexCount);
+        uploadLineBuffer(
+            nonManifoldEdgeLines, dst.nonManifoldEdgesVbuf, dst.nonManifoldEdgesVertexCount);
+        uploadFatLineBuffer(
+            nonManifoldEdgeLines, dst.nonManifoldEdgesFatVbuf, dst.nonManifoldEdgesFatVertexCount);
+        uploadLineBuffer(
+            nonManifoldVertexPoints, dst.nonManifoldVerticesVbuf, dst.nonManifoldVerticesVertexCount);
         return true;
     };
 
@@ -1812,6 +1865,12 @@ MeshGpuResourceCache::DecoratorPassView MeshGpuResourceCache::decoratorPassView(
     view.textureSeamsVertexCount = boundaryDecor.textureSeamsVertexCount;
     view.textureSeamsFatBuffer = boundaryDecor.textureSeamsFatVbuf.get();
     view.textureSeamsFatVertexCount = boundaryDecor.textureSeamsFatVertexCount;
+    view.nonManifoldEdgesBuffer = boundaryDecor.nonManifoldEdgesVbuf.get();
+    view.nonManifoldEdgesVertexCount = boundaryDecor.nonManifoldEdgesVertexCount;
+    view.nonManifoldEdgesFatBuffer = boundaryDecor.nonManifoldEdgesFatVbuf.get();
+    view.nonManifoldEdgesFatVertexCount = boundaryDecor.nonManifoldEdgesFatVertexCount;
+    view.nonManifoldVerticesBuffer = boundaryDecor.nonManifoldVerticesVbuf.get();
+    view.nonManifoldVerticesVertexCount = boundaryDecor.nonManifoldVerticesVertexCount;
     return view;
 }
 

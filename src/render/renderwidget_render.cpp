@@ -73,7 +73,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             || mode.decoratorVertexNormals
             || mode.decoratorFaceNormals
             || mode.decoratorBoundaryEdges
-            || mode.decoratorTextureSeams;
+            || mode.decoratorTextureSeams
+            || mode.decoratorNonManifoldEdges
+            || mode.decoratorNonManifoldVertices;
     }
     const bool anyDrawPass =
         drawFillPass || drawWirePass || drawEdgesPass || drawBBoxPass || drawPointsPass
@@ -656,6 +658,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         bool drawFaceNormals = false;
         bool drawBoundaryEdges = false;
         bool drawTextureSeams = false;
+        bool drawNonManifoldEdges = false;
+        bool drawNonManifoldVertices = false;
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
                 continue;
@@ -664,6 +668,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             drawFaceNormals = drawFaceNormals || mode.decoratorFaceNormals;
             drawBoundaryEdges = drawBoundaryEdges || mode.decoratorBoundaryEdges;
             drawTextureSeams = drawTextureSeams || mode.decoratorTextureSeams;
+            drawNonManifoldEdges = drawNonManifoldEdges || mode.decoratorNonManifoldEdges;
+            drawNonManifoldVertices = drawNonManifoldVertices || mode.decoratorNonManifoldVertices;
         }
 
         if (drawVertexNormals) {
@@ -742,7 +748,56 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                     return view.textureSeamsVertexCount;
                 });
         }
-    }
+        if (drawNonManifoldEdges) {
+            drawDecoratorBoundaryFatKind(
+                kDecoratorSlotNonManifoldEdges,
+                [](const MeshRenderMode &mode) {
+                    return mode.decoratorNonManifoldEdges;
+                },
+                [](const MeshRenderMode &mode) {
+                    return mode.decoratorNonManifoldEdgeColor;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.nonManifoldEdgesFatBuffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.nonManifoldEdgesFatVertexCount;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.nonManifoldEdgesBuffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.nonManifoldEdgesVertexCount;
+                });
+        }
+        if (drawNonManifoldVertices) {
+            // Draw non-manifold vertices as points using the dedicated point pipeline.
+            const int slot = kDecoratorSlotNonManifoldVertices;
+            for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+                if (!meshVisible(mi))
+                    continue;
+                const MeshRenderMode mode = renderModeForMesh(mi);
+                if (!mode.decoratorNonManifoldVertices)
+                    continue;
+                const Document::DecoratorPassGpuView decorView =
+                    m_doc->decoratorPassGpuView(m_rhi, mi);
+                if (!decorView.valid || !decorView.nonManifoldVerticesBuffer
+                    || decorView.nonManifoldVerticesVertexCount <= 0)
+                    continue;
+                if (!setDecoratorColor(slot, mi, mode.decoratorNonManifoldVertexColor))
+                    continue;
+                if (!m_decoratorPointPipeline)
+                    continue;
+                cb->setGraphicsPipeline(m_decoratorPointPipeline.get());
+                cb->setShaderResources(m_decoratorSrbs[slot].get());
+                cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+                const QRhiCommandBuffer::VertexInput binding(
+                    decorView.nonManifoldVerticesBuffer, 0);
+                cb->setVertexInput(0, 1, &binding);
+                cb->draw(decorView.nonManifoldVerticesVertexCount);
+            }
+        }
+    } // end drawDecoratorPass
 
     if (drawTrackballGizmo && m_trackballGizmoPipeline && m_trackballGizmoVbuf && m_trackballGizmoSrb) {
         cb->setGraphicsPipeline(m_trackballGizmoPipeline.get());
