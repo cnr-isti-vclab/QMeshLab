@@ -395,6 +395,9 @@ void appendLogItem(QListWidget *logWidget, const QString &message, Document::Log
     if (source == Document::LogSource::VCG) {
         item->setText(QObject::tr("[vcg] %1").arg(message));
         item->setForeground(QBrush(QColor(80, 110, 150)));
+    } else if (source == Document::LogSource::Error) {
+        item->setText(QObject::tr("[err] %1").arg(message));
+        item->setForeground(QBrush(QColor(200, 30, 30)));
     } else {
         item->setText(QObject::tr("[app] %1").arg(message));
         item->setForeground(QBrush(QColor(50, 50, 50)));
@@ -1530,11 +1533,11 @@ void MainWindow::executeFilter(
             ? errorText
             : tr("Filter failed: %1").arg(errorText);
         m_doc->finishFilterProgress(false, msg);
-        m_doc->writeLog(msg, Document::LogSource::Application);
+        m_doc->writeLog(msg, Document::LogSource::Error);
         m_doc->writeLog(
             tr("Filter '%1' runtime: %2 ms (failed)")
                 .arg(label, elapsedText),
-            Document::LogSource::Application);
+            Document::LogSource::Error);
         return;
     }
 

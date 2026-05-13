@@ -30,7 +30,8 @@ class Document : public QObject
 public:
     enum class LogSource {
         Application,
-        VCG
+        VCG,
+        Error
     };
 
     struct LogEntry {
