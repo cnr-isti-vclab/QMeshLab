@@ -9,13 +9,13 @@ See also: [Architecture](architecture.md) · [Data Model](data_model.md)
 - **`Scene3D`**: layered mesh rendering with trackball camera, depth picking, and current-mesh highlight.
 - **`ParametrizationUV`**: orthographic UV-space rendering for the current mesh (requires faces + UV coords).
 
-Ownership: `Document` owns canonical mesh data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, and per-mesh render modes.
+Ownership: `Document` owns canonical mesh data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, headlight/gizmo state, overlays, and per-mesh render modes.
 
 Undo/redo integration: undo-tree nodes include one `ViewState` snapshot (active view camera + render settings + per-mesh style map) captured/restored via `Document::setViewStateFunctions(...)`. History jumps can restore render style while intentionally leaving the live camera untouched until the final target node.
 
 ## Shared GPU Cache (`MeshGpuResourceCache`)
 
-Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision)`. Quality variants also include fixed-range mode and min/max. Wire resources also track whether faux polygon edges should be respected.
+Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision)`. Quality variants also include fixed-range mode, min/max, center-on-zero, and percentile crop. Wire resources also track whether faux polygon edges should be respected.
 
 Cached outputs:
 
@@ -25,11 +25,11 @@ Cached outputs:
 - **points**: position/color/normal payload + normal-valid flag. Variants: `Constant`, `PerVertex`, `PerVertexQuality`.
 - **bbox**: line buffer.
 - **selection**: selected-face triangles, selected-vertex points.
-- **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line).
+- **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line), non-manifold edges (line + fat-line), non-manifold vertices, and curvature principal-direction lines.
 
-Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders — changing colormap, inversion, or isoline settings updates only the per-view LUT texture, not mesh buffers.
+Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders. Changing colormap, inversion, or isoline settings updates only the per-view LUT texture; changing fixed range, center-on-zero, or percentile crop changes normalization and rebuilds the affected quality buffers.
 
-Boundary extraction: topological edge incidence (`incidentCount == 1`). Seam extraction: per-topological-edge UV sample comparison (texture-index changes, missing/invalid UV).
+Boundary extraction: topological edge incidence (`incidentCount == 1`). Non-manifold edge extraction: topological edge incidence above two. Seam extraction: per-topological-edge UV sample comparison (texture-index changes, missing/invalid UV).
 
 ## Per-Mesh Render Modes
 
@@ -51,13 +51,13 @@ Default fill color source preference: texture → per-vertex → per-face → pe
 5. Run Radiance Scaling gradient pre-pass (if any mesh uses `FillMaterial::RadianceScaling`).
 6. Run main onscreen pass.
 
-Main pass draw order: scene background · fill · wire · edges · bbox · points · decorators · trackball gizmo · current-mesh outline/debug composite · selection overlay.
+Main pass draw order: scene background · fill · wire · edges · bbox · points · decorators · trackball gizmo · light gizmo · current-mesh outline/debug composite · selection overlay.
 
 ## `Scene3D` Pass Details
 
 **Scene background**: full-screen gradient triangle, `sceneBackgroundBottomColor`/`TopColor`, drawn first.
 
-**Fill**: Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. PBR binds base/normal/occlusion/roughness per batch. Radiance Scaling pre-pass renders fill batches into `m_rsGradTexture` (`RGBA32F`), storing `(gx, gy, logZ, 1)`; the main fill pass samples it for final RS shading.
+**Fill**: Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings. PBR binds base/normal/occlusion/roughness per batch. Radiance Scaling pre-pass renders fill batches into `m_rsGradTexture` (`RGBA32F`), storing `(gx, gy, logZ, 1)`; the main fill pass samples it for final RS shading.
 
 **Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
 
@@ -67,7 +67,7 @@ Main pass draw order: scene background · fill · wire · edges · bbox · point
 
 **Points**: `QRhiGraphicsPipeline::Points`; depth test+write; point lighting, size, and color source from settings; quality variant LUT-sampled.
 
-**Decorators**: depth `LessOrEqual`, no depth write. Normals: line pipeline. Boundary/seams: fat-decorator pipeline (`decoratorBoundaryWidth`), line fallback.
+**Decorators**: depth `LessOrEqual`, no depth write. Normals and curvature directions use the line pipeline. Boundary, seams, and non-manifold edges use the fat-decorator pipeline (`decoratorBoundaryWidth`) with line fallback. Non-manifold vertices use a point pipeline.
 
 **Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`.
 
@@ -87,7 +87,7 @@ Double click schedules an offscreen depth-pick frame: depth encoded in RGB → o
 
 ## `Scene3D` Camera and Interaction
 
-`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. Gizmo is depth-aware and scale-stable across dolly/FOV changes.
+`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. Gizmo is depth-aware and scale-stable across dolly/FOV changes. `MainWindow` can optionally synchronize camera state across 3D views; UV views keep independent pan/zoom.
 
 ## `ParametrizationUV` Frame Sequence
 
@@ -100,7 +100,7 @@ Double click schedules an offscreen depth-pick frame: depth encoded in RGB → o
 
 UV full-texture background: selection is resolved from fill batches by `textureGroupIndex` (base-color textures); if not found, falls back to the first available base-color texture.
 
-UV fill: color source from `fillPlain.colorSource`. When `Texture`, `renderParametrization()` resolves `uvTextureIndex` against `Document::meshTextureAssociationCount(...)` / texture association helpers and matches by normalized path across all four PBR channels (base, normal, occlusion, roughness) to choose a texture pointer. All fill batches are still drawn (no geometry filtering by texture group), using that selected texture when available, otherwise each batch's base-color texture. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
+UV fill: color source from `fillPlain.colorSource`. Quality UV buffers use the same fixed-range, center-on-zero, and percentile-crop normalization controls as Scene3D quality rendering. When `Texture`, `renderParametrization()` resolves `uvTextureIndex` against `Document::meshTextureAssociationCount(...)` / texture association helpers and matches by normalized path across all four PBR channels (base, normal, occlusion, roughness) to choose a texture pointer. All fill batches are still drawn (no geometry filtering by texture group), using that selected texture when available, otherwise each batch's base-color texture. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
 
 ## `ParametrizationUV` Camera and Interaction
 
@@ -110,7 +110,7 @@ Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view 
 
 ## Quality Histogram Overlay
 
-2D overlay label inside `RenderWidget`. Controlled by `showQualityHistogram` and `qualityHistogramSource` (auto / forced vertex / forced face). Configurable bin count, optional fixed range (`qualityHistogramFixedRange`/`Min`/`Max`), selectable colormap (`qualityHistogramColorMapId`), colormap inversion, and optional isolines (`qualityIsolinesEnabled`, `qualityIsolineCount`). Color mapping is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned.
+2D overlay label inside `RenderWidget`. Controlled by `showQualityHistogram` and `qualityHistogramSource` (auto / forced vertex / forced face). Configurable bin count, optional fixed range (`qualityHistogramFixedRange`/`Min`/`Max`), center-on-zero mode, percentile crop, selectable colormap (`qualityHistogramColorMapId`), colormap inversion, and optional isolines (`qualityIsolinesEnabled`, `qualityIsolineCount`). Color mapping is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned.
 
 ## Snapshot Capture
 

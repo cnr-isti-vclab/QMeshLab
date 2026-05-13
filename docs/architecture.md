@@ -27,7 +27,7 @@ Each `MeshEntry` stores: identity/revision keys (`meshId`, `geometryRevision`, `
 
 ### `MeshGpuResourceCache`
 
-Central cache for mesh GPU resources, keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max where applicable)`. Caches fill batches (vertex/index buffers + PBR textures), wire, edge, points, bbox, selection, and decorator buffers (normals, boundaries, seams). Allows GPU buffer reuse across render-mode changes and across views sharing the same `QRhi`.
+Central cache for mesh GPU resources, keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max/center/crop where applicable)`. Caches fill batches (vertex/index buffers + PBR textures), wire, edge, points, bbox, selection, and decorator buffers (normals, boundaries, seams, non-manifold markers, curvature directions). Allows GPU buffer reuse across render-mode changes and across views sharing the same `QRhi`.
 
 ### `LineRenderer`
 
@@ -35,7 +35,7 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 
 ### `RenderWidget`
 
-`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV`), `ViewTrackball`, UV pan/zoom/cache, per-mesh render modes, per-view visibility vector, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes}.cpp`.
+`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, per-mesh render modes, per-view visibility vector, help/interaction overlays, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes}.cpp`.
 
 ### `ViewState`
 
@@ -55,14 +55,14 @@ Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, o
 
 ### `MainWindow`
 
-Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log dock, status bar (progress bars, frame-time stats), undo graph panel, and menus (file, edit, filters, view, help). Manages split/close, active-view highlight border, document visibility proxy synchronization from the current view, and undo-node thumbnails/snapshots.
+Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log dock, status bar (progress bars, frame-time stats), undo graph panel, and menus (file, edit, filters, view, help). Manages file open/drop/new-document flows, split/close, active-view highlight border, optional camera synchronization across 3D views, document visibility proxy synchronization from the current view, and undo-node thumbnails/snapshots.
 
 ## Render Settings Types
 
 Defined in `renderingsettings.h`:
 
-- **`PerMeshRenderSettings`** — one instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds pass toggles, decorator toggles, lighting/culling flags, wire faux-edge handling, fill material and sub-structs (`PlainFillParams`, `PbrFillParams`, `RsFillParams`), colors, sizes, and point color source.
-- **`GlobalRenderSettings`** — one instance per view in `m_renderSettings`. Holds scene highlight parameters, background colors, UV viewer options, quality histogram/isolines options, and overlay panel state. `using RenderSettings = GlobalRenderSettings` is provided as an alias.
+- **`PerMeshRenderSettings`** — one instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds pass toggles, decorator toggles (normals, boundary/seams, non-manifold markers, curvature directions), lighting/culling flags, wire faux-edge handling, fill material and sub-structs (`PlainFillParams`, `PbrFillParams`, `RsFillParams`), colors, sizes, and point color source.
+- **`GlobalRenderSettings`** — one instance per view in `m_renderSettings`. Holds scene highlight parameters, background colors, UV viewer options, quality histogram/range/isolines options, and overlay panel state. `using RenderSettings = GlobalRenderSettings` is provided as an alias.
 - **`MeshRenderMode`** — widget-local alias for `PerMeshRenderSettings`.
 
 ## Plugin System
@@ -74,7 +74,7 @@ Defined in `renderingsettings.h`:
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 
 Built-in I/O (when enabled at build time): `io_vcg`, `io_obj_rapidobj`, `io_gltf`, `io_e57`.  
-Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `filter_embree`, `filter_select`, `filter_clean`, `filter_meshing`, `filter_screened_poisson`, `filter_sampling`, `filter_unsharp`, `filter_create`, `filter_geodesic`, `filter_texture`, `filter_measure`, `filter_mls`, `filter_sample`, `filter_layer`.
+Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `filter_embree`, `filter_select`, `filter_clean`, `filter_meshing`, `filter_cgal`, `filter_screened_poisson`, `filter_sampling`, `filter_unsharp`, `filter_create`, `filter_geodesic`, `filter_texture`, `filter_texture_defragmentation`, `filter_measure`, `filter_mls`, `filter_sample`, `filter_layer`, `filter_colorproc`, `filter_xatlas`.
 
 ## State Ownership
 
@@ -82,7 +82,7 @@ Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `f
 |---|---|
 | mesh geometry and material data | per-mesh render modes/styles |
 | mesh transforms | per-view visibility vector |
-| mesh list, current index | view mode, camera/trackball, UV pan/zoom |
+| mesh list, current index | view mode, camera/trackball, headlight direction, UV pan/zoom |
 | document visibility proxy | overlay settings, histogram cache |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
 | undo tree, labels, lanes, snapshots | UV-local GPU cache |
@@ -108,7 +108,7 @@ MainWindow (menus, docks, split-view orchestration)
 
 ## Typical Runtime Sequence
 
-1. User opens files → `Document` resolves plugin, loads mesh, emits signals.
+1. User opens or drops files → `Document` resolves plugin, loads mesh, emits signals.
 2. Views sync mesh/mode/visibility and ensure GPU resources via the shared cache.
 3. Rendering runs Scene layered passes or UV passes plus overlays.
 4. Undo/redo or undo-graph jumps restore mesh snapshots and the active view snapshot (`ViewState`).

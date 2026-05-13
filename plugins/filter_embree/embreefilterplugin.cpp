@@ -6,6 +6,7 @@
 #include <wrap/embree/EmbreeAdaptor.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/update/bounding.h>
+#include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/quality.h>
 #include <algorithm>
@@ -88,9 +89,12 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         if (doc.isOperationCancelRequested())
             return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
+        vcg::tri::UpdateColor<VCGMesh>::PerFaceQualityGray(entry.mesh);
+        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityGray(entry.mesh);
 
         entry.ioMask |=
-            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY;
+            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY |
+            Mask::IOM_FACECOLOR | Mask::IOM_VERTCOLOR;
         doc.markMeshGeometryChanged(
             current->index,
             QObject::tr("Computed obscurance for '%1'").arg(entry.name));
@@ -108,9 +112,12 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         if (doc.isOperationCancelRequested())
             return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
+        vcg::tri::UpdateColor<VCGMesh>::PerFaceQualityGray(entry.mesh);
+        vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityGray(entry.mesh);
 
         entry.ioMask |=
-            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY;
+            Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY |
+            Mask::IOM_FACECOLOR | Mask::IOM_VERTCOLOR;
         doc.markMeshGeometryChanged(
             current->index,
             QObject::tr("Computed ambient occlusion for '%1'").arg(entry.name));
