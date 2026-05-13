@@ -1,0 +1,49 @@
+#pragma once
+
+#include <QWidget>
+#include <QStringList>
+
+class QPlainTextEdit;
+class QLineEdit;
+class QPushButton;
+class QLabel;
+
+// An interactive Python console widget.
+//
+// Displays an output area (read-only) and an input line with a >>> / ...
+// prompt.  Connects to PythonHost signals so that all Python output is
+// routed here.  History is navigated with Up / Down on the input line.
+class PythonConsoleWidget : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit PythonConsoleWidget(QWidget *parent = nullptr);
+
+public slots:
+    // Append normal Python output (white text).
+    void appendOutput(const QString &text);
+    // Append Python error/traceback text (red text).
+    void appendError(const QString &text);
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+private slots:
+    void executeLine();
+    void clearOutput();
+
+private:
+    void setPrompt(bool needsMore);
+    void historyUp();
+    void historyDown();
+
+    QPlainTextEdit *m_output      = nullptr;
+    QLineEdit      *m_input       = nullptr;
+    QLabel         *m_promptLabel = nullptr;
+    QPushButton    *m_clearButton = nullptr;
+
+    QStringList m_history;
+    int  m_historyIndex = -1;
+    bool m_needsMore    = false;  // true while inside a multi-line statement
+};

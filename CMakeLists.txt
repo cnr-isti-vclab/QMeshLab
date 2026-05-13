@@ -19,6 +19,20 @@ if (QMESH_REQUIRE_VCPKG_DEPS)
 endif()
 
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
+
+# ---------------------------------------------------------------------------
+# Optional embedded Python console
+# ---------------------------------------------------------------------------
+option(QMESHLAB_PYTHON_CONSOLE "Build embedded Python interpreter and console dock" ON)
+if(QMESHLAB_PYTHON_CONSOLE)
+    # nanobind's cmake config requires the CMake `Python` package (not `Python3`)
+    # because it checks for the Python::Module imported target.
+    find_package(Python REQUIRED COMPONENTS Interpreter Development.Embed Development.Module)
+    # nanobind is provided by the local vcpkg ports (vcpkg/ports/nanobind).
+    find_package(nanobind CONFIG REQUIRED)
+    message(STATUS "QMeshLab: Python console enabled (Python ${Python_VERSION})")
+endif()
+
 add_library(QMeshLabCore STATIC
     src/core/document.h src/core/document.cpp
     src/core/filterparam.h src/core/filterparam.cpp
@@ -64,6 +78,10 @@ qt_add_resources(QMeshLabCore "colormaps"
 )
 
 add_subdirectory(plugins)
+
+if(QMESHLAB_PYTHON_CONSOLE)
+    add_subdirectory(src/python)
+endif()
 
 qt_add_executable(QMeshLab
     src/app/main.cpp
@@ -119,6 +137,21 @@ target_link_libraries(QMeshLab PRIVATE
     Qt6::Widgets
     Qt6::GuiPrivate
 )
+
+if(QMESHLAB_PYTHON_CONSOLE)
+    target_sources(QMeshLab PRIVATE
+        src/ui/pythonconsole.h
+        src/ui/pythonconsole.cpp
+    )
+    target_link_libraries(QMeshLab PRIVATE QMeshLabPythonHost _qmeshlab_bindings)
+    target_compile_definitions(QMeshLab PRIVATE QMESHLAB_PYTHON_CONSOLE)
+    # Embed the Python lib dir in the rpath so the app finds libpython at
+    # runtime regardless of where conda / homebrew installed it.
+    set_property(TARGET QMeshLab APPEND PROPERTY
+        BUILD_RPATH "${Python_LIBRARY_DIRS}")
+    set_property(TARGET QMeshLab APPEND PROPERTY
+        INSTALL_RPATH "${Python_LIBRARY_DIRS}")
+endif()
 
 qt_add_shaders(QMeshLab "shaders"
     PREFIX "/"

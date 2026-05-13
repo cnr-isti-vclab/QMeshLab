@@ -5,6 +5,10 @@
 #include "renderwidget.h"
 #include "layerwidget.h"
 #include "undographwidget.h"
+#ifdef QMESHLAB_PYTHON_CONSOLE
+#include "pythonconsole.h"
+#include "PythonHost.h"
+#endif
 #include <wrap/io_trimesh/io_mask.h>
 #include <QButtonGroup>
 #include <QClipboard>
@@ -611,6 +615,15 @@ MainWindow::MainWindow(QWidget *parent)
     setCorner(Qt::TopRightCorner, Qt::RightDockWidgetArea);
     setCorner(Qt::BottomRightCorner, Qt::RightDockWidgetArea);
 
+#ifdef QMESHLAB_PYTHON_CONSOLE
+    m_pythonConsole = new PythonConsoleWidget(this);
+    m_pythonConsoleDock = new QDockWidget(tr("Python Console"), this);
+    m_pythonConsoleDock->setWidget(m_pythonConsole);
+    addDockWidget(Qt::BottomDockWidgetArea, m_pythonConsoleDock);
+    tabifyDockWidget(logDock, m_pythonConsoleDock);
+    m_pythonConsoleDock->hide();
+#endif
+
     for (const auto &entry : m_doc->logMessages())
         appendLogItem(m_logListWidget, entry.message, entry.source, false);
 
@@ -854,6 +867,13 @@ MainWindow::MainWindow(QWidget *parent)
             return;
         view->setMeshVisible(index, visible);
     });
+
+#ifdef QMESHLAB_PYTHON_CONSOLE
+    // Initialize the embedded Python interpreter.  PyImport_AppendInittab was
+    // already called from main() before QApplication was created.
+    PythonHost::instance().initialize(m_doc);
+#endif
+
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(tr("&New"), QKeySequence::New, this, &MainWindow::newDocument);
     fileMenu->addAction(
@@ -962,6 +982,16 @@ MainWindow::MainWindow(QWidget *parent)
         QKeySequence::Paste,
         this,
         &MainWindow::pasteCameraState);
+
+#ifdef QMESHLAB_PYTHON_CONSOLE
+    viewMenu->addSeparator();
+    if (m_pythonConsoleDock) {
+        QAction *consoleAction = m_pythonConsoleDock->toggleViewAction();
+        consoleAction->setText(tr("Python Console"));
+        consoleAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Backslash));
+        viewMenu->addAction(consoleAction);
+    }
+#endif
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&Filter Plugins..."), this, &MainWindow::showFilterPlugins);

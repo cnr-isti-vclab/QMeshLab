@@ -1,0 +1,258 @@
+// Python.h must be the very first include; on some platforms it redefines
+// 'slots', which conflicts with Qt.  Including it before any Qt header avoids
+// the macro collision.
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
+#include "PythonHost.h"
+
+#include "bindings/meshset_core.h"
+#include "document.h"
+
+#include <nanobind/nanobind.h>
+
+#include <QByteArray>
+
+namespace nb = nanobind;
+
+// ---------------------------------------------------------------------------
+// Python setup code run once after Py_Initialize.
+//
+// Installs lightweight capture objects as sys.stdout / sys.stderr so that
+// all Python output is intercepted.  The captured text is read back via
+// _stdout_capture.getvalue() / _stderr_capture.getvalue().
+// ---------------------------------------------------------------------------
+static const char *kSetupCode = R"python(
+import sys
+import code
+
+class _CaptureIO:
+    def __init__(self):
+        self._buf = []
+    def write(self, text):
+        if text:
+            self._buf.append(str(text))
+    def flush(self):
+        pass
+    def getvalue(self):
+        v = ''.join(self._buf)
+        self._buf.clear()
+        return v
+
+_stdout_capture = _CaptureIO()
+_stderr_capture = _CaptureIO()
+sys.stdout = _stdout_capture
+sys.stderr = _stderr_capture
+)python";
+
+// ---------------------------------------------------------------------------
+// PythonHost
+// ---------------------------------------------------------------------------
+
+PythonHost::PythonHost(QObject *parent)
+    : QObject(parent)
+{}
+
+PythonHost::~PythonHost()
+{
+    finalize();
+}
+
+PythonHost &PythonHost::instance()
+{
+    static PythonHost host;
+    return host;
+}
+
+void PythonHost::initialize(Document *doc)
+{
+    if (m_initialized)
+        return;
+
+    // PyImport_AppendInittab("_qmeshlab", ...) must already have been called
+    // from main() before this point.
+    if (!Py_IsInitialized()) {
+        PyConfig config;
+        PyConfig_InitPythonConfig(&config);
+        Py_InitializeFromConfig(&config);
+        PyConfig_Clear(&config);
+    }
+
+    m_initialized = true;
+
+    // Install capture objects for sys.stdout / sys.stderr.
+    if (PyRun_SimpleString(kSetupCode) != 0) {
+        // Something went wrong; clear any exception so the rest still works.
+        PyErr_Clear();
+    }
+
+    // Cache references to the capture objects so flushOutput() is cheap.
+    PyObject *mainModule = PyImport_AddModule("__main__");
+    if (mainModule) {
+        PyObject *mainDict = PyModule_GetDict(mainModule);  // borrowed
+        PyObject *stdoutObj = PyDict_GetItemString(mainDict, "_stdout_capture");
+        PyObject *stderrObj = PyDict_GetItemString(mainDict, "_stderr_capture");
+        Py_XINCREF(stdoutObj);
+        Py_XINCREF(stderrObj);
+        m_stdoutCapture = stdoutObj;
+        m_stderrCapture = stderrObj;
+    }
+
+    setupConsole(doc);
+}
+
+void PythonHost::setupConsole(Document *doc)
+{
+    // Import _qmeshlab (registered via PyImport_AppendInittab).  This triggers
+    // PyInit__qmeshlab which populates the nanobind type registry.
+    PyObject *mod = PyImport_ImportModule("_qmeshlab");
+    if (!mod) {
+        PyErr_Print();
+        return;
+    }
+    Py_DECREF(mod);
+
+    // Create a MeshSetCore that borrows the live Document (no ownership).
+    MeshSetCore *core = new MeshSetCore(doc);
+    nb::object pyMeshset = nb::cast(core, nb::rv_policy::take_ownership);
+
+    // Inject `meshset` into __main__ so it is available in the console.
+    PyObject *mainModule = PyImport_AddModule("__main__");
+    if (!mainModule) {
+        PyErr_Print();
+        return;
+    }
+    PyObject *mainDict = PyModule_GetDict(mainModule);  // borrowed
+    PyDict_SetItemString(mainDict, "meshset", pyMeshset.ptr());
+
+    // Create code.InteractiveConsole(locals=__main__.__dict__) so that
+    // any names defined at the console prompt are visible as globals and
+    // the injected `meshset` binding is immediately accessible.
+    PyObject *codeModule = PyImport_ImportModule("code");
+    if (!codeModule) {
+        PyErr_Print();
+        return;
+    }
+    PyObject *consoleClass = PyObject_GetAttrString(codeModule, "InteractiveConsole");
+    Py_DECREF(codeModule);
+    if (!consoleClass) {
+        PyErr_Print();
+        return;
+    }
+    PyObject *console = PyObject_CallFunction(consoleClass, "O", mainDict);
+    Py_DECREF(consoleClass);
+    if (!console) {
+        PyErr_Print();
+        return;
+    }
+
+    Py_XDECREF(static_cast<PyObject *>(m_console));
+    m_console = console;
+
+    // Discard any setup noise captured before the user types anything.
+    flushOutput();
+}
+
+void PythonHost::finalize()
+{
+    if (!m_initialized)
+        return;
+
+    Py_XDECREF(static_cast<PyObject *>(m_console));
+    m_console = nullptr;
+    Py_XDECREF(static_cast<PyObject *>(m_stdoutCapture));
+    m_stdoutCapture = nullptr;
+    Py_XDECREF(static_cast<PyObject *>(m_stderrCapture));
+    m_stderrCapture = nullptr;
+
+    Py_Finalize();
+    m_initialized = false;
+}
+
+void PythonHost::flushOutput()
+{
+    auto readCapture = [](void *captureObj, bool isError, PythonHost *host) {
+        if (!captureObj)
+            return;
+        PyObject *result = PyObject_CallMethod(
+            static_cast<PyObject *>(captureObj), "getvalue", nullptr);
+        if (!result) {
+            PyErr_Clear();
+            return;
+        }
+        if (PyUnicode_Check(result)) {
+            Py_ssize_t size = 0;
+            const char *utf8 = PyUnicode_AsUTF8AndSize(result, &size);
+            if (utf8 && size > 0) {
+                const QString text = QString::fromUtf8(utf8, static_cast<int>(size));
+                if (isError)
+                    emit host->errorWritten(text);
+                else
+                    emit host->outputWritten(text);
+            }
+        }
+        Py_DECREF(result);
+    };
+
+    readCapture(m_stdoutCapture, false, this);
+    readCapture(m_stderrCapture, true,  this);
+}
+
+bool PythonHost::runLine(const QString &line)
+{
+    if (!m_initialized || !m_console)
+        return true;
+
+    const QByteArray utf8 = line.toUtf8();
+    PyObject *pyLine = PyUnicode_FromStringAndSize(utf8.constData(), utf8.size());
+    if (!pyLine) {
+        PyErr_Clear();
+        return true;
+    }
+
+    // push() returns 1 (truthy) if more input is needed, 0 if complete.
+    PyObject *result = PyObject_CallMethod(
+        static_cast<PyObject *>(m_console), "push", "O", pyLine);
+    Py_DECREF(pyLine);
+
+    // Flush captured output before examining the return value so that any
+    // print() calls inside the executed code are emitted to the console.
+    flushOutput();
+
+    if (!result) {
+        PyErr_Clear();
+        return true;  // treat as complete (with error)
+    }
+
+    const bool needsMore = (PyObject_IsTrue(result) == 1);
+    Py_DECREF(result);
+    return !needsMore;
+}
+
+void PythonHost::resetConsole()
+{
+    if (!m_initialized || !m_console)
+        return;
+    PyObject *result = PyObject_CallMethod(
+        static_cast<PyObject *>(m_console), "resetbuffer", nullptr);
+    Py_XDECREF(result);
+    flushOutput();
+}
+
+void PythonHost::injectMeshSet(Document *doc)
+{
+    if (!m_initialized)
+        return;
+
+    // Replace the existing `meshset` binding with one wrapping the new doc.
+    // The old MeshSetCore will be gc'd by Python (but won't delete the old doc
+    // because m_ownsDocument == false).
+    MeshSetCore *core = new MeshSetCore(doc);
+    nb::object pyMeshset = nb::cast(core, nb::rv_policy::take_ownership);
+
+    PyObject *mainModule = PyImport_AddModule("__main__");
+    if (!mainModule)
+        return;
+    PyObject *mainDict = PyModule_GetDict(mainModule);
+    PyDict_SetItemString(mainDict, "meshset", pyMeshset.ptr());
+}

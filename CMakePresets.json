@@ -13,7 +13,8 @@
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "QMESH_REQUIRE_VCPKG_DEPS": "ON"
+        "QMESH_REQUIRE_VCPKG_DEPS": "ON",
+        "CMAKE_PROJECT_INCLUDE_BEFORE": "${sourceDir}/cmake/early_python.cmake"
       }
     },
     {

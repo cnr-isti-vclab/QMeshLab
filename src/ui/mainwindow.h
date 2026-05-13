@@ -16,6 +16,7 @@ class RenderWidget;
 class LayerWidget;
 class MeshFilterPanel;
 struct MeshFilterRunResult;
+class PythonConsoleWidget;
 class QMenu;
 class QAction;
 class QLabel;
@@ -108,6 +109,8 @@ private:
     MeshFilterPanel *m_filterPanel = nullptr;
     QDockWidget *m_layerDock = nullptr;
     QDockWidget *m_filterDock = nullptr;
+    QDockWidget *m_pythonConsoleDock = nullptr;
+    PythonConsoleWidget *m_pythonConsole = nullptr;
     QMenu *m_recentMenu = nullptr;
     QMenu *m_filtersMenu = nullptr;
     QAction *m_openLastAction = nullptr;
