@@ -84,6 +84,8 @@ private:
     QPushButton *m_sceneBackgroundBottomColorButton = nullptr;
     QPushButton *m_decoratorVertexNormalColorButton = nullptr;
     QPushButton *m_decoratorFaceNormalColorButton = nullptr;
+    QPushButton *m_decoratorCurvatureDirPD1ColorButton = nullptr;
+    QPushButton *m_decoratorCurvatureDirPD2ColorButton = nullptr;
     QPushButton *m_decoratorBoundaryEdgeColorButton = nullptr;
     QPushButton *m_decoratorTextureSeamColorButton = nullptr;
     QPushButton *m_bboxColorButton = nullptr;
@@ -102,6 +104,7 @@ private:
     QCheckBox *m_bboxShowDimensionsCheck = nullptr;
     QCheckBox *m_decoratorVertexNormalsCheck = nullptr;
     QCheckBox *m_decoratorFaceNormalsCheck = nullptr;
+    QCheckBox *m_decoratorCurvatureDirCheck = nullptr;
     QCheckBox *m_decoratorBoundaryEdgesCheck = nullptr;
     QCheckBox *m_decoratorTextureSeamsCheck = nullptr;
     QCheckBox *m_decoratorNonManifoldEdgesCheck = nullptr;

@@ -107,6 +107,10 @@ public:
         int vertexNormalsVertexCount = 0;
         QRhiBuffer *faceNormalsBuffer = nullptr;
         int faceNormalsVertexCount = 0;
+        QRhiBuffer *curvatureDirPD1Buffer = nullptr;
+        int curvatureDirPD1VertexCount = 0;
+        QRhiBuffer *curvatureDirPD2Buffer = nullptr;
+        int curvatureDirPD2VertexCount = 0;
         QRhiBuffer *boundaryEdgesBuffer = nullptr;
         int boundaryEdgesVertexCount = 0;
         QRhiBuffer *boundaryEdgesFatBuffer = nullptr;

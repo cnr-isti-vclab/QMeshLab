@@ -401,14 +401,18 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     normalDecoratorsForm->setLabelAlignment(kSettingsLabelAlignment);
     m_decoratorVertexNormalsCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorFaceNormalsCheck = new QCheckBox(normalDecoratorsPage);
+    m_decoratorCurvatureDirCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorBoundaryEdgesCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorTextureSeamsCheck = new QCheckBox(normalDecoratorsPage);
     m_decoratorVertexNormalsCheck->setChecked(m_meshSettings.decoratorVertexNormals);
     m_decoratorFaceNormalsCheck->setChecked(m_meshSettings.decoratorFaceNormals);
+    m_decoratorCurvatureDirCheck->setChecked(m_meshSettings.decoratorCurvatureDir);
     m_decoratorBoundaryEdgesCheck->setChecked(m_meshSettings.decoratorBoundaryEdges);
     m_decoratorTextureSeamsCheck->setChecked(m_meshSettings.decoratorTextureSeams);
     m_decoratorVertexNormalColorButton = makeColorButton(normalDecoratorsPage);
     m_decoratorFaceNormalColorButton = makeColorButton(normalDecoratorsPage);
+    m_decoratorCurvatureDirPD1ColorButton = makeColorButton(normalDecoratorsPage);
+    m_decoratorCurvatureDirPD2ColorButton = makeColorButton(normalDecoratorsPage);
     m_decoratorBoundaryEdgeColorButton = makeColorButton(normalDecoratorsPage);
     m_decoratorTextureSeamColorButton = makeColorButton(normalDecoratorsPage);
     normalDecoratorsForm->addRow(
@@ -423,6 +427,15 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     normalDecoratorsForm->addRow(
         tr("Face normal color"),
         makeCenteredFieldContainer(m_decoratorFaceNormalColorButton, normalDecoratorsPage));
+    normalDecoratorsForm->addRow(
+        tr("Curvature directions"),
+        makeCenteredFieldContainer(m_decoratorCurvatureDirCheck, normalDecoratorsPage));
+    normalDecoratorsForm->addRow(
+        tr("Curv. max dir color"),
+        makeCenteredFieldContainer(m_decoratorCurvatureDirPD1ColorButton, normalDecoratorsPage));
+    normalDecoratorsForm->addRow(
+        tr("Curv. min dir color"),
+        makeCenteredFieldContainer(m_decoratorCurvatureDirPD2ColorButton, normalDecoratorsPage));
     applyUniformFormRowHeights(normalDecoratorsForm);
     normalDecoratorsLayout->addLayout(normalDecoratorsForm);
     m_settingsStack->addWidget(normalDecoratorsPage);
@@ -1074,6 +1087,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 
     bindMeshCheckBox(m_decoratorVertexNormalsCheck, &PerMeshRenderSettings::decoratorVertexNormals, true);
     bindMeshCheckBox(m_decoratorFaceNormalsCheck, &PerMeshRenderSettings::decoratorFaceNormals, true);
+    bindMeshCheckBox(m_decoratorCurvatureDirCheck, &PerMeshRenderSettings::decoratorCurvatureDir, true);
     bindMeshCheckBox(m_decoratorBoundaryEdgesCheck, &PerMeshRenderSettings::decoratorBoundaryEdges, true);
     bindMeshCheckBox(m_decoratorTextureSeamsCheck, &PerMeshRenderSettings::decoratorTextureSeams, true);
     bindMeshColorButton(
@@ -1084,6 +1098,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_decoratorFaceNormalColorButton,
         &PerMeshRenderSettings::decoratorFaceNormalColor,
         tr("Decorator Face Normal Color"));
+    bindMeshColorButton(
+        m_decoratorCurvatureDirPD1ColorButton,
+        &PerMeshRenderSettings::decoratorCurvatureDirPD1Color,
+        tr("Curvature Max Direction Color"));
+    bindMeshColorButton(
+        m_decoratorCurvatureDirPD2ColorButton,
+        &PerMeshRenderSettings::decoratorCurvatureDirPD2Color,
+        tr("Curvature Min Direction Color"));
     bindMeshColorButton(
         m_decoratorBoundaryEdgeColorButton,
         &PerMeshRenderSettings::decoratorBoundaryEdgeColor,
@@ -1461,11 +1483,13 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     connect(m_normalsDecoratorsButton, &QToolButton::toggled, this, [this](bool checked) {
         const bool changed =
             (m_meshSettings.decoratorVertexNormals != checked)
-            || (m_meshSettings.decoratorFaceNormals != checked);
+            || (m_meshSettings.decoratorFaceNormals != checked)
+            || (m_meshSettings.decoratorCurvatureDir != checked);
         if (!changed)
             return;
         m_meshSettings.decoratorVertexNormals = checked;
         m_meshSettings.decoratorFaceNormals = checked;
+        m_meshSettings.decoratorCurvatureDir = checked;
         setMeshSettings(m_meshSettings);
         emit meshSettingsChanged(m_meshSettings);
     });
@@ -1494,6 +1518,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         m_globalSettings.sceneBackgroundBottomColor);
     updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_meshSettings.decoratorVertexNormalColor);
     updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_meshSettings.decoratorFaceNormalColor);
+    updateColorButtonStyle(m_decoratorCurvatureDirPD1ColorButton, m_meshSettings.decoratorCurvatureDirPD1Color);
+    updateColorButtonStyle(m_decoratorCurvatureDirPD2ColorButton, m_meshSettings.decoratorCurvatureDirPD2Color);
     updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_meshSettings.decoratorBoundaryEdgeColor);
     updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_meshSettings.decoratorTextureSeamColor);
     updateColorButtonStyle(m_bboxColorButton, m_meshSettings.bboxWireColor);
@@ -1781,7 +1807,8 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
     if (m_normalsDecoratorsButton) {
         QSignalBlocker blocker(m_normalsDecoratorsButton);
         m_normalsDecoratorsButton->setChecked(
-            m_meshSettings.decoratorVertexNormals || m_meshSettings.decoratorFaceNormals);
+            m_meshSettings.decoratorVertexNormals || m_meshSettings.decoratorFaceNormals
+            || m_meshSettings.decoratorCurvatureDir);
     }
     if (m_boundaryDecoratorsButton) {
         QSignalBlocker blocker(m_boundaryDecoratorsButton);
@@ -1823,6 +1850,10 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
     if (m_decoratorFaceNormalsCheck) {
         QSignalBlocker blocker(m_decoratorFaceNormalsCheck);
         m_decoratorFaceNormalsCheck->setChecked(m_meshSettings.decoratorFaceNormals);
+    }
+    if (m_decoratorCurvatureDirCheck) {
+        QSignalBlocker blocker(m_decoratorCurvatureDirCheck);
+        m_decoratorCurvatureDirCheck->setChecked(m_meshSettings.decoratorCurvatureDir);
     }
     if (m_decoratorBoundaryEdgesCheck) {
         QSignalBlocker blocker(m_decoratorBoundaryEdgesCheck);
@@ -2004,6 +2035,8 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
 
     updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_meshSettings.decoratorVertexNormalColor);
     updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_meshSettings.decoratorFaceNormalColor);
+    updateColorButtonStyle(m_decoratorCurvatureDirPD1ColorButton, m_meshSettings.decoratorCurvatureDirPD1Color);
+    updateColorButtonStyle(m_decoratorCurvatureDirPD2ColorButton, m_meshSettings.decoratorCurvatureDirPD2Color);
     updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_meshSettings.decoratorBoundaryEdgeColor);
     updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_meshSettings.decoratorTextureSeamColor);
     updateColorButtonStyle(m_bboxColorButton, m_meshSettings.bboxWireColor);

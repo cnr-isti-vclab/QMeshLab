@@ -425,6 +425,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_viewSplitter->setChildrenCollapsible(false);
     setCentralWidget(m_viewSplitter);
 
+    // Make the dock-area separators wide enough to grab comfortably.
+    setStyleSheet(QStringLiteral("QMainWindow::separator { width: 5px; height: 5px; }"));
+
     RenderWidget *initialView = createRenderWidget(m_viewSplitter);
     setCurrentRenderWidget(initialView);
 

@@ -81,7 +81,8 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             needSelectionAny
             || (mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces));
         needDecoratorNormalsAny =
-            needDecoratorNormalsAny || mode.decoratorVertexNormals || mode.decoratorFaceNormals;
+            needDecoratorNormalsAny || mode.decoratorVertexNormals || mode.decoratorFaceNormals
+            || mode.decoratorCurvatureDir;
         needDecoratorBoundariesAny =
             needDecoratorBoundariesAny || mode.decoratorBoundaryEdges || mode.decoratorTextureSeams
             || mode.decoratorNonManifoldEdges || mode.decoratorNonManifoldVertices;
@@ -108,6 +109,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             || (mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces))
             || mode.decoratorVertexNormals
             || mode.decoratorFaceNormals
+            || mode.decoratorCurvatureDir
             || mode.decoratorBoundaryEdges
             || mode.decoratorTextureSeams
             || mode.decoratorNonManifoldEdges
@@ -132,7 +134,8 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             mode.showPoints || needHighlightForMesh,
             mode.showBoundingBox,
             mode.decoratorVertexNormals
-                || mode.decoratorFaceNormals,
+                || mode.decoratorFaceNormals
+                || mode.decoratorCurvatureDir,
             mode.decoratorBoundaryEdges
                 || mode.decoratorTextureSeams
                 || mode.decoratorNonManifoldEdges

@@ -72,6 +72,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             drawDecoratorPass
             || mode.decoratorVertexNormals
             || mode.decoratorFaceNormals
+            || mode.decoratorCurvatureDir
             || mode.decoratorBoundaryEdges
             || mode.decoratorTextureSeams
             || mode.decoratorNonManifoldEdges
@@ -656,6 +657,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
         bool drawVertexNormals = false;
         bool drawFaceNormals = false;
+        bool drawCurvatureDir = false;
         bool drawBoundaryEdges = false;
         bool drawTextureSeams = false;
         bool drawNonManifoldEdges = false;
@@ -666,6 +668,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             const MeshRenderMode mode = renderModeForMesh(mi);
             drawVertexNormals = drawVertexNormals || mode.decoratorVertexNormals;
             drawFaceNormals = drawFaceNormals || mode.decoratorFaceNormals;
+            drawCurvatureDir = drawCurvatureDir || mode.decoratorCurvatureDir;
             drawBoundaryEdges = drawBoundaryEdges || mode.decoratorBoundaryEdges;
             drawTextureSeams = drawTextureSeams || mode.decoratorTextureSeams;
             drawNonManifoldEdges = drawNonManifoldEdges || mode.decoratorNonManifoldEdges;
@@ -702,6 +705,28 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 },
                 [](const Document::DecoratorPassGpuView &view) {
                     return view.faceNormalsVertexCount;
+                });
+        }
+        if (drawCurvatureDir) {
+            drawDecoratorKind(
+                kDecoratorSlotCurvaturePD1,
+                [](const MeshRenderMode &mode) { return mode.decoratorCurvatureDir; },
+                [](const MeshRenderMode &mode) { return mode.decoratorCurvatureDirPD1Color; },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.curvatureDirPD1Buffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.curvatureDirPD1VertexCount;
+                });
+            drawDecoratorKind(
+                kDecoratorSlotCurvaturePD2,
+                [](const MeshRenderMode &mode) { return mode.decoratorCurvatureDir; },
+                [](const MeshRenderMode &mode) { return mode.decoratorCurvatureDirPD2Color; },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.curvatureDirPD2Buffer;
+                },
+                [](const Document::DecoratorPassGpuView &view) {
+                    return view.curvatureDirPD2VertexCount;
                 });
         }
         if (drawBoundaryEdges) {

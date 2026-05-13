@@ -145,6 +145,10 @@ struct MeshGpuResourceCache::CacheState
         int vertexNormalsVertexCount = 0;
         std::unique_ptr<QRhiBuffer> faceNormalsVbuf;
         int faceNormalsVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> curvatureDirPD1Vbuf;
+        int curvatureDirPD1VertexCount = 0;
+        std::unique_ptr<QRhiBuffer> curvatureDirPD2Vbuf;
+        int curvatureDirPD2VertexCount = 0;
     };
 
     struct DecoratorBoundaryGpu {
@@ -1313,6 +1317,10 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.vertexNormalsVertexCount = 0;
         dst.faceNormalsVbuf.reset();
         dst.faceNormalsVertexCount = 0;
+        dst.curvatureDirPD1Vbuf.reset();
+        dst.curvatureDirPD1VertexCount = 0;
+        dst.curvatureDirPD2Vbuf.reset();
+        dst.curvatureDirPD2VertexCount = 0;
 
         if (meshData.VN() <= 0)
             return true;
@@ -1392,6 +1400,52 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             faceNormalLines.push_back(cz + dz);
         }
         uploadLineBuffer(faceNormalLines, dst.faceNormalsVbuf, dst.faceNormalsVertexCount);
+
+        // Curvature principal directions (PD1 = max, PD2 = min), drawn symmetrically.
+        if (meshData.VN() > 0 && !meshData.vert.empty()
+            && meshData.vert[0].IsCurvatureDirEnabled()) {
+            std::vector<float> pd1Lines, pd2Lines;
+            pd1Lines.reserve(static_cast<size_t>(meshData.VN()) * 6);
+            pd2Lines.reserve(static_cast<size_t>(meshData.VN()) * 6);
+            for (int vi = 0; vi < meshData.VN(); ++vi) {
+                const auto &v = meshData.vert[vi];
+                if (v.IsD())
+                    continue;
+                const float px = v.cP()[0];
+                const float py = v.cP()[1];
+                const float pz = v.cP()[2];
+                // PD1 (max curvature direction)
+                const float d1x = v.cPD1()[0];
+                const float d1y = v.cPD1()[1];
+                const float d1z = v.cPD1()[2];
+                const float d1Len2 = d1x*d1x + d1y*d1y + d1z*d1z;
+                if (std::isfinite(d1x) && std::isfinite(d1y) && std::isfinite(d1z)
+                    && d1Len2 > 1e-12f && d1Len2 < 1e12f) {
+                    const float inv = 1.0f / std::sqrt(d1Len2);
+                    const float ex = d1x * inv * normalLength;
+                    const float ey = d1y * inv * normalLength;
+                    const float ez = d1z * inv * normalLength;
+                    pd1Lines.push_back(px - ex); pd1Lines.push_back(py - ey); pd1Lines.push_back(pz - ez);
+                    pd1Lines.push_back(px + ex); pd1Lines.push_back(py + ey); pd1Lines.push_back(pz + ez);
+                }
+                // PD2 (min curvature direction)
+                const float d2x = v.cPD2()[0];
+                const float d2y = v.cPD2()[1];
+                const float d2z = v.cPD2()[2];
+                const float d2Len2 = d2x*d2x + d2y*d2y + d2z*d2z;
+                if (std::isfinite(d2x) && std::isfinite(d2y) && std::isfinite(d2z)
+                    && d2Len2 > 1e-12f && d2Len2 < 1e12f) {
+                    const float inv = 1.0f / std::sqrt(d2Len2);
+                    const float ex = d2x * inv * normalLength;
+                    const float ey = d2y * inv * normalLength;
+                    const float ez = d2z * inv * normalLength;
+                    pd2Lines.push_back(px - ex); pd2Lines.push_back(py - ey); pd2Lines.push_back(pz - ez);
+                    pd2Lines.push_back(px + ex); pd2Lines.push_back(py + ey); pd2Lines.push_back(pz + ez);
+                }
+            }
+            uploadLineBuffer(pd1Lines, dst.curvatureDirPD1Vbuf, dst.curvatureDirPD1VertexCount);
+            uploadLineBuffer(pd2Lines, dst.curvatureDirPD2Vbuf, dst.curvatureDirPD2VertexCount);
+        }
         return true;
     };
 
@@ -1857,6 +1911,10 @@ MeshGpuResourceCache::DecoratorPassView MeshGpuResourceCache::decoratorPassView(
     view.vertexNormalsVertexCount = normalDecor.vertexNormalsVertexCount;
     view.faceNormalsBuffer = normalDecor.faceNormalsVbuf.get();
     view.faceNormalsVertexCount = normalDecor.faceNormalsVertexCount;
+    view.curvatureDirPD1Buffer = normalDecor.curvatureDirPD1Vbuf.get();
+    view.curvatureDirPD1VertexCount = normalDecor.curvatureDirPD1VertexCount;
+    view.curvatureDirPD2Buffer = normalDecor.curvatureDirPD2Vbuf.get();
+    view.curvatureDirPD2VertexCount = normalDecor.curvatureDirPD2VertexCount;
     view.boundaryEdgesBuffer = boundaryDecor.boundaryEdgesVbuf.get();
     view.boundaryEdgesVertexCount = boundaryDecor.boundaryEdgesVertexCount;
     view.boundaryEdgesFatBuffer = boundaryDecor.boundaryEdgesFatVbuf.get();
@@ -1941,7 +1999,9 @@ std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> MeshGpuResourceCache::gpuM
                                         + bufBytes(meshGpu.selection.selectedVerticesVbuf);
             if (meshGpu.decoratorNormals.valid)
                 s.decoratorBufferBytes += bufBytes(meshGpu.decoratorNormals.vertexNormalsVbuf)
-                                        + bufBytes(meshGpu.decoratorNormals.faceNormalsVbuf);
+                                        + bufBytes(meshGpu.decoratorNormals.faceNormalsVbuf)
+                                        + bufBytes(meshGpu.decoratorNormals.curvatureDirPD1Vbuf)
+                                        + bufBytes(meshGpu.decoratorNormals.curvatureDirPD2Vbuf);
             if (meshGpu.decoratorBoundaries.valid)
                 s.decoratorBufferBytes +=
                     bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesVbuf)
