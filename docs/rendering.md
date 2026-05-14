@@ -57,7 +57,7 @@ Main pass draw order: scene background · fill · wire · edges · bbox · point
 
 **Scene background**: full-screen gradient triangle, `sceneBackgroundBottomColor`/`TopColor`, drawn first.
 
-**Fill**: Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance Scaling pre-pass renders fill batches into `m_rsGradTexture` (`RGBA32F`), storing `(gx, gy, logZ, 1)`; the main fill pass samples it for final RS shading.
+**Fill**: Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings; automatic ranges default to a `0.01` crop at both tails to reduce outlier influence when filters map newly computed quality values to color. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance Scaling pre-pass renders fill batches into `m_rsGradTexture` (`RGBA32F`), storing `(gx, gy, logZ, 1)`; the main fill pass samples it for final RS shading.
 
 **Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
 
@@ -114,7 +114,7 @@ PBR rendering can consume normal maps directly as either tangent-space or object
 
 ## Quality Histogram Overlay
 
-2D overlay label inside `RenderWidget`. Controlled by `showQualityHistogram` and `qualityHistogramSource` (auto / forced vertex / forced face). Configurable bin count, optional fixed range (`qualityHistogramFixedRange`/`Min`/`Max`), center-on-zero mode, percentile crop, selectable colormap (`qualityHistogramColorMapId`), colormap inversion, and optional isolines (`qualityIsolinesEnabled`, `qualityIsolineCount`). Color mapping is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned.
+2D overlay label inside `RenderWidget`. Controlled by `showQualityHistogram` and `qualityHistogramSource` (auto / forced vertex / forced face). Configurable bin count, optional fixed range (`qualityHistogramFixedRange`/`Min`/`Max`), center-on-zero mode, percentile crop (default `0.01` for automatic ranges), selectable colormap (`qualityHistogramColorMapId`), colormap inversion, and optional isolines (`qualityIsolinesEnabled`, `qualityIsolineCount`). Color mapping is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned.
 
 ## Snapshot Capture
 

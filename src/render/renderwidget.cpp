@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace {
 
@@ -68,6 +69,62 @@ QString quickHelpOverlayHtml()
     }
 
     return cached;
+}
+
+RenderQualityRange automaticQualityRangeForCurrentMesh(
+    const Document *doc,
+    const RenderSettings &settings)
+{
+    if (!doc)
+        return {};
+
+    const int meshIndex = doc->currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= doc->meshCount())
+        return {};
+
+    const auto &entry = doc->mesh(meshIndex);
+    const int mask = entry.ioMask;
+    const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
+    const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
+
+    bool useVertexQuality = false;
+    bool useFaceQuality = false;
+    switch (settings.qualityHistogramSource) {
+    case QualityHistogramSource::Auto:
+        useVertexQuality = hasVertexQuality;
+        useFaceQuality = !useVertexQuality && hasFaceQuality;
+        break;
+    case QualityHistogramSource::VertexQuality:
+        useVertexQuality = hasVertexQuality;
+        break;
+    case QualityHistogramSource::FaceQuality:
+        useFaceQuality = hasFaceQuality;
+        break;
+    }
+    if (!useVertexQuality && !useFaceQuality)
+        return {};
+
+    const VCGMesh &mesh = entry.mesh;
+    std::vector<float> values;
+    values.reserve(useVertexQuality ? size_t(mesh.VN()) : size_t(mesh.FN()));
+    if (useVertexQuality) {
+        for (int vi = 0; vi < mesh.VN(); ++vi) {
+            const auto &v = mesh.vert[vi];
+            if (!v.IsD())
+                values.push_back(static_cast<float>(v.cQ()));
+        }
+    } else {
+        for (int fi = 0; fi < mesh.FN(); ++fi) {
+            const auto &f = mesh.face[fi];
+            if (!f.IsD())
+                values.push_back(static_cast<float>(f.cQ()));
+        }
+    }
+
+    return sampledRenderQualityRange(
+        std::move(values),
+        settings.qualityHistogramCenterOnZero,
+        settings.qualityHistogramPercentileCrop);
 }
 
 QJsonArray vec3ToJsonArray(const QVector3D &v)
@@ -750,7 +807,19 @@ void RenderWidget::createOverlayButtons()
             [this](const RenderSettings &settings) {
         emit viewActivated(this);
         const RenderSettings prev = m_renderSettings;
-        m_renderSettings = settings;
+        RenderSettings next = settings;
+        bool adjustedFixedRange = false;
+        if (!prev.qualityHistogramFixedRange && next.qualityHistogramFixedRange) {
+            const RenderQualityRange range = automaticQualityRangeForCurrentMesh(m_doc, next);
+            if (range.valid) {
+                next.qualityHistogramMin = range.minV;
+                next.qualityHistogramMax = range.maxV;
+                adjustedFixedRange = (next != settings);
+            }
+        }
+        m_renderSettings = next;
+        if (adjustedFixedRange)
+            m_overlayPanel->setGlobalSettings(m_renderSettings);
 
         updateBoundingBoxCornersOverlay();
         if (prev.qualityHistogramBins != m_renderSettings.qualityHistogramBins

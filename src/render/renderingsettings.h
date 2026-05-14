@@ -260,7 +260,7 @@ struct GlobalRenderSettings {
     QualityHistogramSource qualityHistogramSource = QualityHistogramSource::Auto;
     bool qualityHistogramFixedRange = false;
     bool qualityHistogramCenterOnZero = false;
-    float qualityHistogramPercentileCrop = 0.0f;
+    float qualityHistogramPercentileCrop = 0.01f;
     float qualityHistogramMin = 0.0f;
     float qualityHistogramMax = 1.0f;
     QString qualityHistogramColorMapId = QStringLiteral("rainbow");
