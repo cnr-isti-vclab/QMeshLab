@@ -266,6 +266,49 @@ void applyTransformToMesh(VCGMesh &mesh, const vcg::Matrix44f &tr)
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 }
 
+bool buildReferenceSurfaceForIsotropicRemeshing(
+    const Document &doc,
+    int currentMeshIndex,
+    int referenceMeshIndex,
+    const VCGMesh &currentMesh,
+    VCGMesh &referenceMesh,
+    QString &errorMessage)
+{
+    referenceMesh.Clear();
+    referenceMesh.face.EnableMark();
+
+    if (referenceMeshIndex < 0 || referenceMeshIndex >= doc.meshCount()) {
+        errorMessage = QObject::tr("Reference surface mesh index is invalid.");
+        return false;
+    }
+
+    if (referenceMeshIndex == currentMeshIndex) {
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(referenceMesh, currentMesh);
+        return true;
+    }
+
+    const Document::MeshEntry &currentEntry = doc.mesh(currentMeshIndex);
+    const Document::MeshEntry &referenceEntry = doc.mesh(referenceMeshIndex);
+    if (referenceEntry.mesh.FN() <= 0) {
+        errorMessage = QObject::tr("Reference surface mesh '%1' has no faces.")
+                           .arg(referenceEntry.name);
+        return false;
+    }
+
+    bool invertible = false;
+    const QMatrix4x4 currentToWorldInv = currentEntry.transform.inverted(&invertible);
+    if (!invertible) {
+        errorMessage = QObject::tr(
+            "Cannot use another reference surface because the current mesh transform is not invertible.");
+        return false;
+    }
+
+    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(referenceMesh, referenceEntry.mesh);
+    const QMatrix4x4 referenceToCurrentLocal = currentToWorldInv * referenceEntry.transform;
+    applyTransformToMesh(referenceMesh, qtToVcg(referenceToCurrentLocal));
+    return true;
+}
+
 void applyTransform(
     Document &doc,
     const vcg::Matrix44f &tr,
@@ -691,9 +734,19 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             VCGMeshMarkScope _mark(mesh);
             VCGMeshVertexMarkScope _vertMark(mesh);
 
+            const int referenceMeshIndex = params.getMesh(QStringLiteral("ReferenceMesh"), ci);
             VCGMesh toProjectCopy;
-            toProjectCopy.face.EnableMark();
-            vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(toProjectCopy, mesh);
+            QString referenceError;
+            if (!buildReferenceSurfaceForIsotropicRemeshing(
+                    doc,
+                    ci,
+                    referenceMeshIndex,
+                    mesh,
+                    toProjectCopy,
+                    referenceError)) {
+                return fail(referenceError);
+            }
+
             vcg::tri::IsotropicRemeshing<VCGMesh>::Params remeshParams;
             remeshParams.SetTargetLen(float(params.getDouble(QStringLiteral("TargetLen"))));
             remeshParams.SetFeatureAngleDeg(float(params.getDouble(QStringLiteral("FeatureDeg"))));
@@ -712,7 +765,12 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
             markGeometry(ci, QObject::tr("Applied isotropic remeshing on '%1'").arg(entry.name));
-            return success(true);
+            QStringList info;
+            if (referenceMeshIndex != ci) {
+                info << QObject::tr("Used '%1' as reference surface for distance checks and reprojection.")
+                            .arg(doc.mesh(referenceMeshIndex).name);
+            }
+            return success(true, info);
         }
 
         auto makeTransformOptions = [&]() {
