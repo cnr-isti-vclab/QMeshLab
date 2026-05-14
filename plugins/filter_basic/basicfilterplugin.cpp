@@ -16,7 +16,6 @@
 namespace {
 constexpr QLatin1StringView kFilterMeshInfo("mesh_info");
 constexpr QLatin1StringView kFilterNormalizeUnit("normalize_unit_box");
-constexpr QLatin1StringView kFilterDuplicateCurrent("duplicate_current_mesh");
 constexpr QLatin1StringView kFilterCreateNoisyIso("create_noisy_isosurface");
 
 }
@@ -106,30 +105,6 @@ MeshFilterRunResult BasicFilterPlugin::runFilter(
         result.documentModified = true;
         result.infoMessages = {
             QObject::tr("Applied scale factor %1").arg(QString::number(scale, 'f', 6))
-        };
-        return result;
-    }
-
-    if (filterId == QString::fromLatin1(kFilterDuplicateCurrent)) {
-        const int meshIndex = doc.currentMeshIndex();
-        if (meshIndex < 0 || meshIndex >= doc.meshCount()) {
-            return { false, false, QObject::tr("No current mesh selected.") };
-        }
-
-        const Document::MeshEntry &entry = doc.mesh(meshIndex);
-        const QString suffix = params.getString(QStringLiteral("name_suffix"));
-        const QString newName = entry.name + suffix;
-        const int newIndex = doc.duplicateMesh(meshIndex, newName);
-        if (newIndex < 0) {
-            return { false, false, QObject::tr("Failed to duplicate the current mesh.") };
-        }
-
-        MeshFilterRunResult result;
-        result.success = true;
-        result.documentModified = true;
-        result.newMeshIndices = { newIndex };
-        result.infoMessages = {
-            QObject::tr("Created duplicated mesh '%1'").arg(doc.mesh(newIndex).name)
         };
         return result;
     }

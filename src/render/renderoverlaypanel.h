@@ -147,6 +147,7 @@ private:
     QComboBox *m_fillMaterialCombo = nullptr;
     QComboBox *m_fillPbrAlbedoCombo = nullptr;
     QComboBox *m_fillPbrNormalCombo = nullptr;
+    QComboBox *m_fillNormalSpaceCombo = nullptr;
     QComboBox *m_fillPbrOcclusionCombo = nullptr;
     QComboBox *m_fillPbrRoughnessCombo = nullptr;
     QCheckBox *m_selectionShowVerticesCheck = nullptr;

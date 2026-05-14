@@ -703,6 +703,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillPbrShadingCombo->addItem(tr("Flat"), static_cast<int>(FillShading::Flat));
     m_fillPbrAlbedoCombo = new QComboBox(fillPage);
     m_fillPbrNormalCombo = new QComboBox(fillPage);
+    m_fillNormalSpaceCombo = new QComboBox(fillPage);
+    m_fillNormalSpaceCombo->addItem(tr("Tangent"), static_cast<int>(FillPbrNormalMapSpace::Tangent));
+    m_fillNormalSpaceCombo->addItem(tr("Object"), static_cast<int>(FillPbrNormalMapSpace::Object));
     m_fillPbrOcclusionCombo = new QComboBox(fillPage);
     m_fillPbrRoughnessCombo = new QComboBox(fillPage);
     rebuildFillPbrSourceCombos();
@@ -710,6 +713,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     fillPbrForm->addRow(tr("Shading"), m_fillPbrShadingCombo);
     fillPbrForm->addRow(tr("Albedo"), m_fillPbrAlbedoCombo);
     fillPbrForm->addRow(tr("Normal"), m_fillPbrNormalCombo);
+    fillPbrForm->addRow(tr("Normal space"), m_fillNormalSpaceCombo);
     fillPbrForm->addRow(tr("AO Map"), m_fillPbrOcclusionCombo);
     fillPbrForm->addRow(tr("Roughness Map"), m_fillPbrRoughnessCombo);
     fillPbrForm->addRow(
@@ -1253,6 +1257,15 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         const float fv = static_cast<float>(v);
         if (m_meshSettings.fillPbr.normalScale == fv) return;
         m_meshSettings.fillPbr.normalScale = fv;
+        emit meshSettingsChanged(m_meshSettings);
+    });
+    connect(m_fillNormalSpaceCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        if (!m_fillNormalSpaceCombo || idx < 0 || idx >= m_fillNormalSpaceCombo->count()) return;
+        const QVariant data = m_fillNormalSpaceCombo->itemData(idx);
+        if (!data.isValid()) return;
+        const auto value = static_cast<FillPbrNormalMapSpace>(data.toInt());
+        if (m_meshSettings.fillPbr.normalMapSpace == value) return;
+        m_meshSettings.fillPbr.normalMapSpace = value;
         emit meshSettingsChanged(m_meshSettings);
     });
     connect(m_fillRsEnhancementSpin, &QDoubleSpinBox::valueChanged, this, [this](double v) {
@@ -1899,6 +1912,16 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
         QSignalBlocker blocker(m_fillNormalScaleSpin);
         m_fillNormalScaleSpin->setValue(m_meshSettings.fillPbr.normalScale);
     }
+    if (m_fillNormalSpaceCombo) {
+        QSignalBlocker blocker(m_fillNormalSpaceCombo);
+        const int value = static_cast<int>(m_meshSettings.fillPbr.normalMapSpace);
+        for (int i = 0; i < m_fillNormalSpaceCombo->count(); ++i) {
+            if (m_fillNormalSpaceCombo->itemData(i).toInt() == value) {
+                m_fillNormalSpaceCombo->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
     if (m_fillRsEnhancementSpin) {
         QSignalBlocker blocker(m_fillRsEnhancementSpin);
         m_fillRsEnhancementSpin->setValue(m_meshSettings.fillRs.enhancement);
@@ -2321,6 +2344,8 @@ void RenderOverlayPanel::syncFillPbrUiState()
 
     const bool normalEnabled =
         usePbr && m_meshSettings.fillPbr.normalSource == FillPbrTextureSource::Texture;
+    if (m_fillNormalSpaceCombo)
+        m_fillNormalSpaceCombo->setEnabled(normalEnabled);
     if (m_fillNormalScaleSpin)
         m_fillNormalScaleSpin->setEnabled(normalEnabled);
 

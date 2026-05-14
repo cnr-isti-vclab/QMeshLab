@@ -178,7 +178,8 @@ inline void writeMainStyleToUbuf(
             return 0.0f;
         return static_cast<float>(static_cast<int>(source));
     };
-    // materialFlags: PBR → source modes (x=normal, y=ao, z=roughness, w=albedo)
+    // materialFlags: PBR -> source modes (x=normal: 0 none, 1 constant, 2 tangent texture, 3 object texture,
+    //                                    y=ao, z=roughness, w=albedo)
     //                RS  → invert flag (x) + display mode (y) + flat shading (z)
     if (enableRs) {
         ubufData[kUbufMaterialFlagsOffset + 0] = settings.fillRs.invert ? 1.0f : 0.0f;
@@ -186,7 +187,13 @@ inline void writeMainStyleToUbuf(
         ubufData[kUbufMaterialFlagsOffset + 2] = (settings.fillRs.shading == FillShading::Flat) ? 1.0f : 0.0f;
         ubufData[kUbufMaterialFlagsOffset + 3] = 0.0f;
     } else {
-        ubufData[kUbufMaterialFlagsOffset + 0] = encodePbrSource(settings.fillPbr.normalSource);
+        float normalMode = encodePbrSource(settings.fillPbr.normalSource);
+        if (enablePbr
+            && settings.fillPbr.normalSource == FillPbrTextureSource::Texture
+            && settings.fillPbr.normalMapSpace == FillPbrNormalMapSpace::Object) {
+            normalMode = 3.0f;
+        }
+        ubufData[kUbufMaterialFlagsOffset + 0] = normalMode;
         ubufData[kUbufMaterialFlagsOffset + 1] = encodePbrSource(settings.fillPbr.occlusionSource);
         ubufData[kUbufMaterialFlagsOffset + 2] = encodePbrSource(settings.fillPbr.roughnessSource);
         // PBR: encode the chosen albedo source.  Plain: signal texture usage via

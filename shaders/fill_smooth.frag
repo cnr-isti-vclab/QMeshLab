@@ -12,7 +12,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 fillColor;
     vec4 lightingParams;
     vec4 edgeColor;
-    vec4 materialFlags;  // x=normalMode, y=aoMode, z=roughnessMode, w=albedoMode (PBR only)
+    vec4 materialFlags;  // x=normalMode (2=tangent, 3=object), y=aoMode, z=roughnessMode, w=albedoMode
     vec4 materialParams; // x=param0 (normalScale/enhancement), y=occlusionStrength, z=roughnessFactor, w=material-id
     vec4 lightDir;        // view-space light direction (w unused)
 } ub;
@@ -30,7 +30,7 @@ layout(binding = 5) uniform sampler2D roughnessTex;
 
 layout(location = 0) out vec4 fragColor;
 
-vec3 applyNormalMap(vec3 baseNormal, vec2 uv)
+vec3 applyTangentSpaceNormalMap(vec3 baseNormal, vec2 uv)
 {
     vec3 N = normalize(baseNormal);
     vec3 dp1 = dFdx(v_viewPos);
@@ -55,6 +55,14 @@ vec3 applyNormalMap(vec3 baseNormal, vec2 uv)
     mapN.xy *= ub.materialParams.x;
     mapN = normalize(mapN);
     return normalize(mat3(T, B, N) * mapN);
+}
+
+vec3 applyObjectSpaceNormalMap(vec3 baseNormal, vec2 uv)
+{
+    vec3 mapN = texture(normalTex, uv).xyz * 2.0 - 1.0;
+    vec3 objectN = normalize(ub.normalMatrix * normalize(mapN));
+    float strength = clamp(abs(ub.materialParams.x), 0.0, 1.0);
+    return normalize(mix(normalize(baseNormal), objectN, strength));
 }
 
 void main()
@@ -88,7 +96,9 @@ void main()
     if (ub.lightingParams.w > 0.5) {
         vec3 N = normalize(v_normal);
         if (hasUv && normalMode == 2)
-            N = applyNormalMap(N, uv);
+            N = applyTangentSpaceNormalMap(N, uv);
+        else if (hasUv && normalMode == 3)
+            N = applyObjectSpaceNormalMap(N, uv);
 
         vec3 L = normalize(ub.lightDir.xyz);
         vec3 V = normalize(-v_viewPos);

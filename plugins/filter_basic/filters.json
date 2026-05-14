@@ -73,32 +73,6 @@
       ]
     },
     {
-      "id": "duplicate_current_mesh",
-      "menuPath": "Layer",
-      "name": "Duplicate Current Mesh",
-      "pythonName": "duplicate_mesh",
-      "shortDescription": "Creates a copy of the current mesh as a new layer.",
-      "longDescriptionMarkdown": "Duplicates geometry and attributes of the current mesh and appends it to the document.",
-      "tags": [
-        "layer",
-        "duplicate",
-        "new mesh"
-      ],
-      "inputDomain": "SingleMesh",
-      "outputDomain": "NewMeshes",
-      "inputRequirements": {},
-      "parameters": [
-        {
-          "id": "name_suffix",
-          "label": "Name Suffix",
-          "help": "Suffix appended to the duplicated mesh name.",
-          "group": "main",
-          "type": "string",
-          "default": " copy"
-        }
-      ]
-    },
-    {
       "id": "create_noisy_isosurface",
       "menuPath": "Create",
       "name": "Noisy Isosurface",

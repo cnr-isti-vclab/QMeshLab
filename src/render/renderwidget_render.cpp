@@ -432,13 +432,17 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 QRhiTexture *roughness =
                     (pbr.roughnessSource == FillPbrTextureSource::Texture)
                     ? resolveSelectedPbrTexture(mi, pbr.roughnessIndex, fillView) : nullptr;
-                updateMainUbufForMesh(mi, meshSettings,
+                QRhiTexture *resolvedNormal = normal ? normal : batch.normalTexture;
+                PerMeshRenderSettings pbrSettings = meshSettings;
+                if (pbrSettings.fillPbr.normalSource == FillPbrTextureSource::Texture && !resolvedNormal)
+                    pbrSettings.fillPbr.normalSource = FillPbrTextureSource::None;
+                updateMainUbufForMesh(mi, pbrSettings,
                                       pbr.normalScale     * batch.normalScale,
                                       pbr.occlusionStrength * batch.occlusionStrength,
                                       pbr.roughnessFactor * batch.roughnessFactor);
                 cb->setShaderResources(shaderResourcesForFillTextures(
                     albedo    ? albedo    : batch.baseColorTexture,
-                    normal,
+                    resolvedNormal,
                     occlusion ? occlusion : batch.occlusionTexture,
                     roughness ? roughness : batch.roughnessTexture));
                 submitBatch(batch);

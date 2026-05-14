@@ -43,6 +43,11 @@ enum class FillPbrTextureSource {
     Texture
 };
 
+enum class FillPbrNormalMapSpace {
+    Tangent = 0,
+    Object
+};
+
 // Per-material parameter sub-structs (Suggestion C).
 // These group together all settings specific to one fill material so that
 // render code, sync code and equality checks stay local to each material.
@@ -53,6 +58,7 @@ struct PbrFillParams {
     int                  albedoIndex     = -1;
     FillPbrTextureSource normalSource    = FillPbrTextureSource::Texture;
     int                  normalIndex     = -1;
+    FillPbrNormalMapSpace normalMapSpace = FillPbrNormalMapSpace::Tangent;
     FillPbrTextureSource occlusionSource = FillPbrTextureSource::Texture;
     int                  occlusionIndex  = -1;
     FillPbrTextureSource roughnessSource = FillPbrTextureSource::Texture;
@@ -68,6 +74,7 @@ struct PbrFillParams {
             && albedoIndex     == o.albedoIndex
             && normalSource    == o.normalSource
             && normalIndex     == o.normalIndex
+            && normalMapSpace  == o.normalMapSpace
             && occlusionSource == o.occlusionSource
             && occlusionIndex  == o.occlusionIndex
             && roughnessSource == o.roughnessSource

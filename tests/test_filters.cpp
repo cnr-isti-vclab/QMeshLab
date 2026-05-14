@@ -33,7 +33,7 @@ void FilterTests::filterRegistryExposesBuiltins()
     for (const auto &info : infos) {
         hasMeshInfo = hasMeshInfo || (info.descriptor.id == QStringLiteral("mesh_info"));
         hasNormalize = hasNormalize || (info.descriptor.id == QStringLiteral("normalize_unit_box"));
-        hasDuplicate = hasDuplicate || (info.descriptor.id == QStringLiteral("duplicate_current_mesh"));
+        hasDuplicate = hasDuplicate || (info.descriptor.id == QStringLiteral("generate_copy_of_current_mesh"));
         hasCreateIso = hasCreateIso || (info.descriptor.id == QStringLiteral("create_noisy_isosurface"));
         hasCleanUnref =
             hasCleanUnref || (info.descriptor.id == QStringLiteral("remove_unreferenced_vertices"));
@@ -101,7 +101,7 @@ void FilterTests::filterApplicabilityReflectsDocumentState()
                 hasMeshInfoApplicable = info.applicable;
             else if (info.descriptor.id == QStringLiteral("normalize_unit_box"))
                 hasNormalizeApplicable = info.applicable;
-            else if (info.descriptor.id == QStringLiteral("duplicate_current_mesh"))
+            else if (info.descriptor.id == QStringLiteral("generate_copy_of_current_mesh"))
                 hasDuplicateApplicable = info.applicable;
         }
     }
@@ -126,7 +126,7 @@ void FilterTests::basicFiltersRunOnLoadedMesh()
             meshInfoKey = info.key;
         else if (info.descriptor.id == QStringLiteral("normalize_unit_box"))
             normalizeKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("duplicate_current_mesh"))
+        else if (info.descriptor.id == QStringLiteral("generate_copy_of_current_mesh"))
             duplicateKey = info.key;
         else if (info.descriptor.id == QStringLiteral("create_noisy_isosurface"))
             createIsoKey = info.key;
@@ -160,15 +160,13 @@ void FilterTests::basicFiltersRunOnLoadedMesh()
 
     const int meshCountBeforeDuplicate = doc.meshCount();
     {
-        MeshFilterParameterValues params;
-        params.insert(QStringLiteral("name_suffix"), QStringLiteral("_dup"));
-        const MeshFilterRunResult result = doc.runFilter(duplicateKey, params);
+        const MeshFilterRunResult result = doc.runFilter(duplicateKey, {});
         QVERIFY(result.success);
         QVERIFY(result.documentModified);
         QCOMPARE(result.newMeshIndices.size(), 1);
     }
     QCOMPARE(doc.meshCount(), meshCountBeforeDuplicate + 1);
-    QVERIFY(doc.mesh(doc.currentMeshIndex()).name.endsWith(QStringLiteral("_dup")));
+    QVERIFY(doc.mesh(doc.currentMeshIndex()).name.endsWith(QStringLiteral(" copy")));
 
     const int meshCountBeforeCreate = doc.meshCount();
     {
