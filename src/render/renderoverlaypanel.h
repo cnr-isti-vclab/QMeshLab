@@ -45,6 +45,7 @@ public:
 signals:
     void globalSettingsChanged(const RenderSettings &settings);
     void meshSettingsChanged(const PerMeshRenderSettings &settings);
+    void bakeQualityMappingToVertexColorRequested();
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -117,6 +118,7 @@ private:
     QCheckBox *m_qualityHistogramInvertCheck = nullptr;
     QCheckBox *m_qualityIsolinesCheck = nullptr;
     QDoubleSpinBox *m_qualityIsolineCountSpin = nullptr;
+    QPushButton *m_qualityBakeVertexColorButton = nullptr;
     QCheckBox *m_qualityHistogramFixedRangeCheck = nullptr;
     QDoubleSpinBox *m_qualityHistogramBinsSpin = nullptr;
     QLabel *m_qualityHistogramCenterOnZeroLabel = nullptr;

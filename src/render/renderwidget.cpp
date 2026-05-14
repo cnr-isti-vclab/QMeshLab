@@ -127,6 +127,23 @@ RenderQualityRange automaticQualityRangeForCurrentMesh(
         settings.qualityHistogramPercentileCrop);
 }
 
+QString qualityBakeFilterEnumColorMap(const QString &mapId)
+{
+    const QString id = mapId.trimmed().toLower();
+    static const QStringList knownIds = {
+        QStringLiteral("rgb"),
+        QStringLiteral("rainbow"),
+        QStringLiteral("gray"),
+        QStringLiteral("viridis"),
+        QStringLiteral("plasma"),
+        QStringLiteral("cividis"),
+        QStringLiteral("turbo"),
+        QStringLiteral("rdpu"),
+        QStringLiteral("constant")
+    };
+    return knownIds.contains(id) ? id : QStringLiteral("rainbow");
+}
+
 QJsonArray vec3ToJsonArray(const QVector3D &v)
 {
     return QJsonArray{v.x(), v.y(), v.z()};
@@ -837,6 +854,11 @@ void RenderWidget::createOverlayButtons()
         update();
         layoutOverlayButtons();
     });
+    connect(
+        m_overlayPanel,
+        &RenderOverlayPanel::bakeQualityMappingToVertexColorRequested,
+        this,
+        &RenderWidget::bakeCurrentQualityMappingToVertexColor);
 
     connect(m_overlayPanel, &RenderOverlayPanel::meshSettingsChanged, this,
             [this](const PerMeshRenderSettings &meshSettings) {
@@ -1513,6 +1535,111 @@ void RenderWidget::updateQualityHistogramOverlay()
             .arg(m_qualityHistogram.maxQ, 0, 'g', 8));
     m_qualityHistogramOverlayLabel->show();
     layoutOverlayButtons();
+}
+
+void RenderWidget::bakeCurrentQualityMappingToVertexColor()
+{
+    if (!m_doc)
+        return;
+
+    const int meshIndex = m_doc->currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
+        m_doc->writeLog(
+            tr("Cannot bake quality colors: no current mesh selected."),
+            Document::LogSource::Error);
+        return;
+    }
+
+    const auto &entry = m_doc->mesh(meshIndex);
+    const bool hasVertexQuality =
+        (entry.ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
+    if (!hasVertexQuality) {
+        m_doc->writeLog(
+            tr("Cannot bake quality colors: current mesh has no vertex quality."),
+            Document::LogSource::Error);
+        return;
+    }
+    if (m_renderSettings.qualityHistogramSource == QualityHistogramSource::FaceQuality) {
+        m_doc->writeLog(
+            tr("Cannot bake to vertex color while the quality source is Face Q. Switch the source to Auto or Vertex Q."),
+            Document::LogSource::Error);
+        return;
+    }
+
+    RenderQualityRange range;
+    if (m_renderSettings.qualityHistogramFixedRange) {
+        range = fixedRenderQualityRange(
+            m_renderSettings.qualityHistogramMin,
+            m_renderSettings.qualityHistogramMax);
+    } else {
+        range = automaticQualityRangeForCurrentMesh(m_doc, m_renderSettings);
+    }
+    if (!range.valid) {
+        m_doc->writeLog(
+            tr("Cannot bake quality colors: current quality range is not finite."),
+            Document::LogSource::Error);
+        return;
+    }
+
+    const ColorMapRegistry &registry = ColorMapRegistry::instance();
+    QString mapId = m_renderSettings.qualityHistogramColorMapId.trimmed().toLower();
+    if (mapId != QStringLiteral("constant") && (mapId.isEmpty() || !registry.hasMap(mapId)))
+        mapId = registry.fallbackMapId();
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("minVal"), double(range.minV));
+    params.insert(QStringLiteral("maxVal"), double(range.maxV));
+    params.insert(QStringLiteral("perc"), 0.0);
+    params.insert(QStringLiteral("zeroSym"), false);
+    params.insert(QStringLiteral("colorMap"), qualityBakeFilterEnumColorMap(mapId));
+    params.insert(QStringLiteral("invert"), m_renderSettings.qualityHistogramInvertColorMap);
+    params.insert(QStringLiteral("colorMapId"), mapId);
+
+    const QString filterKey =
+        QStringLiteral("qmeshlab.filter.colorproc::compute_color_from_scalar_per_vertex");
+    const QString label = tr("Bake Quality to Vertex Color");
+    m_doc->beginFilterProgress(label);
+    QElapsedTimer timer;
+    timer.start();
+    const MeshFilterRunResult result = m_doc->runFilter(filterKey, params);
+    const double elapsedMs = double(timer.nsecsElapsed()) / 1e6;
+    const QString elapsedText = QString::number(elapsedMs, 'f', 2);
+
+    if (!result.success) {
+        const QString errorText = result.errorMessage.trimmed().isEmpty()
+            ? tr("Unknown filter error")
+            : result.errorMessage.trimmed();
+        const QString msg = tr("Filter failed: %1").arg(errorText);
+        m_doc->finishFilterProgress(false, msg);
+        m_doc->writeLog(msg, Document::LogSource::Error);
+        m_doc->writeLog(
+            tr("Filter '%1' runtime: %2 ms (failed)").arg(label, elapsedText),
+            Document::LogSource::Error);
+        return;
+    }
+
+    if (MeshRenderMode *mode = mutableRenderModeForMesh(meshIndex)) {
+        mode->fillMaterial = FillMaterial::Plain;
+        mode->fillPlain.colorSource = FillColorSource::PerVertex;
+        mode->pointColorSource = PointColorSource::PerVertex;
+        if (entry.mesh.FN() > 0)
+            mode->showFill = true;
+        else
+            mode->showPoints = true;
+        if (meshIndex == m_doc->currentMeshIndex()) {
+            refreshColorSourceAvailability();
+            syncOverlaySettingsToCurrentMesh();
+        }
+    }
+
+    QString status = tr("Baked quality mapping to vertex colors");
+    if (!result.infoMessages.isEmpty())
+        status = result.infoMessages.back();
+    m_doc->finishFilterProgress(true, status);
+    m_doc->writeLog(
+        tr("Filter '%1' runtime: %2 ms").arg(label, elapsedText),
+        Document::LogSource::Application);
+    update();
 }
 
 void RenderWidget::mousePressEvent(QMouseEvent *e)

@@ -277,7 +277,7 @@
       "name": "Colorize by vertex Quality",
       "pythonName": "colorize_by_vertex_quality",
       "shortDescription": "Map vertex quality into vertex colors.",
-      "longDescriptionMarkdown": "Color vertices depending on their quality field (manually equalized).",
+      "longDescriptionMarkdown": "Color vertices depending on their quality field. The filter uses the same colormap sampling and range normalization used by QMeshLab quality visualization, so it can bake the current quality display into vertex colors.",
       "tags": ["quality", "vertex", "color"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
@@ -290,19 +290,24 @@
         {
           "id": "colorMap",
           "label": "Color Map",
-          "help": "The color map to use. RGB is the VCGLib default, other colormaps are sampled from Matplotlib.",
+          "help": "The color map to use. Built-in QMeshLab maps match the quality visualization panel; RGB and RdPu preserve legacy VCGLib behavior.",
           "group": "advanced",
           "type": "enum",
-          "default": "rgb",
+          "default": "rainbow",
           "enumOptions": [
             { "id": "rgb", "label": "RGB" },
+            { "id": "rainbow", "label": "Rainbow" },
+            { "id": "gray", "label": "Gray" },
             { "id": "viridis", "label": "Viridis" },
             { "id": "plasma", "label": "Plasma" },
             { "id": "cividis", "label": "Cividis" },
             { "id": "turbo", "label": "Turbo" },
-            { "id": "rdpu", "label": "RdPu" }
+            { "id": "rdpu", "label": "RdPu" },
+            { "id": "constant", "label": "Constant White" }
           ]
-        }
+        },
+        { "id": "invert", "label": "Invert Color Map", "help": "Invert the selected QMeshLab colormap before sampling, matching the quality visualization panel. Legacy RGB/RdPu maps ignore this option.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "colorMapId", "label": "Color Map Id Override", "help": "Optional exact QMeshLab colormap id. Leave empty for the selected Color Map enum. This is mainly used internally when baking the current view and also supports external colormaps loaded by QMeshLab.", "group": "advanced", "type": "string", "default": "" }
       ],
       "outputModifies": ["VC"]
     },

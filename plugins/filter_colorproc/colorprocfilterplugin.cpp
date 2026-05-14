@@ -3,6 +3,8 @@
 #include "document.h"
 #include "filterparam.h"
 #include "meshfilterpluginmanager.h"
+#include "src/render/colormap.h"
+#include "src/render/qualityrange.h"
 #include "textureassociationutils.h"
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
@@ -131,6 +133,20 @@ vcg::ColorMap colorMapFromId(const QString &id)
     return vcg::ColorMap::RGB;
 }
 
+bool isLegacyVcgColorMap(const QString &id)
+{
+    return id == QStringLiteral("rgb") || id == QStringLiteral("rdpu");
+}
+
+QString resolvedColorMapId(const FilterParams &params)
+{
+    const QString overrideId =
+        params.getString(QStringLiteral("colorMapId"), QString()).trimmed().toLower();
+    if (!overrideId.isEmpty())
+        return overrideId;
+    return params.getEnum(QStringLiteral("colorMap"), QStringLiteral("rainbow")).trimmed().toLower();
+}
+
 unsigned char rgbMaskFromParams(const FilterParams &params)
 {
     unsigned char mask = vcg::tri::UpdateColor<VCGMesh>::NO_CHANNELS;
@@ -179,6 +195,49 @@ void ensureVertexQuality(Document::MeshEntry &entry)
 void ensureFaceQuality(Document::MeshEntry &entry)
 {
     entry.ioMask |= Mask::IOM_FACEQUALITY;
+}
+
+std::vector<float> finiteVertexQualityValues(const VCGMesh &mesh)
+{
+    std::vector<float> values;
+    values.reserve(size_t(mesh.VN()));
+    for (int vi = 0; vi < mesh.VN(); ++vi) {
+        const auto &v = mesh.vert[vi];
+        if (v.IsD())
+            continue;
+        const float q = static_cast<float>(v.cQ());
+        if (std::isfinite(q))
+            values.push_back(q);
+    }
+    return values;
+}
+
+void applyQMeshLabVertexQualityColorMap(
+    VCGMesh &mesh,
+    const RenderQualityRange &range,
+    const QString &colorMapId,
+    bool invert)
+{
+    const ColorMapRegistry &registry = ColorMapRegistry::instance();
+    const bool constantWhite = colorMapId == QStringLiteral("constant");
+    const QString mapId = (!constantWhite && registry.hasMap(colorMapId))
+        ? colorMapId
+        : registry.fallbackMapId();
+    const ColorMapDefinition *definition = constantWhite ? nullptr : registry.definition(mapId);
+
+    for (int vi = 0; vi < mesh.VN(); ++vi) {
+        auto &v = mesh.vert[vi];
+        if (v.IsD())
+            continue;
+        QColor color(Qt::white);
+        if (!constantWhite) {
+            float t = normalizedRenderQuality(static_cast<float>(v.cQ()), range);
+            if (invert)
+                t = 1.0f - t;
+            color = registry.sampleQColor(definition, t, 1.0f);
+        }
+        v.C() = vcg::Color4b(color.red(), color.green(), color.blue(), color.alpha());
+    }
 }
 
 QRgb sampleWrappedTexture(const QImage &image, const vcg::Point2f &uv)
@@ -413,26 +472,43 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterMapVQuality)) {
         Histogramf hist;
         vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityHistogram(mesh, hist);
-        Scalar rangeMin = Scalar(params.getDouble(QStringLiteral("minVal"), hist.MinV()));
-        Scalar rangeMax = Scalar(params.getDouble(QStringLiteral("maxVal"), hist.MaxV()));
-        Scalar perc = Scalar(params.getDouble(QStringLiteral("perc"), 0.0));
-        Scalar percLo = hist.Percentile(perc / 100.0f);
-        Scalar percHi = hist.Percentile(1.0f - perc / 100.0f);
-        if (params.getBool(QStringLiteral("zeroSym"), false)) {
-            rangeMin = std::min(rangeMin, -vcg::math::Abs(rangeMax));
-            rangeMax = std::max(vcg::math::Abs(rangeMin), rangeMax);
-            percLo = std::min(percLo, -vcg::math::Abs(percHi));
-            percHi = std::max(vcg::math::Abs(percLo), percHi);
+        const QString colorMapId = resolvedColorMapId(params);
+        const bool invert = params.getBool(QStringLiteral("invert"), false);
+        const bool zeroSym = params.getBool(QStringLiteral("zeroSym"), false);
+        const float perc = std::clamp(
+            static_cast<float>(params.getDouble(QStringLiteral("perc"), 0.0)) / 100.0f,
+            0.0f,
+            0.5f);
+        float rangeMin = static_cast<float>(params.getDouble(QStringLiteral("minVal"), hist.MinV()));
+        float rangeMax = static_cast<float>(params.getDouble(QStringLiteral("maxVal"), hist.MaxV()));
+        RenderQualityRange range;
+        if (perc > 0.0f) {
+            range = sampledRenderQualityRange(finiteVertexQualityValues(mesh), zeroSym, perc);
+        } else {
+            if (zeroSym) {
+                const float absMax = std::max(std::abs(rangeMin), std::abs(rangeMax));
+                rangeMin = -absMax;
+                rangeMax = absMax;
+            }
+            range = fixedRenderQualityRange(rangeMin, rangeMax);
         }
-        const vcg::ColorMap cmap = colorMapFromId(params.getEnum(QStringLiteral("colorMap"), QStringLiteral("rgb")));
-        if (perc > 0)
-            vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh, percLo, percHi, cmap);
-        else
-            vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh, rangeMin, rangeMax, cmap);
+        if (!range.valid)
+            return fail(QObject::tr("Cannot map vertex quality to color: quality range is not finite."));
+
+        if (isLegacyVcgColorMap(colorMapId)) {
+            const vcg::ColorMap cmap = colorMapFromId(colorMapId);
+            vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(
+                mesh,
+                Scalar(range.minV),
+                Scalar(range.maxV),
+                cmap);
+        } else {
+            applyQMeshLabVertexQualityColorMap(mesh, range, colorMapId, invert);
+        }
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Mapped vertex quality into color on '%1'").arg(meshLabel(entry, meshIndex)));
         return success({
-            QObject::tr("Quality Range: %1 %2").arg(hist.MinV()).arg(hist.MaxV())
+            QObject::tr("Quality Range: %1 %2").arg(range.minV).arg(range.maxV)
         });
     }
 

@@ -877,6 +877,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_qualityHistogramMaxSpin->setValue(m_globalSettings.qualityHistogramMax);
     m_qualityHistogramMaxLabel = new QLabel(tr("Max"), histogramPage);
     histogramForm->addRow(m_qualityHistogramMaxLabel, m_qualityHistogramMaxSpin);
+    m_qualityBakeVertexColorButton = new QPushButton(tr("Bake to Vertex Color"), histogramPage);
+    m_qualityBakeVertexColorButton->setToolTip(
+        tr("Bake the current vertex-quality color mapping into per-vertex colors. Isolines are ignored."));
+    histogramForm->addRow(QString(), m_qualityBakeVertexColorButton);
     applyUniformFormRowHeights(histogramForm);
     histogramLayout->addLayout(histogramForm);
     m_settingsStack->addWidget(histogramPage);
@@ -1457,6 +1461,13 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
                 return;
             m_globalSettings.qualityHistogramMax = v;
             emit globalSettingsChanged(m_globalSettings);
+        });
+    connect(
+        m_qualityBakeVertexColorButton,
+        &QPushButton::clicked,
+        this,
+        [this]() {
+            emit bakeQualityMappingToVertexColorRequested();
         });
     connect(
         m_qualityHistogramBinsSpin,

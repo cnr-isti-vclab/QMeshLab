@@ -91,6 +91,7 @@ private:
         const QMatrix4x4 &view,
         const QSize &pixelSize);
     void updateQualityHistogramOverlay();
+    void bakeCurrentQualityMappingToVertexColor();
     void updateUvScaleOverlay(
         const QMatrix4x4 &mvp,
         const QSize &pixelSize,
