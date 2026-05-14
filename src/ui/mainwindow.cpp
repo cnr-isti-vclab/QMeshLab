@@ -447,6 +447,32 @@ MainWindow::MainWindow(QWidget *parent)
                 v->restoreViewState(vs, restoreCamera);
         });
 
+#ifdef QMESHLAB_PYTHON_CONSOLE
+    m_terminalButton = new QToolButton(this);
+    m_terminalButton->setText(QStringLiteral(">_"));
+    m_terminalButton->setToolTip(tr("Toggle Python console"));
+    m_terminalButton->setCheckable(true);
+    m_terminalButton->setChecked(false);
+    m_terminalButton->setAutoRaise(true);
+    connect(m_terminalButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (checked) {
+            if (m_logDock)
+                m_logDock->hide();
+            if (m_pythonConsoleDock) {
+                m_pythonConsoleDock->show();
+                if (m_pythonConsole)
+                    m_pythonConsole->setFocus();
+            }
+        } else {
+            if (m_pythonConsoleDock)
+                m_pythonConsoleDock->hide();
+            if (m_logDock)
+                m_logDock->show();
+        }
+    });
+    statusBar()->addWidget(m_terminalButton, 0);
+#endif
+
     m_loadProgressBar = new QProgressBar(this);
     m_loadProgressBar->setRange(0, 100);
     m_loadProgressBar->setTextVisible(false);
@@ -607,9 +633,11 @@ MainWindow::MainWindow(QWidget *parent)
     logSplit->setStretchFactor(0, 3);
     logSplit->setStretchFactor(1, 2);
 
-    auto *logDock = new QDockWidget(tr("Log"), this);
-    logDock->setWidget(logSplit);
-    addDockWidget(Qt::BottomDockWidgetArea, logDock);
+    m_logDock = new QDockWidget(tr("Log"), this);
+    m_logDock->setWidget(logSplit);
+    // Hide the dock title bar; visibility is controlled via the status-bar button.
+    m_logDock->setTitleBarWidget(new QWidget(m_logDock));
+    addDockWidget(Qt::BottomDockWidgetArea, m_logDock);
     // Keep the right column (Layers + Filters) spanning full height.
     // This ensures the bottom Log dock does not extend under the right column.
     setCorner(Qt::TopRightCorner, Qt::RightDockWidgetArea);
@@ -619,8 +647,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_pythonConsole = new PythonConsoleWidget(this);
     m_pythonConsoleDock = new QDockWidget(tr("Python Console"), this);
     m_pythonConsoleDock->setWidget(m_pythonConsole);
+    // Hide the dock title bar; visibility is controlled via the status-bar button.
+    m_pythonConsoleDock->setTitleBarWidget(new QWidget(m_pythonConsoleDock));
     addDockWidget(Qt::BottomDockWidgetArea, m_pythonConsoleDock);
-    tabifyDockWidget(logDock, m_pythonConsoleDock);
     m_pythonConsoleDock->hide();
 #endif
 
@@ -934,6 +963,15 @@ MainWindow::MainWindow(QWidget *parent)
                 [this](const QString &filterKey, const MeshFilterParameterValues &params, const QString &label) {
             executeFilter(filterKey, label, params);
         });
+#ifdef QMESHLAB_PYTHON_CONSOLE
+        connect(m_filterPanel, &MeshFilterPanel::copyToConsoleRequested, this,
+                [this](const QString &code) {
+            if (m_terminalButton && !m_terminalButton->isChecked())
+                m_terminalButton->setChecked(true);
+            if (m_pythonConsole)
+                m_pythonConsole->setInputText(code);
+        });
+#endif
     }
     connect(m_doc, &Document::meshAdded, this, [this](int) {
         refreshFiltersMenu();
@@ -2460,7 +2498,7 @@ void MainWindow::showFilterPlugins()
             return a.descriptor.name.localeAwareCompare(b.descriptor.name) < 0;
         });
 
-    auto *filterTable = new QTableWidget(static_cast<int>(sortedFilters.size()), 7, &dialog);
+    auto *filterTable = new QTableWidget(static_cast<int>(sortedFilters.size()), 8, &dialog);
     filterTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     filterTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     filterTable->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -2468,14 +2506,15 @@ void MainWindow::showFilterPlugins()
     filterTable->setSortingEnabled(false);
     filterTable->verticalHeader()->setVisible(false);
     filterTable->setHorizontalHeaderLabels(
-        { tr("Filter"), tr("Plugin"), tr("Menu"), tr("Input"), tr("Output"), tr("Modifies"), tr("Status") });
+        { tr("Filter"), tr("Python"), tr("Plugin"), tr("Menu"), tr("Input"), tr("Output"), tr("Modifies"), tr("Status") });
     filterTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     filterTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    filterTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    filterTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    filterTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    filterTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
     filterTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
     filterTable->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
     filterTable->horizontalHeader()->setSectionResizeMode(6, QHeaderView::ResizeToContents);
+    filterTable->horizontalHeader()->setSectionResizeMode(7, QHeaderView::ResizeToContents);
     configureInfoTable(filterTable);
 
     for (int row = 0; row < static_cast<int>(sortedFilters.size()); ++row) {
@@ -2491,16 +2530,17 @@ void MainWindow::showFilterPlugins()
         setTextCell(0, info.descriptor.name);
         if (QTableWidgetItem *nameItem = filterTable->item(row, 0))
             nameItem->setData(Qt::UserRole, info.key);
-        setTextCell(1, info.pluginName);
-        setTextCell(2, info.descriptor.menuPath.isEmpty() ? tr("General") : info.descriptor.menuPath);
-        setTextCell(3, filterInputDomainLabel(info.descriptor.inputDomain), Qt::AlignCenter);
-        setTextCell(4, filterOutputDomainLabel(info.descriptor.outputDomain), Qt::AlignCenter);
-        setTextCell(5, info.descriptor.outputModifies.join(QStringLiteral(" ")), Qt::AlignCenter);
+        setTextCell(1, info.descriptor.effectivePythonName());
+        setTextCell(2, info.pluginName);
+        setTextCell(3, info.descriptor.menuPath.isEmpty() ? tr("General") : info.descriptor.menuPath);
+        setTextCell(4, filterInputDomainLabel(info.descriptor.inputDomain), Qt::AlignCenter);
+        setTextCell(5, filterOutputDomainLabel(info.descriptor.outputDomain), Qt::AlignCenter);
+        setTextCell(6, info.descriptor.outputModifies.join(QStringLiteral(" ")), Qt::AlignCenter);
 
         const QString statusText = info.applicable ? tr("OK") : tr("Unavailable");
-        setTextCell(6, statusText, Qt::AlignCenter);
-        if (!info.applicable && filterTable->item(row, 6))
-            filterTable->item(row, 6)->setToolTip(info.applicabilityError);
+        setTextCell(7, statusText, Qt::AlignCenter);
+        if (!info.applicable && filterTable->item(row, 7))
+            filterTable->item(row, 7)->setToolTip(info.applicabilityError);
     }
 
     filterTable->setSortingEnabled(true);

@@ -16,8 +16,14 @@ NB_MODULE(_qmeshlab, m)
         .def_ro("plugin_id",            &FilterInfoRecord::plugin_id)
         .def_ro("plugin_name",          &FilterInfoRecord::plugin_name)
         .def_ro("name",                 &FilterInfoRecord::name)
+        .def_ro("python_name",          &FilterInfoRecord::python_name)
         .def_ro("applicable",           &FilterInfoRecord::applicable)
-        .def_ro("applicability_error",  &FilterInfoRecord::applicability_error);
+        .def_ro("applicability_error",  &FilterInfoRecord::applicability_error)
+        .def("__repr__", [](const FilterInfoRecord &f) {
+            return "FilterInfo(python_name='" + f.python_name
+                 + "', key='" + f.key
+                 + "', name='" + f.name + "')";
+        });
 
     nb::class_<FilterRunRecord>(m, "FilterRunResult")
         .def_ro("success",           &FilterRunRecord::success)

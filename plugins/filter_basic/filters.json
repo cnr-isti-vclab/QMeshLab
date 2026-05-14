@@ -5,6 +5,7 @@
       "id": "mesh_info",
       "menuPath": "Inspection",
       "name": "Current Mesh Info",
+      "pythonName": "get_info",
       "shortDescription": "Prints a compact summary for the current mesh.",
       "longDescriptionMarkdown": "Outputs vertex/edge/face counts and bounding-box metrics for the current mesh.",
       "tags": [
@@ -32,6 +33,7 @@
       "id": "normalize_unit_box",
       "menuPath": "Geometry/Transform",
       "name": "Normalize To Unit Box",
+      "pythonName": "normalize_to_unit_box",
       "shortDescription": "Uniformly scales the current mesh to a target box size.",
       "longDescriptionMarkdown": "Computes current mesh bounding box and applies uniform scale, with optional recentering.",
       "tags": [
@@ -74,6 +76,7 @@
       "id": "duplicate_current_mesh",
       "menuPath": "Layer",
       "name": "Duplicate Current Mesh",
+      "pythonName": "duplicate_mesh",
       "shortDescription": "Creates a copy of the current mesh as a new layer.",
       "longDescriptionMarkdown": "Duplicates geometry and attributes of the current mesh and appends it to the document.",
       "tags": [
@@ -99,6 +102,7 @@
       "id": "create_noisy_isosurface",
       "menuPath": "Create",
       "name": "Noisy Isosurface",
+      "pythonName": "generate_noisy_isosurface",
       "shortDescription": "Creates an isosurface perturbed by 3D Perlin noise.",
       "longDescriptionMarkdown": "Generates a scalar field over a cubic grid and extracts an isosurface using marching cubes.",
       "tags": [

@@ -5,6 +5,7 @@
       "id": "create_tetrahedron",
       "menuPath": "Create",
       "name": "Tetrahedron",
+      "pythonName": "create_tetrahedron",
       "shortDescription": "Creates a Tetrahedron.",
       "longDescriptionMarkdown": "Create a Tetrahedron",
       "tags": [
@@ -20,6 +21,7 @@
       "id": "create_icosahedron",
       "menuPath": "Create",
       "name": "Icosahedron",
+      "pythonName": "create_icosahedron",
       "shortDescription": "Creates an Icosahedron.",
       "longDescriptionMarkdown": "Create an Icosahedron",
       "tags": [
@@ -35,6 +37,7 @@
       "id": "create_dodecahedron",
       "menuPath": "Create",
       "name": "Dodecahedron",
+      "pythonName": "create_dodecahedron",
       "shortDescription": "Creates a Dodecahedron.",
       "longDescriptionMarkdown": "Create a Dodecahedron",
       "tags": [
@@ -50,6 +53,7 @@
       "id": "create_dodecahedron_sym",
       "menuPath": "Create",
       "name": "Dodecahedron (symmetric)",
+      "pythonName": "create_dodecahedron_symmetric",
       "shortDescription": "Creates a symmetrically triangulated Dodecahedron.",
       "longDescriptionMarkdown": "Create a Dodecahedron, but triangulated with an additional vertex in the middle of each face to preserve symmetry.",
       "tags": [
@@ -65,6 +69,7 @@
       "id": "create_octahedron",
       "menuPath": "Create",
       "name": "Octahedron",
+      "pythonName": "create_octahedron",
       "shortDescription": "Creates an Octahedron.",
       "longDescriptionMarkdown": "Create an Octahedron",
       "tags": [
@@ -80,6 +85,7 @@
       "id": "create_box",
       "menuPath": "Create",
       "name": "Box/Cube",
+      "pythonName": "create_box",
       "shortDescription": "Creates a Box or Cube.",
       "longDescriptionMarkdown": "Create a Box, Cube, Hexahedron. You can specify the side length.",
       "tags": [
@@ -108,6 +114,7 @@
       "id": "create_annulus",
       "menuPath": "Create",
       "name": "Annulus",
+      "pythonName": "create_annulus",
       "shortDescription": "Creates a flat annulus (holed disk).",
       "longDescriptionMarkdown": "Create an Annulus e.g. a flat region bounded by two concentric circles, or a holed disk.",
       "tags": [
@@ -157,6 +164,7 @@
       "id": "create_sphere",
       "menuPath": "Create",
       "name": "Sphere",
+      "pythonName": "create_sphere",
       "shortDescription": "Creates a Sphere by recursive subdivision of an Icosahedron.",
       "longDescriptionMarkdown": "Create a Sphere, whose topology is obtained as regular subdivision of an icosahedron.",
       "tags": [
@@ -194,6 +202,7 @@
       "id": "create_sphere_cap",
       "menuPath": "Create",
       "name": "Sphere Cap",
+      "pythonName": "create_sphere_cap",
       "shortDescription": "Creates a spherical dome subtended by a cone of given angle.",
       "longDescriptionMarkdown": "Create a Sphere Cap, or spherical dome, subtended by a cone of given angle",
       "tags": [
@@ -232,6 +241,7 @@
       "id": "create_sphere_points",
       "menuPath": "Create",
       "name": "Points on a Sphere",
+      "pythonName": "create_points_on_sphere",
       "shortDescription": "Creates a point cloud distributed on a unit sphere.",
       "longDescriptionMarkdown": "Create a spherical point cloud, it can be random or regularly distributed.",
       "tags": [
@@ -286,6 +296,7 @@
       "id": "create_cone",
       "menuPath": "Create",
       "name": "Cone",
+      "pythonName": "create_cone",
       "shortDescription": "Creates a Cone or truncated cone.",
       "longDescriptionMarkdown": "Create a Cone",
       "tags": [
@@ -345,6 +356,7 @@
       "id": "create_torus",
       "menuPath": "Create",
       "name": "Torus",
+      "pythonName": "create_torus",
       "shortDescription": "Creates a Torus.",
       "longDescriptionMarkdown": "Create a Torus",
       "tags": [
@@ -403,6 +415,7 @@
       "id": "fit_plane_to_selection",
       "menuPath": "Create",
       "name": "Fit Plane to Selection",
+      "pythonName": "fit_plane_to_selection",
       "shortDescription": "Creates a quad on the plane fitting the current selection.",
       "longDescriptionMarkdown": "Fits a plane to the selected vertices (or vertices of selected faces) of the current mesh and creates a new planar quad mesh aligned to that plane.",
       "tags": [

@@ -50,6 +50,7 @@ signals:
         const QString &filterKey,
         const MeshFilterParameterValues &parameters,
         const QString &filterLabel);
+    void copyToConsoleRequested(const QString &code);
 
 private slots:
     void onSearchTextChanged(const QString &text);
@@ -114,5 +115,6 @@ private:
     QFormLayout *m_parametersLayout = nullptr;
     QLabel *m_noParametersLabel = nullptr;
     QPushButton *m_applyButton = nullptr;
+    QToolButton *m_copyToConsoleButton = nullptr;
     QString m_currentFilterUnavailableReason;
 };

@@ -45,6 +45,29 @@ std::string pyUnicodeToStdString(PyObject *obj)
     return std::string(utf8, static_cast<size_t>(size));
 }
 
+// ---------------------------------------------------------------------------
+// Python name computation — mirrors MeshLab's python_utils.cpp logic:
+//   toLower + replace ' ', '/', '-' with '_' + drop "().,'\":+"
+// Example: "Remove Duplicate Vertices" -> "remove_duplicate_vertices"
+// ---------------------------------------------------------------------------
+static std::string computePythonName(const std::string &displayName)
+{
+    std::string result;
+    result.reserve(displayName.size());
+    for (unsigned char c : displayName) {
+        if (std::isalnum(c)) {
+            result += static_cast<char>(std::tolower(c));
+        } else if (c == ' ' || c == '/' || c == '-') {
+            if (!result.empty() && result.back() != '_')
+                result += '_';
+        }
+        // Characters ( ) . , ' " : + are simply dropped
+    }
+    while (!result.empty() && result.back() == '_')
+        result.pop_back();
+    return result;
+}
+
 std::vector<std::string> toStdVector(const QStringList &list)
 {
     std::vector<std::string> out;
@@ -210,6 +233,7 @@ std::vector<FilterInfoRecord> MeshSetCore::listFilters() const
         item.plugin_id = toStdString(info.pluginId);
         item.plugin_name = toStdString(info.pluginName);
         item.name = toStdString(info.descriptor.name);
+        item.python_name = toStdString(info.descriptor.effectivePythonName());
         item.applicable = info.applicable;
         item.applicability_error = toStdString(info.applicabilityError);
         out.push_back(std::move(item));
@@ -223,21 +247,34 @@ QString MeshSetCore::resolveFilterKey(const QString &filterNameOrKey) const
         return filterNameOrKey;
 
     const auto infos = m_document->filterInfos();
+
+    // First pass: match by filter id (e.g. "Remove Duplicate Vertices")
     QString resolved;
     for (const auto &info : infos) {
         if (info.descriptor.id != filterNameOrKey)
             continue;
-        if (!resolved.isEmpty()) {
+        if (!resolved.isEmpty())
             throw std::runtime_error(
                 "Ambiguous filter id; use fully qualified key (pluginId::filterId).");
-        }
         resolved = info.key;
     }
+    if (!resolved.isEmpty())
+        return resolved;
 
-    if (resolved.isEmpty())
-        throw std::runtime_error("Unknown filter id: " + toStdString(filterNameOrKey));
+    // Second pass: match by python_name (e.g. "remove_duplicate_vertices")
+    const std::string candidate = toStdString(filterNameOrKey);
+    for (const auto &info : infos) {
+        if (computePythonName(toStdString(info.descriptor.name)) != candidate)
+            continue;
+        if (!resolved.isEmpty())
+            throw std::runtime_error(
+                "Ambiguous python filter name; use fully qualified key (pluginId::filterId).");
+        resolved = info.key;
+    }
+    if (!resolved.isEmpty())
+        return resolved;
 
-    return resolved;
+    throw std::runtime_error("Unknown filter: " + toStdString(filterNameOrKey));
 }
 
 FilterRunRecord MeshSetCore::applyFilter(const std::string &filterNameOrKey,

@@ -149,6 +149,7 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
     d.id                    = obj.value(QStringLiteral("id")).toString();
     d.menuPath              = obj.value(QStringLiteral("menuPath")).toString();
     d.name                  = obj.value(QStringLiteral("name")).toString();
+    d.pythonName            = obj.value(QStringLiteral("pythonName")).toString();
     d.shortDescription      = obj.value(QStringLiteral("shortDescription")).toString();
     d.longDescriptionMarkdown = obj.value(QStringLiteral("longDescriptionMarkdown")).toString();
 

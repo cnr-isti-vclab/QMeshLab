@@ -109,8 +109,10 @@ private:
     MeshFilterPanel *m_filterPanel = nullptr;
     QDockWidget *m_layerDock = nullptr;
     QDockWidget *m_filterDock = nullptr;
+    QDockWidget *m_logDock = nullptr;
     QDockWidget *m_pythonConsoleDock = nullptr;
     PythonConsoleWidget *m_pythonConsole = nullptr;
+    QToolButton *m_terminalButton = nullptr;
     QMenu *m_recentMenu = nullptr;
     QMenu *m_filtersMenu = nullptr;
     QAction *m_openLastAction = nullptr;

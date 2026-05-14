@@ -88,6 +88,14 @@ PythonConsoleWidget::PythonConsoleWidget(QWidget *parent)
 
 // ---------------------------------------------------------------------------
 
+void PythonConsoleWidget::setInputText(const QString &text)
+{
+    if (m_input) {
+        m_input->setText(text);
+        m_input->setFocus();
+    }
+}
+
 void PythonConsoleWidget::appendOutput(const QString &text)
 {
     QTextCursor cursor = m_output->textCursor();

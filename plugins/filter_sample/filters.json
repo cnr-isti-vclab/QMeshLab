@@ -5,6 +5,7 @@
       "id": "apply_coord_random_displacement",
       "menuPath": "Smoothing",
       "name": "Random Vertex Displacement",
+      "pythonName": "random_vertex_displacement",
       "shortDescription": "Move the vertices of the current mesh by a bounded random amount.",
       "longDescriptionMarkdown": "Move the vertices of the mesh of a random quantity.",
       "tags": [

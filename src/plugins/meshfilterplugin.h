@@ -134,6 +134,7 @@ struct MeshFilterDescriptor
     QString id;
     QString menuPath;
     QString name;
+    QString pythonName;          // explicit Python method name; auto-computed from name if empty
     QString shortDescription;
     QString longDescriptionMarkdown;
     QStringList tags;
@@ -186,6 +187,27 @@ struct MeshFilterDescriptor
     // duplicating bookkeeping code.
     QVector<MeshFilterCleanupAction> preRunCleanup;
     QVector<MeshFilterCleanupAction> postRunCleanup;
+
+    // Returns pythonName if explicitly set, otherwise auto-computes a
+    // snake_case identifier from the display name.
+    QString effectivePythonName() const
+    {
+        if (!pythonName.isEmpty())
+            return pythonName;
+        QString result;
+        result.reserve(name.size());
+        for (const QChar &c : name) {
+            if (c.isLetterOrNumber()) {
+                result += c.toLower();
+            } else if (c == u' ' || c == u'/' || c == u'-') {
+                if (!result.isEmpty() && result.back() != u'_')
+                    result += u'_';
+            }
+        }
+        while (!result.isEmpty() && result.back() == u'_')
+            result.chop(1);
+        return result;
+    }
 };
 
 using MeshFilterParameterValues = QVariantMap;

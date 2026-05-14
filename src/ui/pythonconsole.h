@@ -25,6 +25,8 @@ public slots:
     void appendOutput(const QString &text);
     // Append Python error/traceback text (red text).
     void appendError(const QString &text);
+    // Set the input line text (e.g. to paste a generated call) and focus it.
+    void setInputText(const QString &text);
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;

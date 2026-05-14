@@ -5,6 +5,7 @@
       "id": "generate_sampling_element",
       "menuPath": "Sampling",
       "name": "Mesh Element Sampling",
+      "pythonName": "sample_mesh_elements",
       "shortDescription": "Create a point set by subsampling mesh vertices, edges, or faces.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; at most one sample for each element of the mesh is created. Samples are taking in a uniform way, one for each element (vertex/edge/face); all the elements have the same probability of being chosen.",
       "tags": [
@@ -56,6 +57,7 @@
       "id": "generate_sampling_montecarlo",
       "menuPath": "Sampling",
       "name": "Montecarlo Sampling",
+      "pythonName": "sample_montecarlo",
       "shortDescription": "Create a random point cloud from the current surface.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; samples are generated in a randomly uniform way, or with a distribution biased by the per-vertex quality values of the mesh.",
       "tags": [
@@ -129,6 +131,7 @@
       "id": "generate_sampling_stratified_triangle",
       "menuPath": "Sampling",
       "name": "Stratified Triangle Sampling",
+      "pythonName": "sample_stratified_triangles",
       "shortDescription": "Generate structured samples over the triangle mesh.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; to generate multiple samples inside a triangle each triangle is subdivided according to various <i>stratified</i> strategies. Distribution is often biased by triangle shape.",
       "tags": [
@@ -197,6 +200,7 @@
       "id": "generate_sampling_clustered_vertex",
       "menuPath": "Sampling",
       "name": "Clustered Vertex Sampling",
+      "pythonName": "sample_clustered_vertices",
       "shortDescription": "Cluster the point set into grid cells and keep one representative per cell.",
       "longDescriptionMarkdown": "Create a new layer populated with a subsampling of the vertices of the current mesh; the subsampling is driven by a simple one-per-gridded cell strategy.",
       "tags": [
@@ -253,6 +257,7 @@
       "id": "generate_sampling_poisson_disk",
       "menuPath": "Sampling",
       "name": "Poisson-disk Sampling",
+      "pythonName": "sample_poisson_disk",
       "shortDescription": "Generate well-spaced samples over a surface or point cloud.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012",
       "tags": [
@@ -394,6 +399,7 @@
       "id": "get_hausdorff_distance",
       "menuPath": "Sampling",
       "name": "Hausdorff Distance",
+      "pythonName": "compute_hausdorff_distance",
       "shortDescription": "Compute directional Hausdorff distance statistics between two meshes.",
       "longDescriptionMarkdown": "Compute the Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. If sample layers are saved, distances are stored in vertex quality and QMeshLab switches those layers to vertex-quality color visualization without baking colors.",
       "tags": [
@@ -494,6 +500,7 @@
       "id": "compute_scalar_by_distance_from_another_mesh_per_vertex",
       "menuPath": "Sampling",
       "name": "Distance from Reference Mesh",
+      "pythonName": "compute_distance_from_reference",
       "shortDescription": "Compute per-vertex distance from another mesh or point cloud.",
       "longDescriptionMarkdown": "Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs QMeshLab switches the measured mesh to vertex-quality color visualization without baking colors.",
       "tags": [
@@ -555,6 +562,7 @@
       "id": "generate_sampling_texel",
       "menuPath": "Sampling",
       "name": "Texel Sampling",
+      "pythonName": "sample_texels",
       "shortDescription": "Create one point sample per covered texel in texture space.",
       "longDescriptionMarkdown": "Create a new layer with a point sampling of the current mesh, a sample for each texel of the mesh is generated",
       "tags": [
@@ -622,6 +630,7 @@
       "id": "transfer_attributes_per_vertex",
       "menuPath": "Sampling",
       "name": "Vertex Attribute Transfer",
+      "pythonName": "transfer_vertex_attributes",
       "shortDescription": "Transfer attributes from one mesh to another by closest-point projection.",
       "longDescriptionMarkdown": "Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.<br>For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.<br>The algorithm assumes that the two meshes are reasonably similar and aligned.",
       "tags": [
@@ -751,6 +760,7 @@
       "id": "generate_resampled_uniform_mesh",
       "menuPath": "Sampling",
       "name": "Uniform Mesh Resampling",
+      "pythonName": "resample_uniform",
       "shortDescription": "Build an offset mesh from a signed distance field sampled on a regular grid.",
       "longDescriptionMarkdown": "Create a new mesh that is a resampled version of the current one.<br>The resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.",
       "tags": [
@@ -826,6 +836,7 @@
       "id": "compute_color_by_point_cloud_voronoi_projection",
       "menuPath": "Sampling",
       "name": "Voronoi Vertex Coloring",
+      "pythonName": "voronoi_vertex_coloring",
       "shortDescription": "Color a mesh according to projected seed points from another layer.",
       "longDescriptionMarkdown": "Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of P over M and color M according to the geodesic distance from these projected points. Projection and coloring are done on a per vertex basis.",
       "tags": [
@@ -876,6 +887,7 @@
       "id": "compute_scalar_by_distance_from_point_cloud_per_vertex",
       "menuPath": "Sampling",
       "name": "Disk Vertex Coloring",
+      "pythonName": "disk_vertex_coloring",
       "shortDescription": "Color a mesh according to the distance from projected point-cloud disks.",
       "longDescriptionMarkdown": "Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of P over M and color M according to the Euclidean distance from these projected points. Projection and coloring are done on a per vertex basis.",
       "tags": [
@@ -945,6 +957,7 @@
       "id": "generate_sampling_regular_recursive",
       "menuPath": "Sampling",
       "name": "Regular Recursive Sampling",
+      "pythonName": "sample_regular_recursive",
       "shortDescription": "Generate offset surface samples by recursively subdividing the bounding box.",
       "longDescriptionMarkdown": "The bounding box is recursively partitioned in a octree style, center of bbox are considered, when the center is nearer to the surface than a given threshold it is projected on it. It works also for building offsetted samples.",
       "tags": [
@@ -988,6 +1001,7 @@
       "id": "generate_simplified_point_cloud",
       "menuPath": "Sampling",
       "name": "Point Cloud Simplification",
+      "pythonName": "simplify_point_cloud",
       "shortDescription": "Simplify a point cloud with Poisson-disk pruning.",
       "longDescriptionMarkdown": "Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy  using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012",
       "tags": [

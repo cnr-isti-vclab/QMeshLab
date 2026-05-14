@@ -784,8 +784,80 @@ void MeshFilterPanel::buildUi()
     m_longDescriptionToggle->setText(QStringLiteral("?"));
     m_longDescriptionToggle->setToolTip(tr("Show details"));
     m_longDescriptionToggle->hide();
+#ifdef QMESHLAB_PYTHON_CONSOLE
+    m_copyToConsoleButton = new QToolButton(m_parametersPage);
+    m_copyToConsoleButton->setText(QStringLiteral(">_"));
+    m_copyToConsoleButton->setToolTip(tr("Copy Python call to console"));
+    m_copyToConsoleButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_copyToConsoleButton->setAutoRaise(true);
+    m_copyToConsoleButton->hide();
+    connect(m_copyToConsoleButton, &QToolButton::clicked, this, [this]() {
+        if (m_currentFilterKey.isEmpty())
+            return;
+        const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
+        if (!info)
+            return;
+        const QString pyName = info->descriptor.effectivePythonName();
+        const MeshFilterParameterValues vals = collectCurrentParameterValues();
+        QStringList args;
+        for (const ParameterBinding &binding : m_parameterBindings) {
+            const auto it = vals.constFind(binding.descriptor.id);
+            if (it == vals.constEnd())
+                continue;
+            const QVariant &v = it.value();
+            QString lit;
+            switch (binding.descriptor.type) {
+            case MeshFilterParameterType::Bool:
+                lit = v.toBool() ? QStringLiteral("True") : QStringLiteral("False");
+                break;
+            case MeshFilterParameterType::Int:
+            case MeshFilterParameterType::Mesh:
+                lit = QString::number(v.toInt());
+                break;
+            case MeshFilterParameterType::Double:
+            case MeshFilterParameterType::AbsPerc:
+                lit = QString::number(v.toDouble(), 'g', 10);
+                break;
+            case MeshFilterParameterType::Color: {
+                const QColor c = colorFromVariant(v, QColor(Qt::white));
+                lit = QStringLiteral("[%1, %2, %3, %4]")
+                    .arg(c.redF(), 0, 'g', 4)
+                    .arg(c.greenF(), 0, 'g', 4)
+                    .arg(c.blueF(), 0, 'g', 4)
+                    .arg(c.alphaF(), 0, 'g', 4);
+                break;
+            }
+            case MeshFilterParameterType::Point3f: {
+                if (v.userType() == QMetaType::QVector3D) {
+                    const QVector3D p = v.value<QVector3D>();
+                    lit = QStringLiteral("[%1, %2, %3]")
+                        .arg(p.x(), 0, 'g', 6)
+                        .arg(p.y(), 0, 'g', 6)
+                        .arg(p.z(), 0, 'g', 6);
+                } else {
+                    lit = QStringLiteral("[0, 0, 0]");
+                }
+                break;
+            }
+            default: {
+                QString s = v.toString();
+                s.replace(QStringLiteral("\\"), QStringLiteral("\\\\"));
+                s.replace(QStringLiteral("\""), QStringLiteral("\\\""));
+                lit = QStringLiteral("\"%1\"").arg(s);
+                break;
+            }
+            }
+            args.append(QStringLiteral("%1=%2").arg(binding.descriptor.id, lit));
+        }
+        const QString code = QStringLiteral("ms.%1(%2)").arg(pyName, args.join(QStringLiteral(", ")));
+        emit copyToConsoleRequested(code);
+    });
+#endif
     m_applyButton = new QPushButton(tr("Apply"), m_parametersPage);
     headerLayout->addWidget(m_longDescriptionToggle, 0, Qt::AlignTop);
+#ifdef QMESHLAB_PYTHON_CONSOLE
+    headerLayout->addWidget(m_copyToConsoleButton, 0, Qt::AlignTop);
+#endif
     headerLayout->addWidget(m_applyButton, 0, Qt::AlignTop);
     paramsPageLayout->addLayout(headerLayout);
 
@@ -1054,6 +1126,10 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     const QString longDescription = info.descriptor.longDescriptionMarkdown.trimmed();
     const bool hasLongDescription = !longDescription.isEmpty();
     m_longDescriptionToggle->setVisible(hasLongDescription);
+#ifdef QMESHLAB_PYTHON_CONSOLE
+    if (m_copyToConsoleButton)
+        m_copyToConsoleButton->setVisible(true);
+#endif
     if (hasLongDescription) {
         m_longDescriptionView->setMarkdown(longDescription);
     } else {

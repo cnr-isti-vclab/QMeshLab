@@ -5,6 +5,7 @@
       "id": "compute_mls_projection_apss",
       "menuPath": "MLS",
       "name": "MLS projection (APSS)",
+      "pythonName": "apply_mls_apss",
       "shortDescription": "Project a mesh or point set onto an Algebraic Point Set Surface.",
       "longDescriptionMarkdown": "Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
       "tags": [
@@ -132,6 +133,7 @@
       "id": "compute_mls_projection_rimls",
       "menuPath": "MLS",
       "name": "MLS projection (RIMLS)",
+      "pythonName": "apply_mls_rimls",
       "shortDescription": "Project a mesh or point set onto a Robust Implicit MLS surface.",
       "longDescriptionMarkdown": "Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",
       "tags": [
@@ -261,6 +263,7 @@
       "id": "generate_marching_cubes_apss",
       "menuPath": "MLS",
       "name": "Marching Cubes (APSS)",
+      "pythonName": "generate_marching_cubes_apss",
       "shortDescription": "Extract an APSS iso-surface as a new mesh with marching cubes.",
       "longDescriptionMarkdown": "Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
       "tags": [
@@ -343,6 +346,7 @@
       "id": "generate_marching_cubes_rimls",
       "menuPath": "MLS",
       "name": "Marching Cubes (RIMLS)",
+      "pythonName": "generate_marching_cubes_rimls",
       "shortDescription": "Extract a Robust Implicit MLS iso-surface as a new mesh with marching cubes.",
       "longDescriptionMarkdown": "Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",
       "tags": [
@@ -427,6 +431,7 @@
       "id": "compute_curvature_and_color_apss_per_vertex",
       "menuPath": "MLS",
       "name": "Compute APSS Curvature Quality",
+      "pythonName": "compute_apss_curvature",
       "shortDescription": "Compute APSS curvature estimates and store them in vertex quality.",
       "longDescriptionMarkdown": "Compute curvature values on the vertices of a mesh or point set and store them in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
       "tags": [
@@ -532,6 +537,7 @@
       "id": "compute_curvature_and_color_rimls_per_vertex",
       "menuPath": "MLS",
       "name": "Compute RIMLS Curvature Quality",
+      "pythonName": "compute_rimls_curvature",
       "shortDescription": "Compute RIMLS curvature estimates and store them in vertex quality.",
       "longDescriptionMarkdown": "Compute curvature values on the vertices of a mesh or point set and store them in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",
       "tags": [
@@ -643,6 +649,7 @@
       "id": "compute_custom_radius_scalar_attribute_per_vertex",
       "menuPath": "MLS",
       "name": "Estimate radius from density",
+      "pythonName": "estimate_radius_from_density",
       "shortDescription": "Estimate local point spacing for each vertex.",
       "longDescriptionMarkdown": "Estimate the local point spacing (aka radius) around each vertex using a basic estimate of the local density.",
       "tags": [
@@ -676,6 +683,7 @@
       "id": "compute_selection_by_small_disconnected_components_per_face",
       "menuPath": "MLS",
       "name": "Select small disconnected component",
+      "pythonName": "select_small_disconnected_component",
       "shortDescription": "Select the small disconnected components of a mesh.",
       "longDescriptionMarkdown": "Select the small disconnected components of a mesh.",
       "tags": [

@@ -5,6 +5,7 @@
       "id": "generate_alpha_wrap",
       "menuPath": "Remeshing",
       "name": "Alpha Wrap",
+      "pythonName": "generate_alpha_wrap",
       "shortDescription": "Generate a watertight alpha wrapping of the current triangular mesh using CGAL.",
       "longDescriptionMarkdown": "Compute an alpha wrapping with an offset around the current mesh and add the result as a new mesh layer. Alpha wrapping is useful for producing robust watertight approximations of defective, self-intersecting, open, or highly detailed input geometry. Smaller `Alpha` values follow the input more tightly but increase output complexity and computation time. `Offset` controls the clearance added around the input surface and must be strictly positive.\n\nThe filter uses CGAL's 3D Alpha Wrapping implementation.\n\nReference:\nCédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez, **Alpha Wrapping with an Offset**, 2022.\n\nOriginal MeshLab plugin contribution: Lex van der Sluijs, PTC.",
       "tags": [

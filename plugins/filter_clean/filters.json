@@ -5,6 +5,7 @@
       "id": "surface_reconstruction_ball_pivoting",
       "menuPath": "Remeshing",
       "name": "Surface Reconstruction: Ball Pivoting",
+      "pythonName": "generate_surface_reconstruction_ball_pivoting",
       "shortDescription": "Reconstruct a surface from oriented points using Ball Pivoting.",
       "longDescriptionMarkdown": "Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud. <br>Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.<br><b>The ball-pivoting algorithm for surface reconstruction.</b><br>IEEE TVCG 1999",
       "tags": [
@@ -73,6 +74,7 @@
       "id": "remove_vertices_wrt_quality",
       "menuPath": "Cleaning",
       "name": "Remove Vertices wrt Quality",
+      "pythonName": "remove_vertices_wrt_quality",
       "shortDescription": "Delete all vertices with quality lower than a threshold.",
       "longDescriptionMarkdown": "Delete all the vertices with a quality lower smaller than the specified constant",
       "tags": [
@@ -108,6 +110,7 @@
       "id": "remove_isolated_pieces_face_num",
       "menuPath": "Cleaning",
       "name": "Remove Isolated Pieces (wrt Face Num.)",
+      "pythonName": "remove_isolated_pieces_by_face_num",
       "shortDescription": "Delete isolated connected components composed by few triangles.",
       "longDescriptionMarkdown": "Delete isolated connected components composed by a limited number of triangles",
       "tags": [
@@ -158,6 +161,7 @@
       "id": "remove_isolated_pieces_diameter",
       "menuPath": "Cleaning",
       "name": "Remove Isolated Pieces (wrt Diameter)",
+      "pythonName": "remove_isolated_pieces_by_diameter",
       "shortDescription": "Delete isolated connected components whose diameter is below a threshold.",
       "longDescriptionMarkdown": "Delete isolated connected components whose diameter is smaller than the specified constant",
       "tags": [
@@ -206,6 +210,7 @@
       "id": "remove_t_vertices",
       "menuPath": "Cleaning",
       "name": "Remove T-Vertices",
+      "pythonName": "remove_t_vertices",
       "shortDescription": "Remove T-vertices using edge collapse or edge flip.",
       "longDescriptionMarkdown": "Delete t-vertices from the mesh by edge collapse (collapsing the shortest of the incident edges) or edge flip (flipping the opposite edge on the degenerate face if the triangulation quality improves).",
       "tags": [
@@ -266,6 +271,7 @@
       "id": "snap_mismatched_borders",
       "menuPath": "Cleaning",
       "name": "Snap Mismatched Borders",
+      "pythonName": "snap_mismatched_borders",
       "shortDescription": "Try to snap together slightly mismatched adjacent borders.",
       "longDescriptionMarkdown": "Try to snap together adjacent borders that are slightly mismatched.<br>This situation can happen on badly triangulated adjacent patches defined by high order surfaces.<br>For each border vertex the filter snap it onto the closest boundary edge only if it is closest of <i>edge_length*threshold</i>. When vertex is snapped the corresponding face is split and a new vertex is created.",
       "tags": [
@@ -308,6 +314,7 @@
       "id": "merge_close_vertices",
       "menuPath": "Cleaning",
       "name": "Merge Close Vertices",
+      "pythonName": "merge_close_vertices",
       "shortDescription": "Merge vertices that are nearer than a threshold.",
       "longDescriptionMarkdown": "Merge together all the vertices that are nearer than the specified threshold. Like a unify duplicated vertices but with some tolerance.",
       "tags": [
@@ -342,6 +349,7 @@
       "id": "merge_wedge_texture_coord",
       "menuPath": "Cleaning",
       "name": "Merge Wedge Texture Coord",
+      "pythonName": "merge_wedge_texture_coords",
       "shortDescription": "Merge very close per-wedge texture coordinates.",
       "longDescriptionMarkdown": "Merge together per-wedge texture coords that are very close. Used to correct apparent texture seams that can arise from numerical approximations when saving in ascii formats.",
       "tags": [
@@ -380,6 +388,7 @@
       "id": "remove_duplicate_faces",
       "menuPath": "Cleaning",
       "name": "Remove Duplicate Faces",
+      "pythonName": "remove_duplicate_faces",
       "shortDescription": "Delete all duplicate faces.",
       "longDescriptionMarkdown": "Delete all the duplicate faces. Two faces are considered equal if they are composed by the same set of vertices, regardless of the order of the vertices.",
       "tags": [
@@ -401,6 +410,7 @@
       "id": "remove_folded_faces_by_edge_flip",
       "menuPath": "Cleaning",
       "name": "Remove Isolated Folded Faces by Edge Flip",
+      "pythonName": "remove_isolated_folded_faces",
       "shortDescription": "Remove isolated folded faces by edge flipping.",
       "longDescriptionMarkdown": "Delete all the single folded faces. A face is considered folded if its normal is opposite to all the adjacent faces. It is removed by flipping it against the face f adjacent along the edge e such that the vertex opposite to e fall inside f",
       "tags": [
@@ -429,6 +439,7 @@
       "id": "repair_non_manifold_edges",
       "menuPath": "Cleaning",
       "name": "Repair non Manifold Edges",
+      "pythonName": "repair_non_manifold_edges",
       "shortDescription": "Repair non-manifold edges by removing faces or splitting vertices.",
       "longDescriptionMarkdown": "Remove non-manifold edges by removing faces (for each non Manifold edge it iteratively deletes the smallest area face until it becomes 2-Manifold) or by splitting vertices (each non manifold edges chain will become a border).",
       "tags": [
@@ -470,6 +481,7 @@
       "id": "repair_non_manifold_vertices_split",
       "menuPath": "Cleaning",
       "name": "Repair non Manifold Vertices by Splitting",
+      "pythonName": "repair_non_manifold_vertices",
       "shortDescription": "Split non-manifold vertices until the mesh becomes 2-manifold.",
       "longDescriptionMarkdown": "Split non Manifold vertices until it becomes 2-Manifold.",
       "tags": [
@@ -504,6 +516,7 @@
       "id": "remove_unreferenced_vertices",
       "menuPath": "Cleaning",
       "name": "Remove Unreferenced Vertices",
+      "pythonName": "remove_unreferenced_vertices",
       "shortDescription": "Remove vertices that are not referenced by any face.",
       "longDescriptionMarkdown": "Check for every vertex on the mesh: if it is NOT referenced by a face, removes it",
       "tags": [
@@ -526,6 +539,7 @@
       "id": "remove_duplicated_vertices",
       "menuPath": "Cleaning",
       "name": "Remove Duplicate Vertices",
+      "pythonName": "remove_duplicate_vertices",
       "shortDescription": "Merge vertices that have exactly the same coordinates.",
       "longDescriptionMarkdown": "Check for every vertex on the mesh: if there are two vertices with same coordinates they are merged into a single one.",
       "tags": [
@@ -548,6 +562,7 @@
       "id": "remove_zero_area_faces",
       "menuPath": "Cleaning",
       "name": "Remove Zero Area Faces",
+      "pythonName": "remove_zero_area_faces",
       "shortDescription": "Remove null faces with zero area.",
       "longDescriptionMarkdown": "Remove null faces (the one with area equal to zero)",
       "tags": [

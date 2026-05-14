@@ -5,6 +5,7 @@
       "id": "surface_reconstruction_screened_poisson",
       "menuPath": "Remeshing/Surface Reconstruction",
       "name": "Surface Reconstruction: Screened Poisson",
+      "pythonName": "generate_screened_poisson",
       "shortDescription": "Creates a watertight surface from an oriented point set.",
       "longDescriptionMarkdown": "This surface reconstruction algorithm creates watertight surfaces from oriented point sets.<br>The filter uses the original code of Michael Kazhdan and Matthew Bolitho implementing the algorithm described in the following paper:<br><i>Michael Kazhdan, Hugues Hoppe</i>,<br><b>\"Screened Poisson surface reconstruction\"</b><br>",
       "tags": [
@@ -132,6 +133,7 @@
       "id": "surface_reconstruction_ssd",
       "menuPath": "Remeshing/Surface Reconstruction",
       "name": "Surface Reconstruction: SSD",
+      "pythonName": "generate_ssd_reconstruction",
       "shortDescription": "Creates a watertight surface using smooth signed distance reconstruction.",
       "longDescriptionMarkdown": "This filter reconstructs a surface from an oriented point set using the SSD reconstruction formulation provided by the `PoissonRecon` code base.\n\nCompared to Screened Poisson, the SSD formulation exposes separate weights for zero-crossing, gradient, and bi-Laplacian terms, making it useful when you want more direct control over smoothness and interpolation.",
       "tags": [
@@ -327,6 +329,7 @@
       "id": "surface_reconstruction_surface_trimmer",
       "menuPath": "Remeshing/Surface Reconstruction",
       "name": "Surface Reconstruction: Surface Trimmer",
+      "pythonName": "trim_reconstructed_surface",
       "shortDescription": "Trims a reconstructed mesh using the scalar values stored on the vertices.",
       "longDescriptionMarkdown": "This filter trims a reconstructed surface by cutting the mesh along an isovalue defined over the vertices.\n\nIt is especially useful after Poisson-based reconstruction when the vertex quality stores the reconstruction density, allowing low-confidence regions to be removed.",
       "tags": [

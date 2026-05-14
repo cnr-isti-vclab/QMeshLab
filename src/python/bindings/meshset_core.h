@@ -15,6 +15,7 @@ struct FilterInfoRecord
     std::string plugin_id;
     std::string plugin_name;
     std::string name;
+    std::string python_name;   // snake_case Python identifier, e.g. "meshing_remove_duplicate_vertices"
     bool applicable = true;
     std::string applicability_error;
 };

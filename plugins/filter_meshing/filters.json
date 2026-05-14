@@ -5,6 +5,7 @@
       "id": "meshing_surface_subdivision_loop",
       "menuPath": "Meshing",
       "name": "Subdivision Surfaces: Loop",
+      "pythonName": "subdivision_loop",
       "shortDescription": "Apply Loop subdivision.",
       "longDescriptionMarkdown": "Apply Loop's Subdivision Surface algorithm. It is an approximant refinement method and it works for every triangle and has rules for extraordinary vertices.<br>",
       "tags": [
@@ -81,6 +82,7 @@
       "id": "meshing_surface_subdivision_butterfly",
       "menuPath": "Meshing",
       "name": "Subdivision Surfaces: Butterfly Subdivision",
+      "pythonName": "subdivision_butterfly",
       "shortDescription": "Apply Butterfly subdivision.",
       "longDescriptionMarkdown": "Apply Butterfly Subdivision Surface algorithm. It is an interpolated refinement method, defined on arbitrary triangular meshes. The scheme is known to be C1 but not C2 on regular meshes<br>",
       "tags": [
@@ -135,6 +137,7 @@
       "id": "meshing_surface_subdivision_midpoint",
       "menuPath": "Meshing",
       "name": "Subdivision Surfaces: Midpoint",
+      "pythonName": "subdivision_midpoint",
       "shortDescription": "Apply midpoint subdivision.",
       "longDescriptionMarkdown": "Apply a plain subdivision scheme where every edge is split on its midpoint. Useful to uniformly refine a mesh substituting each triangle with four smaller triangles.",
       "tags": [
@@ -189,6 +192,7 @@
       "id": "meshing_surface_subdivision_ls3_loop",
       "menuPath": "Meshing",
       "name": "Subdivision Surfaces: LS3 Loop",
+      "pythonName": "subdivision_ls3_loop",
       "shortDescription": "Apply LS3 Loop subdivision.",
       "longDescriptionMarkdown": "Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account. <br>See:<i>Boye', S. Guennebaud, G. & Schlick, C.</i> <br><b>Least squares subdivision surfaces</b><br>Computer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. & Kobbelt, L.</i><br><b>Subdivision scheme tuning around extraordinary vertices</b><br>Computer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don't handle vertices of valence > 12",
       "tags": [
@@ -265,6 +269,7 @@
       "id": "meshing_decimation_clustering",
       "menuPath": "Meshing",
       "name": "Simplification: Clustering Decimation",
+      "pythonName": "simplification_clustering",
       "shortDescription": "Simplify mesh by clustering vertices on a grid.",
       "longDescriptionMarkdown": "Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.<br> See: <br><br><i>Jarek Rossignac, and Paul Borrel</i>. <br><b>Multi-resolution 3D approximations for rendering complex scenes.</b><br>Modeling in computer graphics: methods and applications. Springer, 1993",
       "tags": [
@@ -293,6 +298,7 @@
       "id": "meshing_decimation_quadric_edge_collapse",
       "menuPath": "Meshing",
       "name": "Simplification: Quadric Edge Collapse Decimation",
+      "pythonName": "simplification_quadric_edge_collapse",
       "shortDescription": "Simplify using quadric-based edge-collapse.",
       "longDescriptionMarkdown": "Simplify a mesh using a quadric based edge-collapse strategy. A variant of the well known Garland and Heckbert simplification algorithm with different weighting schemes to better cope with aspect ration and planar/degenerate quadrics areas.<br> See: <br><i>M. Garland and P. Heckbert.</i> <br><b>Surface Simplification Using Quadric Error Metrics</b> (<a href='http://mgarland.org/papers/quadrics.pdf'>pdf</a>)<br>In Proceedings of SIGGRAPH 97.<br/><br/>",
       "tags": [
@@ -437,6 +443,7 @@
       "id": "meshing_decimation_quadric_edge_collapse_with_texture",
       "menuPath": "Meshing",
       "name": "Simplification: Quadric Edge Collapse Decimation (with texture)",
+      "pythonName": "simplification_quadric_edge_collapse_with_texture",
       "shortDescription": "Simplify textured meshes preserving UVs.",
       "longDescriptionMarkdown": "Simplify a textured mesh using a Quadric based Edge Collapse Strategy preserving UV parametrization. Inspired by the QSLIM surface simplification algorithmby Michael Garland, which turned into the industry standard method for mesh simplification.<br> See: <br><i>M. Garland and P. Heckbert.</i> <br><b>Simplifying Surfaces with Color and Texture using Quadric Error Metrics</b> (<a href='http://mgarland.org/papers/quadric2.pdf'>pdf</a>)<br> In Proceedings of IEEE Visualization 98.<br/><br/>",
       "tags": [
@@ -559,6 +566,7 @@
       "id": "meshing_isotropic_explicit_remeshing",
       "menuPath": "Meshing",
       "name": "Remeshing: Isotropic Explicit Remeshing",
+      "pythonName": "remeshing_isotropic",
       "shortDescription": "Explicit isotropic remeshing by local operations.",
       "longDescriptionMarkdown": "Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:<br>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.<br>Mesh optimization<br>(SIGGRAPH '93). ACM, New York, NY, USA, 19\u201326. <a href='https://doi.org/10.1145/166117.166119'>DOI</a>",
       "tags": [
@@ -638,6 +646,17 @@
           "decimals": 6
         },
         {
+          "id": "ReferenceMesh",
+          "label": "Reference Surface Mesh",
+          "help": "Mesh used for surface-distance checks and reprojection. The current mesh preserves the original behavior; choosing another layer checks/remeshes against that layer, respecting both mesh transforms.",
+          "group": "advanced",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireFaces": true
+          }
+        },
+        {
           "id": "SplitFlag",
           "label": "Refine Step",
           "help": "Include refine step.",
@@ -688,6 +707,7 @@
       "id": "meshing_re_orient_faces_coherently",
       "menuPath": "Meshing",
       "name": "Re-Orient all faces coherently",
+      "pythonName": "reorient_all_faces",
       "shortDescription": "Orient faces consistently.",
       "longDescriptionMarkdown": "Re-orient in a consistent way all the faces of the mesh. <br>The filter visits a mesh face to face, reorienting any unvisited face so that it is coherent to the already visited faces. If the surface is orientable it will end with a consistent orientation of all the faces. If the surface is not orientable (e.g. it is non manifold or non orientable like a moebius",
       "tags": [
@@ -712,6 +732,7 @@
       "id": "meshing_invert_face_orientation",
       "menuPath": "Meshing",
       "name": "Invert Faces Orientation",
+      "pythonName": "invert_faces_orientation",
       "shortDescription": "Flip mesh face orientation.",
       "longDescriptionMarkdown": "Invert faces orientation, flipping the normals of the mesh. <br>If requested, it tries to guess the right orientation; mainly it decide to flip all the faces if the minimum/maximum vertices have not outward point normals for a few directions.<br>Works well for single component watertight objects.",
       "tags": [
@@ -749,6 +770,7 @@
       "id": "apply_matrix_flip_or_swap_axis",
       "menuPath": "Meshing",
       "name": "Transform: Flip and/or swap axis",
+      "pythonName": "transform_flip_axis",
       "shortDescription": "Flip or swap axes.",
       "longDescriptionMarkdown": "Generate a matrix transformation that flips each one of the axis or swaps a couple of axis. The listed transformations are applied in that order. This kind of transformation cannot be applied to set of Raster!",
       "tags": [
@@ -833,6 +855,7 @@
       "id": "compute_matrix_from_rotation",
       "menuPath": "Meshing",
       "name": "Transform: Rotate",
+      "pythonName": "transform_rotate",
       "shortDescription": "Rotate mesh.",
       "longDescriptionMarkdown": "Generate a matrix transformation that rotates the mesh. The mesh can be rotated around one of the axis or a given axis and w.r.t. to the origin or the baricenter, or a given point.",
       "tags": [
@@ -973,6 +996,7 @@
       "id": "compute_matrix_by_fitting_to_plane",
       "menuPath": "Meshing",
       "name": "Transform: Rotate to Fit to a plane",
+      "pythonName": "transform_rotate_to_fit_plane",
       "shortDescription": "Rotate selection to fit a reference plane.",
       "longDescriptionMarkdown": "Generate a matrix transformation that rotates the mesh so that the selection fits one of the main planes XY YZ ZX. May also translate such that the selection centroid rest on the origin. It reports on the log the average error of the fitting (in mesh units).",
       "tags": [
@@ -1068,6 +1092,7 @@
       "id": "compute_matrix_by_principal_axis",
       "menuPath": "Meshing",
       "name": "Transform: Align to Principal Axis",
+      "pythonName": "transform_align_to_principal_axis",
       "shortDescription": "Align mesh to principal axis.",
       "longDescriptionMarkdown": "Generate a matrix transformation that rotates the mesh aligning it to its principal axis of inertia.If the mesh is watertight the Itertia tensor is computed assuming the interior of the mesh has a uniform density.",
       "tags": [
@@ -1115,6 +1140,7 @@
       "id": "compute_matrix_from_scaling_or_normalization",
       "menuPath": "Meshing",
       "name": "Transform: Scale, Normalize",
+      "pythonName": "transform_scale",
       "shortDescription": "Scale mesh.",
       "longDescriptionMarkdown": "Generate a matrix transformation that scale the mesh. The mesh can be also automatically scaled to a unit side box.",
       "tags": [
@@ -1235,6 +1261,7 @@
       "id": "compute_matrix_from_translation",
       "menuPath": "Meshing",
       "name": "Transform: Translate, Center, set Origin",
+      "pythonName": "transform_translate",
       "shortDescription": "Translate mesh.",
       "longDescriptionMarkdown": "Generate a matrix transformation that translate the mesh. The mesh can be translated around one of the axis or a given axis and w.r.t. to the origin or the baricenter, or a given point.",
       "tags": [
@@ -1323,6 +1350,7 @@
       "id": "set_matrix_identity",
       "menuPath": "Meshing",
       "name": "Matrix: Reset Current Matrix",
+      "pythonName": "matrix_reset",
       "shortDescription": "Reset transform matrix to identity.",
       "longDescriptionMarkdown": "Set the current transformation matrix to the Identity.",
       "tags": [
@@ -1348,6 +1376,7 @@
       "id": "apply_matrix_freeze",
       "menuPath": "Meshing",
       "name": "Matrix: Freeze Current Matrix",
+      "pythonName": "matrix_freeze",
       "shortDescription": "Apply current matrix to geometry.",
       "longDescriptionMarkdown": "Freeze the current transformation matrix into the coordinates of the vertices of the mesh (and set this matrix to the identity). In other words it applies in a definetive way the current matrix to the vertex coordinates.",
       "tags": [
@@ -1376,6 +1405,7 @@
       "id": "apply_matrix_inverse",
       "menuPath": "Meshing",
       "name": "Matrix: Invert Current Matrix",
+      "pythonName": "matrix_invert",
       "shortDescription": "Invert current transformation matrix.",
       "longDescriptionMarkdown": "Invert the current transformation matrix. The current transformation is reversed, becoming its opposite.",
       "tags": [
@@ -1412,6 +1442,7 @@
       "id": "compute_matrix_from_translation_rotation_scale",
       "menuPath": "Meshing",
       "name": "Matrix: Set from translation/rotation/scale",
+      "pythonName": "matrix_set_from_trs",
       "shortDescription": "Build transformation from T/R/S parameters.",
       "longDescriptionMarkdown": "Set the current transformation matrix starting from parameters: [XYZ] translation, [XYZ] Euler angles rotation and [XYZ] scaling.",
       "tags": [
@@ -1555,6 +1586,7 @@
       "id": "set_matrix",
       "menuPath": "Meshing",
       "name": "Matrix: Set/Copy Transformation",
+      "pythonName": "matrix_set_copy",
       "shortDescription": "Set transformation matrix values.",
       "longDescriptionMarkdown": "Set the current transformation matrix by filling it, or copying from another layer.",
       "tags": [
@@ -1775,6 +1807,7 @@
       "id": "compute_normal_for_point_clouds",
       "menuPath": "Meshing",
       "name": "Compute normals for point sets",
+      "pythonName": "compute_point_cloud_normals",
       "shortDescription": "Estimate normals for point clouds.",
       "longDescriptionMarkdown": "Compute the normals of the vertices of a mesh without exploiting the triangle connectivity, useful for dataset with no faces",
       "tags": [
@@ -1836,6 +1869,7 @@
       "id": "apply_normal_point_cloud_smoothing",
       "menuPath": "Meshing",
       "name": "Smooth normals on point sets",
+      "pythonName": "smooth_point_cloud_normals",
       "shortDescription": "Smooth point-cloud normals.",
       "longDescriptionMarkdown": "Smooth the normals of the vertices of a mesh without exploiting the triangle connectivity, useful for dataset with no faces",
       "tags": [
@@ -1874,6 +1908,7 @@
       "id": "compute_curvature_principal_directions_per_vertex",
       "menuPath": "Meshing",
       "name": "Compute curvature principal directions",
+      "pythonName": "compute_curvature_principal_directions",
       "shortDescription": "Compute principal curvature directions.",
       "longDescriptionMarkdown": "Compute the principal directions of curvature with different algorithms. The selected curvature scalar is stored in vertex quality; the filter does not bake colors, and QMeshLab switches the view to vertex-quality color visualization after it runs.",
       "tags": [
@@ -1988,6 +2023,7 @@
       "id": "meshing_close_holes",
       "menuPath": "Meshing",
       "name": "Close Holes",
+      "pythonName": "close_holes",
       "shortDescription": "Close holes under a size threshold.",
       "longDescriptionMarkdown": "Close holes whose boundary is composed by a number of edges smaller than a given trheshold",
       "tags": [
@@ -2066,6 +2102,7 @@
       "id": "generate_cylindrical_unwrapping",
       "menuPath": "Meshing",
       "name": "Geometric Cylindrical Unwrapping",
+      "pythonName": "geometric_cylindrical_unwrapping",
       "shortDescription": "Unwrap geometry along cylindrical projection.",
       "longDescriptionMarkdown": "Unwrap the geometry of current mesh along a clylindrical equatorial projection. The cylindrical projection axis is centered on the origin and directed along the vertical <b>Y</b> axis.",
       "tags": [
@@ -2116,6 +2153,7 @@
       "id": "meshing_surface_subdivision_catmull_clark",
       "menuPath": "Meshing",
       "name": "Subdivision Surfaces: Catmull-Clark",
+      "pythonName": "subdivision_catmull_clark",
       "shortDescription": "Apply Catmull-Clark subdivision.",
       "longDescriptionMarkdown": "Apply a number of iteration of the classical Catmull-Clark Subdivision Surfaces. If the mesh is triangle based (no <a href='https://stackoverflow.com/questions/59392193'>faux edges</a>) it generates a quad mesh, otherwise it honores it the faux-edge bits",
       "tags": [
@@ -2152,6 +2190,7 @@
       "id": "meshing_tri_to_quad_by_4_8_subdivision",
       "menuPath": "Meshing",
       "name": "Tri to Quad by 4-8 Subdivision",
+      "pythonName": "tri_to_quad_4_8_subdivision",
       "shortDescription": "Convert tri mesh into quad mesh by 4-8 subdivision.",
       "longDescriptionMarkdown": "Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).<br> See: <br><b>4-8 Subdivision</b><br> <i>Luiz Velho, Denis Zorin </i><br>CAGD, volume 18, Issue 5, Pages 397-427.",
       "tags": [
@@ -2177,6 +2216,7 @@
       "id": "meshing_surface_subdivision_doo_sabin",
       "menuPath": "Meshing",
       "name": "Subdivision Surfaces: Doo Sabin",
+      "pythonName": "subdivision_doo_sabin",
       "shortDescription": "Apply Doo-Sabin subdivision.",
       "longDescriptionMarkdown": "Apply the DooSabin Subdivision Surfaces. It is a Dual approximating refinement scheme that creates a new face for each vertex, edge and face. On a pure quad mesh it will add non quad face for each extraordinarhy vertex in the mesh (e.g. in a cube it will add a triangular face for each corner. On the other hand after a refinement step all the vertices will have degree 4.",
       "tags": [
@@ -2213,6 +2253,7 @@
       "id": "meshing_tri_to_quad_dominant",
       "menuPath": "Meshing",
       "name": "Turn into Quad-Dominant mesh",
+      "pythonName": "convert_to_quad_dominant",
       "shortDescription": "Convert tri mesh to quad-dominant mesh.",
       "longDescriptionMarkdown": "Convert a tri-mesh into a quad-dominant mesh by pairing suitable triangles.",
       "tags": [
@@ -2258,6 +2299,7 @@
       "id": "meshing_poly_to_tri",
       "menuPath": "Meshing",
       "name": "Turn into a Pure-Triangular mesh",
+      "pythonName": "convert_to_triangular",
       "shortDescription": "Split any polygonal face into triangles.",
       "longDescriptionMarkdown": "Convert into a tri-mesh by splitting any polygonal face.",
       "tags": [
@@ -2278,6 +2320,7 @@
       "id": "meshing_tri_to_quad_by_smart_triangle_pairing",
       "menuPath": "Meshing",
       "name": "Tri to Quad by smart triangle pairing",
+      "pythonName": "tri_to_quad_by_pairing",
       "shortDescription": "Pair triangles into quads.",
       "longDescriptionMarkdown": "Convert a tri-mesh into a quad mesh by pairing triangles.",
       "tags": [
@@ -2300,6 +2343,7 @@
       "id": "compute_selection_crease_per_edge",
       "menuPath": "Meshing",
       "name": "Select Crease Edges",
+      "pythonName": "select_crease_edges",
       "shortDescription": "Select crease edges from dihedral angles.",
       "longDescriptionMarkdown": "It select the crease edges of a mesh according to edge dihedral angle.<br>Angle between face normal is considered signed according to convexity/concavity.Convex angles are positive and concave are negative.",
       "tags": [
@@ -2346,6 +2390,7 @@
       "id": "generate_polyline_from_selected_edges",
       "menuPath": "Meshing",
       "name": "Build a Polyline from Selected Edges",
+      "pythonName": "build_polyline_from_selection",
       "shortDescription": "Create edge mesh from selected edges.",
       "longDescriptionMarkdown": "Create a new Layer with an edge mesh composed only by the selected edges of the current mesh",
       "tags": [
@@ -2362,6 +2407,7 @@
       "id": "meshing_vertex_attribute_seam",
       "menuPath": "Meshing",
       "name": "Vertex Attribute Seam",
+      "pythonName": "vertex_attribute_seam",
       "shortDescription": "Split vertices to make attributes seam-independent.",
       "longDescriptionMarkdown": "Make all selected vertex attributes connectivity-independent:<br/>vertices are duplicated whenever two or more selected wedge or face attributes do not match.<br/>This is particularly useful for GPU-friendly mesh layout, where a single index must be used to access all required vertex attributes.",
       "tags": [
@@ -2452,6 +2498,7 @@
       "id": "generate_polyline_from_selection_perimeter",
       "menuPath": "Meshing",
       "name": "Create Selection Perimeter Polyline",
+      "pythonName": "create_selection_perimeter",
       "shortDescription": "Create polyline from selection perimeter.",
       "longDescriptionMarkdown": "Create a new Layer with an edge mesh (polyline) composed by the selected edges of the current mesh. It can be used to convert the boundary edges of a mesh into a polyline by selecting all the faces of the mesh.",
       "tags": [
@@ -2471,6 +2518,7 @@
       "id": "generate_polyline_from_planar_section",
       "menuPath": "Meshing",
       "name": "Compute Planar Section",
+      "pythonName": "compute_planar_section",
       "shortDescription": "Compute planar section polyline.",
       "longDescriptionMarkdown": "Compute the polyline representing a planar section (a slice) of a mesh; if the resulting polyline is closed the result is filled and also a triangular mesh representing the section is saved",
       "tags": [

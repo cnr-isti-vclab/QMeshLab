@@ -123,7 +123,7 @@ void PythonHost::setupConsole(Document *doc)
         return;
     }
     PyObject *mainDict = PyModule_GetDict(mainModule);  // borrowed
-    PyDict_SetItemString(mainDict, "meshset", pyMeshset.ptr());
+    PyDict_SetItemString(mainDict, "ms", pyMeshset.ptr());
 
     // Create code.InteractiveConsole(locals=__main__.__dict__) so that
     // any names defined at the console prompt are visible as globals and
@@ -149,6 +149,29 @@ void PythonHost::setupConsole(Document *doc)
     Py_XDECREF(static_cast<PyObject *>(m_console));
     m_console = console;
 
+    // Dynamically add one method per filter to the MeshSet class, mirroring
+    // pymeshlab's approach.  Each method delegates to apply_filter() using
+    // the filter's python_name as the resolution key.
+    static const char *kBindFiltersCode = R"python(
+def _bind_filter_methods():
+    import _qmeshlab as _qml
+    def _make_filter(python_name):
+        def _filter(self, **kwargs):
+            return self.apply_filter(python_name, kwargs)
+        _filter.__name__ = python_name
+        return _filter
+    for _fi in ms.list_filters():
+        _name = _fi.python_name
+        if _name and not hasattr(_qml.MeshSet, _name):
+            setattr(_qml.MeshSet, _name, _make_filter(_name))
+_bind_filter_methods()
+del _bind_filter_methods
+)python";
+    if (PyRun_SimpleString(kBindFiltersCode) != 0) {
+        PyErr_Print();
+        // Non-fatal: the console still works, just without per-filter methods.
+    }
+
     // Discard any setup noise captured before the user types anything.
     flushOutput();
 }
@@ -157,6 +180,15 @@ void PythonHost::finalize()
 {
     if (!m_initialized)
         return;
+
+    // Remove the MeshSet wrapper from __main__ BEFORE Py_Finalize so that
+    // nanobind's module cleanup (triggered when _qmeshlab is unloaded) finds
+    // no live instances and does not print "leaked instance/type/function"
+    // warnings to stderr.
+    if (PyObject *mainModule = PyImport_AddModule("__main__")) {
+        if (PyObject *mainDict = PyModule_GetDict(mainModule))
+            PyDict_DelItemString(mainDict, "ms");
+    }
 
     Py_XDECREF(static_cast<PyObject *>(m_console));
     m_console = nullptr;

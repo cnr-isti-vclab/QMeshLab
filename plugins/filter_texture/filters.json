@@ -5,6 +5,7 @@
       "id": "generate_voronoi_atlas_parametrization",
       "menuPath": "Texture",
       "name": "Parametrization: Voronoi Atlas",
+      "pythonName": "parametrize_voronoi_atlas",
       "shortDescription": "Build an atlased parametrization using a geodesic Voronoi partition of the surface.",
       "longDescriptionMarkdown": "Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. For the parametrization of the disk like voronoi regions the used method is: <br><b>Ulrich Pinkall, Konrad Polthier</b><br><i>Computing Discrete Minimal Surfaces and Their Conjugates</i> <br>Experimental Mathematics, Vol 2 (1), 1993.",
       "tags": [
@@ -44,6 +45,7 @@
       "id": "compute_texcoord_transfer_wedge_to_vertex",
       "menuPath": "Texture",
       "name": "Convert PerWedge UV into PerVertex UV",
+      "pythonName": "convert_wedge_uv_to_vertex_uv",
       "shortDescription": "Convert per-wedge texture coordinates into per-vertex texture coordinates, splitting vertices when needed.",
       "longDescriptionMarkdown": "Converts per Wedge Texture Coordinates to per Vertex Texture Coordinates splitting vertices with not coherent Wedge coordinates.",
       "tags": [
@@ -70,6 +72,7 @@
       "id": "compute_texcoord_transfer_vertex_to_wedge",
       "menuPath": "Texture",
       "name": "Convert PerVertex UV into PerWedge UV",
+      "pythonName": "convert_vertex_uv_to_wedge_uv",
       "shortDescription": "Convert per-vertex texture coordinates into per-wedge texture coordinates.",
       "longDescriptionMarkdown": "Converts per Vertex Texture Coordinates to per Wedge Texture Coordinates. It does not merge superfluous vertices...",
       "tags": [
@@ -93,6 +96,7 @@
       "id": "compute_texcoord_parametrization_flat_plane_per_wedge",
       "menuPath": "Texture",
       "name": "Parametrization: Flat Plane",
+      "pythonName": "parametrize_flat_plane",
       "shortDescription": "Generate a trivial flat-plane parametrization.",
       "longDescriptionMarkdown": "Builds a trivial flat-plane parametrization.",
       "tags": [
@@ -157,6 +161,7 @@
       "id": "compute_texcoord_parametrization_triangle_trivial_per_wedge",
       "menuPath": "Texture",
       "name": "Parametrization: Trivial Per-Triangle",
+      "pythonName": "parametrize_trivial_per_triangle",
       "shortDescription": "Generate a triangle-by-triangle parametrization using either equal-size or space-optimizing layout.",
       "longDescriptionMarkdown": "Builds a trivial triangle-by-triangle parametrization. <br> Two methods are provided, the first maps all triangles into equal sized triangles, while the second one adapt the size of the triangles in texture space to their original size.",
       "tags": [
@@ -228,6 +233,7 @@
       "id": "set_texture_per_mesh",
       "menuPath": "Texture",
       "name": "Set Texture",
+      "pythonName": "set_texture",
       "shortDescription": "Associate an existing image file with the current mesh texture coordinates.",
       "longDescriptionMarkdown": "Set a texture associated with current mesh parametrization.<br>If the texture provided exists, then it will be simply associated to the current mesh; else the filter will fail with no further actions. If specified it can create and associate a dummy texture with a specified grid or checkboard pattern.",
       "tags": [
@@ -310,6 +316,7 @@
       "id": "compute_texmap_from_color",
       "menuPath": "Texture",
       "name": "Transfer: Vertex Color to Texture",
+      "pythonName": "transfer_vertex_color_to_texture",
       "shortDescription": "Bake per-vertex color into texture image(s) using the current UV parametrization.",
       "longDescriptionMarkdown": "Fills the specified texture using per-vertex color data of the mesh.",
       "tags": [
@@ -388,6 +395,7 @@
       "id": "transfer_texture_to_color_per_vertex",
       "menuPath": "Texture",
       "name": "Transfer: Texture to Vertex Color",
+      "pythonName": "transfer_texture_to_vertex_color",
       "shortDescription": "Generate vertex colors by sampling texture colors from the same mesh or another mesh.",
       "longDescriptionMarkdown": "Generates Vertex Color values picking color from a texture (same mesh or another mesh).",
       "tags": [
@@ -453,6 +461,7 @@
       "id": "transfer_attributes_to_texture_per_vertex",
       "menuPath": "Texture",
       "name": "Transfer: Vertex Attributes to Texture",
+      "pythonName": "transfer_vertex_attributes_to_texture",
       "shortDescription": "Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.",
       "longDescriptionMarkdown": "Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.",
       "tags": [
@@ -595,6 +604,7 @@
       "id": "convert_object_space_normal_map_to_tangent_space",
       "menuPath": "Texture",
       "name": "Convert: Object-Space Normal Map to Tangent-Space",
+      "pythonName": "convert_normal_map_to_tangent_space",
       "shortDescription": "Convert an object-space normal map into a tangent-space normal map for the current mesh UV slot.",
       "longDescriptionMarkdown": "Converts an object-space normal map into a tangent-space normal map using the current mesh geometry, normals, and UV parametrization. The result is suitable for direct use in QMeshLab's PBR normal-texture channel.",
       "tags": [

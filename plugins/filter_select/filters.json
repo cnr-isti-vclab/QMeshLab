@@ -5,6 +5,7 @@
       "id": "select_all",
       "menuPath": "Selection",
       "name": "Select All",
+      "pythonName": "select_all",
       "shortDescription": "Select all the faces/vertices of the current mesh.",
       "longDescriptionMarkdown": "Select all the faces/vertices of the current mesh.",
       "tags": [
@@ -39,6 +40,7 @@
       "id": "select_none",
       "menuPath": "Selection",
       "name": "Select None",
+      "pythonName": "select_none",
       "shortDescription": "Clear the current set of selected faces/vertices.",
       "longDescriptionMarkdown": "Clear the current set of selected faces/vertices.",
       "tags": [
@@ -73,6 +75,7 @@
       "id": "select_by_view_angle",
       "menuPath": "Selection",
       "name": "Select Faces by View Angle",
+      "pythonName": "select_faces_by_view_angle",
       "shortDescription": "Select faces according to angle with view direction.",
       "longDescriptionMarkdown": "Select faces according to the angle between their normal and the view direction. It is used in range map processing to select and delete steep faces parallel to viewdirection.",
       "tags": [
@@ -131,6 +134,7 @@
       "id": "select_problematic_faces",
       "menuPath": "Selection",
       "name": "Select 'Problematic' Faces",
+      "pythonName": "select_problematic_faces",
       "shortDescription": "Select problematic faces: elongated, flipped, or folded.",
       "longDescriptionMarkdown": "Select faces with 'problems', like normal inverted w.r.t the surrounding areas, extremely elongated or folded.",
       "tags": [
@@ -211,6 +215,7 @@
       "id": "select_invert",
       "menuPath": "Selection",
       "name": "Invert Selection",
+      "pythonName": "invert_selection",
       "shortDescription": "Invert the current set of selected faces/vertices.",
       "longDescriptionMarkdown": "Invert the current set of selected faces/vertices.",
       "tags": [
@@ -245,6 +250,7 @@
       "id": "select_connected_faces",
       "menuPath": "Selection",
       "name": "Select Connected Faces",
+      "pythonName": "select_connected_faces",
       "shortDescription": "Expand selected faces to their connected components.",
       "longDescriptionMarkdown": "Expand the current face selection so that it includes all the faces in the connected components where there is at least a selected face.",
       "tags": [
@@ -269,6 +275,7 @@
       "id": "select_faces_from_vertices",
       "menuPath": "Selection",
       "name": "Select Faces from Vertices",
+      "pythonName": "select_faces_from_vertices",
       "shortDescription": "Transfer selection from selected vertices to faces.",
       "longDescriptionMarkdown": "Select faces from selected vertices.",
       "tags": [
@@ -300,6 +307,7 @@
       "id": "select_vertices_from_faces",
       "menuPath": "Selection",
       "name": "Select Vertices from Faces",
+      "pythonName": "select_vertices_from_faces",
       "shortDescription": "Transfer selection from selected faces to vertices.",
       "longDescriptionMarkdown": "Select vertices from selected faces.",
       "tags": [
@@ -331,6 +339,7 @@
       "id": "delete_selected_vertices",
       "menuPath": "Selection",
       "name": "Delete Selected Vertices",
+      "pythonName": "delete_selected_vertices",
       "shortDescription": "Delete selected vertices; incident faces are deleted too.",
       "longDescriptionMarkdown": "Delete the current set of selected vertices; faces that share one of the deleted vertices are deleted too.",
       "tags": [
@@ -353,6 +362,7 @@
       "id": "delete_all_faces",
       "menuPath": "Selection",
       "name": "Delete ALL Faces",
+      "pythonName": "delete_all_faces",
       "shortDescription": "Delete all faces, turning mesh into point cloud.",
       "longDescriptionMarkdown": "Delete ALL faces, turning the mesh into a pointcloud. May be applied also to all visible layers.",
       "tags": [
@@ -380,6 +390,7 @@
       "id": "delete_selected_faces",
       "menuPath": "Selection",
       "name": "Delete Selected Faces",
+      "pythonName": "delete_selected_faces",
       "shortDescription": "Delete selected faces; unreferenced vertices are not deleted.",
       "longDescriptionMarkdown": "Delete the current set of selected faces, vertices that remains unreferenced are not deleted.",
       "tags": [
@@ -401,6 +412,7 @@
       "id": "delete_selected_faces_and_vertices",
       "menuPath": "Selection",
       "name": "Delete Selected Faces and Vertices",
+      "pythonName": "delete_selected_faces_and_vertices",
       "shortDescription": "Delete selected faces and enclosed selected vertices.",
       "longDescriptionMarkdown": "Delete the current set of selected faces and all the vertices surrounded by that faces.",
       "tags": [
@@ -425,6 +437,7 @@
       "id": "select_erode",
       "menuPath": "Selection",
       "name": "Erode Selection",
+      "pythonName": "erode_selection",
       "shortDescription": "Erode (reduce) current selected faces.",
       "longDescriptionMarkdown": "Erode (reduce) the current set of selected faces.",
       "tags": [
@@ -447,6 +460,7 @@
       "id": "select_dilate",
       "menuPath": "Selection",
       "name": "Dilate Selection",
+      "pythonName": "dilate_selection",
       "shortDescription": "Dilate (expand) current selected faces.",
       "longDescriptionMarkdown": "Dilate (expand) the current set of selected faces.",
       "tags": [
@@ -469,6 +483,7 @@
       "id": "select_border",
       "menuPath": "Selection",
       "name": "Select Border",
+      "pythonName": "select_border",
       "shortDescription": "Select vertices and faces on mesh boundary.",
       "longDescriptionMarkdown": "Select vertices and faces on the boundary.",
       "tags": [
@@ -491,6 +506,7 @@
       "id": "select_by_face_quality",
       "menuPath": "Selection",
       "name": "Select by Face Quality",
+      "pythonName": "select_by_face_quality",
       "shortDescription": "Select elements using per-face quality range.",
       "longDescriptionMarkdown": "Select all the faces/vertices with within the specified face quality range.",
       "tags": [
@@ -545,6 +561,7 @@
       "id": "select_by_vertex_quality",
       "menuPath": "Selection",
       "name": "Select by Vertex Quality",
+      "pythonName": "select_by_vertex_quality",
       "shortDescription": "Select elements using per-vertex quality range.",
       "longDescriptionMarkdown": "Select all the faces/vertices within the specified vertex quality range.",
       "tags": [
@@ -599,6 +616,7 @@
       "id": "select_by_color",
       "menuPath": "Selection",
       "name": "Select Faces by Color",
+      "pythonName": "select_faces_by_color",
       "shortDescription": "Select part of the mesh based on vertex color.",
       "longDescriptionMarkdown": "Select part of the mesh based on its color.",
       "tags": [
@@ -691,6 +709,7 @@
       "id": "select_self_intersecting_faces",
       "menuPath": "Selection",
       "name": "Select Self Intersecting Faces",
+      "pythonName": "select_self_intersecting_faces",
       "shortDescription": "Select only self intersecting faces.",
       "longDescriptionMarkdown": "Select only self intersecting faces.",
       "tags": [
@@ -713,6 +732,7 @@
       "id": "select_vertex_texture_seams",
       "menuPath": "Selection",
       "name": "Select Vertex Texture Seams",
+      "pythonName": "select_vertex_texture_seams",
       "shortDescription": "Select vertices on texture seams.",
       "longDescriptionMarkdown": "Colorize only border edges.",
       "tags": [
@@ -736,6 +756,7 @@
       "id": "select_non_manifold_edges",
       "menuPath": "Selection",
       "name": "Select non Manifold Edges",
+      "pythonName": "select_non_manifold_edges",
       "shortDescription": "Select faces and vertices incident on non manifold edges.",
       "longDescriptionMarkdown": "Select the faces and the vertices incident on non manifold edges (e.g. edges where more than two faces are incident); note that this function select the components that",
       "tags": [
@@ -761,6 +782,7 @@
       "id": "select_non_manifold_vertices",
       "menuPath": "Selection",
       "name": "Select non Manifold Vertices",
+      "pythonName": "select_non_manifold_vertices",
       "shortDescription": "Select non manifold vertices.",
       "longDescriptionMarkdown": "Select the non manifold vertices that do not belong to non manifold edges. For example two cones connected by their apex. Vertices incident on non manifold edges are ignored.",
       "tags": [
@@ -786,6 +808,7 @@
       "id": "select_faces_by_edge_length",
       "menuPath": "Selection",
       "name": "Select Faces with Edges Longer Than...",
+      "pythonName": "select_faces_with_edges_longer_than",
       "shortDescription": "Select all triangles having an edge longer than threshold.",
       "longDescriptionMarkdown": "Select all triangles having an edge with length greater or equal than a given threshold.",
       "tags": [
@@ -820,6 +843,7 @@
       "id": "select_outliers",
       "menuPath": "Selection",
       "name": "Select Outliers",
+      "pythonName": "select_outliers",
       "shortDescription": "Select outlier vertices using LoOP.",
       "longDescriptionMarkdown": "Select the vertex classified as outlier using Local Outlier Propabilty measure described in:<br> <b>'LoOP: Local Outlier Probabilities'</b> Kriegel et al.<br>CIKM 2009",
       "tags": [
