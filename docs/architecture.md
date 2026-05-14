@@ -15,7 +15,8 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md)
 3. Plugin interfaces/managers (`src/plugins`) and built-in plugin registration (`plugins/`)
 4. Shared mesh GPU cache (`src/render/MeshGpuResourceCache`)
 5. Per-view rendering (`RenderWidget`, `ViewTrackball`, `RenderOverlayPanel`)
-6. Auxiliary views (`LayerWidget`, `MeshFilterPanel`, log dock, undo graph, status-bar stats/progress)
+6. Optional embedded Python layer (`src/python`, `_qmeshlab`, `PythonHost`)
+7. Auxiliary views (`LayerWidget`, `MeshFilterPanel`, log dock, undo graph, Python console, status-bar stats/progress)
 
 ## Core Components
 
@@ -47,21 +48,25 @@ Scene navigation: arcball/hyperbola rotation, pan, dolly, `Shift+Wheel` vertigo 
 
 ### `RenderOverlayPanel`
 
-Compact pass/settings panel: pass toggles, mode-specific world settings page (Scene vs UV), per-pass style controls (colors, widths, lighting/culling, quality histogram), `PerMeshRenderSettings`/`GlobalRenderSettings` sync.
+Compact pass/settings panel: pass toggles, mode-specific world settings page (Scene vs UV), per-pass style controls (colors, widths, lighting/culling, quality histogram), PBR texture/normal-space controls, and `PerMeshRenderSettings`/`GlobalRenderSettings` sync.
 
 ### `MeshFilterPanel`
 
-Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, optional markdown description, advanced-parameter toggle, per-filter parameter-value cache.
+Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, optional markdown description, advanced-parameter toggle, per-filter parameter-value cache, and, when Python support is compiled in, a copy-to-console action that emits an `ms.<pythonName>(...)` call.
 
 ### `MainWindow`
 
-Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log dock, status bar (progress bars, frame-time stats), undo graph panel, and menus (file, edit, filters, view, help). Manages file open/drop/new-document flows, split/close, active-view highlight border, optional camera synchronization across 3D views, document visibility proxy synchronization from the current view, and undo-node thumbnails/snapshots.
+Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log/Python docks, status bar (progress bars, frame-time stats), undo graph panel, and menus (file, edit, filters, view, help). Manages file open/drop/new-document flows, split/close, active-view highlight border, optional camera synchronization across 3D views, document visibility proxy synchronization from the current view, undo-node thumbnails/snapshots, and embedded Python console visibility when enabled.
+
+### `PythonHost` and `_qmeshlab`
+
+When `QMESHLAB_PYTHON_CONSOLE` is enabled, `src/app/main.cpp` registers the statically linked nanobind module `_qmeshlab` with `PyImport_AppendInittab` before `QApplication` starts. `PythonHost` owns the embedded CPython interpreter, redirects `stdout`/`stderr` to Qt signals, creates an interactive console, and injects the live document as `ms`. The `_qmeshlab.MeshSet` binding wraps either a borrowed live `Document` (embedded console) or an owned standalone `Document`, exposes mesh load/save/current-mesh helpers, lists filters, and applies filters by key/id/Python name.
 
 ## Render Settings Types
 
 Defined in `renderingsettings.h`:
 
-- **`PerMeshRenderSettings`** — one instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds pass toggles, decorator toggles (normals, boundary/seams, non-manifold markers, curvature directions), lighting/culling flags, wire faux-edge handling, fill material and sub-structs (`PlainFillParams`, `PbrFillParams`, `RsFillParams`), colors, sizes, and point color source.
+- **`PerMeshRenderSettings`** — one instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds pass toggles, decorator toggles (normals, boundary/seams, non-manifold markers, curvature directions), lighting/culling flags, wire faux-edge handling, fill material and sub-structs (`PlainFillParams`, `PbrFillParams`, `RsFillParams`), PBR normal-map space, colors, sizes, and point color source.
 - **`GlobalRenderSettings`** — one instance per view in `m_renderSettings`. Holds scene highlight parameters, background colors, UV viewer options, quality histogram/range/isolines options, and overlay panel state. `using RenderSettings = GlobalRenderSettings` is provided as an alias.
 - **`MeshRenderMode`** — widget-local alias for `PerMeshRenderSettings`.
 
@@ -69,7 +74,7 @@ Defined in `renderingsettings.h`:
 
 **I/O plugins** (`MeshIOPlugin`): `canLoad`/`load`, `canSave`/`save`, dialog filter strings, mask capability.
 
-**Filter plugins** (`MeshFilterPlugin`): plugin id/name, `filters(Document&)` returning descriptors (domain/codomain, requirements, tags, parameters), `runFilter(id, params, Document&)`.
+**Filter plugins** (`MeshFilterPlugin`): plugin id/name, `filters(const Document&)` returning descriptors (domain/codomain, requirements, tags, parameters, `pythonName`), `runFilter(id, params, Document&)`.
 
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 
@@ -89,6 +94,8 @@ Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `f
 | shared mesh GPU cache | |
 
 Note: undo history stores `ViewState` snapshots, but this is serialized view data attached to undo nodes, not live ownership of render widgets.
+
+The optional Python host is process-global rather than owned by `Document` or `RenderWidget`; in embedded mode it borrows the live document and the Python console widget is just a UI front-end for that host.
 
 ## Data Flow
 
@@ -113,4 +120,5 @@ MainWindow (menus, docks, split-view orchestration)
 3. Rendering runs Scene layered passes or UV passes plus overlays.
 4. Undo/redo or undo-graph jumps restore mesh snapshots and the active view snapshot (`ViewState`).
 5. Filter runs through the filter manager with progress/cancel and undo integration.
-6. Status bar shows load/filter progress and rolling CPU/GPU frame timings.
+6. Optional Python console calls route through `_qmeshlab.MeshSet` back into the same `Document` and filter manager.
+7. Status bar shows load/filter progress and rolling CPU/GPU frame timings.

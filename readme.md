@@ -1,6 +1,6 @@
 # QMeshLab
 
-Minimal Qt 6 SDI mesh viewer using QRhi + vcglib.
+Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-based filters, and optional embedded Python/nanobind bindings.
 
 ## Documentation Index
 - [Architecture](docs/architecture.md)
@@ -9,15 +9,18 @@ Minimal Qt 6 SDI mesh viewer using QRhi + vcglib.
 
 ## Current Features
 - Single `Document` shared by one or more `RenderWidget` views
-- Split-view UI (horizontal/vertical), active-view indicator, plus layer and log docks
+- Split-view UI (horizontal/vertical), active-view indicator, layer/log/filter docks, undo graph, and optional Python console dock
 - Per-view mode switching between `3D Scene` and `Parametrization (UV)` (when the current mesh has UVs)
-- Scene overlays for selection, normals, boundaries, texture seams, current-mesh outline, and quality histogram
-- Fat-edge rendering for edge meshes and decorator boundaries/seams (configurable width)
+- Scene overlays for selection, normals, boundaries, texture seams, non-manifold markers, curvature directions, current-mesh outline, trackball/light gizmos, and quality histogram
+- PBR fill with albedo/normal/occlusion/roughness maps, tangent-space or object-space normal-map interpretation, plus Radiance Scaling
+- Fat-edge rendering for edge meshes and decorator boundaries/seams/non-manifold edges (configurable width)
 - UV mode support for boundary-edge and texture-seam overlays on the current mesh
 - Plugin-based mesh import/export with per-extension preferred import plugin
-- Plugin-based filter framework with searchable filter browser and auto-generated parameter dialogs
-- Undo/redo integrated with mesh operations and filter runs
-- Structured logging for app/VCG import progress and GPU buffer rebuild timing
+- Plugin-based filter framework with searchable filter browser, generated parameter dialogs, `pythonName` metadata, and copy-to-console Python calls
+- Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
+- Embedded `_qmeshlab.MeshSet` bindings when `QMESHLAB_PYTHON_CONSOLE=ON`; the in-app console exposes the live document as `ms`
+- Tree-shaped undo/redo integrated with mesh operations, filter runs, camera/render-style snapshots, branch pruning, and linearization
+- Structured logging for app/VCG/error messages, load/filter progress, memory estimates, and GPU buffer rebuild timing
 - PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata)
 
 Built-in I/O plugin families (dependency-gated at build time):
@@ -33,6 +36,20 @@ Built-in filter plugin families (dependency-gated at build time):
 - `filter_select`
 - `filter_clean`
 - `filter_meshing`
+- `filter_cgal`
+- `filter_screened_poisson`
+- `filter_sampling`
+- `filter_unsharp`
+- `filter_create`
+- `filter_geodesic`
+- `filter_texture`
+- `filter_texture_defragmentation`
+- `filter_measure`
+- `filter_mls`
+- `filter_sample`
+- `filter_layer`
+- `filter_colorproc`
+- `filter_xatlas`
 
 ## Build
 
@@ -43,9 +60,10 @@ Prerequisites:
 - CMake 3.25+
 - Build tool: `ninja` or `make`
 - vcpkg clone
+- Python development libraries when `QMESHLAB_PYTHON_CONSOLE=ON` (default)
 
 This repository contains `vcpkg.json`; non-Qt dependencies are installed via vcpkg manifest mode.
-Qt6 is intentionally kept outside vcpkg, and `vcglib` remains a git submodule.
+Qt6 and Python are intentionally kept outside vcpkg, while `vcglib` remains a git submodule. `nanobind` is provided through vcpkg and is used for the embedded `_qmeshlab` bindings.
 
 ### Dependency Installation
 
@@ -113,7 +131,7 @@ cmake --build --preset local-no-vcpkg
 ./build-local/QMeshLab
 ```
 
-The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`).
+The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`). Because the embedded Python console is enabled by default, this path still needs local Python development files and nanobind. If you want a lean viewer-only build without those, configure with `-DQMESHLAB_PYTHON_CONSOLE=OFF`.
 
 ## GitHub Actions: macOS DMG
 

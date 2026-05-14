@@ -19,7 +19,7 @@ Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision)`. Quali
 
 Cached outputs:
 
-- **fill**: one or more batches — vertex/index buffers, optional base/normal/occlusion/roughness textures and per-batch PBR factors. Variants: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`. Texture lookup can use legacy texture paths, `MeshIOTextureAsset` entries, and material slots.
+- **fill**: one or more batches — vertex/index buffers, optional base/normal/occlusion/roughness textures and per-batch PBR factors. Variants: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`. Texture lookup can use legacy texture paths, `MeshIOTextureAsset` entries, and material slots. PBR normal textures can be interpreted as tangent-space maps or object-space maps according to `fillPbr.normalMapSpace`.
 - **wire**: barycentric-expanded triangle buffer, optionally honoring faux-edge bits for polygonal faces.
 - **edges**: line buffer + fat-line buffer from explicit mesh edges.
 - **points**: position/color/normal payload + normal-valid flag. Variants: `Constant`, `PerVertex`, `PerVertexQuality`.
@@ -57,7 +57,7 @@ Main pass draw order: scene background · fill · wire · edges · bbox · point
 
 **Scene background**: full-screen gradient triangle, `sceneBackgroundBottomColor`/`TopColor`, drawn first.
 
-**Fill**: Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings. PBR binds base/normal/occlusion/roughness per batch. Radiance Scaling pre-pass renders fill batches into `m_rsGradTexture` (`RGBA32F`), storing `(gx, gy, logZ, 1)`; the main fill pass samples it for final RS shading.
+**Fill**: Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance Scaling pre-pass renders fill batches into `m_rsGradTexture` (`RGBA32F`), storing `(gx, gy, logZ, 1)`; the main fill pass samples it for final RS shading.
 
 **Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
 
@@ -107,6 +107,10 @@ UV fill: color source from `fillPlain.colorSource`. Quality UV buffers use the s
 Orthographic projection; `m_uvPan` + `m_uvZoom`. Left/middle drag = pan; wheel = zoom around cursor; double click = fit to mesh UV bounds (or `[0,1]²` when `uvShowFullTexture`); `Reset Camera` = UV fit.
 
 Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view visibility remain local runtime state.
+
+## Texture Normal-Map Workflow
+
+PBR rendering can consume normal maps directly as either tangent-space or object-space textures through the render overlay's `Normal space` control. The Texture filter `convert_object_space_normal_map_to_tangent_space` converts an associated object-space normal map into a tangent-space image for the selected UV/material slot. It samples only faces using that slot, supports axis inversion and output-to-existing-or-new texture targets, and can bind the generated image as the selected material slot's PBR normal texture.
 
 ## Quality Histogram Overlay
 

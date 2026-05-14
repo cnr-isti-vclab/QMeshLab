@@ -17,7 +17,7 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 - material metadata: `materialSet`
 - mesh state: `visible`, `VCGMesh mesh`
 
-`Document` also owns: current mesh index, document log (application / VCG / error sources), I/O and filter plugin managers, shared GPU cache, undo/redo history, operation cancel flag, and memory accounting APIs (`cpuMeshMemoryStats`, `undoMemoryStats`, `gpuMemoryStats`).
+`Document` also owns: current mesh index, document log (application / VCG / error sources), I/O and filter plugin managers, shared GPU cache, undo/redo history, operation cancel flag, and memory accounting APIs (`cpuMeshMemoryStats`, `undoMemoryStats`, `gpuMemoryStats`). Optional Python bindings borrow or own a `Document` through `MeshSetCore`; the embedded console borrows the live `MainWindow` document and does not take ownership.
 
 ## Mesh Data Type
 
@@ -41,9 +41,11 @@ Also exposes: `openDialogFilter()`, `saveDialogFilter()`, `saveMaskCapability()`
 
 ## Filter Model
 
-Metadata: `filterInfos()`, `loadedFilterPluginSummaries()`. Descriptors can be loaded declaratively from filter JSON resources via `FilterDescriptorLoader`, including requirements, input/parameter preparation codes (`FF`, `VF`, `BorderFF`, `BorderVF`, normals, bbox, marks), cleanup hooks, dynamic bounds/default tokens, texture input/output references, mesh parameters with their own requirements/preparation, point/vector parameters, incremental selection, and output-modifies codes.
+Metadata: `filterInfos()`, `loadedFilterPluginSummaries()`. Descriptors can be loaded declaratively from filter JSON resources via `FilterDescriptorLoader`, including requirements, input/parameter preparation codes (`FF`, `VF`, `BorderFF`, `BorderVF`, normals, bbox, marks), cleanup hooks, dynamic bounds/default tokens, texture input/output references, mesh parameters with their own requirements/preparation, point/vector parameters, incremental selection, `pythonName`, and output-modifies codes. Mesh parameters can point to non-current layers for operations such as isotropic remeshing against a separate reference surface. `MeshFilterDescriptor::effectivePythonName()` returns explicit `pythonName` when present and otherwise derives a snake-case name from the display name.
 
-Execution: `runFilter(filterKey, parameters)` with callback-based progress and cancel (`requestOperationCancel`, `isOperationCancelRequested`). The framework normalizes/validates parameters, exposes `validateFilterInvocation(...)` for preflight checks, prepares requested volatile VCG data, runs pre/post cleanup hooks, compacts modified meshes, and updates geometry/material/selection/transform revisions according to descriptor output codes.
+Execution: `runFilter(filterKey, parameters)` with callback-based progress and cancel (`requestOperationCancel`, `isOperationCancelRequested`). The framework normalizes/validates parameters, exposes `validateFilterInvocation(...)` for preflight checks, prepares requested volatile VCG data, runs pre/post cleanup hooks, compacts modified meshes, updates geometry/material/selection/transform revisions according to descriptor output codes, and can return visualization hints for quality-based rendering.
+
+Python integration: `_qmeshlab.MeshSet` wraps a `Document` and exposes `mesh_count`, `current_mesh`, `set_current_mesh`, `load_new_mesh`, `save_current_mesh`, `list_filters`, and `apply_filter`. `apply_filter` resolves a fully qualified key, descriptor id, or Python name, converts supported Python kwargs to `MeshFilterParameterValues` (`bool`, integer, float, string, and 3-number point/vector sequences), and runs the same `Document::runFilter(...)` path used by the GUI. In the embedded console, `PythonHost` dynamically adds one method per filter to `MeshSet` using each descriptor's `effectivePythonName()`.
 
 ## Undo/Redo Model
 
@@ -82,7 +84,7 @@ One instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds:
 - pass toggles: `showFill`, `showWire`, `showEdges`, `showPoints`, `showBoundingBox`, `showSelection`, `showSelectionFaces`, `showSelectionVertices`
 - decorator toggles: `decoratorVertexNormals`, `decoratorFaceNormals`, `decoratorBoundaryEdges`, `decoratorTextureSeams`, `decoratorNonManifoldEdges`, `decoratorNonManifoldVertices`, `decoratorCurvatureDir`
 - lighting/culling flags: `fillLighting`, `fillBackfaceCulling`, `wireLighting`, `wireBackfaceCulling`, `wireRespectFaux`, `pointLighting`
-- fill material: `fillMaterial` (`Plain` / `Pbr` / `RadianceScaling`) + sub-structs `fillPlain` (`PlainFillParams`), `fillPbr` (`PbrFillParams`), `fillRs` (`RsFillParams`, including RS shading mode)
+- fill material: `fillMaterial` (`Plain` / `Pbr` / `RadianceScaling`) + sub-structs `fillPlain` (`PlainFillParams`), `fillPbr` (`PbrFillParams`, including PBR texture sources, normal-map space, normal scale, AO strength, roughness factor), `fillRs` (`RsFillParams`, including RS shading mode)
 - colors and sizes: `fillColor`, `wireColor`/`wireSize`, `edgeColor`/`edgeSize`, `pointColor`/`pointSize`, `bboxWireColor`, decorator colors, `decoratorBoundaryWidth`
 - `pointColorSource`: `Constant` / `PerVertex` / `PerVertexQuality`
 
@@ -104,7 +106,7 @@ One instance per view in `m_renderSettings`. Holds:
 |---|---|
 | mesh geometry and material data | per-mesh render modes/styles |
 | mesh transforms | per-view visibility vector |
-| mesh list, current index | view mode, camera/trackball, UV pan/zoom |
+| mesh list, current index | view mode, camera/trackball, headlight direction, UV pan/zoom |
 | document visibility proxy (`MeshEntry::visible`) | overlay settings, histogram cache |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
 | undo tree and node snapshots | UV-local GPU cache (`m_uvMeshGpu`) |
