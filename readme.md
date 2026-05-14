@@ -47,14 +47,15 @@ Prerequisites:
 This repository contains `vcpkg.json`; non-Qt dependencies are installed via vcpkg manifest mode.
 Qt6 is intentionally kept outside vcpkg, and `vcglib` remains a git submodule.
 
-Managed non-Qt dependencies:
-- `draco`
-- `tinygltf`
-- `rapidobj`
-- `libe57format`
-- `xerces-c`
-- `muparser`
-- `embree`
+### Dependency Installation
+
+The dependencies listed in `vcpkg.json` (e.g., `rapidobj`, `draco`, etc.) are installed automatically using vcpkg's manifest mode. After bootstrapping vcpkg, simply run the following command to install all required dependencies:
+
+```powershell
+vcpkg install --triplet x64-windows
+```
+
+This will ensure all non-Qt dependencies are set up correctly. Qt6 remains outside of vcpkg and must be installed separately.
 
 ### Setup
 
@@ -171,3 +172,29 @@ Current status:
 - packaging is portable `.zip`, not an installer
 - the workflow targets `x64` on `windows-2022`
 - code signing can be added later if you want a more polished distribution path
+
+## Setting up the development environment on Windows
+
+To build on Windows you need:
+
+1. [Visual Studio 2022](https://aka.ms/vs/17/release/) with the Desktop C++ workload.
+2. [CMake 3.25+](https://cmake.org/download/).
+3. [Git](https://git-scm.com/).
+4. [Qt 6.11](https://www.qt.io/download/).
+5. A local [vcpkg](https://github.com/microsoft/vcpkg) checkout.
+
+Setup steps:
+
+```powershell
+git submodule update --init --recursive
+git clone https://github.com/microsoft/vcpkg .\vcpkg
+.\vcpkg\bootstrap-vcpkg.bat
+$env:VCPKG_ROOT = (Resolve-Path .\vcpkg)
+cmake --preset default
+cmake --build --preset default
+```
+
+Notes:
+- The `default` preset uses vcpkg manifest mode through `VCPKG_ROOT`.
+- Packages from `vcpkg.json` such as `draco`, `rapidobj`, `tinygltf`, `libe57format`, `xerces-c`, `muparser`, `embree`, `nanobind`, and `cgal` are resolved automatically during configure. Do not install them manually.
+- Qt stays outside vcpkg and must be installed separately.
