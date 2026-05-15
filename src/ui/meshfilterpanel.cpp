@@ -854,9 +854,8 @@ void MeshFilterPanel::buildUi()
     });
 #endif
     m_resetParametersButton = new QToolButton(m_parametersPage);
-    m_resetParametersButton->setText(QStringLiteral("\u27f3"));
+    m_resetParametersButton->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
     m_resetParametersButton->setToolTip(tr("Reset parameters to defaults"));
-    m_resetParametersButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
     m_resetParametersButton->setAutoRaise(true);
     m_applyButton = new QPushButton(tr("Apply"), m_parametersPage);
     headerLayout->addWidget(m_longDescriptionToggle, 0, Qt::AlignTop);
