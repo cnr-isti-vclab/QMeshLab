@@ -853,11 +853,17 @@ void MeshFilterPanel::buildUi()
         emit copyToConsoleRequested(code);
     });
 #endif
+    m_resetParametersButton = new QToolButton(m_parametersPage);
+    m_resetParametersButton->setText(QStringLiteral("\u27f3"));
+    m_resetParametersButton->setToolTip(tr("Reset parameters to defaults"));
+    m_resetParametersButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_resetParametersButton->setAutoRaise(true);
     m_applyButton = new QPushButton(tr("Apply"), m_parametersPage);
     headerLayout->addWidget(m_longDescriptionToggle, 0, Qt::AlignTop);
 #ifdef QMESHLAB_PYTHON_CONSOLE
     headerLayout->addWidget(m_copyToConsoleButton, 0, Qt::AlignTop);
 #endif
+    headerLayout->addWidget(m_resetParametersButton, 0, Qt::AlignTop);
     headerLayout->addWidget(m_applyButton, 0, Qt::AlignTop);
     paramsPageLayout->addLayout(headerLayout);
 
@@ -906,6 +912,7 @@ void MeshFilterPanel::buildUi()
     connect(m_resultsList, &QListWidget::itemActivated, this, &MeshFilterPanel::onResultItemActivated);
     connect(m_searchButton, &QToolButton::clicked, this, [this]() { showSearchResultsFromUi(true); });
     connect(m_applyButton, &QPushButton::clicked, this, &MeshFilterPanel::onApplyClicked);
+    connect(m_resetParametersButton, &QToolButton::clicked, this, &MeshFilterPanel::onResetParametersClicked);
     connect(m_showAdvancedCheck, &QCheckBox::toggled, this, &MeshFilterPanel::onShowAdvancedToggled);
     connect(m_longDescriptionToggle, &QToolButton::toggled, this, [this](bool checked) {
         if (m_longDescriptionView)
@@ -1026,6 +1033,45 @@ void MeshFilterPanel::onApplyClicked()
         return;
     m_filterParameterCache.insert(m_currentFilterKey, parameters);
     emit runRequested(m_currentFilterKey, parameters, info->descriptor.name);
+}
+
+void MeshFilterPanel::onResetParametersClicked()
+{
+    const QString filterKey = m_currentFilterKey.trimmed();
+    if (filterKey.isEmpty())
+        return;
+
+    m_filterParameterCache.remove(filterKey);
+
+    Document::FilterInfo resetInfo;
+    bool foundInfo = false;
+    if (m_doc) {
+        const std::vector<Document::FilterInfo> freshInfos = m_doc->filterInfos();
+        for (const Document::FilterInfo &info : freshInfos) {
+            if (info.key != filterKey)
+                continue;
+            resetInfo = info;
+            foundInfo = true;
+            break;
+        }
+    }
+    if (!foundInfo) {
+        const Document::FilterInfo *currentInfo = filterByKey(filterKey);
+        if (!currentInfo)
+            return;
+        resetInfo = *currentInfo;
+        foundInfo = true;
+    }
+
+    for (Document::FilterInfo &info : m_filters) {
+        if (info.key == filterKey) {
+            info = resetInfo;
+            break;
+        }
+    }
+
+    buildParameterEditors(resetInfo);
+    refreshCurrentFilterApplicability();
 }
 
 void MeshFilterPanel::onShowAdvancedToggled(bool checked)

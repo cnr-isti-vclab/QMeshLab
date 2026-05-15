@@ -58,6 +58,7 @@ private slots:
     void onResultItemClicked(QListWidgetItem *item);
     void onResultItemActivated(QListWidgetItem *item);
     void onApplyClicked();
+    void onResetParametersClicked();
     void onShowAdvancedToggled(bool checked);
 
 private:
@@ -115,6 +116,7 @@ private:
     QFormLayout *m_parametersLayout = nullptr;
     QLabel *m_noParametersLabel = nullptr;
     QPushButton *m_applyButton = nullptr;
+    QToolButton *m_resetParametersButton = nullptr;
     QToolButton *m_copyToConsoleButton = nullptr;
     QString m_currentFilterUnavailableReason;
 };
