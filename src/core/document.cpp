@@ -1564,6 +1564,10 @@ bool Document::linearizeUndoHistory()
     }
     compacted[0].parentId = -1; // root has no parent
 
+    // After linearization there is only one chain, so all nodes belong to lane 0.
+    for (UndoNode &n : compacted)
+        n.lane = 0;
+
     m_undoNodes = std::move(compacted);
     m_undoCurrentNode = remap[m_undoCurrentNode];
     emitUndoRedoStateChanged();
