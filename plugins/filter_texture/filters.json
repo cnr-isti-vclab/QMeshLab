@@ -66,6 +66,9 @@
         "FV",
         "VG",
         "VN"
+      ],
+      "inputPrepare": [
+        "VTex"
       ]
     },
     {
@@ -90,6 +93,9 @@
       "parameters": [],
       "outputModifies": [
         "WT"
+      ],
+      "inputPrepare": [
+        "WTex"
       ]
     },
     {
@@ -155,6 +161,9 @@
       ],
       "outputModifies": [
         "WT"
+      ],
+      "inputPrepare": [
+        "WTex"
       ]
     },
     {
@@ -227,6 +236,9 @@
       ],
       "outputModifies": [
         "WT"
+      ],
+      "inputPrepare": [
+        "WTex"
       ]
     },
     {

@@ -67,7 +67,8 @@
         "VN"
       ],
       "inputPrepare": [
-        "VF"
+        "VF",
+        "WTex"
       ]
     },
     {
@@ -154,6 +155,7 @@
         }
       ],
       "inputPrepare": [
+        "FF",
         "VMark"
       ]
     },
@@ -204,6 +206,10 @@
           "kind": "removeUnreferencedVertices",
           "whenBoolParam": "remove_unref"
         }
+      ],
+      "inputPrepare": [
+        "FF",
+        "FMark"
       ]
     },
     {
@@ -265,6 +271,10 @@
       "outputModifies": [
         "FV",
         "VG"
+      ],
+      "inputPrepare": [
+        "FF",
+        "VMark"
       ]
     },
     {
@@ -343,6 +353,9 @@
       "outputModifies": [
         "VG",
         "FV"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -381,7 +394,8 @@
         "WT"
       ],
       "inputPrepare": [
-        "VF"
+        "VF",
+        "WTex"
       ]
     },
     {
@@ -475,6 +489,9 @@
       "outputModifies": [
         "FV",
         "VG"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -510,6 +527,9 @@
       "outputModifies": [
         "VG",
         "FV"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {

@@ -240,8 +240,9 @@ int meshIndexFromVariant(const QVariant &value, int fallback)
 }
 
 // Enables OCF components, computes topology/normals/bbox as declared in
-// descriptor.inputPrepare, and returns a scope guard that disables the
-// components on destruction.  Must be kept alive for the entire filter call.
+// descriptor.inputPrepare, and returns a scope guard that disables volatile
+// components on destruction. Persistent output storage (texcoords/curvature
+// directions) is intentionally left enabled because filters write results there.
 MeshPreparationScope prepareMeshForPrepList(
     VCGMesh &mesh,
     const QStringList &prep)
@@ -261,7 +262,21 @@ MeshPreparationScope prepareMeshForPrepList(
     const bool doBBox     = prep.contains(QStringLiteral("BBox"));
     const bool doFaceMark   = prep.contains(QStringLiteral("FMark")) || prep.contains(QStringLiteral("Mark"));
     const bool doVertexMark = prep.contains(QStringLiteral("VMark"));
+    const bool doVertexTex =
+        prep.contains(QStringLiteral("VTex")) || prep.contains(QStringLiteral("VertexTex"))
+        || prep.contains(QStringLiteral("VT"));
+    const bool doWedgeTex =
+        prep.contains(QStringLiteral("WTex")) || prep.contains(QStringLiteral("WedgeTex"))
+        || prep.contains(QStringLiteral("WT"));
+    const bool doCurvatureDir =
+        prep.contains(QStringLiteral("CurvDir")) || prep.contains(QStringLiteral("CurvatureDir"));
 
+    if (doVertexTex)
+        mesh.vert.EnableTexCoord();
+    if (doWedgeTex)
+        mesh.face.EnableWedgeTexCoord();
+    if (doCurvatureDir)
+        mesh.vert.EnableCurvatureDir();
     if (doFF) {
         mesh.face.EnableFFAdjacency();
         scope.disableFF = true;

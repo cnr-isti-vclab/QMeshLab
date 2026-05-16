@@ -37,6 +37,9 @@
         "FV",
         "VN",
         "FN"
+      ],
+      "inputPrepare": [
+        "FF"
       ]
     },
     {
@@ -251,6 +254,9 @@
         "VG",
         "VN",
         "FN"
+      ],
+      "inputPrepare": [
+        "VF"
       ]
     },
     {
@@ -974,7 +980,8 @@
       ],
       "inputPrepare": [
         "FF",
-        "FMark"
+        "FMark",
+        "VMark"
       ]
     }
   ]

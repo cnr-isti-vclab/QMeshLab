@@ -559,7 +559,8 @@
       ],
       "inputPrepare": [
         "BorderVF",
-        "VMark"
+        "VMark",
+        "WTex"
       ]
     },
     {
@@ -2012,6 +2013,9 @@
         "VA",
         "VQ"
       ],
+      "inputPrepare": [
+        "CurvDir"
+      ],
       "preRunCleanup": [
         {
           "kind": "removeUnreferencedVertices",
@@ -2492,6 +2496,9 @@
         "VN",
         "VC",
         "VT"
+      ],
+      "inputPrepare": [
+        "VTex"
       ]
     },
     {

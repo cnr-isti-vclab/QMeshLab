@@ -464,6 +464,7 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
         Document::MeshEntry &entry = doc.mesh(currentIndex);
         VCGMesh workMesh;
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(workMesh, entry.mesh);
+        workMesh.vert.EnableCurvatureDir();
         if (!ensureVertexNormals(workMesh))
             return fail(QObject::tr("Current mesh '%1' must provide oriented vertex normals.").arg(entry.name));
         if (!initMlsMesh(workMesh))
@@ -485,6 +486,7 @@ MeshFilterRunResult MlsFilterPlugin::runFilter(
             doc.progressCallback());
 
         entry.mesh.Clear();
+        entry.mesh.vert.EnableCurvatureDir();
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(entry.mesh, workMesh);
         entry.ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTNORMAL;
         doc.markMeshGeometryChanged(currentIndex, QObject::tr("Computed MLS curvature quality for '%1'").arg(entry.name));

@@ -512,6 +512,9 @@
       ],
       "outputModifies": [
         "VT"
+      ],
+      "inputPrepare": [
+        "VTex"
       ]
     },
     {
@@ -591,6 +594,9 @@
       ],
       "outputModifies": [
         "WT"
+      ],
+      "inputPrepare": [
+        "WTex"
       ]
     },
     {

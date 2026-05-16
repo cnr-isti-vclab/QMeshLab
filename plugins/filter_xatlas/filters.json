@@ -22,7 +22,8 @@
         "requireFaces": true
       },
       "inputPrepare": [
-        "VNorm"
+        "VNorm",
+        "WTex"
       ],
       "parameters": [
         {

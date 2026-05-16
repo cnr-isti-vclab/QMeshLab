@@ -544,7 +544,7 @@
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireFaces": true },
-      "inputPrepare": ["FF"],
+      "inputPrepare": ["FF", "FMark"],
       "parameters": [],
       "outputModifies": ["FC"]
     },

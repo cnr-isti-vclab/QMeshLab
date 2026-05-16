@@ -171,6 +171,9 @@ struct MeshFilterDescriptor
     //   FMark     — Enable per-face OCF mark
     //   VMark     — Enable per-vertex OCF mark
     //   Mark      — Backward-compatible alias for FMark
+    //   VTex/VT   — Enable per-vertex OCF texture coordinates
+    //   WTex/WT   — Enable per-wedge OCF texture coordinates
+    //   CurvDir   — Enable per-vertex OCF curvature directions
     QStringList inputPrepare;
 
     // Declarative semantic cleanup hooks executed by the framework.

@@ -531,6 +531,9 @@
       ],
       "outputModifies": [
         "VQ"
+      ],
+      "inputPrepare": [
+        "CurvDir"
       ]
     },
     {
@@ -643,6 +646,9 @@
       ],
       "outputModifies": [
         "VQ"
+      ],
+      "inputPrepare": [
+        "CurvDir"
       ]
     },
     {
