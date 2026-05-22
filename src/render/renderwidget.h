@@ -81,6 +81,21 @@ private:
     // MeshRenderMode is now the public PerMeshRenderSettings type.
     using MeshRenderMode = PerMeshRenderSettings;
     using MainUbufMaterialOverrides = RenderWidgetInternal::MainUbufMaterialOverrides;
+    class FillMaterialRenderer;
+    class PlainFillRenderer;
+    class PbrFillRenderer;
+    class RadianceScalingFillRenderer;
+    struct SceneFillDrawContext {
+        RenderWidget &widget;
+        QRhiCommandBuffer *cb;
+        int meshIndex;
+        const QMatrix4x4 &proj;
+        const QMatrix4x4 &view;
+        const QSize &pixelSize;
+        const QVector3D &lightDir;
+        const PerMeshRenderSettings &meshSettings;
+        const MeshGpuResourceCache::FillPassView &fillView;
+    };
 
     void createOverlayButtons();
     void layoutOverlayButtons();

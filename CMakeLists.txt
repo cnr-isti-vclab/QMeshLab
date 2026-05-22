@@ -93,6 +93,7 @@ qt_add_executable(QMeshLab
     src/render/renderwidget_modes.cpp
     src/render/renderwidget_resources.cpp
     src/render/renderwidget_selection.cpp
+    src/render/renderwidget_fill.cpp
     src/render/renderwidget_render.cpp
     src/render/renderwidget_uv.cpp
     src/render/viewtrackball.h src/render/viewtrackball.cpp
