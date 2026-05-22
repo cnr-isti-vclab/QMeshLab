@@ -3,6 +3,42 @@
 
 using namespace RenderWidgetInternal;
 
+namespace {
+
+struct RenderFramePassRequests {
+    bool fill = false;
+    bool wire = false;
+    bool edges = false;
+    bool boundingBox = false;
+    bool points = false;
+    bool selection = false;
+    bool decorators = false;
+
+    bool hasSimpleBufferRequests() const
+    {
+        return wire || edges || boundingBox || points;
+    }
+};
+
+bool requestsSelectionPass(const PerMeshRenderSettings &settings)
+{
+    return settings.showSelection
+        && (settings.showSelectionVertices || settings.showSelectionFaces);
+}
+
+bool requestsDecoratorPass(const PerMeshRenderSettings &settings)
+{
+    return settings.decoratorVertexNormals
+        || settings.decoratorFaceNormals
+        || settings.decoratorCurvatureDir
+        || settings.decoratorBoundaryEdges
+        || settings.decoratorTextureSeams
+        || settings.decoratorNonManifoldEdges
+        || settings.decoratorNonManifoldVertices;
+}
+
+} // namespace
+
 RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
     const QSize &pixelSize,
     const QMatrix4x4 &proj,
@@ -16,31 +52,21 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
     plan.view = view;
     plan.lightDir = lightDir;
 
+    RenderFramePassRequests requests;
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         if (!meshVisible(mi))
             continue;
         const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
-        plan.drawFillPass = plan.drawFillPass || meshSettings.showFill;
-        plan.drawWirePass = plan.drawWirePass || meshSettings.showWire;
-        plan.drawEdgesPass = plan.drawEdgesPass || meshSettings.showEdges;
-        plan.drawBBoxPass = plan.drawBBoxPass || meshSettings.showBoundingBox;
-        plan.drawPointsPass = plan.drawPointsPass || meshSettings.showPoints;
-        plan.drawSelectionPass =
-            plan.drawSelectionPass
-            || (meshSettings.showSelection
-                && (meshSettings.showSelectionVertices || meshSettings.showSelectionFaces));
-        plan.drawDecoratorPass =
-            plan.drawDecoratorPass
-            || meshSettings.decoratorVertexNormals
-            || meshSettings.decoratorFaceNormals
-            || meshSettings.decoratorCurvatureDir
-            || meshSettings.decoratorBoundaryEdges
-            || meshSettings.decoratorTextureSeams
-            || meshSettings.decoratorNonManifoldEdges
-            || meshSettings.decoratorNonManifoldVertices;
+        requests.fill = requests.fill || meshSettings.showFill;
+        requests.wire = requests.wire || meshSettings.showWire;
+        requests.edges = requests.edges || meshSettings.showEdges;
+        requests.boundingBox = requests.boundingBox || meshSettings.showBoundingBox;
+        requests.points = requests.points || meshSettings.showPoints;
+        requests.selection = requests.selection || requestsSelectionPass(meshSettings);
+        requests.decorators = requests.decorators || requestsDecoratorPass(meshSettings);
     }
 
-    if (plan.drawFillPass)
+    if (requests.fill)
         plan.sceneFill = buildSceneFillFramePlan(pixelSize, proj, view, lightDir);
 
     auto appendBufferDrawItem =
@@ -83,8 +109,9 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
         };
 
     const bool buildSimpleBufferItems =
-        plan.drawWirePass || plan.drawEdgesPass || (plan.drawBBoxPass && m_bboxPipeline)
-        || (plan.drawPointsPass && m_pointsPipeline);
+        requests.hasSimpleBufferRequests()
+        && (requests.wire || requests.edges || (requests.boundingBox && m_bboxPipeline)
+            || (requests.points && m_pointsPipeline));
     if (buildSimpleBufferItems) {
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
@@ -92,7 +119,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
 
             const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
 
-            if (plan.drawWirePass && meshSettings.showWire) {
+            if (requests.wire && meshSettings.showWire) {
                 const MeshGpuResourceCache::WirePassView wireView =
                     m_doc->wirePassGpuView(m_rhi, mi);
                 if (wireView.valid) {
@@ -106,7 +133,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
                 }
             }
 
-            if (plan.drawEdgesPass && meshSettings.showEdges) {
+            if (requests.edges && meshSettings.showEdges) {
                 bool edgeItemAppended = false;
                 const MeshGpuResourceCache::EdgeFatPassView fatView =
                     m_doc->edgeFatPassGpuView(m_rhi, mi);
@@ -137,7 +164,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
                 }
             }
 
-            if (plan.drawBBoxPass && m_bboxPipeline && meshSettings.showBoundingBox) {
+            if (requests.boundingBox && m_bboxPipeline && meshSettings.showBoundingBox) {
                 const MeshGpuResourceCache::BBoxPassView bboxView =
                     m_doc->bboxPassGpuView(m_rhi, mi);
                 if (bboxView.valid) {
@@ -151,7 +178,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
                 }
             }
 
-            if (plan.drawPointsPass && m_pointsPipeline && meshSettings.showPoints) {
+            if (requests.points && m_pointsPipeline && meshSettings.showPoints) {
                 const auto pointVariant = static_cast<Document::PointGpuVariant>(
                     pointGpuVariantIndexForSettings(meshSettings));
                 const MeshGpuResourceCache::PointsPassView pointsView =
@@ -169,7 +196,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
         }
     }
 
-    if (plan.drawDecoratorPass) {
+    if (requests.decorators) {
         auto canDrawLineDecoratorSlot = [&](int slot) {
             return m_decoratorPipeline
                 && slot >= 0
@@ -403,7 +430,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
         }
     }
 
-    if (plan.drawSelectionPass
+    if (requests.selection
         && m_selectionUbuf
         && m_selectionSrb
         && (m_selectionFacesPipeline || m_selectionVerticesPipeline)) {

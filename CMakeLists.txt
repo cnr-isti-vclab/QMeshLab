@@ -94,6 +94,7 @@ qt_add_executable(QMeshLab
     src/render/renderwidget_resources.cpp
     src/render/renderwidget_selection.cpp
     src/render/renderwidget_frame_plan.cpp
+    src/render/renderwidget_scene_passes.cpp
     src/render/renderwidget_fill.cpp
     src/render/renderwidget_render.cpp
     src/render/renderwidget_uv.cpp

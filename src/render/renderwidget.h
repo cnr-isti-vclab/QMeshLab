@@ -99,6 +99,8 @@ private:
         QMatrix4x4 view;
         QVector3D lightDir;
         std::vector<SceneFillDrawItem> fillItems;
+
+        bool hasDrawItems() const { return !fillItems.empty(); }
     };
     struct SceneBufferDrawItem {
         int meshIndex = -1;
@@ -145,13 +147,6 @@ private:
         QMatrix4x4 proj;
         QMatrix4x4 view;
         QVector3D lightDir;
-        bool drawFillPass = false;
-        bool drawWirePass = false;
-        bool drawEdgesPass = false;
-        bool drawBBoxPass = false;
-        bool drawPointsPass = false;
-        bool drawSelectionPass = false;
-        bool drawDecoratorPass = false;
         SceneFillFramePlan sceneFill;
         std::vector<SceneBufferDrawItem> wireItems;
         std::vector<SceneBufferDrawItem> edgeItems;
@@ -160,10 +155,18 @@ private:
         std::vector<SceneSelectionDrawItem> selectionItems;
         std::vector<SceneDecoratorDrawItem> decoratorItems;
 
-        bool hasRequestedScenePasses() const
+        bool hasFillPass() const { return sceneFill.hasDrawItems(); }
+        bool hasWirePass() const { return !wireItems.empty(); }
+        bool hasEdgesPass() const { return !edgeItems.empty(); }
+        bool hasBoundingBoxPass() const { return !boundingBoxItems.empty(); }
+        bool hasPointsPass() const { return !pointItems.empty(); }
+        bool hasSelectionPass() const { return !selectionItems.empty(); }
+        bool hasDecoratorPass() const { return !decoratorItems.empty(); }
+
+        bool hasSceneDrawItems() const
         {
-            return drawFillPass || drawWirePass || drawEdgesPass || drawBBoxPass
-                || drawPointsPass || drawSelectionPass || drawDecoratorPass;
+            return hasFillPass() || hasWirePass() || hasEdgesPass() || hasBoundingBoxPass()
+                || hasPointsPass() || hasSelectionPass() || hasDecoratorPass();
         }
     };
 
@@ -229,6 +232,16 @@ private:
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);
     void renderSceneFillPass(
+        QRhiCommandBuffer *cb,
+        const RenderFramePlan &plan);
+    void renderSceneBufferItems(
+        QRhiCommandBuffer *cb,
+        const RenderFramePlan &plan,
+        const std::vector<SceneBufferDrawItem> &items);
+    void renderSceneDecoratorItems(
+        QRhiCommandBuffer *cb,
+        const RenderFramePlan &plan);
+    void renderSceneSelectionItems(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);
     void startCenterAnimation(const QVector3D &targetCenter);

@@ -295,13 +295,13 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             view,
             frameLightDir);
     const bool needMvpForFrame =
-        framePlan.hasRequestedScenePasses()
+        framePlan.hasSceneDrawItems()
         || drawCurrentMeshHighlight
         || drawTrackballGizmo
         || depthPickPendingAtFrameStart
         || m_lightDragActive;
 
-    if (framePlan.drawFillPass)
+    if (framePlan.hasFillPass())
         renderSceneFillPrepasses(cb, framePlan);
 
     cb->beginPass(renderTarget(), m_renderSettings.sceneBackgroundBottomColor, { 1.0f, 0 }, u);
@@ -313,117 +313,14 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         cb->draw(3);
     }
 
-    if (framePlan.drawFillPass)
+    if (framePlan.hasFillPass())
         renderSceneFillPass(cb, framePlan);
 
-    auto drawSceneBufferItems = [&](const std::vector<SceneBufferDrawItem> &items) {
-        if (items.empty())
-            return;
-        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-        for (const SceneBufferDrawItem &item : items) {
-            if (!item.pipeline || !item.vertexBuffer || item.vertexCount <= 0)
-                continue;
-            cb->setGraphicsPipeline(item.pipeline);
-            cb->setShaderResources(m_srb.get());
-            uploadMainUbufForMesh(
-                cb,
-                item.meshIndex,
-                framePlan.proj,
-                framePlan.view,
-                item.meshSettings,
-                framePlan.pixelSize,
-                true,
-                framePlan.lightDir);
-            const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
-            cb->setVertexInput(0, 1, &binding);
-            cb->draw(item.vertexCount);
-        }
-    };
-    drawSceneBufferItems(framePlan.wireItems);
-    drawSceneBufferItems(framePlan.edgeItems);
-    drawSceneBufferItems(framePlan.boundingBoxItems);
-    drawSceneBufferItems(framePlan.pointItems);
-
-    if (!framePlan.decoratorItems.empty()) {
-        const QMatrix4x4 frameVp = framePlan.proj * framePlan.view;
-        auto uploadDecoratorColor = [&](const SceneDecoratorDrawItem &item) -> bool {
-            if (item.slot < 0 || item.slot >= kDecoratorSlotCount)
-                return false;
-            if (item.meshIndex < 0 || item.meshIndex >= m_doc->meshCount())
-                return false;
-            QRhiBuffer *decoratorUbuf = m_decoratorUbufs[item.slot].get();
-            QRhiShaderResourceBindings *decoratorSrb = m_decoratorSrbs[item.slot].get();
-            if (!decoratorUbuf || !decoratorSrb)
-                return false;
-            float decoratorData[kDecoratorUbufSize / sizeof(float)] = {};
-            const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
-            memcpy(decoratorData, meshMvp.constData(), 64);
-            decoratorData[16] = item.color.redF();
-            decoratorData[17] = item.color.greenF();
-            decoratorData[18] = item.color.blueF();
-            decoratorData[19] = item.color.alphaF();
-            QRhiResourceUpdateBatch *uDecor = m_rhi->nextResourceUpdateBatch();
-            uDecor->updateDynamicBuffer(
-                decoratorUbuf, 0, kDecoratorUbufSize, decoratorData);
-            cb->resourceUpdate(uDecor);
-            return true;
-        };
-        auto uploadDecoratorFat = [&](const SceneDecoratorDrawItem &item) -> bool {
-            if (item.meshIndex < 0 || item.meshIndex >= m_doc->meshCount())
-                return false;
-            if (!m_decoratorFatUbuf || !m_decoratorFatSrb)
-                return false;
-            float fatData[kDecoratorFatUbufSize / sizeof(float)] = {};
-            const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
-            memcpy(fatData, meshMvp.constData(), 64);
-            fatData[16] = item.color.redF();
-            fatData[17] = item.color.greenF();
-            fatData[18] = item.color.blueF();
-            fatData[19] = item.color.alphaF();
-            fatData[20] = qMax(0.5f, item.width);
-            fatData[21] = 1.0f / float(qMax(1, sz.width()));
-            fatData[22] = 1.0f / float(qMax(1, sz.height()));
-            QRhiResourceUpdateBatch *uFat = m_rhi->nextResourceUpdateBatch();
-            uFat->updateDynamicBuffer(
-                m_decoratorFatUbuf.get(), 0, kDecoratorFatUbufSize, fatData);
-            cb->resourceUpdate(uFat);
-            return true;
-        };
-
-        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-        for (const SceneDecoratorDrawItem &item : framePlan.decoratorItems) {
-            if (!item.vertexBuffer || item.vertexCount <= 0)
-                continue;
-
-            QRhiShaderResourceBindings *srb = nullptr;
-            switch (item.kind) {
-            case SceneDecoratorDrawKind::Line:
-                if (!m_decoratorPipeline || !uploadDecoratorColor(item))
-                    continue;
-                srb = m_decoratorSrbs[item.slot].get();
-                cb->setGraphicsPipeline(m_decoratorPipeline.get());
-                cb->setShaderResources(srb);
-                break;
-            case SceneDecoratorDrawKind::FatLine:
-                if (!m_decoratorFatPipeline || !uploadDecoratorFat(item))
-                    continue;
-                cb->setGraphicsPipeline(m_decoratorFatPipeline.get());
-                cb->setShaderResources(m_decoratorFatSrb.get());
-                break;
-            case SceneDecoratorDrawKind::Point:
-                if (!m_decoratorPointPipeline || !uploadDecoratorColor(item))
-                    continue;
-                srb = m_decoratorSrbs[item.slot].get();
-                cb->setGraphicsPipeline(m_decoratorPointPipeline.get());
-                cb->setShaderResources(srb);
-                break;
-            }
-
-            const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
-            cb->setVertexInput(0, 1, &binding);
-            cb->draw(item.vertexCount);
-        }
-    }
+    renderSceneBufferItems(cb, framePlan, framePlan.wireItems);
+    renderSceneBufferItems(cb, framePlan, framePlan.edgeItems);
+    renderSceneBufferItems(cb, framePlan, framePlan.boundingBoxItems);
+    renderSceneBufferItems(cb, framePlan, framePlan.pointItems);
+    renderSceneDecoratorItems(cb, framePlan);
 
     if (drawTrackballGizmo && m_trackballGizmoPipeline && m_trackballGizmoVbuf && m_trackballGizmoSrb) {
         cb->setGraphicsPipeline(m_trackballGizmoPipeline.get());
@@ -447,57 +344,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (drawCurrentMeshHighlight)
         drawCurrentMeshOutline(cb, sz);
 
-    if (!framePlan.selectionItems.empty()
-        && m_selectionUbuf
-        && m_selectionSrb
-        && (m_selectionFacesPipeline || m_selectionVerticesPipeline)) {
-        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-        const QMatrix4x4 frameVp = framePlan.proj * framePlan.view;
-
-        for (const SceneSelectionDrawItem &item : framePlan.selectionItems) {
-            if (item.meshIndex < 0 || item.meshIndex >= m_doc->meshCount())
-                continue;
-            const MeshGpuResourceCache::SelectionPassView &selectionView = item.selectionView;
-            if (!selectionView.valid)
-                continue;
-
-            float selectionData[kDecoratorUbufSize / sizeof(float)] = {};
-            const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
-            memcpy(selectionData, meshMvp.constData(), 64);
-            selectionData[16] = 1.0f;
-            selectionData[17] = 0.0f;
-            selectionData[18] = 0.0f;
-            selectionData[19] = 0.5f;
-            QRhiResourceUpdateBatch *uSel = m_rhi->nextResourceUpdateBatch();
-            uSel->updateDynamicBuffer(
-                m_selectionUbuf.get(), 0, kDecoratorUbufSize, selectionData);
-            cb->resourceUpdate(uSel);
-
-            if (item.drawFaces
-                && m_selectionFacesPipeline
-                && selectionView.selectedFacesBuffer
-                && selectionView.selectedFacesVertexCount > 0) {
-                cb->setGraphicsPipeline(m_selectionFacesPipeline.get());
-                cb->setShaderResources(m_selectionSrb.get());
-                const QRhiCommandBuffer::VertexInput fv(
-                    selectionView.selectedFacesBuffer, 0);
-                cb->setVertexInput(0, 1, &fv);
-                cb->draw(selectionView.selectedFacesVertexCount);
-            }
-
-            if (item.drawVertices
-                && m_selectionVerticesPipeline
-                && selectionView.selectedVerticesBuffer
-                && selectionView.selectedVerticesVertexCount > 0) {
-                cb->setGraphicsPipeline(m_selectionVerticesPipeline.get());
-                cb->setShaderResources(m_selectionSrb.get());
-                const QRhiCommandBuffer::VertexInput vv(
-                    selectionView.selectedVerticesBuffer, 0);
-                cb->setVertexInput(0, 1, &vv);
-                cb->draw(selectionView.selectedVerticesVertexCount);
-            }
-        }
-    }
+    renderSceneSelectionItems(cb, framePlan);
 
     if (needMvpForFrame) {
         updateBoundingBoxCornersOverlayPlacement(vp, view, sz);
