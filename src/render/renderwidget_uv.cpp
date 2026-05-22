@@ -842,13 +842,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     }
 
     float baseUbufData[kUbufFloatCount] = {};
-    memcpy(baseUbufData, mvp.constData(), 64);
-    memcpy(baseUbufData + 16, modelView.constData(), 64);
-    const float *n = normalMat.constData();
-    baseUbufData[32] = n[0]; baseUbufData[33] = n[1]; baseUbufData[34] = n[2]; baseUbufData[35] = 0.0f;
-    baseUbufData[36] = n[3]; baseUbufData[37] = n[4]; baseUbufData[38] = n[5]; baseUbufData[39] = 0.0f;
-    baseUbufData[40] = n[6]; baseUbufData[41] = n[7]; baseUbufData[42] = n[8]; baseUbufData[43] = 0.0f;
-    writeMainStyleToUbuf(baseUbufData, meshSettings, sz, false);
+    writeMainUbuf(baseUbufData, mvp, modelView, normalMat, meshSettings, sz, false);
 
     {
         // Always push the UV-space transform at frame start so pan/zoom is applied
@@ -862,12 +856,17 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                                float normalScale = 1.0f,
                                float occlusionStrength = 1.0f,
                                float roughnessFactor = 1.0f) {
-        float ubufData[kUbufFloatCount];
-        memcpy(ubufData, baseUbufData, sizeof(ubufData));
-        writeMainStyleToUbuf(ubufData, styleSettings, sz, false);
-        ubufData[kUbufMaterialParamsOffset + 0] = normalScale;
-        ubufData[kUbufMaterialParamsOffset + 1] = occlusionStrength;
-        ubufData[kUbufMaterialParamsOffset + 2] = roughnessFactor;
+        float ubufData[kUbufFloatCount] = {};
+        writeMainUbuf(
+            ubufData,
+            mvp,
+            modelView,
+            normalMat,
+            styleSettings,
+            sz,
+            false,
+            QVector3D(0.0f, 0.0f, 1.0f),
+            MainUbufMaterialOverrides { normalScale, occlusionStrength, roughnessFactor });
 
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
@@ -1098,7 +1097,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                         updateStyleUbuf(meshSettings);
                         for (int bi = 0; bi < fillView.batchCount; ++bi) {
                             const auto &batch = fillView.batches[bi];
-                            if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
+                            if (!hasDrawableBatchGeometry(batch))
                                 continue;
                             // Use selected texture if found, otherwise use batch's own base color.
                             QRhiTexture *texToUse = selectedTexture ? selectedTexture : batch.baseColorTexture;
@@ -1108,15 +1107,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                                 batch.occlusionTexture,
                                 batch.roughnessTexture,
                                 m_renderSettings.uvTextureNearestSampling));
-                            const QRhiCommandBuffer::VertexInput binding(batch.vertexBuffer, 0);
-                            if (batch.indexCount > 0 && batch.indexBuffer) {
-                                cb->setVertexInput(
-                                    0, 1, &binding, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
-                                cb->drawIndexed(batch.indexCount);
-                            } else {
-                                cb->setVertexInput(0, 1, &binding);
-                                cb->draw(batch.vertexCount);
-                            }
+                            drawBatchGeometry(cb, batch);
                         }
                     }
                 } else {

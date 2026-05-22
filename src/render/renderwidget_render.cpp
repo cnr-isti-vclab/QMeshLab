@@ -247,17 +247,16 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         const QMatrix3x3 normalMat = modelView.normalMatrix();
 
         float ubufData[kUbufFloatCount] = {};
-        memcpy(ubufData, mvp.constData(), 64);
-        memcpy(ubufData + 16, modelView.constData(), 64);
-        const float *n = normalMat.constData();
-        ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0;
-        ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
-        ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
-        writeMainStyleToUbuf(ubufData, meshSettings, sz, true,
-            m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f)));
-        ubufData[kUbufMaterialParamsOffset + 0] = normalScale;
-        ubufData[kUbufMaterialParamsOffset + 1] = occlusionStrength;
-        ubufData[kUbufMaterialParamsOffset + 2] = roughnessFactor;
+        writeMainUbuf(
+            ubufData,
+            mvp,
+            modelView,
+            normalMat,
+            meshSettings,
+            sz,
+            true,
+            m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f)),
+            MainUbufMaterialOverrides { normalScale, occlusionStrength, roughnessFactor });
 
         QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
         uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
@@ -332,22 +331,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                     continue;
                 for (int bi = 0; bi < fillView.batchCount; ++bi) {
                     const auto &batch = fillView.batches[bi];
-                    if (!batch.vertexBuffer
-                        || (batch.indexCount == 0 && batch.vertexCount == 0))
+                    if (!hasDrawableBatchGeometry(batch))
                         continue;
                     updateMainUbufForMesh(mi, meshSettings,
                                          meshSettings.fillRs.enhancement, 1.0f, 1.0f);
                     cb->setShaderResources(m_rsGradSrb.get());
-                    const QRhiCommandBuffer::VertexInput vb(batch.vertexBuffer, 0);
-                    if (batch.indexCount > 0 && batch.indexBuffer) {
-                        cb->setVertexInput(0, 1, &vb,
-                                           batch.indexBuffer, 0,
-                                           QRhiCommandBuffer::IndexUInt32);
-                        cb->drawIndexed(batch.indexCount);
-                    } else {
-                        cb->setVertexInput(0, 1, &vb);
-                        cb->draw(batch.vertexCount);
-                    }
+                    drawBatchGeometry(cb, batch);
                 }
             }
             cb->endPass();
@@ -386,18 +375,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             // the right helper via a switch, keeping material-specific logic
             // isolated and easy to extend.
 
-            auto submitBatch = [&](const auto &batch) {
-                const QRhiCommandBuffer::VertexInput vb(batch.vertexBuffer, 0);
-                if (batch.indexCount > 0 && batch.indexBuffer) {
-                    cb->setVertexInput(
-                        0, 1, &vb, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
-                    cb->drawIndexed(batch.indexCount);
-                } else {
-                    cb->setVertexInput(0, 1, &vb);
-                    cb->draw(batch.vertexCount);
-                }
-            };
-
             // Plain material: constant/vertex/face/quality colour or a single
             // albedo texture.  No normal-map, occlusion or roughness inputs.
             auto drawFillBatchPlain = [&](const auto &batch) {
@@ -413,7 +390,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                         albedo = t;
                 }
                 cb->setShaderResources(shaderResourcesForFillTextures(albedo, nullptr, nullptr, nullptr));
-                submitBatch(batch);
+                drawBatchGeometry(cb, batch);
             };
 
             // PBR material: resolves all four texture channels from the per-
@@ -445,7 +422,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                     resolvedNormal,
                     occlusion ? occlusion : batch.occlusionTexture,
                     roughness ? roughness : batch.roughnessTexture));
-                submitBatch(batch);
+                drawBatchGeometry(cb, batch);
             };
 
             // Radiance Scaling: pass 1 gradient is already in m_rsGradTexture;
@@ -456,12 +433,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 QRhiTexture *gradTex = m_rsGradTexture ? m_rsGradTexture.get() : nullptr;
                 cb->setShaderResources(shaderResourcesForFillTextures(
                     batch.baseColorTexture, gradTex, nullptr, nullptr));
-                submitBatch(batch);
+                drawBatchGeometry(cb, batch);
             };
 
             for (int bi = 0; bi < fillView.batchCount; ++bi) {
                 const auto &batch = fillView.batches[bi];
-                if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
+                if (!hasDrawableBatchGeometry(batch))
                     continue;
                 switch (meshSettings.fillMaterial) {
                 case FillMaterial::Plain:            drawFillBatchPlain(batch); break;

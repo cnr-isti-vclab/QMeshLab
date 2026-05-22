@@ -226,13 +226,7 @@ void RenderWidget::executePendingDepthPick(
         const QMatrix4x4 meshMvp = proj * modelView;
         const QMatrix3x3 normalMat = modelView.normalMatrix();
         float ubufData[kUbufFloatCount] = {};
-        memcpy(ubufData, meshMvp.constData(), 64);
-        memcpy(ubufData + 16, modelView.constData(), 64);
-        const float *n = normalMat.constData();
-        ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0;
-        ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
-        ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
-        writeMainStyleToUbuf(ubufData, meshSettings, pixelSize, true);
+        writeMainUbuf(ubufData, meshMvp, modelView, normalMat, meshSettings, pixelSize, true);
         QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
         uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
         cb->resourceUpdate(uMesh);
@@ -244,17 +238,9 @@ void RenderWidget::executePendingDepthPick(
             cb->setShaderResources(m_depthPickSrb.get());
             for (int bi = 0; bi < fillView.batchCount; ++bi) {
                 const auto &batch = fillView.batches[bi];
-                if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
+                if (!hasDrawableBatchGeometry(batch))
                     continue;
-                const QRhiCommandBuffer::VertexInput vbufBinding(batch.vertexBuffer, 0);
-                if (batch.indexCount > 0 && batch.indexBuffer) {
-                    cb->setVertexInput(
-                        0, 1, &vbufBinding, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
-                    cb->drawIndexed(batch.indexCount);
-                } else {
-                    cb->setVertexInput(0, 1, &vbufBinding);
-                    cb->draw(batch.vertexCount);
-                }
+                drawBatchGeometry(cb, batch);
             }
         }
 
@@ -373,13 +359,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         const QMatrix4x4 mvp = proj * modelView;
         const QMatrix3x3 normalMat = modelView.normalMatrix();
         float ubufData[kUbufFloatCount] = {};
-        memcpy(ubufData, mvp.constData(), 64);
-        memcpy(ubufData + 16, modelView.constData(), 64);
-        const float *n = normalMat.constData();
-        ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0;
-        ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0;
-        ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0;
-        writeMainStyleToUbuf(ubufData, meshSettings, pixelSize, true);
+        writeMainUbuf(ubufData, mvp, modelView, normalMat, meshSettings, pixelSize, true);
         QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
         uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
         cb->resourceUpdate(uMesh);
@@ -405,7 +385,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     if (currentMeshMode.showFill) {
         for (int bi = 0; bi < currentFillView.batchCount; ++bi) {
             const auto &batch = currentFillView.batches[bi];
-            if (batch.vertexBuffer && (batch.indexCount > 0 || batch.vertexCount > 0)) {
+            if (hasDrawableBatchGeometry(batch)) {
                 currentHasFill = true;
                 break;
             }
@@ -452,17 +432,9 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         cb->setShaderResources(m_srb.get());
         for (int bi = 0; bi < fillView.batchCount; ++bi) {
             const auto &batch = fillView.batches[bi];
-            if (!batch.vertexBuffer || (batch.indexCount == 0 && batch.vertexCount == 0))
+            if (!hasDrawableBatchGeometry(batch))
                 continue;
-            const QRhiCommandBuffer::VertexInput vbufBinding(batch.vertexBuffer, 0);
-            if (batch.indexCount > 0 && batch.indexBuffer) {
-                cb->setVertexInput(
-                    0, 1, &vbufBinding, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
-                cb->drawIndexed(batch.indexCount);
-            } else {
-                cb->setVertexInput(0, 1, &vbufBinding);
-                cb->draw(batch.vertexCount);
-            }
+            drawBatchGeometry(cb, batch);
         }
     };
 

@@ -3,12 +3,16 @@
 #include "renderingsettings.h"
 #include "vcgmesh.h"
 #include <QFile>
+#include <QMatrix3x3>
+#include <QMatrix4x4>
 #include <QSize>
 #include <QtGlobal>
 #include <QVector3D>
+#include <rhi/qrhi.h>
 #include <rhi/qshader.h>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <vector>
 
 #include <QDir>
@@ -104,6 +108,12 @@ struct MainStyleUbufKey {
     }
 };
 
+struct MainUbufMaterialOverrides {
+    float normalScale = 1.0f;
+    float occlusionStrength = 1.0f;
+    float roughnessFactor = 1.0f;
+};
+
 inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
     const PerMeshRenderSettings &settings,
     bool includeLighting = true)
@@ -125,6 +135,21 @@ inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
     key.edgeColor = settings.edgeColor;
     key.edgeSize = settings.edgeSize;
     return key;
+}
+
+inline void writeMainMatricesToUbuf(
+    float *ubufData,
+    const QMatrix4x4 &mvp,
+    const QMatrix4x4 &modelView,
+    const QMatrix3x3 &normalMat)
+{
+    std::memcpy(ubufData, mvp.constData(), 16 * sizeof(float));
+    std::memcpy(ubufData + 16, modelView.constData(), 16 * sizeof(float));
+
+    const float *n = normalMat.constData();
+    ubufData[32] = n[0]; ubufData[33] = n[1]; ubufData[34] = n[2]; ubufData[35] = 0.0f;
+    ubufData[36] = n[3]; ubufData[37] = n[4]; ubufData[38] = n[5]; ubufData[39] = 0.0f;
+    ubufData[40] = n[6]; ubufData[41] = n[7]; ubufData[42] = n[8]; ubufData[43] = 0.0f;
 }
 
 inline void writeMainStyleToUbuf(
@@ -214,6 +239,51 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufLightDirOffset + 1] = lightDir.y();
     ubufData[kUbufLightDirOffset + 2] = lightDir.z();
     ubufData[kUbufLightDirOffset + 3] = 0.0f;
+}
+
+inline void writeMainMaterialOverridesToUbuf(
+    float *ubufData,
+    const MainUbufMaterialOverrides &overrides)
+{
+    ubufData[kUbufMaterialParamsOffset + 0] = overrides.normalScale;
+    ubufData[kUbufMaterialParamsOffset + 1] = overrides.occlusionStrength;
+    ubufData[kUbufMaterialParamsOffset + 2] = overrides.roughnessFactor;
+}
+
+inline void writeMainUbuf(
+    float *ubufData,
+    const QMatrix4x4 &mvp,
+    const QMatrix4x4 &modelView,
+    const QMatrix3x3 &normalMat,
+    const PerMeshRenderSettings &settings,
+    const QSize &pixelSize,
+    bool enableLighting,
+    const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
+    MainUbufMaterialOverrides overrides = MainUbufMaterialOverrides{})
+{
+    writeMainMatricesToUbuf(ubufData, mvp, modelView, normalMat);
+    writeMainStyleToUbuf(ubufData, settings, pixelSize, enableLighting, lightDir);
+    writeMainMaterialOverridesToUbuf(ubufData, overrides);
+}
+
+template <typename Batch>
+inline bool hasDrawableBatchGeometry(const Batch &batch)
+{
+    return batch.vertexBuffer && (batch.indexCount > 0 || batch.vertexCount > 0);
+}
+
+template <typename Batch>
+inline void drawBatchGeometry(QRhiCommandBuffer *cb, const Batch &batch)
+{
+    const QRhiCommandBuffer::VertexInput vb(batch.vertexBuffer, 0);
+    if (batch.indexCount > 0 && batch.indexBuffer) {
+        cb->setVertexInput(
+            0, 1, &vb, batch.indexBuffer, 0, QRhiCommandBuffer::IndexUInt32);
+        cb->drawIndexed(batch.indexCount);
+    } else {
+        cb->setVertexInput(0, 1, &vb);
+        cb->draw(batch.vertexCount);
+    }
 }
 
 inline QVector3D toVec3(const VCGMesh::CoordType &p)
