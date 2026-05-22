@@ -8,6 +8,7 @@
 #include <QRhiWidget>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
+#include <QMatrix3x3>
 #include <QMatrix4x4>
 #include <QPoint>
 #include <QString>
@@ -79,6 +80,7 @@ protected:
 private:
     // MeshRenderMode is now the public PerMeshRenderSettings type.
     using MeshRenderMode = PerMeshRenderSettings;
+    using MainUbufMaterialOverrides = RenderWidgetInternal::MainUbufMaterialOverrides;
 
     void createOverlayButtons();
     void layoutOverlayButtons();
@@ -108,6 +110,38 @@ private:
     void ensureDepthPickResources(const QSize &pixelSize);
     void ensureRsGradResources(const QSize &pixelSize);
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
+    void uploadMainUbuf(
+        QRhiCommandBuffer *cb,
+        const QMatrix4x4 &mvp,
+        const QMatrix4x4 &modelView,
+        const QMatrix3x3 &normalMat,
+        const PerMeshRenderSettings &settings,
+        const QSize &pixelSize,
+        bool enableLighting,
+        const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
+        MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{});
+    void uploadMainUbufForMesh(
+        QRhiCommandBuffer *cb,
+        int meshIndex,
+        const QMatrix4x4 &proj,
+        const QMatrix4x4 &view,
+        const PerMeshRenderSettings &meshSettings,
+        const QSize &pixelSize,
+        bool enableLighting,
+        const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
+        MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{});
+    void renderRadianceScalingGradientPass(
+        QRhiCommandBuffer *cb,
+        const QSize &pixelSize,
+        const QMatrix4x4 &proj,
+        const QMatrix4x4 &view,
+        const QVector3D &lightDir);
+    void renderSceneFillPass(
+        QRhiCommandBuffer *cb,
+        const QSize &pixelSize,
+        const QMatrix4x4 &proj,
+        const QMatrix4x4 &view,
+        const QVector3D &lightDir);
     void startCenterAnimation(const QVector3D &targetCenter);
     void cancelCenterAnimation();
     void advanceCenterAnimation();

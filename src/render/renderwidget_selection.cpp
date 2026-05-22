@@ -221,15 +221,7 @@ void RenderWidget::executePendingDepthPick(
         const auto pointVariant = static_cast<Document::PointGpuVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
 
-        const QMatrix4x4 model = m_doc->mesh(mi).transform;
-        const QMatrix4x4 modelView = view * model;
-        const QMatrix4x4 meshMvp = proj * modelView;
-        const QMatrix3x3 normalMat = modelView.normalMatrix();
-        float ubufData[kUbufFloatCount] = {};
-        writeMainUbuf(ubufData, meshMvp, modelView, normalMat, meshSettings, pixelSize, true);
-        QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
-        uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
-        cb->resourceUpdate(uMesh);
+        uploadMainUbufForMesh(cb, mi, proj, view, meshSettings, pixelSize, true);
 
         if (m_depthPickFillPipeline) {
             const Document::FillPassGpuView fillView =
@@ -349,22 +341,6 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     QMatrix4x4 proj = m_trackball.projectionMatrix(aspect);
     const QMatrix4x4 view = m_trackball.viewMatrix();
 
-    auto updateMainUbufForMesh = [&](int meshIndex, const PerMeshRenderSettings &meshSettings) {
-        if (!m_ubuf)
-            return;
-        if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
-            return;
-        const QMatrix4x4 model = m_doc->mesh(meshIndex).transform;
-        const QMatrix4x4 modelView = view * model;
-        const QMatrix4x4 mvp = proj * modelView;
-        const QMatrix3x3 normalMat = modelView.normalMatrix();
-        float ubufData[kUbufFloatCount] = {};
-        writeMainUbuf(ubufData, mvp, modelView, normalMat, meshSettings, pixelSize, true);
-        QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
-        uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
-        cb->resourceUpdate(uMesh);
-    };
-
     const PerMeshRenderSettings currentMeshSettings = renderModeForMesh(currentMeshIndex);
     const MeshRenderMode currentMeshMode = renderModeForMesh(currentMeshIndex);
     const auto pointVariant = static_cast<Document::PointGpuVariant>(
@@ -410,7 +386,8 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
         cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
         if (m_currentMaskPointsPipeline) {
-            updateMainUbufForMesh(currentMeshIndex, currentMeshSettings);
+            uploadMainUbufForMesh(
+                cb, currentMeshIndex, proj, view, currentMeshSettings, pixelSize, true);
             cb->setGraphicsPipeline(m_currentMaskPointsPipeline.get());
             cb->setShaderResources(m_srb.get());
             const QRhiCommandBuffer::VertexInput pv(currentPointsView.vertexBuffer, 0);
@@ -427,7 +404,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
                              const Document::FillPassGpuView &fillView) {
         if (!m_currentMaskFillDepthOnlyPipeline)
             return;
-        updateMainUbufForMesh(meshIndex, meshSettings);
+        uploadMainUbufForMesh(cb, meshIndex, proj, view, meshSettings, pixelSize, true);
         cb->setGraphicsPipeline(m_currentMaskFillDepthOnlyPipeline.get());
         cb->setShaderResources(m_srb.get());
         for (int bi = 0; bi < fillView.batchCount; ++bi) {
@@ -442,7 +419,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
                              const PerMeshRenderSettings &meshSettings,
                              const Document::EdgePassGpuView &edgeView,
                              const Document::EdgeFatPassGpuView &fatEdgeView) {
-        updateMainUbufForMesh(meshIndex, meshSettings);
+        uploadMainUbufForMesh(cb, meshIndex, proj, view, meshSettings, pixelSize, true);
         if (m_currentMaskFatEdgesDepthOnlyPipeline
             && fatEdgeView.valid
             && fatEdgeView.vertexBuffer
@@ -487,7 +464,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             return;
         if (!pointsView.valid || !pointsView.vertexBuffer || pointsView.vertexCount <= 0)
             return;
-        updateMainUbufForMesh(meshIndex, meshSettings);
+        uploadMainUbufForMesh(cb, meshIndex, proj, view, meshSettings, pixelSize, true);
         cb->setGraphicsPipeline(m_currentMaskPointsDepthOnlyPipeline.get());
         cb->setShaderResources(m_srb.get());
         const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);

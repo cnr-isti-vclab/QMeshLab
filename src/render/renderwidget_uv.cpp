@@ -841,24 +841,16 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         textureFillView = m_doc->fillPassGpuView(m_rhi, meshIndex, Document::FillGpuVariant::Texture);
     }
 
-    float baseUbufData[kUbufFloatCount] = {};
-    writeMainUbuf(baseUbufData, mvp, modelView, normalMat, meshSettings, sz, false);
-
-    {
-        // Always push the UV-space transform at frame start so pan/zoom is applied
-        // even when the first drawn pass reuses the same style key.
-        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-        u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, baseUbufData);
-        cb->resourceUpdate(u);
-    }
+    // Always push the UV-space transform at frame start so pan/zoom is applied
+    // even when the first drawn pass reuses the same style key.
+    uploadMainUbuf(cb, mvp, modelView, normalMat, meshSettings, sz, false);
 
     auto updateStyleUbuf = [&](const PerMeshRenderSettings &styleSettings,
                                float normalScale = 1.0f,
                                float occlusionStrength = 1.0f,
                                float roughnessFactor = 1.0f) {
-        float ubufData[kUbufFloatCount] = {};
-        writeMainUbuf(
-            ubufData,
+        uploadMainUbuf(
+            cb,
             mvp,
             modelView,
             normalMat,
@@ -867,10 +859,6 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             false,
             QVector3D(0.0f, 0.0f, 1.0f),
             MainUbufMaterialOverrides { normalScale, occlusionStrength, roughnessFactor });
-
-        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-        u->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
-        cb->resourceUpdate(u);
     };
 
     if (m_uvBackgroundUbuf) {
