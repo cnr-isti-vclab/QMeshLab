@@ -93,6 +93,13 @@ private:
         PerMeshRenderSettings meshSettings;
         MeshGpuResourceCache::FillPassView fillView;
     };
+    struct SceneFillFramePlan {
+        QSize pixelSize;
+        QMatrix4x4 proj;
+        QMatrix4x4 view;
+        QVector3D lightDir;
+        std::vector<SceneFillDrawItem> fillItems;
+    };
     struct SceneFillFrameContext {
         const FillRenderServices &services;
         QRhiCommandBuffer *cb;
@@ -154,19 +161,17 @@ private:
         bool enableLighting,
         const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
         MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{});
-    std::vector<SceneFillDrawItem> collectSceneFillDrawItems();
+    SceneFillFramePlan buildSceneFillFramePlan(
+        const QSize &pixelSize,
+        const QMatrix4x4 &proj,
+        const QMatrix4x4 &view,
+        const QVector3D &lightDir);
     void renderSceneFillPrepasses(
         QRhiCommandBuffer *cb,
-        const QSize &pixelSize,
-        const QMatrix4x4 &proj,
-        const QMatrix4x4 &view,
-        const QVector3D &lightDir);
+        const SceneFillFramePlan &plan);
     void renderSceneFillPass(
         QRhiCommandBuffer *cb,
-        const QSize &pixelSize,
-        const QMatrix4x4 &proj,
-        const QMatrix4x4 &view,
-        const QVector3D &lightDir);
+        const SceneFillFramePlan &plan);
     void startCenterAnimation(const QVector3D &targetCenter);
     void cancelCenterAnimation();
     void advanceCenterAnimation();

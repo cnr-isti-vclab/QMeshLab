@@ -276,7 +276,11 @@ public:
     }
 };
 
-std::vector<RenderWidget::SceneFillDrawItem> RenderWidget::collectSceneFillDrawItems()
+RenderWidget::SceneFillFramePlan RenderWidget::buildSceneFillFramePlan(
+    const QSize &pixelSize,
+    const QMatrix4x4 &proj,
+    const QMatrix4x4 &view,
+    const QVector3D &lightDir)
 {
     static const PlainFillRenderer plainFillRenderer;
     static const PbrFillRenderer pbrFillRenderer;
@@ -293,8 +297,12 @@ std::vector<RenderWidget::SceneFillDrawItem> RenderWidget::collectSceneFillDrawI
         return nullptr;
     };
 
-    std::vector<SceneFillDrawItem> drawItems;
-    drawItems.reserve(m_doc->meshCount());
+    SceneFillFramePlan plan;
+    plan.pixelSize = pixelSize;
+    plan.proj = proj;
+    plan.view = view;
+    plan.lightDir = lightDir;
+    plan.fillItems.reserve(m_doc->meshCount());
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         if (!meshVisible(mi))
             continue;
@@ -316,7 +324,7 @@ std::vector<RenderWidget::SceneFillDrawItem> RenderWidget::collectSceneFillDrawI
         if (!materialRenderer)
             continue;
 
-        drawItems.push_back(SceneFillDrawItem {
+        plan.fillItems.push_back(SceneFillDrawItem {
             mi,
             fillPipeline,
             materialRenderer,
@@ -324,29 +332,25 @@ std::vector<RenderWidget::SceneFillDrawItem> RenderWidget::collectSceneFillDrawI
             fillView
         });
     }
-    return drawItems;
+    return plan;
 }
 
 void RenderWidget::renderSceneFillPrepasses(
     QRhiCommandBuffer *cb,
-    const QSize &pixelSize,
-    const QMatrix4x4 &proj,
-    const QMatrix4x4 &view,
-    const QVector3D &lightDir)
+    const SceneFillFramePlan &plan)
 {
-    const std::vector<SceneFillDrawItem> drawItems = collectSceneFillDrawItems();
     const FillRenderServices services(*this);
     const SceneFillFrameContext frameCtx {
         services,
         cb,
-        pixelSize,
-        proj,
-        view,
-        lightDir
+        plan.pixelSize,
+        plan.proj,
+        plan.view,
+        plan.lightDir
     };
 
     std::vector<const FillMaterialRenderer *> prepassRenderers;
-    for (const SceneFillDrawItem &item : drawItems) {
+    for (const SceneFillDrawItem &item : plan.fillItems) {
         if (!item.materialRenderer)
             continue;
         if (std::find(prepassRenderers.begin(), prepassRenderers.end(), item.materialRenderer)
@@ -354,28 +358,24 @@ void RenderWidget::renderSceneFillPrepasses(
             continue;
         }
         prepassRenderers.push_back(item.materialRenderer);
-        item.materialRenderer->renderPrepass(frameCtx, drawItems);
+        item.materialRenderer->renderPrepass(frameCtx, plan.fillItems);
     }
 }
 
 void RenderWidget::renderSceneFillPass(
     QRhiCommandBuffer *cb,
-    const QSize &pixelSize,
-    const QMatrix4x4 &proj,
-    const QMatrix4x4 &view,
-    const QVector3D &lightDir)
+    const SceneFillFramePlan &plan)
 {
-    const std::vector<SceneFillDrawItem> drawItems = collectSceneFillDrawItems();
     const FillRenderServices services(*this);
     const SceneFillFrameContext frameCtx {
         services,
         cb,
-        pixelSize,
-        proj,
-        view,
-        lightDir
+        plan.pixelSize,
+        plan.proj,
+        plan.view,
+        plan.lightDir
     };
-    for (const SceneFillDrawItem &item : drawItems) {
+    for (const SceneFillDrawItem &item : plan.fillItems) {
         cb->setGraphicsPipeline(item.pipeline);
         const SceneFillDrawContext fillCtx {
             frameCtx,

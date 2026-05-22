@@ -324,8 +324,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         u->updateDynamicBuffer(m_sceneBackgroundUbuf.get(), 0, sizeof(bgData), bgData);
     }
 
+    SceneFillFramePlan fillPlan;
     if (drawFillPass)
-        renderSceneFillPrepasses(cb, sz, proj, view, frameLightDir);
+        fillPlan = buildSceneFillFramePlan(sz, proj, view, frameLightDir);
+
+    if (drawFillPass)
+        renderSceneFillPrepasses(cb, fillPlan);
 
     cb->beginPass(renderTarget(), m_renderSettings.sceneBackgroundBottomColor, { 1.0f, 0 }, u);
     cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
@@ -337,7 +341,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     }
 
     if (drawFillPass)
-        renderSceneFillPass(cb, sz, proj, view, frameLightDir);
+        renderSceneFillPass(cb, fillPlan);
 
     if (drawWirePass) {
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
