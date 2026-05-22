@@ -100,6 +100,13 @@ private:
         QVector3D lightDir;
         std::vector<SceneFillDrawItem> fillItems;
     };
+    struct SceneBufferDrawItem {
+        int meshIndex = -1;
+        QRhiGraphicsPipeline *pipeline = nullptr;
+        PerMeshRenderSettings meshSettings;
+        QRhiBuffer *vertexBuffer = nullptr;
+        int vertexCount = 0;
+    };
     struct SceneFillFrameContext {
         const FillRenderServices &services;
         QRhiCommandBuffer *cb;
@@ -120,6 +127,10 @@ private:
         QVector3D lightDir;
         bool drawFillPass = false;
         SceneFillFramePlan sceneFill;
+        std::vector<SceneBufferDrawItem> wireItems;
+        std::vector<SceneBufferDrawItem> edgeItems;
+        std::vector<SceneBufferDrawItem> boundingBoxItems;
+        std::vector<SceneBufferDrawItem> pointItems;
     };
 
     void createOverlayButtons();
@@ -180,7 +191,11 @@ private:
         const QMatrix4x4 &proj,
         const QMatrix4x4 &view,
         const QVector3D &lightDir,
-        bool drawFillPass);
+        bool drawFillPass,
+        bool drawWirePass,
+        bool drawEdgesPass,
+        bool drawBBoxPass,
+        bool drawPointsPass);
     void renderSceneFillPrepasses(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);

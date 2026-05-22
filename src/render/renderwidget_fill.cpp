@@ -335,25 +335,6 @@ RenderWidget::SceneFillFramePlan RenderWidget::buildSceneFillFramePlan(
     return plan;
 }
 
-RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
-    const QSize &pixelSize,
-    const QMatrix4x4 &proj,
-    const QMatrix4x4 &view,
-    const QVector3D &lightDir,
-    bool drawFillPass)
-{
-    RenderFramePlan plan;
-    plan.viewMode = m_viewMode;
-    plan.pixelSize = pixelSize;
-    plan.proj = proj;
-    plan.view = view;
-    plan.lightDir = lightDir;
-    plan.drawFillPass = drawFillPass;
-    if (plan.drawFillPass)
-        plan.sceneFill = buildSceneFillFramePlan(pixelSize, proj, view, lightDir);
-    return plan;
-}
-
 void RenderWidget::renderSceneFillPrepasses(
     QRhiCommandBuffer *cb,
     const RenderFramePlan &plan)

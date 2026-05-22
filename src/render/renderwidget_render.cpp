@@ -325,7 +325,16 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     }
 
     const RenderFramePlan framePlan =
-        buildRenderFramePlan(sz, proj, view, frameLightDir, drawFillPass);
+        buildRenderFramePlan(
+            sz,
+            proj,
+            view,
+            frameLightDir,
+            drawFillPass,
+            drawWirePass,
+            drawEdgesPass,
+            drawBBoxPass,
+            drawPointsPass);
 
     if (framePlan.drawFillPass)
         renderSceneFillPrepasses(cb, framePlan);
@@ -342,111 +351,33 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (framePlan.drawFillPass)
         renderSceneFillPass(cb, framePlan);
 
-    if (drawWirePass) {
+    auto drawSceneBufferItems = [&](const std::vector<SceneBufferDrawItem> &items) {
+        if (items.empty())
+            return;
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-
-        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            if (!meshVisible(mi))
+        for (const SceneBufferDrawItem &item : items) {
+            if (!item.pipeline || !item.vertexBuffer || item.vertexCount <= 0)
                 continue;
-            const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
-            if (!meshSettings.showWire)
-                continue;
-            QRhiGraphicsPipeline *wirePipeline = wirePipelineForSettings(meshSettings);
-            if (!wirePipeline)
-                continue;
-            cb->setGraphicsPipeline(wirePipeline);
+            cb->setGraphicsPipeline(item.pipeline);
             cb->setShaderResources(m_srb.get());
-            uploadMainUbufForMesh(cb, mi, proj, view, meshSettings, sz, true, frameLightDir);
-            const Document::WirePassGpuView wireView = m_doc->wirePassGpuView(m_rhi, mi);
-            if (!wireView.valid || !wireView.vertexBuffer || wireView.vertexCount <= 0)
-                continue;
-            const QRhiCommandBuffer::VertexInput vbufBinding(wireView.vertexBuffer, 0);
-            cb->setVertexInput(0, 1, &vbufBinding);
-            cb->draw(wireView.vertexCount);
+            uploadMainUbufForMesh(
+                cb,
+                item.meshIndex,
+                framePlan.proj,
+                framePlan.view,
+                item.meshSettings,
+                framePlan.pixelSize,
+                true,
+                framePlan.lightDir);
+            const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
+            cb->setVertexInput(0, 1, &binding);
+            cb->draw(item.vertexCount);
         }
-    }
-
-    if (drawEdgesPass) {
-        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            if (!meshVisible(mi))
-                continue;
-            const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
-            if (!meshSettings.showEdges)
-                continue;
-
-            bool drawn = false;
-            {
-                QRhiGraphicsPipeline *fatPipeline = fatEdgesPipelineForSettings(meshSettings);
-                const Document::EdgeFatPassGpuView fatView = m_doc->edgeFatPassGpuView(m_rhi, mi);
-                if (fatPipeline && fatView.valid && fatView.vertexBuffer && fatView.vertexCount > 0) {
-                    cb->setGraphicsPipeline(fatPipeline);
-                    cb->setShaderResources(m_srb.get());
-                    uploadMainUbufForMesh(cb, mi, proj, view, meshSettings, sz, true, frameLightDir);
-                    const QRhiCommandBuffer::VertexInput ev(fatView.vertexBuffer, 0);
-                    cb->setVertexInput(0, 1, &ev);
-                    cb->draw(fatView.vertexCount);
-                    drawn = true;
-                }
-            }
-
-            if (!drawn) {
-                QRhiGraphicsPipeline *linePipeline = edgesPipelineForSettings(meshSettings);
-                if (!linePipeline)
-                    continue;
-                cb->setGraphicsPipeline(linePipeline);
-                cb->setShaderResources(m_srb.get());
-                uploadMainUbufForMesh(cb, mi, proj, view, meshSettings, sz, true, frameLightDir);
-                const Document::EdgePassGpuView lineView = m_doc->edgePassGpuView(m_rhi, mi);
-                if (!lineView.valid || !lineView.vertexBuffer || lineView.vertexCount <= 0)
-                    continue;
-                const QRhiCommandBuffer::VertexInput ev(lineView.vertexBuffer, 0);
-                cb->setVertexInput(0, 1, &ev);
-                cb->draw(lineView.vertexCount);
-            }
-        }
-    }
-
-    if (drawBBoxPass && m_bboxPipeline) {
-        cb->setGraphicsPipeline(m_bboxPipeline.get());
-        cb->setShaderResources(m_srb.get());
-        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            if (!meshVisible(mi))
-                continue;
-            const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
-            if (!meshSettings.showBoundingBox)
-                continue;
-            uploadMainUbufForMesh(cb, mi, proj, view, meshSettings, sz, true, frameLightDir);
-            const Document::BBoxPassGpuView bboxView = m_doc->bboxPassGpuView(m_rhi, mi);
-            if (!bboxView.valid || !bboxView.vertexBuffer || bboxView.vertexCount <= 0)
-                continue;
-            const QRhiCommandBuffer::VertexInput bv(bboxView.vertexBuffer, 0);
-            cb->setVertexInput(0, 1, &bv);
-            cb->draw(bboxView.vertexCount);
-        }
-    }
-
-    if (drawPointsPass && m_pointsPipeline) {
-        cb->setGraphicsPipeline(m_pointsPipeline.get());
-        cb->setShaderResources(m_srb.get());
-        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            if (!meshVisible(mi))
-                continue;
-            const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
-            if (!meshSettings.showPoints)
-                continue;
-            uploadMainUbufForMesh(cb, mi, proj, view, meshSettings, sz, true, frameLightDir);
-            const auto pointVariant = static_cast<Document::PointGpuVariant>(
-                pointGpuVariantIndexForSettings(meshSettings));
-            const Document::PointsPassGpuView pointsView =
-                m_doc->pointsPassGpuView(m_rhi, mi, pointVariant);
-            if (!pointsView.valid || !pointsView.vertexBuffer || pointsView.vertexCount <= 0)
-                continue;
-            const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
-            cb->setVertexInput(0, 1, &pv);
-            cb->draw(pointsView.vertexCount);
-        }
-    }
+    };
+    drawSceneBufferItems(framePlan.wireItems);
+    drawSceneBufferItems(framePlan.edgeItems);
+    drawSceneBufferItems(framePlan.boundingBoxItems);
+    drawSceneBufferItems(framePlan.pointItems);
 
     if (drawDecoratorPass) {
         auto setDecoratorColor = [&](int slot, int meshIndex, const QColor &color) -> bool {
