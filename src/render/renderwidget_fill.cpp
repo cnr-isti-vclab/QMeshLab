@@ -335,22 +335,42 @@ RenderWidget::SceneFillFramePlan RenderWidget::buildSceneFillFramePlan(
     return plan;
 }
 
+RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
+    const QSize &pixelSize,
+    const QMatrix4x4 &proj,
+    const QMatrix4x4 &view,
+    const QVector3D &lightDir,
+    bool drawFillPass)
+{
+    RenderFramePlan plan;
+    plan.viewMode = m_viewMode;
+    plan.pixelSize = pixelSize;
+    plan.proj = proj;
+    plan.view = view;
+    plan.lightDir = lightDir;
+    plan.drawFillPass = drawFillPass;
+    if (plan.drawFillPass)
+        plan.sceneFill = buildSceneFillFramePlan(pixelSize, proj, view, lightDir);
+    return plan;
+}
+
 void RenderWidget::renderSceneFillPrepasses(
     QRhiCommandBuffer *cb,
-    const SceneFillFramePlan &plan)
+    const RenderFramePlan &plan)
 {
+    const SceneFillFramePlan &fillPlan = plan.sceneFill;
     const FillRenderServices services(*this);
     const SceneFillFrameContext frameCtx {
         services,
         cb,
-        plan.pixelSize,
-        plan.proj,
-        plan.view,
-        plan.lightDir
+        fillPlan.pixelSize,
+        fillPlan.proj,
+        fillPlan.view,
+        fillPlan.lightDir
     };
 
     std::vector<const FillMaterialRenderer *> prepassRenderers;
-    for (const SceneFillDrawItem &item : plan.fillItems) {
+    for (const SceneFillDrawItem &item : fillPlan.fillItems) {
         if (!item.materialRenderer)
             continue;
         if (std::find(prepassRenderers.begin(), prepassRenderers.end(), item.materialRenderer)
@@ -358,24 +378,25 @@ void RenderWidget::renderSceneFillPrepasses(
             continue;
         }
         prepassRenderers.push_back(item.materialRenderer);
-        item.materialRenderer->renderPrepass(frameCtx, plan.fillItems);
+        item.materialRenderer->renderPrepass(frameCtx, fillPlan.fillItems);
     }
 }
 
 void RenderWidget::renderSceneFillPass(
     QRhiCommandBuffer *cb,
-    const SceneFillFramePlan &plan)
+    const RenderFramePlan &plan)
 {
+    const SceneFillFramePlan &fillPlan = plan.sceneFill;
     const FillRenderServices services(*this);
     const SceneFillFrameContext frameCtx {
         services,
         cb,
-        plan.pixelSize,
-        plan.proj,
-        plan.view,
-        plan.lightDir
+        fillPlan.pixelSize,
+        fillPlan.proj,
+        fillPlan.view,
+        fillPlan.lightDir
     };
-    for (const SceneFillDrawItem &item : plan.fillItems) {
+    for (const SceneFillDrawItem &item : fillPlan.fillItems) {
         cb->setGraphicsPipeline(item.pipeline);
         const SceneFillDrawContext fillCtx {
             frameCtx,

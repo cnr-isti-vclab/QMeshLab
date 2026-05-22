@@ -112,6 +112,15 @@ private:
         const SceneFillFrameContext &frame;
         const SceneFillDrawItem &item;
     };
+    struct RenderFramePlan {
+        ViewMode viewMode = ViewMode::Scene3D;
+        QSize pixelSize;
+        QMatrix4x4 proj;
+        QMatrix4x4 view;
+        QVector3D lightDir;
+        bool drawFillPass = false;
+        SceneFillFramePlan sceneFill;
+    };
 
     void createOverlayButtons();
     void layoutOverlayButtons();
@@ -166,12 +175,18 @@ private:
         const QMatrix4x4 &proj,
         const QMatrix4x4 &view,
         const QVector3D &lightDir);
+    RenderFramePlan buildRenderFramePlan(
+        const QSize &pixelSize,
+        const QMatrix4x4 &proj,
+        const QMatrix4x4 &view,
+        const QVector3D &lightDir,
+        bool drawFillPass);
     void renderSceneFillPrepasses(
         QRhiCommandBuffer *cb,
-        const SceneFillFramePlan &plan);
+        const RenderFramePlan &plan);
     void renderSceneFillPass(
         QRhiCommandBuffer *cb,
-        const SceneFillFramePlan &plan);
+        const RenderFramePlan &plan);
     void startCenterAnimation(const QVector3D &targetCenter);
     void cancelCenterAnimation();
     void advanceCenterAnimation();
