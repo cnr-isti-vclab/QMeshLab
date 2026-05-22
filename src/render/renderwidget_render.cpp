@@ -111,43 +111,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         m_renderSettings.highlightCurrentMesh
         && (currentMeshIndex >= 0)
         && meshVisible(currentMeshIndex);
-    bool drawFillPass = false;
-    bool drawWirePass = false;
-    bool drawEdgesPass = false;
-    bool drawBBoxPass = false;
-    bool drawPointsPass = false;
-    bool drawSelectionPass = false;
-    bool drawDecoratorPass = false;
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        if (!meshVisible(mi))
-            continue;
-        const MeshRenderMode mode = renderModeForMesh(mi);
-        drawFillPass = drawFillPass || mode.showFill;
-        drawWirePass = drawWirePass || mode.showWire;
-        drawEdgesPass = drawEdgesPass || mode.showEdges;
-        drawBBoxPass = drawBBoxPass || mode.showBoundingBox;
-        drawPointsPass = drawPointsPass || mode.showPoints;
-        drawSelectionPass =
-            drawSelectionPass
-            || (mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces));
-        drawDecoratorPass =
-            drawDecoratorPass
-            || mode.decoratorVertexNormals
-            || mode.decoratorFaceNormals
-            || mode.decoratorCurvatureDir
-            || mode.decoratorBoundaryEdges
-            || mode.decoratorTextureSeams
-            || mode.decoratorNonManifoldEdges
-            || mode.decoratorNonManifoldVertices;
-    }
-    const bool anyDrawPass =
-        drawFillPass || drawWirePass || drawEdgesPass || drawBBoxPass || drawPointsPass
-        || drawSelectionPass || drawDecoratorPass
-        || drawCurrentMeshHighlight || drawTrackballGizmo;
-    const bool needMvpForFrame = anyDrawPass || m_depthPickPending || m_lightDragActive;
 
-    if (anyDrawPass)
-        prepareDirtyBuffers(cb);
+    prepareDirtyBuffers(cb);
 
     m_frameTimer.start();
 
@@ -219,78 +184,77 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     QMatrix4x4 proj;
     QMatrix4x4 view;
     QMatrix4x4 vp;
-    if (needMvpForFrame) {
-        const float aspect = sz.width() / float(sz.height());
-        proj = m_trackball.projectionMatrix(aspect);
+    const float aspect = float(sz.width()) / float(qMax(1, sz.height()));
+    proj = m_trackball.projectionMatrix(aspect);
 
-        view = m_trackball.viewMatrix();
-        vp = proj * view;
+    view = m_trackball.viewMatrix();
+    vp = proj * view;
 
-        if (drawTrackballGizmo && m_trackballGizmoUbuf && m_trackballGizmoVbuf) {
-            if (!u)
-                u = m_rhi->nextResourceUpdateBatch();
-            const auto &verts = trackballGizmoVertices();
-            u->updateDynamicBuffer(
-                m_trackballGizmoVbuf.get(),
-                0,
-                int(verts.size() * sizeof(float)),
-                verts.data());
+    if (drawTrackballGizmo && m_trackballGizmoUbuf && m_trackballGizmoVbuf) {
+        if (!u)
+            u = m_rhi->nextResourceUpdateBatch();
+        const auto &verts = trackballGizmoVertices();
+        u->updateDynamicBuffer(
+            m_trackballGizmoVbuf.get(),
+            0,
+            int(verts.size() * sizeof(float)),
+            verts.data());
 
-            float gizmoData[kTrackballGizmoUbufSize / sizeof(float)] = {};
-            memcpy(gizmoData, vp.constData(), 64);
-            const QVector3D center = m_trackball.center();
-            gizmoData[16] = center.x();
-            gizmoData[17] = center.y();
-            gizmoData[18] = center.z();
-            gizmoData[19] = m_trackball.gizmoWorldRadius();
-            const QMatrix4x4 invView = view.inverted();
-            QVector4D cameraH = invView * QVector4D(0.0f, 0.0f, 0.0f, 1.0f);
-            if (std::abs(cameraH.w()) > 1e-8f)
-                cameraH /= cameraH.w();
-            gizmoData[20] = cameraH.x();
-            gizmoData[21] = cameraH.y();
-            gizmoData[22] = cameraH.z();
-            gizmoData[23] = 0.38f; // back hemisphere shading floor
-            u->updateDynamicBuffer(
-                m_trackballGizmoUbuf.get(),
-                0,
-                kTrackballGizmoUbufSize,
-                gizmoData);
-        }
+        float gizmoData[kTrackballGizmoUbufSize / sizeof(float)] = {};
+        memcpy(gizmoData, vp.constData(), 64);
+        const QVector3D center = m_trackball.center();
+        gizmoData[16] = center.x();
+        gizmoData[17] = center.y();
+        gizmoData[18] = center.z();
+        gizmoData[19] = m_trackball.gizmoWorldRadius();
+        const QMatrix4x4 invView = view.inverted();
+        QVector4D cameraH = invView * QVector4D(0.0f, 0.0f, 0.0f, 1.0f);
+        if (std::abs(cameraH.w()) > 1e-8f)
+            cameraH /= cameraH.w();
+        gizmoData[20] = cameraH.x();
+        gizmoData[21] = cameraH.y();
+        gizmoData[22] = cameraH.z();
+        gizmoData[23] = 0.38f; // back hemisphere shading floor
+        u->updateDynamicBuffer(
+            m_trackballGizmoUbuf.get(),
+            0,
+            kTrackballGizmoUbufSize,
+            gizmoData);
+    }
 
-        // Light gizmo UBO (always update so light dir is current)
-        if (m_lightGizmoUbuf && m_lightGizmoVbuf) {
-            if (!u)
-                u = m_rhi->nextResourceUpdateBatch();
-            // Upload vertex data once (dynamic buffer, upload every frame is fine)
-            const auto &lgVerts = lightGizmoVertices();
-            u->updateDynamicBuffer(
-                m_lightGizmoVbuf.get(),
-                0,
-                int(lgVerts.size() * sizeof(float)),
-                lgVerts.data());
+    // Light gizmo UBO (always update so light dir is current)
+    if (m_lightGizmoUbuf && m_lightGizmoVbuf) {
+        if (!u)
+            u = m_rhi->nextResourceUpdateBatch();
+        // Upload vertex data once (dynamic buffer, upload every frame is fine)
+        const auto &lgVerts = lightGizmoVertices();
+        u->updateDynamicBuffer(
+            m_lightGizmoVbuf.get(),
+            0,
+            int(lgVerts.size() * sizeof(float)),
+            lgVerts.data());
 
-            const QVector3D lightDir = m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
-            // UBO layout: mat4 (64 bytes unused/padding) + vec4 lightDir + vec4 params
-            float lgData[kLightGizmoUbufSize / sizeof(float)] = {};
-            // [0..15] = padding (mat4 not used by this shader but keeps struct aligned)
-            lgData[16] = lightDir.x();
-            lgData[17] = lightDir.y();
-            lgData[18] = lightDir.z();
-            lgData[19] = 0.0f;
-            // params: x=radius(NDC), y=anchor NDC X, z=anchor NDC Y, w=aspect(w/h)
-            const float gizmoR = 0.12f;
-            const float anchorX = -1.0f + gizmoR * 1.5f;
-            const float anchorY = -1.0f + gizmoR * 1.5f * (float(sz.width()) / float(qMax(1, sz.height())));
-            lgData[20] = gizmoR;
-            lgData[21] = anchorX;
-            lgData[22] = anchorY;
-            lgData[23] = float(sz.width()) / float(qMax(1, sz.height())); // aspect w/h
-            u->updateDynamicBuffer(m_lightGizmoUbuf.get(), 0, kLightGizmoUbufSize, lgData);
-        }
+        const QVector3D lightDir = m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
+        // UBO layout: mat4 (64 bytes unused/padding) + vec4 lightDir + vec4 params
+        float lgData[kLightGizmoUbufSize / sizeof(float)] = {};
+        // [0..15] = padding (mat4 not used by this shader but keeps struct aligned)
+        lgData[16] = lightDir.x();
+        lgData[17] = lightDir.y();
+        lgData[18] = lightDir.z();
+        lgData[19] = 0.0f;
+        // params: x=radius(NDC), y=anchor NDC X, z=anchor NDC Y, w=aspect(w/h)
+        const float gizmoR = 0.12f;
+        const float anchorX = -1.0f + gizmoR * 1.5f;
+        const float anchorY = -1.0f + gizmoR * 1.5f * (float(sz.width()) / float(qMax(1, sz.height())));
+        lgData[20] = gizmoR;
+        lgData[21] = anchorX;
+        lgData[22] = anchorY;
+        lgData[23] = float(sz.width()) / float(qMax(1, sz.height())); // aspect w/h
+        u->updateDynamicBuffer(m_lightGizmoUbuf.get(), 0, kLightGizmoUbufSize, lgData);
     }
     const QVector3D frameLightDir =
         m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
+    const bool depthPickPendingAtFrameStart = m_depthPickPending;
 
     if (m_depthPickPending) {
         if (u) {
@@ -329,14 +293,13 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             sz,
             proj,
             view,
-            frameLightDir,
-            drawFillPass,
-            drawWirePass,
-            drawEdgesPass,
-            drawBBoxPass,
-            drawPointsPass,
-            drawSelectionPass,
-            drawDecoratorPass);
+            frameLightDir);
+    const bool needMvpForFrame =
+        framePlan.hasRequestedScenePasses()
+        || drawCurrentMeshHighlight
+        || drawTrackballGizmo
+        || depthPickPendingAtFrameStart
+        || m_lightDragActive;
 
     if (framePlan.drawFillPass)
         renderSceneFillPrepasses(cb, framePlan);

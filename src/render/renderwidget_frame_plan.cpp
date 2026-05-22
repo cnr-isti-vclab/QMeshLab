@@ -7,14 +7,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
     const QSize &pixelSize,
     const QMatrix4x4 &proj,
     const QMatrix4x4 &view,
-    const QVector3D &lightDir,
-    bool drawFillPass,
-    bool drawWirePass,
-    bool drawEdgesPass,
-    bool drawBBoxPass,
-    bool drawPointsPass,
-    bool drawSelectionPass,
-    bool drawDecoratorPass)
+    const QVector3D &lightDir)
 {
     RenderFramePlan plan;
     plan.viewMode = m_viewMode;
@@ -22,7 +15,30 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
     plan.proj = proj;
     plan.view = view;
     plan.lightDir = lightDir;
-    plan.drawFillPass = drawFillPass;
+
+    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        if (!meshVisible(mi))
+            continue;
+        const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
+        plan.drawFillPass = plan.drawFillPass || meshSettings.showFill;
+        plan.drawWirePass = plan.drawWirePass || meshSettings.showWire;
+        plan.drawEdgesPass = plan.drawEdgesPass || meshSettings.showEdges;
+        plan.drawBBoxPass = plan.drawBBoxPass || meshSettings.showBoundingBox;
+        plan.drawPointsPass = plan.drawPointsPass || meshSettings.showPoints;
+        plan.drawSelectionPass =
+            plan.drawSelectionPass
+            || (meshSettings.showSelection
+                && (meshSettings.showSelectionVertices || meshSettings.showSelectionFaces));
+        plan.drawDecoratorPass =
+            plan.drawDecoratorPass
+            || meshSettings.decoratorVertexNormals
+            || meshSettings.decoratorFaceNormals
+            || meshSettings.decoratorCurvatureDir
+            || meshSettings.decoratorBoundaryEdges
+            || meshSettings.decoratorTextureSeams
+            || meshSettings.decoratorNonManifoldEdges
+            || meshSettings.decoratorNonManifoldVertices;
+    }
 
     if (plan.drawFillPass)
         plan.sceneFill = buildSceneFillFramePlan(pixelSize, proj, view, lightDir);
@@ -67,8 +83,8 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
         };
 
     const bool buildSimpleBufferItems =
-        drawWirePass || drawEdgesPass || (drawBBoxPass && m_bboxPipeline)
-        || (drawPointsPass && m_pointsPipeline);
+        plan.drawWirePass || plan.drawEdgesPass || (plan.drawBBoxPass && m_bboxPipeline)
+        || (plan.drawPointsPass && m_pointsPipeline);
     if (buildSimpleBufferItems) {
         for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
             if (!meshVisible(mi))
@@ -76,7 +92,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
 
             const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
 
-            if (drawWirePass && meshSettings.showWire) {
+            if (plan.drawWirePass && meshSettings.showWire) {
                 const MeshGpuResourceCache::WirePassView wireView =
                     m_doc->wirePassGpuView(m_rhi, mi);
                 if (wireView.valid) {
@@ -90,7 +106,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
                 }
             }
 
-            if (drawEdgesPass && meshSettings.showEdges) {
+            if (plan.drawEdgesPass && meshSettings.showEdges) {
                 bool edgeItemAppended = false;
                 const MeshGpuResourceCache::EdgeFatPassView fatView =
                     m_doc->edgeFatPassGpuView(m_rhi, mi);
@@ -121,7 +137,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
                 }
             }
 
-            if (drawBBoxPass && m_bboxPipeline && meshSettings.showBoundingBox) {
+            if (plan.drawBBoxPass && m_bboxPipeline && meshSettings.showBoundingBox) {
                 const MeshGpuResourceCache::BBoxPassView bboxView =
                     m_doc->bboxPassGpuView(m_rhi, mi);
                 if (bboxView.valid) {
@@ -135,7 +151,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
                 }
             }
 
-            if (drawPointsPass && m_pointsPipeline && meshSettings.showPoints) {
+            if (plan.drawPointsPass && m_pointsPipeline && meshSettings.showPoints) {
                 const auto pointVariant = static_cast<Document::PointGpuVariant>(
                     pointGpuVariantIndexForSettings(meshSettings));
                 const MeshGpuResourceCache::PointsPassView pointsView =
@@ -153,7 +169,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
         }
     }
 
-    if (drawDecoratorPass) {
+    if (plan.drawDecoratorPass) {
         auto canDrawLineDecoratorSlot = [&](int slot) {
             return m_decoratorPipeline
                 && slot >= 0
@@ -387,7 +403,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
         }
     }
 
-    if (drawSelectionPass
+    if (plan.drawSelectionPass
         && m_selectionUbuf
         && m_selectionSrb
         && (m_selectionFacesPipeline || m_selectionVerticesPipeline)) {

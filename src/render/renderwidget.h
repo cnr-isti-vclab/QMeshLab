@@ -146,6 +146,12 @@ private:
         QMatrix4x4 view;
         QVector3D lightDir;
         bool drawFillPass = false;
+        bool drawWirePass = false;
+        bool drawEdgesPass = false;
+        bool drawBBoxPass = false;
+        bool drawPointsPass = false;
+        bool drawSelectionPass = false;
+        bool drawDecoratorPass = false;
         SceneFillFramePlan sceneFill;
         std::vector<SceneBufferDrawItem> wireItems;
         std::vector<SceneBufferDrawItem> edgeItems;
@@ -153,6 +159,12 @@ private:
         std::vector<SceneBufferDrawItem> pointItems;
         std::vector<SceneSelectionDrawItem> selectionItems;
         std::vector<SceneDecoratorDrawItem> decoratorItems;
+
+        bool hasRequestedScenePasses() const
+        {
+            return drawFillPass || drawWirePass || drawEdgesPass || drawBBoxPass
+                || drawPointsPass || drawSelectionPass || drawDecoratorPass;
+        }
     };
 
     void createOverlayButtons();
@@ -212,14 +224,7 @@ private:
         const QSize &pixelSize,
         const QMatrix4x4 &proj,
         const QMatrix4x4 &view,
-        const QVector3D &lightDir,
-        bool drawFillPass,
-        bool drawWirePass,
-        bool drawEdgesPass,
-        bool drawBBoxPass,
-        bool drawPointsPass,
-        bool drawSelectionPass,
-        bool drawDecoratorPass);
+        const QVector3D &lightDir);
     void renderSceneFillPrepasses(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);
