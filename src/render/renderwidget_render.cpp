@@ -334,7 +334,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             drawWirePass,
             drawEdgesPass,
             drawBBoxPass,
-            drawPointsPass);
+            drawPointsPass,
+            drawSelectionPass,
+            drawDecoratorPass);
 
     if (framePlan.drawFillPass)
         renderSceneFillPrepasses(cb, framePlan);
@@ -379,287 +381,86 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     drawSceneBufferItems(framePlan.boundingBoxItems);
     drawSceneBufferItems(framePlan.pointItems);
 
-    if (drawDecoratorPass) {
-        auto setDecoratorColor = [&](int slot, int meshIndex, const QColor &color) -> bool {
-            if (slot < 0 || slot >= kDecoratorSlotCount)
+    if (!framePlan.decoratorItems.empty()) {
+        const QMatrix4x4 frameVp = framePlan.proj * framePlan.view;
+        auto uploadDecoratorColor = [&](const SceneDecoratorDrawItem &item) -> bool {
+            if (item.slot < 0 || item.slot >= kDecoratorSlotCount)
                 return false;
-            if (!m_decoratorPipeline)
+            if (item.meshIndex < 0 || item.meshIndex >= m_doc->meshCount())
                 return false;
-            if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
-                return false;
-            QRhiBuffer *decoratorUbuf = m_decoratorUbufs[slot].get();
-            QRhiShaderResourceBindings *decoratorSrb = m_decoratorSrbs[slot].get();
+            QRhiBuffer *decoratorUbuf = m_decoratorUbufs[item.slot].get();
+            QRhiShaderResourceBindings *decoratorSrb = m_decoratorSrbs[item.slot].get();
             if (!decoratorUbuf || !decoratorSrb)
                 return false;
             float decoratorData[kDecoratorUbufSize / sizeof(float)] = {};
-            const QMatrix4x4 meshMvp = vp * m_doc->mesh(meshIndex).transform;
+            const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
             memcpy(decoratorData, meshMvp.constData(), 64);
-            decoratorData[16] = color.redF();
-            decoratorData[17] = color.greenF();
-            decoratorData[18] = color.blueF();
-            decoratorData[19] = color.alphaF();
+            decoratorData[16] = item.color.redF();
+            decoratorData[17] = item.color.greenF();
+            decoratorData[18] = item.color.blueF();
+            decoratorData[19] = item.color.alphaF();
             QRhiResourceUpdateBatch *uDecor = m_rhi->nextResourceUpdateBatch();
             uDecor->updateDynamicBuffer(
                 decoratorUbuf, 0, kDecoratorUbufSize, decoratorData);
             cb->resourceUpdate(uDecor);
-            cb->setGraphicsPipeline(m_decoratorPipeline.get());
-            cb->setShaderResources(decoratorSrb);
-            cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+            return true;
+        };
+        auto uploadDecoratorFat = [&](const SceneDecoratorDrawItem &item) -> bool {
+            if (item.meshIndex < 0 || item.meshIndex >= m_doc->meshCount())
+                return false;
+            if (!m_decoratorFatUbuf || !m_decoratorFatSrb)
+                return false;
+            float fatData[kDecoratorFatUbufSize / sizeof(float)] = {};
+            const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
+            memcpy(fatData, meshMvp.constData(), 64);
+            fatData[16] = item.color.redF();
+            fatData[17] = item.color.greenF();
+            fatData[18] = item.color.blueF();
+            fatData[19] = item.color.alphaF();
+            fatData[20] = qMax(0.5f, item.width);
+            fatData[21] = 1.0f / float(qMax(1, sz.width()));
+            fatData[22] = 1.0f / float(qMax(1, sz.height()));
+            QRhiResourceUpdateBatch *uFat = m_rhi->nextResourceUpdateBatch();
+            uFat->updateDynamicBuffer(
+                m_decoratorFatUbuf.get(), 0, kDecoratorFatUbufSize, fatData);
+            cb->resourceUpdate(uFat);
             return true;
         };
 
-        auto drawDecoratorKind =
-            [&](int slot, auto shouldDraw, auto colorGetter, auto bufferGetter, auto countGetter) {
-            for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-                if (!meshVisible(mi))
-                    continue;
-                const MeshRenderMode mode = renderModeForMesh(mi);
-                if (!shouldDraw(mode))
-                    continue;
-                if (!setDecoratorColor(slot, mi, colorGetter(mode)))
-                    continue;
-                const Document::DecoratorPassGpuView decorView =
-                    m_doc->decoratorPassGpuView(m_rhi, mi);
-                if (!decorView.valid)
-                    continue;
-                QRhiBuffer *vbuf = bufferGetter(decorView);
-                const int vertexCount = countGetter(decorView);
-                if (!vbuf || vertexCount <= 0)
-                    continue;
-                const QRhiCommandBuffer::VertexInput binding(vbuf, 0);
-                cb->setVertexInput(0, 1, &binding);
-                cb->draw(vertexCount);
-            }
-        };
-
-        auto drawDecoratorBoundaryFatKind = [&](int slot,
-                                                auto shouldDraw,
-                                                auto colorGetter,
-                                                auto fatBufferGetter,
-                                                auto fatCountGetter,
-                                                auto lineBufferGetter,
-                                                auto lineCountGetter) {
-            for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-                if (!meshVisible(mi))
-                    continue;
-                const MeshRenderMode mode = renderModeForMesh(mi);
-                if (!shouldDraw(mode))
-                    continue;
-
-                const Document::DecoratorPassGpuView decorView =
-                    m_doc->decoratorPassGpuView(m_rhi, mi);
-                if (!decorView.valid)
-                    continue;
-
-                const QColor decoColor = colorGetter(mode);
-                QRhiGraphicsPipeline *fatPipeline = m_decoratorFatPipeline.get();
-                QRhiBuffer *fatVbuf = fatBufferGetter(decorView);
-                const int fatVertexCount = fatCountGetter(decorView);
-                if (fatPipeline && m_decoratorFatUbuf && m_decoratorFatSrb
-                    && fatVbuf && fatVertexCount > 0) {
-                    float fatData[kDecoratorFatUbufSize / sizeof(float)] = {};
-                    const QMatrix4x4 meshMvp = vp * m_doc->mesh(mi).transform;
-                    memcpy(fatData, meshMvp.constData(), 64);
-                    fatData[16] = decoColor.redF();
-                    fatData[17] = decoColor.greenF();
-                    fatData[18] = decoColor.blueF();
-                    fatData[19] = decoColor.alphaF();
-                    fatData[20] = qMax(0.5f, mode.decoratorBoundaryWidth);
-                    fatData[21] = 1.0f / float(qMax(1, sz.width()));
-                    fatData[22] = 1.0f / float(qMax(1, sz.height()));
-                    QRhiResourceUpdateBatch *uFat = m_rhi->nextResourceUpdateBatch();
-                    uFat->updateDynamicBuffer(
-                        m_decoratorFatUbuf.get(), 0, kDecoratorFatUbufSize, fatData);
-                    cb->resourceUpdate(uFat);
-                    cb->setGraphicsPipeline(fatPipeline);
-                    cb->setShaderResources(m_decoratorFatSrb.get());
-                    cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-                    const QRhiCommandBuffer::VertexInput binding(fatVbuf, 0);
-                    cb->setVertexInput(0, 1, &binding);
-                    cb->draw(fatVertexCount);
-                    continue;
-                }
-
-                if (!setDecoratorColor(slot, mi, colorGetter(mode)))
-                    continue;
-                QRhiBuffer *lineVbuf = lineBufferGetter(decorView);
-                const int lineVertexCount = lineCountGetter(decorView);
-                if (!lineVbuf || lineVertexCount <= 0)
-                    continue;
-                const QRhiCommandBuffer::VertexInput binding(lineVbuf, 0);
-                cb->setVertexInput(0, 1, &binding);
-                cb->draw(lineVertexCount);
-            }
-        };
-
-        bool drawVertexNormals = false;
-        bool drawFaceNormals = false;
-        bool drawCurvatureDir = false;
-        bool drawBoundaryEdges = false;
-        bool drawTextureSeams = false;
-        bool drawNonManifoldEdges = false;
-        bool drawNonManifoldVertices = false;
-        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            if (!meshVisible(mi))
+        cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+        for (const SceneDecoratorDrawItem &item : framePlan.decoratorItems) {
+            if (!item.vertexBuffer || item.vertexCount <= 0)
                 continue;
-            const MeshRenderMode mode = renderModeForMesh(mi);
-            drawVertexNormals = drawVertexNormals || mode.decoratorVertexNormals;
-            drawFaceNormals = drawFaceNormals || mode.decoratorFaceNormals;
-            drawCurvatureDir = drawCurvatureDir || mode.decoratorCurvatureDir;
-            drawBoundaryEdges = drawBoundaryEdges || mode.decoratorBoundaryEdges;
-            drawTextureSeams = drawTextureSeams || mode.decoratorTextureSeams;
-            drawNonManifoldEdges = drawNonManifoldEdges || mode.decoratorNonManifoldEdges;
-            drawNonManifoldVertices = drawNonManifoldVertices || mode.decoratorNonManifoldVertices;
-        }
 
-        if (drawVertexNormals) {
-            drawDecoratorKind(
-                kDecoratorSlotVertexNormals,
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorVertexNormals;
-                },
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorVertexNormalColor;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.vertexNormalsBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.vertexNormalsVertexCount;
-                });
-        }
-        if (drawFaceNormals) {
-            drawDecoratorKind(
-                kDecoratorSlotFaceNormals,
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorFaceNormals;
-                },
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorFaceNormalColor;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.faceNormalsBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.faceNormalsVertexCount;
-                });
-        }
-        if (drawCurvatureDir) {
-            drawDecoratorKind(
-                kDecoratorSlotCurvaturePD1,
-                [](const MeshRenderMode &mode) { return mode.decoratorCurvatureDir; },
-                [](const MeshRenderMode &mode) { return mode.decoratorCurvatureDirPD1Color; },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.curvatureDirPD1Buffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.curvatureDirPD1VertexCount;
-                });
-            drawDecoratorKind(
-                kDecoratorSlotCurvaturePD2,
-                [](const MeshRenderMode &mode) { return mode.decoratorCurvatureDir; },
-                [](const MeshRenderMode &mode) { return mode.decoratorCurvatureDirPD2Color; },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.curvatureDirPD2Buffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.curvatureDirPD2VertexCount;
-                });
-        }
-        if (drawBoundaryEdges) {
-            drawDecoratorBoundaryFatKind(
-                kDecoratorSlotBoundaryEdges,
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorBoundaryEdges;
-                },
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorBoundaryEdgeColor;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.boundaryEdgesFatBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.boundaryEdgesFatVertexCount;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.boundaryEdgesBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.boundaryEdgesVertexCount;
-                });
-        }
-        if (drawTextureSeams) {
-            drawDecoratorBoundaryFatKind(
-                kDecoratorSlotTextureSeams,
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorTextureSeams;
-                },
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorTextureSeamColor;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.textureSeamsFatBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.textureSeamsFatVertexCount;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.textureSeamsBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.textureSeamsVertexCount;
-                });
-        }
-        if (drawNonManifoldEdges) {
-            drawDecoratorBoundaryFatKind(
-                kDecoratorSlotNonManifoldEdges,
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorNonManifoldEdges;
-                },
-                [](const MeshRenderMode &mode) {
-                    return mode.decoratorNonManifoldEdgeColor;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.nonManifoldEdgesFatBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.nonManifoldEdgesFatVertexCount;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.nonManifoldEdgesBuffer;
-                },
-                [](const Document::DecoratorPassGpuView &view) {
-                    return view.nonManifoldEdgesVertexCount;
-                });
-        }
-        if (drawNonManifoldVertices) {
-            // Draw non-manifold vertices as points using the dedicated point pipeline.
-            const int slot = kDecoratorSlotNonManifoldVertices;
-            for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-                if (!meshVisible(mi))
+            QRhiShaderResourceBindings *srb = nullptr;
+            switch (item.kind) {
+            case SceneDecoratorDrawKind::Line:
+                if (!m_decoratorPipeline || !uploadDecoratorColor(item))
                     continue;
-                const MeshRenderMode mode = renderModeForMesh(mi);
-                if (!mode.decoratorNonManifoldVertices)
+                srb = m_decoratorSrbs[item.slot].get();
+                cb->setGraphicsPipeline(m_decoratorPipeline.get());
+                cb->setShaderResources(srb);
+                break;
+            case SceneDecoratorDrawKind::FatLine:
+                if (!m_decoratorFatPipeline || !uploadDecoratorFat(item))
                     continue;
-                const Document::DecoratorPassGpuView decorView =
-                    m_doc->decoratorPassGpuView(m_rhi, mi);
-                if (!decorView.valid || !decorView.nonManifoldVerticesBuffer
-                    || decorView.nonManifoldVerticesVertexCount <= 0)
+                cb->setGraphicsPipeline(m_decoratorFatPipeline.get());
+                cb->setShaderResources(m_decoratorFatSrb.get());
+                break;
+            case SceneDecoratorDrawKind::Point:
+                if (!m_decoratorPointPipeline || !uploadDecoratorColor(item))
                     continue;
-                if (!setDecoratorColor(slot, mi, mode.decoratorNonManifoldVertexColor))
-                    continue;
-                if (!m_decoratorPointPipeline)
-                    continue;
+                srb = m_decoratorSrbs[item.slot].get();
                 cb->setGraphicsPipeline(m_decoratorPointPipeline.get());
-                cb->setShaderResources(m_decoratorSrbs[slot].get());
-                cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
-                const QRhiCommandBuffer::VertexInput binding(
-                    decorView.nonManifoldVerticesBuffer, 0);
-                cb->setVertexInput(0, 1, &binding);
-                cb->draw(decorView.nonManifoldVerticesVertexCount);
+                cb->setShaderResources(srb);
+                break;
             }
+
+            const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
+            cb->setVertexInput(0, 1, &binding);
+            cb->draw(item.vertexCount);
         }
-    } // end drawDecoratorPass
+    }
 
     if (drawTrackballGizmo && m_trackballGizmoPipeline && m_trackballGizmoVbuf && m_trackballGizmoSrb) {
         cb->setGraphicsPipeline(m_trackballGizmoPipeline.get());
@@ -683,26 +484,22 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (drawCurrentMeshHighlight)
         drawCurrentMeshOutline(cb, sz);
 
-    if (drawSelectionPass
+    if (!framePlan.selectionItems.empty()
         && m_selectionUbuf
         && m_selectionSrb
         && (m_selectionFacesPipeline || m_selectionVerticesPipeline)) {
         cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+        const QMatrix4x4 frameVp = framePlan.proj * framePlan.view;
 
-        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            if (!meshVisible(mi))
+        for (const SceneSelectionDrawItem &item : framePlan.selectionItems) {
+            if (item.meshIndex < 0 || item.meshIndex >= m_doc->meshCount())
                 continue;
-            const MeshRenderMode mode = renderModeForMesh(mi);
-            if (!mode.showSelection || (!mode.showSelectionVertices && !mode.showSelectionFaces))
-                continue;
-
-            const Document::SelectionPassGpuView selectionView =
-                m_doc->selectionPassGpuView(m_rhi, mi);
+            const MeshGpuResourceCache::SelectionPassView &selectionView = item.selectionView;
             if (!selectionView.valid)
                 continue;
 
             float selectionData[kDecoratorUbufSize / sizeof(float)] = {};
-            const QMatrix4x4 meshMvp = vp * m_doc->mesh(mi).transform;
+            const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
             memcpy(selectionData, meshMvp.constData(), 64);
             selectionData[16] = 1.0f;
             selectionData[17] = 0.0f;
@@ -713,7 +510,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 m_selectionUbuf.get(), 0, kDecoratorUbufSize, selectionData);
             cb->resourceUpdate(uSel);
 
-            if (mode.showSelectionFaces
+            if (item.drawFaces
                 && m_selectionFacesPipeline
                 && selectionView.selectedFacesBuffer
                 && selectionView.selectedFacesVertexCount > 0) {
@@ -725,7 +522,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 cb->draw(selectionView.selectedFacesVertexCount);
             }
 
-            if (mode.showSelectionVertices
+            if (item.drawVertices
                 && m_selectionVerticesPipeline
                 && selectionView.selectedVerticesBuffer
                 && selectionView.selectedVerticesVertexCount > 0) {

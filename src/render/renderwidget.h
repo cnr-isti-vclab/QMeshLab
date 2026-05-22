@@ -107,6 +107,26 @@ private:
         QRhiBuffer *vertexBuffer = nullptr;
         int vertexCount = 0;
     };
+    struct SceneSelectionDrawItem {
+        int meshIndex = -1;
+        bool drawFaces = false;
+        bool drawVertices = false;
+        MeshGpuResourceCache::SelectionPassView selectionView;
+    };
+    enum class SceneDecoratorDrawKind {
+        Line,
+        FatLine,
+        Point
+    };
+    struct SceneDecoratorDrawItem {
+        int meshIndex = -1;
+        int slot = -1;
+        SceneDecoratorDrawKind kind = SceneDecoratorDrawKind::Line;
+        QColor color;
+        float width = 1.0f;
+        QRhiBuffer *vertexBuffer = nullptr;
+        int vertexCount = 0;
+    };
     struct SceneFillFrameContext {
         const FillRenderServices &services;
         QRhiCommandBuffer *cb;
@@ -131,6 +151,8 @@ private:
         std::vector<SceneBufferDrawItem> edgeItems;
         std::vector<SceneBufferDrawItem> boundingBoxItems;
         std::vector<SceneBufferDrawItem> pointItems;
+        std::vector<SceneSelectionDrawItem> selectionItems;
+        std::vector<SceneDecoratorDrawItem> decoratorItems;
     };
 
     void createOverlayButtons();
@@ -195,7 +217,9 @@ private:
         bool drawWirePass,
         bool drawEdgesPass,
         bool drawBBoxPass,
-        bool drawPointsPass);
+        bool drawPointsPass,
+        bool drawSelectionPass,
+        bool drawDecoratorPass);
     void renderSceneFillPrepasses(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);
