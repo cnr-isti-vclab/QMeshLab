@@ -1,6 +1,7 @@
 #include "renderwidget.h"
 #include "document.h"
 #include "renderwidget_internal.h"
+#include <algorithm>
 #include <vector>
 
 using namespace RenderWidgetInternal;
@@ -61,6 +62,27 @@ public:
         return m_widget.m_rsGradTexture ? m_widget.m_rsGradTexture.get() : nullptr;
     }
 
+    bool ensureRadianceScalingGradientResources(const QSize &pixelSize) const
+    {
+        m_widget.ensureRsGradResources(pixelSize);
+        return m_widget.m_rsGradRt && m_widget.m_rsGradPipeline && m_widget.m_rsGradSrb;
+    }
+
+    QRhiTextureRenderTarget *radianceScalingGradientRenderTarget() const
+    {
+        return m_widget.m_rsGradRt.get();
+    }
+
+    QRhiGraphicsPipeline *radianceScalingGradientPipeline() const
+    {
+        return m_widget.m_rsGradPipeline.get();
+    }
+
+    QRhiShaderResourceBindings *radianceScalingGradientShaderResources() const
+    {
+        return m_widget.m_rsGradSrb.get();
+    }
+
 private:
     RenderWidget &m_widget;
 };
@@ -69,6 +91,14 @@ class RenderWidget::FillMaterialRenderer
 {
 public:
     virtual ~FillMaterialRenderer() = default;
+
+    virtual void renderPrepass(
+        const SceneFillFrameContext &ctx,
+        const std::vector<SceneFillDrawItem> &drawItems) const
+    {
+        Q_UNUSED(ctx);
+        Q_UNUSED(drawItems);
+    }
 
     virtual void drawBatch(
         const SceneFillDrawContext &ctx,
@@ -83,15 +113,16 @@ public:
         const MeshGpuResourceCache::FillBatchView &batch) const override
     {
         const SceneFillDrawItem &item = ctx.item;
-        ctx.services.uploadMainUbufForMesh(
-            ctx.cb,
+        const SceneFillFrameContext &frame = ctx.frame;
+        frame.services.uploadMainUbufForMesh(
+            frame.cb,
             item.meshIndex,
-            ctx.proj,
-            ctx.view,
+            frame.proj,
+            frame.view,
             item.meshSettings,
-            ctx.pixelSize,
+            frame.pixelSize,
             true,
-            ctx.lightDir,
+            frame.lightDir,
             MainUbufMaterialOverrides {
                 item.meshSettings.fillPbr.normalScale * batch.normalScale,
                 1.0f,
@@ -101,16 +132,16 @@ public:
         // fall back to the batch's baked base-colour texture if it cannot be found.
         QRhiTexture *albedo = batch.baseColorTexture;
         if (item.meshSettings.fillPlain.colorSource == FillColorSource::Texture) {
-            if (QRhiTexture *t = ctx.services.resolveSelectedPbrTexture(
+            if (QRhiTexture *t = frame.services.resolveSelectedPbrTexture(
                     item.meshIndex,
                     item.meshSettings.fillPlain.textureIndex,
                     item.fillView)) {
                 albedo = t;
             }
         }
-        ctx.cb->setShaderResources(
-            ctx.services.shaderResourcesForFillTextures(albedo, nullptr, nullptr, nullptr));
-        drawBatchGeometry(ctx.cb, batch);
+        frame.cb->setShaderResources(
+            frame.services.shaderResourcesForFillTextures(albedo, nullptr, nullptr, nullptr));
+        drawBatchGeometry(frame.cb, batch);
     }
 };
 
@@ -122,144 +153,130 @@ public:
         const MeshGpuResourceCache::FillBatchView &batch) const override
     {
         const SceneFillDrawItem &item = ctx.item;
+        const SceneFillFrameContext &frame = ctx.frame;
         const auto &pbr = item.meshSettings.fillPbr;
         QRhiTexture *albedo =
             (pbr.albedoSource == FillPbrTextureSource::Texture)
-            ? ctx.services.resolveSelectedPbrTexture(item.meshIndex, pbr.albedoIndex, item.fillView) : nullptr;
+            ? frame.services.resolveSelectedPbrTexture(item.meshIndex, pbr.albedoIndex, item.fillView) : nullptr;
         QRhiTexture *normal =
             (pbr.normalSource == FillPbrTextureSource::Texture)
-            ? ctx.services.resolveSelectedPbrTexture(item.meshIndex, pbr.normalIndex, item.fillView) : nullptr;
+            ? frame.services.resolveSelectedPbrTexture(item.meshIndex, pbr.normalIndex, item.fillView) : nullptr;
         QRhiTexture *occlusion =
             (pbr.occlusionSource == FillPbrTextureSource::Texture)
-            ? ctx.services.resolveSelectedPbrTexture(item.meshIndex, pbr.occlusionIndex, item.fillView) : nullptr;
+            ? frame.services.resolveSelectedPbrTexture(item.meshIndex, pbr.occlusionIndex, item.fillView) : nullptr;
         QRhiTexture *roughness =
             (pbr.roughnessSource == FillPbrTextureSource::Texture)
-            ? ctx.services.resolveSelectedPbrTexture(item.meshIndex, pbr.roughnessIndex, item.fillView) : nullptr;
+            ? frame.services.resolveSelectedPbrTexture(item.meshIndex, pbr.roughnessIndex, item.fillView) : nullptr;
         QRhiTexture *resolvedNormal = normal ? normal : batch.normalTexture;
         PerMeshRenderSettings pbrSettings = item.meshSettings;
         if (pbrSettings.fillPbr.normalSource == FillPbrTextureSource::Texture && !resolvedNormal)
             pbrSettings.fillPbr.normalSource = FillPbrTextureSource::None;
 
-        ctx.services.uploadMainUbufForMesh(
-            ctx.cb,
+        frame.services.uploadMainUbufForMesh(
+            frame.cb,
             item.meshIndex,
-            ctx.proj,
-            ctx.view,
+            frame.proj,
+            frame.view,
             pbrSettings,
-            ctx.pixelSize,
+            frame.pixelSize,
             true,
-            ctx.lightDir,
+            frame.lightDir,
             MainUbufMaterialOverrides {
                 pbr.normalScale * batch.normalScale,
                 pbr.occlusionStrength * batch.occlusionStrength,
                 pbr.roughnessFactor * batch.roughnessFactor });
-        ctx.cb->setShaderResources(ctx.services.shaderResourcesForFillTextures(
+        frame.cb->setShaderResources(frame.services.shaderResourcesForFillTextures(
             albedo    ? albedo    : batch.baseColorTexture,
             resolvedNormal,
             occlusion ? occlusion : batch.occlusionTexture,
             roughness ? roughness : batch.roughnessTexture));
-        drawBatchGeometry(ctx.cb, batch);
+        drawBatchGeometry(frame.cb, batch);
     }
 };
 
 class RenderWidget::RadianceScalingFillRenderer final : public FillMaterialRenderer
 {
 public:
+    void renderPrepass(
+        const SceneFillFrameContext &frame,
+        const std::vector<SceneFillDrawItem> &drawItems) const override
+    {
+        const auto itemUsesThisRenderer = [this](const SceneFillDrawItem &item) {
+            return item.materialRenderer == this;
+        };
+        if (std::none_of(drawItems.begin(), drawItems.end(), itemUsesThisRenderer))
+            return;
+
+        if (!frame.services.ensureRadianceScalingGradientResources(frame.pixelSize))
+            return;
+
+        frame.cb->beginPass(
+            frame.services.radianceScalingGradientRenderTarget(),
+            QColor(0, 0, 0, 0),
+            { 1.0f, 0 },
+            nullptr);
+        frame.cb->setViewport({
+            0,
+            0,
+            float(frame.pixelSize.width()),
+            float(frame.pixelSize.height())
+        });
+        frame.cb->setGraphicsPipeline(frame.services.radianceScalingGradientPipeline());
+        for (const SceneFillDrawItem &item : drawItems) {
+            if (!itemUsesThisRenderer(item))
+                continue;
+            for (int bi = 0; bi < item.fillView.batchCount; ++bi) {
+                const auto &batch = item.fillView.batches[bi];
+                if (!hasDrawableBatchGeometry(batch))
+                    continue;
+                frame.services.uploadMainUbufForMesh(
+                    frame.cb,
+                    item.meshIndex,
+                    frame.proj,
+                    frame.view,
+                    item.meshSettings,
+                    frame.pixelSize,
+                    true,
+                    frame.lightDir,
+                    MainUbufMaterialOverrides {
+                        item.meshSettings.fillRs.enhancement,
+                        1.0f,
+                        1.0f });
+                frame.cb->setShaderResources(
+                    frame.services.radianceScalingGradientShaderResources());
+                drawBatchGeometry(frame.cb, batch);
+            }
+        }
+        frame.cb->endPass();
+    }
+
     void drawBatch(
         const SceneFillDrawContext &ctx,
         const MeshGpuResourceCache::FillBatchView &batch) const override
     {
         const SceneFillDrawItem &item = ctx.item;
-        ctx.services.uploadMainUbufForMesh(
-            ctx.cb,
+        const SceneFillFrameContext &frame = ctx.frame;
+        frame.services.uploadMainUbufForMesh(
+            frame.cb,
             item.meshIndex,
-            ctx.proj,
-            ctx.view,
+            frame.proj,
+            frame.view,
             item.meshSettings,
-            ctx.pixelSize,
+            frame.pixelSize,
             true,
-            ctx.lightDir,
+            frame.lightDir,
             MainUbufMaterialOverrides {
                 item.meshSettings.fillRs.enhancement,
                 1.0f,
                 1.0f });
-        QRhiTexture *gradTex = ctx.services.radianceScalingGradientTexture();
-        ctx.cb->setShaderResources(ctx.services.shaderResourcesForFillTextures(
+        QRhiTexture *gradTex = frame.services.radianceScalingGradientTexture();
+        frame.cb->setShaderResources(frame.services.shaderResourcesForFillTextures(
             batch.baseColorTexture, gradTex, nullptr, nullptr));
-        drawBatchGeometry(ctx.cb, batch);
+        drawBatchGeometry(frame.cb, batch);
     }
 };
 
-void RenderWidget::renderRadianceScalingGradientPass(
-    QRhiCommandBuffer *cb,
-    const QSize &pixelSize,
-    const QMatrix4x4 &proj,
-    const QMatrix4x4 &view,
-    const QVector3D &lightDir)
-{
-    // Radiance Scaling needs a first pass into a floating-point gradient texture
-    // before the normal fill pass can sample its neighbourhood.
-    bool anyRsMesh = false;
-    for (int mi = 0; mi < m_doc->meshCount() && !anyRsMesh; ++mi) {
-        if (!meshVisible(mi))
-            continue;
-        const PerMeshRenderSettings ms = renderModeForMesh(mi);
-        if (ms.showFill && ms.fillMaterial == FillMaterial::RadianceScaling)
-            anyRsMesh = true;
-    }
-    if (!anyRsMesh)
-        return;
-
-    ensureRsGradResources(pixelSize);
-    if (!m_rsGradRt || !m_rsGradPipeline || !m_rsGradSrb)
-        return;
-
-    cb->beginPass(m_rsGradRt.get(), QColor(0, 0, 0, 0), { 1.0f, 0 }, nullptr);
-    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
-    cb->setGraphicsPipeline(m_rsGradPipeline.get());
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        if (!meshVisible(mi))
-            continue;
-        const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
-        if (!meshSettings.showFill
-            || meshSettings.fillMaterial != FillMaterial::RadianceScaling)
-            continue;
-        const auto fillVariant = static_cast<Document::FillGpuVariant>(
-            fillGpuVariantIndexForSettings(meshSettings));
-        const Document::FillPassGpuView fillView =
-            m_doc->fillPassGpuView(m_rhi, mi, fillVariant);
-        if (!fillView.valid)
-            continue;
-        for (int bi = 0; bi < fillView.batchCount; ++bi) {
-            const auto &batch = fillView.batches[bi];
-            if (!hasDrawableBatchGeometry(batch))
-                continue;
-            uploadMainUbufForMesh(
-                cb,
-                mi,
-                proj,
-                view,
-                meshSettings,
-                pixelSize,
-                true,
-                lightDir,
-                MainUbufMaterialOverrides {
-                    meshSettings.fillRs.enhancement,
-                    1.0f,
-                    1.0f });
-            cb->setShaderResources(m_rsGradSrb.get());
-            drawBatchGeometry(cb, batch);
-        }
-    }
-    cb->endPass();
-}
-
-void RenderWidget::renderSceneFillPass(
-    QRhiCommandBuffer *cb,
-    const QSize &pixelSize,
-    const QMatrix4x4 &proj,
-    const QMatrix4x4 &view,
-    const QVector3D &lightDir)
+std::vector<RenderWidget::SceneFillDrawItem> RenderWidget::collectSceneFillDrawItems()
 {
     static const PlainFillRenderer plainFillRenderer;
     static const PbrFillRenderer pbrFillRenderer;
@@ -307,17 +324,61 @@ void RenderWidget::renderSceneFillPass(
             fillView
         });
     }
+    return drawItems;
+}
 
+void RenderWidget::renderSceneFillPrepasses(
+    QRhiCommandBuffer *cb,
+    const QSize &pixelSize,
+    const QMatrix4x4 &proj,
+    const QMatrix4x4 &view,
+    const QVector3D &lightDir)
+{
+    const std::vector<SceneFillDrawItem> drawItems = collectSceneFillDrawItems();
     const FillRenderServices services(*this);
+    const SceneFillFrameContext frameCtx {
+        services,
+        cb,
+        pixelSize,
+        proj,
+        view,
+        lightDir
+    };
+
+    std::vector<const FillMaterialRenderer *> prepassRenderers;
+    for (const SceneFillDrawItem &item : drawItems) {
+        if (!item.materialRenderer)
+            continue;
+        if (std::find(prepassRenderers.begin(), prepassRenderers.end(), item.materialRenderer)
+            != prepassRenderers.end()) {
+            continue;
+        }
+        prepassRenderers.push_back(item.materialRenderer);
+        item.materialRenderer->renderPrepass(frameCtx, drawItems);
+    }
+}
+
+void RenderWidget::renderSceneFillPass(
+    QRhiCommandBuffer *cb,
+    const QSize &pixelSize,
+    const QMatrix4x4 &proj,
+    const QMatrix4x4 &view,
+    const QVector3D &lightDir)
+{
+    const std::vector<SceneFillDrawItem> drawItems = collectSceneFillDrawItems();
+    const FillRenderServices services(*this);
+    const SceneFillFrameContext frameCtx {
+        services,
+        cb,
+        pixelSize,
+        proj,
+        view,
+        lightDir
+    };
     for (const SceneFillDrawItem &item : drawItems) {
         cb->setGraphicsPipeline(item.pipeline);
         const SceneFillDrawContext fillCtx {
-            services,
-            cb,
-            proj,
-            view,
-            pixelSize,
-            lightDir,
+            frameCtx,
             item
         };
         for (int bi = 0; bi < item.fillView.batchCount; ++bi) {

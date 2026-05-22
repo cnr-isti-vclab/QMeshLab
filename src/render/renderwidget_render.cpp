@@ -325,7 +325,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     }
 
     if (drawFillPass)
-        renderRadianceScalingGradientPass(cb, sz, proj, view, frameLightDir);
+        renderSceneFillPrepasses(cb, sz, proj, view, frameLightDir);
 
     cb->beginPass(renderTarget(), m_renderSettings.sceneBackgroundBottomColor, { 1.0f, 0 }, u);
     cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });

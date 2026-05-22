@@ -93,13 +93,16 @@ private:
         PerMeshRenderSettings meshSettings;
         MeshGpuResourceCache::FillPassView fillView;
     };
-    struct SceneFillDrawContext {
+    struct SceneFillFrameContext {
         const FillRenderServices &services;
         QRhiCommandBuffer *cb;
+        const QSize &pixelSize;
         const QMatrix4x4 &proj;
         const QMatrix4x4 &view;
-        const QSize &pixelSize;
         const QVector3D &lightDir;
+    };
+    struct SceneFillDrawContext {
+        const SceneFillFrameContext &frame;
         const SceneFillDrawItem &item;
     };
 
@@ -151,7 +154,8 @@ private:
         bool enableLighting,
         const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
         MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{});
-    void renderRadianceScalingGradientPass(
+    std::vector<SceneFillDrawItem> collectSceneFillDrawItems();
+    void renderSceneFillPrepasses(
         QRhiCommandBuffer *cb,
         const QSize &pixelSize,
         const QMatrix4x4 &proj,
