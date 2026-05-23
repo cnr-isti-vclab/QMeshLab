@@ -62,6 +62,9 @@
 #if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
 #include "plugins/filter_xatlas/xatlasfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_TRIOPTIMIZE_ENABLED
+#include "plugins/filter_trioptimize/trioptimizefilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -124,5 +127,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
     registerXAtlasFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_TRIOPTIMIZE_ENABLED
+    registerTriOptimizeFilterPlugin(pluginManager);
 #endif
 }

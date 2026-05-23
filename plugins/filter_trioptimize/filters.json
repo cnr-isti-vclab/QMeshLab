@@ -1,0 +1,240 @@
+{
+  "pluginId": "qmeshlab.filter.trioptimize",
+  "filters": [
+    {
+      "id": "meshing_edge_flip_by_planar_optimization",
+      "menuPath": "Remeshing",
+      "name": "Planar flipping optimization",
+      "pythonName": "meshing_edge_flip_by_planar_optimization",
+      "shortDescription": "Optimize local triangle quality by flipping nearly coplanar edges.",
+      "longDescriptionMarkdown": "Mesh optimization by edge flipping, improving local triangle quality for face pairs whose dihedral angle is below the planar threshold. A small surface-preserving Laplacian relaxation can be run after the flip pass.",
+      "tags": [
+        "remeshing",
+        "edge flip",
+        "planar",
+        "optimization"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "FF",
+        "VF",
+        "VMark",
+        "FNorm"
+      ],
+      "preRunCleanup": [
+        {
+          "kind": "removeUnreferencedVertices"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "selection",
+          "label": "Affect only selection",
+          "help": "If enabled, optimize only selected faces.",
+          "group": "main",
+          "type": "bool",
+          "default": "@hasSelectedFaces"
+        },
+        {
+          "id": "pthreshold",
+          "label": "Planar threshold (deg)",
+          "help": "Only adjacent faces whose dihedral angle is below this threshold are considered for planar optimization.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 3
+        },
+        {
+          "id": "planartype",
+          "label": "Planar metric",
+          "help": "Metric used to rank planar edge flips.",
+          "group": "main",
+          "type": "enum",
+          "default": "area_max_side",
+          "enumOptions": [
+            {
+              "id": "area_max_side",
+              "label": "area/max side"
+            },
+            {
+              "id": "inradius_circumradius",
+              "label": "inradius/circumradius"
+            },
+            {
+              "id": "mean_ratio",
+              "label": "mean ratio"
+            },
+            {
+              "id": "delaunay",
+              "label": "delaunay"
+            },
+            {
+              "id": "topology",
+              "label": "topology"
+            }
+          ]
+        },
+        {
+          "id": "iterations",
+          "label": "Post optimization relax iter",
+          "help": "Number of surface-preserving planar Laplacian smoothing iterations performed after the flip pass.",
+          "group": "advanced",
+          "type": "int",
+          "default": 1,
+          "min": 0,
+          "max": 1000000
+        }
+      ],
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN",
+        "FN",
+        "VQ"
+      ]
+    },
+    {
+      "id": "meshing_edge_flip_by_curvature_optimization",
+      "menuPath": "Remeshing",
+      "name": "Curvature flipping optimization",
+      "pythonName": "meshing_edge_flip_by_curvature_optimization",
+      "shortDescription": "Optimize local triangulation by reducing discrete curvature.",
+      "longDescriptionMarkdown": "Mesh optimization by edge flipping to improve local mesh curvature. The method evaluates edge flips with discrete curvature metrics and applies flips that reduce the local curvature measure.",
+      "tags": [
+        "remeshing",
+        "edge flip",
+        "curvature",
+        "optimization"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "FF",
+        "VF",
+        "VMark",
+        "FNorm"
+      ],
+      "preRunCleanup": [
+        {
+          "kind": "removeUnreferencedVertices"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "selection",
+          "label": "Affect only selection",
+          "help": "If enabled, optimize only selected faces.",
+          "group": "main",
+          "type": "bool",
+          "default": "@hasSelectedFaces"
+        },
+        {
+          "id": "pthreshold",
+          "label": "Angle threshold (deg)",
+          "help": "Only face pairs with a dihedral angle larger than this threshold are considered for curvature optimization.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 3
+        },
+        {
+          "id": "curvtype",
+          "label": "Curvature metric",
+          "help": "Metric used to evaluate curvature reduction before and after a flip.",
+          "group": "main",
+          "type": "enum",
+          "default": "mean",
+          "enumOptions": [
+            {
+              "id": "mean",
+              "label": "mean"
+            },
+            {
+              "id": "norm_squared",
+              "label": "norm squared"
+            },
+            {
+              "id": "absolute",
+              "label": "absolute"
+            }
+          ]
+        }
+      ],
+      "outputModifies": [
+        "FV",
+        "VN",
+        "FN",
+        "VQ"
+      ]
+    },
+    {
+      "id": "apply_coord_laplacian_smoothing_surface_preserving",
+      "menuPath": "Smoothing",
+      "name": "Laplacian Smooth (surface preserving)",
+      "pythonName": "apply_coord_laplacian_smoothing_surface_preserving",
+      "shortDescription": "Laplacian smooth while limiting normal deviation from the original surface.",
+      "longDescriptionMarkdown": "Laplacian smooth with limited surface modification: each vertex moves toward the average position of neighboring vertices only when the new position still almost lies on the original surface.",
+      "tags": [
+        "smoothing",
+        "laplacian",
+        "surface preserving"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "FF",
+        "FNorm"
+      ],
+      "parameters": [
+        {
+          "id": "selection",
+          "label": "Affect only selection",
+          "help": "If enabled, smooth only selected faces.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "AngleDeg",
+          "label": "Max normal deviation (deg)",
+          "help": "Maximum mean normal angle displacement allowed from old to new faces.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 3
+        },
+        {
+          "id": "iterations",
+          "label": "Iterations",
+          "help": "Number of smoothing iterations.",
+          "group": "main",
+          "type": "int",
+          "default": 1,
+          "min": 1,
+          "max": 1000000
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ]
+    }
+  ]
+}

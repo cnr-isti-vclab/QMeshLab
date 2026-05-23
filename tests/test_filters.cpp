@@ -15,6 +15,7 @@ private slots:
     void filterParameterValidation();
     void cgalAlphaWrapRunsWhenAvailable();
     void geodesicQualityFilterDoesNotBakeVertexColors();
+    void triOptimizeFiltersRunOnLoadedMesh();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -30,6 +31,9 @@ void FilterTests::filterRegistryExposesBuiltins()
     bool hasCleanUnref = false;
     bool hasSelectOutliers = false;
     bool hasSelectColor = false;
+    bool hasTriOptimizePlanar = false;
+    bool hasTriOptimizeCurvature = false;
+    bool hasTriOptimizeSmooth = false;
     for (const auto &info : infos) {
         hasMeshInfo = hasMeshInfo || (info.descriptor.id == QStringLiteral("mesh_info"));
         hasNormalize = hasNormalize || (info.descriptor.id == QStringLiteral("normalize_unit_box"));
@@ -41,6 +45,12 @@ void FilterTests::filterRegistryExposesBuiltins()
             hasSelectOutliers || (info.descriptor.id == QStringLiteral("select_outliers"));
         hasSelectColor =
             hasSelectColor || (info.descriptor.id == QStringLiteral("select_by_color"));
+        hasTriOptimizePlanar =
+            hasTriOptimizePlanar || (info.descriptor.id == QStringLiteral("meshing_edge_flip_by_planar_optimization"));
+        hasTriOptimizeCurvature =
+            hasTriOptimizeCurvature || (info.descriptor.id == QStringLiteral("meshing_edge_flip_by_curvature_optimization"));
+        hasTriOptimizeSmooth =
+            hasTriOptimizeSmooth || (info.descriptor.id == QStringLiteral("apply_coord_laplacian_smoothing_surface_preserving"));
     }
 
     QVERIFY(hasMeshInfo);
@@ -50,6 +60,9 @@ void FilterTests::filterRegistryExposesBuiltins()
     QVERIFY(hasCleanUnref);
     QVERIFY(hasSelectOutliers);
     QVERIFY(hasSelectColor);
+    QVERIFY(hasTriOptimizePlanar);
+    QVERIFY(hasTriOptimizeCurvature);
+    QVERIFY(hasTriOptimizeSmooth);
 }
 
 void FilterTests::filterApplicabilityReflectsDocumentState()
@@ -308,6 +321,52 @@ void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()
     const int mask = doc.mesh(0).ioMask;
     QVERIFY((mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0);
     QVERIFY((mask & vcg::tri::io::Mask::IOM_VERTCOLOR) == 0);
+}
+
+void FilterTests::triOptimizeFiltersRunOnLoadedMesh()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off");
+    QCOMPARE(doc.loadMesh(path), 0);
+    QCOMPARE(doc.meshCount(), 1);
+
+    QString planarKey;
+    QString curvatureKey;
+    QString smoothKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("meshing_edge_flip_by_planar_optimization"))
+            planarKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("meshing_edge_flip_by_curvature_optimization"))
+            curvatureKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("apply_coord_laplacian_smoothing_surface_preserving"))
+            smoothKey = info.key;
+    }
+
+    QVERIFY(!planarKey.isEmpty());
+    QVERIFY(!curvatureKey.isEmpty());
+    QVERIFY(!smoothKey.isEmpty());
+
+    {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("iterations"), 0);
+        const MeshFilterRunResult result = doc.runFilter(planarKey, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        QVERIFY(result.documentModified);
+    }
+
+    {
+        const MeshFilterRunResult result = doc.runFilter(curvatureKey, {});
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        QVERIFY(result.documentModified);
+        QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0);
+    }
+
+    {
+        const MeshFilterRunResult result = doc.runFilter(smoothKey, {});
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        QVERIFY(result.documentModified);
+        QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0);
+    }
 }
 
 QTEST_MAIN(FilterTests)
