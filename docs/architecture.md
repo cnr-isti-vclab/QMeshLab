@@ -36,7 +36,14 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 
 ### `RenderWidget`
 
-`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, per-mesh render modes, per-view visibility vector, help/interaction overlays, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes}.cpp`.
+`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, per-mesh render modes, per-view visibility vector, help/interaction overlays, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes}.cpp`.
+
+Scene3D rendering is now organized around two internal data boundaries:
+
+- `RenderFrameRequest` is the lightweight per-frame intent: view mode, viewport size, projection/view matrices, light direction, and `RenderFramePassRequests`.
+- `RenderFramePlan` is the concrete GPU draw plan: fill items, simple buffer items, decorator items, and selection items holding pipelines, buffers, SRBs, and material renderer pointers.
+
+`RenderFramePassRequests` is collected once from visible meshes and per-mesh render settings, then reused by both GPU resource preparation and concrete plan construction. This keeps the per-frame "what passes are needed?" decision in one place and prepares the codebase for later UV convergence and programmatic render requests. It is not yet a public JSON API; the concrete `RenderFramePlan` contains process-local GPU pointers.
 
 ### `ViewState`
 
@@ -61,6 +68,35 @@ Orchestrates the central splitter (one or more `RenderWidget`s), right-column do
 ### `PythonHost` and `_qmeshlab`
 
 When `QMESHLAB_PYTHON_CONSOLE` is enabled, `src/app/main.cpp` registers the statically linked nanobind module `_qmeshlab` with `PyImport_AppendInittab` before `QApplication` starts. `PythonHost` owns the embedded CPython interpreter, redirects `stdout`/`stderr` to Qt signals, creates an interactive console, and injects the live document as `ms`. The `_qmeshlab.MeshSet` binding wraps either a borrowed live `Document` (embedded console) or an owned standalone `Document`, exposes mesh load/save/current-mesh helpers, lists filters, and applies filters by key/id/Python name.
+
+## Render Planning Types
+
+Defined privately in `RenderWidget`:
+
+- **`RenderMeshPassRequests`** — one visible mesh plus the per-mesh pass requirements derived from `PerMeshRenderSettings`: fill, wire, edges, bbox, points, selection, decorator normals, and decorator boundary/seam/non-manifold data.
+- **`RenderFramePassRequests`** — the frame-wide aggregate of visible `RenderMeshPassRequests`; answers whether any family of passes is needed and is used by resource preparation.
+- **`RenderFrameRequest`** — the lightweight frame request object containing camera/viewport/light state plus pass requests.
+- **`RenderFramePlan`** — the concrete draw list consumed by pass executors. Presence of a pass is derived from planned draw items (`hasFillPass()`, `hasSceneDrawItems()`, etc.), not from separate request booleans.
+
+The high-level Scene3D flow is:
+
+```text
+visible meshes + PerMeshRenderSettings
+   │
+   ▼
+RenderFramePassRequests
+   │
+   ├──▶ prepareDirtyBuffers(...) / MeshGpuResourceCache
+   │
+   ▼
+RenderFrameRequest
+   │
+   ▼
+RenderFramePlan
+   │
+   ▼
+fill/simple/decorator/selection pass executors
+```
 
 ## Render Settings Types
 
@@ -116,8 +152,8 @@ MainWindow (menus, docks, split-view orchestration)
 ## Typical Runtime Sequence
 
 1. User opens or drops files → `Document` resolves plugin, loads mesh, emits signals.
-2. Views sync mesh/mode/visibility and ensure GPU resources via the shared cache.
-3. Rendering runs Scene layered passes or UV passes plus overlays.
+2. Views sync mesh/mode/visibility and collect frame pass requests.
+3. Scene3D prepares shared GPU resources from those requests, builds a concrete `RenderFramePlan`, and executes layered passes. UV mode still uses a separate UV renderer and cache.
 4. Undo/redo or undo-graph jumps restore mesh snapshots and the active view snapshot (`ViewState`).
 5. Filter runs through the filter manager with progress/cancel and undo integration.
 6. Optional Python console calls route through `_qmeshlab.MeshSet` back into the same `Document` and filter manager.

@@ -100,6 +100,17 @@ One instance per view in `m_renderSettings`. Holds:
 
 `using RenderSettings = GlobalRenderSettings` and `using MeshRenderMode = PerMeshRenderSettings` (widget-local alias) are provided.
 
+## Render Request / Plan Model
+
+Scene3D rendering now has an explicit lightweight request layer before GPU draw planning:
+
+- `RenderMeshPassRequests` stores one visible mesh index, its resolved `PerMeshRenderSettings`, and booleans for fill, wire, edges, bbox, points, selection, decorator-normal resources, and decorator-boundary/seam/non-manifold resources.
+- `RenderFramePassRequests` is the frame-wide aggregate of those per-mesh requests. It answers whether a pass family is needed and is also used to decide which shared mesh GPU resources to prepare.
+- `RenderFrameRequest` combines pass requests with frame-local view data (`ViewMode`, pixel size, projection matrix, view matrix, light direction).
+- `RenderFramePlan` is the concrete GPU draw plan generated from a `RenderFrameRequest`; it contains draw items with QRhi pipelines/buffers/material renderer pointers and is therefore not suitable as a persisted or JSON object.
+
+This split keeps user/render settings as stable input data, pass requests as an implementation-neutral frame description, and GPU objects inside the concrete plan. It is the intended bridge for later programmatic rendering work: an external JSON format should target request-level intent, then let the application build the GPU `RenderFramePlan` internally.
+
 ## Shared vs Per-View State
 
 | Shared (Document) | Per-view (RenderWidget) |
@@ -119,6 +130,8 @@ Undo stores serialized `ViewState` snapshots in undo-node history, but live rend
 ## GPU Cache Integration
 
 Renderer-facing APIs on `Document`: `ensureMeshGpuResources(...)`, `fillPassGpuView(...)`, `wirePassGpuView(...)`, `edgePassGpuView(...)`, `edgeFatPassGpuView(...)`, `pointsPassGpuView(...)`, `bboxPassGpuView(...)`, `selectionPassGpuView(...)`, `decoratorPassGpuView(...)`.
+
+Scene3D resource preparation is driven by `RenderFramePassRequests`, not by a second ad-hoc scan of per-mesh render modes. For each visible mesh, the request says which cache products are needed; current-mesh highlighting can additionally request fill/edge/point resources for the highlighted mesh.
 
 Cache keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max, center-on-zero flag, percentile crop, wire faux-edge mode where relevant)`. `MeshSource` carries legacy texture paths, `textureAssets`, material metadata, and quality-range options. Invalidatable per-RHI or globally. Selection and decorator buffers are first-class cache outputs, including normals, boundary/seam lines, non-manifold edge/vertex markers, and curvature direction lines when the mesh provides the required data.
 

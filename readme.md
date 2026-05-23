@@ -13,8 +13,11 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 - Per-view mode switching between `3D Scene` and `Parametrization (UV)` (when the current mesh has UVs)
 - Scene overlays for selection, normals, boundaries, texture seams, non-manifold markers, curvature directions, current-mesh outline, trackball/light gizmos, and quality histogram
 - PBR fill with albedo/normal/occlusion/roughness maps, tangent-space or object-space normal-map interpretation, plus Radiance Scaling
+- Scene3D rendering organized as lightweight `RenderFrameRequest` pass requests -> GPU resource preparation -> concrete `RenderFramePlan` draw items -> pass executors
+- Fill rendering modes (`Plain`, `Pbr`, `RadianceScaling`) isolated behind material renderers with shared fill services and an RS pre-pass hook
 - Fat-edge rendering for edge meshes and decorator boundaries/seams/non-manifold edges (configurable width)
-- UV mode support for boundary-edge and texture-seam overlays on the current mesh
+- UV mode support for boundary-edge and texture-seam overlays on the current mesh; UV rendering is still a separate renderer, with convergence toward the Scene3D material path planned next
+- Internal render-request model is ready to inform future programmatic/JSON rendering work, but there is not yet a public JSON `RenderFramePlan` execution API
 - Plugin-based mesh import/export with per-extension preferred import plugin
 - Plugin-based filter framework with searchable filter browser, generated parameter dialogs, `pythonName` metadata, and copy-to-console Python calls
 - Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
