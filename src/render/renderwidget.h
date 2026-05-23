@@ -169,6 +169,55 @@ private:
                 || hasPointsPass() || hasSelectionPass() || hasDecoratorPass();
         }
     };
+    struct RenderMeshPassRequests {
+        int meshIndex = -1;
+        PerMeshRenderSettings meshSettings;
+        bool fill = false;
+        bool wire = false;
+        bool edges = false;
+        bool boundingBox = false;
+        bool points = false;
+        bool selection = false;
+        bool decoratorNormals = false;
+        bool decoratorBoundaries = false;
+
+        bool decorators() const { return decoratorNormals || decoratorBoundaries; }
+
+        bool hasMeshResourceRequests() const
+        {
+            return fill || wire || edges || boundingBox || points || selection || decorators();
+        }
+    };
+    struct RenderFramePassRequests {
+        std::vector<RenderMeshPassRequests> meshes;
+        bool fill = false;
+        bool wire = false;
+        bool edges = false;
+        bool boundingBox = false;
+        bool points = false;
+        bool selection = false;
+        bool decoratorNormals = false;
+        bool decoratorBoundaries = false;
+
+        bool hasVisibleMeshes() const { return !meshes.empty(); }
+        bool decorators() const { return decoratorNormals || decoratorBoundaries; }
+        bool hasSimpleBufferRequests() const
+        {
+            return wire || edges || boundingBox || points;
+        }
+        bool hasMeshResourceRequests() const
+        {
+            return fill || wire || edges || boundingBox || points || selection || decorators();
+        }
+    };
+    struct RenderFrameRequest {
+        ViewMode viewMode = ViewMode::Scene3D;
+        QSize pixelSize;
+        QMatrix4x4 proj;
+        QMatrix4x4 view;
+        QVector3D lightDir;
+        RenderFramePassRequests passes;
+    };
 
     void createOverlayButtons();
     void layoutOverlayButtons();
@@ -198,6 +247,11 @@ private:
     void ensureDepthPickResources(const QSize &pixelSize);
     void ensureRsGradResources(const QSize &pixelSize);
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
+    void prepareDirtyBuffers(
+        QRhiCommandBuffer *cb,
+        const RenderFramePassRequests &requests,
+        int currentMeshIndex,
+        bool drawCurrentMeshHighlight);
     void uploadMainUbuf(
         QRhiCommandBuffer *cb,
         const QMatrix4x4 &mvp,
@@ -219,15 +273,19 @@ private:
         const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
         MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{});
     SceneFillFramePlan buildSceneFillFramePlan(
-        const QSize &pixelSize,
-        const QMatrix4x4 &proj,
-        const QMatrix4x4 &view,
-        const QVector3D &lightDir);
+        const RenderFrameRequest &request);
     RenderFramePlan buildRenderFramePlan(
-        const QSize &pixelSize,
-        const QMatrix4x4 &proj,
-        const QMatrix4x4 &view,
-        const QVector3D &lightDir);
+        const RenderFrameRequest &request);
+    RenderFramePassRequests collectRenderFramePassRequests() const;
+    void planSimpleBufferPasses(
+        const RenderFramePassRequests &requests,
+        RenderFramePlan &plan);
+    void planDecoratorPasses(
+        const RenderFramePassRequests &requests,
+        RenderFramePlan &plan);
+    void planSelectionPasses(
+        const RenderFramePassRequests &requests,
+        RenderFramePlan &plan);
     void renderSceneFillPrepasses(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);

@@ -277,10 +277,7 @@ public:
 };
 
 RenderWidget::SceneFillFramePlan RenderWidget::buildSceneFillFramePlan(
-    const QSize &pixelSize,
-    const QMatrix4x4 &proj,
-    const QMatrix4x4 &view,
-    const QVector3D &lightDir)
+    const RenderWidget::RenderFrameRequest &request)
 {
     static const PlainFillRenderer plainFillRenderer;
     static const PbrFillRenderer pbrFillRenderer;
@@ -298,17 +295,16 @@ RenderWidget::SceneFillFramePlan RenderWidget::buildSceneFillFramePlan(
     };
 
     SceneFillFramePlan plan;
-    plan.pixelSize = pixelSize;
-    plan.proj = proj;
-    plan.view = view;
-    plan.lightDir = lightDir;
-    plan.fillItems.reserve(m_doc->meshCount());
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        if (!meshVisible(mi))
+    plan.pixelSize = request.pixelSize;
+    plan.proj = request.proj;
+    plan.view = request.view;
+    plan.lightDir = request.lightDir;
+    plan.fillItems.reserve(request.passes.meshes.size());
+    for (const RenderMeshPassRequests &meshRequest : request.passes.meshes) {
+        if (!meshRequest.fill)
             continue;
-        const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
-        if (!meshSettings.showFill)
-            continue;
+        const int mi = meshRequest.meshIndex;
+        const PerMeshRenderSettings &meshSettings = meshRequest.meshSettings;
         QRhiGraphicsPipeline *fillPipeline = fillPipelineForSettings(meshSettings);
         if (!fillPipeline)
             continue;

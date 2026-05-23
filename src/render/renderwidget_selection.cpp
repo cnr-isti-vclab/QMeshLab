@@ -13,6 +13,25 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
 
     updateCameraFrameIfNeeded();
     syncPerMeshRenderModesWithDocument();
+    const int currentMeshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+    const bool drawCurrentMeshHighlight =
+        m_doc
+        && m_renderSettings.highlightCurrentMesh
+        && currentMeshIndex >= 0
+        && currentMeshIndex < m_doc->meshCount()
+        && meshVisible(currentMeshIndex);
+    const RenderFramePassRequests requests = collectRenderFramePassRequests();
+    prepareDirtyBuffers(cb, requests, currentMeshIndex, drawCurrentMeshHighlight);
+}
+
+void RenderWidget::prepareDirtyBuffers(
+    QRhiCommandBuffer *cb,
+    const RenderFramePassRequests &requests,
+    int currentMeshIndex,
+    bool drawCurrentMeshHighlight)
+{
+    if (!m_rhi || !cb)
+        return;
 
     if (m_fallbackTextureUploadPending && m_fallbackTexture) {
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
@@ -51,73 +70,20 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
         m_fallbackRoughnessTextureUploadPending = false;
     }
 
-    const int currentMeshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-    const bool needHighlightCurrentMesh =
-        m_renderSettings.highlightCurrentMesh
-        && currentMeshIndex >= 0
-        && currentMeshIndex < m_doc->meshCount()
-        && meshVisible(currentMeshIndex);
-
-    bool hasAnyVisibleMesh = false;
-    bool needFillAny = false;
-    bool needWireAny = false;
-    bool needEdgesAny = false;
-    bool needPointsAny = false;
-    bool needBBoxAny = false;
-    bool needSelectionAny = false;
-    bool needDecoratorNormalsAny = false;
-    bool needDecoratorBoundariesAny = false;
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        if (!meshVisible(mi))
-            continue;
-        hasAnyVisibleMesh = true;
-        const MeshRenderMode mode = renderModeForMesh(mi);
-        needFillAny = needFillAny || mode.showFill;
-        needWireAny = needWireAny || mode.showWire;
-        needEdgesAny = needEdgesAny || mode.showEdges;
-        needPointsAny = needPointsAny || mode.showPoints;
-        needBBoxAny = needBBoxAny || mode.showBoundingBox;
-        needSelectionAny =
-            needSelectionAny
-            || (mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces));
-        needDecoratorNormalsAny =
-            needDecoratorNormalsAny || mode.decoratorVertexNormals || mode.decoratorFaceNormals
-            || mode.decoratorCurvatureDir;
-        needDecoratorBoundariesAny =
-            needDecoratorBoundariesAny || mode.decoratorBoundaryEdges || mode.decoratorTextureSeams
-            || mode.decoratorNonManifoldEdges || mode.decoratorNonManifoldVertices;
-    }
-    if (!hasAnyVisibleMesh)
+    if (!requests.hasVisibleMeshes())
         return;
-    if (!needFillAny && !needWireAny && !needEdgesAny && !needPointsAny && !needBBoxAny
-        && !needSelectionAny
-        && !needDecoratorNormalsAny && !needDecoratorBoundariesAny
-        && !needHighlightCurrentMesh)
+    if (!requests.hasMeshResourceRequests() && !drawCurrentMeshHighlight)
         return;
 
-    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        if (!meshVisible(mi))
-            continue;
-        const MeshRenderMode mode = renderModeForMesh(mi);
-        const bool needHighlightForMesh = needHighlightCurrentMesh && mi == currentMeshIndex;
+    for (const RenderMeshPassRequests &meshRequest : requests.meshes) {
+        const int mi = meshRequest.meshIndex;
+        const PerMeshRenderSettings &meshSettings = meshRequest.meshSettings;
+        const bool needHighlightForMesh = drawCurrentMeshHighlight && mi == currentMeshIndex;
         const bool needResourcesForMesh =
-            mode.showFill
-            || mode.showWire
-            || mode.showEdges
-            || mode.showPoints
-            || mode.showBoundingBox
-            || (mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces))
-            || mode.decoratorVertexNormals
-            || mode.decoratorFaceNormals
-            || mode.decoratorCurvatureDir
-            || mode.decoratorBoundaryEdges
-            || mode.decoratorTextureSeams
-            || mode.decoratorNonManifoldEdges
-            || mode.decoratorNonManifoldVertices
+            meshRequest.hasMeshResourceRequests()
             || needHighlightForMesh;
         if (!needResourcesForMesh)
             continue;
-        const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
         const auto pointVariant = static_cast<Document::PointGpuVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
         const auto fillVariant = static_cast<Document::FillGpuVariant>(
@@ -128,22 +94,17 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
             mi,
             fillVariant,
             pointVariant,
-            mode.showFill || needHighlightForMesh,
-            mode.showWire,
-            mode.showEdges || needHighlightForMesh,
-            mode.showPoints || needHighlightForMesh,
-            mode.showBoundingBox,
-            mode.decoratorVertexNormals
-                || mode.decoratorFaceNormals
-                || mode.decoratorCurvatureDir,
-            mode.decoratorBoundaryEdges
-                || mode.decoratorTextureSeams
-                || mode.decoratorNonManifoldEdges
-                || mode.decoratorNonManifoldVertices,
+            meshRequest.fill || needHighlightForMesh,
+            meshRequest.wire,
+            meshRequest.edges || needHighlightForMesh,
+            meshRequest.points || needHighlightForMesh,
+            meshRequest.boundingBox,
+            meshRequest.decoratorNormals,
+            meshRequest.decoratorBoundaries,
             m_renderSettings.qualityHistogramFixedRange,
             m_renderSettings.qualityHistogramMin,
             m_renderSettings.qualityHistogramMax,
-            mode.showSelection && (mode.showSelectionVertices || mode.showSelectionFaces),
+            meshRequest.selection,
             meshSettings.wireRespectFaux,
             m_renderSettings.qualityHistogramCenterOnZero,
             m_renderSettings.qualityHistogramPercentileCrop);

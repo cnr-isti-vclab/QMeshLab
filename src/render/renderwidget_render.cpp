@@ -103,6 +103,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     advanceCenterAnimation();
     emitCameraStateChangedIfNeeded();
     syncPerMeshRenderModesWithDocument();
+    updateCameraFrameIfNeeded();
 
     const bool drawTrackballGizmo =
         m_renderSettings.showTrackballGizmo && (m_doc->meshCount() > 0);
@@ -111,8 +112,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         m_renderSettings.highlightCurrentMesh
         && (currentMeshIndex >= 0)
         && meshVisible(currentMeshIndex);
+    const RenderFramePassRequests framePassRequests = collectRenderFramePassRequests();
 
-    prepareDirtyBuffers(cb);
+    prepareDirtyBuffers(cb, framePassRequests, currentMeshIndex, drawCurrentMeshHighlight);
 
     m_frameTimer.start();
 
@@ -288,12 +290,15 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         u->updateDynamicBuffer(m_sceneBackgroundUbuf.get(), 0, sizeof(bgData), bgData);
     }
 
-    const RenderFramePlan framePlan =
-        buildRenderFramePlan(
-            sz,
-            proj,
-            view,
-            frameLightDir);
+    RenderFrameRequest frameRequest;
+    frameRequest.viewMode = m_viewMode;
+    frameRequest.pixelSize = sz;
+    frameRequest.proj = proj;
+    frameRequest.view = view;
+    frameRequest.lightDir = frameLightDir;
+    frameRequest.passes = framePassRequests;
+
+    const RenderFramePlan framePlan = buildRenderFramePlan(frameRequest);
     const bool needMvpForFrame =
         framePlan.hasSceneDrawItems()
         || drawCurrentMeshHighlight
