@@ -13,6 +13,13 @@
     "rapidobj",
     "muparser",
     "embree",
-    "cgal"
+    "cgal",
+    {
+      "name": "libigl",
+      "default-features": false,
+      "features": [
+        "cgal"
+      ]
+    }
   ]
 }

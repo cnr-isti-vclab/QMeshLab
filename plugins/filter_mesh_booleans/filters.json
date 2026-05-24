@@ -1,0 +1,346 @@
+{
+  "pluginId": "qmeshlab.filter.mesh_booleans",
+  "filters": [
+    {
+      "id": "generate_boolean_intersection",
+      "menuPath": "Layer/Boolean",
+      "name": "Mesh Boolean: Intersection",
+      "pythonName": "generate_boolean_intersection",
+      "shortDescription": "Create the exact intersection of two mesh layers using libigl and CGAL.",
+      "longDescriptionMarkdown": "Executes an exact boolean intersection between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
+      "tags": [
+        "boolean",
+        "intersection",
+        "csg",
+        "libigl",
+        "cgal"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "NewMeshes",
+      "parameters": [
+        {
+          "id": "first_mesh",
+          "label": "First Mesh",
+          "help": "First operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "second_mesh",
+          "label": "Second Mesh",
+          "help": "Second operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "transfer_face_color",
+          "label": "Transfer face color",
+          "help": "Copy the birth face color to the result faces when available.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_face_quality",
+          "label": "Transfer face quality",
+          "help": "Copy the birth face quality to the result faces when available.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_vert_color",
+          "label": "Transfer vertex color",
+          "help": "Copy birth vertex colors where possible and average neighboring source colors for newly created vertices.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_vert_quality",
+          "label": "Transfer vertex quality",
+          "help": "Copy birth vertex qualities where possible and average neighboring source qualities for newly created vertices.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN",
+        "VC",
+        "VQ",
+        "FC",
+        "FQ"
+      ]
+    },
+    {
+      "id": "generate_boolean_union",
+      "menuPath": "Layer/Boolean",
+      "name": "Mesh Boolean: Union",
+      "pythonName": "generate_boolean_union",
+      "shortDescription": "Create the exact union of two mesh layers using libigl and CGAL.",
+      "longDescriptionMarkdown": "Executes an exact boolean union between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
+      "tags": [
+        "boolean",
+        "union",
+        "csg",
+        "libigl",
+        "cgal"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "NewMeshes",
+      "parameters": [
+        {
+          "id": "first_mesh",
+          "label": "First Mesh",
+          "help": "First operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "second_mesh",
+          "label": "Second Mesh",
+          "help": "Second operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "transfer_face_color",
+          "label": "Transfer face color",
+          "help": "Copy the birth face color to the result faces when available.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_face_quality",
+          "label": "Transfer face quality",
+          "help": "Copy the birth face quality to the result faces when available.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_vert_color",
+          "label": "Transfer vertex color",
+          "help": "Copy birth vertex colors where possible and average neighboring source colors for newly created vertices.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_vert_quality",
+          "label": "Transfer vertex quality",
+          "help": "Copy birth vertex qualities where possible and average neighboring source qualities for newly created vertices.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN",
+        "VC",
+        "VQ",
+        "FC",
+        "FQ"
+      ]
+    },
+    {
+      "id": "generate_boolean_difference",
+      "menuPath": "Layer/Boolean",
+      "name": "Mesh Boolean: Difference",
+      "pythonName": "generate_boolean_difference",
+      "shortDescription": "Create the exact difference of two mesh layers using libigl and CGAL.",
+      "longDescriptionMarkdown": "Executes an exact boolean difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. The result is `First Mesh - Second Mesh`. Both operands should be watertight and consistently oriented.",
+      "tags": [
+        "boolean",
+        "difference",
+        "csg",
+        "libigl",
+        "cgal"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "NewMeshes",
+      "parameters": [
+        {
+          "id": "first_mesh",
+          "label": "First Mesh",
+          "help": "First operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "second_mesh",
+          "label": "Second Mesh",
+          "help": "Second operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "transfer_face_color",
+          "label": "Transfer face color",
+          "help": "Copy the birth face color to the result faces when available.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_face_quality",
+          "label": "Transfer face quality",
+          "help": "Copy the birth face quality to the result faces when available.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_vert_color",
+          "label": "Transfer vertex color",
+          "help": "Copy birth vertex colors where possible and average neighboring source colors for newly created vertices.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_vert_quality",
+          "label": "Transfer vertex quality",
+          "help": "Copy birth vertex qualities where possible and average neighboring source qualities for newly created vertices.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN",
+        "VC",
+        "VQ",
+        "FC",
+        "FQ"
+      ]
+    },
+    {
+      "id": "generate_boolean_xor",
+      "menuPath": "Layer/Boolean",
+      "name": "Mesh Boolean: Symmetric Difference (XOR)",
+      "pythonName": "generate_boolean_xor",
+      "shortDescription": "Create the exact symmetric difference of two mesh layers using libigl and CGAL.",
+      "longDescriptionMarkdown": "Executes an exact boolean symmetric difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
+      "tags": [
+        "boolean",
+        "xor",
+        "symmetric difference",
+        "csg",
+        "libigl",
+        "cgal"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "NewMeshes",
+      "parameters": [
+        {
+          "id": "first_mesh",
+          "label": "First Mesh",
+          "help": "First operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "second_mesh",
+          "label": "Second Mesh",
+          "help": "Second operand of the boolean operation.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "transfer_face_color",
+          "label": "Transfer face color",
+          "help": "Copy the birth face color to the result faces when available.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_face_quality",
+          "label": "Transfer face quality",
+          "help": "Copy the birth face quality to the result faces when available.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_vert_color",
+          "label": "Transfer vertex color",
+          "help": "Copy birth vertex colors where possible and average neighboring source colors for newly created vertices.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "transfer_vert_quality",
+          "label": "Transfer vertex quality",
+          "help": "Copy birth vertex qualities where possible and average neighboring source qualities for newly created vertices.",
+          "group": "attributes",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN",
+        "VC",
+        "VQ",
+        "FC",
+        "FQ"
+      ]
+    }
+  ]
+}

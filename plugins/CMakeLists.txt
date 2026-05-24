@@ -83,6 +83,20 @@ if (TARGET QMeshLabPluginFilterCGAL)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_CGAL_ENABLED=1)
 endif()
 
+add_subdirectory(filter_igl_common)
+
+add_subdirectory(filter_parametrization)
+if (TARGET QMeshLabPluginFilterParametrization)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterParametrization)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_PARAMETRIZATION_ENABLED=1)
+endif()
+
+add_subdirectory(filter_mesh_booleans)
+if (TARGET QMeshLabPluginFilterMeshBooleans)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterMeshBooleans)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_MESH_BOOLEANS_ENABLED=1)
+endif()
+
 add_subdirectory(filter_screened_poisson)
 if (TARGET QMeshLabPluginFilterScreenedPoisson)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterScreenedPoisson)

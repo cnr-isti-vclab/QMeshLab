@@ -23,6 +23,12 @@
 #if QMESH_PLUGIN_FILTER_CGAL_ENABLED
 #include "plugins/filter_cgal/cgalfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_PARAMETRIZATION_ENABLED
+#include "plugins/filter_parametrization/parametrizationfilterplugin.h"
+#endif
+#if QMESH_PLUGIN_FILTER_MESH_BOOLEANS_ENABLED
+#include "plugins/filter_mesh_booleans/meshbooleansfilterplugin.h"
+#endif
 #if QMESH_PLUGIN_FILTER_SCREENED_POISSON_ENABLED
 #include "plugins/filter_screened_poisson/screenedpoissonfilterplugin.h"
 #endif
@@ -88,6 +94,12 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_CGAL_ENABLED
     registerCgalFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_PARAMETRIZATION_ENABLED
+    registerParametrizationFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_MESH_BOOLEANS_ENABLED
+    registerMeshBooleansFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_SCREENED_POISSON_ENABLED
     registerScreenedPoissonFilterPlugin(pluginManager);

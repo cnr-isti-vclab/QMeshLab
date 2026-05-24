@@ -3,6 +3,65 @@
 #include "document.h"
 
 #include <wrap/io_trimesh/io_mask.h>
+#include <vcg/complex/algorithms/update/bounding.h>
+#include <vcg/complex/algorithms/update/normal.h>
+#include <vcg/complex/allocate.h>
+#include <array>
+
+namespace {
+
+void makeCubeMesh(VCGMesh &mesh, float offsetX, float offsetY, float offsetZ)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 8);
+    const std::array<vcg::Point3f, 8> vertices = {
+        vcg::Point3f(offsetX + 0.0f, offsetY + 0.0f, offsetZ + 0.0f),
+        vcg::Point3f(offsetX + 1.0f, offsetY + 0.0f, offsetZ + 0.0f),
+        vcg::Point3f(offsetX + 1.0f, offsetY + 1.0f, offsetZ + 0.0f),
+        vcg::Point3f(offsetX + 0.0f, offsetY + 1.0f, offsetZ + 0.0f),
+        vcg::Point3f(offsetX + 0.0f, offsetY + 0.0f, offsetZ + 1.0f),
+        vcg::Point3f(offsetX + 1.0f, offsetY + 0.0f, offsetZ + 1.0f),
+        vcg::Point3f(offsetX + 1.0f, offsetY + 1.0f, offsetZ + 1.0f),
+        vcg::Point3f(offsetX + 0.0f, offsetY + 1.0f, offsetZ + 1.0f)
+    };
+    for (size_t i = 0; i < vertices.size(); ++i)
+        mesh.vert[i].P() = vertices[i];
+
+    const std::array<std::array<int, 3>, 12> faces = {
+        std::array<int, 3>{0, 2, 1}, std::array<int, 3>{0, 3, 2},
+        std::array<int, 3>{4, 5, 6}, std::array<int, 3>{4, 6, 7},
+        std::array<int, 3>{0, 1, 5}, std::array<int, 3>{0, 5, 4},
+        std::array<int, 3>{3, 7, 6}, std::array<int, 3>{3, 6, 2},
+        std::array<int, 3>{0, 4, 7}, std::array<int, 3>{0, 7, 3},
+        std::array<int, 3>{1, 2, 6}, std::array<int, 3>{1, 6, 5}
+    };
+    for (const auto &face : faces)
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, face[0], face[1], face[2]);
+
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
+void makeOpenDiskMesh(VCGMesh &mesh)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 5);
+    mesh.vert[0].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    mesh.vert[1].P() = vcg::Point3f(1.0f, 0.0f, 0.0f);
+    mesh.vert[2].P() = vcg::Point3f(1.0f, 1.0f, 0.0f);
+    mesh.vert[3].P() = vcg::Point3f(0.0f, 1.0f, 0.0f);
+    mesh.vert[4].P() = vcg::Point3f(0.5f, 0.5f, 0.0f);
+
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 4);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 1, 2, 4);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 2, 3, 4);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 3, 0, 4);
+
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
+} // namespace
 
 class FilterTests : public QObject
 {
@@ -16,6 +75,8 @@ private slots:
     void cgalAlphaWrapRunsWhenAvailable();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
+    void libiglParametrizationFiltersRunWhenAvailable();
+    void meshBooleanFiltersRunWhenAvailable();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -367,6 +428,100 @@ void FilterTests::triOptimizeFiltersRunOnLoadedMesh()
         QVERIFY(result.documentModified);
         QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0);
     }
+}
+
+void FilterTests::libiglParametrizationFiltersRunWhenAvailable()
+{
+    Document doc;
+    VCGMesh disk;
+    makeOpenDiskMesh(disk);
+    const int mask =
+        vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_VERTNORMAL
+        | vcg::tri::io::Mask::IOM_FACENORMAL;
+    QCOMPARE(doc.addMesh(disk, QStringLiteral("Open Disk"), mask), 0);
+
+    QString harmonicKey;
+    QString lscmKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_harmonic"))
+            harmonicKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_least_squares_conformal_maps"))
+            lscmKey = info.key;
+    }
+
+    if (harmonicKey.isEmpty() || lscmKey.isEmpty())
+        QSKIP("libigl parametrization plugin is not available in this build.");
+
+    {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("harm_function"), 1);
+        const MeshFilterRunResult result = doc.runFilter(harmonicKey, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        QVERIFY(result.documentModified);
+        QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0);
+    }
+
+    {
+        const MeshFilterRunResult result = doc.runFilter(lscmKey, {});
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        QVERIFY(result.documentModified);
+        QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0);
+    }
+}
+
+void FilterTests::meshBooleanFiltersRunWhenAvailable()
+{
+    Document doc;
+    const int mask =
+        vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_VERTNORMAL
+        | vcg::tri::io::Mask::IOM_FACENORMAL;
+    VCGMesh firstCube;
+    VCGMesh secondCube;
+    makeCubeMesh(firstCube, 0.0f, 0.0f, 0.0f);
+    makeCubeMesh(secondCube, 0.5f, 0.5f, 0.5f);
+    const int firstIndex = doc.addMesh(firstCube, QStringLiteral("Cube A"), mask);
+    const int secondIndex = doc.addMesh(secondCube, QStringLiteral("Cube B"), mask);
+    QVERIFY(firstIndex >= 0);
+    QVERIFY(secondIndex >= 0);
+
+    QString intersectionKey;
+    QString unionKey;
+    QString differenceKey;
+    QString xorKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("generate_boolean_intersection"))
+            intersectionKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_boolean_union"))
+            unionKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_boolean_difference"))
+            differenceKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_boolean_xor"))
+            xorKey = info.key;
+    }
+
+    if (unionKey.isEmpty())
+        QSKIP("libigl/CGAL mesh boolean plugin is not available in this build.");
+    QVERIFY(!intersectionKey.isEmpty());
+    QVERIFY(!differenceKey.isEmpty());
+    QVERIFY(!xorKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("first_mesh"), firstIndex);
+    params.insert(QStringLiteral("second_mesh"), secondIndex);
+    const int meshCountBefore = doc.meshCount();
+    const MeshFilterRunResult result = doc.runFilter(unionKey, params);
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(result.documentModified);
+    QCOMPARE(result.newMeshIndices.size(), 1);
+    QCOMPARE(doc.meshCount(), meshCountBefore + 1);
+
+    const int generatedIndex = result.newMeshIndices.front();
+    QVERIFY(generatedIndex >= 0 && generatedIndex < doc.meshCount());
+    QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
+    QVERIFY(doc.mesh(generatedIndex).mesh.FN() > 0);
 }
 
 QTEST_MAIN(FilterTests)
