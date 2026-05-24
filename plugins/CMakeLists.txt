@@ -109,6 +109,12 @@ if (TARGET QMeshLabPluginFilterSampling)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_SAMPLING_ENABLED=1)
 endif()
 
+add_subdirectory(filter_voronoi)
+if (TARGET QMeshLabPluginFilterVoronoi)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterVoronoi)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_VORONOI_ENABLED=1)
+endif()
+
 add_subdirectory(filter_unsharp)
 if (TARGET QMeshLabPluginFilterUnsharp)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterUnsharp)

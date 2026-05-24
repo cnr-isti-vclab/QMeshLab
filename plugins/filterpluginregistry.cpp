@@ -35,6 +35,9 @@
 #if QMESH_PLUGIN_FILTER_SAMPLING_ENABLED
 #include "plugins/filter_sampling/samplingfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_VORONOI_ENABLED
+#include "plugins/filter_voronoi/voronoifilterplugin.h"
+#endif
 #if QMESH_PLUGIN_FILTER_UNSHARP_ENABLED
 #include "plugins/filter_unsharp/unsharpfilterplugin.h"
 #endif
@@ -106,6 +109,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_SAMPLING_ENABLED
     registerSamplingFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_VORONOI_ENABLED
+    registerVoronoiFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_UNSHARP_ENABLED
     registerUnsharpFilterPlugin(pluginManager);

@@ -1,0 +1,517 @@
+{
+  "pluginId": "qmeshlab.filter.voronoi",
+  "filters": [
+    {
+      "id": "generate_sampling_voronoi",
+      "menuPath": "Sampling",
+      "name": "Voronoi Sampling",
+      "pythonName": "generate_sampling_voronoi",
+      "shortDescription": "Sample a surface and relax the samples with a geodesic Voronoi/Lloyd process.",
+      "longDescriptionMarkdown": "Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The selected vertices of the current mesh become the final seeds, and two additional layers are produced: a Voronoi region mesh and a polyline representation of the Voronoi boundaries.",
+      "tags": [
+        "sampling",
+        "voronoi",
+        "lloyd",
+        "relaxation"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "BBox",
+        "FF",
+        "VF",
+        "VNorm",
+        "CurvDir"
+      ],
+      "preRunCleanup": [
+        {
+          "kind": "removeUnreferencedVertices"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "iterNum",
+          "label": "Iteration",
+          "help": "Number of Lloyd relaxation iterations.",
+          "group": "main",
+          "type": "int",
+          "default": 10,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "sampleNum",
+          "label": "Sample Num.",
+          "help": "Target number of surface samples.",
+          "group": "main",
+          "type": "int",
+          "default": 10,
+          "min": 1,
+          "max": 10000000
+        },
+        {
+          "id": "radiusVariance",
+          "label": "Radius Variance",
+          "help": "For quality-weighted distance, the metric varies between 1/x and x according to per-vertex quality.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 1e-08,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "colorStrategy",
+          "label": "Color Strategy",
+          "help": "How the current mesh should be colored during Voronoi relaxation.",
+          "group": "main",
+          "type": "enum",
+          "default": "seed_distance",
+          "enumOptions": [
+            {
+              "id": "none",
+              "label": "None"
+            },
+            {
+              "id": "seed_distance",
+              "label": "Seed Distance"
+            },
+            {
+              "id": "border_distance",
+              "label": "Border Distance"
+            },
+            {
+              "id": "region_area",
+              "label": "Region Area"
+            }
+          ]
+        },
+        {
+          "id": "distanceType",
+          "label": "Distance Type",
+          "help": "Metric used by the Voronoi relaxation.",
+          "group": "main",
+          "type": "enum",
+          "default": "euclidean",
+          "enumOptions": [
+            {
+              "id": "euclidean",
+              "label": "Euclidean"
+            },
+            {
+              "id": "quality_weighted",
+              "label": "Quality Weighted"
+            },
+            {
+              "id": "anisotropic",
+              "label": "Anisotropic"
+            }
+          ]
+        },
+        {
+          "id": "preprocessFlag",
+          "label": "Preprocessing",
+          "help": "Refine the current mesh before relaxation so the supporting triangulation is dense enough for the requested sample count.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "refineFactor",
+          "label": "Refinement Factor",
+          "help": "Controls how much the mesh is refined during preprocessing. Larger values create a denser supporting triangulation.",
+          "group": "advanced",
+          "type": "int",
+          "default": 10,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "id": "perturbProbability",
+          "label": "Perturbation Probability",
+          "help": "Probability that each seed is slightly perturbed during restricted relaxation.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 4
+        },
+        {
+          "id": "perturbAmount",
+          "label": "Perturbation Amount",
+          "help": "Perturbation amplitude as a fraction of the bounding-box diagonal.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed used by the random sampler. Use 0 to follow the library default.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        },
+        {
+          "id": "relaxType",
+          "label": "Relax Type",
+          "help": "How a new seed is chosen inside each Voronoi region.",
+          "group": "advanced",
+          "type": "enum",
+          "default": "squared_distance",
+          "enumOptions": [
+            {
+              "id": "geodesic",
+              "label": "Geodesic"
+            },
+            {
+              "id": "squared_distance",
+              "label": "Squared Distance"
+            },
+            {
+              "id": "restricted",
+              "label": "Restricted"
+            }
+          ]
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN",
+        "VC",
+        "VQ",
+        "VS"
+      ]
+    },
+    {
+      "id": "generate_sampling_volumetric",
+      "menuPath": "Sampling",
+      "name": "Volumetric Sampling",
+      "pythonName": "generate_sampling_volumetric",
+      "shortDescription": "Generate diagnostic Monte Carlo and surface samples inside a watertight mesh.",
+      "longDescriptionMarkdown": "Compute a volumetric Monte Carlo sampling of a watertight mesh and add diagnostic sample layers. This follows the original MeshLab filter behavior: the Poisson-filtered volume point set is not emitted yet by the upstream implementation.",
+      "tags": [
+        "sampling",
+        "volume",
+        "voronoi",
+        "diagnostic"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "BBox",
+        "FNorm",
+        "VNorm",
+        "FMark"
+      ],
+      "parameters": [
+        {
+          "id": "sampleSurfRadius",
+          "label": "Surface Sampling Radius",
+          "help": "Surface Poisson radius used as an acceleration structure for signed-distance queries.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 1e-09,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "sampleVolNum",
+          "label": "Volume Sample Num.",
+          "help": "Number of volumetric Monte Carlo samples to scatter inside the mesh.",
+          "group": "main",
+          "type": "int",
+          "default": 200000,
+          "min": 1,
+          "max": 100000000
+        },
+        {
+          "id": "poissonFiltering",
+          "label": "Poisson Filtering",
+          "help": "Preserve the original MeshLab option. The current upstream implementation does not emit the filtered volume layer.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "poissonRadius",
+          "label": "Poisson Radius",
+          "help": "Radius used by the internal Poisson pruning stage.",
+          "group": "advanced",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "id": "generate_voronoi_scaffolding",
+      "menuPath": "Sampling",
+      "name": "Voronoi Scaffolding",
+      "pythonName": "generate_voronoi_scaffolding",
+      "shortDescription": "Build a scaffold mesh from a volumetric Voronoi sampling of a watertight mesh.",
+      "longDescriptionMarkdown": "Build a volumetric Voronoi sampling of the current mesh, relax the internal seeds, and extract a scaffold mesh from the implicit Voronoi structure.",
+      "tags": [
+        "sampling",
+        "volume",
+        "voronoi",
+        "scaffolding"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "BBox",
+        "FNorm",
+        "VNorm",
+        "FMark"
+      ],
+      "parameters": [
+        {
+          "id": "sampleSurfRadius",
+          "label": "Surface Sampling Radius",
+          "help": "Surface Poisson radius used as an acceleration structure for signed-distance queries.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 1e-09,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "sampleVolNum",
+          "label": "Volume Sample Num.",
+          "help": "Number of volumetric samples used to choose and relax Voronoi seeds.",
+          "group": "main",
+          "type": "int",
+          "default": 100000,
+          "min": 1,
+          "max": 100000000
+        },
+        {
+          "id": "voxelRes",
+          "label": "Volume Side Resolution",
+          "help": "Number of voxels along the longest side of the implicit extraction grid.",
+          "group": "main",
+          "type": "int",
+          "default": 50,
+          "min": 4,
+          "max": 1000
+        },
+        {
+          "id": "isoThr",
+          "label": "Width of the entity (in voxel)",
+          "help": "Width of the generated scaffold element expressed in voxel units.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 4
+        },
+        {
+          "id": "smoothStep",
+          "label": "Smooth Step",
+          "help": "Number of Laplacian smoothing iterations applied to the scaffold mesh.",
+          "group": "advanced",
+          "type": "int",
+          "default": 3,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "relaxStep",
+          "label": "Lloyd Relax Step",
+          "help": "Number of volumetric Lloyd relaxation steps for the Voronoi seeds.",
+          "group": "advanced",
+          "type": "int",
+          "default": 5,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "id": "surfFlag",
+          "label": "Add original surface",
+          "help": "Extract the scaffold as a structure joined to the original surface envelope.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "elemType",
+          "label": "Voronoi Element",
+          "help": "Voronoi feature type to extract.",
+          "group": "advanced",
+          "type": "enum",
+          "default": "edge",
+          "enumOptions": [
+            {
+              "id": "seed",
+              "label": "Seed"
+            },
+            {
+              "id": "edge",
+              "label": "Edge"
+            },
+            {
+              "id": "face",
+              "label": "Face"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generate_solid_wireframe",
+      "menuPath": "Remeshing",
+      "name": "Create Solid Wireframe",
+      "pythonName": "generate_solid_wireframe",
+      "shortDescription": "Convert the current mesh into a solid shell made of cylinders, spheres, and face prisms.",
+      "longDescriptionMarkdown": "Create a new solid wireframe layer by replacing edges with cylinders, vertices with spheres or short cylinders, and faces with prisms.",
+      "tags": [
+        "remeshing",
+        "wireframe",
+        "shell"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "inputPrepare": [
+        "BBox",
+        "FF",
+        "VNorm"
+      ],
+      "parameters": [
+        {
+          "id": "edgeCylFlag",
+          "label": "Edge -> Cyl.",
+          "help": "Replace edges with cylinders.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "edgeCylRadius",
+          "label": "Edge Cylinder Rad.",
+          "help": "Radius of each edge cylinder.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "vertCylFlag",
+          "label": "Vertex -> Cyl.",
+          "help": "Replace vertices with short normal-aligned cylinders.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "vertCylRadius",
+          "label": "Vertex Cylinder Rad.",
+          "help": "Radius of each vertex cylinder.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "vertSphFlag",
+          "label": "Vertex -> Sph.",
+          "help": "Replace vertices with spheres.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "vertSphRadius",
+          "label": "Vertex Sphere Rad.",
+          "help": "Radius of each vertex sphere.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "faceExtFlag",
+          "label": "Face -> Prism",
+          "help": "Replace faces with extruded prisms.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "faceExtHeight",
+          "label": "Face Prism Height",
+          "help": "Height of each face prism.",
+          "group": "advanced",
+          "type": "absperc",
+          "default": "@bboxDiag0005",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "faceExtInset",
+          "label": "Face Prism Inset",
+          "help": "Inset amount used to shrink each face prism toward its center.",
+          "group": "advanced",
+          "type": "absperc",
+          "default": "@bboxDiag0005",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "edgeFauxFlag",
+          "label": "Ignore faux edges",
+          "help": "Preserved for MeshLab compatibility. The current VCG shell builder consumes the unique real edge set.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "cylinderSideNum",
+          "label": "Cylinder Side",
+          "help": "Number of sides used for edge and vertex cylinders.",
+          "group": "advanced",
+          "type": "int",
+          "default": 16,
+          "min": 3,
+          "max": 256
+        }
+      ]
+    }
+  ]
+}

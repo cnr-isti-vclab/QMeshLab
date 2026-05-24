@@ -75,6 +75,8 @@ private slots:
     void cgalAlphaWrapRunsWhenAvailable();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
+    void voronoiSurfaceSamplingRunsOnCube();
+    void voronoiSolidWireframeRunsOnLoadedMesh();
     void libiglParametrizationFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
 };
@@ -95,6 +97,10 @@ void FilterTests::filterRegistryExposesBuiltins()
     bool hasTriOptimizePlanar = false;
     bool hasTriOptimizeCurvature = false;
     bool hasTriOptimizeSmooth = false;
+    bool hasVoronoiSampling = false;
+    bool hasVoronoiVolume = false;
+    bool hasVoronoiScaffolding = false;
+    bool hasSolidWireframe = false;
     for (const auto &info : infos) {
         hasMeshInfo = hasMeshInfo || (info.descriptor.id == QStringLiteral("mesh_info"));
         hasNormalize = hasNormalize || (info.descriptor.id == QStringLiteral("normalize_unit_box"));
@@ -112,6 +118,14 @@ void FilterTests::filterRegistryExposesBuiltins()
             hasTriOptimizeCurvature || (info.descriptor.id == QStringLiteral("meshing_edge_flip_by_curvature_optimization"));
         hasTriOptimizeSmooth =
             hasTriOptimizeSmooth || (info.descriptor.id == QStringLiteral("apply_coord_laplacian_smoothing_surface_preserving"));
+        hasVoronoiSampling =
+            hasVoronoiSampling || (info.descriptor.id == QStringLiteral("generate_sampling_voronoi"));
+        hasVoronoiVolume =
+            hasVoronoiVolume || (info.descriptor.id == QStringLiteral("generate_sampling_volumetric"));
+        hasVoronoiScaffolding =
+            hasVoronoiScaffolding || (info.descriptor.id == QStringLiteral("generate_voronoi_scaffolding"));
+        hasSolidWireframe =
+            hasSolidWireframe || (info.descriptor.id == QStringLiteral("generate_solid_wireframe"));
     }
 
     QVERIFY(hasMeshInfo);
@@ -124,6 +138,10 @@ void FilterTests::filterRegistryExposesBuiltins()
     QVERIFY(hasTriOptimizePlanar);
     QVERIFY(hasTriOptimizeCurvature);
     QVERIFY(hasTriOptimizeSmooth);
+    QVERIFY(hasVoronoiSampling);
+    QVERIFY(hasVoronoiVolume);
+    QVERIFY(hasVoronoiScaffolding);
+    QVERIFY(hasSolidWireframe);
 }
 
 void FilterTests::filterApplicabilityReflectsDocumentState()
@@ -428,6 +446,91 @@ void FilterTests::triOptimizeFiltersRunOnLoadedMesh()
         QVERIFY(result.documentModified);
         QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0);
     }
+}
+
+void FilterTests::voronoiSurfaceSamplingRunsOnCube()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int mask =
+        vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_VERTNORMAL
+        | vcg::tri::io::Mask::IOM_FACENORMAL;
+    QCOMPARE(doc.addMesh(cube, QStringLiteral("Cube"), mask), 0);
+
+    QString voronoiSamplingKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("generate_sampling_voronoi")) {
+            voronoiSamplingKey = info.key;
+            break;
+        }
+    }
+
+    QVERIFY(!voronoiSamplingKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("sampleNum"), 4);
+    params.insert(QStringLiteral("iterNum"), 0);
+    params.insert(QStringLiteral("randomSeed"), 1);
+    params.insert(QStringLiteral("preprocessFlag"), false);
+
+    const int meshCountBefore = doc.meshCount();
+    const MeshFilterRunResult result = doc.runFilter(voronoiSamplingKey, params);
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(result.documentModified);
+    QCOMPARE(result.newMeshIndices.size(), 2);
+    QCOMPARE(doc.meshCount(), meshCountBefore + 2);
+    QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0);
+    QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0);
+    for (int generatedIndex : result.newMeshIndices) {
+        QVERIFY(generatedIndex >= 0 && generatedIndex < doc.meshCount());
+        QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
+    }
+}
+
+void FilterTests::voronoiSolidWireframeRunsOnLoadedMesh()
+{
+    Document doc;
+    VCGMesh disk;
+    makeOpenDiskMesh(disk);
+    const int mask =
+        vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_VERTNORMAL
+        | vcg::tri::io::Mask::IOM_FACENORMAL;
+    QCOMPARE(doc.addMesh(disk, QStringLiteral("Open Disk"), mask), 0);
+
+    QString solidWireframeKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("generate_solid_wireframe")) {
+            solidWireframeKey = info.key;
+            break;
+        }
+    }
+
+    QVERIFY(!solidWireframeKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("edgeCylFlag"), true);
+    params.insert(QStringLiteral("vertSphFlag"), true);
+    params.insert(QStringLiteral("faceExtFlag"), false);
+    params.insert(QStringLiteral("edgeCylRadius"), 0.02);
+    params.insert(QStringLiteral("vertSphRadius"), 0.03);
+    params.insert(QStringLiteral("cylinderSideNum"), 8);
+
+    const int meshCountBefore = doc.meshCount();
+    const MeshFilterRunResult result = doc.runFilter(solidWireframeKey, params);
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(result.documentModified);
+    QCOMPARE(result.newMeshIndices.size(), 1);
+    QCOMPARE(doc.meshCount(), meshCountBefore + 1);
+
+    const int generatedIndex = result.newMeshIndices.front();
+    QVERIFY(generatedIndex >= 0 && generatedIndex < doc.meshCount());
+    QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
+    QVERIFY(doc.mesh(generatedIndex).mesh.FN() > 0);
 }
 
 void FilterTests::libiglParametrizationFiltersRunWhenAvailable()
