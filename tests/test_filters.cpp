@@ -7,6 +7,7 @@
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/allocate.h>
 #include <array>
+#include <cmath>
 
 namespace {
 
@@ -61,6 +62,33 @@ void makeOpenDiskMesh(VCGMesh &mesh)
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 }
 
+void makeIcpPointCloud(VCGMesh &mesh)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 5);
+    const std::array<vcg::Point3f, 5> vertices = {
+        vcg::Point3f(0.00f, 0.00f, 0.00f),
+        vcg::Point3f(1.00f, 0.07f, 0.03f),
+        vcg::Point3f(0.12f, 0.96f, 0.23f),
+        vcg::Point3f(0.18f, 0.15f, 1.05f),
+        vcg::Point3f(0.83f, 0.72f, 0.64f)
+    };
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        mesh.vert[i].P() = vertices[i];
+        mesh.vert[i].N() = vcg::Point3f(0.0f, 0.0f, 1.0f);
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+}
+
+bool matrixNear(const QMatrix4x4 &a, const QMatrix4x4 &b, float eps = 1e-3f)
+{
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col)
+            if (std::abs(a(row, col) - b(row, col)) > eps)
+                return false;
+    return true;
+}
+
 } // namespace
 
 class FilterTests : public QObject
@@ -77,6 +105,7 @@ private slots:
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
     void voronoiSolidWireframeRunsOnLoadedMesh();
+    void icpBetweenPointCloudsUpdatesSourceTransform();
     void libiglParametrizationFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
 };
@@ -101,6 +130,9 @@ void FilterTests::filterRegistryExposesBuiltins()
     bool hasVoronoiVolume = false;
     bool hasVoronoiScaffolding = false;
     bool hasSolidWireframe = false;
+    bool hasTwoMeshIcp = false;
+    bool hasGlobalIcp = false;
+    bool hasOverlapGraph = false;
     for (const auto &info : infos) {
         hasMeshInfo = hasMeshInfo || (info.descriptor.id == QStringLiteral("mesh_info"));
         hasNormalize = hasNormalize || (info.descriptor.id == QStringLiteral("normalize_unit_box"));
@@ -126,6 +158,12 @@ void FilterTests::filterRegistryExposesBuiltins()
             hasVoronoiScaffolding || (info.descriptor.id == QStringLiteral("generate_voronoi_scaffolding"));
         hasSolidWireframe =
             hasSolidWireframe || (info.descriptor.id == QStringLiteral("generate_solid_wireframe"));
+        hasTwoMeshIcp =
+            hasTwoMeshIcp || (info.descriptor.id == QStringLiteral("compute_matrix_by_icp_between_meshes"));
+        hasGlobalIcp =
+            hasGlobalIcp || (info.descriptor.id == QStringLiteral("compute_matrix_by_mesh_global_alignment"));
+        hasOverlapGraph =
+            hasOverlapGraph || (info.descriptor.id == QStringLiteral("get_overlapping_meshes_graph"));
     }
 
     QVERIFY(hasMeshInfo);
@@ -142,6 +180,9 @@ void FilterTests::filterRegistryExposesBuiltins()
     QVERIFY(hasVoronoiVolume);
     QVERIFY(hasVoronoiScaffolding);
     QVERIFY(hasSolidWireframe);
+    QVERIFY(hasTwoMeshIcp);
+    QVERIFY(hasGlobalIcp);
+    QVERIFY(hasOverlapGraph);
 }
 
 void FilterTests::filterApplicabilityReflectsDocumentState()
@@ -531,6 +572,57 @@ void FilterTests::voronoiSolidWireframeRunsOnLoadedMesh()
     QVERIFY(generatedIndex >= 0 && generatedIndex < doc.meshCount());
     QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
     QVERIFY(doc.mesh(generatedIndex).mesh.FN() > 0);
+}
+
+void FilterTests::icpBetweenPointCloudsUpdatesSourceTransform()
+{
+    Document doc;
+    VCGMesh referenceCloud;
+    VCGMesh sourceCloud;
+    makeIcpPointCloud(referenceCloud);
+    makeIcpPointCloud(sourceCloud);
+    const int mask =
+        vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_VERTNORMAL;
+    const int referenceIndex = doc.addMesh(referenceCloud, QStringLiteral("ICP Reference"), mask);
+    const int sourceIndex = doc.addMesh(sourceCloud, QStringLiteral("ICP Source"), mask);
+    QVERIFY(referenceIndex >= 0);
+    QVERIFY(sourceIndex >= 0);
+
+    QMatrix4x4 shifted;
+    shifted.setToIdentity();
+    shifted.translate(0.12f, -0.06f, 0.04f);
+    doc.setMeshTransform(sourceIndex, shifted);
+
+    QString icpKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("compute_matrix_by_icp_between_meshes")) {
+            icpKey = info.key;
+            break;
+        }
+    }
+
+    QVERIFY(!icpKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("ReferenceMesh"), referenceIndex);
+    params.insert(QStringLiteral("SourceMesh"), sourceIndex);
+    params.insert(QStringLiteral("SampleNum"), 5);
+    params.insert(QStringLiteral("SampleMode"), false);
+    params.insert(QStringLiteral("UseVertexOnly"), true);
+    params.insert(QStringLiteral("MinPointNum"), 3);
+    params.insert(QStringLiteral("MinDistAbs"), 0.5);
+    params.insert(QStringLiteral("TrgDistAbs"), 0.000001);
+    params.insert(QStringLiteral("MaxIterNum"), 20);
+    params.insert(QStringLiteral("PassHiFilter"), 1.0);
+
+    const MeshFilterRunResult result = doc.runFilter(icpKey, params);
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(result.documentModified);
+    QMatrix4x4 identity;
+    identity.setToIdentity();
+    QVERIFY(matrixNear(doc.mesh(sourceIndex).transform, identity));
 }
 
 void FilterTests::libiglParametrizationFiltersRunWhenAvailable()

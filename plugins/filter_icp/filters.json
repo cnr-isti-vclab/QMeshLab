@@ -1,0 +1,352 @@
+{
+  "pluginId": "qmeshlab.filter.icp",
+  "filters": [
+    {
+      "id": "compute_matrix_by_icp_between_meshes",
+      "menuPath": "Remeshing",
+      "name": "ICP Between Meshes",
+      "pythonName": "compute_matrix_by_icp_between_meshes",
+      "shortDescription": "Compute an ICP transform that aligns one mesh layer to another.",
+      "longDescriptionMarkdown": "Perform Iterative Closest Point alignment between a fixed reference layer and a moving source layer. The source layer transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.",
+      "tags": ["icp", "alignment", "transform", "registration"],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "ReferenceMesh",
+          "label": "Reference Mesh",
+          "help": "The mesh kept fixed during ICP.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": { "requireVertices": true },
+          "meshPrepare": ["BBox"]
+        },
+        {
+          "id": "SourceMesh",
+          "label": "Source Mesh",
+          "help": "The mesh whose transform will be updated to match the reference.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": { "requireVertices": true },
+          "meshPrepare": ["BBox"]
+        },
+        {
+          "id": "SampleNum",
+          "label": "Sample Number",
+          "help": "Number of source samples used at each ICP iteration.",
+          "group": "ICP Parameters",
+          "type": "int",
+          "default": 2000,
+          "min": 1,
+          "max": 10000000
+        },
+        {
+          "id": "MinDistAbs",
+          "label": "Minimal Starting Distance",
+          "help": "Initial maximum correspondence distance. Only source samples nearer than this value are used.",
+          "group": "ICP Parameters",
+          "type": "double",
+          "default": 10.0,
+          "min": 0.0,
+          "max": 1000000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "TrgDistAbs",
+          "label": "Target Distance",
+          "help": "ICP stops when the median sample distance goes below this value.",
+          "group": "ICP Parameters",
+          "type": "double",
+          "default": 0.005,
+          "min": 0.0,
+          "max": 1000000000.0,
+          "decimals": 8
+        },
+        {
+          "id": "MaxIterNum",
+          "label": "Max Iteration Num",
+          "help": "Maximum number of ICP iterations.",
+          "group": "ICP Parameters",
+          "type": "int",
+          "default": 75,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "id": "SampleMode",
+          "label": "Normal Equalized Sampling",
+          "help": "Distribute samples uniformly with respect to normal directions instead of spatial random sampling.",
+          "group": "ICP Parameters",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "ReduceFactorPerc",
+          "label": "MSD Reduce Factor",
+          "help": "Percentile used to reduce the maximum correspondence distance at each iteration.",
+          "group": "ICP Parameters",
+          "type": "double",
+          "default": 0.8,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 4
+        },
+        {
+          "id": "PassHiFilter",
+          "label": "Sample Cut High",
+          "help": "Discard samples farther than this percentile of the current correspondence distances.",
+          "group": "ICP Parameters",
+          "type": "double",
+          "default": 0.75,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 4
+        },
+        {
+          "id": "MatchMode",
+          "label": "Rigid Matching",
+          "help": "If enabled, ICP solves only rotations and translations. If disabled, similarity matching may include scale.",
+          "group": "ICP Parameters",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "UseVertexOnly",
+          "label": "Vertex Only",
+          "help": "Use closest vertices instead of closest points on faces. This is automatically used for point clouds.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "MaxAngleDeg",
+          "label": "Max Normal Angle",
+          "help": "Maximum angle, in degrees, between source and reference normals for accepted correspondences.",
+          "group": "advanced",
+          "type": "double",
+          "default": 45.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 3
+        },
+        {
+          "id": "MinPointNum",
+          "label": "Min Matched Points",
+          "help": "Minimum number of accepted point pairs required for an ICP iteration to be valid.",
+          "group": "advanced",
+          "type": "int",
+          "default": 30,
+          "min": 1,
+          "max": 10000000
+        },
+        {
+          "id": "SaveLastIteration",
+          "label": "Save Last Iteration",
+          "help": "Create two diagnostic point layers containing the last accepted source samples and their reference correspondences.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": ["TM"]
+    },
+    {
+      "id": "compute_matrix_by_mesh_global_alignment",
+      "menuPath": "Remeshing",
+      "name": "Global Align Meshes",
+      "pythonName": "compute_matrix_by_mesh_global_alignment",
+      "shortDescription": "Globally align overlapping mesh layers using pairwise ICP arcs.",
+      "longDescriptionMarkdown": "Build an overlap graph among the selected document layers, run ICP on sufficiently overlapping layer pairs, then solve a global alignment. The chosen base mesh remains fixed and the other layer transforms are updated without baking coordinates.",
+      "tags": ["icp", "alignment", "global", "registration"],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "BaseMesh",
+          "label": "Base Mesh",
+          "help": "The layer that remains fixed while the other aligned layers are moved.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex",
+          "meshRequirements": { "requireVertices": true },
+          "meshPrepare": ["BBox"]
+        },
+        {
+          "id": "OnlyVisibleMeshes",
+          "label": "Only Visible Meshes",
+          "help": "If enabled, align only visible layers. The base mesh must be visible.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "OGSize",
+          "label": "Occupancy Grid Size",
+          "help": "Resolution budget used to detect overlapping mesh pairs.",
+          "group": "Arc Creation Parameters",
+          "type": "int",
+          "default": 50000,
+          "min": 1,
+          "max": 100000000
+        },
+        {
+          "id": "arcThreshold",
+          "label": "Arc Area Thr.",
+          "help": "Only mesh pairs with normalized overlap above this threshold become ICP arcs.",
+          "group": "Arc Creation Parameters",
+          "type": "double",
+          "default": 0.3,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 4
+        },
+        {
+          "id": "recalcThreshold",
+          "label": "Recalc Fraction",
+          "help": "Fraction of existing high-error arcs to recompute during iterative global alignment. This port computes arcs once, so the value is retained for MeshLab parameter compatibility.",
+          "group": "Arc Creation Parameters",
+          "type": "double",
+          "default": 0.1,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 4
+        },
+        {
+          "id": "SampleNum",
+          "label": "Sample Number",
+          "help": "Number of source samples used for each pairwise ICP arc.",
+          "group": "ICP Parameters",
+          "type": "int",
+          "default": 2000,
+          "min": 1,
+          "max": 10000000
+        },
+        {
+          "id": "MinDistAbs",
+          "label": "Minimal Starting Distance",
+          "help": "Initial maximum correspondence distance.",
+          "group": "ICP Parameters",
+          "type": "double",
+          "default": 10.0,
+          "min": 0.0,
+          "max": 1000000000.0,
+          "decimals": 6
+        },
+        {
+          "id": "TrgDistAbs",
+          "label": "Target Distance",
+          "help": "ICP stop distance for each pairwise arc.",
+          "group": "ICP Parameters",
+          "type": "double",
+          "default": 0.005,
+          "min": 0.0,
+          "max": 1000000000.0,
+          "decimals": 8
+        },
+        {
+          "id": "MaxIterNum",
+          "label": "Max Iteration Num",
+          "help": "Maximum number of ICP iterations for each pairwise arc.",
+          "group": "ICP Parameters",
+          "type": "int",
+          "default": 75,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "id": "SampleMode",
+          "label": "Normal Equalized Sampling",
+          "help": "Distribute samples uniformly with respect to normal directions.",
+          "group": "ICP Parameters",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "ReduceFactorPerc",
+          "label": "MSD Reduce Factor",
+          "help": "Percentile used to reduce correspondence distance.",
+          "group": "ICP Parameters",
+          "type": "double",
+          "default": 0.8,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 4
+        },
+        {
+          "id": "PassHiFilter",
+          "label": "Sample Cut High",
+          "help": "Discard samples farther than this percentile.",
+          "group": "ICP Parameters",
+          "type": "double",
+          "default": 0.75,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 4
+        },
+        {
+          "id": "MatchMode",
+          "label": "Rigid Matching",
+          "help": "If enabled, pairwise and global alignment use rigid transforms.",
+          "group": "ICP Parameters",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "UseVertexOnly",
+          "label": "Vertex Only",
+          "help": "Use closest vertices instead of closest points on faces.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "MaxAngleDeg",
+          "label": "Max Normal Angle",
+          "help": "Maximum accepted normal angle in degrees.",
+          "group": "advanced",
+          "type": "double",
+          "default": 45.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 3
+        },
+        {
+          "id": "MinPointNum",
+          "label": "Min Matched Points",
+          "help": "Minimum number of matched point pairs required for a valid pairwise ICP arc.",
+          "group": "advanced",
+          "type": "int",
+          "default": 30,
+          "min": 1,
+          "max": 10000000
+        }
+      ],
+      "outputModifies": ["TM"]
+    },
+    {
+      "id": "get_overlapping_meshes_graph",
+      "menuPath": "Measure",
+      "name": "Overlapping Meshes",
+      "pythonName": "get_overlapping_meshes_graph",
+      "shortDescription": "Report which mesh layers overlap in an occupancy grid.",
+      "longDescriptionMarkdown": "Voxelize all mesh layers into an occupancy grid and report the pairs that occupy common cells. This is an information filter and does not modify the document.",
+      "tags": ["overlap", "measure", "layers", "occupancy"],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "Information",
+      "parameters": [
+        {
+          "id": "OGSize",
+          "label": "Occupancy Grid Size",
+          "help": "Resolution budget used by the occupancy grid.",
+          "group": "main",
+          "type": "int",
+          "default": 50000,
+          "min": 1,
+          "max": 100000000
+        }
+      ]
+    }
+  ]
+}

@@ -38,6 +38,9 @@
 #if QMESH_PLUGIN_FILTER_VORONOI_ENABLED
 #include "plugins/filter_voronoi/voronoifilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_ICP_ENABLED
+#include "plugins/filter_icp/icpfilterplugin.h"
+#endif
 #if QMESH_PLUGIN_FILTER_UNSHARP_ENABLED
 #include "plugins/filter_unsharp/unsharpfilterplugin.h"
 #endif
@@ -112,6 +115,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_VORONOI_ENABLED
     registerVoronoiFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_ICP_ENABLED
+    registerIcpFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_UNSHARP_ENABLED
     registerUnsharpFilterPlugin(pluginManager);
