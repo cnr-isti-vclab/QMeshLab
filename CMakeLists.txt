@@ -34,6 +34,7 @@ if(QMESHLAB_PYTHON_CONSOLE)
 endif()
 
 add_library(QMeshLabCore STATIC
+    src/core/camerashot.h src/core/camerashot.cpp
     src/core/document.h src/core/document.cpp
     src/core/filterparam.h src/core/filterparam.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp

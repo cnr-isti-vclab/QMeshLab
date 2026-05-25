@@ -3,6 +3,7 @@
 #include "renderingsettings.h"
 #include "renderwidget_internal.h"
 #include "meshgpuresourcecache.h"
+#include "camerashot.h"
 #include "viewtrackball.h"
 #include "viewstate.h"
 #include <QRhiWidget>
@@ -60,6 +61,7 @@ public:
     QVector3D trackballCenter() const { return m_trackball.center(); }
     QVector3D cameraEyePosition() const { return m_trackball.cameraEyePosition(); }
     QVector3D cameraViewDirection() const { return m_trackball.cameraViewDirection(); }
+    CameraShot cameraShotForViewport(const QSize &pixelSize) const;
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);

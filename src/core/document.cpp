@@ -12,6 +12,7 @@
 #include <QEventLoop>
 #include <QDir>
 #include <QFileInfo>
+#include <QImageReader>
 #include <QDebug>
 #include <QDateTime>
 #include <algorithm>
@@ -152,6 +153,58 @@ void syncTextureAssetsFromLegacyAssociation(Document::MeshEntry &entry)
         entry.textureFileNames,
         entry.textureFilePaths,
         entry.mesh.textures);
+}
+
+QSize rasterPlaneStorageSize(const Document::RasterPlane &plane)
+{
+    if (!plane.image.isNull())
+        return plane.image.size();
+    return plane.size;
+}
+
+QString rasterPlaneFallbackName(const Document::RasterPlane &plane, int planeIndex)
+{
+    const QString explicitName = plane.name.trimmed();
+    if (!explicitName.isEmpty())
+        return explicitName;
+    const QString sourcePath = plane.sourcePath.trimmed();
+    if (!sourcePath.isEmpty())
+        return QFileInfo(sourcePath).fileName();
+    return QObject::tr("Plane %1").arg(planeIndex + 1);
+}
+
+QString rasterEntryDisplayName(const Document::RasterEntry &entry, int fallbackIndex)
+{
+    const QString explicitName = entry.name.trimmed();
+    if (!explicitName.isEmpty())
+        return explicitName;
+    const QString sourcePath = entry.sourcePath.trimmed();
+    if (!sourcePath.isEmpty())
+        return QFileInfo(sourcePath).fileName();
+    if (const Document::RasterPlane *plane = entry.currentPlane()) {
+        const QString planeName = rasterPlaneFallbackName(*plane, entry.currentPlaneIndex);
+        if (!planeName.trimmed().isEmpty())
+            return planeName;
+    }
+    return QObject::tr("Raster %1").arg(fallbackIndex + 1);
+}
+
+void normalizeRasterEntry(Document::RasterEntry &entry, int fallbackIndex)
+{
+    if (entry.currentPlaneIndex < 0 || entry.currentPlaneIndex >= int(entry.planes.size()))
+        entry.currentPlaneIndex = entry.planes.empty() ? -1 : 0;
+
+    entry.name = rasterEntryDisplayName(entry, fallbackIndex);
+    if (entry.sourcePath.trimmed().isEmpty()) {
+        if (const Document::RasterPlane *plane = entry.currentPlane())
+            entry.sourcePath = plane->sourcePath.trimmed();
+    }
+
+    for (int i = 0; i < int(entry.planes.size()); ++i) {
+        Document::RasterPlane &plane = entry.planes[size_t(i)];
+        plane.name = rasterPlaneFallbackName(plane, i);
+        plane.size = rasterPlaneStorageSize(plane);
+    }
 }
 
 bool meshNeedsCompaction(const VCGMesh &mesh)
@@ -362,6 +415,16 @@ const MeshIOTextureAsset *Document::meshTextureAsset(const MeshEntry &entry, int
     if (textureIndex < 0 || textureIndex >= int(entry.textureAssets.size()))
         return nullptr;
     return &entry.textureAssets[size_t(textureIndex)];
+}
+
+QString Document::rasterPlaneDisplayName(const RasterPlane &plane, int planeIndex)
+{
+    return rasterPlaneFallbackName(plane, planeIndex);
+}
+
+QString Document::rasterPlaneSourcePath(const RasterPlane &plane)
+{
+    return QDir::toNativeSeparators(plane.sourcePath.trimmed());
 }
 
 Document::~Document() = default;
@@ -1584,7 +1647,9 @@ Document::UndoState Document::captureUndoState() const
 {
     UndoState state;
     state.currentMeshIndex = m_currentMeshIndex;
+    state.currentRasterIndex = m_currentRasterIndex;
     state.nextMeshId = m_nextMeshId;
+    state.nextRasterId = m_nextRasterId;
     state.meshes.reserve(m_meshes.size());
     for (const auto &entry : m_meshes) {
         if (!entry)
@@ -1625,6 +1690,23 @@ Document::UndoState Document::captureUndoState() const
         }
 
         state.meshes.push_back(std::move(snap));
+    }
+    state.rasters.reserve(m_rasters.size());
+    for (const auto &entry : m_rasters) {
+        if (!entry)
+            continue;
+
+        UndoState::RasterSnapshot snap;
+        snap.rasterId = entry->rasterId;
+        snap.imageRevision = entry->imageRevision;
+        snap.cameraRevision = entry->cameraRevision;
+        snap.name = entry->name;
+        snap.sourcePath = entry->sourcePath;
+        snap.visible = entry->visible;
+        snap.shot = entry->shot;
+        snap.planes = entry->planes;
+        snap.currentPlaneIndex = entry->currentPlaneIndex;
+        state.rasters.push_back(std::move(snap));
     }
     if (m_captureViewState)
         state.viewState = m_captureViewState();
@@ -1701,17 +1783,51 @@ void Document::restoreUndoState(const UndoState &state)
     clearAllGpuResources();
 
     m_nextMeshId = state.nextMeshId;
+    for (int i = rasterCount() - 1; i >= 0; --i) {
+        m_rasters.erase(m_rasters.begin() + i);
+        emit rasterRemoved(i);
+    }
+
+    m_rasters.clear();
+    m_rasters.reserve(state.rasters.size());
+    for (const auto &snap : state.rasters) {
+        auto entry = std::make_unique<RasterEntry>();
+        entry->rasterId = snap.rasterId;
+        entry->imageRevision = snap.imageRevision;
+        entry->cameraRevision = snap.cameraRevision;
+        entry->name = snap.name;
+        entry->sourcePath = snap.sourcePath;
+        entry->visible = snap.visible;
+        entry->shot = snap.shot;
+        entry->planes = snap.planes;
+        entry->currentPlaneIndex = snap.currentPlaneIndex;
+        m_rasters.push_back(std::move(entry));
+        emit rasterAdded(static_cast<int>(m_rasters.size() - 1));
+    }
+
+    m_nextRasterId = state.nextRasterId;
     const int normalizedCurrent =
         (state.currentMeshIndex >= 0 && state.currentMeshIndex < meshCount())
         ? state.currentMeshIndex
         : -1;
     m_currentMeshIndex = normalizedCurrent;
     emit currentMeshChanged(m_currentMeshIndex);
+    const int normalizedRaster =
+        (state.currentRasterIndex >= 0 && state.currentRasterIndex < rasterCount())
+        ? state.currentRasterIndex
+        : -1;
+    m_currentRasterIndex = normalizedRaster;
+    emit currentRasterChanged(m_currentRasterIndex);
 
     for (int i = 0; i < meshCount(); ++i) {
         const MeshEntry &entry = mesh(i);
         if (!entry.visible)
             emit meshVisibilityChanged(i, false);
+    }
+    for (int i = 0; i < rasterCount(); ++i) {
+        const RasterEntry &entry = raster(i);
+        if (!entry.visible)
+            emit rasterVisibilityChanged(i, false);
     }
     if (m_restoreViewState)
         m_restoreViewState(state.viewState, m_restoreCamera);
@@ -1961,6 +2077,136 @@ int Document::duplicateMesh(int sourceIndex, const QString &newName)
     return newIndex;
 }
 
+int Document::loadRasterImage(const QString &filename)
+{
+    const QString normalizedFilename = filename.trimmed();
+    if (normalizedFilename.isEmpty())
+        return -1;
+
+    QImageReader reader(normalizedFilename);
+    reader.setAutoTransform(true);
+    const QImage image = reader.read();
+    if (image.isNull()) {
+        writeLog(
+            tr("Failed to load raster image '%1': %2")
+                .arg(normalizedFilename, reader.errorString()),
+            LogSource::Application);
+        return -1;
+    }
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Open Raster"));
+
+    const int index = addRasterImage(
+        image,
+        QFileInfo(normalizedFilename).fileName(),
+        normalizedFilename);
+
+    if (ownUndoStep)
+        endUndoStep(index >= 0);
+
+    return index;
+}
+
+int Document::addRaster(const RasterEntry &rasterData)
+{
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Add Raster"));
+
+    auto entry = std::make_unique<RasterEntry>(rasterData);
+    normalizeRasterEntry(*entry, rasterCount());
+    entry->rasterId = m_nextRasterId++;
+    entry->imageRevision = entry->imageRevision == 0 ? 1 : entry->imageRevision;
+    entry->cameraRevision = entry->cameraRevision == 0 ? 1 : entry->cameraRevision;
+
+    const int newIndex = rasterCount();
+    m_rasters.push_back(std::move(entry));
+    const RasterEntry &added = raster(newIndex);
+    const RasterPlane *plane = added.currentPlane();
+    const QSize planeSize = plane ? plane->size : QSize();
+    writeLog(
+        tr("Added raster '%1'%2")
+            .arg(added.name)
+            .arg(planeSize.isValid()
+                     ? tr(" (%1x%2)").arg(planeSize.width()).arg(planeSize.height())
+                     : QString()),
+        LogSource::Application);
+    emit rasterAdded(newIndex);
+    setCurrentRasterIndex(newIndex);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+    return newIndex;
+}
+
+int Document::addRasterImage(
+    const QImage &image,
+    const QString &name,
+    const QString &sourcePath,
+    const CameraShot &shot)
+{
+    if (image.isNull())
+        return -1;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Add Raster"));
+
+    RasterPlane plane;
+    plane.semantic = RasterPlaneSemantic::RGBA;
+    plane.name = name.trimmed().isEmpty()
+        ? QFileInfo(sourcePath).fileName()
+        : name.trimmed();
+    plane.sourcePath = sourcePath.trimmed();
+    plane.size = image.size();
+    plane.image = image;
+
+    RasterEntry entry;
+    entry.name = plane.name;
+    entry.sourcePath = sourcePath.trimmed();
+    entry.visible = true;
+    entry.shot = shot;
+    entry.currentPlaneIndex = 0;
+    entry.planes.push_back(std::move(plane));
+
+    const int index = addRaster(entry);
+
+    if (ownUndoStep)
+        endUndoStep(index >= 0);
+    return index;
+}
+
+void Document::removeRaster(int index)
+{
+    if (index < 0 || index >= rasterCount())
+        return;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Remove Raster"));
+
+    const QString rasterName = raster(index).name;
+    int newCurrent = m_currentRasterIndex;
+    if (m_currentRasterIndex == index) {
+        if (rasterCount() == 1)
+            newCurrent = -1;
+        else
+            newCurrent = (index < rasterCount() - 1) ? index : (rasterCount() - 2);
+    } else if (m_currentRasterIndex > index) {
+        newCurrent = m_currentRasterIndex - 1;
+    }
+
+    m_rasters.erase(m_rasters.begin() + index);
+    writeLog(tr("Removed raster '%1'").arg(rasterName), LogSource::Application);
+    emit rasterRemoved(index);
+    setCurrentRasterIndex(newCurrent);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
 QMatrix4x4 Document::meshTransform(int index) const
 {
     if (index < 0 || index >= meshCount()) {
@@ -2009,6 +2255,17 @@ void Document::setMeshVisible(int index, bool visible)
     emit meshVisibilityChanged(index, visible);
 }
 
+void Document::setRasterVisible(int index, bool visible)
+{
+    if (index < 0 || index >= rasterCount())
+        return;
+    RasterEntry &entry = raster(index);
+    if (entry.visible == visible)
+        return;
+    entry.visible = visible;
+    emit rasterVisibilityChanged(index, visible);
+}
+
 void Document::setMeshName(int index, const QString &name)
 {
     if (index < 0 || index >= meshCount())
@@ -2032,6 +2289,91 @@ void Document::setMeshName(int index, const QString &name)
         tr("Renamed mesh '%1' to '%2'").arg(oldName, entry.name),
         LogSource::Application);
     emit meshDataChanged(index);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::setRasterName(int index, const QString &name)
+{
+    if (index < 0 || index >= rasterCount())
+        return;
+
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty())
+        return;
+
+    RasterEntry &entry = raster(index);
+    if (entry.name == trimmed)
+        return;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Rename Raster"));
+
+    const QString oldName = entry.name;
+    entry.name = trimmed;
+    writeLog(
+        tr("Renamed raster '%1' to '%2'").arg(oldName, entry.name),
+        LogSource::Application);
+    emit rasterDataChanged(index);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::setRasterShot(int index, const CameraShot &shot, const QString &contextMessage)
+{
+    if (index < 0 || index >= rasterCount())
+        return;
+
+    RasterEntry &entry = raster(index);
+    if (entry.shot.toVcgShot() == shot.toVcgShot())
+        return;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Modify Raster Camera"));
+
+    entry.shot = shot;
+    ++entry.cameraRevision;
+    if (!contextMessage.trimmed().isEmpty()) {
+        writeLog(contextMessage.trimmed(), LogSource::Application);
+    } else {
+        writeLog(tr("Raster camera updated: '%1'").arg(entry.name), LogSource::Application);
+    }
+    emit rasterDataChanged(index);
+
+    if (ownUndoStep)
+        endUndoStep(true);
+}
+
+void Document::setCurrentRasterIndex(int index)
+{
+    const int normalizedIndex = (index >= 0 && index < rasterCount()) ? index : -1;
+    if (m_currentRasterIndex == normalizedIndex)
+        return;
+    m_currentRasterIndex = normalizedIndex;
+    emit currentRasterChanged(m_currentRasterIndex);
+}
+
+void Document::markRasterImageChanged(int index, const QString &contextMessage)
+{
+    if (index < 0 || index >= rasterCount())
+        return;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Modify Raster Image"));
+
+    RasterEntry &entry = raster(index);
+    ++entry.imageRevision;
+    if (!contextMessage.trimmed().isEmpty()) {
+        writeLog(contextMessage.trimmed(), LogSource::Application);
+    } else {
+        writeLog(tr("Raster image updated: '%1'").arg(entry.name), LogSource::Application);
+    }
+    emit rasterDataChanged(index);
 
     if (ownUndoStep)
         endUndoStep(true);

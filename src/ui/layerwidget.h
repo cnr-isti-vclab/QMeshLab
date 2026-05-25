@@ -19,7 +19,16 @@ protected:
 
 private:
     void rebuild();
-    int meshIndexForItem(QTreeWidgetItem *item) const;
+    enum class LayerItemKind {
+        None,
+        Mesh,
+        Raster
+    };
+    struct LayerItemRef {
+        LayerItemKind kind = LayerItemKind::None;
+        int index = -1;
+    };
+    LayerItemRef layerRefForItem(QTreeWidgetItem *item) const;
     void updateCurrentItemVisuals();
 
 private slots:

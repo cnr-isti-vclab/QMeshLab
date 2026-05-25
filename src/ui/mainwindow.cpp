@@ -17,6 +17,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHeaderView>
+#include <QImageReader>
 #include <QImageWriter>
 #include <QGuiApplication>
 #include <QMenu>
@@ -116,6 +117,28 @@ QString appendSaveExtensionIfMissing(const QString &path, const QString &selecte
     if (ext.isEmpty())
         ext = QStringLiteral("ply");
     return QStringLiteral("%1.%2").arg(path, ext);
+}
+
+QString rasterImageOpenDialogFilter()
+{
+    QStringList patterns;
+    const QList<QByteArray> formats = QImageReader::supportedImageFormats();
+    patterns.reserve(formats.size());
+    for (const QByteArray &format : formats) {
+        const QString suffix = QString::fromLatin1(format).toLower();
+        if (!suffix.isEmpty())
+            patterns.push_back(QStringLiteral("*.%1").arg(suffix));
+    }
+    patterns.removeDuplicates();
+    patterns.sort(Qt::CaseInsensitive);
+    if (patterns.isEmpty())
+        return QObject::tr("All Files (*)");
+    return QObject::tr("Image Files (%1);;All Files (*)").arg(patterns.join(QLatin1Char(' ')));
+}
+
+bool canReadRasterImage(const QString &path)
+{
+    return !QImageReader::imageFormat(path).isEmpty();
 }
 
 bool saveFormatSupportsBinary(const QString &extension)
@@ -912,6 +935,7 @@ MainWindow::MainWindow(QWidget *parent)
         &MainWindow::newInstance);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &MainWindow::openFile);
+    fileMenu->addAction(tr("Open &Raster Image..."), this, &MainWindow::openRasterImage);
     fileMenu->addAction(tr("Reload &Current Mesh"), this, &MainWindow::reloadCurrentMesh);
     fileMenu->addAction(tr("Reload &All Meshes"), this, &MainWindow::reloadAllMeshes);
     fileMenu->addSeparator();
@@ -921,6 +945,7 @@ MainWindow::MainWindow(QWidget *parent)
         QKeySequence(QStringLiteral("Ctrl+Shift+S")),
         this,
         &MainWindow::saveSnapshotPng);
+    fileMenu->addAction(tr("Add Snapshot &Raster"), this, &MainWindow::addSnapshotRaster);
     m_openLastAction = fileMenu->addAction(tr("Open &Last Mesh"), this, &MainWindow::openLastMesh);
     m_openLastAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+L")));
     m_recentMenu = fileMenu->addMenu(tr("Open &Recent"));
@@ -989,6 +1014,26 @@ MainWindow::MainWindow(QWidget *parent)
             m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
+        refreshFiltersMenu();
+        if (m_filterPanel)
+            m_filterPanel->reloadFilters();
+    });
+    connect(m_doc, &Document::rasterAdded, this, [this](int) {
+        refreshFiltersMenu();
+        if (m_filterPanel)
+            m_filterPanel->reloadFilters();
+    });
+    connect(m_doc, &Document::rasterRemoved, this, [this](int) {
+        refreshFiltersMenu();
+        if (m_filterPanel)
+            m_filterPanel->reloadFilters();
+    });
+    connect(m_doc, &Document::currentRasterChanged, this, [this](int) {
+        refreshFiltersMenu();
+        if (m_filterPanel)
+            m_filterPanel->reloadFilters();
+    });
+    connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
         refreshFiltersMenu();
         if (m_filterPanel)
             m_filterPanel->reloadFilters();
@@ -1351,18 +1396,22 @@ void MainWindow::splitViewVertically()
 
 void MainWindow::newDocument()
 {
-    const bool hasContent = (m_doc->meshCount() > 0) || !m_doc->undoStackLabels().isEmpty();
+    const bool hasContent = (m_doc->meshCount() > 0)
+        || (m_doc->rasterCount() > 0)
+        || !m_doc->undoStackLabels().isEmpty();
     if (hasContent) {
         const auto answer = QMessageBox::question(
             this,
             tr("New Document"),
-            tr("This will close all meshes and clear the undo history.\nContinue?"),
+            tr("This will close all layers and clear the undo history.\nContinue?"),
             QMessageBox::Yes | QMessageBox::No,
             QMessageBox::No);
         if (answer != QMessageBox::Yes)
             return;
     }
     // Remove from back to keep indices valid while emitting meshRemoved/currentMeshChanged.
+    while (m_doc->rasterCount() > 0)
+        m_doc->removeRaster(m_doc->rasterCount() - 1);
     while (m_doc->meshCount() > 0)
         m_doc->removeMesh(m_doc->meshCount() - 1);
     m_doc->clearUndoHistory();
@@ -1414,6 +1463,40 @@ void MainWindow::openFile()
     }
 }
 
+void MainWindow::openRasterImage()
+{
+    const QStringList fileNames = QFileDialog::getOpenFileNames(
+        this,
+        tr("Open Raster Image"),
+        QString(),
+        rasterImageOpenDialogFilter());
+    if (fileNames.isEmpty())
+        return;
+
+    const bool groupUndoStep = (fileNames.size() > 1);
+    if (groupUndoStep)
+        m_doc->beginUndoStep(tr("Open Raster Images"));
+
+    int loadedCount = 0;
+    int failedCount = 0;
+    for (const QString &fileName : fileNames) {
+        if (loadRasterFromPath(fileName))
+            ++loadedCount;
+        else
+            ++failedCount;
+    }
+    if (groupUndoStep)
+        m_doc->endUndoStep(loadedCount > 0);
+
+    if (fileNames.size() > 1) {
+        statusBar()->showMessage(
+            tr("Open rasters complete: %1 loaded, %2 failed")
+                .arg(loadedCount)
+                .arg(failedCount),
+            3500);
+    }
+}
+
 bool MainWindow::handleDragEnterOrMove(QDropEvent *event)
 {
     if (!event || !event->mimeData() || !event->mimeData()->hasUrls()) {
@@ -1459,18 +1542,21 @@ void MainWindow::handleDroppedUrls(const QList<QUrl> &urls)
     }
 
     if (filePaths.isEmpty()) {
-        statusBar()->showMessage(tr("Drop ignored: no local mesh files found"), 2500);
+        statusBar()->showMessage(tr("Drop ignored: no local files found"), 2500);
         return;
     }
 
     const bool groupUndoStep = (filePaths.size() > 1);
     if (groupUndoStep)
-        m_doc->beginUndoStep(tr("Drop Meshes"));
+        m_doc->beginUndoStep(tr("Drop Layers"));
 
     int loadedCount = 0;
     int failedCount = 0;
     for (const QString &path : filePaths) {
-        if (loadMeshFromPath(path))
+        const bool loaded = canReadRasterImage(path)
+            ? loadRasterFromPath(path)
+            : loadMeshFromPath(path);
+        if (loaded)
             ++loadedCount;
         else
             ++failedCount;
@@ -1893,6 +1979,42 @@ void MainWindow::saveSnapshotPng()
 
     const QString msg = tr("Snapshot saved to %1").arg(targetPath);
     statusBar()->showMessage(msg, 3000);
+    m_doc->writeLog(msg, Document::LogSource::Application);
+}
+
+void MainWindow::addSnapshotRaster()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+
+    const qreal dpr = qMax(1.0, view->devicePixelRatioF());
+    const QSize snapshotSize(
+        qMax(1, int(std::lround(double(view->width()) * dpr))),
+        qMax(1, int(std::lround(double(view->height()) * dpr))));
+
+    QString captureError;
+    QImage snapshot = renderSnapshotOffscreen(view, snapshotSize, &captureError);
+    if (snapshot.isNull()) {
+        const QString msg = tr("Failed to capture snapshot raster: %1").arg(captureError);
+        statusBar()->showMessage(msg, 3500);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+        return;
+    }
+
+    snapshot = snapshot.convertToFormat(QImage::Format_RGBA8888);
+    snapshot.setText(QStringLiteral("QMeshLab.CameraTrackballState"), view->cameraStateJson());
+
+    const CameraShot shot = view->cameraShotForViewport(snapshotSize);
+    const QString name = tr("Snapshot %1").arg(m_doc->rasterCount() + 1);
+    const int index = m_doc->addRasterImage(snapshot, name, QString(), shot);
+    if (index < 0) {
+        statusBar()->showMessage(tr("Failed to add snapshot raster"), 3500);
+        return;
+    }
+
+    const QString msg = tr("Added snapshot raster '%1'").arg(m_doc->raster(index).name);
+    statusBar()->showMessage(msg, 2500);
     m_doc->writeLog(msg, Document::LogSource::Application);
 }
 
@@ -2709,6 +2831,18 @@ bool MainWindow::loadMeshFromPath(const QString &filePath)
 
     statusBar()->showMessage(tr("Loaded %1").arg(filePath), 3000);
     addRecentMesh(filePath);
+    return true;
+}
+
+bool MainWindow::loadRasterFromPath(const QString &filePath)
+{
+    const int index = m_doc->loadRasterImage(filePath);
+    if (index < 0) {
+        statusBar()->showMessage(tr("Failed to load raster %1").arg(filePath), 3000);
+        return false;
+    }
+
+    statusBar()->showMessage(tr("Loaded raster %1").arg(filePath), 3000);
     return true;
 }
 

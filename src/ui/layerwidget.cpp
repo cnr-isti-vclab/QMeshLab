@@ -29,8 +29,13 @@ namespace {
 constexpr int kFirstColumnMinWidth = 56;
 constexpr int kFirstColumnPadding = 10;
 constexpr int kFirstColumnTreePadding = 28;
-constexpr int kRoleMeshIndex = Qt::UserRole;
-constexpr int kRoleMeshId = Qt::UserRole + 1;
+constexpr int kRoleLayerKind = Qt::UserRole;
+constexpr int kRoleMeshIndex = Qt::UserRole + 1;
+constexpr int kRoleMeshId = Qt::UserRole + 2;
+constexpr int kRoleRasterIndex = Qt::UserRole + 3;
+constexpr int kRoleRasterId = Qt::UserRole + 4;
+constexpr int kLayerKindMesh = 1;
+constexpr int kLayerKindRaster = 2;
 
 struct MeshCustomAttributeInfo {
     QStringList vertexScalars;
@@ -486,6 +491,100 @@ QString textureDisplaySize(const QString &path)
     return QStringLiteral("%1x%2").arg(sz.width()).arg(sz.height());
 }
 
+QString rasterSizeText(const QSize &size)
+{
+    if (!size.isValid() || size.width() <= 0 || size.height() <= 0)
+        return QObject::tr("unknown");
+    return QStringLiteral("%1x%2").arg(size.width()).arg(size.height());
+}
+
+QString rasterCameraTypeLabel(CameraShot::CameraType type)
+{
+    switch (type) {
+    case CameraShot::CameraType::Perspective:  return QObject::tr("Perspective");
+    case CameraShot::CameraType::Orthographic: return QObject::tr("Orthographic");
+    case CameraShot::CameraType::Isometric:    return QObject::tr("Isometric");
+    case CameraShot::CameraType::Cavalieri:    return QObject::tr("Cavalieri");
+    }
+    return QObject::tr("Camera");
+}
+
+QString rasterCameraSummary(const Document::RasterEntry &entry)
+{
+    if (!entry.shot.isValid())
+        return QObject::tr("none");
+
+    const QVector3D eye = entry.shot.viewPoint();
+    return QObject::tr("%1  eye(%2, %3, %4)")
+        .arg(rasterCameraTypeLabel(entry.shot.cameraType()))
+        .arg(eye.x(), 0, 'g', 4)
+        .arg(eye.y(), 0, 'g', 4)
+        .arg(eye.z(), 0, 'g', 4);
+}
+
+QString rasterCameraTooltip(const Document::RasterEntry &entry)
+{
+    if (!entry.shot.isValid())
+        return QObject::tr("Raster camera: none");
+
+    const QVector3D eye = entry.shot.viewPoint();
+    const QVector3D dir = entry.shot.viewDirection();
+    const QSize viewport = entry.shot.viewportPx();
+    const QVector2D center = entry.shot.centerPx();
+    const QVector2D pixelSize = entry.shot.pixelSizeMm();
+    QStringList lines;
+    lines << QObject::tr("Raster camera: %1").arg(rasterCameraTypeLabel(entry.shot.cameraType()));
+    lines << QObject::tr("Viewport: %1").arg(rasterSizeText(viewport));
+    lines << QObject::tr("Center: %1, %2 px").arg(center.x(), 0, 'g', 6).arg(center.y(), 0, 'g', 6);
+    lines << QObject::tr("Focal: %1").arg(entry.shot.focalMm(), 0, 'g', 6);
+    lines << QObject::tr("Pixel size: %1, %2")
+                 .arg(pixelSize.x(), 0, 'g', 6)
+                 .arg(pixelSize.y(), 0, 'g', 6);
+    lines << QObject::tr("Eye: %1, %2, %3")
+                 .arg(eye.x(), 0, 'g', 6)
+                 .arg(eye.y(), 0, 'g', 6)
+                 .arg(eye.z(), 0, 'g', 6);
+    lines << QObject::tr("View dir: %1, %2, %3")
+                 .arg(dir.x(), 0, 'g', 6)
+                 .arg(dir.y(), 0, 'g', 6)
+                 .arg(dir.z(), 0, 'g', 6);
+    return lines.join(QLatin1Char('\n'));
+}
+
+QString rasterPlaneSummary(const Document::RasterPlane &plane)
+{
+    QString summary = rasterSizeText(plane.size);
+    const QString sourcePath = Document::rasterPlaneSourcePath(plane);
+    if (!sourcePath.isEmpty())
+        summary += QObject::tr("  %1").arg(QFileInfo(sourcePath).fileName());
+    return summary;
+}
+
+QString rasterDataSummary(const Document::RasterEntry &entry)
+{
+    QStringList tokens;
+    const Document::RasterPlane *plane = entry.currentPlane();
+    if (plane)
+        tokens << rasterSizeText(plane->size);
+    tokens << QObject::tr("PL %1").arg(entry.planes.size());
+    if (entry.shot.isValid())
+        tokens << QObject::tr("CAM");
+    return tokens.join(QLatin1Char(' '));
+}
+
+QString rasterDataTooltip(const Document::RasterEntry &entry)
+{
+    QStringList lines;
+    lines << QObject::tr("Raster: %1").arg(entry.name);
+    if (!entry.sourcePath.isEmpty())
+        lines << QObject::tr("Source: %1").arg(entry.sourcePath);
+    lines << QObject::tr("Data: %1").arg(rasterDataSummary(entry));
+    lines << QObject::tr("Image revision: %1").arg(entry.imageRevision);
+    lines << QObject::tr("Camera revision: %1").arg(entry.cameraRevision);
+    lines << rasterCameraTooltip(entry);
+    return lines.join(QLatin1Char('\n'));
+}
+
 QPixmap textureThumbnail(const QString &path, int side)
 {
     side = std::max(8, side);
@@ -530,6 +629,27 @@ QPixmap textureThumbnail(const QString &path, int side)
 
     cache.insert(cacheKey, out);
     return out;
+}
+
+QPixmap imageThumbnail(const QImage &image, const QString &path, int side)
+{
+    side = std::max(8, side);
+    if (!image.isNull()) {
+        QPixmap out(side, side);
+        out.fill(QColor(30, 30, 30));
+        QPainter p(&out);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        const QPixmap px = QPixmap::fromImage(
+            image.scaled(side, side, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        const int x = (side - px.width()) / 2;
+        const int y = (side - px.height()) / 2;
+        p.drawPixmap(x, y, px);
+        p.setPen(QColor(95, 95, 100));
+        p.drawRect(out.rect().adjusted(0, 0, -1, -1));
+        return out;
+    }
+
+    return textureThumbnail(path, side);
 }
 
 QWidget *textureInfoWidget(
@@ -595,6 +715,89 @@ QWidget *textureInfoWidget(
 
     return container;
 }
+
+QWidget *rasterPlaneInfoWidget(
+    QTreeWidget *owner,
+    const Document::RasterPlane &plane,
+    int planeIndex,
+    const QFontMetrics &fm)
+{
+    const QString path = Document::rasterPlaneSourcePath(plane);
+    const QString name = Document::rasterPlaneDisplayName(plane, planeIndex);
+    const int lineH = std::max(8, fm.lineSpacing());
+    const int thumbSide = std::max(14, lineH * 2);
+
+    auto *container = new QWidget(owner);
+    auto *h = new QHBoxLayout(container);
+    h->setContentsMargins(0, 0, 0, 0);
+    h->setSpacing(6);
+
+    auto *thumb = new QLabel(container);
+    thumb->setFixedSize(thumbSide, thumbSide);
+    thumb->setPixmap(imageThumbnail(plane.image, path, thumbSide));
+
+    auto *textCol = new QWidget(container);
+    auto *v = new QVBoxLayout(textCol);
+    v->setContentsMargins(0, 0, 0, 0);
+    v->setSpacing(0);
+
+    auto *nameLabel = new QLabel(name, textCol);
+    nameLabel->setTextFormat(Qt::PlainText);
+    nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    nameLabel->setFixedHeight(lineH);
+
+    auto *metaLabel = new QLabel(rasterPlaneSummary(plane), textCol);
+    metaLabel->setTextFormat(Qt::PlainText);
+    metaLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    metaLabel->setFixedHeight(lineH);
+    metaLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+
+    v->addWidget(nameLabel);
+    v->addWidget(metaLabel);
+
+    h->addWidget(thumb, 0, Qt::AlignVCenter);
+    h->addWidget(textCol, 1);
+
+    QStringList tooltipLines;
+    tooltipLines << name;
+    tooltipLines << rasterPlaneSummary(plane);
+    if (!path.isEmpty())
+        tooltipLines << path;
+    const QString tooltip = tooltipLines.join(QLatin1Char('\n'));
+    container->setToolTip(tooltip);
+    thumb->setToolTip(tooltip);
+    nameLabel->setToolTip(tooltip);
+    metaLabel->setToolTip(tooltip);
+
+    return container;
+}
+
+QString layerItemKey(int kind, qulonglong id)
+{
+    if (kind == 0 || id == 0)
+        return QString();
+    return QStringLiteral("%1:%2").arg(kind).arg(id);
+}
+
+QString layerItemKey(QTreeWidgetItem *item)
+{
+    if (!item)
+        return QString();
+    QTreeWidgetItem *top = item;
+    while (top->parent())
+        top = top->parent();
+
+    bool kindOk = false;
+    const int kind = top->data(0, kRoleLayerKind).toInt(&kindOk);
+    if (!kindOk)
+        return QString();
+
+    bool idOk = false;
+    const qulonglong id = (kind == kLayerKindRaster)
+        ? top->data(0, kRoleRasterId).toULongLong(&idOk)
+        : top->data(0, kRoleMeshId).toULongLong(&idOk);
+    return idOk ? layerItemKey(kind, id) : QString();
+}
 }
 
 LayerWidget::LayerWidget(Document *doc, QWidget *parent)
@@ -609,22 +812,43 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     setColumnWidth(0, kFirstColumnMinWidth);
     setItemDelegate(new EyeCheckDelegate(
         [this](const QModelIndex &index, EyeCheckDelegate::EyeAction action) {
-            const int selfIdx = index.data(kRoleMeshIndex).toInt();
+            const int kind = index.data(kRoleLayerKind).toInt();
+            const int selfIdx = (kind == kLayerKindRaster)
+                ? index.data(kRoleRasterIndex).toInt()
+                : index.data(kRoleMeshIndex).toInt();
+
+            auto applyVisibility = [&](int layerIndex, bool visible) {
+                if (kind == kLayerKindRaster)
+                    m_doc->setRasterVisible(layerIndex, visible);
+                else
+                    m_doc->setMeshVisible(layerIndex, visible);
+            };
+            auto layerCount = [&]() {
+                return (kind == kLayerKindRaster) ? m_doc->rasterCount() : m_doc->meshCount();
+            };
+            auto layerVisible = [&](int layerIndex) {
+                return (kind == kLayerKindRaster)
+                    ? m_doc->raster(layerIndex).visible
+                    : m_doc->mesh(layerIndex).visible;
+            };
+
+            if (selfIdx < 0)
+                return;
             switch (action) {
             case EyeCheckDelegate::EyeAction::HideOthers:
-                m_doc->setMeshVisible(selfIdx, true);
-                for (int i = 0; i < m_doc->meshCount(); ++i)
+                applyVisibility(selfIdx, true);
+                for (int i = 0; i < layerCount(); ++i)
                     if (i != selfIdx)
-                        m_doc->setMeshVisible(i, false);
+                        applyVisibility(i, false);
                 break;
             case EyeCheckDelegate::EyeAction::ShowOthers:
-                for (int i = 0; i < m_doc->meshCount(); ++i)
+                for (int i = 0; i < layerCount(); ++i)
                     if (i != selfIdx)
-                        m_doc->setMeshVisible(i, true);
+                        applyVisibility(i, true);
                 break;
             case EyeCheckDelegate::EyeAction::InvertAll:
-                for (int i = 0; i < m_doc->meshCount(); ++i)
-                    m_doc->setMeshVisible(i, !m_doc->mesh(i).visible);
+                for (int i = 0; i < layerCount(); ++i)
+                    applyVisibility(i, !layerVisible(i));
                 break;
             }
         }, this));
@@ -642,6 +866,17 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
         QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
     });
+    connect(m_doc, &Document::rasterAdded, this, &LayerWidget::rebuild);
+    connect(m_doc, &Document::rasterRemoved, this, &LayerWidget::rebuild);
+    connect(m_doc, &Document::rasterVisibilityChanged, this, [this](int, bool) {
+        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+    });
+    connect(m_doc, &Document::currentRasterChanged, this, [this](int) {
+        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+    });
+    connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
+        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+    });
     connect(this, &QTreeWidget::itemChanged, this, &LayerWidget::onItemChanged);
     connect(this, &QTreeWidget::currentItemChanged, this, &LayerWidget::onCurrentItemChanged);
 
@@ -656,25 +891,30 @@ void LayerWidget::rebuild()
     const QFontMetrics fm(font());
     int maxCountTextWidth = 0;
 
-    QHash<qulonglong, bool> expandedStateByMeshId;
-    expandedStateByMeshId.reserve(topLevelItemCount());
+    const QString selectedKey = layerItemKey(currentItem());
+    QHash<QString, bool> expandedStateByLayerKey;
+    expandedStateByLayerKey.reserve(topLevelItemCount());
     for (int row = 0; row < topLevelItemCount(); ++row) {
         QTreeWidgetItem *existing = topLevelItem(row);
         if (!existing)
             continue;
-        bool ok = false;
-        const qulonglong meshId = existing->data(0, kRoleMeshId).toULongLong(&ok);
-        if (!ok)
+        const QString key = layerItemKey(existing);
+        if (key.isEmpty())
             continue;
-        expandedStateByMeshId.insert(meshId, existing->isExpanded());
+        expandedStateByLayerKey.insert(key, existing->isExpanded());
     }
 
     clear();
+    QTreeWidgetItem *selectedItem = nullptr;
+    QTreeWidgetItem *fallbackCurrentItem = nullptr;
+
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         const auto &entry = m_doc->mesh(i);
         const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
         const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
         auto *item = new QTreeWidgetItem(this, {entry.name, QString()});
+        const QString itemKey = layerItemKey(kLayerKindMesh, qulonglong(entry.meshId));
+        item->setData(0, kRoleLayerKind, kLayerKindMesh);
         item->setData(0, kRoleMeshIndex, i);
         item->setData(0, kRoleMeshId, qulonglong(entry.meshId));
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
@@ -789,12 +1029,79 @@ void LayerWidget::rebuild()
         dItem->setToolTip(1, dataTip);
         dItem->setToolTip(2, dataTip);
 
-        const auto it = expandedStateByMeshId.constFind(qulonglong(entry.meshId));
-        item->setExpanded(it != expandedStateByMeshId.constEnd() ? it.value() : true);
+        const auto it = expandedStateByLayerKey.constFind(itemKey);
+        item->setExpanded(it != expandedStateByLayerKey.constEnd() ? it.value() : true);
 
-        if (i == m_doc->currentMeshIndex())
-            setCurrentItem(item);
+        if (!selectedKey.isEmpty() && selectedKey == itemKey)
+            selectedItem = item;
+        if (!fallbackCurrentItem && i == m_doc->currentMeshIndex())
+            fallbackCurrentItem = item;
     }
+
+    for (int i = 0; i < m_doc->rasterCount(); ++i) {
+        const auto &entry = m_doc->raster(i);
+        auto *item = new QTreeWidgetItem(this, {entry.name, QString()});
+        const QString itemKey = layerItemKey(kLayerKindRaster, qulonglong(entry.rasterId));
+        item->setData(0, kRoleLayerKind, kLayerKindRaster);
+        item->setData(0, kRoleRasterIndex, i);
+        item->setData(0, kRoleRasterId, qulonglong(entry.rasterId));
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+        item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
+        item->setFirstColumnSpanned(true);
+
+        const Document::RasterPlane *currentPlane = entry.currentPlane();
+        const QString sizeText = currentPlane ? rasterSizeText(currentPlane->size) : tr("unknown");
+        maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(sizeText));
+
+        auto *imageItem = new QTreeWidgetItem(
+            {sizeText, tr("Image"), currentPlane ? Document::rasterPlaneDisplayName(*currentPlane, entry.currentPlaneIndex) : QString()});
+        imageItem->setFlags(imageItem->flags() & ~Qt::ItemIsSelectable);
+        imageItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+        item->addChild(imageItem);
+
+        auto *cameraItem = new QTreeWidgetItem({QString(), tr("Camera"), rasterCameraSummary(entry)});
+        cameraItem->setFlags(cameraItem->flags() & ~Qt::ItemIsSelectable);
+        const QString cameraTip = rasterCameraTooltip(entry);
+        cameraItem->setToolTip(0, cameraTip);
+        cameraItem->setToolTip(1, cameraTip);
+        cameraItem->setToolTip(2, cameraTip);
+        item->addChild(cameraItem);
+
+        for (int planeIndex = 0; planeIndex < int(entry.planes.size()); ++planeIndex) {
+            const Document::RasterPlane &plane = entry.planes[size_t(planeIndex)];
+            auto *planeItem = new QTreeWidgetItem({QString(), tr("Plane %1").arg(planeIndex), QString()});
+            planeItem->setFlags(planeItem->flags() & ~Qt::ItemIsSelectable);
+            const QString path = Document::rasterPlaneSourcePath(plane);
+            if (!path.isEmpty()) {
+                planeItem->setToolTip(0, path);
+                planeItem->setToolTip(1, path);
+                planeItem->setToolTip(2, path);
+            }
+            item->addChild(planeItem);
+            setItemWidget(planeItem, 2, rasterPlaneInfoWidget(this, plane, planeIndex, fm));
+        }
+
+        const QString dataTip = rasterDataTooltip(entry);
+        item->setToolTip(0, dataTip);
+        item->setToolTip(1, dataTip);
+        item->setToolTip(2, dataTip);
+        imageItem->setToolTip(0, dataTip);
+        imageItem->setToolTip(1, dataTip);
+        imageItem->setToolTip(2, dataTip);
+
+        const auto it = expandedStateByLayerKey.constFind(itemKey);
+        item->setExpanded(it != expandedStateByLayerKey.constEnd() ? it.value() : true);
+
+        if (!selectedKey.isEmpty() && selectedKey == itemKey)
+            selectedItem = item;
+        if (!fallbackCurrentItem && i == m_doc->currentRasterIndex())
+            fallbackCurrentItem = item;
+    }
+    if (selectedItem)
+        setCurrentItem(selectedItem);
+    else if (fallbackCurrentItem)
+        setCurrentItem(fallbackCurrentItem);
+
     updateCurrentItemVisuals();
     const int requiredWidth =
         maxCountTextWidth + kFirstColumnPadding + indentation() + kFirstColumnTreePadding;
@@ -803,26 +1110,40 @@ void LayerWidget::rebuild()
     m_rebuilding = false;
 }
 
-int LayerWidget::meshIndexForItem(QTreeWidgetItem *item) const
+LayerWidget::LayerItemRef LayerWidget::layerRefForItem(QTreeWidgetItem *item) const
 {
     if (!item)
-        return -1;
+        return {};
 
     QTreeWidgetItem *top = item;
     while (top->parent())
         top = top->parent();
 
     bool ok = false;
-    const int idx = top->data(0, kRoleMeshIndex).toInt(&ok);
-    return ok ? idx : -1;
+    const int kind = top->data(0, kRoleLayerKind).toInt(&ok);
+    if (!ok)
+        return {};
+    if (kind == kLayerKindMesh) {
+        const int idx = top->data(0, kRoleMeshIndex).toInt(&ok);
+        return ok ? LayerItemRef{LayerItemKind::Mesh, idx} : LayerItemRef{};
+    }
+    if (kind == kLayerKindRaster) {
+        const int idx = top->data(0, kRoleRasterIndex).toInt(&ok);
+        return ok ? LayerItemRef{LayerItemKind::Raster, idx} : LayerItemRef{};
+    }
+    return {};
 }
 
 void LayerWidget::updateCurrentItemVisuals()
 {
-    const int currentIdx = m_doc->currentMeshIndex();
+    const int currentMeshIdx = m_doc->currentMeshIndex();
+    const int currentRasterIdx = m_doc->currentRasterIndex();
     for (int i = 0; i < topLevelItemCount(); ++i) {
         QTreeWidgetItem *item = topLevelItem(i);
-        const bool isCurrent = (item->data(0, kRoleMeshIndex).toInt() == currentIdx);
+        const LayerItemRef ref = layerRefForItem(item);
+        const bool isCurrent =
+            (ref.kind == LayerItemKind::Mesh && ref.index == currentMeshIdx)
+            || (ref.kind == LayerItemKind::Raster && ref.index == currentRasterIdx);
         QFont f0 = item->font(0);
         QFont f1 = item->font(1);
         QFont f2 = item->font(2);
@@ -837,6 +1158,22 @@ void LayerWidget::updateCurrentItemVisuals()
 
 void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
 {
+    const LayerItemRef ref = layerRefForItem(itemAt(event->pos()));
+    if (ref.kind == LayerItemKind::Raster && ref.index >= 0) {
+        QMenu menu(this);
+        QAction *currentAction = menu.addAction(tr("Set Current Raster"));
+        currentAction->setEnabled(ref.index != m_doc->currentRasterIndex());
+        connect(currentAction, &QAction::triggered, this, [this, index = ref.index]() {
+            m_doc->setCurrentRasterIndex(index);
+        });
+        QAction *removeAction = menu.addAction(tr("Remove Raster"));
+        connect(removeAction, &QAction::triggered, this, [this, index = ref.index]() {
+            m_doc->removeRaster(index);
+        });
+        menu.exec(event->globalPos());
+        return;
+    }
+
     const std::vector<Document::FilterInfo> infos = m_doc->filterInfos();
 
     QMenu menu(this);
@@ -900,21 +1237,26 @@ void LayerWidget::onItemChanged(QTreeWidgetItem *item, int column)
     if (item->parent())
         return;
 
-    const int idx = meshIndexForItem(item);
-    if (idx < 0)
+    const LayerItemRef ref = layerRefForItem(item);
+    if (ref.index < 0)
         return;
 
     const bool visible = (item->checkState(0) == Qt::Checked);
-    m_doc->setMeshVisible(idx, visible);
+    if (ref.kind == LayerItemKind::Mesh)
+        m_doc->setMeshVisible(ref.index, visible);
+    else if (ref.kind == LayerItemKind::Raster)
+        m_doc->setRasterVisible(ref.index, visible);
 }
 
 void LayerWidget::onCurrentItemChanged(QTreeWidgetItem *current, QTreeWidgetItem *)
 {
     if (m_rebuilding)
         return;
-    const int idx = meshIndexForItem(current);
-    if (idx >= 0)
-        m_doc->setCurrentMeshIndex(idx);
+    const LayerItemRef ref = layerRefForItem(current);
+    if (ref.kind == LayerItemKind::Mesh && ref.index >= 0)
+        m_doc->setCurrentMeshIndex(ref.index);
+    else if (ref.kind == LayerItemKind::Raster && ref.index >= 0)
+        m_doc->setCurrentRasterIndex(ref.index);
 
     updateCurrentItemVisuals();
 }

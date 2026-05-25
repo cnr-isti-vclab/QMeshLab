@@ -15,6 +15,7 @@
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QTimer>
+#include <QtMath>
 #include <QWheelEvent>
 #include <QVector3D>
 #include <QVector4D>
@@ -626,6 +627,40 @@ bool RenderWidget::applyCameraStateJson(const QString &jsonText, QString *errorM
         errorMessage->clear();
     update();
     return true;
+}
+
+CameraShot RenderWidget::cameraShotForViewport(const QSize &pixelSize) const
+{
+    if (pixelSize.width() <= 0 || pixelSize.height() <= 0)
+        return {};
+
+    CameraShot::VcgShot shot;
+    shot.Intrinsics.cameraType = vcg::Camera<float>::PERSPECTIVE;
+    shot.Intrinsics.ViewportPx = vcg::Point2i(pixelSize.width(), pixelSize.height());
+    shot.Intrinsics.CenterPx =
+        vcg::Point2f(float(pixelSize.width()) * 0.5f, float(pixelSize.height()) * 0.5f);
+    shot.Intrinsics.DistorCenterPx = shot.Intrinsics.CenterPx;
+    shot.Intrinsics.PixelSizeMm = vcg::Point2f(1.0f, 1.0f);
+
+    const float fovYRad = qDegreesToRadians(m_trackball.fovYDegrees());
+    const float tanHalfFov = std::tan(0.5f * fovYRad);
+    if (!(tanHalfFov > 0.0f) || !std::isfinite(tanHalfFov))
+        return {};
+    shot.Intrinsics.FocalMm = float(pixelSize.height()) / (2.0f * tanHalfFov);
+
+    const QVector3D eye = m_trackball.cameraEyePosition();
+    const QVector3D viewDir = m_trackball.cameraViewDirection().normalized();
+    const QVector3D up =
+        m_trackball.state().rotation.conjugated().rotatedVector(QVector3D(0.0f, 1.0f, 0.0f)).normalized();
+    if (viewDir.isNull() || up.isNull())
+        return {};
+
+    const QVector3D at = eye + viewDir;
+    shot.LookAt(
+        eye.x(), eye.y(), eye.z(),
+        at.x(), at.y(), at.z(),
+        up.x(), up.y(), up.z());
+    return CameraShot::fromVcgShot(shot);
 }
 
 bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)

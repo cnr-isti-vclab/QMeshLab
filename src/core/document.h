@@ -1,5 +1,6 @@
 #pragma once
 
+#include "camerashot.h"
 #include "meshfilterplugin.h"
 #include "meshioplugin.h"
 #include "meshgpuresourcecache.h"
@@ -7,7 +8,9 @@
 #include "viewstate.h"
 #include <QObject>
 #include <QElapsedTimer>
+#include <QImage>
 #include <QMatrix4x4>
+#include <QSize>
 #include <cstdint>
 #include <functional>
 #include <QString>
@@ -53,6 +56,59 @@ public:
         bool visible = true;
         int ioMask = 0;
         VCGMesh mesh;
+    };
+
+    enum class RasterPlaneSemantic {
+        None = 0x0000,
+        RGBA = 0x0001,
+        MaskUInt8 = 0x0002,
+        MaskFloat = 0x0004,
+        DepthFloat = 0x0008,
+        Extra00Float = 0x0100,
+        Extra01Float = 0x0200,
+        Extra02Float = 0x0400,
+        Extra03Float = 0x0800,
+        Extra00RGBA = 0x1000,
+        Extra01RGBA = 0x2000,
+        Extra02RGBA = 0x4000,
+        Extra03RGBA = 0x8000
+    };
+
+    struct RasterPlane {
+        RasterPlaneSemantic semantic = RasterPlaneSemantic::RGBA;
+        QString name;
+        QString sourcePath;
+        QSize size;
+        QImage image;
+
+        bool hasImage() const { return !image.isNull(); }
+        bool hasSourcePath() const { return !sourcePath.trimmed().isEmpty(); }
+    };
+
+    struct RasterEntry {
+        std::uint64_t rasterId = 0;
+        std::uint64_t imageRevision = 0;
+        std::uint64_t cameraRevision = 0;
+        QString name;
+        QString sourcePath;
+        bool visible = true;
+        CameraShot shot;
+        std::vector<RasterPlane> planes;
+        int currentPlaneIndex = -1;
+
+        RasterPlane *currentPlane()
+        {
+            return (currentPlaneIndex >= 0 && currentPlaneIndex < int(planes.size()))
+                ? &planes[size_t(currentPlaneIndex)]
+                : nullptr;
+        }
+
+        const RasterPlane *currentPlane() const
+        {
+            return (currentPlaneIndex >= 0 && currentPlaneIndex < int(planes.size()))
+                ? &planes[size_t(currentPlaneIndex)]
+                : nullptr;
+        }
     };
 
     struct ImportPluginInfo {
@@ -166,8 +222,21 @@ public:
     int addMesh(const VCGMesh &mesh, const QString &name = {}, int ioMask = 0);
     void removeMesh(int index);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
+    int loadRasterImage(const QString &filename);
+    int addRaster(const RasterEntry &raster);
+    int addRasterImage(
+        const QImage &image,
+        const QString &name = {},
+        const QString &sourcePath = {},
+        const CameraShot &shot = CameraShot());
+    void removeRaster(int index);
     void setMeshVisible(int index, bool visible);
     void setMeshName(int index, const QString &name);
+    void setRasterVisible(int index, bool visible);
+    void setRasterName(int index, const QString &name);
+    void setRasterShot(int index, const CameraShot &shot, const QString &contextMessage = {});
+    void setCurrentRasterIndex(int index);
+    void markRasterImageChanged(int index, const QString &contextMessage = {});
     QMatrix4x4 meshTransform(int index) const;
     void setMeshTransform(
         int index,
@@ -186,12 +255,18 @@ public:
     int meshCount() const { return static_cast<int>(m_meshes.size()); }
     MeshEntry &mesh(int i) { return *m_meshes[i]; }
     const MeshEntry &mesh(int i) const { return *m_meshes[i]; }
+    int rasterCount() const { return static_cast<int>(m_rasters.size()); }
+    RasterEntry &raster(int i) { return *m_rasters[i]; }
+    const RasterEntry &raster(int i) const { return *m_rasters[i]; }
     static int meshTextureAssociationCount(const MeshEntry &entry);
     static bool hasMeshTextureAssociation(const MeshEntry &entry);
     static QString meshTextureDisplayName(const MeshEntry &entry, int textureIndex);
     static QString meshTextureSourcePath(const MeshEntry &entry, int textureIndex);
     static const MeshIOTextureAsset *meshTextureAsset(const MeshEntry &entry, int textureIndex);
+    static QString rasterPlaneDisplayName(const RasterPlane &plane, int planeIndex = 0);
+    static QString rasterPlaneSourcePath(const RasterPlane &plane);
     int currentMeshIndex() const { return m_currentMeshIndex; }
+    int currentRasterIndex() const { return m_currentRasterIndex; }
     const std::vector<LogEntry> &logMessages() const { return m_logMessages; }
     QString openDialogFilter() const;
     QString saveDialogFilter() const;
@@ -257,6 +332,11 @@ signals:
     void meshVisibilityChanged(int index, bool visible);
     void currentMeshChanged(int index);
     void meshDataChanged(int index);
+    void rasterAdded(int index);
+    void rasterRemoved(int index);
+    void rasterVisibilityChanged(int index, bool visible);
+    void currentRasterChanged(int index);
+    void rasterDataChanged(int index);
     void loadProgressStarted(const QString &filePath);
     void loadProgressUpdated(int percent, const QString &message);
     void loadProgressFinished(bool success, const QString &message);
@@ -295,9 +375,24 @@ private:
             std::shared_ptr<const VCGMesh> geometry;
         };
 
+        struct RasterSnapshot {
+            std::uint64_t rasterId = 0;
+            std::uint64_t imageRevision = 0;
+            std::uint64_t cameraRevision = 0;
+            QString name;
+            QString sourcePath;
+            bool visible = false;
+            CameraShot shot;
+            std::vector<RasterPlane> planes;
+            int currentPlaneIndex = -1;
+        };
+
         std::vector<MeshSnapshot> meshes;
+        std::vector<RasterSnapshot> rasters;
         int currentMeshIndex = -1;
+        int currentRasterIndex = -1;
         std::uint64_t nextMeshId = 1;
+        std::uint64_t nextRasterId = 1;
         ViewState viewState;
     };
 
@@ -337,12 +432,15 @@ private:
     std::unique_ptr<MeshFilterPluginManager> m_filterPluginManager;
     std::unique_ptr<MeshGpuResourceCache> m_gpuCache;
     std::vector<std::unique_ptr<MeshEntry>> m_meshes;
+    std::vector<std::unique_ptr<RasterEntry>> m_rasters;
     std::uint64_t m_nextMeshId = 1;
+    std::uint64_t m_nextRasterId = 1;
     // Globally monotonic counter for geometry revisions. Never reset or restored
     // during undo/redo, so every distinct geometry snapshot always gets a unique
     // (meshId, geometryRevision) key — preventing cross-branch cache collisions.
     std::uint64_t m_nextGeometryRevision = 1;
     int m_currentMeshIndex = -1;
+    int m_currentRasterIndex = -1;
     std::vector<LogEntry> m_logMessages;
     int m_lastCallbackBucket = -1;
     int m_lastProgressPos = -1;

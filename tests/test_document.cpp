@@ -2,6 +2,7 @@
 #include <QSignalSpy>
 #include <QFile>
 #include <QTemporaryDir>
+#include <cmath>
 
 #include "document.h"
 #include <vcg/complex/allocate.h>
@@ -12,14 +13,31 @@ class DocumentTests : public QObject
     Q_OBJECT
 
 private slots:
+    void cameraShotProjectsThroughImageCenter();
     void logReplaceLastEntryOnCarriageReturn();
     void loadMeshAddsLayerAndEmitsSignal();
+    void addRasterImageCreatesDocumentLayer();
+    void loadRasterImageReadsFile();
+    void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
     void undoTreeBranchingPreservesAlternateFuture();
     void openDialogFilterContainsKnownFormats();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
     void benchmarkLoadMesh();
 };
+
+void DocumentTests::cameraShotProjectsThroughImageCenter()
+{
+    CameraShot shot = CameraShot::defaultPerspectiveForImageSize(QSize(1000, 500));
+    QVERIFY(shot.isValid());
+    QCOMPARE(shot.viewportPx(), QSize(1000, 500));
+    QCOMPARE(shot.cameraType(), CameraShot::CameraType::Perspective);
+
+    const QVector2D projected = shot.project(QVector3D(0.0f, 0.0f, -10.0f));
+    QVERIFY(std::abs(projected.x() - 500.0f) < 1e-3f);
+    QVERIFY(std::abs(projected.y() - 250.0f) < 1e-3f);
+    QVERIFY(std::abs(shot.depth(QVector3D(0.0f, 0.0f, -10.0f)) - 10.0f) < 1e-3f);
+}
 
 void DocumentTests::logReplaceLastEntryOnCarriageReturn()
 {
@@ -49,6 +67,87 @@ void DocumentTests::loadMeshAddsLayerAndEmitsSignal()
 
     const auto &log = doc.logMessages();
     QVERIFY(!log.empty());
+}
+
+void DocumentTests::addRasterImageCreatesDocumentLayer()
+{
+    Document doc;
+    QSignalSpy addedSpy(&doc, &Document::rasterAdded);
+    QSignalSpy currentSpy(&doc, &Document::currentRasterChanged);
+
+    QImage image(8, 4, QImage::Format_RGBA8888);
+    image.fill(Qt::red);
+    const int index = doc.addRasterImage(image, QStringLiteral("photo"));
+
+    QCOMPARE(index, 0);
+    QCOMPARE(doc.rasterCount(), 1);
+    QCOMPARE(doc.currentRasterIndex(), 0);
+    QCOMPARE(addedSpy.count(), 1);
+    QCOMPARE(currentSpy.count(), 1);
+
+    const auto &entry = doc.raster(0);
+    QCOMPARE(entry.name, QStringLiteral("photo"));
+    QCOMPARE(entry.visible, true);
+    QCOMPARE(entry.planes.size(), size_t(1));
+    QVERIFY(entry.currentPlane());
+    QVERIFY(entry.currentPlane()->semantic == Document::RasterPlaneSemantic::RGBA);
+    QCOMPARE(entry.currentPlane()->size, QSize(8, 4));
+    QVERIFY(entry.currentPlane()->hasImage());
+
+    QVERIFY(doc.canUndo());
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.rasterCount(), 0);
+    QVERIFY(doc.redo());
+    QCOMPARE(doc.rasterCount(), 1);
+    QCOMPARE(doc.raster(0).currentPlane()->size, QSize(8, 4));
+}
+
+void DocumentTests::loadRasterImageReadsFile()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("photo.png"));
+
+    QImage image(5, 3, QImage::Format_RGBA8888);
+    image.fill(Qt::green);
+    QVERIFY(image.save(path));
+
+    Document doc;
+    QSignalSpy addedSpy(&doc, &Document::rasterAdded);
+    const int index = doc.loadRasterImage(path);
+
+    QCOMPARE(index, 0);
+    QCOMPARE(addedSpy.count(), 1);
+    QCOMPARE(doc.rasterCount(), 1);
+    QCOMPARE(doc.raster(0).name, QStringLiteral("photo.png"));
+    QCOMPARE(doc.raster(0).sourcePath, path);
+    QVERIFY(doc.raster(0).currentPlane());
+    QCOMPARE(doc.raster(0).currentPlane()->size, QSize(5, 3));
+    QCOMPARE(doc.raster(0).currentPlane()->sourcePath, path);
+}
+
+void DocumentTests::rasterCameraUndoRedoRestoresShot()
+{
+    Document doc;
+    QImage image(16, 8, QImage::Format_RGBA8888);
+    image.fill(Qt::blue);
+    QCOMPARE(doc.addRasterImage(image, QStringLiteral("camera_raster")), 0);
+    QVERIFY(!doc.raster(0).shot.isValid());
+
+    CameraShot shot = CameraShot::defaultPerspectiveForImageSize(image.size());
+    shot.setViewPoint(QVector3D(1.0f, 2.0f, 3.0f));
+    doc.setRasterShot(0, shot);
+    QVERIFY(doc.raster(0).shot.isValid());
+    QCOMPARE(doc.raster(0).shot.viewPoint(), QVector3D(1.0f, 2.0f, 3.0f));
+
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.rasterCount(), 1);
+    QVERIFY(!doc.raster(0).shot.isValid());
+
+    QVERIFY(doc.redo());
+    QCOMPARE(doc.rasterCount(), 1);
+    QVERIFY(doc.raster(0).shot.isValid());
+    QCOMPARE(doc.raster(0).shot.viewPoint(), QVector3D(1.0f, 2.0f, 3.0f));
 }
 
 void DocumentTests::undoRedoRestoresMeshList()

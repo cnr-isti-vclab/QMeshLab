@@ -44,12 +44,14 @@ private slots:
     void newDocument();
     void newInstance();
     void openFile();
+    void openRasterImage();
     void reloadCurrentMesh();
     void reloadAllMeshes();
     void undo();
     void redo();
     void saveCurrentMesh();
     void saveSnapshotPng();
+    void addSnapshotRaster();
     void openFilterBrowser();
     void runFilterAction();
     void openLastMesh();
@@ -76,6 +78,7 @@ private:
     void closeCurrentView();
     void syncDocumentVisibilityFromCurrentView();
     bool loadMeshFromPath(const QString &filePath);
+    bool loadRasterFromPath(const QString &filePath);
     bool handleDragEnterOrMove(QDropEvent *event);
     void handleDroppedUrls(const QList<QUrl> &urls);
     void addRecentMesh(const QString &filePath);
