@@ -44,6 +44,16 @@ QVector2D invalidPoint2()
     const float nan = std::numeric_limits<float>::quiet_NaN();
     return QVector2D(nan, nan);
 }
+
+QMatrix4x4 toQMatrix(const vcg::Matrix44f &m)
+{
+    QMatrix4x4 out;
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 4; ++col)
+            out(row, col) = m[row][col];
+    }
+    return out;
+}
 } // namespace
 
 CameraShot::CameraShot() = default;
@@ -195,9 +205,43 @@ QVector2D CameraShot::project(const QVector3D &worldPoint) const
     return QVector2D(projected[0], projected[1]);
 }
 
+QVector3D CameraShot::unproject(const QVector2D &pixelPoint, float depth) const
+{
+    if (!isValid() || !std::isfinite(depth) || depth <= 0.0f) {
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        return QVector3D(nan, nan, nan);
+    }
+
+    const vcg::Point3f unprojected =
+        m_shot.UnProject(vcg::Point2f(pixelPoint.x(), pixelPoint.y()), depth);
+    return toQVector(unprojected);
+}
+
 float CameraShot::depth(const QVector3D &worldPoint) const
 {
     if (!isValid())
         return std::numeric_limits<float>::quiet_NaN();
     return m_shot.Depth(toVcgPoint(worldPoint));
+}
+
+QMatrix4x4 CameraShot::viewMatrix() const
+{
+    if (!isValid())
+        return {};
+
+    return toQMatrix(m_shot.GetWorldToExtrinsicsMatrix());
+}
+
+QMatrix4x4 CameraShot::projectionMatrix(float nearPlane, float farPlane) const
+{
+    if (!isValid()
+        || !std::isfinite(nearPlane)
+        || !std::isfinite(farPlane)
+        || nearPlane <= 0.0f
+        || farPlane <= nearPlane) {
+        return {};
+    }
+
+    vcg::Camera<float> intrinsics = m_shot.Intrinsics;
+    return toQMatrix(intrinsics.GetMatrix(nearPlane, farPlane));
 }

@@ -10,13 +10,14 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 ## Current Features
 - Single `Document` shared by one or more `RenderWidget` views
 - Split-view UI (horizontal/vertical), active-view indicator, layer/log/filter docks, undo graph, and optional Python console dock
-- Per-view mode switching between `3D Scene` and `Parametrization (UV)` (when the current mesh has UVs)
+- Per-view mode switching between `3D Scene`, `Parametrization (UV)` (when the current mesh has UVs), and `Raster` (when the active layer is a raster)
 - Scene overlays for selection, normals, boundaries, texture seams, non-manifold markers, curvature directions, current-mesh outline, trackball/light gizmos, and quality histogram
 - PBR fill with albedo/normal/occlusion/roughness maps, tangent-space or object-space normal-map interpretation, plus Radiance Scaling
 - Scene3D rendering organized as lightweight `RenderFrameRequest` pass requests -> GPU resource preparation -> concrete `RenderFramePlan` draw items -> pass executors
 - Fill rendering modes (`Plain`, `Pbr`, `RadianceScaling`) isolated behind material renderers with shared fill services and an RS pre-pass hook
 - Fat-edge rendering for edge meshes and decorator boundaries/seams/non-manifold edges (configurable width)
 - UV mode support for boundary-edge and texture-seam overlays on the current mesh; UV rendering is still a separate renderer, with convergence toward the Scene3D material path planned next
+- Raster mode displays the current raster as the view reference; rasters with camera shots reuse the Scene3D mesh pass pipeline through the raster camera, and mouse wheel adjusts raster opacity
 - Internal render-request model is ready to inform future programmatic/JSON rendering work, but there is not yet a public JSON `RenderFramePlan` execution API
 - Plugin-based mesh import/export with per-extension preferred import plugin
 - Plugin-based filter framework with searchable filter browser, generated parameter dialogs, `pythonName` metadata, and copy-to-console Python calls

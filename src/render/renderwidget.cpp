@@ -345,6 +345,9 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         updateQualityHistogramOverlay();
         update();
     });
+    connect(m_doc, &Document::currentLayerChanged, this, [this](Document::CurrentLayerKind, int) {
+        update();
+    });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
         syncPerMeshRenderModesWithDocument();
         syncOverlaySettingsToCurrentMesh();
@@ -354,6 +357,32 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         m_qualityHistogram.valid = false;
         updateBoundingBoxCornersOverlay();
         updateQualityHistogramOverlay();
+        update();
+    });
+    connect(m_doc, &Document::rasterAdded, this, [this](int) {
+        syncRasterCacheWithDocument();
+        update();
+    });
+    connect(m_doc, &Document::rasterRemoved, this, [this](int) {
+        syncRasterCacheWithDocument();
+        update();
+    });
+    connect(m_doc, &Document::rasterVisibilityChanged, this, [this](int, bool) {
+        update();
+    });
+    connect(m_doc, &Document::currentRasterChanged, this, [this](int index) {
+        // Exit RasterImage mode if the active raster was removed and there is
+        // no valid replacement. Selecting a mesh does NOT exit this mode.
+        if (m_viewMode == ViewMode::RasterImage && index < 0) {
+            m_viewMode = ViewMode::Scene3D;
+            if (m_overlayPanel)
+                m_overlayPanel->setViewerModeUv(false);
+            updateBoundingBoxCornersOverlay();
+        }
+        update();
+    });
+    connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
+        syncRasterCacheWithDocument();
         update();
     });
 
@@ -680,6 +709,21 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
         }
         m_depthPickPending = false;
         m_uvFitRequested = true;
+    }
+    if (mode == ViewMode::RasterImage) {
+        const int rasterIndex = m_doc ? m_doc->currentRasterIndex() : -1;
+        if (rasterIndex < 0 || rasterIndex >= m_doc->rasterCount()) {
+            if (errorMessage)
+                *errorMessage = tr("No current raster is available.");
+            return false;
+        }
+        const Document::RasterPlane *plane = m_doc->raster(rasterIndex).currentPlane();
+        if (!plane || plane->image.isNull()) {
+            if (errorMessage)
+                *errorMessage = tr("Current raster has no image plane.");
+            return false;
+        }
+        m_depthPickPending = false;
     }
 
     m_viewMode = mode;
@@ -1690,6 +1734,11 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
         QRhiWidget::mousePressEvent(e);
         return;
     }
+    if (m_viewMode == ViewMode::RasterImage) {
+        if (e)
+            e->accept();
+        return;
+    }
     cancelCenterAnimation();
     // Ctrl+Shift+Left → rotate headlight
     if (e
@@ -1734,6 +1783,11 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
         QRhiWidget::mouseDoubleClickEvent(e);
         return;
     }
+    if (m_viewMode == ViewMode::RasterImage) {
+        if (e)
+            e->accept();
+        return;
+    }
     if (!e || m_doc->meshCount() <= 0)
         return;
     if (e->button() != Qt::LeftButton)
@@ -1749,6 +1803,11 @@ void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
     emit viewActivated(this);
     if (m_viewMode == ViewMode::ParametrizationUV) {
         m_uvPanning = false;
+        if (e)
+            e->accept();
+        return;
+    }
+    if (m_viewMode == ViewMode::RasterImage) {
         if (e)
             e->accept();
         return;
@@ -1785,6 +1844,11 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
         m_uvLastMousePos = pos.toPoint();
         update();
         e->accept();
+        return;
+    }
+    if (m_viewMode == ViewMode::RasterImage) {
+        if (e)
+            e->accept();
         return;
     }
     if (m_lightDragActive) {
@@ -1857,6 +1921,20 @@ void RenderWidget::wheelEvent(QWheelEvent *e)
         m_uvPan += (uvBefore - uvAfter);
         update();
         e->accept();
+        return;
+    }
+    if (m_viewMode == ViewMode::RasterImage) {
+        if (e) {
+            const QPoint numDegrees = e->angleDelta();
+            const float steps = float(numDegrees.y()) / 120.0f;
+            if (std::abs(steps) >= 1e-4f) {
+                m_rasterOpacity = std::clamp(m_rasterOpacity + steps * 0.05f, 0.0f, 1.0f);
+                showInteractionStatusOverlay(
+                    tr("Raster opacity: %1%").arg(std::lround(m_rasterOpacity * 100.0f)));
+                update();
+            }
+            e->accept();
+        }
         return;
     }
     cancelCenterAnimation();

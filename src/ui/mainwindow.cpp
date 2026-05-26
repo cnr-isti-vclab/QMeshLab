@@ -1045,6 +1045,7 @@ MainWindow::MainWindow(QWidget *parent)
         tr("Parametrization (UV) Mode"),
         this,
         &MainWindow::setCurrentViewParametrizationMode);
+    viewMenu->addAction(tr("Raster Mode"), this, &MainWindow::setCurrentViewRasterMode);
     viewMenu->addSeparator();
     viewMenu->addAction(tr("Split Horizontally"), this, &MainWindow::splitViewHorizontally);
     viewMenu->addAction(tr("Split Vertically"), this, &MainWindow::splitViewVertically);
@@ -1147,6 +1148,7 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
         QMenu menu(view);
         QAction *sceneModeAction = menu.addAction(tr("3D Scene Mode"));
         QAction *uvModeAction = menu.addAction(tr("Parametrization (UV) Mode"));
+        QAction *rasterModeAction = menu.addAction(tr("Raster Mode"));
         menu.addSeparator();
         QAction *syncCameraAction = menu.addAction(tr("Synchronize Camera"));
         syncCameraAction->setCheckable(true);
@@ -1168,6 +1170,8 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
             setCurrentViewSceneMode();
         } else if (chosen == uvModeAction) {
             setCurrentViewParametrizationMode();
+        } else if (chosen == rasterModeAction) {
+            setCurrentViewRasterMode();
         } else if (chosen == syncCameraAction) {
             m_cameraSyncEnabled = syncCameraAction->isChecked();
             if (m_cameraSyncEnabled)
@@ -2778,6 +2782,21 @@ void MainWindow::setCurrentViewParametrizationMode()
         return;
     }
     statusBar()->showMessage(tr("View mode: parametrization (UV)"), 2000);
+}
+
+void MainWindow::setCurrentViewRasterMode()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+    QString error;
+    if (!view->setViewMode(RenderWidget::ViewMode::RasterImage, &error)) {
+        const QString msg = tr("Cannot switch to raster mode: %1").arg(error);
+        statusBar()->showMessage(msg, 3500);
+        m_doc->writeLog(msg, Document::LogSource::Application);
+        return;
+    }
+    statusBar()->showMessage(tr("View mode: raster"), 2000);
 }
 
 void MainWindow::copyCameraState()

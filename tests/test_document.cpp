@@ -14,9 +14,12 @@ class DocumentTests : public QObject
 
 private slots:
     void cameraShotProjectsThroughImageCenter();
+    void cameraShotUnprojectsImageCenter();
+    void cameraShotRenderMatricesMatchProjection();
     void logReplaceLastEntryOnCarriageReturn();
     void loadMeshAddsLayerAndEmitsSignal();
     void addRasterImageCreatesDocumentLayer();
+    void currentLayerKindFollowsMeshAndRasterSelection();
     void loadRasterImageReadsFile();
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
@@ -37,6 +40,87 @@ void DocumentTests::cameraShotProjectsThroughImageCenter()
     QVERIFY(std::abs(projected.x() - 500.0f) < 1e-3f);
     QVERIFY(std::abs(projected.y() - 250.0f) < 1e-3f);
     QVERIFY(std::abs(shot.depth(QVector3D(0.0f, 0.0f, -10.0f)) - 10.0f) < 1e-3f);
+}
+
+void DocumentTests::cameraShotUnprojectsImageCenter()
+{
+    CameraShot shot = CameraShot::defaultPerspectiveForImageSize(QSize(1000, 500));
+    QVERIFY(shot.isValid());
+
+    const QVector3D world = shot.unproject(QVector2D(500.0f, 250.0f), 10.0f);
+    QVERIFY(std::abs(world.x()) < 1e-3f);
+    QVERIFY(std::abs(world.y()) < 1e-3f);
+    QVERIFY(std::abs(world.z() + 10.0f) < 1e-3f);
+
+    const QVector2D projected = shot.project(world);
+    QVERIFY(std::abs(projected.x() - 500.0f) < 1e-3f);
+    QVERIFY(std::abs(projected.y() - 250.0f) < 1e-3f);
+}
+
+void DocumentTests::cameraShotRenderMatricesMatchProjection()
+{
+    CameraShot shot = CameraShot::defaultPerspectiveForImageSize(QSize(1000, 500));
+    QVERIFY(shot.isValid());
+
+    const float nearPlane = 0.1f;
+    const float farPlane = 100.0f;
+    const QMatrix4x4 proj = shot.projectionMatrix(nearPlane, farPlane);
+    const QMatrix4x4 view = shot.viewMatrix();
+    const QMatrix4x4 mvp = proj * view;
+
+    // Verify clip_w is positive for visible points (z_view must be negative).
+    // If clip_w <= 0, depth is inverted and all visible geometry is GPU-clipped.
+    const QVector3D testPoint(0.0f, 0.0f, -10.0f);
+    const QVector4D clip0 = view * QVector4D(testPoint, 1.0f);
+    QVERIFY2(
+        clip0.z() < 0.0f,
+        qPrintable(QStringLiteral("z in view space must be negative for visible "
+                                  "geometry, got %1")
+                       .arg(clip0.z())));
+    const QVector4D clipProj = proj * clip0;
+    QVERIFY2(
+        clipProj.w() > 0.0f,
+        qPrintable(QStringLiteral("clip_w must be positive for visible geometry "
+                                  "(depth convention check), got %1")
+                       .arg(clipProj.w())));
+    const float zNdc = clipProj.z() / clipProj.w();
+    QVERIFY2(
+        zNdc >= -1.0f && zNdc <= 1.0f,
+        qPrintable(QStringLiteral("z_ndc must be within [-1, 1] for visible "
+                                  "geometry, got %1")
+                       .arg(zNdc)));
+
+    auto matrixProject = [&](const QVector3D &world) {
+        QVector4D clip = mvp * QVector4D(world, 1.0f);
+        if (std::abs(clip.w()) > 1e-6f)
+            clip /= clip.w();
+        // VCG's shot.project() uses y=0-at-bottom convention; match it here.
+        return QVector2D(
+            (clip.x() * 0.5f + 0.5f) * 1000.0f,
+            (clip.y() * 0.5f + 0.5f) * 500.0f);
+    };
+
+    const QVector3D points[] = {
+        QVector3D(0.0f, 0.0f, -10.0f),
+        QVector3D(1.0f, 0.5f, -10.0f),
+        QVector3D(-0.75f, -0.25f, -8.0f)
+    };
+    for (const QVector3D &point : points) {
+        const QVector2D expected = shot.project(point);
+        const QVector2D actual = matrixProject(point);
+        QVERIFY(std::isfinite(actual.x()));
+        QVERIFY(std::isfinite(actual.y()));
+        QVERIFY2(
+            std::abs(actual.x() - expected.x()) < 1e-3f,
+            qPrintable(QStringLiteral("x actual=%1 expected=%2")
+                           .arg(actual.x(), 0, 'f', 6)
+                           .arg(expected.x(), 0, 'f', 6)));
+        QVERIFY2(
+            std::abs(actual.y() - expected.y()) < 1e-3f,
+            qPrintable(QStringLiteral("y actual=%1 expected=%2")
+                           .arg(actual.y(), 0, 'f', 6)
+                           .arg(expected.y(), 0, 'f', 6)));
+    }
 }
 
 void DocumentTests::logReplaceLastEntryOnCarriageReturn()
@@ -82,6 +166,7 @@ void DocumentTests::addRasterImageCreatesDocumentLayer()
     QCOMPARE(index, 0);
     QCOMPARE(doc.rasterCount(), 1);
     QCOMPARE(doc.currentRasterIndex(), 0);
+    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Raster);
     QCOMPARE(addedSpy.count(), 1);
     QCOMPARE(currentSpy.count(), 1);
 
@@ -100,6 +185,28 @@ void DocumentTests::addRasterImageCreatesDocumentLayer()
     QVERIFY(doc.redo());
     QCOMPARE(doc.rasterCount(), 1);
     QCOMPARE(doc.raster(0).currentPlane()->size, QSize(8, 4));
+}
+
+void DocumentTests::currentLayerKindFollowsMeshAndRasterSelection()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 0.0f, 0.0f));
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("mesh")), 0);
+    QCOMPARE(doc.currentMeshIndex(), 0);
+    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Mesh);
+
+    QImage image(2, 2, QImage::Format_RGBA8888);
+    image.fill(Qt::white);
+    QCOMPARE(doc.addRasterImage(image, QStringLiteral("raster")), 0);
+    QCOMPARE(doc.currentRasterIndex(), 0);
+    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Raster);
+
+    doc.setCurrentMeshIndex(0);
+    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Mesh);
+
+    doc.setCurrentRasterIndex(0);
+    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Raster);
 }
 
 void DocumentTests::loadRasterImageReadsFile()

@@ -32,7 +32,8 @@ class RenderWidget : public QRhiWidget
 public:
     enum class ViewMode {
         Scene3D,
-        ParametrizationUV
+        ParametrizationUV,
+        RasterImage
     };
 
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
@@ -111,6 +112,18 @@ private:
         QRhiBuffer *vertexBuffer = nullptr;
         int vertexCount = 0;
     };
+    struct SceneRasterBackplateDrawItem {
+        int rasterIndex = -1;
+        QSize imageSize;
+        QRhiShaderResourceBindings *srb = nullptr;
+        bool fitToViewport = true;
+    };
+    struct SceneRasterProjectedDrawItem {
+        int rasterIndex = -1;
+        QRhiShaderResourceBindings *srb = nullptr;
+        QRhiBuffer *vertexBuffer = nullptr;
+        int vertexCount = 0;
+    };
     struct SceneSelectionDrawItem {
         int meshIndex = -1;
         bool drawFaces = false;
@@ -149,7 +162,10 @@ private:
         QMatrix4x4 proj;
         QMatrix4x4 view;
         QVector3D lightDir;
+        float rasterOpacity = 1.0f;
         SceneFillFramePlan sceneFill;
+        std::vector<SceneRasterBackplateDrawItem> rasterBackplateItems;
+        std::vector<SceneRasterProjectedDrawItem> rasterProjectedItems;
         std::vector<SceneBufferDrawItem> wireItems;
         std::vector<SceneBufferDrawItem> edgeItems;
         std::vector<SceneBufferDrawItem> boundingBoxItems;
@@ -158,6 +174,8 @@ private:
         std::vector<SceneDecoratorDrawItem> decoratorItems;
 
         bool hasFillPass() const { return sceneFill.hasDrawItems(); }
+        bool hasRasterBackplatePass() const { return !rasterBackplateItems.empty(); }
+        bool hasRasterProjectedPass() const { return !rasterProjectedItems.empty(); }
         bool hasWirePass() const { return !wireItems.empty(); }
         bool hasEdgesPass() const { return !edgeItems.empty(); }
         bool hasBoundingBoxPass() const { return !boundingBoxItems.empty(); }
@@ -168,7 +186,8 @@ private:
         bool hasSceneDrawItems() const
         {
             return hasFillPass() || hasWirePass() || hasEdgesPass() || hasBoundingBoxPass()
-                || hasPointsPass() || hasSelectionPass() || hasDecoratorPass();
+                || hasPointsPass() || hasSelectionPass() || hasDecoratorPass()
+                || hasRasterBackplatePass() || hasRasterProjectedPass();
         }
     };
     struct RenderMeshPassRequests {
@@ -192,6 +211,8 @@ private:
     };
     struct RenderFramePassRequests {
         std::vector<RenderMeshPassRequests> meshes;
+        std::vector<int> rasterBackplates;
+        std::vector<int> rasterProjected;
         bool fill = false;
         bool wire = false;
         bool edges = false;
@@ -202,6 +223,9 @@ private:
         bool decoratorBoundaries = false;
 
         bool hasVisibleMeshes() const { return !meshes.empty(); }
+        bool hasRasterBackplates() const { return !rasterBackplates.empty(); }
+        bool hasRasterProjected() const { return !rasterProjected.empty(); }
+        bool hasRasters() const { return hasRasterBackplates() || hasRasterProjected(); }
         bool decorators() const { return decoratorNormals || decoratorBoundaries; }
         bool hasSimpleBufferRequests() const
         {
@@ -218,6 +242,7 @@ private:
         QMatrix4x4 proj;
         QMatrix4x4 view;
         QVector3D lightDir;
+        float rasterOpacity = 1.0f;
         RenderFramePassRequests passes;
     };
 
@@ -282,6 +307,12 @@ private:
     void planSimpleBufferPasses(
         const RenderFramePassRequests &requests,
         RenderFramePlan &plan);
+    void planRasterBackplatePasses(
+        const RenderFramePassRequests &requests,
+        RenderFramePlan &plan);
+    void planRasterProjectedPasses(
+        const RenderFramePassRequests &requests,
+        RenderFramePlan &plan);
     void planDecoratorPasses(
         const RenderFramePassRequests &requests,
         RenderFramePlan &plan);
@@ -292,6 +323,12 @@ private:
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);
     void renderSceneFillPass(
+        QRhiCommandBuffer *cb,
+        const RenderFramePlan &plan);
+    void renderSceneRasterBackplates(
+        QRhiCommandBuffer *cb,
+        const RenderFramePlan &plan);
+    void renderSceneRasterProjected(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan);
     void renderSceneBufferItems(
@@ -333,6 +370,10 @@ private:
     void processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize);
+    void syncRasterCacheWithDocument();
+    void ensureRasterResources(
+        QRhiCommandBuffer *cb,
+        const RenderFramePassRequests &requests);
     void syncUvCacheWithDocument();
     bool meshHasParametrization(int meshIndex) const;
     bool ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb);
@@ -352,6 +393,7 @@ private:
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiSampler> m_textureSampler;
     std::unique_ptr<QRhiSampler> m_textureSamplerNearest;
+    std::unique_ptr<QRhiSampler> m_rasterSampler;
     std::unique_ptr<QRhiTexture> m_fallbackTexture;
     bool m_fallbackTextureUploadPending = false;
     std::unique_ptr<QRhiTexture> m_fallbackNormalTexture;
@@ -370,6 +412,23 @@ private:
     std::unique_ptr<QRhiBuffer> m_sceneBackgroundUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_sceneBackgroundSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_sceneBackgroundPipeline;
+    std::unique_ptr<QRhiBuffer> m_rasterBackplateUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_rasterBackplateFallbackSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_rasterBackplatePipeline;
+    std::unique_ptr<QRhiBuffer> m_rasterProjectedUbuf;
+    std::unique_ptr<QRhiShaderResourceBindings> m_rasterProjectedFallbackSrb;
+    std::unique_ptr<QRhiGraphicsPipeline> m_rasterProjectedPipeline;
+    struct RasterGpu {
+        std::uint64_t imageRevision = 0;
+        int planeIndex = -1;
+        QSize size;
+        std::unique_ptr<QRhiTexture> texture;
+        std::unique_ptr<QRhiShaderResourceBindings> backplateSrb;
+        std::unique_ptr<QRhiShaderResourceBindings> projectedSrb;
+        std::unique_ptr<QRhiBuffer> projectedVbuf;
+        int projectedVertexCount = 0;
+    };
+    std::unordered_map<std::uint64_t, RasterGpu> m_rastersGpu;
     struct FillTextureSetKey {
         QRhiTexture *baseColorTexture = nullptr;
         QRhiTexture *normalTexture = nullptr;
@@ -595,6 +654,7 @@ private:
     QPoint m_uvLastMousePos;
     float m_uvZoom = 1.0f;
     QVector2D m_uvPan = QVector2D(0.5f, 0.5f);
+    float m_rasterOpacity = 1.0f;
     std::vector<bool> m_meshVisibility;
     std::unordered_map<std::uint64_t, MeshRenderMode> m_meshRenderModes;
     std::unordered_map<std::uint64_t, std::pair<std::uint64_t, std::uint64_t>> m_meshRenderModeRevisions;

@@ -17,7 +17,7 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 - material metadata: `materialSet`
 - mesh state: `visible`, `VCGMesh mesh`
 
-`Document` also owns: current mesh index, document log (application / VCG / error sources), I/O and filter plugin managers, shared GPU cache, undo/redo history, operation cancel flag, and memory accounting APIs (`cpuMeshMemoryStats`, `undoMemoryStats`, `gpuMemoryStats`). Optional Python bindings borrow or own a `Document` through `MeshSetCore`; the embedded console borrows the live `MainWindow` document and does not take ownership.
+`Document` also owns: remembered current mesh/raster indices, explicit active layer kind, document log (application / VCG / error sources), I/O and filter plugin managers, shared GPU cache, undo/redo history, operation cancel flag, and memory accounting APIs (`cpuMeshMemoryStats`, `undoMemoryStats`, `gpuMemoryStats`). Optional Python bindings borrow or own a `Document` through `MeshSetCore`; the embedded console borrows the live `MainWindow` document and does not take ownership.
 
 ## Mesh Data Type
 
@@ -26,7 +26,7 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 ## Signals and Reactivity
 
 - mesh lifecycle: `meshAdded`, `meshRemoved`, `meshDataChanged`
-- selection/visibility: `currentMeshChanged`, `meshVisibilityChanged`
+- selection/visibility: `currentMeshChanged`, `currentRasterChanged`, `currentLayerChanged`, `meshVisibilityChanged`, `rasterVisibilityChanged`
 - progress: `loadProgress*`, `filterProgress*`
 - logging: `logCleared`, `logMessageAdded`
 - undo/redo: `undoRedoStateChanged`
@@ -117,10 +117,10 @@ This split keeps user/render settings as stable input data, pass requests as an 
 |---|---|
 | mesh geometry and material data | per-mesh render modes/styles |
 | mesh transforms | per-view visibility vector |
-| mesh list, current index | view mode, camera/trackball, headlight direction, UV pan/zoom |
+| mesh/raster list, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster opacity |
 | document visibility proxy (`MeshEntry::visible`) | overlay settings, histogram cache |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
-| undo tree and node snapshots | UV-local GPU cache (`m_uvMeshGpu`) |
+| undo tree and node snapshots | UV-local GPU cache (`m_uvMeshGpu`), raster GPU image cache |
 | shared mesh GPU cache | |
 
 `MainWindow` synchronizes document visibility from the active view so the layer panel reflects it; each view keeps its own local visibility vector independently.

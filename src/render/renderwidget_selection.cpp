@@ -70,6 +70,9 @@ void RenderWidget::prepareDirtyBuffers(
         m_fallbackRoughnessTextureUploadPending = false;
     }
 
+    if (requests.hasRasters())
+        ensureRasterResources(cb, requests);
+
     if (!requests.hasVisibleMeshes())
         return;
     if (!requests.hasMeshResourceRequests() && !drawCurrentMeshHighlight)

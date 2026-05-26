@@ -32,6 +32,34 @@ bool requestsDecoratorBoundaryPass(const PerMeshRenderSettings &settings)
 RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassRequests() const
 {
     RenderFramePassRequests requests;
+    if (!m_doc)
+        return requests;
+
+    requests.rasterBackplates.reserve(m_doc->rasterCount());
+    requests.rasterProjected.reserve(m_doc->rasterCount());
+    if (m_viewMode == ViewMode::RasterImage) {
+        const int currentRasterIndex = m_doc->currentRasterIndex();
+        if (currentRasterIndex >= 0 && currentRasterIndex < m_doc->rasterCount()) {
+            const Document::RasterEntry &entry = m_doc->raster(currentRasterIndex);
+            const Document::RasterPlane *plane = entry.currentPlane();
+            if (plane && !plane->image.isNull())
+                requests.rasterBackplates.push_back(currentRasterIndex);
+            if (!entry.shot.isValid())
+                return requests;
+        } else {
+            return requests;
+        }
+    } else {
+        for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
+            const Document::RasterEntry &entry = m_doc->raster(ri);
+            const Document::RasterPlane *plane = entry.currentPlane();
+            if (!entry.visible || !plane || plane->image.isNull())
+                continue;
+            if (entry.shot.isValid())
+                requests.rasterProjected.push_back(ri);
+        }
+    }
+
     requests.meshes.reserve(m_doc->meshCount());
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         if (!meshVisible(mi))
@@ -61,6 +89,58 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
         requests.meshes.push_back(std::move(meshRequests));
     }
     return requests;
+}
+
+void RenderWidget::planRasterBackplatePasses(
+    const RenderWidget::RenderFramePassRequests &requests,
+    RenderWidget::RenderFramePlan &plan)
+{
+    if (!m_doc || !requests.hasRasterBackplates())
+        return;
+
+    for (int rasterIndex : requests.rasterBackplates) {
+        if (rasterIndex < 0 || rasterIndex >= m_doc->rasterCount())
+            continue;
+        const Document::RasterEntry &entry = m_doc->raster(rasterIndex);
+        const auto it = m_rastersGpu.find(entry.rasterId);
+        if (it == m_rastersGpu.end())
+            continue;
+        const RasterGpu &gpu = it->second;
+        if (!gpu.texture || !gpu.backplateSrb || gpu.size.isEmpty())
+            continue;
+        plan.rasterBackplateItems.push_back(SceneRasterBackplateDrawItem {
+            rasterIndex,
+            gpu.size,
+            gpu.backplateSrb.get(),
+            plan.viewMode != ViewMode::RasterImage
+        });
+    }
+}
+
+void RenderWidget::planRasterProjectedPasses(
+    const RenderWidget::RenderFramePassRequests &requests,
+    RenderWidget::RenderFramePlan &plan)
+{
+    if (!m_doc || !requests.hasRasterProjected())
+        return;
+
+    for (int rasterIndex : requests.rasterProjected) {
+        if (rasterIndex < 0 || rasterIndex >= m_doc->rasterCount())
+            continue;
+        const Document::RasterEntry &entry = m_doc->raster(rasterIndex);
+        const auto it = m_rastersGpu.find(entry.rasterId);
+        if (it == m_rastersGpu.end())
+            continue;
+        const RasterGpu &gpu = it->second;
+        if (!gpu.projectedSrb || !gpu.projectedVbuf || gpu.projectedVertexCount <= 0)
+            continue;
+        plan.rasterProjectedItems.push_back(SceneRasterProjectedDrawItem {
+            rasterIndex,
+            gpu.projectedSrb.get(),
+            gpu.projectedVbuf.get(),
+            gpu.projectedVertexCount
+        });
+    }
 }
 
 void RenderWidget::planSimpleBufferPasses(
@@ -486,10 +566,13 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
     plan.proj = request.proj;
     plan.view = request.view;
     plan.lightDir = request.lightDir;
+    plan.rasterOpacity = request.rasterOpacity;
 
     if (request.passes.fill)
         plan.sceneFill = buildSceneFillFramePlan(request);
 
+    planRasterBackplatePasses(request.passes, plan);
+    planRasterProjectedPasses(request.passes, plan);
     planSimpleBufferPasses(request.passes, plan);
     planDecoratorPasses(request.passes, plan);
     planSelectionPasses(request.passes, plan);

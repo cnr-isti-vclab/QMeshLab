@@ -65,6 +65,7 @@ private slots:
     void pasteCameraState();
     void setCurrentViewSceneMode();
     void setCurrentViewParametrizationMode();
+    void setCurrentViewRasterMode();
     void splitViewHorizontally();
     void splitViewVertically();
 

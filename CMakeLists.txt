@@ -98,6 +98,7 @@ qt_add_executable(QMeshLab
     src/render/renderwidget_scene_passes.cpp
     src/render/renderwidget_fill.cpp
     src/render/renderwidget_render.cpp
+    src/render/renderwidget_raster.cpp
     src/render/renderwidget_uv.cpp
     src/render/viewtrackball.h src/render/viewtrackball.cpp
     src/render/viewstate.h
@@ -195,6 +196,10 @@ qt_add_shaders(QMeshLab "shaders"
         shaders/selection_outline.frag
         shaders/scene_background.vert
         shaders/scene_background.frag
+        shaders/raster_backplate.vert
+        shaders/raster_backplate.frag
+        shaders/raster_projected.vert
+        shaders/raster_projected.frag
         shaders/uv_background.vert
         shaders/uv_background.frag
         shaders/uv_fill_texture.vert

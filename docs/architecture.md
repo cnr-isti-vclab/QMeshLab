@@ -36,14 +36,14 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 
 ### `RenderWidget`
 
-`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, per-mesh render modes, per-view visibility vector, help/interaction overlays, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes}.cpp`.
+`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV` / `RasterImage`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, raster opacity/GPU image resources, per-mesh render modes, per-view visibility vector, help/interaction overlays, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes,raster}.cpp`.
 
 Scene3D rendering is now organized around two internal data boundaries:
 
 - `RenderFrameRequest` is the lightweight per-frame intent: view mode, viewport size, projection/view matrices, light direction, and `RenderFramePassRequests`.
 - `RenderFramePlan` is the concrete GPU draw plan: fill items, simple buffer items, decorator items, and selection items holding pipelines, buffers, SRBs, and material renderer pointers.
 
-`RenderFramePassRequests` is collected once from visible meshes and per-mesh render settings, then reused by both GPU resource preparation and concrete plan construction. This keeps the per-frame "what passes are needed?" decision in one place and prepares the codebase for later UV convergence and programmatic render requests. It is not yet a public JSON API; the concrete `RenderFramePlan` contains process-local GPU pointers.
+`RenderFramePassRequests` is collected once from visible meshes, rasters, and per-mesh render settings, then reused by both GPU resource preparation and concrete plan construction. In Scene3D, raster camera layers plan small frustum glyphs rather than textured image planes. In `RasterImage` mode the request layer pins the current raster as the background reference and, when that raster has a valid camera, still feeds the normal mesh passes through the same Scene3D frame-plan path. This keeps the per-frame "what passes are needed?" decision in one place and prepares the codebase for later UV convergence and programmatic render requests. It is not yet a public JSON API; the concrete `RenderFramePlan` contains process-local GPU pointers.
 
 ### `ViewState`
 
@@ -123,10 +123,10 @@ Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `f
 |---|---|
 | mesh geometry and material data | per-mesh render modes/styles |
 | mesh transforms | per-view visibility vector |
-| mesh list, current index | view mode, camera/trackball, headlight direction, UV pan/zoom |
+| mesh/raster lists, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster opacity |
 | document visibility proxy | overlay settings, histogram cache |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
-| undo tree, labels, lanes, snapshots | UV-local GPU cache |
+| undo tree, labels, lanes, snapshots | UV-local GPU cache, raster GPU image cache |
 | shared mesh GPU cache | |
 
 Note: undo history stores `ViewState` snapshots, but this is serialized view data attached to undo nodes, not live ownership of render widgets.

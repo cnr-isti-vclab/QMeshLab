@@ -36,6 +36,11 @@ public:
         VCG,
         Error
     };
+    enum class CurrentLayerKind {
+        None,
+        Mesh,
+        Raster
+    };
 
     struct LogEntry {
         QString message;
@@ -267,6 +272,7 @@ public:
     static QString rasterPlaneSourcePath(const RasterPlane &plane);
     int currentMeshIndex() const { return m_currentMeshIndex; }
     int currentRasterIndex() const { return m_currentRasterIndex; }
+    CurrentLayerKind currentLayerKind() const { return m_currentLayerKind; }
     const std::vector<LogEntry> &logMessages() const { return m_logMessages; }
     QString openDialogFilter() const;
     QString saveDialogFilter() const;
@@ -332,6 +338,7 @@ signals:
     void meshVisibilityChanged(int index, bool visible);
     void currentMeshChanged(int index);
     void meshDataChanged(int index);
+    void currentLayerChanged(Document::CurrentLayerKind kind, int index);
     void rasterAdded(int index);
     void rasterRemoved(int index);
     void rasterVisibilityChanged(int index, bool visible);
@@ -391,6 +398,7 @@ private:
         std::vector<RasterSnapshot> rasters;
         int currentMeshIndex = -1;
         int currentRasterIndex = -1;
+        CurrentLayerKind currentLayerKind = CurrentLayerKind::None;
         std::uint64_t nextMeshId = 1;
         std::uint64_t nextRasterId = 1;
         ViewState viewState;
@@ -439,8 +447,11 @@ private:
     // during undo/redo, so every distinct geometry snapshot always gets a unique
     // (meshId, geometryRevision) key — preventing cross-branch cache collisions.
     std::uint64_t m_nextGeometryRevision = 1;
+    void setCurrentMeshIndexInternal(int index, bool makeCurrentLayer);
+    void setCurrentRasterIndexInternal(int index, bool makeCurrentLayer);
     int m_currentMeshIndex = -1;
     int m_currentRasterIndex = -1;
+    CurrentLayerKind m_currentLayerKind = CurrentLayerKind::None;
     std::vector<LogEntry> m_logMessages;
     int m_lastCallbackBucket = -1;
     int m_lastProgressPos = -1;

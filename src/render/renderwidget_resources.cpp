@@ -606,8 +606,16 @@ void RenderWidget::ensureRenderResources()
         m_sceneBackgroundUbuf.reset();
         m_sceneBackgroundSrb.reset();
         m_sceneBackgroundPipeline.reset();
+        m_rasterBackplateUbuf.reset();
+        m_rasterBackplateFallbackSrb.reset();
+        m_rasterBackplatePipeline.reset();
+        m_rasterProjectedUbuf.reset();
+        m_rasterProjectedFallbackSrb.reset();
+        m_rasterProjectedPipeline.reset();
+        m_rastersGpu.clear();
         m_textureSampler.reset();
         m_textureSamplerNearest.reset();
+        m_rasterSampler.reset();
         m_fallbackTexture.reset();
         m_fallbackTextureUploadPending = false;
         m_fallbackNormalTexture.reset();
@@ -669,6 +677,16 @@ void RenderWidget::ensureRenderResources()
                               QRhiSampler::Repeat, QRhiSampler::Repeat));
         if (!m_textureSamplerNearest || !m_textureSamplerNearest->create()) {
             m_textureSamplerNearest.reset();
+            return;
+        }
+    }
+
+    if (!m_rasterSampler) {
+        m_rasterSampler.reset(
+            m_rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
+                              QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
+        if (!m_rasterSampler || !m_rasterSampler->create()) {
+            m_rasterSampler.reset();
             return;
         }
     }
@@ -824,6 +842,136 @@ void RenderWidget::ensureRenderResources()
             if (!m_sceneBackgroundPipeline->create()) {
                 qWarning("Failed to create scene background pipeline");
                 m_sceneBackgroundPipeline.reset();
+            }
+        }
+    }
+
+    if (!m_rasterBackplateUbuf) {
+        m_rasterBackplateUbuf.reset(
+            m_rhi->newBuffer(
+                QRhiBuffer::Dynamic,
+                QRhiBuffer::UniformBuffer,
+                kRasterBackplateUbufSize));
+        if (!m_rasterBackplateUbuf || !m_rasterBackplateUbuf->create())
+            m_rasterBackplateUbuf.reset();
+    }
+
+    if (!m_rasterBackplateFallbackSrb
+        && m_rasterBackplateUbuf
+        && m_rasterSampler
+        && m_fallbackTexture) {
+        m_rasterBackplateFallbackSrb.reset(m_rhi->newShaderResourceBindings());
+        m_rasterBackplateFallbackSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                m_rasterBackplateUbuf.get()),
+            QRhiShaderResourceBinding::sampledTexture(
+                1,
+                QRhiShaderResourceBinding::FragmentStage,
+                m_fallbackTexture.get(),
+                m_rasterSampler.get())
+        });
+        if (!m_rasterBackplateFallbackSrb->create())
+            m_rasterBackplateFallbackSrb.reset();
+    }
+
+    if (!m_rasterBackplatePipeline && m_rasterBackplateFallbackSrb) {
+        m_rasterBackplatePipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/raster_backplate.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/raster_backplate.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load raster backplate shaders");
+            m_rasterBackplatePipeline.reset();
+        } else {
+            m_rasterBackplatePipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_rasterBackplatePipeline->setDepthTest(false);
+            m_rasterBackplatePipeline->setDepthWrite(false);
+            m_rasterBackplatePipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiGraphicsPipeline::TargetBlend blend;
+            blend.enable = true;
+            blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+            blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opColor = QRhiGraphicsPipeline::Add;
+            blend.srcAlpha = QRhiGraphicsPipeline::One;
+            blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opAlpha = QRhiGraphicsPipeline::Add;
+            m_rasterBackplatePipeline->setTargetBlends({ blend });
+            QRhiVertexInputLayout layout;
+            m_rasterBackplatePipeline->setVertexInputLayout(layout);
+            m_rasterBackplatePipeline->setShaderResourceBindings(
+                m_rasterBackplateFallbackSrb.get());
+            m_rasterBackplatePipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_rasterBackplatePipeline->create()) {
+                qWarning("Failed to create raster backplate pipeline");
+                m_rasterBackplatePipeline.reset();
+            }
+        }
+    }
+
+    if (!m_rasterProjectedUbuf) {
+        m_rasterProjectedUbuf.reset(
+            m_rhi->newBuffer(
+                QRhiBuffer::Dynamic,
+                QRhiBuffer::UniformBuffer,
+                kRasterProjectedUbufSize));
+        if (!m_rasterProjectedUbuf || !m_rasterProjectedUbuf->create())
+            m_rasterProjectedUbuf.reset();
+    }
+
+    if (!m_rasterProjectedFallbackSrb && m_rasterProjectedUbuf) {
+        m_rasterProjectedFallbackSrb.reset(m_rhi->newShaderResourceBindings());
+        m_rasterProjectedFallbackSrb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                m_rasterProjectedUbuf.get())
+        });
+        if (!m_rasterProjectedFallbackSrb->create())
+            m_rasterProjectedFallbackSrb.reset();
+    }
+
+    if (!m_rasterProjectedPipeline && m_rasterProjectedFallbackSrb) {
+        m_rasterProjectedPipeline.reset(m_rhi->newGraphicsPipeline());
+        QShader vs = loadShader(QStringLiteral(":/shaders/raster_projected.vert.qsb"));
+        QShader fs = loadShader(QStringLiteral(":/shaders/raster_projected.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load raster projected shaders");
+            m_rasterProjectedPipeline.reset();
+        } else {
+            m_rasterProjectedPipeline->setShaderStages({
+                { QRhiShaderStage::Vertex, vs },
+                { QRhiShaderStage::Fragment, fs }
+            });
+            m_rasterProjectedPipeline->setTopology(QRhiGraphicsPipeline::Lines);
+            m_rasterProjectedPipeline->setDepthTest(true);
+            m_rasterProjectedPipeline->setDepthWrite(false);
+            m_rasterProjectedPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+            m_rasterProjectedPipeline->setCullMode(QRhiGraphicsPipeline::None);
+            QRhiGraphicsPipeline::TargetBlend blend;
+            blend.enable = true;
+            blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+            blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opColor = QRhiGraphicsPipeline::Add;
+            blend.srcAlpha = QRhiGraphicsPipeline::One;
+            blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+            blend.opAlpha = QRhiGraphicsPipeline::Add;
+            m_rasterProjectedPipeline->setTargetBlends({ blend });
+            QRhiVertexInputLayout layout;
+            layout.setBindings({ { kRasterProjectedVertexStrideFloats * sizeof(float) } });
+            layout.setAttributes({
+                { 0, 0, QRhiVertexInputAttribute::Float3, 0 }
+            });
+            m_rasterProjectedPipeline->setVertexInputLayout(layout);
+            m_rasterProjectedPipeline->setShaderResourceBindings(
+                m_rasterProjectedFallbackSrb.get());
+            m_rasterProjectedPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+            if (!m_rasterProjectedPipeline->create()) {
+                qWarning("Failed to create raster projected pipeline");
+                m_rasterProjectedPipeline.reset();
             }
         }
     }

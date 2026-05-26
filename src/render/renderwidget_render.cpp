@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 using namespace RenderWidgetInternal;
 
@@ -91,6 +92,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         renderParametrization(cb);
         return;
     }
+    const bool rasterMode = (m_viewMode == ViewMode::RasterImage);
     for (QLabel *label : m_uvScaleXTickLabels) {
         if (label)
             label->hide();
@@ -100,16 +102,22 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
             label->hide();
     }
 
-    advanceCenterAnimation();
-    emitCameraStateChangedIfNeeded();
+    if (!rasterMode) {
+        advanceCenterAnimation();
+        emitCameraStateChangedIfNeeded();
+    } else {
+        m_depthPickPending = false;
+    }
     syncPerMeshRenderModesWithDocument();
-    updateCameraFrameIfNeeded();
+    if (!rasterMode)
+        updateCameraFrameIfNeeded();
 
     const bool drawTrackballGizmo =
-        m_renderSettings.showTrackballGizmo && (m_doc->meshCount() > 0);
+        !rasterMode && m_renderSettings.showTrackballGizmo && (m_doc->meshCount() > 0);
     const int currentMeshIndex = m_doc->currentMeshIndex();
     const bool drawCurrentMeshHighlight =
-        m_renderSettings.highlightCurrentMesh
+        !rasterMode
+        && m_renderSettings.highlightCurrentMesh
         && (currentMeshIndex >= 0)
         && meshVisible(currentMeshIndex);
     const RenderFramePassRequests framePassRequests = collectRenderFramePassRequests();
@@ -186,10 +194,67 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     QMatrix4x4 proj;
     QMatrix4x4 view;
     QMatrix4x4 vp;
-    const float aspect = float(sz.width()) / float(qMax(1, sz.height()));
-    proj = m_trackball.projectionMatrix(aspect);
+    if (rasterMode) {
+        const int rasterIndex = m_doc ? m_doc->currentRasterIndex() : -1;
+        const Document::RasterEntry *rasterEntry =
+            (rasterIndex >= 0 && rasterIndex < m_doc->rasterCount())
+            ? &m_doc->raster(rasterIndex)
+            : nullptr;
+        if (rasterEntry && rasterEntry->shot.isValid()) {
+            bool hasDepthRange = false;
+            float minDepth = std::numeric_limits<float>::max();
+            float maxDepth = 0.0f;
+            for (int meshIndex = 0; meshIndex < m_doc->meshCount(); ++meshIndex) {
+                if (!meshVisible(meshIndex))
+                    continue;
+                const Document::MeshEntry &meshEntry = m_doc->mesh(meshIndex);
+                if (meshEntry.mesh.bbox.IsNull())
+                    continue;
+                const vcg::Box3f &box = meshEntry.mesh.bbox;
+                const QVector3D corners[8] = {
+                    QVector3D(box.min[0], box.min[1], box.min[2]),
+                    QVector3D(box.max[0], box.min[1], box.min[2]),
+                    QVector3D(box.min[0], box.max[1], box.min[2]),
+                    QVector3D(box.max[0], box.max[1], box.min[2]),
+                    QVector3D(box.min[0], box.min[1], box.max[2]),
+                    QVector3D(box.max[0], box.min[1], box.max[2]),
+                    QVector3D(box.min[0], box.max[1], box.max[2]),
+                    QVector3D(box.max[0], box.max[1], box.max[2])
+                };
+                for (const QVector3D &corner : corners) {
+                    const QVector4D transformed = meshEntry.transform * QVector4D(corner, 1.0f);
+                    const QVector3D worldCorner = (std::abs(transformed.w()) > 1e-8f)
+                        ? transformed.toVector3DAffine()
+                        : transformed.toVector3D();
+                    const float depth = rasterEntry->shot.depth(worldCorner);
+                    if (!std::isfinite(depth) || depth <= 1e-4f)
+                        continue;
+                    minDepth = std::min(minDepth, depth);
+                    maxDepth = std::max(maxDepth, depth);
+                    hasDepthRange = true;
+                }
+            }
 
-    view = m_trackball.viewMatrix();
+            float nearPlane = 0.01f;
+            float farPlane = 10000.0f;
+            if (hasDepthRange) {
+                const float range = std::max(0.01f, maxDepth - minDepth);
+                // Place near plane at half the minimum scene depth so there is
+                // always ample clearance regardless of depth-range magnitude.
+                nearPlane = std::max(0.001f, minDepth * 0.5f);
+                farPlane = std::max(nearPlane + 0.01f, maxDepth + range * 0.2f);
+            }
+            proj = rasterEntry->shot.projectionMatrix(nearPlane, farPlane);
+            view = rasterEntry->shot.viewMatrix();
+        } else {
+            proj.setToIdentity();
+            view.setToIdentity();
+        }
+    } else {
+        const float aspect = float(sz.width()) / float(qMax(1, sz.height()));
+        proj = m_trackball.projectionMatrix(aspect);
+        view = m_trackball.viewMatrix();
+    }
     vp = proj * view;
 
     if (drawTrackballGizmo && m_trackballGizmoUbuf && m_trackballGizmoVbuf) {
@@ -258,7 +323,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         m_lightRotation.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
     const bool depthPickPendingAtFrameStart = m_depthPickPending;
 
-    if (m_depthPickPending) {
+    if (!rasterMode && m_depthPickPending) {
         if (u) {
             cb->resourceUpdate(u);
             u = nullptr;
@@ -266,7 +331,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         executePendingDepthPick(cb, sz);
     }
 
-    if (drawCurrentMeshHighlight) {
+    if (!rasterMode && drawCurrentMeshHighlight) {
         if (u) {
             cb->resourceUpdate(u);
             u = nullptr;
@@ -296,6 +361,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     frameRequest.proj = proj;
     frameRequest.view = view;
     frameRequest.lightDir = frameLightDir;
+    frameRequest.rasterOpacity = rasterMode ? m_rasterOpacity : 1.0f;
     frameRequest.passes = framePassRequests;
 
     const RenderFramePlan framePlan = buildRenderFramePlan(frameRequest);
@@ -325,7 +391,14 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     renderSceneBufferItems(cb, framePlan, framePlan.edgeItems);
     renderSceneBufferItems(cb, framePlan, framePlan.boundingBoxItems);
     renderSceneBufferItems(cb, framePlan, framePlan.pointItems);
+    if (framePlan.hasRasterProjectedPass())
+        renderSceneRasterProjected(cb, framePlan);
     renderSceneDecoratorItems(cb, framePlan);
+
+    // In RasterImage mode the raster must be a screen-space overlay over the
+    // 3D scene (no depth test), controlled by raster opacity.
+    if (framePlan.hasRasterBackplatePass())
+        renderSceneRasterBackplates(cb, framePlan);
 
     if (drawTrackballGizmo && m_trackballGizmoPipeline && m_trackballGizmoVbuf && m_trackballGizmoSrb) {
         cb->setGraphicsPipeline(m_trackballGizmoPipeline.get());
@@ -346,12 +419,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         cb->draw(m_lightGizmoVertexCount);
     }
 
-    if (drawCurrentMeshHighlight)
+    if (!rasterMode && drawCurrentMeshHighlight)
         drawCurrentMeshOutline(cb, sz);
 
     renderSceneSelectionItems(cb, framePlan);
 
-    if (needMvpForFrame) {
+    if (!rasterMode && needMvpForFrame) {
         updateBoundingBoxCornersOverlayPlacement(vp, view, sz);
     }
 

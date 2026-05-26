@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vcg/math/shot.h>
+#include <QMatrix4x4>
 #include <QSize>
 #include <QVector2D>
 #include <QVector3D>
@@ -58,9 +59,11 @@ public:
     QVector3D viewDirection() const;
 
     QVector2D project(const QVector3D &worldPoint) const;
+    QVector3D unproject(const QVector2D &pixelPoint, float depth) const;
     float depth(const QVector3D &worldPoint) const;
+    QMatrix4x4 viewMatrix() const;
+    QMatrix4x4 projectionMatrix(float nearPlane, float farPlane) const;
 
 private:
     VcgShot m_shot;
 };
-

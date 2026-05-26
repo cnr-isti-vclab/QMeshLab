@@ -4,12 +4,13 @@ See also: [Architecture](architecture.md) · [Data Model](data_model.md)
 
 ## Overview
 
-`RenderWidget` (`QRhiWidget`) runs in two modes:
+`RenderWidget` (`QRhiWidget`) runs in three modes:
 
 - **`Scene3D`**: layered mesh rendering with trackball camera, depth picking, and current-mesh highlight.
 - **`ParametrizationUV`**: orthographic UV-space rendering for the current mesh (requires faces + UV coords).
+- **`RasterImage`**: active-raster image-domain rendering. Entering the mode requires the current document layer to be a raster. The active raster is drawn as the background reference; if it has a valid `CameraShot`, visible meshes are rendered by the normal Scene3D pass pipeline through that raster camera.
 
-Ownership: `Document` owns canonical mesh data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, headlight/gizmo state, overlays, and per-mesh render modes.
+Ownership: `Document` owns canonical mesh/raster data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, raster GPU image resources, headlight/gizmo state, overlays, and per-mesh render modes.
 
 Undo/redo integration: undo-tree nodes include one `ViewState` snapshot (active view camera + render settings + per-mesh style map) captured/restored via `Document::setViewStateFunctions(...)`. History jumps can restore render style while intentionally leaving the live camera untouched until the final target node.
 
@@ -69,7 +70,7 @@ Default fill color source preference: texture → per-vertex → per-face → pe
 8. Run Radiance Scaling gradient pre-pass (if any planned fill item uses `FillMaterial::RadianceScaling`).
 9. Run main onscreen pass.
 
-Main pass draw order: scene background · fill · wire · edges · bbox · points · decorators · trackball gizmo · light gizmo · current-mesh outline/debug composite · selection overlay.
+Main pass draw order: scene background · raster background in RasterImage mode only · fill · wire · edges · bbox · points · raster camera frustums · decorators · trackball gizmo · light gizmo · current-mesh outline/debug composite · selection overlay.
 
 ## `Scene3D` Pass Details
 
@@ -92,6 +93,8 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 **Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`.
 
 Simple buffer pass execution (wire, edges, bbox, points), decorator execution, and selection execution are isolated in `renderwidget_scene_passes.cpp`. Their draw order remains controlled by `renderwidget_render.cpp`.
+
+**Rasters**: `renderwidget_raster.cpp` owns per-raster texture upload and draw execution. In `Scene3D`, rasters with valid camera shots draw as small line frustums with the apex at the raster camera origin and the base oriented by the camera view frustum; rasters without cameras are not drawn in the 3D view. The raster image itself is not pasted into the 3D scene. In `RasterImage`, only the active raster layer is requested as the full-viewport background reference, and mesh passes are included only when that raster has a valid camera.
 
 ## Current Mesh Highlight
 
@@ -131,6 +134,12 @@ UV fill: color source from `fillPlain.colorSource`. Quality UV buffers use the s
 Orthographic projection; `m_uvPan` + `m_uvZoom`. Left/middle drag = pan; wheel = zoom around cursor; double click = fit to mesh UV bounds (or `[0,1]²` when `uvShowFullTexture`); `Reset Camera` = UV fit.
 
 Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view visibility remain local runtime state.
+
+## `RasterImage` Frame Sequence
+
+Current status: raster mode reuses the Scene3D request/plan/pass executors for mesh rendering. The active raster image is drawn as a full-viewport background reference. If the raster has a valid `CameraShot`, `CameraShot::viewMatrix()` and `CameraShot::projectionMatrix(...)` provide the frame matrices and visible meshes are rendered through that camera. If no camera is available, raster mode behaves as an image-only view. `RenderFrameRequest::rasterOpacity` is copied into the draw plan and consumed by the raster shaders.
+
+Raster mode interaction is deliberately minimal in this first implementation: mouse wheel changes per-view raster opacity, while trackball, depth picking, current-mesh outline, and camera synchronization are disabled so the raster camera remains locked. Pan/zoom, fit/native image modes, and camera/mesh overlay controls are the intended GUI follow-up.
 
 ## Texture Normal-Map Workflow
 

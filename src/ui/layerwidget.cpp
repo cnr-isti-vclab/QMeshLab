@@ -585,16 +585,17 @@ QString rasterDataTooltip(const Document::RasterEntry &entry)
     return lines.join(QLatin1Char('\n'));
 }
 
-QPixmap textureThumbnail(const QString &path, int side)
+QPixmap textureThumbnail(const QString &path, int w, int h)
 {
-    side = std::max(8, side);
-    const QString cacheKey = QStringLiteral("%1|%2").arg(path).arg(side);
+    w = std::max(8, w);
+    h = std::max(8, h);
+    const QString cacheKey = QStringLiteral("%1|%2x%3").arg(path).arg(w).arg(h);
     static QHash<QString, QPixmap> cache;
     const auto it = cache.constFind(cacheKey);
     if (it != cache.constEnd())
         return it.value();
 
-    QPixmap out(side, side);
+    QPixmap out(w, h);
     out.fill(QColor(30, 30, 30));
     QPainter p(&out);
     p.setRenderHint(QPainter::Antialiasing, true);
@@ -605,13 +606,18 @@ QPixmap textureThumbnail(const QString &path, int side)
         reader.setAutoTransform(true);
         const QSize native = reader.size();
         if (native.isValid())
-            reader.setScaledSize(native.scaled(side, side, Qt::KeepAspectRatio));
+            reader.setScaledSize(native.scaled(w, h, Qt::KeepAspectRatio));
         const QImage img = reader.read();
         if (!img.isNull()) {
-            const QPixmap tex = QPixmap::fromImage(
-                img.scaled(side, side, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-            const int x = (side - tex.width()) / 2;
-            const int y = (side - tex.height()) / 2;
+            // Strip device pixel ratio: QImageReader may tag images with a DPR > 1
+            // (e.g. on Retina). We want pixel-exact centering in a DPR-1 pixmap.
+            QImage normalized = img;
+            normalized.setDevicePixelRatio(1.0);
+            const QImage scaled =
+                normalized.scaled(w, h, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            const QPixmap tex = QPixmap::fromImage(scaled);
+            const int x = (w - tex.width()) / 2;
+            const int y = (h - tex.height()) / 2;
             p.drawPixmap(x, y, tex);
             ok = true;
         }
@@ -620,8 +626,8 @@ QPixmap textureThumbnail(const QString &path, int side)
     if (!ok) {
         p.fillRect(out.rect(), QColor(45, 45, 48));
         p.setPen(QColor(110, 110, 115));
-        p.drawLine(2, 2, side - 3, side - 3);
-        p.drawLine(2, side - 3, side - 3, 2);
+        p.drawLine(2, 2, w - 3, h - 3);
+        p.drawLine(2, h - 3, w - 3, 2);
     }
 
     p.setPen(QColor(95, 95, 100));
@@ -631,25 +637,33 @@ QPixmap textureThumbnail(const QString &path, int side)
     return out;
 }
 
-QPixmap imageThumbnail(const QImage &image, const QString &path, int side)
+QPixmap imageThumbnail(const QImage &image, const QString &path, int w, int h)
 {
-    side = std::max(8, side);
+    w = std::max(8, w);
+    h = std::max(8, h);
     if (!image.isNull()) {
-        QPixmap out(side, side);
+        QPixmap out(w, h);
         out.fill(QColor(30, 30, 30));
         QPainter p(&out);
         p.setRenderHint(QPainter::Antialiasing, true);
-        const QPixmap px = QPixmap::fromImage(
-            image.scaled(side, side, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        const int x = (side - px.width()) / 2;
-        const int y = (side - px.height()) / 2;
+        // Strip device pixel ratio so pixel arithmetic below works in physical pixels.
+        // On Retina, QRhiWidget::grabFramebuffer() tags the image with DPR=2, which
+        // would make QPixmap::fromImage() report a logical width of physicalWidth/2,
+        // causing the image to be drawn at ¼ its expected coverage.
+        QImage normalized = image;
+        normalized.setDevicePixelRatio(1.0);
+        const QImage scaled =
+            normalized.scaled(w, h, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        const QPixmap px = QPixmap::fromImage(scaled);
+        const int x = (w - px.width()) / 2;
+        const int y = (h - px.height()) / 2;
         p.drawPixmap(x, y, px);
         p.setPen(QColor(95, 95, 100));
         p.drawRect(out.rect().adjusted(0, 0, -1, -1));
         return out;
     }
 
-    return textureThumbnail(path, side);
+    return textureThumbnail(path, w, h);
 }
 
 QWidget *textureInfoWidget(
@@ -671,7 +685,7 @@ QWidget *textureInfoWidget(
 
     auto *thumb = new QLabel(container);
     thumb->setFixedSize(thumbSide, thumbSide);
-    thumb->setPixmap(textureThumbnail(path, thumbSide));
+    thumb->setPixmap(textureThumbnail(path, thumbSide, thumbSide));
 
     auto *textCol = new QWidget(container);
     auto *v = new QVBoxLayout(textCol);
@@ -725,7 +739,13 @@ QWidget *rasterPlaneInfoWidget(
     const QString path = Document::rasterPlaneSourcePath(plane);
     const QString name = Document::rasterPlaneDisplayName(plane, planeIndex);
     const int lineH = std::max(8, fm.lineSpacing());
-    const int thumbSide = std::max(14, lineH * 2);
+    const int thumbH = std::max(14, lineH * 2);
+
+    // Derive thumbnail width from the image aspect ratio so no black bars appear.
+    const QSize imgSize = !plane.image.isNull() ? plane.image.size() : plane.size;
+    const int thumbW = (imgSize.width() > 0 && imgSize.height() > 0)
+        ? std::max(14, int(qreal(thumbH) * imgSize.width() / imgSize.height()))
+        : thumbH;
 
     auto *container = new QWidget(owner);
     auto *h = new QHBoxLayout(container);
@@ -733,8 +753,8 @@ QWidget *rasterPlaneInfoWidget(
     h->setSpacing(6);
 
     auto *thumb = new QLabel(container);
-    thumb->setFixedSize(thumbSide, thumbSide);
-    thumb->setPixmap(imageThumbnail(plane.image, path, thumbSide));
+    thumb->setFixedSize(thumbW, thumbH);
+    thumb->setPixmap(imageThumbnail(plane.image, path, thumbW, thumbH));
 
     auto *textCol = new QWidget(container);
     auto *v = new QVBoxLayout(textCol);
@@ -861,6 +881,9 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
         QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
+        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+    });
+    connect(m_doc, &Document::currentLayerChanged, this, [this](Document::CurrentLayerKind, int) {
         QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
@@ -1034,8 +1057,11 @@ void LayerWidget::rebuild()
 
         if (!selectedKey.isEmpty() && selectedKey == itemKey)
             selectedItem = item;
-        if (!fallbackCurrentItem && i == m_doc->currentMeshIndex())
+        if (!fallbackCurrentItem
+            && m_doc->currentLayerKind() == Document::CurrentLayerKind::Mesh
+            && i == m_doc->currentMeshIndex()) {
             fallbackCurrentItem = item;
+        }
     }
 
     for (int i = 0; i < m_doc->rasterCount(); ++i) {
@@ -1094,13 +1120,16 @@ void LayerWidget::rebuild()
 
         if (!selectedKey.isEmpty() && selectedKey == itemKey)
             selectedItem = item;
-        if (!fallbackCurrentItem && i == m_doc->currentRasterIndex())
+        if (!fallbackCurrentItem
+            && m_doc->currentLayerKind() == Document::CurrentLayerKind::Raster
+            && i == m_doc->currentRasterIndex()) {
             fallbackCurrentItem = item;
+        }
     }
-    if (selectedItem)
-        setCurrentItem(selectedItem);
-    else if (fallbackCurrentItem)
+    if (fallbackCurrentItem)
         setCurrentItem(fallbackCurrentItem);
+    else if (selectedItem)
+        setCurrentItem(selectedItem);
 
     updateCurrentItemVisuals();
     const int requiredWidth =
@@ -1141,9 +1170,15 @@ void LayerWidget::updateCurrentItemVisuals()
     for (int i = 0; i < topLevelItemCount(); ++i) {
         QTreeWidgetItem *item = topLevelItem(i);
         const LayerItemRef ref = layerRefForItem(item);
+        // Bold both the current mesh and the current raster simultaneously so
+        // the user can see both active selections while in RasterImage mode.
         const bool isCurrent =
-            (ref.kind == LayerItemKind::Mesh && ref.index == currentMeshIdx)
-            || (ref.kind == LayerItemKind::Raster && ref.index == currentRasterIdx);
+            (ref.kind == LayerItemKind::Mesh
+                && currentMeshIdx >= 0
+                && ref.index == currentMeshIdx)
+            || (ref.kind == LayerItemKind::Raster
+                && currentRasterIdx >= 0
+                && ref.index == currentRasterIdx);
         QFont f0 = item->font(0);
         QFont f1 = item->font(1);
         QFont f2 = item->font(2);
@@ -1162,7 +1197,9 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
     if (ref.kind == LayerItemKind::Raster && ref.index >= 0) {
         QMenu menu(this);
         QAction *currentAction = menu.addAction(tr("Set Current Raster"));
-        currentAction->setEnabled(ref.index != m_doc->currentRasterIndex());
+        currentAction->setEnabled(
+            m_doc->currentLayerKind() != Document::CurrentLayerKind::Raster
+            || ref.index != m_doc->currentRasterIndex());
         connect(currentAction, &QAction::triggered, this, [this, index = ref.index]() {
             m_doc->setCurrentRasterIndex(index);
         });

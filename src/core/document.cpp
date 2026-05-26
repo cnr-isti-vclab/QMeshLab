@@ -1648,6 +1648,7 @@ Document::UndoState Document::captureUndoState() const
     UndoState state;
     state.currentMeshIndex = m_currentMeshIndex;
     state.currentRasterIndex = m_currentRasterIndex;
+    state.currentLayerKind = m_currentLayerKind;
     state.nextMeshId = m_nextMeshId;
     state.nextRasterId = m_nextRasterId;
     state.meshes.reserve(m_meshes.size());
@@ -1818,6 +1819,26 @@ void Document::restoreUndoState(const UndoState &state)
         : -1;
     m_currentRasterIndex = normalizedRaster;
     emit currentRasterChanged(m_currentRasterIndex);
+    CurrentLayerKind normalizedLayerKind = CurrentLayerKind::None;
+    switch (state.currentLayerKind) {
+    case CurrentLayerKind::Mesh:
+        normalizedLayerKind =
+            (m_currentMeshIndex >= 0) ? CurrentLayerKind::Mesh : CurrentLayerKind::None;
+        break;
+    case CurrentLayerKind::Raster:
+        normalizedLayerKind =
+            (m_currentRasterIndex >= 0) ? CurrentLayerKind::Raster : CurrentLayerKind::None;
+        break;
+    case CurrentLayerKind::None:
+        normalizedLayerKind = CurrentLayerKind::None;
+        break;
+    }
+    m_currentLayerKind = normalizedLayerKind;
+    const int currentLayerIndex =
+        (m_currentLayerKind == CurrentLayerKind::Mesh)
+        ? m_currentMeshIndex
+        : ((m_currentLayerKind == CurrentLayerKind::Raster) ? m_currentRasterIndex : -1);
+    emit currentLayerChanged(m_currentLayerKind, currentLayerIndex);
 
     for (int i = 0; i < meshCount(); ++i) {
         const MeshEntry &entry = mesh(i);
@@ -1989,7 +2010,7 @@ void Document::removeMesh(int index)
     purgeMeshGpuResources(meshId);
     writeLog(tr("Removed mesh '%1'").arg(meshName), LogSource::Application);
     emit meshRemoved(index);
-    setCurrentMeshIndex(newCurrent);
+    setCurrentMeshIndexInternal(newCurrent, m_currentLayerKind == CurrentLayerKind::Mesh);
     if (ownUndoStep)
         endUndoStep(true);
 }
@@ -2201,7 +2222,7 @@ void Document::removeRaster(int index)
     m_rasters.erase(m_rasters.begin() + index);
     writeLog(tr("Removed raster '%1'").arg(rasterName), LogSource::Application);
     emit rasterRemoved(index);
-    setCurrentRasterIndex(newCurrent);
+    setCurrentRasterIndexInternal(newCurrent, m_currentLayerKind == CurrentLayerKind::Raster);
 
     if (ownUndoStep)
         endUndoStep(true);
@@ -2350,11 +2371,28 @@ void Document::setRasterShot(int index, const CameraShot &shot, const QString &c
 
 void Document::setCurrentRasterIndex(int index)
 {
+    setCurrentRasterIndexInternal(index, true);
+}
+
+void Document::setCurrentRasterIndexInternal(int index, bool makeCurrentLayer)
+{
     const int normalizedIndex = (index >= 0 && index < rasterCount()) ? index : -1;
-    if (m_currentRasterIndex == normalizedIndex)
+    const CurrentLayerKind nextLayerKind =
+        (normalizedIndex >= 0) ? CurrentLayerKind::Raster : CurrentLayerKind::None;
+    const bool rasterChanged = (m_currentRasterIndex != normalizedIndex);
+    const bool layerChanged =
+        makeCurrentLayer
+        && (m_currentLayerKind != nextLayerKind
+            || (nextLayerKind == CurrentLayerKind::Raster && m_currentRasterIndex != normalizedIndex));
+    if (!rasterChanged && !layerChanged)
         return;
     m_currentRasterIndex = normalizedIndex;
-    emit currentRasterChanged(m_currentRasterIndex);
+    if (makeCurrentLayer)
+        m_currentLayerKind = nextLayerKind;
+    if (rasterChanged)
+        emit currentRasterChanged(m_currentRasterIndex);
+    if (layerChanged)
+        emit currentLayerChanged(m_currentLayerKind, m_currentRasterIndex);
 }
 
 void Document::markRasterImageChanged(int index, const QString &contextMessage)
@@ -2441,11 +2479,28 @@ void Document::markMeshSelectionChanged(int index, const QString &contextMessage
 
 void Document::setCurrentMeshIndex(int index)
 {
+    setCurrentMeshIndexInternal(index, true);
+}
+
+void Document::setCurrentMeshIndexInternal(int index, bool makeCurrentLayer)
+{
     const int normalizedIndex = (index >= 0 && index < meshCount()) ? index : -1;
-    if (m_currentMeshIndex == normalizedIndex)
+    const CurrentLayerKind nextLayerKind =
+        (normalizedIndex >= 0) ? CurrentLayerKind::Mesh : CurrentLayerKind::None;
+    const bool meshChanged = (m_currentMeshIndex != normalizedIndex);
+    const bool layerChanged =
+        makeCurrentLayer
+        && (m_currentLayerKind != nextLayerKind
+            || (nextLayerKind == CurrentLayerKind::Mesh && m_currentMeshIndex != normalizedIndex));
+    if (!meshChanged && !layerChanged)
         return;
     m_currentMeshIndex = normalizedIndex;
-    emit currentMeshChanged(m_currentMeshIndex);
+    if (makeCurrentLayer)
+        m_currentLayerKind = nextLayerKind;
+    if (meshChanged)
+        emit currentMeshChanged(m_currentMeshIndex);
+    if (layerChanged)
+        emit currentLayerChanged(m_currentLayerKind, m_currentMeshIndex);
 }
 
 void Document::ensureMeshGpuResources(QRhi *rhi,
