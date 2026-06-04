@@ -18,14 +18,15 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 - Fat-edge rendering for edge meshes and decorator boundaries/seams/non-manifold edges (configurable width)
 - UV mode support for boundary-edge and texture-seam overlays on the current mesh; UV rendering is still a separate renderer, with convergence toward the Scene3D material path planned next
 - Raster mode displays the current raster as the view reference; rasters with camera shots reuse the Scene3D mesh pass pipeline through the raster camera, and mouse wheel adjusts raster opacity
-- Internal render-request model is ready to inform future programmatic/JSON rendering work, but there is not yet a public JSON `RenderFramePlan` execution API
+- Versioned camera/render-state JSON supports copy/paste, capture/apply, and deterministic offscreen snapshot workflows; concrete GPU `RenderFramePlan` objects remain internal and are not serialized
 - Plugin-based mesh import/export with per-extension preferred import plugin
 - Plugin-based filter framework with searchable filter browser, generated parameter dialogs, `pythonName` metadata, and copy-to-console Python calls
+- Filter parameters include mesh, texture, point/vector, camera-state, and render-state values; parameter panels can reset to descriptor defaults and source state JSON from the active view
 - Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
 - Embedded `_qmeshlab.MeshSet` bindings when `QMESHLAB_PYTHON_CONSOLE=ON`; the in-app console exposes the live document as `ms`
 - Tree-shaped undo/redo integrated with mesh operations, filter runs, camera/render-style snapshots, branch pruning, and linearization
 - Structured logging for app/VCG/error messages, load/filter progress, memory estimates, and GPU buffer rebuild timing
-- PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata)
+- PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata), plus snapshot-to-raster workflows
 
 Built-in I/O plugin families (dependency-gated at build time):
 - `io_vcg` (`ply`, `obj`, `stl`, `off`, `vmi`)
@@ -41,8 +42,12 @@ Built-in filter plugin families (dependency-gated at build time):
 - `filter_clean`
 - `filter_meshing`
 - `filter_cgal`
+- `filter_parametrization`
+- `filter_mesh_booleans`
 - `filter_screened_poisson`
 - `filter_sampling`
+- `filter_voronoi`
+- `filter_icp`
 - `filter_unsharp`
 - `filter_create`
 - `filter_geodesic`
@@ -54,6 +59,7 @@ Built-in filter plugin families (dependency-gated at build time):
 - `filter_layer`
 - `filter_colorproc`
 - `filter_xatlas`
+- `filter_trioptimize`
 
 ## Build
 
@@ -71,7 +77,7 @@ Qt6 and Python are intentionally kept outside vcpkg, while `vcglib` remains a gi
 
 ### Dependency Installation
 
-The dependencies listed in `vcpkg.json` (e.g., `rapidobj`, `draco`, etc.) are installed automatically using vcpkg's manifest mode. After bootstrapping vcpkg, simply run the following command to install all required dependencies:
+The dependencies listed in `vcpkg.json` (for example `rapidobj`, `draco`, `libigl`, etc.) are installed automatically using vcpkg's manifest mode. After bootstrapping vcpkg, simply run the following command to install all required dependencies:
 
 ```powershell
 vcpkg install --triplet x64-windows
@@ -218,5 +224,5 @@ cmake --build --preset default
 
 Notes:
 - The `default` preset uses vcpkg manifest mode through `VCPKG_ROOT`.
-- Packages from `vcpkg.json` such as `draco`, `rapidobj`, `tinygltf`, `libe57format`, `xerces-c`, `muparser`, `embree`, `nanobind`, and `cgal` are resolved automatically during configure. Do not install them manually.
+- Packages from `vcpkg.json` such as `draco`, `rapidobj`, `tinygltf`, `libe57format`, `xerces-c`, `muparser`, `embree`, `nanobind`, `cgal`, and `libigl` are resolved automatically during configure. Do not install them manually.
 - Qt stays outside vcpkg and must be installed separately.

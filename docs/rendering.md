@@ -8,26 +8,58 @@ See also: [Architecture](architecture.md) · [Data Model](data_model.md)
 
 - **`Scene3D`**: layered mesh rendering with trackball camera, depth picking, and current-mesh highlight.
 - **`ParametrizationUV`**: orthographic UV-space rendering for the current mesh (requires faces + UV coords).
-- **`RasterImage`**: active-raster image-domain rendering. Entering the mode requires the current document layer to be a raster. The active raster is drawn as the background reference; if it has a valid `CameraShot`, visible meshes are rendered by the normal Scene3D pass pipeline through that raster camera.
+- **`RasterImage`**: active-raster image-domain rendering. Entering the mode requires a valid current raster. The active raster is drawn as a screen-space overlay reference; if it has a valid `CameraShot`, visible meshes are rendered by the normal Scene3D pass pipeline through that raster camera.
 
 Ownership: `Document` owns canonical mesh/raster data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, raster GPU image resources, headlight/gizmo state, overlays, and per-mesh render modes.
 
 Undo/redo integration: undo-tree nodes include one `ViewState` snapshot (active view camera + render settings + per-mesh style map) captured/restored via `Document::setViewStateFunctions(...)`. History jumps can restore render style while intentionally leaving the live camera untouched until the final target node.
 
+## Programmatic Render-State JSON
+
+`RenderWidget` exposes a versioned render-state JSON contract intended for repeatable programmatic rendering (for example, filters that need deterministic offscreen snapshots):
+
+- `RenderWidget::renderStateJson()` exports the current per-view rendering state.
+- `RenderWidget::applyRenderStateJson(...)` applies such JSON back to a view.
+
+Schema (`kind = "QMeshLab.RenderState"`, `version = 1`) includes:
+
+- `view_mode`: `Scene3D` | `ParametrizationUV` | `RasterImage`
+- `raster_opacity`: float in `[0, 1]`
+- `trackball`: same trackball payload used by camera JSON (`center`, `rotation_xyzw`, `distance`, `radius`, `fov_y_degrees`, near-clip and gizmo fields)
+- `render_settings`: sparse `GlobalRenderSettings` payload (background, histogram settings, UV options, current-mesh highlight settings, etc.; default-valued fields are omitted)
+- `mesh_visibility`: per-view visibility bool array, emitted only when at least one mesh is hidden in the view
+- `mesh_render_modes`: array of `{ mesh_id, settings }`, where `settings` is a sparse `PerMeshRenderSettings` payload
+- `current_mesh_index`, `current_raster_index`, `current_layer_kind`
+- `viewport_px`: informational viewport size metadata
+
+Design notes:
+
+- Mesh render modes are keyed by persistent `mesh_id`, not by row index.
+- The JSON is intentionally request-level and compact; GPU resources and concrete draw plans remain internal.
+- Export omits default-valued settings. During import, omitted settings/mode maps start from defaults, while omitted `view_mode` and `raster_opacity` keep the current view values.
+- This contract is forward-versioned (`version`) and can be extended without changing filter call sites.
+
+Filter integration:
+
+- `MainWindow` wires `Document::setRenderStateSnapshotFunction(...)` to the active view. `Document::renderSnapshotFromStateJson(...)` applies JSON to that view, renders an offscreen image at the requested size, returns both the `QImage` and resulting `CameraShot`, then restores the previous render state.
+- Layer menu filter `Render from Render-State JSON` (`id: render_from_render_state_json`) consumes typed `camera_state` (`QMeshLab.CameraState`) and `render_state` (`QMeshLab.RenderState`) payloads and runs an offscreen render.
+- Both parameters support the same UI source modes: inline text, JSON file, or capture from current view.
+- The filter can write a PNG snapshot and/or inject the snapshot as a raster layer, enabling reproducible scriptable rendering workflows.
+
 ## Scene3D Request and Plan Pipeline
 
 Scene3D rendering is split into a lightweight request layer and a concrete GPU draw-plan layer.
 
-`RenderFramePassRequests` is collected once per frame from visible meshes and resolved `PerMeshRenderSettings`. It contains one `RenderMeshPassRequests` per visible mesh, plus frame-wide aggregate flags for fill, wire, edges, bbox, points, selection, decorator normals, and decorator boundary/seam/non-manifold resources.
+`RenderFramePassRequests` is collected once per frame from visible meshes, visible/current rasters, and resolved `PerMeshRenderSettings`. It contains one `RenderMeshPassRequests` per visible mesh, raster backplate/projected/frustum requests when relevant, plus frame-wide aggregate flags for fill, wire, edges, bbox, points, selection, decorator normals, decorator boundary/seam/non-manifold resources, and raster drawing.
 
 The same request object is used for two things:
 
 1. `prepareDirtyBuffers(...)` asks `Document::ensureMeshGpuResources(...)` only for the cache products needed by the requested passes, plus extra resources needed by current-mesh highlighting.
 2. `buildRenderFramePlan(...)` converts the request into concrete draw items after resources/pipelines are available.
 
-`RenderFrameRequest` adds frame-local state to the pass requests: view mode, pixel size, projection matrix, view matrix, and light direction. `RenderFramePlan` is the concrete in-process result: fill items, buffer items, decorator items, and selection items with QRhi buffers/pipelines and material renderer pointers. Pass presence is derived from non-empty draw-item lists (`hasFillPass()`, `hasSceneDrawItems()`, etc.).
+`RenderFrameRequest` adds frame-local state to the pass requests: view mode, pixel size, projection matrix, view matrix, light direction, and raster opacity. `RenderFramePlan` is the concrete in-process result: fill items, buffer items, decorator items, selection items, and raster draw items with QRhi buffers/pipelines and material renderer pointers. Pass presence is derived from non-empty draw-item lists (`hasFillPass()`, `hasSceneDrawItems()`, etc.).
 
-This is an internal architecture boundary, not a public serialization contract. A future programmatic/JSON render path should describe request-level intent and let QMeshLab build the GPU `RenderFramePlan` internally.
+This is an internal architecture boundary, not a public serialization contract. The implemented programmatic path serializes camera/render-state intent and lets QMeshLab build the GPU `RenderFramePlan` internally.
 
 ## Shared GPU Cache (`MeshGpuResourceCache`)
 
@@ -61,7 +93,7 @@ Default fill color source preference: texture → per-vertex → per-face → pe
 ## `Scene3D` Frame Sequence
 
 1. Advance animation/camera state, sync per-mesh render modes, and update the camera frame when needed.
-2. Collect `RenderFramePassRequests` once for visible meshes.
+2. Collect `RenderFramePassRequests` once for visible meshes and raster-layer requests.
 3. Prepare shared mesh GPU resources from those requests.
 4. Upload per-frame textures/UBOs such as the quality LUT, gizmo buffers, light gizmo UBO, and background gradient.
 5. Execute depth pick (if scheduled).
@@ -152,6 +184,8 @@ PBR rendering can consume normal maps directly as either tangent-space or object
 ## Snapshot Capture
 
 `MainWindow::saveSnapshotPng()`: set fixed color-buffer size → request update → wait for `frameRendered` → `grabFramebuffer` → restore previous size. Saved PNG embeds camera JSON in `QMeshLab.CameraTrackballState` metadata.
+
+Snapshot-to-raster paths reuse the same view capture mechanics but add the resulting image to `Document` through `addRasterImage(...)` with a `CameraShot` from `RenderWidget::cameraShotForViewport(...)` or from `renderSnapshotFromStateJson(...)`. This is how manual snapshot rasters and the `Render from Render-State JSON` layer filter create raster layers.
 
 ## Frame Timing
 

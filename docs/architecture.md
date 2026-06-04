@@ -22,9 +22,15 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md)
 
 ### `Document`
 
-Owns the ordered mesh list (`MeshEntry`), current mesh index, per-document log, tree-shaped undo/redo history, I/O and filter plugin managers, the shared GPU cache, and memory accounting APIs. Does not own live per-widget pipelines/camera state; those remain in `RenderWidget`. Undo nodes include a serialized `ViewState` snapshot (captured/restored through callbacks, with camera restoration optionally skipped during history jumps).
+Owns the ordered mesh list (`MeshEntry`), ordered raster list (`RasterEntry`), current mesh/raster indices, explicit active-layer kind, per-document log, tree-shaped undo/redo history, I/O and filter plugin managers, the shared GPU cache, render-state snapshot callback, and memory accounting APIs. Does not own live per-widget pipelines/camera state; those remain in `RenderWidget`. Undo nodes include serialized mesh/raster state plus one `ViewState` snapshot (captured/restored through callbacks, with camera restoration optionally skipped during history jumps).
 
 Each `MeshEntry` stores: identity/revision keys (`meshId`, `geometryRevision`, `materialRevision`), render placement (`transform`), source metadata (`name`, `sourcePath`, `ioMask`), texture metadata (`textureFileNames`, `textureFilePaths`, `textureAssets`), material set, `visible` flag, and the `VCGMesh`.
+
+Each `RasterEntry` stores: identity/revision keys (`rasterId`, `imageRevision`, `cameraRevision`), source metadata (`name`, `sourcePath`), `visible` flag, a `CameraShot`, a list of `RasterPlane` image planes, and `currentPlaneIndex`. A `RasterPlane` records semantic role (`RGBA`, masks, depth, or extra planes), display/source names, pixel size, and optional `QImage` payload.
+
+### `CameraShot`
+
+Core camera model (`src/core/camerashot.*`) used by raster layers and snapshot rendering. It wraps a VCG shot, carries viewport/pixel/focal/distortion/extrinsic fields, supports perspective/orthographic/isometric/cavalieri camera types, and provides projection, unprojection, depth, view-matrix, and projection-matrix helpers.
 
 ### `MeshGpuResourceCache`
 
@@ -36,14 +42,14 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 
 ### `RenderWidget`
 
-`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV` / `RasterImage`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, raster opacity/GPU image resources, per-mesh render modes, per-view visibility vector, help/interaction overlays, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes,raster}.cpp`.
+`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV` / `RasterImage`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, raster opacity/GPU image resources, per-mesh render modes, per-view visibility vector, camera/render-state JSON capture/apply helpers, help/interaction overlays, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes,raster}.cpp`.
 
 Scene3D rendering is now organized around two internal data boundaries:
 
 - `RenderFrameRequest` is the lightweight per-frame intent: view mode, viewport size, projection/view matrices, light direction, and `RenderFramePassRequests`.
 - `RenderFramePlan` is the concrete GPU draw plan: fill items, simple buffer items, decorator items, and selection items holding pipelines, buffers, SRBs, and material renderer pointers.
 
-`RenderFramePassRequests` is collected once from visible meshes, rasters, and per-mesh render settings, then reused by both GPU resource preparation and concrete plan construction. In Scene3D, raster camera layers plan small frustum glyphs rather than textured image planes. In `RasterImage` mode the request layer pins the current raster as the background reference and, when that raster has a valid camera, still feeds the normal mesh passes through the same Scene3D frame-plan path. This keeps the per-frame "what passes are needed?" decision in one place and prepares the codebase for later UV convergence and programmatic render requests. It is not yet a public JSON API; the concrete `RenderFramePlan` contains process-local GPU pointers.
+`RenderFramePassRequests` is collected once from visible meshes, rasters, and per-mesh render settings, then reused by both GPU resource preparation and concrete plan construction. In Scene3D, raster camera layers plan small frustum glyphs rather than textured image planes. In `RasterImage` mode the request layer pins the current raster as the background reference and, when that raster has a valid camera, still feeds the normal mesh passes through the same Scene3D frame-plan path. This keeps the per-frame "what passes are needed?" decision in one place and prepares the codebase for later UV convergence. Public programmatic rendering targets versioned camera/render-state JSON; the concrete `RenderFramePlan` remains an internal process-local GPU object.
 
 ### `ViewState`
 
@@ -59,11 +65,11 @@ Compact pass/settings panel: pass toggles, mode-specific world settings page (Sc
 
 ### `MeshFilterPanel`
 
-Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, optional markdown description, advanced-parameter toggle, per-filter parameter-value cache, and, when Python support is compiled in, a copy-to-console action that emits an `ms.<pythonName>(...)` call.
+Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, optional markdown description, advanced-parameter toggle, reset-to-defaults button, per-filter parameter-value cache, current-view providers for camera/render-state JSON parameters, and, when Python support is compiled in, a copy-to-console action that emits an `ms.<pythonName>(...)` call.
 
 ### `MainWindow`
 
-Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log/Python docks, status bar (progress bars, frame-time stats), undo graph panel, and menus (file, edit, filters, view, help). Manages file open/drop/new-document flows, split/close, active-view highlight border, optional camera synchronization across 3D views, document visibility proxy synchronization from the current view, undo-node thumbnails/snapshots, and embedded Python console visibility when enabled.
+Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log/Python docks, status bar (progress bars, frame-time stats), undo graph panel, and menus (file, edit, filters, view, help). Manages mesh/raster file open and drop flows, split/close, active-view highlight border, optional camera synchronization across 3D views, camera-state copy/paste, document visibility proxy synchronization from the current view, view PNG snapshots, snapshot-to-raster creation, render-state snapshot callbacks for filters, undo-node thumbnails/snapshots, and embedded Python console visibility when enabled.
 
 ### `PythonHost` and `_qmeshlab`
 
@@ -74,9 +80,9 @@ When `QMESHLAB_PYTHON_CONSOLE` is enabled, `src/app/main.cpp` registers the stat
 Defined privately in `RenderWidget`:
 
 - **`RenderMeshPassRequests`** — one visible mesh plus the per-mesh pass requirements derived from `PerMeshRenderSettings`: fill, wire, edges, bbox, points, selection, decorator normals, and decorator boundary/seam/non-manifold data.
-- **`RenderFramePassRequests`** — the frame-wide aggregate of visible `RenderMeshPassRequests`; answers whether any family of passes is needed and is used by resource preparation.
+- **`RenderFramePassRequests`** — the frame-wide aggregate of visible `RenderMeshPassRequests` plus raster backplate/projected/frustum requests; answers whether any family of passes is needed and is used by resource preparation.
 - **`RenderFrameRequest`** — the lightweight frame request object containing camera/viewport/light state plus pass requests.
-- **`RenderFramePlan`** — the concrete draw list consumed by pass executors. Presence of a pass is derived from planned draw items (`hasFillPass()`, `hasSceneDrawItems()`, etc.), not from separate request booleans.
+- **`RenderFramePlan`** — the concrete draw list consumed by pass executors, including fill/simple/decorator/selection draw items and raster draw items. Presence of a pass is derived from planned draw items (`hasFillPass()`, `hasSceneDrawItems()`, etc.), not from separate request booleans.
 
 The high-level Scene3D flow is:
 
@@ -115,7 +121,7 @@ Defined in `renderingsettings.h`:
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 
 Built-in I/O (when enabled at build time): `io_vcg`, `io_obj_rapidobj`, `io_gltf`, `io_e57`.  
-Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `filter_embree`, `filter_select`, `filter_clean`, `filter_meshing`, `filter_cgal`, `filter_screened_poisson`, `filter_sampling`, `filter_unsharp`, `filter_create`, `filter_geodesic`, `filter_texture`, `filter_texture_defragmentation`, `filter_measure`, `filter_mls`, `filter_sample`, `filter_layer`, `filter_colorproc`, `filter_xatlas`.
+Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `filter_embree`, `filter_select`, `filter_clean`, `filter_meshing`, `filter_cgal`, `filter_parametrization`, `filter_mesh_booleans`, `filter_screened_poisson`, `filter_sampling`, `filter_voronoi`, `filter_icp`, `filter_unsharp`, `filter_create`, `filter_geodesic`, `filter_texture`, `filter_texture_defragmentation`, `filter_measure`, `filter_mls`, `filter_sample`, `filter_layer`, `filter_colorproc`, `filter_xatlas`, `filter_trioptimize`.
 
 ## State Ownership
 
@@ -141,20 +147,20 @@ User Action
    ▼
 MainWindow (menus, docks, split-view orchestration)
    │
-   ├──▶ Document (load/save/filter, undo/redo, logs, progress/cancel)
+   ├──▶ Document (mesh/raster load, save/filter, undo/redo, logs, progress/cancel)
    │         │
    │         └──▶ MeshGpuResourceCache (shared per-mesh GPU data)
    │
-   ├──▶ RenderWidget(s) (per-view passes, camera, modes)
+   ├──▶ RenderWidget(s) (per-view passes, camera, modes, render-state JSON)
    └──▶ LayerWidget / MeshFilterPanel / Log Dock
 ```
 
 ## Typical Runtime Sequence
 
-1. User opens or drops files → `Document` resolves plugin, loads mesh, emits signals.
+1. User opens or drops files → `Document` resolves mesh plugins or raster image loading, appends the layer, and emits signals.
 2. Views sync mesh/mode/visibility and collect frame pass requests.
 3. Scene3D prepares shared GPU resources from those requests, builds a concrete `RenderFramePlan`, and executes layered passes. UV mode still uses a separate UV renderer and cache.
 4. Undo/redo or undo-graph jumps restore mesh snapshots and the active view snapshot (`ViewState`).
-5. Filter runs through the filter manager with progress/cancel and undo integration.
+5. Filter runs through the filter manager with progress/cancel, typed parameters, render-state capture when requested, and undo integration.
 6. Optional Python console calls route through `_qmeshlab.MeshSet` back into the same `Document` and filter manager.
 7. Status bar shows load/filter progress and rolling CPU/GPU frame timings.

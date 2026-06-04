@@ -23,6 +23,20 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 
 `VCGMesh` is a `vcg::tri::TriMesh` specialization carrying the VCG attributes enabled by the imported data.
 
+## Raster Data Type
+
+`Document::RasterEntry` is the canonical raster-layer record. Each entry stores:
+
+- identity/revision keys: `rasterId`, `imageRevision`, `cameraRevision`
+- source metadata: `name`, `sourcePath`
+- layer state: `visible`, `currentPlaneIndex`
+- camera state: `CameraShot shot`
+- image data: `std::vector<RasterPlane> planes`
+
+`RasterPlane` records a semantic role (`RGBA`, `MaskUInt8`, `MaskFloat`, `DepthFloat`, or extra float/RGBA planes), display/source metadata, pixel size, and optional `QImage` payload. The current implementation loads ordinary raster images as RGBA planes and keeps the plane abstraction ready for mask/depth/extra image channels.
+
+`CameraShot` (`src/core/camerashot.*`) wraps a VCG shot for raster and snapshot workflows. It stores viewport, pixel size, focal length, distortion, camera type, and extrinsics, and exposes projection/unprojection, depth, view-matrix, and projection-matrix helpers.
+
 ## Signals and Reactivity
 
 - mesh lifecycle: `meshAdded`, `meshRemoved`, `meshDataChanged`
@@ -35,15 +49,19 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 
 `Document::loadMesh()`: resolves import plugin, runs plugin load, compacts imported mesh storage, updates bbox/normals, initializes transform and material set, resolves texture paths/assets, logs stats, appends entry, emits signals. `reloadMesh(index)` follows the same path while preserving mesh identity.
 
+`Document::loadRasterImage()`: loads a `QImage`, creates a `RasterEntry` with an RGBA `RasterPlane`, appends the raster layer, makes it current, and emits raster/current-layer signals. Ordinary image loads do not synthesize a calibrated camera; callers such as snapshot capture can pass a `CameraShot` through `addRasterImage(...)`, and raster-mode mesh projection is enabled only when that shot is valid.
+
 `Document::saveMesh(...)`: resolves export plugin, passes `MeshIOSaveOptions` (mask, binary, embed textures, copy associated textures, Draco options).
 
 Also exposes: `openDialogFilter()`, `saveDialogFilter()`, `saveMaskCapability()`, `importSupportedExtensions()`, `exportSupportedExtensions()`, `importPluginInfos()`, `exportPluginInfos()`.
 
 ## Filter Model
 
-Metadata: `filterInfos()`, `loadedFilterPluginSummaries()`. Descriptors can be loaded declaratively from filter JSON resources via `FilterDescriptorLoader`, including requirements, input/parameter preparation codes (`FF`, `VF`, `BorderFF`, `BorderVF`, normals, bbox, marks), cleanup hooks, dynamic bounds/default tokens, texture input/output references, mesh parameters with their own requirements/preparation, point/vector parameters, incremental selection, `pythonName`, and output-modifies codes. Mesh parameters can point to non-current layers for operations such as isotropic remeshing against a separate reference surface. `MeshFilterDescriptor::effectivePythonName()` returns explicit `pythonName` when present and otherwise derives a snake-case name from the display name.
+Metadata: `filterInfos()`, `loadedFilterPluginSummaries()`. Descriptors can be loaded declaratively from filter JSON resources via `FilterDescriptorLoader`, including requirements, input/parameter preparation codes (`FF`, `VF`, `VTex`/`VT`, `WTex`/`WT`, `BorderFF`, `BorderVF`, `CurvDir`, normals, bbox, marks), cleanup hooks, dynamic bounds/default tokens, texture input/output references, mesh parameters with their own requirements/preparation, point/vector parameters, camera/render-state parameters, incremental selection, `pythonName`, and output-modifies codes. Mesh parameters can point to non-current layers for operations such as isotropic remeshing against a separate reference surface. `MeshFilterDescriptor::effectivePythonName()` returns explicit `pythonName` when present and otherwise derives a snake-case name from the display name.
 
-Execution: `runFilter(filterKey, parameters)` with callback-based progress and cancel (`requestOperationCancel`, `isOperationCancelRequested`). The framework normalizes/validates parameters, exposes `validateFilterInvocation(...)` for preflight checks, prepares requested volatile VCG data, runs pre/post cleanup hooks, compacts modified meshes, updates geometry/material/selection/transform revisions according to descriptor output codes, and can return visualization hints for quality-based rendering.
+Execution: `runFilter(filterKey, parameters)` with callback-based progress and cancel (`requestOperationCancel`, `isOperationCancelRequested`). The framework normalizes/validates parameters, exposes `validateFilterInvocation(...)` for preflight checks, prepares requested volatile VCG data, validates typed `CameraState`/`RenderState` JSON payloads when descriptors request them, runs pre/post cleanup hooks, compacts modified meshes, updates geometry/material/selection/transform revisions according to descriptor output codes, and can return visualization hints for quality-based rendering.
+
+Render-state filters: `filter_layer` includes `render_from_render_state_json`, which consumes `QMeshLab.CameraState` and `QMeshLab.RenderState` payloads, asks `Document::renderSnapshotFromStateJson(...)` for an offscreen render, then can save the result as PNG and/or add it as a raster layer with the resulting `CameraShot`.
 
 Python integration: `_qmeshlab.MeshSet` wraps a `Document` and exposes `mesh_count`, `current_mesh`, `set_current_mesh`, `load_new_mesh`, `save_current_mesh`, `list_filters`, and `apply_filter`. `apply_filter` resolves a fully qualified key, descriptor id, or Python name, converts supported Python kwargs to `MeshFilterParameterValues` (`bool`, integer, float, string, and 3-number point/vector sequences), and runs the same `Document::runFilter(...)` path used by the GUI. In the embedded console, `PythonHost` dynamically adds one method per filter to `MeshSet` using each descriptor's `effectivePythonName()`.
 
@@ -60,11 +78,11 @@ Committing an action appends a child to the current node, preserving alternate t
 
 Undo-tree maintenance APIs keep the graph controllable after branching: `makeUndoRoot(nodeId)` promotes a chosen node to the new root and discards unreachable history, `purgeUndoBranch(nodeId)` deletes a descendant branch, and `linearizeUndoHistory()` keeps only the root-to-current path. These operations preserve the current live state and notify the UI through the normal undo/redo state signal.
 
-Each `UndoState` holds a `std::vector<UndoState::MeshSnapshot>`. A `MeshSnapshot` copies all cheap metadata fields by value (`transform`, names/paths/assets/materials/visibility/mask/revisions) and holds geometry behind a `shared_ptr<const VCGMesh>`. `captureUndoState()` interns geometry objects in `m_undoGeometryCache` (keyed by `(meshId, geometryRevision)`, stored as `weak_ptr`): if the revision is unchanged since the last capture, nodes share the same allocation. A cache miss triggers a deep copy. On undo/redo, `restoreUndoState()` deep-copies geometry out of the shared pointer so the live document is always freely mutable. Main geometry replacement paths use a document-level monotonic revision source (`m_nextGeometryRevision`) so branch-local edits do not accidentally reuse an older cache key after undo/redo navigation. Branch restore also evicts newer cached revisions for restored mesh ids to avoid stale geometry reuse across branches. `undoMemoryStats()` de-duplicates shared geometry pointers across all undo nodes before summing total bytes, while per-step rows report the current path.
+Each `UndoState` holds a `std::vector<UndoState::MeshSnapshot>` and a `std::vector<UndoState::RasterSnapshot>`. A `MeshSnapshot` copies all cheap metadata fields by value (`transform`, names/paths/assets/materials/visibility/mask/revisions) and holds geometry behind a `shared_ptr<const VCGMesh>`. `captureUndoState()` interns geometry objects in `m_undoGeometryCache` (keyed by `(meshId, geometryRevision)`, stored as `weak_ptr`): if the revision is unchanged since the last capture, nodes share the same allocation. A cache miss triggers a deep copy. On undo/redo, `restoreUndoState()` deep-copies geometry out of the shared pointer so the live document is always freely mutable. Main geometry replacement paths use a document-level monotonic revision source (`m_nextGeometryRevision`) so branch-local edits do not accidentally reuse an older cache key after undo/redo navigation. Branch restore also evicts newer cached revisions for restored mesh ids to avoid stale geometry reuse across branches. `RasterSnapshot` stores raster metadata, `CameraShot`, planes, current plane, visibility, and raster image/camera revision ids. `undoMemoryStats()` de-duplicates shared geometry pointers across all undo nodes before summing total bytes, while per-step rows report the current path.
 
 Each `UndoState` also stores a `ViewState` snapshot (`src/render/viewstate.h`) captured via `Document::setViewStateFunctions(...)`. Current wiring captures/restores the active `RenderWidget` camera/render-style state (`ViewTrackball::State`, `GlobalRenderSettings`, per-mesh `PerMeshRenderSettings`) with each node. Per-view visibility vectors, UV pan/zoom, and view mode are not part of `ViewState`; camera restore can be skipped when jumping to a node.
 
-APIs: `beginUndoStep(label)`, `endUndoStep(commit, restoreOnCancel)`, `undo()`, `redo()`, `jumpToUndoNode(nodeId, restoreCamera)`, `updateUndoNodeCamera(nodeId)`, `makeUndoRoot(nodeId)`, `purgeUndoBranch(nodeId)`, `linearizeUndoHistory()`, `undoTreeInfo()`, `clearUndoHistory()`, `setUndoLimit(limit)`. Integrated with all mesh mutations (`add/remove/duplicate/reload/rename/visibility`, `setMeshTransform`, `markMeshGeometryChanged`, `markMeshMaterialChanged`, `markMeshSelectionChanged`).
+APIs: `beginUndoStep(label)`, `endUndoStep(commit, restoreOnCancel)`, `undo()`, `redo()`, `jumpToUndoNode(nodeId, restoreCamera)`, `updateUndoNodeCamera(nodeId)`, `makeUndoRoot(nodeId)`, `purgeUndoBranch(nodeId)`, `linearizeUndoHistory()`, `undoTreeInfo()`, `clearUndoHistory()`, `setUndoLimit(limit)`. Integrated with mesh mutations (`add/remove/duplicate/reload/rename/visibility`, `setMeshTransform`, `markMeshGeometryChanged`, `markMeshMaterialChanged`, `markMeshSelectionChanged`) and raster mutations (`add/remove/rename/visibility`, `setRasterShot`, `markRasterImageChanged`).
 
 ## Revision and Transform Model
 
@@ -72,6 +90,17 @@ APIs: `beginUndoStep(label)`, `endUndoStep(commit, restoreOnCancel)`, `undo()`, 
 - `markMeshGeometryChanged(...)` advances `geometryRevision`; GPU geometry resources are rebuilt lazily. Main geometry replacement/edit paths allocate revisions from a monotonic document counter so undo branches cannot collide on the same `(meshId, geometryRevision)` cache key.
 - `markMeshMaterialChanged(...)` increments `materialRevision`; GPU material resources are rebuilt lazily.
 - `markMeshSelectionChanged(...)` increments `geometryRevision` because selection flags live inside the mesh geometry snapshot.
+- `markRasterImageChanged(...)` advances `imageRevision`; per-view raster GPU image resources are rebuilt lazily.
+- `setRasterShot(...)` advances `cameraRevision`; raster-projected rendering and raster camera glyphs pick up the new camera lazily.
+
+## Render-State Snapshot Model
+
+`RenderWidget` exposes two JSON state families:
+
+- `QMeshLab.CameraState`: camera/trackball payload used by camera copy/paste and filter parameters.
+- `QMeshLab.RenderState`: sparse per-view rendering payload containing view mode, raster opacity, trackball, `GlobalRenderSettings`, per-view visibility, per-mesh render modes keyed by `mesh_id`, current mesh/raster indices, current layer kind, and viewport metadata. Default-valued fields are omitted by export; on import, omitted settings/mode maps parse from default settings, while omitted view mode and raster opacity keep the current view values.
+
+`MainWindow` wires `Document::setRenderStateSnapshotFunction(...)` to the active `RenderWidget`. `Document::renderSnapshotFromStateJson(renderStateJson, pixelSize, outImage, outShot, error)` applies the requested render state to that view, renders an offscreen image, returns the resulting `QImage` and `CameraShot`, then restores the previous view state. This keeps filter code document-centric while leaving all GPU and per-view state inside `RenderWidget`.
 
 ## Render Settings Model
 
@@ -105,11 +134,11 @@ One instance per view in `m_renderSettings`. Holds:
 Scene3D rendering now has an explicit lightweight request layer before GPU draw planning:
 
 - `RenderMeshPassRequests` stores one visible mesh index, its resolved `PerMeshRenderSettings`, and booleans for fill, wire, edges, bbox, points, selection, decorator-normal resources, and decorator-boundary/seam/non-manifold resources.
-- `RenderFramePassRequests` is the frame-wide aggregate of those per-mesh requests. It answers whether a pass family is needed and is also used to decide which shared mesh GPU resources to prepare.
+- `RenderFramePassRequests` is the frame-wide aggregate of those per-mesh requests plus raster backplate/projected/frustum requests. It answers whether a pass family is needed and is also used to decide which shared mesh GPU resources to prepare.
 - `RenderFrameRequest` combines pass requests with frame-local view data (`ViewMode`, pixel size, projection matrix, view matrix, light direction).
-- `RenderFramePlan` is the concrete GPU draw plan generated from a `RenderFrameRequest`; it contains draw items with QRhi pipelines/buffers/material renderer pointers and is therefore not suitable as a persisted or JSON object.
+- `RenderFramePlan` is the concrete GPU draw plan generated from a `RenderFrameRequest`; it contains mesh and raster draw items with QRhi pipelines/buffers/material renderer pointers and is therefore not suitable as a persisted or JSON object.
 
-This split keeps user/render settings as stable input data, pass requests as an implementation-neutral frame description, and GPU objects inside the concrete plan. It is the intended bridge for later programmatic rendering work: an external JSON format should target request-level intent, then let the application build the GPU `RenderFramePlan` internally.
+This split keeps user/render settings as stable input data, pass requests as an implementation-neutral frame description, and GPU objects inside the concrete plan. Programmatic rendering now targets versioned camera/render-state JSON, then lets the application build the GPU `RenderFramePlan` internally.
 
 ## Shared vs Per-View State
 
