@@ -112,7 +112,7 @@ void RenderWidget::planRasterBackplatePasses(
             rasterIndex,
             gpu.size,
             gpu.backplateSrb.get(),
-            plan.viewMode != ViewMode::RasterImage
+            true  // always preserve image aspect ratio
         });
     }
 }

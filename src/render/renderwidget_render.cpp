@@ -9,6 +9,37 @@
 
 using namespace RenderWidgetInternal;
 
+namespace {
+
+QVector4D fitImageRectNdc(const QSize &imageSize, const QSize &targetSize)
+{
+    if (imageSize.width() <= 0 || imageSize.height() <= 0
+        || targetSize.width() <= 0 || targetSize.height() <= 0) {
+        return QVector4D(0.0f, 0.0f, 1.0f, 1.0f);
+    }
+
+    const float imageAspect = float(imageSize.width()) / float(imageSize.height());
+    const float targetAspect = float(targetSize.width()) / float(targetSize.height());
+    float halfW = 1.0f;
+    float halfH = 1.0f;
+    if (imageAspect > targetAspect)
+        halfH = targetAspect / imageAspect;
+    else
+        halfW = imageAspect / targetAspect;
+    return QVector4D(0.0f, 0.0f, halfW, halfH);
+}
+
+QMatrix4x4 rasterFitProjectionScale(const QSize &imageSize, const QSize &targetSize)
+{
+    const QVector4D rect = fitImageRectNdc(imageSize, targetSize);
+    QMatrix4x4 scale;
+    scale.setToIdentity();
+    scale.scale(rect.z(), rect.w(), 1.0f);
+    return scale;
+}
+
+} // namespace
+
 void RenderWidget::initialize(QRhiCommandBuffer *cb)
 {
     ensureRenderResources();
@@ -245,6 +276,12 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 farPlane = std::max(nearPlane + 0.01f, maxDepth + range * 0.2f);
             }
             proj = rasterEntry->shot.projectionMatrix(nearPlane, farPlane);
+            if (const Document::RasterPlane *plane = rasterEntry->currentPlane()) {
+                const QSize rasterSize = !plane->image.isNull()
+                    ? plane->image.size()
+                    : rasterEntry->shot.viewportPx();
+                proj = rasterFitProjectionScale(rasterSize, sz) * proj;
+            }
             view = rasterEntry->shot.viewMatrix();
         } else {
             proj.setToIdentity();
