@@ -683,7 +683,7 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_rasterSampler) {
         m_rasterSampler.reset(
-            m_rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
+            m_rhi->newSampler(QRhiSampler::Nearest, QRhiSampler::Nearest, QRhiSampler::None,
                               QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
         if (!m_rasterSampler || !m_rasterSampler->create()) {
             m_rasterSampler.reset();

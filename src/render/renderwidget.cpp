@@ -1649,6 +1649,8 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
             return false;
         }
         m_depthPickPending = false;
+        resetRasterView();
+        m_rasterOpacity = 0.75f;
     }
 
     m_viewMode = mode;
@@ -2660,6 +2662,12 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
         return;
     }
     if (m_viewMode == ViewMode::RasterImage) {
+        if (e && (e->button() == Qt::LeftButton || e->button() == Qt::MiddleButton)) {
+            m_rasterPanning = true;
+            m_rasterLastMousePos = e->position().toPoint();
+            e->accept();
+            return;
+        }
         if (e)
             e->accept();
         return;
@@ -2709,6 +2717,18 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
         return;
     }
     if (m_viewMode == ViewMode::RasterImage) {
+        if (e && e->button() == Qt::LeftButton) {
+            const QSize sz(qMax(1, width()), qMax(1, height()));
+            const QVector2D clickedRaster = rasterScreenToImage(e->position(), sz);
+            m_rasterPan = clickedRaster;
+            m_rasterZoom = std::clamp(
+                m_rasterZoom * 1.35f,
+                RenderWidgetInternal::kImageViewMinZoom,
+                RenderWidgetInternal::kImageViewMaxZoom);
+            update();
+            e->accept();
+            return;
+        }
         if (e)
             e->accept();
         return;
@@ -2733,6 +2753,7 @@ void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
         return;
     }
     if (m_viewMode == ViewMode::RasterImage) {
+        m_rasterPanning = false;
         if (e)
             e->accept();
         return;
@@ -2772,6 +2793,15 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
         return;
     }
     if (m_viewMode == ViewMode::RasterImage) {
+        if (!e || !m_rasterPanning)
+            return;
+        const QPointF pos = e->position();
+        const QSize sz(qMax(1, width()), qMax(1, height()));
+        const QVector2D rasterBefore = rasterScreenToImage(QPointF(m_rasterLastMousePos), sz);
+        const QVector2D rasterAfter = rasterScreenToImage(pos, sz);
+        m_rasterPan += (rasterBefore - rasterAfter);
+        m_rasterLastMousePos = pos.toPoint();
+        update();
         if (e)
             e->accept();
         return;
@@ -2853,10 +2883,25 @@ void RenderWidget::wheelEvent(QWheelEvent *e)
             const QPoint numDegrees = e->angleDelta();
             const float steps = float(numDegrees.y()) / 120.0f;
             if (std::abs(steps) >= 1e-4f) {
-                m_rasterOpacity = std::clamp(m_rasterOpacity + steps * 0.05f, 0.0f, 1.0f);
-                showInteractionStatusOverlay(
-                    tr("Raster opacity: %1%").arg(std::lround(m_rasterOpacity * 100.0f)));
-                update();
+                if (e->modifiers() & Qt::ControlModifier) {
+                    m_rasterOpacity = std::clamp(m_rasterOpacity + steps * 0.05f, 0.0f, 1.0f);
+                    showInteractionStatusOverlay(
+                        tr("Raster opacity: %1%").arg(std::lround(m_rasterOpacity * 100.0f)));
+                    update();
+                } else {
+                    const QSize sz(qMax(1, width()), qMax(1, height()));
+                    const QPointF p = e->position();
+                    const QVector2D rasterBefore = rasterScreenToImage(p, sz);
+                    const float oldZoom = qMax(1e-6f, m_rasterZoom);
+                    const float zoomFactor = std::pow(1.15f, steps);
+                    m_rasterZoom = std::clamp(
+                        oldZoom * zoomFactor,
+                        RenderWidgetInternal::kImageViewMinZoom,
+                        RenderWidgetInternal::kImageViewMaxZoom);
+                    const QVector2D rasterAfter = rasterScreenToImage(p, sz);
+                    m_rasterPan += (rasterBefore - rasterAfter);
+                    update();
+                }
             }
             e->accept();
         }

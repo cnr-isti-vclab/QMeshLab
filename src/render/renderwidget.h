@@ -12,6 +12,7 @@
 #include <QMatrix3x3>
 #include <QMatrix4x4>
 #include <QPoint>
+#include <QPointF>
 #include <QString>
 #include <QVector2D>
 #include <array>
@@ -165,6 +166,8 @@ private:
         QMatrix4x4 view;
         QVector3D lightDir;
         float rasterOpacity = 1.0f;
+        float rasterZoom = 1.0f;
+        QVector2D rasterPan = QVector2D(0.5f, 0.5f);
         SceneFillFramePlan sceneFill;
         std::vector<SceneRasterBackplateDrawItem> rasterBackplateItems;
         std::vector<SceneRasterProjectedDrawItem> rasterProjectedItems;
@@ -245,6 +248,8 @@ private:
         QMatrix4x4 view;
         QVector3D lightDir;
         float rasterOpacity = 1.0f;
+        float rasterZoom = 1.0f;
+        QVector2D rasterPan = QVector2D(0.5f, 0.5f);
         RenderFramePassRequests passes;
     };
 
@@ -376,6 +381,11 @@ private:
     void ensureRasterResources(
         QRhiCommandBuffer *cb,
         const RenderFramePassRequests &requests);
+    QSize currentRasterImageSize() const;
+    QVector2D rasterScreenToImage(
+        const QPointF &screenPos,
+        const QSize &pixelSize) const;
+    void resetRasterView();
     void syncUvCacheWithDocument();
     bool meshHasParametrization(int meshIndex) const;
     bool ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb);
@@ -656,7 +666,11 @@ private:
     QPoint m_uvLastMousePos;
     float m_uvZoom = 1.0f;
     QVector2D m_uvPan = QVector2D(0.5f, 0.5f);
-    float m_rasterOpacity = 1.0f;
+    bool m_rasterPanning = false;
+    QPoint m_rasterLastMousePos;
+    float m_rasterZoom = 1.0f;
+    QVector2D m_rasterPan = QVector2D(0.5f, 0.5f);
+    float m_rasterOpacity = 0.75f;
     std::vector<bool> m_meshVisibility;
     std::unordered_map<std::uint64_t, MeshRenderMode> m_meshRenderModes;
     std::unordered_map<std::uint64_t, std::pair<std::uint64_t, std::uint64_t>> m_meshRenderModeRevisions;

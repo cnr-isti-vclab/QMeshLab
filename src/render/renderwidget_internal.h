@@ -7,7 +7,9 @@
 #include <QMatrix4x4>
 #include <QSize>
 #include <QtGlobal>
+#include <QVector2D>
 #include <QVector3D>
+#include <QVector4D>
 #include <rhi/qrhi.h>
 #include <rhi/qshader.h>
 #include <algorithm>
@@ -74,6 +76,56 @@ inline constexpr int kLightGizmoUbufSize = 96;  // mat4 mvp + vec4 lightDir + ve
 inline constexpr int kLightGizmoSteps = 64;
 inline constexpr int kWireframeDefaultFaceThreshold = 10000;
 inline constexpr float kPi = 3.14159265358979323846f;
+inline constexpr float kImageViewMinZoom = 0.05f;
+inline constexpr float kImageViewMaxZoom = 5000.0f;
+
+inline QVector4D fitImageRectNdc(const QSize &imageSize, const QSize &targetSize)
+{
+    if (imageSize.width() <= 0 || imageSize.height() <= 0
+        || targetSize.width() <= 0 || targetSize.height() <= 0) {
+        return QVector4D(0.0f, 0.0f, 1.0f, 1.0f);
+    }
+
+    const float imageAspect = float(imageSize.width()) / float(imageSize.height());
+    const float targetAspect = float(targetSize.width()) / float(targetSize.height());
+    float halfW = 1.0f;
+    float halfH = 1.0f;
+    if (imageAspect > targetAspect)
+        halfH = targetAspect / imageAspect;
+    else
+        halfW = imageAspect / targetAspect;
+    return QVector4D(0.0f, 0.0f, halfW, halfH);
+}
+
+inline QVector4D rasterViewRectNdc(
+    const QSize &imageSize,
+    const QSize &targetSize,
+    float zoom,
+    const QVector2D &pan)
+{
+    const QVector4D fitRect = fitImageRectNdc(imageSize, targetSize);
+    const float halfW = fitRect.z() * qMax(1e-6f, zoom);
+    const float halfH = fitRect.w() * qMax(1e-6f, zoom);
+    return QVector4D(
+        halfW * (1.0f - 2.0f * pan.x()),
+        halfH * (2.0f * pan.y() - 1.0f),
+        halfW,
+        halfH);
+}
+
+inline QMatrix4x4 rasterViewClipMatrix(
+    const QSize &imageSize,
+    const QSize &targetSize,
+    float zoom,
+    const QVector2D &pan)
+{
+    const QVector4D rect = rasterViewRectNdc(imageSize, targetSize, zoom, pan);
+    QMatrix4x4 transform;
+    transform.setToIdentity();
+    transform.translate(rect.x(), rect.y(), 0.0f);
+    transform.scale(rect.z(), rect.w(), 1.0f);
+    return transform;
+}
 
 struct MainStyleUbufKey {
     QColor bboxWireColor;

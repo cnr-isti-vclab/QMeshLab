@@ -57,7 +57,7 @@ The same request object is used for two things:
 1. `prepareDirtyBuffers(...)` asks `Document::ensureMeshGpuResources(...)` only for the cache products needed by the requested passes, plus extra resources needed by current-mesh highlighting.
 2. `buildRenderFramePlan(...)` converts the request into concrete draw items after resources/pipelines are available.
 
-`RenderFrameRequest` adds frame-local state to the pass requests: view mode, pixel size, projection matrix, view matrix, light direction, and raster opacity. `RenderFramePlan` is the concrete in-process result: fill items, buffer items, decorator items, selection items, and raster draw items with QRhi buffers/pipelines and material renderer pointers. Pass presence is derived from non-empty draw-item lists (`hasFillPass()`, `hasSceneDrawItems()`, etc.).
+`RenderFrameRequest` adds frame-local state to the pass requests: view mode, pixel size, projection matrix, view matrix, light direction, and raster overlay state (opacity plus raster pan/zoom in `RasterImage` mode). `RenderFramePlan` is the concrete in-process result: fill items, buffer items, decorator items, selection items, and raster draw items with QRhi buffers/pipelines and material renderer pointers. Pass presence is derived from non-empty draw-item lists (`hasFillPass()`, `hasSceneDrawItems()`, etc.).
 
 This is an internal architecture boundary, not a public serialization contract. The implemented programmatic path serializes camera/render-state intent and lets QMeshLab build the GPU `RenderFramePlan` internally.
 
@@ -169,9 +169,9 @@ Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view 
 
 ## `RasterImage` Frame Sequence
 
-Current status: raster mode reuses the Scene3D request/plan/pass executors for mesh rendering. The active raster image is drawn as a full-viewport background reference. If the raster has a valid `CameraShot`, `CameraShot::viewMatrix()` and `CameraShot::projectionMatrix(...)` provide the frame matrices and visible meshes are rendered through that camera. If no camera is available, raster mode behaves as an image-only view. `RenderFrameRequest::rasterOpacity` is copied into the draw plan and consumed by the raster shaders.
+Current status: raster mode reuses the Scene3D request/plan/pass executors for mesh rendering. The active raster image is drawn as a background reference fitted to the widget while preserving its image aspect ratio. If the raster has a valid `CameraShot`, `CameraShot::viewMatrix()` and `CameraShot::projectionMatrix(...)` provide the frame matrices and visible meshes are rendered through that camera. The same raster pan/zoom transform is applied to both the background image and the raster-camera projection, so image navigation keeps the mesh aligned with the raster. If no camera is available, raster mode behaves as an image-only view.
 
-Raster mode interaction is deliberately minimal in this first implementation: mouse wheel changes per-view raster opacity, while trackball, depth picking, current-mesh outline, and camera synchronization are disabled so the raster camera remains locked. Pan/zoom, fit/native image modes, and camera/mesh overlay controls are the intended GUI follow-up.
+Raster mode interaction mirrors UV mode: left or middle drag pans the raster, wheel zooms around the cursor, and double click zooms in around the clicked image position. Raster mode starts with `75%` opacity. `Ctrl+Wheel` adjusts raster opacity. Trackball motion, depth picking, current-mesh outline, and camera synchronization remain disabled so the raster camera stays locked.
 
 ## Texture Normal-Map Workflow
 

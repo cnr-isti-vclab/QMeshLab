@@ -567,6 +567,8 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
     plan.view = request.view;
     plan.lightDir = request.lightDir;
     plan.rasterOpacity = request.rasterOpacity;
+    plan.rasterZoom = request.rasterZoom;
+    plan.rasterPan = request.rasterPan;
 
     if (request.passes.fill)
         plan.sceneFill = buildSceneFillFramePlan(request);

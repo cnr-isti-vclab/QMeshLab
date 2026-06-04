@@ -42,7 +42,7 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 
 ### `RenderWidget`
 
-`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV` / `RasterImage`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, raster opacity/GPU image resources, per-mesh render modes, per-view visibility vector, camera/render-state JSON capture/apply helpers, help/interaction overlays, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes,raster}.cpp`.
+`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV` / `RasterImage`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, raster pan/zoom/opacity plus GPU image resources, per-mesh render modes, per-view visibility vector, camera/render-state JSON capture/apply helpers, help/interaction overlays, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes,raster}.cpp`.
 
 Scene3D rendering is now organized around two internal data boundaries:
 
@@ -129,7 +129,7 @@ Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `f
 |---|---|
 | mesh geometry and material data | per-mesh render modes/styles |
 | mesh transforms | per-view visibility vector |
-| mesh/raster lists, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster opacity |
+| mesh/raster lists, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster pan/zoom/opacity |
 | document visibility proxy | overlay settings, histogram cache |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
 | undo tree, labels, lanes, snapshots | UV-local GPU cache, raster GPU image cache |

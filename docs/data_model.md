@@ -146,7 +146,7 @@ This split keeps user/render settings as stable input data, pass requests as an 
 |---|---|
 | mesh geometry and material data | per-mesh render modes/styles |
 | mesh transforms | per-view visibility vector |
-| mesh/raster list, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster opacity |
+| mesh/raster list, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster pan/zoom/opacity |
 | document visibility proxy (`MeshEntry::visible`) | overlay settings, histogram cache |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
 | undo tree and node snapshots | UV-local GPU cache (`m_uvMeshGpu`), raster GPU image cache |
