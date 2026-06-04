@@ -77,6 +77,9 @@
 #if QMESH_PLUGIN_FILTER_TRIOPTIMIZE_ENABLED
 #include "plugins/filter_trioptimize/trioptimizefilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_COLOR_PROJECTION_ENABLED
+#include "plugins/filter_color_projection/colorprojectionfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -154,5 +157,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_TRIOPTIMIZE_ENABLED
     registerTriOptimizeFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_COLOR_PROJECTION_ENABLED
+    registerColorProjectionFilterPlugin(pluginManager);
 #endif
 }

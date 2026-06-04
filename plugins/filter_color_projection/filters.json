@@ -1,0 +1,237 @@
+{
+  "pluginId": "qmeshlab.filter.color_projection",
+  "filters": [
+    {
+      "id": "compute_color_from_current_raster_projection",
+      "menuPath": "Raster",
+      "name": "Project Current Raster Color to Current Mesh",
+      "pythonName": "compute_color_from_current_raster_projection",
+      "shortDescription": "Project the current raster image color onto the mesh vertices.",
+      "longDescriptionMarkdown": "Projects color information from the current raster onto the mesh vertices using perspective projection. Optionally uses a software depth buffer to restrict projection to visible faces only.",
+      "tags": ["color", "raster", "projection", "vertex"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        {
+          "id": "usedepth",
+          "label": "Use depth for projection",
+          "help": "If true, a depth buffer is used to restrict projection to visible faces only.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "deptheta",
+          "label": "Depth threshold",
+          "help": "Tolerance value for depth buffer comparison (shadow buffer).",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 100.0,
+          "decimals": 4
+        },
+        {
+          "id": "onselection",
+          "label": "Only on selection",
+          "help": "If true, projection is only applied to selected vertices.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "blankColor",
+          "label": "Color for unprojected areas",
+          "help": "Areas that cannot be projected will be filled with this color. If all channels are 0, the original color is preserved.",
+          "group": "main",
+          "type": "color",
+          "default": "#00000000"
+        }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "compute_color_from_active_rasters_projection",
+      "menuPath": "Raster",
+      "name": "Project Active Rasters Color to Current Mesh",
+      "pythonName": "compute_color_from_active_rasters_projection",
+      "shortDescription": "Project color from all visible rasters onto the mesh vertices with weighted blending.",
+      "longDescriptionMarkdown": "Projects color information from all visible and valid rasters onto the mesh vertices using perspective projection and weighted blending. Weights can account for view angle, distance, image border proximity, depth discontinuities, and image alpha.",
+      "tags": ["color", "raster", "projection", "vertex", "multi"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        {
+          "id": "deptheta",
+          "label": "Depth threshold",
+          "help": "Tolerance value for depth buffer comparison (shadow buffer).",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 100.0,
+          "decimals": 4
+        },
+        {
+          "id": "onselection",
+          "label": "Only on selection",
+          "help": "If true, projection is only applied to selected vertices.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "useangle",
+          "label": "Use angle weight",
+          "help": "If true, color contribution is weighted by the angle between the surface normal and the view direction.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "usedistance",
+          "label": "Use distance weight",
+          "help": "If true, color contribution is weighted by the vertex distance from the camera.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "useborders",
+          "label": "Use image border weight",
+          "help": "If true, color contribution is weighted by the pixel distance from the image boundaries.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "usesilhouettes",
+          "label": "Use depth discontinuity weight",
+          "help": "If true, color contribution is weighted by the pixel distance from depth discontinuities (silhouettes).",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "usealpha",
+          "label": "Use image alpha weight",
+          "help": "If true, the alpha channel of the raster image is used as an additional weight.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "blankColor",
+          "label": "Color for unprojected areas",
+          "help": "Areas with no valid projection will be filled with this color. If all channels are 0, the original color is preserved.",
+          "group": "main",
+          "type": "color",
+          "default": "#00000000"
+        }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
+      "id": "compute_color_and_texture_from_active_rasters_projection",
+      "menuPath": "Raster",
+      "name": "Project Active Rasters Color to Current Mesh Texture",
+      "pythonName": "compute_color_and_texture_from_active_rasters_projection",
+      "shortDescription": "Project color from all visible rasters onto a new mesh texture using wedge UV coordinates.",
+      "longDescriptionMarkdown": "Projects color information from all visible and valid rasters onto a new texture image, using the mesh's existing wedge UV coordinates. The result is saved as a texture image and associated with the mesh.",
+      "tags": ["color", "raster", "projection", "texture", "multi"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireFaces": true, "requireTextureCoordinates": true },
+      "parameters": [
+        {
+          "id": "textName",
+          "label": "Texture file",
+          "help": "Output texture image file path.",
+          "group": "main",
+          "type": "filesave",
+          "default": "projected_texture.png",
+          "fileDialogTitle": "Choose Output Texture File",
+          "fileNameFilters": [
+            "PNG Image (*.png)",
+            "JPEG Image (*.jpg *.jpeg)",
+            "BMP Image (*.bmp)",
+            "TIFF Image (*.tif *.tiff)"
+          ],
+          "fileDefaultSuffix": "png"
+        },
+        {
+          "id": "texsize",
+          "label": "Texture size (px)",
+          "help": "Square texture image size in pixels. Should be a power of 2.",
+          "group": "main",
+          "type": "int",
+          "default": 1024,
+          "min": 64,
+          "max": 16384
+        },
+        {
+          "id": "dorefill",
+          "label": "Fill atlas gaps",
+          "help": "If true, unfilled areas of the texture atlas are interpolated using PullPush to avoid visible seams when mipmapping.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "deptheta",
+          "label": "Depth threshold",
+          "help": "Tolerance value for depth buffer comparison (shadow buffer).",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 100.0,
+          "decimals": 4
+        },
+        {
+          "id": "useangle",
+          "label": "Use angle weight",
+          "help": "If true, color contribution is weighted by the angle between the surface normal and the view direction.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "usedistance",
+          "label": "Use distance weight",
+          "help": "If true, color contribution is weighted by the texel distance from the camera.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "useborders",
+          "label": "Use image border weight",
+          "help": "If true, color contribution is weighted by the pixel distance from the image boundaries.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "usesilhouettes",
+          "label": "Use depth discontinuity weight",
+          "help": "If true, color contribution is weighted by the pixel distance from depth discontinuities (silhouettes).",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "usealpha",
+          "label": "Use image alpha weight",
+          "help": "If true, the alpha channel of the raster image is used as an additional weight.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": ["WT"]
+    }
+  ]
+}
