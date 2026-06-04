@@ -12,6 +12,9 @@
 #include <vcg/complex/algorithms/update/topology.h>
 #include <QColor>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QMap>
 #include <QObject>
 #include <QSet>
@@ -21,6 +24,38 @@
 
 namespace {
 constexpr QLatin1StringView kKeySeparator("::");
+
+bool validateStateJsonPayload(
+    const QString &value,
+    const QString &requiredKind,
+    const QString &prefix,
+    QString &errorMessage)
+{
+    if (value.trimmed().isEmpty()) {
+        errorMessage = QObject::tr("%1 cannot be empty.").arg(prefix);
+        return false;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(value.toUtf8(), &parseError);
+    if (doc.isNull() || !doc.isObject()) {
+        errorMessage = QObject::tr("%1 must be a valid JSON object (%2).")
+                           .arg(prefix)
+                           .arg(parseError.errorString());
+        return false;
+    }
+
+    const QJsonObject root = doc.object();
+    const QString kind = root.value(QStringLiteral("kind")).toString().trimmed();
+    if (kind != requiredKind) {
+        errorMessage = QObject::tr("%1 has invalid kind '%2' (expected '%3').")
+                           .arg(prefix)
+                           .arg(kind)
+                           .arg(requiredKind);
+        return false;
+    }
+    return true;
+}
 
 // Holds the OCF enable/disable state for one filter invocation.
 // Constructed by prepareMeshForFilter(); must stay alive while the filter runs.
@@ -384,6 +419,8 @@ QVariant defaultValueForParameter(const MeshFilterParameterDescriptor &parameter
     case MeshFilterParameterType::String:
     case MeshFilterParameterType::FileOpen:
     case MeshFilterParameterType::FileSave:
+    case MeshFilterParameterType::CameraState:
+    case MeshFilterParameterType::RenderState:
         return QString();
     case MeshFilterParameterType::Enum:
         if (!parameter.enumOptions.empty())
@@ -971,6 +1008,20 @@ bool MeshFilterPluginManager::convertParameterValue(
                 return false;
             }
         }
+        outputValue = value;
+        return true;
+    }
+    case MeshFilterParameterType::CameraState: {
+        const QString value = inputValue.toString().trimmed();
+        if (!validateStateJsonPayload(value, QStringLiteral("QMeshLab.CameraState"), prefix, errorMessage))
+            return false;
+        outputValue = value;
+        return true;
+    }
+    case MeshFilterParameterType::RenderState: {
+        const QString value = inputValue.toString().trimmed();
+        if (!validateStateJsonPayload(value, QStringLiteral("QMeshLab.RenderState"), prefix, errorMessage))
+            return false;
         outputValue = value;
         return true;
     }

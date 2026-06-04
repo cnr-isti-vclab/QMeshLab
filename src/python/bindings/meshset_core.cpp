@@ -221,6 +221,30 @@ void MeshSetCore::saveCurrentMesh(const std::string &path)
         throw std::runtime_error("Failed to save current mesh: " + path);
 }
 
+int MeshSetCore::rasterCount() const
+{
+    return m_document->rasterCount();
+}
+
+int MeshSetCore::currentRasterIndex() const
+{
+    return m_document->currentRasterIndex();
+}
+
+void MeshSetCore::setCurrentRaster(int index)
+{
+    if (index < 0 || index >= m_document->rasterCount())
+        throw std::runtime_error("Raster index out of range.");
+    m_document->setCurrentRasterIndex(index);
+}
+
+void MeshSetCore::loadRasterImage(const std::string &path)
+{
+    const int idx = m_document->loadRasterImage(toQString(path));
+    if (idx < 0)
+        throw std::runtime_error("Failed to load raster image: " + path);
+}
+
 std::vector<FilterInfoRecord> MeshSetCore::listFilters() const
 {
     const auto filters = m_document->filterInfos();

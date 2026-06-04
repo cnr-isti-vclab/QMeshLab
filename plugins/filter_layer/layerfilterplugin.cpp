@@ -2,6 +2,12 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include <QFile>
+#include <QFileInfo>
+#include <QImage>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QMatrix4x4>
 #include <QVector4D>
 #include <wrap/io_trimesh/io_mask.h>
@@ -25,6 +31,7 @@ constexpr QLatin1StringView kDeleteCurrent("delete_current_mesh");
 constexpr QLatin1StringView kDeleteHidden("delete_non_visible_meshes");
 constexpr QLatin1StringView kFlatten("generate_by_merging_visible_meshes");
 constexpr QLatin1StringView kRenameMesh("set_mesh_name");
+constexpr QLatin1StringView kRenderFromRenderStateJson("render_from_render_state_json");
 using Mask = vcg::tri::io::Mask;
 using Sel = vcg::tri::UpdateSelection<VCGMesh>;
 
@@ -133,6 +140,39 @@ QString mergedLayerName()
     return QObject::tr("Merged Mesh");
 }
 
+bool mergeCameraStateIntoRenderState(
+    const QString &cameraStateJson,
+    const QString &renderStateJson,
+    QString &outMergedRenderState,
+    QString &errorMessage)
+{
+    QJsonParseError renderErr;
+    const QJsonDocument renderDoc = QJsonDocument::fromJson(renderStateJson.toUtf8(), &renderErr);
+    if (renderDoc.isNull() || !renderDoc.isObject()) {
+        errorMessage = QObject::tr("Invalid render-state JSON: %1").arg(renderErr.errorString());
+        return false;
+    }
+    QJsonObject renderRoot = renderDoc.object();
+
+    QJsonParseError cameraErr;
+    const QJsonDocument cameraDoc = QJsonDocument::fromJson(cameraStateJson.toUtf8(), &cameraErr);
+    if (cameraDoc.isNull() || !cameraDoc.isObject()) {
+        errorMessage = QObject::tr("Invalid camera-state JSON: %1").arg(cameraErr.errorString());
+        return false;
+    }
+    const QJsonObject cameraRoot = cameraDoc.object();
+
+    const QJsonObject cameraTrackball = cameraRoot.value(QStringLiteral("trackball")).toObject();
+    if (!cameraTrackball.isEmpty()) {
+        renderRoot.insert(QStringLiteral("trackball"), cameraTrackball);
+    } else {
+        renderRoot.insert(QStringLiteral("trackball"), cameraRoot);
+    }
+
+    outMergedRenderState = QString::fromUtf8(QJsonDocument(renderRoot).toJson(QJsonDocument::Compact));
+    return true;
+}
+
 } // namespace
 
 QString LayerFilterPlugin::pluginId() const
@@ -150,6 +190,66 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
     const FilterParams &params,
     Document &doc) const
 {
+    if (filterId == QString::fromLatin1(kRenderFromRenderStateJson)) {
+        QString renderStateJson = params.getRenderState(QStringLiteral("render_state")).trimmed();
+        const QString cameraStateJson = params.getCameraState(QStringLiteral("camera_state")).trimmed();
+        if (renderStateJson.isEmpty()) {
+            return fail(QObject::tr("No render-state JSON provided."));
+        }
+        if (cameraStateJson.isEmpty()) {
+            return fail(QObject::tr("No camera-state JSON provided."));
+        }
+
+        QString mergedRenderStateJson;
+        QString mergeError;
+        if (!mergeCameraStateIntoRenderState(cameraStateJson, renderStateJson, mergedRenderStateJson, mergeError)) {
+            return fail(QObject::tr("Render-state preparation failed: %1").arg(mergeError));
+        }
+
+        const int w = std::max(0, params.getInt(QStringLiteral("output_width"), 0));
+        const int h = std::max(0, params.getInt(QStringLiteral("output_height"), 0));
+        const QSize targetSize = (w > 0 && h > 0) ? QSize(w, h) : QSize();
+
+        QImage snapshot;
+        CameraShot shot;
+        QString captureError;
+        if (!doc.renderSnapshotFromStateJson(mergedRenderStateJson, targetSize, snapshot, shot, &captureError)) {
+            return fail(QObject::tr("Render from state JSON failed: %1").arg(captureError));
+        }
+        if (snapshot.isNull())
+            return fail(QObject::tr("Render from state JSON produced an empty image."));
+
+        bool modified = false;
+        QStringList info;
+
+        const QString savePath = params.getFileSave(QStringLiteral("save_png_path")).trimmed();
+        if (!savePath.isEmpty()) {
+            if (!snapshot.save(savePath, "PNG")) {
+                return fail(QObject::tr("Failed to save PNG snapshot to '%1'.").arg(savePath));
+            }
+            info << QObject::tr("Saved PNG snapshot: %1").arg(savePath);
+        }
+
+        if (params.getBool(QStringLiteral("add_as_raster"), true)) {
+            const QString requestedName = params.getString(QStringLiteral("raster_name")).trimmed();
+            const QString rasterName = requestedName.isEmpty()
+                ? QObject::tr("Programmatic Render")
+                : requestedName;
+            const QString rasterSourcePath = savePath.isEmpty() ? QString() : QFileInfo(savePath).absoluteFilePath();
+            const int rasterIndex = doc.addRasterImage(snapshot, rasterName, rasterSourcePath, shot);
+            if (rasterIndex < 0)
+                return fail(QObject::tr("Failed to add rendered snapshot as raster layer."));
+            modified = true;
+            info << QObject::tr("Added raster layer '%1'.").arg(doc.raster(rasterIndex).name);
+        }
+
+        if (savePath.isEmpty() && !params.getBool(QStringLiteral("add_as_raster"), true)) {
+            info << QObject::tr("Snapshot rendered successfully (no output target selected).");
+        }
+
+        return successInfo(modified, info);
+    }
+
     const int currentIndex = doc.currentMeshIndex();
 
     if (filterId == QString::fromLatin1(kDeleteHidden)) {

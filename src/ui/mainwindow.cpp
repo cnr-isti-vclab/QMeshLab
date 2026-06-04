@@ -185,6 +185,10 @@ QString filterParameterTypeLabel(MeshFilterParameterType type)
         return QObject::tr("Color");
     case MeshFilterParameterType::Point3f:
         return QObject::tr("3D Point");
+    case MeshFilterParameterType::CameraState:
+        return QObject::tr("Camera State JSON");
+    case MeshFilterParameterType::RenderState:
+        return QObject::tr("Render State JSON");
     }
     return QObject::tr("Unknown");
 }
@@ -211,6 +215,8 @@ QString filterParameterValueText(const QVariant &value, MeshFilterParameterType 
     case MeshFilterParameterType::TextureOutputRef:
     case MeshFilterParameterType::Enum:
     case MeshFilterParameterType::Color:
+    case MeshFilterParameterType::CameraState:
+    case MeshFilterParameterType::RenderState:
         if (type == MeshFilterParameterType::TextureOutputRef && value.userType() == QMetaType::QVariantMap) {
             const QVariantMap map = value.toMap();
             const QString mode = map.value(QStringLiteral("mode")).toString().trimmed().toLower();
@@ -470,6 +476,61 @@ MainWindow::MainWindow(QWidget *parent)
                 v->restoreViewState(vs, restoreCamera);
         });
 
+    m_doc->setRenderStateSnapshotFunction(
+        [this](const QString &renderStateJson,
+               const QSize &pixelSize,
+               QImage &outImage,
+               CameraShot &outShot,
+               QString &errorMessage) -> bool {
+            RenderWidget *view = currentRenderWidget();
+            if (!view) {
+                errorMessage = tr("No active view");
+                return false;
+            }
+
+            const QString previousRenderState = view->renderStateJson();
+            QString applyError;
+            if (!view->applyRenderStateJson(renderStateJson, &applyError)) {
+                errorMessage = applyError;
+                return false;
+            }
+
+            const qreal dpr = qMax(1.0, view->devicePixelRatioF());
+            const QSize snapshotSize =
+                pixelSize.isValid()
+                ? pixelSize
+                : QSize(
+                    qMax(1, int(std::lround(double(view->width()) * dpr))),
+                    qMax(1, int(std::lround(double(view->height()) * dpr))));
+
+            QString captureError;
+            outImage = renderSnapshotOffscreen(view, snapshotSize, &captureError);
+            outShot = view->cameraShotForViewport(snapshotSize);
+
+            QString restoreError;
+            if (!view->applyRenderStateJson(previousRenderState, &restoreError)) {
+                if (outImage.isNull()) {
+                    errorMessage = tr("Failed to restore previous render state after snapshot: %1")
+                                     .arg(restoreError);
+                    return false;
+                }
+                m_doc->writeLog(
+                    tr("Warning: failed to restore previous render state after snapshot: %1")
+                        .arg(restoreError),
+                    Document::LogSource::Application);
+            }
+
+            if (outImage.isNull()) {
+                errorMessage = captureError.isEmpty()
+                    ? tr("Render target capture failed")
+                    : captureError;
+                return false;
+            }
+
+            errorMessage.clear();
+            return true;
+        });
+
 #ifdef QMESHLAB_PYTHON_CONSOLE
     m_terminalButton = new QToolButton(this);
     m_terminalButton->setText(QStringLiteral(">_"));
@@ -550,6 +611,18 @@ MainWindow::MainWindow(QWidget *parent)
             return {};
         RenderWidget *v = m_renderWidgets.constFirst();
         return { v->trackballCenter(), v->cameraEyePosition(), v->cameraViewDirection() };
+    });
+    m_filterPanel->setCameraStateProvider([this]() -> QString {
+        if (m_renderWidgets.isEmpty())
+            return QString();
+        RenderWidget *v = m_renderWidgets.constFirst();
+        return v ? v->cameraStateJson() : QString();
+    });
+    m_filterPanel->setRenderStateProvider([this]() -> QString {
+        if (m_renderWidgets.isEmpty())
+            return QString();
+        RenderWidget *v = m_renderWidgets.constFirst();
+        return v ? v->renderStateJson() : QString();
     });
     m_filterDock = new QDockWidget(tr("Filters"), this);
     m_filterDock->setWidget(m_filterPanel);

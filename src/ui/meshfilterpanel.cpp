@@ -6,6 +6,7 @@
 #include <QCursor>
 #include <QDoubleSpinBox>
 #include <QEvent>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -18,6 +19,7 @@
 #include <QMenu>
 #include <QPalette>
 #include <QPushButton>
+#include <QPlainTextEdit>
 #include <QSignalBlocker>
 #include <QScrollArea>
 #include <QSpinBox>
@@ -225,6 +227,146 @@ private:
     QString m_defaultSuffix;
     const Document *m_doc = nullptr;
     QLineEdit *m_lineEdit = nullptr;
+};
+
+class JsonStateEditor : public QWidget
+{
+public:
+    explicit JsonStateEditor(
+        const QString &fileDialogTitle,
+        const QStringList &fileNameFilters,
+        const Document *doc,
+        std::function<QString()> currentViewProvider,
+        QWidget *parent = nullptr)
+        : QWidget(parent)
+        , m_currentViewProvider(std::move(currentViewProvider))
+    {
+        auto *layout = new QVBoxLayout(this);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(4);
+
+        m_sourceCombo = new QComboBox(this);
+        m_sourceCombo->addItem(QObject::tr("Text"), QStringLiteral("text"));
+        m_sourceCombo->addItem(QObject::tr("File"), QStringLiteral("file"));
+        m_sourceCombo->addItem(QObject::tr("Current View"), QStringLiteral("current"));
+        layout->addWidget(m_sourceCombo);
+
+        m_stack = new QStackedWidget(this);
+
+        auto *textPage = new QWidget(m_stack);
+        auto *textLayout = new QVBoxLayout(textPage);
+        textLayout->setContentsMargins(0, 0, 0, 0);
+        textLayout->setSpacing(4);
+        m_textEdit = new QPlainTextEdit(textPage);
+        m_textEdit->setPlaceholderText(QObject::tr("Paste JSON payload here..."));
+        m_textEdit->setMinimumHeight(110);
+        textLayout->addWidget(m_textEdit);
+        m_stack->addWidget(textPage);
+
+        auto *filePage = new QWidget(m_stack);
+        auto *fileLayout = new QVBoxLayout(filePage);
+        fileLayout->setContentsMargins(0, 0, 0, 0);
+        fileLayout->setSpacing(4);
+        m_fileEditor = new FilePathEditor(
+            FilePathEditor::Mode::OpenFile,
+            fileDialogTitle,
+            fileNameFilters,
+            QString(),
+            doc,
+            filePage);
+        fileLayout->addWidget(m_fileEditor);
+        m_stack->addWidget(filePage);
+
+        auto *currentPage = new QWidget(m_stack);
+        auto *currentLayout = new QVBoxLayout(currentPage);
+        currentLayout->setContentsMargins(0, 0, 0, 0);
+        currentLayout->setSpacing(4);
+        m_captureCurrentButton = new QToolButton(currentPage);
+        m_captureCurrentButton->setText(QObject::tr("Capture Current View"));
+        m_captureCurrentButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        currentLayout->addWidget(m_captureCurrentButton, 0, Qt::AlignLeft);
+        m_currentPreview = new QPlainTextEdit(currentPage);
+        m_currentPreview->setReadOnly(true);
+        m_currentPreview->setMinimumHeight(110);
+        currentLayout->addWidget(m_currentPreview);
+        m_stack->addWidget(currentPage);
+
+        layout->addWidget(m_stack);
+
+        connect(m_sourceCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int index) {
+            m_stack->setCurrentIndex(index);
+            if (sourceMode() == QStringLiteral("current"))
+                refreshCurrentPreview();
+        });
+        connect(m_captureCurrentButton, &QToolButton::clicked, this, [this]() {
+            refreshCurrentPreview();
+        });
+
+        m_sourceCombo->setCurrentIndex(2);
+        m_stack->setCurrentIndex(2);
+        refreshCurrentPreview();
+    }
+
+    void setValue(const QString &value)
+    {
+        const QString trimmed = value.trimmed();
+        if (!trimmed.isEmpty()) {
+            m_sourceCombo->setCurrentIndex(0);
+            m_stack->setCurrentIndex(0);
+            m_textEdit->setPlainText(value);
+            return;
+        }
+        m_sourceCombo->setCurrentIndex(2);
+        m_stack->setCurrentIndex(2);
+        refreshCurrentPreview();
+    }
+
+    QString value() const
+    {
+        const QString mode = sourceMode();
+        if (mode == QStringLiteral("file")) {
+            const QString path = m_fileEditor ? m_fileEditor->value().trimmed() : QString();
+            if (path.isEmpty())
+                return QString();
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+                return QString();
+            return QString::fromUtf8(f.readAll()).trimmed();
+        }
+        if (mode == QStringLiteral("current")) {
+            const QString payload = m_currentViewProvider ? m_currentViewProvider().trimmed() : QString();
+            if (payload.isEmpty())
+                return m_currentPreview ? m_currentPreview->toPlainText().trimmed() : QString();
+            return payload;
+        }
+        return m_textEdit ? m_textEdit->toPlainText().trimmed() : QString();
+    }
+
+private:
+    QString sourceMode() const
+    {
+        return m_sourceCombo ? m_sourceCombo->currentData().toString() : QStringLiteral("text");
+    }
+
+    void refreshCurrentPreview()
+    {
+        if (!m_currentPreview)
+            return;
+        const QString payload = m_currentViewProvider ? m_currentViewProvider().trimmed() : QString();
+        if (payload.isEmpty()) {
+            m_currentPreview->setPlainText(QObject::tr("Current view payload is unavailable."));
+        } else {
+            m_currentPreview->setPlainText(payload);
+        }
+    }
+
+    std::function<QString()> m_currentViewProvider;
+    QComboBox *m_sourceCombo = nullptr;
+    QStackedWidget *m_stack = nullptr;
+    QPlainTextEdit *m_textEdit = nullptr;
+    FilePathEditor *m_fileEditor = nullptr;
+    QToolButton *m_captureCurrentButton = nullptr;
+    QPlainTextEdit *m_currentPreview = nullptr;
 };
 
 QString textureChoiceLabel(const Document::MeshEntry &entry, int slotIndex)
@@ -722,6 +864,16 @@ void MeshFilterPanel::setTrackballCenterProvider(std::function<QVector3D()> fn)
     };
 }
 
+void MeshFilterPanel::setCameraStateProvider(std::function<QString()> fn)
+{
+    m_cameraStateProvider = std::move(fn);
+}
+
+void MeshFilterPanel::setRenderStateProvider(std::function<QString()> fn)
+{
+    m_renderStateProvider = std::move(fn);
+}
+
 
 void MeshFilterPanel::buildUi()
 {
@@ -837,6 +989,14 @@ void MeshFilterPanel::buildUi()
                 } else {
                     lit = QStringLiteral("[0, 0, 0]");
                 }
+                break;
+            }
+            case MeshFilterParameterType::CameraState:
+            case MeshFilterParameterType::RenderState: {
+                QString s = v.toString();
+                s.replace(QStringLiteral("\\"), QStringLiteral("\\\\"));
+                s.replace(QStringLiteral("\""), QStringLiteral("\\\""));
+                lit = QStringLiteral("\"%1\"").arg(s);
                 break;
             }
             default: {
@@ -1436,6 +1596,32 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
             editor = w;
             break;
         }
+        case MeshFilterParameterType::CameraState: {
+            auto *w = new JsonStateEditor(
+                param.fileDialogTitle.isEmpty() ? tr("Open Camera-State JSON") : param.fileDialogTitle,
+                param.fileNameFilters.isEmpty()
+                    ? QStringList{ tr("JSON files (*.json)"), tr("All files (*)") }
+                    : param.fileNameFilters,
+                m_doc,
+                m_cameraStateProvider,
+                m_parametersWidget);
+            w->setValue(param.defaultValue.toString());
+            editor = w;
+            break;
+        }
+        case MeshFilterParameterType::RenderState: {
+            auto *w = new JsonStateEditor(
+                param.fileDialogTitle.isEmpty() ? tr("Open Render-State JSON") : param.fileDialogTitle,
+                param.fileNameFilters.isEmpty()
+                    ? QStringList{ tr("JSON files (*.json)"), tr("All files (*)") }
+                    : param.fileNameFilters,
+                m_doc,
+                m_renderStateProvider,
+                m_parametersWidget);
+            w->setValue(param.defaultValue.toString());
+            editor = w;
+            break;
+        }
         }
 
         if (!editor)
@@ -1496,6 +1682,19 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
         } else if (auto *w = dynamic_cast<Point3fEditor *>(editor)) {
             for (QDoubleSpinBox *spin : w->findChildren<QDoubleSpinBox *>()) {
                 connect(spin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double) { refreshCurrentFilterApplicability(); });
+            }
+        } else if (auto *w = dynamic_cast<JsonStateEditor *>(editor)) {
+            if (QComboBox *combo = w->findChild<QComboBox *>()) {
+                connect(combo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) { refreshCurrentFilterApplicability(); });
+            }
+            for (QLineEdit *lineEdit : w->findChildren<QLineEdit *>()) {
+                connect(lineEdit, &QLineEdit::textChanged, this, [this](const QString &) { refreshCurrentFilterApplicability(); });
+            }
+            for (QPlainTextEdit *textEdit : w->findChildren<QPlainTextEdit *>()) {
+                connect(textEdit, &QPlainTextEdit::textChanged, this, [this]() { refreshCurrentFilterApplicability(); });
+            }
+            for (QToolButton *btn : w->findChildren<QToolButton *>()) {
+                connect(btn, &QToolButton::clicked, this, [this]() { refreshCurrentFilterApplicability(); });
             }
         }
     }
@@ -1668,6 +1867,12 @@ void MeshFilterPanel::applyParameterValuesToEditors(const MeshFilterParameterVal
             }
             break;
         }
+        case MeshFilterParameterType::CameraState:
+        case MeshFilterParameterType::RenderState: {
+            if (auto *w = dynamic_cast<JsonStateEditor *>(editor))
+                w->setValue(value.toString());
+            break;
+        }
         }
     }
     refreshDependentParameterEditors();
@@ -1712,6 +1917,9 @@ QVariant MeshFilterPanel::parameterValue(const ParameterBinding &binding) const
         return colorFromVariant(editor->property("filterColor"), QColor(Qt::white));
     case MeshFilterParameterType::Point3f:
         return QVariant::fromValue(dynamic_cast<Point3fEditor *>(editor)->value());
+    case MeshFilterParameterType::CameraState:
+    case MeshFilterParameterType::RenderState:
+        return dynamic_cast<JsonStateEditor *>(editor)->value();
     }
     return {};
 }

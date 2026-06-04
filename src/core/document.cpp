@@ -1182,6 +1182,39 @@ void Document::setViewStateFunctions(
     m_restoreViewState = std::move(restore);
 }
 
+void Document::setRenderStateSnapshotFunction(
+    std::function<bool(const QString &, const QSize &, QImage &, CameraShot &, QString &)> capture)
+{
+    m_captureRenderStateSnapshot = std::move(capture);
+}
+
+bool Document::renderSnapshotFromStateJson(
+    const QString &renderStateJson,
+    const QSize &pixelSize,
+    QImage &outImage,
+    CameraShot &outShot,
+    QString *errorMessage) const
+{
+    if (!m_captureRenderStateSnapshot) {
+        if (errorMessage)
+            *errorMessage = tr("No render-state snapshot provider is available.");
+        return false;
+    }
+
+    QString localError;
+    const bool ok = m_captureRenderStateSnapshot(
+        renderStateJson,
+        pixelSize,
+        outImage,
+        outShot,
+        localError);
+    if (!ok && errorMessage)
+        *errorMessage = localError;
+    if (ok && errorMessage)
+        errorMessage->clear();
+    return ok;
+}
+
 bool Document::updateUndoNodeCamera(int nodeId)
 {
     if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
@@ -2372,6 +2405,30 @@ void Document::setRasterShot(int index, const CameraShot &shot, const QString &c
 void Document::setCurrentRasterIndex(int index)
 {
     setCurrentRasterIndexInternal(index, true);
+}
+
+void Document::setCurrentRasterPlaneIndex(int rasterIndex, int planeIndex)
+{
+    if (rasterIndex < 0 || rasterIndex >= rasterCount())
+        return;
+    RasterEntry &entry = raster(rasterIndex);
+    if (planeIndex < 0 || planeIndex >= int(entry.planes.size()))
+        return;
+    if (entry.currentPlaneIndex == planeIndex)
+        return;
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Select Raster Plane"));
+
+    entry.currentPlaneIndex = planeIndex;
+    writeLog(
+        tr("Raster '%1': selected plane %2").arg(entry.name).arg(planeIndex),
+        LogSource::Application);
+    emit rasterDataChanged(rasterIndex);
+
+    if (ownUndoStep)
+        endUndoStep(true);
 }
 
 void Document::setCurrentRasterIndexInternal(int index, bool makeCurrentLayer)

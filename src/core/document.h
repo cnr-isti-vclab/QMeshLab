@@ -204,6 +204,14 @@ public:
     void endUndoStep(bool commit = true, bool restoreOnCancel = false);
     void setViewStateFunctions(std::function<ViewState()> capture,
                                 std::function<void(const ViewState &, bool restoreCamera)> restore);
+    void setRenderStateSnapshotFunction(
+        std::function<bool(const QString &, const QSize &, QImage &, CameraShot &, QString &)> capture);
+    bool renderSnapshotFromStateJson(
+        const QString &renderStateJson,
+        const QSize &pixelSize,
+        QImage &outImage,
+        CameraShot &outShot,
+        QString *errorMessage = nullptr) const;
     bool canUndo() const;
     bool canRedo() const;
     QString undoText() const;
@@ -241,6 +249,7 @@ public:
     void setRasterName(int index, const QString &name);
     void setRasterShot(int index, const CameraShot &shot, const QString &contextMessage = {});
     void setCurrentRasterIndex(int index);
+    void setCurrentRasterPlaneIndex(int rasterIndex, int planeIndex);
     void markRasterImageChanged(int index, const QString &contextMessage = {});
     QMatrix4x4 meshTransform(int index) const;
     void setMeshTransform(
@@ -482,4 +491,5 @@ private:
     std::atomic<bool> m_cancelRequested = false;
     std::function<ViewState()> m_captureViewState;
     std::function<void(const ViewState &, bool restoreCamera)> m_restoreViewState;
+    std::function<bool(const QString &, const QSize &, QImage &, CameraShot &, QString &)> m_captureRenderStateSnapshot;
 };

@@ -43,6 +43,8 @@ public:
     void setRenderSettings(const RenderSettings &settings);
     QString cameraStateJson() const;
     bool applyCameraStateJson(const QString &jsonText, QString *errorMessage = nullptr);
+    QString renderStateJson() const;
+    bool applyRenderStateJson(const QString &jsonText, QString *errorMessage = nullptr);
     ViewMode viewMode() const { return m_viewMode; }
     bool setViewMode(ViewMode mode, QString *errorMessage = nullptr);
     bool meshVisible(int index) const;

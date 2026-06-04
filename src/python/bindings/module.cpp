@@ -34,12 +34,16 @@ NB_MODULE(_qmeshlab, m)
 
     nb::class_<MeshSetCore>(m, "MeshSet")
         .def(nb::init<>())
-        .def("mesh_count",       &MeshSetCore::meshCount)
-        .def("current_mesh",     &MeshSetCore::currentMeshIndex)
-        .def("set_current_mesh", &MeshSetCore::setCurrentMesh, nb::arg("index"))
-        .def("load_new_mesh",    &MeshSetCore::loadNewMesh,    nb::arg("path"))
-        .def("save_current_mesh",&MeshSetCore::saveCurrentMesh,nb::arg("path"))
-        .def("list_filters",     &MeshSetCore::listFilters)
-        .def("apply_filter",     &MeshSetCore::applyFilter,
+        .def("mesh_count",         &MeshSetCore::meshCount)
+        .def("current_mesh",       &MeshSetCore::currentMeshIndex)
+        .def("set_current_mesh",   &MeshSetCore::setCurrentMesh,   nb::arg("index"))
+        .def("load_new_mesh",      &MeshSetCore::loadNewMesh,       nb::arg("path"))
+        .def("save_current_mesh",  &MeshSetCore::saveCurrentMesh,   nb::arg("path"))
+        .def("raster_count",       &MeshSetCore::rasterCount)
+        .def("current_raster",     &MeshSetCore::currentRasterIndex)
+        .def("set_current_raster", &MeshSetCore::setCurrentRaster,  nb::arg("index"))
+        .def("load_raster_image",  &MeshSetCore::loadRasterImage,   nb::arg("path"))
+        .def("list_filters",       &MeshSetCore::listFilters)
+        .def("apply_filter",       &MeshSetCore::applyFilter,
              nb::arg("filter"), nb::arg("params") = nb::dict());
 }

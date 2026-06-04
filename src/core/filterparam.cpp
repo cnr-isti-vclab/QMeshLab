@@ -67,6 +67,16 @@ QVector3D FilterParams::getPoint3f(const QString &id) const
     return getPoint3f(id, QVector3D(0.0f, 0.0f, 0.0f));
 }
 
+QString FilterParams::getCameraState(const QString &id) const
+{
+    return getCameraState(id, QString());
+}
+
+QString FilterParams::getRenderState(const QString &id) const
+{
+    return getRenderState(id, QString());
+}
+
 bool FilterParams::getBool(const QString &id, bool fallback) const
 {
     const auto it = m_values.constFind(id);
@@ -205,4 +215,14 @@ QVector3D FilterParams::getPoint3f(const QString &id, const QVector3D &fallback)
             return QVector3D(x, y, z);
     }
     return fallback;
+}
+
+QString FilterParams::getCameraState(const QString &id, const QString &fallback) const
+{
+    return getString(id, fallback);
+}
+
+QString FilterParams::getRenderState(const QString &id, const QString &fallback) const
+{
+    return getString(id, fallback);
 }

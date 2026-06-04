@@ -45,6 +45,10 @@ public:
     // Legacy name kept for compatibility.
     void setTrackballCenterProvider(std::function<QVector3D()> fn);
 
+    // Provide current-view JSON snapshots for typed camera/render-state parameters.
+    void setCameraStateProvider(std::function<QString()> fn);
+    void setRenderStateProvider(std::function<QString()> fn);
+
 signals:
     void runRequested(
         const QString &filterKey,
@@ -93,6 +97,8 @@ private:
 
     Document *m_doc = nullptr;
     std::function<ViewContext()> m_viewContextProvider;
+    std::function<QString()> m_cameraStateProvider;
+    std::function<QString()> m_renderStateProvider;
     std::vector<Document::FilterInfo> m_filters;
     std::vector<int> m_visibleFilterIndices;
     std::vector<ParameterBinding> m_parameterBindings;

@@ -32,6 +32,8 @@ public:
     QString getEnum  (const QString &id) const;  // returns the selected option id
     QColor  getColor (const QString &id) const;
     QVector3D getPoint3f(const QString &id) const;
+    QString getCameraState(const QString &id) const;
+    QString getRenderState(const QString &id) const;
 
     // Typed access with explicit fallback (use when parameter may be absent)
     bool    getBool  (const QString &id, bool fallback) const;
@@ -48,6 +50,8 @@ public:
     QString getEnum  (const QString &id, const QString &fallback) const;
     QColor  getColor (const QString &id, const QColor &fallback) const;
     QVector3D getPoint3f(const QString &id, const QVector3D &fallback) const;
+    QString getCameraState(const QString &id, const QString &fallback) const;
+    QString getRenderState(const QString &id, const QString &fallback) const;
 
     // Access to the underlying map (for forwarding to functions that still use the raw map)
     const MeshFilterParameterValues &rawValues() const { return m_values; }

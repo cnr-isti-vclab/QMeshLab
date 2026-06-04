@@ -30,6 +30,7 @@ private:
     };
     LayerItemRef layerRefForItem(QTreeWidgetItem *item) const;
     void updateCurrentItemVisuals();
+    void savePlaneImage(int rasterIndex, int planeIndex);
 
 private slots:
     void onItemChanged(QTreeWidgetItem *item, int column);

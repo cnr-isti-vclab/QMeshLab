@@ -3,14 +3,17 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
 #include <QDir>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QFontMetrics>
 #include <QHash>
 #include <QHBoxLayout>
 #include <QImageReader>
+#include <QImageWriter>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLocale>
+#include <QMessageBox>
 #include <QMetaObject>
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -34,6 +37,7 @@ constexpr int kRoleMeshIndex = Qt::UserRole + 1;
 constexpr int kRoleMeshId = Qt::UserRole + 2;
 constexpr int kRoleRasterIndex = Qt::UserRole + 3;
 constexpr int kRoleRasterId = Qt::UserRole + 4;
+constexpr int kRolePlaneIndex = Qt::UserRole + 5;
 constexpr int kLayerKindMesh = 1;
 constexpr int kLayerKindRaster = 2;
 
@@ -1096,7 +1100,17 @@ void LayerWidget::rebuild()
         for (int planeIndex = 0; planeIndex < int(entry.planes.size()); ++planeIndex) {
             const Document::RasterPlane &plane = entry.planes[size_t(planeIndex)];
             auto *planeItem = new QTreeWidgetItem({QString(), tr("Plane %1").arg(planeIndex), QString()});
-            planeItem->setFlags(planeItem->flags() & ~Qt::ItemIsSelectable);
+            planeItem->setData(0, kRolePlaneIndex, planeIndex);
+            // Plane items are selectable so the user can click them to switch the
+            // current plane; they are not check-state items (no eye column).
+            planeItem->setFlags((planeItem->flags() | Qt::ItemIsSelectable | Qt::ItemIsEnabled)
+                & ~Qt::ItemIsUserCheckable);
+            if (planeIndex == entry.currentPlaneIndex) {
+                QFont pf = planeItem->font(1);
+                pf.setBold(true);
+                planeItem->setFont(1, pf);
+                planeItem->setFont(2, pf);
+            }
             const QString path = Document::rasterPlaneSourcePath(plane);
             if (!path.isEmpty()) {
                 planeItem->setToolTip(0, path);
@@ -1191,9 +1205,66 @@ void LayerWidget::updateCurrentItemVisuals()
     }
 }
 
+void LayerWidget::savePlaneImage(int rasterIndex, int planeIndex)
+{
+    if (rasterIndex < 0 || rasterIndex >= m_doc->rasterCount())
+        return;
+    const Document::RasterEntry &entry = m_doc->raster(rasterIndex);
+    if (planeIndex < 0 || planeIndex >= int(entry.planes.size()))
+        return;
+    const Document::RasterPlane &plane = entry.planes[size_t(planeIndex)];
+    if (plane.image.isNull()) {
+        QMessageBox::warning(this, tr("Save Plane Image"), tr("The selected plane has no image data."));
+        return;
+    }
+    const QString defaultName = Document::rasterPlaneDisplayName(plane, planeIndex);
+    const QString path = QFileDialog::getSaveFileName(
+        this,
+        tr("Save Plane Image"),
+        defaultName,
+        tr("PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;BMP Image (*.bmp);;All Files (*)"));
+    if (path.isEmpty())
+        return;
+    if (!plane.image.save(path)) {
+        QMessageBox::critical(this, tr("Save Plane Image"),
+            tr("Failed to save image to:\n%1").arg(path));
+    }
+}
+
 void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
 {
-    const LayerItemRef ref = layerRefForItem(itemAt(event->pos()));
+    QTreeWidgetItem *itemUnderCursor = itemAt(event->pos());
+
+    // Right-click on a plane child item: offer "Set Current Plane" and "Save Plane Image..."
+    if (itemUnderCursor && itemUnderCursor->parent()) {
+        bool planeOk = false;
+        const int planeIndex = itemUnderCursor->data(0, kRolePlaneIndex).toInt(&planeOk);
+        if (planeOk) {
+            const LayerItemRef ref = layerRefForItem(itemUnderCursor);
+            if (ref.kind == LayerItemKind::Raster && ref.index >= 0
+                && planeIndex < int(m_doc->raster(ref.index).planes.size())) {
+                QMenu menu(this);
+                const Document::RasterEntry &entry = m_doc->raster(ref.index);
+                QAction *setPlaneAction = menu.addAction(tr("Set as Current Plane"));
+                setPlaneAction->setEnabled(entry.currentPlaneIndex != planeIndex);
+                connect(setPlaneAction, &QAction::triggered, this,
+                    [this, rasterIndex = ref.index, planeIndex]() {
+                        m_doc->setCurrentRasterPlaneIndex(rasterIndex, planeIndex);
+                    });
+                const Document::RasterPlane &plane = entry.planes[size_t(planeIndex)];
+                QAction *saveAction = menu.addAction(tr("Save Plane Image..."));
+                saveAction->setEnabled(!plane.image.isNull());
+                connect(saveAction, &QAction::triggered, this,
+                    [this, rasterIndex = ref.index, planeIndex]() {
+                        savePlaneImage(rasterIndex, planeIndex);
+                    });
+                menu.exec(event->globalPos());
+                return;
+            }
+        }
+    }
+
+    const LayerItemRef ref = layerRefForItem(itemUnderCursor);
     if (ref.kind == LayerItemKind::Raster && ref.index >= 0) {
         QMenu menu(this);
         QAction *currentAction = menu.addAction(tr("Set Current Raster"));
@@ -1203,6 +1274,14 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
         connect(currentAction, &QAction::triggered, this, [this, index = ref.index]() {
             m_doc->setCurrentRasterIndex(index);
         });
+        const Document::RasterEntry &entry = m_doc->raster(ref.index);
+        const Document::RasterPlane *plane = entry.currentPlane();
+        QAction *saveAction = menu.addAction(tr("Save Current Plane Image..."));
+        saveAction->setEnabled(plane != nullptr && !plane->image.isNull());
+        connect(saveAction, &QAction::triggered, this,
+            [this, index = ref.index]() {
+                savePlaneImage(index, m_doc->raster(index).currentPlaneIndex);
+            });
         QAction *removeAction = menu.addAction(tr("Remove Raster"));
         connect(removeAction, &QAction::triggered, this, [this, index = ref.index]() {
             m_doc->removeRaster(index);
@@ -1289,6 +1368,23 @@ void LayerWidget::onCurrentItemChanged(QTreeWidgetItem *current, QTreeWidgetItem
 {
     if (m_rebuilding)
         return;
+
+    // Check if the clicked item is a plane sub-item (has a valid kRolePlaneIndex).
+    if (current && current->parent()) {
+        bool planeOk = false;
+        const int planeIndex = current->data(0, kRolePlaneIndex).toInt(&planeOk);
+        if (planeOk) {
+            // Walk up to the raster top-level item.
+            const LayerItemRef ref = layerRefForItem(current);
+            if (ref.kind == LayerItemKind::Raster && ref.index >= 0) {
+                m_doc->setCurrentRasterIndex(ref.index);
+                m_doc->setCurrentRasterPlaneIndex(ref.index, planeIndex);
+                updateCurrentItemVisuals();
+                return;
+            }
+        }
+    }
+
     const LayerItemRef ref = layerRefForItem(current);
     if (ref.kind == LayerItemKind::Mesh && ref.index >= 0)
         m_doc->setCurrentMeshIndex(ref.index);

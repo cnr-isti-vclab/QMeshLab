@@ -51,6 +51,11 @@ public:
     void loadNewMesh(const std::string &path);
     void saveCurrentMesh(const std::string &path);
 
+    int rasterCount() const;
+    int currentRasterIndex() const;
+    void setCurrentRaster(int index);
+    void loadRasterImage(const std::string &path);
+
     std::vector<FilterInfoRecord> listFilters() const;
     FilterRunRecord applyFilter(const std::string &filterNameOrKey,
                                 const nanobind::dict &params) const;

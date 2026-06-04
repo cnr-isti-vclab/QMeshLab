@@ -39,7 +39,9 @@ enum class MeshFilterParameterType
     TextureOutputRef,
     Enum,
     Color,
-    Point3f    // 3D point or direction — editor shows X/Y/Z spinboxes with fill-from-context buttons
+    Point3f,    // 3D point or direction — editor shows X/Y/Z spinboxes with fill-from-context buttons
+    CameraState,
+    RenderState
 };
 Q_DECLARE_METATYPE(MeshFilterParameterType)
 

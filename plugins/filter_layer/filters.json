@@ -189,6 +189,86 @@
           "default": ""
         }
       ]
+    },
+    {
+      "id": "render_from_render_state_json",
+      "menuPath": "Layer",
+      "name": "Render from Render-State JSON",
+      "pythonName": "render_from_render_state_json",
+      "shortDescription": "Run a deterministic offscreen render from a serialized render-state JSON payload.",
+      "longDescriptionMarkdown": "Applies a render-state JSON payload to the active view, renders an offscreen snapshot, and optionally saves it as PNG and/or adds it as a raster layer. Useful for reproducible filter-driven rendering workflows.",
+      "tags": ["layer", "render", "snapshot", "json", "automation"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "camera_state",
+          "label": "Camera State",
+          "help": "Camera-state JSON payload (kind = QMeshLab.CameraState). Source can be Text, File, or Current View.",
+          "group": "main",
+          "type": "camerastate",
+          "default": "",
+          "fileDialogTitle": "Open Camera-State JSON",
+          "fileNameFilters": ["JSON files (*.json)", "All files (*)"]
+        },
+        {
+          "id": "render_state",
+          "label": "Render State",
+          "help": "Render-state JSON payload (kind = QMeshLab.RenderState). Source can be Text, File, or Current View.",
+          "group": "main",
+          "type": "renderstate",
+          "default": "",
+          "fileDialogTitle": "Open Render-State JSON",
+          "fileNameFilters": ["JSON files (*.json)", "All files (*)"]
+        },
+        {
+          "id": "output_width",
+          "label": "Output Width (px)",
+          "help": "Output width in pixels. Use 0 to keep the current active view width.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 16384
+        },
+        {
+          "id": "output_height",
+          "label": "Output Height (px)",
+          "help": "Output height in pixels. Use 0 to keep the current active view height.",
+          "group": "main",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 16384
+        },
+        {
+          "id": "save_png_path",
+          "label": "Save PNG Path",
+          "help": "Optional output PNG path. If empty, no PNG file is written.",
+          "group": "main",
+          "type": "file_save",
+          "default": "",
+          "fileDialogTitle": "Save Render Snapshot",
+          "fileNameFilters": ["PNG files (*.png)"],
+          "fileDefaultSuffix": "png"
+        },
+        {
+          "id": "add_as_raster",
+          "label": "Add Snapshot as Raster Layer",
+          "help": "If true, adds the rendered snapshot as a new raster layer in the document.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "raster_name",
+          "label": "Raster Name",
+          "help": "Name used when adding the snapshot as a raster layer.",
+          "group": "advanced",
+          "type": "string",
+          "default": "Programmatic Render"
+        }
+      ]
     }
   ]
 }
