@@ -225,9 +225,10 @@ void RenderWidget::executePendingDepthPick(
         return;
 
     QPointer<RenderWidget> self(this);
+    const int pickSequence = m_depthPickSequence; /* capture at submit time */
     m_depthPickReadbackResult = std::make_unique<QRhiReadbackResult>();
     m_depthPickReadbackResult->completed =
-        [self, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
+        [self, pickSequence, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
         if (!self)
             return;
         const QByteArray data =
@@ -237,9 +238,17 @@ void RenderWidget::executePendingDepthPick(
             : QRhiTexture::UnknownFormat;
         QMetaObject::invokeMethod(
             self,
-            [self, data, format, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
+            [self, pickSequence, data, format, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
             if (!self)
                 return;
+            /* Stale-callback guard: a newer double-click incremented the sequence. */
+            if (pickSequence != self->m_depthPickSequence) {
+                self->m_depthPickInFlight = false;
+                self->m_depthPickReadbackResult.reset();
+                if (self->m_depthPickPending)
+                    self->update();
+                return;
+            }
             self->m_depthPickInFlight = false;
             self->m_depthPickReadbackResult.reset();
 

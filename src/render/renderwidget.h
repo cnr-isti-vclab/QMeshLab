@@ -537,6 +537,7 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_depthPickPointsPipeline;
     bool m_depthPickPending = false;
     bool m_depthPickInFlight = false;
+    int  m_depthPickSequence = 0;       /* monotonically incremented on each new pick */
     QPoint m_depthPickPos;
     std::unique_ptr<QRhiReadbackResult> m_depthPickReadbackResult;
     std::unique_ptr<QRhiTexture> m_currentMaskTexture;

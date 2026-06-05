@@ -2738,6 +2738,7 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
     if (e->button() != Qt::LeftButton)
         return;
     m_depthPickPos = e->position().toPoint();
+    ++m_depthPickSequence;  /* bump sequence so stale async callbacks are rejected */
     m_depthPickPending = true;
     update();
     e->accept();
