@@ -6,10 +6,41 @@
 #include <QFileInfo>
 #include <QHash>
 #include <algorithm>
+#include <cmath>
 
 using namespace RenderWidgetInternal;
 
 namespace {
+bool hasSignificantVertexQuality(const VCGMesh &mesh)
+{
+    if (mesh.vert.empty())
+        return false;
+    float minVal = mesh.vert[0].Q();
+    float maxVal = minVal;
+    for (const auto &v : mesh.vert) {
+        if (v.Q() < minVal)
+            minVal = v.Q();
+        if (v.Q() > maxVal)
+            maxVal = v.Q();
+    }
+    return std::abs(maxVal - minVal) > 1e-5f;
+}
+
+bool hasSignificantFaceQuality(const VCGMesh &mesh)
+{
+    if (mesh.face.empty())
+        return false;
+    float minVal = mesh.face[0].Q();
+    float maxVal = minVal;
+    for (const auto &f : mesh.face) {
+        if (f.Q() < minVal)
+            minVal = f.Q();
+        if (f.Q() > maxVal)
+            maxVal = f.Q();
+    }
+    return std::abs(maxVal - minVal) > 1e-5f;
+}
+
 int findTextureIndexByPath(const Document::MeshEntry &entry, const QString &path)
 {
     const QString wanted = normalizeTexturePath(path);
@@ -78,8 +109,8 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
     const int mask = entry.ioMask;
     const bool hasVertexColors = (mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
     const bool hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
-    const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
-    const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
+    const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0 && hasSignificantVertexQuality(entry.mesh);
+    const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0 && hasSignificantFaceQuality(entry.mesh);
     const bool hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
     const bool hasTextureCoords =
         (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
