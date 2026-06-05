@@ -12,6 +12,9 @@ vcpkg/
 # Local references
 .reference/
 
+# local test models
+tests/local
+
 # macOS
 .DS_Store
 

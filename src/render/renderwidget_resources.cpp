@@ -316,10 +316,11 @@ void RenderWidget::ensureDepthPickResources(const QSize &pixelSize)
     if (!m_depthPickSrb && m_ubuf) {
         m_depthPickSrb.reset(m_rhi->newShaderResourceBindings());
         m_depthPickSrb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
+            QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                 0,
                 QRhiShaderResourceBinding::VertexStage,
-                m_ubuf.get())
+                m_ubuf.get(),
+                kUbufSize)
         });
         if (!m_depthPickSrb->create())
             m_depthPickSrb.reset();
@@ -652,13 +653,34 @@ void RenderWidget::ensureRenderResources()
     if (!m_rhi || !renderTarget())
         return;
 
-    if (!m_ubuf) {
-        // Uniform buffer: mvp + modelView + normalMat + bbox/point/wire/fill parameters
-        m_ubuf.reset(m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kUbufSize));
+    const int meshCount = m_doc ? m_doc->meshCount() : 0;
+    const int rasterCount = m_doc ? m_doc->rasterCount() : 0;
+    const int desiredMainUbufCapacity = qMax(64, meshCount * 32);
+    const int desiredOverlayUbufCapacity = qMax(32, meshCount * 8);
+    const int desiredRasterProjectedUbufCapacity = qMax(8, rasterCount * 4);
+    const quint32 mainUbufStride = quint32(m_rhi->ubufAligned(kUbufSize));
+    const quint32 decoratorUbufStride = quint32(m_rhi->ubufAligned(kDecoratorUbufSize));
+    const quint32 decoratorFatUbufStride = quint32(m_rhi->ubufAligned(kDecoratorFatUbufSize));
+    const quint32 rasterProjectedUbufStride = quint32(m_rhi->ubufAligned(kRasterProjectedUbufSize));
+
+    const bool rebuildMainUbuf =
+        !m_ubuf
+        || m_mainUbufAllocator.stride != mainUbufStride
+        || m_mainUbufAllocator.capacity < desiredMainUbufCapacity;
+    if (rebuildMainUbuf) {
+        m_srb.reset();
+        m_depthPickSrb.reset();
+        m_textureSrbs.clear();
+        m_ubuf.reset(m_rhi->newBuffer(
+            QRhiBuffer::Dynamic,
+            QRhiBuffer::UniformBuffer,
+            mainUbufStride * quint32(desiredMainUbufCapacity)));
         if (!m_ubuf || !m_ubuf->create()) {
             m_ubuf.reset();
             return;
         }
+        m_mainUbufAllocator.stride = mainUbufStride;
+        m_mainUbufAllocator.capacity = desiredMainUbufCapacity;
     }
 
     if (!m_textureSampler) {
@@ -765,10 +787,11 @@ void RenderWidget::ensureRenderResources()
         }
         m_srb.reset(m_rhi->newShaderResourceBindings());
         m_srb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
+            QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                 0,
                 QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                m_ubuf.get()),
+                m_ubuf.get(),
+                kUbufSize),
             QRhiShaderResourceBinding::sampledTexture(
                 1,
                 QRhiShaderResourceBinding::FragmentStage,
@@ -912,23 +935,33 @@ void RenderWidget::ensureRenderResources()
         }
     }
 
-    if (!m_rasterProjectedUbuf) {
+    const bool rebuildRasterProjectedUbuf =
+        !m_rasterProjectedUbuf
+        || m_rasterProjectedUbufAllocator.stride != rasterProjectedUbufStride
+        || m_rasterProjectedUbufAllocator.capacity < desiredRasterProjectedUbufCapacity;
+    if (rebuildRasterProjectedUbuf) {
+        m_rasterProjectedFallbackSrb.reset();
+        for (auto &[id, gpu] : m_rastersGpu)
+            gpu.projectedSrb.reset();
         m_rasterProjectedUbuf.reset(
             m_rhi->newBuffer(
                 QRhiBuffer::Dynamic,
                 QRhiBuffer::UniformBuffer,
-                kRasterProjectedUbufSize));
+                rasterProjectedUbufStride * quint32(desiredRasterProjectedUbufCapacity)));
         if (!m_rasterProjectedUbuf || !m_rasterProjectedUbuf->create())
             m_rasterProjectedUbuf.reset();
+        m_rasterProjectedUbufAllocator.stride = rasterProjectedUbufStride;
+        m_rasterProjectedUbufAllocator.capacity = desiredRasterProjectedUbufCapacity;
     }
 
     if (!m_rasterProjectedFallbackSrb && m_rasterProjectedUbuf) {
         m_rasterProjectedFallbackSrb.reset(m_rhi->newShaderResourceBindings());
         m_rasterProjectedFallbackSrb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
+            QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                 0,
                 QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                m_rasterProjectedUbuf.get())
+                m_rasterProjectedUbuf.get(),
+                kRasterProjectedUbufSize)
         });
         if (!m_rasterProjectedFallbackSrb->create())
             m_rasterProjectedFallbackSrb.reset();
@@ -977,19 +1010,30 @@ void RenderWidget::ensureRenderResources()
     }
 
     for (int slot = 0; slot < kDecoratorSlotCount; ++slot) {
-        if (!m_decoratorUbufs[slot]) {
+        const bool rebuildDecoratorUbuf =
+            !m_decoratorUbufs[slot]
+            || m_decoratorUbufAllocators[slot].stride != decoratorUbufStride
+            || m_decoratorUbufAllocators[slot].capacity < desiredOverlayUbufCapacity;
+        if (rebuildDecoratorUbuf) {
+            m_decoratorSrbs[slot].reset();
             m_decoratorUbufs[slot].reset(
-                m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorUbufSize));
+                m_rhi->newBuffer(
+                    QRhiBuffer::Dynamic,
+                    QRhiBuffer::UniformBuffer,
+                    decoratorUbufStride * quint32(desiredOverlayUbufCapacity)));
             if (!m_decoratorUbufs[slot] || !m_decoratorUbufs[slot]->create())
                 m_decoratorUbufs[slot].reset();
+            m_decoratorUbufAllocators[slot].stride = decoratorUbufStride;
+            m_decoratorUbufAllocators[slot].capacity = desiredOverlayUbufCapacity;
         }
         if (!m_decoratorSrbs[slot] && m_decoratorUbufs[slot]) {
             m_decoratorSrbs[slot].reset(m_rhi->newShaderResourceBindings());
             m_decoratorSrbs[slot]->setBindings({
-                QRhiShaderResourceBinding::uniformBuffer(
+                QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                     0,
                     QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                    m_decoratorUbufs[slot].get())
+                    m_decoratorUbufs[slot].get(),
+                    kDecoratorUbufSize)
             });
             if (!m_decoratorSrbs[slot]->create())
                 m_decoratorSrbs[slot].reset();
@@ -1401,19 +1445,30 @@ void RenderWidget::ensureRenderResources()
         }
     }
 
-    if (!m_selectionUbuf) {
+    const bool rebuildSelectionUbuf =
+        !m_selectionUbuf
+        || m_selectionUbufAllocator.stride != decoratorUbufStride
+        || m_selectionUbufAllocator.capacity < desiredOverlayUbufCapacity;
+    if (rebuildSelectionUbuf) {
+        m_selectionSrb.reset();
         m_selectionUbuf.reset(
-            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorUbufSize));
+            m_rhi->newBuffer(
+                QRhiBuffer::Dynamic,
+                QRhiBuffer::UniformBuffer,
+                decoratorUbufStride * quint32(desiredOverlayUbufCapacity)));
         if (!m_selectionUbuf || !m_selectionUbuf->create())
             m_selectionUbuf.reset();
+        m_selectionUbufAllocator.stride = decoratorUbufStride;
+        m_selectionUbufAllocator.capacity = desiredOverlayUbufCapacity;
     }
     if (!m_selectionSrb && m_selectionUbuf) {
         m_selectionSrb.reset(m_rhi->newShaderResourceBindings());
         m_selectionSrb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
+            QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                 0,
                 QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                m_selectionUbuf.get())
+                m_selectionUbuf.get(),
+                kDecoratorUbufSize)
         });
         if (!m_selectionSrb->create())
             m_selectionSrb.reset();
@@ -1495,19 +1550,30 @@ void RenderWidget::ensureRenderResources()
         }
     }
 
-    if (!m_decoratorFatUbuf) {
+    const bool rebuildDecoratorFatUbuf =
+        !m_decoratorFatUbuf
+        || m_decoratorFatUbufAllocator.stride != decoratorFatUbufStride
+        || m_decoratorFatUbufAllocator.capacity < desiredOverlayUbufCapacity;
+    if (rebuildDecoratorFatUbuf) {
+        m_decoratorFatSrb.reset();
         m_decoratorFatUbuf.reset(
-            m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kDecoratorFatUbufSize));
+            m_rhi->newBuffer(
+                QRhiBuffer::Dynamic,
+                QRhiBuffer::UniformBuffer,
+                decoratorFatUbufStride * quint32(desiredOverlayUbufCapacity)));
         if (!m_decoratorFatUbuf || !m_decoratorFatUbuf->create())
             m_decoratorFatUbuf.reset();
+        m_decoratorFatUbufAllocator.stride = decoratorFatUbufStride;
+        m_decoratorFatUbufAllocator.capacity = desiredOverlayUbufCapacity;
     }
     if (!m_decoratorFatSrb && m_decoratorFatUbuf) {
         m_decoratorFatSrb.reset(m_rhi->newShaderResourceBindings());
         m_decoratorFatSrb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
+            QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                 0,
                 QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                m_decoratorFatUbuf.get())
+                m_decoratorFatUbuf.get(),
+                kDecoratorFatUbufSize)
         });
         if (!m_decoratorFatSrb->create())
             m_decoratorFatSrb.reset();

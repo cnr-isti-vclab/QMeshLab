@@ -236,6 +236,7 @@ public:
     void removeMesh(int index);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
     int loadRasterImage(const QString &filename);
+    int loadMeshLabProject(const QString &filename);
     int addRaster(const RasterEntry &raster);
     int addRasterImage(
         const QImage &image,

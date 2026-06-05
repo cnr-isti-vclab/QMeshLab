@@ -213,10 +213,11 @@ void RenderWidget::ensureRasterResources(
                     return;
                 gpu.projectedSrb.reset(m_rhi->newShaderResourceBindings());
                 gpu.projectedSrb->setBindings({
-                    QRhiShaderResourceBinding::uniformBuffer(
+                    QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
                         0,
                         QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                        m_rasterProjectedUbuf.get())
+                        m_rasterProjectedUbuf.get(),
+                        kRasterProjectedUbufSize)
                 });
                 if (!gpu.projectedSrb->create())
                     gpu.projectedSrb.reset();
@@ -348,16 +349,19 @@ void RenderWidget::renderSceneRasterProjected(
         ubuf[17] = 0.65f;
         ubuf[18] = 1.0f;
         ubuf[19] = 0.95f;
+        const quint32 ubufOffset = allocateDynamicUbufOffset(
+            m_rasterProjectedUbufAllocator,
+            "raster-projected");
 
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(
             m_rasterProjectedUbuf.get(),
-            0,
+            ubufOffset,
             kRasterProjectedUbufSize,
             ubuf);
         cb->resourceUpdate(u);
 
-        cb->setShaderResources(item.srb);
+        setShaderResourcesWithOffset(cb, item.srb, ubufOffset);
         const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &binding);
         cb->draw(item.vertexCount);

@@ -2915,7 +2915,11 @@ void MainWindow::pasteCameraState()
 
 bool MainWindow::loadMeshFromPath(const QString &filePath)
 {
-    const int err = m_doc->loadMesh(filePath);
+    const bool isProject =
+        QFileInfo(filePath).suffix().compare(QStringLiteral("mlp"), Qt::CaseInsensitive) == 0;
+    const int err = isProject
+        ? m_doc->loadMeshLabProject(filePath)
+        : m_doc->loadMesh(filePath);
     if (err != 0) {
         statusBar()->showMessage(tr("Failed to load %1").arg(filePath), 3000);
         return false;

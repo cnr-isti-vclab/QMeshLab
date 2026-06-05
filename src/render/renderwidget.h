@@ -286,7 +286,7 @@ private:
         const RenderFramePassRequests &requests,
         int currentMeshIndex,
         bool drawCurrentMeshHighlight);
-    void uploadMainUbuf(
+    quint32 uploadMainUbuf(
         QRhiCommandBuffer *cb,
         const QMatrix4x4 &mvp,
         const QMatrix4x4 &modelView,
@@ -295,8 +295,9 @@ private:
         const QSize &pixelSize,
         bool enableLighting,
         const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
-        MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{});
-    void uploadMainUbufForMesh(
+        MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{},
+        quint32 offset = 0);
+    quint32 uploadMainUbufForMesh(
         QRhiCommandBuffer *cb,
         int meshIndex,
         const QMatrix4x4 &proj,
@@ -305,7 +306,8 @@ private:
         const QSize &pixelSize,
         bool enableLighting,
         const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
-        MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{});
+        MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{},
+        quint32 offset = 0);
     SceneFillFramePlan buildSceneFillFramePlan(
         const RenderFrameRequest &request);
     RenderFramePlan buildRenderFramePlan(
@@ -366,6 +368,22 @@ private:
         QRhiTexture *roughnessTexture,
         bool nearest = false);
     QRhiShaderResourceBindings *shaderResourcesForTexture(QRhiTexture *texture);
+    struct DynamicUbufAllocator {
+        quint32 stride = 0;
+        quint32 nextOffset = 0;
+        int capacity = 0;
+
+        quint32 byteSize() const
+        {
+            return stride * quint32(capacity > 0 ? capacity : 0);
+        }
+    };
+    void resetDynamicUbufAllocators();
+    quint32 allocateDynamicUbufOffset(DynamicUbufAllocator &allocator, const char *debugName);
+    void setShaderResourcesWithOffset(
+        QRhiCommandBuffer *cb,
+        QRhiShaderResourceBindings *srb,
+        quint32 offset);
     QRhiTexture *resolveSelectedPbrTexture(
         int meshIndex,
         int textureIndex,
@@ -420,6 +438,7 @@ private:
     bool m_qualityColorMapTextureInverted = false;
     bool m_qualityColorMapTextureIsolinesEnabled = false;
     int m_qualityColorMapTextureIsolineCount = 0;
+    DynamicUbufAllocator m_mainUbufAllocator;
     std::unique_ptr<QRhiShaderResourceBindings> m_srb;
     std::unique_ptr<QRhiBuffer> m_sceneBackgroundUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_sceneBackgroundSrb;
@@ -428,6 +447,7 @@ private:
     std::unique_ptr<QRhiShaderResourceBindings> m_rasterBackplateFallbackSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_rasterBackplatePipeline;
     std::unique_ptr<QRhiBuffer> m_rasterProjectedUbuf;
+    DynamicUbufAllocator m_rasterProjectedUbufAllocator;
     std::unique_ptr<QRhiShaderResourceBindings> m_rasterProjectedFallbackSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_rasterProjectedPipeline;
     struct RasterGpu {
@@ -486,13 +506,16 @@ private:
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
     std::array<std::unique_ptr<QRhiBuffer>, RenderWidgetInternal::kDecoratorSlotCount> m_decoratorUbufs;
+    std::array<DynamicUbufAllocator, RenderWidgetInternal::kDecoratorSlotCount> m_decoratorUbufAllocators;
     std::array<std::unique_ptr<QRhiShaderResourceBindings>, RenderWidgetInternal::kDecoratorSlotCount> m_decoratorSrbs;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorPipeline;
     std::unique_ptr<QRhiBuffer> m_selectionUbuf;
+    DynamicUbufAllocator m_selectionUbufAllocator;
     std::unique_ptr<QRhiShaderResourceBindings> m_selectionSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_selectionFacesPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_selectionVerticesPipeline;
     std::unique_ptr<QRhiBuffer> m_decoratorFatUbuf;
+    DynamicUbufAllocator m_decoratorFatUbufAllocator;
     std::unique_ptr<QRhiShaderResourceBindings> m_decoratorFatSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorFatPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorPointPipeline;

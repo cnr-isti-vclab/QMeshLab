@@ -20,7 +20,8 @@ public:
         const QSize &pixelSize,
         bool enableLighting,
         const QVector3D &lightDir,
-        MainUbufMaterialOverrides materialOverrides) const
+        MainUbufMaterialOverrides materialOverrides,
+        quint32 offset) const
     {
         m_widget.uploadMainUbufForMesh(
             cb,
@@ -31,7 +32,8 @@ public:
             pixelSize,
             enableLighting,
             lightDir,
-            materialOverrides);
+            materialOverrides,
+            offset);
     }
 
     QRhiTexture *resolveSelectedPbrTexture(
@@ -83,6 +85,19 @@ public:
         return m_widget.m_rsGradSrb.get();
     }
 
+    quint32 allocateMainUbufOffset() const
+    {
+        return m_widget.allocateDynamicUbufOffset(m_widget.m_mainUbufAllocator, "main");
+    }
+
+    void setShaderResourcesWithOffset(
+        QRhiCommandBuffer *cb,
+        QRhiShaderResourceBindings *srb,
+        quint32 offset) const
+    {
+        m_widget.setShaderResourcesWithOffset(cb, srb, offset);
+    }
+
 private:
     RenderWidget &m_widget;
 };
@@ -114,6 +129,7 @@ public:
     {
         const SceneFillDrawItem &item = ctx.item;
         const SceneFillFrameContext &frame = ctx.frame;
+        const quint32 ubufOffset = frame.services.allocateMainUbufOffset();
         frame.services.uploadMainUbufForMesh(
             frame.cb,
             item.meshIndex,
@@ -126,7 +142,8 @@ public:
             MainUbufMaterialOverrides {
                 item.meshSettings.fillPbr.normalScale * batch.normalScale,
                 1.0f,
-                1.0f });
+                1.0f },
+            ubufOffset);
 
         // When Texture source is selected, resolve the user-chosen texture by index;
         // fall back to the batch's baked base-colour texture if it cannot be found.
@@ -139,8 +156,10 @@ public:
                 albedo = t;
             }
         }
-        frame.cb->setShaderResources(
-            frame.services.shaderResourcesForFillTextures(albedo, nullptr, nullptr, nullptr));
+        frame.services.setShaderResourcesWithOffset(
+            frame.cb,
+            frame.services.shaderResourcesForFillTextures(albedo, nullptr, nullptr, nullptr),
+            ubufOffset);
         drawBatchGeometry(frame.cb, batch);
     }
 };
@@ -172,6 +191,7 @@ public:
         if (pbrSettings.fillPbr.normalSource == FillPbrTextureSource::Texture && !resolvedNormal)
             pbrSettings.fillPbr.normalSource = FillPbrTextureSource::None;
 
+        const quint32 ubufOffset = frame.services.allocateMainUbufOffset();
         frame.services.uploadMainUbufForMesh(
             frame.cb,
             item.meshIndex,
@@ -184,12 +204,16 @@ public:
             MainUbufMaterialOverrides {
                 pbr.normalScale * batch.normalScale,
                 pbr.occlusionStrength * batch.occlusionStrength,
-                pbr.roughnessFactor * batch.roughnessFactor });
-        frame.cb->setShaderResources(frame.services.shaderResourcesForFillTextures(
-            albedo    ? albedo    : batch.baseColorTexture,
-            resolvedNormal,
-            occlusion ? occlusion : batch.occlusionTexture,
-            roughness ? roughness : batch.roughnessTexture));
+                pbr.roughnessFactor * batch.roughnessFactor },
+            ubufOffset);
+        frame.services.setShaderResourcesWithOffset(
+            frame.cb,
+            frame.services.shaderResourcesForFillTextures(
+                albedo    ? albedo    : batch.baseColorTexture,
+                resolvedNormal,
+                occlusion ? occlusion : batch.occlusionTexture,
+                roughness ? roughness : batch.roughnessTexture),
+            ubufOffset);
         drawBatchGeometry(frame.cb, batch);
     }
 };
@@ -229,6 +253,7 @@ public:
                 const auto &batch = item.fillView.batches[bi];
                 if (!hasDrawableBatchGeometry(batch))
                     continue;
+                const quint32 ubufOffset = frame.services.allocateMainUbufOffset();
                 frame.services.uploadMainUbufForMesh(
                     frame.cb,
                     item.meshIndex,
@@ -241,9 +266,12 @@ public:
                     MainUbufMaterialOverrides {
                         item.meshSettings.fillRs.enhancement,
                         1.0f,
-                        1.0f });
-                frame.cb->setShaderResources(
-                    frame.services.radianceScalingGradientShaderResources());
+                        1.0f },
+                    ubufOffset);
+                frame.services.setShaderResourcesWithOffset(
+                    frame.cb,
+                    frame.services.radianceScalingGradientShaderResources(),
+                    ubufOffset);
                 drawBatchGeometry(frame.cb, batch);
             }
         }
@@ -256,6 +284,7 @@ public:
     {
         const SceneFillDrawItem &item = ctx.item;
         const SceneFillFrameContext &frame = ctx.frame;
+        const quint32 ubufOffset = frame.services.allocateMainUbufOffset();
         frame.services.uploadMainUbufForMesh(
             frame.cb,
             item.meshIndex,
@@ -268,10 +297,14 @@ public:
             MainUbufMaterialOverrides {
                 item.meshSettings.fillRs.enhancement,
                 1.0f,
-                1.0f });
+                1.0f },
+            ubufOffset);
         QRhiTexture *gradTex = frame.services.radianceScalingGradientTexture();
-        frame.cb->setShaderResources(frame.services.shaderResourcesForFillTextures(
-            batch.baseColorTexture, gradTex, nullptr, nullptr));
+        frame.services.setShaderResourcesWithOffset(
+            frame.cb,
+            frame.services.shaderResourcesForFillTextures(
+                batch.baseColorTexture, gradTex, nullptr, nullptr),
+            ubufOffset);
         drawBatchGeometry(frame.cb, batch);
     }
 };

@@ -185,13 +185,16 @@ void RenderWidget::executePendingDepthPick(
         const auto pointVariant = static_cast<Document::PointGpuVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
 
-        uploadMainUbufForMesh(cb, mi, proj, view, meshSettings, pixelSize, true);
+        const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
+        uploadMainUbufForMesh(
+            cb, mi, proj, view, meshSettings, pixelSize, true, QVector3D(0.0f, 0.0f, 1.0f),
+            MainUbufMaterialOverrides{}, ubufOffset);
 
         if (m_depthPickFillPipeline) {
             const Document::FillPassGpuView fillView =
                 m_doc->fillPassGpuView(m_rhi, mi, fillVariant);
             cb->setGraphicsPipeline(m_depthPickFillPipeline.get());
-            cb->setShaderResources(m_depthPickSrb.get());
+            setShaderResourcesWithOffset(cb, m_depthPickSrb.get(), ubufOffset);
             for (int bi = 0; bi < fillView.batchCount; ++bi) {
                 const auto &batch = fillView.batches[bi];
                 if (!hasDrawableBatchGeometry(batch))
@@ -205,7 +208,7 @@ void RenderWidget::executePendingDepthPick(
                 m_doc->pointsPassGpuView(m_rhi, mi, pointVariant);
             if (pointsView.valid && pointsView.vertexBuffer && pointsView.vertexCount > 0) {
                 cb->setGraphicsPipeline(m_depthPickPointsPipeline.get());
-                cb->setShaderResources(m_depthPickSrb.get());
+                setShaderResourcesWithOffset(cb, m_depthPickSrb.get(), ubufOffset);
                 const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
                 cb->setVertexInput(0, 1, &pv);
                 cb->draw(pointsView.vertexCount);
@@ -350,10 +353,20 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
         cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
         if (m_currentMaskPointsPipeline) {
+            const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
             uploadMainUbufForMesh(
-                cb, currentMeshIndex, proj, view, currentMeshSettings, pixelSize, true);
+                cb,
+                currentMeshIndex,
+                proj,
+                view,
+                currentMeshSettings,
+                pixelSize,
+                true,
+                QVector3D(0.0f, 0.0f, 1.0f),
+                MainUbufMaterialOverrides{},
+                ubufOffset);
             cb->setGraphicsPipeline(m_currentMaskPointsPipeline.get());
-            cb->setShaderResources(m_srb.get());
+            setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
             const QRhiCommandBuffer::VertexInput pv(currentPointsView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &pv);
             cb->draw(currentPointsView.vertexCount);
@@ -368,9 +381,20 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
                              const Document::FillPassGpuView &fillView) {
         if (!m_currentMaskFillDepthOnlyPipeline)
             return;
-        uploadMainUbufForMesh(cb, meshIndex, proj, view, meshSettings, pixelSize, true);
+        const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
+        uploadMainUbufForMesh(
+            cb,
+            meshIndex,
+            proj,
+            view,
+            meshSettings,
+            pixelSize,
+            true,
+            QVector3D(0.0f, 0.0f, 1.0f),
+            MainUbufMaterialOverrides{},
+            ubufOffset);
         cb->setGraphicsPipeline(m_currentMaskFillDepthOnlyPipeline.get());
-        cb->setShaderResources(m_srb.get());
+        setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
         for (int bi = 0; bi < fillView.batchCount; ++bi) {
             const auto &batch = fillView.batches[bi];
             if (!hasDrawableBatchGeometry(batch))
@@ -383,7 +407,18 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
                              const PerMeshRenderSettings &meshSettings,
                              const Document::EdgePassGpuView &edgeView,
                              const Document::EdgeFatPassGpuView &fatEdgeView) {
-        uploadMainUbufForMesh(cb, meshIndex, proj, view, meshSettings, pixelSize, true);
+        const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
+        uploadMainUbufForMesh(
+            cb,
+            meshIndex,
+            proj,
+            view,
+            meshSettings,
+            pixelSize,
+            true,
+            QVector3D(0.0f, 0.0f, 1.0f),
+            MainUbufMaterialOverrides{},
+            ubufOffset);
         if (m_currentMaskFatEdgesDepthOnlyPipeline
             && fatEdgeView.valid
             && fatEdgeView.vertexBuffer
@@ -397,13 +432,13 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
             u->updateDynamicBuffer(
                 m_ubuf.get(),
-                kUbufWireParamsOffset * int(sizeof(float)),
+                ubufOffset + kUbufWireParamsOffset * int(sizeof(float)),
                 int(sizeof(wireParams)),
                 wireParams);
             cb->resourceUpdate(u);
 
             cb->setGraphicsPipeline(m_currentMaskFatEdgesDepthOnlyPipeline.get());
-            cb->setShaderResources(m_srb.get());
+            setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
             const QRhiCommandBuffer::VertexInput ev(fatEdgeView.vertexBuffer, 0);
             cb->setVertexInput(0, 1, &ev);
             cb->draw(fatEdgeView.vertexCount);
@@ -415,7 +450,7 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
         if (!edgeView.valid || !edgeView.vertexBuffer || edgeView.vertexCount <= 0)
             return;
         cb->setGraphicsPipeline(m_currentMaskEdgesDepthOnlyPipeline.get());
-        cb->setShaderResources(m_srb.get());
+        setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
         const QRhiCommandBuffer::VertexInput ev(edgeView.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &ev);
         cb->draw(edgeView.vertexCount);
@@ -428,9 +463,20 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             return;
         if (!pointsView.valid || !pointsView.vertexBuffer || pointsView.vertexCount <= 0)
             return;
-        uploadMainUbufForMesh(cb, meshIndex, proj, view, meshSettings, pixelSize, true);
+        const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
+        uploadMainUbufForMesh(
+            cb,
+            meshIndex,
+            proj,
+            view,
+            meshSettings,
+            pixelSize,
+            true,
+            QVector3D(0.0f, 0.0f, 1.0f),
+            MainUbufMaterialOverrides{},
+            ubufOffset);
         cb->setGraphicsPipeline(m_currentMaskPointsDepthOnlyPipeline.get());
-        cb->setShaderResources(m_srb.get());
+        setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
         const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &pv);
         cb->draw(pointsView.vertexCount);

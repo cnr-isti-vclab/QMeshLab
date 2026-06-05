@@ -781,10 +781,11 @@ QRhiShaderResourceBindings *RenderWidget::shaderResourcesForFillTextures(
     auto textureSrb =
         std::unique_ptr<QRhiShaderResourceBindings>(m_rhi->newShaderResourceBindings());
     textureSrb->setBindings({
-        QRhiShaderResourceBinding::uniformBuffer(
+        QRhiShaderResourceBinding::uniformBufferWithDynamicOffset(
             0,
             QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-            m_ubuf.get()),
+            m_ubuf.get(),
+            kUbufSize),
         QRhiShaderResourceBinding::sampledTexture(
             1,
             QRhiShaderResourceBinding::FragmentStage,

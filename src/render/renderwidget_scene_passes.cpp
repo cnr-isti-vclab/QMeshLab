@@ -23,7 +23,7 @@ void RenderWidget::renderSceneBufferItems(
         if (!item.pipeline || !item.vertexBuffer || item.vertexCount <= 0)
             continue;
         cb->setGraphicsPipeline(item.pipeline);
-        cb->setShaderResources(m_srb.get());
+        const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
         uploadMainUbufForMesh(
             cb,
             item.meshIndex,
@@ -32,7 +32,10 @@ void RenderWidget::renderSceneBufferItems(
             item.meshSettings,
             plan.pixelSize,
             true,
-            plan.lightDir);
+            plan.lightDir,
+            MainUbufMaterialOverrides{},
+            ubufOffset);
+        setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
         const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &binding);
         cb->draw(item.vertexCount);
@@ -57,6 +60,9 @@ void RenderWidget::renderSceneDecoratorItems(
         QRhiShaderResourceBindings *decoratorSrb = m_decoratorSrbs[item.slot].get();
         if (!decoratorUbuf || !decoratorSrb)
             return false;
+        const quint32 ubufOffset = allocateDynamicUbufOffset(
+            m_decoratorUbufAllocators[size_t(item.slot)],
+            "decorator");
         float decoratorData[kDecoratorUbufSize / sizeof(float)] = {};
         const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
         memcpy(decoratorData, meshMvp.constData(), 64);
@@ -66,8 +72,9 @@ void RenderWidget::renderSceneDecoratorItems(
         decoratorData[19] = item.color.alphaF();
         QRhiResourceUpdateBatch *uDecor = m_rhi->nextResourceUpdateBatch();
         uDecor->updateDynamicBuffer(
-            decoratorUbuf, 0, kDecoratorUbufSize, decoratorData);
+            decoratorUbuf, ubufOffset, kDecoratorUbufSize, decoratorData);
         cb->resourceUpdate(uDecor);
+        setShaderResourcesWithOffset(cb, decoratorSrb, ubufOffset);
         return true;
     };
     auto uploadDecoratorFat = [&](const SceneDecoratorDrawItem &item) -> bool {
@@ -75,6 +82,9 @@ void RenderWidget::renderSceneDecoratorItems(
             return false;
         if (!m_decoratorFatUbuf || !m_decoratorFatSrb)
             return false;
+        const quint32 ubufOffset = allocateDynamicUbufOffset(
+            m_decoratorFatUbufAllocator,
+            "decorator-fat");
         float fatData[kDecoratorFatUbufSize / sizeof(float)] = {};
         const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
         memcpy(fatData, meshMvp.constData(), 64);
@@ -87,8 +97,9 @@ void RenderWidget::renderSceneDecoratorItems(
         fatData[22] = 1.0f / float(qMax(1, sz.height()));
         QRhiResourceUpdateBatch *uFat = m_rhi->nextResourceUpdateBatch();
         uFat->updateDynamicBuffer(
-            m_decoratorFatUbuf.get(), 0, kDecoratorFatUbufSize, fatData);
+            m_decoratorFatUbuf.get(), ubufOffset, kDecoratorFatUbufSize, fatData);
         cb->resourceUpdate(uFat);
+        setShaderResourcesWithOffset(cb, m_decoratorFatSrb.get(), ubufOffset);
         return true;
     };
 
@@ -97,27 +108,27 @@ void RenderWidget::renderSceneDecoratorItems(
         if (!item.vertexBuffer || item.vertexCount <= 0)
             continue;
 
-        QRhiShaderResourceBindings *srb = nullptr;
         switch (item.kind) {
         case SceneDecoratorDrawKind::Line:
-            if (!m_decoratorPipeline || !uploadDecoratorColor(item))
+            if (!m_decoratorPipeline)
                 continue;
-            srb = m_decoratorSrbs[item.slot].get();
             cb->setGraphicsPipeline(m_decoratorPipeline.get());
-            cb->setShaderResources(srb);
+            if (!uploadDecoratorColor(item))
+                continue;
             break;
         case SceneDecoratorDrawKind::FatLine:
-            if (!m_decoratorFatPipeline || !uploadDecoratorFat(item))
+            if (!m_decoratorFatPipeline)
                 continue;
             cb->setGraphicsPipeline(m_decoratorFatPipeline.get());
-            cb->setShaderResources(m_decoratorFatSrb.get());
+            if (!uploadDecoratorFat(item))
+                continue;
             break;
         case SceneDecoratorDrawKind::Point:
-            if (!m_decoratorPointPipeline || !uploadDecoratorColor(item))
+            if (!m_decoratorPointPipeline)
                 continue;
-            srb = m_decoratorSrbs[item.slot].get();
             cb->setGraphicsPipeline(m_decoratorPointPipeline.get());
-            cb->setShaderResources(srb);
+            if (!uploadDecoratorColor(item))
+                continue;
             break;
         }
 
@@ -149,6 +160,9 @@ void RenderWidget::renderSceneSelectionItems(
         if (!selectionView.valid)
             continue;
 
+        const quint32 ubufOffset = allocateDynamicUbufOffset(
+            m_selectionUbufAllocator,
+            "selection");
         float selectionData[kDecoratorUbufSize / sizeof(float)] = {};
         const QMatrix4x4 meshMvp = frameVp * m_doc->mesh(item.meshIndex).transform;
         memcpy(selectionData, meshMvp.constData(), 64);
@@ -158,7 +172,7 @@ void RenderWidget::renderSceneSelectionItems(
         selectionData[19] = 0.5f;
         QRhiResourceUpdateBatch *uSel = m_rhi->nextResourceUpdateBatch();
         uSel->updateDynamicBuffer(
-            m_selectionUbuf.get(), 0, kDecoratorUbufSize, selectionData);
+            m_selectionUbuf.get(), ubufOffset, kDecoratorUbufSize, selectionData);
         cb->resourceUpdate(uSel);
 
         if (item.drawFaces
@@ -166,7 +180,7 @@ void RenderWidget::renderSceneSelectionItems(
             && selectionView.selectedFacesBuffer
             && selectionView.selectedFacesVertexCount > 0) {
             cb->setGraphicsPipeline(m_selectionFacesPipeline.get());
-            cb->setShaderResources(m_selectionSrb.get());
+            setShaderResourcesWithOffset(cb, m_selectionSrb.get(), ubufOffset);
             const QRhiCommandBuffer::VertexInput fv(
                 selectionView.selectedFacesBuffer, 0);
             cb->setVertexInput(0, 1, &fv);
@@ -178,7 +192,7 @@ void RenderWidget::renderSceneSelectionItems(
             && selectionView.selectedVerticesBuffer
             && selectionView.selectedVerticesVertexCount > 0) {
             cb->setGraphicsPipeline(m_selectionVerticesPipeline.get());
-            cb->setShaderResources(m_selectionSrb.get());
+            setShaderResourcesWithOffset(cb, m_selectionSrb.get(), ubufOffset);
             const QRhiCommandBuffer::VertexInput vv(
                 selectionView.selectedVerticesBuffer, 0);
             cb->setVertexInput(0, 1, &vv);

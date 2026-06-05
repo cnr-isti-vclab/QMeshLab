@@ -106,6 +106,7 @@ private slots:
     void voronoiSurfaceSamplingRunsOnCube();
     void voronoiSolidWireframeRunsOnLoadedMesh();
     void icpBetweenPointCloudsUpdatesSourceTransform();
+    void translateFilterMovesOnlyCurrentMesh();
     void libiglParametrizationFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
 };
@@ -623,6 +624,51 @@ void FilterTests::icpBetweenPointCloudsUpdatesSourceTransform()
     QMatrix4x4 identity;
     identity.setToIdentity();
     QVERIFY(matrixNear(doc.mesh(sourceIndex).transform, identity));
+}
+
+void FilterTests::translateFilterMovesOnlyCurrentMesh()
+{
+    Document doc;
+    VCGMesh firstCube;
+    VCGMesh secondCube;
+    makeCubeMesh(firstCube, 0.0f, 0.0f, 0.0f);
+    makeCubeMesh(secondCube, 0.0f, 0.0f, 0.0f);
+    const int mask =
+        vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_VERTNORMAL
+        | vcg::tri::io::Mask::IOM_FACENORMAL;
+    QCOMPARE(doc.addMesh(firstCube, QStringLiteral("Cube A"), mask), 0);
+    QCOMPARE(doc.addMesh(secondCube, QStringLiteral("Cube B"), mask), 1);
+
+    QString translateKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("compute_matrix_from_translation")) {
+            translateKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!translateKey.isEmpty());
+
+    doc.setCurrentMeshIndex(1);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("traslMethod"), QStringLiteral("xyz"));
+    params.insert(QStringLiteral("axis"), QVector3D(1.0f, 0.0f, 0.0f));
+    params.insert(QStringLiteral("Freeze"), false);
+    params.insert(QStringLiteral("allLayers"), false);
+
+    const MeshFilterRunResult result = doc.runFilter(translateKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(result.documentModified);
+
+    QMatrix4x4 identity;
+    identity.setToIdentity();
+    QVERIFY(matrixNear(doc.mesh(0).transform, identity));
+
+    QMatrix4x4 expected;
+    expected.setToIdentity();
+    expected.translate(1.0f, 0.0f, 0.0f);
+    QVERIFY(matrixNear(doc.mesh(1).transform, expected));
 }
 
 void FilterTests::libiglParametrizationFiltersRunWhenAvailable()

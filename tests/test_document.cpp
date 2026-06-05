@@ -1,12 +1,26 @@
 #include <QtTest/QtTest>
 #include <QSignalSpy>
 #include <QFile>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <cmath>
 
 #include "document.h"
 #include <vcg/complex/allocate.h>
 #include <wrap/io_trimesh/io_mask.h>
+
+namespace {
+
+QVector3D firstVertexPosition(const VCGMesh &mesh)
+{
+    for (const VCGVertex &vertex : mesh.vert) {
+        if (!vertex.IsD())
+            return QVector3D(vertex.cP().X(), vertex.cP().Y(), vertex.cP().Z());
+    }
+    return {};
+}
+
+}
 
 class DocumentTests : public QObject
 {
@@ -21,6 +35,8 @@ private slots:
     void addRasterImageCreatesDocumentLayer();
     void currentLayerKindFollowsMeshAndRasterSelection();
     void loadRasterImageReadsFile();
+    void loadMeshLabProjectLoadsMeshesAndTransforms();
+    void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
     void undoTreeBranchingPreservesAlternateFuture();
@@ -233,6 +249,49 @@ void DocumentTests::loadRasterImageReadsFile()
     QCOMPARE(doc.raster(0).currentPlane()->sourcePath, path);
 }
 
+void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/rangemaps/partial.mlp");
+
+    QCOMPARE(doc.loadMeshLabProject(path), 0);
+    QCOMPARE(doc.meshCount(), 12);
+    QCOMPARE(doc.rasterCount(), 0);
+
+    const Document::MeshEntry &first = doc.mesh(0);
+    QCOMPARE(first.name, QStringLiteral("lato225.ply"));
+    QCOMPARE(QFileInfo(first.sourcePath).fileName(), QStringLiteral("lato225.ply"));
+    QVERIFY(std::abs(first.transform(0, 0) - (-0.54984f)) < 1e-4f);
+    QVERIFY(std::abs(first.transform(0, 3) - (-657.674f)) < 1e-3f);
+
+    const Document::MeshEntry &last = doc.mesh(11);
+    QCOMPARE(last.name, QStringLiteral("faccia000.ply"));
+    QVERIFY(std::abs(last.transform(2, 2) - 0.999041f) < 1e-4f);
+}
+
+void DocumentTests::loadMeshLabProjectLoadsRastersAndCamera()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/COLOR_gargoyle/gargoyle_final.mlp");
+
+    QCOMPARE(doc.loadMeshLabProject(path), 0);
+    QCOMPARE(doc.meshCount(), 1);
+    QCOMPARE(doc.rasterCount(), 11);
+
+    const Document::MeshEntry &mesh = doc.mesh(0);
+    QCOMPARE(mesh.name, QStringLiteral("gargo3M.ply"));
+
+    const Document::RasterEntry &raster = doc.raster(0);
+    QCOMPARE(raster.name, QStringLiteral("DSC_0033.JPG"));
+    QVERIFY(raster.shot.isValid());
+    QCOMPARE(raster.shot.viewportPx(), QSize(3000, 2008));
+    QVERIFY(std::abs(raster.shot.focalMm() - 149.109f) < 1e-3f);
+    QVERIFY(raster.currentPlane());
+    QCOMPARE(raster.currentPlane()->size, QSize(3000, 2008));
+    QCOMPARE(QFileInfo(raster.currentPlane()->sourcePath).fileName(), QStringLiteral("DSC_0033.JPG"));
+    QVERIFY(raster.currentPlane()->hasImage());
+}
+
 void DocumentTests::rasterCameraUndoRedoRestoresShot()
 {
     Document doc;
@@ -337,6 +396,8 @@ void DocumentTests::openDialogFilterContainsKnownFormats()
     QVERIFY(!filters.isEmpty());
     QVERIFY(filters.first().contains(QStringLiteral("*.ply")));
     QVERIFY(filters.first().contains(QStringLiteral("*.obj")));
+    QVERIFY(filters.first().contains(QStringLiteral("*.mlp")));
+    QVERIFY(filter.contains(QStringLiteral("MeshLab Project (*.mlp)")));
     QVERIFY(filter.contains(QStringLiteral("All Files (*)")));
 }
 

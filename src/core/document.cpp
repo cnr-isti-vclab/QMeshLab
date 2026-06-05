@@ -8,14 +8,20 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QDir>
 #include <QFileInfo>
+#include <QByteArray>
+#include <QRegularExpression>
 #include <QImageReader>
+#include <QXmlStreamReader>
 #include <QDebug>
 #include <QDateTime>
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <map>
 #include <set>
 
@@ -51,6 +57,313 @@ QString summarizeLoadMask(int mask)
     if (attrs.isEmpty())
         return QObject::tr("none");
     return attrs.join(QStringLiteral(", "));
+}
+
+bool isMeshLabProjectExtension(const QString &path)
+{
+    return QFileInfo(path).suffix().compare(QStringLiteral("mlp"), Qt::CaseInsensitive) == 0;
+}
+
+QString resolveProjectEntryPath(const QString &projectFilePath, const QString &entryPath)
+{
+    const QString normalized = QDir::fromNativeSeparators(entryPath.trimmed());
+    if (normalized.isEmpty())
+        return {};
+    const QFileInfo info(normalized);
+    if (info.isAbsolute())
+        return info.absoluteFilePath();
+    return QFileInfo(projectFilePath).dir().filePath(normalized);
+}
+
+bool parseFloatList(const QString &text, int expectedCount, std::vector<float> &values)
+{
+    const QStringList parts = text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+    if (parts.size() < expectedCount)
+        return false;
+    values.clear();
+    values.reserve(size_t(expectedCount));
+    for (int i = 0; i < expectedCount; ++i) {
+        bool ok = false;
+        const float value = parts.at(i).toFloat(&ok);
+        if (!ok)
+            return false;
+        values.push_back(value);
+    }
+    return true;
+}
+
+QMatrix4x4 meshLabProjectMatrixToQt(const std::vector<float> &values)
+{
+    return QMatrix4x4(
+        values[0], values[1], values[2], values[3],
+        values[4], values[5], values[6], values[7],
+        values[8], values[9], values[10], values[11],
+        values[12], values[13], values[14], values[15]);
+}
+
+bool parseIntPair(const QString &text, int &a, int &b)
+{
+    const QStringList parts = text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+    if (parts.size() < 2)
+        return false;
+    bool ok0 = false;
+    bool ok1 = false;
+    a = parts.at(0).toInt(&ok0);
+    b = parts.at(1).toInt(&ok1);
+    return ok0 && ok1;
+}
+
+bool parseFloatPair(const QString &text, float &a, float &b)
+{
+    const QStringList parts = text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+    if (parts.size() < 2)
+        return false;
+    bool ok0 = false;
+    bool ok1 = false;
+    a = parts.at(0).toFloat(&ok0);
+    b = parts.at(1).toFloat(&ok1);
+    return ok0 && ok1;
+}
+
+Document::RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &semanticText)
+{
+    const QString semantic = semanticText.trimmed().toLower();
+    if (semantic.isEmpty() || semantic == QStringLiteral("rgba") || semantic == QStringLiteral("rgb")
+        || semantic == QStringLiteral("image") || semantic == QStringLiteral("color")) {
+        return Document::RasterPlaneSemantic::RGBA;
+    }
+    if (semantic == QStringLiteral("mask") || semantic == QStringLiteral("maskuint8"))
+        return Document::RasterPlaneSemantic::MaskUInt8;
+    if (semantic == QStringLiteral("maskfloat"))
+        return Document::RasterPlaneSemantic::MaskFloat;
+    if (semantic == QStringLiteral("depth") || semantic == QStringLiteral("depthfloat"))
+        return Document::RasterPlaneSemantic::DepthFloat;
+    return Document::RasterPlaneSemantic::RGBA;
+}
+
+bool parseMeshLabProjectCamera(
+    const QXmlStreamAttributes &attrs,
+    CameraShot &outShot,
+    QString *errorMessage = nullptr)
+{
+    CameraShot::VcgShot shot;
+    vcg::Camera<float> &cam = shot.Intrinsics;
+
+    if (attrs.hasAttribute(QStringLiteral("CameraType"))) {
+        bool ok = false;
+        const int type = attrs.value(QStringLiteral("CameraType")).toInt(&ok);
+        if (!ok) {
+            if (errorMessage)
+                *errorMessage = QObject::tr("Invalid CameraType attribute");
+            return false;
+        }
+        cam.cameraType = static_cast<vcg::Camera<float>::CameraType>(type);
+    }
+
+    const bool binaryData =
+        attrs.value(QStringLiteral("BinaryData")).trimmed() == QStringLiteral("1");
+
+    if (binaryData) {
+        const QByteArray traBytes = QByteArray::fromBase64(
+            attrs.value(QStringLiteral("TranslationVector")).toLocal8Bit());
+        const QByteArray rotBytes = QByteArray::fromBase64(
+            attrs.value(QStringLiteral("RotationMatrix")).toLocal8Bit());
+        const QByteArray focalBytes = QByteArray::fromBase64(
+            attrs.value(QStringLiteral("FocalMm")).toLocal8Bit());
+        const QByteArray viewportBytes = QByteArray::fromBase64(
+            attrs.value(QStringLiteral("ViewportPx")).toLocal8Bit());
+        const QByteArray centerBytes = QByteArray::fromBase64(
+            attrs.value(QStringLiteral("CenterPx")).toLocal8Bit());
+        const QByteArray pixelBytes = QByteArray::fromBase64(
+            attrs.value(QStringLiteral("PixelSizeMm")).toLocal8Bit());
+        const QByteArray lensBytes = QByteArray::fromBase64(
+            attrs.value(QStringLiteral("LensDistortion")).toLocal8Bit());
+
+        if (traBytes.size() < int(sizeof(float) * 3)
+            || rotBytes.size() < int(sizeof(float) * 16)
+            || focalBytes.size() < int(sizeof(float))
+            || viewportBytes.size() < int(sizeof(int) * 2)
+            || centerBytes.size() < int(sizeof(float) * 2)
+            || pixelBytes.size() < int(sizeof(float) * 2)
+            || lensBytes.size() < int(sizeof(float) * 2)) {
+            if (errorMessage)
+                *errorMessage = QObject::tr("Incomplete binary VCGCamera payload");
+            return false;
+        }
+
+        vcg::Point3f tra;
+        memcpy(tra.V(), traBytes.constData(), sizeof(float) * 3);
+        shot.Extrinsics.SetTra(-tra);
+
+        vcg::Matrix44f rot;
+        memcpy(rot.V(), rotBytes.constData(), sizeof(float) * 16);
+        shot.Extrinsics.SetRot(rot);
+
+        memcpy(&cam.FocalMm, focalBytes.constData(), sizeof(float));
+        memcpy(&cam.ViewportPx, viewportBytes.constData(), sizeof(int) * 2);
+        memcpy(&cam.CenterPx, centerBytes.constData(), sizeof(float) * 2);
+        memcpy(&cam.PixelSizeMm, pixelBytes.constData(), sizeof(float) * 2);
+        memcpy(&cam.k[0], lensBytes.constData(), sizeof(float) * 2);
+    } else {
+        std::vector<float> translationValues;
+        std::vector<float> rotationValues;
+        if (!parseFloatList(attrs.value(QStringLiteral("TranslationVector")).toString(), 3, translationValues)
+            || !parseFloatList(attrs.value(QStringLiteral("RotationMatrix")).toString(), 16, rotationValues)) {
+            if (errorMessage)
+                *errorMessage = QObject::tr("Invalid camera extrinsics");
+            return false;
+        }
+        shot.Extrinsics.SetTra(vcg::Point3f(
+            -translationValues[0],
+            -translationValues[1],
+            -translationValues[2]));
+        vcg::Matrix44f rot;
+        for (int row = 0; row < 4; ++row)
+            for (int col = 0; col < 4; ++col)
+                rot[row][col] = rotationValues[size_t(col + 4 * row)];
+        shot.Extrinsics.SetRot(rot);
+
+        bool ok = false;
+        cam.FocalMm = attrs.value(QStringLiteral("FocalMm")).toFloat(&ok);
+        if (!ok) {
+            if (errorMessage)
+                *errorMessage = QObject::tr("Invalid FocalMm attribute");
+            return false;
+        }
+
+        int viewportW = 0;
+        int viewportH = 0;
+        float centerX = 0.0f;
+        float centerY = 0.0f;
+        float pixelX = 0.0f;
+        float pixelY = 0.0f;
+        float lens0 = 0.0f;
+        float lens1 = 0.0f;
+        if (!parseIntPair(attrs.value(QStringLiteral("ViewportPx")).toString(), viewportW, viewportH)
+            || !parseFloatPair(attrs.value(QStringLiteral("CenterPx")).toString(), centerX, centerY)
+            || !parseFloatPair(attrs.value(QStringLiteral("PixelSizeMm")).toString(), pixelX, pixelY)
+            || !parseFloatPair(attrs.value(QStringLiteral("LensDistortion")).toString(), lens0, lens1)) {
+            if (errorMessage)
+                *errorMessage = QObject::tr("Invalid camera intrinsics");
+            return false;
+        }
+        cam.ViewportPx = vcg::Point2i(viewportW, viewportH);
+        cam.CenterPx = vcg::Point2f(centerX, centerY);
+        cam.PixelSizeMm = vcg::Point2f(pixelX, pixelY);
+        cam.k[0] = lens0;
+        cam.k[1] = lens1;
+    }
+
+    outShot = CameraShot::fromVcgShot(shot);
+    if (!outShot.isValid()) {
+        if (errorMessage)
+            *errorMessage = QObject::tr("Parsed VCGCamera is not valid");
+        return false;
+    }
+    return true;
+}
+
+struct MeshLabProjectMeshEntry {
+    QString label;
+    QString sourcePath;
+    QMatrix4x4 transform;
+    bool hasTransform = false;
+};
+
+struct MeshLabProjectPlaneEntry {
+    QString name;
+    QString sourcePath;
+    Document::RasterPlaneSemantic semantic = Document::RasterPlaneSemantic::RGBA;
+};
+
+struct MeshLabProjectRasterEntry {
+    QString label;
+    CameraShot shot;
+    std::vector<MeshLabProjectPlaneEntry> planes;
+};
+
+bool parseMeshLabProjectFile(
+    const QString &filename,
+    std::vector<MeshLabProjectMeshEntry> &meshes,
+    std::vector<MeshLabProjectRasterEntry> &rasters,
+    QString &errorMessage)
+{
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        errorMessage = QObject::tr("Cannot open project file '%1'").arg(filename);
+        return false;
+    }
+
+    QXmlStreamReader xml(&file);
+    MeshLabProjectMeshEntry *currentMesh = nullptr;
+    MeshLabProjectRasterEntry *currentRaster = nullptr;
+
+    while (!xml.atEnd()) {
+        const auto token = xml.readNext();
+        if (token == QXmlStreamReader::StartElement) {
+            const QStringView name = xml.name();
+            if (name == QStringLiteral("MLMesh")) {
+                MeshLabProjectMeshEntry mesh;
+                const auto attrs = xml.attributes();
+                mesh.label = attrs.value(QStringLiteral("label")).toString().trimmed();
+                mesh.sourcePath = resolveProjectEntryPath(
+                    filename,
+                    attrs.value(QStringLiteral("filename")).toString());
+                meshes.push_back(std::move(mesh));
+                currentMesh = &meshes.back();
+            } else if (name == QStringLiteral("MLMatrix44")) {
+                if (currentMesh) {
+                    std::vector<float> values;
+                    const QString matrixText = xml.readElementText(QXmlStreamReader::SkipChildElements);
+                    if (!parseFloatList(matrixText, 16, values)) {
+                        errorMessage = QObject::tr("Invalid MLMatrix44 in project '%1'").arg(filename);
+                        return false;
+                    }
+                    currentMesh->transform = meshLabProjectMatrixToQt(values);
+                    currentMesh->hasTransform = true;
+                }
+            } else if (name == QStringLiteral("MLRaster")) {
+                MeshLabProjectRasterEntry raster;
+                raster.label = xml.attributes().value(QStringLiteral("label")).toString().trimmed();
+                rasters.push_back(std::move(raster));
+                currentRaster = &rasters.back();
+            } else if (name == QStringLiteral("VCGCamera")) {
+                if (currentRaster) {
+                    QString cameraError;
+                    if (!parseMeshLabProjectCamera(xml.attributes(), currentRaster->shot, &cameraError)) {
+                        errorMessage =
+                            QObject::tr("Invalid VCGCamera in project '%1': %2")
+                                .arg(filename, cameraError);
+                        return false;
+                    }
+                }
+            } else if (name == QStringLiteral("Plane")) {
+                if (currentRaster) {
+                    MeshLabProjectPlaneEntry plane;
+                    const auto attrs = xml.attributes();
+                    plane.name = attrs.value(QStringLiteral("fileName")).toString().trimmed();
+                    plane.sourcePath = resolveProjectEntryPath(
+                        filename,
+                        attrs.value(QStringLiteral("fileName")).toString());
+                    plane.semantic =
+                        rasterPlaneSemanticFromProject(attrs.value(QStringLiteral("semantic")).toString());
+                    currentRaster->planes.push_back(std::move(plane));
+                }
+            }
+        } else if (token == QXmlStreamReader::EndElement) {
+            const QStringView name = xml.name();
+            if (name == QStringLiteral("MLMesh"))
+                currentMesh = nullptr;
+            else if (name == QStringLiteral("MLRaster"))
+                currentRaster = nullptr;
+        }
+    }
+
+    if (xml.hasError()) {
+        errorMessage = QObject::tr("XML parse error in '%1': %2").arg(filename, xml.errorString());
+        return false;
+    }
+    return true;
 }
 
 QString resolveTexturePath(const QString &meshFilePath, const QString &declaredTextureName)
@@ -431,7 +744,20 @@ Document::~Document() = default;
 
 QString Document::openDialogFilter() const
 {
-    return m_pluginManager->openDialogFilter();
+    const QString meshFilters = m_pluginManager ? m_pluginManager->openDialogFilter() : QString();
+    QStringList filters = meshFilters.split(QStringLiteral(";;"), Qt::SkipEmptyParts);
+    if (filters.isEmpty())
+        filters << tr("Mesh and Project Files (*.mlp)");
+    else
+        filters[0].replace(
+            QStringLiteral(")"),
+            QStringLiteral(" *.mlp)"));
+    const QString projectFilter = tr("MeshLab Project (*.mlp)");
+    if (!filters.contains(projectFilter))
+        filters.insert(filters.size() > 1 ? filters.size() - 1 : 1, projectFilter);
+    if (!filters.contains(tr("All Files (*)")))
+        filters << tr("All Files (*)");
+    return filters.join(QStringLiteral(";;"));
 }
 
 QString Document::saveDialogFilter() const
@@ -2161,6 +2487,128 @@ int Document::loadRasterImage(const QString &filename)
         endUndoStep(index >= 0);
 
     return index;
+}
+
+int Document::loadMeshLabProject(const QString &filename)
+{
+    const QString normalizedFilename = filename.trimmed();
+    if (normalizedFilename.isEmpty())
+        return -1;
+
+    std::vector<MeshLabProjectMeshEntry> projectMeshes;
+    std::vector<MeshLabProjectRasterEntry> projectRasters;
+    QString parseError;
+    if (!parseMeshLabProjectFile(normalizedFilename, projectMeshes, projectRasters, parseError)) {
+        writeLog(parseError, LogSource::Application);
+        return -1;
+    }
+
+    const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
+    if (ownUndoStep)
+        beginUndoStep(tr("Open MeshLab Project"));
+
+    writeLog(tr("Loading MeshLab project: %1").arg(normalizedFilename), LogSource::Application);
+
+    int loadedMeshes = 0;
+    int loadedRasters = 0;
+
+    for (const MeshLabProjectMeshEntry &projectMesh : projectMeshes) {
+        const QString meshPath = projectMesh.sourcePath.trimmed();
+        if (meshPath.isEmpty()) {
+            writeLog(
+                tr("Project mesh '%1' has no filename and was skipped")
+                    .arg(projectMesh.label.isEmpty() ? tr("unnamed") : projectMesh.label),
+                LogSource::Application);
+            continue;
+        }
+        if (!QFileInfo::exists(meshPath)) {
+            writeLog(
+                tr("Project mesh file is missing: %1").arg(meshPath),
+                LogSource::Application);
+            continue;
+        }
+
+        const int result = loadMesh(meshPath);
+        if (result != 0) {
+            writeLog(
+                tr("Failed to load project mesh: %1").arg(meshPath),
+                LogSource::Application);
+            continue;
+        }
+
+        const int meshIndex = currentMeshIndex();
+        if (meshIndex >= 0 && meshIndex < meshCount()) {
+            if (!projectMesh.label.trimmed().isEmpty())
+                setMeshName(meshIndex, projectMesh.label);
+            if (projectMesh.hasTransform)
+                setMeshTransform(meshIndex, projectMesh.transform);
+            ++loadedMeshes;
+        }
+    }
+
+    for (const MeshLabProjectRasterEntry &projectRaster : projectRasters) {
+        RasterEntry rasterEntry;
+        rasterEntry.name = projectRaster.label;
+        rasterEntry.shot = projectRaster.shot;
+        rasterEntry.visible = true;
+        rasterEntry.currentPlaneIndex = -1;
+
+        for (const MeshLabProjectPlaneEntry &projectPlane : projectRaster.planes) {
+            RasterPlane plane;
+            plane.semantic = projectPlane.semantic;
+            plane.name = projectPlane.name;
+            plane.sourcePath = projectPlane.sourcePath;
+
+            if (!projectPlane.sourcePath.trimmed().isEmpty() && QFileInfo::exists(projectPlane.sourcePath)) {
+                QImageReader reader(projectPlane.sourcePath);
+                reader.setAutoTransform(true);
+                plane.image = reader.read();
+                if (plane.image.isNull()) {
+                    writeLog(
+                        tr("Failed to load project raster plane '%1': %2")
+                            .arg(projectPlane.sourcePath, reader.errorString()),
+                        LogSource::Application);
+                }
+            } else if (!projectPlane.sourcePath.trimmed().isEmpty()) {
+                writeLog(
+                    tr("Project raster plane file is missing: %1").arg(projectPlane.sourcePath),
+                    LogSource::Application);
+            }
+
+            plane.size = !plane.image.isNull() ? plane.image.size() : projectRaster.shot.viewportPx();
+            rasterEntry.planes.push_back(std::move(plane));
+            if (rasterEntry.currentPlaneIndex < 0)
+                rasterEntry.currentPlaneIndex = int(rasterEntry.planes.size()) - 1;
+        }
+
+        if (rasterEntry.planes.empty()) {
+            RasterPlane plane;
+            plane.semantic = RasterPlaneSemantic::RGBA;
+            plane.size = projectRaster.shot.viewportPx();
+            rasterEntry.planes.push_back(std::move(plane));
+            rasterEntry.currentPlaneIndex = 0;
+        }
+
+        if (rasterEntry.sourcePath.trimmed().isEmpty()) {
+            if (const RasterPlane *plane = rasterEntry.currentPlane())
+                rasterEntry.sourcePath = plane->sourcePath.trimmed();
+        }
+
+        if (addRaster(rasterEntry) >= 0)
+            ++loadedRasters;
+    }
+
+    const bool success = (loadedMeshes + loadedRasters) > 0;
+    writeLog(
+        tr("MeshLab project import complete: %1 mesh(es), %2 raster(s)")
+            .arg(loadedMeshes)
+            .arg(loadedRasters),
+        LogSource::Application);
+
+    if (ownUndoStep)
+        endUndoStep(success);
+
+    return success ? 0 : -1;
 }
 
 int Document::addRaster(const RasterEntry &rasterData)

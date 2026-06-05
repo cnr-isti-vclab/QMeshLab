@@ -20,7 +20,52 @@ void RenderWidget::initialize(QRhiCommandBuffer *cb)
     prepareDirtyBuffers(cb);
 }
 
-void RenderWidget::uploadMainUbuf(
+void RenderWidget::resetDynamicUbufAllocators()
+{
+    m_mainUbufAllocator.nextOffset = 0;
+    m_rasterProjectedUbufAllocator.nextOffset = 0;
+    m_selectionUbufAllocator.nextOffset = 0;
+    m_decoratorFatUbufAllocator.nextOffset = 0;
+    for (DynamicUbufAllocator &allocator : m_decoratorUbufAllocators)
+        allocator.nextOffset = 0;
+}
+
+quint32 RenderWidget::allocateDynamicUbufOffset(
+    DynamicUbufAllocator &allocator,
+    const char *debugName)
+{
+    if (allocator.stride == 0 || allocator.capacity <= 0)
+        return 0;
+
+    const quint32 capacityBytes = allocator.byteSize();
+    if (allocator.nextOffset + allocator.stride > capacityBytes) {
+        qWarning("Dynamic uniform buffer '%s' capacity exceeded (%u > %u)",
+                 debugName ? debugName : "unknown",
+                 unsigned(allocator.nextOffset + allocator.stride),
+                 unsigned(capacityBytes));
+        return 0;
+    }
+
+    const quint32 offset = allocator.nextOffset;
+    allocator.nextOffset += allocator.stride;
+    return offset;
+}
+
+void RenderWidget::setShaderResourcesWithOffset(
+    QRhiCommandBuffer *cb,
+    QRhiShaderResourceBindings *srb,
+    quint32 offset)
+{
+    if (!cb || !srb)
+        return;
+
+    const QRhiCommandBuffer::DynamicOffset dynamicOffset[] = {
+        { 0, offset }
+    };
+    cb->setShaderResources(srb, 1, dynamicOffset);
+}
+
+quint32 RenderWidget::uploadMainUbuf(
     QRhiCommandBuffer *cb,
     const QMatrix4x4 &mvp,
     const QMatrix4x4 &modelView,
@@ -29,10 +74,11 @@ void RenderWidget::uploadMainUbuf(
     const QSize &pixelSize,
     bool enableLighting,
     const QVector3D &lightDir,
-    MainUbufMaterialOverrides materialOverrides)
+    MainUbufMaterialOverrides materialOverrides,
+    quint32 offset)
 {
     if (!m_rhi || !m_ubuf || !cb)
-        return;
+        return 0;
 
     float ubufData[kUbufFloatCount] = {};
     writeMainUbuf(
@@ -47,11 +93,12 @@ void RenderWidget::uploadMainUbuf(
         materialOverrides);
 
     QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
-    uMesh->updateDynamicBuffer(m_ubuf.get(), 0, kUbufSize, ubufData);
+    uMesh->updateDynamicBuffer(m_ubuf.get(), offset, kUbufSize, ubufData);
     cb->resourceUpdate(uMesh);
+    return offset;
 }
 
-void RenderWidget::uploadMainUbufForMesh(
+quint32 RenderWidget::uploadMainUbufForMesh(
     QRhiCommandBuffer *cb,
     int meshIndex,
     const QMatrix4x4 &proj,
@@ -60,17 +107,18 @@ void RenderWidget::uploadMainUbufForMesh(
     const QSize &pixelSize,
     bool enableLighting,
     const QVector3D &lightDir,
-    MainUbufMaterialOverrides materialOverrides)
+    MainUbufMaterialOverrides materialOverrides,
+    quint32 offset)
 {
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
-        return;
+        return 0;
 
     const QMatrix4x4 model = m_doc->mesh(meshIndex).transform;
     const QMatrix4x4 modelView = view * model;
     const QMatrix4x4 mvp = proj * modelView;
     const QMatrix3x3 normalMat = modelView.normalMatrix();
 
-    uploadMainUbuf(
+    return uploadMainUbuf(
         cb,
         mvp,
         modelView,
@@ -79,7 +127,8 @@ void RenderWidget::uploadMainUbufForMesh(
         pixelSize,
         enableLighting,
         lightDir,
-        materialOverrides);
+        materialOverrides,
+        offset);
 }
 
 void RenderWidget::render(QRhiCommandBuffer *cb)
@@ -87,6 +136,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     ensureRenderResources();
     if (!m_rhi || !m_ubuf || !m_srb)
         return;
+
+    resetDynamicUbufAllocators();
 
     if (m_viewMode == ViewMode::ParametrizationUV) {
         renderParametrization(cb);

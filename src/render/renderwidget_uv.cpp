@@ -915,9 +915,15 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             textureBgSettings.fillLighting = false;
             updateStyleUbuf(textureBgSettings);
             cb->setGraphicsPipeline(m_uvTextureFillPipeline.get());
-            cb->setShaderResources(
-                shaderResourcesForFillTextures(fullTexture, nullptr, nullptr, nullptr,
-                                               m_renderSettings.uvTextureNearestSampling));
+            setShaderResourcesWithOffset(
+                cb,
+                shaderResourcesForFillTextures(
+                    fullTexture,
+                    nullptr,
+                    nullptr,
+                    nullptr,
+                    m_renderSettings.uvTextureNearestSampling),
+                0);
             const QRhiCommandBuffer::VertexInput binding(m_uvTextureQuadVbuf.get(), 0);
             cb->setVertexInput(0, 1, &binding);
             cb->draw(m_uvTextureQuadVertexCount);
@@ -1089,12 +1095,15 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                                 continue;
                             // Use selected texture if found, otherwise use batch's own base color.
                             QRhiTexture *texToUse = selectedTexture ? selectedTexture : batch.baseColorTexture;
-                            cb->setShaderResources(shaderResourcesForFillTextures(
-                                texToUse,
-                                batch.normalTexture,
-                                batch.occlusionTexture,
-                                batch.roughnessTexture,
-                                m_renderSettings.uvTextureNearestSampling));
+                            setShaderResourcesWithOffset(
+                                cb,
+                                shaderResourcesForFillTextures(
+                                    texToUse,
+                                    batch.normalTexture,
+                                    batch.occlusionTexture,
+                                    batch.roughnessTexture,
+                                    m_renderSettings.uvTextureNearestSampling),
+                                0);
                             drawBatchGeometry(cb, batch);
                         }
                     }
@@ -1117,9 +1126,15 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     if (fillPipeline && fillVariant.vbuf && fillVariant.vertexCount > 0) {
                         updateStyleUbuf(fillSettings);
                         cb->setGraphicsPipeline(fillPipeline);
-                        cb->setShaderResources(shaderResourcesForFillTextures(
-                            nullptr, nullptr, nullptr, nullptr,
-                            m_renderSettings.uvTextureNearestSampling));
+                        setShaderResourcesWithOffset(
+                            cb,
+                            shaderResourcesForFillTextures(
+                                nullptr,
+                                nullptr,
+                                nullptr,
+                                nullptr,
+                                m_renderSettings.uvTextureNearestSampling),
+                            0);
                         const QRhiCommandBuffer::VertexInput binding(fillVariant.vbuf.get(), 0);
                         cb->setVertexInput(0, 1, &binding);
                         cb->draw(fillVariant.vertexCount);
@@ -1158,7 +1173,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     pointSettings.pointLighting = false;
                     updateStyleUbuf(pointSettings);
                     cb->setGraphicsPipeline(m_pointsPipeline.get());
-                    cb->setShaderResources(m_srb.get());
+                    setShaderResourcesWithOffset(cb, m_srb.get(), 0);
                     const QRhiCommandBuffer::VertexInput binding(pointVariant.vbuf.get(), 0);
                     cb->setVertexInput(0, 1, &binding);
                     cb->draw(pointVariant.vertexCount);
