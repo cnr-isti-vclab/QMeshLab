@@ -59,6 +59,7 @@ public:
         std::vector<MeshIOTextureAsset> textureAssets;
         MeshIOMaterialSet materialSet;
         bool visible = true;
+        bool modified = false;
         int ioMask = 0;
         VCGMesh mesh;
     };
@@ -387,6 +388,7 @@ private:
             std::vector<MeshIOTextureAsset> textureAssets;
             MeshIOMaterialSet materialSet;
             bool visible = false;
+            bool modified = false;
             int ioMask = 0;
             // Shared, immutable geometry; never null after capture.
             std::shared_ptr<const VCGMesh> geometry;

@@ -548,6 +548,7 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.textureAssets = src.textureAssets;
     dst.materialSet = src.materialSet;
     dst.visible = src.visible;
+    dst.modified = src.modified;
     dst.ioMask = src.ioMask;
 }
 
@@ -1283,6 +1284,7 @@ int Document::reloadMesh(int index)
     entry.materialSet = normalizeMaterialSet(sourcePath, loadedMaterialSet, reloadedMesh);
     entry.geometryRevision = m_nextGeometryRevision++;
     ++entry.materialRevision;
+    entry.modified = false;
 
     const qint64 elapsedMs = loadTimer.elapsed();
     const qint64 postProcessElapsedMs = std::max<qint64>(0, elapsedMs - importElapsedMs);
@@ -2029,6 +2031,7 @@ Document::UndoState Document::captureUndoState() const
         snap.textureAssets      = entry->textureAssets;
         snap.materialSet        = entry->materialSet;
         snap.visible            = entry->visible;
+        snap.modified           = entry->modified;
         snap.ioMask             = entry->ioMask;
 
         // Attempt to reuse an already-interned geometry object.
@@ -2129,6 +2132,7 @@ void Document::restoreUndoState(const UndoState &state)
         entry->textureAssets    = snap.textureAssets;
         entry->materialSet      = snap.materialSet;
         entry->visible          = snap.visible;
+        entry->modified         = snap.modified;
         entry->ioMask           = snap.ioMask;
         // The live MeshEntry needs its own mutable copy of the geometry so that
         // subsequent operations (filters, transforms) can modify it freely without
@@ -2930,6 +2934,7 @@ void Document::markMeshGeometryChanged(int index, const QString &contextMessage)
     if (ownUndoStep)
         beginUndoStep(tr("Modify Mesh Geometry"));
     MeshEntry &entry = mesh(index);
+    entry.modified = true;
     entry.geometryRevision = m_nextGeometryRevision++;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
@@ -2949,6 +2954,7 @@ void Document::markMeshMaterialChanged(int index, const QString &contextMessage)
     if (ownUndoStep)
         beginUndoStep(tr("Modify Mesh Material"));
     MeshEntry &entry = mesh(index);
+    entry.modified = true;
     ++entry.materialRevision;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
@@ -2971,6 +2977,7 @@ void Document::markMeshSelectionChanged(int index, const QString &contextMessage
     if (ownUndoStep)
         beginUndoStep(tr("Change Selection"));
     MeshEntry &entry = mesh(index);
+    entry.modified = true;
     ++entry.geometryRevision;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
