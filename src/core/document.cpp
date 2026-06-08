@@ -2923,6 +2923,19 @@ void Document::setCurrentRasterIndexInternal(int index, bool makeCurrentLayer)
         emit currentLayerChanged(m_currentLayerKind, m_currentRasterIndex);
 }
 
+void Document::ensureRasterPlaneImage(RasterPlane &plane)
+{
+    if (!plane.image.isNull())
+        return;
+    if (plane.sourcePath.trimmed().isEmpty())
+        return;
+    QImageReader reader(plane.sourcePath);
+    reader.setAutoTransform(true);
+    plane.image = reader.read();
+    if (!plane.image.isNull())
+        plane.size = plane.image.size();
+}
+
 void Document::markRasterImageChanged(int index, const QString &contextMessage)
 {
     if (index < 0 || index >= rasterCount())

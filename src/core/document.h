@@ -252,6 +252,7 @@ public:
     void setRasterShot(int index, const CameraShot &shot, const QString &contextMessage = {});
     void setCurrentRasterIndex(int index);
     void setCurrentRasterPlaneIndex(int rasterIndex, int planeIndex);
+    static void ensureRasterPlaneImage(RasterPlane &plane);
     void markRasterImageChanged(int index, const QString &contextMessage = {});
     QMatrix4x4 meshTransform(int index) const;
     void setMeshTransform(

@@ -316,7 +316,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
         if (currentRasterIndex < 0 || currentRasterIndex >= doc.rasterCount())
             return fail(QObject::tr("No current raster selected."));
 
-        const Document::RasterEntry &rasterEntry = doc.raster(currentRasterIndex);
+        Document::RasterEntry &rasterEntry = doc.raster(currentRasterIndex);
         const CameraShot             &shot       = rasterEntry.shot;
 
         if (!shot.isValid())
@@ -324,8 +324,11 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
         if (rasterEntry.planes.empty())
             return fail(QObject::tr("Current raster has no image planes."));
 
-        const Document::RasterPlane *rasterPlane = rasterEntry.currentPlane();
-        if (!rasterPlane || !rasterPlane->hasImage())
+        Document::RasterPlane *rasterPlane = rasterEntry.currentPlane();
+        if (!rasterPlane)
+            return fail(QObject::tr("Current raster has no plane."));
+        Document::ensureRasterPlaneImage(*rasterPlane);
+        if (rasterPlane->image.isNull())
             return fail(QObject::tr("Current raster plane has no image."));
 
         const QImage &rasterImage = rasterPlane->image;
@@ -436,14 +439,16 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
 
         int camInd = 0;
         for (int ri = 0; ri < doc.rasterCount(); ++ri) {
-            const Document::RasterEntry &rasterEntry = doc.raster(ri);
+            Document::RasterEntry &rasterEntry = doc.raster(ri);
             if (!rasterEntry.visible)           { ++camInd; continue; }
             if (!rasterEntry.shot.isValid())     { ++camInd; continue; }
             if (rasterEntry.planes.empty())      { ++camInd; continue; }
 
             const CameraShot &shot       = rasterEntry.shot;
-            const Document::RasterPlane *rasterPlane = rasterEntry.currentPlane();
-            if (!rasterPlane || !rasterPlane->hasImage()) { ++camInd; continue; }
+            Document::RasterPlane *rasterPlane = rasterEntry.currentPlane();
+            if (!rasterPlane) { ++camInd; continue; }
+            Document::ensureRasterPlaneImage(*rasterPlane);
+            if (!rasterPlane->hasImage()) { ++camInd; continue; }
             const QImage     &rasterImage = rasterPlane->image;
             const int         imgW        = shot.viewportPx().width();
             const int         imgH        = shot.viewportPx().height();
@@ -650,14 +655,16 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
         // Project each active raster onto the texels
         int camInd = 0;
         for (int ri = 0; ri < doc.rasterCount(); ++ri) {
-            const Document::RasterEntry &rasterEntry = doc.raster(ri);
+            Document::RasterEntry &rasterEntry = doc.raster(ri);
             if (!rasterEntry.visible)            { ++camInd; continue; }
             if (!rasterEntry.shot.isValid())      { ++camInd; continue; }
             if (rasterEntry.planes.empty())       { ++camInd; continue; }
 
             const CameraShot &shot        = rasterEntry.shot;
-            const Document::RasterPlane *rasterPlane = rasterEntry.currentPlane();
-            if (!rasterPlane || !rasterPlane->hasImage()) { ++camInd; continue; }
+            Document::RasterPlane *rasterPlane = rasterEntry.currentPlane();
+            if (!rasterPlane) { ++camInd; continue; }
+            Document::ensureRasterPlaneImage(*rasterPlane);
+            if (!rasterPlane->hasImage()) { ++camInd; continue; }
             const QImage     &rasterImage = rasterPlane->image;
             const int         imgW        = shot.viewportPx().width();
             const int         imgH        = shot.viewportPx().height();
