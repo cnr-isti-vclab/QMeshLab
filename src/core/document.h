@@ -495,4 +495,5 @@ private:
     std::function<ViewState()> m_captureViewState;
     std::function<void(const ViewState &, bool restoreCamera)> m_restoreViewState;
     std::function<bool(const QString &, const QSize &, QImage &, CameraShot &, QString &)> m_captureRenderStateSnapshot;
+    bool m_bulkLoading = false;
 };

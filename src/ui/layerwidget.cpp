@@ -6,6 +6,9 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontMetrics>
+#include <QCryptographicHash>
+#include <QStandardPaths>
+#include <QDateTime>
 #include <QHash>
 #include <QHBoxLayout>
 #include <QImageReader>
@@ -603,12 +606,34 @@ QPixmap textureThumbnail(const QString &path, int w, int h)
     if (it != cache.constEnd())
         return it.value();
 
+    // Check disk cache first
+    if (!path.isEmpty() && QFileInfo::exists(path)) {
+        const QFileInfo srcInfo(path);
+        const QString thumbDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+            + QStringLiteral("/raster_thumbnails");
+        const QString hash = QString::fromLatin1(
+            QCryptographicHash::hash(path.toUtf8(), QCryptographicHash::Md5).toHex());
+        const QString cachePath = thumbDir
+            + QStringLiteral("/%1_%2x%3.png").arg(hash).arg(w).arg(h);
+        if (QFileInfo::exists(cachePath)) {
+            const QFileInfo cacheInfo(cachePath);
+            if (cacheInfo.lastModified() >= srcInfo.lastModified()) {
+                QPixmap cached;
+                if (cached.load(cachePath)) {
+                    cache.insert(cacheKey, cached);
+                    return cached;
+                }
+            }
+        }
+    }
+
     QPixmap out(w, h);
     out.fill(QColor(30, 30, 30));
     QPainter p(&out);
     p.setRenderHint(QPainter::Antialiasing, true);
 
     bool ok = false;
+    QString cachePath;
     if (!path.isEmpty() && QFileInfo::exists(path)) {
         QImageReader reader(path);
         reader.setAutoTransform(true);
@@ -626,6 +651,16 @@ QPixmap textureThumbnail(const QString &path, int w, int h)
             const int y = (h - tex.height()) / 2;
             p.drawPixmap(x, y, tex);
             ok = true;
+
+            // Persist to disk cache
+            const QString thumbDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                + QStringLiteral("/raster_thumbnails");
+            const QString hash = QString::fromLatin1(
+                QCryptographicHash::hash(path.toUtf8(), QCryptographicHash::Md5).toHex());
+            cachePath = thumbDir
+                + QStringLiteral("/%1_%2x%3.png").arg(hash).arg(w).arg(h);
+            QDir().mkpath(thumbDir);
+            out.save(cachePath, "PNG");
         }
     }
 
@@ -994,7 +1029,9 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     tableSplitter->setStretchFactor(1, 2);
 
     // Document connections — always rebuild
-    connect(m_doc, &Document::meshAdded, this, &LayerWidget::rebuild);
+    connect(m_doc, &Document::meshAdded, this, [this](int) {
+        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+    });
     connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
         QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
@@ -1008,7 +1045,9 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
         QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
     });
-    connect(m_doc, &Document::rasterAdded, this, &LayerWidget::rebuild);
+    connect(m_doc, &Document::rasterAdded, this, [this](int) {
+        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+    });
     connect(m_doc, &Document::rasterRemoved, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::rasterVisibilityChanged, this, [this](int, bool) {
         QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);

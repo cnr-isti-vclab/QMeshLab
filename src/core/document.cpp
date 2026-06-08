@@ -2511,8 +2511,12 @@ int Document::loadMeshLabProject(const QString &filename)
     if (ownUndoStep)
         beginUndoStep(tr("Open MeshLab Project"));
 
+    QElapsedTimer projectTimer;
+    projectTimer.start();
     writeLog(tr("Loading MeshLab project: %1").arg(normalizedFilename), LogSource::Application);
 
+    const qint64 xmlParseMs = projectTimer.elapsed();
+    m_bulkLoading = true;
     int loadedMeshes = 0;
     int loadedRasters = 0;
 
@@ -2550,7 +2554,10 @@ int Document::loadMeshLabProject(const QString &filename)
         }
     }
 
+    int rasterIdx = 0;
     for (const MeshLabProjectRasterEntry &projectRaster : projectRasters) {
+        QElapsedTimer rt;
+        rt.start();
         RasterEntry rasterEntry;
         rasterEntry.name = projectRaster.label;
         rasterEntry.shot = projectRaster.shot;
@@ -2565,21 +2572,15 @@ int Document::loadMeshLabProject(const QString &filename)
 
             if (!projectPlane.sourcePath.trimmed().isEmpty() && QFileInfo::exists(projectPlane.sourcePath)) {
                 QImageReader reader(projectPlane.sourcePath);
-                reader.setAutoTransform(true);
-                plane.image = reader.read();
-                if (plane.image.isNull()) {
-                    writeLog(
-                        tr("Failed to load project raster plane '%1': %2")
-                            .arg(projectPlane.sourcePath, reader.errorString()),
-                        LogSource::Application);
-                }
+                plane.size = reader.size();
             } else if (!projectPlane.sourcePath.trimmed().isEmpty()) {
                 writeLog(
                     tr("Project raster plane file is missing: %1").arg(projectPlane.sourcePath),
                     LogSource::Application);
             }
 
-            plane.size = !plane.image.isNull() ? plane.image.size() : projectRaster.shot.viewportPx();
+            if (!plane.size.isValid() || plane.size.width() <= 0)
+                plane.size = projectRaster.shot.viewportPx();
             rasterEntry.planes.push_back(std::move(plane));
             if (rasterEntry.currentPlaneIndex < 0)
                 rasterEntry.currentPlaneIndex = int(rasterEntry.planes.size()) - 1;
@@ -2598,11 +2599,37 @@ int Document::loadMeshLabProject(const QString &filename)
                 rasterEntry.sourcePath = plane->sourcePath.trimmed();
         }
 
-        if (addRaster(rasterEntry) >= 0)
+        if (addRaster(rasterEntry) >= 0) {
+            const qint64 addMs = rt.elapsed();
+            const Document::RasterPlane *p = rasterEntry.currentPlane();
+            const QSize sz = p ? p->size : QSize();
+            writeLog(
+                tr("Raster %1/%2: %3 ms — %4%5")
+                    .arg(rasterIdx + 1)
+                    .arg(projectRasters.size())
+                    .arg(addMs)
+                    .arg(rasterEntry.name)
+                    .arg(sz.isValid() ? tr(" (%1x%2)").arg(sz.width()).arg(sz.height()) : QString()),
+                LogSource::Application);
             ++loadedRasters;
+        }
+        ++rasterIdx;
     }
 
+    m_bulkLoading = false;
+    // Emit a single rasterAdded to trigger one rebuild for all loaded rasters
+    if (loadedRasters > 0)
+        emit rasterAdded(rasterCount() - 1);
+    const qint64 rasterLoopMs = projectTimer.elapsed() - xmlParseMs;
+    if (rasterCount() > 0 && m_currentRasterIndex < 0)
+        setCurrentRasterIndex(rasterCount() - 1);
     const bool success = (loadedMeshes + loadedRasters) > 0;
+    writeLog(
+        tr("MeshLab project load: %1 ms total (XML %2 ms, rasters %3 ms)")
+            .arg(projectTimer.elapsed())
+            .arg(xmlParseMs)
+            .arg(rasterLoopMs),
+        LogSource::Application);
     writeLog(
         tr("MeshLab project import complete: %1 mesh(es), %2 raster(s)")
             .arg(loadedMeshes)
@@ -2629,18 +2656,10 @@ int Document::addRaster(const RasterEntry &rasterData)
 
     const int newIndex = rasterCount();
     m_rasters.push_back(std::move(entry));
-    const RasterEntry &added = raster(newIndex);
-    const RasterPlane *plane = added.currentPlane();
-    const QSize planeSize = plane ? plane->size : QSize();
-    writeLog(
-        tr("Added raster '%1'%2")
-            .arg(added.name)
-            .arg(planeSize.isValid()
-                     ? tr(" (%1x%2)").arg(planeSize.width()).arg(planeSize.height())
-                     : QString()),
-        LogSource::Application);
-    emit rasterAdded(newIndex);
-    setCurrentRasterIndex(newIndex);
+    if (!m_bulkLoading) {
+        emit rasterAdded(newIndex);
+        setCurrentRasterIndex(newIndex);
+    }
 
     if (ownUndoStep)
         endUndoStep(true);
