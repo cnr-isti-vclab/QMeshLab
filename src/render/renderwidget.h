@@ -121,12 +121,13 @@ private:
         QRhiShaderResourceBindings *srb = nullptr;
         bool fitToViewport = true;
     };
-    struct SceneRasterProjectedDrawItem {
-        int rasterIndex = -1;
-        QRhiShaderResourceBindings *srb = nullptr;
-        QRhiBuffer *vertexBuffer = nullptr;
-        int vertexCount = 0;
-    };
+struct SceneRasterProjectedDrawItem {
+    int rasterIndex = -1;
+    QRhiShaderResourceBindings *srb = nullptr;
+    QRhiBuffer *vertexBuffer = nullptr;
+    int vertexCount = 0;
+    bool isCurrent = false;
+};
     struct SceneSelectionDrawItem {
         int meshIndex = -1;
         bool drawFaces = false;

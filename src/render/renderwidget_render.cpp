@@ -247,7 +247,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     QMatrix4x4 vp;
     if (rasterMode) {
         const int rasterIndex = m_doc ? m_doc->currentRasterIndex() : -1;
-        const Document::RasterEntry *rasterEntry =
+        Document::RasterEntry *rasterEntry =
             (rasterIndex >= 0 && rasterIndex < m_doc->rasterCount())
             ? &m_doc->raster(rasterIndex)
             : nullptr;
@@ -296,7 +296,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 farPlane = std::max(nearPlane + 0.01f, maxDepth + range * 0.2f);
             }
             proj = rasterEntry->shot.projectionMatrix(nearPlane, farPlane);
-            if (const Document::RasterPlane *plane = rasterEntry->currentPlane()) {
+            if (Document::RasterPlane *plane = rasterEntry->currentPlane()) {
+                Document::ensureRasterPlaneImage(*plane);
                 const QSize rasterSize = !plane->image.isNull()
                     ? plane->image.size()
                     : rasterEntry->shot.viewportPx();

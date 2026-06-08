@@ -40,10 +40,13 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
     if (m_viewMode == ViewMode::RasterImage) {
         const int currentRasterIndex = m_doc->currentRasterIndex();
         if (currentRasterIndex >= 0 && currentRasterIndex < m_doc->rasterCount()) {
-            const Document::RasterEntry &entry = m_doc->raster(currentRasterIndex);
-            const Document::RasterPlane *plane = entry.currentPlane();
-            if (plane && !plane->image.isNull())
-                requests.rasterBackplates.push_back(currentRasterIndex);
+            Document::RasterEntry &entry = m_doc->raster(currentRasterIndex);
+            Document::RasterPlane *plane = entry.currentPlane();
+            if (plane) {
+                Document::ensureRasterPlaneImage(*plane);
+                if (!plane->image.isNull())
+                    requests.rasterBackplates.push_back(currentRasterIndex);
+            }
             if (!entry.shot.isValid())
                 return requests;
         } else {
@@ -51,9 +54,12 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
         }
     } else {
         for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
-            const Document::RasterEntry &entry = m_doc->raster(ri);
-            const Document::RasterPlane *plane = entry.currentPlane();
-            if (!entry.visible || !plane || plane->image.isNull())
+            Document::RasterEntry &entry = m_doc->raster(ri);
+            Document::RasterPlane *plane = entry.currentPlane();
+            if (!entry.visible || !plane)
+                continue;
+            Document::ensureRasterPlaneImage(*plane);
+            if (plane->image.isNull())
                 continue;
             if (entry.shot.isValid())
                 requests.rasterProjected.push_back(ri);
@@ -138,7 +144,8 @@ void RenderWidget::planRasterProjectedPasses(
             rasterIndex,
             gpu.projectedSrb.get(),
             gpu.projectedVbuf.get(),
-            gpu.projectedVertexCount
+            gpu.projectedVertexCount,
+            m_doc->currentRasterIndex() == rasterIndex
         });
     }
 }

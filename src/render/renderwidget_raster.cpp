@@ -47,8 +47,9 @@ QSize RenderWidget::currentRasterImageSize() const
     if (rasterIndex < 0 || rasterIndex >= m_doc->rasterCount())
         return {};
 
-    const Document::RasterEntry &entry = m_doc->raster(rasterIndex);
-    if (const Document::RasterPlane *plane = entry.currentPlane()) {
+    Document::RasterEntry &entry = m_doc->raster(rasterIndex);
+    if (Document::RasterPlane *plane = entry.currentPlane()) {
+        Document::ensureRasterPlaneImage(*plane);
         if (!plane->image.isNull())
             return plane->image.size();
     }
@@ -200,9 +201,12 @@ void RenderWidget::ensureRasterResources(
         if (rasterIndex < 0 || rasterIndex >= m_doc->rasterCount())
             return;
 
-        const Document::RasterEntry &entry = m_doc->raster(rasterIndex);
-        const Document::RasterPlane *plane = entry.currentPlane();
-        if (!plane || plane->image.isNull())
+        Document::RasterEntry &entry = m_doc->raster(rasterIndex);
+        Document::RasterPlane *plane = entry.currentPlane();
+        if (!plane)
+            return;
+        Document::ensureRasterPlaneImage(*plane);
+        if (plane->image.isNull())
             return;
 
         RasterGpu &gpu = m_rastersGpu[entry.rasterId];
@@ -345,10 +349,17 @@ void RenderWidget::renderSceneRasterProjected(
 
         float ubuf[kRasterProjectedUbufSize / sizeof(float)] = {};
         memcpy(ubuf, mvp.constData(), 64);
-        ubuf[16] = 0.15f;
-        ubuf[17] = 0.65f;
-        ubuf[18] = 1.0f;
-        ubuf[19] = 0.95f;
+        if (item.isCurrent) {
+            ubuf[16] = 1.0f;
+            ubuf[17] = 0.82f;
+            ubuf[18] = 0.25f;
+            ubuf[19] = 0.95f;
+        } else {
+            ubuf[16] = 0.15f;
+            ubuf[17] = 0.65f;
+            ubuf[18] = 1.0f;
+            ubuf[19] = 0.95f;
+        }
         const quint32 ubufOffset = allocateDynamicUbufOffset(
             m_rasterProjectedUbufAllocator,
             "raster-projected");

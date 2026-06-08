@@ -1642,8 +1642,15 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
                 *errorMessage = tr("No current raster is available.");
             return false;
         }
-        const Document::RasterPlane *plane = m_doc->raster(rasterIndex).currentPlane();
-        if (!plane || plane->image.isNull()) {
+        Document::RasterEntry &rasterEntry = m_doc->raster(rasterIndex);
+        Document::RasterPlane *plane = rasterEntry.currentPlane();
+        if (!plane) {
+            if (errorMessage)
+                *errorMessage = tr("Current raster has no image plane.");
+            return false;
+        }
+        Document::ensureRasterPlaneImage(*plane);
+        if (plane->image.isNull()) {
             if (errorMessage)
                 *errorMessage = tr("Current raster has no image plane.");
             return false;
