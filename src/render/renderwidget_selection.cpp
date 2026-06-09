@@ -1,7 +1,6 @@
 #include "renderwidget.h"
 #include "document.h"
 #include "renderwidget_internal.h"
-#include <QMetaObject>
 #include <QPointer>
 
 using namespace RenderWidgetInternal;
