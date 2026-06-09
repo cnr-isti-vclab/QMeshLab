@@ -16,7 +16,7 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md)
 4. Shared mesh GPU cache (`src/render/MeshGpuResourceCache`)
 5. Per-view rendering (`RenderWidget`, `ViewTrackball`, `RenderOverlayPanel`)
 6. Optional embedded Python layer (`src/python`, `_qmeshlab`, `PythonHost`)
-7. Auxiliary views (`LayerWidget`, `MeshFilterPanel`, log dock, undo graph, Python console, status-bar stats/progress)
+7. Auxiliary views (`LayerWidget` tree/table layer dock, `MeshFilterPanel`, log dock, undo graph, Python console, status-bar stats/progress)
 
 ## Core Components
 
@@ -24,7 +24,7 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md)
 
 Owns the ordered mesh list (`MeshEntry`), ordered raster list (`RasterEntry`), current mesh/raster indices, explicit active-layer kind, per-document log, tree-shaped undo/redo history, I/O and filter plugin managers, the shared GPU cache, render-state snapshot callback, and memory accounting APIs. Does not own live per-widget pipelines/camera state; those remain in `RenderWidget`. Undo nodes include serialized mesh/raster state plus one `ViewState` snapshot (captured/restored through callbacks, with camera restoration optionally skipped during history jumps).
 
-Each `MeshEntry` stores: identity/revision keys (`meshId`, `geometryRevision`, `materialRevision`), render placement (`transform`), source metadata (`name`, `sourcePath`, `ioMask`), texture metadata (`textureFileNames`, `textureFilePaths`, `textureAssets`), material set, `visible` flag, and the `VCGMesh`.
+Each `MeshEntry` stores: identity/revision keys (`meshId`, `geometryRevision`, `materialRevision`), render placement (`transform`), source metadata (`name`, `sourcePath`, `ioMask`), texture metadata (`textureFileNames`, `textureFilePaths`, `textureAssets`), material set, `visible` and `modified` flags, and the `VCGMesh`.
 
 Each `RasterEntry` stores: identity/revision keys (`rasterId`, `imageRevision`, `cameraRevision`), source metadata (`name`, `sourcePath`), `visible` flag, a `CameraShot`, a list of `RasterPlane` image planes, and `currentPlaneIndex`. A `RasterPlane` records semantic role (`RGBA`, masks, depth, or extra planes), display/source names, pixel size, and optional `QImage` payload.
 
@@ -63,13 +63,17 @@ Scene navigation: arcball/hyperbola rotation, pan, dolly, `Shift+Wheel` vertigo 
 
 Compact pass/settings panel: pass toggles, mode-specific world settings page (Scene vs UV), per-pass style controls (colors, widths, lighting/culling, quality histogram), PBR texture/normal-space controls, and `PerMeshRenderSettings`/`GlobalRenderSettings` sync.
 
+### `LayerWidget`
+
+Layer dock with two synchronized presentations over the same `Document`: a detailed tree view and a sortable table view. Mesh rows expose visibility, loaded/generated/modified markers, counts, texture/material/attribute summaries, and current-layer selection. Raster rows expose visibility, active raster selection, current plane, plane export, image size, plane count, and camera summary.
+
 ### `MeshFilterPanel`
 
 Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, optional markdown description, advanced-parameter toggle, reset-to-defaults button, per-filter parameter-value cache, current-view providers for camera/render-state JSON parameters, and, when Python support is compiled in, a copy-to-console action that emits an `ms.<pythonName>(...)` call.
 
 ### `MainWindow`
 
-Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log/Python docks, status bar (progress bars, frame-time stats), undo graph panel, and menus (file, edit, filters, view, help). Manages mesh/raster file open and drop flows, split/close, active-view highlight border, optional camera synchronization across 3D views, camera-state copy/paste, document visibility proxy synchronization from the current view, view PNG snapshots, snapshot-to-raster creation, render-state snapshot callbacks for filters, undo-node thumbnails/snapshots, and embedded Python console visibility when enabled.
+Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log/Python docks, status bar (progress bars, frame-time stats), undo graph panel, and menus (file, edit, filters, view, help). Manages mesh/project/raster file open and drop flows, split/close, active-view highlight border, optional camera synchronization across 3D views, camera-state copy/paste, document visibility proxy synchronization from the current view, view PNG snapshots, snapshot-to-raster creation, render-state snapshot callbacks for filters, undo-node thumbnails/snapshots, and embedded Python console visibility when enabled.
 
 ### `PythonHost` and `_qmeshlab`
 
@@ -114,14 +118,14 @@ Defined in `renderingsettings.h`:
 
 ## Plugin System
 
-**I/O plugins** (`MeshIOPlugin`): `canLoad`/`load`, `canSave`/`save`, dialog filter strings, mask capability.
+**I/O plugins** (`MeshIOPlugin`): `canLoad`/`load`, `canSave`/`save`, dialog filter strings, mask capability. MeshLab project (`.mlp`) loading is handled directly by `Document` so it can combine plugin-loaded mesh files with project transforms, raster planes, and raster camera shots.
 
 **Filter plugins** (`MeshFilterPlugin`): plugin id/name, `filters(const Document&)` returning descriptors (domain/codomain, requirements, tags, parameters, `pythonName`), `runFilter(id, params, Document&)`.
 
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 
 Built-in I/O (when enabled at build time): `io_vcg`, `io_obj_rapidobj`, `io_gltf`, `io_e57`.  
-Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `filter_embree`, `filter_select`, `filter_clean`, `filter_meshing`, `filter_cgal`, `filter_parametrization`, `filter_mesh_booleans`, `filter_screened_poisson`, `filter_sampling`, `filter_voronoi`, `filter_icp`, `filter_unsharp`, `filter_create`, `filter_geodesic`, `filter_texture`, `filter_texture_defragmentation`, `filter_measure`, `filter_mls`, `filter_sample`, `filter_layer`, `filter_colorproc`, `filter_xatlas`, `filter_trioptimize`.
+Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `filter_embree`, `filter_select`, `filter_clean`, `filter_meshing`, `filter_cgal`, `filter_parametrization`, `filter_mesh_booleans`, `filter_screened_poisson`, `filter_sampling`, `filter_voronoi`, `filter_icp`, `filter_unsharp`, `filter_create`, `filter_geodesic`, `filter_texture`, `filter_texture_defragmentation`, `filter_measure`, `filter_mls`, `filter_sample`, `filter_layer`, `filter_colorproc`, `filter_xatlas`, `filter_trioptimize`, `filter_color_projection`.
 
 ## State Ownership
 
@@ -147,7 +151,7 @@ User Action
    ▼
 MainWindow (menus, docks, split-view orchestration)
    │
-   ├──▶ Document (mesh/raster load, save/filter, undo/redo, logs, progress/cancel)
+   ├──▶ Document (mesh/project/raster load, save/filter, undo/redo, logs, progress/cancel)
    │         │
    │         └──▶ MeshGpuResourceCache (shared per-mesh GPU data)
    │
@@ -157,7 +161,7 @@ MainWindow (menus, docks, split-view orchestration)
 
 ## Typical Runtime Sequence
 
-1. User opens or drops files → `Document` resolves mesh plugins or raster image loading, appends the layer, and emits signals.
+1. User opens or drops files → `Document` resolves mesh plugins, MeshLab project loading, or raster image loading, appends layers, and emits signals.
 2. Views sync mesh/mode/visibility and collect frame pass requests.
 3. Scene3D prepares shared GPU resources from those requests, builds a concrete `RenderFramePlan`, and executes layered passes. UV mode still uses a separate UV renderer and cache.
 4. Undo/redo or undo-graph jumps restore mesh snapshots and the active view snapshot (`ViewState`).

@@ -15,7 +15,7 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 - source metadata: `name`, `sourcePath`, `ioMask`
 - texture metadata: `textureFileNames`, `textureFilePaths`, `textureAssets`
 - material metadata: `materialSet`
-- mesh state: `visible`, `VCGMesh mesh`
+- mesh state: `visible`, `modified`, `VCGMesh mesh`
 
 `Document` also owns: remembered current mesh/raster indices, explicit active layer kind, document log (application / VCG / error sources), I/O and filter plugin managers, shared GPU cache, undo/redo history, operation cancel flag, and memory accounting APIs (`cpuMeshMemoryStats`, `undoMemoryStats`, `gpuMemoryStats`). Optional Python bindings borrow or own a `Document` through `MeshSetCore`; the embedded console borrows the live `MainWindow` document and does not take ownership.
 
@@ -40,6 +40,7 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 ## Signals and Reactivity
 
 - mesh lifecycle: `meshAdded`, `meshRemoved`, `meshDataChanged`
+- raster lifecycle/data: `rasterAdded`, `rasterRemoved`, `rasterDataChanged`
 - selection/visibility: `currentMeshChanged`, `currentRasterChanged`, `currentLayerChanged`, `meshVisibilityChanged`, `rasterVisibilityChanged`
 - progress: `loadProgress*`, `filterProgress*`
 - logging: `logCleared`, `logMessageAdded`
@@ -47,9 +48,11 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 
 ## I/O Model
 
-`Document::loadMesh()`: resolves import plugin, runs plugin load, compacts imported mesh storage, updates bbox/normals, initializes transform and material set, resolves texture paths/assets, logs stats, appends entry, emits signals. `reloadMesh(index)` follows the same path while preserving mesh identity.
+`Document::loadMesh()`: resolves import plugin, runs plugin load, compacts imported mesh storage, updates bbox/normals, initializes transform and material set, resolves texture paths/assets, logs stats, appends entry, clears the `modified` flag, emits signals. `reloadMesh(index)` follows the same path while preserving mesh identity.
 
 `Document::loadRasterImage()`: loads a `QImage`, creates a `RasterEntry` with an RGBA `RasterPlane`, appends the raster layer, makes it current, and emits raster/current-layer signals. Ordinary image loads do not synthesize a calibrated camera; callers such as snapshot capture can pass a `CameraShot` through `addRasterImage(...)`, and raster-mode mesh projection is enabled only when that shot is valid.
+
+`Document::loadMeshLabProject()`: parses MeshLab project (`.mlp`) files directly, loads referenced meshes through the normal mesh plugin path, applies project labels/transforms, creates raster entries from project raster planes, stores project `CameraShot` data, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.
 
 `Document::saveMesh(...)`: resolves export plugin, passes `MeshIOSaveOptions` (mask, binary, embed textures, copy associated textures, Draco options).
 
@@ -62,6 +65,8 @@ Metadata: `filterInfos()`, `loadedFilterPluginSummaries()`. Descriptors can be l
 Execution: `runFilter(filterKey, parameters)` with callback-based progress and cancel (`requestOperationCancel`, `isOperationCancelRequested`). The framework normalizes/validates parameters, exposes `validateFilterInvocation(...)` for preflight checks, prepares requested volatile VCG data, validates typed `CameraState`/`RenderState` JSON payloads when descriptors request them, runs pre/post cleanup hooks, compacts modified meshes, updates geometry/material/selection/transform revisions according to descriptor output codes, and can return visualization hints for quality-based rendering.
 
 Render-state filters: `filter_layer` includes `render_from_render_state_json`, which consumes `QMeshLab.CameraState` and `QMeshLab.RenderState` payloads, asks `Document::renderSnapshotFromStateJson(...)` for an offscreen render, then can save the result as PNG and/or add it as a raster layer with the resulting `CameraShot`.
+
+Filters can consume document-level mesh, raster, camera, texture, and render-state data when their descriptors request those parameter/input domains. Mutations stay descriptor-driven: vertex color, wedge texture, material, geometry, selection, transform, and new-layer outputs are surfaced through the normal output-modifies codes and document revision paths rather than through filter-specific data-model branches.
 
 Python integration: `_qmeshlab.MeshSet` wraps a `Document` and exposes `mesh_count`, `current_mesh`, `set_current_mesh`, `load_new_mesh`, `save_current_mesh`, `list_filters`, and `apply_filter`. `apply_filter` resolves a fully qualified key, descriptor id, or Python name, converts supported Python kwargs to `MeshFilterParameterValues` (`bool`, integer, float, string, and 3-number point/vector sequences), and runs the same `Document::runFilter(...)` path used by the GUI. In the embedded console, `PythonHost` dynamically adds one method per filter to `MeshSet` using each descriptor's `effectivePythonName()`.
 
@@ -78,20 +83,21 @@ Committing an action appends a child to the current node, preserving alternate t
 
 Undo-tree maintenance APIs keep the graph controllable after branching: `makeUndoRoot(nodeId)` promotes a chosen node to the new root and discards unreachable history, `purgeUndoBranch(nodeId)` deletes a descendant branch, and `linearizeUndoHistory()` keeps only the root-to-current path. These operations preserve the current live state and notify the UI through the normal undo/redo state signal.
 
-Each `UndoState` holds a `std::vector<UndoState::MeshSnapshot>` and a `std::vector<UndoState::RasterSnapshot>`. A `MeshSnapshot` copies all cheap metadata fields by value (`transform`, names/paths/assets/materials/visibility/mask/revisions) and holds geometry behind a `shared_ptr<const VCGMesh>`. `captureUndoState()` interns geometry objects in `m_undoGeometryCache` (keyed by `(meshId, geometryRevision)`, stored as `weak_ptr`): if the revision is unchanged since the last capture, nodes share the same allocation. A cache miss triggers a deep copy. On undo/redo, `restoreUndoState()` deep-copies geometry out of the shared pointer so the live document is always freely mutable. Main geometry replacement paths use a document-level monotonic revision source (`m_nextGeometryRevision`) so branch-local edits do not accidentally reuse an older cache key after undo/redo navigation. Branch restore also evicts newer cached revisions for restored mesh ids to avoid stale geometry reuse across branches. `RasterSnapshot` stores raster metadata, `CameraShot`, planes, current plane, visibility, and raster image/camera revision ids. `undoMemoryStats()` de-duplicates shared geometry pointers across all undo nodes before summing total bytes, while per-step rows report the current path.
+Each `UndoState` holds a `std::vector<UndoState::MeshSnapshot>` and a `std::vector<UndoState::RasterSnapshot>`. A `MeshSnapshot` copies all cheap metadata fields by value (`transform`, names/paths/assets/materials/visibility/modified/mask/revisions) and holds geometry behind a `shared_ptr<const VCGMesh>`. `captureUndoState()` interns geometry objects in `m_undoGeometryCache` (keyed by `(meshId, geometryRevision)`, stored as `weak_ptr`): if the revision is unchanged since the last capture, nodes share the same allocation. A cache miss triggers a deep copy. On undo/redo, `restoreUndoState()` deep-copies geometry out of the shared pointer so the live document is always freely mutable. Main geometry replacement paths use a document-level monotonic revision source (`m_nextGeometryRevision`) so branch-local edits do not accidentally reuse an older cache key after undo/redo navigation. Branch restore also evicts newer cached revisions for restored mesh ids to avoid stale geometry reuse across branches. `RasterSnapshot` stores raster metadata, `CameraShot`, planes, current plane, visibility, and raster image/camera revision ids. `undoMemoryStats()` de-duplicates shared geometry pointers across all undo nodes before summing total bytes, while per-step rows report the current path.
 
 Each `UndoState` also stores a `ViewState` snapshot (`src/render/viewstate.h`) captured via `Document::setViewStateFunctions(...)`. Current wiring captures/restores the active `RenderWidget` camera/render-style state (`ViewTrackball::State`, `GlobalRenderSettings`, per-mesh `PerMeshRenderSettings`) with each node. Per-view visibility vectors, UV pan/zoom, and view mode are not part of `ViewState`; camera restore can be skipped when jumping to a node.
 
-APIs: `beginUndoStep(label)`, `endUndoStep(commit, restoreOnCancel)`, `undo()`, `redo()`, `jumpToUndoNode(nodeId, restoreCamera)`, `updateUndoNodeCamera(nodeId)`, `makeUndoRoot(nodeId)`, `purgeUndoBranch(nodeId)`, `linearizeUndoHistory()`, `undoTreeInfo()`, `clearUndoHistory()`, `setUndoLimit(limit)`. Integrated with mesh mutations (`add/remove/duplicate/reload/rename/visibility`, `setMeshTransform`, `markMeshGeometryChanged`, `markMeshMaterialChanged`, `markMeshSelectionChanged`) and raster mutations (`add/remove/rename/visibility`, `setRasterShot`, `markRasterImageChanged`).
+APIs: `beginUndoStep(label)`, `endUndoStep(commit, restoreOnCancel)`, `undo()`, `redo()`, `jumpToUndoNode(nodeId, restoreCamera)`, `updateUndoNodeCamera(nodeId)`, `makeUndoRoot(nodeId)`, `purgeUndoBranch(nodeId)`, `linearizeUndoHistory()`, `undoTreeInfo()`, `clearUndoHistory()`, `setUndoLimit(limit)`. Integrated with mesh mutations (`add/remove/duplicate/reload/rename/visibility`, `setMeshTransform`, `markMeshGeometryChanged`, `markMeshMaterialChanged`, `markMeshSelectionChanged`) and raster mutations (`add/remove/rename/visibility`, `setRasterShot`, `setCurrentRasterPlaneIndex`, `markRasterImageChanged`).
 
 ## Revision and Transform Model
 
 - `setMeshTransform(index, transform, contextMessage)` updates `MeshEntry::transform`, emits `meshDataChanged`, records undo.
-- `markMeshGeometryChanged(...)` advances `geometryRevision`; GPU geometry resources are rebuilt lazily. Main geometry replacement/edit paths allocate revisions from a monotonic document counter so undo branches cannot collide on the same `(meshId, geometryRevision)` cache key.
-- `markMeshMaterialChanged(...)` increments `materialRevision`; GPU material resources are rebuilt lazily.
-- `markMeshSelectionChanged(...)` increments `geometryRevision` because selection flags live inside the mesh geometry snapshot.
+- `markMeshGeometryChanged(...)` advances `geometryRevision`, sets `modified = true`, and rebuilds GPU geometry resources lazily. Main geometry replacement/edit paths allocate revisions from a monotonic document counter so undo branches cannot collide on the same `(meshId, geometryRevision)` cache key.
+- `markMeshMaterialChanged(...)` increments `materialRevision`, sets `modified = true`, and rebuilds GPU material resources lazily.
+- `markMeshSelectionChanged(...)` increments `geometryRevision` and sets `modified = true` because selection flags live inside the mesh geometry snapshot.
 - `markRasterImageChanged(...)` advances `imageRevision`; per-view raster GPU image resources are rebuilt lazily.
 - `setRasterShot(...)` advances `cameraRevision`; raster-projected rendering and raster camera glyphs pick up the new camera lazily.
+- `setCurrentRasterPlaneIndex(...)` changes which plane is considered current for display/export without changing raster image data.
 
 ## Render-State Snapshot Model
 

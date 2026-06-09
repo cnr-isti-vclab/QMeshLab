@@ -126,7 +126,7 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 Simple buffer pass execution (wire, edges, bbox, points), decorator execution, and selection execution are isolated in `renderwidget_scene_passes.cpp`. Their draw order remains controlled by `renderwidget_render.cpp`.
 
-**Rasters**: `renderwidget_raster.cpp` owns per-raster texture upload and draw execution. In `Scene3D`, rasters with valid camera shots draw as small line frustums with the apex at the raster camera origin and the base oriented by the camera view frustum; rasters without cameras are not drawn in the 3D view. The raster image itself is not pasted into the 3D scene. In `RasterImage`, only the active raster layer is requested as the full-viewport background reference, and mesh passes are included only when that raster has a valid camera.
+**Rasters**: `renderwidget_raster.cpp` owns per-raster texture upload and draw execution. In `Scene3D`, rasters with valid camera shots draw as small line frustums with the apex at the raster camera origin and the base oriented by the camera view frustum; the current raster frustum is highlighted in warm yellow while other raster frustums use blue. Rasters without cameras are not drawn in the 3D view. The raster image itself is not pasted into the 3D scene. In `RasterImage`, only the active raster layer is requested as the full-viewport background reference, and mesh passes are included only when that raster has a valid camera.
 
 ## Current Mesh Highlight
 
@@ -172,6 +172,16 @@ Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view 
 Current status: raster mode reuses the Scene3D request/plan/pass executors for mesh rendering. The active raster image is drawn as a background reference fitted to the widget while preserving its image aspect ratio. If the raster has a valid `CameraShot`, `CameraShot::viewMatrix()` and `CameraShot::projectionMatrix(...)` provide the frame matrices and visible meshes are rendered through that camera. The same raster pan/zoom transform is applied to both the background image and the raster-camera projection, so image navigation keeps the mesh aligned with the raster. If no camera is available, raster mode behaves as an image-only view.
 
 Raster mode interaction mirrors UV mode: left or middle drag pans the raster, wheel zooms around the cursor, and double click zooms in around the clicked image position. Raster mode starts with `75%` opacity. `Ctrl+Wheel` adjusts raster opacity. Trackball motion, depth picking, current-mesh outline, and camera synchronization remain disabled so the raster camera stays locked.
+
+## Raster Projection Filters
+
+`filter_color_projection` performs CPU-side projection from calibrated raster layers into mesh color/texture data:
+
+- `compute_color_from_current_raster_projection`: projects the current raster onto current mesh vertex colors, optionally restricted by a software depth buffer and/or vertex selection.
+- `compute_color_from_active_rasters_projection`: blends all visible rasters with valid `CameraShot`s into vertex colors using optional angle, distance, image-border, depth-discontinuity, and alpha weights.
+- `compute_color_and_texture_from_active_rasters_projection`: projects visible rasters into a generated texture image over existing wedge UVs, with optional pull-push gap filling to reduce mipmapping seams.
+
+These filters use `CameraShot::project(...)`/`depth(...)` and the mesh transform, not the live GPU scene pass. Their outputs are ordinary mesh data changes: vertex-color filters mark `VC`, while the texture bake marks wedge texture output and updates material/texture metadata through the normal filter/document path.
 
 ## Texture Normal-Map Workflow
 

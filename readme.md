@@ -9,7 +9,7 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 
 ## Current Features
 - Single `Document` shared by one or more `RenderWidget` views
-- Split-view UI (horizontal/vertical), active-view indicator, layer/log/filter docks, undo graph, and optional Python console dock
+- Split-view UI (horizontal/vertical), active-view indicator, dual tree/table layer dock, log/filter docks, undo graph, and optional Python console dock
 - Per-view mode switching between `3D Scene`, `Parametrization (UV)` (when the current mesh has UVs), and `Raster` (when the active layer is a raster)
 - Scene overlays for selection, normals, boundaries, texture seams, non-manifold markers, curvature directions, current-mesh outline, trackball/light gizmos, and quality histogram
 - PBR fill with albedo/normal/occlusion/roughness maps, tangent-space or object-space normal-map interpretation, plus Radiance Scaling
@@ -17,11 +17,12 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 - Fill rendering modes (`Plain`, `Pbr`, `RadianceScaling`) isolated behind material renderers with shared fill services and an RS pre-pass hook
 - Fat-edge rendering for edge meshes and decorator boundaries/seams/non-manifold edges (configurable width)
 - UV mode support for boundary-edge and texture-seam overlays on the current mesh; UV rendering is still a separate renderer, with convergence toward the Scene3D material path planned next
-- Raster mode displays the current raster as the view reference; rasters with camera shots reuse the Scene3D mesh pass pipeline through the raster camera, and mouse wheel adjusts raster opacity
+- Raster mode displays the current raster as the view reference with aspect-preserving fit, pan/zoom navigation, and opacity control; rasters with camera shots reuse the Scene3D mesh pass pipeline through the raster camera
 - Versioned camera/render-state JSON supports copy/paste, capture/apply, and deterministic offscreen snapshot workflows; concrete GPU `RenderFramePlan` objects remain internal and are not serialized
-- Plugin-based mesh import/export with per-extension preferred import plugin
+- Plugin-based mesh import/export with per-extension preferred import plugin, plus direct MeshLab project (`.mlp`) loading for mesh/raster layer sets
 - Plugin-based filter framework with searchable filter browser, generated parameter dialogs, `pythonName` metadata, and copy-to-console Python calls
 - Filter parameters include mesh, texture, point/vector, camera-state, and render-state values; parameter panels can reset to descriptor defaults and source state JSON from the active view
+- Raster projection filters can transfer current/all visible raster colors to vertex colors or bake visible rasters into a mesh texture atlas using existing wedge UVs
 - Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
 - Embedded `_qmeshlab.MeshSet` bindings when `QMESHLAB_PYTHON_CONSOLE=ON`; the in-app console exposes the live document as `ms`
 - Tree-shaped undo/redo integrated with mesh operations, filter runs, camera/render-style snapshots, branch pruning, and linearization
@@ -33,6 +34,8 @@ Built-in I/O plugin families (dependency-gated at build time):
 - `io_obj_rapidobj` (`obj`)
 - `io_gltf` (`gltf`, `glb`)
 - `io_e57` (`e57`, optional)
+
+MeshLab project files (`.mlp`) are loaded directly by `Document`, combining mesh plugin loads, mesh transforms, raster planes, and raster camera shots.
 
 Built-in filter plugin families (dependency-gated at build time):
 - `filter_basic`
@@ -60,6 +63,7 @@ Built-in filter plugin families (dependency-gated at build time):
 - `filter_colorproc`
 - `filter_xatlas`
 - `filter_trioptimize`
+- `filter_color_projection`
 
 ## Build
 
