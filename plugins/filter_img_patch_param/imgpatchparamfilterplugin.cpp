@@ -577,21 +577,38 @@ QImage paintTexture(const RasterPatchMap &patches, int texSize,
     for (auto it = patches.begin(); it != patches.end(); ++it) {
         int ri = it.key();
         const QImage &rimg = rcs[size_t(ri)].rimg;
-
         if (rimg.isNull()) continue;
 
         for (auto &p : it.value()) {
-            int bx = int(p.bbox.min.X()), by = int(p.bbox.min.Y());
-            int ex = int(std::ceil(p.bbox.max.X()));
-            int ey = int(std::ceil(p.bbox.max.Y()));
-            for (int iy = by; iy < ey; ++iy)
-                for (int ix = bx; ix < ex; ++ix) {
+            // Transform image-space bbox corners to UV [0,1], then to texels
+            vcg::Point2f ic[4] = {
+                vcg::Point2f(p.bbox.min.X(), p.bbox.min.Y()),
+                vcg::Point2f(p.bbox.max.X(), p.bbox.min.Y()),
+                vcg::Point2f(p.bbox.min.X(), p.bbox.max.Y()),
+                vcg::Point2f(p.bbox.max.X(), p.bbox.max.Y()),
+            };
+            QVector3D tc[4];
+            for (int k = 0; k < 4; ++k)
+                tc[k] = p.img2tex.map(QVector3D(ic[k].X(), ic[k].Y(), 0.0f));
+            int tMinX = int(std::min({tc[0].x(), tc[1].x(), tc[2].x(), tc[3].x()}) * texSize - 1.0f);
+            int tMinY = int(std::min({tc[0].y(), tc[1].y(), tc[2].y(), tc[3].y()}) * texSize - 1.0f);
+            int tMaxX = int(std::max({tc[0].x(), tc[1].x(), tc[2].x(), tc[3].x()}) * texSize + 1.0f);
+            int tMaxY = int(std::max({tc[0].y(), tc[1].y(), tc[2].y(), tc[3].y()}) * texSize + 1.0f);
+            tMinX = std::max(tMinX, 0);
+            tMinY = std::max(tMinY, 0);
+            tMaxX = std::min(tMaxX, texSize - 1);
+            tMaxY = std::min(tMaxY, texSize - 1);
+
+            QMatrix4x4 tex2img = p.img2tex.inverted();
+            for (int ty = tMinY; ty <= tMaxY; ++ty)
+                for (int tx = tMinX; tx <= tMaxX; ++tx) {
+                    float u = (float(tx) + 0.5f) / float(texSize);
+                    float v = (float(ty) + 0.5f) / float(texSize);
+                    QVector3D imgPt = tex2img.map(QVector3D(u, v, 0.0f));
+                    int ix = int(imgPt.x() + 0.5f);
+                    int iy = int(imgPt.y() + 0.5f);
                     if (ix < 0 || iy < 0 || ix >= rimg.width() || iy >= rimg.height())
                         continue;
-                    QVector3D texPt = p.img2tex.map(QVector3D(float(ix), float(iy), 0.0f));
-                    int tx = int(texPt.x() * texSize + 0.5f), ty = int(texPt.y() * texSize + 0.5f);
-                    if (tx < 0 || ty < 0 || tx >= texSize || ty >= texSize) continue;
-                    // QImage::pixel uses Y=0 at top; CameraShot coords use Y=0 at bottom
                     QRgb c = rimg.pixel(ix, rimg.height() - 1 - iy);
                     if (qAlpha(c) > 0) {
                         tex.setPixel(tx, texSize - 1 - ty, c);
