@@ -68,6 +68,27 @@
           "default": 4,
           "min": 0,
           "max": 100
+        },
+        {
+          "id": "depthEpsilon",
+          "label": "Depth epsilon",
+          "help": "Tolerance for depth test when checking vertex visibility against the software depth buffer. Increasing this value merges similar-depth regions, reducing the number of patches. Use values of a few units for noisy or inaccurate camera registrations.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1000.0,
+          "decimals": 2
+        },
+        {
+          "id": "maxPackingSize",
+          "label": "Max packing grid size",
+          "help": "Maximum dimension of the packing grid (in pixels). Set to 0 to auto-compute from the total patch area. Lower values speed up packing but may produce denser, lower-resolution layouts.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 32768
         }
       ]
     },
@@ -181,6 +202,27 @@
           "default": 4,
           "min": 0,
           "max": 100
+        },
+        {
+          "id": "depthEpsilon",
+          "label": "Depth epsilon",
+          "help": "Tolerance for depth test when checking vertex visibility against the software depth buffer. Increasing this value merges similar-depth regions, reducing the number of patches. Use values of a few units for noisy or inaccurate camera registrations.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1000.0,
+          "decimals": 2
+        },
+        {
+          "id": "maxPackingSize",
+          "label": "Max packing grid size",
+          "help": "Maximum dimension of the packing grid (in pixels). Set to 0 to auto-compute from the total patch area. Lower values speed up packing but may produce denser, lower-resolution layouts.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 32768
         }
       ]
     },
@@ -206,6 +248,17 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "depthEpsilon",
+          "label": "Depth epsilon",
+          "help": "Tolerance for depth test when checking vertex visibility. Increase for noisy registrations.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1000.0,
+          "decimals": 2
         }
       ]
     },
@@ -231,6 +284,17 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "depthEpsilon",
+          "label": "Depth epsilon",
+          "help": "Tolerance for depth test when checking vertex visibility. Increase for noisy registrations.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1000.0,
+          "decimals": 2
         }
       ]
     }

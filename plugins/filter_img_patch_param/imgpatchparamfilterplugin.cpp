@@ -17,6 +17,7 @@
 #include <vcg/space/rect_packer.h>
 #include <wrap/io_trimesh/io_mask.h>
 
+#include <QDir>
 #include <QElapsedTimer>
 #include <QImage>
 #include <QMap>
@@ -102,9 +103,10 @@ struct FaceVisInfo {
 struct RasterContext {
     const CameraShot *shot = nullptr;
     std::unique_ptr<FloatBuffer> dbuf;
+    DepthBufferVertexCache vcache;
     int iw = 0, ih = 0;
     QVector3D cz;
-    const QImage *rimg = nullptr;
+    QImage rimg;
     float nearPlane = 0.1f;
     float farPlane  = 1000.0f;
     float depthRangeInv = 1.0f;
@@ -129,23 +131,47 @@ void getFaceNeighbors(VCGFace *f, NeighbSet &neighb)
 }
 
 // ---------------------------------------------------------------------------
+// Debug: save depth buffer as grayscale PNG
+// ---------------------------------------------------------------------------
+
+void saveDepthDebug(const FloatBuffer &dbuf, const QString &path, int w, int h)
+{
+    if (dbuf.sx <= 0 || dbuf.sy <= 0) return;
+    float mn = std::numeric_limits<float>::max(), mx = 0.0f;
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            float d = dbuf.getval(x, y);
+            if (d > 0.0f) { if (d < mn) mn = d; if (d > mx) mx = d; }
+        }
+    if (mx <= mn) return;
+    QImage img(w, h, QImage::Format_Grayscale8);
+    float s = 255.0f / (mx - mn);
+    for (int y = 0; y < h; ++y) {
+        uchar *ln = img.scanLine(y);
+        for (int x = 0; x < w; ++x) {
+            float d = dbuf.getval(x, h - 1 - y);
+            ln[x] = (uchar)(d > 0.0f ? std::clamp(int((d - mn) * s), 0, 255) : 0);
+        }
+    }
+    img.save(path);
+}
+
+// ---------------------------------------------------------------------------
 // Per-vertex visibility test
 // ---------------------------------------------------------------------------
 
-bool checkVertVisibleFast(const VCGMesh &mesh, int vi,
-                           const QMatrix4x4 &tx, const RasterContext &rc)
+bool checkVertVisibleFast(int vi, const RasterContext &rc, float depthEpsilon)
 {
-    const auto &v = mesh.vert[size_t(vi)];
-    QVector3D wv = transformPoint(tx, v.cP());
-    QVector2D pp = rc.shot->project(wv);
+    if (size_t(vi) >= rc.vcache.proj.size()) return false;
+    if (!rc.vcache.frontFace[size_t(vi)]) return false;
+    const QVector2D &pp = rc.vcache.proj[size_t(vi)];
+    const float d = rc.vcache.depth[size_t(vi)];
+    if (d <= 0.0f) return false;
     if (pp.x() <= 0 || pp.y() <= 0 || pp.x() >= float(rc.iw) || pp.y() >= float(rc.ih))
         return false;
-    QVector3D pray = (rc.shot->viewPoint() - wv).normalized();
-    if (QVector3D::dotProduct(pray, -rc.cz) > 0.0f) return false;
-    float d = rc.shot->depth(wv);
     float pd = rc.dbuf->getval(int(pp.x()), int(pp.y()));
     if (pd <= 0.0f) return false;
-    return d <= pd;
+    return d <= pd + depthEpsilon;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +211,7 @@ float faceWeight(const VCGMesh &mesh, VCGFace &f,
             std::abs(2.0f * cam.Y() / float(vp.height()) - 1.0f));
     }
 
-    if ((weightMask & W_IMG_ALPHA) && w > 0.0f && rc.rimg) {
+    if ((weightMask & W_IMG_ALPHA) && w > 0.0f && !rc.rimg.isNull()) {
         float alpha[3];
         for (int i = 0; i < 3; ++i) {
             vcg::Point3f vp = f.cP(i);
@@ -199,7 +225,7 @@ float faceWeight(const VCGMesh &mesh, VCGFace &f,
             else {
                 int py = rc.ih - 1 - int(pp.Y());
                 if (py < 0 || py >= rc.ih) alpha[i] = 0;
-                else alpha[i] = qAlpha(rc.rimg->pixel(int(pp.X()), py));
+                else alpha[i] = qAlpha(rc.rimg.pixel(int(pp.X()), py));
             }
         }
         float minA = std::min({alpha[0], alpha[1], alpha[2]});
@@ -476,7 +502,8 @@ float computeTotalPatchArea(const RasterPatchMap &patches)
 // patchPacking
 // ---------------------------------------------------------------------------
 
-void patchPacking(RasterPatchMap &patches, int textureGutter, bool allowUVStretching)
+void patchPacking(RasterPatchMap &patches, int textureGutter, bool allowUVStretching,
+                    int maxPackingSize, QStringList &log)
 {
     std::vector<vcg::Box2f> patchRect;
     patchRect.reserve(size_t(computePatchCount(patches)));
@@ -492,6 +519,12 @@ void patchPacking(RasterPatchMap &patches, int textureGutter, bool allowUVStretc
     if (patchRect.empty()) return;
 
     float edgeLen = std::sqrt(totalArea);
+    if (maxPackingSize > 0 && int(edgeLen) > maxPackingSize)
+        edgeLen = float(maxPackingSize);
+
+    log << QStringLiteral("Packing %1 rectangles, grid %2x%2 (area=%.0f, max=%3)")
+           .arg(patchRect.size())
+           .arg(int(edgeLen)).arg(totalArea, 0, 'f', 0).arg(maxPackingSize);
     std::vector<vcg::Similarity2f> patchTr(patchRect.size());
     vcg::Point2f coveredArea(0, 0);
     vcg::RectPacker<float>::Pack(patchRect,
@@ -540,10 +573,12 @@ QImage paintTexture(const RasterPatchMap &patches, int texSize,
     QImage tex(texSize, texSize, QImage::Format_ARGB32);
     tex.fill(qRgba(0, 0, 0, 0));
 
+    int writtenPixels = 0;
     for (auto it = patches.begin(); it != patches.end(); ++it) {
         int ri = it.key();
-        const QImage *rimg = rcs[size_t(ri)].rimg;
-        if (!rimg) continue;
+        const QImage &rimg = rcs[size_t(ri)].rimg;
+
+        if (rimg.isNull()) continue;
 
         for (auto &p : it.value()) {
             int bx = int(p.bbox.min.X()), by = int(p.bbox.min.Y());
@@ -551,17 +586,21 @@ QImage paintTexture(const RasterPatchMap &patches, int texSize,
             int ey = int(std::ceil(p.bbox.max.Y()));
             for (int iy = by; iy < ey; ++iy)
                 for (int ix = bx; ix < ex; ++ix) {
-                    if (ix < 0 || iy < 0 || ix >= rimg->width() || iy >= rimg->height())
+                    if (ix < 0 || iy < 0 || ix >= rimg.width() || iy >= rimg.height())
                         continue;
                     QVector3D texPt = p.img2tex.map(QVector3D(float(ix), float(iy), 0.0f));
-                    int tx = int(texPt.x() + 0.5f), ty = int(texPt.y() + 0.5f);
+                    int tx = int(texPt.x() * texSize + 0.5f), ty = int(texPt.y() * texSize + 0.5f);
                     if (tx < 0 || ty < 0 || tx >= texSize || ty >= texSize) continue;
-                    QRgb c = rimg->pixel(ix, iy);
-                    if (qAlpha(c) > 0)
-                        tex.setPixel(tx, ty, c);
+                    // QImage::pixel uses Y=0 at top; CameraShot coords use Y=0 at bottom
+                    QRgb c = rimg.pixel(ix, rimg.height() - 1 - iy);
+                    if (qAlpha(c) > 0) {
+                        tex.setPixel(tx, texSize - 1 - ty, c);
+                        ++writtenPixels;
+                    }
                 }
         }
     }
+    qDebug() << "paintTexture:" << writtenPixels << "pixels written, texture size" << texSize;
     return tex;
 }
 
@@ -569,56 +608,82 @@ QImage paintTexture(const RasterPatchMap &patches, int texSize,
 // CPU color correction via push-pull difference propagation
 // ---------------------------------------------------------------------------
 
-static void pushPullMipDiff(const std::vector<float> &src, int sw, int sh,
-                             std::vector<float> &dst, int dw, int dh)
+static float clamp01f(float v) { return std::clamp(v, 0.0f, 1.0f); }
+
+// Push: downsample higher-res level into lower-res level using alpha-weighted
+// averaging of 2x2 blocks.  Original GPU: avg += color; avg.xyz/avg.w if w >= 0.5
+static void pushPullPush(const std::vector<float> &src, int sw, int sh,
+                          std::vector<float> &dst, int dw, int dh)
 {
     dst.assign(size_t(dw * dh * 4), 0);
     for (int y = 0; y < dh; ++y)
         for (int x = 0; x < dw; ++x) {
-            float r = 0, g = 0, b = 0, cnt = 0;
+            float sumR = 0, sumG = 0, sumB = 0, sumA = 0;
             for (int dy = 0; dy < 2; ++dy)
                 for (int dx = 0; dx < 2; ++dx) {
                     int sx = x * 2 + dx, sy = y * 2 + dy;
                     if (sx < sw && sy < sh) {
                         size_t i = size_t((sy * sw + sx) * 4);
-                        float wt = src[i + 3];
-                        if (wt > 0.5f) {
-                            r   += src[i];
-                            g   += src[i + 1];
-                            b   += src[i + 2];
-                            cnt += 1.0f;
-                        }
+                        float a = src[i + 3];
+                        sumR += src[i]     * a;
+                        sumG += src[i + 1] * a;
+                        sumB += src[i + 2] * a;
+                        sumA += a;
                     }
                 }
             size_t oi = size_t((y * dw + x) * 4);
-            if (cnt > 0.5f) {
-                dst[oi] = r / cnt; dst[oi + 1] = g / cnt;
-                dst[oi + 2] = b / cnt; dst[oi + 3] = 1.0f;
+            if (sumA >= 0.5f) {
+                dst[oi]     = sumR / sumA;
+                dst[oi + 1] = sumG / sumA;
+                dst[oi + 2] = sumB / sumA;
+                dst[oi + 3] = 1.0f;
             }
         }
 }
 
-static void pushPullFillDiff(std::vector<float> &lower, int lw, int lh,
-                              const std::vector<float> &higher, int hw, int hh)
+// Pull: upsample coarser level into finer level.
+// Original GPU (GL_LINEAR sampling): creates tmp at finer res,
+// tries higher (finer) first, falls back to lower (coarser) with bilinear.
+static void pushPullPull(std::vector<float> &finer, int fw, int fh,
+                          const std::vector<float> &coarser, int cw, int ch)
 {
-    for (int y = 0; y < lh; ++y)
-        for (int x = 0; x < lw; ++x) {
-            size_t li = size_t((y * lw + x) * 4);
-            if (lower[li + 3] > 0.5f) continue;
-            int hx = x / 2, hy = y / 2;
-            if (hx < hw && hy < hh) {
-                size_t hi = size_t((hy * hw + hx) * 4);
-                if (higher[hi + 3] > 0.5f) {
-                    lower[li]     = higher[hi];
-                    lower[li + 1] = higher[hi + 1];
-                    lower[li + 2] = higher[hi + 2];
-                    lower[li + 3] = 1.0f;
-                }
+    for (int y = 0; y < fh; ++y)
+        for (int x = 0; x < fw; ++x) {
+            size_t fi = size_t((y * fw + x) * 4);
+            if (finer[fi + 3] >= 0.5f) continue;
+            float cx = (float(x) + 0.5f) / float(fw) * float(cw) - 0.5f;
+            float cy = (float(y) + 0.5f) / float(fh) * float(ch) - 0.5f;
+            int cx0 = int(std::floor(cx));
+            int cy0 = int(std::floor(cy));
+            int cx1 = std::min(cx0 + 1, cw - 1);
+            int cy1 = std::min(cy0 + 1, ch - 1);
+            float tx = cx - float(cx0), ux = 1.0f - tx;
+            float ty = cy - float(cy0), uy = 1.0f - ty;
+
+            float sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+            auto sample = [&](int sx, int sy, float wt) {
+                if (sx < 0 || sy < 0 || sx >= cw || sy >= ch) return;
+                size_t si = size_t((sy * cw + sx) * 4);
+                float a = coarser[si + 3];
+                if (a < 0.5f) return;
+                sumR += coarser[si]     * a * wt;
+                sumG += coarser[si + 1] * a * wt;
+                sumB += coarser[si + 2] * a * wt;
+                sumA += a * wt;
+            };
+            sample(cx0, cy0, ux * uy);
+            sample(cx1, cy0, tx * uy);
+            sample(cx0, cy1, ux * ty);
+            sample(cx1, cy1, tx * ty);
+
+            if (sumA >= 0.5f) {
+                finer[fi]     = sumR / sumA;
+                finer[fi + 1] = sumG / sumA;
+                finer[fi + 2] = sumB / sumA;
+                finer[fi + 3] = 1.0f;
             }
         }
 }
-
-static float clamp01(float v) { return std::clamp(v, 0.0f, 1.0f); }
 
 QImage rectifyColorCPU(const RasterPatchMap &patches, const QImage &paintedTex,
                         int texSize, int filterSize)
@@ -626,47 +691,83 @@ QImage rectifyColorCPU(const RasterPatchMap &patches, const QImage &paintedTex,
     int totalPixels = texSize * texSize;
     std::vector<float> diff(size_t(totalPixels * 4), 0);
 
+    // --- Init: compute boundary color differences (matches GPU pushPullInit) ---
+    // For each boundary triangle vertex, sample the painted texture at the
+    // CURRENT patch's UV (boundaryUV) and the ADJACENT patch's UV (bf->WT).
+    // GPU: gl_TexCoord[0]=gl_Vertex=boundaryUV, gl_TexCoord[1]=gl_MultiTexCoord0=bf->WT
+    // Diff = 0.5 * (adjacent_color - current_color), stored at boundaryUV position.
+
+    int writtenPoints = 0;
     for (auto it = patches.begin(); it != patches.end(); ++it) {
         for (auto &p : it.value()) {
             for (size_t n = 0; n < p.boundary.size(); ++n) {
                 VCGFace *bf = p.boundary[n];
                 for (int i = 0; i < 3; ++i) {
-                    int tx0 = int(bf->WT(i).U() * float(texSize));
-                    int ty0 = int(bf->WT(i).V() * float(texSize));
-                    int tx1 = int(p.boundaryUV[n].v[i].U() * float(texSize));
-                    int ty1 = int(p.boundaryUV[n].v[i].V() * float(texSize));
+                    // CURRENT side position (= boundaryUV)
+                    int txC = int(p.boundaryUV[n].v[i].U() * float(texSize));
+                    int tyC = int(p.boundaryUV[n].v[i].V() * float(texSize));
+                    // ADJACENT side position (= bf->WT)
+                    int txA = int(bf->WT(i).U() * float(texSize));
+                    int tyA = int(bf->WT(i).V() * float(texSize));
+
+                    // α-weighted neighborhood averages for each side
+                    float sumR0 = 0, sumG0 = 0, sumB0 = 0, sumA0 = 0; // current
+                    float sumR1 = 0, sumG1 = 0, sumB1 = 0, sumA1 = 0; // adjacent
 
                     for (int dy = -filterSize; dy <= filterSize; ++dy)
                         for (int dx = -filterSize; dx <= filterSize; ++dx) {
-                            int px0 = tx0 + dx, py0 = ty0 + dy;
-                            int px1 = tx1 + dx, py1 = ty1 + dy;
-                            if (px0 < 0 || py0 < 0 || px0 >= texSize || py0 >= texSize) continue;
-                            if (px1 < 0 || py1 < 0 || px1 >= texSize || py1 >= texSize) continue;
-
-                            QRgb c0 = paintedTex.pixel(px0, py0);
-                            QRgb c1 = paintedTex.pixel(px1, py1);
-                            if (qAlpha(c0) == 0 || qAlpha(c1) == 0) continue;
-
-                            size_t di = size_t((py0 * texSize + px0) * 4);
-                            diff[di]     += qRed(c1)   / 255.0f - qRed(c0)   / 255.0f;
-                            diff[di + 1] += qGreen(c1) / 255.0f - qGreen(c0) / 255.0f;
-                            diff[di + 2] += qBlue(c1)  / 255.0f - qBlue(c0)  / 255.0f;
-                            diff[di + 3] += 1.0f;
+                            int pxC = txC + dx, pyVcgC = tyC + dy;
+                            int pyQC = texSize - 1 - pyVcgC;
+                            if (pxC >= 0 && pyQC >= 0 && pxC < texSize && pyQC < texSize) {
+                                QRgb c = paintedTex.pixel(pxC, pyQC);
+                                float a = qAlpha(c) / 255.0f;
+                                if (a > 0) {
+                                    sumR0 += (qRed(c)   / 255.0f) * a;
+                                    sumG0 += (qGreen(c) / 255.0f) * a;
+                                    sumB0 += (qBlue(c)  / 255.0f) * a;
+                                    sumA0 += a;
+                                }
+                            }
+                            int pxA = txA + dx, pyVcgA = tyA + dy;
+                            int pyQA = texSize - 1 - pyVcgA;
+                            if (pxA >= 0 && pyQA >= 0 && pxA < texSize && pyQA < texSize) {
+                                QRgb c = paintedTex.pixel(pxA, pyQA);
+                                float a = qAlpha(c) / 255.0f;
+                                if (a > 0) {
+                                    sumR1 += (qRed(c)   / 255.0f) * a;
+                                    sumG1 += (qGreen(c) / 255.0f) * a;
+                                    sumB1 += (qBlue(c)  / 255.0f) * a;
+                                    sumA1 += a;
+                                }
+                            }
                         }
+
+                    if (sumA0 <= 0.1f || sumA1 <= 0.1f) continue;
+
+                    float avgR0 = sumR0 / sumA0, avgG0 = sumG0 / sumA0, avgB0 = sumB0 / sumA0;
+                    float avgR1 = sumR1 / sumA1, avgG1 = sumG1 / sumA1, avgB1 = sumB1 / sumA1;
+
+                    // Diff = 0.5 * (adjacent - current), stored at CURRENT position
+                    float dR = 0.5f * (avgR1 - avgR0);
+                    float dG = 0.5f * (avgG1 - avgG0);
+                    float dB = 0.5f * (avgB1 - avgB0);
+
+                    if (txC >= 0 && tyC >= 0 && txC < texSize && tyC < texSize) {
+                        int qyC = texSize - 1 - tyC;
+                        size_t di = size_t((qyC * texSize + txC) * 4);
+                        diff[di]     = dR;
+                        diff[di + 1] = dG;
+                        diff[di + 2] = dB;
+                        diff[di + 3] = 1.0f;
+                        ++writtenPoints;
+                    }
                 }
             }
         }
     }
+    qDebug() << "rectifyColor init:" << writtenPoints << "boundary diff points";
 
-    for (size_t i = 0; i < diff.size(); i += 4)
-        if (diff[i + 3] > 0.5f) {
-            diff[i]     /= diff[i + 3];
-            diff[i + 1] /= diff[i + 3];
-            diff[i + 2] /= diff[i + 3];
-            diff[i + 3]  = 1.0f;
-        }
-
-    // Build mipmap pyramid
+    // --- Build mipmap pyramid (push) ---
     std::vector<std::pair<int, int>> sizes;
     std::vector<std::vector<float>> levels;
     levels.push_back(diff);
@@ -676,28 +777,28 @@ QImage rectifyColorCPU(const RasterPatchMap &patches, const QImage &paintedTex,
         int nh = sizes.back().second / 2 + (sizes.back().second & 1);
         sizes.push_back({nw, nh});
         std::vector<float> nd;
-        pushPullMipDiff(levels.back(), sizes[sizes.size() - 2].first,
-                        sizes[sizes.size() - 2].second, nd, nw, nh);
+        pushPullPush(levels.back(), sizes[sizes.size() - 2].first,
+                     sizes[sizes.size() - 2].second, nd, nw, nh);
         levels.push_back(std::move(nd));
     }
 
-    // Pull back up
+    // --- Pull back up with bilinear interpolation ---
     for (int i = (int)levels.size() - 1; i > 0; --i)
-        pushPullFillDiff(levels[size_t(i - 1)],
-                         sizes[size_t(i - 1)].first, sizes[size_t(i - 1)].second,
-                         levels[size_t(i)],
-                         sizes[size_t(i)].first, sizes[size_t(i)].second);
+        pushPullPull(levels[size_t(i - 1)],
+                     sizes[size_t(i - 1)].first, sizes[size_t(i - 1)].second,
+                     levels[size_t(i)],
+                     sizes[size_t(i)].first, sizes[size_t(i)].second);
 
-    // Apply corrections
+    // --- Apply corrections ---
     QImage out = paintedTex.copy();
     for (int y = 0; y < texSize; ++y)
         for (int x = 0; x < texSize; ++x) {
             size_t di = size_t((y * texSize + x) * 4);
             if (levels[0][di + 3] < 0.5f) continue;
             QRgb c = paintedTex.pixel(x, y);
-            int nr = int(clamp01(qRed(c)   / 255.0f + levels[0][di])     * 255);
-            int ng = int(clamp01(qGreen(c) / 255.0f + levels[0][di + 1]) * 255);
-            int nb = int(clamp01(qBlue(c)  / 255.0f + levels[0][di + 2]) * 255);
+            int nr = int(clamp01f(qRed(c)   / 255.0f + levels[0][di])     * 255);
+            int ng = int(clamp01f(qGreen(c) / 255.0f + levels[0][di + 1]) * 255);
+            int nb = int(clamp01f(qBlue(c)  / 255.0f + levels[0][di + 2]) * 255);
             out.setPixel(x, y, qRgba(nr, ng, nb, qAlpha(c)));
         }
     return out;
@@ -712,23 +813,27 @@ QStringList patchBasedTextureParameterization(
     VCGMesh &mesh, const QMatrix4x4 &transform,
     const std::vector<int> &rasterIndices,
     std::vector<RasterContext> &rcs,
-    int weightMask, bool cleanIsolated, int textureGutter, bool stretchUV)
+    int weightMask, bool cleanIsolated, int textureGutter, bool stretchUV,
+    float depthEpsilon, int maxPackingSize)
 {
     QStringList log;
 
     // Compute per-face visibility and weights
-    QElapsedTimer t;
+    QElapsedTimer t, tVis;
     t.start();
     std::vector<FaceVisInfo> faceVis(mesh.FN());
 
+    double accumVertTestMs = 0;
     for (int ri : rasterIndices) {
         auto &rc = rcs[size_t(ri)];
 
         // Pre-compute per-vertex visibility for this raster
+        tVis.start();
         std::vector<bool> vVis(size_t(mesh.VN()), false);
         for (int vi = 0; vi < mesh.VN(); ++vi)
             if (!mesh.vert[size_t(vi)].IsD())
-                vVis[size_t(vi)] = checkVertVisibleFast(mesh, vi, transform, rc);
+                vVis[size_t(vi)] = checkVertVisibleFast(vi, rc, depthEpsilon);
+        accumVertTestMs += 0.001 * tVis.elapsed();
 
         for (int fi = 0; fi < mesh.FN(); ++fi) {
             VCGFace &f = mesh.face[size_t(fi)];
@@ -742,7 +847,9 @@ QStringList patchBasedTextureParameterization(
             }
         }
     }
-    log << QStringLiteral("VISIBILITY CHECK: %1 sec.").arg(0.001f * t.elapsed(), 0, 'f', 3);
+    log << QStringLiteral("VISIBILITY CHECK: %1 sec. (vert depth tests: %2 sec.)")
+           .arg(0.001f * t.elapsed(), 0, 'f', 3)
+           .arg(accumVertTestMs, 0, 'f', 3);
 
     // Boundary optimization
     t.start();
@@ -790,7 +897,7 @@ QStringList patchBasedTextureParameterization(
 
     // Pack patches
     t.start();
-    patchPacking(patches, textureGutter, stretchUV);
+    patchPacking(patches, textureGutter, stretchUV, maxPackingSize, log);
     log << QStringLiteral("PATCH TEXTURE PACKING: %1 sec.").arg(0.001f * t.elapsed(), 0, 'f', 3);
 
     // Clear null patch UVs
@@ -849,6 +956,8 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         return fail(QObject::tr("No active rasters with valid cameras and images."));
 
     // Build raster contexts (including depth buffers)
+    QElapsedTimer tDepth;
+    tDepth.start();
     std::vector<RasterContext> rcs(size_t(maxRi + 1));
     for (int ri : activeRasters) {
         auto &re = doc.raster(ri);
@@ -857,8 +966,15 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         rc.iw = re.shot.viewportPx().width();
         rc.ih = re.shot.viewportPx().height();
         rc.cz = re.shot.referenceAxis(2);
-        rc.rimg = &re.currentPlane()->image;
-        rc.dbuf = buildDepthBuffer(re.shot, m, tf);
+        rc.rimg = re.currentPlane()->image;
+
+        QElapsedTimer tOne;
+        tOne.start();
+        rc.dbuf = buildDepthBuffer(re.shot, m, tf, &rc.vcache);
+        saveDepthDebug(*rc.dbuf,
+                       QDir::homePath() + QStringLiteral("/Desktop/qml_depth_%1.png").arg(ri),
+                       rc.iw, rc.ih);
+        qint64 oneMs = tOne.elapsed();
 
         float zN = std::numeric_limits<float>::max();
         float zF = -std::numeric_limits<float>::max();
@@ -873,17 +989,27 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         rc.nearPlane = zN;
         rc.farPlane  = zF;
         rc.depthRangeInv = 1.0f / (zF - zN);
+
+        doc.writeLog(QObject::tr("Depth buffer %1/%2 (%3x%4): %5 ms")
+            .arg(ri + 1).arg(doc.rasterCount())
+            .arg(rc.iw).arg(rc.ih)
+            .arg(oneMs),
+            Document::LogSource::Application);
     }
+    qint64 totalDepthMs = tDepth.elapsed();
+    doc.writeLog(QObject::tr("All depth buffers: %1 ms").arg(totalDepthMs),
+                 Document::LogSource::Application);
 
     // --- Coverage (Vertex) ---
     if (fid == QString::fromLatin1(kCoverageVert)) {
+        float depthEps = float(p.getDouble(QStringLiteral("depthEpsilon"), 0.0));
         for (auto &v : m.vert) v.Q() = 0.0f;
 
         for (int ri : activeRasters) {
             auto &rc = rcs[size_t(ri)];
             for (int vi = 0; vi < m.VN(); ++vi) {
                 if (m.vert[size_t(vi)].IsD()) continue;
-                if (checkVertVisibleFast(m, vi, tf, rc))
+                if (checkVertVisibleFast(vi, rc, depthEps))
                     m.vert[size_t(vi)].Q() += 1.0f;
             }
         }
@@ -902,6 +1028,7 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
 
     // --- Coverage (Face) ---
     if (fid == QString::fromLatin1(kCoverageFace)) {
+        float depthEps = float(p.getDouble(QStringLiteral("depthEpsilon"), 0.0));
         for (auto &f : m.face) f.Q() = 0.0f;
 
         for (int ri : activeRasters) {
@@ -909,7 +1036,7 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
             std::vector<bool> vVis(size_t(m.VN()), false);
             for (int vi = 0; vi < m.VN(); ++vi) {
                 if (m.vert[size_t(vi)].IsD()) continue;
-                vVis[size_t(vi)] = checkVertVisibleFast(m, vi, tf, rc);
+                vVis[size_t(vi)] = checkVertVisibleFast(vi, rc, depthEps);
             }
             for (int fi = 0; fi < m.FN(); ++fi) {
                 auto &f = m.face[size_t(fi)];
@@ -952,9 +1079,18 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         vcg::tri::UpdateTopology<VCGMesh>::VertexFace(m);
 
         // Rebuild raster contexts after compaction (depth buffers invalidated)
+        QElapsedTimer tDbRebuild;
+        tDbRebuild.start();
         for (int ri : activeRasters) {
-            rcs[size_t(ri)].dbuf = buildDepthBuffer(doc.raster(ri).shot, m, tf);
+            rcs[size_t(ri)].dbuf = buildDepthBuffer(doc.raster(ri).shot, m, tf, &rcs[size_t(ri)].vcache);
+            auto vp = doc.raster(ri).shot.viewportPx();
+            saveDepthDebug(*rcs[size_t(ri)].dbuf,
+                           QDir::homePath() + QStringLiteral("/Desktop/qml_depth_rebuild_%1.png").arg(ri),
+                           vp.width(), vp.height());
         }
+        doc.writeLog(QObject::tr("Depth buffers rebuilt after compaction: %1 ms")
+            .arg(tDbRebuild.elapsed()),
+            Document::LogSource::Application);
 
         int wMask = W_ORIENTATION;
         if (p.getBool(QStringLiteral("useDistanceWeight"), true))  wMask |= W_DISTANCE;
@@ -964,12 +1100,14 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         bool cleanIso = p.getBool(QStringLiteral("cleanIsolatedTriangles"), true);
         bool stretch  = p.getBool(QStringLiteral("stretchingAllowed"), false);
         int  gutter   = p.getInt(QStringLiteral("textureGutter"), 4);
+        float depthEps  = float(p.getDouble(QStringLiteral("depthEpsilon"), 0.0));
+        int maxPackSize = p.getInt(QStringLiteral("maxPackingSize"), 0);
 
         RasterPatchMap patches;
         PatchVec nullPatches;
         QStringList sLog = patchBasedTextureParameterization(
             patches, nullPatches, m, tf, activeRasters, rcs,
-            wMask, cleanIso, gutter, stretch);
+            wMask, cleanIso, gutter, stretch, depthEps, maxPackSize);
 
         doc.mesh(mi).ioMask |= Mask::IOM_WEDGTEXCOORD;
         doc.markMeshGeometryChanged(mi,
