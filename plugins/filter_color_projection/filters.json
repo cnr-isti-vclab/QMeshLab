@@ -47,6 +47,14 @@
           "group": "main",
           "type": "color",
           "default": "#00000000"
+        },
+        {
+          "id": "preserveoccluded",
+          "label": "Preserve occluded vertex colors",
+          "help": "If true, depth-occluded vertices keep their original color instead of being assigned the blank color.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ],
       "outputModifies": ["VC"]
@@ -129,6 +137,14 @@
           "group": "main",
           "type": "color",
           "default": "#00000000"
+        },
+        {
+          "id": "preserveoccluded",
+          "label": "Preserve occluded vertex colors",
+          "help": "If true, depth-occluded vertices keep their original color instead of being assigned the blank color.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ],
       "outputModifies": ["VC"]

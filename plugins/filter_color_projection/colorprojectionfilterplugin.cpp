@@ -240,6 +240,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
     if (fid == QString::fromLatin1(kFilterSingleProj)) {
         float eta = float(p.getDouble(QStringLiteral("deptheta"), 0.5));
         bool onSel = p.getBool(QStringLiteral("onselection"), false);
+        bool preserveOccluded = p.getBool(QStringLiteral("preserveoccluded"), false);
         QColor blank = p.getColor(QStringLiteral("blankColor"), QColor(0, 0, 0, 255));
 
         int ri = doc.currentRasterIndex();
@@ -270,20 +271,26 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
                          Document::LogSource::Application);
         }
 
-        bool hasB = blank.red() || blank.green() || blank.blue() || blank.alpha();
         for (VCGVertex &v : m.vert) {
             if (v.IsD() || (onSel && !v.IsS())) continue;
-            v.C() = vcg::Color4b(blank.red(), blank.green(), blank.blue(), blank.alpha());
             QVector3D wv = transformPoint(ent.transform, v.cP());
             QVector2D pp = shot.project(wv);
-            if (pp.x() <= 0 || pp.y() <= 0 || pp.x() >= float(iw) || pp.y() >= float(ih)) continue;
+            if (pp.x() <= 0 || pp.y() <= 0 || pp.x() >= float(iw) || pp.y() >= float(ih)) {
+                v.C() = vcg::Color4b(blank.red(), blank.green(), blank.blue(), blank.alpha());
+                continue;
+            }
             QVector3D pray = (shot.viewPoint() - wv).normalized();
-            if (QVector3D::dotProduct(pray, -cz) > 0.0f) continue;
+            if (QVector3D::dotProduct(pray, -cz) > 0.0f) {
+                v.C() = vcg::Color4b(blank.red(), blank.green(), blank.blue(), blank.alpha());
+                continue;
+            }
             float d = shot.depth(wv);
             float pd = dbuf->getval(int(pp.x()), int(pp.y()));
             if (d <= pd + eta) {
                 QRgb c = rimg.pixel(int(pp.x()), ih - int(pp.y()));
                 v.C() = vcg::Color4b(qRed(c), qGreen(c), qBlue(c), 255);
+            } else if (!preserveOccluded) {
+                v.C() = vcg::Color4b(blank.red(), blank.green(), blank.blue(), blank.alpha());
             }
         }
         ent.ioMask |= Mask::IOM_VERTCOLOR;
@@ -300,6 +307,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
         bool ub = p.getBool(QStringLiteral("useborders"), true);
         bool us = p.getBool(QStringLiteral("usesilhouettes"), true);
         bool ualpha = p.getBool(QStringLiteral("usealpha"), false);
+        bool preserveOccluded = p.getBool(QStringLiteral("preserveoccluded"), false);
         QColor blank = p.getColor(QStringLiteral("blankColor"), QColor(0,0,0,0));
 
         if (doc.rasterCount() == 0) return fail(QObject::tr("No rasters."));
@@ -388,7 +396,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
                     double w = wts[size_t(bi)];
                     v.C() = vcg::Color4b(uchar(ar[size_t(bi)]/w*255), uchar(ag[size_t(bi)]/w*255),
                                          uchar(ab[size_t(bi)]/w*255), 255);
-                } else if (hasB) {
+                } else if (!preserveOccluded && hasB) {
                     v.C() = vcg::Color4b(blank.red(), blank.green(), blank.blue(), blank.alpha());
                 }
             }
