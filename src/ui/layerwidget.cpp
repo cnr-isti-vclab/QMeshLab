@@ -27,7 +27,6 @@
 #include <QStyledItemDelegate>
 #include <QStackedWidget>
 #include <QSplitter>
-#include <QToolButton>
 #include <QToolTip>
 #include <functional>
 #include <QVBoxLayout>
@@ -933,43 +932,47 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
-    // Toggle button
-    m_toggleBtn = new QToolButton(this);
-    m_toggleBtn->setText(tr("⬍ Table"));
-    m_toggleBtn->setToolTip(tr("Toggle between tree and table view"));
-    m_toggleBtn->setCheckable(true);
-    m_toggleBtn->setChecked(false);
-    m_toggleBtn->setAutoRaise(true);
-    connect(m_toggleBtn, &QToolButton::toggled, this, [this](bool checked) {
-        setViewMode(checked ? ViewMode::Table : ViewMode::Tree);
-    });
-    mainLayout->addWidget(m_toggleBtn);
-
     // Stacked widget holding tree (page 0) and table splitter (page 1)
     m_stack = new QStackedWidget(this);
     mainLayout->addWidget(m_stack, 1);
 
     // --- Tree view (page 0) ---
-    m_tree = new QTreeWidget(this);
-    m_tree->setColumnCount(3);
-    m_tree->setHeaderHidden(true);
-    m_tree->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_tree->header()->setSectionResizeMode(0, QHeaderView::Fixed);
-    m_tree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    m_tree->header()->setSectionResizeMode(2, QHeaderView::Stretch);
-    m_tree->setColumnWidth(0, kFirstColumnMinWidth);
+    auto *treeSplitter = new QSplitter(Qt::Vertical, this);
 
-    auto *treeEyeDelegate = new EyeCheckDelegate(
-        makeEyeModifierCallback(doc, kLayerKindMesh), m_tree);
-    // We reuse the same delegate for raster items by checking kind in the callback
-    m_tree->setItemDelegate(treeEyeDelegate);
+    m_meshTree = new QTreeWidget(this);
+    m_meshTree->setColumnCount(3);
+    m_meshTree->setHeaderHidden(true);
+    m_meshTree->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_meshTree->header()->setSectionResizeMode(0, QHeaderView::Fixed);
+    m_meshTree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    m_meshTree->header()->setSectionResizeMode(2, QHeaderView::Stretch);
+    m_meshTree->setColumnWidth(0, kFirstColumnMinWidth);
+    m_meshTree->setItemDelegate(new EyeCheckDelegate(
+        makeEyeModifierCallback(doc, kLayerKindMesh), m_meshTree));
+    treeSplitter->addWidget(m_meshTree);
 
-    m_stack->addWidget(m_tree); // page 0
+    connect(m_meshTree, &QTreeWidget::itemChanged, this, &LayerWidget::onTreeItemChanged);
+    connect(m_meshTree, &QTreeWidget::currentItemChanged, this, &LayerWidget::onTreeCurrentItemChanged);
 
-    connect(m_tree, &QTreeWidget::itemChanged, this, &LayerWidget::onTreeItemChanged);
-    connect(m_tree, &QTreeWidget::currentItemChanged, this, &LayerWidget::onTreeCurrentItemChanged);
-    // Also connect the tree's double-click to the mousePressEvent override we no longer have;
-    // the tree handles its own mouse events so we don't need to override them.
+    m_rasterTree = new QTreeWidget(this);
+    m_rasterTree->setColumnCount(3);
+    m_rasterTree->setHeaderHidden(true);
+    m_rasterTree->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_rasterTree->header()->setSectionResizeMode(0, QHeaderView::Fixed);
+    m_rasterTree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    m_rasterTree->header()->setSectionResizeMode(2, QHeaderView::Stretch);
+    m_rasterTree->setColumnWidth(0, kFirstColumnMinWidth);
+    m_rasterTree->setItemDelegate(new EyeCheckDelegate(
+        makeEyeModifierCallback(doc, kLayerKindRaster), m_rasterTree));
+    treeSplitter->addWidget(m_rasterTree);
+
+    connect(m_rasterTree, &QTreeWidget::itemChanged, this, &LayerWidget::onTreeItemChanged);
+    connect(m_rasterTree, &QTreeWidget::currentItemChanged, this, &LayerWidget::onTreeCurrentItemChanged);
+
+    treeSplitter->setStretchFactor(0, 3);
+    treeSplitter->setStretchFactor(1, 2);
+
+    m_stack->addWidget(treeSplitter); // page 0
 
     // --- Table view (page 1) ---
     auto *tableSplitter = new QSplitter(Qt::Vertical, this);
@@ -1070,10 +1073,13 @@ void LayerWidget::setViewMode(ViewMode mode)
     if (m_viewMode == mode)
         return;
     m_viewMode = mode;
-    m_toggleBtn->setChecked(mode == ViewMode::Table);
-    m_toggleBtn->setText(mode == ViewMode::Table ? tr("⬍ Tree") : tr("⬍ Table"));
     m_stack->setCurrentIndex(mode == ViewMode::Table ? 1 : 0);
     rebuild();
+}
+
+void LayerWidget::toggleViewMode()
+{
+    setViewMode(m_viewMode == ViewMode::Tree ? ViewMode::Table : ViewMode::Tree);
 }
 
 void LayerWidget::rebuild()
@@ -1091,251 +1097,271 @@ void LayerWidget::rebuild()
 void LayerWidget::rebuildTree()
 {
     m_rebuilding = true;
-    QSignalBlocker blocker(m_tree);
     const QLocale locale = QLocale::system();
-    const QFontMetrics fm(m_tree->font());
-    int maxCountTextWidth = 0;
 
-    const QString selectedKey = layerItemKey(m_tree->currentItem());
-    QHash<QString, bool> expandedStateByLayerKey;
-    expandedStateByLayerKey.reserve(m_tree->topLevelItemCount());
-    for (int row = 0; row < m_tree->topLevelItemCount(); ++row) {
-        QTreeWidgetItem *existing = m_tree->topLevelItem(row);
-        if (!existing)
-            continue;
-        const QString key = layerItemKey(existing);
-        if (key.isEmpty())
-            continue;
-        expandedStateByLayerKey.insert(key, existing->isExpanded());
+    // Collect expanded state keys from both trees
+    QHash<QString, bool> expandedState;
+    const auto collectExpanded = [&](QTreeWidget *tree) {
+        for (int row = 0; row < tree->topLevelItemCount(); ++row) {
+            QTreeWidgetItem *item = tree->topLevelItem(row);
+            if (!item) continue;
+            const QString key = layerItemKey(item);
+            if (!key.isEmpty())
+                expandedState.insert(key, item->isExpanded());
+        }
+    };
+    collectExpanded(m_meshTree);
+    collectExpanded(m_rasterTree);
+
+    const QString meshSelectedKey = layerItemKey(m_meshTree->currentItem());
+    const QString rasterSelectedKey = layerItemKey(m_rasterTree->currentItem());
+
+    // --- Rebuild mesh tree ---
+    {
+        QSignalBlocker b(m_meshTree);
+        const QFontMetrics fm(m_meshTree->font());
+        int maxCountTextWidth = 0;
+
+        m_meshTree->clear();
+        QTreeWidgetItem *meshCurrentItem = nullptr;
+
+        for (int i = 0; i < m_doc->meshCount(); ++i) {
+            const auto &entry = m_doc->mesh(i);
+            const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
+            const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
+            const bool loaded = !entry.sourcePath.trimmed().isEmpty();
+            QString displayName;
+            if (loaded)
+                displayName = QStringLiteral("[D]");
+            else
+                displayName = QStringLiteral("[G]");
+            if (entry.modified)
+                displayName.append(QLatin1Char('*'));
+            displayName.append(QLatin1Char(' '));
+            displayName += entry.name;
+            auto *item = new QTreeWidgetItem(m_meshTree, {displayName, QString()});
+            const QString itemKey = layerItemKey(kLayerKindMesh, qulonglong(entry.meshId));
+            item->setData(0, kRoleLayerKind, kLayerKindMesh);
+            item->setData(0, kRoleMeshIndex, i);
+            item->setData(0, kRoleMeshId, qulonglong(entry.meshId));
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+            item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
+            item->setFirstColumnSpanned(true);
+
+            const QString vertCountText = locale.toString(static_cast<qlonglong>(entry.mesh.VN()));
+            const QString edgeCountText = locale.toString(static_cast<qlonglong>(entry.mesh.EN()));
+            const QString faceCountText = locale.toString(static_cast<qlonglong>(entry.mesh.FN()));
+            const int selectedVertCount = selectedVertexCount(entry.mesh);
+            const int selectedEdgeCountValue = selectedEdgeCount(entry.mesh);
+            const int selectedFaceCountValue = selectedFaceCount(entry.mesh);
+            const QString selectedVertText =
+                selectedVertCount > 0 ? locale.toString(static_cast<qlonglong>(selectedVertCount)) : QString();
+            const QString selectedEdgeText =
+                selectedEdgeCountValue > 0
+                    ? locale.toString(static_cast<qlonglong>(selectedEdgeCountValue))
+                    : QString();
+            const QString selectedFaceText =
+                selectedFaceCountValue > 0
+                    ? locale.toString(static_cast<qlonglong>(selectedFaceCountValue))
+                    : QString();
+            maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(vertCountText));
+            maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(edgeCountText));
+            maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(faceCountText));
+
+            auto *vItem = new QTreeWidgetItem({vertCountText, tr("Vert"), selectedVertText});
+            vItem->setFlags(vItem->flags() & ~Qt::ItemIsSelectable);
+            vItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+            vItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
+            item->addChild(vItem);
+            auto *eItem = new QTreeWidgetItem({edgeCountText, tr("Edge"), selectedEdgeText});
+            eItem->setFlags(eItem->flags() & ~Qt::ItemIsSelectable);
+            eItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+            eItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
+            item->addChild(eItem);
+            auto *fItem = new QTreeWidgetItem({faceCountText, tr("Face"), selectedFaceText});
+            fItem->setFlags(fItem->flags() & ~Qt::ItemIsSelectable);
+            fItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+            fItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
+            item->addChild(fItem);
+            auto *dItem = new QTreeWidgetItem({QString(), tr("Data"), meshDataSummary(entry)});
+            dItem->setFlags(dItem->flags() & ~Qt::ItemIsSelectable);
+            item->addChild(dItem);
+
+            if (attrs.vertexCount() > 0) {
+                auto *vAttrItem = new QTreeWidgetItem(
+                    {QString(), tr("VAttr"), ownerAttributeSummary(attrs.vertexScalars, attrs.vertexColors, attrs.vertexPoints)});
+                vAttrItem->setFlags(vAttrItem->flags() & ~Qt::ItemIsSelectable);
+                const QString tip = ownerAttributeTooltip(
+                    tr("Vertex"),
+                    attrs.vertexScalars,
+                    attrs.vertexColors,
+                    attrs.vertexPoints);
+                vAttrItem->setToolTip(0, tip);
+                vAttrItem->setToolTip(1, tip);
+                vAttrItem->setToolTip(2, tip);
+                item->addChild(vAttrItem);
+            }
+
+            if (attrs.faceCount() > 0) {
+                auto *fAttrItem = new QTreeWidgetItem(
+                    {QString(), tr("FAttr"), ownerAttributeSummary(attrs.faceScalars, attrs.faceColors, attrs.facePoints)});
+                fAttrItem->setFlags(fAttrItem->flags() & ~Qt::ItemIsSelectable);
+                const QString tip = ownerAttributeTooltip(
+                    tr("Face"),
+                    attrs.faceScalars,
+                    attrs.faceColors,
+                    attrs.facePoints);
+                fAttrItem->setToolTip(0, tip);
+                fAttrItem->setToolTip(1, tip);
+                fAttrItem->setToolTip(2, tip);
+                item->addChild(fAttrItem);
+            }
+
+            if (!isIdentityTransform(entry.transform)) {
+                auto *xItem = new QTreeWidgetItem(
+                    {QString(), tr("Xf"), meshTransformSummary(entry.transform)});
+                xItem->setFlags(xItem->flags() & ~Qt::ItemIsSelectable);
+                const QString xfTip = meshTransformTooltip(entry.transform);
+                xItem->setToolTip(0, xfTip);
+                xItem->setToolTip(1, xfTip);
+                xItem->setToolTip(2, xfTip);
+                item->addChild(xItem);
+            }
+
+            for (int texIdx = 0; texIdx < int(textures.size()); ++texIdx) {
+                const LayerTextureInfo &tex = textures[size_t(texIdx)];
+                auto *tItem = new QTreeWidgetItem({QString(), tr("Tex %1").arg(texIdx), QString()});
+                tItem->setFlags(tItem->flags() & ~Qt::ItemIsSelectable);
+                QString texTip;
+                if (!tex.path.isEmpty())
+                    texTip = tex.path;
+                if (!tex.usage.isEmpty()) {
+                    const QString usageLine = tr("Usage: %1").arg(tex.usage.join(QStringLiteral(", ")));
+                    texTip = texTip.isEmpty() ? usageLine : (texTip + QLatin1Char('\n') + usageLine);
+                }
+                if (!texTip.isEmpty()) {
+                    tItem->setToolTip(0, texTip);
+                    tItem->setToolTip(1, texTip);
+                    tItem->setToolTip(2, texTip);
+                }
+                item->addChild(tItem);
+                m_meshTree->setItemWidget(tItem, 2, textureInfoWidget(m_meshTree, tex, fm));
+            }
+
+            const QString dataTip = meshDataTooltip(entry);
+            item->setToolTip(0, dataTip);
+            item->setToolTip(1, dataTip);
+            item->setToolTip(2, dataTip);
+            dItem->setToolTip(0, dataTip);
+            dItem->setToolTip(1, dataTip);
+            dItem->setToolTip(2, dataTip);
+
+            const auto it = expandedState.constFind(itemKey);
+            item->setExpanded(it != expandedState.constEnd() ? it.value() : true);
+
+            if (!meshSelectedKey.isEmpty() && meshSelectedKey == itemKey)
+                meshCurrentItem = item;
+            if (!meshCurrentItem
+                && m_doc->currentLayerKind() == Document::CurrentLayerKind::Mesh
+                && i == m_doc->currentMeshIndex()) {
+                meshCurrentItem = item;
+            }
+        }
+
+        if (meshCurrentItem)
+            m_meshTree->setCurrentItem(meshCurrentItem);
+
+        const int requiredWidth =
+            maxCountTextWidth + kFirstColumnPadding + m_meshTree->indentation() + kFirstColumnTreePadding;
+        m_meshTree->setColumnWidth(0, std::max(kFirstColumnMinWidth, requiredWidth));
+        m_meshTree->resizeColumnToContents(1);
     }
 
-    m_tree->clear();
-    QTreeWidgetItem *selectedItem = nullptr;
-    QTreeWidgetItem *fallbackCurrentItem = nullptr;
+    // --- Rebuild raster tree ---
+    {
+        QSignalBlocker b(m_rasterTree);
+        const QFontMetrics fm(m_rasterTree->font());
 
-    for (int i = 0; i < m_doc->meshCount(); ++i) {
-        const auto &entry = m_doc->mesh(i);
-        const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
-        const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
-        const bool loaded = !entry.sourcePath.trimmed().isEmpty();
-        QString displayName;
-        if (loaded)
-            displayName = QStringLiteral("[D]");
-        else
-            displayName = QStringLiteral("[G]");
-        if (entry.modified)
-            displayName.append(QLatin1Char('*'));
-        displayName.append(QLatin1Char(' '));
-        displayName += entry.name;
-        auto *item = new QTreeWidgetItem(m_tree, {displayName, QString()});
-        const QString itemKey = layerItemKey(kLayerKindMesh, qulonglong(entry.meshId));
-        item->setData(0, kRoleLayerKind, kLayerKindMesh);
-        item->setData(0, kRoleMeshIndex, i);
-        item->setData(0, kRoleMeshId, qulonglong(entry.meshId));
-        item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-        item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
-        item->setFirstColumnSpanned(true);
+        m_rasterTree->clear();
+        QTreeWidgetItem *rasterCurrentItem = nullptr;
 
-        const QString vertCountText = locale.toString(static_cast<qlonglong>(entry.mesh.VN()));
-        const QString edgeCountText = locale.toString(static_cast<qlonglong>(entry.mesh.EN()));
-        const QString faceCountText = locale.toString(static_cast<qlonglong>(entry.mesh.FN()));
-        const int selectedVertCount = selectedVertexCount(entry.mesh);
-        const int selectedEdgeCountValue = selectedEdgeCount(entry.mesh);
-        const int selectedFaceCountValue = selectedFaceCount(entry.mesh);
-        const QString selectedVertText =
-            selectedVertCount > 0 ? locale.toString(static_cast<qlonglong>(selectedVertCount)) : QString();
-        const QString selectedEdgeText =
-            selectedEdgeCountValue > 0
-                ? locale.toString(static_cast<qlonglong>(selectedEdgeCountValue))
-                : QString();
-        const QString selectedFaceText =
-            selectedFaceCountValue > 0
-                ? locale.toString(static_cast<qlonglong>(selectedFaceCountValue))
-                : QString();
-        maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(vertCountText));
-        maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(edgeCountText));
-        maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(faceCountText));
+        for (int i = 0; i < m_doc->rasterCount(); ++i) {
+            const auto &entry = m_doc->raster(i);
+            auto *item = new QTreeWidgetItem(m_rasterTree, {entry.name, QString()});
+            const QString itemKey = layerItemKey(kLayerKindRaster, qulonglong(entry.rasterId));
+            item->setData(0, kRoleLayerKind, kLayerKindRaster);
+            item->setData(0, kRoleRasterIndex, i);
+            item->setData(0, kRoleRasterId, qulonglong(entry.rasterId));
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+            item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
+            item->setFirstColumnSpanned(true);
 
-        auto *vItem = new QTreeWidgetItem({vertCountText, tr("Vert"), selectedVertText});
-        vItem->setFlags(vItem->flags() & ~Qt::ItemIsSelectable);
-        vItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
-        vItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
-        item->addChild(vItem);
-        auto *eItem = new QTreeWidgetItem({edgeCountText, tr("Edge"), selectedEdgeText});
-        eItem->setFlags(eItem->flags() & ~Qt::ItemIsSelectable);
-        eItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
-        eItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
-        item->addChild(eItem);
-        auto *fItem = new QTreeWidgetItem({faceCountText, tr("Face"), selectedFaceText});
-        fItem->setFlags(fItem->flags() & ~Qt::ItemIsSelectable);
-        fItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
-        fItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
-        item->addChild(fItem);
-        auto *dItem = new QTreeWidgetItem({QString(), tr("Data"), meshDataSummary(entry)});
-        dItem->setFlags(dItem->flags() & ~Qt::ItemIsSelectable);
-        item->addChild(dItem);
+            const Document::RasterPlane *currentPlane = entry.currentPlane();
+            const QString sizeText = currentPlane ? rasterSizeText(currentPlane->size) : tr("unknown");
 
-        if (attrs.vertexCount() > 0) {
-            auto *vAttrItem = new QTreeWidgetItem(
-                {QString(), tr("VAttr"), ownerAttributeSummary(attrs.vertexScalars, attrs.vertexColors, attrs.vertexPoints)});
-            vAttrItem->setFlags(vAttrItem->flags() & ~Qt::ItemIsSelectable);
-            const QString tip = ownerAttributeTooltip(
-                tr("Vertex"),
-                attrs.vertexScalars,
-                attrs.vertexColors,
-                attrs.vertexPoints);
-            vAttrItem->setToolTip(0, tip);
-            vAttrItem->setToolTip(1, tip);
-            vAttrItem->setToolTip(2, tip);
-            item->addChild(vAttrItem);
-        }
+            auto *imageItem = new QTreeWidgetItem(
+                {sizeText, tr("Image"), currentPlane ? Document::rasterPlaneDisplayName(*currentPlane, entry.currentPlaneIndex) : QString()});
+            imageItem->setFlags(imageItem->flags() & ~Qt::ItemIsSelectable);
+            imageItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+            item->addChild(imageItem);
 
-        if (attrs.faceCount() > 0) {
-            auto *fAttrItem = new QTreeWidgetItem(
-                {QString(), tr("FAttr"), ownerAttributeSummary(attrs.faceScalars, attrs.faceColors, attrs.facePoints)});
-            fAttrItem->setFlags(fAttrItem->flags() & ~Qt::ItemIsSelectable);
-            const QString tip = ownerAttributeTooltip(
-                tr("Face"),
-                attrs.faceScalars,
-                attrs.faceColors,
-                attrs.facePoints);
-            fAttrItem->setToolTip(0, tip);
-            fAttrItem->setToolTip(1, tip);
-            fAttrItem->setToolTip(2, tip);
-            item->addChild(fAttrItem);
-        }
+            auto *cameraItem = new QTreeWidgetItem({QString(), tr("Camera"), rasterCameraSummary(entry)});
+            cameraItem->setFlags(cameraItem->flags() & ~Qt::ItemIsSelectable);
+            const QString cameraTip = rasterCameraTooltip(entry);
+            cameraItem->setToolTip(0, cameraTip);
+            cameraItem->setToolTip(1, cameraTip);
+            cameraItem->setToolTip(2, cameraTip);
+            item->addChild(cameraItem);
 
-        if (!isIdentityTransform(entry.transform)) {
-            auto *xItem = new QTreeWidgetItem(
-                {QString(), tr("Xf"), meshTransformSummary(entry.transform)});
-            xItem->setFlags(xItem->flags() & ~Qt::ItemIsSelectable);
-            const QString xfTip = meshTransformTooltip(entry.transform);
-            xItem->setToolTip(0, xfTip);
-            xItem->setToolTip(1, xfTip);
-            xItem->setToolTip(2, xfTip);
-            item->addChild(xItem);
-        }
-
-        for (int texIdx = 0; texIdx < int(textures.size()); ++texIdx) {
-            const LayerTextureInfo &tex = textures[size_t(texIdx)];
-            auto *tItem = new QTreeWidgetItem({QString(), tr("Tex %1").arg(texIdx), QString()});
-            tItem->setFlags(tItem->flags() & ~Qt::ItemIsSelectable);
-            QString texTip;
-            if (!tex.path.isEmpty())
-                texTip = tex.path;
-            if (!tex.usage.isEmpty()) {
-                const QString usageLine = tr("Usage: %1").arg(tex.usage.join(QStringLiteral(", ")));
-                texTip = texTip.isEmpty() ? usageLine : (texTip + QLatin1Char('\n') + usageLine);
+            for (int planeIndex = 0; planeIndex < int(entry.planes.size()); ++planeIndex) {
+                const Document::RasterPlane &plane = entry.planes[size_t(planeIndex)];
+                auto *planeItem = new QTreeWidgetItem({QString(), tr("Plane %1").arg(planeIndex), QString()});
+                planeItem->setData(0, kRolePlaneIndex, planeIndex);
+                planeItem->setFlags((planeItem->flags() | Qt::ItemIsSelectable | Qt::ItemIsEnabled)
+                    & ~Qt::ItemIsUserCheckable);
+                if (planeIndex == entry.currentPlaneIndex) {
+                    QFont pf = planeItem->font(1);
+                    pf.setBold(true);
+                    planeItem->setFont(1, pf);
+                    planeItem->setFont(2, pf);
+                }
+                const QString path = Document::rasterPlaneSourcePath(plane);
+                if (!path.isEmpty()) {
+                    planeItem->setToolTip(0, path);
+                    planeItem->setToolTip(1, path);
+                    planeItem->setToolTip(2, path);
+                }
+                item->addChild(planeItem);
+                m_rasterTree->setItemWidget(planeItem, 2, rasterPlaneInfoWidget(m_rasterTree, plane, planeIndex, fm));
             }
-            if (!texTip.isEmpty()) {
-                tItem->setToolTip(0, texTip);
-                tItem->setToolTip(1, texTip);
-                tItem->setToolTip(2, texTip);
+
+            const QString dataTip = rasterDataTooltip(entry);
+            item->setToolTip(0, dataTip);
+            item->setToolTip(1, dataTip);
+            item->setToolTip(2, dataTip);
+            imageItem->setToolTip(0, dataTip);
+            imageItem->setToolTip(1, dataTip);
+            imageItem->setToolTip(2, dataTip);
+
+            const auto it = expandedState.constFind(itemKey);
+            item->setExpanded(it != expandedState.constEnd() ? it.value() : true);
+
+            if (!rasterSelectedKey.isEmpty() && rasterSelectedKey == itemKey)
+                rasterCurrentItem = item;
+            if (!rasterCurrentItem
+                && m_doc->currentLayerKind() == Document::CurrentLayerKind::Raster
+                && i == m_doc->currentRasterIndex()) {
+                rasterCurrentItem = item;
             }
-            item->addChild(tItem);
-            m_tree->setItemWidget(tItem, 2, textureInfoWidget(m_tree, tex, fm));
         }
 
-        const QString dataTip = meshDataTooltip(entry);
-        item->setToolTip(0, dataTip);
-        item->setToolTip(1, dataTip);
-        item->setToolTip(2, dataTip);
-        dItem->setToolTip(0, dataTip);
-        dItem->setToolTip(1, dataTip);
-        dItem->setToolTip(2, dataTip);
+        if (rasterCurrentItem)
+            m_rasterTree->setCurrentItem(rasterCurrentItem);
 
-        const auto it = expandedStateByLayerKey.constFind(itemKey);
-        item->setExpanded(it != expandedStateByLayerKey.constEnd() ? it.value() : true);
-
-        if (!selectedKey.isEmpty() && selectedKey == itemKey)
-            selectedItem = item;
-        if (!fallbackCurrentItem
-            && m_doc->currentLayerKind() == Document::CurrentLayerKind::Mesh
-            && i == m_doc->currentMeshIndex()) {
-            fallbackCurrentItem = item;
-        }
+        m_rasterTree->setVisible(m_doc->rasterCount() > 0);
     }
-
-    for (int i = 0; i < m_doc->rasterCount(); ++i) {
-        const auto &entry = m_doc->raster(i);
-        auto *item = new QTreeWidgetItem(m_tree, {entry.name, QString()});
-        const QString itemKey = layerItemKey(kLayerKindRaster, qulonglong(entry.rasterId));
-        item->setData(0, kRoleLayerKind, kLayerKindRaster);
-        item->setData(0, kRoleRasterIndex, i);
-        item->setData(0, kRoleRasterId, qulonglong(entry.rasterId));
-        item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-        item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
-        item->setFirstColumnSpanned(true);
-
-        const Document::RasterPlane *currentPlane = entry.currentPlane();
-        const QString sizeText = currentPlane ? rasterSizeText(currentPlane->size) : tr("unknown");
-        maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(sizeText));
-
-        auto *imageItem = new QTreeWidgetItem(
-            {sizeText, tr("Image"), currentPlane ? Document::rasterPlaneDisplayName(*currentPlane, entry.currentPlaneIndex) : QString()});
-        imageItem->setFlags(imageItem->flags() & ~Qt::ItemIsSelectable);
-        imageItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
-        item->addChild(imageItem);
-
-        auto *cameraItem = new QTreeWidgetItem({QString(), tr("Camera"), rasterCameraSummary(entry)});
-        cameraItem->setFlags(cameraItem->flags() & ~Qt::ItemIsSelectable);
-        const QString cameraTip = rasterCameraTooltip(entry);
-        cameraItem->setToolTip(0, cameraTip);
-        cameraItem->setToolTip(1, cameraTip);
-        cameraItem->setToolTip(2, cameraTip);
-        item->addChild(cameraItem);
-
-        for (int planeIndex = 0; planeIndex < int(entry.planes.size()); ++planeIndex) {
-            const Document::RasterPlane &plane = entry.planes[size_t(planeIndex)];
-            auto *planeItem = new QTreeWidgetItem({QString(), tr("Plane %1").arg(planeIndex), QString()});
-            planeItem->setData(0, kRolePlaneIndex, planeIndex);
-            planeItem->setFlags((planeItem->flags() | Qt::ItemIsSelectable | Qt::ItemIsEnabled)
-                & ~Qt::ItemIsUserCheckable);
-            if (planeIndex == entry.currentPlaneIndex) {
-                QFont pf = planeItem->font(1);
-                pf.setBold(true);
-                planeItem->setFont(1, pf);
-                planeItem->setFont(2, pf);
-            }
-            const QString path = Document::rasterPlaneSourcePath(plane);
-            if (!path.isEmpty()) {
-                planeItem->setToolTip(0, path);
-                planeItem->setToolTip(1, path);
-                planeItem->setToolTip(2, path);
-            }
-            item->addChild(planeItem);
-            m_tree->setItemWidget(planeItem, 2, rasterPlaneInfoWidget(m_tree, plane, planeIndex, fm));
-        }
-
-        const QString dataTip = rasterDataTooltip(entry);
-        item->setToolTip(0, dataTip);
-        item->setToolTip(1, dataTip);
-        item->setToolTip(2, dataTip);
-        imageItem->setToolTip(0, dataTip);
-        imageItem->setToolTip(1, dataTip);
-        imageItem->setToolTip(2, dataTip);
-
-        const auto it = expandedStateByLayerKey.constFind(itemKey);
-        item->setExpanded(it != expandedStateByLayerKey.constEnd() ? it.value() : true);
-
-        if (!selectedKey.isEmpty() && selectedKey == itemKey)
-            selectedItem = item;
-        if (!fallbackCurrentItem
-            && m_doc->currentLayerKind() == Document::CurrentLayerKind::Raster
-            && i == m_doc->currentRasterIndex()) {
-            fallbackCurrentItem = item;
-        }
-    }
-    if (fallbackCurrentItem)
-        m_tree->setCurrentItem(fallbackCurrentItem);
-    else if (selectedItem)
-        m_tree->setCurrentItem(selectedItem);
 
     updateCurrentItemVisuals();
-    const int requiredWidth =
-        maxCountTextWidth + kFirstColumnPadding + m_tree->indentation() + kFirstColumnTreePadding;
-    m_tree->setColumnWidth(0, std::max(kFirstColumnMinWidth, requiredWidth));
-    m_tree->resizeColumnToContents(1);
     m_rebuilding = false;
 }
 
@@ -1524,6 +1550,7 @@ void LayerWidget::rebuildTable()
         }
 
         m_rasterTable->setSortingEnabled(true);
+        m_rasterTable->setVisible(m_doc->rasterCount() > 0);
 
         if (currentRasterRow >= 0 && currentRasterRow < m_rasterTable->rowCount()) {
             m_rasterTable->selectRow(currentRasterRow);
@@ -1687,25 +1714,22 @@ void LayerWidget::updateCurrentItemVisuals()
 {
     const int currentMeshIdx = m_doc->currentMeshIndex();
     const int currentRasterIdx = m_doc->currentRasterIndex();
-    for (int i = 0; i < m_tree->topLevelItemCount(); ++i) {
-        QTreeWidgetItem *item = m_tree->topLevelItem(i);
+    const auto setBold = [](QTreeWidgetItem *item, bool bold) {
+        QFont f0 = item->font(0), f1 = item->font(1), f2 = item->font(2);
+        f0.setBold(bold); f1.setBold(bold); f2.setBold(bold);
+        item->setFont(0, f0); item->setFont(1, f1); item->setFont(2, f2);
+    };
+    for (int i = 0; i < m_meshTree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *item = m_meshTree->topLevelItem(i);
         const LayerItemRef ref = layerRefForItem(item);
-        const bool isCurrent =
-            (ref.kind == LayerItemKind::Mesh
-                && currentMeshIdx >= 0
-                && ref.index == currentMeshIdx)
-            || (ref.kind == LayerItemKind::Raster
-                && currentRasterIdx >= 0
-                && ref.index == currentRasterIdx);
-        QFont f0 = item->font(0);
-        QFont f1 = item->font(1);
-        QFont f2 = item->font(2);
-        f0.setBold(isCurrent);
-        f1.setBold(isCurrent);
-        f2.setBold(isCurrent);
-        item->setFont(0, f0);
-        item->setFont(1, f1);
-        item->setFont(2, f2);
+        const bool isCurrent = ref.kind == LayerItemKind::Mesh && currentMeshIdx >= 0 && ref.index == currentMeshIdx;
+        setBold(item, isCurrent);
+    }
+    for (int i = 0; i < m_rasterTree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *item = m_rasterTree->topLevelItem(i);
+        const LayerItemRef ref = layerRefForItem(item);
+        const bool isCurrent = ref.kind == LayerItemKind::Raster && currentRasterIdx >= 0 && ref.index == currentRasterIdx;
+        setBold(item, isCurrent);
     }
 }
 
@@ -1742,7 +1766,8 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
     if (m_viewMode == ViewMode::Table)
         return;
 
-    QTreeWidgetItem *itemUnderCursor = m_tree->itemAt(event->pos());
+    QTreeWidgetItem *itemUnderCursor = m_meshTree->itemAt(event->pos());
+    if (!itemUnderCursor) itemUnderCursor = m_rasterTree->itemAt(event->pos());
 
     // Right-click on a plane child item
     if (itemUnderCursor && itemUnderCursor->parent()) {

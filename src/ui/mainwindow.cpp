@@ -447,7 +447,7 @@ MainWindow::MainWindow(QWidget *parent)
     setAcceptDrops(true);
     if (QScreen *screen = QGuiApplication::primaryScreen()) {
         const QRect avail = screen->availableGeometry();
-        resize(avail.width() * 9 / 10, avail.height() * 9 / 10);
+        resize(avail.width(), avail.height());
     } else {
         resize(800, 600);
     }
@@ -602,6 +602,26 @@ MainWindow::MainWindow(QWidget *parent)
     });
     m_layerDock = new QDockWidget(tr("Layers"), this);
     m_layerDock->setWidget(m_layerWidget);
+
+    // Custom title bar with tree/table toggle
+    auto *titleBar = new QWidget();
+    auto *titleLayout = new QHBoxLayout(titleBar);
+    titleLayout->setContentsMargins(8, 0, 4, 0);
+    titleLayout->addWidget(new QLabel(tr("Layers")));
+    titleLayout->addStretch();
+    auto *toggleBtn = new QToolButton();
+    toggleBtn->setText(tr("⬍ Table"));
+    toggleBtn->setToolTip(tr("Toggle between tree and table view"));
+    toggleBtn->setCheckable(true);
+    toggleBtn->setChecked(false);
+    toggleBtn->setAutoRaise(true);
+    connect(toggleBtn, &QToolButton::toggled, this, [this, toggleBtn](bool checked) {
+        m_layerWidget->setViewMode(checked ? LayerWidget::ViewMode::Table : LayerWidget::ViewMode::Tree);
+        toggleBtn->setText(checked ? tr("⬍ Tree") : tr("⬍ Table"));
+    });
+    titleLayout->addWidget(toggleBtn);
+    m_layerDock->setTitleBarWidget(titleBar);
+
     m_layerDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     addDockWidget(Qt::RightDockWidgetArea, m_layerDock);
 
@@ -629,7 +649,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_filterDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     addDockWidget(Qt::RightDockWidgetArea, m_filterDock);
     splitDockWidget(m_layerDock, m_filterDock, Qt::Vertical);
-    const int rightColumnWidth = std::max(260, width() / 5);
+    const int rightColumnWidth = std::max(260, width() * 3 / 10);
     m_layerDock->setMinimumWidth(rightColumnWidth);
     m_filterDock->setMinimumWidth(rightColumnWidth);
     resizeDocks({ m_layerDock }, { rightColumnWidth }, Qt::Horizontal);

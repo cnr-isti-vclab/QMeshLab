@@ -7,7 +7,6 @@
 class Document;
 class QStackedWidget;
 class QSplitter;
-class QToolButton;
 
 class LayerWidget : public QWidget
 {
@@ -22,6 +21,7 @@ public:
 
     ViewMode viewMode() const { return m_viewMode; }
     void setViewMode(ViewMode mode);
+    void toggleViewMode();
 
 signals:
     void filterActionRequested(const QString &filterKey);
@@ -62,8 +62,8 @@ private:
     ViewMode m_viewMode = ViewMode::Tree;
 
     QStackedWidget *m_stack = nullptr;
-    QTreeWidget *m_tree = nullptr;
+    QTreeWidget *m_meshTree = nullptr;
+    QTreeWidget *m_rasterTree = nullptr;
     QTableWidget *m_meshTable = nullptr;
     QTableWidget *m_rasterTable = nullptr;
-    QToolButton *m_toggleBtn = nullptr;
 };
