@@ -1771,16 +1771,24 @@ bool Document::undo()
         return false;
 
     const auto &node = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
+    const auto &target = m_undoNodes[static_cast<size_t>(node.parentId)];
     qDebug() << "[UNDO]  from=" << m_undoCurrentNode << '(' << node.label << ')'
-             << "to=" << node.parentId
-             << '(' << m_undoNodes[static_cast<size_t>(node.parentId)].label << ')';
+             << "to=" << node.parentId << '(' << target.label << ')';
+    QElapsedTimer timer;
+    timer.start();
     m_restoringUndoRedo = true;
-    restoreUndoState(m_undoNodes[static_cast<size_t>(node.parentId)].state);
-    m_restoringUndoRedo = false;
+    restoreUndoState(target.state);
     // Remember which child to return to on redo.
     m_undoNodes[static_cast<size_t>(node.parentId)].preferredChild = m_undoCurrentNode;
     m_undoCurrentNode = node.parentId;
     emitUndoRedoStateChanged();
+    m_restoringUndoRedo = false;
+    writeLog(tr("Undo '%1': %2 ms (%3 meshes, %4 rasters)")
+        .arg(node.label)
+        .arg(timer.elapsed())
+        .arg(target.state.meshes.size())
+        .arg(target.state.rasters.size()),
+        LogSource::Application);
     return true;
 }
 
@@ -1792,16 +1800,24 @@ bool Document::redo()
     auto &node = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
     const int childId = node.preferredChild >= 0 ? node.preferredChild
                                                   : node.children.front();
+    const auto &target = m_undoNodes[static_cast<size_t>(childId)];
     qDebug() << "[REDO]  from=" << m_undoCurrentNode << '(' << node.label << ')'
-             << "to=" << childId
-             << '(' << m_undoNodes[static_cast<size_t>(childId)].label << ')'
+             << "to=" << childId << '(' << target.label << ')'
              << "prefChild=" << node.preferredChild
              << "children=" << QVector<int>(node.children.begin(), node.children.end());
+    QElapsedTimer timer;
+    timer.start();
     m_restoringUndoRedo = true;
-    restoreUndoState(m_undoNodes[static_cast<size_t>(childId)].state);
-    m_restoringUndoRedo = false;
+    restoreUndoState(target.state);
     m_undoCurrentNode = childId;
     emitUndoRedoStateChanged();
+    m_restoringUndoRedo = false;
+    writeLog(tr("Redo '%1': %2 ms (%3 meshes, %4 rasters)")
+        .arg(target.label)
+        .arg(timer.elapsed())
+        .arg(target.state.meshes.size())
+        .arg(target.state.rasters.size()),
+        LogSource::Application);
     return true;
 }
 
@@ -2109,112 +2125,182 @@ void Document::restoreUndoState(const UndoState &state)
             it = m_undoGeometryCache.erase(it);
     }
 
-    for (int i = meshCount() - 1; i >= 0; --i) {
-        const std::uint64_t meshId = m_meshes[static_cast<size_t>(i)]->meshId;
-        m_meshes.erase(m_meshes.begin() + i);
-        purgeMeshGpuResources(meshId);
-        emit meshRemoved(i);
+    {
+        QElapsedTimer t; t.start();
+        // Suppress per-mesh add/remove signals during undo restoration —
+        // LayerWidget and RenderWidget will be rebuilt from the final state
+        // via a single meshDataChanged batch below.
+        m_restoringUndoRedo = true;
+        for (int i = meshCount() - 1; i >= 0; --i) {
+            const std::uint64_t meshId = m_meshes[static_cast<size_t>(i)]->meshId;
+            m_meshes.erase(m_meshes.begin() + i);
+            purgeMeshGpuResources(meshId);
+        }
+        m_meshes.clear();
+        m_meshes.reserve(state.meshes.size());
+        {
+            qint64 copyMs = 0;
+            for (const auto &snap : state.meshes) {
+                auto entry = std::make_unique<MeshEntry>();
+                entry->meshId           = snap.meshId;
+                entry->geometryRevision = snap.geometryRevision;
+                entry->materialRevision = snap.materialRevision;
+                entry->transform  = snap.transform;
+                entry->name             = snap.name;
+                entry->sourcePath       = snap.sourcePath;
+                entry->textureFileNames = snap.textureFileNames;
+                entry->textureFilePaths = snap.textureFilePaths;
+                entry->textureAssets    = snap.textureAssets;
+                entry->materialSet      = snap.materialSet;
+                entry->visible          = snap.visible;
+                entry->modified         = snap.modified;
+                entry->ioMask           = snap.ioMask;
+                {
+                    QElapsedTimer t2; t2.start();
+                    deepCopyMesh(*snap.geometry, entry->mesh);
+                    copyMs += t2.elapsed();
+                }
+                m_meshes.push_back(std::move(entry));
+            }
+            writeLog(tr("Undo/redo — mesh restore: %1 ms (deepCopy %2)")
+                .arg(t.elapsed()).arg(copyMs),
+                LogSource::Application);
+        }
+        // Notify views once for the entire mesh set.
+        for (int i = 0; i < meshCount(); ++i)
+            emit meshAdded(i);
     }
 
-    m_meshes.clear();
-    m_meshes.reserve(state.meshes.size());
-    for (const auto &snap : state.meshes) {
-        auto entry = std::make_unique<MeshEntry>();
-        // Restore cheap metadata.
-        entry->meshId           = snap.meshId;
-        entry->geometryRevision = snap.geometryRevision;
-        entry->materialRevision = snap.materialRevision;
-        entry->transform  = snap.transform;
-        entry->name             = snap.name;
-        entry->sourcePath       = snap.sourcePath;
-        entry->textureFileNames = snap.textureFileNames;
-        entry->textureFilePaths = snap.textureFilePaths;
-        entry->textureAssets    = snap.textureAssets;
-        entry->materialSet      = snap.materialSet;
-        entry->visible          = snap.visible;
-        entry->modified         = snap.modified;
-        entry->ioMask           = snap.ioMask;
-        // The live MeshEntry needs its own mutable copy of the geometry so that
-        // subsequent operations (filters, transforms) can modify it freely without
-        // corrupting the shared undo snapshot.
-        deepCopyMesh(*snap.geometry, entry->mesh);
-        m_meshes.push_back(std::move(entry));
-        emit meshAdded(static_cast<int>(m_meshes.size() - 1));
+    {
+        QElapsedTimer t; t.start();
+        clearAllGpuResources();
+        writeLog(tr("Undo/redo — GPU cache clear: %1 ms").arg(t.elapsed()), LogSource::Application);
     }
-
-    // Mesh content can jump arbitrarily across undo/redo, so invalidate all cached
-    // GPU resources and let passes rebuild lazily on demand.
-    clearAllGpuResources();
 
     m_nextMeshId = state.nextMeshId;
-    for (int i = rasterCount() - 1; i >= 0; --i) {
-        m_rasters.erase(m_rasters.begin() + i);
-        emit rasterRemoved(i);
+    {
+        // Compare live rasters against the snapshot.  If rasterId, imageRevision,
+        // and cameraRevision all match, the raster is unchanged — skip the
+        // expensive destroy/recreate + signal cascade (especially costly when
+        // RenderWidget holds large GPU raster texture caches).
+        QElapsedTimer t; t.start();
+        int skipped = 0;
+        int removed = 0;
+        for (int i = rasterCount() - 1; i >= 0; --i) {
+            const auto &live = m_rasters[static_cast<size_t>(i)];
+            const auto *snap = [&]() -> const UndoState::RasterSnapshot * {
+                for (const auto &s : state.rasters)
+                    if (s.rasterId == live->rasterId) return &s;
+                return nullptr;
+            }();
+            if (snap
+                && snap->imageRevision == live->imageRevision
+                && snap->cameraRevision == live->cameraRevision) {
+                // Raster unchanged — keep it but update cheap metadata in place.
+                live->visible = snap->visible;
+                live->name = snap->name;
+                live->sourcePath = snap->sourcePath;
+                live->currentPlaneIndex = snap->currentPlaneIndex;
+                ++skipped;
+            } else {
+                m_rasters.erase(m_rasters.begin() + i);
+                emit rasterRemoved(i);
+                ++removed;
+            }
+        }
+        int added = 0;
+        for (const auto &snap : state.rasters) {
+            bool alreadyLive = false;
+            for (const auto &live : m_rasters)
+                if (live->rasterId == snap.rasterId) { alreadyLive = true; break; }
+            if (alreadyLive) continue;
+            auto entry = std::make_unique<RasterEntry>();
+            entry->rasterId = snap.rasterId;
+            entry->imageRevision = snap.imageRevision;
+            entry->cameraRevision = snap.cameraRevision;
+            entry->name = snap.name;
+            entry->sourcePath = snap.sourcePath;
+            entry->visible = snap.visible;
+            entry->shot = snap.shot;
+            entry->planes = snap.planes;
+            entry->currentPlaneIndex = snap.currentPlaneIndex;
+            m_rasters.push_back(std::move(entry));
+            emit rasterAdded(static_cast<int>(m_rasters.size() - 1));
+            ++added;
+        }
+        writeLog(tr("Undo/redo — rasters: %1 ms (skipped %2, removed %3, added %4)")
+            .arg(t.elapsed()).arg(skipped).arg(removed).arg(added),
+            LogSource::Application);
     }
 
-    m_rasters.clear();
-    m_rasters.reserve(state.rasters.size());
-    for (const auto &snap : state.rasters) {
-        auto entry = std::make_unique<RasterEntry>();
-        entry->rasterId = snap.rasterId;
-        entry->imageRevision = snap.imageRevision;
-        entry->cameraRevision = snap.cameraRevision;
-        entry->name = snap.name;
-        entry->sourcePath = snap.sourcePath;
-        entry->visible = snap.visible;
-        entry->shot = snap.shot;
-        entry->planes = snap.planes;
-        entry->currentPlaneIndex = snap.currentPlaneIndex;
-        m_rasters.push_back(std::move(entry));
-        emit rasterAdded(static_cast<int>(m_rasters.size() - 1));
+    {
+        // Suppress index/layer-change signals during undo restore —
+        // the meshAdded batch above already notifies all views.
+        const bool prevRestoring = m_restoringUndoRedo;
+        m_restoringUndoRedo = true;
+        qint64 sigMs = 0, visMs = 0, vsMs = 0;
+        {
+            QElapsedTimer t2; t2.start();
+            m_nextRasterId = state.nextRasterId;
+            const int normalizedCurrent =
+                (state.currentMeshIndex >= 0 && state.currentMeshIndex < meshCount())
+                ? state.currentMeshIndex
+                : -1;
+            m_currentMeshIndex = normalizedCurrent;
+            emit currentMeshChanged(m_currentMeshIndex);
+            const int normalizedRaster =
+                (state.currentRasterIndex >= 0 && state.currentRasterIndex < rasterCount())
+                ? state.currentRasterIndex
+                : -1;
+            m_currentRasterIndex = normalizedRaster;
+            emit currentRasterChanged(m_currentRasterIndex);
+            CurrentLayerKind normalizedLayerKind = CurrentLayerKind::None;
+            switch (state.currentLayerKind) {
+            case CurrentLayerKind::Mesh:
+                normalizedLayerKind =
+                    (m_currentMeshIndex >= 0) ? CurrentLayerKind::Mesh : CurrentLayerKind::None;
+                break;
+            case CurrentLayerKind::Raster:
+                normalizedLayerKind =
+                    (m_currentRasterIndex >= 0) ? CurrentLayerKind::Raster : CurrentLayerKind::None;
+                break;
+            case CurrentLayerKind::None:
+                normalizedLayerKind = CurrentLayerKind::None;
+                break;
+            }
+            m_currentLayerKind = normalizedLayerKind;
+            const int currentLayerIndex =
+                (m_currentLayerKind == CurrentLayerKind::Mesh)
+                ? m_currentMeshIndex
+                : ((m_currentLayerKind == CurrentLayerKind::Raster) ? m_currentRasterIndex : -1);
+            emit currentLayerChanged(m_currentLayerKind, currentLayerIndex);
+            sigMs = t2.elapsed();
+        }
+        {
+            QElapsedTimer t2; t2.start();
+            for (int i = 0; i < meshCount(); ++i) {
+                const MeshEntry &entry = mesh(i);
+                if (!entry.visible)
+                    emit meshVisibilityChanged(i, false);
+            }
+            for (int i = 0; i < rasterCount(); ++i) {
+                const RasterEntry &entry = raster(i);
+                if (!entry.visible)
+                    emit rasterVisibilityChanged(i, false);
+            }
+            visMs = t2.elapsed();
+        }
+        {
+            QElapsedTimer t2; t2.start();
+            if (m_restoreViewState)
+                m_restoreViewState(state.viewState, m_restoreCamera);
+            vsMs = t2.elapsed();
+        }
+        m_restoringUndoRedo = prevRestoring;
+        writeLog(tr("Undo/redo — signals + view restore: %1 ms (index %2, vis %3, viewSt %4)")
+            .arg(sigMs + visMs + vsMs).arg(sigMs).arg(visMs).arg(vsMs),
+            LogSource::Application);
     }
-
-    m_nextRasterId = state.nextRasterId;
-    const int normalizedCurrent =
-        (state.currentMeshIndex >= 0 && state.currentMeshIndex < meshCount())
-        ? state.currentMeshIndex
-        : -1;
-    m_currentMeshIndex = normalizedCurrent;
-    emit currentMeshChanged(m_currentMeshIndex);
-    const int normalizedRaster =
-        (state.currentRasterIndex >= 0 && state.currentRasterIndex < rasterCount())
-        ? state.currentRasterIndex
-        : -1;
-    m_currentRasterIndex = normalizedRaster;
-    emit currentRasterChanged(m_currentRasterIndex);
-    CurrentLayerKind normalizedLayerKind = CurrentLayerKind::None;
-    switch (state.currentLayerKind) {
-    case CurrentLayerKind::Mesh:
-        normalizedLayerKind =
-            (m_currentMeshIndex >= 0) ? CurrentLayerKind::Mesh : CurrentLayerKind::None;
-        break;
-    case CurrentLayerKind::Raster:
-        normalizedLayerKind =
-            (m_currentRasterIndex >= 0) ? CurrentLayerKind::Raster : CurrentLayerKind::None;
-        break;
-    case CurrentLayerKind::None:
-        normalizedLayerKind = CurrentLayerKind::None;
-        break;
-    }
-    m_currentLayerKind = normalizedLayerKind;
-    const int currentLayerIndex =
-        (m_currentLayerKind == CurrentLayerKind::Mesh)
-        ? m_currentMeshIndex
-        : ((m_currentLayerKind == CurrentLayerKind::Raster) ? m_currentRasterIndex : -1);
-    emit currentLayerChanged(m_currentLayerKind, currentLayerIndex);
-
-    for (int i = 0; i < meshCount(); ++i) {
-        const MeshEntry &entry = mesh(i);
-        if (!entry.visible)
-            emit meshVisibilityChanged(i, false);
-    }
-    for (int i = 0; i < rasterCount(); ++i) {
-        const RasterEntry &entry = raster(i);
-        if (!entry.visible)
-            emit rasterVisibilityChanged(i, false);
-    }
-    if (m_restoreViewState)
-        m_restoreViewState(state.viewState, m_restoreCamera);
 }
 
 void Document::pushUndoStep(const QString &label, UndoState &&before, UndoState &&after)

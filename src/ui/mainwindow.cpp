@@ -766,6 +766,8 @@ MainWindow::MainWindow(QWidget *parent)
         &Document::undoRedoStateChanged,
         this,
         [this](bool, bool, const QString &, const QString &) {
+            if (m_doc->isRestoringUndoRedo())
+                return;
             refreshUndoHistoryPanel();
         });
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeActivated, this, [this](int nodeId, bool withCamera) {
@@ -1072,41 +1074,49 @@ MainWindow::MainWindow(QWidget *parent)
 #endif
     }
     connect(m_doc, &Document::meshAdded, this, [this](int) {
+        if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
         if (m_filterPanel)
             m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int) {
+        if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
         if (m_filterPanel)
             m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
+        if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
         if (m_filterPanel)
             m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
+        if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
         if (m_filterPanel)
             m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
+        if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
         if (m_filterPanel)
             m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::rasterRemoved, this, [this](int) {
+        if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
         if (m_filterPanel)
             m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::currentRasterChanged, this, [this](int) {
+        if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
         if (m_filterPanel)
             m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
+        if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
         if (m_filterPanel)
             m_filterPanel->reloadFilters();
