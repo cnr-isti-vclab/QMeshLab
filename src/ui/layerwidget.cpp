@@ -1000,18 +1000,21 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
 
     tableSplitter->addWidget(m_meshTable);
 
-    // Raster table — columns: Eye(0) | Name(1) | Size(2) | Planes(3) | Camera(4)
-    m_rasterTable = new QTableWidget(0, 5, this);
-    m_rasterTable->setHorizontalHeaderLabels({QString(), tr("Name"), tr("Size"), tr("Planes"), tr("Camera")});
+    // Raster table — columns: Eye(0) | Thumb(1) | Name(2) | Size(3) | Planes(4) | Camera(5)
+    m_rasterTable = new QTableWidget(0, 6, this);
+    m_rasterTable->setHorizontalHeaderLabels({QString(), tr("Thumb"), tr("Name"), tr("Size"), tr("Planes"), tr("Camera")});
     m_rasterTable->setSelectionMode(QAbstractItemView::SingleSelection);
     m_rasterTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_rasterTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
     m_rasterTable->setColumnWidth(0, 24);
-    m_rasterTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    m_rasterTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    m_rasterTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
+    m_rasterTable->setColumnWidth(1, 56);
+    m_rasterTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     m_rasterTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
-    m_rasterTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
+    m_rasterTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+    m_rasterTable->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Stretch);
     m_rasterTable->verticalHeader()->setVisible(false);
+    m_rasterTable->verticalHeader()->setDefaultSectionSize(56);
     m_rasterTable->setSortingEnabled(true);
     m_rasterTable->setShowGrid(false);
 
@@ -1478,37 +1481,46 @@ void LayerWidget::rebuildTable()
             eyeItem->setCheckState(visible ? Qt::Checked : Qt::Unchecked);
             m_rasterTable->setItem(i, 0, eyeItem);
 
-            // Name column (1)
+            // Thumb column (1)
+            const Document::RasterPlane *plane = entry.currentPlane();
+            const QString sourcePath = plane ? Document::rasterPlaneSourcePath(*plane) : QString();
+            const QImage planeImg = plane ? plane->image : QImage();
+            auto *thumbLabel = new QLabel();
+            thumbLabel->setFixedSize(54, 54);
+            thumbLabel->setAlignment(Qt::AlignCenter);
+            thumbLabel->setPixmap(imageThumbnail(planeImg, sourcePath, 54, 54));
+            m_rasterTable->setCellWidget(i, 1, thumbLabel);
+
+            // Name column (2)
             auto *nameItem = new QTableWidgetItem(entry.name);
             nameItem->setData(kRoleRasterIndex, i);
             nameItem->setFlags(nameItem->flags() | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
             nameItem->setToolTip(rasterDataTooltip(entry));
-            m_rasterTable->setItem(i, 1, nameItem);
+            m_rasterTable->setItem(i, 2, nameItem);
 
-            // Size column (2)
-            const Document::RasterPlane *plane = entry.currentPlane();
+            // Size column (3)
             QString sizeStr = plane ? rasterSizeText(plane->size) : tr("—");
             auto *sizeItem = new QTableWidgetItem(sizeStr);
             sizeItem->setFlags(sizeItem->flags() & ~Qt::ItemIsEditable);
             sizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            m_rasterTable->setItem(i, 2, sizeItem);
+            m_rasterTable->setItem(i, 3, sizeItem);
 
-            // Planes column (3)
+            // Planes column (4)
             auto *planesItem = new NumericTableItem(
                 locale.toString(static_cast<qlonglong>(entry.planes.size())),
                 static_cast<qlonglong>(entry.planes.size()));
             planesItem->setFlags(planesItem->flags() & ~Qt::ItemIsEditable);
             planesItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            m_rasterTable->setItem(i, 3, planesItem);
+            m_rasterTable->setItem(i, 4, planesItem);
 
-            // Camera column (4)
+            // Camera column (5)
             QString camStr = entry.shot.isValid()
                 ? rasterCameraTypeLabel(entry.shot.cameraType())
                 : tr("—");
             auto *camItem = new QTableWidgetItem(camStr);
             camItem->setFlags(camItem->flags() & ~Qt::ItemIsEditable);
             camItem->setToolTip(rasterCameraTooltip(entry));
-            m_rasterTable->setItem(i, 4, camItem);
+            m_rasterTable->setItem(i, 5, camItem);
         }
 
         m_rasterTable->setSortingEnabled(true);
@@ -1633,7 +1645,7 @@ void LayerWidget::onRasterTableCurrentItemChanged(QTableWidgetItem *current, QTa
     if (m_rebuilding || !current)
         return;
 
-    QTableWidgetItem *nameItem = m_rasterTable->item(current->row(), 1);
+    QTableWidgetItem *nameItem = m_rasterTable->item(current->row(), 2);
     if (!nameItem)
         return;
 
