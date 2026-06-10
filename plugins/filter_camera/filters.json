@@ -1,0 +1,524 @@
+{
+  "pluginId": "qmeshlab.filter.camera",
+  "filters": [
+    {
+      "id": "set_camera_per_mesh",
+      "menuPath": "Camera",
+      "name": "Set Mesh Camera",
+      "pythonName": "set_camera_per_mesh",
+      "shortDescription": "Set the camera parameters for the current mesh.",
+      "longDescriptionMarkdown": "Set camera parameters for the current mesh. The camera is stored and used by other filters such as 'Vertex Quality from Camera'.",
+      "tags": ["camera", "mesh"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "outputModifies": [],
+      "parameters": [
+        {
+          "id": "viewpoint",
+          "label": "Viewpoint",
+          "help": "Camera position in world space.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [0.0, 0.0, 0.0]
+        },
+        {
+          "id": "direction",
+          "label": "View direction",
+          "help": "Camera viewing direction.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 0.0, -1.0]
+        },
+        {
+          "id": "focalMm",
+          "label": "Focal length (mm)",
+          "help": "Camera focal length in millimeters.",
+          "group": "main",
+          "type": "double",
+          "default": 50.0,
+          "min": 1.0,
+          "max": 1000.0,
+          "decimals": 1
+        },
+        {
+          "id": "cameraType",
+          "label": "Camera type",
+          "help": "Type of camera projection.",
+          "group": "main",
+          "type": "enum",
+          "default": "perspective",
+          "enumOptions": [
+            { "id": "perspective", "label": "Perspective" },
+            { "id": "orthographic", "label": "Orthographic" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "set_camera_per_raster",
+      "menuPath": "Camera",
+      "name": "Set Raster Camera",
+      "pythonName": "set_camera_per_raster",
+      "shortDescription": "Set the camera parameters for the current raster.",
+      "longDescriptionMarkdown": "Set camera parameters for the current raster. The viewport is automatically recalculated from the raster image dimensions.",
+      "tags": ["camera", "raster"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "outputModifies": [],
+      "parameters": [
+        {
+          "id": "viewpoint",
+          "label": "Viewpoint",
+          "help": "Camera position in world space.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [0.0, 0.0, 0.0]
+        },
+        {
+          "id": "direction",
+          "label": "View direction",
+          "help": "Camera viewing direction.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 0.0, -1.0]
+        },
+        {
+          "id": "focalMm",
+          "label": "Focal length (mm)",
+          "help": "Camera focal length in millimeters.",
+          "group": "main",
+          "type": "double",
+          "default": 50.0,
+          "min": 1.0,
+          "max": 1000.0,
+          "decimals": 1
+        },
+        {
+          "id": "sensorWidthMm",
+          "label": "Sensor width (mm)",
+          "help": "Camera sensor width in millimeters.",
+          "group": "main",
+          "type": "double",
+          "default": 36.0,
+          "min": 1.0,
+          "max": 1000.0,
+          "decimals": 1
+        }
+      ]
+    },
+    {
+      "id": "compute_scalar_from_camera_per_vertex",
+      "menuPath": "Camera",
+      "name": "Vertex Quality from Camera",
+      "pythonName": "compute_scalar_from_camera_per_vertex",
+      "shortDescription": "Compute vertex quality using the camera definition, according to viewing angle or distance.",
+      "longDescriptionMarkdown": "Compute vertex quality using the camera definition, according to viewing angle or distance. Uses the current raster camera if available.",
+      "tags": ["camera", "quality"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "inputPrepare": ["VNorm"],
+      "outputModifies": ["VQ", "VC"],
+      "parameters": [
+        {
+          "id": "depth",
+          "label": "Use depth",
+          "help": "Use depth from camera as a factor (quality proportional to distance).",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "facing",
+          "label": "Use facing angle",
+          "help": "Use cosine of viewing angle as a factor.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "clip",
+          "label": "Clip outside viewport",
+          "help": "Clip quality values to zero for vertices outside the camera viewport.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "normalize",
+          "label": "Normalize",
+          "help": "If checked normalize all quality values in range [0..1].",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "map",
+          "label": "Map to color",
+          "help": "If checked map quality generated values into per-vertex color.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    },
+    {
+      "id": "apply_cameras_rotation",
+      "menuPath": "Camera",
+      "name": "Transform: Rotate Camera or set of cameras",
+      "pythonName": "apply_cameras_rotation",
+      "shortDescription": "Rotate the camera, or all the cameras of the project.",
+      "longDescriptionMarkdown": "Rotate the camera, or all the cameras of the project. The selected raster is the reference if viewpoint rotation is selected.",
+      "tags": ["camera", "transform", "rotation"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "outputModifies": [],
+      "parameters": [
+        {
+          "id": "camera",
+          "label": "Target camera",
+          "help": "Choose the camera to rotate.",
+          "group": "main",
+          "type": "enum",
+          "default": "raster",
+          "enumOptions": [
+            { "id": "raster", "label": "Raster Camera" },
+            { "id": "mesh", "label": "Mesh Camera" }
+          ]
+        },
+        {
+          "id": "rotAxis",
+          "label": "Rotation axis",
+          "help": "Axis of rotation.",
+          "group": "main",
+          "type": "enum",
+          "default": "x",
+          "enumOptions": [
+            { "id": "x", "label": "X axis" },
+            { "id": "y", "label": "Y axis" },
+            { "id": "z", "label": "Z axis" },
+            { "id": "custom", "label": "Custom axis" }
+          ]
+        },
+        {
+          "id": "rotCenter",
+          "label": "Rotation center",
+          "help": "Center of rotation.",
+          "group": "main",
+          "type": "enum",
+          "default": "origin",
+          "enumOptions": [
+            { "id": "origin", "label": "Origin" },
+            { "id": "viewpoint", "label": "Camera viewpoint" },
+            { "id": "custom", "label": "Custom point" }
+          ]
+        },
+        {
+          "id": "angle",
+          "label": "Rotation angle",
+          "help": "Angle of rotation in degrees.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": -360.0,
+          "max": 360.0,
+          "decimals": 2
+        },
+        {
+          "id": "customAxis",
+          "label": "Custom axis",
+          "help": "Rotation axis used only if 'custom axis' option is chosen.",
+          "group": "advanced",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [1.0, 0.0, 0.0]
+        },
+        {
+          "id": "customCenter",
+          "label": "Custom center",
+          "help": "Rotation center used only if 'custom point' option is chosen.",
+          "group": "advanced",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [0.0, 0.0, 0.0]
+        },
+        {
+          "id": "toallRaster",
+          "label": "Apply to all active rasters",
+          "help": "Apply the same rotation to all active raster layers. Used only if 'Raster Camera' is selected.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "toall",
+          "label": "Apply to all visible cameras",
+          "help": "Apply the same rotation to all visible raster and mesh layers.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    },
+    {
+      "id": "apply_cameras_scaling",
+      "menuPath": "Camera",
+      "name": "Transform: Scale Camera or set of cameras",
+      "pythonName": "apply_cameras_scaling",
+      "shortDescription": "Scale the camera, or all the cameras of the project.",
+      "longDescriptionMarkdown": "Scale the camera, or all the cameras of the project.",
+      "tags": ["camera", "transform", "scale"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "outputModifies": [],
+      "parameters": [
+        {
+          "id": "camera",
+          "label": "Target camera",
+          "help": "Choose the camera to scale.",
+          "group": "main",
+          "type": "enum",
+          "default": "raster",
+          "enumOptions": [
+            { "id": "raster", "label": "Raster Camera" },
+            { "id": "mesh", "label": "Mesh Camera" }
+          ]
+        },
+        {
+          "id": "scaleCenter",
+          "label": "Scaling center",
+          "help": "Center of scaling.",
+          "group": "main",
+          "type": "enum",
+          "default": "origin",
+          "enumOptions": [
+            { "id": "origin", "label": "Origin" },
+            { "id": "viewpoint", "label": "Camera viewpoint" },
+            { "id": "custom", "label": "Custom point" }
+          ]
+        },
+        {
+          "id": "customCenter",
+          "label": "Custom center",
+          "help": "Scaling center used only if 'custom point' option is chosen.",
+          "group": "advanced",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [0.0, 0.0, 0.0]
+        },
+        {
+          "id": "scale",
+          "label": "Scale factor",
+          "help": "The scale factor to apply to the camera.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.001,
+          "max": 1000.0,
+          "decimals": 4
+        },
+        {
+          "id": "toallRaster",
+          "label": "Apply to all active rasters",
+          "help": "Apply the same scaling to all active raster layers.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "toall",
+          "label": "Apply to all visible cameras",
+          "help": "Apply the same scaling to all visible raster and mesh layers.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    },
+    {
+      "id": "apply_cameras_translation",
+      "menuPath": "Camera",
+      "name": "Transform: Translate Camera or set of cameras",
+      "pythonName": "apply_cameras_translation",
+      "shortDescription": "Translate the camera, or all the cameras of the project.",
+      "longDescriptionMarkdown": "Translate the camera, or all the cameras of the project.",
+      "tags": ["camera", "transform", "translation"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "outputModifies": [],
+      "parameters": [
+        {
+          "id": "camera",
+          "label": "Target camera",
+          "help": "Choose the camera to translate.",
+          "group": "main",
+          "type": "enum",
+          "default": "raster",
+          "enumOptions": [
+            { "id": "raster", "label": "Raster Camera" },
+            { "id": "mesh", "label": "Mesh Camera" }
+          ]
+        },
+        {
+          "id": "tx",
+          "label": "X translation",
+          "help": "Absolute translation amount along the X axis.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": -10000.0,
+          "max": 10000.0,
+          "decimals": 3
+        },
+        {
+          "id": "ty",
+          "label": "Y translation",
+          "help": "Absolute translation amount along the Y axis.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": -10000.0,
+          "max": 10000.0,
+          "decimals": 3
+        },
+        {
+          "id": "tz",
+          "label": "Z translation",
+          "help": "Absolute translation amount along the Z axis.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": -10000.0,
+          "max": 10000.0,
+          "decimals": 3
+        },
+        {
+          "id": "centerFlag",
+          "label": "Translate viewpoint to origin",
+          "help": "If selected, the camera viewpoint is translated to the origin.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "toallRaster",
+          "label": "Apply to all active rasters",
+          "help": "Apply the same translation to all active raster layers.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "toall",
+          "label": "Apply to all visible cameras",
+          "help": "Apply the same translation to all visible raster and mesh layers.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    },
+    {
+      "id": "apply_cameras_extrinsics_transformation",
+      "menuPath": "Camera",
+      "name": "Transform camera extrinsics",
+      "pythonName": "apply_cameras_extrinsics_transformation",
+      "shortDescription": "Apply a similarity transformation to the camera extrinsics.",
+      "longDescriptionMarkdown": "Apply a similarity transformation to the camera extrinsics, or all the cameras of the project.",
+      "tags": ["camera", "transform"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "outputModifies": [],
+      "parameters": [
+        {
+          "id": "camera",
+          "label": "Target camera",
+          "help": "Choose the camera to transform.",
+          "group": "main",
+          "type": "enum",
+          "default": "raster",
+          "enumOptions": [
+            { "id": "raster", "label": "Raster Camera" },
+            { "id": "mesh", "label": "Mesh Camera" }
+          ]
+        },
+        {
+          "id": "behaviour",
+          "label": "Matrix semantic",
+          "help": "How the transformation matrix is interpreted.",
+          "group": "main",
+          "type": "enum",
+          "default": "apply",
+          "enumOptions": [
+            { "id": "apply", "label": "Apply transformation to extrinsics" },
+            { "id": "replace", "label": "Matrix represents the new extrinsics" }
+          ]
+        },
+        {
+          "id": "rotationDeg",
+          "label": "Rotation (degrees)",
+          "help": "Rotation angles around X, Y, Z axes in degrees.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 0.0, 0.0]
+        },
+        {
+          "id": "translation",
+          "label": "Translation",
+          "help": "Translation vector.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "point",
+          "default": [0.0, 0.0, 0.0]
+        },
+        {
+          "id": "uniformScale",
+          "label": "Uniform scale",
+          "help": "Uniform scale factor.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.001,
+          "max": 1000.0,
+          "decimals": 4
+        },
+        {
+          "id": "toallRaster",
+          "label": "Apply to all active rasters",
+          "help": "Apply the same transformation to all active raster layers.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "toall",
+          "label": "Apply to all visible cameras",
+          "help": "Apply the same transformation to all visible raster and mesh layers.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    },
+    {
+      "id": "compute_normal_from_cameras_per_vertex",
+      "menuPath": "Camera",
+      "name": "Re-Orient vertex normals using cameras",
+      "pythonName": "compute_normal_from_cameras_per_vertex",
+      "shortDescription": "Reorient vertex normals to point toward the cameras that see them best.",
+      "longDescriptionMarkdown": "Reorient vertex normals using visible rasters. For each vertex, the best camera is chosen among all visible rasters and the normal is oriented to face toward that camera. If the per-vertex attribute 'correspondences' exists (from Bundler .out imports), the original Bundler camera indices are used instead.",
+      "tags": ["camera", "normal", "orientation"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireFaces": true },
+      "inputPrepare": ["VNorm", "FF"],
+      "outputModifies": ["VN"],
+      "parameters": []
+    }
+  ]
+}

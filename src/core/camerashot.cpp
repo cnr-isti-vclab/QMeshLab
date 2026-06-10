@@ -47,13 +47,22 @@ QVector2D invalidPoint2()
 
 QMatrix4x4 toQMatrix(const vcg::Matrix44f &m)
 {
-    QMatrix4x4 out;
-    for (int row = 0; row < 4; ++row) {
-        for (int col = 0; col < 4; ++col)
-            out(row, col) = m[row][col];
-    }
-    return out;
+    QMatrix4x4 result;
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 4; ++c)
+            result(r, c) = m[r][c];
+    return result;
 }
+
+vcg::Matrix44f toVcgMatrix(const QMatrix4x4 &m)
+{
+    vcg::Matrix44f result;
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 4; ++c)
+            result[r][c] = m(r, c);
+    return result;
+}
+
 } // namespace
 
 CameraShot::CameraShot() = default;
@@ -244,4 +253,19 @@ QMatrix4x4 CameraShot::projectionMatrix(float nearPlane, float farPlane) const
 
     vcg::Camera<float> intrinsics = m_shot.Intrinsics;
     return toQMatrix(intrinsics.GetMatrix(nearPlane, farPlane));
+}
+
+void CameraShot::applyRigidTransformation(const QMatrix4x4 &m)
+{
+    m_shot.ApplyRigidTransformation(toVcgMatrix(m));
+}
+
+void CameraShot::rescalingWorld(float scale)
+{
+    m_shot.RescalingWorld(scale, true);
+}
+
+void CameraShot::applySimilarity(const QMatrix4x4 &m)
+{
+    m_shot.ApplySimilarity(toVcgMatrix(m));
 }

@@ -64,6 +64,11 @@ public:
     QMatrix4x4 viewMatrix() const;
     QMatrix4x4 projectionMatrix(float nearPlane, float farPlane) const;
 
+    // Transform the shot's extrinsic parameters
+    void applyRigidTransformation(const QMatrix4x4 &m);
+    void rescalingWorld(float scale);
+    void applySimilarity(const QMatrix4x4 &m);
+
 private:
     VcgShot m_shot;
 };

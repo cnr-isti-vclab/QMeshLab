@@ -199,6 +199,12 @@ if (TARGET QMeshLabPluginFilterColorProjection)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_COLOR_PROJECTION_ENABLED=1)
 endif()
 
+add_subdirectory(filter_camera)
+if (TARGET QMeshLabPluginFilterCamera)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterCamera)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_CAMERA_ENABLED=1)
+endif()
+
 add_subdirectory(filter_img_patch_param)
 if (TARGET QMeshLabPluginFilterImgPatchParam)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterImgPatchParam)

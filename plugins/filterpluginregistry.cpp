@@ -80,6 +80,9 @@
 #if QMESH_PLUGIN_FILTER_COLOR_PROJECTION_ENABLED
 #include "plugins/filter_color_projection/colorprojectionfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_CAMERA_ENABLED
+#include "plugins/filter_camera/camerafilterplugin.h"
+#endif
 #if QMESH_PLUGIN_FILTER_IMG_PATCH_PARAM_ENABLED
 #include "plugins/filter_img_patch_param/imgpatchparamfilterplugin.h"
 #endif
@@ -163,6 +166,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_COLOR_PROJECTION_ENABLED
     registerColorProjectionFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_CAMERA_ENABLED
+    registerCameraFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_IMG_PATCH_PARAM_ENABLED
     registerImgPatchParamFilterPlugin(pluginManager);
