@@ -8,8 +8,6 @@ endif()
 add_library(QMeshLabPluginFilterColorProjection STATIC
     colorprojectionfilterplugin.h
     colorprojectionfilterplugin.cpp
-    floatbuffer.h
-    pushpull.h
 )
 
 target_include_directories(QMeshLabPluginFilterColorProjection
