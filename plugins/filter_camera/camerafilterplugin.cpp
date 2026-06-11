@@ -214,17 +214,26 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         if (mi < 0) return fail(QObject::tr("No current mesh."));
         VCGMesh &m = doc.mesh(mi).mesh;
 
-        // Use current raster camera (or first valid visible raster)
+        // Use the current raster camera; fall back to first visible if needed
         CameraShot shot;
         bool haveShot = false;
-        for (int ri = 0; ri < doc.rasterCount(); ++ri) {
-            auto &re = doc.raster(ri);
-            if (re.visible && re.shot.isValid()) {
-                shot = re.shot; haveShot = true; break;
+        int curRi = doc.currentRasterIndex();
+        if (curRi >= 0) {
+            auto &re = doc.raster(curRi);
+            if (re.shot.isValid()) {
+                shot = re.shot; haveShot = true;
             }
         }
         if (!haveShot) {
-            return fail(QObject::tr("No valid camera found (no visible rasters with valid cameras)."));
+            for (int ri = 0; ri < doc.rasterCount(); ++ri) {
+                auto &re = doc.raster(ri);
+                if (re.visible && re.shot.isValid()) {
+                    shot = re.shot; haveShot = true; break;
+                }
+            }
+        }
+        if (!haveShot) {
+            return fail(QObject::tr("No valid camera found."));
         }
 
         bool depthFlag = p.getBool(QStringLiteral("depth"), true);
