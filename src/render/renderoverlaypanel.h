@@ -160,6 +160,7 @@ private:
     QCheckBox *m_uvShowFullTextureCheck = nullptr;
     QComboBox *m_uvTextureCombo = nullptr;
     QCheckBox *m_uvTextureNearestCheck = nullptr;
+    QCheckBox *m_fillTextureNearestCheck = nullptr;
     QPushButton *m_uvFillColorButton = nullptr;
     QComboBox *m_uvFillColorSourceCombo = nullptr;
     QComboBox *m_fillShadingCombo = nullptr;

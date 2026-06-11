@@ -12,6 +12,7 @@ public:
     explicit FillRenderServices(RenderWidget &widget) : m_widget(widget) {}
 
     const Document *document() const { return m_widget.m_doc; }
+    bool fillTextureNearestSampling() const { return m_widget.m_renderSettings.fillTextureNearestSampling; }
 
     void uploadMainUbufForMesh(
         QRhiCommandBuffer *cb,
@@ -171,7 +172,9 @@ public:
         }
         frame.services.setShaderResourcesWithOffset(
             frame.cb,
-            frame.services.shaderResourcesForFillTextures(albedo, nullptr, nullptr, nullptr),
+            frame.services.shaderResourcesForFillTextures(
+                albedo, nullptr, nullptr, nullptr,
+                frame.services.fillTextureNearestSampling()),
             ubufOffset);
         drawBatchGeometry(frame.cb, batch);
     }
@@ -225,7 +228,8 @@ public:
                 albedo    ? albedo    : batch.baseColorTexture,
                 resolvedNormal,
                 occlusion ? occlusion : batch.occlusionTexture,
-                roughness ? roughness : batch.roughnessTexture),
+                roughness ? roughness : batch.roughnessTexture,
+                frame.services.fillTextureNearestSampling()),
             ubufOffset);
         drawBatchGeometry(frame.cb, batch);
     }
@@ -316,7 +320,8 @@ public:
         frame.services.setShaderResourcesWithOffset(
             frame.cb,
             frame.services.shaderResourcesForFillTextures(
-                batch.baseColorTexture, gradTex, nullptr, nullptr),
+                batch.baseColorTexture, gradTex, nullptr, nullptr,
+                frame.services.fillTextureNearestSampling()),
             ubufOffset);
         drawBatchGeometry(frame.cb, batch);
     }

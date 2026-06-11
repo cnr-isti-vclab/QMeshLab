@@ -256,6 +256,7 @@ struct GlobalRenderSettings {
     bool uvShowFullTexture = false;
     int uvTextureIndex = -1;
     bool uvTextureNearestSampling = false;
+    bool fillTextureNearestSampling = false;
     QColor sceneBackgroundTopColor = QColor(0, 0, 0);
     QColor sceneBackgroundBottomColor = QColor(128, 128, 255);
     int qualityHistogramBins = 32;

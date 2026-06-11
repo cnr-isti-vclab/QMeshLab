@@ -699,6 +699,11 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillPlainForm->addRow(tr("Color source"), m_fillColorSourceCombo);
     m_fillPlainTextureCombo = new QComboBox(fillPage);
     m_fillPlainForm->addRow(tr("Texture"), m_fillPlainTextureCombo);
+    m_fillTextureNearestCheck = new QCheckBox(fillPage);
+    m_fillTextureNearestCheck->setChecked(m_globalSettings.fillTextureNearestSampling);
+    m_fillPlainForm->addRow(
+        tr("Nearest sampling"),
+        makeCenteredFieldContainer(m_fillTextureNearestCheck, fillPage));
     m_fillPlainForm->addRow(
         tr("Fill color"),
         makeCenteredFieldContainer(m_fillColorButton, fillPage));
@@ -1103,6 +1108,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindGlobalCheckBox(m_currentMeshHighlightCheck, &GlobalRenderSettings::highlightCurrentMesh);
     bindGlobalCheckBox(m_showTrackballGizmoCheck, &GlobalRenderSettings::showTrackballGizmo);
     bindGlobalCheckBox(m_showViewCamerasCheck, &GlobalRenderSettings::showViewCameras);
+    bindGlobalCheckBox(m_fillTextureNearestCheck, &GlobalRenderSettings::fillTextureNearestSampling);
     bindGlobalColorButton(
         m_currentMeshOutlineColorButton,
         &GlobalRenderSettings::currentMeshOutlineColor,
@@ -1736,6 +1742,10 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
     if (m_uvTextureNearestCheck) {
         QSignalBlocker blocker(m_uvTextureNearestCheck);
         m_uvTextureNearestCheck->setChecked(m_globalSettings.uvTextureNearestSampling);
+    }
+    if (m_fillTextureNearestCheck) {
+        QSignalBlocker blocker(m_fillTextureNearestCheck);
+        m_fillTextureNearestCheck->setChecked(m_globalSettings.fillTextureNearestSampling);
     }
     if (m_bboxShowCornersCheck) {
         QSignalBlocker blocker(m_bboxShowCornersCheck);
