@@ -86,6 +86,9 @@
 #if QMESH_PLUGIN_FILTER_IMG_PATCH_PARAM_ENABLED
 #include "plugins/filter_img_patch_param/imgpatchparamfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_PLYMC_ENABLED
+#include "plugins/filter_plymc/plymcfilterplugin.h"
+#endif
 
 void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 {
@@ -172,5 +175,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_IMG_PATCH_PARAM_ENABLED
     registerImgPatchParamFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_PLYMC_ENABLED
+    registerPlyMCFilterPlugin(pluginManager);
 #endif
 }
