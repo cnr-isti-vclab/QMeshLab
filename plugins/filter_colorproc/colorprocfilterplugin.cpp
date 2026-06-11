@@ -48,6 +48,7 @@ constexpr QLatin1StringView kFilterWhiteBalance("apply_color_white_balance_per_v
 constexpr QLatin1StringView kFilterPerlinColor("compute_color_perlin_noise_per_vertex");
 constexpr QLatin1StringView kFilterColorNoise("apply_color_noising_per_vertex");
 constexpr QLatin1StringView kFilterScatterPerMesh("compute_color_scattering_per_mesh");
+constexpr QLatin1StringView kFilterSetMeshColor("compute_set_per_mesh_color");
 constexpr QLatin1StringView kFilterClampQuality("apply_scalar_clamping_per_vertex");
 constexpr QLatin1StringView kFilterSaturateQuality("apply_scalar_saturation_per_vertex");
 constexpr QLatin1StringView kFilterMapVQuality("compute_color_from_scalar_per_vertex");
@@ -270,6 +271,18 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
     Document &doc) const
 {
     vcg::CallBackPos *cb = doc.progressCallback();
+
+    if (filterId == QString::fromLatin1(kFilterSetMeshColor)) {
+        int mi = doc.currentMeshIndex();
+        if (mi < 0) return fail(QObject::tr("No current mesh."));
+        Document::MeshEntry &entry = doc.mesh(mi);
+        QColor c = params.getColor(QStringLiteral("color"), QColor(128, 128, 128));
+        entry.mesh.C() = vcg::Color4b(c.red(), c.green(), c.blue(), c.alpha());
+        doc.writeLog(QObject::tr("Set per-mesh color of '%1' to (%2,%3,%4,%5)")
+            .arg(entry.name).arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha()),
+            Document::LogSource::Application);
+        return success({QObject::tr("Set mesh color for '%1'.").arg(entry.name)});
+    }
 
     if (filterId == QString::fromLatin1(kFilterScatterPerMesh)) {
         std::vector<int> visibleMeshes;

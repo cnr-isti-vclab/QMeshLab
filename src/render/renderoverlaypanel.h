@@ -45,6 +45,7 @@ public:
 signals:
     void globalSettingsChanged(const RenderSettings &settings);
     void meshSettingsChanged(const PerMeshRenderSettings &settings);
+    void applyToAllMeshesRequested(const PerMeshRenderSettings &settings, RenderPass pass);
     void bakeQualityMappingToVertexColorRequested();
 
 protected:

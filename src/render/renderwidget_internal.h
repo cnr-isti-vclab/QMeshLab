@@ -168,6 +168,7 @@ struct MainUbufMaterialOverrides {
     float normalScale = 1.0f;
     float occlusionStrength = 1.0f;
     float roughnessFactor = 1.0f;
+    QColor fillColorOverride = QColor(); // invalid = no override, use settings.fillColor
 };
 
 inline MainStyleUbufKey mainStyleUbufKeyFromSettings(
@@ -319,6 +320,13 @@ inline void writeMainUbuf(
 {
     writeMainMatricesToUbuf(ubufData, mvp, modelView, normalMat);
     writeMainStyleToUbuf(ubufData, settings, pixelSize, enableLighting, lightDir);
+    // Override fill color with per-mesh color if set
+    if (overrides.fillColorOverride.isValid()) {
+        ubufData[kUbufFillColorOffset + 0] = overrides.fillColorOverride.redF();
+        ubufData[kUbufFillColorOffset + 1] = overrides.fillColorOverride.greenF();
+        ubufData[kUbufFillColorOffset + 2] = overrides.fillColorOverride.blueF();
+        ubufData[kUbufFillColorOffset + 3] = overrides.fillColorOverride.alphaF();
+    }
     writeMainMaterialOverridesToUbuf(ubufData, overrides);
 }
 

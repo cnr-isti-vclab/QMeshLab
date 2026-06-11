@@ -11,6 +11,8 @@ class RenderWidget::FillRenderServices final
 public:
     explicit FillRenderServices(RenderWidget &widget) : m_widget(widget) {}
 
+    const Document *document() const { return m_widget.m_doc; }
+
     void uploadMainUbufForMesh(
         QRhiCommandBuffer *cb,
         int meshIndex,
@@ -130,20 +132,31 @@ public:
         const SceneFillDrawItem &item = ctx.item;
         const SceneFillFrameContext &frame = ctx.frame;
         const quint32 ubufOffset = frame.services.allocateMainUbufOffset();
+
+        MainUbufMaterialOverrides overrides {
+            item.meshSettings.fillPbr.normalScale * batch.normalScale,
+            1.0f,
+            1.0f };
+        // Per-mesh color override: when color source is PerMesh, use mesh.C()
+        const Document *doc = frame.services.document();
+        if (doc && item.meshIndex >= 0 && item.meshIndex < doc->meshCount()
+            && item.meshSettings.fillPlain.colorSource == FillColorSource::PerMesh) {
+            const vcg::Color4b &mc = doc->mesh(item.meshIndex).mesh.C();
+            if (mc[0] != 0 || mc[1] != 0 || mc[2] != 0) {
+                overrides.fillColorOverride = QColor(mc[0], mc[1], mc[2], mc[3]);
+            }
+        }
         frame.services.uploadMainUbufForMesh(
-            frame.cb,
-            item.meshIndex,
-            frame.proj,
-            frame.view,
-            item.meshSettings,
-            frame.pixelSize,
-            true,
-            frame.lightDir,
-            MainUbufMaterialOverrides {
-                item.meshSettings.fillPbr.normalScale * batch.normalScale,
-                1.0f,
-                1.0f },
-            ubufOffset);
+                frame.cb,
+                item.meshIndex,
+                frame.proj,
+                frame.view,
+                item.meshSettings,
+                frame.pixelSize,
+                true,
+                frame.lightDir,
+                overrides,
+                ubufOffset);
 
         // When Texture source is selected, resolve the user-chosen texture by index;
         // fall back to the batch's baked base-colour texture if it cannot be found.

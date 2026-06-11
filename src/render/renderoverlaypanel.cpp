@@ -490,6 +490,20 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     boundaryDecoratorsLayout->addLayout(boundaryDecoratorsForm);
     m_settingsStack->addWidget(boundaryDecoratorsPage);
 
+    auto addApplyToAllButton = [this](QLayout *layout, RenderPass pass) {
+        auto *btn = new QPushButton(tr("Apply to All"));
+        btn->setToolTip(tr("Apply current %1 settings to all visible meshes")
+            .arg(pass == RenderPass::BoundingBox ? tr("box") :
+                 pass == RenderPass::Points ? tr("points") :
+                 pass == RenderPass::Edges ? tr("edges") :
+                 pass == RenderPass::Wireframe ? tr("wire") :
+                 tr("fill")));
+        layout->addWidget(btn);
+        connect(btn, &QPushButton::clicked, this, [this, pass]() {
+            emit applyToAllMeshesRequested(m_meshSettings, pass);
+        });
+    };
+
     auto *bboxPage = new QWidget(m_settingsStack);
     auto *bboxLayout = new QVBoxLayout(bboxPage);
     bboxLayout->setContentsMargins(0, 0, 0, 0);
@@ -515,7 +529,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         makeCenteredFieldContainer(m_bboxShowDimensionsCheck, bboxPage));
     applyUniformFormRowHeights(bboxForm);
     bboxLayout->addLayout(bboxForm);
-
+    addApplyToAllButton(bboxLayout, RenderPass::BoundingBox);
     m_settingsStack->addWidget(bboxPage);
     auto *pointsPage = new QWidget(m_settingsStack);
     auto *pointsLayout = new QVBoxLayout(pointsPage);
@@ -551,6 +565,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         makeCenteredFieldContainer(m_pointLightingCheck, pointsPage));
     applyUniformFormRowHeights(pointsForm);
     pointsLayout->addLayout(pointsForm);
+    addApplyToAllButton(pointsLayout, RenderPass::Points);
     m_settingsStack->addWidget(pointsPage);
     auto *edgesPage = new QWidget(m_settingsStack);
     auto *edgesLayout = new QVBoxLayout(edgesPage);
@@ -561,19 +576,21 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     edgesForm->setHorizontalSpacing(6);
     edgesForm->setVerticalSpacing(1);
     edgesForm->setLabelAlignment(kSettingsLabelAlignment);
-    m_edgeColorButton = makeColorButton(edgesPage);
     m_edgeSizeSpin = new QDoubleSpinBox(edgesPage);
-    m_edgeSizeSpin->setRange(1.0, 64.0);
-    m_edgeSizeSpin->setSingleStep(0.5);
+    m_edgeSizeSpin->setRange(0.0, 100.0);
     m_edgeSizeSpin->setDecimals(1);
-    m_edgeSizeSpin->setSuffix(tr(" px"));
+    m_edgeSizeSpin->setSingleStep(0.5);
+    m_edgeSizeSpin->setPrefix(QStringLiteral("px "));
+    m_edgeSizeSpin->setSuffix(QString());
     m_edgeSizeSpin->setValue(m_meshSettings.edgeSize);
+    m_edgeColorButton = makeColorButton(edgesPage);
     edgesForm->addRow(
         tr("Edge color"),
         makeCenteredFieldContainer(m_edgeColorButton, edgesPage));
-    edgesForm->addRow(tr("Edge width"), m_edgeSizeSpin);
+    edgesForm->addRow(tr("Edge size"), m_edgeSizeSpin);
     applyUniformFormRowHeights(edgesForm);
     edgesLayout->addLayout(edgesForm);
+    addApplyToAllButton(edgesLayout, RenderPass::Edges);
     m_settingsStack->addWidget(edgesPage);
     auto *wirePage = new QWidget(m_settingsStack);
     auto *wireLayout = new QVBoxLayout(wirePage);
@@ -612,6 +629,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         makeCenteredFieldContainer(m_wireRespectFauxCheck, wirePage));
     applyUniformFormRowHeights(wireForm);
     wireLayout->addLayout(wireForm);
+    addApplyToAllButton(wireLayout, RenderPass::Wireframe);
     m_settingsStack->addWidget(wirePage);
     auto *fillPage = new QWidget(m_settingsStack);
     auto *fillLayout = new QVBoxLayout(fillPage);
@@ -632,6 +650,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_fillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
     m_fillColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(FillColorSource::PerVertex));
     m_fillColorSourceCombo->addItem(tr("Per-Face"), static_cast<int>(FillColorSource::PerFace));
+    m_fillColorSourceCombo->addItem(tr("Per-Mesh"), static_cast<int>(FillColorSource::PerMesh));
     m_fillColorSourceCombo->addItem(
         tr("Per-Vertex Quality"),
         static_cast<int>(FillColorSource::PerVertexQuality));
@@ -759,6 +778,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     applyUniformFormRowHeights(fillForm);
     fillLayout->addLayout(fillForm);
     fillLayout->addWidget(m_fillMaterialStack);
+    addApplyToAllButton(fillLayout, RenderPass::Fill);
     m_settingsStack->addWidget(fillPage);
 
     auto *selectionPage = new QWidget(m_settingsStack);
@@ -900,6 +920,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_uvFillColorSourceCombo->addItem(tr("Constant"), static_cast<int>(FillColorSource::Constant));
     m_uvFillColorSourceCombo->addItem(tr("Per-Vertex"), static_cast<int>(FillColorSource::PerVertex));
     m_uvFillColorSourceCombo->addItem(tr("Per-Face"), static_cast<int>(FillColorSource::PerFace));
+    m_uvFillColorSourceCombo->addItem(tr("Per-Mesh"), static_cast<int>(FillColorSource::PerMesh));
     m_uvFillColorSourceCombo->addItem(
         tr("Per-Vertex Quality"),
         static_cast<int>(FillColorSource::PerVertexQuality));

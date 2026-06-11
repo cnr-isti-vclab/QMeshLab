@@ -28,7 +28,8 @@ enum class FillColorSource {
     PerFace,
     PerVertexQuality,
     PerFaceQuality,
-    Texture
+    Texture,
+    PerMesh
 };
 
 enum class FillMaterial {

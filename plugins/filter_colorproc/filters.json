@@ -235,6 +235,21 @@
       "outputModifies": []
     },
     {
+      "id": "compute_set_per_mesh_color",
+      "menuPath": "Color",
+      "name": "Set Mesh Color",
+      "pythonName": "set_per_mesh_color",
+      "shortDescription": "Set a solid per-mesh color used by the plain rendering material.",
+      "longDescriptionMarkdown": "Set a solid per-mesh color that overrides the plain fill material's color for this mesh. The color is stored in the mesh data and survives undo/redo.",
+      "tags": ["color", "mesh"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        { "id": "color", "label": "Mesh color", "help": "The solid color to assign to this mesh.", "group": "main", "type": "color", "default": "#808080ff" }
+      ],
+      "outputModifies": []
+    },
+    {
       "id": "apply_scalar_clamping_per_vertex",
       "menuPath": "Color",
       "name": "Clamp Vertex Quality",

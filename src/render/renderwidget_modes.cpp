@@ -349,6 +349,7 @@ void RenderWidget::refreshColorSourceAvailability()
     bool hasFaceQuality = false;
     bool hasTextures = false;
     bool hasVertexNormals = false;
+    bool hasPerMeshColor = false;
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
     const bool hasCurrentMesh =
         m_doc && meshIndex >= 0 && meshIndex < m_doc->meshCount();
@@ -364,6 +365,9 @@ void RenderWidget::refreshColorSourceAvailability()
         hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
         hasTextures = hasTextureCoords && Document::meshTextureAssociationCount(meshEntry) > 0;
         hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
+        hasPerMeshColor = meshEntry.mesh.C()[0] != 0
+                       || meshEntry.mesh.C()[1] != 0
+                       || meshEntry.mesh.C()[2] != 0;
     }
 
     if (m_overlayPanel)
@@ -405,6 +409,8 @@ void RenderWidget::refreshColorSourceAvailability()
     if (meshCorrected.fillPlain.colorSource == FillColorSource::PerFaceQuality && !hasFaceQuality)
         meshCorrected.fillPlain.colorSource = FillColorSource::Constant;
     if (meshCorrected.fillPlain.colorSource == FillColorSource::Texture && !hasTextures)
+        meshCorrected.fillPlain.colorSource = FillColorSource::Constant;
+    if (meshCorrected.fillPlain.colorSource == FillColorSource::PerMesh && !hasPerMeshColor)
         meshCorrected.fillPlain.colorSource = FillColorSource::Constant;
     auto clampPbrSource = [hasTextures](FillPbrTextureSource &source, int &index) {
         if (!hasTextures && source == FillPbrTextureSource::Texture)
@@ -473,6 +479,7 @@ int RenderWidget::fillGpuVariantIndexForSettings(const PerMeshRenderSettings &se
     case FillColorSource::PerFaceQuality:
         return static_cast<int>(Document::FillGpuVariant::PerFaceQuality);
     case FillColorSource::Texture: return static_cast<int>(Document::FillGpuVariant::Texture);
+    case FillColorSource::PerMesh:
     case FillColorSource::Constant:
     default:
         return static_cast<int>(Document::FillGpuVariant::Constant);

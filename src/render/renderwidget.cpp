@@ -1886,6 +1886,55 @@ void RenderWidget::createOverlayButtons()
         layoutOverlayButtons();
     });
 
+    connect(m_overlayPanel, &RenderOverlayPanel::applyToAllMeshesRequested, this,
+            [this](const PerMeshRenderSettings &meshSettings, RenderPass pass) {
+        if (!m_doc) return;
+        emit viewActivated(this);
+        for (int i = 0; i < m_doc->meshCount(); ++i) {
+            if (!m_doc->mesh(i).visible) continue;
+            const std::uint64_t meshId = m_doc->mesh(i).meshId;
+            PerMeshRenderSettings &dst = m_meshRenderModes[meshId];
+            switch (pass) {
+            case RenderPass::BoundingBox:
+                dst.showBoundingBox = meshSettings.showBoundingBox;
+                dst.bboxWireColor   = meshSettings.bboxWireColor;
+                break;
+            case RenderPass::Points:
+                dst.showPoints     = meshSettings.showPoints;
+                dst.pointColor     = meshSettings.pointColor;
+                dst.pointSize      = meshSettings.pointSize;
+                dst.pointColorSource = meshSettings.pointColorSource;
+                dst.pointLighting  = meshSettings.pointLighting;
+                break;
+            case RenderPass::Edges:
+                dst.showEdges      = meshSettings.showEdges;
+                dst.edgeColor      = meshSettings.edgeColor;
+                dst.edgeSize       = meshSettings.edgeSize;
+                break;
+            case RenderPass::Wireframe:
+                dst.showWire       = meshSettings.showWire;
+                dst.wireColor      = meshSettings.wireColor;
+                dst.wireSize       = meshSettings.wireSize;
+                dst.wireLighting   = meshSettings.wireLighting;
+                dst.wireBackfaceCulling = meshSettings.wireBackfaceCulling;
+                dst.wireRespectFaux = meshSettings.wireRespectFaux;
+                break;
+            case RenderPass::Fill:
+                dst.showFill       = meshSettings.showFill;
+                dst.fillColor      = meshSettings.fillColor;
+                dst.fillLighting   = meshSettings.fillLighting;
+                dst.fillBackfaceCulling = meshSettings.fillBackfaceCulling;
+                dst.fillMaterial   = meshSettings.fillMaterial;
+                dst.fillPlain      = meshSettings.fillPlain;
+                dst.fillPbr        = meshSettings.fillPbr;
+                dst.fillRs         = meshSettings.fillRs;
+                break;
+            default: break;
+            }
+        }
+        update();
+    });
+
     updateBoundingBoxCornersOverlay();
     updateQualityHistogramOverlay();
     layoutOverlayButtons();
