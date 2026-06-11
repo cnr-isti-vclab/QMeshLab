@@ -367,6 +367,11 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->addRow(
         tr("Trackball gizmo"),
         makeCenteredFieldContainer(m_showTrackballGizmoCheck, viewer3dPage));
+    m_showViewCamerasCheck = new QCheckBox(viewer3dPage);
+    m_showViewCamerasCheck->setChecked(m_globalSettings.showViewCameras);
+    currentMeshForm->addRow(
+        tr("Show View Cameras"),
+        makeCenteredFieldContainer(m_showViewCamerasCheck, viewer3dPage));
     currentMeshForm->addRow(
         tr("Outline color"),
         makeCenteredFieldContainer(m_currentMeshOutlineColorButton, viewer3dPage));
@@ -1097,6 +1102,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 
     bindGlobalCheckBox(m_currentMeshHighlightCheck, &GlobalRenderSettings::highlightCurrentMesh);
     bindGlobalCheckBox(m_showTrackballGizmoCheck, &GlobalRenderSettings::showTrackballGizmo);
+    bindGlobalCheckBox(m_showViewCamerasCheck, &GlobalRenderSettings::showViewCameras);
     bindGlobalColorButton(
         m_currentMeshOutlineColorButton,
         &GlobalRenderSettings::currentMeshOutlineColor,

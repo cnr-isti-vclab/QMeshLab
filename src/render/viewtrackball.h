@@ -45,6 +45,7 @@ public:
     float fovYDegrees() const { return m_fovYDeg; }
     float nearClipRatio() const { return m_nearClipRatio; }
     float nearClipPlaneDistance() const;
+    float farClipPlaneDistance() const { return m_distance + 4.0f * m_radius; }
     float gizmoWorldRadius() const;
 
     QMatrix4x4 viewMatrix() const;

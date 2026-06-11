@@ -327,6 +327,46 @@
       "outputModifies": ["VC"]
     },
     {
+      "id": "compute_color_from_scalar_using_transfer_function_per_vertex",
+      "menuPath": "Color",
+      "name": "Quality Mapper applier",
+      "pythonName": "compute_color_from_scalar_using_transfer_function_per_vertex",
+      "shortDescription": "Bake vertex quality into vertex colors.",
+      "longDescriptionMarkdown": "MeshLab-compatible quality-to-color baking. QMeshLab samples the same colormap/range code used by quality visualization instead of importing the old transfer-function editor.",
+      "tags": ["quality", "vertex", "color", "meshlab"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireVertexQuality": true },
+      "parameters": [
+        { "id": "minVal", "label": "Min", "help": "The value mapped to the lower end of the scale.", "group": "main", "type": "double", "default": "@qualityVMin", "decimals": 6 },
+        { "id": "maxVal", "label": "Max", "help": "The value mapped to the upper end of the scale.", "group": "main", "type": "double", "default": "@qualityVMax", "decimals": 6 },
+        { "id": "perc", "label": "Percentile Crop [0..100]", "help": "If not zero this value is used for percentile cropping of the quality values.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 100.0, "decimals": 3 },
+        { "id": "zeroSym", "label": "Zero Symmetric", "help": "If true the min/max range is enlarged to be symmetric around zero.", "group": "advanced", "type": "bool", "default": false },
+        {
+          "id": "colorMap",
+          "label": "Color Map",
+          "help": "The color map to use. Built-in QMeshLab maps match the quality visualization panel; RGB and RdPu preserve legacy VCGLib behavior.",
+          "group": "advanced",
+          "type": "enum",
+          "default": "rainbow",
+          "enumOptions": [
+            { "id": "rgb", "label": "RGB" },
+            { "id": "rainbow", "label": "Rainbow" },
+            { "id": "gray", "label": "Gray" },
+            { "id": "viridis", "label": "Viridis" },
+            { "id": "plasma", "label": "Plasma" },
+            { "id": "cividis", "label": "Cividis" },
+            { "id": "turbo", "label": "Turbo" },
+            { "id": "rdpu", "label": "RdPu" },
+            { "id": "constant", "label": "Constant White" }
+          ]
+        },
+        { "id": "invert", "label": "Invert Color Map", "help": "Invert the selected QMeshLab colormap before sampling, matching the quality visualization panel. Legacy RGB/RdPu maps ignore this option.", "group": "advanced", "type": "bool", "default": false },
+        { "id": "colorMapId", "label": "Color Map Id Override", "help": "Optional exact QMeshLab colormap id. Leave empty for the selected Color Map enum. This is mainly used internally when baking the current view and also supports external colormaps loaded by QMeshLab.", "group": "advanced", "type": "string", "default": "" }
+      ],
+      "outputModifies": ["VC"]
+    },
+    {
       "id": "compute_color_from_scalar_per_face",
       "menuPath": "Color",
       "name": "Colorize by face Quality",

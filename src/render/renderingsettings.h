@@ -241,6 +241,7 @@ Q_DECLARE_METATYPE(PerMeshRenderSettings)
 struct GlobalRenderSettings {
     bool highlightCurrentMesh = true;
     bool showTrackballGizmo = true;
+    bool showViewCameras = true;
     bool showBoundingBoxCorners = false;
     bool showBoundingBoxDimensions = false;
     QColor currentMeshOutlineColor = QColor(42, 160, 240);

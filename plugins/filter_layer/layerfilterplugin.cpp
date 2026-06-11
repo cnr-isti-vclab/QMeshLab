@@ -10,6 +10,8 @@
 #include <QJsonParseError>
 #include <QMatrix4x4>
 #include <QVector4D>
+#include <QXmlStreamReader>
+#include <QXmlStreamWriter>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/append.h>
 #include <vcg/complex/algorithms/clean.h>
@@ -29,8 +31,13 @@ constexpr QLatin1StringView kSplitConnected("generate_splitting_by_connected_com
 constexpr QLatin1StringView kDuplicate("generate_copy_of_current_mesh");
 constexpr QLatin1StringView kDeleteCurrent("delete_current_mesh");
 constexpr QLatin1StringView kDeleteHidden("delete_non_visible_meshes");
+constexpr QLatin1StringView kDeleteCurrentRaster("delete_current_raster");
+constexpr QLatin1StringView kDeleteHiddenRasters("delete_non_active_rasters");
 constexpr QLatin1StringView kFlatten("generate_by_merging_visible_meshes");
 constexpr QLatin1StringView kRenameMesh("set_mesh_name");
+constexpr QLatin1StringView kRenameRaster("set_raster_name");
+constexpr QLatin1StringView kExportRasterCameras("save_active_raster_cameras");
+constexpr QLatin1StringView kImportRasterCameras("load_active_raster_cameras");
 constexpr QLatin1StringView kRenderFromRenderStateJson("render_from_render_state_json");
 using Mask = vcg::tri::io::Mask;
 using Sel = vcg::tri::UpdateSelection<VCGMesh>;
@@ -173,6 +180,204 @@ bool mergeCameraStateIntoRenderState(
     return true;
 }
 
+std::vector<int> visibleRasterIndices(const Document &doc)
+{
+    std::vector<int> indices;
+    indices.reserve(size_t(doc.rasterCount()));
+    for (int i = 0; i < doc.rasterCount(); ++i) {
+        if (doc.raster(i).visible)
+            indices.push_back(i);
+    }
+    return indices;
+}
+
+bool parseFloatList(const QString &text, int minCount, std::vector<float> &values)
+{
+    values.clear();
+    const QStringList parts = text.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (parts.size() < minCount)
+        return false;
+    values.reserve(size_t(parts.size()));
+    for (const QString &part : parts) {
+        bool ok = false;
+        const float value = part.toFloat(&ok);
+        if (!ok)
+            return false;
+        values.push_back(value);
+    }
+    return true;
+}
+
+bool parseIntPair(const QString &text, int &a, int &b)
+{
+    const QStringList parts = text.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (parts.size() < 2)
+        return false;
+    bool ok0 = false;
+    bool ok1 = false;
+    a = parts.at(0).toInt(&ok0);
+    b = parts.at(1).toInt(&ok1);
+    return ok0 && ok1;
+}
+
+bool parseFloatPair(const QString &text, float &a, float &b)
+{
+    const QStringList parts = text.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (parts.size() < 2)
+        return false;
+    bool ok0 = false;
+    bool ok1 = false;
+    a = parts.at(0).toFloat(&ok0);
+    b = parts.at(1).toFloat(&ok1);
+    return ok0 && ok1;
+}
+
+bool parseVcgCamera(
+    const QXmlStreamAttributes &attrs,
+    CameraShot &outShot,
+    QString &errorMessage)
+{
+    CameraShot::VcgShot shot;
+    vcg::Camera<float> &cam = shot.Intrinsics;
+
+    if (attrs.hasAttribute(QStringLiteral("CameraType"))) {
+        bool ok = false;
+        const int type = attrs.value(QStringLiteral("CameraType")).toInt(&ok);
+        if (!ok) {
+            errorMessage = QObject::tr("Invalid CameraType attribute.");
+            return false;
+        }
+        cam.cameraType = static_cast<vcg::Camera<float>::CameraType>(type);
+    }
+
+    std::vector<float> translationValues;
+    std::vector<float> rotationValues;
+    if (!parseFloatList(attrs.value(QStringLiteral("TranslationVector")).toString(), 3, translationValues)
+        || !parseFloatList(attrs.value(QStringLiteral("RotationMatrix")).toString(), 16, rotationValues)) {
+        errorMessage = QObject::tr("Invalid camera extrinsics.");
+        return false;
+    }
+
+    shot.Extrinsics.SetTra(vcg::Point3f(
+        -translationValues[0],
+        -translationValues[1],
+        -translationValues[2]));
+    vcg::Matrix44f rot;
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col)
+            rot[row][col] = rotationValues[size_t(col + 4 * row)];
+    shot.Extrinsics.SetRot(rot);
+
+    bool ok = false;
+    cam.FocalMm = attrs.value(QStringLiteral("FocalMm")).toFloat(&ok);
+    if (!ok) {
+        errorMessage = QObject::tr("Invalid FocalMm attribute.");
+        return false;
+    }
+
+    int viewportW = 0;
+    int viewportH = 0;
+    float centerX = 0.0f;
+    float centerY = 0.0f;
+    float pixelX = 0.0f;
+    float pixelY = 0.0f;
+    float lens0 = 0.0f;
+    float lens1 = 0.0f;
+    if (!parseIntPair(attrs.value(QStringLiteral("ViewportPx")).toString(), viewportW, viewportH)
+        || !parseFloatPair(attrs.value(QStringLiteral("CenterPx")).toString(), centerX, centerY)
+        || !parseFloatPair(attrs.value(QStringLiteral("PixelSizeMm")).toString(), pixelX, pixelY)
+        || !parseFloatPair(attrs.value(QStringLiteral("LensDistortion")).toString(), lens0, lens1)) {
+        errorMessage = QObject::tr("Invalid camera intrinsics.");
+        return false;
+    }
+    cam.ViewportPx = vcg::Point2i(viewportW, viewportH);
+    cam.CenterPx = vcg::Point2f(centerX, centerY);
+    cam.PixelSizeMm = vcg::Point2f(pixelX, pixelY);
+    cam.k[0] = lens0;
+    cam.k[1] = lens1;
+
+    outShot = CameraShot::fromVcgShot(shot);
+    if (!outShot.isValid()) {
+        errorMessage = QObject::tr("Parsed VCGCamera is not valid.");
+        return false;
+    }
+    return true;
+}
+
+void writeVcgCamera(QXmlStreamWriter &xml, const CameraShot &shot)
+{
+    xml.writeStartElement(QStringLiteral("VCGCamera"));
+    if (shot.isValid()) {
+        const CameraShot::VcgShot vcgShot = shot.toVcgShot();
+        const vcg::Point3f tra = vcgShot.Extrinsics.Tra();
+        const vcg::Matrix44f rot = vcgShot.Extrinsics.Rot();
+        xml.writeAttribute(
+            QStringLiteral("TranslationVector"),
+            QStringLiteral("%1 %2 %3 1")
+                .arg(-tra[0], 0, 'f', 6)
+                .arg(-tra[1], 0, 'f', 6)
+                .arg(-tra[2], 0, 'f', 6));
+        xml.writeAttribute(
+            QStringLiteral("RotationMatrix"),
+            QStringLiteral("%1 %2 %3 %4 %5 %6 %7 %8 %9 %10 %11 %12 %13 %14 %15 %16")
+                .arg(rot[0][0], 0, 'f', 6).arg(rot[0][1], 0, 'f', 6).arg(rot[0][2], 0, 'f', 6).arg(rot[0][3], 0, 'f', 6)
+                .arg(rot[1][0], 0, 'f', 6).arg(rot[1][1], 0, 'f', 6).arg(rot[1][2], 0, 'f', 6).arg(rot[1][3], 0, 'f', 6)
+                .arg(rot[2][0], 0, 'f', 6).arg(rot[2][1], 0, 'f', 6).arg(rot[2][2], 0, 'f', 6).arg(rot[2][3], 0, 'f', 6)
+                .arg(rot[3][0], 0, 'f', 6).arg(rot[3][1], 0, 'f', 6).arg(rot[3][2], 0, 'f', 6).arg(rot[3][3], 0, 'f', 6));
+        xml.writeAttribute(QStringLiteral("CameraType"), QString::number(int(vcgShot.Intrinsics.cameraType)));
+        xml.writeAttribute(QStringLiteral("FocalMm"), QString::number(vcgShot.Intrinsics.FocalMm, 'f', 4));
+        xml.writeAttribute(
+            QStringLiteral("LensDistortion"),
+            QStringLiteral("%1 %2").arg(vcgShot.Intrinsics.k[0], 0, 'f', 6).arg(vcgShot.Intrinsics.k[1], 0, 'f', 6));
+        xml.writeAttribute(
+            QStringLiteral("PixelSizeMm"),
+            QStringLiteral("%1 %2")
+                .arg(vcgShot.Intrinsics.PixelSizeMm[0], 0, 'f', 6)
+                .arg(vcgShot.Intrinsics.PixelSizeMm[1], 0, 'f', 6));
+        xml.writeAttribute(
+            QStringLiteral("ViewportPx"),
+            QStringLiteral("%1 %2")
+                .arg(vcgShot.Intrinsics.ViewportPx[0])
+                .arg(vcgShot.Intrinsics.ViewportPx[1]));
+        xml.writeAttribute(
+            QStringLiteral("CenterPx"),
+            QStringLiteral("%1 %2")
+                .arg(vcgShot.Intrinsics.CenterPx[0], 0, 'f', 2)
+                .arg(vcgShot.Intrinsics.CenterPx[1], 0, 'f', 2));
+    }
+    xml.writeAttribute(QStringLiteral("BinaryData"), QStringLiteral("0"));
+    xml.writeEndElement();
+}
+
+bool readVcgCameraFile(const QString &path, std::vector<CameraShot> &shots, QString &errorMessage)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        errorMessage = QObject::tr("Cannot open camera file '%1'.").arg(path);
+        return false;
+    }
+
+    QXmlStreamReader xml(&file);
+    while (!xml.atEnd()) {
+        if (xml.readNext() == QXmlStreamReader::StartElement
+            && xml.name() == QStringLiteral("VCGCamera")) {
+            CameraShot shot;
+            QString cameraError;
+            if (!parseVcgCamera(xml.attributes(), shot, cameraError)) {
+                errorMessage = QObject::tr("Invalid VCGCamera in '%1': %2").arg(path, cameraError);
+                return false;
+            }
+            shots.push_back(shot);
+        }
+    }
+
+    if (xml.hasError()) {
+        errorMessage = QObject::tr("XML parse error in '%1': %2").arg(path, xml.errorString());
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 QString LayerFilterPlugin::pluginId() const
@@ -190,6 +395,104 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
     const FilterParams &params,
     Document &doc) const
 {
+    if (filterId == QString::fromLatin1(kDeleteCurrentRaster)) {
+        const int rasterIndex = doc.currentRasterIndex();
+        if (rasterIndex < 0 || rasterIndex >= doc.rasterCount())
+            return fail(QObject::tr("No current raster selected."));
+        const QString name = doc.raster(rasterIndex).name;
+        doc.removeRaster(rasterIndex);
+        return successInfo(true, { QObject::tr("Deleted raster '%1'.").arg(name) });
+    }
+
+    if (filterId == QString::fromLatin1(kDeleteHiddenRasters)) {
+        std::vector<int> toDelete;
+        for (int i = 0; i < doc.rasterCount(); ++i) {
+            if (!doc.raster(i).visible)
+                toDelete.push_back(i);
+        }
+        if (toDelete.empty())
+            return successInfo(false, { QObject::tr("No non-active raster layers to delete.") });
+
+        std::sort(toDelete.rbegin(), toDelete.rend());
+        for (int idx : toDelete)
+            doc.removeRaster(idx);
+        return successInfo(true, { QObject::tr("Deleted %1 non-active raster layer(s).").arg(toDelete.size()) });
+    }
+
+    if (filterId == QString::fromLatin1(kRenameRaster)) {
+        const int rasterIndex = doc.currentRasterIndex();
+        if (rasterIndex < 0 || rasterIndex >= doc.rasterCount())
+            return fail(QObject::tr("No current raster selected."));
+        const QString newName = params.getString(QStringLiteral("newName")).trimmed();
+        if (newName.isEmpty())
+            return fail(QObject::tr("New raster name cannot be empty."));
+        if (newName == doc.raster(rasterIndex).name)
+            return successInfo(false, { QObject::tr("Raster is already named '%1'.").arg(newName) });
+        doc.setRasterName(rasterIndex, newName);
+        return successInfo(true, { QObject::tr("Renamed current raster to '%1'.").arg(newName) });
+    }
+
+    if (filterId == QString::fromLatin1(kExportRasterCameras)) {
+        const QString path = params.getFileSave(QStringLiteral("camera_file")).trimmed();
+        if (path.isEmpty())
+            return fail(QObject::tr("No camera output file selected."));
+
+        const std::vector<int> activeRasters = visibleRasterIndices(doc);
+        if (activeRasters.empty())
+            return fail(QObject::tr("No active raster layers to export."));
+
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+            return fail(QObject::tr("Cannot write camera file '%1'.").arg(path));
+
+        QXmlStreamWriter xml(&file);
+        xml.setAutoFormatting(true);
+        xml.writeStartDocument();
+        xml.writeStartElement(QStringLiteral("QMeshLabRasterCameras"));
+        for (int rasterIndex : activeRasters) {
+            const Document::RasterEntry &raster = doc.raster(rasterIndex);
+            xml.writeStartElement(QStringLiteral("RasterCamera"));
+            xml.writeAttribute(QStringLiteral("label"), raster.name);
+            xml.writeAttribute(QStringLiteral("index"), QString::number(rasterIndex));
+            writeVcgCamera(xml, raster.shot);
+            xml.writeEndElement();
+        }
+        xml.writeEndElement();
+        xml.writeEndDocument();
+
+        return successInfo(false, { QObject::tr("Exported %1 active raster camera(s) to '%2'.").arg(activeRasters.size()).arg(path) });
+    }
+
+    if (filterId == QString::fromLatin1(kImportRasterCameras)) {
+        const QString path = params.getFileOpen(QStringLiteral("camera_file")).trimmed();
+        if (path.isEmpty())
+            return fail(QObject::tr("No camera input file selected."));
+
+        std::vector<CameraShot> shots;
+        QString parseError;
+        if (!readVcgCameraFile(path, shots, parseError))
+            return fail(parseError);
+        if (shots.empty())
+            return fail(QObject::tr("No VCGCamera entries found in '%1'.").arg(path));
+
+        const std::vector<int> activeRasters = visibleRasterIndices(doc);
+        if (activeRasters.empty())
+            return fail(QObject::tr("No active raster layers to update."));
+        if (shots.size() != activeRasters.size()) {
+            return fail(QObject::tr("Camera count mismatch: file contains %1 camera(s), but %2 raster layer(s) are active.")
+                .arg(shots.size())
+                .arg(activeRasters.size()));
+        }
+
+        for (size_t i = 0; i < shots.size(); ++i) {
+            doc.setRasterShot(
+                activeRasters[i],
+                shots[i],
+                QObject::tr("Imported raster camera for '%1'").arg(doc.raster(activeRasters[i]).name));
+        }
+        return successInfo(true, { QObject::tr("Imported %1 raster camera(s) from '%2'.").arg(shots.size()).arg(path) });
+    }
+
     if (filterId == QString::fromLatin1(kRenderFromRenderStateJson)) {
         QString renderStateJson = params.getRenderState(QStringLiteral("render_state")).trimmed();
         const QString cameraStateJson = params.getCameraState(QStringLiteral("camera_state")).trimmed();

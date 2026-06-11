@@ -102,6 +102,7 @@ private:
     QComboBox *m_currentMeshDebugViewCombo = nullptr;
     QCheckBox *m_currentMeshHighlightCheck = nullptr;
     QCheckBox *m_showTrackballGizmoCheck = nullptr;
+    QCheckBox *m_showViewCamerasCheck = nullptr;
     QCheckBox *m_bboxShowCornersCheck = nullptr;
     QCheckBox *m_bboxShowDimensionsCheck = nullptr;
     QCheckBox *m_decoratorVertexNormalsCheck = nullptr;

@@ -52,6 +52,7 @@ constexpr QLatin1StringView kFilterSetMeshColor("compute_set_per_mesh_color");
 constexpr QLatin1StringView kFilterClampQuality("apply_scalar_clamping_per_vertex");
 constexpr QLatin1StringView kFilterSaturateQuality("apply_scalar_saturation_per_vertex");
 constexpr QLatin1StringView kFilterMapVQuality("compute_color_from_scalar_per_vertex");
+constexpr QLatin1StringView kFilterQualityMapper("compute_color_from_scalar_using_transfer_function_per_vertex");
 constexpr QLatin1StringView kFilterMapFQuality("compute_color_from_scalar_per_face");
 constexpr QLatin1StringView kFilterDiscreteCurvature("compute_scalar_by_discrete_curvature_per_vertex");
 constexpr QLatin1StringView kFilterTriangleQuality("compute_scalar_by_aspect_ratio_per_face");
@@ -482,7 +483,8 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality, info);
     }
 
-    if (filterId == QString::fromLatin1(kFilterMapVQuality)) {
+    if (filterId == QString::fromLatin1(kFilterMapVQuality)
+        || filterId == QString::fromLatin1(kFilterQualityMapper)) {
         Histogramf hist;
         vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityHistogram(mesh, hist);
         const QString colorMapId = resolvedColorMapId(params);

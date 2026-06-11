@@ -321,7 +321,7 @@ QMatrix4x4 ViewTrackball::projectionMatrix(float aspect) const
 {
     const float r = qMax(1e-4f, m_radius);
     const float nearPlane = nearClipPlaneDistance();
-    const float farPlane = qMax(nearPlane + 0.01f * r, 100.0f * r);
+    const float farPlane = farClipPlaneDistance();
     QMatrix4x4 proj;
     proj.perspective(m_fovYDeg, aspect, nearPlane, farPlane);
     return proj;

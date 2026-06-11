@@ -1231,6 +1231,10 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
         setCurrentRenderWidget(activatedView);
     });
     connect(view, &RenderWidget::cameraStateChanged, this, [this](RenderWidget *sourceView) {
+        for (RenderWidget *peer : m_renderWidgets) {
+            if (peer != sourceView && peer->showViewFrustumsEnabled())
+                peer->update();
+        }
         syncCameraViewsFrom(sourceView);
     });
     connect(view, &RenderWidget::frameRendered, this,
@@ -1291,6 +1295,22 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
         } else if (chosen == closeAction) {
             closeCurrentView();
         }
+    });
+
+    view->setPeerViewCameraProvider([this, view]() -> std::vector<PeerViewCamera> {
+        std::vector<PeerViewCamera> result;
+        for (const RenderWidget *peer : m_renderWidgets) {
+            if (peer == view) continue;
+            if (peer->viewMode() != RenderWidget::ViewMode::Scene3D) continue;
+            PeerViewCamera pvc;
+            pvc.view = peer->viewMatrix();
+            pvc.proj = peer->projectionMatrix();
+            pvc.viewportSize = peer->size();
+            pvc.nearDist = peer->nearClipDistance();
+            pvc.farDist = peer->farClipDistance();
+            result.push_back(pvc);
+        }
+        return result;
     });
 
     return view;

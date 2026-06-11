@@ -27,6 +27,14 @@ class RenderOverlayPanel;
 class QLabel;
 class QTimer;
 
+struct PeerViewCamera {
+    QMatrix4x4 view;
+    QMatrix4x4 proj;
+    QSize viewportSize;
+    float nearDist = 0.0f;
+    float farDist = 0.0f;
+};
+
 class RenderWidget : public QRhiWidget
 {
     Q_OBJECT
@@ -66,6 +74,15 @@ public:
     QVector3D cameraEyePosition() const { return m_trackball.cameraEyePosition(); }
     QVector3D cameraViewDirection() const { return m_trackball.cameraViewDirection(); }
     CameraShot cameraShotForViewport(const QSize &pixelSize) const;
+    void setPeerViewCameraProvider(std::function<std::vector<PeerViewCamera>()> provider);
+    bool showViewFrustumsEnabled() const { return m_renderSettings.showViewCameras; }
+    float nearClipDistance() const { return m_trackball.nearClipPlaneDistance(); }
+    float farClipDistance() const { return m_trackball.farClipPlaneDistance(); }
+    QMatrix4x4 viewMatrix() const { return m_trackball.viewMatrix(); }
+    QMatrix4x4 projectionMatrix() const {
+        QSize sz = size();
+        return m_trackball.projectionMatrix(float(sz.width()) / float(sz.height()));
+    }
 
 signals:
     void frameRendered(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
@@ -323,6 +340,7 @@ struct SceneRasterProjectedDrawItem {
     void planRasterProjectedPasses(
         const RenderFramePassRequests &requests,
         RenderFramePlan &plan);
+    void planViewFrustumPasses(RenderFramePlan &plan);
     void planDecoratorPasses(
         const RenderFramePassRequests &requests,
         RenderFramePlan &plan);
@@ -413,6 +431,12 @@ struct SceneRasterProjectedDrawItem {
 
     Document *m_doc;
     QRhi *m_rhi = nullptr;
+    std::function<std::vector<PeerViewCamera>()> m_peerViewCameraProvider;
+    mutable std::vector<float> m_viewFrustumVertices;
+    mutable size_t m_viewFrustumCount = 0;
+    mutable std::unique_ptr<QRhiBuffer> m_viewFrustumVbuf;
+    mutable std::unique_ptr<QRhiBuffer> m_viewFrustumUbuf;
+    mutable std::unique_ptr<QRhiShaderResourceBindings> m_viewFrustumSrb;
     bool m_reframeCameraRequested = true;
     bool m_resetTrackballRequested = false;
     bool m_centerAnimActive = false;

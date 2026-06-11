@@ -150,6 +150,152 @@ void RenderWidget::planRasterProjectedPasses(
     }
 }
 
+void RenderWidget::planViewFrustumPasses(
+    RenderWidget::RenderFramePlan &plan)
+{
+    if (!m_peerViewCameraProvider || !m_renderSettings.showViewCameras
+        || !m_doc || !m_rhi)
+        return;
+
+    auto shots = m_peerViewCameraProvider();
+    if (shots.empty()) return;
+
+    // Build frustum vertices for each peer view camera
+    m_viewFrustumVertices.clear();
+    m_viewFrustumCount = 0;
+
+    // Compute a reasonable frustum depth
+    float frustumDepth = 0.0f;
+    {
+        bool hasBounds = false;
+        QVector3D sceneMin, sceneMax;
+        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+            if (!meshVisible(mi)) continue;
+            const auto &m = m_doc->mesh(mi).mesh;
+            if (m.bbox.IsNull()) continue;
+            const auto &tf = m_doc->mesh(mi).transform;
+            const QVector3D corners[8] = {
+                tf.map(QVector3D(float(m.bbox.min[0]), float(m.bbox.min[1]), float(m.bbox.min[2]))),
+                tf.map(QVector3D(float(m.bbox.max[0]), float(m.bbox.min[1]), float(m.bbox.min[2]))),
+                tf.map(QVector3D(float(m.bbox.min[0]), float(m.bbox.max[1]), float(m.bbox.min[2]))),
+                tf.map(QVector3D(float(m.bbox.max[0]), float(m.bbox.max[1]), float(m.bbox.min[2]))),
+                tf.map(QVector3D(float(m.bbox.min[0]), float(m.bbox.min[1]), float(m.bbox.max[2]))),
+                tf.map(QVector3D(float(m.bbox.max[0]), float(m.bbox.min[1]), float(m.bbox.max[2]))),
+                tf.map(QVector3D(float(m.bbox.min[0]), float(m.bbox.max[1]), float(m.bbox.max[2]))),
+                tf.map(QVector3D(float(m.bbox.max[0]), float(m.bbox.max[1]), float(m.bbox.max[2]))) };
+            if (!hasBounds) { sceneMin = corners[0]; sceneMax = corners[0]; hasBounds = true; }
+            for (int c = 0; c < 8; ++c) {
+                sceneMin.setX(std::min(sceneMin.x(), corners[c].x()));
+                sceneMin.setY(std::min(sceneMin.y(), corners[c].y()));
+                sceneMin.setZ(std::min(sceneMin.z(), corners[c].z()));
+                sceneMax.setX(std::max(sceneMax.x(), corners[c].x()));
+                sceneMax.setY(std::max(sceneMax.y(), corners[c].y()));
+                sceneMax.setZ(std::max(sceneMax.z(), corners[c].z()));
+            }
+        }
+        if (hasBounds)
+            frustumDepth = std::max(1e-3f, (sceneMax - sceneMin).length() * 0.12f);
+    }
+    if (frustumDepth <= 0.0f)
+        frustumDepth = std::max(1e-3f, m_trackball.radius() * 0.25f);
+
+    for (const PeerViewCamera &pvc : shots) {
+        if (pvc.viewportSize.width() <= 0 || pvc.viewportSize.height() <= 0)
+            continue;
+
+        // Extract camera parameters from view/projection matrices
+        QMatrix4x4 invView = pvc.view.inverted();
+        QVector3D apex(invView(0, 3), invView(1, 3), invView(2, 3));
+        // Camera looks down -Z in view space; column 2 of invView = camera Z axis in world
+        QVector3D fwd(-invView(0, 2), -invView(1, 2), -invView(2, 2));
+        QVector3D right(invView(0, 0), invView(1, 0), invView(2, 0));
+        QVector3D up(invView(0, 1), invView(1, 1), invView(2, 1));
+
+        // Derive FOV and aspect from the projection matrix: proj(1,1) = cot(fovY/2)
+        float tanHalfFovY = 1.0f / pvc.proj(1, 1);
+        float aspect = pvc.proj(1, 1) / pvc.proj(0, 0);
+
+        auto append = [this](const QVector3D &a, const QVector3D &b) {
+            m_viewFrustumVertices.insert(m_viewFrustumVertices.end(),
+                {a.x(), a.y(), a.z(), b.x(), b.y(), b.z()});
+            ++m_viewFrustumCount;
+        };
+
+        auto cornersAtDepth = [&](float d) {
+            struct { QVector3D bl, br, tl, tr; } r;
+            float halfH = tanHalfFovY * d;
+            float halfW = halfH * aspect;
+            QVector3D center = apex + fwd * d;
+            r.bl = center - right * halfW - up * halfH;
+            r.br = center + right * halfW - up * halfH;
+            r.tl = center - right * halfW + up * halfH;
+            r.tr = center + right * halfW + up * halfH;
+            return r;
+        };
+
+        // Main frustum at reference depth
+        {
+            auto c = cornersAtDepth(frustumDepth);
+            append(apex, c.bl); append(apex, c.br); append(apex, c.tl); append(apex, c.tr);
+            append(c.bl, c.br); append(c.br, c.tr); append(c.tr, c.tl); append(c.tl, c.bl);
+        }
+
+        // Near plane rectangle
+        if (pvc.nearDist > 0.0f) {
+            auto c = cornersAtDepth(pvc.nearDist);
+            append(c.bl, c.br); append(c.br, c.tr); append(c.tr, c.tl); append(c.tl, c.bl);
+        }
+
+        // Far plane rectangle
+        float farD = pvc.farDist > 0.0f ? pvc.farDist
+            : std::max(frustumDepth * 3.0f, m_trackball.radius() * 10.0f);
+        {
+            auto c = cornersAtDepth(farD);
+            append(c.bl, c.br); append(c.br, c.tr); append(c.tr, c.tl); append(c.tl, c.bl);
+        }
+    }
+
+    if (m_viewFrustumCount == 0) return;
+
+    // Ensure GPU buffers
+    const quint32 vbufSize = quint32(m_viewFrustumVertices.size() * sizeof(float));
+    if (!m_viewFrustumVbuf || m_viewFrustumVbuf->size() < vbufSize) {
+        m_viewFrustumVbuf.reset(m_rhi->newBuffer(
+            QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer, vbufSize));
+        m_viewFrustumVbuf->create();
+    }
+
+    // Ensure uniform buffer
+    constexpr quint32 ubufSize = kRasterProjectedUbufSize; // mat4 mvp + vec4 color
+    if (!m_viewFrustumUbuf) {
+        m_viewFrustumUbuf.reset(m_rhi->newBuffer(
+            QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, ubufSize));
+        m_viewFrustumUbuf->create();
+    }
+
+    // Ensure SRB
+    if (!m_viewFrustumSrb) {
+        QRhiShaderResourceBindings *srb = m_rhi->newShaderResourceBindings();
+        srb->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(
+                0, QRhiShaderResourceBinding::VertexStage
+                    | QRhiShaderResourceBinding::FragmentStage,
+                m_viewFrustumUbuf.get()),
+        });
+        srb->create();
+        m_viewFrustumSrb.reset(srb);
+    }
+
+    // Add a single draw item for all view camera frustums
+    plan.rasterProjectedItems.push_back(SceneRasterProjectedDrawItem {
+        -1,  // negative raster index = view frustums
+        m_viewFrustumSrb.get(),
+        m_viewFrustumVbuf.get(),
+        int(m_viewFrustumCount * 2), // 2 vertices per line
+        false
+    });
+}
+
 void RenderWidget::planSimpleBufferPasses(
     const RenderWidget::RenderFramePassRequests &requests,
     RenderWidget::RenderFramePlan &plan)
@@ -582,6 +728,7 @@ RenderWidget::RenderFramePlan RenderWidget::buildRenderFramePlan(
 
     planRasterBackplatePasses(request.passes, plan);
     planRasterProjectedPasses(request.passes, plan);
+    planViewFrustumPasses(plan);
     planSimpleBufferPasses(request.passes, plan);
     planDecoratorPasses(request.passes, plan);
     planSelectionPasses(request.passes, plan);

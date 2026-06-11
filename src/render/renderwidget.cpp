@@ -1617,6 +1617,12 @@ CameraShot RenderWidget::cameraShotForViewport(const QSize &pixelSize) const
     return CameraShot::fromVcgShot(shot);
 }
 
+void RenderWidget::setPeerViewCameraProvider(
+    std::function<std::vector<PeerViewCamera>()> provider)
+{
+    m_peerViewCameraProvider = std::move(provider);
+}
+
 bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
 {
     if (mode == m_viewMode) {

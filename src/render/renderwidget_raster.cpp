@@ -3,6 +3,7 @@
 #include "renderwidget_internal.h"
 #include <QImage>
 #include <QSet>
+#include <algorithm>
 #include <QVector2D>
 #include <QVector4D>
 #include <algorithm>
@@ -329,10 +330,14 @@ void RenderWidget::renderSceneRasterProjected(
     QRhiCommandBuffer *cb,
     const RenderFramePlan &plan)
 {
-    if (!cb || plan.rasterProjectedItems.empty()
-        || !m_rasterProjectedPipeline || !m_rasterProjectedUbuf) {
+    if (!cb || plan.rasterProjectedItems.empty() || !m_rasterProjectedPipeline)
         return;
-    }
+
+    const bool hasRasterItems = std::any_of(
+        plan.rasterProjectedItems.begin(), plan.rasterProjectedItems.end(),
+        [](const SceneRasterProjectedDrawItem &item) { return item.rasterIndex >= 0; });
+    if (hasRasterItems && !m_rasterProjectedUbuf)
+        return;
 
     cb->setGraphicsPipeline(m_rasterProjectedPipeline.get());
     cb->setViewport({
@@ -349,7 +354,12 @@ void RenderWidget::renderSceneRasterProjected(
 
         float ubuf[kRasterProjectedUbufSize / sizeof(float)] = {};
         memcpy(ubuf, mvp.constData(), 64);
-        if (item.isCurrent) {
+        if (item.rasterIndex < 0) {
+            ubuf[16] = 0.85f;
+            ubuf[17] = 0.85f;
+            ubuf[18] = 0.85f;
+            ubuf[19] = 0.90f;
+        } else if (item.isCurrent) {
             ubuf[16] = 1.0f;
             ubuf[17] = 0.82f;
             ubuf[18] = 0.25f;
@@ -360,16 +370,28 @@ void RenderWidget::renderSceneRasterProjected(
             ubuf[18] = 1.0f;
             ubuf[19] = 0.95f;
         }
-        const quint32 ubufOffset = allocateDynamicUbufOffset(
-            m_rasterProjectedUbufAllocator,
-            "raster-projected");
 
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-        u->updateDynamicBuffer(
-            m_rasterProjectedUbuf.get(),
-            ubufOffset,
-            kRasterProjectedUbufSize,
-            ubuf);
+        quint32 ubufOffset = 0;
+
+        if (item.rasterIndex < 0) {
+            // View camera frustum: use its own ubuf at offset 0
+            if (!m_viewFrustumVertices.empty()) {
+                u->updateDynamicBuffer(m_viewFrustumVbuf.get(), 0,
+                    quint32(m_viewFrustumVertices.size() * sizeof(float)),
+                    m_viewFrustumVertices.data());
+            }
+            u->updateDynamicBuffer(m_viewFrustumUbuf.get(), 0,
+                kRasterProjectedUbufSize, ubuf);
+        } else {
+            ubufOffset = allocateDynamicUbufOffset(
+                m_rasterProjectedUbufAllocator, "raster-projected");
+            u->updateDynamicBuffer(
+                m_rasterProjectedUbuf.get(),
+                ubufOffset,
+                kRasterProjectedUbufSize,
+                ubuf);
+        }
         cb->resourceUpdate(u);
 
         setShaderResourcesWithOffset(cb, item.srb, ubufOffset);

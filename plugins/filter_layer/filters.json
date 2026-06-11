@@ -122,6 +122,30 @@
       "parameters": []
     },
     {
+      "id": "delete_current_raster",
+      "menuPath": "Layer",
+      "name": "Delete Current Raster",
+      "pythonName": "delete_current_raster",
+      "shortDescription": "Delete the current raster layer.",
+      "longDescriptionMarkdown": "The current raster layer is deleted.",
+      "tags": ["layer", "delete", "raster"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": []
+    },
+    {
+      "id": "delete_non_active_rasters",
+      "menuPath": "Layer",
+      "name": "Delete all Non Selected Rasters",
+      "pythonName": "delete_non_active_rasters",
+      "shortDescription": "Delete all non-active raster layers.",
+      "longDescriptionMarkdown": "All non-active raster layers are deleted. As in MeshLab, active rasters are the visible raster layers.",
+      "tags": ["layer", "delete", "raster", "visibility"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": []
+    },
+    {
       "id": "generate_by_merging_visible_meshes",
       "menuPath": "Layer",
       "name": "Flatten Visible Layers",
@@ -187,6 +211,74 @@
           "group": "main",
           "type": "string",
           "default": ""
+        }
+      ]
+    },
+    {
+      "id": "set_raster_name",
+      "menuPath": "Layer",
+      "name": "Rename Current Raster",
+      "pythonName": "set_raster_name",
+      "shortDescription": "Explicitly change the label shown for the current raster.",
+      "longDescriptionMarkdown": "Explicitly change the label shown for the current raster.",
+      "tags": ["layer", "rename", "raster"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "newName",
+          "label": "New Label",
+          "help": "New label for the raster.",
+          "group": "main",
+          "type": "string",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "id": "save_active_raster_cameras",
+      "menuPath": "Layer",
+      "name": "Export active rasters cameras to file",
+      "pythonName": "save_active_raster_cameras",
+      "shortDescription": "Export cameras from visible raster layers.",
+      "longDescriptionMarkdown": "Exports the cameras of all visible raster layers as MeshLab-compatible VCGCamera XML entries.",
+      "tags": ["layer", "raster", "camera", "export"],
+      "inputDomain": "None",
+      "outputDomain": "Information",
+      "parameters": [
+        {
+          "id": "camera_file",
+          "label": "Camera File",
+          "help": "Destination XML file for the active raster cameras.",
+          "group": "main",
+          "type": "file_save",
+          "default": "",
+          "fileDialogTitle": "Save Raster Cameras",
+          "fileNameFilters": ["XML files (*.xml)", "All files (*)"],
+          "fileDefaultSuffix": "xml"
+        }
+      ]
+    },
+    {
+      "id": "load_active_raster_cameras",
+      "menuPath": "Layer",
+      "name": "Import cameras for active rasters from file",
+      "pythonName": "load_active_raster_cameras",
+      "shortDescription": "Import cameras for visible raster layers.",
+      "longDescriptionMarkdown": "Imports MeshLab-compatible VCGCamera XML entries and assigns them, in file order, to visible raster layers.",
+      "tags": ["layer", "raster", "camera", "import"],
+      "inputDomain": "None",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "camera_file",
+          "label": "Camera File",
+          "help": "XML file containing VCGCamera entries for the active raster layers.",
+          "group": "main",
+          "type": "file_open",
+          "default": "",
+          "fileDialogTitle": "Open Raster Cameras",
+          "fileNameFilters": ["XML files (*.xml)", "All files (*)"]
         }
       ]
     },
