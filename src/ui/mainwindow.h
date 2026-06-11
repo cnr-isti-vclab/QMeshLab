@@ -50,6 +50,7 @@ private slots:
     void undo();
     void redo();
     void saveCurrentMesh();
+    void saveProjectAs();
     void saveSnapshotPng();
     void addSnapshotRaster();
     void openFilterBrowser();

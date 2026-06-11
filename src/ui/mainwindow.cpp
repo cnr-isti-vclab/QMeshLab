@@ -1036,6 +1036,11 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu->addSeparator();
     fileMenu->addAction(tr("&Save Mesh..."), QKeySequence::Save, this, &MainWindow::saveCurrentMesh);
     fileMenu->addAction(
+        tr("Save Project &As..."),
+        QKeySequence(QStringLiteral("Ctrl+Shift+P")),
+        this,
+        &MainWindow::saveProjectAs);
+    fileMenu->addAction(
         tr("S&napshot PNG..."),
         QKeySequence(QStringLiteral("Ctrl+Shift+S")),
         this,
@@ -1988,6 +1993,92 @@ void MainWindow::saveCurrentMesh()
     }
 
     statusBar()->showMessage(tr("Mesh saved to %1").arg(targetPath), 3000);
+}
+
+void MainWindow::saveProjectAs()
+{
+    using SaveOpts = Document::MeshLabProjectSaveOptions;
+
+    QString selectedFilter;
+    const QString defaultPath = QStringLiteral("project.mlp");
+    QString targetPath = QFileDialog::getSaveFileName(
+        this,
+        tr("Save MeshLab Project"),
+        defaultPath,
+        tr("MeshLab Project (*.mlp)"),
+        &selectedFilter);
+    if (targetPath.isEmpty()) return;
+
+    // Options dialog
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Save Project Options"));
+    auto *layout = new QVBoxLayout(&dlg);
+
+    auto *cbOnlyVisible = new QCheckBox(tr("Save only visible meshes"));
+    auto *cbSaveModified = new QCheckBox(tr("Re-save modified meshes"));
+    cbSaveModified->setChecked(true);
+    auto *cbCopyFiles = new QCheckBox(tr("Copy files to project folder (if needed)"));
+
+    // Check if files will be outside the project
+    const QDir projectDir = QFileInfo(targetPath).absoluteDir();
+    bool needsCopyCheck = false;
+    for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+        const QString src = m_doc->mesh(mi).sourcePath;
+        if (src.isEmpty()) continue;
+        if (!src.startsWith(projectDir.absolutePath() + QDir::separator())
+            && QFileInfo(src).absolutePath() != projectDir.absolutePath()) {
+            needsCopyCheck = true; break;
+        }
+    }
+    if (!needsCopyCheck) {
+        for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
+            const auto &re = m_doc->raster(ri);
+            if (re.planes.empty()) continue;
+            const QString src = re.planes.front().sourcePath;
+            if (src.isEmpty()) continue;
+            if (!src.startsWith(projectDir.absolutePath() + QDir::separator())
+                && QFileInfo(src).absolutePath() != projectDir.absolutePath()) {
+                needsCopyCheck = true; break;
+            }
+        }
+    }
+
+    auto *warnLabel = new QLabel(
+        tr("Some files are outside the project directory\nand need to be copied."));
+    warnLabel->setStyleSheet(QStringLiteral("color: orange; font-weight: bold;"));
+    warnLabel->setVisible(needsCopyCheck);
+    cbCopyFiles->setVisible(needsCopyCheck);
+    cbCopyFiles->setChecked(false);
+
+    layout->addWidget(cbOnlyVisible);
+    layout->addWidget(cbSaveModified);
+    if (needsCopyCheck) layout->addWidget(warnLabel);
+    if (needsCopyCheck) layout->addWidget(cbCopyFiles);
+
+    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    connect(buttonBox, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    layout->addWidget(buttonBox);
+
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    SaveOpts opts;
+    opts.onlyVisibleMeshes = cbOnlyVisible->isChecked();
+    opts.saveModifiedMeshes = cbSaveModified->isChecked();
+    opts.copyFiles = cbCopyFiles->isChecked();
+
+    if (needsCopyCheck && !opts.copyFiles) {
+        statusBar()->showMessage(
+            tr("Some files are outside the project directory. Enable copy to save."), 4000);
+        return;
+    }
+
+    QString error;
+    if (!m_doc->saveMeshLabProject(targetPath, opts, &error)) {
+        QMessageBox::critical(this, tr("Save Project Failed"), error);
+    } else {
+        statusBar()->showMessage(tr("Project saved: %1").arg(targetPath), 3000);
+    }
 }
 
 void MainWindow::saveSnapshotPng()

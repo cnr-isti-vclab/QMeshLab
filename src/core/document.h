@@ -238,6 +238,15 @@ public:
     int duplicateMesh(int sourceIndex, const QString &newName = {});
     int loadRasterImage(const QString &filename);
     int loadMeshLabProject(const QString &filename);
+
+    struct MeshLabProjectSaveOptions {
+        bool onlyVisibleMeshes = false;
+        bool saveModifiedMeshes = true;
+        bool copyFiles = false;  // copy external files into project dir when saving to a new location
+    };
+    bool saveMeshLabProject(const QString &filename,
+                            const MeshLabProjectSaveOptions &options,
+                            QString *error = nullptr);
     int addRaster(const RasterEntry &raster);
     int addRasterImage(
         const QImage &image,
