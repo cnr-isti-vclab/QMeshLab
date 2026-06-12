@@ -241,6 +241,7 @@ struct MeshFilterRunResult
     QStringList infoMessages;
     QVector<int> newMeshIndices;
     QVector<MeshFilterVisualizationHint> visualizationHints;
+    QVariantMap outputValues;
 };
 
 class MeshFilterPlugin

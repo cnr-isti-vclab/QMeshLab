@@ -367,7 +367,7 @@ QString MeshSetCore::resolveFilterKey(const QString &filterNameOrKey) const
     // Second pass: match by python_name (e.g. "remove_duplicate_vertices")
     const std::string candidate = toStdString(filterNameOrKey);
     for (const auto &info : infos) {
-        if (computePythonName(toStdString(info.descriptor.name)) != candidate)
+        if (toStdString(info.descriptor.effectivePythonName()) != candidate)
             continue;
         if (!resolved.isEmpty())
             throw std::runtime_error(
@@ -408,6 +408,7 @@ FilterRunRecord MeshSetCore::applyFilter(const std::string &filterNameOrKey,
         out.new_mesh_indices.reserve(static_cast<size_t>(result.newMeshIndices.size()));
         for (int index : result.newMeshIndices)
             out.new_mesh_indices.push_back(index);
+        out.output_values = result.outputValues;
 
         if (!out.success)
             throw std::runtime_error(out.error_message.empty() ? "Filter failed." : out.error_message);

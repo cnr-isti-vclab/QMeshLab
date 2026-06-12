@@ -1,5 +1,8 @@
 #include "meshset_core.h"
 
+#include <QVector3D>
+#include <QMetaType>
+
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
@@ -56,7 +59,40 @@ NB_MODULE(_qmeshlab, m)
         .def_ro("document_modified", &FilterRunRecord::document_modified)
         .def_ro("error_message",     &FilterRunRecord::error_message)
         .def_ro("info_messages",     &FilterRunRecord::info_messages)
-        .def_ro("new_mesh_indices",  &FilterRunRecord::new_mesh_indices);
+        .def_ro("new_mesh_indices",  &FilterRunRecord::new_mesh_indices)
+        .def_prop_ro("output_values", [](const FilterRunRecord &r) {
+            nb::dict d;
+            for (auto it = r.output_values.cbegin(); it != r.output_values.cend(); ++it) {
+                const QVariant &v = it.value();
+                switch (v.typeId()) {
+                case QMetaType::Int:
+                case QMetaType::LongLong:
+                    d[nb::str(it.key().toStdString().c_str())] = v.toLongLong();
+                    break;
+                case QMetaType::Double:
+                    d[nb::str(it.key().toStdString().c_str())] = v.toDouble();
+                    break;
+                case QMetaType::Bool:
+                    d[nb::str(it.key().toStdString().c_str())] = v.toBool();
+                    break;
+                case QMetaType::QString:
+                    d[nb::str(it.key().toStdString().c_str())] = nb::str(v.toString().toStdString().c_str());
+                    break;
+                case QMetaType::Float:
+                    d[nb::str(it.key().toStdString().c_str())] = v.toFloat();
+                    break;
+                default:
+                    if (v.canConvert<QVector3D>()) {
+                        QVector3D p = v.value<QVector3D>();
+                        d[nb::str(it.key().toStdString().c_str())] = nb::make_tuple(p.x(), p.y(), p.z());
+                    } else {
+                        d[nb::str(it.key().toStdString().c_str())] = nb::none();
+                    }
+                    break;
+                }
+            }
+            return d;
+        });
 
     nb::class_<MeshSetCore>(m, "MeshSet")
         .def(nb::init<>())

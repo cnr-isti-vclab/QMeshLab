@@ -108,6 +108,14 @@
           "default": "sin(x+y)"
         },
         {
+          "id": "a",
+          "label": "Alpha expression",
+          "help": "Expression for alpha channel (ignored for geometry).",
+          "group": "advanced",
+          "type": "string",
+          "default": "1"
+        },
+        {
           "id": "onselected",
           "label": "Only On Selection",
           "help": "If enabled, the filter affects only selected elements.",

@@ -3,6 +3,7 @@
 #include <nanobind/nanobind.h>
 
 #include <QString>
+#include <QVariant>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,7 @@ struct FilterRunRecord
     std::string error_message;
     std::vector<std::string> info_messages;
     std::vector<int> new_mesh_indices;
+    QVariantMap output_values;
 };
 
 // C++ core that wraps a Document and is exposed to Python as `MeshSet`.

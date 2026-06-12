@@ -224,9 +224,10 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
                     .arg(vertManifNum)
                     .arg(faceVertManif);
 
+        int holeNum = -1, genus = -1;
         if (vertManifNum == 0 && edgeNonManifFFNum == 0) {
-            const int holeNum = vcg::tri::Clean<VCGMesh>::CountHoles(mesh);
-            const int genus = vcg::tri::Clean<VCGMesh>::MeshGenus(
+            holeNum = vcg::tri::Clean<VCGMesh>::CountHoles(mesh);
+            genus = vcg::tri::Clean<VCGMesh>::MeshGenus(
                 mesh.VN() - unrefVertNum,
                 edgeNum,
                 mesh.FN(),
@@ -243,7 +244,21 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
                         .arg(edgeNonManifFFNum)
                         .arg(edgeNonManifNum);
         }
-        return successInfo(info);
+        MeshFilterRunResult result = successInfo(info);
+        result.outputValues["vertices_number"] = mesh.VN();
+        result.outputValues["edges_number"] = edgeNum;
+        result.outputValues["faces_number"] = mesh.FN();
+        result.outputValues["unreferenced_vertices"] = unrefVertNum;
+        result.outputValues["boundary_edges"] = edgeBorderNum;
+        result.outputValues["connected_components_number"] = connectedComponentsNum;
+        result.outputValues["is_mesh_two_manifold"] = isTwoManifold;
+        result.outputValues["non_two_manifold_edges"] = edgeNonManifFFNum;
+        result.outputValues["incident_faces_on_non_two_manifold_edges"] = faceEdgeManif;
+        result.outputValues["non_two_manifold_vertices"] = vertManifNum;
+        result.outputValues["incident_faces_on_non_two_manifold_vertices"] = faceVertManif;
+        result.outputValues["number_holes"] = (vertManifNum == 0 && edgeNonManifFFNum == 0) ? holeNum : -1;
+        result.outputValues["genus"] = (vertManifNum == 0 && edgeNonManifFFNum == 0) ? genus : -1;
+        return result;
     }
 
     if (filterId == QString::fromLatin1(kFilterTopoQuad)) {
@@ -316,7 +331,21 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
                     .arg(formatFloat(ratioDist.Avg(), 3))
                     .arg(formatFloat(ratioDist.Min(), 3))
                     .arg(formatFloat(ratioDist.Max(), 3));
-        return successInfo(info);
+        MeshFilterRunResult result = successInfo(info);
+        result.outputValues["triangles_number"] = nTris;
+        result.outputValues["quads_number"] = nQuads;
+        result.outputValues["polys_number"] = nPolys;
+        result.outputValues["large_polys_number"] = nLargePolys;
+        result.outputValues["right_angle_discrepancy_avg"] = angleDist.Avg();
+        result.outputValues["right_angle_discrepancy_min"] = angleDist.Min();
+        result.outputValues["right_angle_discrepancy_max"] = angleDist.Max();
+        result.outputValues["right_angle_discrepancy_stddev"] = angleDist.StandardDeviation();
+        result.outputValues["right_angle_discrepancy_perc0.05"] = angleDist.Percentile(0.05f);
+        result.outputValues["right_angle_discrepancy_perc95"] = angleDist.Percentile(0.95f);
+        result.outputValues["quad_ratio_avg"] = ratioDist.Avg();
+        result.outputValues["quad_ratio_min"] = ratioDist.Min();
+        result.outputValues["quad_ratio_max"] = ratioDist.Max();
+        return result;
     }
 
     if (filterId == QString::fromLatin1(kFilterGeom)) {
@@ -348,7 +377,6 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
             info << formatMatrixRow(pca, 0);
             info << formatMatrixRow(pca, 1);
             info << formatMatrixRow(pca, 2);
-            return successInfo(info);
         }
 
         const float area = vcg::tri::Stat<VCGMesh>::ComputeMeshArea(*measureMesh);
@@ -400,7 +428,23 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
             info << formatMatrixRow(pca, 1);
             info << formatMatrixRow(pca, 2);
         }
-        return successInfo(info);
+        MeshFilterRunResult result = successInfo(info);
+        result.outputValues["bbox_dim_x"] = double(bbox.DimX());
+        result.outputValues["bbox_dim_y"] = double(bbox.DimY());
+        result.outputValues["bbox_dim_z"] = double(bbox.DimZ());
+        result.outputValues["bbox_diagonal"] = double(bbox.Diag());
+        result.outputValues["bbox_min_x"] = double(bbox.min.X());
+        result.outputValues["bbox_min_y"] = double(bbox.min.Y());
+        result.outputValues["bbox_min_z"] = double(bbox.min.Z());
+        result.outputValues["bbox_max_x"] = double(bbox.max.X());
+        result.outputValues["bbox_max_y"] = double(bbox.max.Y());
+        result.outputValues["bbox_max_z"] = double(bbox.max.Z());
+        result.outputValues["is_pointcloud"] = pointcloud;
+        if (!pointcloud) {
+            result.outputValues["surface_area"] = area;
+            result.outputValues["is_watertight"] = watertight;
+        }
+        return result;
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectionArea)) {
@@ -443,7 +487,12 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         }
         info << QObject::tr("Border edges: %1").arg(borderEdges);
         info << QObject::tr("Perimeter: %1").arg(formatFloat(perimeter));
-        return successInfo(info);
+        MeshFilterRunResult result = successInfo(info);
+        result.outputValues["selected_triangles_number"] = selectedFaceCount;
+        result.outputValues["selected_surface_area"] = selectedArea;
+        result.outputValues["border_edge_number"] = borderEdges;
+        result.outputValues["perimeter"] = perimeter;
+        return result;
     }
 
     if (filterId == QString::fromLatin1(kFilterVertStat)) {
@@ -459,7 +508,14 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
                     .arg(formatFloat(dist.Percentile(0.5f)));
         info << QObject::tr("Per-vertex quality stddev: %1").arg(formatFloat(dist.StandardDeviation()));
         info << QObject::tr("Per-vertex quality variance: %1").arg(formatFloat(dist.Variance()));
-        return successInfo(info);
+        MeshFilterRunResult result = successInfo(info);
+        result.outputValues["vertex_quality_min"] = dist.Min();
+        result.outputValues["vertex_quality_max"] = dist.Max();
+        result.outputValues["vertex_quality_avg"] = dist.Avg();
+        result.outputValues["vertex_quality_median"] = dist.Percentile(0.5f);
+        result.outputValues["vertex_quality_stddev"] = dist.StandardDeviation();
+        result.outputValues["vertex_quality_variance"] = dist.Variance();
+        return result;
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceStat)) {
@@ -475,7 +531,14 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
                     .arg(formatFloat(dist.Percentile(0.5f)));
         info << QObject::tr("Per-face quality stddev: %1").arg(formatFloat(dist.StandardDeviation()));
         info << QObject::tr("Per-face quality variance: %1").arg(formatFloat(dist.Variance()));
-        return successInfo(info);
+        MeshFilterRunResult result = successInfo(info);
+        result.outputValues["face_quality_min"] = dist.Min();
+        result.outputValues["face_quality_max"] = dist.Max();
+        result.outputValues["face_quality_avg"] = dist.Avg();
+        result.outputValues["face_quality_median"] = dist.Percentile(0.5f);
+        result.outputValues["face_quality_stddev"] = dist.StandardDeviation();
+        result.outputValues["face_quality_variance"] = dist.Variance();
+        return result;
     }
 
     if (filterId == QString::fromLatin1(kFilterVertHist) || filterId == QString::fromLatin1(kFilterFaceHist)) {
@@ -525,7 +588,19 @@ MeshFilterRunResult MeasureFilterPlugin::runFilter(
         info << QObject::tr("[%1 .. +inf): %2")
                     .arg(formatFloat(rangeMax, 7))
                     .arg(histogramCountString(hist.BinCountInd(binNum + 1), areaWeighted));
-        return successInfo(info);
+        MeshFilterRunResult result = successInfo(info);
+        QString prefix = vertexHistogram ? QStringLiteral("vertex_hist") : QStringLiteral("face_hist");
+        QList<double> binMin, binMax, binCount;
+        for (int i = 0; i < binNum + 2; ++i) {
+            binMin.append(double(hist.BinLowerBound(i)));
+            binMax.append(double(hist.BinUpperBound(i)));
+            binCount.append(double(hist.BinCountInd(i)));
+        }
+        result.outputValues[prefix + "_bin_min"] = QVariant::fromValue(binMin);
+        result.outputValues[prefix + "_bin_max"] = QVariant::fromValue(binMax);
+        result.outputValues[prefix + "_bin_count"] = QVariant::fromValue(binCount);
+        result.outputValues[prefix + "_area_weighted"] = areaWeighted;
+        return result;
     }
 
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
