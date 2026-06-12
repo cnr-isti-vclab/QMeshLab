@@ -29,6 +29,14 @@
           "default": false
         },
         {
+          "id": "preserveColor",
+          "label": "Preserve vertex colors",
+          "help": "If enabled and input meshes have vertex colors, colors are propagated to the reconstructed surface.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
           "id": "depth",
           "label": "Reconstruction Depth",
           "help": "This integer is the maximum depth of the tree that will be used for surface reconstruction. Running at depth d corresponds to solving on a voxel grid whose resolution is no larger than 2^d x 2^d x 2^d. The default value for this parameter is 8.",
@@ -157,9 +165,17 @@
           "default": false
         },
         {
+          "id": "preserveColor",
+          "label": "Preserve vertex colors",
+          "help": "If enabled and input meshes have vertex colors, colors are propagated to the reconstructed surface.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
           "id": "depth",
           "label": "Reconstruction Depth",
-          "help": "This integer is the maximum depth of the tree that will be used for reconstruction. Running at depth d corresponds to solving on a grid whose resolution is no larger than 2^d x 2^d x 2^d. The default value for this parameter is 8.",
+          "help": "This integer is the maximum depth of the tree that will be used for surface reconstruction. Running at depth d corresponds to solving on a voxel grid whose resolution is no larger than 2^d x 2^d x 2^d. The default value for this parameter is 8.",
           "group": "main",
           "type": "int",
           "default": 8,
@@ -168,9 +184,9 @@
         },
         {
           "id": "fullDepth",
-          "label": "Adaptive Octree Depth",
-          "help": "This integer specifies the depth beyond which the tree will be adapted to the sampling density. The default value for this parameter is 5.",
-          "group": "advanced.tree",
+          "label": "Adaptive-Exact Depth",
+          "help": "The depth at which the sample values (color, normal) are directly interpolated into the octree rather than pulled up from coarser depths. Set to a larger value if you want more detailed correct interpolation, at the price of a higher per-sample memory consumption.",
+          "group": "advanced.solver",
           "type": "int",
           "default": 5,
           "min": 1,

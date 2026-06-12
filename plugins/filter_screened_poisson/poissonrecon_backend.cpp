@@ -810,7 +810,9 @@ MeshFilterRunResult runScreenedPoissonFilter(
         };
     }
 
-    const bool preserveColor = allSelectedMeshesHaveVertexColor(doc, meshIndices);
+    const bool preserveColor = parameters.contains(QStringLiteral("preserveColor"))
+        ? parameters.value(QStringLiteral("preserveColor")).toBool()
+        : allSelectedMeshesHaveVertexColor(doc, meshIndices);
     const bool confidence = parameters.value(QStringLiteral("confidence"), false).toBool();
     const int requestedThreads = std::max(1, intParameter(parameters, QStringLiteral("threads"), 1));
     const qsizetype inputSampleCount = countInputSamples(doc, meshIndices);
@@ -945,7 +947,9 @@ MeshFilterRunResult runSSDReconFilter(
         };
     }
 
-    const bool preserveColor = allSelectedMeshesHaveVertexColor(doc, meshIndices);
+    const bool preserveColor = parameters.contains(QStringLiteral("preserveColor"))
+        ? boolParameter(parameters, QStringLiteral("preserveColor"), true)
+        : allSelectedMeshesHaveVertexColor(doc, meshIndices);
     const bool confidence = boolParameter(parameters, QStringLiteral("confidence"), false);
     const bool exactInterpolation = boolParameter(parameters, QStringLiteral("exactInterpolation"), false);
     const bool nonLinearFit = boolParameter(parameters, QStringLiteral("nonLinearFit"), false);
@@ -1075,7 +1079,9 @@ MeshFilterRunResult runSurfaceTrimmerFilter(
     if (meshIndex < 0 || meshIndex >= doc.meshCount())
         return { false, false, QObject::tr("No current mesh selected.") };
 
-    const bool preserveColor = (doc.mesh(meshIndex).ioMask & Mask::IOM_VERTCOLOR) != 0;
+    const bool preserveColor = parameters.contains(QStringLiteral("preserveColor"))
+        ? boolParameter(parameters, QStringLiteral("preserveColor"), true)
+        : (doc.mesh(meshIndex).ioMask & Mask::IOM_VERTCOLOR) != 0;
     try {
         if (preserveColor) {
             using Vertex = ValuedPointData<float, 3, Point<float, 3>>;
