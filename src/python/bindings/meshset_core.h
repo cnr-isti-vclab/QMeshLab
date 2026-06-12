@@ -46,7 +46,13 @@ public:
 
     int meshCount() const;
     int currentMeshIndex() const;
+    int currentMeshId() const;
     void setCurrentMesh(int index);
+    bool meshIdExists(int index) const;
+    void setCurrentMeshVisibility(bool visible);
+    void setMeshVisibility(int index, bool visible);
+    bool isCurrentMeshVisible() const;
+    bool isMeshVisible(int index) const;
 
     void loadNewMesh(const std::string &path);
     void saveCurrentMesh(const std::string &path);
@@ -56,6 +62,11 @@ public:
     void setCurrentRaster(int index);
     void loadRasterImage(const std::string &path);
 
+    void clear();
+    void loadProject(const std::string &path);
+    void saveProject(const std::string &path);
+
+    std::vector<std::string> filterList() const;
     std::vector<FilterInfoRecord> listFilters() const;
     FilterRunRecord applyFilter(const std::string &filterNameOrKey,
                                 const nanobind::dict &params) const;

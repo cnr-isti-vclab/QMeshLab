@@ -200,11 +200,49 @@ int MeshSetCore::currentMeshIndex() const
     return m_document->currentMeshIndex();
 }
 
+int MeshSetCore::currentMeshId() const
+{
+    const int index = m_document->currentMeshIndex();
+    if (index < 0 || index >= m_document->meshCount())
+        throw std::runtime_error("MeshSet has no current Mesh.");
+    return index;
+}
+
 void MeshSetCore::setCurrentMesh(int index)
 {
     if (index < 0 || index >= m_document->meshCount())
         throw std::runtime_error("Mesh index out of range.");
     m_document->setCurrentMeshIndex(index);
+}
+
+bool MeshSetCore::meshIdExists(int index) const
+{
+    return index >= 0 && index < m_document->meshCount();
+}
+
+void MeshSetCore::setCurrentMeshVisibility(bool visible)
+{
+    const int index = currentMeshId();
+    m_document->setMeshVisible(index, visible);
+}
+
+void MeshSetCore::setMeshVisibility(int index, bool visible)
+{
+    if (!meshIdExists(index))
+        throw std::runtime_error("Mesh index out of range.");
+    m_document->setMeshVisible(index, visible);
+}
+
+bool MeshSetCore::isCurrentMeshVisible() const
+{
+    return isMeshVisible(currentMeshId());
+}
+
+bool MeshSetCore::isMeshVisible(int index) const
+{
+    if (!meshIdExists(index))
+        throw std::runtime_error("Mesh index out of range.");
+    return m_document->mesh(index).visible;
 }
 
 void MeshSetCore::loadNewMesh(const std::string &path)
@@ -243,6 +281,47 @@ void MeshSetCore::loadRasterImage(const std::string &path)
     const int idx = m_document->loadRasterImage(toQString(path));
     if (idx < 0)
         throw std::runtime_error("Failed to load raster image: " + path);
+}
+
+void MeshSetCore::clear()
+{
+    while (m_document->rasterCount() > 0)
+        m_document->removeRaster(m_document->rasterCount() - 1);
+    while (m_document->meshCount() > 0)
+        m_document->removeMesh(m_document->meshCount() - 1);
+    m_document->clearUndoHistory();
+    m_document->clearLog();
+}
+
+void MeshSetCore::loadProject(const std::string &path)
+{
+    const int err = m_document->loadMeshLabProject(toQString(path));
+    if (err != 0)
+        throw std::runtime_error("Failed to load project: " + path);
+}
+
+void MeshSetCore::saveProject(const std::string &path)
+{
+    QString error;
+    Document::MeshLabProjectSaveOptions options;
+    if (!m_document->saveMeshLabProject(toQString(path), options, &error)) {
+        const std::string message = error.isEmpty()
+            ? std::string("Failed to save project: ") + path
+            : toStdString(error);
+        throw std::runtime_error(message);
+    }
+}
+
+std::vector<std::string> MeshSetCore::filterList() const
+{
+    std::vector<std::string> names;
+    const auto filters = listFilters();
+    names.reserve(filters.size());
+    for (const auto &filter : filters) {
+        if (!filter.python_name.empty())
+            names.push_back(filter.python_name);
+    }
+    return names;
 }
 
 std::vector<FilterInfoRecord> MeshSetCore::listFilters() const
