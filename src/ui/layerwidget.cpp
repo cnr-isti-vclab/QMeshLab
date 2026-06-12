@@ -85,19 +85,27 @@ public:
     EyeCheckDelegate(ModifierCallback cb, QObject *parent = nullptr)
         : QStyledItemDelegate(parent), m_modifierCb(std::move(cb)) {}
 
-    // Intercept mouse-press events that land on the eye icon area.
+    // Intercept mouse-press/release events that land on the eye icon area.
     bool editorEvent(QEvent *event, QAbstractItemModel *model,
                      const QStyleOptionViewItem &option,
                      const QModelIndex &index) override
     {
-        if (event->type() != QEvent::MouseButtonPress)
+        if (event->type() != QEvent::MouseButtonPress
+            && event->type() != QEvent::MouseButtonRelease)
             return QStyledItemDelegate::editorEvent(event, model, option, index);
 
         auto *me = static_cast<QMouseEvent *>(event);
         const Qt::KeyboardModifiers mods = me->modifiers();
         const bool hasModifier = (mods & (Qt::ShiftModifier | Qt::AltModifier | Qt::ControlModifier)) != 0;
-        if (!hasModifier)
+        if (!hasModifier && event->type() == QEvent::MouseButtonRelease && m_modifierPressed) {
+            // Consume the release following a consumed modifier press
+            m_modifierPressed = false;
+            return true;
+        }
+        if (!hasModifier) {
+            m_modifierPressed = false;
             return QStyledItemDelegate::editorEvent(event, model, option, index);
+        }
 
         // Determine whether the click lands on the eye icon.
         const QStyle *style = option.widget ? option.widget->style() : QApplication::style();
@@ -109,7 +117,8 @@ public:
             return QStyledItemDelegate::editorEvent(event, model, option, index);
 
         // Modifier-click on eye: invoke callback, do NOT toggle this item.
-        if (m_modifierCb) {
+        if (event->type() == QEvent::MouseButtonPress && m_modifierCb) {
+            m_modifierPressed = true;
             EyeAction action;
             if (mods & Qt::ShiftModifier)
                 action = EyeAction::InvertAll;
@@ -166,6 +175,7 @@ private:
     }
 
     ModifierCallback m_modifierCb;
+    bool m_modifierPressed = false;
 };
 
 template<typename T>
@@ -1386,30 +1396,17 @@ void LayerWidget::rebuildTable()
             return -1;
         }();
 
-        // Store visibility states before clearing
-        QHash<int, bool> meshVisState;
-        for (int row = 0; row < m_meshTable->rowCount(); ++row) {
-            QTableWidgetItem *eyeItem = m_meshTable->item(row, 0);
-            if (!eyeItem) continue;
-            const int idx = eyeItem->data(kRoleMeshIndex).toInt();
-            meshVisState[idx] = (eyeItem->checkState() == Qt::Checked);
-        }
-
         m_meshTable->setSortingEnabled(false);
         m_meshTable->setRowCount(m_doc->meshCount());
 
         for (int i = 0; i < m_doc->meshCount(); ++i) {
             const auto &entry = m_doc->mesh(i);
 
-            // Eye column (0)
+            // Eye column (0) — always read from document state
             auto *eyeItem = new QTableWidgetItem();
             eyeItem->setFlags(eyeItem->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEnabled);
             eyeItem->setData(kRoleMeshIndex, i);
-            bool visible = entry.visible;
-            auto visIt = meshVisState.constFind(i);
-            if (visIt != meshVisState.constEnd())
-                visible = visIt.value();
-            eyeItem->setCheckState(visible ? Qt::Checked : Qt::Unchecked);
+            eyeItem->setCheckState(entry.visible ? Qt::Checked : Qt::Unchecked);
             m_meshTable->setItem(i, 0, eyeItem);
 
             // Name column (1)
@@ -1482,29 +1479,17 @@ void LayerWidget::rebuildTable()
             return -1;
         }();
 
-        QHash<int, bool> rasterVisState;
-        for (int row = 0; row < m_rasterTable->rowCount(); ++row) {
-            QTableWidgetItem *eyeItem = m_rasterTable->item(row, 0);
-            if (!eyeItem) continue;
-            const int idx = eyeItem->data(kRoleRasterIndex).toInt();
-            rasterVisState[idx] = (eyeItem->checkState() == Qt::Checked);
-        }
-
         m_rasterTable->setSortingEnabled(false);
         m_rasterTable->setRowCount(m_doc->rasterCount());
 
         for (int i = 0; i < m_doc->rasterCount(); ++i) {
             const auto &entry = m_doc->raster(i);
 
-            // Eye column (0)
+            // Eye column (0) — always read from document state
             auto *eyeItem = new QTableWidgetItem();
             eyeItem->setFlags(eyeItem->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEnabled);
             eyeItem->setData(kRoleRasterIndex, i);
-            bool visible = entry.visible;
-            auto visIt = rasterVisState.constFind(i);
-            if (visIt != rasterVisState.constEnd())
-                visible = visIt.value();
-            eyeItem->setCheckState(visible ? Qt::Checked : Qt::Unchecked);
+            eyeItem->setCheckState(entry.visible ? Qt::Checked : Qt::Unchecked);
             m_rasterTable->setItem(i, 0, eyeItem);
 
             // Thumb column (1)

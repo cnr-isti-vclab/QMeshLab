@@ -162,7 +162,7 @@ struct PerMeshRenderSettings {
     bool wireBackfaceCulling = true;
     bool wireRespectFaux = true;
     bool fillLighting = true;
-    bool fillBackfaceCulling = true;
+    bool fillBackfaceCulling = false;
     FillMaterial fillMaterial = FillMaterial::Plain;
     PbrFillParams fillPbr;
     RsFillParams  fillRs;
