@@ -146,6 +146,23 @@ Double click schedules an offscreen depth-pick frame: depth encoded in RGB → o
 
 `ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. Gizmo is depth-aware and scale-stable across dolly/FOV changes. `MainWindow` can optionally synchronize camera state across 3D views; UV views keep independent pan/zoom.
 
+## Camera Models: `CameraShot` vs `ViewTrackball`
+
+QMeshLab uses two distinct camera representations that overlap but are not interchangeable:
+
+| | `CameraShot` | `ViewTrackball` |
+|---|---|---|
+| **Type** | Pinhole camera (eye position, view direction, FOV, intrinsics) | Orbit camera (center, rotation, distance, FOV) |
+| **Stored in** | `Document::RasterEntry::shot` (raster cameras), serialized from MLP | `RenderWidget::m_trackball` (view navigation) |
+| **Provides** | `project()`, `unproject()`, `depth()`, `viewMatrix()`, `projectionMatrix()` | `cameraEyePosition()`, `cameraViewDirection()`, `viewMatrix()`, `projectionMatrix()` |
+| **Key difference** | No orbit center — just eye + direction | Has an explicit 3D orbit center |
+
+**Conversion:**
+
+- **Trackball → Shot** (`cameraShotForViewport()`): eye position and view direction from the trackball are used to derive a VCG shot. The center is lost. `PixelSizeMm` is set to `(1,1)` — a fictitious calibration, but self-consistent because `FocalMm` is computed from the same unit system. The ratio `FocalMm / PixelSizeMm` determines the angular resolution, which is correctly derived from FOV and viewport size.
+
+- **Shot → Trackball**: underdetermined. The shot stores only the eye and direction; you must supply either an orbit center point or a distance along the view direction. No single conversion exists — `PeerViewCamera` therefore carries the actual `QMatrix4x4` view/projection matrices alongside near/far distances rather than just a `CameraShot`.
+
 ## `ParametrizationUV` Frame Sequence
 
 Current status: UV mode is still a separate renderer in `renderwidget_uv.cpp`. It shares the document, per-mesh render settings, color-map/range controls, and some mesh GPU products, but it does not yet consume the Scene3D `RenderFrameRequest`/`RenderFramePlan` path. The intended next architecture step is UV convergence: reuse the Scene3D material/fill lighting path and substitute UV-space geometry/projection so lighting can remain the original 3D lighting reprojected into texture space.

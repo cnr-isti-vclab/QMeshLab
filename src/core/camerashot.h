@@ -7,6 +7,18 @@
 #include <QVector3D>
 #include <array>
 
+// CameraShot wraps vcg::Shot<float> — a pinhole camera model with intrinsics
+// (focal length, pixel size, viewport, distortion) and extrinsics (position,
+// rotation).  It supports ray-casting operations: project(), unproject(),
+// depth(), viewMatrix(), projectionMatrix().
+//
+// Relationship with ViewTrackball:
+//   CameraShot stores an eye position and a view direction.  ViewTrackball
+//   stores those PLUS an orbit center (a 3D point the camera orbits around).
+//   Trackball → Shot is one-way: use cameraEyePosition() + cameraViewDirection()
+//   to derive extrinsics; the center is lost.  Shot → Trackball is
+//   underdetermined — you must supply either a center point or a distance
+//   along the view direction.  No single "right" conversion exists.
 class CameraShot
 {
 public:

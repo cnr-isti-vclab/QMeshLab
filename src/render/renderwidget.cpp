@@ -1594,6 +1594,10 @@ CameraShot RenderWidget::cameraShotForViewport(const QSize &pixelSize) const
     shot.Intrinsics.CenterPx =
         vcg::Point2f(float(pixelSize.width()) * 0.5f, float(pixelSize.height()) * 0.5f);
     shot.Intrinsics.DistorCenterPx = shot.Intrinsics.CenterPx;
+    // PixelSizeMm = 1 is a fictitious self-consistent calibration:
+    // since FocalMm is computed from FOV and viewport height in the same unit system,
+    // the angular mapping (pixel → camera‑plane ray direction) is correct.
+    // The ratio FocalMm / PixelSizeMm determines angular resolution.
     shot.Intrinsics.PixelSizeMm = vcg::Point2f(1.0f, 1.0f);
 
     const float fovYRad = qDegreesToRadians(m_trackball.fovYDegrees());
