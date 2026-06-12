@@ -6,6 +6,7 @@
 #include "meshfilterpluginmanager.h"
 #include "softdepthbuffer.h"
 #include "vcgmesh.h"
+#include "viewtrackball.h"
 
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/color.h>
@@ -38,6 +39,8 @@ constexpr QLatin1StringView kCameraScale("apply_cameras_scaling");
 constexpr QLatin1StringView kCameraTranslate("apply_cameras_translation");
 constexpr QLatin1StringView kCameraTransform("apply_cameras_extrinsics_transformation");
 constexpr QLatin1StringView kOrientNormals("compute_normal_from_cameras_per_vertex");
+constexpr QLatin1StringView kCameraViewSelection("set_camera_to_view_selection");
+constexpr QLatin1StringView kCameraFromDirection("set_camera_from_direction");
 
 MeshFilterRunResult fail(const QString &m) { return {false, false, m}; }
 MeshFilterRunResult ok(const QStringList &info = {}) {
@@ -538,6 +541,192 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
             return fail(QObject::tr("No visible rasters with valid cameras to orient normals."));
         doc.markMeshGeometryChanged(mi, QObject::tr("Reoriented %1 vertex normals using cameras on '%2'.").arg(nFlipped).arg(ent.name));
         return ok({QObject::tr("Flipped %1 normals.").arg(nFlipped)});
+    }
+
+    // --- Set Camera to View Selection ---
+    if (fid == QString::fromLatin1(kCameraViewSelection)) {
+        int mi = doc.currentMeshIndex();
+        if (mi < 0) return fail(QObject::tr("No current mesh."));
+        VCGMesh &m = doc.mesh(mi).mesh;
+        auto &ent = doc.mesh(mi);
+
+        float margin = float(p.getDouble(QStringLiteral("marginFactor"), 1.0));
+        float fovYDeg = float(p.getDouble(QStringLiteral("fovYDeg"), 45.0));
+        bool useFaceNormals = p.getBool(QStringLiteral("useFaceNormals"), true);
+
+        // Collect selected faces
+        std::vector<const VCGVertex *> selVerts;
+        QVector3D centroid(0, 0, 0);
+        QVector3D avgNormal(0, 0, 0);
+        int selCount = 0;
+        vcg::Box3f selBbox;
+        selBbox.SetNull();
+
+        for (const auto &f : m.face) {
+            if (!f.IsS() || f.IsD()) continue;
+            QVector3D fc = (transformPoint(ent.transform, f.cP(0))
+                          + transformPoint(ent.transform, f.cP(1))
+                          + transformPoint(ent.transform, f.cP(2))) / 3.0f;
+            centroid += fc;
+            vcg::Point3f fn = ((f.cP(1) - f.cP(0)) ^ (f.cP(2) - f.cP(0))).Normalize();
+            avgNormal += QVector3D(fn[0], fn[1], fn[2]);
+            selBbox.Add(vcg::Point3f(fc.x(), fc.y(), fc.z()));
+            selCount++;
+        }
+
+        if (selCount == 0) {
+            // Fall back to selected vertices
+            for (const auto &v : m.vert) {
+                if (!v.IsS() || v.IsD()) continue;
+                QVector3D wv = transformPoint(ent.transform, v.cP());
+                centroid += wv;
+                vcg::Point3f vn(v.cN()[0], v.cN()[1], v.cN()[2]);
+                avgNormal += QVector3D(vn[0], vn[1], vn[2]);
+                selBbox.Add(vcg::Point3f(wv.x(), wv.y(), wv.z()));
+                selCount++;
+                selVerts.push_back(&v);
+            }
+            if (selCount == 0)
+                return fail(QObject::tr("No faces or vertices selected."));
+        }
+
+        centroid /= float(selCount);
+        QVector3D viewDir = avgNormal.normalized();
+        if (viewDir.lengthSquared() < 0.01f) return fail(QObject::tr("Selection normal is zero."));
+
+        // Distance to fit selection in viewport
+        float halfDiag = selBbox.Diag() * 0.5f;
+        float fovYRad = float(qDegreesToRadians(fovYDeg));
+        float distance = (halfDiag / std::tan(fovYRad * 0.5f)) * margin;
+
+        QVector3D eye = centroid - viewDir * distance;
+
+        ViewTrackball tb;
+        tb.setFromLookAt(eye, centroid, fovYDeg);
+        auto state = tb.state();
+        state.radius = qMax(halfDiag, 1e-4f);
+
+        // Serialize to CameraState JSON
+        QJsonObject trackball;
+        trackball.insert(QStringLiteral("center"), QJsonArray{state.center.x(), state.center.y(), state.center.z()});
+        QJsonArray rot{state.rotation.x(), state.rotation.y(), state.rotation.z(), state.rotation.scalar()};
+        trackball.insert(QStringLiteral("rotation_xyzw"), rot);
+        trackball.insert(QStringLiteral("distance"), state.distance);
+        trackball.insert(QStringLiteral("radius"), state.radius);
+        trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
+
+        QJsonObject root;
+        root.insert(QStringLiteral("kind"), QStringLiteral("QMeshLab.CameraState"));
+        root.insert(QStringLiteral("version"), 1);
+        root.insert(QStringLiteral("trackball"), trackball);
+
+        QString json = QString::fromUtf8(
+            QJsonDocument(root).toJson(QJsonDocument::Indented));
+
+        doc.writeLog(json, Document::LogSource::Application);
+
+        // Apply to current raster if available
+        int ri = doc.currentRasterIndex();
+        if (ri >= 0) {
+            CameraShot shot;
+            auto vcgShot = shot.toVcgShot();
+            vcgShot.Intrinsics.cameraType = vcg::Camera<float>::PERSPECTIVE;
+            vcgShot.Intrinsics.ViewportPx = vcg::Point2i(800, 600);
+            vcgShot.Intrinsics.CenterPx = vcg::Point2f(400, 300);
+            vcgShot.Intrinsics.PixelSizeMm = vcg::Point2f(1, 1);
+            vcgShot.Intrinsics.FocalMm = 600.0f / (2.0f * std::tan(fovYRad * 0.5f));
+            QVector3D up(0, 1, 0);
+            if (std::abs(QVector3D::dotProduct(viewDir, up)) > 0.99f) up = QVector3D(1, 0, 0);
+            vcgShot.LookAt(eye.x(), eye.y(), eye.z(),
+                           centroid.x(), centroid.y(), centroid.z(),
+                           up.x(), up.y(), up.z());
+            doc.raster(ri).shot = CameraShot::fromVcgShot(vcgShot);
+        }
+
+        return ok({QObject::tr("Camera state (selection view):\n%1").arg(json)});
+    }
+
+    // --- Set Camera from Direction ---
+    if (fid == QString::fromLatin1(kCameraFromDirection)) {
+        QVector3D direction = p.getPoint3f(QStringLiteral("direction"),
+                                           QVector3D(0, 0, -1)).normalized();
+        float margin = float(p.getDouble(QStringLiteral("marginFactor"), 1.0));
+        float fovYDeg = float(p.getDouble(QStringLiteral("fovYDeg"), 45.0));
+        QString targetEnum = p.getEnum(QStringLiteral("target"));
+
+        // Compute target center
+        QVector3D center(0, 0, 0);
+        float halfDiag = 1.0f;
+
+        if (targetEnum == QStringLiteral("mesh_bbox")) {
+            int mi = doc.currentMeshIndex();
+            if (mi < 0) return fail(QObject::tr("No current mesh."));
+            auto &ent = doc.mesh(mi);
+            QMatrix4x4 tf = ent.transform;
+            vcg::Box3f bbox;
+            bbox.SetNull();
+            for (const auto &v : ent.mesh.vert) {
+                if (v.IsD()) continue;
+                QVector3D wv = transformPoint(tf, v.cP());
+                bbox.Add(vcg::Point3f(wv.x(), wv.y(), wv.z()));
+            }
+            if (bbox.IsNull()) return fail(QObject::tr("Mesh bounding box is empty."));
+            center = QVector3D(bbox.Center()[0], bbox.Center()[1], bbox.Center()[2]);
+            halfDiag = bbox.Diag() * 0.5f;
+        } else {
+            int ri = doc.currentRasterIndex();
+            if (ri < 0) return fail(QObject::tr("No current raster."));
+            auto &re = doc.raster(ri);
+            if (!re.shot.isValid()) return fail(QObject::tr("Raster camera is not valid."));
+            center = re.shot.viewPoint() + re.shot.referenceAxis(2) * 1.0f;
+            halfDiag = 1.0f;
+        }
+
+        float fovYRad = float(qDegreesToRadians(fovYDeg));
+        float distance = (halfDiag / std::tan(fovYRad * 0.5f)) * margin;
+        QVector3D eye = center - direction * distance;
+
+        ViewTrackball tb;
+        tb.setFromLookAt(eye, center, fovYDeg);
+        auto state = tb.state();
+        state.radius = qMax(halfDiag, 1e-4f);
+
+        QJsonObject trackball;
+        trackball.insert(QStringLiteral("center"), QJsonArray{state.center.x(), state.center.y(), state.center.z()});
+        QJsonArray rot{state.rotation.x(), state.rotation.y(), state.rotation.z(), state.rotation.scalar()};
+        trackball.insert(QStringLiteral("rotation_xyzw"), rot);
+        trackball.insert(QStringLiteral("distance"), state.distance);
+        trackball.insert(QStringLiteral("radius"), state.radius);
+        trackball.insert(QStringLiteral("fov_y_degrees"), state.fovYDeg);
+
+        QJsonObject root;
+        root.insert(QStringLiteral("kind"), QStringLiteral("QMeshLab.CameraState"));
+        root.insert(QStringLiteral("version"), 1);
+        root.insert(QStringLiteral("trackball"), trackball);
+
+        QString json = QString::fromUtf8(
+            QJsonDocument(root).toJson(QJsonDocument::Indented));
+
+        doc.writeLog(json, Document::LogSource::Application);
+
+        int ri = doc.currentRasterIndex();
+        if (ri >= 0) {
+            CameraShot shot;
+            auto vcgShot = shot.toVcgShot();
+            vcgShot.Intrinsics.cameraType = vcg::Camera<float>::PERSPECTIVE;
+            vcgShot.Intrinsics.ViewportPx = vcg::Point2i(800, 600);
+            vcgShot.Intrinsics.CenterPx = vcg::Point2f(400, 300);
+            vcgShot.Intrinsics.PixelSizeMm = vcg::Point2f(1, 1);
+            vcgShot.Intrinsics.FocalMm = 600.0f / (2.0f * std::tan(fovYRad * 0.5f));
+            QVector3D up(0, 1, 0);
+            if (std::abs(QVector3D::dotProduct(direction, up)) > 0.99f) up = QVector3D(1, 0, 0);
+            vcgShot.LookAt(eye.x(), eye.y(), eye.z(),
+                           center.x(), center.y(), center.z(),
+                           up.x(), up.y(), up.z());
+            doc.raster(ri).shot = CameraShot::fromVcgShot(vcgShot);
+        }
+
+        return ok({QObject::tr("Camera state (direction):\n%1").arg(json)});
     }
 
     return fail(QObject::tr("Unknown filter: %1").arg(fid));

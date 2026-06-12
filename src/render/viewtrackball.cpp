@@ -79,6 +79,42 @@ void ViewTrackball::setFrame(const QVector3D &center, float radius, float distan
     m_gizmoReferenceFovYDeg = m_fovYDeg;
 }
 
+void ViewTrackball::setFromLookAt(
+    const QVector3D &eye, const QVector3D &center, float fovYDeg)
+{
+    QVector3D dir = (eye - center);
+    float d = dir.length();
+    if (d < 1e-6f) return;
+
+    m_center = center;
+    m_distance = d;
+    m_radius = qMax(1e-4f, m_radius);
+    m_fovYDeg = qBound(kMinTrackballFovYDeg, fovYDeg, kMaxTrackballFovYDeg);
+
+    // Compute rotation: maps camera (0,0,1) → world-space direction from center to eye
+    QVector3D up(0, 1, 0);
+    if (std::abs(QVector3D::dotProduct(dir.normalized(), up)) > 0.99f)
+        up = QVector3D(1, 0, 0);
+    QVector3D right = QVector3D::crossProduct(up, dir).normalized();
+    QVector3D alignedUp = QVector3D::crossProduct(dir.normalized(), right).normalized();
+
+    // Build rotation matrix: columns are right, up, forward
+    QMatrix3x3 rotMat;
+    rotMat(0, 0) = right.x(); rotMat(0, 1) = right.y(); rotMat(0, 2) = right.z();
+    rotMat(1, 0) = alignedUp.x(); rotMat(1, 1) = alignedUp.y(); rotMat(1, 2) = alignedUp.z();
+    rotMat(2, 0) = dir.x() / d; rotMat(2, 1) = dir.y() / d; rotMat(2, 2) = dir.z() / d;
+
+    // QQuaternion::fromRotationMatrix interprets rows as directions to align.
+    // m_rotation maps world_to_camera, so its inverse maps camera_to_world.
+    // The rotation matrix above maps from world to camera (column 0 = world right
+    // → camera x, etc.).  Convert to quaternion.
+    m_rotation = QQuaternion::fromRotationMatrix(rotMat);
+
+    m_gizmoBaseRadius = m_radius * 1.02f;
+    m_gizmoReferenceDistance = m_distance;
+    m_gizmoReferenceFovYDeg = m_fovYDeg;
+}
+
 void ViewTrackball::resetToFrame(const QVector3D &center, float radius, float distance)
 {
     m_fovYDeg = kDefaultTrackballFovYDeg;

@@ -519,6 +519,105 @@
       "inputPrepare": ["VNorm", "FF"],
       "outputModifies": ["VN"],
       "parameters": []
+    },
+    {
+      "id": "set_camera_to_view_selection",
+      "menuPath": "Camera",
+      "name": "Generate Camera to View Selection",
+      "pythonName": "set_camera_to_view_selection",
+      "shortDescription": "Position the camera to frame the current selection, looking along the average selected normal direction.",
+      "longDescriptionMarkdown": "Compute a camera that frames the current selection in the viewport. The camera is positioned so that the selected faces/vertices fill the viewport, looking along the average face/vertex normal direction of the selection. The resulting camera state JSON is written to the log and applied to the current raster if one is active.",
+      "tags": ["camera", "selection"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "parameters": [
+        {
+          "id": "marginFactor",
+          "label": "Margin factor",
+          "help": "Viewport margin multiplier. 1.0 = tight fit, 1.5 = some padding.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.5,
+          "max": 10.0,
+          "decimals": 1
+        },
+        {
+          "id": "fovYDeg",
+          "label": "FOV (degrees)",
+          "help": "Vertical field of view in degrees.",
+          "group": "main",
+          "type": "double",
+          "default": 45.0,
+          "min": 5.0,
+          "max": 120.0,
+          "decimals": 1
+        },
+        {
+          "id": "useFaceNormals",
+          "label": "Use face normals",
+          "help": "Average face normals to determine the view direction. If no faces are selected, falls back to vertex normals.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "set_camera_from_direction",
+      "menuPath": "Camera",
+      "name": "Generate Camera from Direction",
+      "pythonName": "set_camera_from_direction",
+      "shortDescription": "Position the camera looking toward a target from an explicit direction.",
+      "longDescriptionMarkdown": "Compute a camera that looks toward a target (mesh bounding box center or current raster) from an explicit world-space direction. The camera is positioned so that the target fills the viewport. The resulting camera state JSON is written to the log and applied to the current raster if one is active.",
+      "tags": ["camera"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "parameters": [
+        {
+          "id": "direction",
+          "label": "View direction",
+          "help": "World-space direction from camera to target.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 0.0, -1.0]
+        },
+        {
+          "id": "target",
+          "label": "Target",
+          "help": "What the camera should look at.",
+          "group": "main",
+          "type": "enum",
+          "default": "mesh_bbox",
+          "enumOptions": [
+            { "id": "mesh_bbox", "label": "Mesh bounding box center" },
+            { "id": "raster", "label": "Current raster" }
+          ]
+        },
+        {
+          "id": "marginFactor",
+          "label": "Margin factor",
+          "help": "Viewport margin multiplier. 1.0 = tight fit, 2.0 = zoom out.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.5,
+          "max": 10.0,
+          "decimals": 1
+        },
+        {
+          "id": "fovYDeg",
+          "label": "FOV (degrees)",
+          "help": "Vertical field of view in degrees.",
+          "group": "main",
+          "type": "double",
+          "default": 45.0,
+          "min": 5.0,
+          "max": 120.0,
+          "decimals": 1
+        }
+      ]
     }
   ]
 }

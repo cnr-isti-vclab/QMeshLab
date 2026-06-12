@@ -29,6 +29,12 @@ public:
 
     void setFrame(const QVector3D &center, float radius, float distance);
     void resetToFrame(const QVector3D &center, float radius, float distance);
+    // Derive the trackball state from an eye position and center point.
+    // The rotation is computed so that the camera looks from eye toward center.
+    void setFromLookAt(
+        const QVector3D &eye,
+        const QVector3D &center,
+        float fovYDeg = 45.0f);
     State state() const;
     void setState(const State &state);
     void setCenter(const QVector3D &center) { m_center = center; }
