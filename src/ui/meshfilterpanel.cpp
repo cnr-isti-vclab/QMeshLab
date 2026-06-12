@@ -1,4 +1,5 @@
 #include "meshfilterpanel.h"
+#include "filterparam.h"
 
 #include <QCheckBox>
 #include <QColorDialog>
@@ -949,67 +950,11 @@ void MeshFilterPanel::buildUi()
         const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
         if (!info)
             return;
-        const QString pyName = info->descriptor.effectivePythonName();
+        const char *pyName = info->descriptor.effectivePythonName().toStdString().c_str();
         const MeshFilterParameterValues vals = collectCurrentParameterValues();
-        QStringList args;
-        for (const ParameterBinding &binding : m_parameterBindings) {
-            const auto it = vals.constFind(binding.descriptor.id);
-            if (it == vals.constEnd())
-                continue;
-            const QVariant &v = it.value();
-            QString lit;
-            switch (binding.descriptor.type) {
-            case MeshFilterParameterType::Bool:
-                lit = v.toBool() ? QStringLiteral("True") : QStringLiteral("False");
-                break;
-            case MeshFilterParameterType::Int:
-            case MeshFilterParameterType::Mesh:
-                lit = QString::number(v.toInt());
-                break;
-            case MeshFilterParameterType::Double:
-            case MeshFilterParameterType::AbsPerc:
-                lit = QString::number(v.toDouble(), 'g', 10);
-                break;
-            case MeshFilterParameterType::Color: {
-                const QColor c = colorFromVariant(v, QColor(Qt::white));
-                lit = QStringLiteral("[%1, %2, %3, %4]")
-                    .arg(c.redF(), 0, 'g', 4)
-                    .arg(c.greenF(), 0, 'g', 4)
-                    .arg(c.blueF(), 0, 'g', 4)
-                    .arg(c.alphaF(), 0, 'g', 4);
-                break;
-            }
-            case MeshFilterParameterType::Point3f: {
-                if (v.userType() == QMetaType::QVector3D) {
-                    const QVector3D p = v.value<QVector3D>();
-                    lit = QStringLiteral("[%1, %2, %3]")
-                        .arg(p.x(), 0, 'g', 6)
-                        .arg(p.y(), 0, 'g', 6)
-                        .arg(p.z(), 0, 'g', 6);
-                } else {
-                    lit = QStringLiteral("[0, 0, 0]");
-                }
-                break;
-            }
-            case MeshFilterParameterType::CameraState:
-            case MeshFilterParameterType::RenderState: {
-                QString s = v.toString();
-                s.replace(QStringLiteral("\\"), QStringLiteral("\\\\"));
-                s.replace(QStringLiteral("\""), QStringLiteral("\\\""));
-                lit = QStringLiteral("\"%1\"").arg(s);
-                break;
-            }
-            default: {
-                QString s = v.toString();
-                s.replace(QStringLiteral("\\"), QStringLiteral("\\\\"));
-                s.replace(QStringLiteral("\""), QStringLiteral("\\\""));
-                lit = QStringLiteral("\"%1\"").arg(s);
-                break;
-            }
-            }
-            args.append(QStringLiteral("%1=%2").arg(binding.descriptor.id, lit));
-        }
-        const QString code = QStringLiteral("ms.%1(%2)").arg(pyName, args.join(QStringLiteral(", ")));
+        const QStringList args = nonDefaultFilterParamsToPython(info->descriptor, vals);
+        const QString code = QStringLiteral("ms.%1(%2)").arg(
+            QString::fromUtf8(pyName), args.join(QStringLiteral(", ")));
         emit copyToConsoleRequested(code);
     });
 #endif

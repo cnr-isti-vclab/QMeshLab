@@ -687,8 +687,14 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
 
     const bool wrapUndo = (targetDescriptor->outputDomain != MeshFilterOutputDomain::Information);
     const int originalCurrentMeshIndex = doc.currentMeshIndex();
-    if (wrapUndo)
-        doc.beginUndoStep(targetDescriptor->name);
+    if (wrapUndo) {
+        Document::ScriptAction sa;
+        sa.kind = QStringLiteral("filter");
+        sa.filterKey = filterKey;
+        for (auto it = normalizedParameters.constBegin(); it != normalizedParameters.constEnd(); ++it)
+            sa.params[it.key()] = it.value();
+        doc.beginUndoStep(targetDescriptor->name, sa);
+    }
 
     const FilterParams typedParams(normalizedParameters);
     const CleanupApplicationResult preCleanup =

@@ -201,7 +201,18 @@ public:
     int saveMesh(int index, const QString &filename);
     int saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options);
     int saveCurrentMesh(const QString &filename);
+    // Optional script action: stores filter key, parameters, and file paths
+    // so that a Python script can be generated from the undo history.
+    struct ScriptAction {
+        QString     kind;        // "filter", "load_mesh", "load_raster", "save_mesh", "load_project"
+        QString     filterKey;   // fully qualified filter key (pluginId::filterId)
+        QVariantMap params;      // filter parameters (empty for load/save)
+        QStringList  filePaths;   // file paths for load/save operations
+    };
+
     void beginUndoStep(const QString &label);
+    void beginUndoStep(const QString &label,
+                       const ScriptAction &scriptAction);
     void endUndoStep(bool commit = true, bool restoreOnCancel = false);
     void setViewStateFunctions(std::function<ViewState()> capture,
                                 std::function<void(const ViewState &, bool restoreCamera)> restore);
@@ -222,6 +233,7 @@ public:
     QStringList undoStackLabels() const;
     int undoCursorPosition() const;
     std::vector<UndoTreeNodeInfo> undoTreeInfo() const;
+    std::optional<ScriptAction> undoNodeScriptAction(int nodeId) const;
     int undoCurrentNodeId() const;
     bool jumpToUndoNode(int nodeId, bool restoreCamera = true);
     bool updateUndoNodeCamera(int nodeId);
@@ -439,6 +451,9 @@ private:
         int       lane = 0;      // display lane assigned at creation time
         std::vector<int> children;
         int       preferredChild = -1; // which child to follow on redo() (-1 = none)
+
+        // Optional script action: stores filter key, parameters, and file paths
+        std::optional<ScriptAction> scriptAction;
     };
 
     enum class CallbackMode {
@@ -450,7 +465,8 @@ private:
 
     UndoState captureUndoState() const;
     void restoreUndoState(const UndoState &state);
-    void pushUndoStep(const QString &label, UndoState &&before, UndoState &&after);
+    void pushUndoStep(const QString &label, UndoState &&before, UndoState &&after,
+                      std::optional<ScriptAction> scriptAction = {});
     void pruneUndoTreeToLimit();
     void emitUndoRedoStateChanged();
     vcg::CallBackPos *logCallback();
@@ -496,6 +512,7 @@ private:
     int m_undoLimit = 20;
     bool m_undoStepActive = false;
     QString m_undoStepLabel;
+    std::optional<ScriptAction> m_pendingScriptAction;
     std::optional<UndoState> m_pendingUndoBefore;
     bool m_restoringUndoRedo = false;
     bool m_suppressUndoRedoSignals = false;

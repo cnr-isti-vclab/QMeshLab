@@ -2,6 +2,7 @@
 
 #include "meshfilterplugin.h"
 #include <QColor>
+#include <QStringList>
 #include <QVector3D>
 
 struct TextureOutputRefValue
@@ -59,3 +60,13 @@ public:
 private:
     const MeshFilterParameterValues &m_values;
 };
+
+// Convert a QVariant to a Python-compatible literal string
+QString filterParamValueToPythonLiteral(const QVariant &v,
+                                         MeshFilterParameterType type);
+
+// Return "key=value" entries for parameters whose value differs from
+// the descriptor's defaultValue (i.e. non-default values only).
+QStringList nonDefaultFilterParamsToPython(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterParameterValues &values);

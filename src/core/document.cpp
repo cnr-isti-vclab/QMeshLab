@@ -958,8 +958,12 @@ int Document::loadMesh(const QString &filename)
     }
 
     const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
-    if (ownUndoStep)
-        beginUndoStep(tr("Open Mesh"));
+    if (ownUndoStep) {
+        ScriptAction sa;
+        sa.kind = QStringLiteral("load_mesh");
+        sa.filePaths = QStringList{filename};
+        beginUndoStep(tr("Open Mesh"), sa);
+    }
 
     writeLog(tr("Loading mesh: %1").arg(filename), LogSource::Application);
 
@@ -1455,6 +1459,13 @@ int Document::saveCurrentMesh(const QString &filename)
 
 void Document::beginUndoStep(const QString &label)
 {
+    beginUndoStep(label, {});
+}
+
+void Document::beginUndoStep(
+    const QString &label,
+    const ScriptAction &scriptAction)
+{
     if (m_restoringUndoRedo || m_undoStepActive)
         return;
 
@@ -1462,6 +1473,7 @@ void Document::beginUndoStep(const QString &label)
     m_undoStepLabel = label.trimmed();
     if (m_undoStepLabel.isEmpty())
         m_undoStepLabel = tr("Edit");
+    m_pendingScriptAction = scriptAction;
     m_pendingUndoBefore = captureUndoState();
 }
 
@@ -1472,7 +1484,9 @@ void Document::endUndoStep(bool commit, bool restoreOnCancel)
 
     const QString label = m_undoStepLabel;
     std::optional<UndoState> before = std::move(m_pendingUndoBefore);
+    std::optional<ScriptAction> scriptAction = std::move(m_pendingScriptAction);
     m_pendingUndoBefore.reset();
+    m_pendingScriptAction.reset();
     m_undoStepActive = false;
     m_undoStepLabel.clear();
 
@@ -1488,7 +1502,8 @@ void Document::endUndoStep(bool commit, bool restoreOnCancel)
         return;
     }
 
-    pushUndoStep(label, std::move(*before), captureUndoState());
+    pushUndoStep(label, std::move(*before), captureUndoState(),
+                 std::move(scriptAction));
 }
 
 bool Document::canUndo() const
@@ -2304,7 +2319,8 @@ void Document::restoreUndoState(const UndoState &state)
     }
 }
 
-void Document::pushUndoStep(const QString &label, UndoState &&before, UndoState &&after)
+void Document::pushUndoStep(const QString &label, UndoState &&before, UndoState &&after,
+                            std::optional<ScriptAction> scriptAction)
 {
     // If there is no tree yet, create the root node from the "before" state.
     if (m_undoCurrentNode < 0) {
@@ -2327,6 +2343,7 @@ void Document::pushUndoStep(const QString &label, UndoState &&before, UndoState 
     child.state    = std::move(after);
     child.label    = label;
     child.parentId = m_undoCurrentNode;
+    child.scriptAction = std::move(scriptAction);
 
     // Lane: inherit parent's lane if this is the first child; otherwise open a
     // new lane (max lane currently in tree + 1).
@@ -2362,6 +2379,13 @@ void Document::pushUndoStep(const QString &label, UndoState &&before, UndoState 
 
     pruneUndoTreeToLimit();
     emitUndoRedoStateChanged();
+}
+
+std::optional<Document::ScriptAction> Document::undoNodeScriptAction(int nodeId) const
+{
+    if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
+        return {};
+    return m_undoNodes[static_cast<size_t>(nodeId)].scriptAction;
 }
 
 // Prune the oldest ancestor nodes until the tree has at most m_undoLimit nodes
@@ -2566,8 +2590,12 @@ int Document::loadRasterImage(const QString &filename)
     }
 
     const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
-    if (ownUndoStep)
-        beginUndoStep(tr("Open Raster"));
+    if (ownUndoStep) {
+        ScriptAction sa;
+        sa.kind = QStringLiteral("load_raster");
+        sa.filePaths = QStringList{normalizedFilename};
+        beginUndoStep(tr("Open Raster"), sa);
+    }
 
     const int index = addRasterImage(
         image,
@@ -2595,8 +2623,12 @@ int Document::loadMeshLabProject(const QString &filename)
     }
 
     const bool ownUndoStep = !m_restoringUndoRedo && !m_undoStepActive;
-    if (ownUndoStep)
-        beginUndoStep(tr("Open MeshLab Project"));
+    if (ownUndoStep) {
+        ScriptAction sa;
+        sa.kind = QStringLiteral("load_project");
+        sa.filePaths = QStringList{filename};
+        beginUndoStep(tr("Open MeshLab Project"), sa);
+    }
 
     QElapsedTimer projectTimer;
     projectTimer.start();

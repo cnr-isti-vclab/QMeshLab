@@ -46,6 +46,7 @@ signals:
     void nodePurgeBranchRequested(int nodeId);
     // Emitted when the user requests to keep only the path root→current, removing all branches.
     void linearizeHistoryRequested();
+    void generatePythonScriptRequested();
     void nodeHovered(int nodeId, const QPoint &globalPos); // emitted only when hovering a thumbnail
     void nodeUnhovered();
 

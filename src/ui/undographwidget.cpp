@@ -328,6 +328,9 @@ void UndoGraphWidget::contextMenuEvent(QContextMenuEvent *event)
         tr("Remove all branches from the history tree, keeping only the linear path "
            "from the root to the current state. All branching states are permanently deleted."));
     linearizeAct->setEnabled(hasAnyBranch);
+    menu.addSeparator();
+    QAction *genPyAct = menu.addAction(tr("Generate Python Script"));
+    genPyAct->setToolTip(tr("Export the current undo path as a runnable Python script"));
 
     QAction *chosen = menu.exec(event->globalPos());
     if (chosen == restoreAct)
@@ -342,6 +345,8 @@ void UndoGraphWidget::contextMenuEvent(QContextMenuEvent *event)
         emit nodePurgeBranchRequested(nodeId);
     else if (chosen == linearizeAct)
         emit linearizeHistoryRequested();
+    else if (chosen == genPyAct)
+        emit generatePythonScriptRequested();
 }
 
 void UndoGraphWidget::mouseMoveEvent(QMouseEvent *event)

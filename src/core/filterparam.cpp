@@ -226,3 +226,53 @@ QString FilterParams::getRenderState(const QString &id, const QString &fallback)
 {
     return getString(id, fallback);
 }
+
+QString filterParamValueToPythonLiteral(const QVariant &v,
+                                         MeshFilterParameterType type)
+{
+    switch (type) {
+    case MeshFilterParameterType::Bool:
+        return v.toBool() ? QStringLiteral("True") : QStringLiteral("False");
+    case MeshFilterParameterType::Int:
+    case MeshFilterParameterType::Mesh:
+    case MeshFilterParameterType::TextureRef:
+        return QString::number(v.toInt());
+    case MeshFilterParameterType::Double:
+    case MeshFilterParameterType::AbsPerc:
+        return QString::number(v.toDouble(), 'g', 10);
+    case MeshFilterParameterType::Color: {
+        QColor c = v.value<QColor>();
+        return QStringLiteral("[%1, %2, %3, %4]")
+            .arg(c.redF(), 0, 'g', 10).arg(c.greenF(), 0, 'g', 10)
+            .arg(c.blueF(), 0, 'g', 10).arg(c.alphaF(), 0, 'g', 10);
+    }
+    case MeshFilterParameterType::Point3f: {
+        QVector3D p = v.value<QVector3D>();
+        return QStringLiteral("[%1, %2, %3]")
+            .arg(p.x(), 0, 'g', 10).arg(p.y(), 0, 'g', 10).arg(p.z(), 0, 'g', 10);
+    }
+    default:
+        // String, FileOpen, FileSave, Enum, CameraState, RenderState, etc.
+        return QStringLiteral("\"%1\"").arg(
+            v.toString().replace(QLatin1Char('\\'), QStringLiteral("\\\\"))
+                         .replace(QLatin1Char('"'),  QStringLiteral("\\\"")));
+    }
+}
+
+QStringList nonDefaultFilterParamsToPython(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterParameterValues &values)
+{
+    QStringList args;
+    for (const MeshFilterParameterDescriptor &param : descriptor.parameters) {
+        if (param.id.trimmed().isEmpty()) continue;
+        auto it = values.constFind(param.id);
+        if (it == values.constEnd()) continue;
+        // Skip parameters whose current value equals the default
+        if (param.defaultValue.isValid() && it.value() == param.defaultValue)
+            continue;
+        QString lit = filterParamValueToPythonLiteral(it.value(), param.type);
+        args << QStringLiteral("%1=%2").arg(param.id, lit);
+    }
+    return args;
+}

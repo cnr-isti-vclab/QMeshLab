@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "filterparam.h"
 #include "document.h"
 #include "meshfilterpanel.h"
 #include "meshsaveoptionsdialog.h"
@@ -18,6 +19,10 @@
 #include <QFileInfo>
 #include <QHeaderView>
 #include <QImageReader>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QImageWriter>
 #include <QGuiApplication>
 #include <QMenu>
@@ -872,6 +877,112 @@ MainWindow::MainWindow(QWidget *parent)
         m_undoNodeSnapshots.clear();
         refreshUndoHistoryPanel();
         statusBar()->showMessage(tr("History linearized"), 2000);
+    });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::generatePythonScriptRequested, this, [this]() {
+        if (!m_doc) return;
+
+        // Collect file paths for common prefix detection
+        QStringList allPaths;
+        for (const auto &info : m_doc->undoTreeInfo()) {
+            auto sa = m_doc->undoNodeScriptAction(info.nodeId);
+            if (sa.has_value() && !sa->filePaths.isEmpty())
+                allPaths.append(sa->filePaths);
+        }
+        QString commonDir;
+        if (!allPaths.isEmpty()) {
+            commonDir = allPaths.first();
+            for (const QString &p : allPaths) {
+                int i = 0;
+                while (i < commonDir.length() && i < p.length()
+                       && commonDir[i] == p[i]) ++i;
+                commonDir.truncate(i);
+            }
+            int lastSep = commonDir.lastIndexOf(QLatin1Char('/'));
+            if (lastSep >= 0)
+                commonDir.truncate(lastSep);
+        }
+
+        QString targetPath = QFileDialog::getSaveFileName(
+            this, tr("Save Python Script"),
+            commonDir.isEmpty() ? QStringLiteral("history.py")
+                : QDir(commonDir).filePath(QStringLiteral("history.py")),
+            tr("Python files (*.py)"));
+        if (targetPath.isEmpty()) return;
+
+        QStringList lines;
+        lines << QStringLiteral("import qmeshlab");
+        lines << QStringLiteral("ms = qmeshlab.MeshSet()");
+        lines << QStringLiteral("");
+
+        if (!commonDir.isEmpty()) {
+            lines << QStringLiteral("# import os");
+            lines << QStringLiteral("# os.chdir(%1)").arg(QString::fromUtf8(
+                QJsonDocument(QJsonArray{commonDir}).toJson(QJsonDocument::Compact)));
+            lines << QStringLiteral("");
+        }
+
+        // Walk current path from root to current
+        const auto tree = m_doc->undoTreeInfo();
+        QMap<int, int> depthMap;
+        for (const auto &info : tree)
+            depthMap[info.nodeId] = info.depth;
+        struct PathNode { int nodeId; int depth; };
+        std::vector<PathNode> path;
+        for (const auto &info : tree) {
+            if (info.isOnCurrentPath)
+                path.push_back({info.nodeId, depthMap[info.nodeId]});
+        }
+        std::sort(path.begin(), path.end(),
+                  [](const PathNode &a, const PathNode &b) { return a.depth < b.depth; });
+
+        for (const auto &pn : path) {
+            auto sa = m_doc->undoNodeScriptAction(pn.nodeId);
+            if (!sa.has_value()) continue;
+
+            if (sa->kind == QStringLiteral("filter")) {
+                QString filterName;
+                const MeshFilterDescriptor *desc = nullptr;
+                for (const auto &fi : m_doc->filterInfos()) {
+                    if (fi.key == sa->filterKey) {
+                        filterName = fi.descriptor.effectivePythonName();
+                        desc = &fi.descriptor;
+                        break;
+                    }
+                }
+                if (desc) {
+                    const QStringList args =
+                        nonDefaultFilterParamsToPython(*desc, sa->params);
+                    lines << QStringLiteral("ms.%1(%2)").arg(
+                        filterName, args.join(QStringLiteral(", ")));
+                } else {
+                    lines << QStringLiteral("# unknown filter: %1").arg(sa->filterKey);
+                }
+            } else if (sa->kind == QStringLiteral("load_mesh")) {
+                for (const QString &fp : sa->filePaths) {
+                    QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
+                    lines << QStringLiteral("ms.load_new_mesh(\"%1\")").arg(rel.replace('\\', '/'));
+                }
+            } else if (sa->kind == QStringLiteral("load_raster")) {
+                for (const QString &fp : sa->filePaths) {
+                    QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
+                    lines << QStringLiteral("ms.load_new_raster(\"%1\")").arg(rel.replace('\\', '/'));
+                }
+            } else if (sa->kind == QStringLiteral("load_project")) {
+                for (const QString &fp : sa->filePaths) {
+                    QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
+                    lines << QStringLiteral("ms.load_project(\"%1\")").arg(rel.replace('\\', '/'));
+                }
+            }
+        }
+
+        QFile file(targetPath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::critical(this, tr("Error"), tr("Cannot write file: %1").arg(targetPath));
+            return;
+        }
+        file.write(lines.join(QStringLiteral("\n")).toUtf8());
+        file.close();
+        statusBar()->showMessage(tr("Python script saved: %1").arg(targetPath), 4000);
     });
     const auto showUndoHistoryPreview = [this](int nodeId, const QPoint &globalPos) {
         if (!m_undoHistoryPreviewPopup)
