@@ -2756,6 +2756,8 @@ int Document::loadMeshLabProject(const QString &filename)
         LogSource::Application);
 
     m_bulkLoading = false;
+    if (ownUndoStep)
+        endUndoStep(success);
     return success ? 0 : 1;
 }
 

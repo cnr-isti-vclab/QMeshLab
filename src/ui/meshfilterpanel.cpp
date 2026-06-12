@@ -969,6 +969,10 @@ void MeshFilterPanel::buildUi()
 #endif
     headerLayout->addWidget(m_resetParametersButton, 0, Qt::AlignTop);
     headerLayout->addWidget(m_applyButton, 0, Qt::AlignTop);
+    m_applyToAllVisible = new QCheckBox(tr("All"), m_parametersPage);
+    m_applyToAllVisible->setToolTip(tr("Apply to all visible meshes"));
+    m_applyToAllVisible->hide();
+    headerLayout->addWidget(m_applyToAllVisible, 0, Qt::AlignTop);
     paramsPageLayout->addLayout(headerLayout);
 
     m_filterDescriptionLabel = new QLabel(m_parametersPage);
@@ -1132,6 +1136,25 @@ void MeshFilterPanel::onApplyClicked()
         return;
 
     const MeshFilterParameterValues parameters = collectCurrentParameterValues();
+
+    if (m_applyToAllVisible && m_applyToAllVisible->isChecked()) {
+        const int prevCurrent = m_doc->currentMeshIndex();
+        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
+            if (!m_doc->mesh(mi).visible) continue;
+            {
+                const QSignalBlocker blocker(m_doc);
+                m_doc->setCurrentMeshIndex(mi);
+            }
+            QString err;
+            if (!m_doc->validateFilterInvocation(m_currentFilterKey, parameters, err))
+                continue;
+            m_filterParameterCache.insert(m_currentFilterKey, parameters);
+            m_doc->runFilter(m_currentFilterKey, parameters);
+        }
+        m_doc->setCurrentMeshIndex(prevCurrent);
+        return;
+    }
+
     QString applicabilityError;
     if (!m_doc->validateFilterInvocation(m_currentFilterKey, parameters, applicabilityError))
         return;
@@ -1708,6 +1731,10 @@ void MeshFilterPanel::refreshCurrentFilterApplicability()
         m_applyButton->setToolTip(tr("Unavailable: %1").arg(reason));
     }
     m_applyButton->setEnabled(applicable);
+    if (m_applyToAllVisible)
+        m_applyToAllVisible->setVisible(
+            applicable && info->descriptor.inputDomain == MeshFilterInputDomain::SingleMesh
+                         && m_doc->meshCount() > 1);
 }
 
 MeshFilterParameterValues MeshFilterPanel::collectCurrentParameterValues() const

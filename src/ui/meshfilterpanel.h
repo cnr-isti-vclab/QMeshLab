@@ -117,6 +117,7 @@ private:
     QToolButton *m_longDescriptionToggle = nullptr;
     QTextBrowser *m_longDescriptionView = nullptr;
     QCheckBox *m_showAdvancedCheck = nullptr;
+    QCheckBox *m_applyToAllVisible = nullptr;
     QScrollArea *m_parametersScroll = nullptr;
     QWidget *m_parametersWidget = nullptr;
     QFormLayout *m_parametersLayout = nullptr;
