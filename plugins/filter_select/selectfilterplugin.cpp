@@ -338,58 +338,24 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterDeleteAllFaces)) {
-        const bool allLayers = params.getBool(QStringLiteral("allLayers"));
-        int changedLayers = 0;
-        int totalDeletedFaces = 0;
-        QStringList info;
-
-        if (allLayers) {
-            for (int i = 0; i < doc.meshCount(); ++i) {
-                Document::MeshEntry &layer = doc.mesh(i);
-                if (!layer.visible)
-                    continue;
-                VCGMesh &layerMesh = layer.mesh;
-                const int before = layerMesh.FN();
-                if (before <= 0)
-                    continue;
-                for (VCGFace &f : layerMesh.face) {
-                        vcg::tri::Allocator<VCGMesh>::DeleteFace(layerMesh, f);
-                }
-                updateGeometryAfterDeletion(layerMesh);
-                doc.markMeshGeometryChanged(
-                    i,
-                    QObject::tr("Deleted all faces from '%1'.").arg(layer.name));
-                const int deleted = before - layerMesh.FN();
-                totalDeletedFaces += deleted;
-                ++changedLayers;
-                info.push_back(
-                    QObject::tr("Layer '%1': deleted %2 faces.")
-                        .arg(layer.name)
-                        .arg(deleted));
-            }
-        } else {
-            const int before = mesh.FN();
-            if (before > 0) {
-                for (VCGFace &f : mesh.face) {
-                        vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, f);
-                }
-                updateGeometryAfterDeletion(mesh);
-                doc.markMeshGeometryChanged(
-                    meshIndex,
-                    QObject::tr("Deleted all faces from '%1'.").arg(entry.name));
-                const int deleted = before - mesh.FN();
-                totalDeletedFaces = deleted;
-                changedLayers = 1;
-                info.push_back(QObject::tr("Deleted all %1 faces.").arg(deleted));
-            }
-        }
-
         MeshFilterRunResult result;
         result.success = true;
-        result.documentModified = (changedLayers > 0);
-        if (changedLayers == 0)
-            info.push_back(QObject::tr("Nothing done: no faces found in target layers."));
-        result.infoMessages = info;
+        const int before = mesh.FN();
+        if (before <= 0) {
+            result.documentModified = false;
+            result.infoMessages = { QObject::tr("Nothing done: no faces found in current mesh.") };
+            return result;
+        }
+
+        for (VCGFace &f : mesh.face)
+            vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, f);
+        updateGeometryAfterDeletion(mesh);
+        doc.markMeshGeometryChanged(
+            meshIndex,
+            QObject::tr("Deleted all faces from '%1'.").arg(entry.name));
+
+        result.documentModified = true;
+        result.infoMessages = { QObject::tr("Deleted all %1 faces.").arg(before - mesh.FN()) };
         return result;
     }
 

@@ -364,24 +364,15 @@
       "name": "Delete ALL Faces",
       "pythonName": "delete_all_faces",
       "shortDescription": "Delete all faces, turning mesh into point cloud.",
-      "longDescriptionMarkdown": "Delete ALL faces, turning the mesh into a pointcloud. May be applied also to all visible layers.",
+      "longDescriptionMarkdown": "Delete ALL faces, turning the mesh into a pointcloud.",
       "tags": [
         "selection",
         "delete",
         "face"
       ],
-      "inputDomain": "WholeDocument",
+      "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "parameters": [
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "If true, filter is applied to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        }
-      ],
+      "parameters": [],
       "outputModifies": [
         "FV"
       ]

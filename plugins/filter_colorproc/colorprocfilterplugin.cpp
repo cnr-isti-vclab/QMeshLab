@@ -369,35 +369,18 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterLevels)) {
-        auto applyLevels = [&](Document::MeshEntry &targetEntry) {
-            vcg::tri::UpdateColor<VCGMesh>::PerVertexLevels(
-                targetEntry.mesh,
-                Scalar(params.getDouble(QStringLiteral("gamma"), 1.0)),
-                Scalar(params.getDouble(QStringLiteral("in_min"), 0.0) / 255.0),
-                Scalar(params.getDouble(QStringLiteral("in_max"), 255.0) / 255.0),
-                Scalar(params.getDouble(QStringLiteral("out_min"), 0.0) / 255.0),
-                Scalar(params.getDouble(QStringLiteral("out_max"), 255.0) / 255.0),
-                rgbMaskFromParams(params),
-                params.getBool(QStringLiteral("onSelected"), false));
-            ensureVertexColor(targetEntry);
-        };
-
-        QStringList touched;
-        if (params.getBool(QStringLiteral("apply_to_all"), false)) {
-            for (int i = 0; i < doc.meshCount(); ++i) {
-                Document::MeshEntry &targetEntry = doc.mesh(i);
-                if (!targetEntry.visible)
-                    continue;
-                applyLevels(targetEntry);
-                markGeometry(doc, i, QObject::tr("Adjusted vertex color levels on '%1'").arg(meshLabel(targetEntry, i)));
-                touched << meshLabel(targetEntry, i);
-            }
-        } else {
-            applyLevels(entry);
-            markGeometry(doc, meshIndex, QObject::tr("Adjusted vertex color levels on '%1'").arg(meshLabel(entry, meshIndex)));
-            touched << meshLabel(entry, meshIndex);
-        }
-        return success({ QObject::tr("Adjusted color levels on %1 mesh layer(s).").arg(touched.size()) });
+        vcg::tri::UpdateColor<VCGMesh>::PerVertexLevels(
+            mesh,
+            Scalar(params.getDouble(QStringLiteral("gamma"), 1.0)),
+            Scalar(params.getDouble(QStringLiteral("in_min"), 0.0) / 255.0),
+            Scalar(params.getDouble(QStringLiteral("in_max"), 255.0) / 255.0),
+            Scalar(params.getDouble(QStringLiteral("out_min"), 0.0) / 255.0),
+            Scalar(params.getDouble(QStringLiteral("out_max"), 255.0) / 255.0),
+            rgbMaskFromParams(params),
+            params.getBool(QStringLiteral("onSelected"), false));
+        ensureVertexColor(entry);
+        markGeometry(doc, meshIndex, QObject::tr("Adjusted vertex color levels on '%1'").arg(meshLabel(entry, meshIndex)));
+        return success({ QObject::tr("Adjusted color levels on current mesh.") });
     }
 
     if (filterId == QString::fromLatin1(kFilterColourisation)) {
@@ -723,20 +706,10 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterMeshToFace)) {
-        const bool allVisible = params.getBool(QStringLiteral("allVisibleMesh"), false);
-        int changed = 0;
-        for (int i = 0; i < doc.meshCount(); ++i) {
-            if (!allVisible && i != meshIndex)
-                continue;
-            Document::MeshEntry &targetEntry = doc.mesh(i);
-            if (allVisible && !targetEntry.visible)
-                continue;
-            vcg::tri::UpdateColor<VCGMesh>::PerFaceConstant(targetEntry.mesh, targetEntry.mesh.C());
-            ensureFaceColor(targetEntry);
-            markGeometry(doc, i, QObject::tr("Transferred mesh color to faces on '%1'").arg(meshLabel(targetEntry, i)));
-            ++changed;
-        }
-        return success({ QObject::tr("Transferred mesh colors to faces on %1 mesh layer(s).").arg(changed) });
+        vcg::tri::UpdateColor<VCGMesh>::PerFaceConstant(mesh, mesh.C());
+        ensureFaceColor(entry);
+        markGeometry(doc, meshIndex, QObject::tr("Transferred mesh color to faces on '%1'").arg(meshLabel(entry, meshIndex)));
+        return success({ QObject::tr("Transferred mesh color to faces on current mesh.") });
     }
 
     if (filterId == QString::fromLatin1(kFilterVertexToFace)) {

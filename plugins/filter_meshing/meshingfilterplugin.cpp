@@ -180,7 +180,6 @@ constexpr QLatin1StringView kIdVAttrSeam("meshing_vertex_attribute_seam");
 constexpr QLatin1StringView kIdLS3Loop("meshing_surface_subdivision_ls3_loop");
 
 struct TransformOptions {
-    bool allLayers = false;
     bool freeze = true;
 };
 
@@ -316,26 +315,24 @@ void applyTransform(
     QVector<int> &touched)
 {
     touched.clear();
-    for (int i = 0; i < doc.meshCount(); ++i) {
-        Document::MeshEntry &entry = doc.mesh(i);
-        if (opt.allLayers && !entry.visible)
-            continue;
-        if (!opt.allLayers && i != doc.currentMeshIndex())
-            continue;
-        // Compose the new filter matrix on top of the existing per-mesh transform.
-        const QMatrix4x4 combined = vcgToQt(tr) * entry.transform;
-        if (opt.freeze) {
-            // Bake the combined transform into vertex positions, then reset the matrix.
-            applyTransformToMesh(entry.mesh, qtToVcg(combined));
-            QMatrix4x4 identity;
-            identity.setToIdentity();
-            doc.setMeshTransform(i, identity);
-        } else {
-            // Store the composed matrix for rendering without touching vertex data.
-            doc.setMeshTransform(i, combined);
-        }
-        touched.push_back(i);
+    const int i = doc.currentMeshIndex();
+    if (i < 0 || i >= doc.meshCount())
+        return;
+
+    Document::MeshEntry &entry = doc.mesh(i);
+    // Compose the new filter matrix on top of the existing per-mesh transform.
+    const QMatrix4x4 combined = vcgToQt(tr) * entry.transform;
+    if (opt.freeze) {
+        // Bake the combined transform into vertex positions, then reset the matrix.
+        applyTransformToMesh(entry.mesh, qtToVcg(combined));
+        QMatrix4x4 identity;
+        identity.setToIdentity();
+        doc.setMeshTransform(i, identity);
+    } else {
+        // Store the composed matrix for rendering without touching vertex data.
+        doc.setMeshTransform(i, combined);
     }
+    touched.push_back(i);
 }
 
 void quadricSimplification(
@@ -775,7 +772,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
         auto makeTransformOptions = [&]() {
             TransformOptions o;
-            o.allLayers = params.getBool(QStringLiteral("allLayers"));
             o.freeze = params.getBool(QStringLiteral("Freeze"));
             return o;
         };
@@ -987,9 +983,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         }
 
         if (filterId == QString::fromLatin1(kIdScale)) {
-            vcg::Box3f sb = params.getBool(QStringLiteral("allLayers"))
-                ? sceneBBox(doc, true)
-                : mesh.bbox;
+            vcg::Box3f sb = mesh.bbox;
 
             float sx = float(params.getDouble(QStringLiteral("axisX")));
             float sy = float(params.getDouble(QStringLiteral("axisY")));
@@ -1022,69 +1016,39 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
         if (filterId == QString::fromLatin1(kIdReset)) {
             // Reset the per-mesh transform to the identity matrix.
-            const bool allLayers = params.getBool(QStringLiteral("allLayers"));
             QMatrix4x4 identity;
             identity.setToIdentity();
-            int count = 0;
-            for (int i = 0; i < doc.meshCount(); ++i) {
-                const Document::MeshEntry &e = doc.mesh(i);
-                if (allLayers && !e.visible)
-                    continue;
-                if (!allLayers && i != ci)
-                    continue;
-                doc.setMeshTransform(i, identity);
-                ++count;
-            }
-            return success(count > 0, { QObject::tr("Transform reset on %1 layer(s).").arg(count) });
+            doc.setMeshTransform(ci, identity);
+            return success(true, { QObject::tr("Transform reset on current layer.") });
         }
 
         if (filterId == QString::fromLatin1(kIdFreeze)) {
             // Bake the current per-mesh transform into vertex positions and reset to identity.
-            const bool allLayers = params.getBool(QStringLiteral("allLayers"));
             QMatrix4x4 identity;
             identity.setToIdentity();
-            int count = 0;
-            for (int i = 0; i < doc.meshCount(); ++i) {
-                Document::MeshEntry &e = doc.mesh(i);
-                if (allLayers && !e.visible)
-                    continue;
-                if (!allLayers && i != ci)
-                    continue;
-                applyTransformToMesh(e.mesh, qtToVcg(e.transform));
-                doc.setMeshTransform(i, identity);
-                markGeometry(i, QObject::tr("Freeze transform on '%1'").arg(e.name));
-                ++count;
-            }
-            return success(count > 0, { QObject::tr("Transform frozen to vertices on %1 layer(s).").arg(count) });
+            applyTransformToMesh(mesh, qtToVcg(entry.transform));
+            doc.setMeshTransform(ci, identity);
+            markGeometry(ci, QObject::tr("Freeze transform on '%1'").arg(entry.name));
+            return success(true, { QObject::tr("Transform frozen to vertices on current layer.") });
         }
 
         if (filterId == QString::fromLatin1(kIdInvertTr)) {
             // Invert the current per-mesh transform matrix.
-            const bool allLayers = params.getBool(QStringLiteral("allLayers"));
             const bool freeze = params.getBool(QStringLiteral("Freeze"));
             QMatrix4x4 identity;
             identity.setToIdentity();
-            int count = 0;
-            for (int i = 0; i < doc.meshCount(); ++i) {
-                Document::MeshEntry &e = doc.mesh(i);
-                if (allLayers && !e.visible)
-                    continue;
-                if (!allLayers && i != ci)
-                    continue;
-                bool invertible = false;
-                const QMatrix4x4 inv = e.transform.inverted(&invertible);
-                if (!invertible)
-                    continue;
-                if (freeze) {
-                    applyTransformToMesh(e.mesh, qtToVcg(inv));
-                    doc.setMeshTransform(i, identity);
-                    markGeometry(i, QObject::tr("Invert and freeze transform on '%1'").arg(e.name));
-                } else {
-                    doc.setMeshTransform(i, inv);
-                }
-                ++count;
+            bool invertible = false;
+            const QMatrix4x4 inv = entry.transform.inverted(&invertible);
+            if (!invertible)
+                return fail(QObject::tr("Current transform matrix is not invertible."));
+            if (freeze) {
+                applyTransformToMesh(mesh, qtToVcg(inv));
+                doc.setMeshTransform(ci, identity);
+                markGeometry(ci, QObject::tr("Invert and freeze transform on '%1'").arg(entry.name));
+            } else {
+                doc.setMeshTransform(ci, inv);
             }
-            return success(count > 0, { QObject::tr("Transform inverted on %1 layer(s).").arg(count) });
+            return success(true, { QObject::tr("Transform inverted on current layer.") });
         }
 
         if (filterId == QString::fromLatin1(kIdSetParams)) {

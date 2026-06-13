@@ -835,14 +835,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [
@@ -976,14 +968,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [
@@ -1072,14 +1056,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [
@@ -1120,14 +1096,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [
@@ -1241,14 +1209,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [
@@ -1330,14 +1290,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [
@@ -1359,16 +1311,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "parameters": [
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        }
-      ],
+      "parameters": [],
       "outputModifies": [
         "TM"
       ]
@@ -1385,16 +1328,7 @@
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
-      "parameters": [
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        }
-      ],
+      "parameters": [],
       "outputModifies": [
         "TM",
         "VG",
@@ -1422,14 +1356,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [
@@ -1566,14 +1492,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [
@@ -1787,14 +1705,6 @@
           "group": "main",
           "type": "bool",
           "default": true
-        },
-        {
-          "id": "allLayers",
-          "label": "Apply to all visible Layers",
-          "help": "Apply to all visible mesh layers.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         }
       ],
       "outputModifies": [

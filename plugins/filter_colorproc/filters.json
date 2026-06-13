@@ -92,8 +92,7 @@
         { "id": "rCh", "label": "Red Channel", "help": "Apply to red channel.", "group": "advanced", "type": "bool", "default": true },
         { "id": "gCh", "label": "Green Channel", "help": "Apply to green channel.", "group": "advanced", "type": "bool", "default": true },
         { "id": "bCh", "label": "Blue Channel", "help": "Apply to blue channel.", "group": "advanced", "type": "bool", "default": true },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "apply_to_all", "label": "All visible layers", "help": "If true, apply to all visible layers.", "group": "advanced", "type": "bool", "default": false }
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "advanced", "type": "bool", "default": false }
       ],
       "outputModifies": ["VC"]
     },
@@ -525,9 +524,7 @@
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireFaces": true },
-      "parameters": [
-        { "id": "allVisibleMesh", "label": "Apply to all Meshes", "help": "If true the color mapping is applied to all the visible meshes.", "group": "main", "type": "bool", "default": false }
-      ],
+      "parameters": [],
       "outputModifies": ["FC"]
     },
     {
