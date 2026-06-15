@@ -24,12 +24,14 @@
 
 class MeshIOPluginManager;
 class MeshFilterPluginManager;
+class DocumentUndoManager;
 class QRhi;
 class QRhiCommandBuffer;
 
 class Document : public QObject
 {
     Q_OBJECT
+    friend class DocumentUndoManager;
 public:
     enum class LogSource {
         Application,
@@ -244,9 +246,9 @@ public:
     bool redo();
     void clearUndoHistory();
     void clearAllLayers();
-    int undoLimit() const { return m_undoLimit; }
+    int undoLimit() const;
     void setUndoLimit(int limit);
-    void setSuppressUndo(bool s) { m_suppressUndo = s; }
+    void setSuppressUndo(bool s);
     int addMesh(const VCGMesh &mesh, const QString &name = {}, int ioMask = 0);
     void removeMesh(int index);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
@@ -440,22 +442,60 @@ private:
         ViewState viewState;
     };
 
+    struct UndoActionRecord {
+        QString kind;       // "filter", "load_mesh", "load_raster", "save_mesh", "load_project", ...
+        QString filterKey;  // fully qualified filter key for filter actions
+        QVariantMap params; // normalized parameter values used for this action
+        QStringList filePaths;
+
+        static UndoActionRecord fromScriptAction(const ScriptAction &action)
+        {
+            UndoActionRecord record;
+            record.kind = action.kind;
+            record.filterKey = action.filterKey;
+            record.params = action.params;
+            record.filePaths = action.filePaths;
+            return record;
+        }
+
+        ScriptAction toScriptAction() const
+        {
+            ScriptAction action;
+            action.kind = kind;
+            action.filterKey = filterKey;
+            action.params = params;
+            action.filePaths = filePaths;
+            return action;
+        }
+    };
+
+    enum class UndoStorageKind {
+        FullSnapshot,
+        Delta
+    };
+
     // Tree-shaped undo history. Each node in m_undoNodes holds a full document
-    // snapshot plus linkage (parentId, children, preferredChild).
+    // restoration payload plus linkage (parentId, children, preferredChild).
+    // The payload is currently a full snapshot.  The storageKind/actionRecord
+    // fields make the next step explicit: low-cost actions can later store
+    // compact deltas while still preserving the exact operation parameters.
     // Node 0 is always the "before" root (initial state when recording started).
     // m_undoCurrentNode is the id of the node that represents the current live state.
     // When a new action is committed, a new child is appended to the current node
     // instead of truncating siblings — so alternate timelines are preserved.
     struct UndoNode {
         UndoState state;
+        UndoStorageKind storageKind = UndoStorageKind::FullSnapshot;
         QString   label;         // label of the action that led INTO this node ("" for root)
         int       parentId = -1; // index into m_undoNodes (-1 for root)
         int       lane = 0;      // display lane assigned at creation time
         std::vector<int> children;
         int       preferredChild = -1; // which child to follow on redo() (-1 = none)
 
-        // Optional script action: stores filter key, parameters, and file paths
-        std::optional<ScriptAction> scriptAction;
+        // Optional action metadata.  Filter actions store the normalized
+        // parameter map here so an undo path is not only restorable, but also
+        // regenerable/replayable with the exact same invocation.
+        std::optional<UndoActionRecord> actionRecord;
     };
 
     enum class CallbackMode {
@@ -467,10 +507,6 @@ private:
 
     UndoState captureUndoState() const;
     void restoreUndoState(const UndoState &state);
-    void pushUndoStep(const QString &label, UndoState &&before, UndoState &&after,
-                      std::optional<ScriptAction> scriptAction = {});
-    void pruneUndoTreeToLimit();
-    void emitUndoRedoStateChanged();
     vcg::CallBackPos *logCallback();
     bool handleLogCallback(int pos, const char *message);
     static bool dispatchLogCallback(int pos, const char *message);
@@ -502,24 +538,7 @@ private:
     qint64 m_loadProcessEventsNs = 0;
     qint64 m_lastProgressEmitMs = -1;
     qint64 m_lastProcessEventsMs = -1;
-    // Interning cache for undo geometry objects, keyed by (meshId, geometryRevision).
-    // Maps to a weak_ptr so the cache never artificially extends the lifetime of a
-    // geometry beyond the checkpoints that reference it — entries expire automatically
-    // when the last referencing checkpoint is dropped (e.g. after undo-limit eviction).
-    mutable std::map<std::pair<std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>>
-        m_undoGeometryCache;
-
-    std::vector<UndoNode> m_undoNodes;   // flat arena; index == node id
-    int m_undoCurrentNode = -1;          // id of the node representing live state (-1 = no history)
-    int m_undoLimit = 20;
-    bool m_undoStepActive = false;
-    QString m_undoStepLabel;
-    std::optional<ScriptAction> m_pendingScriptAction;
-    std::optional<UndoState> m_pendingUndoBefore;
-    bool m_restoringUndoRedo = false;
-    bool m_suppressUndo = false;
-    bool m_suppressUndoRedoSignals = false;
-    bool m_restoreCamera = true;
+    std::unique_ptr<DocumentUndoManager> m_undoManager;
     CallbackMode m_callbackMode = CallbackMode::None;
     std::atomic<bool> m_cancelRequested = false;
     std::function<ViewState()> m_captureViewState;

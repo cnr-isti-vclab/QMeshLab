@@ -36,6 +36,18 @@ endif()
 add_library(QMeshLabCore STATIC
     src/core/camerashot.h src/core/camerashot.cpp
     src/core/document.h src/core/document.cpp
+    src/core/document_internal.h src/core/document_internal.cpp
+    src/core/documentundomanager.h src/core/documentundomanager.cpp
+    src/core/document_filters.cpp
+    src/core/document_gpu.cpp
+    src/core/document_io.cpp
+    src/core/document_layers.cpp
+    src/core/document_logging.cpp
+    src/core/document_memory.cpp
+    src/core/document_project.cpp
+    src/core/document_textures.cpp
+    src/core/document_undo.cpp
+    src/core/document_undo_state.cpp
     src/core/filterparam.h src/core/filterparam.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
     src/core/vcgmesh.h
@@ -49,7 +61,7 @@ add_library(QMeshLabCore STATIC
     src/render/meshgpuresourcecache.h src/render/meshgpuresourcecache.cpp
     src/render/renderingsettings.h
     src/render/viewstate.h
-    src/render/viewtrackball.h
+    src/render/viewtrackball.h src/render/viewtrackball.cpp
 )
 
 target_include_directories(QMeshLabCore PUBLIC
@@ -100,7 +112,7 @@ qt_add_executable(QMeshLab
     src/render/renderwidget_render.cpp
     src/render/renderwidget_raster.cpp
     src/render/renderwidget_uv.cpp
-    src/render/viewtrackball.h src/render/viewtrackball.cpp
+    src/render/viewtrackball.h
     src/render/viewstate.h
     src/render/renderoverlaypanel.h src/render/renderoverlaypanel.cpp
     src/ui/layerwidget.h src/ui/layerwidget.cpp
