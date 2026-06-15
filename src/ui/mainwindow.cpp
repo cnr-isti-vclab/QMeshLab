@@ -1236,26 +1236,18 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
-        if (m_filterPanel)
-            m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::rasterRemoved, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
-        if (m_filterPanel)
-            m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::currentRasterChanged, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
-        if (m_filterPanel)
-            m_filterPanel->reloadFilters();
     });
     connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
         refreshFiltersMenu();
-        if (m_filterPanel)
-            m_filterPanel->reloadFilters();
     });
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
@@ -1652,11 +1644,9 @@ void MainWindow::newDocument()
         if (answer != QMessageBox::Yes)
             return;
     }
-    // Remove from back to keep indices valid while emitting meshRemoved/currentMeshChanged.
-    while (m_doc->rasterCount() > 0)
-        m_doc->removeRaster(m_doc->rasterCount() - 1);
-    while (m_doc->meshCount() > 0)
-        m_doc->removeMesh(m_doc->meshCount() - 1);
+    m_doc->setSuppressUndo(true);
+    m_doc->clearAllLayers();
+    m_doc->setSuppressUndo(false);
     m_doc->clearUndoHistory();
     m_doc->clearLog();
     statusBar()->showMessage(tr("New document"), 2000);

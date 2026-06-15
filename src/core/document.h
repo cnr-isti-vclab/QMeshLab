@@ -243,8 +243,10 @@ public:
     bool undo();
     bool redo();
     void clearUndoHistory();
+    void clearAllLayers();
     int undoLimit() const { return m_undoLimit; }
     void setUndoLimit(int limit);
+    void setSuppressUndo(bool s) { m_suppressUndo = s; }
     int addMesh(const VCGMesh &mesh, const QString &name = {}, int ioMask = 0);
     void removeMesh(int index);
     int duplicateMesh(int sourceIndex, const QString &newName = {});
@@ -515,6 +517,7 @@ private:
     std::optional<ScriptAction> m_pendingScriptAction;
     std::optional<UndoState> m_pendingUndoBefore;
     bool m_restoringUndoRedo = false;
+    bool m_suppressUndo = false;
     bool m_suppressUndoRedoSignals = false;
     bool m_restoreCamera = true;
     CallbackMode m_callbackMode = CallbackMode::None;

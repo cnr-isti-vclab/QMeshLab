@@ -1466,7 +1466,7 @@ void Document::beginUndoStep(
     const QString &label,
     const ScriptAction &scriptAction)
 {
-    if (m_restoringUndoRedo || m_undoStepActive)
+    if (m_restoringUndoRedo || m_undoStepActive || m_suppressUndo)
         return;
 
     m_undoStepActive = true;
@@ -2110,6 +2110,8 @@ Document::UndoState Document::captureUndoState() const
 
 void Document::restoreUndoState(const UndoState &state)
 {
+    const bool prevRestoring = m_restoringUndoRedo;
+    m_restoringUndoRedo = true;
     {
         qDebug() << "[STATE RESTORE] current=" << m_undoCurrentNode
                  << " total nodes=" << static_cast<int>(m_undoNodes.size());
@@ -2252,8 +2254,6 @@ void Document::restoreUndoState(const UndoState &state)
     {
         // Suppress index/layer-change signals during undo restore —
         // the meshAdded batch above already notifies all views.
-        const bool prevRestoring = m_restoringUndoRedo;
-        m_restoringUndoRedo = true;
         qint64 sigMs = 0, visMs = 0, vsMs = 0;
         {
             QElapsedTimer t2; t2.start();
@@ -3120,6 +3120,19 @@ void Document::removeRaster(int index)
 
     if (ownUndoStep)
         endUndoStep(true);
+}
+
+void Document::clearAllLayers()
+{
+    for (const auto &entry : m_meshes)
+        purgeMeshGpuResources(entry->meshId);
+    m_meshes.clear();
+    m_rasters.clear();
+    m_currentMeshIndex = -1;
+    m_currentRasterIndex = -1;
+    m_currentLayerKind = CurrentLayerKind::None;
+    emit meshRemoved(-1);
+    emit rasterRemoved(-1);
 }
 
 QMatrix4x4 Document::meshTransform(int index) const
