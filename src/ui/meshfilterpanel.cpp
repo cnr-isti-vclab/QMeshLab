@@ -950,11 +950,11 @@ void MeshFilterPanel::buildUi()
         const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
         if (!info)
             return;
-        const char *pyName = info->descriptor.effectivePythonName().toStdString().c_str();
+        const QString pyName = info->descriptor.effectivePythonName();
         const MeshFilterParameterValues vals = collectCurrentParameterValues();
         const QStringList args = nonDefaultFilterParamsToPython(info->descriptor, vals);
         const QString code = QStringLiteral("ms.%1(%2)").arg(
-            QString::fromUtf8(pyName), args.join(QStringLiteral(", ")));
+            pyName, args.join(QStringLiteral(", ")));
         emit copyToConsoleRequested(code);
     });
 #endif
