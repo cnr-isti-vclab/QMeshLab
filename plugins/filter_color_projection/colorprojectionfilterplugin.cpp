@@ -173,7 +173,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
         const CameraShot &shot = re.shot;
         if (!shot.isValid()) return fail(QObject::tr("Invalid camera."));
         if (re.planes.empty()) return fail(QObject::tr("No planes."));
-        Document::RasterPlane *rp = re.currentPlane();
+        RasterPlane *rp = re.currentPlane();
         if (!rp) return fail(QObject::tr("No plane."));
         Document::ensureRasterPlaneImage(*rp);
         if (rp->image.isNull()) return fail(QObject::tr("No image."));
@@ -253,7 +253,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
             Document::RasterEntry &re = doc.raster(ri);
             if (!re.visible || !re.shot.isValid() || re.planes.empty()) { ++ci; continue; }
             const CameraShot &shot = re.shot;
-            Document::RasterPlane *rp = re.currentPlane();
+            RasterPlane *rp = re.currentPlane();
             if (!rp) { ++ci; continue; }
             Document::ensureRasterPlaneImage(*rp);
             if (!rp->hasImage()) { ++ci; continue; }
@@ -388,7 +388,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
             Document::RasterEntry &re = doc.raster(ri);
             if (!re.visible || !re.shot.isValid() || re.planes.empty()) { ++ci; continue; }
             const CameraShot &shot = re.shot;
-            Document::RasterPlane *rp = re.currentPlane();
+            RasterPlane *rp = re.currentPlane();
             if (!rp) { ++ci; continue; }
             Document::ensureRasterPlaneImage(*rp);
             if (!rp->hasImage()) { ++ci; continue; }

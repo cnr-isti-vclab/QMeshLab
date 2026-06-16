@@ -49,7 +49,7 @@ QSize RenderWidget::currentRasterImageSize() const
         return {};
 
     Document::RasterEntry &entry = m_doc->raster(rasterIndex);
-    if (Document::RasterPlane *plane = entry.currentPlane()) {
+    if (RasterPlane *plane = entry.currentPlane()) {
         Document::ensureRasterPlaneImage(*plane);
         if (!plane->image.isNull())
             return plane->image.size();
@@ -203,7 +203,7 @@ void RenderWidget::ensureRasterResources(
             return;
 
         Document::RasterEntry &entry = m_doc->raster(rasterIndex);
-        Document::RasterPlane *plane = entry.currentPlane();
+        RasterPlane *plane = entry.currentPlane();
         if (!plane)
             return;
         Document::ensureRasterPlaneImage(*plane);

@@ -43,7 +43,7 @@ bool parseFloatList(const QString &text, int expectedCount, std::vector<float> &
 QMatrix4x4 meshLabProjectMatrixToQt(const std::vector<float> &values);
 bool parseIntPair(const QString &text, int &a, int &b);
 bool parseFloatPair(const QString &text, float &a, float &b);
-Document::RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &name);
+RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &name);
 bool parseMeshLabProjectCamera(
     const QXmlStreamAttributes &attrs,
     CameraShot &outShot,
@@ -59,7 +59,7 @@ struct MeshLabProjectMeshEntry {
 struct MeshLabProjectPlaneEntry {
     QString name;
     QString sourcePath;
-    Document::RasterPlaneSemantic semantic = Document::RasterPlaneSemantic::RGBA;
+    RasterPlaneSemantic semantic = RasterPlaneSemantic::RGBA;
 };
 
 struct MeshLabProjectRasterEntry {
@@ -86,13 +86,23 @@ std::vector<MeshIOTextureAsset> buildTextureAssetsFromLegacyAssociation(
     const QStringList &textureFilePaths,
     const std::vector<std::string> &meshTextures);
 void syncTextureAssetsFromLegacyAssociation(Document::MeshEntry &entry);
-QSize rasterPlaneStorageSize(const Document::RasterPlane &plane);
-QString rasterPlaneFallbackName(const Document::RasterPlane &plane, int planeIndex);
+QSize rasterPlaneStorageSize(const RasterPlane &plane);
+QString rasterPlaneFallbackName(const RasterPlane &plane, int planeIndex);
 QString rasterEntryDisplayName(const Document::RasterEntry &entry, int fallbackIndex);
 void normalizeRasterEntry(Document::RasterEntry &entry, int fallbackIndex);
 bool meshNeedsCompaction(const VCGMesh &mesh);
 void compactMeshStorageInvariant(VCGMesh &mesh);
 void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst);
 void deepCopyMesh(const VCGMesh &src, VCGMesh &dst);
+
+// Mesh memory accounting helpers (shared between document_memory.cpp and documentundomanager.cpp)
+template <typename Vector>
+qint64 vectorStorageBytes(const Vector &v)
+{
+    return qint64(v.capacity()) * qint64(sizeof(typename Vector::value_type));
+}
+qint64 vcgVertexOcfBytes(const VCGMesh &mesh);
+qint64 vcgFaceOcfBytes(const VCGMesh &mesh);
+qint64 vcgMeshCpuBytes(const VCGMesh &mesh);
 
 } // namespace DocumentInternal

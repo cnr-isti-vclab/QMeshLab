@@ -114,7 +114,7 @@ int Document::loadMeshLabProject(const QString &filename)
 
         if (addRaster(rasterEntry) >= 0) {
             const qint64 addMs = rt.elapsed();
-            const Document::RasterPlane *p = rasterEntry.currentPlane();
+            const RasterPlane *p = rasterEntry.currentPlane();
             const QSize sz = p ? p->size : QSize();
             writeLog(
                 tr("Raster %1/%2: %3 ms — %4%5")
@@ -293,7 +293,7 @@ bool Document::saveMeshLabProject(
         if (destPath.isEmpty()) continue;
         if (rasterSavePaths[ri].needsCopy) {
             // Save QImage
-            Document::RasterPlane *rp = raster(ri).currentPlane();
+            RasterPlane *rp = raster(ri).currentPlane();
             if (rp) {
                 ensureRasterPlaneImage(*rp);
                 if (!rp->image.isNull()) {

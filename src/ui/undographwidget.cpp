@@ -29,7 +29,7 @@ UndoGraphWidget::UndoGraphWidget(QWidget *parent)
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
-void UndoGraphWidget::setNodes(const QVector<Document::UndoTreeNodeInfo> &nodes,
+void UndoGraphWidget::setNodes(const QVector<UndoTreeNodeInfo> &nodes,
                                int currentNodeId,
                                const QMap<int, QPixmap> &thumbnails)
 {
@@ -57,7 +57,7 @@ void UndoGraphWidget::rebuildRows()
     if (m_nodes.isEmpty())
         return;
 
-    QVector<Document::UndoTreeNodeInfo> sorted = m_nodes;
+    QVector<UndoTreeNodeInfo> sorted = m_nodes;
     // Sort by nodeId descending: nodeIds are assigned sequentially at creation,
     // so this always gives newest-at-top regardless of where the cursor is.
     // Same depth / same time → lower lane first.

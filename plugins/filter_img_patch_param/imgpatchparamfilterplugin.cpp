@@ -959,7 +959,7 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
     for (int ri = 0; ri < doc.rasterCount(); ++ri) {
         auto &re = doc.raster(ri);
         if (re.visible && re.shot.isValid() && !re.planes.empty()) {
-            Document::RasterPlane *rp = re.currentPlane();
+            RasterPlane *rp = re.currentPlane();
             if (rp) {
                 Document::ensureRasterPlaneImage(*rp);
                 if (rp->hasImage()) {

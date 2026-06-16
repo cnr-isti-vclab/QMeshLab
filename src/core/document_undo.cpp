@@ -15,6 +15,13 @@ void Document::beginUndoStep(
     m_undoManager->beginStep(label, scriptAction);
 }
 
+void Document::beginUndoStep(
+    const QString &label,
+    int meshIndexForSelectionDelta)
+{
+    m_undoManager->beginDeltaStep(label, meshIndexForSelectionDelta);
+}
+
 void Document::endUndoStep(bool commit, bool restoreOnCancel)
 {
     m_undoManager->endStep(commit, restoreOnCancel);
@@ -36,6 +43,12 @@ void Document::setViewStateFunctions(
 {
     m_captureViewState = std::move(capture);
     m_restoreViewState = std::move(restore);
+}
+
+void Document::restoreViewState(const ViewState &state, bool restoreCamera)
+{
+    if (m_restoreViewState)
+        m_restoreViewState(state, restoreCamera);
 }
 
 void Document::setRenderStateSnapshotFunction(
@@ -113,7 +126,7 @@ int Document::undoCurrentNodeId() const
     return m_undoManager->currentNodeId();
 }
 
-std::vector<Document::UndoTreeNodeInfo> Document::undoTreeInfo() const
+std::vector<UndoTreeNodeInfo> Document::undoTreeInfo() const
 {
     return m_undoManager->undoTreeInfo();
 }
@@ -168,7 +181,7 @@ void Document::setSuppressUndo(bool s)
     m_undoManager->setSuppressUndo(s);
 }
 
-std::optional<Document::ScriptAction> Document::undoNodeScriptAction(int nodeId) const
+std::optional<ScriptAction> Document::undoNodeScriptAction(int nodeId) const
 {
     return m_undoManager->nodeScriptAction(nodeId);
 }

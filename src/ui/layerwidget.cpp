@@ -571,7 +571,7 @@ QString rasterCameraTooltip(const Document::RasterEntry &entry)
     return lines.join(QLatin1Char('\n'));
 }
 
-QString rasterPlaneSummary(const Document::RasterPlane &plane)
+QString rasterPlaneSummary(const RasterPlane &plane)
 {
     QString summary = rasterSizeText(plane.size);
     const QString sourcePath = Document::rasterPlaneSourcePath(plane);
@@ -583,7 +583,7 @@ QString rasterPlaneSummary(const Document::RasterPlane &plane)
 QString rasterDataSummary(const Document::RasterEntry &entry)
 {
     QStringList tokens;
-    const Document::RasterPlane *plane = entry.currentPlane();
+    const RasterPlane *plane = entry.currentPlane();
     if (plane)
         tokens << rasterSizeText(plane->size);
     tokens << QObject::tr("PL %1").arg(entry.planes.size());
@@ -778,7 +778,7 @@ QWidget *textureInfoWidget(
 
 QWidget *rasterPlaneInfoWidget(
     QTreeWidget *owner,
-    const Document::RasterPlane &plane,
+    const RasterPlane &plane,
     int planeIndex,
     const QFontMetrics &fm)
 {
@@ -1055,7 +1055,7 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
         QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
     });
-    connect(m_doc, &Document::currentLayerChanged, this, [this](Document::CurrentLayerKind, int) {
+    connect(m_doc, &Document::currentLayerChanged, this, [this](CurrentLayerKind, int) {
         QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
@@ -1272,7 +1272,7 @@ void LayerWidget::rebuildTree()
             if (!meshSelectedKey.isEmpty() && meshSelectedKey == itemKey)
                 meshCurrentItem = item;
             if (!meshCurrentItem
-                && m_doc->currentLayerKind() == Document::CurrentLayerKind::Mesh
+                && m_doc->currentLayerKind() == CurrentLayerKind::Mesh
                 && i == m_doc->currentMeshIndex()) {
                 meshCurrentItem = item;
             }
@@ -1306,7 +1306,7 @@ void LayerWidget::rebuildTree()
             item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
             item->setFirstColumnSpanned(true);
 
-            const Document::RasterPlane *currentPlane = entry.currentPlane();
+            const RasterPlane *currentPlane = entry.currentPlane();
             const QString sizeText = currentPlane ? rasterSizeText(currentPlane->size) : tr("unknown");
 
             auto *imageItem = new QTreeWidgetItem(
@@ -1324,7 +1324,7 @@ void LayerWidget::rebuildTree()
             item->addChild(cameraItem);
 
             for (int planeIndex = 0; planeIndex < int(entry.planes.size()); ++planeIndex) {
-                const Document::RasterPlane &plane = entry.planes[size_t(planeIndex)];
+                const RasterPlane &plane = entry.planes[size_t(planeIndex)];
                 auto *planeItem = new QTreeWidgetItem({QString(), tr("Plane %1").arg(planeIndex), QString()});
                 planeItem->setData(0, kRolePlaneIndex, planeIndex);
                 planeItem->setFlags((planeItem->flags() | Qt::ItemIsSelectable | Qt::ItemIsEnabled)
@@ -1359,7 +1359,7 @@ void LayerWidget::rebuildTree()
             if (!rasterSelectedKey.isEmpty() && rasterSelectedKey == itemKey)
                 rasterCurrentItem = item;
             if (!rasterCurrentItem
-                && m_doc->currentLayerKind() == Document::CurrentLayerKind::Raster
+                && m_doc->currentLayerKind() == CurrentLayerKind::Raster
                 && i == m_doc->currentRasterIndex()) {
                 rasterCurrentItem = item;
             }
@@ -1493,7 +1493,7 @@ void LayerWidget::rebuildTable()
             m_rasterTable->setItem(i, 0, eyeItem);
 
             // Thumb column (1)
-            const Document::RasterPlane *plane = entry.currentPlane();
+            const RasterPlane *plane = entry.currentPlane();
             const QString sourcePath = plane ? Document::rasterPlaneSourcePath(*plane) : QString();
             const QImage planeImg = plane ? plane->image : QImage();
             auto *thumbLabel = new QLabel();
@@ -1725,7 +1725,7 @@ void LayerWidget::savePlaneImage(int rasterIndex, int planeIndex)
     const Document::RasterEntry &entry = m_doc->raster(rasterIndex);
     if (planeIndex < 0 || planeIndex >= int(entry.planes.size()))
         return;
-    const Document::RasterPlane &plane = entry.planes[size_t(planeIndex)];
+    const RasterPlane &plane = entry.planes[size_t(planeIndex)];
     if (plane.image.isNull()) {
         QMessageBox::warning(this, tr("Save Plane Image"), tr("The selected plane has no image data."));
         return;
@@ -1770,7 +1770,7 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
                     [this, rasterIndex = ref.index, planeIndex]() {
                         m_doc->setCurrentRasterPlaneIndex(rasterIndex, planeIndex);
                     });
-                const Document::RasterPlane &plane = entry.planes[size_t(planeIndex)];
+                const RasterPlane &plane = entry.planes[size_t(planeIndex)];
                 QAction *saveAction = menu.addAction(tr("Save Plane Image..."));
                 saveAction->setEnabled(!plane.image.isNull());
                 connect(saveAction, &QAction::triggered, this,
@@ -1788,13 +1788,13 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
         QMenu menu(this);
         QAction *currentAction = menu.addAction(tr("Set Current Raster"));
         currentAction->setEnabled(
-            m_doc->currentLayerKind() != Document::CurrentLayerKind::Raster
+            m_doc->currentLayerKind() != CurrentLayerKind::Raster
             || ref.index != m_doc->currentRasterIndex());
         connect(currentAction, &QAction::triggered, this, [this, index = ref.index]() {
             m_doc->setCurrentRasterIndex(index);
         });
         const Document::RasterEntry &entry = m_doc->raster(ref.index);
-        const Document::RasterPlane *plane = entry.currentPlane();
+        const RasterPlane *plane = entry.currentPlane();
         QAction *saveAction = menu.addAction(tr("Save Current Plane Image..."));
         saveAction->setEnabled(plane != nullptr && !plane->image.isNull());
         connect(saveAction, &QAction::triggered, this,

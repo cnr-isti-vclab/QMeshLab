@@ -3,57 +3,6 @@
 
 using namespace DocumentInternal;
 
-namespace {
-
-template <typename Vector>
-qint64 vectorStorageBytes(const Vector &v)
-{
-    return qint64(v.capacity()) * qint64(sizeof(typename Vector::value_type));
-}
-
-qint64 vcgVertexOcfBytes(const VCGMesh &mesh)
-{
-    return vectorStorageBytes(mesh.vert.CV)
-         + vectorStorageBytes(mesh.vert.CuV)
-         + vectorStorageBytes(mesh.vert.CuDV)
-         + vectorStorageBytes(mesh.vert.MV)
-         + vectorStorageBytes(mesh.vert.NV)
-         + vectorStorageBytes(mesh.vert.QV)
-         + vectorStorageBytes(mesh.vert.RadiusV)
-         + vectorStorageBytes(mesh.vert.TV)
-         + vectorStorageBytes(mesh.vert.AV);
-}
-
-qint64 vcgFaceOcfBytes(const VCGMesh &mesh)
-{
-    return vectorStorageBytes(mesh.face.CV)
-         + vectorStorageBytes(mesh.face.CDV)
-         + vectorStorageBytes(mesh.face.MV)
-         + vectorStorageBytes(mesh.face.NV)
-         + vectorStorageBytes(mesh.face.QV)
-         + vectorStorageBytes(mesh.face.WCV)
-         + vectorStorageBytes(mesh.face.WNV)
-         + vectorStorageBytes(mesh.face.WTV)
-         + vectorStorageBytes(mesh.face.AV)
-         + vectorStorageBytes(mesh.face.AF);
-}
-
-qint64 vcgMeshCpuBytes(const VCGMesh &mesh)
-{
-    return qint64(mesh.vert.capacity()) * sizeof(VCGVertex)
-         + vcgVertexOcfBytes(mesh)
-         + qint64(mesh.edge.capacity()) * sizeof(VCGEdge)
-         + qint64(mesh.face.capacity()) * sizeof(VCGFace)
-         + vcgFaceOcfBytes(mesh);
-}
-
-qint64 meshEntryCpuBytes(const Document::MeshEntry &entry)
-{
-    return vcgMeshCpuBytes(entry.mesh);
-}
-
-} // namespace
-
 std::vector<Document::CpuMeshMemoryStats> Document::cpuMeshMemoryStats() const
 {
     std::vector<CpuMeshMemoryStats> result;
@@ -77,7 +26,7 @@ std::vector<Document::CpuMeshMemoryStats> Document::cpuMeshMemoryStats() const
     return result;
 }
 
-Document::UndoMemoryStats Document::undoMemoryStats() const
+UndoMemoryStats Document::undoMemoryStats() const
 {
     return m_undoManager->memoryStats();
 }

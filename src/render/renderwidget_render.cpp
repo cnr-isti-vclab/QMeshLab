@@ -296,7 +296,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 farPlane = std::max(nearPlane + 0.01f, maxDepth + range * 0.2f);
             }
             proj = rasterEntry->shot.projectionMatrix(nearPlane, farPlane);
-            if (Document::RasterPlane *plane = rasterEntry->currentPlane()) {
+            if (RasterPlane *plane = rasterEntry->currentPlane()) {
                 Document::ensureRasterPlaneImage(*plane);
                 const QSize rasterSize = !plane->image.isNull()
                     ? plane->image.size()

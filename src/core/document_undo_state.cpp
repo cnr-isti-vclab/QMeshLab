@@ -3,7 +3,7 @@
 
 using namespace DocumentInternal;
 
-Document::UndoState Document::captureUndoState() const
+UndoState Document::captureUndoState() const
 {
     UndoState state;
     state.currentMeshIndex = m_currentMeshIndex;
@@ -16,7 +16,7 @@ Document::UndoState Document::captureUndoState() const
         if (!entry)
             continue;
 
-        UndoState::MeshSnapshot snap;
+        MeshSnapshot snap;
         // Copy all cheap metadata by value; this is O(1) for numeric/bool fields
         // and O(n_textures) for the string lists — negligible compared to geometry.
         snap.meshId             = entry->meshId;
@@ -58,7 +58,7 @@ Document::UndoState Document::captureUndoState() const
         if (!entry)
             continue;
 
-        UndoState::RasterSnapshot snap;
+        RasterSnapshot snap;
         snap.rasterId = entry->rasterId;
         snap.imageRevision = entry->imageRevision;
         snap.cameraRevision = entry->cameraRevision;
@@ -173,7 +173,7 @@ void Document::restoreUndoState(const UndoState &state)
         int removed = 0;
         for (int i = rasterCount() - 1; i >= 0; --i) {
             const auto &live = m_rasters[static_cast<size_t>(i)];
-            const auto *snap = [&]() -> const UndoState::RasterSnapshot * {
+            const auto *snap = [&]() -> const RasterSnapshot * {
                 for (const auto &s : state.rasters)
                     if (s.rasterId == live->rasterId) return &s;
                 return nullptr;

@@ -41,7 +41,7 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
         const int currentRasterIndex = m_doc->currentRasterIndex();
         if (currentRasterIndex >= 0 && currentRasterIndex < m_doc->rasterCount()) {
             Document::RasterEntry &entry = m_doc->raster(currentRasterIndex);
-            Document::RasterPlane *plane = entry.currentPlane();
+            RasterPlane *plane = entry.currentPlane();
             if (plane) {
                 Document::ensureRasterPlaneImage(*plane);
                 if (!plane->image.isNull())
@@ -55,7 +55,7 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
     } else {
         for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
             Document::RasterEntry &entry = m_doc->raster(ri);
-            Document::RasterPlane *plane = entry.currentPlane();
+            RasterPlane *plane = entry.currentPlane();
             if (!entry.visible || !plane)
                 continue;
             Document::ensureRasterPlaneImage(*plane);

@@ -101,20 +101,20 @@ bool parseFloatPair(const QString &text, float &a, float &b)
     return ok0 && ok1;
 }
 
-Document::RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &semanticText)
+RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &semanticText)
 {
     const QString semantic = semanticText.trimmed().toLower();
     if (semantic.isEmpty() || semantic == QStringLiteral("rgba") || semantic == QStringLiteral("rgb")
         || semantic == QStringLiteral("image") || semantic == QStringLiteral("color")) {
-        return Document::RasterPlaneSemantic::RGBA;
+        return RasterPlaneSemantic::RGBA;
     }
     if (semantic == QStringLiteral("mask") || semantic == QStringLiteral("maskuint8"))
-        return Document::RasterPlaneSemantic::MaskUInt8;
+        return RasterPlaneSemantic::MaskUInt8;
     if (semantic == QStringLiteral("maskfloat"))
-        return Document::RasterPlaneSemantic::MaskFloat;
+        return RasterPlaneSemantic::MaskFloat;
     if (semantic == QStringLiteral("depth") || semantic == QStringLiteral("depthfloat"))
-        return Document::RasterPlaneSemantic::DepthFloat;
-    return Document::RasterPlaneSemantic::RGBA;
+        return RasterPlaneSemantic::DepthFloat;
+    return RasterPlaneSemantic::RGBA;
 }
 
 bool parseMeshLabProjectCamera(
@@ -425,14 +425,14 @@ void syncTextureAssetsFromLegacyAssociation(Document::MeshEntry &entry)
         entry.mesh.textures);
 }
 
-QSize rasterPlaneStorageSize(const Document::RasterPlane &plane)
+QSize rasterPlaneStorageSize(const RasterPlane &plane)
 {
     if (!plane.image.isNull())
         return plane.image.size();
     return plane.size;
 }
 
-QString rasterPlaneFallbackName(const Document::RasterPlane &plane, int planeIndex)
+QString rasterPlaneFallbackName(const RasterPlane &plane, int planeIndex)
 {
     const QString explicitName = plane.name.trimmed();
     if (!explicitName.isEmpty())
@@ -451,7 +451,7 @@ QString rasterEntryDisplayName(const Document::RasterEntry &entry, int fallbackI
     const QString sourcePath = entry.sourcePath.trimmed();
     if (!sourcePath.isEmpty())
         return QFileInfo(sourcePath).fileName();
-    if (const Document::RasterPlane *plane = entry.currentPlane()) {
+    if (const RasterPlane *plane = entry.currentPlane()) {
         const QString planeName = rasterPlaneFallbackName(*plane, entry.currentPlaneIndex);
         if (!planeName.trimmed().isEmpty())
             return planeName;
@@ -466,12 +466,12 @@ void normalizeRasterEntry(Document::RasterEntry &entry, int fallbackIndex)
 
     entry.name = rasterEntryDisplayName(entry, fallbackIndex);
     if (entry.sourcePath.trimmed().isEmpty()) {
-        if (const Document::RasterPlane *plane = entry.currentPlane())
+        if (const RasterPlane *plane = entry.currentPlane())
             entry.sourcePath = plane->sourcePath.trimmed();
     }
 
     for (int i = 0; i < int(entry.planes.size()); ++i) {
-        Document::RasterPlane &plane = entry.planes[size_t(i)];
+        RasterPlane &plane = entry.planes[size_t(i)];
         plane.name = rasterPlaneFallbackName(plane, i);
         plane.size = rasterPlaneStorageSize(plane);
     }
@@ -602,6 +602,42 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
 
     dst.bbox = src.bbox;
     dst.textures = src.textures;
+}
+
+qint64 vcgVertexOcfBytes(const VCGMesh &mesh)
+{
+    return vectorStorageBytes(mesh.vert.CV)
+         + vectorStorageBytes(mesh.vert.CuV)
+         + vectorStorageBytes(mesh.vert.CuDV)
+         + vectorStorageBytes(mesh.vert.MV)
+         + vectorStorageBytes(mesh.vert.NV)
+         + vectorStorageBytes(mesh.vert.QV)
+         + vectorStorageBytes(mesh.vert.RadiusV)
+         + vectorStorageBytes(mesh.vert.TV)
+         + vectorStorageBytes(mesh.vert.AV);
+}
+
+qint64 vcgFaceOcfBytes(const VCGMesh &mesh)
+{
+    return vectorStorageBytes(mesh.face.CV)
+         + vectorStorageBytes(mesh.face.CDV)
+         + vectorStorageBytes(mesh.face.MV)
+         + vectorStorageBytes(mesh.face.NV)
+         + vectorStorageBytes(mesh.face.QV)
+         + vectorStorageBytes(mesh.face.WCV)
+         + vectorStorageBytes(mesh.face.WNV)
+         + vectorStorageBytes(mesh.face.WTV)
+         + vectorStorageBytes(mesh.face.AV)
+         + vectorStorageBytes(mesh.face.AF);
+}
+
+qint64 vcgMeshCpuBytes(const VCGMesh &mesh)
+{
+    return qint64(mesh.vert.capacity()) * sizeof(VCGVertex)
+         + vcgVertexOcfBytes(mesh)
+         + qint64(mesh.edge.capacity()) * sizeof(VCGEdge)
+         + qint64(mesh.face.capacity()) * sizeof(VCGFace)
+         + vcgFaceOcfBytes(mesh);
 }
 
 } // namespace DocumentInternal

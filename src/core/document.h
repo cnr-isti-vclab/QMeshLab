@@ -1,9 +1,11 @@
 #pragma once
 
 #include "camerashot.h"
+#include "document_undo_types.h"
 #include "meshfilterplugin.h"
 #include "meshioplugin.h"
 #include "meshgpuresourcecache.h"
+#include "rasterplane.h"
 #include "vcgmesh.h"
 #include "viewstate.h"
 #include <QObject>
@@ -31,17 +33,11 @@ class QRhiCommandBuffer;
 class Document : public QObject
 {
     Q_OBJECT
-    friend class DocumentUndoManager;
 public:
     enum class LogSource {
         Application,
         VCG,
         Error
-    };
-    enum class CurrentLayerKind {
-        None,
-        Mesh,
-        Raster
     };
 
     struct LogEntry {
@@ -64,33 +60,6 @@ public:
         bool modified = false;
         int ioMask = 0;
         VCGMesh mesh;
-    };
-
-    enum class RasterPlaneSemantic {
-        None = 0x0000,
-        RGBA = 0x0001,
-        MaskUInt8 = 0x0002,
-        MaskFloat = 0x0004,
-        DepthFloat = 0x0008,
-        Extra00Float = 0x0100,
-        Extra01Float = 0x0200,
-        Extra02Float = 0x0400,
-        Extra03Float = 0x0800,
-        Extra00RGBA = 0x1000,
-        Extra01RGBA = 0x2000,
-        Extra02RGBA = 0x4000,
-        Extra03RGBA = 0x8000
-    };
-
-    struct RasterPlane {
-        RasterPlaneSemantic semantic = RasterPlaneSemantic::RGBA;
-        QString name;
-        QString sourcePath;
-        QSize size;
-        QImage image;
-
-        bool hasImage() const { return !image.isNull(); }
-        bool hasSourcePath() const { return !sourcePath.trimmed().isEmpty(); }
     };
 
     struct RasterEntry {
@@ -158,30 +127,6 @@ public:
         }
     };
 
-    struct UndoStepMemoryInfo {
-        QString label;
-        qint64 beforeBytes = 0;
-        qint64 afterBytes = 0;
-        qint64 totalBytes() const { return beforeBytes + afterBytes; }
-    };
-
-    struct UndoMemoryStats {
-        std::vector<UndoStepMemoryInfo> steps;
-        qint64 totalBytes = 0;
-    };
-
-    // Describes one node of the undo tree for display purposes.
-    // nodeId is stable for the lifetime of the node.  parentId == -1 for the root.
-    struct UndoTreeNodeInfo {
-        int nodeId = -1;
-        int parentId = -1;
-        int depth = 0;   // 0 = root
-        int lane = 0;    // display lane (column); 0 = main, 1+ = branches
-        bool isCurrent = false;
-        bool isOnCurrentPath = false; // lies on the path root → current node
-        QString label;   // label of the action that produced this node ("" for root)
-    };
-
     using FillGpuVariant = MeshGpuResourceCache::FillVariant;
     using PointGpuVariant = MeshGpuResourceCache::PointVariant;
     using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
@@ -203,21 +148,15 @@ public:
     int saveMesh(int index, const QString &filename);
     int saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options);
     int saveCurrentMesh(const QString &filename);
-    // Optional script action: stores filter key, parameters, and file paths
-    // so that a Python script can be generated from the undo history.
-    struct ScriptAction {
-        QString     kind;        // "filter", "load_mesh", "load_raster", "save_mesh", "load_project"
-        QString     filterKey;   // fully qualified filter key (pluginId::filterId)
-        QVariantMap params;      // filter parameters (empty for load/save)
-        QStringList  filePaths;   // file paths for load/save operations
-    };
-
     void beginUndoStep(const QString &label);
     void beginUndoStep(const QString &label,
                        const ScriptAction &scriptAction);
+    void beginUndoStep(const QString &label,
+                       int meshIndexForSelectionDelta);
     void endUndoStep(bool commit = true, bool restoreOnCancel = false);
     void setViewStateFunctions(std::function<ViewState()> capture,
                                 std::function<void(const ViewState &, bool restoreCamera)> restore);
+    void restoreViewState(const ViewState &state, bool restoreCamera);
     void setRenderStateSnapshotFunction(
         std::function<bool(const QString &, const QSize &, QImage &, CameraShot &, QString &)> capture);
     bool renderSnapshotFromStateJson(
@@ -291,6 +230,8 @@ public:
     // undo geometry snapshot.  Changes to selection must therefore bump geometryRevision
     // so the undo cache produces a fresh deep-copy for the "after" checkpoint.
     void markMeshSelectionChanged(int index, const QString &contextMessage = {});
+    SelectionDelta captureSelectionDelta(int meshIndex) const;
+    void applySelectionDelta(const SelectionDelta &delta);
     void clearLog();
     void writeLog(const QString &message, LogSource source = LogSource::Application, bool replaceLast = false);
 
@@ -375,7 +316,7 @@ signals:
     void meshVisibilityChanged(int index, bool visible);
     void currentMeshChanged(int index);
     void meshDataChanged(int index);
-    void currentLayerChanged(Document::CurrentLayerKind kind, int index);
+    void currentLayerChanged(CurrentLayerKind kind, int index);
     void rasterAdded(int index);
     void rasterRemoved(int index);
     void rasterVisibilityChanged(int index, bool visible);
@@ -395,118 +336,19 @@ signals:
         const QString &undoText,
         const QString &redoText);
 
+public:
+    // Undo state capture/restore — used by DocumentUndoManager.
+    // Made public to avoid a friend declaration.
+    UndoState captureUndoState() const;
+    void restoreUndoState(const UndoState &state);
+
 private:
-    struct UndoState {
-        // A lightweight snapshot of a single mesh, suitable for long-term undo storage.
-        // Cheap metadata fields are copied by value. Geometry (VCGMesh) is held behind a
-        // shared_ptr so that multiple checkpoints with the same (meshId, geometryRevision)
-        // can share a single copy — the common case when an action does not touch geometry
-        // (e.g. toggle visibility, change transform, rename).
-        struct MeshSnapshot {
-            std::uint64_t meshId = 0;
-            std::uint64_t geometryRevision = 0;
-            std::uint64_t materialRevision = 0;
-            QMatrix4x4 transform;
-            QString name;
-            QString sourcePath;
-            QStringList textureFileNames;
-            QStringList textureFilePaths;
-            std::vector<MeshIOTextureAsset> textureAssets;
-            MeshIOMaterialSet materialSet;
-            bool visible = false;
-            bool modified = false;
-            int ioMask = 0;
-            // Shared, immutable geometry; never null after capture.
-            std::shared_ptr<const VCGMesh> geometry;
-        };
-
-        struct RasterSnapshot {
-            std::uint64_t rasterId = 0;
-            std::uint64_t imageRevision = 0;
-            std::uint64_t cameraRevision = 0;
-            QString name;
-            QString sourcePath;
-            bool visible = false;
-            CameraShot shot;
-            std::vector<RasterPlane> planes;
-            int currentPlaneIndex = -1;
-        };
-
-        std::vector<MeshSnapshot> meshes;
-        std::vector<RasterSnapshot> rasters;
-        int currentMeshIndex = -1;
-        int currentRasterIndex = -1;
-        CurrentLayerKind currentLayerKind = CurrentLayerKind::None;
-        std::uint64_t nextMeshId = 1;
-        std::uint64_t nextRasterId = 1;
-        ViewState viewState;
-    };
-
-    struct UndoActionRecord {
-        QString kind;       // "filter", "load_mesh", "load_raster", "save_mesh", "load_project", ...
-        QString filterKey;  // fully qualified filter key for filter actions
-        QVariantMap params; // normalized parameter values used for this action
-        QStringList filePaths;
-
-        static UndoActionRecord fromScriptAction(const ScriptAction &action)
-        {
-            UndoActionRecord record;
-            record.kind = action.kind;
-            record.filterKey = action.filterKey;
-            record.params = action.params;
-            record.filePaths = action.filePaths;
-            return record;
-        }
-
-        ScriptAction toScriptAction() const
-        {
-            ScriptAction action;
-            action.kind = kind;
-            action.filterKey = filterKey;
-            action.params = params;
-            action.filePaths = filePaths;
-            return action;
-        }
-    };
-
-    enum class UndoStorageKind {
-        FullSnapshot,
-        Delta
-    };
-
-    // Tree-shaped undo history. Each node in m_undoNodes holds a full document
-    // restoration payload plus linkage (parentId, children, preferredChild).
-    // The payload is currently a full snapshot.  The storageKind/actionRecord
-    // fields make the next step explicit: low-cost actions can later store
-    // compact deltas while still preserving the exact operation parameters.
-    // Node 0 is always the "before" root (initial state when recording started).
-    // m_undoCurrentNode is the id of the node that represents the current live state.
-    // When a new action is committed, a new child is appended to the current node
-    // instead of truncating siblings — so alternate timelines are preserved.
-    struct UndoNode {
-        UndoState state;
-        UndoStorageKind storageKind = UndoStorageKind::FullSnapshot;
-        QString   label;         // label of the action that led INTO this node ("" for root)
-        int       parentId = -1; // index into m_undoNodes (-1 for root)
-        int       lane = 0;      // display lane assigned at creation time
-        std::vector<int> children;
-        int       preferredChild = -1; // which child to follow on redo() (-1 = none)
-
-        // Optional action metadata.  Filter actions store the normalized
-        // parameter map here so an undo path is not only restorable, but also
-        // regenerable/replayable with the exact same invocation.
-        std::optional<UndoActionRecord> actionRecord;
-    };
-
     enum class CallbackMode {
         None,
         Load,
         Filter,
         Save
     };
-
-    UndoState captureUndoState() const;
-    void restoreUndoState(const UndoState &state);
     vcg::CallBackPos *logCallback();
     bool handleLogCallback(int pos, const char *message);
     static bool dispatchLogCallback(int pos, const char *message);

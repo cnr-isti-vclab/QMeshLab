@@ -523,16 +523,15 @@ void Document::markMeshMaterialChanged(int index, const QString &contextMessage)
 
 void Document::markMeshSelectionChanged(int index, const QString &contextMessage)
 {
-    // Selection flags live in per-vertex/per-face BitFlags captured by deepCopyMesh.
-    // Bump geometryRevision so the undo cache stores a fresh copy that includes the
-    // new selection — identical to markMeshGeometryChanged but with a distinct label.
     if (index < 0 || index >= meshCount())
         return;
     const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
     if (ownUndoStep)
-        beginUndoStep(tr("Change Selection"));
+        beginUndoStep(tr("Change Selection"), index);
     MeshEntry &entry = mesh(index);
     entry.modified = true;
+    // Bump geometryRevision for GPU cache invalidation (selection buffers use it).
+    // The undo cache is unaffected because delta steps never call captureUndoState().
     ++entry.geometryRevision;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
@@ -542,6 +541,73 @@ void Document::markMeshSelectionChanged(int index, const QString &contextMessage
     emit meshDataChanged(index);
     if (ownUndoStep)
         endUndoStep(true);
+}
+
+SelectionDelta Document::captureSelectionDelta(int meshIndex) const
+{
+    SelectionDelta delta;
+    if (meshIndex < 0 || meshIndex >= meshCount())
+        return delta;
+    const MeshEntry &entry = mesh(meshIndex);
+    const VCGMesh &m = entry.mesh;
+    delta.meshId = entry.meshId;
+
+    const int vertCount = m.VN();
+    const int faceCount = m.FN();
+    if (vertCount > 0) {
+        delta.vertexBits.resize(size_t((vertCount + 31) / 32), 0);
+        for (int i = 0; i < vertCount; ++i) {
+            if (m.vert[i].IsS())
+                delta.vertexBits[size_t(i / 32)] |= (1u << (unsigned(i % 32)));
+        }
+    }
+    if (faceCount > 0) {
+        delta.faceBits.resize(size_t((faceCount + 31) / 32), 0);
+        for (int i = 0; i < faceCount; ++i) {
+            if (m.face[i].IsS())
+                delta.faceBits[size_t(i / 32)] |= (1u << (unsigned(i % 32)));
+        }
+    }
+    return delta;
+}
+
+void Document::applySelectionDelta(const SelectionDelta &delta)
+{
+    for (int i = 0; i < meshCount(); ++i) {
+        MeshEntry &entry = mesh(i);
+        if (entry.meshId != delta.meshId)
+            continue;
+        VCGMesh &m = entry.mesh;
+        const int vertCount = m.VN();
+        const int faceCount = m.FN();
+        for (int vi = 0; vi < vertCount; ++vi)
+            m.vert[vi].ClearS();
+        for (int fi = 0; fi < faceCount; ++fi)
+            m.face[fi].ClearS();
+        const size_t vertWords = delta.vertexBits.size();
+        for (size_t wi = 0; wi < vertWords; ++wi) {
+            std::uint32_t word = delta.vertexBits[wi];
+            if (!word) continue;
+            const int base = int(wi * 32);
+            const int limit = std::min(base + 32, vertCount);
+            for (int vi = base; vi < limit; ++vi) {
+                if (word & (1u << (unsigned(vi - base))))
+                    m.vert[vi].SetS();
+            }
+        }
+        const size_t faceWords = delta.faceBits.size();
+        for (size_t wi = 0; wi < faceWords; ++wi) {
+            std::uint32_t word = delta.faceBits[wi];
+            if (!word) continue;
+            const int base = int(wi * 32);
+            const int limit = std::min(base + 32, faceCount);
+            for (int fi = base; fi < limit; ++fi) {
+                if (word & (1u << (unsigned(fi - base))))
+                    m.face[fi].SetS();
+            }
+        }
+        return;
+    }
 }
 
 void Document::setCurrentMeshIndex(int index)

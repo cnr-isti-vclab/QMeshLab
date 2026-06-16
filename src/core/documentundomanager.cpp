@@ -1,4 +1,6 @@
 #include "documentundomanager.h"
+#include "document.h"
+#include "document_internal.h"
 
 #include <QDateTime>
 #include <QDebug>
@@ -9,58 +11,14 @@
 #include <algorithm>
 #include <set>
 
-namespace {
-
-template <typename Vector>
-qint64 vectorStorageBytes(const Vector &v)
-{
-    return qint64(v.capacity()) * qint64(sizeof(typename Vector::value_type));
-}
-
-qint64 vcgVertexOcfBytes(const VCGMesh &mesh)
-{
-    return vectorStorageBytes(mesh.vert.CV)
-         + vectorStorageBytes(mesh.vert.CuV)
-         + vectorStorageBytes(mesh.vert.CuDV)
-         + vectorStorageBytes(mesh.vert.MV)
-         + vectorStorageBytes(mesh.vert.NV)
-         + vectorStorageBytes(mesh.vert.QV)
-         + vectorStorageBytes(mesh.vert.RadiusV)
-         + vectorStorageBytes(mesh.vert.TV)
-         + vectorStorageBytes(mesh.vert.AV);
-}
-
-qint64 vcgFaceOcfBytes(const VCGMesh &mesh)
-{
-    return vectorStorageBytes(mesh.face.CV)
-         + vectorStorageBytes(mesh.face.CDV)
-         + vectorStorageBytes(mesh.face.MV)
-         + vectorStorageBytes(mesh.face.NV)
-         + vectorStorageBytes(mesh.face.QV)
-         + vectorStorageBytes(mesh.face.WCV)
-         + vectorStorageBytes(mesh.face.WNV)
-         + vectorStorageBytes(mesh.face.WTV)
-         + vectorStorageBytes(mesh.face.AV)
-         + vectorStorageBytes(mesh.face.AF);
-}
-
-qint64 vcgMeshCpuBytes(const VCGMesh &mesh)
-{
-    return qint64(mesh.vert.capacity()) * sizeof(VCGVertex)
-         + vcgVertexOcfBytes(mesh)
-         + qint64(mesh.edge.capacity()) * sizeof(VCGEdge)
-         + qint64(mesh.face.capacity()) * sizeof(VCGFace)
-         + vcgFaceOcfBytes(mesh);
-}
-
-} // namespace
+using namespace DocumentInternal;
 
 DocumentUndoManager::DocumentUndoManager(Document &doc)
     : m_doc(doc)
 {
 }
 
-void DocumentUndoManager::beginStep(const QString &label, const Document::ScriptAction &scriptAction)
+void DocumentUndoManager::beginStep(const QString &label, const ScriptAction &scriptAction)
 {
     if (m_restoringUndoRedo || m_undoStepActive || m_suppressUndo)
         return;
@@ -78,9 +36,27 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
     if (!m_undoStepActive)
         return;
 
+    // Delta mode: defer to endDeltaStep for selection-only operations.
+    if (m_pendingDeltaMeshIndex.has_value()) {
+        if (!commit) {
+            if (restoreOnCancel && m_pendingDeltaBefore.has_value()) {
+                m_restoringUndoRedo = true;
+                m_doc.applySelectionDelta(*m_pendingDeltaBefore);
+                m_restoringUndoRedo = false;
+            }
+            m_pendingDeltaBefore.reset();
+            m_pendingDeltaMeshIndex.reset();
+            m_undoStepActive = false;
+            m_undoStepLabel.clear();
+            return;
+        }
+        endDeltaStep();
+        return;
+    }
+
     const QString label = m_undoStepLabel;
-    std::optional<Document::UndoState> before = std::move(m_pendingUndoBefore);
-    std::optional<Document::ScriptAction> scriptAction = std::move(m_pendingScriptAction);
+    std::optional<UndoState> before = std::move(m_pendingUndoBefore);
+    std::optional<ScriptAction> scriptAction = std::move(m_pendingScriptAction);
     m_pendingUndoBefore.reset();
     m_pendingScriptAction.reset();
     m_undoStepActive = false;
@@ -99,6 +75,39 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
     }
 
     pushStep(label, std::move(*before), m_doc.captureUndoState(), std::move(scriptAction));
+}
+
+void DocumentUndoManager::beginDeltaStep(const QString &label, int meshIndex)
+{
+    if (m_restoringUndoRedo || m_undoStepActive || m_suppressUndo)
+        return;
+
+    m_undoStepActive = true;
+    m_undoStepLabel = label.trimmed();
+    if (m_undoStepLabel.isEmpty())
+        m_undoStepLabel = QObject::tr("Edit");
+    m_pendingDeltaBefore = m_doc.captureSelectionDelta(meshIndex);
+    m_pendingDeltaMeshIndex = meshIndex;
+    m_pendingScriptAction.reset();
+    m_pendingUndoBefore.reset();
+}
+
+void DocumentUndoManager::endDeltaStep()
+{
+    if (!m_undoStepActive || !m_pendingDeltaMeshIndex.has_value())
+        return;
+
+    const QString label = m_undoStepLabel;
+    SelectionDelta before = std::move(*m_pendingDeltaBefore);
+    const int meshIndex = *m_pendingDeltaMeshIndex;
+    m_pendingDeltaBefore.reset();
+    m_pendingDeltaMeshIndex.reset();
+    m_pendingScriptAction.reset();
+    m_undoStepActive = false;
+    m_undoStepLabel.clear();
+
+    SelectionDelta after = m_doc.captureSelectionDelta(meshIndex);
+    pushDeltaStep(label, std::move(before), std::move(after));
 }
 
 bool DocumentUndoManager::canUndo() const
@@ -165,7 +174,7 @@ int DocumentUndoManager::undoCursorPosition() const
     return depth;
 }
 
-std::vector<Document::UndoTreeNodeInfo> DocumentUndoManager::undoTreeInfo() const
+std::vector<UndoTreeNodeInfo> DocumentUndoManager::undoTreeInfo() const
 {
     if (m_undoNodes.empty())
         return {};
@@ -179,7 +188,7 @@ std::vector<Document::UndoTreeNodeInfo> DocumentUndoManager::undoTreeInfo() cons
         }
     }
 
-    std::vector<Document::UndoTreeNodeInfo> result;
+    std::vector<UndoTreeNodeInfo> result;
     result.reserve(m_undoNodes.size());
     struct Frame { int id; int depth; };
     std::vector<Frame> stack = {{ 0, 0 }};
@@ -187,7 +196,7 @@ std::vector<Document::UndoTreeNodeInfo> DocumentUndoManager::undoTreeInfo() cons
         const auto [id, depth] = stack.back();
         stack.pop_back();
         const auto &node = m_undoNodes[static_cast<size_t>(id)];
-        Document::UndoTreeNodeInfo info;
+        UndoTreeNodeInfo info;
         info.nodeId = id;
         info.parentId = node.parentId;
         info.depth = depth;
@@ -215,8 +224,7 @@ bool DocumentUndoManager::jumpToNode(int nodeId, bool restoreCamera)
     if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
         return false;
     if (nodeId == m_undoCurrentNode) {
-        if (m_doc.m_restoreViewState)
-            m_doc.m_restoreViewState(m_undoNodes[static_cast<size_t>(nodeId)].state.viewState, restoreCamera);
+        m_doc.restoreViewState(m_undoNodes[static_cast<size_t>(nodeId)].state.viewState, restoreCamera);
         return true;
     }
     if (m_undoStepActive)
@@ -304,8 +312,8 @@ bool DocumentUndoManager::jumpToNode(int nodeId, bool restoreCamera)
     // If there were no redo steps (target == lca), the undo steps ran with
     // m_restoreCamera=false so render modes were restored but camera was not.
     // Now explicitly re-apply the view with the correct restoreCamera value.
-    if (redoPath.empty() && m_doc.m_restoreViewState) {
-        m_doc.m_restoreViewState(m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].state.viewState, restoreCamera);
+    if (redoPath.empty()) {
+        m_doc.restoreViewState(m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].state.viewState, restoreCamera);
     }
 
     m_restoreCamera = true;
@@ -320,16 +328,31 @@ bool DocumentUndoManager::undo()
         return false;
 
     const auto &node = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
-    const auto &target = m_undoNodes[static_cast<size_t>(node.parentId)];
+    const int parentId = node.parentId;
+    const auto &target = m_undoNodes[static_cast<size_t>(parentId)];
     qDebug() << "[UNDO]  from=" << m_undoCurrentNode << '(' << node.label << ')'
-             << "to=" << node.parentId << '(' << target.label << ')';
+             << "to=" << parentId << '(' << target.label << ')';
+
+    if (node.storageKind == UndoStorageKind::Delta && node.beforeSelection.has_value()) {
+        // Delta undo: revert selection on live mesh, no full state restore.
+        m_restoringUndoRedo = true;
+        m_doc.applySelectionDelta(*node.beforeSelection);
+        m_undoNodes[static_cast<size_t>(parentId)].preferredChild = m_undoCurrentNode;
+        m_undoCurrentNode = parentId;
+        emitStateChanged();
+        m_restoringUndoRedo = false;
+        m_doc.writeLog(QObject::tr("Undo '%1' (selection delta)").arg(node.label),
+            Document::LogSource::Application);
+        return true;
+    }
+
     QElapsedTimer timer;
     timer.start();
     m_restoringUndoRedo = true;
     m_doc.restoreUndoState(target.state);
     // Remember which child to return to on redo.
-    m_undoNodes[static_cast<size_t>(node.parentId)].preferredChild = m_undoCurrentNode;
-    m_undoCurrentNode = node.parentId;
+    m_undoNodes[static_cast<size_t>(parentId)].preferredChild = m_undoCurrentNode;
+    m_undoCurrentNode = parentId;
     emitStateChanged();
     m_restoringUndoRedo = false;
     m_doc.writeLog(QObject::tr("Undo '%1': %2 ms (%3 meshes, %4 rasters)")
@@ -354,6 +377,18 @@ bool DocumentUndoManager::redo()
              << "to=" << childId << '(' << target.label << ')'
              << "prefChild=" << node.preferredChild
              << "children=" << QVector<int>(node.children.begin(), node.children.end());
+    if (target.storageKind == UndoStorageKind::Delta && target.afterSelection.has_value()) {
+        // Delta redo: apply after-selection on live mesh, no full state restore.
+        m_restoringUndoRedo = true;
+        m_doc.applySelectionDelta(*target.afterSelection);
+        m_undoCurrentNode = childId;
+        emitStateChanged();
+        m_restoringUndoRedo = false;
+        m_doc.writeLog(QObject::tr("Redo '%1' (selection delta)").arg(target.label),
+            Document::LogSource::Application);
+        return true;
+    }
+
     QElapsedTimer timer;
     timer.start();
     m_restoringUndoRedo = true;
@@ -381,6 +416,8 @@ void DocumentUndoManager::clear()
     m_undoStepActive = false;
     m_undoStepLabel.clear();
     m_pendingUndoBefore.reset();
+    m_pendingDeltaBefore.reset();
+    m_pendingDeltaMeshIndex.reset();
     emitStateChanged();
 }
 
@@ -418,10 +455,10 @@ bool DocumentUndoManager::makeRoot(int nodeId)
     for (int ni = 0; ni < static_cast<int>(reachable.size()); ++ni)
         remap[reachable[ni]] = ni;
 
-    std::vector<Document::UndoNode> compacted;
+    std::vector<UndoNode> compacted;
     compacted.reserve(reachable.size());
     for (int oldId : reachable) {
-        Document::UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
+        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
         n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
         std::vector<int> newChildren;
         for (int c : n.children)
@@ -486,10 +523,10 @@ bool DocumentUndoManager::purgeBranch(int nodeId)
     for (int ni = 0; ni < static_cast<int>(reachable.size()); ++ni)
         remap[reachable[ni]] = ni;
 
-    std::vector<Document::UndoNode> compacted;
+    std::vector<UndoNode> compacted;
     compacted.reserve(reachable.size());
     for (int oldId : reachable) {
-        Document::UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
+        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
         n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
         std::vector<int> newChildren;
         for (int c : n.children)
@@ -538,10 +575,10 @@ bool DocumentUndoManager::linearizeHistory()
     for (int ni = 0; ni < static_cast<int>(path.size()); ++ni)
         remap[path[ni]] = ni;
 
-    std::vector<Document::UndoNode> compacted;
+    std::vector<UndoNode> compacted;
     compacted.reserve(path.size());
     for (int oldId : path) {
-        Document::UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
+        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
         n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
         // Keep only the single child that is also on the path.
         std::vector<int> newChildren;
@@ -554,7 +591,7 @@ bool DocumentUndoManager::linearizeHistory()
     compacted[0].parentId = -1; // root has no parent
 
     // After linearization there is only one chain, so all nodes belong to lane 0.
-    for (Document::UndoNode &n : compacted)
+    for (UndoNode &n : compacted)
         n.lane = 0;
 
     m_undoNodes = std::move(compacted);
@@ -570,12 +607,12 @@ void DocumentUndoManager::setUndoLimit(int limit)
 }
 
 
-void DocumentUndoManager::pushStep(const QString &label, Document::UndoState &&before, Document::UndoState &&after,
-                            std::optional<Document::ScriptAction> scriptAction)
+void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, UndoState &&after,
+                            std::optional<ScriptAction> scriptAction)
 {
     // If there is no tree yet, create the root node from the "before" state.
     if (m_undoCurrentNode < 0) {
-        Document::UndoNode root;
+        UndoNode root;
         root.state   = std::move(before);
         root.label   = {};
         root.parentId = -1;
@@ -590,13 +627,13 @@ void DocumentUndoManager::pushStep(const QString &label, Document::UndoState &&b
 
     // Append a new child node carrying the "after" state.
     const int newId = static_cast<int>(m_undoNodes.size());
-    Document::UndoNode child;
+    UndoNode child;
     child.state    = std::move(after);
-    child.storageKind = Document::UndoStorageKind::FullSnapshot;
+    child.storageKind = UndoStorageKind::FullSnapshot;
     child.label    = label;
     child.parentId = m_undoCurrentNode;
     if (scriptAction.has_value())
-        child.actionRecord = Document::UndoActionRecord::fromScriptAction(*scriptAction);
+        child.actionRecord = UndoActionRecord::fromScriptAction(*scriptAction);
 
     // Lane: inherit parent's lane if this is the first child; otherwise open a
     // new lane (max lane currently in tree + 1).
@@ -634,11 +671,67 @@ void DocumentUndoManager::pushStep(const QString &label, Document::UndoState &&b
     emitStateChanged();
 }
 
-std::optional<Document::ScriptAction> DocumentUndoManager::nodeScriptAction(int nodeId) const
+void DocumentUndoManager::pushDeltaStep(
+    const QString &label,
+    SelectionDelta &&before,
+    SelectionDelta &&after)
+{
+    if (m_undoCurrentNode < 0) {
+        UndoNode root;
+        root.state = m_doc.captureUndoState();
+        root.label = {};
+        root.parentId = -1;
+        m_undoNodes.push_back(std::move(root));
+        m_undoCurrentNode = 0;
+    }
+    // Don't overwrite current node's state — for delta steps the parent
+    // already carries the correct full snapshot from a prior action.
+
+    const int newId = static_cast<int>(m_undoNodes.size());
+    UndoNode child;
+    child.storageKind = UndoStorageKind::Delta;
+    child.label = label;
+    child.parentId = m_undoCurrentNode;
+    child.beforeSelection = std::move(before);
+    child.afterSelection = std::move(after);
+
+    {
+        const auto &parentNode = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
+        if (parentNode.children.empty()) {
+            child.lane = parentNode.lane;
+        } else {
+            int maxLane = 0;
+            for (const auto &n : m_undoNodes)
+                maxLane = std::max(maxLane, n.lane);
+            child.lane = maxLane + 1;
+        }
+    }
+
+    m_undoNodes.push_back(std::move(child));
+    auto &parent = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
+    parent.children.push_back(newId);
+    parent.preferredChild = newId;
+    m_undoCurrentNode = newId;
+
+    {
+        const auto &n = m_undoNodes[static_cast<size_t>(newId)];
+        qDebug() << "[STATE SAVED]" << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
+                 << "idx=" << newId
+                 << "lane=" << n.lane
+                 << "parent=" << n.parentId
+                 << "label=" << n.label
+                 << "(selection delta)";
+    }
+
+    pruneTreeToLimit();
+    emitStateChanged();
+}
+
+std::optional<ScriptAction> DocumentUndoManager::nodeScriptAction(int nodeId) const
 {
     if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
         return {};
-    const std::optional<Document::UndoActionRecord> &record =
+    const std::optional<UndoActionRecord> &record =
         m_undoNodes[static_cast<size_t>(nodeId)].actionRecord;
     if (!record.has_value())
         return {};
@@ -687,10 +780,10 @@ void DocumentUndoManager::pruneTreeToLimit()
     for (int ni = 0; ni < static_cast<int>(reachable.size()); ++ni)
         remap[reachable[ni]] = ni;
 
-    std::vector<Document::UndoNode> pruned;
+    std::vector<UndoNode> pruned;
     pruned.reserve(reachable.size());
     for (int oldId : reachable) {
-        Document::UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
+        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
         n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
         std::vector<int> newChildren;
         for (int c : n.children)
@@ -716,9 +809,9 @@ void DocumentUndoManager::emitStateChanged()
     m_doc.undoRedoStateChanged(canUndo(), canRedo(), undoText(), redoText());
 }
 
-Document::UndoMemoryStats DocumentUndoManager::memoryStats() const
+UndoMemoryStats DocumentUndoManager::memoryStats() const
 {
-    Document::UndoMemoryStats stats;
+    UndoMemoryStats stats;
     std::vector<int> path;
     {
         int id = m_undoCurrentNode;
@@ -730,7 +823,7 @@ Document::UndoMemoryStats DocumentUndoManager::memoryStats() const
     }
 
     for (int pi = 1; pi < static_cast<int>(path.size()); ++pi) {
-        Document::UndoStepMemoryInfo info;
+        UndoStepMemoryInfo info;
         info.label = m_undoNodes[static_cast<size_t>(path[pi])].label;
         for (const auto &snap : m_undoNodes[static_cast<size_t>(path[pi - 1])].state.meshes)
             info.beforeBytes += vcgMeshCpuBytes(*snap.geometry);

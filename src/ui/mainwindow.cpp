@@ -3429,7 +3429,7 @@ void MainWindow::refreshUndoHistoryPanel()
     }
 
     // Convert to QVector and hand off to the lane widget.
-    QVector<Document::UndoTreeNodeInfo> vec;
+    QVector<UndoTreeNodeInfo> vec;
     vec.reserve(static_cast<int>(treeInfo.size()));
     for (const auto &info : treeInfo)
         vec.append(info);

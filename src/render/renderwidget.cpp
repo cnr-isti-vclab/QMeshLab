@@ -266,34 +266,34 @@ bool parseViewMode(const QJsonValue &value, RenderWidget::ViewMode &outMode)
     return false;
 }
 
-QString layerKindToJson(Document::CurrentLayerKind kind)
+QString layerKindToJson(CurrentLayerKind kind)
 {
     switch (kind) {
-    case Document::CurrentLayerKind::Mesh:
+    case CurrentLayerKind::Mesh:
         return QStringLiteral("Mesh");
-    case Document::CurrentLayerKind::Raster:
+    case CurrentLayerKind::Raster:
         return QStringLiteral("Raster");
-    case Document::CurrentLayerKind::None:
+    case CurrentLayerKind::None:
         return QStringLiteral("None");
     }
     return QStringLiteral("None");
 }
 
-bool parseLayerKind(const QJsonValue &value, Document::CurrentLayerKind &outKind)
+bool parseLayerKind(const QJsonValue &value, CurrentLayerKind &outKind)
 {
     if (!value.isString())
         return false;
     const QString s = value.toString();
     if (s == QStringLiteral("Mesh")) {
-        outKind = Document::CurrentLayerKind::Mesh;
+        outKind = CurrentLayerKind::Mesh;
         return true;
     }
     if (s == QStringLiteral("Raster")) {
-        outKind = Document::CurrentLayerKind::Raster;
+        outKind = CurrentLayerKind::Raster;
         return true;
     }
     if (s == QStringLiteral("None")) {
-        outKind = Document::CurrentLayerKind::None;
+        outKind = CurrentLayerKind::None;
         return true;
     }
     return false;
@@ -1089,7 +1089,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         updateQualityHistogramOverlay();
         update();
     });
-    connect(m_doc, &Document::currentLayerChanged, this, [this](Document::CurrentLayerKind, int) {
+    connect(m_doc, &Document::currentLayerChanged, this, [this](CurrentLayerKind, int) {
         update();
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
@@ -1417,7 +1417,7 @@ QString RenderWidget::renderStateJson() const
             root.insert(QStringLiteral("current_mesh_index"), m_doc->currentMeshIndex());
         if (m_doc->currentRasterIndex() >= 0)
             root.insert(QStringLiteral("current_raster_index"), m_doc->currentRasterIndex());
-        if (m_doc->currentLayerKind() != Document::CurrentLayerKind::None) {
+        if (m_doc->currentLayerKind() != CurrentLayerKind::None) {
             root.insert(
                 QStringLiteral("current_layer_kind"),
                 layerKindToJson(m_doc->currentLayerKind()));
@@ -1540,7 +1540,7 @@ bool RenderWidget::applyRenderStateJson(const QString &jsonText, QString *errorM
 
     int parsedCurrentMeshIndex = -1;
     int parsedCurrentRasterIndex = -1;
-    Document::CurrentLayerKind parsedCurrentLayerKind = Document::CurrentLayerKind::None;
+    CurrentLayerKind parsedCurrentLayerKind = CurrentLayerKind::None;
     if (m_doc && root.contains(QStringLiteral("current_mesh_index")))
         parsedCurrentMeshIndex = root.value(QStringLiteral("current_mesh_index")).toInt(-1);
     if (m_doc && root.contains(QStringLiteral("current_raster_index")))
@@ -1554,9 +1554,9 @@ bool RenderWidget::applyRenderStateJson(const QString &jsonText, QString *errorM
     if (m_doc) {
         m_doc->setCurrentMeshIndex(parsedCurrentMeshIndex);
         m_doc->setCurrentRasterIndex(parsedCurrentRasterIndex);
-        if (parsedCurrentLayerKind == Document::CurrentLayerKind::Mesh)
+        if (parsedCurrentLayerKind == CurrentLayerKind::Mesh)
             m_doc->setCurrentMeshIndex(m_doc->currentMeshIndex());
-        else if (parsedCurrentLayerKind == Document::CurrentLayerKind::Raster)
+        else if (parsedCurrentLayerKind == CurrentLayerKind::Raster)
             m_doc->setCurrentRasterIndex(m_doc->currentRasterIndex());
     }
 
@@ -1653,7 +1653,7 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
             return false;
         }
         Document::RasterEntry &rasterEntry = m_doc->raster(rasterIndex);
-        Document::RasterPlane *plane = rasterEntry.currentPlane();
+        RasterPlane *plane = rasterEntry.currentPlane();
         if (!plane) {
             if (errorMessage)
                 *errorMessage = tr("Current raster has no image plane.");

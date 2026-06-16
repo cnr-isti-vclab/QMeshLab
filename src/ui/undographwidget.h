@@ -29,7 +29,7 @@ public:
     explicit UndoGraphWidget(QWidget *parent = nullptr);
     static QSize thumbnailSize() { return QSize(kThumbW, kThumbH); }
 
-    void setNodes(const QVector<Document::UndoTreeNodeInfo> &nodes,
+    void setNodes(const QVector<UndoTreeNodeInfo> &nodes,
                   int currentNodeId,
                   const QMap<int, QPixmap> &thumbnails);
 
@@ -81,7 +81,7 @@ private:
     void updateScrollBars();
 
     // ---- data ----
-    QVector<Document::UndoTreeNodeInfo> m_nodes; // original tree info (DFS pre-order)
+    QVector<UndoTreeNodeInfo> m_nodes; // original tree info (DFS pre-order)
     int                                 m_currentNodeId = -1;
     QMap<int, QPixmap>                  m_thumbnails;
 
