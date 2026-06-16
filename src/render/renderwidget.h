@@ -74,6 +74,11 @@ public:
     QVector3D cameraEyePosition() const { return m_trackball.cameraEyePosition(); }
     QVector3D cameraViewDirection() const { return m_trackball.cameraViewDirection(); }
     CameraShot cameraShotForViewport(const QSize &pixelSize) const;
+    // Offscreen render — blocks until one frame is ready, then grabs the framebuffer.
+    // Set transparentBackground=true to clear the color buffer to (0,0,0,0).
+    QImage renderOffscreenToImage(const QSize &pixelSize,
+                                   bool transparentBackground = false,
+                                   QString *errorMessage = nullptr);
     void setPeerViewCameraProvider(std::function<std::vector<PeerViewCamera>()> provider);
     bool showViewFrustumsEnabled() const { return m_renderSettings.showViewCameras; }
     float nearClipDistance() const { return m_trackball.nearClipPlaneDistance(); }

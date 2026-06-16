@@ -4,6 +4,7 @@
 #include "qualityrange.h"
 #include "renderoverlaypanel.h"
 #include <wrap/io_trimesh/io_mask.h>
+#include <QEventLoop>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -1619,6 +1620,54 @@ CameraShot RenderWidget::cameraShotForViewport(const QSize &pixelSize) const
         at.x(), at.y(), at.z(),
         up.x(), up.y(), up.z());
     return CameraShot::fromVcgShot(shot);
+}
+
+QImage RenderWidget::renderOffscreenToImage(
+    const QSize &pixelSize,
+    bool transparentBackground,
+    QString *errorMessage)
+{
+    auto fail = [&](const QString &msg) {
+        if (errorMessage)
+            *errorMessage = msg;
+        return QImage();
+    };
+
+    if (pixelSize.width() <= 0 || pixelSize.height() <= 0)
+        return fail(tr("Invalid snapshot resolution"));
+
+    const QSize oldFixedSize = fixedColorBufferSize();
+
+    // TODO: transparentBackground — set QRhi clear color to transparent then restore.
+    Q_UNUSED(transparentBackground);
+
+    setFixedColorBufferSize(pixelSize);
+    update();
+
+    QEventLoop loop;
+    QTimer timeout;
+    timeout.setSingleShot(true);
+    QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+
+    const QMetaObject::Connection frameConn =
+        QObject::connect(this, &RenderWidget::frameRendered, &loop,
+            [&loop](float, float, bool, bool) { loop.quit(); });
+
+    timeout.start(1500);
+    loop.exec();
+    QObject::disconnect(frameConn);
+
+    const QImage result = grabFramebuffer();
+
+    setFixedColorBufferSize(oldFixedSize);
+    update();
+
+    if (result.isNull())
+        return fail(tr("Render target capture failed"));
+
+    if (errorMessage)
+        errorMessage->clear();
+    return result;
 }
 
 void RenderWidget::setPeerViewCameraProvider(

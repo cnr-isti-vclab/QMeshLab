@@ -125,5 +125,7 @@ NB_MODULE(_qmeshlab, m)
         .def("filter_list",        &MeshSetCore::filterList)
         .def("list_filters",       &MeshSetCore::listFilters)
         .def("apply_filter",       &MeshSetCore::applyFilter,
-             nb::arg("filter"), nb::arg("params") = nb::dict());
+             nb::arg("filter"), nb::arg("params") = nb::dict())
+        .def("render_snapshot",    &MeshSetCore::renderSnapshot,
+             nb::arg("render_state_json"), nb::arg("width"), nb::arg("height"));
 }

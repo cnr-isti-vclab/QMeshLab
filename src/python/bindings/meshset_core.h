@@ -4,10 +4,12 @@
 
 #include <QString>
 #include <QVariant>
+#include <memory>
 #include <string>
 #include <vector>
 
 class Document;
+class HeadlessRenderContext;
 
 struct FilterInfoRecord
 {
@@ -73,9 +75,16 @@ public:
     FilterRunRecord applyFilter(const std::string &filterNameOrKey,
                                 const nanobind::dict &params) const;
 
+    // Offscreen rendering. The renderStateJson is the same format used by
+    // RenderWidget::applyRenderStateJson(). Returns raw RGBA bytes.
+    nanobind::bytes renderSnapshot(const std::string &renderStateJson,
+                                   int width,
+                                   int height);
+
 private:
     QString resolveFilterKey(const QString &filterNameOrKey) const;
 
     Document *m_document = nullptr;
     bool m_ownsDocument = false;
+    mutable std::unique_ptr<HeadlessRenderContext> m_renderContext;
 };

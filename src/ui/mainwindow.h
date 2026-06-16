@@ -95,10 +95,6 @@ private:
         const QVariantMap &parameters = {});
     void applyFilterVisualizationHints(const MeshFilterRunResult &result);
     void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
-    QImage renderSnapshotOffscreen(
-        RenderWidget *sourceView,
-        const QSize &pixelSize,
-        QString *errorMessage = nullptr);
     void refreshUndoHistoryPanel();
     void jumpToUndoNode(int nodeId, bool withCamera = true);
     QPixmap captureUndoHistoryThumbnail() const;

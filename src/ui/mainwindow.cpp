@@ -509,7 +509,7 @@ MainWindow::MainWindow(QWidget *parent)
                     qMax(1, int(std::lround(double(view->height()) * dpr))));
 
             QString captureError;
-            outImage = renderSnapshotOffscreen(view, snapshotSize, &captureError);
+            outImage = view->renderOffscreenToImage(snapshotSize, false, &captureError);
             outShot = view->cameraShotForViewport(snapshotSize);
 
             QString restoreError;
@@ -2277,7 +2277,7 @@ void MainWindow::saveSnapshotPng()
 
     const QSize snapshotSize(widthSpin->value(), heightSpin->value());
     QString captureError;
-    const QImage snapshot = renderSnapshotOffscreen(view, snapshotSize, &captureError);
+    const QImage snapshot = view->renderOffscreenToImage(snapshotSize, false, &captureError);
     if (snapshot.isNull()) {
         const QString msg = tr("Failed to capture snapshot: %1").arg(captureError);
         statusBar()->showMessage(msg, 3500);
@@ -2313,7 +2313,7 @@ void MainWindow::addSnapshotRaster()
         qMax(1, int(std::lround(double(view->height()) * dpr))));
 
     QString captureError;
-    QImage snapshot = renderSnapshotOffscreen(view, snapshotSize, &captureError);
+    QImage snapshot = view->renderOffscreenToImage(snapshotSize, false, &captureError);
     if (snapshot.isNull()) {
         const QString msg = tr("Failed to capture snapshot raster: %1").arg(captureError);
         statusBar()->showMessage(msg, 3500);
@@ -2335,53 +2335,6 @@ void MainWindow::addSnapshotRaster()
     const QString msg = tr("Added snapshot raster '%1'").arg(m_doc->raster(index).name);
     statusBar()->showMessage(msg, 2500);
     m_doc->writeLog(msg, Document::LogSource::Application);
-}
-
-QImage MainWindow::renderSnapshotOffscreen(
-    RenderWidget *sourceView,
-    const QSize &pixelSize,
-    QString *errorMessage)
-{
-    auto fail = [&](const QString &msg) {
-        if (errorMessage)
-            *errorMessage = msg;
-        return QImage();
-    };
-
-    if (!sourceView)
-        return fail(tr("No active view"));
-    if (pixelSize.width() <= 0 || pixelSize.height() <= 0)
-        return fail(tr("Invalid snapshot resolution"));
-
-    const QSize oldFixedSize = sourceView->fixedColorBufferSize();
-    sourceView->setFixedColorBufferSize(pixelSize);
-    sourceView->update();
-
-    QEventLoop loop;
-    QTimer timeout;
-    timeout.setSingleShot(true);
-    QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
-
-    const QMetaObject::Connection frameConn =
-        QObject::connect(sourceView, &RenderWidget::frameRendered, &loop, [&loop](float, float, bool, bool) {
-            loop.quit();
-        });
-
-    timeout.start(1500);
-    loop.exec();
-    QObject::disconnect(frameConn);
-
-    const QImage result = sourceView->grabFramebuffer();
-
-    sourceView->setFixedColorBufferSize(oldFixedSize);
-    sourceView->update();
-
-    if (result.isNull())
-        return fail(tr("Render target capture failed"));
-
-    if (errorMessage)
-        errorMessage->clear();
-    return result;
 }
 
 void MainWindow::openLastMesh()

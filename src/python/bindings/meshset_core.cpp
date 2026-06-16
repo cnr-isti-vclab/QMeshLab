@@ -1,11 +1,13 @@
 #include "meshset_core.h"
 
 #include "document.h"
+#include "headlessrendercontext.h"
 
 #include <nanobind/stl/array.h>
 
 #include <QColor>
 #include <QCoreApplication>
+#include <QImage>
 #include <QVariant>
 #include <QVector3D>
 
@@ -417,4 +419,38 @@ FilterRunRecord MeshSetCore::applyFilter(const std::string &filterNameOrKey,
     } catch (const std::exception &e) {
         throw std::runtime_error(std::string("apply_filter failed: ") + e.what());
     }
+}
+
+nanobind::bytes MeshSetCore::renderSnapshot(
+    const std::string &renderStateJson,
+    int width,
+    int height)
+{
+    if (!m_document)
+        throw std::runtime_error("No document loaded");
+
+    if (width <= 0 || height <= 0)
+        throw std::runtime_error("Invalid output size");
+
+    if (!m_renderContext) {
+        m_renderContext = std::make_unique<HeadlessRenderContext>(m_document);
+        if (!m_renderContext->isValid())
+            throw std::runtime_error("HeadlessRenderContext could not initialise (no GPU or offscreen platform?)");
+    }
+
+    QString json = QString::fromUtf8(renderStateJson.c_str(), int(renderStateJson.size()));
+    QString errorStr;
+    QImage image = m_renderContext->snapshot(json, QSize(width, height), false, &errorStr);
+
+    if (image.isNull())
+        throw std::runtime_error("Render failed: " + errorStr.toStdString());
+
+    // Convert to RGBA and return raw bytes
+    if (image.format() != QImage::Format_RGBA8888)
+        image = image.convertToFormat(QImage::Format_RGBA8888);
+
+    const size_t byteCount = size_t(image.sizeInBytes());
+    return nanobind::bytes(
+        reinterpret_cast<const char *>(image.constBits()),
+        byteCount);
 }

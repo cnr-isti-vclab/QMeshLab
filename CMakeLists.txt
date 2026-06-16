@@ -48,6 +48,7 @@ add_library(QMeshLabCore STATIC
     src/core/document_textures.cpp
     src/core/document_undo.cpp
     src/core/document_undo_state.cpp
+    src/core/headlessrendercontext.h src/core/headlessrendercontext.cpp
     src/core/filterparam.h src/core/filterparam.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
     src/core/vcgmesh.h
@@ -77,6 +78,7 @@ target_link_libraries(QMeshLabCore PUBLIC
     Qt6::Core
     Qt6::Gui
     Qt6::GuiPrivate
+    Qt6::Widgets
 )
 
 qt_add_resources(QMeshLabCore "colormaps"
