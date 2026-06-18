@@ -4,6 +4,7 @@
 #include <QString>
 
 class Document;
+class RenderWidget;
 
 // Singleton that owns the embedded CPython interpreter lifetime.
 //
@@ -24,9 +25,10 @@ public:
 
     // Initializes the interpreter (Py_Initialize), redirects stdio, and
     // creates a code.InteractiveConsole with `meshset` bound to *doc* in
-    // its locals namespace.
+    // its locals namespace.  If *view* is non-null, a `mlgui` binding for
+    // desktop GUI access is also injected.
     // Must be called after PyImport_AppendInittab("_qmeshlab", ...) in main().
-    void initialize(Document *doc);
+    void initialize(Document *doc, RenderWidget *view = nullptr);
 
     // Finalises the interpreter (Py_Finalize).  Called automatically on
     // destruction; also safe to call explicitly before ~QApplication.
@@ -45,6 +47,10 @@ public:
     // Re-inject a fresh `meshset` binding after a significant document
     // change (e.g. the document is replaced in MainWindow).
     void injectMeshSet(Document *doc);
+
+    // Update or inject the `mlgui` binding (desktop GUI access object).
+    // Called when the active RenderWidget changes.
+    void injectMlGui(RenderWidget *view);
 
 signals:
     void outputWritten(const QString &text);

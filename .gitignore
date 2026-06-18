@@ -29,3 +29,8 @@ tests/local
 *.o
 *.a
 *.dylib
+
+# Generated documentation
+docs/api/
+docs/_build/
+docs_build/

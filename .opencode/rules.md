@@ -10,7 +10,7 @@ Multiple `RenderWidget` views observe it via Qt signals. Per-view state
 The optional embedded Python console exposes `_qmeshlab.MeshSet` (nanobind) that
 wraps a `Document` and calls the same filter manager used by the GUI.
 
-See `docs/architecture.md`, `docs/data_model.md`, `docs/rendering.md`.
+See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/rendering.md`.
 
 ## Build
 

@@ -22,6 +22,7 @@ add_library(_qmeshlab_bindings STATIC
 
 target_include_directories(_qmeshlab_bindings PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(_qmeshlab_bindings
@@ -43,6 +44,8 @@ target_compile_definitions(_qmeshlab_bindings PRIVATE NB_STATIC)
 add_library(QMeshLabPythonHost STATIC
     PythonHost.h
     PythonHost.cpp
+    mlgui.h
+    mlgui.cpp
 )
 
 target_include_directories(QMeshLabPythonHost PUBLIC
@@ -57,4 +60,5 @@ target_link_libraries(QMeshLabPythonHost
         nanobind-static
     PRIVATE
         QMeshLabCore
+        Qt6::Widgets
 )

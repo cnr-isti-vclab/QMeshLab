@@ -1,0 +1,48 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Qt6
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install sphinx furo
+
+      - name: Configure and build
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DQMESHLAB_PYTHON_CONSOLE=ON
+          cmake --build build --target QMeshLab -j4
+
+      - name: Generate API documentation
+        run: |
+          QT_QPA_PLATFORM=offscreen \
+          ./build/QMeshLab.app/Contents/MacOS/QMeshLab \
+            --generate-docs docs
+
+      - name: Build Sphinx site
+        run: sphinx-build docs docs_build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs_build

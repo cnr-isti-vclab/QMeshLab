@@ -1129,7 +1129,7 @@ MainWindow::MainWindow(QWidget *parent)
 #ifdef QMESHLAB_PYTHON_CONSOLE
     // Initialize the embedded Python interpreter.  PyImport_AppendInittab was
     // already called from main() before QApplication was created.
-    PythonHost::instance().initialize(m_doc);
+    PythonHost::instance().initialize(m_doc, m_currentRenderWidget);
 #endif
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));

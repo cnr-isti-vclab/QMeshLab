@@ -7,6 +7,7 @@
 #include "PythonHost.h"
 
 #include "bindings/meshset_core.h"
+#include "mlgui.h"
 #include "document.h"
 
 #include <nanobind/nanobind.h>
@@ -64,7 +65,7 @@ PythonHost &PythonHost::instance()
     return host;
 }
 
-void PythonHost::initialize(Document *doc)
+void PythonHost::initialize(Document *doc, RenderWidget *view)
 {
     if (m_initialized)
         return;
@@ -99,6 +100,9 @@ void PythonHost::initialize(Document *doc)
     }
 
     setupConsole(doc);
+    // Inject mlgui after the console is ready.
+    if (view)
+        injectMlGui(view);
 }
 
 void PythonHost::setupConsole(Document *doc)
@@ -186,8 +190,12 @@ void PythonHost::finalize()
     // no live instances and does not print "leaked instance/type/function"
     // warnings to stderr.
     if (PyObject *mainModule = PyImport_AddModule("__main__")) {
-        if (PyObject *mainDict = PyModule_GetDict(mainModule))
-            PyDict_DelItemString(mainDict, "ms");
+        if (PyObject *mainDict = PyModule_GetDict(mainModule)) {
+            if (PyDict_GetItemString(mainDict, "ms"))
+                PyDict_DelItemString(mainDict, "ms");
+            if (PyDict_GetItemString(mainDict, "mlgui"))
+                PyDict_DelItemString(mainDict, "mlgui");
+        }
     }
 
     Py_XDECREF(static_cast<PyObject *>(m_console));
@@ -287,4 +295,19 @@ void PythonHost::injectMeshSet(Document *doc)
         return;
     PyObject *mainDict = PyModule_GetDict(mainModule);
     PyDict_SetItemString(mainDict, "meshset", pyMeshset.ptr());
+}
+
+void PythonHost::injectMlGui(RenderWidget *view)
+{
+    if (!m_initialized)
+        return;
+
+    MlGui *gui = new MlGui(view);
+    nb::object pyGui = nb::cast(gui, nb::rv_policy::take_ownership);
+
+    PyObject *mainModule = PyImport_AddModule("__main__");
+    if (!mainModule)
+        return;
+    PyObject *mainDict = PyModule_GetDict(mainModule);
+    PyDict_SetItemString(mainDict, "mlgui", pyGui.ptr());
 }

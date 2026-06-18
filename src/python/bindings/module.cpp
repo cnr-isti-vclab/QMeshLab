@@ -1,4 +1,5 @@
 #include "meshset_core.h"
+#include "mlgui.h"
 
 #include <QVector3D>
 #include <QMetaType>
@@ -127,5 +128,19 @@ NB_MODULE(_qmeshlab, m)
         .def("apply_filter",       &MeshSetCore::applyFilter,
              nb::arg("filter"), nb::arg("params") = nb::dict())
         .def("render_snapshot",    &MeshSetCore::renderSnapshot,
+             nb::arg("render_state_json"), nb::arg("width"), nb::arg("height"));
+
+    nb::class_<MlGui>(m, "MlGui")
+        .def("camera_state_json",       &MlGui::cameraStateJson)
+        .def("render_state_json",       &MlGui::renderStateJson)
+        .def("apply_camera_state_json", [](MlGui &g, const std::string &json) -> bool {
+            std::string err;
+            return g.applyCameraStateJson(json, &err);
+        }, nb::arg("json"))
+        .def("apply_render_state_json", [](MlGui &g, const std::string &json) -> bool {
+            std::string err;
+            return g.applyRenderStateJson(json, &err);
+        }, nb::arg("json"))
+        .def("render_snapshot",         &MlGui::renderSnapshot,
              nb::arg("render_state_json"), nb::arg("width"), nb::arg("height"));
 }
