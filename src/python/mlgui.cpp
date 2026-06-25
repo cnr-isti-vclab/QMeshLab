@@ -108,3 +108,36 @@ nb::bytes MlGui::renderSnapshot(const std::string &renderStateJson,
         reinterpret_cast<const char *>(image.constBits()),
         byteCount);
 }
+
+void MlGui::saveSnapshot(const std::string &path,
+                          int width, int height,
+                          const std::string &renderStateJson)
+{
+    if (!m_view)
+        throw std::runtime_error("No active view");
+    if (width <= 0 || height <= 0)
+        throw std::runtime_error("Invalid output size");
+
+    QImage image;
+    if (!renderStateJson.empty()) {
+        // Save current state, apply JSON, render, restore
+        const QString previous = m_view->renderStateJson();
+        QString err;
+        if (!m_view->applyRenderStateJson(QString::fromStdString(renderStateJson), &err))
+            throw std::runtime_error("applyRenderStateJson failed: " + err.toStdString());
+        QString capErr;
+        image = m_view->renderOffscreenToImage(QSize(width, height), false, &capErr);
+        m_view->applyRenderStateJson(previous);  // best-effort restore
+    } else {
+        // Use current view state
+        QString capErr;
+        image = m_view->renderOffscreenToImage(QSize(width, height), false, &capErr);
+    }
+
+    if (image.isNull())
+        throw std::runtime_error("Render failed");
+
+    const bool saved = image.save(QString::fromStdString(path), "PNG");
+    if (!saved)
+        throw std::runtime_error("Failed to save PNG: " + path);
+}

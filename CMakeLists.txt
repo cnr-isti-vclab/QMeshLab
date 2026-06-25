@@ -161,6 +161,8 @@ if(QMESHLAB_PYTHON_CONSOLE)
     target_sources(QMeshLab PRIVATE
         src/ui/pythonconsole.h
         src/ui/pythonconsole.cpp
+        src/ui/scripteditor.h
+        src/ui/scripteditor.cpp
     )
     target_link_libraries(QMeshLab PRIVATE QMeshLabPythonHost _qmeshlab_bindings)
     target_compile_definitions(QMeshLab PRIVATE QMESHLAB_PYTHON_CONSOLE)

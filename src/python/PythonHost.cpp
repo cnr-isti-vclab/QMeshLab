@@ -269,6 +269,20 @@ bool PythonHost::runLine(const QString &line)
     return !needsMore;
 }
 
+void PythonHost::runCode(const QString &code)
+{
+    if (!m_initialized)
+        return;
+
+    const QByteArray utf8 = code.toUtf8();
+    if (PyRun_SimpleString(utf8.constData()) != 0) {
+        // PyRun_SimpleString already prints errors to stderr.
+        PyErr_Clear();
+    }
+
+    flushOutput();
+}
+
 void PythonHost::resetConsole()
 {
     if (!m_initialized || !m_console)

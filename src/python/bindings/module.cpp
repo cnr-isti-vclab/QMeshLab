@@ -142,5 +142,8 @@ NB_MODULE(_qmeshlab, m)
             return g.applyRenderStateJson(json, &err);
         }, nb::arg("json"))
         .def("render_snapshot",         &MlGui::renderSnapshot,
-             nb::arg("render_state_json"), nb::arg("width"), nb::arg("height"));
+             nb::arg("render_state_json"), nb::arg("width"), nb::arg("height"))
+        .def("save_snapshot",           &MlGui::saveSnapshot,
+             nb::arg("path"), nb::arg("width"), nb::arg("height"),
+             nb::arg("render_state_json") = nb::str(""));
 }

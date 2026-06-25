@@ -41,6 +41,10 @@ public:
     // Returns false when more input is expected (incomplete multi-line stmt).
     bool runLine(const QString &line);
 
+    // Execute an arbitrary multi-line code block.  Output is routed through
+    // the same capture/redirect system as runLine().
+    void runCode(const QString &code);
+
     // Reset the console input buffer (discard any partial multi-line stmt).
     void resetConsole();
 

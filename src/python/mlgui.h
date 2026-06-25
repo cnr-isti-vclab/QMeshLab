@@ -28,6 +28,12 @@ public:
     nanobind::bytes renderSnapshot(const std::string &renderStateJson,
                                    int width, int height);
 
+    // Convenience: render and save directly to a PNG file.
+    // If renderStateJson is empty, the current view state is used.
+    void saveSnapshot(const std::string &path,
+                      int width, int height,
+                      const std::string &renderStateJson = {});
+
     // View lifecycle
     void setRenderWidget(RenderWidget *view);
     RenderWidget *renderWidget() const { return m_view; }

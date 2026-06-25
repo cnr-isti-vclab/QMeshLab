@@ -7,6 +7,8 @@ class QPlainTextEdit;
 class QLineEdit;
 class QPushButton;
 class QLabel;
+class QTabWidget;
+class ScriptEditorWidget;
 
 // An interactive Python console widget.
 //
@@ -40,10 +42,12 @@ private:
     void historyUp();
     void historyDown();
 
+    QTabWidget     *m_tabs        = nullptr;
     QPlainTextEdit *m_output      = nullptr;
     QLineEdit      *m_input       = nullptr;
     QLabel         *m_promptLabel = nullptr;
     QPushButton    *m_clearButton = nullptr;
+    ScriptEditorWidget *m_scriptEditor = nullptr;
 
     QStringList m_history;
     int  m_historyIndex = -1;

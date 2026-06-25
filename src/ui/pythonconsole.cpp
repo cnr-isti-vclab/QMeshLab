@@ -1,5 +1,6 @@
 #include "pythonconsole.h"
 #include "PythonHost.h"
+#include "scripteditor.h"
 
 #include <QFont>
 #include <QFontDatabase>
@@ -10,6 +11,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollBar>
+#include <QTabWidget>
 #include <QTextCharFormat>
 #include <QTextCursor>
 #include <QVBoxLayout>
@@ -41,48 +43,67 @@ PythonConsoleWidget::PythonConsoleWidget(QWidget *parent)
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(2);
+    layout->setSpacing(0);
 
-    // ---- Output area -------------------------------------------------------
-    m_output = new QPlainTextEdit(this);
+    m_tabs = new QTabWidget(this);
+    layout->addWidget(m_tabs, 1);
+
+    // ============================================================
+    // Tab 0 — Interactive console
+    // ============================================================
+    auto *consoleTab = new QWidget(nullptr);
+    auto *consoleLayout = new QVBoxLayout(consoleTab);
+    consoleLayout->setContentsMargins(0, 0, 0, 0);
+    consoleLayout->setSpacing(2);
+
+    // ---- Output area ----------------------------------------------
+    m_output = new QPlainTextEdit(consoleTab);
     m_output->setReadOnly(true);
     m_output->setMaximumBlockCount(10000);
     m_output->setFont(monoFont);
     m_output->setStyleSheet(QString::fromLatin1(kOutputStyle));
     m_output->setWordWrapMode(QTextOption::NoWrap);
-    layout->addWidget(m_output, 1);
+    consoleLayout->addWidget(m_output, 1);
 
-    // ---- Input row ---------------------------------------------------------
+    // ---- Input row ------------------------------------------------
     auto *inputRow = new QHBoxLayout();
     inputRow->setContentsMargins(2, 0, 2, 2);
     inputRow->setSpacing(4);
 
-    m_promptLabel = new QLabel(QStringLiteral(">>>"), this);
+    m_promptLabel = new QLabel(QStringLiteral(">>>"), consoleTab);
     m_promptLabel->setFont(monoFont);
     m_promptLabel->setStyleSheet(QString::fromLatin1(kPromptStyle));
     m_promptLabel->setFixedWidth(m_promptLabel->fontMetrics().horizontalAdvance(QStringLiteral("... ")));
     inputRow->addWidget(m_promptLabel);
 
-    m_input = new QLineEdit(this);
+    m_input = new QLineEdit(consoleTab);
     m_input->setFont(monoFont);
     m_input->setStyleSheet(QString::fromLatin1(kInputStyle));
     m_input->setPlaceholderText(tr("Python expression or statement…"));
     m_input->installEventFilter(this);
     inputRow->addWidget(m_input, 1);
 
-    m_clearButton = new QPushButton(tr("Clear"), this);
+    m_clearButton = new QPushButton(tr("Clear"), consoleTab);
     m_clearButton->setFixedWidth(60);
     connect(m_clearButton, &QPushButton::clicked, this, &PythonConsoleWidget::clearOutput);
     inputRow->addWidget(m_clearButton);
 
-    layout->addLayout(inputRow);
+    consoleLayout->addLayout(inputRow);
+    m_tabs->addTab(consoleTab, tr("Console"));
 
-    // ---- Connect to PythonHost signals ------------------------------------
+    // ============================================================
+    // Tab 1 — Script editor
+    // ============================================================
+    m_scriptEditor = new ScriptEditorWidget(nullptr);
+    m_tabs->addTab(m_scriptEditor, tr("Script"));
+    m_tabs->setCurrentIndex(0);
+
+    // ---- Connect to PythonHost signals ----------------------------
     PythonHost &host = PythonHost::instance();
     connect(&host, &PythonHost::outputWritten, this, &PythonConsoleWidget::appendOutput);
     connect(&host, &PythonHost::errorWritten,  this, &PythonConsoleWidget::appendError);
 
-    // ---- Enter key submits the line ----------------------------------------
+    // ---- Enter key submits the line -------------------------------
     connect(m_input, &QLineEdit::returnPressed, this, &PythonConsoleWidget::executeLine);
 }
 
