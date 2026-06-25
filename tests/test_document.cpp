@@ -182,7 +182,7 @@ void DocumentTests::addRasterImageCreatesDocumentLayer()
     QCOMPARE(index, 0);
     QCOMPARE(doc.rasterCount(), 1);
     QCOMPARE(doc.currentRasterIndex(), 0);
-    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Raster);
+    QCOMPARE(doc.currentLayerKind(), CurrentLayerKind::Raster);
     QCOMPARE(addedSpy.count(), 1);
     QCOMPARE(currentSpy.count(), 1);
 
@@ -191,7 +191,7 @@ void DocumentTests::addRasterImageCreatesDocumentLayer()
     QCOMPARE(entry.visible, true);
     QCOMPARE(entry.planes.size(), size_t(1));
     QVERIFY(entry.currentPlane());
-    QVERIFY(entry.currentPlane()->semantic == Document::RasterPlaneSemantic::RGBA);
+    QVERIFY(entry.currentPlane()->semantic == RasterPlaneSemantic::RGBA);
     QCOMPARE(entry.currentPlane()->size, QSize(8, 4));
     QVERIFY(entry.currentPlane()->hasImage());
 
@@ -210,19 +210,19 @@ void DocumentTests::currentLayerKindFollowsMeshAndRasterSelection()
     vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 0.0f, 0.0f));
     QCOMPARE(doc.addMesh(mesh, QStringLiteral("mesh")), 0);
     QCOMPARE(doc.currentMeshIndex(), 0);
-    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Mesh);
+    QCOMPARE(doc.currentLayerKind(), CurrentLayerKind::Mesh);
 
     QImage image(2, 2, QImage::Format_RGBA8888);
     image.fill(Qt::white);
     QCOMPARE(doc.addRasterImage(image, QStringLiteral("raster")), 0);
     QCOMPARE(doc.currentRasterIndex(), 0);
-    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Raster);
+    QCOMPARE(doc.currentLayerKind(), CurrentLayerKind::Raster);
 
     doc.setCurrentMeshIndex(0);
-    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Mesh);
+    QCOMPARE(doc.currentLayerKind(), CurrentLayerKind::Mesh);
 
     doc.setCurrentRasterIndex(0);
-    QCOMPARE(doc.currentLayerKind(), Document::CurrentLayerKind::Raster);
+    QCOMPARE(doc.currentLayerKind(), CurrentLayerKind::Raster);
 }
 
 void DocumentTests::loadRasterImageReadsFile()
