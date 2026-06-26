@@ -184,6 +184,19 @@ ScriptEditorWidget::ScriptEditorWidget(QWidget *parent)
     }
 }
 
+void ScriptEditorWidget::setCode(const QString &code)
+{
+    if (!m_editor)
+        return;
+    m_editor->setPlainText(code);
+}
+
+void ScriptEditorWidget::focusEditor()
+{
+    if (m_editor)
+        m_editor->setFocus();
+}
+
 void ScriptEditorWidget::executeCode()
 {
     const QString code = m_editor->toPlainText().trimmed();

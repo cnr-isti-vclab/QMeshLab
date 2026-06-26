@@ -112,6 +112,14 @@ PythonConsoleWidget::PythonConsoleWidget(QWidget *parent)
 
 // ---------------------------------------------------------------------------
 
+void PythonConsoleWidget::setScriptText(const QString &text)
+{
+    if (!m_scriptEditor)
+        return;
+    m_scriptEditor->setCode(text);
+    m_scriptEditor->focusEditor();
+}
+
 void PythonConsoleWidget::setInputText(const QString &text)
 {
     if (m_input) {

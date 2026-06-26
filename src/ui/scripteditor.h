@@ -15,6 +15,9 @@ class ScriptEditorWidget : public QWidget
 public:
     explicit ScriptEditorWidget(QWidget *parent = nullptr);
 
+    void setCode(const QString &code);
+    void focusEditor();
+
 private slots:
     void executeCode();
     void clearEditor();

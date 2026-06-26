@@ -900,13 +900,6 @@ MainWindow::MainWindow(QWidget *parent)
                 commonDir.truncate(lastSep);
         }
 
-        QString targetPath = QFileDialog::getSaveFileName(
-            this, tr("Save Python Script"),
-            commonDir.isEmpty() ? QStringLiteral("history.py")
-                : QDir(commonDir).filePath(QStringLiteral("history.py")),
-            tr("Python files (*.py)"));
-        if (targetPath.isEmpty()) return;
-
         QStringList lines;
         lines << QStringLiteral("import pymeshlab2");
         lines << QStringLiteral("ms = pymeshlab2.MeshSet()");
@@ -972,15 +965,15 @@ MainWindow::MainWindow(QWidget *parent)
                 }
             }
         }
-
-        QFile file(targetPath);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QMessageBox::critical(this, tr("Error"), tr("Cannot write file: %1").arg(targetPath));
-            return;
-        }
-        file.write(lines.join(QStringLiteral("\n")).toUtf8());
-        file.close();
-        statusBar()->showMessage(tr("Python script saved: %1").arg(targetPath), 4000);
+#ifdef QMESHLAB_PYTHON_CONSOLE
+        if (m_pythonConsoleDock)
+            m_pythonConsoleDock->show();
+        if (m_pythonConsole)
+            m_pythonConsole->setScriptText(lines.join(QStringLiteral("\n")));
+        statusBar()->showMessage(tr("Python history script loaded into the script editor"), 4000);
+#else
+        Q_UNUSED(lines);
+#endif
     });
     const auto showUndoHistoryPreview = [this](int nodeId, const QPoint &globalPos) {
         if (!m_undoHistoryPreviewPopup)
@@ -1362,6 +1355,8 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
         QAction *sceneModeAction = menu.addAction(tr("3D Scene Mode"));
         QAction *uvModeAction = menu.addAction(tr("Parametrization (UV) Mode"));
         QAction *rasterModeAction = menu.addAction(tr("Raster Mode"));
+        uvModeAction->setEnabled(view->canSwitchToViewMode(RenderWidget::ViewMode::ParametrizationUV));
+        rasterModeAction->setEnabled(view->canSwitchToViewMode(RenderWidget::ViewMode::RasterImage));
         menu.addSeparator();
         QAction *syncCameraAction = menu.addAction(tr("Synchronize Camera"));
         syncCameraAction->setCheckable(true);

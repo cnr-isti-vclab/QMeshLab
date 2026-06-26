@@ -1676,9 +1676,9 @@ void RenderWidget::setPeerViewCameraProvider(
     m_peerViewCameraProvider = std::move(provider);
 }
 
-bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
+bool RenderWidget::canSwitchToViewMode(ViewMode mode, QString *errorMessage) const
 {
-    if (mode == m_viewMode) {
+    if (mode == ViewMode::Scene3D) {
         if (errorMessage)
             errorMessage->clear();
         return true;
@@ -1691,29 +1691,60 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
                 *errorMessage = tr("Current mesh has no UV parametrization.");
             return false;
         }
-        m_depthPickPending = false;
-        m_uvFitRequested = true;
+        if (errorMessage)
+            errorMessage->clear();
+        return true;
     }
+
     if (mode == ViewMode::RasterImage) {
         const int rasterIndex = m_doc ? m_doc->currentRasterIndex() : -1;
-        if (rasterIndex < 0 || rasterIndex >= m_doc->rasterCount()) {
+        if (!m_doc || rasterIndex < 0 || rasterIndex >= m_doc->rasterCount()) {
             if (errorMessage)
                 *errorMessage = tr("No current raster is available.");
             return false;
         }
-        Document::RasterEntry &rasterEntry = m_doc->raster(rasterIndex);
-        RasterPlane *plane = rasterEntry.currentPlane();
+        const Document::RasterEntry &rasterEntry = m_doc->raster(rasterIndex);
+        const RasterPlane *plane = rasterEntry.currentPlane();
         if (!plane) {
             if (errorMessage)
                 *errorMessage = tr("Current raster has no image plane.");
             return false;
         }
-        Document::ensureRasterPlaneImage(*plane);
-        if (plane->image.isNull()) {
+        if (plane->image.isNull() && plane->sourcePath.trimmed().isEmpty()) {
             if (errorMessage)
                 *errorMessage = tr("Current raster has no image plane.");
             return false;
         }
+        if (errorMessage)
+            errorMessage->clear();
+        return true;
+    }
+
+    if (errorMessage)
+        errorMessage->clear();
+    return true;
+}
+
+bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
+{
+    if (mode == m_viewMode) {
+        if (errorMessage)
+            errorMessage->clear();
+        return true;
+    }
+
+    if (!canSwitchToViewMode(mode, errorMessage))
+        return false;
+
+    if (mode == ViewMode::ParametrizationUV) {
+        m_depthPickPending = false;
+        m_uvFitRequested = true;
+    }
+    if (mode == ViewMode::RasterImage) {
+        const int rasterIndex = m_doc ? m_doc->currentRasterIndex() : -1;
+        Document::RasterEntry &rasterEntry = m_doc->raster(rasterIndex);
+        RasterPlane *plane = rasterEntry.currentPlane();
+        Document::ensureRasterPlaneImage(*plane);
         m_depthPickPending = false;
         resetRasterView();
         m_rasterOpacity = 0.75f;

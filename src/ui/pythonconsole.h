@@ -20,6 +20,7 @@ class PythonConsoleWidget : public QWidget
 
 public:
     explicit PythonConsoleWidget(QWidget *parent = nullptr);
+    void setScriptText(const QString &text);
 
 public slots:
     // Append normal Python output (white text).

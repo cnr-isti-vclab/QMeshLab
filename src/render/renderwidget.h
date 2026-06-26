@@ -55,6 +55,7 @@ public:
     QString renderStateJson() const;
     bool applyRenderStateJson(const QString &jsonText, QString *errorMessage = nullptr);
     ViewMode viewMode() const { return m_viewMode; }
+    bool canSwitchToViewMode(ViewMode mode, QString *errorMessage = nullptr) const;
     bool setViewMode(ViewMode mode, QString *errorMessage = nullptr);
     bool meshVisible(int index) const;
     void setMeshVisible(int index, bool visible);
