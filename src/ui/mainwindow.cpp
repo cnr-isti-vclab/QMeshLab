@@ -791,8 +791,6 @@ MainWindow::MainWindow(QWidget *parent)
         &Document::undoRedoStateChanged,
         this,
         [this](bool, bool, const QString &, const QString &) {
-            if (m_doc->isRestoringUndoRedo())
-                return;
             refreshUndoHistoryPanel();
         });
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeActivated, this, [this](int nodeId, bool withCamera) {
