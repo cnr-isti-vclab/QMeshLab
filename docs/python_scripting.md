@@ -5,6 +5,11 @@ with `QMESHLAB_PYTHON_CONSOLE=ON`. The embedded interpreter works on the live
 application document, so scripts can inspect the current scene, run filters,
 load/save meshes and rasters, and capture view snapshots.
 
+There is no separate documentation site for the headless Python layer. The
+shared API is the `pymeshlab2.MeshSet` interface, and QMeshLab reuses that same
+model inside the desktop application. The desktop-only additions are the
+predefined live `ms` object and the `mlgui` helper.
+
 ## Predefined Names
 
 The script environment is the Python `__main__` namespace used by the embedded
@@ -24,6 +29,9 @@ print("Rasters:", ms.raster_count())
 
 Important: `ms` borrows the live QMeshLab `Document`. Calling modifying methods
 on it changes the open document.
+
+If you already know `pymeshlab2`, you can think of `ms` as "the current
+QMeshLab document presented through the same MeshSet-style API".
 
 ### `mlgui`
 
