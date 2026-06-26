@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -237,28 +237,83 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
           <section id="getting-started">
 <span id="first-steps"></span><h1>Getting started<a class="headerlink" href="#getting-started" title="Link to this heading">¶</a></h1>
-<p>Open the Python console in QMeshLab (Window &gt; Python Console).  The
+<p>Open the Python console in QMeshLab (Window &gt; Python Console). The predefined
 <code class="docutils literal notranslate"><span class="pre">ms</span></code> variable holds a <a class="reference internal" href="../api/meshset.html#meshset-api"><span class="std std-ref">MeshSet</span></a> object linked to the
-current document.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load a mesh from file</span>
-<span class="n">ms</span><span class="o">.</span><span class="n">load_new_mesh</span><span class="p">(</span><span class="s2">&quot;example.obj&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded mesh with </span><span class="si">{</span><span class="n">ms</span><span class="o">.</span><span class="n">mesh_number</span><span class="p">()</span><span class="si">}</span><span class="s2"> faces&quot;</span><span class="p">)</span>
+current document. In the desktop app, <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> gives access to the current
+view state and snapshot helpers.</p>
+<p>This page shows three small examples that are useful as first scripts.</p>
+<section id="example-1-inspect-the-currently-loaded-meshes">
+<h2>Example 1 - Inspect the currently loaded meshes<a class="headerlink" href="#example-1-inspect-the-currently-loaded-meshes" title="Link to this heading">¶</a></h2>
+<p>This script prints basic information about the meshes that are already loaded
+in the current QMeshLab document.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Mesh count:&quot;</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
 
-<span class="c1"># Apply a filter</span>
-<span class="n">ms</span><span class="o">.</span><span class="n">meshing_remove_duplicate_vertices</span><span class="p">(</span><span class="n">TargetFaceNum</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>
-
-<span class="c1"># Access GUI state (desktop only)</span>
-<span class="n">camera</span> <span class="o">=</span> <span class="n">mlgui</span><span class="o">.</span><span class="n">camera_state_json</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">camera</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No meshes are currently loaded.&quot;</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Current mesh index:&quot;</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Current mesh id:&quot;</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_id</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Available filters (first 10):&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">ms</span><span class="o">.</span><span class="n">list_filters</span><span class="p">()[:</span><span class="mi">10</span><span class="p">]:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">python_name</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </pre></div>
 </div>
+</section>
+<section id="example-2-create-and-process-a-noisy-isosurface">
+<h2>Example 2 - Create and process a noisy isosurface<a class="headerlink" href="#example-2-create-and-process-a-noisy-isosurface" title="Link to this heading">¶</a></h2>
+<p>This script creates a synthetic noisy isosurface, then applies marching-cubes
+decimation and Loop subdivision.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">&quot;create_noisy_isosurface&quot;</span><span class="p">,</span> <span class="p">{</span>
+    <span class="s2">&quot;resolution&quot;</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span>
+<span class="p">})</span>
+
+<span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">error_message</span><span class="p">)</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">meshing_decimation_edge_collapse_for_marching_cube_meshes</span><span class="p">(</span>
+    <span class="n">cellError</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span>
+    <span class="n">preserveBB</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">ms</span><span class="o">.</span><span class="n">subdivision_loop</span><span class="p">(</span>
+    <span class="n">Iterations</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">LoopWeight</span><span class="o">=</span><span class="s2">&quot;loop&quot;</span><span class="p">,</span>
+    <span class="n">Threshold</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Created and processed noisy isosurface.&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The exact parameter names and defaults of a filter can be copied directly from
+the filter panel using the “Copy Python call to console” button.</p>
+</section>
+<section id="example-3-capture-a-snapshot-of-the-current-view">
+<h2>Example 3 - Capture a snapshot of the current view<a class="headerlink" href="#example-3-capture-a-snapshot-of-the-current-view" title="Link to this heading">¶</a></h2>
+<p>This example uses <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> to save the current desktop view as a PNG image.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;Downloads&quot;</span> <span class="o">/</span> <span class="s2">&quot;qmeshlab_snapshot.png&quot;</span>
+<span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">output_path</span><span class="p">),</span> <span class="mi">1600</span><span class="p">,</span> <span class="mi">1200</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved </span><span class="si">{</span><span class="n">output_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="see-also">
+<h2>See also<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref std std-doc">../python_scripting</span></p></li>
+<li><p><a class="reference internal" href="../api/meshset.html#meshset-api"><span class="std std-ref">MeshSet</span></a></p></li>
+<li><p><a class="reference internal" href="../api/mlgui.html#mlgui-api"><span class="std std-ref">MlGui</span></a></p></li>
+</ul>
+</section>
 </section>
 
         </article>
@@ -304,8 +359,30 @@ current document.</p>
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Getting started</a><ul>
+<li><a class="reference internal" href="#example-1-inspect-the-currently-loaded-meshes">Example 1 - Inspect the currently loaded meshes</a></li>
+<li><a class="reference internal" href="#example-2-create-and-process-a-noisy-isosurface">Example 2 - Create and process a noisy isosurface</a></li>
+<li><a class="reference internal" href="#example-3-capture-a-snapshot-of-the-current-view">Example 3 - Capture a snapshot of the current view</a></li>
+<li><a class="reference internal" href="#see-also">See also</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
