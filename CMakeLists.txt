@@ -125,7 +125,8 @@ set_target_properties(QMeshLab PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
-if (APPLE)
+option(QMESH_MACOS_BUNDLE_ICON "Generate and embed the macOS app bundle icon" ON)
+if (APPLE AND QMESH_MACOS_BUNDLE_ICON)
     set(QMESHLAB_APP_ICON_PNG "${CMAKE_SOURCE_DIR}/img/MeshLab_Icon_512x512.png")
     set(QMESHLAB_APP_ICON_ICNS "${CMAKE_CURRENT_BINARY_DIR}/QMeshLab.icns")
     add_custom_command(

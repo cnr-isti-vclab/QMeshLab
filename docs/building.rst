@@ -7,13 +7,23 @@ Prerequisites
 -------------
 
 * QMeshLab compiled with ``QMESHLAB_PYTHON_CONSOLE=ON`` (default).
-* Python packages: ``sphinx`` and ``furo``.
+* Python packages from ``docs/requirements.txt``.
 
 Step 1 — Generate the API RST files
 ------------------------------------
 
 .. code-block:: bash
 
+   cmake -S . -B build -G Ninja \
+     -DQMESH_REQUIRE_VCPKG_DEPS=OFF \
+     -DQMESH_MACOS_BUNDLE_ICON=OFF \
+     -DQMESHLAB_PYTHON_CONSOLE=ON \
+     -Dnanobind_DIR="$(python -m nanobind --cmake_dir)" \
+     -DQMESH_PLUGIN_OBJ_RAPIDOBJ=OFF \
+     -DQMESH_PLUGIN_E57=OFF \
+     -DQMESH_PLUGIN_GLTF=OFF \
+     -DQMESH_PLUGIN_FILTER_FUNC=OFF \
+     -DQMESH_PLUGIN_FILTER_EMBREE=OFF
    cmake --build build --target QMeshLab -j8
    QT_QPA_PLATFORM=offscreen ./build/QMeshLab --generate-docs docs
 
@@ -21,12 +31,19 @@ This introspects the ``_qmeshlab`` module from within the running app,
 reads all ``filters.json`` files, and writes ``.rst`` files into
 ``docs/api/``.
 
+The ``QMESH_REQUIRE_VCPKG_DEPS=OFF`` option is used here because the
+documentation build only needs the app binary for Python/API introspection and
+the CI job does not activate the vcpkg toolchain. The listed plugin options
+disable dependency-gated plugins that otherwise require vcpkg-provided
+libraries. For full local documentation with every dependency-gated plugin
+enabled, configure with the normal vcpkg toolchain instead.
+
 Step 2 — Build the HTML site
 -----------------------------
 
 .. code-block:: bash
 
-   pip install sphinx furo
+   pip install -r docs/requirements.txt
    sphinx-build docs docs_build
    # open docs_build/index.html
 

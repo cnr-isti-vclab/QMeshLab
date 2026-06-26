@@ -23,13 +23,21 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install sphinx furo
+          pip install -r docs/requirements.txt
 
       - name: Configure and build
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DQMESHLAB_PYTHON_CONSOLE=ON
+            -DQMESH_REQUIRE_VCPKG_DEPS=OFF \
+            -DQMESH_MACOS_BUNDLE_ICON=OFF \
+            -DQMESHLAB_PYTHON_CONSOLE=ON \
+            -Dnanobind_DIR="$(python -m nanobind --cmake_dir)" \
+            -DQMESH_PLUGIN_OBJ_RAPIDOBJ=OFF \
+            -DQMESH_PLUGIN_E57=OFF \
+            -DQMESH_PLUGIN_GLTF=OFF \
+            -DQMESH_PLUGIN_FILTER_FUNC=OFF \
+            -DQMESH_PLUGIN_FILTER_EMBREE=OFF
           cmake --build build --target QMeshLab -j4
 
       - name: Generate API documentation

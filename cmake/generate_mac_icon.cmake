@@ -18,7 +18,7 @@ foreach(_size IN LISTS _base_sizes)
         COMMAND "${SIPS_EXECUTABLE}" -z "${_size}" "${_size}" "${INPUT_PNG}" --out "${_iconset_dir}/icon_${_size}x${_size}.png"
         COMMAND_ERROR_IS_FATAL ANY
     )
-    if (_size LESS_EQUAL 256)
+    if (_size LESS_EQUAL 512)
         math(EXPR _size2x "${_size} * 2")
         execute_process(
             COMMAND "${SIPS_EXECUTABLE}" -z "${_size2x}" "${_size2x}" "${INPUT_PNG}" --out "${_iconset_dir}/icon_${_size}x${_size}@2x.png"
