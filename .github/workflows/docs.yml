@@ -17,9 +17,13 @@ jobs:
           submodules: true
 
       - name: Install Qt6
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
           version: '6.11'
+          host: mac
+          target: desktop
+          arch: clang_64
+          modules: qtshadertools
 
       - name: Install Python dependencies
         run: |
