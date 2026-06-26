@@ -64,7 +64,7 @@ Methods
 .. py:method:: FilterInfo.__repr__(...)
    :module: _qmeshlab
 
-   \\_\\_repr\\_\\_(self) -> str
+   __repr__(self) -> str
 
 .. py:class:: FilterRunResult
 

@@ -11,12 +11,12 @@ Methods
 .. py:method:: MeshSet.__init__(...)
    :module: _qmeshlab
 
-   \\_\\_init\\_\\_(self) -> None
+   __init__(self) -> None
 
 .. py:method:: MeshSet.__len__(...)
    :module: _qmeshlab
 
-   \\_\\_len\\_\\_(self) -> int
+   __len__(self) -> int
 
 .. py:method:: MeshSet.__repr__(self, /)
    :module: _qmeshlab
@@ -51,7 +51,7 @@ Methods
 .. py:method:: MeshSet.apply_filter(...)
    :module: _qmeshlab
 
-   apply\\_filter(self, filter: str, params: dict = {}) -> \\_qmeshlab.FilterRunResult
+   apply_filter(self, filter: str, params: dict = {}) -> _qmeshlab.FilterRunResult
 
 .. py:method:: MeshSet.apply_mls_apss(self, **kwargs)
    :module: _qmeshlab
@@ -366,17 +366,17 @@ Methods
 .. py:method:: MeshSet.current_mesh(...)
    :module: _qmeshlab
 
-   current\\_mesh(self) -> int
+   current_mesh(self) -> int
 
 .. py:method:: MeshSet.current_mesh_id(...)
    :module: _qmeshlab
 
-   current\\_mesh\\_id(self) -> int
+   current_mesh_id(self) -> int
 
 .. py:method:: MeshSet.current_raster(...)
    :module: _qmeshlab
 
-   current\\_raster(self) -> int
+   current_raster(self) -> int
 
 .. py:method:: MeshSet.cut_mesh_along_crease_edges(self, **kwargs)
    :module: _qmeshlab
@@ -466,7 +466,7 @@ Methods
 .. py:method:: MeshSet.filter_list(...)
    :module: _qmeshlab
 
-   filter\\_list(self) -> list[str]
+   filter_list(self) -> list[str]
 
 .. py:method:: MeshSet.fit_plane_to_selection(self, **kwargs)
    :module: _qmeshlab
@@ -566,17 +566,17 @@ Methods
 .. py:method:: MeshSet.is_current_mesh_visible(...)
    :module: _qmeshlab
 
-   is\\_current\\_mesh\\_visible(self) -> bool
+   is_current_mesh_visible(self) -> bool
 
 .. py:method:: MeshSet.is_mesh_visible(...)
    :module: _qmeshlab
 
-   is\\_mesh\\_visible(self, id: int) -> bool
+   is_mesh_visible(self, id: int) -> bool
 
 .. py:method:: MeshSet.list_filters(...)
    :module: _qmeshlab
 
-   list\\_filters(self) -> list[\\_qmeshlab.FilterInfo]
+   list_filters(self) -> list[_qmeshlab.FilterInfo]
 
 .. py:method:: MeshSet.load_active_raster_cameras(self, **kwargs)
    :module: _qmeshlab
@@ -586,22 +586,22 @@ Methods
 .. py:method:: MeshSet.load_new_mesh(...)
    :module: _qmeshlab
 
-   load\\_new\\_mesh(self, path: str) -> None
+   load_new_mesh(self, path: str) -> None
 
 .. py:method:: MeshSet.load_new_raster(...)
    :module: _qmeshlab
 
-   load\\_new\\_raster(self, file\\_name: str) -> None
+   load_new_raster(self, file_name: str) -> None
 
 .. py:method:: MeshSet.load_project(...)
    :module: _qmeshlab
 
-   load\\_project(self, file\\_name: str) -> None
+   load_project(self, file_name: str) -> None
 
 .. py:method:: MeshSet.load_raster_image(...)
    :module: _qmeshlab
 
-   load\\_raster\\_image(self, path: str) -> None
+   load_raster_image(self, path: str) -> None
 
 .. py:method:: MeshSet.matrix_freeze(self, **kwargs)
    :module: _qmeshlab
@@ -641,17 +641,17 @@ Methods
 .. py:method:: MeshSet.mesh_count(...)
    :module: _qmeshlab
 
-   mesh\\_count(self) -> int
+   mesh_count(self) -> int
 
 .. py:method:: MeshSet.mesh_id_exists(...)
    :module: _qmeshlab
 
-   mesh\\_id\\_exists(self, id: int) -> bool
+   mesh_id_exists(self, id: int) -> bool
 
 .. py:method:: MeshSet.mesh_number(...)
    :module: _qmeshlab
 
-   mesh\\_number(self) -> int
+   mesh_number(self) -> int
 
 .. py:method:: MeshSet.meshing_decimation_edge_collapse_for_marching_cube_meshes(self, **kwargs)
    :module: _qmeshlab
@@ -696,12 +696,12 @@ Methods
 .. py:method:: MeshSet.number_meshes(...)
    :module: _qmeshlab
 
-   number\\_meshes(self) -> int
+   number_meshes(self) -> int
 
 .. py:method:: MeshSet.number_rasters(...)
    :module: _qmeshlab
 
-   number\\_rasters(self) -> int
+   number_rasters(self) -> int
 
 .. py:method:: MeshSet.parametrize_flat_plane(self, **kwargs)
    :module: _qmeshlab
@@ -751,12 +751,12 @@ Methods
 .. py:method:: MeshSet.raster_count(...)
    :module: _qmeshlab
 
-   raster\\_count(self) -> int
+   raster_count(self) -> int
 
 .. py:method:: MeshSet.raster_number(...)
    :module: _qmeshlab
 
-   raster\\_number(self) -> int
+   raster_number(self) -> int
 
 .. py:method:: MeshSet.remeshing_isotropic(self, **kwargs)
    :module: _qmeshlab
@@ -821,7 +821,7 @@ Methods
 .. py:method:: MeshSet.render_snapshot(...)
    :module: _qmeshlab
 
-   render\\_snapshot(self, render\\_state\\_json: str, width: int, height: int) -> bytes
+   render_snapshot(self, render_state_json: str, width: int, height: int) -> bytes
 
 .. py:method:: MeshSet.reorient_all_faces(self, **kwargs)
    :module: _qmeshlab
@@ -891,12 +891,12 @@ Methods
 .. py:method:: MeshSet.save_current_mesh(...)
    :module: _qmeshlab
 
-   save\\_current\\_mesh(self, path: str) -> None
+   save_current_mesh(self, path: str) -> None
 
 .. py:method:: MeshSet.save_project(...)
    :module: _qmeshlab
 
-   save\\_project(self, file\\_name: str) -> None
+   save_project(self, file_name: str) -> None
 
 .. py:method:: MeshSet.select_all(self, **kwargs)
    :module: _qmeshlab
@@ -1016,22 +1016,22 @@ Methods
 .. py:method:: MeshSet.set_current_mesh(...)
    :module: _qmeshlab
 
-   set\\_current\\_mesh(self, index: int) -> None
+   set_current_mesh(self, index: int) -> None
 
 .. py:method:: MeshSet.set_current_mesh_visibility(...)
    :module: _qmeshlab
 
-   set\\_current\\_mesh\\_visibility(self, visibility: bool) -> None
+   set_current_mesh_visibility(self, visibility: bool) -> None
 
 .. py:method:: MeshSet.set_current_raster(...)
    :module: _qmeshlab
 
-   set\\_current\\_raster(self, index: int) -> None
+   set_current_raster(self, index: int) -> None
 
 .. py:method:: MeshSet.set_mesh_visibility(...)
    :module: _qmeshlab
 
-   set\\_mesh\\_visibility(self, id: int, visibility: bool) -> None
+   set_mesh_visibility(self, id: int, visibility: bool) -> None
 
 .. py:method:: MeshSet.set_per_mesh_color(self, **kwargs)
    :module: _qmeshlab
