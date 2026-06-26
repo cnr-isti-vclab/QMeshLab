@@ -157,8 +157,24 @@ void PythonHost::setupConsole(Document *doc)
     // pymeshlab's approach.  Each method delegates to apply_filter() using
     // the filter's python_name as the resolution key.
     static const char *kBindFiltersCode = R"python(
+import sys
+import types
+
+import _qmeshlab as _qml
+
+pymeshlab2 = types.ModuleType("pymeshlab2")
+pymeshlab2.__doc__ = "Public QMeshLab/PyMeshLab2 scripting facade backed by _qmeshlab."
+pymeshlab2.MeshSet = _qml.MeshSet
+pymeshlab2.FilterInfo = _qml.FilterInfo
+pymeshlab2.FilterRunResult = _qml.FilterRunResult
+pymeshlab2.MlGui = _qml.MlGui
+pymeshlab2.filter_list = _qml.filter_list
+pymeshlab2.print_filter_list = _qml.print_filter_list
+pymeshlab2.load_default_plugins = _qml.load_default_plugins
+pymeshlab2.__all__ = ["MeshSet", "FilterInfo", "FilterRunResult", "MlGui"]
+sys.modules["pymeshlab2"] = pymeshlab2
+
 def _bind_filter_methods():
-    import _qmeshlab as _qml
     def _make_filter(python_name):
         def _filter(self, **kwargs):
             return self.apply_filter(python_name, kwargs)

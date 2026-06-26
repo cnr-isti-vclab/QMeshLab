@@ -7,14 +7,13 @@ class QPlainTextEdit;
 class QLineEdit;
 class QPushButton;
 class QLabel;
-class QTabWidget;
 class ScriptEditorWidget;
 
 // An interactive Python console widget.
 //
-// Displays an output area (read-only) and an input line with a >>> / ...
-// prompt.  Connects to PythonHost signals so that all Python output is
-// routed here.  History is navigated with Up / Down on the input line.
+// Displays the script editor and console side by side, so script output is
+// immediately visible in the read-only console output area. The input line
+// supports a >>> / ... prompt and Up / Down history navigation.
 class PythonConsoleWidget : public QWidget
 {
     Q_OBJECT
@@ -42,7 +41,6 @@ private:
     void historyUp();
     void historyDown();
 
-    QTabWidget     *m_tabs        = nullptr;
     QPlainTextEdit *m_output      = nullptr;
     QLineEdit      *m_input       = nullptr;
     QLabel         *m_promptLabel = nullptr;

@@ -1,0 +1,275 @@
+# Python Scripting
+
+QMeshLab can expose an embedded Python console and script editor when it is built
+with `QMESHLAB_PYTHON_CONSOLE=ON`. The embedded interpreter works on the live
+application document, so scripts can inspect the current scene, run filters,
+load/save meshes and rasters, and capture view snapshots.
+
+## Predefined Names
+
+The script environment is the Python `__main__` namespace used by the embedded
+console. Names created in the console and names created by scripts share the
+same namespace for the current QMeshLab session.
+
+### `ms`
+
+`ms` is the live document, exposed as a `pymeshlab2.MeshSet`-compatible object. This is the
+main entry point for document and filter operations.
+
+```python
+print("Meshes:", ms.mesh_count())
+print("Current mesh:", ms.current_mesh())
+print("Rasters:", ms.raster_count())
+```
+
+Important: `ms` borrows the live QMeshLab `Document`. Calling modifying methods
+on it changes the open document.
+
+### `mlgui`
+
+`mlgui` is the live GUI/view helper. It is backed by the private `_qmeshlab.MlGui` type. It is
+available in the desktop application when an active render view exists.
+
+```python
+print(mlgui.camera_state_json())
+print(mlgui.render_state_json())
+mlgui.save_snapshot("/tmp/qmeshlab_snapshot.png", 1200, 900)
+```
+
+Use `mlgui` for view state and rendering operations. It is not meant to be a
+general document API.
+
+### `pymeshlab2`
+
+`pymeshlab2` is the public Python facade for standalone, GUI-less mesh processing.
+In the embedded QMeshLab console it is injected as a lightweight module backed by
+the same private `_qmeshlab` extension used by the headless package.
+
+Use it when you want a separate mesh set that does not operate on the live GUI
+document.
+
+```python
+import pymeshlab2
+
+print(pymeshlab2.filter_list()[:5])
+other = pymeshlab2.MeshSet()
+print("Standalone mesh set:", other.mesh_count())
+```
+
+Most scripts inside QMeshLab should use the predefined `ms` object. Import
+`pymeshlab2` only when you want the same public API exposed by the GUI-less
+package, or when you want to create an independent `MeshSet`.
+
+## Available Module Objects
+
+The public `pymeshlab2` facade exposes:
+
+- `pymeshlab2.MeshSet`
+- `pymeshlab2.FilterInfo`
+- `pymeshlab2.FilterRunResult`
+- `pymeshlab2.MlGui`
+- `pymeshlab2.filter_list()`
+- `pymeshlab2.print_filter_list()`
+- `pymeshlab2.load_default_plugins()`
+
+## MeshSet Basics
+
+The live `ms` object supports the following core methods:
+
+- `mesh_count()`, `mesh_number()`, `number_meshes()`
+- `current_mesh()`, `current_mesh_id()`, `set_current_mesh(index)`
+- `mesh_id_exists(index)`
+- `set_current_mesh_visibility(visible)`
+- `set_mesh_visibility(index, visible)`
+- `is_current_mesh_visible()`, `is_mesh_visible(index)`
+- `load_new_mesh(path)`
+- `save_current_mesh(path)`
+- `raster_count()`, `raster_number()`, `number_rasters()`
+- `current_raster()`, `set_current_raster(index)`
+- `load_raster_image(path)`, `load_new_raster(path)`
+- `clear()`
+- `load_project(path)`, `save_project(path)`
+- `filter_list()`, `list_filters()`
+- `apply_filter(filter, params={})`
+- `render_snapshot(render_state_json, width, height)`
+
+Example:
+
+```python
+print("Mesh count:", ms.mesh_count())
+
+if ms.mesh_count() > 0:
+    print("Current mesh index:", ms.current_mesh())
+    print("Current mesh id:", ms.current_mesh_id())
+```
+
+## Listing Filters
+
+Use `ms.list_filters()` for structured filter information:
+
+```python
+for info in ms.list_filters()[:20]:
+    print(info.python_name, "-", info.name)
+```
+
+Each `FilterInfo` has:
+
+- `key`
+- `id`
+- `plugin_id`
+- `plugin_name`
+- `name`
+- `python_name`
+- `applicable`
+- `applicability_error`
+
+Example:
+
+```python
+for info in ms.list_filters():
+    if "texture" in info.name.lower():
+        print(info.python_name, "|", info.name)
+```
+
+## Running Filters
+
+There are two equivalent styles.
+
+Call `apply_filter()` with the filter Python name:
+
+```python
+result = ms.apply_filter("meshing_decimation_quadric_edge_collapse", {
+    "targetfacenum": 10000,
+    "preserveboundary": True,
+})
+print(result.success, result.error_message)
+```
+
+Or call the dynamically generated convenience method:
+
+```python
+result = ms.meshing_decimation_quadric_edge_collapse(
+    targetfacenum=10000,
+    preserveboundary=True,
+)
+print(result.success)
+```
+
+The generated convenience methods are attached to the shared `MeshSet` type when the
+console starts. Their names come from each filter descriptor's `pythonName`.
+
+## Filter Parameters
+
+Filter parameters are passed as Python keyword arguments or as a dictionary.
+Currently supported parameter value types are:
+
+- `bool`
+- `int`
+- `float`
+- `str`
+- `None`
+- 3-item `tuple` or `list` for point/vector values, for example `(1.0, 0.0, 0.0)`
+
+Example with a vector parameter:
+
+```python
+result = ms.apply_filter("compute_matrix_from_translation", {
+    "traslMethod": "xyz",
+    "axis": (1.0, 0.0, 0.0),
+    "Freeze": False,
+})
+print(result.success)
+```
+
+Parameter names must match the filter descriptor ids. The easiest way to get a
+valid call is to use the filter panel's "Copy Python call to console" button.
+
+## Filter Results
+
+Filter calls return a `pymeshlab2.FilterRunResult`-compatible object.
+
+```python
+result = ms.apply_filter("mesh_info", {"precision": 3})
+
+print("success:", result.success)
+print("modified:", result.document_modified)
+print("error:", result.error_message)
+print("new meshes:", result.new_mesh_indices)
+print("outputs:", result.output_values)
+
+for message in result.info_messages:
+    print(message)
+```
+
+Fields:
+
+- `success`
+- `document_modified`
+- `error_message`
+- `info_messages`
+- `new_mesh_indices`
+- `output_values`
+
+## Snapshot Examples
+
+Save the current view to a PNG:
+
+```python
+mlgui.save_snapshot("/tmp/qmeshlab_view.png", 1600, 1200)
+```
+
+Capture and reapply render state:
+
+```python
+state = mlgui.render_state_json()
+mlgui.save_snapshot("/tmp/qmeshlab_view.png", 1600, 1200, state)
+```
+
+Get raw RGBA bytes:
+
+```python
+state = mlgui.render_state_json()
+pixels = mlgui.render_snapshot(state, 800, 600)
+print("Bytes:", len(pixels))
+```
+
+## Minimal Useful Scripts
+
+Print a short document report:
+
+```python
+print("Meshes:", ms.mesh_count())
+print("Rasters:", ms.raster_count())
+
+for info in ms.list_filters()[:10]:
+    print(info.python_name, "-", info.name)
+```
+
+Load a mesh and save it in another format:
+
+```python
+ms.load_new_mesh("/tmp/input.obj")
+ms.save_current_mesh("/tmp/output.ply")
+```
+
+Run a filter and inspect the result:
+
+```python
+result = ms.apply_filter("mesh_info", {"precision": 2})
+
+if not result.success:
+    print("Filter failed:", result.error_message)
+else:
+    for message in result.info_messages:
+        print(message)
+```
+
+## Caveats
+
+- `_qmeshlab` is the private compiled extension module. User scripts should prefer the predefined `ms` object or `import pymeshlab2`.
+- `ms` operates on the live document; scripts can modify the scene.
+- `mlgui` depends on an active desktop render view.
+- Standalone `pymeshlab2.MeshSet()` objects own their own document and do not
+  automatically share the live application document.
+- The API is still evolving. Prefer generated filter calls from the filter panel
+  when you need exact parameter names.

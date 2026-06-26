@@ -3,6 +3,7 @@
 Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-based filters, and optional embedded Python/nanobind bindings.
 
 ## Documentation Index
+- [Python Scripting](docs/python_scripting.md)
 - [Architecture](docs/architecture.md)
 - [Data Model](docs/data_model.md)
 - [Rendering](docs/rendering.md)
@@ -24,7 +25,7 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 - Filter parameters include mesh, texture, point/vector, camera-state, and render-state values; parameter panels can reset to descriptor defaults and source state JSON from the active view
 - Raster projection filters can transfer current/all visible raster colors to vertex colors or bake visible rasters into a mesh texture atlas using existing wedge UVs
 - Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
-- Embedded `_qmeshlab.MeshSet` bindings when `QMESHLAB_PYTHON_CONSOLE=ON`; the in-app console exposes the live document as `ms`
+- Embedded Python bindings when `QMESHLAB_PYTHON_CONSOLE=ON`; the in-app console exposes the live document as `ms` and the public standalone facade as `pymeshlab2`
 - Tree-shaped undo/redo integrated with mesh operations, filter runs, camera/render-style snapshots, branch pruning, and linearization
 - Structured logging for app/VCG/error messages, load/filter progress, memory estimates, and GPU buffer rebuild timing
 - PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata), plus snapshot-to-raster workflows
@@ -77,7 +78,7 @@ Prerequisites:
 - Python development libraries when `QMESHLAB_PYTHON_CONSOLE=ON` (default)
 
 This repository contains `vcpkg.json`; non-Qt dependencies are installed via vcpkg manifest mode.
-Qt6 and Python are intentionally kept outside vcpkg, while `vcglib` remains a git submodule. `nanobind` is provided through vcpkg and is used for the embedded `_qmeshlab` bindings.
+Qt6 and Python are intentionally kept outside vcpkg, while `vcglib` remains a git submodule. `nanobind` is provided through vcpkg and is used for the private `_qmeshlab` extension behind the embedded `pymeshlab2` facade.
 
 ### Dependency Installation
 

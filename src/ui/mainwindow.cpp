@@ -910,8 +910,8 @@ MainWindow::MainWindow(QWidget *parent)
         if (targetPath.isEmpty()) return;
 
         QStringList lines;
-        lines << QStringLiteral("import qmeshlab");
-        lines << QStringLiteral("ms = qmeshlab.MeshSet()");
+        lines << QStringLiteral("import pymeshlab2");
+        lines << QStringLiteral("ms = pymeshlab2.MeshSet()");
         lines << QStringLiteral("");
 
         if (!commonDir.isEmpty()) {
