@@ -39,7 +39,7 @@ def _collect_class_members(cls):
 
 def _rst_escape(text):
     """Escape special RST characters so they render as literal text."""
-    for ch in '*_`|\\':
+    for ch in '*`|\\':
         text = text.replace(ch, '\\' + ch)
     return text
 
