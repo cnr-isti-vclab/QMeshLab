@@ -15,11 +15,14 @@ import importlib
 # Introspection helpers
 # ---------------------------------------------------------------------------
 
-def _collect_class_members(cls):
+def _collect_class_members(cls, excluded_names=None):
     """Return list of (name, signature_string, docstring, is_method) for *cls*."""
+    excluded = set(excluded_names or [])
     members = []
     for name in dir(cls):
         if name.startswith('_') and name not in ('__init__', '__len__', '__repr__'):
+            continue
+        if name in excluded:
             continue
         obj = getattr(cls, name, None)
         if obj is None:
@@ -201,14 +204,17 @@ def generate(output_dir):
     # Locate the repository root (the output_dir is "docs" under it).
     source_dir = os.path.normpath(os.path.join(output_dir, '..'))
 
+    # --- Read all filters.json ---
+    all_filters = _read_all_filters(source_dir)
+    filter_python_names = {f['python_name'] for f in all_filters}
+
     # --- Introspect classes ---
-    meshset_members = _collect_class_members(qml.MeshSet)
+    meshset_members = _collect_class_members(
+        qml.MeshSet,
+        excluded_names=filter_python_names)
     mlgui_members = _collect_class_members(qml.MlGui)
     filter_info_members = _collect_class_members(qml.FilterInfo)
     filter_run_members = _collect_class_members(qml.FilterRunResult)
-
-    # --- Read all filters.json ---
-    all_filters = _read_all_filters(source_dir)
 
     # --- Write api/meshset.rst ---
     os.makedirs(os.path.join(output_dir, 'api'), exist_ok=True)
@@ -217,6 +223,9 @@ def generate(output_dir):
         fh.write('.. _meshset-api:\n\n')
         fh.write('MeshSet\n')
         fh.write('=======\n\n')
+        fh.write('This page documents the core ``MeshSet`` API.\n')
+        fh.write('Filter-specific methods are documented in :ref:`filters` to avoid\n')
+        fh.write('duplicating the full filter list here.\n\n')
         _write_methods_rst(fh, 'MeshSet', meshset_members)
 
     # --- Write api/mlgui.rst ---
