@@ -276,3 +276,20 @@ QStringList nonDefaultFilterParamsToPython(
     }
     return args;
 }
+
+QStringList allFilterParamsToPython(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterParameterValues &values)
+{
+    QStringList args;
+    for (const MeshFilterParameterDescriptor &param : descriptor.parameters) {
+        if (param.id.trimmed().isEmpty())
+            continue;
+        auto it = values.constFind(param.id);
+        if (it == values.constEnd())
+            continue;
+        const QString lit = filterParamValueToPythonLiteral(it.value(), param.type);
+        args << QStringLiteral("%1=%2").arg(param.id, lit);
+    }
+    return args;
+}

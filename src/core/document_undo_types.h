@@ -36,6 +36,10 @@ struct ScriptAction {
     QString     filterKey;   // fully qualified filter key (pluginId::filterId)
     QVariantMap params;      // filter parameters (empty for load/save)
     QStringList  filePaths;   // file paths for load/save operations
+    QString pythonCall;      // exact Python call for filter actions, when available
+    int currentMeshIndex = -1;
+    int currentRasterIndex = -1;
+    CurrentLayerKind currentLayerKind = CurrentLayerKind::None;
 };
 
 // ---------------------------------------
@@ -95,8 +99,12 @@ struct UndoState {
 struct UndoActionRecord {
     QString kind;       // "filter", "load_mesh", "load_raster", "save_mesh", "load_project", ...
     QString filterKey;  // fully qualified filter key for filter actions
-    QVariantMap params; // normalized parameter values used for this action
+    QVariantMap params; // user-facing parameter values used for this action
     QStringList filePaths;
+    QString pythonCall;
+    int currentMeshIndex = -1;
+    int currentRasterIndex = -1;
+    CurrentLayerKind currentLayerKind = CurrentLayerKind::None;
 
     static UndoActionRecord fromScriptAction(const ScriptAction &action)
     {
@@ -105,6 +113,10 @@ struct UndoActionRecord {
         record.filterKey = action.filterKey;
         record.params = action.params;
         record.filePaths = action.filePaths;
+        record.pythonCall = action.pythonCall;
+        record.currentMeshIndex = action.currentMeshIndex;
+        record.currentRasterIndex = action.currentRasterIndex;
+        record.currentLayerKind = action.currentLayerKind;
         return record;
     }
 
@@ -115,6 +127,10 @@ struct UndoActionRecord {
         action.filterKey = filterKey;
         action.params = params;
         action.filePaths = filePaths;
+        action.pythonCall = pythonCall;
+        action.currentMeshIndex = currentMeshIndex;
+        action.currentRasterIndex = currentRasterIndex;
+        action.currentLayerKind = currentLayerKind;
         return action;
     }
 };

@@ -691,8 +691,20 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         ScriptAction sa;
         sa.kind = QStringLiteral("filter");
         sa.filterKey = filterKey;
-        for (auto it = normalizedParameters.constBegin(); it != normalizedParameters.constEnd(); ++it)
+        sa.currentMeshIndex = doc.currentMeshIndex();
+        sa.currentRasterIndex = doc.currentRasterIndex();
+        sa.currentLayerKind = doc.currentLayerKind();
+        // Preserve the original invocation values for history/script export so
+        // the generated Python call matches what the user explicitly chose in
+        // the GUI, rather than the post-normalized internal representation.
+        for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it)
             sa.params[it.key()] = it.value();
+        {
+            const QStringList args = allFilterParamsToPython(*targetDescriptor, parameters);
+            sa.pythonCall = QStringLiteral("ms.%1(%2)").arg(
+                targetDescriptor->effectivePythonName(),
+                args.join(QStringLiteral(", ")));
+        }
         doc.beginUndoStep(targetDescriptor->name, sa);
     }
 

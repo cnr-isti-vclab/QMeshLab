@@ -70,3 +70,9 @@ QString filterParamValueToPythonLiteral(const QVariant &v,
 QStringList nonDefaultFilterParamsToPython(
     const MeshFilterDescriptor &descriptor,
     const MeshFilterParameterValues &values);
+
+// Return "key=value" entries for all declared parameters present in the map,
+// preserving the user-facing invocation exactly as recorded.
+QStringList allFilterParamsToPython(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterParameterValues &values);

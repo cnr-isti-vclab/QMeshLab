@@ -901,8 +901,8 @@ MainWindow::MainWindow(QWidget *parent)
         }
 
         QStringList lines;
-        lines << QStringLiteral("import pymeshlab2");
-        lines << QStringLiteral("ms = pymeshlab2.MeshSet()");
+        lines << QStringLiteral("# Uses the embedded QMeshLab scripting session.");
+        lines << QStringLiteral("# `ms` already refers to the current document MeshSet.");
         lines << QStringLiteral("");
 
         if (!commonDir.isEmpty()) {
@@ -926,11 +926,26 @@ MainWindow::MainWindow(QWidget *parent)
         std::sort(path.begin(), path.end(),
                   [](const PathNode &a, const PathNode &b) { return a.depth < b.depth; });
 
+        int exportedCurrentMeshIndex = -1;
+        int exportedCurrentRasterIndex = -1;
+
         for (const auto &pn : path) {
             auto sa = m_doc->undoNodeScriptAction(pn.nodeId);
             if (!sa.has_value()) continue;
 
             if (sa->kind == QStringLiteral("filter")) {
+                if (sa->currentMeshIndex >= 0 && sa->currentMeshIndex != exportedCurrentMeshIndex) {
+                    lines << QStringLiteral("ms.set_current_mesh(%1)").arg(sa->currentMeshIndex);
+                    exportedCurrentMeshIndex = sa->currentMeshIndex;
+                }
+                if (sa->currentRasterIndex >= 0 && sa->currentRasterIndex != exportedCurrentRasterIndex) {
+                    lines << QStringLiteral("ms.set_current_raster(%1)").arg(sa->currentRasterIndex);
+                    exportedCurrentRasterIndex = sa->currentRasterIndex;
+                }
+                if (!sa->pythonCall.trimmed().isEmpty()) {
+                    lines << sa->pythonCall;
+                    continue;
+                }
                 QString filterName;
                 const MeshFilterDescriptor *desc = nullptr;
                 for (const auto &fi : m_doc->filterInfos()) {
@@ -942,7 +957,7 @@ MainWindow::MainWindow(QWidget *parent)
                 }
                 if (desc) {
                     const QStringList args =
-                        nonDefaultFilterParamsToPython(*desc, sa->params);
+                        allFilterParamsToPython(*desc, sa->params);
                     lines << QStringLiteral("ms.%1(%2)").arg(
                         filterName, args.join(QStringLiteral(", ")));
                 } else {
@@ -952,16 +967,20 @@ MainWindow::MainWindow(QWidget *parent)
                 for (const QString &fp : sa->filePaths) {
                     QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
                     lines << QStringLiteral("ms.load_new_mesh(\"%1\")").arg(rel.replace('\\', '/'));
+                    exportedCurrentMeshIndex = -1;
                 }
             } else if (sa->kind == QStringLiteral("load_raster")) {
                 for (const QString &fp : sa->filePaths) {
                     QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
                     lines << QStringLiteral("ms.load_new_raster(\"%1\")").arg(rel.replace('\\', '/'));
+                    exportedCurrentRasterIndex = -1;
                 }
             } else if (sa->kind == QStringLiteral("load_project")) {
                 for (const QString &fp : sa->filePaths) {
                     QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
                     lines << QStringLiteral("ms.load_project(\"%1\")").arg(rel.replace('\\', '/'));
+                    exportedCurrentMeshIndex = -1;
+                    exportedCurrentRasterIndex = -1;
                 }
             }
         }
