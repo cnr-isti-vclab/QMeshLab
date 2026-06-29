@@ -51,6 +51,7 @@
 #include <QMimeData>
 #include <QProcess>
 #include <QProgressBar>
+#include <QPushButton>
 #include <QRadioButton>
 #include <QSettings>
 #include <QSet>
@@ -879,6 +880,23 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::generatePythonScriptRequested, this, [this]() {
         if (!m_doc) return;
 
+        QMessageBox exportModeBox(this);
+        exportModeBox.setIcon(QMessageBox::Question);
+        exportModeBox.setWindowTitle(tr("Generate Python Script"));
+        exportModeBox.setText(tr("Choose how filter parameters should be written."));
+        exportModeBox.setInformativeText(tr("Full keeps every recorded parameter for exact replay. Compact omits parameters that match the current descriptor defaults."));
+        QPushButton *compactButton = exportModeBox.addButton(tr("Compact"), QMessageBox::AcceptRole);
+        QPushButton *fullButton = exportModeBox.addButton(tr("Full"), QMessageBox::AcceptRole);
+        exportModeBox.addButton(QMessageBox::Cancel);
+        exportModeBox.setDefaultButton(compactButton);
+        exportModeBox.exec();
+        if (exportModeBox.clickedButton() != compactButton
+            && exportModeBox.clickedButton() != fullButton) {
+            return;
+        }
+        const bool includeDefaultParameters =
+            (exportModeBox.clickedButton() == fullButton);
+
         // Collect file paths for common prefix detection
         QStringList allPaths;
         for (const auto &info : m_doc->undoTreeInfo()) {
@@ -942,7 +960,7 @@ MainWindow::MainWindow(QWidget *parent)
                     lines << QStringLiteral("ms.set_current_raster(%1)").arg(sa->currentRasterIndex);
                     exportedCurrentRasterIndex = sa->currentRasterIndex;
                 }
-                if (!sa->pythonCall.trimmed().isEmpty()) {
+                if (includeDefaultParameters && !sa->pythonCall.trimmed().isEmpty()) {
                     lines << sa->pythonCall;
                     continue;
                 }
@@ -957,7 +975,9 @@ MainWindow::MainWindow(QWidget *parent)
                 }
                 if (desc) {
                     const QStringList args =
-                        allFilterParamsToPython(*desc, sa->params);
+                        includeDefaultParameters
+                            ? allFilterParamsToPython(*desc, sa->params)
+                            : nonDefaultFilterParamsToPython(*desc, sa->params);
                     lines << QStringLiteral("ms.%1(%2)").arg(
                         filterName, args.join(QStringLiteral(", ")));
                 } else {
