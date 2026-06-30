@@ -960,26 +960,22 @@ MainWindow::MainWindow(QWidget *parent)
                     lines << QStringLiteral("ms.set_current_raster(%1)").arg(sa->currentRasterIndex);
                     exportedCurrentRasterIndex = sa->currentRasterIndex;
                 }
-                if (includeDefaultParameters && !sa->pythonCall.trimmed().isEmpty()) {
-                    lines << sa->pythonCall;
+                const QString recordedCall = includeDefaultParameters
+                    ? sa->pythonCall.trimmed()
+                    : sa->compactPythonCall.trimmed();
+                if (!recordedCall.isEmpty()) {
+                    lines << recordedCall;
                     continue;
                 }
-                QString filterName;
                 const MeshFilterDescriptor *desc = nullptr;
                 for (const auto &fi : m_doc->filterInfos()) {
                     if (fi.key == sa->filterKey) {
-                        filterName = fi.descriptor.effectivePythonName();
                         desc = &fi.descriptor;
                         break;
                     }
                 }
                 if (desc) {
-                    const QStringList args =
-                        includeDefaultParameters
-                            ? allFilterParamsToPython(*desc, sa->params)
-                            : nonDefaultFilterParamsToPython(*desc, sa->params);
-                    lines << QStringLiteral("ms.%1(%2)").arg(
-                        filterName, args.join(QStringLiteral(", ")));
+                    lines << filterCallToPython(*desc, sa->params, includeDefaultParameters);
                 } else {
                     lines << QStringLiteral("# unknown filter: %1").arg(sa->filterKey);
                 }

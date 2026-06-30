@@ -293,3 +293,16 @@ QStringList allFilterParamsToPython(
     }
     return args;
 }
+
+QString filterCallToPython(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterParameterValues &values,
+    bool includeDefaultParameters)
+{
+    const QStringList args = includeDefaultParameters
+        ? allFilterParamsToPython(descriptor, values)
+        : nonDefaultFilterParamsToPython(descriptor, values);
+    return QStringLiteral("ms.%1(%2)").arg(
+        descriptor.effectivePythonName(),
+        args.join(QStringLiteral(", ")));
+}

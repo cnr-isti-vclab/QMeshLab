@@ -37,6 +37,7 @@ struct ScriptAction {
     QVariantMap params;      // filter parameters (empty for load/save)
     QStringList  filePaths;   // file paths for load/save operations
     QString pythonCall;      // exact Python call for filter actions, when available
+    QString compactPythonCall;
     int currentMeshIndex = -1;
     int currentRasterIndex = -1;
     CurrentLayerKind currentLayerKind = CurrentLayerKind::None;
@@ -102,6 +103,7 @@ struct UndoActionRecord {
     QVariantMap params; // user-facing parameter values used for this action
     QStringList filePaths;
     QString pythonCall;
+    QString compactPythonCall;
     int currentMeshIndex = -1;
     int currentRasterIndex = -1;
     CurrentLayerKind currentLayerKind = CurrentLayerKind::None;
@@ -114,6 +116,7 @@ struct UndoActionRecord {
         record.params = action.params;
         record.filePaths = action.filePaths;
         record.pythonCall = action.pythonCall;
+        record.compactPythonCall = action.compactPythonCall;
         record.currentMeshIndex = action.currentMeshIndex;
         record.currentRasterIndex = action.currentRasterIndex;
         record.currentLayerKind = action.currentLayerKind;
@@ -128,6 +131,7 @@ struct UndoActionRecord {
         action.params = params;
         action.filePaths = filePaths;
         action.pythonCall = pythonCall;
+        action.compactPythonCall = compactPythonCall;
         action.currentMeshIndex = currentMeshIndex;
         action.currentRasterIndex = currentRasterIndex;
         action.currentLayerKind = currentLayerKind;

@@ -950,12 +950,8 @@ void MeshFilterPanel::buildUi()
         const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
         if (!info)
             return;
-        const QString pyName = info->descriptor.effectivePythonName();
         const MeshFilterParameterValues vals = collectCurrentParameterValues();
-        const QStringList args = nonDefaultFilterParamsToPython(info->descriptor, vals);
-        const QString code = QStringLiteral("ms.%1(%2)").arg(
-            pyName, args.join(QStringLiteral(", ")));
-        emit copyToConsoleRequested(code);
+        emit copyToConsoleRequested(filterCallToPython(info->descriptor, vals, false));
     });
 #endif
     m_resetParametersButton = new QToolButton(m_parametersPage);

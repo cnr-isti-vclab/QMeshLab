@@ -699,12 +699,8 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         // the GUI, rather than the post-normalized internal representation.
         for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it)
             sa.params[it.key()] = it.value();
-        {
-            const QStringList args = allFilterParamsToPython(*targetDescriptor, parameters);
-            sa.pythonCall = QStringLiteral("ms.%1(%2)").arg(
-                targetDescriptor->effectivePythonName(),
-                args.join(QStringLiteral(", ")));
-        }
+        sa.pythonCall = filterCallToPython(*targetDescriptor, parameters, true);
+        sa.compactPythonCall = filterCallToPython(*targetDescriptor, parameters, false);
         doc.beginUndoStep(targetDescriptor->name, sa);
     }
 

@@ -6,7 +6,7 @@ QMeshLab follows a **single-document, multi-view** architecture:
 - UI widgets observe it through Qt signals
 - rendering ownership is split between shared mesh GPU data and per-view pipelines/state
 
-See also: [Data Model](data_model.md) · [Rendering](rendering.md)
+See also: [Data Model](data_model.md) · [Rendering](rendering.md) · [Filter Organization](filter_organization.md)
 
 ## Architectural Layers
 

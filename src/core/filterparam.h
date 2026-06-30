@@ -76,3 +76,8 @@ QStringList nonDefaultFilterParamsToPython(
 QStringList allFilterParamsToPython(
     const MeshFilterDescriptor &descriptor,
     const MeshFilterParameterValues &values);
+
+QString filterCallToPython(
+    const MeshFilterDescriptor &descriptor,
+    const MeshFilterParameterValues &values,
+    bool includeDefaultParameters);
