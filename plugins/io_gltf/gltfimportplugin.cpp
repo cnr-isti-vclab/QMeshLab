@@ -996,6 +996,8 @@ public:
         int textureDecodeFailureCount = 0;
         int textureMissingFileCount = 0;
 
+        // -- Texture resolution ------------------------------------------------
+
         std::unordered_map<int, int> imageToTextureSlot;
         std::unordered_map<int, QString> imageToResolvedUri;
         std::vector<std::string> textureFiles;
@@ -1051,9 +1053,9 @@ public:
                 if (!tmpDir.exists())
                     tmpDir.mkpath(QStringLiteral("."));
                 const QString baseName = QFileInfo(filename).completeBaseName();
-                const QString fileName = QStringLiteral("%1_img_%2.png").arg(baseName).arg(imageIndex);
+                const QString fileName = QStringLiteral("%1_img_%2.bmp").arg(baseName).arg(imageIndex);
                 const QString absPath = tmpDir.filePath(fileName);
-                if (!qimg.save(absPath)) {
+                if (!qimg.save(absPath, "BMP")) {
                     ++textureDecodeFailureCount;
                     reportProgress(
                         cb,
@@ -1255,43 +1257,6 @@ public:
                     const int texSlot = textureSlotForMaterial(prim.material);
                     const vcg::Color4b baseColor = primitiveBaseColor(prim.material);
                     const QMatrix3x3 normalMat = world.normalMatrix();
-                    std::vector<int> primitiveVertexIndexMap(posView.count, -1);
-
-                    auto addVertexFromSource = [&](uint32_t srcIndex) -> int {
-                        if (srcIndex >= posView.count)
-                            return -1;
-                        const QVector3D p = readVec3(posView, srcIndex);
-                        const QVector4D wp = world * QVector4D(p, 1.0f);
-                        auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(
-                            mesh, VCGMesh::CoordType(wp.x(), wp.y(), wp.z()));
-                        VCGVertex *v = &(*vi);
-
-                        if (nrmView.valid && srcIndex < nrmView.count) {
-                            QVector3D n = mulMat3Vec3(normalMat, readVec3(nrmView, srcIndex));
-                            if (!qFuzzyIsNull(n.lengthSquared()))
-                                n.normalize();
-                            v->N() = VCGMesh::CoordType(n.x(), n.y(), n.z());
-                        }
-
-                        if (colView.valid && srcIndex < colView.count) {
-                            v->C() = readColor4b(colView, srcIndex, baseColor);
-                        } else {
-                            v->C() = baseColor;
-                        }
-                        return mesh.VN() - 1;
-                    };
-
-                    auto vertexIndexForSource = [&](uint32_t srcIndex) -> int {
-                        if (srcIndex >= primitiveVertexIndexMap.size())
-                            return -1;
-                        const int cached = primitiveVertexIndexMap[size_t(srcIndex)];
-                        if (cached >= 0)
-                            return cached;
-                        const int createdIndex = addVertexFromSource(srcIndex);
-                        if (createdIndex >= 0)
-                            primitiveVertexIndexMap[size_t(srcIndex)] = createdIndex;
-                        return createdIndex;
-                    };
 
                     auto indexAt = [&](size_t i, uint32_t &dst) -> bool {
                         if (hasIndices)
@@ -1302,42 +1267,84 @@ public:
                         return true;
                     };
 
-                    if (mode == TINYGLTF_MODE_POINTS) {
-                        const size_t pointCount = hasIndices ? idxView.count : posView.count;
-                        for (size_t i = 0; i < pointCount; ++i) {
-                            uint32_t src = 0;
-                            if (!indexAt(i, src))
+                    // --- Batch vertex+face allocation ---
+                    // First pass: count unique source vertices so we can
+                    // allocate them all at once (avoiding O(n²) resize per
+                    // individual AddVertex call).
+                    const size_t totalIdxCount = hasIndices ? idxView.count : posView.count;
+                    std::vector<int> srcToLocal(posView.count, -1);
+                    int localCount = 0;
+                    for (size_t i = 0; i < totalIdxCount; ++i) {
+                        uint32_t src = 0;
+                        if (!indexAt(i, src) || src >= posView.count)
+                            continue;
+                        if (srcToLocal[src] < 0)
+                            srcToLocal[src] = localCount++;
+                    }
+
+                    // Batch-allocate all new vertices at once.
+                    const int baseVert = mesh.VN();
+                    if (localCount > 0) {
+                        vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, localCount);
+                        for (uint32_t si = 0; si < posView.count; ++si) {
+                            const int li = srcToLocal[si];
+                            if (li < 0)
                                 continue;
-                            vertexIndexForSource(src);
+                            const int di = baseVert + li;
+                            const QVector3D p = readVec3(posView, si);
+                            const QVector4D wp = world * QVector4D(p, 1.0f);
+                            mesh.vert[di].P() = VCGMesh::CoordType(wp.x(), wp.y(), wp.z());
+
+                            if (nrmView.valid && si < nrmView.count) {
+                                QVector3D n = mulMat3Vec3(normalMat, readVec3(nrmView, si));
+                                if (!qFuzzyIsNull(n.lengthSquared()))
+                                    n.normalize();
+                                mesh.vert[di].N() = VCGMesh::CoordType(n.x(), n.y(), n.z());
+                            }
+
+                            if (colView.valid && si < colView.count) {
+                                mesh.vert[di].C() = readColor4b(colView, si, baseColor);
+                            } else {
+                                mesh.vert[di].C() = baseColor;
+                            }
                         }
-                    } else {
-                        const size_t indexCount = hasIndices ? idxView.count : posView.count;
-                        const size_t triCount = indexCount / 3;
-                        for (size_t ti = 0; ti < triCount; ++ti) {
-                            uint32_t idx[3] = { 0, 0, 0 };
-                            if (!indexAt(ti * 3 + 0, idx[0]) || !indexAt(ti * 3 + 1, idx[1]) || !indexAt(ti * 3 + 2, idx[2]))
-                                continue;
+                    }
 
-                            const int vi[3] = {
-                                vertexIndexForSource(idx[0]),
-                                vertexIndexForSource(idx[1]),
-                                vertexIndexForSource(idx[2])
-                            };
-                            if (vi[0] < 0 || vi[1] < 0 || vi[2] < 0)
-                                continue;
-
-                            auto fi = vcg::tri::Allocator<VCGMesh>::AddFace(
-                                mesh, size_t(vi[0]), size_t(vi[1]), size_t(vi[2]));
-                            if (uvView.valid) {
-                                hasWedgeTexCoords = true;
-                                const int wedgeTextureSlot = (texSlot >= 0) ? texSlot : 0;
-                                for (int c = 0; c < 3; ++c) {
-                                    const uint32_t src = idx[c];
-                                    const QVector2D uv =
-                                        (src < uvView.count) ? readVec2(uvView, src) : QVector2D();
-                                    fi->WT(c).U() = uv.x();
-                                    fi->WT(c).V() = 1.0f - uv.y();
-                                    fi->WT(c).N() = wedgeTextureSlot;
+                    // Batch-allocate faces (triangles only).
+                    if (mode != TINYGLTF_MODE_POINTS) {
+                        const size_t triCount = totalIdxCount / 3;
+                        if (triCount > 0) {
+                            const int baseFace = mesh.FN();
+                            vcg::tri::Allocator<VCGMesh>::AddFaces(mesh, triCount);
+                            for (size_t ti = 0; ti < triCount; ++ti) {
+                                uint32_t idx[3] = { 0, 0, 0 };
+                                if (!indexAt(ti * 3 + 0, idx[0])
+                                 || !indexAt(ti * 3 + 1, idx[1])
+                                 || !indexAt(ti * 3 + 2, idx[2]))
+                                    continue;
+                                const int li[3] = {
+                                    srcToLocal[idx[0]],
+                                    srcToLocal[idx[1]],
+                                    srcToLocal[idx[2]]
+                                };
+                                if (li[0] < 0 || li[1] < 0 || li[2] < 0)
+                                    continue;
+                                auto &f = mesh.face[baseFace + ti];
+                                f.V(0) = &mesh.vert[baseVert + li[0]];
+                                f.V(1) = &mesh.vert[baseVert + li[1]];
+                                f.V(2) = &mesh.vert[baseVert + li[2]];
+                                if (uvView.valid) {
+                                    hasWedgeTexCoords = true;
+                                    const int wedgeSlot = (texSlot >= 0) ? texSlot : 0;
+                                    for (int c = 0; c < 3; ++c) {
+                                        const QVector2D uv =
+                                            (idx[c] < uvView.count)
+                                            ? readVec2(uvView, idx[c])
+                                            : QVector2D();
+                                        f.WT(c).U() = uv.x();
+                                        f.WT(c).V() = 1.0f - uv.y();
+                                        f.WT(c).N() = wedgeSlot;
+                                    }
                                 }
                             }
                         }

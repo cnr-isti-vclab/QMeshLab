@@ -49,9 +49,13 @@ struct MeshIOMaterialSlot
 struct MeshIOMaterialSet
 {
     std::vector<MeshIOMaterialSlot> entries;
+    // In-memory texture images.  Plugins can avoid writing embedded textures to
+    // disk by providing QImage objects here alongside the material refs.
+    // The GPU cache prefers these over on-disk file paths.
+    std::vector<MeshIOTextureAsset> textureAssets;
 
     bool empty() const { return entries.empty(); }
-    void clear() { entries.clear(); }
+    void clear() { entries.clear(); textureAssets.clear(); }
 };
 
 struct MeshIOSaveOptions
