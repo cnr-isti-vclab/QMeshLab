@@ -877,6 +877,97 @@
       "outputModifies": [
         "VS"
       ]
+    },
+    {
+      "id": "select_by_rectangle",
+      "menuPath": "Selection",
+      "name": "Select by Rectangle (Screen)",
+      "pythonName": "select_by_rectangle",
+      "shortDescription": "Select vertices or faces whose screen projection falls inside a rectangle.",
+      "longDescriptionMarkdown": "Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside the rectangle. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.",
+      "tags": [
+        "selection"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "parameters": [
+        {
+          "id": "camera_state",
+          "label": "Camera",
+          "help": "Camera state (QMeshLab.CameraState JSON) defining the projection.",
+          "group": "main",
+          "type": "camerastate"
+        },
+        {
+          "id": "aspect",
+          "label": "Aspect ratio",
+          "help": "Viewport width/height used to build the projection.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0
+        },
+        {
+          "id": "rect_min_x",
+          "label": "Rect min X",
+          "help": "Left edge, normalized [0..1].",
+          "group": "main",
+          "type": "double",
+          "default": 0.0
+        },
+        {
+          "id": "rect_min_y",
+          "label": "Rect min Y",
+          "help": "Bottom edge, normalized [0..1], y up.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0
+        },
+        {
+          "id": "rect_max_x",
+          "label": "Rect max X",
+          "help": "Right edge, normalized [0..1].",
+          "group": "main",
+          "type": "double",
+          "default": 1.0
+        },
+        {
+          "id": "rect_max_y",
+          "label": "Rect max Y",
+          "help": "Top edge, normalized [0..1], y up.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0
+        },
+        {
+          "id": "element",
+          "label": "Elements",
+          "help": "Whether to select vertices or faces (by centroid).",
+          "group": "main",
+          "type": "enum",
+          "default": "face",
+          "enumOptions": [
+            { "id": "vertex", "label": "Vertices" },
+            { "id": "face", "label": "Faces" }
+          ]
+        },
+        {
+          "id": "mode",
+          "label": "Composition",
+          "help": "Replace the current selection, add to it, or subtract from it.",
+          "group": "main",
+          "type": "enum",
+          "default": "replace",
+          "enumOptions": [
+            { "id": "replace", "label": "Replace" },
+            { "id": "add", "label": "Add" },
+            { "id": "subtract", "label": "Subtract" }
+          ]
+        }
+      ],
+      "outputModifies": [
+        "VS",
+        "FS"
+      ]
     }
   ]
 }

@@ -1,5 +1,6 @@
 #include "renderwidget.h"
 #include "document.h"
+#include "interactivetool.h"
 #include "renderwidget_internal.h"
 #include <QPointer>
 
@@ -185,9 +186,12 @@ void RenderWidget::executePendingDepthPick(
             pointGpuVariantIndexForSettings(meshSettings));
 
         const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
+        // Encode the mesh id into alpha so the readback yields both depth and
+        // which mesh was hit. id 0 is background, so meshes map to mi+1.
+        const float pickId = float(mi + 1) / 255.0f;
         uploadMainUbufForMesh(
             cb, mi, proj, view, meshSettings, pixelSize, true, QVector3D(0.0f, 0.0f, 1.0f),
-            MainUbufMaterialOverrides{}, ubufOffset);
+            MainUbufMaterialOverrides{}, ubufOffset, pickId);
 
         if (m_depthPickFillPipeline) {
             const Document::FillPassGpuView fillView =
@@ -225,9 +229,10 @@ void RenderWidget::executePendingDepthPick(
 
     QPointer<RenderWidget> self(this);
     const int pickSequence = m_depthPickSequence; /* capture at submit time */
+    const PickPurpose purpose = m_depthPickPurpose;
     m_depthPickReadbackResult = std::make_unique<QRhiReadbackResult>();
     m_depthPickReadbackResult->completed =
-        [self, pickSequence, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
+        [self, pickSequence, purpose, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
         if (!self)
             return;
         const QByteArray data =
@@ -237,7 +242,7 @@ void RenderWidget::executePendingDepthPick(
             : QRhiTexture::UnknownFormat;
         QMetaObject::invokeMethod(
             self,
-            [self, pickSequence, data, format, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
+            [self, pickSequence, purpose, data, format, invMvp, px, pyScreen, pixelSize, yUpInNdc, clipDepthZeroToOne]() {
             if (!self)
                 return;
             /* Stale-callback guard: a newer double-click incremented the sequence. */
@@ -258,28 +263,44 @@ void RenderWidget::executePendingDepthPick(
                 return;
 
             const uchar *pxData = reinterpret_cast<const uchar *>(data.constData());
-            const float alpha = pxData[3] / 255.0f;
-            if (alpha < 0.5f)
-                return;
+            // Alpha encodes the picked mesh id (meshIndex+1); 0 means background.
+            const int idByte = int(pxData[3]);
+            const bool hit = (idByte != 0);
+            const int meshIndex = hit ? (idByte - 1) : -1;
 
-            const bool bgraOrder = (format == QRhiTexture::BGRA8);
-            const float depth01 = decodePackedDepthRgb8(pxData, bgraOrder);
-            if (depth01 <= 0.0f || depth01 >= 1.0f)
-                return;
+            QVector3D worldPos;
+            bool haveWorldPos = false;
+            if (hit) {
+                const bool bgraOrder = (format == QRhiTexture::BGRA8);
+                const float depth01 = decodePackedDepthRgb8(pxData, bgraOrder);
+                if (depth01 > 0.0f && depth01 < 1.0f) {
+                    const float ndcX =
+                        (2.0f * (float(px) + 0.5f) / float(qMax(1, pixelSize.width()))) - 1.0f;
+                    const float y01 = (float(pyScreen) + 0.5f) / float(qMax(1, pixelSize.height()));
+                    const float ndcY = yUpInNdc ? (1.0f - 2.0f * y01) : (2.0f * y01 - 1.0f);
+                    const float ndcZ = clipDepthZeroToOne ? depth01 : (depth01 * 2.0f - 1.0f);
+                    QVector4D world = invMvp * QVector4D(ndcX, ndcY, ndcZ, 1.0f);
+                    if (std::abs(world.w()) >= 1e-8f) {
+                        world /= world.w();
+                        worldPos = world.toVector3D();
+                        haveWorldPos = true;
+                    }
+                }
+            }
 
-            const float ndcX =
-                (2.0f * (float(px) + 0.5f) / float(qMax(1, pixelSize.width()))) - 1.0f;
-            const float y01 = (float(pyScreen) + 0.5f) / float(qMax(1, pixelSize.height()));
-            const float ndcY = yUpInNdc ? (1.0f - 2.0f * y01) : (2.0f * y01 - 1.0f);
-            const float ndcZ = clipDepthZeroToOne ? depth01 : (depth01 * 2.0f - 1.0f);
-
-            QVector4D world = invMvp * QVector4D(ndcX, ndcY, ndcZ, 1.0f);
-            if (std::abs(world.w()) < 1e-8f)
-                return;
-            world /= world.w();
-            const QVector3D worldPos = world.toVector3D();
-            self->startCenterAnimation(worldPos);
-            emit self->trackballCenterPicked(worldPos);
+            if (purpose == PickPurpose::Recenter) {
+                // Recenter needs a valid surface point; ignore background clicks.
+                if (haveWorldPos) {
+                    self->startCenterAnimation(worldPos);
+                    emit self->trackballCenterPicked(worldPos);
+                }
+            } else if (self->m_activeTool) {
+                SurfacePick result;
+                result.hit = hit && haveWorldPos;
+                result.meshIndex = result.hit ? meshIndex : -1;
+                result.worldPos = worldPos;
+                self->m_activeTool->onSurfacePicked(result);
+            }
         },
             Qt::QueuedConnection);
     };

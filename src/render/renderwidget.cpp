@@ -1,6 +1,7 @@
 #include "renderwidget.h"
 #include "colormap.h"
 #include "document.h"
+#include "interactivetool.h"
 #include "qualityrange.h"
 #include "renderoverlaypanel.h"
 #include <wrap/io_trimesh/io_mask.h>
@@ -13,6 +14,7 @@
 #include <QLabel>
 #include <QPainter>
 #include <QPixmap>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QTimer>
@@ -357,48 +359,8 @@ QJsonObject trackballStateToJsonObject(
 
 bool parseTrackballStateObject(const QJsonObject &obj, ViewTrackball::State &outState, QString *error)
 {
-    auto fail = [&](const QString &msg) {
-        if (error)
-            *error = msg;
-        return false;
-    };
-
-    if (obj.contains(QStringLiteral("center"))
-        && !parseVec3Value(obj.value(QStringLiteral("center")), outState.center))
-        return fail(QObject::tr("Invalid render-state JSON: 'trackball.center' must be [x, y, z]."));
-    if (obj.contains(QStringLiteral("rotation_xyzw"))
-        && !parseQuatXyzwValue(obj.value(QStringLiteral("rotation_xyzw")), outState.rotation)) {
-        return fail(QObject::tr("Invalid render-state JSON: 'trackball.rotation_xyzw' must be [x, y, z, w]."));
-    }
-    if (obj.contains(QStringLiteral("distance"))
-        && !parseFloatValue(obj.value(QStringLiteral("distance")), outState.distance)) {
-        return fail(QObject::tr("Invalid render-state JSON: 'trackball.distance' must be a number."));
-    }
-    if (obj.contains(QStringLiteral("radius"))
-        && !parseFloatValue(obj.value(QStringLiteral("radius")), outState.radius)) {
-        return fail(QObject::tr("Invalid render-state JSON: 'trackball.radius' must be a number."));
-    }
-    if (obj.contains(QStringLiteral("fov_y_degrees"))
-        && !parseFloatValue(obj.value(QStringLiteral("fov_y_degrees")), outState.fovYDeg)) {
-        return fail(QObject::tr("Invalid render-state JSON: 'trackball.fov_y_degrees' must be a number."));
-    }
-    if (obj.contains(QStringLiteral("near_clip_ratio"))
-        && !parseFloatValue(obj.value(QStringLiteral("near_clip_ratio")), outState.nearClipRatio)) {
-        return fail(QObject::tr("Invalid render-state JSON: 'trackball.near_clip_ratio' must be a number."));
-    }
-    if (obj.contains(QStringLiteral("gizmo_base_radius"))
-        && !parseFloatValue(obj.value(QStringLiteral("gizmo_base_radius")), outState.gizmoBaseRadius)) {
-        return fail(QObject::tr("Invalid render-state JSON: 'trackball.gizmo_base_radius' must be a number."));
-    }
-    if (obj.contains(QStringLiteral("gizmo_reference_distance"))
-        && !parseFloatValue(obj.value(QStringLiteral("gizmo_reference_distance")), outState.gizmoReferenceDistance)) {
-        return fail(QObject::tr("Invalid render-state JSON: 'trackball.gizmo_reference_distance' must be a number."));
-    }
-    if (obj.contains(QStringLiteral("gizmo_reference_fov_y_degrees"))
-        && !parseFloatValue(obj.value(QStringLiteral("gizmo_reference_fov_y_degrees")), outState.gizmoReferenceFovYDeg)) {
-        return fail(QObject::tr("Invalid render-state JSON: 'trackball.gizmo_reference_fov_y_degrees' must be a number."));
-    }
-    return true;
+    // Single source of truth lives in QMeshLabCore so filters can share it.
+    return ViewTrackball::stateFromJson(obj, outState, error);
 }
 
 QJsonObject renderSettingsToJsonObject(const RenderSettings &s, const RenderSettings *defaults = nullptr)
@@ -1028,6 +990,7 @@ int decimalsForStep(double step)
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
+    setFocusPolicy(Qt::StrongFocus); // receive key events for interactive tools
     m_currentViewIndicator = new QWidget(this);
     m_currentViewIndicator->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     m_currentViewIndicator->setStyleSheet(QStringLiteral(
@@ -1045,6 +1008,12 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     refreshColorSourceAvailability();
 
     connect(m_doc, &Document::meshAdded, this, [this](int index) {
+        // A structural change invalidates any in-flight pick: the mesh id it
+        // encoded no longer maps to the same index. Rejecting it avoids
+        // selecting the wrong layer, and cancels any in-progress tool gesture.
+        ++m_depthPickSequence;
+        if (m_activeTool)
+            m_activeTool->cancelGesture();
         if (index >= 0 && index <= int(m_meshVisibility.size()))
             m_meshVisibility.insert(m_meshVisibility.begin() + index, true);
         else
@@ -1064,6 +1033,9 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         update();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int index) {
+        ++m_depthPickSequence; // invalidate in-flight picks (see meshAdded)
+        if (m_activeTool)
+            m_activeTool->cancelGesture();
         if (index >= 0 && index < int(m_meshVisibility.size()))
             m_meshVisibility.erase(m_meshVisibility.begin() + index);
         else
@@ -1102,6 +1074,12 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         m_qualityHistogram.valid = false;
         updateBoundingBoxCornersOverlay();
         updateQualityHistogramOverlay();
+        update();
+    });
+    // Selection-only change: the selection overlay buffer rebuilds on its own
+    // (keyed on selectionRevision), so just repaint — none of the heavy
+    // meshDataChanged work (texture/UV cache, histogram) applies to selection.
+    connect(m_doc, &Document::meshSelectionChanged, this, [this](int) {
         update();
     });
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
@@ -2794,9 +2772,62 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
     update();
 }
 
+void RenderWidget::setActiveTool(InteractiveTool *tool)
+{
+    if (m_activeTool == tool)
+        return;
+    if (m_activeTool) {
+        if (m_doc)
+            m_doc->writeLog(tr("Tool disengaged: %1").arg(m_activeTool->name()),
+                            Document::LogSource::Application);
+        m_activeTool->deactivate(true);
+    }
+    m_activeTool = tool;
+    if (m_activeTool) {
+        m_activeTool->activate(*this);
+        setCursor(Qt::CrossCursor); // hint that clicks now act on the scene
+        showInteractionStatusOverlay(m_activeTool->statusHint());
+        if (m_doc)
+            m_doc->writeLog(tr("Tool engaged: %1").arg(m_activeTool->name()),
+                            Document::LogSource::Application);
+    } else {
+        unsetCursor();
+    }
+    update();
+}
+
+void RenderWidget::requestSurfacePick(QPoint pixel)
+{
+    if (!m_doc || m_viewMode != ViewMode::Scene3D || m_doc->meshCount() <= 0)
+        return;
+    m_depthPickPos = pixel;
+    ++m_depthPickSequence; // reject stale in-flight picks
+    m_depthPickPending = true;
+    m_depthPickPurpose = PickPurpose::Tool;
+    update();
+}
+
+void RenderWidget::keyPressEvent(QKeyEvent *e)
+{
+    if (m_viewMode == ViewMode::Scene3D && m_activeTool && m_activeTool->keyPress(e)) {
+        if (e)
+            e->accept();
+        update();
+        return;
+    }
+    QRhiWidget::keyPressEvent(e);
+}
+
 void RenderWidget::mousePressEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
+    setFocus(Qt::MouseFocusReason); // ensure the view receives key events for tools
+    if (m_viewMode == ViewMode::Scene3D && m_activeTool && m_activeTool->mousePress(e)) {
+        if (e)
+            e->accept();
+        update();
+        return;
+    }
     if (m_viewMode == ViewMode::ParametrizationUV) {
         if (e && (e->button() == Qt::LeftButton || e->button() == Qt::MiddleButton)) {
             m_uvPanning = true;
@@ -2886,6 +2917,7 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
     m_depthPickPos = e->position().toPoint();
     ++m_depthPickSequence;  /* bump sequence so stale async callbacks are rejected */
     m_depthPickPending = true;
+    m_depthPickPurpose = PickPurpose::Recenter;
     update();
     e->accept();
 }
@@ -2893,6 +2925,12 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
+    if (m_viewMode == ViewMode::Scene3D && m_activeTool && m_activeTool->mouseRelease(e)) {
+        if (e)
+            e->accept();
+        update();
+        return;
+    }
     if (m_viewMode == ViewMode::ParametrizationUV) {
         m_uvPanning = false;
         if (e)
@@ -2916,6 +2954,12 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 {
     if (e && e->buttons() != Qt::NoButton)
         emit viewActivated(this);
+    if (m_viewMode == ViewMode::Scene3D && m_activeTool && m_activeTool->mouseMove(e)) {
+        if (e)
+            e->accept();
+        update();
+        return;
+    }
     if (m_viewMode == ViewMode::ParametrizationUV) {
         if (!e || !m_uvPanning)
             return;

@@ -56,6 +56,7 @@ struct MeshSnapshot {
     std::uint64_t meshId = 0;
     std::uint64_t geometryRevision = 0;
     std::uint64_t materialRevision = 0;
+    std::uint64_t selectionRevision = 0;
     QMatrix4x4 transform;
     QString name;
     QString sourcePath;

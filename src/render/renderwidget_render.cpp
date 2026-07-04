@@ -75,7 +75,8 @@ quint32 RenderWidget::uploadMainUbuf(
     bool enableLighting,
     const QVector3D &lightDir,
     MainUbufMaterialOverrides materialOverrides,
-    quint32 offset)
+    quint32 offset,
+    float pickId)
 {
     if (!m_rhi || !m_ubuf || !cb)
         return 0;
@@ -91,6 +92,9 @@ quint32 RenderWidget::uploadMainUbuf(
         enableLighting,
         lightDir,
         materialOverrides);
+    // pointParams.y is otherwise unused; the depth-pick shaders read it as the
+    // encoded mesh id and write it to the pick target's alpha channel.
+    ubufData[kUbufPointParamsOffset + 1] = pickId;
 
     QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
     uMesh->updateDynamicBuffer(m_ubuf.get(), offset, kUbufSize, ubufData);
@@ -108,7 +112,8 @@ quint32 RenderWidget::uploadMainUbufForMesh(
     bool enableLighting,
     const QVector3D &lightDir,
     MainUbufMaterialOverrides materialOverrides,
-    quint32 offset)
+    quint32 offset,
+    float pickId)
 {
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
         return 0;
@@ -128,7 +133,8 @@ quint32 RenderWidget::uploadMainUbufForMesh(
         enableLighting,
         lightDir,
         materialOverrides,
-        offset);
+        offset,
+        pickId);
 }
 
 void RenderWidget::render(QRhiCommandBuffer *cb)

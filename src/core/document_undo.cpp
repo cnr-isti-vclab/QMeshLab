@@ -22,6 +22,14 @@ void Document::beginUndoStep(
     m_undoManager->beginDeltaStep(label, meshIndexForSelectionDelta);
 }
 
+void Document::beginUndoStep(
+    const QString &label,
+    const ScriptAction &scriptAction,
+    int meshIndexForSelectionDelta)
+{
+    m_undoManager->beginDeltaStep(label, meshIndexForSelectionDelta, scriptAction);
+}
+
 void Document::endUndoStep(bool commit, bool restoreOnCancel)
 {
     m_undoManager->endStep(commit, restoreOnCancel);

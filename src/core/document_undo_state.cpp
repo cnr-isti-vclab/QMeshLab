@@ -22,6 +22,7 @@ UndoState Document::captureUndoState() const
         snap.meshId             = entry->meshId;
         snap.geometryRevision   = entry->geometryRevision;
         snap.materialRevision   = entry->materialRevision;
+        snap.selectionRevision  = entry->selectionRevision;
         snap.transform    = entry->transform;
         snap.name               = entry->name;
         snap.sourcePath         = entry->sourcePath;
@@ -34,10 +35,11 @@ UndoState Document::captureUndoState() const
         snap.ioMask             = entry->ioMask;
 
         // Attempt to reuse an already-interned geometry object.
-        // Key: (meshId, geometryRevision). As long as the revision hasn't changed
-        // since the last capture, every subsequent checkpoint shares the same
-        // VCGMesh allocation — zero extra deep-copy cost for non-geometry actions.
-        const auto key = std::make_pair(entry->meshId, entry->geometryRevision);
+        // Key: (meshId, geometryRevision, selectionRevision) — the full content
+        // identity. As long as those revisions haven't changed since the last
+        // capture, every subsequent checkpoint shares the same VCGMesh allocation
+        // — zero extra deep-copy cost for actions that touch neither.
+        const auto key = std::make_tuple(entry->meshId, entry->geometryRevision, entry->selectionRevision);
         auto it = m_undoManager->geometryCache().find(key);
         if (it != m_undoManager->geometryCache().end())
             snap.geometry = it->second.lock(); // null if all checkpoints were evicted
@@ -105,8 +107,8 @@ void Document::restoreUndoState(const UndoState &state)
     // pruned nodes.
     for (const auto &snap : state.meshes) {
         auto it = m_undoManager->geometryCache().lower_bound(
-            std::make_pair(snap.meshId, snap.geometryRevision + 1));
-        while (it != m_undoManager->geometryCache().end() && it->first.first == snap.meshId)
+            std::make_tuple(snap.meshId, snap.geometryRevision, snap.selectionRevision + 1));
+        while (it != m_undoManager->geometryCache().end() && std::get<0>(it->first) == snap.meshId)
             it = m_undoManager->geometryCache().erase(it);
     }
 
@@ -130,6 +132,7 @@ void Document::restoreUndoState(const UndoState &state)
                 entry->meshId           = snap.meshId;
                 entry->geometryRevision = snap.geometryRevision;
                 entry->materialRevision = snap.materialRevision;
+                entry->selectionRevision = snap.selectionRevision;
                 entry->transform  = snap.transform;
                 entry->name             = snap.name;
                 entry->sourcePath       = snap.sourcePath;

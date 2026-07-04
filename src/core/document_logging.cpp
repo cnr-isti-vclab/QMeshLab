@@ -1,5 +1,7 @@
 #include "document_internal.h"
 
+#include <QTime>
+
 using namespace DocumentInternal;
 
 void Document::clearLog()
@@ -24,6 +26,12 @@ void Document::writeLog(const QString &message, LogSource source, bool replaceLa
 
     if (normalizedMessage.isEmpty())
         return;
+
+    // Prefix every entry with the wall-clock time (ms since midnight) so gaps
+    // between consecutive log lines reveal where real time is actually spent.
+    normalizedMessage = QStringLiteral("[t=%1] %2")
+                            .arg(QTime::currentTime().msecsSinceStartOfDay())
+                            .arg(normalizedMessage);
 
     if (replaceLast && !m_logMessages.empty()) {
         m_logMessages.back() = LogEntry{normalizedMessage, source};

@@ -49,6 +49,9 @@ public:
         std::uint64_t meshId = 0;
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
+        // Bumped on selection-bit changes only, so the GPU selection overlay can
+        // rebuild without invalidating the (far larger) fill/wire/point buffers.
+        std::uint64_t selectionRevision = 0;
         QMatrix4x4 transform;
         QString name;
         QString sourcePath;
@@ -152,6 +155,11 @@ public:
     void beginUndoStep(const QString &label,
                        const ScriptAction &scriptAction);
     void beginUndoStep(const QString &label,
+                       int meshIndexForSelectionDelta);
+    // Delta-storage step that also records a ScriptAction (reproducible selection
+    // filters): cheap bit-packed undo for a selection-only change on one mesh.
+    void beginUndoStep(const QString &label,
+                       const ScriptAction &scriptAction,
                        int meshIndexForSelectionDelta);
     void endUndoStep(bool commit = true, bool restoreOnCancel = false);
     void setViewStateFunctions(std::function<ViewState()> capture,
@@ -316,6 +324,11 @@ signals:
     void meshVisibilityChanged(int index, bool visible);
     void currentMeshChanged(int index);
     void meshDataChanged(int index);
+    // Selection-bit-only change. Distinct from meshDataChanged so consumers that
+    // don't care about selection (e.g. the filter menu/panel, whose applicability
+    // never depends on selection) can ignore it — a selection change must stay
+    // cheap even on huge meshes.
+    void meshSelectionChanged(int index);
     void currentLayerChanged(CurrentLayerKind kind, int index);
     void rasterAdded(int index);
     void rasterRemoved(int index);

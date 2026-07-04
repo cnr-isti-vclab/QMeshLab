@@ -1,12 +1,77 @@
 #include "viewtrackball.h"
 
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
 #include <QMouseEvent>
+#include <QString>
 #include <QWheelEvent>
 #include <QtMath>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+
+namespace {
+// Local JSON helpers for stateFromJson (kept file-local; the render layer has
+// its own producer-side variants).
+bool jsonReadFloat(const QJsonValue &v, float &out)
+{
+    if (!v.isDouble())
+        return false;
+    out = float(v.toDouble());
+    return true;
+}
+bool jsonReadVec3(const QJsonValue &v, QVector3D &out)
+{
+    if (!v.isArray())
+        return false;
+    const QJsonArray a = v.toArray();
+    if (a.size() != 3)
+        return false;
+    out = QVector3D(float(a[0].toDouble()), float(a[1].toDouble()), float(a[2].toDouble()));
+    return true;
+}
+bool jsonReadQuat(const QJsonValue &v, QQuaternion &out)
+{
+    if (!v.isArray())
+        return false;
+    const QJsonArray a = v.toArray();
+    if (a.size() != 4)
+        return false;
+    // Stored as [x, y, z, w]; QQuaternion ctor is (scalar/w, x, y, z).
+    out = QQuaternion(float(a[3].toDouble()), float(a[0].toDouble()),
+                      float(a[1].toDouble()), float(a[2].toDouble()));
+    return true;
+}
+} // namespace
+
+bool ViewTrackball::stateFromJson(const QJsonObject &obj, State &outState, QString *error)
+{
+    auto fail = [&](const QString &msg) {
+        if (error)
+            *error = msg;
+        return false;
+    };
+    const auto readFloat = [&](const char *key, float &dst) {
+        return !obj.contains(QLatin1String(key)) || jsonReadFloat(obj.value(QLatin1String(key)), dst);
+    };
+    if (obj.contains(QStringLiteral("center"))
+        && !jsonReadVec3(obj.value(QStringLiteral("center")), outState.center))
+        return fail(QStringLiteral("'center' must be [x, y, z]."));
+    if (obj.contains(QStringLiteral("rotation_xyzw"))
+        && !jsonReadQuat(obj.value(QStringLiteral("rotation_xyzw")), outState.rotation))
+        return fail(QStringLiteral("'rotation_xyzw' must be [x, y, z, w]."));
+    if (!readFloat("distance", outState.distance)
+        || !readFloat("radius", outState.radius)
+        || !readFloat("fov_y_degrees", outState.fovYDeg)
+        || !readFloat("near_clip_ratio", outState.nearClipRatio)
+        || !readFloat("gizmo_base_radius", outState.gizmoBaseRadius)
+        || !readFloat("gizmo_reference_distance", outState.gizmoReferenceDistance)
+        || !readFloat("gizmo_reference_fov_y_degrees", outState.gizmoReferenceFovYDeg))
+        return fail(QStringLiteral("a trackball numeric field is not a number."));
+    return true;
+}
 
 namespace {
 constexpr float kDefaultTrackballFovYDeg = 45.0f;

@@ -34,6 +34,7 @@ public:
         std::uint64_t meshId = 0;
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
+        std::uint64_t selectionRevision = 0;
         int ioMask = 0;
         bool qualityFixedRange = false;
         float qualityRangeMin = 0.0f;

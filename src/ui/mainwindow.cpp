@@ -4,6 +4,7 @@
 #include "meshfilterpanel.h"
 #include "meshsaveoptionsdialog.h"
 #include "renderwidget.h"
+#include "interactivetool.h"
 #include "layerwidget.h"
 #include "undographwidget.h"
 #ifdef QMESHLAB_PYTHON_CONSOLE
@@ -38,6 +39,7 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QAction>
+#include <QActionGroup>
 #include <QBrush>
 #include <QCheckBox>
 #include <QColor>
@@ -445,6 +447,8 @@ void appendLogItem(QListWidget *logWidget, const QString &message, Document::Log
     logWidget->scrollToBottom();
 }
 }
+
+MainWindow::~MainWindow() = default;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -1314,6 +1318,8 @@ MainWindow::MainWindow(QWidget *parent)
     }
 #endif
 
+    setupToolsMenu(menuBar()->addMenu(tr("&Tools")));
+
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&Filter Plugins..."), this, &MainWindow::showFilterPlugins);
     helpMenu->addAction(tr("I/O &Plugins..."), this, &MainWindow::showImportPlugins);
@@ -1456,6 +1462,49 @@ void MainWindow::setCurrentRenderWidget(RenderWidget *view)
     m_currentRenderWidget = view;
     updateCurrentViewBorder();
     syncDocumentVisibilityFromCurrentView();
+    applyActiveToolToCurrentView();
+}
+
+void MainWindow::setupToolsMenu(QMenu *toolsMenu)
+{
+    m_interactiveTools = createBuiltinInteractiveTools();
+    auto *group = new QActionGroup(this);
+    group->setExclusive(true);
+    for (int i = 0; i < static_cast<int>(m_interactiveTools.size()); ++i) {
+        QAction *action = toolsMenu->addAction(m_interactiveTools[size_t(i)]->name());
+        action->setCheckable(true);
+        group->addAction(action);
+        m_toolActions.append(action);
+        // Clicking the checked tool again toggles it off.
+        connect(action, &QAction::triggered, this, [this, i, action](bool checked) {
+            if (checked && m_activeToolIndex == i) {
+                action->setChecked(false);
+                setActiveToolIndex(-1);
+            } else {
+                setActiveToolIndex(checked ? i : -1);
+            }
+        });
+    }
+}
+
+void MainWindow::setActiveToolIndex(int index)
+{
+    m_activeToolIndex = index;
+    applyActiveToolToCurrentView();
+}
+
+void MainWindow::applyActiveToolToCurrentView()
+{
+    InteractiveTool *tool = (m_activeToolIndex >= 0
+        && m_activeToolIndex < static_cast<int>(m_interactiveTools.size()))
+        ? m_interactiveTools[size_t(m_activeToolIndex)].get()
+        : nullptr;
+    // A tool is active in one view at a time; detach it from the others.
+    for (RenderWidget *view : std::as_const(m_renderWidgets)) {
+        if (!view)
+            continue;
+        view->setActiveTool(view == m_currentRenderWidget ? tool : nullptr);
+    }
 }
 
 void MainWindow::updateCurrentViewBorder()

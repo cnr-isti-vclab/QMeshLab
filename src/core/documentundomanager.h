@@ -2,9 +2,11 @@
 
 #include "document_undo_types.h"
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -19,7 +21,10 @@ public:
     void endStep(bool commit = true, bool restoreOnCancel = false);
 
     // Selection delta steps — skip full snapshot capture for selection-only changes.
-    void beginDeltaStep(const QString &label, int meshIndex);
+    // An optional scriptAction is recorded on the node so selection filters stay
+    // reproducible/scriptable despite using the lightweight delta storage.
+    void beginDeltaStep(const QString &label, int meshIndex,
+                        std::optional<ScriptAction> scriptAction = std::nullopt);
     void endDeltaStep();
 
     bool canUndo() const;
@@ -55,7 +60,10 @@ public:
     void setRestoring(bool restoring) { m_restoringUndoRedo = restoring; }
     void emitStateChanged();
 
-    std::map<std::pair<std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>> &geometryCache()
+    // Key: (meshId, geometryRevision, selectionRevision) — the full content
+    // identity of a mesh, so selection-only changes still get their own interned
+    // copy even though they no longer bump geometryRevision.
+    std::map<std::tuple<std::uint64_t, std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>> &geometryCache()
     {
         return m_undoGeometryCache;
     }
@@ -72,11 +80,12 @@ private:
     void pushDeltaStep(
         const QString &label,
         SelectionDelta &&before,
-        SelectionDelta &&after);
+        SelectionDelta &&after,
+        std::optional<ScriptAction> scriptAction = {});
     void pruneTreeToLimit();
 
     Document &m_doc;
-    std::map<std::pair<std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>> m_undoGeometryCache;
+    std::map<std::tuple<std::uint64_t, std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>> m_undoGeometryCache;
     std::vector<UndoNode> m_undoNodes;
     int m_undoCurrentNode = -1;
     int m_undoLimit = 20;

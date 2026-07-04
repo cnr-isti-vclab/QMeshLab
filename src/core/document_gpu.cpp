@@ -32,6 +32,7 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
     source.meshId = meshEntry.meshId;
     source.geometryRevision = meshEntry.geometryRevision;
     source.materialRevision = meshEntry.materialRevision;
+    source.selectionRevision = meshEntry.selectionRevision;
     source.ioMask = meshEntry.ioMask;
     source.qualityFixedRange = qualityFixedRange;
     source.qualityRangeMin = qualityRangeMin;

@@ -46,6 +46,7 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
             }
             m_pendingDeltaBefore.reset();
             m_pendingDeltaMeshIndex.reset();
+            m_pendingScriptAction.reset();
             m_undoStepActive = false;
             m_undoStepLabel.clear();
             return;
@@ -77,7 +78,8 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
     pushStep(label, std::move(*before), m_doc.captureUndoState(), std::move(scriptAction));
 }
 
-void DocumentUndoManager::beginDeltaStep(const QString &label, int meshIndex)
+void DocumentUndoManager::beginDeltaStep(const QString &label, int meshIndex,
+                                        std::optional<ScriptAction> scriptAction)
 {
     if (m_restoringUndoRedo || m_undoStepActive || m_suppressUndo)
         return;
@@ -88,7 +90,7 @@ void DocumentUndoManager::beginDeltaStep(const QString &label, int meshIndex)
         m_undoStepLabel = QObject::tr("Edit");
     m_pendingDeltaBefore = m_doc.captureSelectionDelta(meshIndex);
     m_pendingDeltaMeshIndex = meshIndex;
-    m_pendingScriptAction.reset();
+    m_pendingScriptAction = std::move(scriptAction);
     m_pendingUndoBefore.reset();
 }
 
@@ -100,6 +102,7 @@ void DocumentUndoManager::endDeltaStep()
     const QString label = m_undoStepLabel;
     SelectionDelta before = std::move(*m_pendingDeltaBefore);
     const int meshIndex = *m_pendingDeltaMeshIndex;
+    std::optional<ScriptAction> scriptAction = std::move(m_pendingScriptAction);
     m_pendingDeltaBefore.reset();
     m_pendingDeltaMeshIndex.reset();
     m_pendingScriptAction.reset();
@@ -107,7 +110,7 @@ void DocumentUndoManager::endDeltaStep()
     m_undoStepLabel.clear();
 
     SelectionDelta after = m_doc.captureSelectionDelta(meshIndex);
-    pushDeltaStep(label, std::move(before), std::move(after));
+    pushDeltaStep(label, std::move(before), std::move(after), std::move(scriptAction));
 }
 
 bool DocumentUndoManager::canUndo() const
@@ -674,7 +677,8 @@ void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, Und
 void DocumentUndoManager::pushDeltaStep(
     const QString &label,
     SelectionDelta &&before,
-    SelectionDelta &&after)
+    SelectionDelta &&after,
+    std::optional<ScriptAction> scriptAction)
 {
     if (m_undoCurrentNode < 0) {
         UndoNode root;
@@ -694,6 +698,8 @@ void DocumentUndoManager::pushDeltaStep(
     child.parentId = m_undoCurrentNode;
     child.beforeSelection = std::move(before);
     child.afterSelection = std::move(after);
+    if (scriptAction.has_value())
+        child.actionRecord = UndoActionRecord::fromScriptAction(*scriptAction);
 
     {
         const auto &parentNode = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];

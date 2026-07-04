@@ -530,15 +530,18 @@ void Document::markMeshSelectionChanged(int index, const QString &contextMessage
         beginUndoStep(tr("Change Selection"), index);
     MeshEntry &entry = mesh(index);
     entry.modified = true;
-    // Bump geometryRevision for GPU cache invalidation (selection buffers use it).
-    // The undo cache is unaffected because delta steps never call captureUndoState().
-    ++entry.geometryRevision;
+    // Bump only selectionRevision: the GPU selection overlay rebuilds while the
+    // fill/wire/point buffers (keyed on geometryRevision) are left intact, so
+    // selection stays cheap on large meshes.
+    ++entry.selectionRevision;
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
     } else {
         writeLog(tr("Selection changed on '%1'").arg(entry.name), LogSource::Application);
     }
-    emit meshDataChanged(index);
+    // Selection-only notification: keeps heavy meshDataChanged consumers (filter
+    // menu/panel rebuild, texture/UV cache refresh) out of the selection path.
+    emit meshSelectionChanged(index);
     if (ownUndoStep)
         endUndoStep(true);
 }
@@ -606,6 +609,9 @@ void Document::applySelectionDelta(const SelectionDelta &delta)
                     m.face[fi].SetS();
             }
         }
+        // Refresh the GPU selection overlay for the restored bits (undo/redo).
+        ++entry.selectionRevision;
+        emit meshSelectionChanged(i);
         return;
     }
 }

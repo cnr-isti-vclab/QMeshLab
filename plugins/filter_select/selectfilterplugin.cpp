@@ -2,8 +2,15 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include "viewtrackball.h"
 #include <QColor>
+#include <QElapsedTimer>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QMatrix4x4>
 #include <QVector3D>
+#include <QVector4D>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/clean.h>
@@ -19,7 +26,9 @@
 #include <vcg/space/triangle3.h>
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <memory>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -47,6 +56,7 @@ constexpr QLatin1StringView kFilterSelectNonManifoldFace("select_non_manifold_ed
 constexpr QLatin1StringView kFilterSelectNonManifoldVertex("select_non_manifold_vertices");
 constexpr QLatin1StringView kFilterSelectFacesByEdge("select_faces_by_edge_length");
 constexpr QLatin1StringView kFilterSelectOutlier("select_outliers");
+constexpr QLatin1StringView kFilterSelectByRectangle("select_by_rectangle");
 
 
 void updateGeometryAfterDeletion(VCGMesh &mesh)
@@ -135,6 +145,138 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             meshIndex,
             entry,
             QObject::tr("Clear selection on '%1'").arg(entry.name));
+    }
+
+    if (filterId == QString::fromLatin1(kFilterSelectByRectangle)) {
+        // Reconstruct the view's projection from the camera_state param.
+        const QString camJson = params.getCameraState(QStringLiteral("camera_state"));
+        QJsonParseError pe;
+        const QJsonDocument jd = QJsonDocument::fromJson(camJson.toUtf8(), &pe);
+        if (pe.error != QJsonParseError::NoError || !jd.isObject())
+            return fail(QObject::tr("select_by_rectangle: invalid camera_state JSON."));
+        const QJsonObject root = jd.object();
+        const QJsonObject tbObj = root.contains(QStringLiteral("trackball"))
+            ? root.value(QStringLiteral("trackball")).toObject()
+            : root;
+        ViewTrackball::State st;
+        QString stErr;
+        if (!ViewTrackball::stateFromJson(tbObj, st, &stErr))
+            return fail(QObject::tr("select_by_rectangle: %1").arg(stErr));
+        ViewTrackball cam;
+        cam.setState(st);
+        const float aspect = float(params.getDouble(QStringLiteral("aspect")));
+        const QMatrix4x4 mvp =
+            cam.projectionMatrix(aspect > 1e-6f ? aspect : 1.0f) * cam.viewMatrix() * entry.transform;
+
+        const double lox = std::min(params.getDouble(QStringLiteral("rect_min_x")),
+                                    params.getDouble(QStringLiteral("rect_max_x")));
+        const double hix = std::max(params.getDouble(QStringLiteral("rect_min_x")),
+                                    params.getDouble(QStringLiteral("rect_max_x")));
+        const double loy = std::min(params.getDouble(QStringLiteral("rect_min_y")),
+                                    params.getDouble(QStringLiteral("rect_max_y")));
+        const double hiy = std::max(params.getDouble(QStringLiteral("rect_min_y")),
+                                    params.getDouble(QStringLiteral("rect_max_y")));
+
+        // Project a local-space point and test it against the normalized rect
+        // (origin bottom-left, y up). w<=0 means behind the camera.
+        auto inRect = [&](const vcg::Point3f &p) -> bool {
+            const QVector4D clip = mvp * QVector4D(p.X(), p.Y(), p.Z(), 1.0f);
+            if (clip.w() <= 1e-6f)
+                return false;
+            const float sx = (clip.x() / clip.w()) * 0.5f + 0.5f;
+            const float sy = (clip.y() / clip.w()) * 0.5f + 0.5f;
+            return sx >= lox && sx <= hix && sy >= loy && sy <= hiy;
+        };
+
+        const QString element = params.getEnum(QStringLiteral("element"));
+        const QString mode = params.getEnum(QStringLiteral("mode"));
+        const bool doFaces = (element != QStringLiteral("vertex"));
+        const bool subtract = (mode == QStringLiteral("subtract"));
+        int changed = 0;
+
+        if (doFaces && mesh.FN() <= 0)
+            return fail(QObject::tr("Current mesh has no faces."));
+        if (mode == QStringLiteral("replace")) {
+            if (doFaces)
+                Sel::FaceClear(mesh);
+            else
+                Sel::VertexClear(mesh);
+        }
+
+        // Process a half-open element range. Each element writes only its own
+        // BitFlags (a fixed per-element component), so disjoint ranges are
+        // independent and need no locking.
+        auto worker = [&](std::size_t lo, std::size_t hi) -> int {
+            int local = 0;
+            if (doFaces) {
+                for (std::size_t i = lo; i < hi; ++i) {
+                    VCGFace &f = mesh.face[i];
+                    if (f.IsD() || !inRect(vcg::Barycenter(f)))
+                        continue;
+                    if (subtract) {
+                        if (f.IsS()) { f.ClearS(); ++local; }
+                    } else if (!f.IsS()) {
+                        f.SetS(); ++local;
+                    }
+                }
+            } else {
+                for (std::size_t i = lo; i < hi; ++i) {
+                    VCGVertex &v = mesh.vert[i];
+                    if (v.IsD() || !inRect(v.P()))
+                        continue;
+                    if (subtract) {
+                        if (v.IsS()) { v.ClearS(); ++local; }
+                    } else if (!v.IsS()) {
+                        v.SetS(); ++local;
+                    }
+                }
+            }
+            return local;
+        };
+
+        const std::size_t elemCount = doFaces ? mesh.face.size() : mesh.vert.size();
+        unsigned nThreads = std::max(1u, std::thread::hardware_concurrency());
+        if (elemCount < 200000)
+            nThreads = 1; // thread setup isn't worth it below this size
+
+        QElapsedTimer timer;
+        timer.start();
+
+        if (nThreads <= 1) {
+            changed = worker(0, elemCount);
+        } else {
+            std::vector<std::thread> pool;
+            std::vector<int> counts(nThreads, 0);
+            const std::size_t chunk = (elemCount + nThreads - 1) / nThreads;
+            for (unsigned t = 0; t < nThreads; ++t) {
+                const std::size_t lo = std::size_t(t) * chunk;
+                const std::size_t hi = std::min(elemCount, lo + chunk);
+                if (lo >= hi)
+                    break;
+                pool.emplace_back([&counts, &worker, t, lo, hi]() { counts[t] = worker(lo, hi); });
+            }
+            for (std::thread &th : pool)
+                th.join();
+            for (int c : counts)
+                changed += c;
+        }
+
+        const qint64 elapsedMs = timer.elapsed();
+        const int total = doFaces ? mesh.FN() : mesh.VN();
+        return selectionResult(
+            meshIndex,
+            entry,
+            QObject::tr("Rectangle %1 on '%2'").arg(mode, entry.name),
+            { QObject::tr("Rectangle %1: %2 %3 affected.")
+                    .arg(mode)
+                    .arg(changed)
+                    .arg(doFaces ? QObject::tr("faces") : QObject::tr("vertices")),
+              QObject::tr("Projection over %1 %2 took %3 ms across %4 thread(s) "
+                          "(GPU overlay update happens afterwards on the render thread).")
+                    .arg(total)
+                    .arg(doFaces ? QObject::tr("faces") : QObject::tr("vertices"))
+                    .arg(elapsedMs)
+                    .arg(nThreads) });
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectByAngle)) {

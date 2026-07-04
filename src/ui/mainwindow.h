@@ -10,8 +10,11 @@
 #include <QVariantMap>
 #include <array>
 #include <deque>
+#include <memory>
+#include <vector>
 
 class Document;
+class InteractiveTool;
 class RenderWidget;
 class LayerWidget;
 class MeshFilterPanel;
@@ -33,6 +36,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 public:
     explicit MainWindow(QWidget *parent = nullptr);
+    ~MainWindow() override;
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -89,6 +93,9 @@ private:
     void openRecentMeshByIndex(int index);
     void syncCameraViewsFrom(RenderWidget *sourceView);
     void refreshFiltersMenu();
+    void setupToolsMenu(QMenu *toolsMenu);
+    void setActiveToolIndex(int index);   // -1 clears the active tool
+    void applyActiveToolToCurrentView();
     void executeFilter(
         const QString &filterKey,
         const QString &fallbackLabel,
@@ -116,6 +123,9 @@ private:
     QToolButton *m_terminalButton = nullptr;
     QMenu *m_recentMenu = nullptr;
     QMenu *m_filtersMenu = nullptr;
+    std::vector<std::unique_ptr<InteractiveTool>> m_interactiveTools;
+    QList<QAction *> m_toolActions;
+    int m_activeToolIndex = -1;
     QAction *m_openLastAction = nullptr;
     std::array<QAction *, 8> m_recentActions = {};
     QStringList m_recentMeshes;

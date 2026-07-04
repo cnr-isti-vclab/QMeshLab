@@ -11,6 +11,8 @@ layout(std140, binding = 0) uniform buf {
     vec4 pointParams;
 } ub;
 
+layout(location = 0) flat out float vPickId;
+
 out gl_PerVertex {
     vec4 gl_Position;
     float gl_PointSize;
@@ -20,4 +22,6 @@ void main()
 {
     gl_Position = ub.mvp * vec4(position, 1.0);
     gl_PointSize = max(1.0, ub.pointParams.x);
+    // pointParams.y carries (meshIndex+1)/255 during id-picks (0 otherwise).
+    vPickId = ub.pointParams.y;
 }

@@ -686,6 +686,19 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     }
 
     const bool wrapUndo = (targetDescriptor->outputDomain != MeshFilterOutputDomain::Information);
+    // A filter that only touches selection bits (VS/FS) on a single mesh can use
+    // the cheap bit-packed delta-undo path instead of a full geometry snapshot —
+    // critical for large meshes, where snapshotting is seconds of deep-copy.
+    const bool selectionOnlyUndo =
+        wrapUndo
+        && targetDescriptor->inputDomain == MeshFilterInputDomain::SingleMesh
+        && !targetDescriptor->outputModifies.isEmpty()
+        && std::all_of(
+               targetDescriptor->outputModifies.cbegin(),
+               targetDescriptor->outputModifies.cend(),
+               [](const QString &code) {
+                   return code == QStringLiteral("VS") || code == QStringLiteral("FS");
+               });
     const int originalCurrentMeshIndex = doc.currentMeshIndex();
     if (wrapUndo) {
         ScriptAction sa;
@@ -701,7 +714,10 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
             sa.params[it.key()] = it.value();
         sa.pythonCall = filterCallToPython(*targetDescriptor, parameters, true);
         sa.compactPythonCall = filterCallToPython(*targetDescriptor, parameters, false);
-        doc.beginUndoStep(targetDescriptor->name, sa);
+        if (selectionOnlyUndo && originalCurrentMeshIndex >= 0)
+            doc.beginUndoStep(targetDescriptor->name, sa, originalCurrentMeshIndex);
+        else
+            doc.beginUndoStep(targetDescriptor->name, sa);
     }
 
     const FilterParams typedParams(normalizedParameters);

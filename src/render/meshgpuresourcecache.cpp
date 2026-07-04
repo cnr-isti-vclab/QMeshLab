@@ -131,6 +131,7 @@ struct MeshGpuResourceCache::CacheState
     struct SelectionGpu {
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
+        std::uint64_t selectionRevision = 0;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> selectedFacesVbuf;
         int selectedFacesVertexCount = 0;
@@ -1139,13 +1140,15 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     auto rebuildSelection = [&](CacheState::SelectionGpu &dst) -> bool {
         if (dst.valid
             && dst.geometryRevision == source.geometryRevision
-            && dst.materialRevision == source.materialRevision) {
+            && dst.materialRevision == source.materialRevision
+            && dst.selectionRevision == source.selectionRevision) {
             return false;
         }
 
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
         dst.materialRevision = source.materialRevision;
+        dst.selectionRevision = source.selectionRevision;
         dst.selectedFacesVbuf.reset();
         dst.selectedFacesVertexCount = 0;
         dst.selectedVerticesVbuf.reset();

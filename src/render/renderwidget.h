@@ -23,6 +23,7 @@
 #include <vector>
 
 class Document;
+class InteractiveTool;
 class RenderOverlayPanel;
 class QLabel;
 class QTimer;
@@ -46,6 +47,14 @@ public:
     };
 
     explicit RenderWidget(Document *doc, QWidget *parent = nullptr);
+    Document *document() const { return m_doc; }
+    // Interactive tool support. The active tool (if any) gets first crack at
+    // mouse/key events in Scene3D mode before the camera trackball.
+    void setActiveTool(InteractiveTool *tool);
+    InteractiveTool *activeTool() const { return m_activeTool; }
+    // Schedules a GPU surface pick at the given pixel; the result is delivered
+    // asynchronously to the active tool's onSurfacePicked().
+    void requestSurfacePick(QPoint pixel);
     void setCurrentViewHighlighted(bool highlighted);
     void resetCameraToScene();
     const RenderSettings &renderSettings() const { return m_renderSettings; }
@@ -105,6 +114,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void wheelEvent(QWheelEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override;
 
 private:
     // MeshRenderMode is now the public PerMeshRenderSettings type.
@@ -320,7 +330,8 @@ struct SceneRasterProjectedDrawItem {
         bool enableLighting,
         const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
         MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{},
-        quint32 offset = 0);
+        quint32 offset = 0,
+        float pickId = 0.0f);
     quint32 uploadMainUbufForMesh(
         QRhiCommandBuffer *cb,
         int meshIndex,
@@ -331,7 +342,8 @@ struct SceneRasterProjectedDrawItem {
         bool enableLighting,
         const QVector3D &lightDir = QVector3D(0.0f, 0.0f, 1.0f),
         MainUbufMaterialOverrides materialOverrides = MainUbufMaterialOverrides{},
-        quint32 offset = 0);
+        quint32 offset = 0,
+        float pickId = 0.0f);
     SceneFillFramePlan buildSceneFillFramePlan(
         const RenderFrameRequest &request);
     RenderFramePlan buildRenderFramePlan(
@@ -436,6 +448,11 @@ struct SceneRasterProjectedDrawItem {
     void renderParametrization(QRhiCommandBuffer *cb);
 
     Document *m_doc;
+    InteractiveTool *m_activeTool = nullptr; // not owned; owned by MainWindow
+    // Distinguishes a double-click recenter pick from a tool-requested pick that
+    // shares the same depth-pick machinery.
+    enum class PickPurpose { Recenter, Tool };
+    PickPurpose m_depthPickPurpose = PickPurpose::Recenter;
     QRhi *m_rhi = nullptr;
     std::function<std::vector<PeerViewCamera>()> m_peerViewCameraProvider;
     mutable std::vector<float> m_viewFrustumVertices;
