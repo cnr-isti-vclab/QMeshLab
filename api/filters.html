@@ -5225,6 +5225,39 @@ If true only vertices with all adjacent faces within range are selected. Otherwi
 
 <hr class="docutils" />
 </section>
+<section id="select-by-rectangle-screen">
+<span id="filter-select-by-rectangle"></span><h2>Select by Rectangle (Screen)<a class="headerlink" href="#select-by-rectangle-screen" title="Link to this heading">¶</a></h2>
+<p><strong>Menu:</strong> Selection</p>
+<p>Select vertices or faces whose screen projection falls inside a rectangle.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="ms.select_by_rectangle">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_by_rectangle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ms.select_by_rectangle" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<ul class="simple">
+<li><p><strong>camera_state</strong> (<em>camerastate</em>)
+Camera state (QMeshLab.CameraState JSON) defining the projection.</p></li>
+<li><p><strong>aspect</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>)
+Viewport width/height used to build the projection.</p></li>
+<li><p><strong>rect_min_x</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>)
+Left edge, normalized [0..1].</p></li>
+<li><p><strong>rect_min_y</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>)
+Bottom edge, normalized [0..1], y up.</p></li>
+<li><p><strong>rect_max_x</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>)
+Right edge, normalized [0..1].</p></li>
+<li><p><strong>rect_max_y</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>)
+Top edge, normalized [0..1], y up.</p></li>
+<li><p><strong>element</strong> (<em>enum</em>) (default: <code class="docutils literal notranslate"><span class="pre">face</span></code>)
+Whether to select vertices or faces (by centroid).</p></li>
+<li><p><strong>mode</strong> (<em>enum</em>) (default: <code class="docutils literal notranslate"><span class="pre">replace</span></code>)
+Replace the current selection, add to it, or subtract from it.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="select-by-vertex-quality">
 <span id="filter-select-by-vertex-quality"></span><h2>Select by Vertex Quality<a class="headerlink" href="#select-by-vertex-quality" title="Link to this heading">¶</a></h2>
 <p><strong>Menu:</strong> Selection</p>
@@ -7199,6 +7232,10 @@ If enabled the unmapped texture space is colored using a pull-push filling algor
 </li>
 <li><a class="reference internal" href="#select-by-face-quality">Select by Face Quality</a><ul>
 <li><a class="reference internal" href="#ms.select_by_face_quality"><code class="docutils literal notranslate"><span class="pre">ms.select_by_face_quality()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#select-by-rectangle-screen">Select by Rectangle (Screen)</a><ul>
+<li><a class="reference internal" href="#ms.select_by_rectangle"><code class="docutils literal notranslate"><span class="pre">ms.select_by_rectangle()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#select-by-vertex-quality">Select by Vertex Quality</a><ul>

@@ -5760,6 +5760,46 @@ Select elements using per-face quality range.
 
 ----
 
+.. _filter-select-by-rectangle:
+
+Select by Rectangle (Screen)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Menu:** Selection
+
+Select vertices or faces whose screen projection falls inside a rectangle.
+
+.. py:function:: ms.select_by_rectangle(**params)
+
+   :parameters:
+
+   * **camera_state** (*camerastate*)
+     Camera state (QMeshLab.CameraState JSON) defining the projection.
+
+   * **aspect** (*double*) (default: ``1.0``)
+     Viewport width/height used to build the projection.
+
+   * **rect_min_x** (*double*) (default: ``0.0``)
+     Left edge, normalized [0..1].
+
+   * **rect_min_y** (*double*) (default: ``0.0``)
+     Bottom edge, normalized [0..1], y up.
+
+   * **rect_max_x** (*double*) (default: ``1.0``)
+     Right edge, normalized [0..1].
+
+   * **rect_max_y** (*double*) (default: ``1.0``)
+     Top edge, normalized [0..1], y up.
+
+   * **element** (*enum*) (default: ``face``)
+     Whether to select vertices or faces (by centroid).
+
+   * **mode** (*enum*) (default: ``replace``)
+     Replace the current selection, add to it, or subtract from it.
+
+
+----
+
 .. _filter-select-by-vertex-quality:
 
 Select by Vertex Quality
