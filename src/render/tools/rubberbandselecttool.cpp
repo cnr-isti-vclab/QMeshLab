@@ -3,8 +3,10 @@
 #include "document.h"
 #include "renderwidget.h"
 
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QPixmap>
 #include <QRect>
 #include <QRubberBand>
 #include <QVariantMap>
@@ -23,7 +25,24 @@ QString RubberBandSelectTool::name() const
 
 QString RubberBandSelectTool::statusHint() const
 {
-    return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices, Esc cancel");
+    return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices; Tab: camera, Esc: exit");
+}
+
+QString RubberBandSelectTool::iconPath() const
+{
+    return QStringLiteral(":/img/tool_select_rect.png");
+}
+
+QCursor RubberBandSelectTool::cursor() const
+{
+    // Reflect the composition modifier: Shift = add (+), Ctrl = subtract (−).
+    const Qt::KeyboardModifiers mods = QGuiApplication::queryKeyboardModifiers();
+    const QString img = (mods & Qt::ShiftModifier)
+        ? QStringLiteral(":/img/cur_sel_rect_plus.png")
+        : (mods & Qt::ControlModifier)
+            ? QStringLiteral(":/img/cur_sel_rect_minus.png")
+            : QStringLiteral(":/img/cur_sel_rect.png");
+    return QCursor(QPixmap(img), 1, 1);
 }
 
 void RubberBandSelectTool::deactivate(bool commit)
@@ -110,10 +129,7 @@ bool RubberBandSelectTool::keyPress(QKeyEvent *e)
 {
     if (!e)
         return false;
-    if (e->key() == Qt::Key_Escape) {
-        cancelGesture();
-        return true;
-    }
+    // Esc is handled globally by the view (exits the tool); the tool only owns F/V.
     if (e->key() == Qt::Key_F || e->key() == Qt::Key_V) {
         m_selectFaces = (e->key() == Qt::Key_F);
         if (m_view && m_view->document())

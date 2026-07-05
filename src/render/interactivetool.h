@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCursor>
 #include <QString>
 #include <QVector3D>
 
@@ -40,6 +41,10 @@ public:
     virtual QString name() const = 0;
     // Short one-line usage hint shown when the tool becomes active. Empty = none.
     virtual QString statusHint() const { return {}; }
+    // Toolbar/menu icon resource path (e.g. ":/img/tool_select_rect.png"). Empty = none.
+    virtual QString iconPath() const { return {}; }
+    // Cursor shown while the tool owns the mouse (not suspended).
+    virtual QCursor cursor() const { return QCursor(Qt::CrossCursor); }
 
     virtual void activate(RenderWidget &view) { m_view = &view; }
     virtual void deactivate(bool commit) { (void)commit; m_view = nullptr; }

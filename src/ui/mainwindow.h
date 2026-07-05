@@ -96,6 +96,7 @@ private:
     void setupToolsMenu(QMenu *toolsMenu);
     void setActiveToolIndex(int index);   // -1 clears the active tool
     void applyActiveToolToCurrentView();
+    void exitActiveTool();                // Esc from a view: uncheck + clear
     void executeFilter(
         const QString &filterKey,
         const QString &fallbackLabel,

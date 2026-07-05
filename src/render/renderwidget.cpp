@@ -2783,17 +2783,30 @@ void RenderWidget::setActiveTool(InteractiveTool *tool)
         m_activeTool->deactivate(true);
     }
     m_activeTool = tool;
+    m_toolSuspended = false;
     if (m_activeTool) {
         m_activeTool->activate(*this);
-        setCursor(Qt::CrossCursor); // hint that clicks now act on the scene
+        applyToolCursor();
         showInteractionStatusOverlay(m_activeTool->statusHint());
         if (m_doc)
             m_doc->writeLog(tr("Tool engaged: %1").arg(m_activeTool->name()),
                             Document::LogSource::Application);
     } else {
-        unsetCursor();
+        applyToolCursor();
     }
     update();
+}
+
+void RenderWidget::applyToolCursor()
+{
+    if (!m_activeTool) {
+        unsetCursor();
+    } else if (m_toolSuspended) {
+        // Camera mode while a tool is engaged.
+        setCursor(QCursor(QPixmap(QStringLiteral(":/img/cur_trackball.png")), 1, 1));
+    } else {
+        setCursor(m_activeTool->cursor());
+    }
 }
 
 void RenderWidget::requestSurfacePick(QPoint pixel)
@@ -2809,20 +2822,52 @@ void RenderWidget::requestSurfacePick(QPoint pixel)
 
 void RenderWidget::keyPressEvent(QKeyEvent *e)
 {
-    if (m_viewMode == ViewMode::Scene3D && m_activeTool && m_activeTool->keyPress(e)) {
-        if (e)
+    if (e && m_viewMode == ViewMode::Scene3D && m_activeTool) {
+        // Esc exits the tool entirely; MainWindow syncs the toolbar/menu state.
+        if (e->key() == Qt::Key_Escape) {
+            emit toolExitRequested();
             e->accept();
-        update();
-        return;
+            return;
+        }
+        // Tab flips the mouse between the tool and the camera without leaving
+        // the tool (MeshLab's "suspend editing").
+        if (e->key() == Qt::Key_Tab) {
+            m_toolSuspended = !m_toolSuspended;
+            applyToolCursor();
+            showInteractionStatusOverlay(
+                m_toolSuspended
+                    ? tr("Camera — Tab to resume %1").arg(m_activeTool->name())
+                    : tr("%1 — Tab for camera, Esc to exit").arg(m_activeTool->name()));
+            update();
+            e->accept();
+            return;
+        }
+        // Other keys go to the tool only while it owns the mouse.
+        if (!m_toolSuspended && m_activeTool->keyPress(e)) {
+            e->accept();
+            update();
+            return;
+        }
+        // A modifier (Shift/Ctrl/…) may have changed the tool's cursor.
+        if (!m_toolSuspended)
+            applyToolCursor();
     }
     QRhiWidget::keyPressEvent(e);
+}
+
+void RenderWidget::keyReleaseEvent(QKeyEvent *e)
+{
+    // Releasing a modifier reverts the tool cursor (e.g. + back to plain rect).
+    if (m_viewMode == ViewMode::Scene3D && m_activeTool && !m_toolSuspended)
+        applyToolCursor();
+    QRhiWidget::keyReleaseEvent(e);
 }
 
 void RenderWidget::mousePressEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
     setFocus(Qt::MouseFocusReason); // ensure the view receives key events for tools
-    if (m_viewMode == ViewMode::Scene3D && m_activeTool && m_activeTool->mousePress(e)) {
+    if (m_viewMode == ViewMode::Scene3D && m_activeTool && !m_toolSuspended && m_activeTool->mousePress(e)) {
         if (e)
             e->accept();
         update();
@@ -2925,7 +2970,7 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
-    if (m_viewMode == ViewMode::Scene3D && m_activeTool && m_activeTool->mouseRelease(e)) {
+    if (m_viewMode == ViewMode::Scene3D && m_activeTool && !m_toolSuspended && m_activeTool->mouseRelease(e)) {
         if (e)
             e->accept();
         update();
@@ -2954,7 +2999,7 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 {
     if (e && e->buttons() != Qt::NoButton)
         emit viewActivated(this);
-    if (m_viewMode == ViewMode::Scene3D && m_activeTool && m_activeTool->mouseMove(e)) {
+    if (m_viewMode == ViewMode::Scene3D && m_activeTool && !m_toolSuspended && m_activeTool->mouseMove(e)) {
         if (e)
             e->accept();
         update();

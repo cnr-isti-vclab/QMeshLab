@@ -12,6 +12,8 @@ public:
     QString id() const override;
     QString name() const override;
     QString statusHint() const override;
+    QString iconPath() const override;
+    QCursor cursor() const override;
     bool mousePress(QMouseEvent *e) override;
     void onSurfacePicked(const SurfacePick &result) override;
 };

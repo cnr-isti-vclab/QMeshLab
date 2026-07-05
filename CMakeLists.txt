@@ -254,6 +254,13 @@ qt_add_resources(QMeshLab "icons"
         img/MeshLab_Icon_512x512.png
         img/layer_eye_open.png
         img/layer_eye_close.png
+        img/tool_select_layer.png
+        img/tool_select_rect.png
+        img/cur_pick.png
+        img/cur_trackball.png
+        img/cur_sel_rect.png
+        img/cur_sel_rect_plus.png
+        img/cur_sel_rect_minus.png
 )
 
 qt_add_resources(QMeshLab "help"

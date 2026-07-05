@@ -40,6 +40,8 @@
 #include <QEventLoop>
 #include <QAction>
 #include <QActionGroup>
+#include <QIcon>
+#include <QToolBar>
 #include <QBrush>
 #include <QCheckBox>
 #include <QColor>
@@ -1365,6 +1367,7 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
     connect(view, &RenderWidget::viewActivated, this, [this](RenderWidget *activatedView) {
         setCurrentRenderWidget(activatedView);
     });
+    connect(view, &RenderWidget::toolExitRequested, this, &MainWindow::exitActiveTool);
     connect(view, &RenderWidget::cameraStateChanged, this, [this](RenderWidget *sourceView) {
         for (RenderWidget *peer : m_renderWidgets) {
             if (peer != sourceView && peer->showViewFrustumsEnabled())
@@ -1469,22 +1472,34 @@ void MainWindow::setupToolsMenu(QMenu *toolsMenu)
 {
     m_interactiveTools = createBuiltinInteractiveTools();
     auto *group = new QActionGroup(this);
-    group->setExclusive(true);
+    // Optional exclusivity: at most one tool checked, and it can be toggled off.
+    group->setExclusionPolicy(QActionGroup::ExclusionPolicy::ExclusiveOptional);
+
+    QToolBar *toolBar = addToolBar(tr("Edit Tools"));
+    toolBar->setObjectName(QStringLiteral("EditToolsToolBar"));
+
     for (int i = 0; i < static_cast<int>(m_interactiveTools.size()); ++i) {
-        QAction *action = toolsMenu->addAction(m_interactiveTools[size_t(i)]->name());
+        const InteractiveTool &tool = *m_interactiveTools[size_t(i)];
+        QAction *action = new QAction(tool.name(), this);
         action->setCheckable(true);
+        if (!tool.iconPath().isEmpty())
+            action->setIcon(QIcon(tool.iconPath()));
+        action->setToolTip(tool.statusHint().isEmpty() ? tool.name() : tool.statusHint());
         group->addAction(action);
         m_toolActions.append(action);
-        // Clicking the checked tool again toggles it off.
-        connect(action, &QAction::triggered, this, [this, i, action](bool checked) {
-            if (checked && m_activeToolIndex == i) {
-                action->setChecked(false);
-                setActiveToolIndex(-1);
-            } else {
-                setActiveToolIndex(checked ? i : -1);
-            }
+        toolsMenu->addAction(action); // menu and toolbar share the same QAction
+        toolBar->addAction(action);
+        connect(action, &QAction::triggered, this, [this, i](bool checked) {
+            setActiveToolIndex(checked ? i : -1);
         });
     }
+}
+
+void MainWindow::exitActiveTool()
+{
+    for (QAction *action : std::as_const(m_toolActions))
+        action->setChecked(false);
+    setActiveToolIndex(-1);
 }
 
 void MainWindow::setActiveToolIndex(int index)

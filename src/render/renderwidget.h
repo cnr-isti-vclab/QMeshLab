@@ -104,6 +104,9 @@ signals:
     void trackballCenterPicked(const QVector3D &worldPos);
     void viewActivated(RenderWidget *view);
     void cameraStateChanged(RenderWidget *view);
+    // Emitted when the user presses Esc while a tool is active; MainWindow
+    // unchecks the toolbar/menu action and clears the active tool.
+    void toolExitRequested();
 
 protected:
     void initialize(QRhiCommandBuffer *cb) override;
@@ -115,6 +118,9 @@ protected:
     void mouseMoveEvent(QMouseEvent *e) override;
     void wheelEvent(QWheelEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
+    void keyReleaseEvent(QKeyEvent *e) override;
+    // Let Tab reach keyPressEvent (tool suspend toggle) instead of moving focus.
+    bool focusNextPrevChild(bool next) override { (void)next; return false; }
 
 private:
     // MeshRenderMode is now the public PerMeshRenderSettings type.
@@ -449,6 +455,10 @@ struct SceneRasterProjectedDrawItem {
 
     Document *m_doc;
     InteractiveTool *m_activeTool = nullptr; // not owned; owned by MainWindow
+    // When true, a tool is active but the mouse temporarily drives the camera
+    // (Tab toggles it). The tool stays engaged; only input routing changes.
+    bool m_toolSuspended = false;
+    void applyToolCursor(); // sets the cursor for the current tool/suspend state
     // Distinguishes a double-click recenter pick from a tool-requested pick that
     // shares the same depth-pick machinery.
     enum class PickPurpose { Recenter, Tool };

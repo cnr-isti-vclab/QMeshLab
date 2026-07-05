@@ -4,6 +4,7 @@
 #include "renderwidget.h"
 
 #include <QMouseEvent>
+#include <QPixmap>
 
 QString SelectLayerTool::id() const
 {
@@ -17,7 +18,17 @@ QString SelectLayerTool::name() const
 
 QString SelectLayerTool::statusHint() const
 {
-    return QObject::tr("Select Layer: click a layer to make it current — Tools menu to exit");
+    return QObject::tr("Select Layer: click a layer to make it current — Tab: camera, Esc: exit");
+}
+
+QString SelectLayerTool::iconPath() const
+{
+    return QStringLiteral(":/img/tool_select_layer.png");
+}
+
+QCursor SelectLayerTool::cursor() const
+{
+    return QCursor(QPixmap(QStringLiteral(":/img/cur_pick.png")), 1, 1);
 }
 
 bool SelectLayerTool::mousePress(QMouseEvent *e)

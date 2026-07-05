@@ -17,6 +17,8 @@ public:
     QString id() const override;
     QString name() const override;
     QString statusHint() const override;
+    QString iconPath() const override;
+    QCursor cursor() const override;
 
     void deactivate(bool commit) override;
     bool mousePress(QMouseEvent *e) override;
