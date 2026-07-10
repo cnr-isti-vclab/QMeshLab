@@ -5779,6 +5779,18 @@ Select vertices or faces whose screen projection falls inside a rectangle.
    * **aspect** (*double*) (default: ``1.0``)
      Viewport width/height used to build the projection.
 
+   * **space** (*enum*) (default: ``view3d``)
+     Whether the rectangle is in the 3D view or the UV/parametrization view.
+
+   * **uv_pan_x** (*double*) (default: ``0.5``)
+     UV-view pan (X), used when space = uv.
+
+   * **uv_pan_y** (*double*) (default: ``0.5``)
+     UV-view pan (Y), used when space = uv.
+
+   * **uv_zoom** (*double*) (default: ``1.0``)
+     UV-view zoom, used when space = uv.
+
    * **rect_min_x** (*double*) (default: ``0.0``)
      Left edge, normalized [0..1].
 

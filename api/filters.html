@@ -5241,6 +5241,14 @@ If true only vertices with all adjacent faces within range are selected. Otherwi
 Camera state (QMeshLab.CameraState JSON) defining the projection.</p></li>
 <li><p><strong>aspect</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>)
 Viewport width/height used to build the projection.</p></li>
+<li><p><strong>space</strong> (<em>enum</em>) (default: <code class="docutils literal notranslate"><span class="pre">view3d</span></code>)
+Whether the rectangle is in the 3D view or the UV/parametrization view.</p></li>
+<li><p><strong>uv_pan_x</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>)
+UV-view pan (X), used when space = uv.</p></li>
+<li><p><strong>uv_pan_y</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>)
+UV-view pan (Y), used when space = uv.</p></li>
+<li><p><strong>uv_zoom</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>)
+UV-view zoom, used when space = uv.</p></li>
 <li><p><strong>rect_min_x</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>)
 Left edge, normalized [0..1].</p></li>
 <li><p><strong>rect_min_y</strong> (<em>double</em>) (default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>)
