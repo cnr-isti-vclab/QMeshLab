@@ -81,6 +81,7 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     if (gpu.valid
         && gpu.geometryRevision == entry.geometryRevision
         && gpu.materialRevision == entry.materialRevision
+        && gpu.selectionRevision == entry.selectionRevision
         && gpu.qualityColorMapId == qualityColorMapName
         && gpu.qualityColorMapInverted == qualityColorMapInverted
         && gpu.qualityFixedRange == qualityFixedRange
@@ -96,6 +97,7 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     gpu = UvMeshGpu {};
     gpu.geometryRevision = entry.geometryRevision;
     gpu.materialRevision = entry.materialRevision;
+    gpu.selectionRevision = entry.selectionRevision;
     gpu.qualityColorMapId = qualityColorMapName;
     gpu.qualityColorMapInverted = qualityColorMapInverted;
     gpu.qualityFixedRange = qualityFixedRange;
@@ -411,6 +413,35 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         textureSeamData.push_back(0.0f);
     }
 
+    // Selection overlay geometry in UV space: triangles for selected faces,
+    // points for selected vertices (position-only, drawn with the scene's
+    // selection pipelines).
+    std::vector<float> selectedFaceData;
+    std::vector<float> selectedVertexData;
+    for (int fi = 0; fi < mesh.FN(); ++fi) {
+        const auto &f = mesh.face[fi];
+        if (f.IsD())
+            continue;
+        QVector2D cuv[3];
+        if (!uvForCorner(f, 0, cuv[0]) || !uvForCorner(f, 1, cuv[1]) || !uvForCorner(f, 2, cuv[2]))
+            continue;
+        if (f.IsS()) {
+            for (const QVector2D &uv : cuv) {
+                selectedFaceData.push_back(uv.x());
+                selectedFaceData.push_back(uv.y());
+                selectedFaceData.push_back(0.0f);
+            }
+        }
+        for (int c = 0; c < 3; ++c) {
+            const auto *v = f.cV(c);
+            if (v && v->IsS()) {
+                selectedVertexData.push_back(cuv[c].x());
+                selectedVertexData.push_back(cuv[c].y());
+                selectedVertexData.push_back(0.0f);
+            }
+        }
+    }
+
     QRhiResourceUpdateBatch *updates = m_rhi->nextResourceUpdateBatch();
     bool anyUpload = false;
     auto uploadFloats = [&](const std::vector<float> &src,
@@ -460,6 +491,8 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
             gpu.pointsVariants[size_t(i)].vertexCount,
             kPointsVertexStrideFloats);
     }
+    uploadFloats(selectedFaceData, gpu.selectedFacesVbuf, gpu.selectedFacesVertexCount, 3);
+    uploadFloats(selectedVertexData, gpu.selectedVerticesVbuf, gpu.selectedVerticesVertexCount, 3);
 
     if (anyUpload)
         cb->resourceUpdate(updates);
@@ -1177,6 +1210,39 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     const QRhiCommandBuffer::VertexInput binding(pointVariant.vbuf.get(), 0);
                     cb->setVertexInput(0, 1, &binding);
                     cb->draw(pointVariant.vertexCount);
+                }
+            }
+
+            // Selection overlay, reusing the 3D scene's selection pipelines so the
+            // look matches (translucent red faces + red points), projected with the
+            // UV ortho MVP.
+            const bool hasSelFaces = uvGpu.selectedFacesVbuf && uvGpu.selectedFacesVertexCount > 0;
+            const bool hasSelVerts = uvGpu.selectedVerticesVbuf && uvGpu.selectedVerticesVertexCount > 0;
+            if (m_selectionUbuf && m_selectionSrb && (hasSelFaces || hasSelVerts)) {
+                const quint32 selOffset =
+                    allocateDynamicUbufOffset(m_selectionUbufAllocator, "selection");
+                float selData[kDecoratorUbufSize / sizeof(float)] = {};
+                memcpy(selData, mvp.constData(), 64);
+                selData[16] = 1.0f; // red, 50% alpha — same as the scene overlay
+                selData[17] = 0.0f;
+                selData[18] = 0.0f;
+                selData[19] = 0.5f;
+                QRhiResourceUpdateBatch *uSel = m_rhi->nextResourceUpdateBatch();
+                uSel->updateDynamicBuffer(m_selectionUbuf.get(), selOffset, kDecoratorUbufSize, selData);
+                cb->resourceUpdate(uSel);
+                if (hasSelFaces && m_selectionFacesPipeline) {
+                    cb->setGraphicsPipeline(m_selectionFacesPipeline.get());
+                    setShaderResourcesWithOffset(cb, m_selectionSrb.get(), selOffset);
+                    const QRhiCommandBuffer::VertexInput fv(uvGpu.selectedFacesVbuf.get(), 0);
+                    cb->setVertexInput(0, 1, &fv);
+                    cb->draw(uvGpu.selectedFacesVertexCount);
+                }
+                if (hasSelVerts && m_selectionVerticesPipeline) {
+                    cb->setGraphicsPipeline(m_selectionVerticesPipeline.get());
+                    setShaderResourcesWithOffset(cb, m_selectionSrb.get(), selOffset);
+                    const QRhiCommandBuffer::VertexInput vv(uvGpu.selectedVerticesVbuf.get(), 0);
+                    cb->setVertexInput(0, 1, &vv);
+                    cb->draw(uvGpu.selectedVerticesVertexCount);
                 }
             }
         }

@@ -722,6 +722,7 @@ struct SceneRasterProjectedDrawItem {
         bool valid = false;
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
+        std::uint64_t selectionRevision = 0;
         QString qualityColorMapId = QStringLiteral("rainbow");
         bool qualityColorMapInverted = false;
         bool qualityFixedRange = false;
@@ -737,6 +738,11 @@ struct SceneRasterProjectedDrawItem {
         int textureSeamsVertexCount = 0;
         std::array<UvFillVariantGpu, 5> fillVariants;
         std::array<UvPointsVariantGpu, 3> pointsVariants;
+        // Selection overlay in UV space (position-only triangles / points).
+        std::unique_ptr<QRhiBuffer> selectedFacesVbuf;
+        int selectedFacesVertexCount = 0;
+        std::unique_ptr<QRhiBuffer> selectedVerticesVbuf;
+        int selectedVerticesVertexCount = 0;
         QVector2D minUv = QVector2D(0.0f, 0.0f);
         QVector2D maxUv = QVector2D(1.0f, 1.0f);
     };
