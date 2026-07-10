@@ -1853,6 +1853,10 @@ void RenderWidget::createOverlayButtons()
         "  padding: 10px 12px;"
         "}"));
     m_helpOverlayLabel->setText(quickHelpOverlayHtml());
+    m_toolBadgeLabel = new QLabel(this);
+    m_toolBadgeLabel->setVisible(false);
+    m_toolBadgeLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+
     m_interactionStatusOverlayLabel = new QLabel(this);
     m_interactionStatusOverlayLabel->setVisible(false);
     m_interactionStatusOverlayLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
@@ -2050,6 +2054,13 @@ void RenderWidget::layoutOverlayButtons()
         const int y = kOverlayMargin + 8;
         m_interactionStatusOverlayLabel->move(x, y);
         m_interactionStatusOverlayLabel->raise();
+    }
+
+    if (m_toolBadgeLabel && m_toolBadgeLabel->isVisible()) {
+        m_toolBadgeLabel->adjustSize();
+        m_toolBadgeLabel->move(kOverlayMargin,
+                               height() - m_toolBadgeLabel->height() - kOverlayMargin);
+        m_toolBadgeLabel->raise();
     }
 }
 
@@ -2784,29 +2795,68 @@ void RenderWidget::setActiveTool(InteractiveTool *tool)
     }
     m_activeTool = tool;
     m_toolSuspended = false;
+    m_toolOwnerIsCurrent = true;
     if (m_activeTool) {
         m_activeTool->activate(*this);
-        applyToolCursor();
         showInteractionStatusOverlay(m_activeTool->statusHint());
         if (m_doc)
             m_doc->writeLog(tr("Tool engaged: %1").arg(m_activeTool->name()),
                             Document::LogSource::Application);
-    } else {
-        applyToolCursor();
     }
+    applyToolCursor();
+    updateToolBadge();
+    update();
+}
+
+void RenderWidget::setToolOwnerIsCurrent(bool current)
+{
+    if (m_toolOwnerIsCurrent == current)
+        return;
+    m_toolOwnerIsCurrent = current;
+    // Losing focus discards any half-finished gesture (it was bound to this view).
+    if (!current && m_activeTool)
+        m_activeTool->cancelGesture();
+    applyToolCursor();
+    updateToolBadge();
     update();
 }
 
 void RenderWidget::applyToolCursor()
 {
-    if (!m_activeTool) {
+    if (!m_activeTool)
         unsetCursor();
-    } else if (m_toolSuspended) {
-        // Camera mode while a tool is engaged.
-        setCursor(QCursor(QPixmap(QStringLiteral(":/img/cur_trackball.png")), 1, 1));
-    } else {
+    else if (toolLive())
         setCursor(m_activeTool->cursor());
+    else // Tab-suspended or another view is current → camera cursor.
+        setCursor(QCursor(QPixmap(QStringLiteral(":/img/cur_trackball.png")), 1, 1));
+}
+
+void RenderWidget::updateToolBadge()
+{
+    if (!m_toolBadgeLabel)
+        return;
+    if (!m_activeTool) {
+        m_toolBadgeLabel->hide();
+        return;
     }
+    const bool live = toolLive();
+    const QString state = !m_toolOwnerIsCurrent
+        ? tr("suspended — click this view to resume")
+        : m_toolSuspended ? tr("camera (Tab to resume)")
+                          : tr("active — Tab: camera, Esc: exit");
+    m_toolBadgeLabel->setText(QStringLiteral("● %1 — %2").arg(m_activeTool->name(), state));
+    // Accent border when the tool owns the mouse; muted while suspended.
+    const QString accent = live ? QStringLiteral("0,174,255") : QStringLiteral("150,150,160");
+    m_toolBadgeLabel->setStyleSheet(QStringLiteral(
+        "QLabel {"
+        "  color: rgba(246,246,250,248);"
+        "  background: rgba(20,20,24,188);"
+        "  border: 1px solid rgba(%1,220);"
+        "  border-radius: 6px;"
+        "  padding: 4px 9px;"
+        "}").arg(accent));
+    m_toolBadgeLabel->show();
+    layoutOverlayButtons();
 }
 
 void RenderWidget::requestSurfacePick(QPoint pixel)
@@ -2834,6 +2884,7 @@ void RenderWidget::keyPressEvent(QKeyEvent *e)
         if (e->key() == Qt::Key_Tab) {
             m_toolSuspended = !m_toolSuspended;
             applyToolCursor();
+            updateToolBadge();
             showInteractionStatusOverlay(
                 m_toolSuspended
                     ? tr("Camera — Tab to resume %1").arg(m_activeTool->name())
@@ -2843,14 +2894,13 @@ void RenderWidget::keyPressEvent(QKeyEvent *e)
             return;
         }
         // Other keys go to the tool only while it owns the mouse.
-        if (!m_toolSuspended && m_activeTool->keyPress(e)) {
+        if (toolLive() && m_activeTool->keyPress(e)) {
             e->accept();
             update();
             return;
         }
         // A modifier (Shift/Ctrl/…) may have changed the tool's cursor.
-        if (!m_toolSuspended)
-            applyToolCursor();
+        applyToolCursor();
     }
     QRhiWidget::keyPressEvent(e);
 }
@@ -2858,7 +2908,7 @@ void RenderWidget::keyPressEvent(QKeyEvent *e)
 void RenderWidget::keyReleaseEvent(QKeyEvent *e)
 {
     // Releasing a modifier reverts the tool cursor (e.g. + back to plain rect).
-    if (m_viewMode == ViewMode::Scene3D && m_activeTool && !m_toolSuspended)
+    if (m_viewMode == ViewMode::Scene3D && m_activeTool)
         applyToolCursor();
     QRhiWidget::keyReleaseEvent(e);
 }
@@ -2867,7 +2917,7 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
     setFocus(Qt::MouseFocusReason); // ensure the view receives key events for tools
-    if (m_viewMode == ViewMode::Scene3D && m_activeTool && !m_toolSuspended && m_activeTool->mousePress(e)) {
+    if (m_viewMode == ViewMode::Scene3D && toolLive() && m_activeTool->mousePress(e)) {
         if (e)
             e->accept();
         update();
@@ -2970,7 +3020,7 @@ void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
 void RenderWidget::mouseReleaseEvent(QMouseEvent *e)
 {
     emit viewActivated(this);
-    if (m_viewMode == ViewMode::Scene3D && m_activeTool && !m_toolSuspended && m_activeTool->mouseRelease(e)) {
+    if (m_viewMode == ViewMode::Scene3D && toolLive() && m_activeTool->mouseRelease(e)) {
         if (e)
             e->accept();
         update();
@@ -2999,7 +3049,7 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
 {
     if (e && e->buttons() != Qt::NoButton)
         emit viewActivated(this);
-    if (m_viewMode == ViewMode::Scene3D && m_activeTool && !m_toolSuspended && m_activeTool->mouseMove(e)) {
+    if (m_viewMode == ViewMode::Scene3D && toolLive() && m_activeTool->mouseMove(e)) {
         if (e)
             e->accept();
         update();

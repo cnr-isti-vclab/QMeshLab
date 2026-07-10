@@ -95,7 +95,6 @@ private:
     void refreshFiltersMenu();
     void setupToolsMenu(QMenu *toolsMenu);
     void setActiveToolIndex(int index);   // -1 clears the active tool
-    void applyActiveToolToCurrentView();
     void exitActiveTool();                // Esc from a view: uncheck + clear
     void executeFilter(
         const QString &filterKey,
@@ -127,6 +126,7 @@ private:
     std::vector<std::unique_ptr<InteractiveTool>> m_interactiveTools;
     QList<QAction *> m_toolActions;
     int m_activeToolIndex = -1;
+    RenderWidget *m_toolOwnerView = nullptr; // view that hosts the active tool
     QAction *m_openLastAction = nullptr;
     std::array<QAction *, 8> m_recentActions = {};
     QStringList m_recentMeshes;

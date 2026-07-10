@@ -52,6 +52,10 @@ public:
     // mouse/key events in Scene3D mode before the camera trackball.
     void setActiveTool(InteractiveTool *tool);
     InteractiveTool *activeTool() const { return m_activeTool; }
+    // Whether this (tool-owning) view is the current/active view. When false the
+    // tool is auto-suspended: the mouse drives the camera, but the tool stays
+    // owned here and the persistent badge shows it as suspended.
+    void setToolOwnerIsCurrent(bool current);
     // Schedules a GPU surface pick at the given pixel; the result is delivered
     // asynchronously to the active tool's onSurfacePicked().
     void requestSurfacePick(QPoint pixel);
@@ -458,7 +462,14 @@ struct SceneRasterProjectedDrawItem {
     // When true, a tool is active but the mouse temporarily drives the camera
     // (Tab toggles it). The tool stays engaged; only input routing changes.
     bool m_toolSuspended = false;
+    // False while another view is current: the owning view keeps the tool but
+    // routes the mouse to the camera until it becomes current again.
+    bool m_toolOwnerIsCurrent = true;
+    QLabel *m_toolBadgeLabel = nullptr; // persistent "tool owned here" indicator
+    // The tool receives mouse input only when owned-here, current, and not suspended.
+    bool toolLive() const { return m_activeTool && m_toolOwnerIsCurrent && !m_toolSuspended; }
     void applyToolCursor(); // sets the cursor for the current tool/suspend state
+    void updateToolBadge();  // refreshes the persistent tool-status badge
     // Distinguishes a double-click recenter pick from a tool-requested pick that
     // shares the same depth-pick machinery.
     enum class PickPurpose { Recenter, Tool };

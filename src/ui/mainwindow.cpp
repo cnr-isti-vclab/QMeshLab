@@ -1465,7 +1465,10 @@ void MainWindow::setCurrentRenderWidget(RenderWidget *view)
     m_currentRenderWidget = view;
     updateCurrentViewBorder();
     syncDocumentVisibilityFromCurrentView();
-    applyActiveToolToCurrentView();
+    // The tool stays pinned to its owner view; it's only live while that view is
+    // the current one, so other views remain plain trackball inspectors.
+    if (m_toolOwnerView)
+        m_toolOwnerView->setToolOwnerIsCurrent(m_toolOwnerView == m_currentRenderWidget);
 }
 
 void MainWindow::setupToolsMenu(QMenu *toolsMenu)
@@ -1504,21 +1507,26 @@ void MainWindow::exitActiveTool()
 
 void MainWindow::setActiveToolIndex(int index)
 {
-    m_activeToolIndex = index;
-    applyActiveToolToCurrentView();
-}
-
-void MainWindow::applyActiveToolToCurrentView()
-{
-    InteractiveTool *tool = (m_activeToolIndex >= 0
-        && m_activeToolIndex < static_cast<int>(m_interactiveTools.size()))
-        ? m_interactiveTools[size_t(m_activeToolIndex)].get()
+    InteractiveTool *tool = (index >= 0 && index < static_cast<int>(m_interactiveTools.size()))
+        ? m_interactiveTools[size_t(index)].get()
         : nullptr;
-    // A tool is active in one view at a time; detach it from the others.
-    for (RenderWidget *view : std::as_const(m_renderWidgets)) {
-        if (!view)
-            continue;
-        view->setActiveTool(view == m_currentRenderWidget ? tool : nullptr);
+
+    // Detach from the previous owner (cancels any gesture there).
+    if (m_toolOwnerView)
+        m_toolOwnerView->setActiveTool(nullptr);
+    m_toolOwnerView = nullptr;
+    m_activeToolIndex = -1;
+
+    // Pin the tool to the view that is current at activation time. It stays there
+    // until exited; focusing another view only suspends it (see setCurrentRenderWidget).
+    if (tool) {
+        RenderWidget *owner = currentRenderWidget();
+        if (owner) {
+            m_toolOwnerView = owner;
+            m_activeToolIndex = index;
+            owner->setActiveTool(tool);
+            owner->setToolOwnerIsCurrent(true);
+        }
     }
 }
 
@@ -1648,6 +1656,11 @@ bool MainWindow::closeRenderWidget(RenderWidget *view)
 {
     if (!view || m_renderWidgets.size() <= 1)
         return false;
+
+    // If the view hosting the active tool is closing, exit the tool first so the
+    // owner pointer and toolbar state don't dangle.
+    if (view == m_toolOwnerView)
+        exitActiveTool();
 
     RenderWidget *nextCurrent = m_currentRenderWidget;
     if (nextCurrent == view) {
