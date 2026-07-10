@@ -1752,6 +1752,65 @@ void RenderWidget::setCurrentViewHighlighted(bool highlighted)
     }
 }
 
+bool RenderWidget::centerCameraOnSelection()
+{
+    if (m_viewMode != ViewMode::Scene3D || !m_doc)
+        return false;
+    const int mi = m_doc->currentMeshIndex();
+    if (mi < 0 || mi >= m_doc->meshCount())
+        return false;
+    const Document::MeshEntry &entry = m_doc->mesh(mi);
+    const VCGMesh &mesh = entry.mesh;
+
+    // Local-space bbox of the selection: selected vertices plus the vertices of
+    // selected faces (a face selection may not set vertex flags).
+    vcg::Box3f selBox;
+    selBox.SetNull();
+    for (const VCGVertex &v : mesh.vert)
+        if (!v.IsD() && v.IsS())
+            selBox.Add(v.cP());
+    for (const VCGFace &f : mesh.face)
+        if (!f.IsD() && f.IsS())
+            for (int c = 0; c < 3; ++c)
+                selBox.Add(f.cP(c));
+    if (selBox.IsNull())
+        return false;
+
+    // Transform the 8 corners to world space to get the world center/radius
+    // (handles the layer's rotation/scale/translation correctly).
+    const QMatrix4x4 &tr = entry.transform;
+    QVector3D wMin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
+                   std::numeric_limits<float>::max());
+    QVector3D wMax = -wMin;
+    for (int i = 0; i < 8; ++i) {
+        const QVector3D corner(
+            (i & 1) ? selBox.max[0] : selBox.min[0],
+            (i & 2) ? selBox.max[1] : selBox.min[1],
+            (i & 4) ? selBox.max[2] : selBox.min[2]);
+        const QVector3D w = tr.map(corner);
+        wMin.setX(std::min(wMin.x(), w.x())); wMax.setX(std::max(wMax.x(), w.x()));
+        wMin.setY(std::min(wMin.y(), w.y())); wMax.setY(std::max(wMax.y(), w.y()));
+        wMin.setZ(std::min(wMin.z(), w.z())); wMax.setZ(std::max(wMax.z(), w.z()));
+    }
+    const QVector3D centerWorld = (wMin + wMax) * 0.5f;
+    float radiusWorld = (wMax - wMin).length() * 0.5f;
+    if (radiusWorld < 1e-5f) // single-point / degenerate selection
+        radiusWorld = std::max(1e-4f, mesh.bbox.Diag() * 0.05f);
+
+    // Distance that frames the selection with a little padding ("zoom a bit").
+    const float fovY = qDegreesToRadians(m_trackball.fovYDegrees());
+    const float distance = radiusWorld / std::tan(fovY * 0.5f) * 1.3f;
+
+    cancelCenterAnimation();
+    // Apply zoom (radius/distance) keeping the current center, then animate the
+    // center pan to the selection so the transition reads clearly.
+    m_trackball.setFrame(m_trackball.center(), radiusWorld, distance);
+    startCenterAnimation(centerWorld);
+    emitCameraStateChangedIfNeeded();
+    update();
+    return true;
+}
+
 void RenderWidget::startCenterAnimation(const QVector3D &targetCenter)
 {
     const QVector3D currentCenter = m_trackball.center();

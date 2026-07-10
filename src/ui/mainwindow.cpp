@@ -1298,6 +1298,11 @@ MainWindow::MainWindow(QWidget *parent)
         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H),
         this,
         &MainWindow::resetCamera);
+    viewMenu->addAction(
+        tr("Center on Selection"),
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_J),
+        this,
+        &MainWindow::centerCameraOnSelection);
     viewMenu->addSeparator();
     viewMenu->addAction(
         tr("Copy Camera/Trackball JSON"),
@@ -3125,6 +3130,17 @@ void MainWindow::resetCamera()
         return;
     view->resetCameraToScene();
     statusBar()->showMessage(tr("Camera reset"), 1500);
+}
+
+void MainWindow::centerCameraOnSelection()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+    if (view->centerCameraOnSelection())
+        statusBar()->showMessage(tr("Centered on selection"), 1500);
+    else
+        statusBar()->showMessage(tr("No selection to center on"), 2000);
 }
 
 void MainWindow::setCurrentViewSceneMode()

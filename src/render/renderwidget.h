@@ -61,6 +61,9 @@ public:
     void requestSurfacePick(QPoint pixel);
     void setCurrentViewHighlighted(bool highlighted);
     void resetCameraToScene();
+    // Recenters the trackball on the current mesh's selection barycenter and
+    // zooms to frame it. Returns false if there is no selection (Scene3D only).
+    bool centerCameraOnSelection();
     const RenderSettings &renderSettings() const { return m_renderSettings; }
     void setRenderSettings(const RenderSettings &settings);
     QString cameraStateJson() const;

@@ -66,6 +66,7 @@ private slots:
     void showFilterPlugins();
     void showMemoryInfo();
     void resetCamera();
+    void centerCameraOnSelection();
     void copyCameraState();
     void pasteCameraState();
     void setCurrentViewSceneMode();
