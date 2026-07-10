@@ -68,6 +68,9 @@ public:
     QString renderStateJson() const;
     bool applyRenderStateJson(const QString &jsonText, QString *errorMessage = nullptr);
     ViewMode viewMode() const { return m_viewMode; }
+    // UV view state (for UV-space tool operations).
+    QVector2D uvPan() const { return m_uvPan; }
+    float uvZoom() const { return m_uvZoom; }
     bool canSwitchToViewMode(ViewMode mode, QString *errorMessage = nullptr) const;
     bool setViewMode(ViewMode mode, QString *errorMessage = nullptr);
     bool meshVisible(int index) const;
@@ -468,6 +471,10 @@ struct SceneRasterProjectedDrawItem {
     QLabel *m_toolBadgeLabel = nullptr; // persistent "tool owned here" indicator
     // The tool receives mouse input only when owned-here, current, and not suspended.
     bool toolLive() const { return m_activeTool && m_toolOwnerIsCurrent && !m_toolSuspended; }
+    // Tools operate in the 3D scene and the UV parametrization views (not raster).
+    bool toolAllowedInCurrentMode() const {
+        return m_viewMode == ViewMode::Scene3D || m_viewMode == ViewMode::ParametrizationUV;
+    }
     void applyToolCursor(); // sets the cursor for the current tool/suspend state
     void updateToolBadge();  // refreshes the persistent tool-status badge
     // Distinguishes a double-click recenter pick from a tool-requested pick that

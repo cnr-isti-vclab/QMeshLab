@@ -148,25 +148,43 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectByRectangle)) {
-        // Reconstruct the view's projection from the camera_state param.
-        const QString camJson = params.getCameraState(QStringLiteral("camera_state"));
-        QJsonParseError pe;
-        const QJsonDocument jd = QJsonDocument::fromJson(camJson.toUtf8(), &pe);
-        if (pe.error != QJsonParseError::NoError || !jd.isObject())
-            return fail(QObject::tr("select_by_rectangle: invalid camera_state JSON."));
-        const QJsonObject root = jd.object();
-        const QJsonObject tbObj = root.contains(QStringLiteral("trackball"))
-            ? root.value(QStringLiteral("trackball")).toObject()
-            : root;
-        ViewTrackball::State st;
-        QString stErr;
-        if (!ViewTrackball::stateFromJson(tbObj, st, &stErr))
-            return fail(QObject::tr("select_by_rectangle: %1").arg(stErr));
-        ViewTrackball cam;
-        cam.setState(st);
+        // Build the projection that maps a mesh element to normalized screen
+        // coordinates. Two spaces are supported: the 3D trackball view, and the
+        // UV/parametrization view (ortho projection of texture coordinates).
+        const QString space = params.getEnum(QStringLiteral("space"));
+        const bool uvSpace = (space == QStringLiteral("uv"));
         const float aspect = float(params.getDouble(QStringLiteral("aspect")));
-        const QMatrix4x4 mvp =
-            cam.projectionMatrix(aspect > 1e-6f ? aspect : 1.0f) * cam.viewMatrix() * entry.transform;
+        QMatrix4x4 mvp;
+        if (uvSpace) {
+            // Rebuild the exact ortho MVP the UV renderer uses (pan/zoom/aspect).
+            const float xLim = aspect >= 1.0f ? aspect : 1.0f;
+            const float yLim = aspect >= 1.0f ? 1.0f : (1.0f / std::max(1e-6f, aspect));
+            const float zoom = float(params.getDouble(QStringLiteral("uv_zoom")));
+            QMatrix4x4 proj;
+            proj.ortho(-xLim, xLim, -yLim, yLim, -1.0f, 1.0f);
+            QMatrix4x4 model;
+            model.scale(zoom, zoom, 1.0f);
+            model.translate(-float(params.getDouble(QStringLiteral("uv_pan_x"))),
+                            -float(params.getDouble(QStringLiteral("uv_pan_y"))), 0.0f);
+            mvp = proj * model;
+        } else {
+            const QString camJson = params.getCameraState(QStringLiteral("camera_state"));
+            QJsonParseError pe;
+            const QJsonDocument jd = QJsonDocument::fromJson(camJson.toUtf8(), &pe);
+            if (pe.error != QJsonParseError::NoError || !jd.isObject())
+                return fail(QObject::tr("select_by_rectangle: invalid camera_state JSON."));
+            const QJsonObject root = jd.object();
+            const QJsonObject tbObj = root.contains(QStringLiteral("trackball"))
+                ? root.value(QStringLiteral("trackball")).toObject()
+                : root;
+            ViewTrackball::State st;
+            QString stErr;
+            if (!ViewTrackball::stateFromJson(tbObj, st, &stErr))
+                return fail(QObject::tr("select_by_rectangle: %1").arg(stErr));
+            ViewTrackball cam;
+            cam.setState(st);
+            mvp = cam.projectionMatrix(aspect > 1e-6f ? aspect : 1.0f) * cam.viewMatrix() * entry.transform;
+        }
 
         const double lox = std::min(params.getDouble(QStringLiteral("rect_min_x")),
                                     params.getDouble(QStringLiteral("rect_max_x")));
@@ -177,10 +195,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         const double hiy = std::max(params.getDouble(QStringLiteral("rect_min_y")),
                                     params.getDouble(QStringLiteral("rect_max_y")));
 
-        // Project a local-space point and test it against the normalized rect
-        // (origin bottom-left, y up). w<=0 means behind the camera.
-        auto inRect = [&](const vcg::Point3f &p) -> bool {
-            const QVector4D clip = mvp * QVector4D(p.X(), p.Y(), p.Z(), 1.0f);
+        // Project a point (3D position, or UV coordinate with z=0) and test it
+        // against the normalized rect (origin bottom-left, y up).
+        auto inRect = [&](float x, float y, float z) -> bool {
+            const QVector4D clip = mvp * QVector4D(x, y, z, 1.0f);
             if (clip.w() <= 1e-6f)
                 return false;
             const float sx = (clip.x() / clip.w()) * 0.5f + 0.5f;
@@ -203,62 +221,107 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                 Sel::VertexClear(mesh);
         }
 
-        // Process a half-open element range. Each element writes only its own
-        // BitFlags (a fixed per-element component), so disjoint ranges are
-        // independent and need no locking.
-        auto worker = [&](std::size_t lo, std::size_t hi) -> int {
-            int local = 0;
-            if (doFaces) {
-                for (std::size_t i = lo; i < hi; ++i) {
-                    VCGFace &f = mesh.face[i];
-                    if (f.IsD() || !inRect(vcg::Barycenter(f)))
-                        continue;
-                    if (subtract) {
-                        if (f.IsS()) { f.ClearS(); ++local; }
-                    } else if (!f.IsS()) {
-                        f.SetS(); ++local;
-                    }
-                }
-            } else {
-                for (std::size_t i = lo; i < hi; ++i) {
-                    VCGVertex &v = mesh.vert[i];
-                    if (v.IsD() || !inRect(v.P()))
-                        continue;
-                    if (subtract) {
-                        if (v.IsS()) { v.ClearS(); ++local; }
-                    } else if (!v.IsS()) {
-                        v.SetS(); ++local;
-                    }
-                }
-            }
-            return local;
-        };
-
-        const std::size_t elemCount = doFaces ? mesh.face.size() : mesh.vert.size();
-        unsigned nThreads = std::max(1u, std::thread::hardware_concurrency());
-        if (elemCount < 200000)
-            nThreads = 1; // thread setup isn't worth it below this size
-
         QElapsedTimer timer;
         timer.start();
+        unsigned nThreads = 1;
 
-        if (nThreads <= 1) {
-            changed = worker(0, elemCount);
-        } else {
-            std::vector<std::thread> pool;
-            std::vector<int> counts(nThreads, 0);
-            const std::size_t chunk = (elemCount + nThreads - 1) / nThreads;
-            for (unsigned t = 0; t < nThreads; ++t) {
-                const std::size_t lo = std::size_t(t) * chunk;
-                const std::size_t hi = std::min(elemCount, lo + chunk);
-                if (lo >= hi)
-                    break;
-                pool.emplace_back([&counts, &worker, t, lo, hi]() { counts[t] = worker(lo, hi); });
+        if (uvSpace) {
+            // UV space: element coordinates come from per-corner parametrization,
+            // so iterate faces once. A flat layout has no occlusion, so the plain
+            // "select what projects inside" rule is exactly right. Single pass —
+            // vertices are shared between faces, so parallel writes are avoided.
+            const int ioMask = entry.ioMask;
+            for (VCGFace &f : mesh.face) {
+                if (f.IsD())
+                    continue;
+                float u[3], v[3];
+                if (!vcgFaceCornerUV(ioMask, f, 0, u[0], v[0])
+                    || !vcgFaceCornerUV(ioMask, f, 1, u[1], v[1])
+                    || !vcgFaceCornerUV(ioMask, f, 2, u[2], v[2]))
+                    continue;
+                if (doFaces) {
+                    const float cu = (u[0] + u[1] + u[2]) / 3.0f;
+                    const float cv = (v[0] + v[1] + v[2]) / 3.0f;
+                    if (!inRect(cu, cv, 0.0f))
+                        continue;
+                    if (subtract) {
+                        if (f.IsS()) { f.ClearS(); ++changed; }
+                    } else if (!f.IsS()) {
+                        f.SetS(); ++changed;
+                    }
+                } else {
+                    for (int c = 0; c < 3; ++c) {
+                        VCGVertex *vp = f.V(c);
+                        if (!vp || vp->IsD() || !inRect(u[c], v[c], 0.0f))
+                            continue;
+                        if (subtract) {
+                            if (vp->IsS()) { vp->ClearS(); ++changed; }
+                        } else if (!vp->IsS()) {
+                            vp->SetS(); ++changed;
+                        }
+                    }
+                }
             }
-            for (std::thread &th : pool)
-                th.join();
-            for (int c : counts)
-                changed += c;
+        } else {
+            // 3D view space: parallelize over elements. Each writes only its own
+            // BitFlags (a fixed per-element component), so ranges need no locking.
+            auto worker = [&](std::size_t lo, std::size_t hi) -> int {
+                int local = 0;
+                if (doFaces) {
+                    for (std::size_t i = lo; i < hi; ++i) {
+                        VCGFace &f = mesh.face[i];
+                        if (f.IsD())
+                            continue;
+                        const vcg::Point3f b = vcg::Barycenter(f);
+                        if (!inRect(b.X(), b.Y(), b.Z()))
+                            continue;
+                        if (subtract) {
+                            if (f.IsS()) { f.ClearS(); ++local; }
+                        } else if (!f.IsS()) {
+                            f.SetS(); ++local;
+                        }
+                    }
+                } else {
+                    for (std::size_t i = lo; i < hi; ++i) {
+                        VCGVertex &v = mesh.vert[i];
+                        if (v.IsD())
+                            continue;
+                        const auto &p = v.P();
+                        if (!inRect(p.X(), p.Y(), p.Z()))
+                            continue;
+                        if (subtract) {
+                            if (v.IsS()) { v.ClearS(); ++local; }
+                        } else if (!v.IsS()) {
+                            v.SetS(); ++local;
+                        }
+                    }
+                }
+                return local;
+            };
+
+            const std::size_t elemCount = doFaces ? mesh.face.size() : mesh.vert.size();
+            nThreads = std::max(1u, std::thread::hardware_concurrency());
+            if (elemCount < 200000)
+                nThreads = 1; // thread setup isn't worth it below this size
+
+            if (nThreads <= 1) {
+                changed = worker(0, elemCount);
+            } else {
+                std::vector<std::thread> pool;
+                std::vector<int> counts(nThreads, 0);
+                const std::size_t chunk = (elemCount + nThreads - 1) / nThreads;
+                for (unsigned t = 0; t < nThreads; ++t) {
+                    const std::size_t lo = std::size_t(t) * chunk;
+                    const std::size_t hi = std::min(elemCount, lo + chunk);
+                    if (lo >= hi)
+                        break;
+                    pool.emplace_back([&counts, &worker, t, lo, hi]() { counts[t] = worker(lo, hi); });
+                }
+                for (std::thread &th : pool)
+                    th.join();
+                for (int c : counts)
+                    changed += c;
+            }
         }
 
         const qint64 elapsedMs = timer.elapsed();

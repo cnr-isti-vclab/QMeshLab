@@ -1,6 +1,9 @@
 #pragma once
 
 #include <vcg/complex/complex.h>
+#include <wrap/io_trimesh/io_mask.h>
+
+#include <cmath>
 
 class VCGVertex;
 class VCGEdge;
@@ -53,6 +56,29 @@ class VCGMesh : public vcg::tri::TriMesh<
     vcg::vertex::vector_ocf<VCGVertex>,
     std::vector<VCGEdge>,
     vcg::face::vector_ocf<VCGFace>> {};
+
+// Texture coordinate of a face corner, honouring the mesh's ioMask (per-wedge
+// preferred, else per-vertex). Returns false if there are no usable texcoords or
+// the value is non-finite. Shared by the UV renderer and the UV-space selection
+// filter so both read parametrization coordinates the same way.
+inline bool vcgFaceCornerUV(int ioMask, const VCGFace &f, int corner, float &u, float &v)
+{
+    if (ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) {
+        const auto &wt = f.cWT(corner);
+        u = wt.U();
+        v = wt.V();
+    } else if (ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) {
+        const VCGVertex *vp = f.cV(corner);
+        if (!vp)
+            return false;
+        const auto &vt = vp->cT();
+        u = vt.U();
+        v = vt.V();
+    } else {
+        return false;
+    }
+    return std::isfinite(u) && std::isfinite(v);
+}
 
 // ---------------------------------------------------------------------------
 // RAII helpers for ancillary OCF fields.

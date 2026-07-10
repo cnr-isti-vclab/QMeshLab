@@ -112,7 +112,6 @@ bool RubberBandSelectTool::mouseRelease(QMouseEvent *e)
         : QStringLiteral("replace");
 
     QVariantMap params;
-    params[QStringLiteral("camera_state")] = m_view->cameraStateJson();
     params[QStringLiteral("aspect")] = double(w) / double(h);
     params[QStringLiteral("rect_min_x")] = xMin;
     params[QStringLiteral("rect_min_y")] = yMin;
@@ -120,8 +119,23 @@ bool RubberBandSelectTool::mouseRelease(QMouseEvent *e)
     params[QStringLiteral("rect_max_y")] = yMax;
     params[QStringLiteral("element")] = m_selectFaces ? QStringLiteral("face") : QStringLiteral("vertex");
     params[QStringLiteral("mode")] = mode;
+    // Provide the parameters for BOTH spaces (the unused ones are ignored by the
+    // filter). camera_state has no default, so it must always be present or the
+    // filter's parameter validation rejects the call.
+    params[QStringLiteral("space")] =
+        (m_view->viewMode() == RenderWidget::ViewMode::ParametrizationUV)
+            ? QStringLiteral("uv")
+            : QStringLiteral("view3d");
+    params[QStringLiteral("camera_state")] = m_view->cameraStateJson();
+    params[QStringLiteral("uv_pan_x")] = double(m_view->uvPan().x());
+    params[QStringLiteral("uv_pan_y")] = double(m_view->uvPan().y());
+    params[QStringLiteral("uv_zoom")] = double(m_view->uvZoom());
 
-    doc->runFilter(QStringLiteral("qmeshlab.filter.select::select_by_rectangle"), params);
+    const MeshFilterRunResult result =
+        doc->runFilter(QStringLiteral("qmeshlab.filter.select::select_by_rectangle"), params);
+    if (!result.success)
+        doc->writeLog(QObject::tr("Rubber-band selection failed: %1").arg(result.errorMessage),
+                      Document::LogSource::Error);
     return true;
 }
 

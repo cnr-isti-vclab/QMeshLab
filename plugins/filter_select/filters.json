@@ -907,6 +907,42 @@
           "default": 1.0
         },
         {
+          "id": "space",
+          "label": "Projection space",
+          "help": "Whether the rectangle is in the 3D view or the UV/parametrization view.",
+          "group": "main",
+          "type": "enum",
+          "default": "view3d",
+          "enumOptions": [
+            { "id": "view3d", "label": "3D view" },
+            { "id": "uv", "label": "UV / parametrization" }
+          ]
+        },
+        {
+          "id": "uv_pan_x",
+          "label": "UV pan X",
+          "help": "UV-view pan (X), used when space = uv.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5
+        },
+        {
+          "id": "uv_pan_y",
+          "label": "UV pan Y",
+          "help": "UV-view pan (Y), used when space = uv.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5
+        },
+        {
+          "id": "uv_zoom",
+          "label": "UV zoom",
+          "help": "UV-view zoom, used when space = uv.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0
+        },
+        {
           "id": "rect_min_x",
           "label": "Rect min X",
           "help": "Left edge, normalized [0..1].",

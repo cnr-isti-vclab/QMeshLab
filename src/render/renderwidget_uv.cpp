@@ -110,8 +110,6 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
 
     const VCGMesh &mesh = entry.mesh;
     const int mask = entry.ioMask;
-    const bool hasWedgeTex = (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
-    const bool hasVertexTex = !hasWedgeTex && ((mask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0);
     const bool hasVertexColors = (mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
     const bool hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
     const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
@@ -120,21 +118,7 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     auto uvForCorner = [&](const VCGMesh::FaceType &f, int corner, QVector2D &outUv) -> bool {
         float u = 0.0f;
         float v = 0.0f;
-        if (hasWedgeTex) {
-            const auto &wt = f.cWT(corner);
-            u = wt.U();
-            v = wt.V();
-        } else if (hasVertexTex) {
-            const auto *vertex = f.cV(corner);
-            if (!vertex)
-                return false;
-            const auto &vt = vertex->cT();
-            u = vt.U();
-            v = vt.V();
-        } else {
-            return false;
-        }
-        if (!std::isfinite(u) || !std::isfinite(v))
+        if (!vcgFaceCornerUV(mask, f, corner, u, v))
             return false;
         outUv = QVector2D(u, v);
         return true;
