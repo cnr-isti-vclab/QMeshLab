@@ -166,8 +166,14 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         m_depthPickPending = false;
     }
     syncPerMeshRenderModesWithDocument();
-    if (!rasterMode)
+    if (!rasterMode) {
         updateCameraFrameIfNeeded();
+        // Keep the far plane wide enough for the whole scene regardless of how
+        // tightly the camera is framed (e.g. after Center on Selection).
+        QVector3D sceneMin, sceneMax;
+        if (computeWorldSceneBBox(sceneMin, sceneMax))
+            m_trackball.setSceneRadius(0.5f * (sceneMax - sceneMin).length());
+    }
 
     const bool drawTrackballGizmo =
         !rasterMode && m_renderSettings.showTrackballGizmo && (m_doc->meshCount() > 0);

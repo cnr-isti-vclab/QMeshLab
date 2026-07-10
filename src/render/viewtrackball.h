@@ -59,7 +59,11 @@ public:
     float fovYDegrees() const { return m_fovYDeg; }
     float nearClipRatio() const { return m_nearClipRatio; }
     float nearClipPlaneDistance() const;
-    float farClipPlaneDistance() const { return m_distance + 4.0f * m_radius; }
+    // Far plane must enclose the whole scene, not just the framing radius — when
+    // zoomed onto a small detail m_radius is tiny but the scene extends far. The
+    // scene radius (set per frame by the view) keeps the far plane wide enough.
+    float farClipPlaneDistance() const { return m_distance + 4.0f * qMax(m_radius, m_sceneRadius); }
+    void setSceneRadius(float sceneRadius) { m_sceneRadius = qMax(0.0f, sceneRadius); }
     float gizmoWorldRadius() const;
 
     QMatrix4x4 viewMatrix() const;
@@ -99,6 +103,7 @@ private:
     QVector3D m_center;
     float m_distance = 3.0f;
     float m_radius = 1.0f;
+    float m_sceneRadius = 1.0f; // whole-scene extent for far-plane clipping (transient)
     float m_fovYDeg = 45.0f;
     float m_nearClipRatio = 0.0033333333f;
     float m_gizmoBaseRadius = 1.0f;

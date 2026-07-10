@@ -14,15 +14,8 @@ namespace {
 constexpr int kSceneBackgroundUbufSize = 32;
 }
 
-void RenderWidget::updateCameraFrameIfNeeded()
+bool RenderWidget::computeWorldSceneBBox(QVector3D &minCorner, QVector3D &maxCorner) const
 {
-    if (!m_reframeCameraRequested)
-        return;
-    if (m_doc->meshCount() == 0)
-        return;
-
-    QVector3D sceneMin;
-    QVector3D sceneMax;
     bool hasVisibleMesh = false;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         if (!meshVisible(i))
@@ -48,20 +41,32 @@ void RenderWidget::updateCameraFrameIfNeeded()
                 ? transformed.toVector3DAffine()
                 : transformed.toVector3D();
             if (!hasVisibleMesh) {
-                sceneMin = worldCorner;
-                sceneMax = worldCorner;
+                minCorner = worldCorner;
+                maxCorner = worldCorner;
                 hasVisibleMesh = true;
                 continue;
             }
-            sceneMin.setX(std::min(sceneMin.x(), worldCorner.x()));
-            sceneMin.setY(std::min(sceneMin.y(), worldCorner.y()));
-            sceneMin.setZ(std::min(sceneMin.z(), worldCorner.z()));
-            sceneMax.setX(std::max(sceneMax.x(), worldCorner.x()));
-            sceneMax.setY(std::max(sceneMax.y(), worldCorner.y()));
-            sceneMax.setZ(std::max(sceneMax.z(), worldCorner.z()));
+            minCorner.setX(std::min(minCorner.x(), worldCorner.x()));
+            minCorner.setY(std::min(minCorner.y(), worldCorner.y()));
+            minCorner.setZ(std::min(minCorner.z(), worldCorner.z()));
+            maxCorner.setX(std::max(maxCorner.x(), worldCorner.x()));
+            maxCorner.setY(std::max(maxCorner.y(), worldCorner.y()));
+            maxCorner.setZ(std::max(maxCorner.z(), worldCorner.z()));
         }
     }
-    if (!hasVisibleMesh)
+    return hasVisibleMesh;
+}
+
+void RenderWidget::updateCameraFrameIfNeeded()
+{
+    if (!m_reframeCameraRequested)
+        return;
+    if (m_doc->meshCount() == 0)
+        return;
+
+    QVector3D sceneMin;
+    QVector3D sceneMax;
+    if (!computeWorldSceneBBox(sceneMin, sceneMax))
         return;
 
     const QVector3D center = 0.5f * (sceneMin + sceneMax);
