@@ -317,6 +317,7 @@ struct SceneRasterProjectedDrawItem {
         const QMatrix4x4 &view,
         const QSize &pixelSize);
     void updateQualityHistogramOverlay();
+    void updateDecoratorInfoOverlay();
     void bakeCurrentQualityMappingToVertexColor();
     void updateUvScaleOverlay(
         const QMatrix4x4 &mvp,
@@ -688,6 +689,7 @@ struct SceneRasterProjectedDrawItem {
     QLabel *m_bboxDimYOverlayLabel = nullptr;
     QLabel *m_bboxDimZOverlayLabel = nullptr;
     QLabel *m_qualityHistogramOverlayLabel = nullptr;
+    QLabel *m_decoratorInfoOverlayLabel = nullptr;
     QLabel *m_helpOverlayLabel = nullptr;
     QLabel *m_interactionStatusOverlayLabel = nullptr;
     QTimer *m_interactionStatusOverlayTimer = nullptr;
@@ -716,6 +718,21 @@ struct SceneRasterProjectedDrawItem {
         std::vector<int> counts;
     };
     QualityHistogramCache m_qualityHistogram;
+    // Cached decorator counts for the current mesh (recomputed on geometry change).
+    struct DecoratorCounts {
+        bool valid = false;
+        std::uint64_t meshId = 0;
+        std::uint64_t geometryRevision = ~0ull;
+        bool hasTexCoords = false;
+        int boundaryEdges = 0;
+        int boundaryLoops = 0;
+        int seamEdges = 0;
+        int textureIslands = 0;
+        int nonManifoldEdges = 0;
+        int nonManifoldVertices = 0;
+    };
+    DecoratorCounts m_decoratorCounts;
+    DecoratorCounts computeDecoratorCounts(int meshIndex); // vcglib topology counts
     bool m_helpOverlayVisible = false;
     bool m_lastBroadcastTrackballStateValid = false;
     ViewTrackball::State m_lastBroadcastTrackballState;

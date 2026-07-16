@@ -466,6 +466,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_decoratorNonManifoldVerticesCheck = new QCheckBox(boundaryDecoratorsPage);
     m_decoratorNonManifoldVerticesCheck->setChecked(m_meshSettings.decoratorNonManifoldVertices);
     m_decoratorNonManifoldVertexColorButton = makeColorButton(boundaryDecoratorsPage);
+    m_decoratorInfoCheck = new QCheckBox(boundaryDecoratorsPage);
+    m_decoratorInfoCheck->setChecked(m_globalSettings.showDecoratorInfo);
     boundaryDecoratorsForm->addRow(
         tr("Boundary edges"),
         makeCenteredFieldContainer(m_decoratorBoundaryEdgesCheck, boundaryDecoratorsPage));
@@ -491,6 +493,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("Non-manifold vertex color"),
         makeCenteredFieldContainer(m_decoratorNonManifoldVertexColorButton, boundaryDecoratorsPage));
     boundaryDecoratorsForm->addRow(tr("Line width"), m_decoratorBoundaryWidthSpin);
+    boundaryDecoratorsForm->addRow(
+        tr("Show info panel"),
+        makeCenteredFieldContainer(m_decoratorInfoCheck, boundaryDecoratorsPage));
     applyUniformFormRowHeights(boundaryDecoratorsForm);
     boundaryDecoratorsLayout->addLayout(boundaryDecoratorsForm);
     m_settingsStack->addWidget(boundaryDecoratorsPage);
@@ -1131,6 +1136,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindMeshCheckBox(m_decoratorCurvatureDirCheck, &PerMeshRenderSettings::decoratorCurvatureDir, true);
     bindMeshCheckBox(m_decoratorBoundaryEdgesCheck, &PerMeshRenderSettings::decoratorBoundaryEdges, true);
     bindMeshCheckBox(m_decoratorTextureSeamsCheck, &PerMeshRenderSettings::decoratorTextureSeams, true);
+    bindGlobalCheckBox(m_decoratorInfoCheck, &GlobalRenderSettings::showDecoratorInfo);
     bindMeshColorButton(
         m_decoratorVertexNormalColorButton,
         &PerMeshRenderSettings::decoratorVertexNormalColor,
@@ -1750,6 +1756,10 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
     if (m_bboxShowCornersCheck) {
         QSignalBlocker blocker(m_bboxShowCornersCheck);
         m_bboxShowCornersCheck->setChecked(m_globalSettings.showBoundingBoxCorners);
+    }
+    if (m_decoratorInfoCheck) {
+        QSignalBlocker blocker(m_decoratorInfoCheck);
+        m_decoratorInfoCheck->setChecked(m_globalSettings.showDecoratorInfo);
     }
     if (m_bboxShowDimensionsCheck) {
         QSignalBlocker blocker(m_bboxShowDimensionsCheck);

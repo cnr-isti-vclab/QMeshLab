@@ -5,6 +5,10 @@
 #include "qualityrange.h"
 #include "renderoverlaypanel.h"
 #include <wrap/io_trimesh/io_mask.h>
+#include <vcg/complex/algorithms/clean.h>
+#include <vcg/complex/algorithms/update/topology.h>
+#include <vcg/complex/algorithms/update/flag.h>
+#include <vcg/simplex/face/topology.h>
 #include <QEventLoop>
 #include <QFile>
 #include <QJsonArray>
@@ -1896,6 +1900,19 @@ void RenderWidget::createOverlayButtons()
         "  border-radius: 4px;"
         "  padding: 2px;"
         "}"));
+    m_decoratorInfoOverlayLabel = new QLabel(this);
+    m_decoratorInfoOverlayLabel->setVisible(false);
+    m_decoratorInfoOverlayLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_decoratorInfoOverlayLabel->setTextInteractionFlags(Qt::NoTextInteraction);
+    m_decoratorInfoOverlayLabel->setStyleSheet(QStringLiteral(
+        "QLabel {"
+        "  color: rgba(246,246,250,248);"
+        "  background: rgba(20,20,24,188);"
+        "  border: 1px solid rgba(110,110,122,190);"
+        "  border-radius: 6px;"
+        "  padding: 5px 9px;"
+        "}"));
+
     m_helpOverlayLabel = new QLabel(this);
     m_helpOverlayLabel->setVisible(false);
     m_helpOverlayLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
@@ -2013,6 +2030,8 @@ void RenderWidget::createOverlayButtons()
             m_meshRenderModes[meshId] = meshSettings;
         }
         updateBoundingBoxCornersOverlay();
+        // A decorator toggle changes whether the info panel should be shown.
+        updateDecoratorInfoOverlay();
         update();
         layoutOverlayButtons();
     });
@@ -2120,6 +2139,13 @@ void RenderWidget::layoutOverlayButtons()
         m_toolBadgeLabel->move(kOverlayMargin,
                                height() - m_toolBadgeLabel->height() - kOverlayMargin);
         m_toolBadgeLabel->raise();
+    }
+
+    if (m_decoratorInfoOverlayLabel && m_decoratorInfoOverlayLabel->isVisible()) {
+        m_decoratorInfoOverlayLabel->adjustSize();
+        const int x = width() - m_decoratorInfoOverlayLabel->width() - kOverlayMargin;
+        m_decoratorInfoOverlayLabel->move(qMax(kOverlayMargin, x), kOverlayMargin);
+        m_decoratorInfoOverlayLabel->raise();
     }
 }
 
@@ -2409,8 +2435,135 @@ void RenderWidget::updateBoundingBoxCornersOverlayPlacement(
         placeLabel(m_bboxDimZOverlayLabel, closestAxisEdgeMidpoint(2), QPoint(-50, -4));
 }
 
+RenderWidget::DecoratorCounts RenderWidget::computeDecoratorCounts(int meshIndex)
+{
+    DecoratorCounts c;
+    Document::MeshEntry &entry = m_doc->mesh(meshIndex);
+    c.meshId = entry.meshId;
+    c.geometryRevision = entry.geometryRevision;
+    VCGMesh &m = entry.mesh;
+    if (m.FN() <= 0) {
+        c.valid = true;
+        return c;
+    }
+    c.hasTexCoords = (entry.ioMask
+        & (vcg::tri::io::Mask::IOM_WEDGTEXCOORD | vcg::tri::io::Mask::IOM_VERTTEXCOORD)) != 0;
+
+    // The vcglib topology helpers use flags/selection as scratch, so snapshot and
+    // restore the user's selection around the computation.
+    std::vector<bool> savedV(m.vert.size());
+    std::vector<bool> savedF(m.face.size());
+    for (size_t i = 0; i < m.vert.size(); ++i)
+        savedV[i] = !m.vert[i].IsD() && m.vert[i].IsS();
+    for (size_t i = 0; i < m.face.size(); ++i)
+        savedF[i] = !m.face[i].IsD() && m.face[i].IsS();
+
+    auto countBorderEdges = [&]() {
+        int n = 0;
+        for (const VCGFace &f : m.face) {
+            if (f.IsD())
+                continue;
+            for (int e = 0; e < 3; ++e)
+                if (vcg::face::IsBorder(f, e))
+                    ++n;
+        }
+        return n;
+    };
+
+    {
+        VCGMeshFFAdjScope ffScope(m);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(m);
+        const int geometricBorder = countBorderEdges(); // each border edge on 1 face
+        c.boundaryEdges = geometricBorder;
+        c.boundaryLoops = vcg::tri::Clean<VCGMesh>::CountHoles(m);
+        c.nonManifoldEdges = vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(m, false);
+        c.nonManifoldVertices = vcg::tri::Clean<VCGMesh>::CountNonManifoldVertexFF(m);
+
+        if (c.hasTexCoords) {
+            // Re-derive adjacency from texture coords: seam edges become borders
+            // (on both incident faces), so they are counted twice on top of the
+            // real geometric borders. Islands = connected components in tex space.
+            vcg::tri::UpdateTopology<VCGMesh>::FaceFaceFromTexCoord(m);
+            vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(m);
+            const int texBorder = countBorderEdges();
+            c.seamEdges = std::max(0, (texBorder - geometricBorder) / 2);
+            std::vector<std::pair<int, VCGFace *>> components;
+            c.textureIslands = vcg::tri::Clean<VCGMesh>::ConnectedComponents(m, components);
+        }
+    }
+
+    for (size_t i = 0; i < m.vert.size(); ++i) {
+        if (m.vert[i].IsD())
+            continue;
+        if (savedV[i]) m.vert[i].SetS(); else m.vert[i].ClearS();
+    }
+    for (size_t i = 0; i < m.face.size(); ++i) {
+        if (m.face[i].IsD())
+            continue;
+        if (savedF[i]) m.face[i].SetS(); else m.face[i].ClearS();
+    }
+    c.valid = true;
+    return c;
+}
+
+void RenderWidget::updateDecoratorInfoOverlay()
+{
+    if (!m_decoratorInfoOverlayLabel)
+        return;
+    auto hide = [this]() { m_decoratorInfoOverlayLabel->hide(); };
+
+    if (!m_renderSettings.showDecoratorInfo || !m_doc || m_viewMode != ViewMode::Scene3D) {
+        hide();
+        return;
+    }
+    const int mi = m_doc->currentMeshIndex();
+    if (mi < 0 || mi >= m_doc->meshCount()) {
+        hide();
+        return;
+    }
+
+    const PerMeshRenderSettings ms = renderModeForMesh(mi);
+    const bool wantBoundary = ms.decoratorBoundaryEdges;
+    const bool wantSeams = ms.decoratorTextureSeams;
+    const bool wantNmEdges = ms.decoratorNonManifoldEdges;
+    const bool wantNmVerts = ms.decoratorNonManifoldVertices;
+    if (!wantBoundary && !wantSeams && !wantNmEdges && !wantNmVerts) {
+        hide();
+        return;
+    }
+
+    // Counts depend only on geometry, so cache them per (mesh, geometryRevision).
+    const Document::MeshEntry &entry = m_doc->mesh(mi);
+    if (!m_decoratorCounts.valid
+        || m_decoratorCounts.meshId != entry.meshId
+        || m_decoratorCounts.geometryRevision != entry.geometryRevision) {
+        m_decoratorCounts = computeDecoratorCounts(mi);
+    }
+    const DecoratorCounts &c = m_decoratorCounts;
+
+    QStringList lines;
+    if (wantBoundary)
+        lines << tr("Boundary: %1 edges, %2 loops").arg(c.boundaryEdges).arg(c.boundaryLoops);
+    if (wantSeams) {
+        lines << (c.hasTexCoords
+            ? tr("Texture: %1 seam edges, %2 islands").arg(c.seamEdges).arg(c.textureIslands)
+            : tr("Texture: no texture coordinates"));
+    }
+    if (wantNmEdges)
+        lines << tr("Non-manifold edges: %1").arg(c.nonManifoldEdges);
+    if (wantNmVerts)
+        lines << tr("Non-manifold vertices: %1").arg(c.nonManifoldVertices);
+
+    m_decoratorInfoOverlayLabel->setText(lines.join(QChar('\n')));
+    m_decoratorInfoOverlayLabel->show();
+    layoutOverlayButtons();
+}
+
 void RenderWidget::updateQualityHistogramOverlay()
 {
+    // Refresh the sibling decorator-info overlay on the same triggers.
+    updateDecoratorInfoOverlay();
     if (!m_qualityHistogramOverlayLabel)
         return;
 

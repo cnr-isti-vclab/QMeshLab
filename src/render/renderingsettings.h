@@ -252,6 +252,9 @@ struct GlobalRenderSettings {
     bool settingsPanelVisible = false;
     RenderPass currentPass = RenderPass::Fill;
     bool showQualityHistogram = false;
+    // Shows an on-view panel with numeric counts for the enabled boundary/seam/
+    // non-manifold decorators of the current mesh.
+    bool showDecoratorInfo = false;
     bool uvShowReferenceFrame = true;
     bool uvShowFullTexture = false;
     int uvTextureIndex = -1;
@@ -285,6 +288,7 @@ struct GlobalRenderSettings {
             && settingsPanelVisible == o.settingsPanelVisible
             && currentPass == o.currentPass
             && showQualityHistogram == o.showQualityHistogram
+            && showDecoratorInfo == o.showDecoratorInfo
             && uvShowReferenceFrame == o.uvShowReferenceFrame
             && uvShowFullTexture == o.uvShowFullTexture
             && uvTextureIndex == o.uvTextureIndex
