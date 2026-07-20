@@ -716,6 +716,41 @@
       "outputModifies": [
         "TX"
       ]
+    },
+    {
+      "id": "pack_textures",
+      "menuPath": "Texture",
+      "name": "Pack Textures",
+      "pythonName": "pack_texture_per_mesh",
+      "shortDescription": "Packs the mesh's texture in the requested number of output images.",
+      "longDescriptionMarkdown": "Returns a new mesh, having as textures a requested amount obtained by merging the original image. The number of final textures must be greater or equal to the ones in the source texture, else the filter will do nothing.",
+      "tags": [
+        "texture",
+        "uv",
+        "atlas",
+        "parameterization",
+        "pack"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requirePerWedgeTexCoords": true,
+        "requireTextures": true
+      },
+      "parameters": [
+        {
+          "id": "containerNum",
+          "label": "Target textures",
+          "help": "The number of resulting textures packing the original ones.",
+          "group": "main",
+          "type": "int",
+          "default": 1,
+          "min": 1,
+          "max": 10000
+        }
+      ]
     }
   ]
 }
