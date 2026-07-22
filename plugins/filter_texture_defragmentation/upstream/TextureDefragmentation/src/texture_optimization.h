@@ -38,6 +38,12 @@ struct Point2iHasher {
     }
 };
 
+/*!
+ * Given a UV layout represented as a graph, it guarantees that all charts within are oriented consistently (i.e., their
+ * coordinate axis start from the same origin point).
+ *
+ * @param graph: the UV layout instance.
+ */
 void ReorientCharts(GraphHandle graph);
 
 
@@ -46,6 +52,26 @@ void ReorientCharts(GraphHandle graph);
  * of the initial components that have been clustered in the chart.
  * Returns the index of an anchor face, i.e. a face that does not belong to the
  * change set and is inside the largest initial component that induced the rotation
+ */
+
+/*!
+ * Consider a chart that has been obtained by a merge operation, at its core it fuses two smaller charts by removing
+ * seams and optimizes area near a deleted cut (to decrease the distortion introduced);
+ *
+ * During this process, it could happen that a portion of the obtained chart has remained unchanged, albeit some displacement
+ * caused by the operations done on the rest of the chart. Resampling this fixed area will wast time and introduce noise.
+ *
+ * This algorithm aims to individualize the greatest fixed area within a merged chart and align it to the original
+ * texel grid to avoid resampling it.
+ *
+ * @param chart : the optimized UV-island.
+ * @param changeSet : a set containing all faces that have been displaced by the defragmentation process.
+ * @param flippedInput : a map data structure specifying for each region if its coordinates are inverted.
+ * @param colorize : if set to true, the process will color the selected region that has been aligned.
+ * @param zeroResamplingArea : final size of the aligned fixed region.
+ * @return the face representative of the found fixed area. The face representative is the index of
+ * a face within the unchanged area, which identifies it. As a side effect, it also stores the extension of the found
+ * fixed area in the parameter `fixedArea`.
  */
 int RotateChartForResampling(ChartHandle chart, const std::set<Mesh::FacePointer> &changeSet, const std::map<RegionID, bool>& flippedInput, bool colorize, double *zeroResamplingArea);
 

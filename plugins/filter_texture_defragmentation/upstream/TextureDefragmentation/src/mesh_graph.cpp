@@ -43,11 +43,23 @@
 #include <QImage>
 
 
-
 void CopyToMesh(FaceGroup& fg, Mesh& m)
 {
+    // The mesh `m` will be re-constructed from zero, adding all faces coming
+    // from the face group `fg`. To start, we clear it of any invalid data.
     m.Clear();
+
     auto ia = GetFaceIndexAttribute(m);
+
+    // Multiple faces share the same vertices. When constructing our mesh, we
+    // need to make sure that we copy a vertex only once. To guarantee it, we
+    // construct the map data structure `vpmap`, which associated distinct
+    // vertices from the face group (keys) to their unique copy in the mesh
+    // `m` (values).
+    //
+    // At the start this map will have entries for each distinct vertex
+    // in the face group, all pointing to an empty value, indicating that
+    // we still haven't copied any of them into the mesh.
     std::unordered_map<Mesh::VertexPointer, Mesh::VertexPointer> vpmap;
     vpmap.reserve(fg.FN() * 3);
     std::size_t vn = 0;
@@ -59,6 +71,18 @@ void CopyToMesh(FaceGroup& fg, Mesh& m)
             }
         }
     }
+
+
+    // Now the copy happens. We first allocate in the mesh `m` the necessary space
+    // for copying all faces and distinct vertices from the face group. Then we
+    // iterate over each face `f` in the face group. For each face we need to copy
+    // its index attribute, vertex corners and UV Wedge position.
+    //
+    // When iterating over its vertices `vi`, we need to make sure to check if it
+    // has been already explicitly copied within the mesh or not. Recall that we check
+    // this property by accessing the entry `vi` of `vpmap`: if its empty, we need to
+    // explicitly copy it, otherwise we just retrieve its reference. An explicit copy
+    // retrieves its position, texture coordinates and color.
     auto mvi = tri::Allocator<Mesh>::AddVertices(m, vn);
     auto mfi = tri::Allocator<Mesh>::AddFaces(m, fg.FN());
     for (auto fptr : fg.fpVec) {
@@ -351,7 +375,12 @@ double MeshGraph::BorderUV() const
 
 GraphHandle ComputeGraph(Mesh &m, TextureObjectHandle textureObject)
 {
-    // visit the connected components and assign chart ids
+    // Identify for each face of the mesh its associated UV island.
+    // A face's island is determined by its connected component (i.e., the closed subset of faces reachable through
+    // FACE-FACE adjacency). The region's identifiers are assigned in increasing order, starting from zero.
+    //
+    // Note that here we are using the current topology which has duplicated vertices at seams. Only in this way we
+    // can find the separate regions.
     tri::UpdateFlags<Mesh>::FaceClearV(m);
     RegionID id = 0;
     for (auto& f : m.face) {
@@ -375,6 +404,16 @@ GraphHandle ComputeGraph(Mesh &m, TextureObjectHandle textureObject)
         }
     }
 
+    // Construct the graph instance of the parameterization. Within we have:
+    // - nodes: the regions of our UV layout. Each node stores the faces belonging to it.
+    // - edges: connects charts whose associated 3D areas touch each other, meaning that they share at least one seam.
+    //
+    // Our algorithm fills the graph by visiting each face and storing a reference to it in the associated node.
+    // Then we check the adjacent faces sharing a common mesh's edge. If one of those belongs to a different region, we
+    // find two adjacent graphs, and we connect their nodes through a graph edge.
+    //
+    // Note that here we are using the original pre-split geometry, in which all faces are connected to each
+    // other. Only by comparing separated region with the original topology we can identify cuts.
     GraphHandle graph = std::make_shared<MeshGraph>(m);
     graph->textureObject = textureObject;
 
@@ -397,8 +436,9 @@ GraphHandle ComputeGraph(Mesh &m, TextureObjectHandle textureObject)
     return graph;
 }
 
-void DisconnectCharts(GraphHandle graph)
-{
+void DisconnectCharts (GraphHandle graph) {
+
+    // Defines a pair vertex id and associated region.
     typedef std::pair<int, RegionID> VertexRID;
 
     Mesh& m = graph->mesh;
@@ -406,6 +446,12 @@ void DisconnectCharts(GraphHandle graph)
     int numExtraVertices = 0;
     std::map<VertexRID, int> remap;
 
+    // We visit the UV layout, keeping track of vertices that are shared among multiple charts.
+    // The data is stored within the `remap` data structure s.t. each entry is represented in the following manner:
+    // (vertex id, chart id) -> duplicate index = -1.
+    // Since we haven't created the duplicates yet, we set their value to the sentinel value `-1`.
+    //
+    // Additionally, we count in `numExtraVertices` the total numbers vertices to duplicate that we have.
     tri::UpdateFlags<Mesh>::VertexClearV(m);
     for (auto& c : graph->charts) {
         std::set<Mesh::VertexPointer> vset;
@@ -423,10 +469,13 @@ void DisconnectCharts(GraphHandle graph)
         }
     }
 
+    // We allocate the necessary amount of duplicate vertices we need (i.e., `numExtraVertices`).
+    // For each of them we copy the coordinates and additional data from the associated entry in "remap".
+    // The entry is updated by setting as value the index of the newly created duplicated vertex.
+    //
+    // the VISITED marking now is given only to the original vertices that have been duplicated.
     auto vi = tri::Allocator<Mesh>::AddVertices(m, numExtraVertices);
-
     tri::UpdateFlags<Mesh>::VertexClearV(m);
-
     for (auto& entry : remap) {
         VertexRID vrid = entry.first;
         vi->ImportData(m.vert[vrid.first]);
@@ -436,6 +485,9 @@ void DisconnectCharts(GraphHandle graph)
         entry.second = tri::Index(m, *vi);
         vi++;
     }
+
+    // We need to update the corners of those faces now incident to a newly duplicated vertex. These must bu updated
+    // to point to the newly created one. To do so we walk over every face corner of every chart.
     int updated = 0;
     int iters = 0;
     for (auto& c : graph->charts) {
@@ -452,7 +504,8 @@ void DisconnectCharts(GraphHandle graph)
         }
     }
 
-    // safety check
+    // We check to be sure that there is no vertex is shared among more than one chart.
+    // The loop is identical to the first one.
     tri::UpdateFlags<Mesh>::VertexClearV(m);
     for (auto& c : graph->charts) {
         std::set<Mesh::VertexPointer> vset;
