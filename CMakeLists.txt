@@ -21,6 +21,11 @@ endif()
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
 
 # ---------------------------------------------------------------------------
+# Optional Intel Embree ray casting (shared by core + filter_embree)
+# ---------------------------------------------------------------------------
+include(${CMAKE_SOURCE_DIR}/cmake/QMeshLabEmbree.cmake)
+
+# ---------------------------------------------------------------------------
 # Optional embedded Python console
 # ---------------------------------------------------------------------------
 option(QMESHLAB_PYTHON_CONSOLE "Build embedded Python interpreter and console dock" ON)
@@ -51,6 +56,7 @@ add_library(QMeshLabCore STATIC
     src/core/headlessrendercontext.h src/core/headlessrendercontext.cpp
     src/core/filterparam.h src/core/filterparam.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
+    src/core/viewpointoccluder.h src/core/viewpointoccluder.cpp
     src/core/vcgmesh.h
     src/plugins/filterdescriptorloader.h src/plugins/filterdescriptorloader.cpp
     src/plugins/meshfilterplugin.h src/plugins/meshfilterplugin.cpp
@@ -80,6 +86,9 @@ target_link_libraries(QMeshLabCore PUBLIC
     Qt6::GuiPrivate
     Qt6::Widgets
 )
+
+# Embree occlusion backend (no-op interface target when embree is unavailable).
+target_link_libraries(QMeshLabCore PRIVATE QMeshLabEmbree)
 
 qt_add_resources(QMeshLabCore "colormaps"
     PREFIX "/"

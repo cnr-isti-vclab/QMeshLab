@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "meshfilterpluginmanager.h"
+#include "viewpointoccluder.h"
 #include "viewtrackball.h"
 #include <QColor>
 #include <QElapsedTimer>
@@ -14,9 +15,7 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/clean.h>
-#include <vcg/complex/algorithms/closest.h>
 #include <vcg/complex/algorithms/point_outlier.h>
-#include <vcg/space/index/grid_static_ptr.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/flag.h>
@@ -218,51 +217,15 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         const bool subtract = (mode == QStringLiteral("subtract"));
 
         // "Visible only": keep only faces not occluded from the viewpoint. A ray
-        // is cast from the camera eye to each candidate face centroid; the face is
-        // visible iff it is the frontmost surface along that ray. 3D + faces only.
+        // is cast from the camera eye to each candidate face centroid and the face
+        // is dropped if any geometry lies in between. The occlusion query is
+        // delegated to ViewpointOccluder (embree when built, vcglib grid otherwise),
+        // cached by geometryRevision so repeated drags reuse it. 3D + faces only.
         const bool visibleOnly =
             params.getBool(QStringLiteral("visible_only")) && !uvSpace && doFaces && mesh.FN() > 0;
-        vcg::GridStaticPtr<VCGFace, VCGMesh::ScalarType> occlGrid;
+        std::shared_ptr<ViewpointOccluder> occluder;
         if (visibleOnly)
-            occlGrid.Set(mesh.face.begin(), mesh.face.end());
-        // Depth tolerance: a candidate face sits ON the ray, so the nearest hit is
-        // at ~its own centroid distance. Comparing the hit *pointer* is fragile
-        // (coplanar neighbours win the frontmost test at the same depth → z-fighting
-        // stripes), so instead accept the face unless something is meaningfully
-        // *closer* than its centroid.
-        const float occlEps = mesh.bbox.IsNull() ? 0.0f : mesh.bbox.Diag() * 1e-4f;
-        // Is point p occluded from the eye? (a surface meaningfully closer than p)
-        auto pointOccluded = [&](const vcg::Point3f &p) {
-            const vcg::Point3f dir = p - eyeLocal;
-            const float d = dir.Norm();
-            if (d <= 1e-9f)
-                return false;
-            vcg::Ray3f ray(eyeLocal, dir);
-            ray.Normalize();
-            vcg::RayTriangleIntersectionFunctor<true> rayFunctor;
-            vcg::tri::EmptyTMark<VCGMesh> marker;
-            float t = 0.0f;
-            const VCGFace *hit =
-                occlGrid.DoRay(rayFunctor, marker, ray, std::numeric_limits<float>::max(), t);
-            if (!hit)
-                return false;
-            const float tol = std::max(d * 1e-3f, occlEps);
-            return t < d - tol;
-        };
-        // A single ray can slip through the cracks at shared edges/vertices of the
-        // occluder, so sample the centroid plus the (slightly inset) corners and
-        // cull the face if ANY sample is occluded — four differently-aimed rays
-        // can't all leak, which removes the back-face false positives.
-        auto isVisible = [&](const VCGFace &f, const vcg::Point3f &centroid) {
-            if (pointOccluded(centroid))
-                return false;
-            for (int k = 0; k < 3; ++k) {
-                const vcg::Point3f sample = centroid + (f.cP(k) - centroid) * 0.8f;
-                if (pointOccluded(sample))
-                    return false;
-            }
-            return true;
-        };
+            occluder = ViewpointOccluder::getOrBuild(mesh, entry.geometryRevision);
         int changed = 0;
 
         if (doFaces && mesh.FN() <= 0)
@@ -328,7 +291,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                         const vcg::Point3f b = vcg::Barycenter(f);
                         if (!inRect(b.X(), b.Y(), b.Z()))
                             continue;
-                        if (visibleOnly && !isVisible(f, b))
+                        if (visibleOnly && occluder->isOccluded(b, eyeLocal))
                             continue;
                         if (subtract) {
                             if (f.IsS()) { f.ClearS(); ++local; }
@@ -381,20 +344,27 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         const qint64 elapsedMs = timer.elapsed();
         const int total = doFaces ? mesh.FN() : mesh.VN();
+        QStringList messages = {
+            QObject::tr("Rectangle %1: %2 %3 affected.")
+                .arg(mode)
+                .arg(changed)
+                .arg(doFaces ? QObject::tr("faces") : QObject::tr("vertices")),
+            QObject::tr("Projection over %1 %2 took %3 ms across %4 thread(s) "
+                        "(GPU overlay update happens afterwards on the render thread).")
+                .arg(total)
+                .arg(doFaces ? QObject::tr("faces") : QObject::tr("vertices"))
+                .arg(elapsedMs)
+                .arg(nThreads)
+        };
+        if (occluder)
+            messages << QObject::tr("Visibility test via %1.")
+                            .arg(occluder->usesEmbree() ? QObject::tr("embree")
+                                                        : QObject::tr("vcglib grid"));
         return selectionResult(
             meshIndex,
             entry,
             QObject::tr("Rectangle %1 on '%2'").arg(mode, entry.name),
-            { QObject::tr("Rectangle %1: %2 %3 affected.")
-                    .arg(mode)
-                    .arg(changed)
-                    .arg(doFaces ? QObject::tr("faces") : QObject::tr("vertices")),
-              QObject::tr("Projection over %1 %2 took %3 ms across %4 thread(s) "
-                          "(GPU overlay update happens afterwards on the render thread).")
-                    .arg(total)
-                    .arg(doFaces ? QObject::tr("faces") : QObject::tr("vertices"))
-                    .arg(elapsedMs)
-                    .arg(nThreads) });
+            messages);
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectByAngle)) {
