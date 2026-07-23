@@ -25,7 +25,7 @@ QString RubberBandSelectTool::name() const
 
 QString RubberBandSelectTool::statusHint() const
 {
-    return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices; Tab: camera, Esc: exit");
+    return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices, B visible-only; Tab: camera, Esc: exit");
 }
 
 QString RubberBandSelectTool::iconPath() const
@@ -119,6 +119,7 @@ bool RubberBandSelectTool::mouseRelease(QMouseEvent *e)
     params[QStringLiteral("rect_max_y")] = yMax;
     params[QStringLiteral("element")] = m_selectFaces ? QStringLiteral("face") : QStringLiteral("vertex");
     params[QStringLiteral("mode")] = mode;
+    params[QStringLiteral("visible_only")] = m_visibleOnly;
     // Provide the parameters for BOTH spaces (the unused ones are ignored by the
     // filter). camera_state has no default, so it must always be present or the
     // filter's parameter validation rejects the call.
@@ -143,13 +144,22 @@ bool RubberBandSelectTool::keyPress(QKeyEvent *e)
 {
     if (!e)
         return false;
-    // Esc is handled globally by the view (exits the tool); the tool only owns F/V.
+    // Esc is handled globally by the view (exits the tool); the tool owns F/V and B.
     if (e->key() == Qt::Key_F || e->key() == Qt::Key_V) {
         m_selectFaces = (e->key() == Qt::Key_F);
         if (m_view && m_view->document())
             m_view->document()->writeLog(
                 m_selectFaces ? QObject::tr("Rubber-band: selecting faces")
                               : QObject::tr("Rubber-band: selecting vertices"),
+                Document::LogSource::Application);
+        return true;
+    }
+    if (e->key() == Qt::Key_B) {
+        m_visibleOnly = !m_visibleOnly;
+        if (m_view && m_view->document())
+            m_view->document()->writeLog(
+                m_visibleOnly ? QObject::tr("Rubber-band: visible (non-occluded) faces only")
+                              : QObject::tr("Rubber-band: all faces (ignore occlusion)"),
                 Document::LogSource::Application);
         return true;
     }

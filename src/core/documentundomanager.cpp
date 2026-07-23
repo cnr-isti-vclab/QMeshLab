@@ -75,7 +75,20 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
         return;
     }
 
-    pushStep(label, std::move(*before), m_doc.captureUndoState(), std::move(scriptAction));
+    QElapsedTimer timer;
+    timer.start();
+    UndoState after = m_doc.captureUndoState();
+    const qint64 captureNs = timer.nsecsElapsed();
+
+    timer.restart();
+    pushStep(label, std::move(*before), std::move(after), std::move(scriptAction));
+    const qint64 commitNs = timer.nsecsElapsed();
+
+    m_doc.writeLog(QObject::tr("Undo checkpoint '%1': snapshot %2 ms, commit %3 ms")
+                       .arg(label)
+                       .arg(captureNs / 1.0e6, 0, 'f', 2)
+                       .arg(commitNs / 1.0e6, 0, 'f', 2),
+                   Document::LogSource::Application);
 }
 
 void DocumentUndoManager::beginDeltaStep(const QString &label, int meshIndex,

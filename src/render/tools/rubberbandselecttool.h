@@ -34,4 +34,5 @@ private:
     QPoint m_origin;
     bool m_dragging = false;
     bool m_selectFaces = true;
+    bool m_visibleOnly = false; // faces: keep only faces not occluded from the viewpoint
 };

@@ -6,16 +6,20 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
-#include <QSet>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QSemaphore>
+#include <QSet>
 #include <QString>
+#include <QThreadPool>
 #include <QVector3D>
 
-#include <array>
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -23,6 +27,43 @@
 namespace {
 constexpr int kFillVertexStrideFloats = 13;
 constexpr int kPointsVertexStrideFloats = 11;
+constexpr size_t kMaxExpandedFillBatchBytes = 256u * 1024u * 1024u;
+constexpr size_t kExpandedFillTriangleBytes =
+    3u * size_t(kFillVertexStrideFloats) * sizeof(float);
+constexpr size_t kMaxExpandedFillBatchFaces =
+    kMaxExpandedFillBatchBytes / kExpandedFillTriangleBytes;
+static_assert(kMaxExpandedFillBatchFaces > 0);
+static_assert(kMaxExpandedFillBatchBytes <= std::numeric_limits<quint32>::max());
+
+template <typename Function>
+void parallelFor(size_t count, Function &&function)
+{
+    constexpr size_t kGrainSize = 64u * 1024u;
+    const size_t chunkCount = count / kGrainSize + (count % kGrainSize != 0);
+    QThreadPool *pool = QThreadPool::globalInstance();
+    const int workerCount = int(std::min(
+        chunkCount, size_t(std::max(1, pool->maxThreadCount()))));
+    if (workerCount <= 1) {
+        function(0, count);
+        return;
+    }
+
+    std::atomic_size_t next { 0 };
+    QSemaphore finished;
+    auto work = [&] {
+        for (;;) {
+            const size_t first = next.fetch_add(kGrainSize, std::memory_order_relaxed);
+            if (first >= count)
+                return;
+            function(first, first + std::min(kGrainSize, count - first));
+        }
+    };
+
+    for (int i = 1; i < workerCount; ++i)
+        pool->start([&] { work(); finished.release(); });
+    work();
+    finished.acquire(workerCount - 1);
+}
 
 int fillVariantIndex(MeshGpuResourceCache::FillVariant variant)
 {
@@ -372,7 +413,6 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     PreparedTexture roughness;
                 };
 
-                std::map<int, std::vector<float>> groupedTriangles;
                 std::unordered_map<int, PreparedGroup> preparedGroups;
 
                 enum class TextureChannel {
@@ -481,201 +521,242 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     return true;
                 };
 
-                for (int fi = 0; fi < meshData.FN(); ++fi) {
-                    const auto &f = meshData.face[fi];
-                    QVector3D faceRgb(1.0f, 1.0f, 1.0f);
-                    float faceQualityT = 0.5f;
-                    if (useFaceColor) {
-                        const auto fc = f.cC();
-                        faceRgb = QVector3D(
-                            static_cast<float>(fc[0]) / 255.0f,
-                            static_cast<float>(fc[1]) / 255.0f,
-                            static_cast<float>(fc[2]) / 255.0f);
-                    } else if (useFaceQuality) {
-                        const float fq = static_cast<float>(f.cQ());
-                        faceQualityT = normalizedRenderQuality(fq, faceQualityRange);
-                    }
-
-                    int textureGroup = -1;
-                    bool useTextureForFace = false;
-                    if (useTextureColor) {
-                        int textureIndex = 0;
-                        if (meshHasWedgeTexcoord) {
-                            textureIndex = static_cast<int>(f.cWT(0).N());
-                        } else if (meshHasVertexTexcoord) {
-                            textureIndex = static_cast<int>(f.cV(0)->cT().N());
+                auto packExpandedFace =
+                    [&](const VCGFace &f,
+                        std::vector<float> &groupData,
+                        size_t startBase,
+                        bool useTextureForFace) {
+                        QVector3D faceRgb(1.0f, 1.0f, 1.0f);
+                        float faceQualityT = 0.5f;
+                        if (useFaceColor) {
+                            const auto fc = f.cC();
+                            faceRgb = QVector3D(
+                                static_cast<float>(fc[0]) / 255.0f,
+                                static_cast<float>(fc[1]) / 255.0f,
+                                static_cast<float>(fc[2]) / 255.0f);
+                        } else if (useFaceQuality) {
+                            faceQualityT = normalizedRenderQuality(
+                                static_cast<float>(f.cQ()), faceQualityRange);
                         }
 
-                        if (ensureGroupPrepared(textureIndex)) {
-                            textureGroup = textureIndex;
-                            useTextureForFace = true;
-                        } else if (ensureGroupPrepared(0)) {
-                            textureGroup = 0;
-                            useTextureForFace = true;
-                        }
-                    }
+                        for (int corner = 0; corner < 3; ++corner) {
+                            const auto *vertex = f.cV(corner);
+                            QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                            float vertexQualityT = 0.5f;
+                            if (useVertexColor) {
+                                const auto vc = vertex->cC();
+                                vertexRgb = QVector3D(
+                                    static_cast<float>(vc[0]) / 255.0f,
+                                    static_cast<float>(vc[1]) / 255.0f,
+                                    static_cast<float>(vc[2]) / 255.0f);
+                            } else if (useVertexQuality) {
+                                vertexQualityT = normalizedRenderQuality(
+                                    static_cast<float>(vertex->cQ()), vertexQualityRange);
+                            }
+                            const size_t base =
+                                startBase + size_t(corner * kFillVertexStrideFloats);
 
-                    std::vector<float> &groupData = groupedTriangles[textureGroup];
-                    const int startBase = static_cast<int>(groupData.size());
-                    groupData.resize(groupData.size() + (3 * kFillVertexStrideFloats));
-                    for (int corner = 0; corner < 3; ++corner) {
-                        const auto *vertex = f.cV(corner);
-                        QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
-                        float vertexQualityT = 0.5f;
-                        if (useVertexColor) {
-                            const auto vc = vertex->cC();
-                            vertexRgb = QVector3D(
-                                static_cast<float>(vc[0]) / 255.0f,
-                                static_cast<float>(vc[1]) / 255.0f,
-                                static_cast<float>(vc[2]) / 255.0f);
-                        } else if (useVertexQuality) {
-                            const float vq = static_cast<float>(vertex->cQ());
-                            vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
-                        }
-                        const int base = startBase + (corner * kFillVertexStrideFloats);
+                            groupData[base + 0] = vertex->cP()[0];
+                            groupData[base + 1] = vertex->cP()[1];
+                            groupData[base + 2] = vertex->cP()[2];
+                            groupData[base + 3] = vertex->cN()[0];
+                            groupData[base + 4] = vertex->cN()[1];
+                            groupData[base + 5] = vertex->cN()[2];
+                            if (useFaceQuality) {
+                                groupData[base + 6] = faceQualityT;
+                                groupData[base + 7] = 0.0f;
+                                groupData[base + 8] = 0.0f;
+                                groupData[base + 9] = -1.0f; // quality LUT lookup
+                            } else if (useVertexQuality) {
+                                groupData[base + 6] = vertexQualityT;
+                                groupData[base + 7] = 0.0f;
+                                groupData[base + 8] = 0.0f;
+                                groupData[base + 9] = -1.0f; // quality LUT lookup
+                            } else {
+                                groupData[base + 6] = useFaceStyleColor
+                                    ? faceRgb.x()
+                                    : (useVertexStyleColor ? vertexRgb.x() : 1.0f);
+                                groupData[base + 7] = useFaceStyleColor
+                                    ? faceRgb.y()
+                                    : (useVertexStyleColor ? vertexRgb.y() : 1.0f);
+                                groupData[base + 8] = useFaceStyleColor
+                                    ? faceRgb.z()
+                                    : (useVertexStyleColor ? vertexRgb.z() : 1.0f);
+                                groupData[base + 9] =
+                                    (useFaceStyleColor || useVertexStyleColor) ? 1.0f : 0.0f;
+                            }
 
-                        groupData[base + 0] = vertex->cP()[0];
-                        groupData[base + 1] = vertex->cP()[1];
-                        groupData[base + 2] = vertex->cP()[2];
-                        groupData[base + 3] = vertex->cN()[0];
-                        groupData[base + 4] = vertex->cN()[1];
-                        groupData[base + 5] = vertex->cN()[2];
-                        if (useFaceQuality) {
-                            groupData[base + 6] = faceQualityT;
-                            groupData[base + 7] = 0.0f;
-                            groupData[base + 8] = 0.0f;
-                            groupData[base + 9] = -1.0f; // quality LUT lookup
-                        } else if (useVertexQuality) {
-                            groupData[base + 6] = vertexQualityT;
-                            groupData[base + 7] = 0.0f;
-                            groupData[base + 8] = 0.0f;
-                            groupData[base + 9] = -1.0f; // quality LUT lookup
-                        } else {
-                            groupData[base + 6] = useFaceStyleColor
-                                ? faceRgb.x()
-                                : (useVertexStyleColor ? vertexRgb.x() : 1.0f);
-                            groupData[base + 7] = useFaceStyleColor
-                                ? faceRgb.y()
-                                : (useVertexStyleColor ? vertexRgb.y() : 1.0f);
-                            groupData[base + 8] = useFaceStyleColor
-                                ? faceRgb.z()
-                                : (useVertexStyleColor ? vertexRgb.z() : 1.0f);
-                            groupData[base + 9] = (useFaceStyleColor || useVertexStyleColor) ? 1.0f : 0.0f;
-                        }
-
-                        if (useTextureForFace) {
-                            if (meshHasWedgeTexcoord) {
-                                const auto &wt = f.cWT(corner);
-                                groupData[base + 10] = wt.U();
-                                groupData[base + 11] = wt.V();
-                            } else if (meshHasVertexTexcoord) {
-                                const auto &vt = vertex->cT();
-                                groupData[base + 10] = vt.U();
-                                groupData[base + 11] = vt.V();
+                            if (useTextureForFace) {
+                                if (meshHasWedgeTexcoord) {
+                                    const auto &wt = f.cWT(corner);
+                                    groupData[base + 10] = wt.U();
+                                    groupData[base + 11] = wt.V();
+                                } else if (meshHasVertexTexcoord) {
+                                    const auto &vt = vertex->cT();
+                                    groupData[base + 10] = vt.U();
+                                    groupData[base + 11] = vt.V();
+                                } else {
+                                    groupData[base + 10] = 0.0f;
+                                    groupData[base + 11] = 0.0f;
+                                }
+                                groupData[base + 12] = 1.0f;
                             } else {
                                 groupData[base + 10] = 0.0f;
                                 groupData[base + 11] = 0.0f;
-                            }
-                            groupData[base + 12] = 1.0f;
-                        } else {
-                            groupData[base + 10] = 0.0f;
-                            groupData[base + 11] = 0.0f;
-                            groupData[base + 12] = 0.0f;
-                        }
-                    }
-                }
-
-                for (auto &groupEntry : groupedTriangles) {
-                    if (groupEntry.second.empty())
-                        continue;
-
-                    CacheState::FillBatchGpu batch;
-                    batch.textureGroupIndex = groupEntry.first;
-                    batch.vertexCount =
-                        static_cast<int>(groupEntry.second.size() / kFillVertexStrideFloats);
-                    batch.indexCount = 0;
-                    batch.vbuf.reset(
-                        rhi->newBuffer(
-                            QRhiBuffer::Immutable,
-                            QRhiBuffer::VertexBuffer,
-                            static_cast<quint32>(groupEntry.second.size() * sizeof(float))));
-                    if (!batch.vbuf || !batch.vbuf->create()) {
-                        batch.vbuf.reset();
-                        continue;
-                    }
-                    ensureUpdates()->uploadStaticBuffer(batch.vbuf.get(), groupEntry.second.data());
-
-                    QImage baseTextureUploadImage;
-                    QImage normalTextureUploadImage;
-                    QImage occlusionTextureUploadImage;
-                    QImage roughnessTextureUploadImage;
-                    if (groupEntry.first >= 0) {
-                        auto it = preparedGroups.find(groupEntry.first);
-                        if (it != preparedGroups.end() && it->second.ready) {
-                            PreparedGroup &group = it->second;
-                            batch.baseColorTexturePath = group.basePath;
-                            if (group.base.ready) {
-                                batch.baseColorTexture = std::move(group.base.texture);
-                                baseTextureUploadImage = std::move(group.base.image);
-                            }
-                            if (group.normal.ready) {
-                                batch.normalTexture = std::move(group.normal.texture);
-                                batch.normalTexturePath = group.normalPath;
-                                normalTextureUploadImage = std::move(group.normal.image);
-                            }
-                            if (group.occlusion.ready) {
-                                batch.occlusionTexture = std::move(group.occlusion.texture);
-                                batch.occlusionTexturePath = group.occlusionPath;
-                                occlusionTextureUploadImage = std::move(group.occlusion.image);
-                            }
-                            if (group.roughness.ready) {
-                                batch.roughnessTexture = std::move(group.roughness.texture);
-                                batch.roughnessTexturePath = group.roughnessPath;
-                                roughnessTextureUploadImage = std::move(group.roughness.image);
+                                groupData[base + 12] = 0.0f;
                             }
                         }
-                        if (batch.baseColorTexturePath.isEmpty()) {
-                            batch.baseColorTexturePath = channelTexturePath(
-                                groupEntry.first,
-                                TextureChannel::BaseColor);
-                        }
-                        if (const MeshIOMaterialSlot *slot = materialEntryForGroup(groupEntry.first)) {
-                            batch.normalScale = slot->normalScale;
-                            batch.occlusionStrength = slot->occlusionStrength;
-                            batch.roughnessFactor = slot->roughnessFactor;
+                    };
+
+                const size_t faceContainerSize = meshData.face.size();
+                const bool compactFaces = faceContainerSize == size_t(meshData.FN());
+                for (size_t firstFace = 0; firstFace < faceContainerSize;
+                     firstFace += kMaxExpandedFillBatchFaces) {
+                    const size_t lastFace = firstFace + std::min(
+                        kMaxExpandedFillBatchFaces, faceContainerSize - firstFace);
+                    std::map<int, std::vector<float>> groupedTriangles;
+
+                    if (!useTextureColor && compactFaces) {
+                        std::vector<float> &groupData = groupedTriangles[-1];
+                        groupData.resize(
+                            (lastFace - firstFace) * 3u * size_t(kFillVertexStrideFloats));
+                        parallelFor(lastFace - firstFace, [&](size_t first, size_t last) {
+                            for (size_t localFi = first; localFi < last; ++localFi) {
+                                packExpandedFace(
+                                    meshData.face[firstFace + localFi],
+                                    groupData,
+                                    localFi * 3u * size_t(kFillVertexStrideFloats),
+                                    false);
+                            }
+                        });
+                    } else {
+                        for (size_t fi = firstFace; fi < lastFace; ++fi) {
+                            const auto &f = meshData.face[fi];
+                            if (f.IsD())
+                                continue;
+                            int textureGroup = -1;
+                            bool useTextureForFace = false;
+                            int textureIndex = 0;
+                            if (useTextureColor && meshHasWedgeTexcoord) {
+                                textureIndex = static_cast<int>(f.cWT(0).N());
+                            } else if (useTextureColor && meshHasVertexTexcoord) {
+                                textureIndex = static_cast<int>(f.cV(0)->cT().N());
+                            }
+
+                            if (useTextureColor) {
+                                if (ensureGroupPrepared(textureIndex)) {
+                                    textureGroup = textureIndex;
+                                    useTextureForFace = true;
+                                } else if (ensureGroupPrepared(0)) {
+                                    textureGroup = 0;
+                                    useTextureForFace = true;
+                                }
+                            }
+
+                            std::vector<float> &groupData = groupedTriangles[textureGroup];
+                            const size_t startBase = groupData.size();
+                            groupData.resize(
+                                groupData.size() + 3u * size_t(kFillVertexStrideFloats));
+                            packExpandedFace(
+                                f, groupData, startBase, useTextureForFace);
                         }
                     }
 
-                    if (batch.baseColorTexture && !baseTextureUploadImage.isNull()) {
-                        QRhiTextureUploadEntry textureEntry(
-                            0, 0, QRhiTextureSubresourceUploadDescription(baseTextureUploadImage));
-                        ensureUpdates()->uploadTexture(
-                            batch.baseColorTexture.get(),
-                            QRhiTextureUploadDescription({ textureEntry }));
-                    }
-                    if (batch.normalTexture && !normalTextureUploadImage.isNull()) {
-                        QRhiTextureUploadEntry textureEntry(
-                            0, 0, QRhiTextureSubresourceUploadDescription(normalTextureUploadImage));
-                        ensureUpdates()->uploadTexture(
-                            batch.normalTexture.get(),
-                            QRhiTextureUploadDescription({ textureEntry }));
-                    }
-                    if (batch.occlusionTexture && !occlusionTextureUploadImage.isNull()) {
-                        QRhiTextureUploadEntry textureEntry(
-                            0, 0, QRhiTextureSubresourceUploadDescription(occlusionTextureUploadImage));
-                        ensureUpdates()->uploadTexture(
-                            batch.occlusionTexture.get(),
-                            QRhiTextureUploadDescription({ textureEntry }));
-                    }
-                    if (batch.roughnessTexture && !roughnessTextureUploadImage.isNull()) {
-                        QRhiTextureUploadEntry textureEntry(
-                            0, 0, QRhiTextureSubresourceUploadDescription(roughnessTextureUploadImage));
-                        ensureUpdates()->uploadTexture(
-                            batch.roughnessTexture.get(),
-                            QRhiTextureUploadDescription({ textureEntry }));
-                    }
+                    for (auto &groupEntry : groupedTriangles) {
+                        if (groupEntry.second.empty())
+                            continue;
 
-                    dst.batches.push_back(std::move(batch));
+                        const size_t bufferBytes = groupEntry.second.size() * sizeof(float);
+                        CacheState::FillBatchGpu batch;
+                        batch.textureGroupIndex = groupEntry.first;
+                        batch.vertexCount =
+                            static_cast<int>(groupEntry.second.size() / kFillVertexStrideFloats);
+                        batch.indexCount = 0;
+                        batch.vbuf.reset(
+                            rhi->newBuffer(
+                                QRhiBuffer::Immutable,
+                                QRhiBuffer::VertexBuffer,
+                                static_cast<quint32>(bufferBytes)));
+                        if (!batch.vbuf || !batch.vbuf->create()) {
+                            batch.vbuf.reset();
+                            continue;
+                        }
+                        ensureUpdates()->uploadStaticBuffer(
+                            batch.vbuf.get(), groupEntry.second.data());
+
+                        QImage baseTextureUploadImage;
+                        QImage normalTextureUploadImage;
+                        QImage occlusionTextureUploadImage;
+                        QImage roughnessTextureUploadImage;
+                        if (groupEntry.first >= 0) {
+                            auto it = preparedGroups.find(groupEntry.first);
+                            if (it != preparedGroups.end() && it->second.ready) {
+                                PreparedGroup &group = it->second;
+                                batch.baseColorTexturePath = group.basePath;
+                                if (group.base.ready) {
+                                    batch.baseColorTexture = std::move(group.base.texture);
+                                    baseTextureUploadImage = std::move(group.base.image);
+                                }
+                                if (group.normal.ready) {
+                                    batch.normalTexture = std::move(group.normal.texture);
+                                    batch.normalTexturePath = group.normalPath;
+                                    normalTextureUploadImage = std::move(group.normal.image);
+                                }
+                                if (group.occlusion.ready) {
+                                    batch.occlusionTexture = std::move(group.occlusion.texture);
+                                    batch.occlusionTexturePath = group.occlusionPath;
+                                    occlusionTextureUploadImage = std::move(group.occlusion.image);
+                                }
+                                if (group.roughness.ready) {
+                                    batch.roughnessTexture = std::move(group.roughness.texture);
+                                    batch.roughnessTexturePath = group.roughnessPath;
+                                    roughnessTextureUploadImage = std::move(group.roughness.image);
+                                }
+                            }
+                            if (batch.baseColorTexturePath.isEmpty()) {
+                                batch.baseColorTexturePath = channelTexturePath(
+                                    groupEntry.first,
+                                    TextureChannel::BaseColor);
+                            }
+                            if (const MeshIOMaterialSlot *slot =
+                                    materialEntryForGroup(groupEntry.first)) {
+                                batch.normalScale = slot->normalScale;
+                                batch.occlusionStrength = slot->occlusionStrength;
+                                batch.roughnessFactor = slot->roughnessFactor;
+                            }
+                        }
+
+                        if (batch.baseColorTexture && !baseTextureUploadImage.isNull()) {
+                            QRhiTextureUploadEntry textureEntry(
+                                0, 0, QRhiTextureSubresourceUploadDescription(baseTextureUploadImage));
+                            ensureUpdates()->uploadTexture(
+                                batch.baseColorTexture.get(),
+                                QRhiTextureUploadDescription({ textureEntry }));
+                        }
+                        if (batch.normalTexture && !normalTextureUploadImage.isNull()) {
+                            QRhiTextureUploadEntry textureEntry(
+                                0, 0, QRhiTextureSubresourceUploadDescription(normalTextureUploadImage));
+                            ensureUpdates()->uploadTexture(
+                                batch.normalTexture.get(),
+                                QRhiTextureUploadDescription({ textureEntry }));
+                        }
+                        if (batch.occlusionTexture && !occlusionTextureUploadImage.isNull()) {
+                            QRhiTextureUploadEntry textureEntry(
+                                0, 0, QRhiTextureSubresourceUploadDescription(occlusionTextureUploadImage));
+                            ensureUpdates()->uploadTexture(
+                                batch.occlusionTexture.get(),
+                                QRhiTextureUploadDescription({ textureEntry }));
+                        }
+                        if (batch.roughnessTexture && !roughnessTextureUploadImage.isNull()) {
+                            QRhiTextureUploadEntry textureEntry(
+                                0, 0, QRhiTextureSubresourceUploadDescription(roughnessTextureUploadImage));
+                            ensureUpdates()->uploadTexture(
+                                batch.roughnessTexture.get(),
+                                QRhiTextureUploadDescription({ textureEntry }));
+                        }
+
+                        dst.batches.push_back(std::move(batch));
+                    }
                 }
 
                 QSet<int> preparedTextureGroups;
@@ -795,52 +876,60 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 if (vertexCount <= 0 || indexCount <= 0)
                     return true;
 
-                std::vector<float> vdata(vertexCount * kFillVertexStrideFloats);
+                std::vector<float> vdata(
+                    size_t(vertexCount) * size_t(kFillVertexStrideFloats));
                 const float useMeshColor = useVertexStyleColor ? 1.0f : 0.0f;
-                for (int vi = 0; vi < vertexCount; ++vi) {
-                    const auto &v = meshData.vert[vi];
-                    QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
-                    float vertexQualityT = 0.5f;
-                    if (useVertexColor) {
-                        const auto vc = v.cC();
-                        vertexRgb = QVector3D(
-                            static_cast<float>(vc[0]) / 255.0f,
-                            static_cast<float>(vc[1]) / 255.0f,
-                            static_cast<float>(vc[2]) / 255.0f);
-                    } else if (useVertexQuality) {
-                        const float vq = static_cast<float>(v.cQ());
-                        vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
+                parallelFor(size_t(vertexCount), [&](size_t first, size_t last) {
+                    for (size_t vi = first; vi < last; ++vi) {
+                        const auto &v = meshData.vert[vi];
+                        QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                        float vertexQualityT = 0.5f;
+                        if (useVertexColor) {
+                            const auto vc = v.cC();
+                            vertexRgb = QVector3D(
+                                static_cast<float>(vc[0]) / 255.0f,
+                                static_cast<float>(vc[1]) / 255.0f,
+                                static_cast<float>(vc[2]) / 255.0f);
+                        } else if (useVertexQuality) {
+                            const float vq = static_cast<float>(v.cQ());
+                            vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
+                        }
+                        const size_t base = vi * size_t(kFillVertexStrideFloats);
+                        vdata[base + 0] = v.cP()[0];
+                        vdata[base + 1] = v.cP()[1];
+                        vdata[base + 2] = v.cP()[2];
+                        vdata[base + 3] = v.cN()[0];
+                        vdata[base + 4] = v.cN()[1];
+                        vdata[base + 5] = v.cN()[2];
+                        if (useVertexQuality) {
+                            vdata[base + 6] = vertexQualityT;
+                            vdata[base + 7] = 0.0f;
+                            vdata[base + 8] = 0.0f;
+                            vdata[base + 9] = -1.0f; // quality LUT lookup
+                        } else {
+                            vdata[base + 6] = vertexRgb.x();
+                            vdata[base + 7] = vertexRgb.y();
+                            vdata[base + 8] = vertexRgb.z();
+                            vdata[base + 9] = useMeshColor;
+                        }
+                        vdata[base + 10] = 0.0f;
+                        vdata[base + 11] = 0.0f;
+                        vdata[base + 12] = 0.0f;
                     }
-                    const int base = vi * kFillVertexStrideFloats;
-                    vdata[base + 0] = v.cP()[0];
-                    vdata[base + 1] = v.cP()[1];
-                    vdata[base + 2] = v.cP()[2];
-                    vdata[base + 3] = v.cN()[0];
-                    vdata[base + 4] = v.cN()[1];
-                    vdata[base + 5] = v.cN()[2];
-                    if (useVertexQuality) {
-                        vdata[base + 6] = vertexQualityT;
-                        vdata[base + 7] = 0.0f;
-                        vdata[base + 8] = 0.0f;
-                        vdata[base + 9] = -1.0f; // quality LUT lookup
-                    } else {
-                        vdata[base + 6] = vertexRgb.x();
-                        vdata[base + 7] = vertexRgb.y();
-                        vdata[base + 8] = vertexRgb.z();
-                        vdata[base + 9] = useMeshColor;
-                    }
-                    vdata[base + 10] = 0.0f;
-                    vdata[base + 11] = 0.0f;
-                    vdata[base + 12] = 0.0f;
-                }
+                });
 
-                std::vector<quint32> idata(indexCount);
-                for (int fi = 0; fi < meshData.FN(); ++fi) {
-                    const auto &f = meshData.face[fi];
-                    idata[fi * 3 + 0] = static_cast<quint32>(vcg::tri::Index(meshData, f.cV(0)));
-                    idata[fi * 3 + 1] = static_cast<quint32>(vcg::tri::Index(meshData, f.cV(1)));
-                    idata[fi * 3 + 2] = static_cast<quint32>(vcg::tri::Index(meshData, f.cV(2)));
-                }
+                std::vector<quint32> idata(static_cast<size_t>(indexCount));
+                parallelFor(size_t(meshData.FN()), [&](size_t first, size_t last) {
+                    for (size_t fi = first; fi < last; ++fi) {
+                        const auto &f = meshData.face[fi];
+                        idata[fi * 3 + 0] =
+                            static_cast<quint32>(vcg::tri::Index(meshData, f.cV(0)));
+                        idata[fi * 3 + 1] =
+                            static_cast<quint32>(vcg::tri::Index(meshData, f.cV(1)));
+                        idata[fi * 3 + 2] =
+                            static_cast<quint32>(vcg::tri::Index(meshData, f.cV(2)));
+                    }
+                });
 
                 batch.vbuf.reset(
                     rhi->newBuffer(
@@ -882,12 +971,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             return true;
 
         const int vertexCount = meshData.FN() * 3;
-        std::vector<float> vdata(vertexCount * 6);
-        int outFi = 0;
-        for (int fi = 0; fi < static_cast<int>(meshData.face.size()); ++fi) {
-            const auto &f = meshData.face[fi];
-            if (f.IsD())
-                continue;
+        std::vector<float> vdata(size_t(vertexCount) * 6u);
+        auto packFace = [&](const VCGFace &f, size_t outFi) {
             // Standard barycentric assignment: corner k → (0…1…0) with 1 at position k.
             // To suppress a FAUX edge e (between corners e and (e+1)%3):
             // set component (e+2)%3 to 1.0 at both those corners, so that
@@ -908,7 +993,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             }
             for (int corner = 0; corner < 3; ++corner) {
                 const auto *vertex = f.cV(corner);
-                const int base = (outFi * 3 + corner) * 6;
+                const size_t base = (outFi * 3u + size_t(corner)) * 6u;
                 vdata[base + 0] = vertex->cP()[0];
                 vdata[base + 1] = vertex->cP()[1];
                 vdata[base + 2] = vertex->cP()[2];
@@ -916,7 +1001,19 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 vdata[base + 4] = bary[corner][1];
                 vdata[base + 5] = bary[corner][2];
             }
-            ++outFi;
+        };
+
+        if (meshData.face.size() == size_t(meshData.FN())) {
+            parallelFor(meshData.face.size(), [&](size_t first, size_t last) {
+                for (size_t fi = first; fi < last; ++fi)
+                    packFace(meshData.face[fi], fi);
+            });
+        } else {
+            size_t outFi = 0;
+            for (const auto &f : meshData.face) {
+                if (!f.IsD())
+                    packFace(f, outFi++);
+            }
         }
 
         dst.vbuf.reset(
@@ -1009,48 +1106,53 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 }
             }
 
-            std::vector<float> pdata(meshData.VN() * kPointsVertexStrideFloats);
-            for (int vi = 0; vi < meshData.VN(); ++vi) {
-                const auto &v = meshData.vert[vi];
-                QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
-                float vertexQualityT = 0.5f;
-                if (useVertexColor) {
-                    const auto vc = v.cC();
-                    vertexRgb = QVector3D(
-                        static_cast<float>(vc[0]) / 255.0f,
-                        static_cast<float>(vc[1]) / 255.0f,
-                        static_cast<float>(vc[2]) / 255.0f);
-                } else if (useVertexQuality) {
-                    const float vq = static_cast<float>(v.cQ());
-                    vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
+            std::vector<float> pdata(
+                size_t(meshData.VN()) * size_t(kPointsVertexStrideFloats));
+            parallelFor(size_t(meshData.VN()), [&](size_t first, size_t last) {
+                for (size_t vi = first; vi < last; ++vi) {
+                    const auto &v = meshData.vert[vi];
+                    QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                    float vertexQualityT = 0.5f;
+                    if (useVertexColor) {
+                        const auto vc = v.cC();
+                        vertexRgb = QVector3D(
+                            static_cast<float>(vc[0]) / 255.0f,
+                            static_cast<float>(vc[1]) / 255.0f,
+                            static_cast<float>(vc[2]) / 255.0f);
+                    } else if (useVertexQuality) {
+                        const float vq = static_cast<float>(v.cQ());
+                        vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
+                    }
+                    const size_t base = vi * size_t(kPointsVertexStrideFloats);
+                    pdata[base + 0] = v.cP()[0];
+                    pdata[base + 1] = v.cP()[1];
+                    pdata[base + 2] = v.cP()[2];
+                    if (useVertexQuality) {
+                        pdata[base + 3] = vertexQualityT;
+                        pdata[base + 4] = 0.0f;
+                        pdata[base + 5] = 0.0f;
+                        pdata[base + 6] = -1.0f; // quality LUT lookup
+                    } else {
+                        pdata[base + 3] = vertexRgb.x();
+                        pdata[base + 4] = vertexRgb.y();
+                        pdata[base + 5] = vertexRgb.z();
+                        pdata[base + 6] = useMeshColor;
+                    }
+                    const float nx = v.cN()[0];
+                    const float ny = v.cN()[1];
+                    const float nz = v.cN()[2];
+                    const float nLen2 = nx * nx + ny * ny + nz * nz;
+                    const bool normalFinite =
+                        std::isfinite(nx) && std::isfinite(ny) && std::isfinite(nz);
+                    const bool hasUsableNormal =
+                        meshHasVertexNormal && normalFinite
+                        && nLen2 > 1e-12f && nLen2 < 1e12f;
+                    pdata[base + 7] = hasUsableNormal ? nx : 0.0f;
+                    pdata[base + 8] = hasUsableNormal ? ny : 0.0f;
+                    pdata[base + 9] = hasUsableNormal ? nz : 1.0f;
+                    pdata[base + 10] = hasUsableNormal ? 1.0f : 0.0f;
                 }
-                const int base = vi * kPointsVertexStrideFloats;
-                pdata[base + 0] = v.cP()[0];
-                pdata[base + 1] = v.cP()[1];
-                pdata[base + 2] = v.cP()[2];
-                if (useVertexQuality) {
-                    pdata[base + 3] = vertexQualityT;
-                    pdata[base + 4] = 0.0f;
-                    pdata[base + 5] = 0.0f;
-                    pdata[base + 6] = -1.0f; // quality LUT lookup
-                } else {
-                    pdata[base + 3] = vertexRgb.x();
-                    pdata[base + 4] = vertexRgb.y();
-                    pdata[base + 5] = vertexRgb.z();
-                    pdata[base + 6] = useMeshColor;
-                }
-                const float nx = v.cN()[0];
-                const float ny = v.cN()[1];
-                const float nz = v.cN()[2];
-                const float nLen2 = nx * nx + ny * ny + nz * nz;
-                const bool normalFinite = std::isfinite(nx) && std::isfinite(ny) && std::isfinite(nz);
-                const bool hasUsableNormal =
-                    meshHasVertexNormal && normalFinite && nLen2 > 1e-12f && nLen2 < 1e12f;
-                pdata[base + 7] = hasUsableNormal ? nx : 0.0f;
-                pdata[base + 8] = hasUsableNormal ? ny : 0.0f;
-                pdata[base + 9] = hasUsableNormal ? nz : 1.0f;
-                pdata[base + 10] = hasUsableNormal ? 1.0f : 0.0f;
-            }
+            });
 
             dst.vbuf.reset(
                 rhi->newBuffer(
@@ -1737,13 +1839,32 @@ MeshGpuResourceCache::FillPassView MeshGpuResourceCache::fillPassView(
     fill.viewBatches.clear();
     fill.viewBatches.reserve(fill.batches.size());
     for (const auto &batch : fill.batches) {
+        const CacheState::FillBatchGpu *textureBatch = &batch;
+        if (batch.textureGroupIndex >= 0
+            && !batch.baseColorTexture
+            && !batch.normalTexture
+            && !batch.occlusionTexture
+            && !batch.roughnessTexture) {
+            const auto it = std::find_if(
+                fill.batches.begin(),
+                fill.batches.end(),
+                [&](const CacheState::FillBatchGpu &candidate) {
+                    return candidate.textureGroupIndex == batch.textureGroupIndex
+                        && (candidate.baseColorTexture
+                            || candidate.normalTexture
+                            || candidate.occlusionTexture
+                            || candidate.roughnessTexture);
+                });
+            if (it != fill.batches.end())
+                textureBatch = &*it;
+        }
         fill.viewBatches.push_back({
             batch.vbuf.get(),
             batch.ibuf.get(),
-            batch.baseColorTexture.get(),
-            batch.normalTexture.get(),
-            batch.occlusionTexture.get(),
-            batch.roughnessTexture.get(),
+            textureBatch->baseColorTexture.get(),
+            textureBatch->normalTexture.get(),
+            textureBatch->occlusionTexture.get(),
+            textureBatch->roughnessTexture.get(),
             batch.baseColorTexturePath,
             batch.normalTexturePath,
             batch.occlusionTexturePath,

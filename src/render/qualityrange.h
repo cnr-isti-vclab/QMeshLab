@@ -34,7 +34,6 @@ inline RenderQualityRange sampledRenderQualityRange(
     float maxV = 1.0f;
     percentileCrop = std::clamp(percentileCrop, 0.0f, 0.5f);
     if (percentileCrop > 0.0f && values.size() > 1) {
-        std::sort(values.begin(), values.end());
         const int lastIndex = int(values.size()) - 1;
         const int loIndex = std::clamp(
             int(std::floor(percentileCrop * float(lastIndex))),
@@ -44,8 +43,12 @@ inline RenderQualityRange sampledRenderQualityRange(
             int(std::ceil((1.0f - percentileCrop) * float(lastIndex))),
             0,
             lastIndex);
-        minV = values[size_t(std::min(loIndex, hiIndex))];
-        maxV = values[size_t(std::max(loIndex, hiIndex))];
+        const size_t lo = size_t(std::min(loIndex, hiIndex));
+        const size_t hi = size_t(std::max(loIndex, hiIndex));
+        std::nth_element(values.begin(), values.begin() + lo, values.end());
+        minV = values[lo];
+        std::nth_element(values.begin(), values.begin() + hi, values.end());
+        maxV = values[hi];
     } else {
         const auto minMax = std::minmax_element(values.begin(), values.end());
         minV = *minMax.first;
