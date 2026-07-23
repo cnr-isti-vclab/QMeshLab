@@ -2545,16 +2545,17 @@ void RenderWidget::updateDecoratorInfoOverlay()
     QStringList lines;
     if (wantBoundary)
         lines << tr("Boundary: %1 edges, %2 loops").arg(c.boundaryEdges).arg(c.boundaryLoops);
-    if (wantSeams) {
-        lines << (c.hasTexCoords
-            ? tr("Texture: %1 seam edges, %2 islands").arg(c.seamEdges).arg(c.textureIslands)
-            : tr("Texture: no texture coordinates"));
-    }
+    if (wantSeams && c.hasTexCoords)
+        lines << tr("Texture: %1 seam edges, %2 islands").arg(c.seamEdges).arg(c.textureIslands);
     if (wantNmEdges)
         lines << tr("Non-manifold edges: %1").arg(c.nonManifoldEdges);
     if (wantNmVerts)
         lines << tr("Non-manifold vertices: %1").arg(c.nonManifoldVertices);
 
+    if (lines.isEmpty()) { // e.g. only seams enabled but no texture coords
+        hide();
+        return;
+    }
     m_decoratorInfoOverlayLabel->setText(lines.join(QChar('\n')));
     m_decoratorInfoOverlayLabel->show();
     layoutOverlayButtons();
