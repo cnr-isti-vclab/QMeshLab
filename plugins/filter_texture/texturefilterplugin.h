@@ -3,6 +3,7 @@
 #include "meshfilterplugin.h"
 #include "filterparam.h"
 
+
 class MeshFilterPluginManager;
 
 class TextureFilterPlugin final : public MeshFilterPlugin
