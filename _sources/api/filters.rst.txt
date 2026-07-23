@@ -5809,6 +5809,9 @@ Select vertices or faces whose screen projection falls inside a rectangle.
    * **mode** (*enum*) (default: ``replace``)
      Replace the current selection, add to it, or subtract from it.
 
+   * **visible_only** (*bool*) (default: ``False``)
+     When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).
+
 
 ----
 
