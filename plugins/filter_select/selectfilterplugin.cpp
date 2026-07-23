@@ -14,7 +14,9 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/clean.h>
+#include <vcg/complex/algorithms/closest.h>
 #include <vcg/complex/algorithms/point_outlier.h>
+#include <vcg/space/index/grid_static_ptr.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/flag.h>
@@ -27,6 +29,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -155,6 +158,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         const bool uvSpace = (space == QStringLiteral("uv"));
         const float aspect = float(params.getDouble(QStringLiteral("aspect")));
         QMatrix4x4 mvp;
+        vcg::Point3f eyeLocal(0.0f, 0.0f, 0.0f); // camera eye in mesh-local space (view3d)
         if (uvSpace) {
             // Rebuild the exact ortho MVP the UV renderer uses (pan/zoom/aspect).
             const float xLim = aspect >= 1.0f ? aspect : 1.0f;
@@ -184,6 +188,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             ViewTrackball cam;
             cam.setState(st);
             mvp = cam.projectionMatrix(aspect > 1e-6f ? aspect : 1.0f) * cam.viewMatrix() * entry.transform;
+            const QVector3D e = entry.transform.inverted().map(cam.cameraEyePosition());
+            eyeLocal = vcg::Point3f(e.x(), e.y(), e.z());
         }
 
         const double lox = std::min(params.getDouble(QStringLiteral("rect_min_x")),
@@ -210,6 +216,28 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         const QString mode = params.getEnum(QStringLiteral("mode"));
         const bool doFaces = (element != QStringLiteral("vertex"));
         const bool subtract = (mode == QStringLiteral("subtract"));
+
+        // "Visible only": keep only faces not occluded from the viewpoint. A ray
+        // is cast from the camera eye to each candidate face centroid; the face is
+        // visible iff it is the frontmost surface along that ray. 3D + faces only.
+        const bool visibleOnly =
+            params.getBool(QStringLiteral("visible_only")) && !uvSpace && doFaces && mesh.FN() > 0;
+        vcg::GridStaticPtr<VCGFace, VCGMesh::ScalarType> occlGrid;
+        if (visibleOnly)
+            occlGrid.Set(mesh.face.begin(), mesh.face.end());
+        auto isVisible = [&](const VCGFace &f, const vcg::Point3f &centroid) {
+            vcg::Point3f dir = centroid - eyeLocal;
+            if (dir.Norm() <= 1e-9f)
+                return true;
+            vcg::Ray3f ray(eyeLocal, dir);
+            ray.Normalize();
+            vcg::RayTriangleIntersectionFunctor<true> rayFunctor;
+            vcg::tri::EmptyTMark<VCGMesh> marker;
+            float t = 0.0f;
+            const VCGFace *hit =
+                occlGrid.DoRay(rayFunctor, marker, ray, std::numeric_limits<float>::max(), t);
+            return hit == &f; // frontmost hit is this face → not occluded
+        };
         int changed = 0;
 
         if (doFaces && mesh.FN() <= 0)
@@ -274,6 +302,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                             continue;
                         const vcg::Point3f b = vcg::Barycenter(f);
                         if (!inRect(b.X(), b.Y(), b.Z()))
+                            continue;
+                        if (visibleOnly && !isVisible(f, b))
                             continue;
                         if (subtract) {
                             if (f.IsS()) { f.ClearS(); ++local; }

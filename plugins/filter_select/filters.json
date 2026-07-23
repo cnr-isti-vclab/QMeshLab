@@ -998,6 +998,14 @@
             { "id": "add", "label": "Add" },
             { "id": "subtract", "label": "Subtract" }
           ]
+        },
+        {
+          "id": "visible_only",
+          "label": "Visible faces only",
+          "help": "When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).",
+          "group": "main",
+          "type": "bool",
+          "default": false
         }
       ],
       "outputModifies": [
