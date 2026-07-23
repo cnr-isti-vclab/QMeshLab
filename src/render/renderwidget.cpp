@@ -3057,7 +3057,10 @@ void RenderWidget::updateToolBadge()
         ? tr("suspended — click this view to resume")
         : m_toolSuspended ? tr("camera (Tab to resume)")
                           : tr("active — Tab: camera, Esc: exit");
-    m_toolBadgeLabel->setText(QStringLiteral("● %1 — %2").arg(m_activeTool->name(), state));
+    const QString detail = m_activeTool->badgeDetail();
+    m_toolBadgeLabel->setText(detail.isEmpty()
+        ? QStringLiteral("● %1 — %2").arg(m_activeTool->name(), state)
+        : QStringLiteral("● %1 [%2] — %3").arg(m_activeTool->name(), detail, state));
     // Accent border when the tool owns the mouse; muted while suspended.
     const QString accent = live ? QStringLiteral("0,174,255") : QStringLiteral("150,150,160");
     m_toolBadgeLabel->setStyleSheet(QStringLiteral(
@@ -3108,6 +3111,9 @@ void RenderWidget::keyPressEvent(QKeyEvent *e)
         }
         // Other keys go to the tool only while it owns the mouse.
         if (toolLive() && m_activeTool->keyPress(e)) {
+            // A toggle (faces/vertices, visible-only) may change cursor + badge.
+            applyToolCursor();
+            updateToolBadge();
             e->accept();
             update();
             return;

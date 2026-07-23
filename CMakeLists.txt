@@ -261,6 +261,9 @@ qt_add_resources(QMeshLab "icons"
         img/cur_sel_rect.png
         img/cur_sel_rect_plus.png
         img/cur_sel_rect_minus.png
+        img/cur_sel_rect_eye.png
+        img/cur_sel_rect_plus_eye.png
+        img/cur_sel_rect_minus_eye.png
 )
 
 qt_add_resources(QMeshLab "help"

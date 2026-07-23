@@ -41,6 +41,9 @@ public:
     virtual QString name() const = 0;
     // Short one-line usage hint shown when the tool becomes active. Empty = none.
     virtual QString statusHint() const { return {}; }
+    // Optional short summary of the current toggle state, appended to the
+    // persistent status badge (e.g. "👁 visible-only"). Empty = nothing extra.
+    virtual QString badgeDetail() const { return {}; }
     // Toolbar/menu icon resource path (e.g. ":/img/tool_select_rect.png"). Empty = none.
     virtual QString iconPath() const { return {}; }
     // Cursor shown while the tool owns the mouse (not suspended).

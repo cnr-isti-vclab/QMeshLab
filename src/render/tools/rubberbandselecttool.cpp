@@ -28,6 +28,14 @@ QString RubberBandSelectTool::statusHint() const
     return QObject::tr("Rubber-band: drag to select — Shift add, Ctrl subtract, F/V faces/vertices, B visible-only; Tab: camera, Esc: exit");
 }
 
+QString RubberBandSelectTool::badgeDetail() const
+{
+    // Occlusion only applies to face selection.
+    if (m_visibleOnly && m_selectFaces)
+        return QObject::tr("👁 visible-only");
+    return {};
+}
+
 QString RubberBandSelectTool::iconPath() const
 {
     return QStringLiteral(":/img/tool_select_rect.png");
@@ -36,12 +44,17 @@ QString RubberBandSelectTool::iconPath() const
 QCursor RubberBandSelectTool::cursor() const
 {
     // Reflect the composition modifier: Shift = add (+), Ctrl = subtract (−).
+    // The eye variant marks visible-only mode (occlusion applies to faces only).
     const Qt::KeyboardModifiers mods = QGuiApplication::queryKeyboardModifiers();
+    const bool eye = m_visibleOnly && m_selectFaces;
     const QString img = (mods & Qt::ShiftModifier)
-        ? QStringLiteral(":/img/cur_sel_rect_plus.png")
+        ? (eye ? QStringLiteral(":/img/cur_sel_rect_plus_eye.png")
+               : QStringLiteral(":/img/cur_sel_rect_plus.png"))
         : (mods & Qt::ControlModifier)
-            ? QStringLiteral(":/img/cur_sel_rect_minus.png")
-            : QStringLiteral(":/img/cur_sel_rect.png");
+            ? (eye ? QStringLiteral(":/img/cur_sel_rect_minus_eye.png")
+                   : QStringLiteral(":/img/cur_sel_rect_minus.png"))
+            : (eye ? QStringLiteral(":/img/cur_sel_rect_eye.png")
+                   : QStringLiteral(":/img/cur_sel_rect.png"));
     return QCursor(QPixmap(img), 1, 1);
 }
 

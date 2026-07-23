@@ -225,10 +225,18 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         vcg::GridStaticPtr<VCGFace, VCGMesh::ScalarType> occlGrid;
         if (visibleOnly)
             occlGrid.Set(mesh.face.begin(), mesh.face.end());
-        auto isVisible = [&](const VCGFace &f, const vcg::Point3f &centroid) {
-            vcg::Point3f dir = centroid - eyeLocal;
-            if (dir.Norm() <= 1e-9f)
-                return true;
+        // Depth tolerance: a candidate face sits ON the ray, so the nearest hit is
+        // at ~its own centroid distance. Comparing the hit *pointer* is fragile
+        // (coplanar neighbours win the frontmost test at the same depth → z-fighting
+        // stripes), so instead accept the face unless something is meaningfully
+        // *closer* than its centroid.
+        const float occlEps = mesh.bbox.IsNull() ? 0.0f : mesh.bbox.Diag() * 1e-4f;
+        // Is point p occluded from the eye? (a surface meaningfully closer than p)
+        auto pointOccluded = [&](const vcg::Point3f &p) {
+            const vcg::Point3f dir = p - eyeLocal;
+            const float d = dir.Norm();
+            if (d <= 1e-9f)
+                return false;
             vcg::Ray3f ray(eyeLocal, dir);
             ray.Normalize();
             vcg::RayTriangleIntersectionFunctor<true> rayFunctor;
@@ -236,7 +244,24 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             float t = 0.0f;
             const VCGFace *hit =
                 occlGrid.DoRay(rayFunctor, marker, ray, std::numeric_limits<float>::max(), t);
-            return hit == &f; // frontmost hit is this face → not occluded
+            if (!hit)
+                return false;
+            const float tol = std::max(d * 1e-3f, occlEps);
+            return t < d - tol;
+        };
+        // A single ray can slip through the cracks at shared edges/vertices of the
+        // occluder, so sample the centroid plus the (slightly inset) corners and
+        // cull the face if ANY sample is occluded — four differently-aimed rays
+        // can't all leak, which removes the back-face false positives.
+        auto isVisible = [&](const VCGFace &f, const vcg::Point3f &centroid) {
+            if (pointOccluded(centroid))
+                return false;
+            for (int k = 0; k < 3; ++k) {
+                const vcg::Point3f sample = centroid + (f.cP(k) - centroid) * 0.8f;
+                if (pointOccluded(sample))
+                    return false;
+            }
+            return true;
         };
         int changed = 0;
 

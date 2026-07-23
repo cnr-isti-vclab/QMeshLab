@@ -17,6 +17,7 @@ public:
     QString id() const override;
     QString name() const override;
     QString statusHint() const override;
+    QString badgeDetail() const override;
     QString iconPath() const override;
     QCursor cursor() const override;
 
