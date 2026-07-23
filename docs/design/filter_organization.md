@@ -5,7 +5,8 @@ name, document, script, and maintain. It is intentionally written as a design
 discussion document: the taxonomy below should be edited as we learn which names
 feel natural in daily use.
 
-See also: [Architecture](architecture.md) and [Data Model](data_model.md).
+See also: [Adding a Filter](adding_a_filter.md) (practical how-to),
+[Architecture](architecture.md) and [Data Model](data_model.md).
 
 ## Goals
 
