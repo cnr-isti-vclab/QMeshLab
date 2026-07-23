@@ -685,6 +685,8 @@ This table is a starting point for review, not a final classification.
 | `filter_unsharp` | Enhance / Smooth | Could be under Smoothing or Geometry Enhancement. |
 | `filter_trioptimize` | Remesh / Optimize | Local triangle optimization. |
 | `filter_texture_defragmentation` | Texture | Specialized but fits Texture. |
+| `filter_img_patch_param` | Parametrization / UV, Texture, Raster | Builds image/patch parametrization data from registered rasters; should be discoverable from both UV and raster projection workflows. |
+| `filter_plymc` | Reconstruct | Marching-cubes-specific reconstruction plugin; user-facing names should emphasize generated surfaces rather than file/plugin provenance. |
 
 ## Open Questions
 

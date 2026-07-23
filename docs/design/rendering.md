@@ -10,7 +10,7 @@ See also: [Architecture](architecture.md) · [Data Model](data_model.md)
 - **`ParametrizationUV`**: orthographic UV-space rendering for the current mesh (requires faces + UV coords).
 - **`RasterImage`**: active-raster image-domain rendering. Entering the mode requires a valid current raster. The active raster is drawn as a screen-space overlay reference; if it has a valid `CameraShot`, visible meshes are rendered by the normal Scene3D pass pipeline through that raster camera.
 
-Ownership: `Document` owns canonical mesh/raster data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, raster GPU image resources, headlight/gizmo state, overlays, and per-mesh render modes.
+Ownership: `Document` owns canonical mesh/raster data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, raster GPU image resources, headlight/gizmo state, overlays, active/suspended interactive-tool state, and per-mesh render modes.
 
 Undo/redo integration: undo-tree nodes include one `ViewState` snapshot (active view camera + render settings + per-mesh style map) captured/restored via `Document::setViewStateFunctions(...)`. History jumps can restore render style while intentionally leaving the live camera untouched until the final target node.
 
@@ -63,7 +63,7 @@ This is an internal architecture boundary, not a public serialization contract. 
 
 ## Shared GPU Cache (`MeshGpuResourceCache`)
 
-Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision)`. Quality variants also include fixed-range mode, min/max, center-on-zero, and percentile crop. Wire resources also track whether faux polygon edges should be respected.
+Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision, selectionRevision where relevant)`. Quality variants also include fixed-range mode, min/max, center-on-zero, and percentile crop. Wire resources also track whether faux polygon edges should be respected.
 
 Cached outputs:
 
@@ -72,7 +72,7 @@ Cached outputs:
 - **edges**: line buffer + fat-line buffer from explicit mesh edges.
 - **points**: position/color/normal payload + normal-valid flag. Variants: `Constant`, `PerVertex`, `PerVertexQuality`.
 - **bbox**: line buffer.
-- **selection**: selected-face triangles, selected-vertex points.
+- **selection**: selected-face triangles, selected-vertex points, keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
 - **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line), non-manifold edges (line + fat-line), non-manifold vertices, and curvature principal-direction lines.
 
 Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders. Changing colormap, inversion, or isoline settings updates only the per-view LUT texture; changing fixed range, center-on-zero, or percentile crop changes normalization and rebuilds the affected quality buffers.
@@ -102,7 +102,7 @@ Default fill color source preference: texture → per-vertex → per-face → pe
 8. Run Radiance Scaling gradient pre-pass (if any planned fill item uses `FillMaterial::RadianceScaling`).
 9. Run main onscreen pass.
 
-Main pass draw order: scene background · raster background in RasterImage mode only · fill · wire · edges · bbox · points · raster camera frustums · decorators · trackball gizmo · light gizmo · current-mesh outline/debug composite · selection overlay.
+Main pass draw order: scene background · raster background in RasterImage mode only · fill · wire · edges · bbox · points · raster camera frustums · decorators · trackball gizmo · light gizmo · current-mesh outline/debug composite · selection overlay · 2D informational overlays.
 
 ## `Scene3D` Pass Details
 
@@ -122,7 +122,9 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 **Decorators**: depth `LessOrEqual`, no depth write. Normals and curvature directions use the line pipeline. Boundary, seams, and non-manifold edges use the fat-decorator pipeline (`decoratorBoundaryWidth`) with line fallback. Non-manifold vertices use a point pipeline.
 
-**Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`.
+**Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`. Scene3D selection resources come from the shared mesh GPU cache; UV mode has a dedicated UV-space selection overlay.
+
+**Decorator info overlay**: optional 2D label controlled by `showDecoratorInfo`. It reports numeric counts for enabled decorator data on the current mesh (boundary/seam/non-manifold families) and hides itself when no relevant decorator information is available.
 
 Simple buffer pass execution (wire, edges, bbox, points), decorator execution, and selection execution are isolated in `renderwidget_scene_passes.cpp`. Their draw order remains controlled by `renderwidget_render.cpp`.
 
@@ -144,7 +146,18 @@ Double click schedules an offscreen depth-pick frame: depth encoded in RGB → o
 
 ## `Scene3D` Camera and Interaction
 
-`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. Gizmo is depth-aware and scale-stable across dolly/FOV changes. `MainWindow` can optionally synchronize camera state across 3D views; UV views keep independent pan/zoom.
+`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. Gizmo is depth-aware and scale-stable across dolly/FOV changes. `MainWindow` can optionally synchronize camera state across 3D views and exposes a `Center on Selection` camera command; UV views keep independent pan/zoom.
+
+## Interactive Tools
+
+Interactive tools are thin view-owned interaction front-ends over filter/document operations. A tool is active in at most one `RenderWidget`; it owns mouse/keyboard input while active, shows a cursor/status hint, and commits persistent changes through `Document::runFilter(...)` so undo nodes and Python action history stay coherent. `Tab` suspends the tool and temporarily returns gestures to camera navigation; `Esc` exits the tool.
+
+Current built-in tools:
+
+- `Select Layer`: click in Scene3D to schedule an asynchronous GPU surface pick; on hit, the picked mesh becomes the current mesh layer.
+- `Rubber-band Select`: drag a rectangle in Scene3D or UV mode, then run `qmeshlab.filter.select::select_by_rectangle`. `Shift` adds, `Ctrl` subtracts, and `F`/`V` switch between face and vertex selection. The tool passes either camera-state JSON or UV pan/zoom parameters depending on the active view mode.
+
+Raster mode remains image-navigation oriented and does not currently host these tools.
 
 ## Camera Models: `CameraShot` vs `ViewTrackball`
 
@@ -171,7 +184,7 @@ Current status: UV mode is still a separate renderer in `renderwidget_uv.cpp`. I
 2. Ensure UV resources (`m_uvMeshGpu`); fit UV view if requested.
 3. Draw UV background (`uv_background.vert/.frag`).
 4. If `uvShowFullTexture`: draw the requested background texture over `[0,1]²` (best-effort from `uvTextureIndex`, with fallback to first available base-color texture; `uvTextureNearestSampling` switches bilinear → nearest).
-5. Draw current mesh in UV space: fill · wire · edges · boundary edges · texture seams · points.
+5. Draw current mesh in UV space: fill · wire · edges · boundary edges · texture seams · points · selection overlay.
 6. If `uvShowReferenceFrame`: draw unit square outline + colored U/V axes from origin.
 
 UV full-texture background: selection is resolved from fill batches by `textureGroupIndex` (base-color textures); if not found, falls back to the first available base-color texture.
@@ -180,7 +193,7 @@ UV fill: color source from `fillPlain.colorSource`. Quality UV buffers use the s
 
 ## `ParametrizationUV` Camera and Interaction
 
-Orthographic projection; `m_uvPan` + `m_uvZoom`. Left/middle drag = pan; wheel = zoom around cursor; double click = fit to mesh UV bounds (or `[0,1]²` when `uvShowFullTexture`); `Reset Camera` = UV fit.
+Orthographic projection; `m_uvPan` + `m_uvZoom`. Left/middle drag = pan; wheel = zoom around cursor; double click = fit to mesh UV bounds (or `[0,1]²` when `uvShowFullTexture`); `Reset Camera` = UV fit. When `Rubber-band Select` is active, the same view coordinates are converted to UV-space filter parameters so rectangle selection can operate directly in the parametrization view.
 
 Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view visibility remain local runtime state.
 
@@ -213,6 +226,8 @@ PBR rendering can consume normal maps directly as either tangent-space or object
 `MainWindow::saveSnapshotPng()`: set fixed color-buffer size → request update → wait for `frameRendered` → `grabFramebuffer` → restore previous size. Saved PNG embeds camera JSON in `QMeshLab.CameraTrackballState` metadata.
 
 Snapshot-to-raster paths reuse the same view capture mechanics but add the resulting image to `Document` through `addRasterImage(...)` with a `CameraShot` from `RenderWidget::cameraShotForViewport(...)` or from `renderSnapshotFromStateJson(...)`. This is how manual snapshot rasters and the `Render from Render-State JSON` layer filter create raster layers.
+
+Programmatic snapshots use the same render-state JSON contract. Embedded `mlgui.render_snapshot(...)` and `mlgui.save_snapshot(...)` render through the live active `RenderWidget`; standalone `pymeshlab2.MeshSet.render_snapshot(...)` uses `HeadlessRenderContext`, which owns a hidden `RenderWidget`/QRhi lifecycle for offscreen and batch rendering.
 
 ## Frame Timing
 

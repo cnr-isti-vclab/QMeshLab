@@ -10,14 +10,14 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 
 `Document::MeshEntry` is the canonical mesh record. Each entry stores:
 
-- identity/revision keys: `meshId`, `geometryRevision`, `materialRevision`
+- identity/revision keys: `meshId`, `geometryRevision`, `materialRevision`, `selectionRevision`
 - render placement: `transform`
 - source metadata: `name`, `sourcePath`, `ioMask`
 - texture metadata: `textureFileNames`, `textureFilePaths`, `textureAssets`
 - material metadata: `materialSet`
 - mesh state: `visible`, `modified`, `VCGMesh mesh`
 
-`Document` also owns: remembered current mesh/raster indices, explicit active layer kind, document log (application / VCG / error sources), I/O and filter plugin managers, shared GPU cache, undo/redo history, operation cancel flag, and memory accounting APIs (`cpuMeshMemoryStats`, `undoMemoryStats`, `gpuMemoryStats`). Optional Python bindings borrow or own a `Document` through `MeshSetCore`; the embedded console borrows the live `MainWindow` document and does not take ownership.
+`Document` also owns: remembered current mesh/raster indices, explicit active layer kind, document log (application / VCG / error sources), I/O and filter plugin managers, shared GPU cache, `DocumentUndoManager`, operation cancel flag, and memory accounting APIs (`cpuMeshMemoryStats`, `undoMemoryStats`, `gpuMemoryStats`). Optional Python bindings borrow or own a `Document` through `MeshSetCore`; the embedded console borrows the live `MainWindow` document and does not take ownership.
 
 ## Mesh Data Type
 
@@ -39,7 +39,7 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 
 ## Signals and Reactivity
 
-- mesh lifecycle: `meshAdded`, `meshRemoved`, `meshDataChanged`
+- mesh lifecycle: `meshAdded`, `meshRemoved`, `meshDataChanged`, `meshSelectionChanged`
 - raster lifecycle/data: `rasterAdded`, `rasterRemoved`, `rasterDataChanged`
 - selection/visibility: `currentMeshChanged`, `currentRasterChanged`, `currentLayerChanged`, `meshVisibilityChanged`, `rasterVisibilityChanged`
 - progress: `loadProgress*`, `filterProgress*`
@@ -52,9 +52,11 @@ QMeshLab is **single-document, multi-view**: one `Document` owns canonical meshe
 
 `Document::loadRasterImage()`: loads a `QImage`, creates a `RasterEntry` with an RGBA `RasterPlane`, appends the raster layer, makes it current, and emits raster/current-layer signals. Ordinary image loads do not synthesize a calibrated camera; callers such as snapshot capture can pass a `CameraShot` through `addRasterImage(...)`, and raster-mode mesh projection is enabled only when that shot is valid.
 
-`Document::loadMeshLabProject()`: parses MeshLab project (`.mlp`) files directly, loads referenced meshes through the normal mesh plugin path, applies project labels/transforms, creates raster entries from project raster planes, stores project `CameraShot` data, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.
+`Document::loadMeshLabProject()`: parses MeshLab project (`.mlp`) files directly, loads referenced meshes through the normal mesh plugin path, applies project labels/transforms, creates raster entries from project raster planes, stores project `CameraShot` data, records a `load_project` script action, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.
 
 `Document::saveMesh(...)`: resolves export plugin, passes `MeshIOSaveOptions` (mask, binary, embed textures, copy associated textures, Draco options).
+
+`Document::saveMeshLabProject(...)`: writes `.mlp` project files directly from the current document. Save options can restrict export to visible meshes, re-save modified meshes, and copy external mesh/raster files into the project directory. Generated or source-less meshes are written under `meshes/`, raster snapshot images under `images/`, and the project XML preserves mesh transforms plus raster camera and plane metadata.
 
 Also exposes: `openDialogFilter()`, `saveDialogFilter()`, `saveMaskCapability()`, `importSupportedExtensions()`, `exportSupportedExtensions()`, `importPluginInfos()`, `exportPluginInfos()`.
 
@@ -64,37 +66,41 @@ Metadata: `filterInfos()`, `loadedFilterPluginSummaries()`. Descriptors can be l
 
 Execution: `runFilter(filterKey, parameters)` with callback-based progress and cancel (`requestOperationCancel`, `isOperationCancelRequested`). The framework normalizes/validates parameters, exposes `validateFilterInvocation(...)` for preflight checks, prepares requested volatile VCG data, validates typed `CameraState`/`RenderState` JSON payloads when descriptors request them, runs pre/post cleanup hooks, compacts modified meshes, updates geometry/material/selection/transform revisions according to descriptor output codes, and can return visualization hints for quality-based rendering.
 
+Script history: modifying filter runs record a `ScriptAction` on the undo node, including filter key, invocation parameters, active layer indices, and both full and compact Python calls. The full call includes every recorded parameter; the compact call omits parameters that matched descriptor defaults at invocation time. The filter panel and action-history export share the same Python-call formatter.
+
 Render-state filters: `filter_layer` includes `render_from_render_state_json`, which consumes `QMeshLab.CameraState` and `QMeshLab.RenderState` payloads, asks `Document::renderSnapshotFromStateJson(...)` for an offscreen render, then can save the result as PNG and/or add it as a raster layer with the resulting `CameraShot`.
 
 Filters can consume document-level mesh, raster, camera, texture, and render-state data when their descriptors request those parameter/input domains. Mutations stay descriptor-driven: vertex color, wedge texture, material, geometry, selection, transform, and new-layer outputs are surfaced through the normal output-modifies codes and document revision paths rather than through filter-specific data-model branches.
 
-Python integration: `_qmeshlab.MeshSet` wraps a `Document` and exposes `mesh_count`, `current_mesh`, `set_current_mesh`, `load_new_mesh`, `save_current_mesh`, `list_filters`, and `apply_filter`. `apply_filter` resolves a fully qualified key, descriptor id, or Python name, converts supported Python kwargs to `MeshFilterParameterValues` (`bool`, integer, float, string, and 3-number point/vector sequences), and runs the same `Document::runFilter(...)` path used by the GUI. In the embedded console, `PythonHost` dynamically adds one method per filter to `MeshSet` using each descriptor's `effectivePythonName()`.
+Python integration: `_qmeshlab.MeshSet` wraps a `Document` and exposes mesh/raster/project helpers, visibility/current-layer methods, `list_filters`, `apply_filter`, and `render_snapshot`. `apply_filter` resolves a fully qualified key, descriptor id, or Python name, converts supported Python kwargs to `MeshFilterParameterValues` (`bool`, integer, float, string, and 3-number point/vector sequences), and runs the same `Document::runFilter(...)` path used by the GUI. In the embedded console, `PythonHost` exposes the public `pymeshlab2` facade, injects the live document as `ms`, injects the live view helper as `mlgui`, and dynamically adds one method per filter to `MeshSet` using each descriptor's `effectivePythonName()`.
 
 ## Undo/Redo Model
 
-History is a tree of full-state nodes, not a flat stack:
+History is a tree, not a flat stack:
 
 - `m_undoNodes` — flat arena of `UndoNode` objects; node id is the vector index
 - node `0` — root state before the first recorded action
 - `m_undoCurrentNode` — node id representing the current live state
-- each `UndoNode` — full `UndoState`, incoming action label, parent id, child ids, display lane, and preferred redo child
+- each `UndoNode` — incoming action label, parent id, child ids, display lane, preferred redo child, optional script-action record, and either a full `UndoState` snapshot or compact selection deltas
 
 Committing an action appends a child to the current node, preserving alternate timelines instead of truncating siblings. `redo()` follows `preferredChild` when present, otherwise the first child. `jumpToUndoNode(nodeId, restoreCamera)` walks through the lowest common ancestor, suppressing intermediate GUI refresh signals and restoring camera only at the final target when requested. `undoTreeInfo()` exposes nodes, lanes, depths, current-node state, and current-path flags for `UndoGraphWidget`.
 
 Undo-tree maintenance APIs keep the graph controllable after branching: `makeUndoRoot(nodeId)` promotes a chosen node to the new root and discards unreachable history, `purgeUndoBranch(nodeId)` deletes a descendant branch, and `linearizeUndoHistory()` keeps only the root-to-current path. These operations preserve the current live state and notify the UI through the normal undo/redo state signal.
 
-Each `UndoState` holds a `std::vector<UndoState::MeshSnapshot>` and a `std::vector<UndoState::RasterSnapshot>`. A `MeshSnapshot` copies all cheap metadata fields by value (`transform`, names/paths/assets/materials/visibility/modified/mask/revisions) and holds geometry behind a `shared_ptr<const VCGMesh>`. `captureUndoState()` interns geometry objects in `m_undoGeometryCache` (keyed by `(meshId, geometryRevision)`, stored as `weak_ptr`): if the revision is unchanged since the last capture, nodes share the same allocation. A cache miss triggers a deep copy. On undo/redo, `restoreUndoState()` deep-copies geometry out of the shared pointer so the live document is always freely mutable. Main geometry replacement paths use a document-level monotonic revision source (`m_nextGeometryRevision`) so branch-local edits do not accidentally reuse an older cache key after undo/redo navigation. Branch restore also evicts newer cached revisions for restored mesh ids to avoid stale geometry reuse across branches. `RasterSnapshot` stores raster metadata, `CameraShot`, planes, current plane, visibility, and raster image/camera revision ids. `undoMemoryStats()` de-duplicates shared geometry pointers across all undo nodes before summing total bytes, while per-step rows report the current path.
+Full snapshot nodes store an `UndoState` containing `MeshSnapshot` and `RasterSnapshot` arrays plus current mesh/raster/layer ids, next id counters, and one `ViewState`. A `MeshSnapshot` copies all cheap metadata fields by value (`transform`, names/paths/assets/materials/visibility/modified/mask/revisions) and holds geometry behind a `shared_ptr<const VCGMesh>`. `captureUndoState()` interns geometry objects in `m_undoGeometryCache` (keyed by `(meshId, geometryRevision, selectionRevision)`, stored as `weak_ptr`): if the full mesh content identity is unchanged since the last capture, nodes share the same allocation. A cache miss triggers a deep copy. On undo/redo, `restoreUndoState()` deep-copies geometry out of the shared pointer so the live document is always freely mutable. Main geometry replacement paths use document-level monotonic revision sources so branch-local edits do not accidentally reuse an older cache key after undo/redo navigation. Branch restore also evicts newer cached revisions for restored mesh ids to avoid stale geometry reuse across branches. `RasterSnapshot` stores raster metadata, `CameraShot`, planes, current plane, visibility, and raster image/camera revision ids. `undoMemoryStats()` de-duplicates shared geometry pointers across all undo nodes before summing total bytes, while per-step rows report the current path.
+
+Selection-only nodes can use `UndoStorageKind::Delta` instead of full snapshots. `DocumentUndoManager::beginDeltaStep(...)` captures a `SelectionDelta` for the target mesh before and after the operation, packing vertex and face selection bits. Undo/redo applies those deltas directly to the live mesh and bumps `selectionRevision`, avoiding a full geometry copy for rectangle/incremental selection filters while preserving the same tree behavior and script-action metadata.
 
 Each `UndoState` also stores a `ViewState` snapshot (`src/render/viewstate.h`) captured via `Document::setViewStateFunctions(...)`. Current wiring captures/restores the active `RenderWidget` camera/render-style state (`ViewTrackball::State`, `GlobalRenderSettings`, per-mesh `PerMeshRenderSettings`) with each node. Per-view visibility vectors, UV pan/zoom, and view mode are not part of `ViewState`; camera restore can be skipped when jumping to a node.
 
-APIs: `beginUndoStep(label)`, `endUndoStep(commit, restoreOnCancel)`, `undo()`, `redo()`, `jumpToUndoNode(nodeId, restoreCamera)`, `updateUndoNodeCamera(nodeId)`, `makeUndoRoot(nodeId)`, `purgeUndoBranch(nodeId)`, `linearizeUndoHistory()`, `undoTreeInfo()`, `clearUndoHistory()`, `setUndoLimit(limit)`. Integrated with mesh mutations (`add/remove/duplicate/reload/rename/visibility`, `setMeshTransform`, `markMeshGeometryChanged`, `markMeshMaterialChanged`, `markMeshSelectionChanged`) and raster mutations (`add/remove/rename/visibility`, `setRasterShot`, `setCurrentRasterPlaneIndex`, `markRasterImageChanged`).
+APIs: `beginUndoStep(label)`, `beginUndoStep(label, ScriptAction)`, `beginUndoStep(label, meshIndexForSelectionDelta)`, `beginUndoStep(label, ScriptAction, meshIndexForSelectionDelta)`, `endUndoStep(commit, restoreOnCancel)`, `undo()`, `redo()`, `jumpToUndoNode(nodeId, restoreCamera)`, `updateUndoNodeCamera(nodeId)`, `makeUndoRoot(nodeId)`, `purgeUndoBranch(nodeId)`, `linearizeUndoHistory()`, `undoTreeInfo()`, `undoNodeScriptAction(nodeId)`, `clearUndoHistory()`, `setUndoLimit(limit)`. Integrated with mesh mutations (`add/remove/duplicate/reload/rename/visibility`, `setMeshTransform`, `markMeshGeometryChanged`, `markMeshMaterialChanged`, `markMeshSelectionChanged`) and raster mutations (`add/remove/rename/visibility`, `setRasterShot`, `setCurrentRasterPlaneIndex`, `markRasterImageChanged`).
 
 ## Revision and Transform Model
 
 - `setMeshTransform(index, transform, contextMessage)` updates `MeshEntry::transform`, emits `meshDataChanged`, records undo.
 - `markMeshGeometryChanged(...)` advances `geometryRevision`, sets `modified = true`, and rebuilds GPU geometry resources lazily. Main geometry replacement/edit paths allocate revisions from a monotonic document counter so undo branches cannot collide on the same `(meshId, geometryRevision)` cache key.
 - `markMeshMaterialChanged(...)` increments `materialRevision`, sets `modified = true`, and rebuilds GPU material resources lazily.
-- `markMeshSelectionChanged(...)` increments `geometryRevision` and sets `modified = true` because selection flags live inside the mesh geometry snapshot.
+- `markMeshSelectionChanged(...)` increments `selectionRevision`, emits `meshSelectionChanged`, and sets `modified = true`. Selection flags still live inside `VCGMesh`, but the separate revision lets selection overlays rebuild without invalidating the much larger fill/wire/point buffers.
 - `markRasterImageChanged(...)` advances `imageRevision`; per-view raster GPU image resources are rebuilt lazily.
 - `setRasterShot(...)` advances `cameraRevision`; raster-projected rendering and raster camera glyphs pick up the new camera lazily.
 - `setCurrentRasterPlaneIndex(...)` changes which plane is considered current for display/export without changing raster image data.
@@ -127,7 +133,7 @@ One instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds:
 
 One instance per view in `m_renderSettings`. Holds:
 
-- scene overlay: `highlightCurrentMesh`, `currentMeshOutlineColor`/`Width`, `currentMeshDilateRadius`/`ErodeRadius`, `currentMeshDebugView`, `showTrackballGizmo`, `showBoundingBoxCorners`, `showBoundingBoxDimensions`
+- scene overlay: `highlightCurrentMesh`, `currentMeshOutlineColor`/`Width`, `currentMeshDilateRadius`/`ErodeRadius`, `currentMeshDebugView`, `showTrackballGizmo`, `showViewCameras`, `showBoundingBoxCorners`, `showBoundingBoxDimensions`, `showDecoratorInfo`
 - scene background: `sceneBackgroundTopColor`, `sceneBackgroundBottomColor`
 - UV viewer: `uvShowReferenceFrame`, `uvShowFullTexture`, `uvTextureIndex`, `uvTextureNearestSampling`
 - quality histogram/range: `showQualityHistogram`, `qualityHistogramBins`, `qualityHistogramSource`, `qualityHistogramFixedRange`, `qualityHistogramMin`/`Max`, `qualityHistogramCenterOnZero`, `qualityHistogramPercentileCrop` (default `0.01`, cropping both tails for automatic ranges), `qualityHistogramColorMapId`, `qualityHistogramInvertColorMap`, `qualityIsolinesEnabled`, `qualityIsolineCount`
@@ -150,12 +156,12 @@ This split keeps user/render settings as stable input data, pass requests as an 
 
 | Shared (Document) | Per-view (RenderWidget) |
 |---|---|
-| mesh geometry and material data | per-mesh render modes/styles |
+| mesh geometry, material, and selection data | per-mesh render modes/styles |
 | mesh transforms | per-view visibility vector |
 | mesh/raster list, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster pan/zoom/opacity |
 | document visibility proxy (`MeshEntry::visible`) | overlay settings, histogram cache |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
-| undo tree and node snapshots | UV-local GPU cache (`m_uvMeshGpu`), raster GPU image cache |
+| undo tree, full snapshots, selection deltas, script-action records | UV-local GPU cache (`m_uvMeshGpu`), raster GPU image cache, active/suspended tool state |
 | shared mesh GPU cache | |
 
 `MainWindow` synchronizes document visibility from the active view so the layer panel reflects it; each view keeps its own local visibility vector independently.
@@ -168,7 +174,7 @@ Renderer-facing APIs on `Document`: `ensureMeshGpuResources(...)`, `fillPassGpuV
 
 Scene3D resource preparation is driven by `RenderFramePassRequests`, not by a second ad-hoc scan of per-mesh render modes. For each visible mesh, the request says which cache products are needed; current-mesh highlighting can additionally request fill/edge/point resources for the highlighted mesh.
 
-Cache keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max, center-on-zero flag, percentile crop, wire faux-edge mode where relevant)`. `MeshSource` carries legacy texture paths, `textureAssets`, material metadata, and quality-range options. Invalidatable per-RHI or globally. Selection and decorator buffers are first-class cache outputs, including normals, boundary/seam lines, non-manifold edge/vertex markers, and curvature direction lines when the mesh provides the required data.
+Cache keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max, center-on-zero flag, percentile crop, wire faux-edge mode where relevant)`. Fill/wire/point variants use geometry/material revisions as appropriate, while selection resources include `selectionRevision` so selection overlays can refresh independently. `MeshSource` carries legacy texture paths, `textureAssets`, material metadata, and quality-range options. Invalidatable per-RHI or globally. Selection and decorator buffers are first-class cache outputs, including normals, boundary/seam lines, non-manifold edge/vertex markers, and curvature direction lines when the mesh provides the required data.
 
 ## Memory Diagnostics
 

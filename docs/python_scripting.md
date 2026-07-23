@@ -5,10 +5,11 @@ with `QMESHLAB_PYTHON_CONSOLE=ON`. The embedded interpreter works on the live
 application document, so scripts can inspect the current scene, run filters,
 load/save meshes and rasters, and capture view snapshots.
 
-There is no separate documentation site for the headless Python layer. The
-shared API is the `pymeshlab2.MeshSet` interface, and QMeshLab reuses that same
-model inside the desktop application. The desktop-only additions are the
-predefined live `ms` object and the `mlgui` helper.
+The shared API is the `pymeshlab2.MeshSet` interface, and QMeshLab reuses that
+same model inside the desktop application. Generated API reference files live
+under `docs/api/` when regenerated from the current filter descriptors. The
+desktop-only additions are the predefined live `ms` object and the `mlgui`
+helper.
 
 ## Predefined Names
 
@@ -67,6 +68,24 @@ print("Standalone mesh set:", other.mesh_count())
 Most scripts inside QMeshLab should use the predefined `ms` object. Import
 `pymeshlab2` only when you want the same public API exposed by the GUI-less
 package, or when you want to create an independent `MeshSet`.
+
+## Console and Script Editor
+
+The Python dock contains a script editor and an interactive console side by
+side. Both execute in the same `__main__` namespace, so variables created in a
+script remain available at the console prompt and vice versa.
+
+Useful entry points:
+
+- Run the editor contents with the `Run` button or `Ctrl+Enter` / `Cmd+Return`.
+- Use the console for quick one-line calls and Up/Down history navigation.
+- Use the filter panel's copy-to-console action when you need exact parameter ids.
+- Use the undo graph's `Generate Python Script` command to export the current
+  undo path into the script editor.
+
+History export offers two styles: full scripts keep every recorded parameter for
+exact replay, while compact scripts omit parameters that matched the descriptor
+defaults at the time each action was recorded.
 
 ## Available Module Objects
 
@@ -190,7 +209,9 @@ print(result.success)
 ```
 
 Parameter names must match the filter descriptor ids. The easiest way to get a
-valid call is to use the filter panel's "Copy Python call to console" button.
+valid call is to use the filter panel's copy-to-console action. For longer
+reproducible scripts, export the current undo path from the action-history graph
+and choose either the full or compact format.
 
 ## Filter Results
 
@@ -241,6 +262,23 @@ pixels = mlgui.render_snapshot(state, 800, 600)
 print("Bytes:", len(pixels))
 ```
 
+Render from a standalone mesh set without borrowing the live GUI document:
+
+```python
+import pymeshlab2
+from pathlib import Path
+
+other = pymeshlab2.MeshSet()
+other.load_new_mesh("/tmp/input.ply")
+state_json = Path("/tmp/render_state.json").read_text()
+pixels = other.render_snapshot(state_json, 800, 600)
+print("Bytes:", len(pixels))
+```
+
+`mlgui` uses the live active render view. `MeshSet.render_snapshot(...)` uses a
+hidden `HeadlessRenderContext`, so it is the right path for standalone
+processing and batch-style scripts.
+
 ## Minimal Useful Scripts
 
 Print a short document report:
@@ -279,5 +317,8 @@ else:
 - `mlgui` depends on an active desktop render view.
 - Standalone `pymeshlab2.MeshSet()` objects own their own document and do not
   automatically share the live application document.
+- History-generated scripts replay recorded action metadata. Compact scripts are
+  intentionally smaller and omit descriptor-default parameters; full scripts are
+  better when exact parameter visibility matters.
 - The API is still evolving. Prefer generated filter calls from the filter panel
   when you need exact parameter names.
