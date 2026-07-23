@@ -69,6 +69,7 @@ struct LayerTextureInfo {
     QString displayName;
     QString path;
     QStringList usage;
+    QImage image; // in-memory texture (e.g. a generated dummy) when there is no file
 };
 
 std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry);
@@ -495,6 +496,24 @@ std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &en
         if (out[i].displayName.trimmed().isEmpty())
             out[i].displayName = QObject::tr("texture_%1").arg(int(i));
     }
+
+    // Resolve in-memory images (e.g. dummy textures with no file on disk) so the
+    // thumbnail can render them instead of falling back to a placeholder.
+    for (LayerTextureInfo &info : out) {
+        for (const MeshIOTextureAsset &asset : entry.textureAssets) {
+            if (!asset.hasImage())
+                continue;
+            const bool pathMatch = !info.path.isEmpty()
+                && QDir::fromNativeSeparators(asset.sourcePath.trimmed()) == info.path;
+            const bool nameMatch = info.path.isEmpty()
+                && !asset.name.trimmed().isEmpty()
+                && asset.name.trimmed() == info.displayName;
+            if (pathMatch || nameMatch) {
+                info.image = asset.image;
+                break;
+            }
+        }
+    }
     return out;
 }
 
@@ -731,7 +750,7 @@ QWidget *textureInfoWidget(
 
     auto *thumb = new QLabel(container);
     thumb->setFixedSize(thumbSide, thumbSide);
-    thumb->setPixmap(textureThumbnail(path, thumbSide, thumbSide));
+    thumb->setPixmap(imageThumbnail(textureInfo.image, path, thumbSide, thumbSide));
 
     auto *textCol = new QWidget(container);
     auto *v = new QVBoxLayout(textCol);

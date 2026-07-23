@@ -885,6 +885,10 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         result.infoMessages = {
             QObject::tr("Set '%1' as the mesh base texture.").arg(displayName)
         };
+        // Suggest the UI switch this mesh to textured shading so the new texture
+        // is immediately visible.
+        result.visualizationHints.push_back(
+            { meshIndex, MeshFilterVisualizationAttribute::Texture });
         return result;
     }
 

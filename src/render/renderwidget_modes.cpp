@@ -331,6 +331,30 @@ void RenderWidget::showQualityVisualization(int meshIndex, bool faceQuality)
     update();
 }
 
+void RenderWidget::showTextureVisualization(int meshIndex)
+{
+    if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return;
+    const auto &entry = m_doc->mesh(meshIndex);
+    const bool hasTexCoords = (entry.ioMask
+        & (vcg::tri::io::Mask::IOM_WEDGTEXCOORD | vcg::tri::io::Mask::IOM_VERTTEXCOORD)) != 0;
+    if (!hasTexCoords)
+        return;
+
+    MeshRenderMode *mode = mutableRenderModeForMesh(meshIndex);
+    if (!mode)
+        return;
+    mode->showFill = true;
+    mode->fillMaterial = FillMaterial::Plain;
+    mode->fillPlain.colorSource = FillColorSource::Texture;
+
+    if (meshIndex == m_doc->currentMeshIndex()) {
+        refreshColorSourceAvailability();
+        syncOverlaySettingsToCurrentMesh();
+    }
+    update();
+}
+
 void RenderWidget::syncOverlaySettingsToCurrentMesh()
 {
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;

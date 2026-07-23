@@ -224,7 +224,8 @@ class FilterParams;
 enum class MeshFilterVisualizationAttribute
 {
     VertexQuality,
-    FaceQuality
+    FaceQuality,
+    Texture
 };
 
 struct MeshFilterVisualizationHint

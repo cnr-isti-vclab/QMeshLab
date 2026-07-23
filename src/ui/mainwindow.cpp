@@ -2125,11 +2125,20 @@ void MainWindow::applyFilterVisualizationHints(const MeshFilterRunResult &result
         const int meshIndex = hint.meshIndex >= 0 ? hint.meshIndex : m_doc->currentMeshIndex();
         if (meshIndex < 0 || meshIndex >= m_doc->meshCount())
             continue;
-        const bool faceQuality =
-            hint.attribute == MeshFilterVisualizationAttribute::FaceQuality;
         for (RenderWidget *view : std::as_const(m_renderWidgets)) {
-            if (view)
-                view->showQualityVisualization(meshIndex, faceQuality);
+            if (!view)
+                continue;
+            switch (hint.attribute) {
+            case MeshFilterVisualizationAttribute::Texture:
+                view->showTextureVisualization(meshIndex);
+                break;
+            case MeshFilterVisualizationAttribute::FaceQuality:
+                view->showQualityVisualization(meshIndex, true);
+                break;
+            case MeshFilterVisualizationAttribute::VertexQuality:
+                view->showQualityVisualization(meshIndex, false);
+                break;
+            }
         }
     }
 }
