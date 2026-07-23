@@ -113,6 +113,11 @@ class SeamMesh : public tri::TriMesh< std::vector<SeamVertex>, std::vector<SeamE
 bool LoadMesh(const char *fileName, Mesh& m, TextureObjectHandle& textureObject, int &loadMask);
 bool SaveMesh(const char *fileName, Mesh& m, const std::vector<std::shared_ptr<QImage>>& textureImages, bool color);
 
+/*!
+ * Given a mesh, converts its normalized texture coordinates to the pixel space of the corresponding textures provided.
+ * @param m : the mesh instance
+ * @param textureObject : the array of textures providing the reference dimensions.
+ */
 void ScaleTextureCoordinatesToImage(Mesh& m, TextureObjectHandle textureObject);
 void ScaleTextureCoordinatesToParameterArea(Mesh& m, TextureObjectHandle textureObject);
 
@@ -120,6 +125,11 @@ vcg::Box2d UVBox(const Mesh& m);
 vcg::Box2d UVBoxVertex(const Mesh& m);
 
 /* Duplicates vertices at seams */
+/*!
+ * Given a mesh, it duplicates the vertices on the seam, such that each side as its own distinct copy.
+ * Finally, the mesh FaceFace and VertexFace topologies are update to take the doubling into account.
+ * @param m: the mesh instance.
+ */
 void CutAlongSeams(Mesh& m);
 
 /* Builds a mesh from a given vector of face pointers. The order of the faces

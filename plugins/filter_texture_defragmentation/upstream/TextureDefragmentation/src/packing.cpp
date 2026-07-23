@@ -33,31 +33,52 @@
 
 typedef vcg::RasterizedOutline2Packer<float, QtOutline2Rasterizer> RasterizationBasedPacker;
 
-
-int Pack(const std::vector<ChartHandle>& charts, TextureObjectHandle textureObject, std::vector<TextureSize>& texszVec)
+int Pack (
+    const std::vector<ChartHandle>& charts,
+    TextureObjectHandle textureObject,
+    std::vector<TextureSize>& texszVec)
 {
     // Pack the atlas
 
+    // For each chart to pack, we retrieve its UV boundary outline.
+    // The packer will try to find the most convenient arrangement
+    // for the charts using the outlines, not the underlying geometry.
+    //
+    // They will be stored in the vector `outlines`, holding
+    // in each i-th entry the outline of chart having id `i`.
     texszVec.clear();
-
     std::vector<Outline2f> outlines;
-
     for (auto c : charts) {
         // Save the outline of the parameterization for this portion of the mesh
         Outline2f outline = ExtractOutline2f(*c);
         outlines.push_back(outline);
     }
 
+    // We denote as a `container` one final output texture.
+    // At the start, the number of created containers is equal to the
+    // input textures. Each container will have a starting size of `4096`
+    // pixel, scaled by the normalized width and height of its corresponding
+    // input textures.
+    //
+    // The input normalized dimensions are retrieved by the function
+    // `ComputeRelativeSizes`.
     int packingSize = 4096;
     std::vector<std::pair<double,double>> trs = textureObject->ComputeRelativeSizes();
-
     std::vector<Point2i> containerVec;
     for (auto rs : trs) {
         vcg::Point2i container(packingSize * rs.first, packingSize * rs.second);
         containerVec.push_back(container);
     }
 
-    // compute the scale factor for the packing
+    // Compute the scale factor for the packing.
+    //
+    // The packer algorithm places charts within the container's coordinate
+    // space (i.e., the size of the current container), while the charts have
+    // their coordinates within the original UV texture pixel space.
+    //
+    // To convert between the two spaces, we compute the linear scale factor
+    // `packingScale`. This value is obtained as the square root of the ratio
+    // between the sum of all container's areas and the sum of all input texture's areas.
     int packingArea = 0;
     int textureArea = 0;
     for (unsigned i = 0; i < containerVec.size(); ++i) {
@@ -66,6 +87,24 @@ int Pack(const std::vector<ChartHandle>& charts, TextureObjectHandle textureObje
     }
     double packingScale = std::sqrt(packingArea / (double) textureArea);
 
+    // The packer uses the standard bin packer strategy: it works by rasterizing the
+    // chart's outlines onto a grid and finding possible placements that avoids
+    // any wasted space as much as possible.
+    //
+    // The packer uses the following parameters:
+    //
+    // * LowestHorizon: defines the cost function to minimize such that each chart
+    //                  will be placed at the lowest available position depending
+    //                  on its size.
+    //
+    // * permutations: if the number of charts is small enough, the algorithm tries to
+    //                 compute different chart orderings, picking the best among them.
+    //
+    // * rotationNum: allows the algorithm to rotate charts in four orientations
+    //                (0/90/180/270 degree) to find the better fit.
+    //
+    // * gutterWidth: leaver a four-pixel gap between charts to prevent any texture
+    //                bleeding at their boundaries.
     RasterizationBasedPacker::Parameters packingParams;
     packingParams.costFunction = RasterizationBasedPacker::Parameters::LowestHorizon;
     packingParams.doubleHorizon = false;
@@ -76,17 +115,41 @@ int Pack(const std::vector<ChartHandle>& charts, TextureObjectHandle textureObje
     packingParams.gutterWidth = 4;
     packingParams.minmax = false; // not used
 
+    // These variables keep track of the current packing algorithm status:
+    //
+    // * totPacked: counts the total number of charts being packed so far.
+    //
+    // * containerIndices: list holding for each chart the container that
+    //                     packed it (both indexed by their id). When a chart
+    //                     has not yet been packed, the vector will hold the
+    //                     sentinel value `-1`.
+    //
+    // * packingTransforms: list holding for each chart (indexed by its id) the
+    //                      rigid transformation (translation + rotation) used
+    //                      by the packer to place it in its corresponding container.
+    //
+    // * nc: the index of the current container used to pack the remaining charts. It
+    //       is updated each time there is no more available space in the current
+    //       container for any of the charts left.
     int totPacked = 0;
-
     std::vector<int> containerIndices(outlines.size(), -1); // -1 means not packed to any container
-
     std::vector<vcg::Similarity2f> packingTransforms(outlines.size(), vcg::Similarity2f{});
-
     unsigned nc = 0; // current container index
+
+    // Starts the packing algorithm, ends when all charts have been placed.
     while (totPacked < (int) charts.size()) {
+
+        // If all containers we have created are filled to the brim, we construct
+        // another one (i.e., we increment the total number of output square
+        // textures by one). The size of the new entry will be `packingSize x packingSize`.
+        //
+        // Note that, since each new entry is by default a square, we do not need to enforce
+        // a different case if squareTextures is set to true.
         if (nc >= containerVec.size())
             containerVec.push_back(vcg::Point2i(packingSize, packingSize));
 
+        // We consider for the current container only the charts that
+        // haven't been still placed (i.e., whose outlineIndex value is -1)
         std::vector<unsigned> outlineIndex_iter;
         std::vector<Outline2f> outlines_iter;
         for (unsigned i = 0; i < containerIndices.size(); ++i) {
@@ -96,6 +159,14 @@ int Pack(const std::vector<ChartHandle>& charts, TextureObjectHandle textureObje
             }
         }
 
+        // The best-fit packing of the available charts in the current container is handled
+        // by the function `PackBestEffortAtScale`. The procedure returns the number of charts
+        // that have been successfully packed.
+        //
+        // If none of the candidate charts fit in the current container (i.e., the result of
+        // `PackBestEffortAtScale` is zero), the container is grown by 10% in both dimensions
+        // and we try again. We exit the loop when at least a chart has been placed or the
+        // container reaches the limit size `MAX_SIZE`.
         const int MAX_SIZE = 20000;
         std::vector<vcg::Similarity2f> transforms;
         std::vector<int> polyToContainer;
@@ -110,12 +181,21 @@ int Pack(const std::vector<ChartHandle>& charts, TextureObjectHandle textureObje
                 containerVec[nc].Y() *= 1.1;
             }
         } while (n == 0 && containerVec[nc].X() <= MAX_SIZE && containerVec[nc].Y() <= MAX_SIZE);
-
         totPacked += n;
+
 
         if (n == 0) // no charts were packed, stop
             break;
         else {
+
+            // Now that we have filled the container, we can add it as one of the output
+            // textures in `texszVec`. Before adding it, the actual output size of the
+            // container must be converted from its coordinate space to the global
+            // pixel space.
+            //
+            // For each chart packed into the container, we record in the corresponding
+            // entry in `containerIndices` and `packingTransforms` the container holding
+            // it and its rigid transformation.
             double textureScale = 1.0 / packingScale;
             texszVec.push_back({(int) (containerVec[nc].X() * textureScale), (int) (containerVec[nc].Y() * textureScale)});
             for (unsigned i = 0; i < outlines_iter.size(); ++i) {
@@ -131,6 +211,15 @@ int Pack(const std::vector<ChartHandle>& charts, TextureObjectHandle textureObje
         nc++;
     }
 
+    // Now that we have determined the best-fit packing for each chart, we need
+    // to update their UV coordinates according to the new positions.
+    // Note that the UV coordinates are stored as normalized values.
+    //
+    // For each chart the index referring to the texture holding it is kept in
+    // their field `N()`. We need to update it with the new container holding them.
+    //
+    // Although it is highly improbable to happen, charts that haven't been packed
+    // have their UV coordinates zeroed.
     for (unsigned i = 0; i < charts.size(); ++i) {
         for (auto fptr : charts[i]->fpVec) {
             int ic = containerIndices[i];
@@ -158,6 +247,9 @@ int Pack(const std::vector<ChartHandle>& charts, TextureObjectHandle textureObje
         }
     }
 
+    // Each chart must state that since its UV layout
+    // has changed, any pre-computed  value it has kept
+    // (e.g., AreaUV()) is now invalid.
     for (auto c : charts)
         c->ParameterizationChanged();
 

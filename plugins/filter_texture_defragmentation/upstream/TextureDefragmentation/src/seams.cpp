@@ -145,12 +145,20 @@ void BuildSeamMesh(Mesh& m, SeamMesh& seamMesh, GraphHandle graph)
     tri::UpdateFlags<Mesh>::FaceClearFaceEdgeS(m);
     for (auto& f : m.face) {
         for (int i = 0; i < 3; ++i) {
+
+            // An edge is a seam edge if it is both manifold in the raw 3D mesh, and on the border of a chart in the
+            // UV parametrization. Then we need to check if the seam is in a single chart, or it belongs to two charts.
+            //
+            // To avoid adding the same edge twice (we will see it twice, once per chart), we mark its occurrence on
+            // all charts it appears as SELECTED.
             if (IsEdgeManifold3D(m, f, i, ffadj) && face::IsBorder(f, i) && f.IsFaceEdgeS(i) == false) {
                 PosF pa(&f, i);
                 PosF pb = GetDualPos(m, pa, ffadj);
                 ChartHandle ca = graph->GetChart(pa.F()->id);
                 ChartHandle cb = graph->GetChart(pb.F()->id);
                 if (ca == cb || ca->adj.count(cb) > 0) {
+
+                    // Forces canonical order.
                     if (pa.F()->id > pb.F()->id)
                         std::swap(pa, pb);
                     auto ei = tri::Allocator<SeamMesh>::AddEdge(seamMesh, pa.V()->P(), pa.VFlip()->P());
@@ -165,6 +173,7 @@ void BuildSeamMesh(Mesh& m, SeamMesh& seamMesh, GraphHandle graph)
         }
     }
 
+    // Clean the constructed instance and construct its topology.
     tri::Clean<SeamMesh>::RemoveDuplicateVertex(seamMesh);
     tri::UpdateTopology<SeamMesh>::VertexEdge(seamMesh);
     tri::UpdateTopology<SeamMesh>::EdgeEdge(seamMesh);
@@ -175,21 +184,39 @@ void BuildSeamMesh(Mesh& m, SeamMesh& seamMesh, GraphHandle graph)
 // to be shortened
 std::vector<SeamHandle> GenerateSeams(SeamMesh& seamMesh)
 {
+    // Initialization.
+    // For consistency, we clear all vertices and edges VISITED marking.
+    // For edges the marking will be used to determine if one has already been assigned to a chain or not.
+    // For vertices, we do not use the VISITED marking.
     std::vector<SeamHandle> svec;
     tri::UpdateFlags<SeamMesh>::VertexClearV(seamMesh);
     tri::UpdateFlags<SeamMesh>::EdgeClearV(seamMesh);
 
+    // We scan all the seams by visiting the edge star of every vertex.
+    // For each unvisited edge (that is not degenerate) we build a new seam chain. A chain is associated with the pair of
+    // charts sharing the seed edge. We construct the chain via Edge-Edge adjacency, checking for the current edge
+    // its endpoints, determining if they can be used to continue the chain or not.
     for (auto& v : seamMesh.vert) {
         std::vector<SeamMesh::EdgePointer> starVec;
         edge::VEStarVE(&v, starVec);
         for (auto startEdge : starVec) {
-            // if the edge was already visited or was on the border of the mesh, skip
+
+            // If the current seam has been visited, it means it already belongs to a chain.
+            // If we have the same face on both sides of the seam, then the edge is degenerate and must be excluded.
             if (startEdge->IsV() || (startEdge->fa == startEdge->fb)) {
                 continue;
             }
 
             std::pair<RegionID, RegionID> chartPair = std::make_pair(startEdge->fa->id, startEdge->fb->id);
 
+            // We construct a chain via Depth-First-Search using a stack. At each step we pop from the stack the
+            // current candidate, add it to the chain and use it to found new ones. Where to expand the chain is
+            // determined by the extremes of the current seam.
+            // A vertex is deemed valid to be expanded if these two properties hold:
+            //  - If the vertex has degree equal to two, meaning its incident edges are only the current one and the
+            //    new candidate.
+            //  - If all edges in its star belong to the same chart pair as the chain.
+            // Otherwise, the vertex is considered an endpoint.
             SeamHandle seam = std::make_shared<Seam>(seamMesh);
             startEdge->SetV();
             std::stack<SeamMesh::EdgePointer> s;
@@ -218,15 +245,24 @@ std::vector<SeamHandle> GenerateSeams(SeamMesh& seamMesh)
                     }
                 }
             }
+
+            // Ensure correctness for the current produced chart, checking that is closed.
+            // The chart must have two endpoint vertices. If it has one, then a bug occurred.
+            // If it has zero, it means the chart defines a closed loop, with the traversal ended after reaching the
+            // starting seam. We need then to arbitrarily pick one vertex, considering twice as the endpoints.
             ensure(seam->endpoints.size() != 1);
             if (seam->endpoints.size() == 0) {
                 seam->endpoints.push_back(tri::Index(seamMesh, startEdge->V(0)));
                 seam->endpoints.push_back(tri::Index(seamMesh, startEdge->V(0)));
             }
+
+            // Sort the edges in the produced chart to be in sequential order, moving from one endpoint to the other.
             SortSeam(seam);
             svec.push_back(seam);
         }
     }
+
+    // Final correctness test: check if all seam edges belong to a chain.
     int nmissed = 0;
     for (auto& e : seamMesh.edge) {
         if (!(e.IsV() || (e.fa == e.fb))) {
@@ -241,17 +277,44 @@ std::vector<SeamHandle> GenerateSeams(SeamMesh& seamMesh)
 
 std::vector<ClusteredSeamHandle> ClusterSeamsByChartId(const std::vector<SeamHandle>& seams)
 {
+
+    // Defining the two main data structures for the algorithm.
+    //
+    // - `cshvec`: the output vector of clustered seams. Each entry groups all seam chains
+    //   that share the same chart pair. Entries appear in the order their chart pair is
+    //   first encountered during the iteration.
+    //
+    // - `cshmap`: maps each chart pair to its corresponding entry in `cshvec`.
     std::vector<ClusteredSeamHandle> cshvec;
     std::map<std::pair<RegionID, RegionID>, ClusteredSeamHandle> cshmap;
+
+    // We construct both data structure by visiting the set of connected seams provided as parameter.
+    // At each step we check the pair of charts associated to the current connected group and update the mapping and
+    // vector accordingly.
     for (auto& sh : seams) {
         SeamMesh& sm = sh->sm;
         SeamEdge e = sm.edge[sh->edges.front()];
         std::pair<RegionID, RegionID> idpair(e.fa->id, e.fb->id);
+
+        // Self-cut seams (both sides refer to the same chart) are stored as distinct entries
+        // in `cshvec`. They are intentionally excluded from `cshmap` because two self-cuts
+        // on the same chart are geometrically independent and should not be merged.
         if (idpair.first == idpair.second) {
             ClusteredSeamHandle csh = std::make_shared<ClusteredSeam>(sm);
             csh->seams.push_back(sh);
             cshvec.push_back(csh);
-        } else {
+        }
+
+        // For seams separating two distinct charts, `cshmap` is used to find or create the
+        // ClusteredSeam entry for this chart pair. If no entry exists yet, a new one is
+        // created and pushed into `cshvec` so both data structures stay in sync.
+        // Either way, the current seam chain is appended to the entry's seam list.
+        else {
+
+            // Normalize the chart pair so the lower ID always comes first. This matches the
+            // canonical ordering enforced in `BuildSeamMesh`, and ensures that (A, B) and (B, A)
+            // — which represent the same seam boundary seen from opposite sides — map to the
+            // same `cshmap` entry.
             if (idpair.first > idpair.second)
                 std::swap(idpair.first, idpair.second);
             if (cshmap.find(idpair) == cshmap.end()) {

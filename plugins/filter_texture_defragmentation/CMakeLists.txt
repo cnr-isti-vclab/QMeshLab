@@ -8,6 +8,9 @@ endif()
 set(TEXTURE_DEFRAG_UPSTREAM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/upstream/TextureDefragmentation/src)
 
 add_library(QMeshLabPluginFilterTextureDefragmentation STATIC
+    ../filter_texture/texture_packer.cpp
+    ../filter_texture/texture_packer.hpp
+
     texturedefragfilterplugin.h
     texturedefragfilterplugin.cpp
     ${TEXTURE_DEFRAG_UPSTREAM_DIR}/arap.cpp

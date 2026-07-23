@@ -101,15 +101,38 @@ struct FaceGroup {
 
 /* Constructs a mesh from a FaceGroup, the created mesh has the FaceIndex
  * attribute defined (see mesh_attribute.h) */
+
+/*!
+ * Copies all faces and vertices from the face group `fg` into the mesh
+ * instance `m`.
+ *
+ * Be aware that any prior data in `m` will be wiped out
+ * before the process starts.
+ * @param fg: the face group instance.
+ * @param m: the mesh instance.
+ */
 void CopyToMesh(FaceGroup& fg, Mesh& m);
 
 /* Computes the mesh graph relying on the pre-computed FF adjacency attribute
  * to determine chart adjacency relations */
+
+/*!
+ *  Constructs a texture graph instance, determining the regions of the parametrization. For each region it computes its
+ *  faces and the adjacent islands touching it in 3D space.
+ * @param m: the mesh instance.
+ * @param textureObject: the set of raw 2D image textures.
+ * @return the computed graph instance.
+ */
 GraphHandle ComputeGraph(Mesh &m, TextureObjectHandle textureObject);
 
 /* This function ensures that the vertices referenced by each chart are unique
  * to the chart. Necessary because non-manifold vertices adjacent to
  * non-manifold edges cannot be split by the VCG's SplitNonManifoldVertices() */
+
+/*!
+ * Given a UV layout, provided as a graph, all vertices on a seam are duplicated, such that each chart has its own vertex.
+ * @param graph : the UV layout.
+ */
 void DisconnectCharts(GraphHandle graph);
 
 /*
@@ -152,5 +175,4 @@ struct MeshGraph {
     double BorderUV() const;
 
 };
-
 #endif // MESH_GRAPH_H
