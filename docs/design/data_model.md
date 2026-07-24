@@ -135,7 +135,7 @@ One instance per view in `m_renderSettings`. Holds:
 
 - scene overlay: `highlightCurrentMesh`, `currentMeshOutlineColor`/`Width`, `currentMeshDilateRadius`/`ErodeRadius`, `currentMeshDebugView`, `showTrackballGizmo`, `showViewCameras`, `showBoundingBoxCorners`, `showBoundingBoxDimensions`, `showDecoratorInfo`
 - scene background: `sceneBackgroundTopColor`, `sceneBackgroundBottomColor`
-- UV viewer: `uvShowReferenceFrame`, `uvShowFullTexture`, `uvTextureIndex`, `uvTextureNearestSampling`
+- UV viewer: `uvShowReferenceFrame`, `uvShowFullTexture`, `uvTextureChannel`, `uvTextureNearestSampling`; the active texture group is view-local per-mesh state selected from viewport thumbnails
 - quality histogram/range: `showQualityHistogram`, `qualityHistogramBins`, `qualityHistogramSource`, `qualityHistogramFixedRange`, `qualityHistogramMin`/`Max`, `qualityHistogramCenterOnZero`, `qualityHistogramPercentileCrop` (default `0.01`, cropping both tails for automatic ranges), `qualityHistogramColorMapId`, `qualityHistogramInvertColorMap`, `qualityIsolinesEnabled`, `qualityIsolineCount`
 - overlay panel state: `settingsPanelVisible`, `currentPass`
 
@@ -161,7 +161,7 @@ This split keeps user/render settings as stable input data, pass requests as an 
 | mesh/raster list, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster pan/zoom/opacity |
 | document visibility proxy (`MeshEntry::visible`) | overlay settings, histogram cache |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
-| undo tree, full snapshots, selection deltas, script-action records | UV-local GPU cache (`m_uvMeshGpu`), raster GPU image cache, active/suspended tool state |
+| undo tree, full snapshots, selection deltas, script-action records | UV-local GPU cache (`m_uvMeshGpu`), per-mesh active UV texture group, raster GPU image cache, active/suspended tool state |
 | shared mesh GPU cache | |
 
 `MainWindow` synchronizes document visibility from the active view so the layer panel reflects it; each view keeps its own local visibility vector independently.

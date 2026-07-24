@@ -40,7 +40,6 @@ public:
         bool hasOcclusionMap,
         bool hasRoughnessMap);
     void setFillPbrTextureNames(const QStringList &textureNames);
-    void setUvTextureNames(const QStringList &textureNames);
 
 signals:
     void globalSettingsChanged(const RenderSettings &settings);
@@ -159,7 +158,7 @@ private:
     QCheckBox *m_selectionShowFacesCheck = nullptr;
     QCheckBox *m_uvShowReferenceFrameCheck = nullptr;
     QCheckBox *m_uvShowFullTextureCheck = nullptr;
-    QComboBox *m_uvTextureCombo = nullptr;
+    QComboBox *m_uvTextureChannelCombo = nullptr;
     QCheckBox *m_uvTextureNearestCheck = nullptr;
     QCheckBox *m_fillTextureNearestCheck = nullptr;
     QPushButton *m_uvFillColorButton = nullptr;
@@ -196,5 +195,4 @@ private:
     bool m_fillHasRoughnessMap = false;
     bool m_fillHasTextures = false;
     QStringList m_fillTextureNames;
-    QStringList m_uvTextureNames;
 };

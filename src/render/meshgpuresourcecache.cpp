@@ -636,12 +636,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                                 continue;
                             int textureGroup = -1;
                             bool useTextureForFace = false;
-                            int textureIndex = 0;
-                            if (useTextureColor && meshHasWedgeTexcoord) {
-                                textureIndex = static_cast<int>(f.cWT(0).N());
-                            } else if (useTextureColor && meshHasVertexTexcoord) {
-                                textureIndex = static_cast<int>(f.cV(0)->cT().N());
-                            }
+                            const int textureIndex =
+                                useTextureColor ? vcgFaceTextureGroup(source.ioMask, f) : 0;
 
                             if (useTextureColor) {
                                 if (ensureGroupPrepared(textureIndex)) {

@@ -257,7 +257,7 @@ struct GlobalRenderSettings {
     bool showDecoratorInfo = false;
     bool uvShowReferenceFrame = true;
     bool uvShowFullTexture = false;
-    int uvTextureIndex = -1;
+    int uvTextureChannel = 0;
     bool uvTextureNearestSampling = false;
     bool fillTextureNearestSampling = false;
     QColor sceneBackgroundTopColor = QColor(0, 0, 0);
@@ -291,7 +291,7 @@ struct GlobalRenderSettings {
             && showDecoratorInfo == o.showDecoratorInfo
             && uvShowReferenceFrame == o.uvShowReferenceFrame
             && uvShowFullTexture == o.uvShowFullTexture
-            && uvTextureIndex == o.uvTextureIndex
+            && uvTextureChannel == o.uvTextureChannel
             && uvTextureNearestSampling == o.uvTextureNearestSampling
             && sceneBackgroundTopColor == o.sceneBackgroundTopColor
             && sceneBackgroundBottomColor == o.sceneBackgroundBottomColor

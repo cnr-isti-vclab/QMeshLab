@@ -183,13 +183,13 @@ Current status: UV mode is still a separate renderer in `renderwidget_uv.cpp`. I
 1. Sync per-mesh mode state and UV cache against current document.
 2. Ensure UV resources (`m_uvMeshGpu`); fit UV view if requested.
 3. Draw UV background (`uv_background.vert/.frag`).
-4. If `uvShowFullTexture`: draw the requested background texture over `[0,1]²` (best-effort from `uvTextureIndex`, with fallback to first available base-color texture; `uvTextureNearestSampling` switches bilinear → nearest).
-5. Draw current mesh in UV space: fill · wire · edges · boundary edges · texture seams · points · selection overlay.
+4. If `uvShowFullTexture`: draw the active group's selected PBR channel over `[0,1]²` (`uvTextureNearestSampling` switches bilinear → nearest).
+5. Draw only the active texture group's triangles and their UV decorations: fill · wire · edges · boundary edges · texture seams · points · selection overlay.
 6. If `uvShowReferenceFrame`: draw unit square outline + colored U/V axes from origin.
 
-UV full-texture background: selection is resolved from fill batches by `textureGroupIndex` (base-color textures); if not found, falls back to the first available base-color texture.
+When the mesh has multiple texture/material groups, a bottom-centered viewport strip shows one thumbnail per group. Clicking a thumbnail changes view-local, per-mesh state; it does not modify the document or undo history. Each UV buffer remains a single GPU allocation, with compact per-group byte ranges selecting what is drawn.
 
-UV fill: color source from `fillPlain.colorSource`. Quality UV buffers use the same fixed-range, center-on-zero, and percentile-crop normalization controls as Scene3D quality rendering. When `Texture`, `renderParametrization()` resolves `uvTextureIndex` against `Document::meshTextureAssociationCount(...)` / texture association helpers and matches by normalized path across all four PBR channels (base, normal, occlusion, roughness) to choose a texture pointer. All fill batches are still drawn (no geometry filtering by texture group), using that selected texture when available, otherwise each batch's base-color texture. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
+UV fill: color source comes from `fillPlain.colorSource`. Quality UV buffers use the same fixed-range, center-on-zero, and percentile-crop normalization controls as Scene3D quality rendering. In `Texture` mode, `uvTextureChannel` selects base color, normal, occlusion, or roughness for the active group. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
 
 ## `ParametrizationUV` Camera and Interaction
 

@@ -17,6 +17,7 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QLabel>
+#include <QListWidget>
 #include <QPainter>
 #include <QPixmap>
 #include <QKeyEvent>
@@ -432,7 +433,7 @@ QJsonObject renderSettingsToJsonObject(const RenderSettings &s, const RenderSett
         s.uvShowReferenceFrame,
         def.uvShowReferenceFrame);
     putBool(QStringLiteral("uv_show_full_texture"), s.uvShowFullTexture, def.uvShowFullTexture);
-    putInt(QStringLiteral("uv_texture_index"), s.uvTextureIndex, def.uvTextureIndex);
+    putInt(QStringLiteral("uv_texture_channel"), s.uvTextureChannel, def.uvTextureChannel);
     putBool(
         QStringLiteral("uv_texture_nearest_sampling"),
         s.uvTextureNearestSampling,
@@ -530,7 +531,7 @@ bool parseRenderSettingsObject(const QJsonObject &obj, RenderSettings &out, QStr
         || !parseBoolField("show_quality_histogram", out.showQualityHistogram)
         || !parseBoolField("uv_show_reference_frame", out.uvShowReferenceFrame)
         || !parseBoolField("uv_show_full_texture", out.uvShowFullTexture)
-        || !parseIntField("uv_texture_index", out.uvTextureIndex)
+        || !parseIntField("uv_texture_channel", out.uvTextureChannel)
         || !parseBoolField("uv_texture_nearest_sampling", out.uvTextureNearestSampling)
         || !parseColorField("scene_background_top_color", out.sceneBackgroundTopColor)
         || !parseColorField("scene_background_bottom_color", out.sceneBackgroundBottomColor)
@@ -1007,6 +1008,24 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     m_currentViewIndicator->hide();
 
     createOverlayButtons();
+    m_uvTextureGroupList = new QListWidget(this);
+    m_uvTextureGroupList->setViewMode(QListView::IconMode);
+    m_uvTextureGroupList->setFlow(QListView::LeftToRight);
+    m_uvTextureGroupList->setWrapping(false);
+    m_uvTextureGroupList->setMovement(QListView::Static);
+    m_uvTextureGroupList->setIconSize(QSize(64, 64));
+    m_uvTextureGroupList->setFixedHeight(88);
+    m_uvTextureGroupList->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+    m_uvTextureGroupList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_uvTextureGroupList->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_uvTextureGroupList->hide();
+    connect(m_uvTextureGroupList, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
+        const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+        if (!item || !m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+            return;
+        m_uvTextureGroupByMesh[m_doc->mesh(meshIndex).meshId] = item->data(Qt::UserRole).toInt();
+        update();
+    });
     ensureVisibilitySize();
     syncPerMeshRenderModesWithDocument();
     syncOverlaySettingsToCurrentMesh();
@@ -1734,6 +1753,7 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
     }
 
     m_viewMode = mode;
+    syncUvTextureGroupUi();
     if (m_overlayPanel)
         m_overlayPanel->setViewerModeUv(m_viewMode == ViewMode::ParametrizationUV);
     if (m_viewMode == ViewMode::Scene3D)
@@ -2148,6 +2168,7 @@ void RenderWidget::layoutOverlayButtons()
         m_decoratorInfoOverlayLabel->move(qMax(kOverlayMargin, x), kOverlayMargin);
         m_decoratorInfoOverlayLabel->raise();
     }
+    layoutUvTextureGroupUi();
 }
 
 void RenderWidget::setHelpOverlayVisible(bool visible)

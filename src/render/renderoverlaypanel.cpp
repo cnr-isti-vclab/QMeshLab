@@ -946,9 +946,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     uvFillForm->addRow(tr("Color source"), m_uvFillColorSourceCombo);
     m_uvFillColorButton = makeColorButton(uvFillPage);
     uvFillForm->addRow(tr("Fill color"), makeCenteredFieldContainer(m_uvFillColorButton, uvFillPage));
-    m_uvTextureCombo = new QComboBox(uvFillPage);
-    m_uvTextureCombo->addItem(tr("Auto"), -1);
-    uvFillForm->addRow(tr("Texture"), m_uvTextureCombo);
+    m_uvTextureChannelCombo = new QComboBox(uvFillPage);
+    m_uvTextureChannelCombo->addItems(
+        { tr("Base color"), tr("Normal"), tr("Occlusion"), tr("Roughness") });
+    uvFillForm->addRow(tr("Channel"), m_uvTextureChannelCombo);
     m_uvTextureNearestCheck = new QCheckBox(uvFillPage);
     m_uvTextureNearestCheck->setChecked(m_globalSettings.uvTextureNearestSampling);
     uvFillForm->addRow(
@@ -1389,14 +1390,13 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindGlobalCheckBox(m_uvShowFullTextureCheck, &GlobalRenderSettings::uvShowFullTexture);
     bindGlobalCheckBox(m_uvTextureNearestCheck, &GlobalRenderSettings::uvTextureNearestSampling);
     connect(
-        m_uvTextureCombo,
+        m_uvTextureChannelCombo,
         qOverload<int>(&QComboBox::currentIndexChanged),
         this,
-        [this](int idx) {
-            const int texIndex = m_uvTextureCombo->itemData(idx).toInt();
-            if (m_globalSettings.uvTextureIndex == texIndex)
+        [this](int channel) {
+            if (m_globalSettings.uvTextureChannel == channel)
                 return;
-            m_globalSettings.uvTextureIndex = texIndex;
+            m_globalSettings.uvTextureChannel = channel;
             emit globalSettingsChanged(m_globalSettings);
         });
     bindGlobalEnumCombo(m_qualityHistogramSourceCombo, &GlobalRenderSettings::qualityHistogramSource);
@@ -1733,21 +1733,14 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_uvShowFullTextureCheck);
         m_uvShowFullTextureCheck->setChecked(m_globalSettings.uvShowFullTexture);
     }
-    if (m_uvTextureCombo) {
-        QSignalBlocker blocker(m_uvTextureCombo);
-        const int count = m_uvTextureCombo->count();
-        int selectIdx = 0;
-        for (int i = 0; i < count; ++i) {
-            if (m_uvTextureCombo->itemData(i).toInt() == m_globalSettings.uvTextureIndex) {
-                selectIdx = i;
-                break;
-            }
-        }
-        m_uvTextureCombo->setCurrentIndex(selectIdx);
-    }
     if (m_uvTextureNearestCheck) {
         QSignalBlocker blocker(m_uvTextureNearestCheck);
         m_uvTextureNearestCheck->setChecked(m_globalSettings.uvTextureNearestSampling);
+    }
+    if (m_uvTextureChannelCombo) {
+        QSignalBlocker blocker(m_uvTextureChannelCombo);
+        m_uvTextureChannelCombo->setCurrentIndex(
+            std::clamp(m_globalSettings.uvTextureChannel, 0, 3));
     }
     if (m_fillTextureNearestCheck) {
         QSignalBlocker blocker(m_fillTextureNearestCheck);
@@ -2252,30 +2245,6 @@ void RenderOverlayPanel::setFillPbrTextureNames(const QStringList &textureNames)
         }
         m_fillPlainTextureCombo->setCurrentIndex(selectIdx);
     }
-}
-
-void RenderOverlayPanel::setUvTextureNames(const QStringList &textureNames)
-{
-    if (m_uvTextureNames == textureNames)
-        return;
-    m_uvTextureNames = textureNames;
-    if (!m_uvTextureCombo)
-        return;
-    QSignalBlocker blocker(m_uvTextureCombo);
-    const int prevIndex = m_globalSettings.uvTextureIndex;
-    m_uvTextureCombo->clear();
-    for (int i = 0; i < m_uvTextureNames.size(); ++i)
-        m_uvTextureCombo->addItem(m_uvTextureNames.at(i), i);
-    // Restore selection
-    int selectIdx = 0;
-    for (int i = 0; i < m_uvTextureCombo->count(); ++i) {
-        if (m_uvTextureCombo->itemData(i).toInt() == prevIndex) {
-            selectIdx = i;
-            break;
-        }
-    }
-    m_uvTextureCombo->setCurrentIndex(selectIdx);
-    m_uvTextureCombo->setEnabled(m_uvTextureNames.size() > 1);
 }
 
 void RenderOverlayPanel::rebuildFillPbrSourceCombos()

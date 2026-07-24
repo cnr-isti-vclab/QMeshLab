@@ -375,7 +375,7 @@ QString meshDataSummary(const Document::MeshEntry &entry)
         int foundCount = 0;
         for (const LayerTextureInfo &tex : textures) {
             const QString &path = tex.path;
-            if (QFileInfo::exists(path))
+            if (!tex.image.isNull() || QFileInfo::exists(path))
                 ++foundCount;
         }
         tokens << QObject::tr("TX %1/%2").arg(foundCount).arg(textures.size());
@@ -414,7 +414,8 @@ QString meshDataTooltip(const Document::MeshEntry &entry)
         lines << QObject::tr("Textures:");
         for (size_t i = 0; i < textures.size(); ++i) {
             const LayerTextureInfo &tex = textures[i];
-            const bool exists = !tex.path.isEmpty() && QFileInfo::exists(tex.path);
+            const bool exists = !tex.image.isNull()
+                || (!tex.path.isEmpty() && QFileInfo::exists(tex.path));
             const QString usage = tex.usage.isEmpty()
                 ? QString()
                 : QObject::tr(" (%1)").arg(tex.usage.join(QStringLiteral(", ")));
@@ -517,8 +518,12 @@ std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &en
     return out;
 }
 
-QString textureDisplaySize(const QString &path)
+QString textureDisplaySize(const LayerTextureInfo &texture)
 {
+    if (!texture.image.isNull())
+        return QStringLiteral("%1x%2").arg(texture.image.width()).arg(texture.image.height());
+
+    const QString &path = texture.path;
     if (path.isEmpty() || !QFileInfo::exists(path))
         return QObject::tr("missing");
 
@@ -738,7 +743,7 @@ QWidget *textureInfoWidget(
 {
     const QString path = textureInfo.path;
     const QString name = textureInfo.displayName;
-    const QString size = textureDisplaySize(path);
+    const QString size = textureDisplaySize(textureInfo);
     const QString usageText = textureInfo.usage.join(QStringLiteral(", "));
     const int lineH = std::max(8, fm.lineSpacing());
     const int thumbSide = std::max(14, lineH * 2);

@@ -7,6 +7,8 @@
 #include <QFontDatabase>
 #include <QFontMetrics>
 #include <QLabel>
+#include <QListWidget>
+#include <QPixmap>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -17,6 +19,20 @@ namespace {
 constexpr int kUvBackgroundUbufSize = 64;
 constexpr float kUvMinZoom = 0.05f;
 constexpr float kUvMaxZoom = 5000.0f;
+
+std::vector<int> usedTextureGroups(const Document::MeshEntry &entry)
+{
+    std::vector<int> groups;
+    for (const VCGFace &face : entry.mesh.face) {
+        if (!face.IsD())
+            groups.push_back(vcgFaceTextureGroup(entry.ioMask, face));
+    }
+    std::sort(groups.begin(), groups.end());
+    groups.erase(std::unique(groups.begin(), groups.end()), groups.end());
+    if (groups.empty())
+        groups.push_back(0);
+    return groups;
+}
 }
 
 void RenderWidget::syncUvCacheWithDocument()
@@ -37,6 +53,120 @@ void RenderWidget::syncUvCacheWithDocument()
         else
             ++it;
     }
+    for (auto it = m_uvTextureGroupByMesh.begin(); it != m_uvTextureGroupByMesh.end();) {
+        if (aliveMeshIds.find(it->first) == aliveMeshIds.end())
+            it = m_uvTextureGroupByMesh.erase(it);
+        else
+            ++it;
+    }
+}
+
+int RenderWidget::activeUvTextureGroup() const
+{
+    const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+    if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return 0;
+    const auto it = m_uvTextureGroupByMesh.find(m_doc->mesh(meshIndex).meshId);
+    return it == m_uvTextureGroupByMesh.end() ? 0 : std::max(0, it->second);
+}
+
+void RenderWidget::layoutUvTextureGroupUi()
+{
+    if (!m_uvTextureGroupList || !m_uvTextureGroupList->isVisible())
+        return;
+    constexpr int margin = 8;
+    const int contentWidth = m_uvTextureGroupList->count() * 76 + 8;
+    const int w = std::min(std::max(100, contentWidth), std::max(100, width() - 2 * margin));
+    m_uvTextureGroupList->setGeometry(
+        (width() - w) / 2, height() - m_uvTextureGroupList->height() - margin,
+        w, m_uvTextureGroupList->height());
+    m_uvTextureGroupList->raise();
+}
+
+void RenderWidget::syncUvTextureGroupUi()
+{
+    if (!m_uvTextureGroupList)
+        return;
+    const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+    if (m_viewMode != ViewMode::ParametrizationUV
+        || !m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
+        m_uvTextureGroupList->hide();
+        return;
+    }
+
+    const auto &entry = m_doc->mesh(meshIndex);
+    const bool rebuild =
+        m_uvTextureGroupUiMeshId != entry.meshId
+        || m_uvTextureGroupUiGeometryRevision != entry.geometryRevision
+        || m_uvTextureGroupUiMaterialRevision != entry.materialRevision;
+    const std::vector<int> groups = rebuild
+        ? usedTextureGroups(entry)
+        : std::vector<int>{};
+    const int groupCount = rebuild ? int(groups.size()) : m_uvTextureGroupList->count();
+    if (groupCount <= 1) {
+        m_uvTextureGroupList->hide();
+        if (rebuild)
+            m_uvTextureGroupList->clear();
+        m_uvTextureGroupByMesh[entry.meshId] =
+            rebuild ? groups.front() : activeUvTextureGroup();
+        m_uvTextureGroupUiMeshId = entry.meshId;
+        m_uvTextureGroupUiGeometryRevision = entry.geometryRevision;
+        m_uvTextureGroupUiMaterialRevision = entry.materialRevision;
+        return;
+    }
+
+    int &activeGroup = m_uvTextureGroupByMesh[entry.meshId];
+    if (rebuild && std::find(groups.begin(), groups.end(), activeGroup) == groups.end())
+        activeGroup = groups.front();
+    if (rebuild || m_uvTextureGroupList->count() != groupCount) {
+        m_uvTextureGroupList->clear();
+        for (const int group : groups) {
+            int textureIndex = group;
+            if (group < int(entry.materialSet.entries.size())) {
+                const QString wanted = normalizeTexturePath(
+                    entry.materialSet.entries[size_t(group)].baseColorTexture.filePath);
+                if (!wanted.isEmpty()) {
+                    for (int i = 0; i < Document::meshTextureAssociationCount(entry); ++i) {
+                        if (normalizeTexturePath(Document::meshTextureSourcePath(entry, i)) == wanted) {
+                            textureIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            QImage image;
+            if (const MeshIOTextureAsset *asset = Document::meshTextureAsset(entry, textureIndex))
+                image = asset->image;
+            if (image.isNull()) {
+                const QString path = Document::meshTextureSourcePath(entry, textureIndex);
+                if (!path.isEmpty())
+                    image.load(path);
+            }
+            QPixmap thumbnail(64, 64);
+            thumbnail.fill(QColor(80, 80, 82));
+            if (!image.isNull())
+                thumbnail = QPixmap::fromImage(image).scaled(
+                    64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+            auto *item = new QListWidgetItem(
+                QIcon(thumbnail), tr("%1").arg(group), m_uvTextureGroupList);
+            item->setData(Qt::UserRole, group);
+            const QString name = Document::meshTextureDisplayName(entry, textureIndex);
+            item->setToolTip(
+                image.isNull()
+                    ? tr("Texture group %1 — %2").arg(group).arg(name)
+                    : tr("Texture group %1 — %2 (%3×%4)")
+                          .arg(group).arg(name).arg(image.width()).arg(image.height()));
+            if (group == activeGroup)
+                item->setSelected(true);
+        }
+        m_uvTextureGroupUiMeshId = entry.meshId;
+        m_uvTextureGroupUiGeometryRevision = entry.geometryRevision;
+        m_uvTextureGroupUiMaterialRevision = entry.materialRevision;
+    }
+    m_uvTextureGroupList->show();
+    layoutUvTextureGroupUi();
 }
 
 bool RenderWidget::meshHasParametrization(int meshIndex) const
@@ -114,6 +244,11 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     const bool hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
     const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
     const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
+    const std::vector<int> textureGroups = usedTextureGroups(entry);
+    const int groupCount = textureGroups.back() + 1;
+    auto faceGroup = [mask, groupCount](const VCGFace &f) {
+        return std::clamp(vcgFaceTextureGroup(mask, f), 0, groupCount - 1);
+    };
 
     auto uvForCorner = [&](const VCGMesh::FaceType &f, int corner, QVector2D &outUv) -> bool {
         float u = 0.0f;
@@ -124,18 +259,35 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         return true;
     };
 
-    std::vector<float> wireData;
-    wireData.reserve(size_t(mesh.FN()) * 18);
-    std::vector<float> boundaryEdgeData;
-    boundaryEdgeData.reserve(size_t(mesh.FN()) * 6);
-    std::vector<float> textureSeamData;
-    textureSeamData.reserve(size_t(mesh.FN()) * 6);
-    std::array<std::vector<float>, 5> fillData;
+    std::vector<std::vector<float>> wireData;
+    std::vector<std::vector<float>> boundaryEdgeData;
+    std::vector<std::vector<float>> textureSeamData;
+    wireData.resize(size_t(groupCount));
+    boundaryEdgeData.resize(size_t(groupCount));
+    textureSeamData.resize(size_t(groupCount));
+    std::array<std::vector<std::vector<float>>, 5> fillData;
     for (auto &v : fillData)
-        v.reserve(size_t(mesh.FN()) * 3 * kFillVertexStrideFloats);
-    std::array<std::vector<float>, 3> pointsData;
+        v.resize(size_t(groupCount));
+    std::array<std::vector<std::vector<float>>, 3> pointsData;
     for (auto &v : pointsData)
-        v.reserve(size_t(std::max(mesh.VN(), mesh.FN() * 3)) * kPointsVertexStrideFloats);
+        v.resize(size_t(groupCount));
+
+    std::vector<size_t> groupFaceCounts(size_t(groupCount), 0);
+    for (int fi = 0; fi < mesh.FN(); ++fi) {
+        const auto &f = mesh.face[fi];
+        if (!f.IsD())
+            ++groupFaceCounts[size_t(faceGroup(f))];
+    }
+    for (size_t group = 0; group < groupFaceCounts.size(); ++group) {
+        const size_t faces = groupFaceCounts[group];
+        wireData[group].reserve(faces * 18);
+        boundaryEdgeData[group].reserve(faces * 6);
+        textureSeamData[group].reserve(faces * 6);
+        for (auto &variant : fillData)
+            variant[group].reserve(faces * 3 * kFillVertexStrideFloats);
+        for (auto &variant : pointsData)
+            variant[group].reserve(faces * 3 * kPointsVertexStrideFloats);
+    }
 
     QVector2D minUv(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
     QVector2D maxUv(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
@@ -253,6 +405,7 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         }
         if (!validFaceUv)
             continue;
+        const size_t group = size_t(faceGroup(f));
 
         const auto fc = f.cC();
         const QVector3D faceColor(
@@ -267,12 +420,12 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         for (int c = 0; c < 3; ++c) {
             includeUvBounds(uv[c]);
             const int n = (c + 1) % 3;
-            wireData.push_back(uv[c].x());
-            wireData.push_back(uv[c].y());
-            wireData.push_back(0.0f);
-            wireData.push_back(uv[n].x());
-            wireData.push_back(uv[n].y());
-            wireData.push_back(0.0f);
+            wireData[group].push_back(uv[c].x());
+            wireData[group].push_back(uv[c].y());
+            wireData[group].push_back(0.0f);
+            wireData[group].push_back(uv[n].x());
+            wireData[group].push_back(uv[n].y());
+            wireData[group].push_back(0.0f);
 
             const auto *vertex = f.cV(c);
             QVector3D vertexColor(1.0f, 1.0f, 1.0f);
@@ -294,27 +447,27 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
             }
 
             appendFillVertex(
-                fillData[0], uv[c], QVector3D(1.0f, 1.0f, 1.0f), 0.0f, QVector3D(0.0f, 0.0f, 0.0f));
+                fillData[0][group], uv[c], QVector3D(1.0f, 1.0f, 1.0f), 0.0f, QVector3D(0.0f, 0.0f, 0.0f));
             appendFillVertex(
-                fillData[1], uv[c], vertexColor, useVertexColorFlag, QVector3D(0.0f, 0.0f, 0.0f));
+                fillData[1][group], uv[c], vertexColor, useVertexColorFlag, QVector3D(0.0f, 0.0f, 0.0f));
             appendFillVertex(
-                fillData[2], uv[c], faceColor, useFaceColorFlag, QVector3D(0.0f, 0.0f, 0.0f));
+                fillData[2][group], uv[c], faceColor, useFaceColorFlag, QVector3D(0.0f, 0.0f, 0.0f));
             appendFillVertex(
-                fillData[3],
+                fillData[3][group],
                 uv[c],
                 vertexQualityColor,
                 useVertexQualityFlag,
                 QVector3D(0.0f, 0.0f, 0.0f));
             appendFillVertex(
-                fillData[4],
+                fillData[4][group],
                 uv[c],
                 faceQualityColor,
                 useFaceQualityFlag,
                 QVector3D(0.0f, 0.0f, 0.0f));
 
-            appendPointVertex(pointsData[0], uv[c], QVector3D(1.0f, 1.0f, 1.0f), 0.0f);
-            appendPointVertex(pointsData[1], uv[c], vertexColor, useVertexColorFlag);
-            appendPointVertex(pointsData[2], uv[c], vertexQualityColor, useVertexQualityFlag);
+            appendPointVertex(pointsData[0][group], uv[c], QVector3D(1.0f, 1.0f, 1.0f), 0.0f);
+            appendPointVertex(pointsData[1][group], uv[c], vertexColor, useVertexColorFlag);
+            appendPointVertex(pointsData[2][group], uv[c], vertexQualityColor, useVertexQualityFlag);
         }
     }
 
@@ -324,6 +477,7 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
     struct UvEdgeSample {
         QVector2D uvA;
         QVector2D uvB;
+        int group = 0;
     };
     std::unordered_map<std::uint64_t, std::vector<UvEdgeSample>> edgeSamples;
     edgeSamples.reserve(size_t(mesh.FN()) * 3);
@@ -355,7 +509,7 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
 
             const std::uint64_t key =
                 (std::uint64_t(std::uint32_t(a)) << 32) | std::uint64_t(std::uint32_t(b));
-            edgeSamples[key].push_back(UvEdgeSample { uv0, uv1 });
+            edgeSamples[key].push_back(UvEdgeSample { uv0, uv1, faceGroup(f) });
         }
     }
 
@@ -367,12 +521,8 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
 
         if (samples.size() == 1) {
             const UvEdgeSample &s = samples.front();
-            boundaryEdgeData.push_back(s.uvA.x());
-            boundaryEdgeData.push_back(s.uvA.y());
-            boundaryEdgeData.push_back(0.0f);
-            boundaryEdgeData.push_back(s.uvB.x());
-            boundaryEdgeData.push_back(s.uvB.y());
-            boundaryEdgeData.push_back(0.0f);
+            auto &dst = boundaryEdgeData[size_t(s.group)];
+            dst.insert(dst.end(), { s.uvA.x(), s.uvA.y(), 0.0f, s.uvB.x(), s.uvB.y(), 0.0f });
             continue;
         }
 
@@ -389,19 +539,19 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         if (!isSeam)
             continue;
 
-        textureSeamData.push_back(ref.uvA.x());
-        textureSeamData.push_back(ref.uvA.y());
-        textureSeamData.push_back(0.0f);
-        textureSeamData.push_back(ref.uvB.x());
-        textureSeamData.push_back(ref.uvB.y());
-        textureSeamData.push_back(0.0f);
+        for (const UvEdgeSample &s : samples) {
+            auto &dst = textureSeamData[size_t(s.group)];
+            dst.insert(dst.end(), { s.uvA.x(), s.uvA.y(), 0.0f, s.uvB.x(), s.uvB.y(), 0.0f });
+        }
     }
 
     // Selection overlay geometry in UV space: triangles for selected faces,
     // points for selected vertices (position-only, drawn with the scene's
     // selection pipelines).
-    std::vector<float> selectedFaceData;
-    std::vector<float> selectedVertexData;
+    std::vector<std::vector<float>> selectedFaceData;
+    std::vector<std::vector<float>> selectedVertexData;
+    selectedFaceData.resize(size_t(groupCount));
+    selectedVertexData.resize(size_t(groupCount));
     for (int fi = 0; fi < mesh.FN(); ++fi) {
         const auto &f = mesh.face[fi];
         if (f.IsD())
@@ -409,74 +559,107 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
         QVector2D cuv[3];
         if (!uvForCorner(f, 0, cuv[0]) || !uvForCorner(f, 1, cuv[1]) || !uvForCorner(f, 2, cuv[2]))
             continue;
+        const size_t group = size_t(faceGroup(f));
         if (f.IsS()) {
             for (const QVector2D &uv : cuv) {
-                selectedFaceData.push_back(uv.x());
-                selectedFaceData.push_back(uv.y());
-                selectedFaceData.push_back(0.0f);
+                selectedFaceData[group].insert(
+                    selectedFaceData[group].end(), { uv.x(), uv.y(), 0.0f });
             }
         }
         for (int c = 0; c < 3; ++c) {
             const auto *v = f.cV(c);
             if (v && v->IsS()) {
-                selectedVertexData.push_back(cuv[c].x());
-                selectedVertexData.push_back(cuv[c].y());
-                selectedVertexData.push_back(0.0f);
+                selectedVertexData[group].insert(
+                    selectedVertexData[group].end(), { cuv[c].x(), cuv[c].y(), 0.0f });
             }
         }
     }
 
     QRhiResourceUpdateBatch *updates = m_rhi->nextResourceUpdateBatch();
     bool anyUpload = false;
-    auto uploadFloats = [&](const std::vector<float> &src,
+    auto uploadGroups = [&](const std::vector<std::vector<float>> &groups,
                             std::unique_ptr<QRhiBuffer> &dst,
                             int &dstCount,
+                            std::vector<UvMeshGpu::DrawRange> &ranges,
                             int strideFloats) {
+        size_t total = 0;
+        for (const auto &group : groups)
+            total += group.size();
+        ranges.assign(groups.size(), {});
+        size_t offsetFloats = 0;
+        for (size_t group = 0; group < groups.size(); ++group) {
+            ranges[group].byteOffset = quint32(offsetFloats * sizeof(float));
+            ranges[group].vertexCount = int(groups[group].size() / size_t(strideFloats));
+            offsetFloats += groups[group].size();
+        }
         dst.reset();
         dstCount = 0;
-        if (src.empty())
+        if (total == 0)
             return;
         dst.reset(
             m_rhi->newBuffer(
                 QRhiBuffer::Immutable,
                 QRhiBuffer::VertexBuffer,
-                quint32(src.size() * sizeof(float))));
+                quint32(total * sizeof(float))));
         if (!dst || !dst->create()) {
             dst.reset();
             return;
         }
-        updates->uploadStaticBuffer(dst.get(), src.data());
-        dstCount = int(src.size() / strideFloats);
+        for (size_t group = 0; group < groups.size(); ++group) {
+            const auto &src = groups[group];
+            if (!src.empty()) {
+                updates->uploadStaticBuffer(
+                    dst.get(),
+                    ranges[group].byteOffset,
+                    quint32(src.size() * sizeof(float)),
+                    src.data());
+            }
+        }
+        dstCount = int(total / size_t(strideFloats));
         anyUpload = true;
     };
 
-    uploadFloats(wireData, gpu.wireVbuf, gpu.wireVertexCount, 3);
-    uploadFloats(
+    uploadGroups(wireData, gpu.wireVbuf, gpu.wireVertexCount, gpu.wireGroups, 3);
+    uploadGroups(
         boundaryEdgeData,
         gpu.boundaryEdgesVbuf,
         gpu.boundaryEdgesVertexCount,
+        gpu.boundaryEdgeGroups,
         3);
-    uploadFloats(
+    uploadGroups(
         textureSeamData,
         gpu.textureSeamsVbuf,
         gpu.textureSeamsVertexCount,
+        gpu.textureSeamGroups,
         3);
     for (int i = 0; i < 5; ++i) {
-        uploadFloats(
+        uploadGroups(
             fillData[size_t(i)],
             gpu.fillVariants[size_t(i)].vbuf,
             gpu.fillVariants[size_t(i)].vertexCount,
+            gpu.fillVariants[size_t(i)].groups,
             kFillVertexStrideFloats);
     }
     for (int i = 0; i < 3; ++i) {
-        uploadFloats(
+        uploadGroups(
             pointsData[size_t(i)],
             gpu.pointsVariants[size_t(i)].vbuf,
             gpu.pointsVariants[size_t(i)].vertexCount,
+            gpu.pointsVariants[size_t(i)].groups,
             kPointsVertexStrideFloats);
     }
-    uploadFloats(selectedFaceData, gpu.selectedFacesVbuf, gpu.selectedFacesVertexCount, 3);
-    uploadFloats(selectedVertexData, gpu.selectedVerticesVbuf, gpu.selectedVerticesVertexCount, 3);
+    uploadGroups(
+        selectedFaceData,
+        gpu.selectedFacesVbuf,
+        gpu.selectedFacesVertexCount,
+        gpu.selectedFaceGroups,
+        3);
+    uploadGroups(
+        selectedVertexData,
+        gpu.selectedVerticesVbuf,
+        gpu.selectedVerticesVertexCount,
+        gpu.selectedVertexGroups,
+        3);
 
     if (anyUpload)
         cb->resourceUpdate(updates);
@@ -492,10 +675,7 @@ bool RenderWidget::ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb)
 void RenderWidget::fitUvViewToCurrentMesh(const QSize &pixelSize)
 {
     const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-    const bool fitWholeTexture =
-        (meshIndex >= 0 && meshIndex < m_doc->meshCount())
-        ? m_renderSettings.uvShowFullTexture
-        : m_renderSettings.uvShowFullTexture;
+    const bool fitWholeTexture = m_renderSettings.uvShowFullTexture;
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
         m_uvPan = QVector2D(0.5f, 0.5f);
         m_uvZoom = 1.0f;
@@ -632,6 +812,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
 
     syncPerMeshRenderModesWithDocument();
     syncUvCacheWithDocument();
+    syncUvTextureGroupUi();
     m_frameTimer.start();
 
     if (m_bboxMinCornerOverlayLabel)
@@ -835,6 +1016,15 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     normalMat(2, 2) = 1.0f;
 
     Document::FillPassGpuView textureFillView {};
+    const int activeGroup = activeUvTextureGroup();
+    auto displayedTexture = [this](const auto &batch) -> QRhiTexture * {
+        switch (std::clamp(m_renderSettings.uvTextureChannel, 0, 3)) {
+        case 1: return batch.normalTexture;
+        case 2: return batch.occlusionTexture;
+        case 3: return batch.roughnessTexture;
+        default: return batch.baseColorTexture;
+        }
+    };
     const bool useTextureDrivenFill =
         hasMeshTextures
         && (meshSettings.fillPlain.colorSource == FillColorSource::Texture);
@@ -906,25 +1096,12 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         && m_uvTextureQuadVbuf
         && m_uvTextureQuadVertexCount > 0
         && textureFillView.valid) {
-        // Look up the background texture by texture group index.
         QRhiTexture *fullTexture = nullptr;
-        if (m_renderSettings.uvTextureIndex >= 0) {
-            for (int bi = 0; bi < textureFillView.batchCount; ++bi) {
-                const auto &b = textureFillView.batches[bi];
-                if (b.baseColorTexture
-                    && b.textureGroupIndex == m_renderSettings.uvTextureIndex) {
-                    fullTexture = b.baseColorTexture;
-                    break;
-                }
-            }
-        }
-        if (!fullTexture) {
-            for (int bi = 0; bi < textureFillView.batchCount; ++bi) {
-                QRhiTexture *candidate = textureFillView.batches[bi].baseColorTexture;
-                if (candidate) {
-                    fullTexture = candidate;
-                    break;
-                }
+        for (int bi = 0; bi < textureFillView.batchCount; ++bi) {
+            const auto &b = textureFillView.batches[bi];
+            if (b.textureGroupIndex == activeGroup && displayedTexture(b)) {
+                fullTexture = displayedTexture(b);
+                break;
             }
         }
         if (fullTexture) {
@@ -1058,6 +1235,11 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         if (cacheIt != m_uvMeshGpu.end() && cacheIt->second.valid) {
             UvMeshGpu &uvGpu = cacheIt->second;
             const MeshRenderMode meshMode = renderModeForMesh(meshIndex);
+            auto groupRange = [activeGroup](const std::vector<UvMeshGpu::DrawRange> &ranges) {
+                return activeGroup >= 0 && activeGroup < int(ranges.size())
+                    ? ranges[size_t(activeGroup)]
+                    : UvMeshGpu::DrawRange{};
+            };
 
             if (meshSettings.showFill) {
                 if (useTextureDrivenFill
@@ -1066,59 +1248,19 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     const Document::FillPassGpuView fillView = textureFillView;
                     if (fillView.valid) {
                         cb->setGraphicsPipeline(m_uvTextureFillPipeline.get());
-                        // Find the texture requested by uvTextureIndex.
-                        // We match against textureFilePaths[uvTextureIndex] which may be
-                        // any texture (base color, PBR map, etc.) — the face group index
-                        // alone is insufficient because textureFilePaths includes all maps.
-                        QRhiTexture *selectedTexture = nullptr;
-                        if (m_renderSettings.uvTextureIndex >= 0
-                            && meshIndex >= 0 && meshIndex < m_doc->meshCount()) {
-                            const auto &meshEntry = m_doc->mesh(meshIndex);
-                            const int textureCount = Document::meshTextureAssociationCount(meshEntry);
-                            if (m_renderSettings.uvTextureIndex < textureCount) {
-                                const QString wantedPath = normalizeTexturePath(
-                                    Document::meshTextureSourcePath(meshEntry, m_renderSettings.uvTextureIndex));
-                                for (int bi2 = 0; bi2 < fillView.batchCount && !selectedTexture; ++bi2) {
-                                    const auto &b = fillView.batches[bi2];
-                                    if (wantedPath.isEmpty()) {
-                                        if (b.textureGroupIndex == m_renderSettings.uvTextureIndex
-                                            && b.baseColorTexture) {
-                                            selectedTexture = b.baseColorTexture;
-                                        }
-                                        continue;
-                                    }
-                                    if (b.baseColorTexture
-                                        && normalizeTexturePath(b.baseColorTexturePath) == wantedPath) {
-                                        selectedTexture = b.baseColorTexture;
-                                    } else if (b.normalTexture
-                                               && normalizeTexturePath(b.normalTexturePath) == wantedPath) {
-                                        selectedTexture = b.normalTexture;
-                                    } else if (b.occlusionTexture
-                                               && normalizeTexturePath(b.occlusionTexturePath) == wantedPath) {
-                                        selectedTexture = b.occlusionTexture;
-                                    } else if (b.roughnessTexture
-                                               && normalizeTexturePath(b.roughnessTexturePath) == wantedPath) {
-                                        selectedTexture = b.roughnessTexture;
-                                    }
-                                }
-                            }
-                        }
-                        // Draw ALL batches — no geometry filtering by texture group.
-                        // The UV layout always shows all faces; only the texture image changes.
                         updateStyleUbuf(meshSettings);
                         for (int bi = 0; bi < fillView.batchCount; ++bi) {
                             const auto &batch = fillView.batches[bi];
-                            if (!hasDrawableBatchGeometry(batch))
+                            if (batch.textureGroupIndex != activeGroup
+                                || !hasDrawableBatchGeometry(batch))
                                 continue;
-                            // Use selected texture if found, otherwise use batch's own base color.
-                            QRhiTexture *texToUse = selectedTexture ? selectedTexture : batch.baseColorTexture;
                             setShaderResourcesWithOffset(
                                 cb,
                                 shaderResourcesForFillTextures(
-                                    texToUse,
-                                    batch.normalTexture,
-                                    batch.occlusionTexture,
-                                    batch.roughnessTexture,
+                                    displayedTexture(batch),
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
                                     m_renderSettings.uvTextureNearestSampling),
                                 0);
                             drawBatchGeometry(cb, batch);
@@ -1140,7 +1282,8 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     else if (meshSettings.fillPlain.colorSource == FillColorSource::PerFaceQuality)
                         fillVariantIdx = 4;
                     const auto &fillVariant = uvGpu.fillVariants[size_t(fillVariantIdx)];
-                    if (fillPipeline && fillVariant.vbuf && fillVariant.vertexCount > 0) {
+                    const UvMeshGpu::DrawRange range = groupRange(fillVariant.groups);
+                    if (fillPipeline && fillVariant.vbuf && range.vertexCount > 0) {
                         updateStyleUbuf(fillSettings);
                         cb->setGraphicsPipeline(fillPipeline);
                         setShaderResourcesWithOffset(
@@ -1152,31 +1295,43 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                                 nullptr,
                                 m_renderSettings.uvTextureNearestSampling),
                             0);
-                        const QRhiCommandBuffer::VertexInput binding(fillVariant.vbuf.get(), 0);
+                        const QRhiCommandBuffer::VertexInput binding(
+                            fillVariant.vbuf.get(), range.byteOffset);
                         cb->setVertexInput(0, 1, &binding);
-                        cb->draw(fillVariant.vertexCount);
+                        cb->draw(range.vertexCount);
                     }
                 }
             }
 
+            const UvMeshGpu::DrawRange wireRange = groupRange(uvGpu.wireGroups);
             if (meshSettings.showWire)
                 drawUvLineSetStable(
-                    meshSettings.wireColor, meshSettings.wireSize, uvGpu.wireVbuf.get(), uvGpu.wireVertexCount);
+                    meshSettings.wireColor, meshSettings.wireSize, uvGpu.wireVbuf.get(),
+                    wireRange.vertexCount, wireRange.byteOffset);
             if (meshSettings.showEdges)
                 drawUvLineSetStable(
-                    meshSettings.edgeColor, meshSettings.edgeSize, uvGpu.wireVbuf.get(), uvGpu.wireVertexCount);
+                    meshSettings.edgeColor, meshSettings.edgeSize, uvGpu.wireVbuf.get(),
+                    wireRange.vertexCount, wireRange.byteOffset);
             if (meshMode.decoratorBoundaryEdges)
+            {
+                const UvMeshGpu::DrawRange range = groupRange(uvGpu.boundaryEdgeGroups);
                 drawUvLineSetStable(
                     meshMode.decoratorBoundaryEdgeColor,
                     qMax(0.5f, meshSettings.decoratorBoundaryWidth),
                     uvGpu.boundaryEdgesVbuf.get(),
-                    uvGpu.boundaryEdgesVertexCount);
+                    range.vertexCount,
+                    range.byteOffset);
+            }
             if (meshMode.decoratorTextureSeams)
+            {
+                const UvMeshGpu::DrawRange range = groupRange(uvGpu.textureSeamGroups);
                 drawUvLineSetStable(
                     meshMode.decoratorTextureSeamColor,
                     qMax(0.5f, meshSettings.decoratorBoundaryWidth),
                     uvGpu.textureSeamsVbuf.get(),
-                    uvGpu.textureSeamsVertexCount);
+                    range.vertexCount,
+                    range.byteOffset);
+            }
 
             if (meshSettings.showPoints && m_pointsPipeline) {
                 int pointVariantIdx = 0;
@@ -1185,23 +1340,31 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 else if (meshSettings.pointColorSource == PointColorSource::PerVertexQuality)
                     pointVariantIdx = 2;
                 const auto &pointVariant = uvGpu.pointsVariants[size_t(pointVariantIdx)];
-                if (pointVariant.vbuf && pointVariant.vertexCount > 0) {
+                const UvMeshGpu::DrawRange range = groupRange(pointVariant.groups);
+                if (pointVariant.vbuf && range.vertexCount > 0) {
                     PerMeshRenderSettings pointSettings = meshSettings;
                     pointSettings.pointLighting = false;
                     updateStyleUbuf(pointSettings);
                     cb->setGraphicsPipeline(m_pointsPipeline.get());
                     setShaderResourcesWithOffset(cb, m_srb.get(), 0);
-                    const QRhiCommandBuffer::VertexInput binding(pointVariant.vbuf.get(), 0);
+                    const QRhiCommandBuffer::VertexInput binding(
+                        pointVariant.vbuf.get(), range.byteOffset);
                     cb->setVertexInput(0, 1, &binding);
-                    cb->draw(pointVariant.vertexCount);
+                    cb->draw(range.vertexCount);
                 }
             }
 
             // Selection overlay, reusing the 3D scene's selection pipelines so the
             // look matches (translucent red faces + red points), projected with the
             // UV ortho MVP.
-            const bool hasSelFaces = uvGpu.selectedFacesVbuf && uvGpu.selectedFacesVertexCount > 0;
-            const bool hasSelVerts = uvGpu.selectedVerticesVbuf && uvGpu.selectedVerticesVertexCount > 0;
+            const UvMeshGpu::DrawRange selectedFaceRange =
+                groupRange(uvGpu.selectedFaceGroups);
+            const UvMeshGpu::DrawRange selectedVertexRange =
+                groupRange(uvGpu.selectedVertexGroups);
+            const bool hasSelFaces =
+                uvGpu.selectedFacesVbuf && selectedFaceRange.vertexCount > 0;
+            const bool hasSelVerts =
+                uvGpu.selectedVerticesVbuf && selectedVertexRange.vertexCount > 0;
             if (m_selectionUbuf && m_selectionSrb && (hasSelFaces || hasSelVerts)) {
                 const quint32 selOffset =
                     allocateDynamicUbufOffset(m_selectionUbufAllocator, "selection");
@@ -1217,16 +1380,18 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 if (hasSelFaces && m_selectionFacesPipeline) {
                     cb->setGraphicsPipeline(m_selectionFacesPipeline.get());
                     setShaderResourcesWithOffset(cb, m_selectionSrb.get(), selOffset);
-                    const QRhiCommandBuffer::VertexInput fv(uvGpu.selectedFacesVbuf.get(), 0);
+                    const QRhiCommandBuffer::VertexInput fv(
+                        uvGpu.selectedFacesVbuf.get(), selectedFaceRange.byteOffset);
                     cb->setVertexInput(0, 1, &fv);
-                    cb->draw(uvGpu.selectedFacesVertexCount);
+                    cb->draw(selectedFaceRange.vertexCount);
                 }
                 if (hasSelVerts && m_selectionVerticesPipeline) {
                     cb->setGraphicsPipeline(m_selectionVerticesPipeline.get());
                     setShaderResourcesWithOffset(cb, m_selectionSrb.get(), selOffset);
-                    const QRhiCommandBuffer::VertexInput vv(uvGpu.selectedVerticesVbuf.get(), 0);
+                    const QRhiCommandBuffer::VertexInput vv(
+                        uvGpu.selectedVerticesVbuf.get(), selectedVertexRange.byteOffset);
                     cb->setVertexInput(0, 1, &vv);
-                    cb->draw(uvGpu.selectedVerticesVertexCount);
+                    cb->draw(selectedVertexRange.vertexCount);
                 }
             }
         }

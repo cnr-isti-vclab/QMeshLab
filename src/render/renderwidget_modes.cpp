@@ -3,7 +3,6 @@
 #include "renderoverlaypanel.h"
 #include "renderwidget_internal.h"
 #include <wrap/io_trimesh/io_mask.h>
-#include <QFileInfo>
 #include <QHash>
 #include <algorithm>
 #include <cmath>
@@ -412,7 +411,6 @@ void RenderWidget::refreshColorSourceAvailability()
         if (hasCurrentMesh)
             textureLabels = pbrTextureSelectorEntries(m_doc->mesh(meshIndex));
         m_overlayPanel->setFillPbrTextureNames(textureLabels);
-        m_overlayPanel->setUvTextureNames(textureLabels);
     }
 
     // Correct per-mesh settings for the current mesh.
@@ -473,19 +471,6 @@ void RenderWidget::refreshColorSourceAvailability()
         m_overlayPanel->setMeshSettings(meshCorrected);
     }
 
-    // Correct global settings (uvTextureIndex only).
-    GlobalRenderSettings globalCorrected = m_renderSettings;
-    if (!hasTextures) {
-        globalCorrected.uvTextureIndex = -1;
-    } else {
-        if (globalCorrected.uvTextureIndex < 0 || globalCorrected.uvTextureIndex >= textureCount)
-            globalCorrected.uvTextureIndex = 0;
-    }
-    if (globalCorrected != m_renderSettings) {
-        m_renderSettings = globalCorrected;
-        if (m_overlayPanel)
-            m_overlayPanel->setGlobalSettings(m_renderSettings);
-    }
 }
 
 int RenderWidget::fillGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const

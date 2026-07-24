@@ -26,6 +26,7 @@ class Document;
 class InteractiveTool;
 class RenderOverlayPanel;
 class QLabel;
+class QListWidget;
 class QTimer;
 
 struct PeerViewCamera {
@@ -463,6 +464,9 @@ struct SceneRasterProjectedDrawItem {
         const QSize &pixelSize) const;
     void resetRasterView();
     void syncUvCacheWithDocument();
+    void syncUvTextureGroupUi();
+    void layoutUvTextureGroupUi();
+    int activeUvTextureGroup() const;
     bool meshHasParametrization(int meshIndex) const;
     bool ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb);
     void fitUvViewToCurrentMesh(const QSize &pixelSize);
@@ -742,13 +746,19 @@ struct SceneRasterProjectedDrawItem {
     ViewTrackball m_trackball;
     ViewMode m_viewMode = ViewMode::Scene3D;
     struct UvMeshGpu {
+        struct DrawRange {
+            quint32 byteOffset = 0;
+            int vertexCount = 0;
+        };
         struct UvFillVariantGpu {
             std::unique_ptr<QRhiBuffer> vbuf;
             int vertexCount = 0;
+            std::vector<DrawRange> groups;
         };
         struct UvPointsVariantGpu {
             std::unique_ptr<QRhiBuffer> vbuf;
             int vertexCount = 0;
+            std::vector<DrawRange> groups;
         };
         bool valid = false;
         std::uint64_t geometryRevision = 0;
@@ -763,17 +773,22 @@ struct SceneRasterProjectedDrawItem {
         float qualityPercentileCrop = 0.0f;
         std::unique_ptr<QRhiBuffer> wireVbuf;
         int wireVertexCount = 0;
+        std::vector<DrawRange> wireGroups;
         std::unique_ptr<QRhiBuffer> boundaryEdgesVbuf;
         int boundaryEdgesVertexCount = 0;
+        std::vector<DrawRange> boundaryEdgeGroups;
         std::unique_ptr<QRhiBuffer> textureSeamsVbuf;
         int textureSeamsVertexCount = 0;
+        std::vector<DrawRange> textureSeamGroups;
         std::array<UvFillVariantGpu, 5> fillVariants;
         std::array<UvPointsVariantGpu, 3> pointsVariants;
         // Selection overlay in UV space (position-only triangles / points).
         std::unique_ptr<QRhiBuffer> selectedFacesVbuf;
         int selectedFacesVertexCount = 0;
+        std::vector<DrawRange> selectedFaceGroups;
         std::unique_ptr<QRhiBuffer> selectedVerticesVbuf;
         int selectedVerticesVertexCount = 0;
+        std::vector<DrawRange> selectedVertexGroups;
         QVector2D minUv = QVector2D(0.0f, 0.0f);
         QVector2D maxUv = QVector2D(1.0f, 1.0f);
     };
@@ -791,6 +806,11 @@ struct SceneRasterProjectedDrawItem {
     std::array<std::unique_ptr<QRhiShaderResourceBindings>, 12> m_uvLineSrbs;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_uvLinePipelinesByKey;
     std::unordered_map<std::uint64_t, UvMeshGpu> m_uvMeshGpu;
+    QListWidget *m_uvTextureGroupList = nullptr;
+    std::unordered_map<std::uint64_t, int> m_uvTextureGroupByMesh;
+    std::uint64_t m_uvTextureGroupUiMeshId = 0;
+    std::uint64_t m_uvTextureGroupUiGeometryRevision = 0;
+    std::uint64_t m_uvTextureGroupUiMaterialRevision = 0;
     bool m_uvFitRequested = true;
     bool m_uvPanning = false;
     QPoint m_uvLastMousePos;

@@ -3,6 +3,7 @@
 #include <vcg/complex/complex.h>
 #include <wrap/io_trimesh/io_mask.h>
 
+#include <algorithm>
 #include <cmath>
 
 class VCGVertex;
@@ -78,6 +79,15 @@ inline bool vcgFaceCornerUV(int ioMask, const VCGFace &f, int corner, float &u, 
         return false;
     }
     return std::isfinite(u) && std::isfinite(v);
+}
+
+inline int vcgFaceTextureGroup(int ioMask, const VCGFace &f)
+{
+    if (ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD)
+        return std::max(0, int(f.cWT(0).N()));
+    if ((ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) && f.cV(0))
+        return std::max(0, int(f.cV(0)->cT().N()));
+    return 0;
 }
 
 // ---------------------------------------------------------------------------
