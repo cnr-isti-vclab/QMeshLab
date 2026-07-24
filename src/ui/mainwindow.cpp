@@ -1243,27 +1243,19 @@ MainWindow::MainWindow(QWidget *parent)
     }
     connect(m_doc, &Document::meshAdded, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFiltersMenu();
-        if (m_filterPanel)
-            m_filterPanel->reloadFilters();
+        refreshFilterUi();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFiltersMenu();
-        if (m_filterPanel)
-            m_filterPanel->reloadFilters();
+        refreshFilterUi();
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFiltersMenu();
-        if (m_filterPanel)
-            m_filterPanel->reloadFilters();
+        refreshFilterUi();
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFiltersMenu();
-        if (m_filterPanel)
-            m_filterPanel->reloadFilters();
+        refreshFilterUi();
     });
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
@@ -1969,6 +1961,20 @@ void MainWindow::reloadAllMeshes()
 
 void MainWindow::refreshFiltersMenu()
 {
+    refreshFiltersMenu(m_doc ? m_doc->filterInfos() : std::vector<Document::FilterInfo>{});
+}
+
+void MainWindow::refreshFilterUi()
+{
+    const std::vector<Document::FilterInfo> infos =
+        m_doc ? m_doc->filterInfos() : std::vector<Document::FilterInfo>{};
+    refreshFiltersMenu(infos);
+    if (m_filterPanel)
+        m_filterPanel->reloadFilters(infos);
+}
+
+void MainWindow::refreshFiltersMenu(const std::vector<Document::FilterInfo> &filterInfos)
+{
     if (!m_filtersMenu || !m_doc)
         return;
 
@@ -1981,7 +1987,7 @@ void MainWindow::refreshFiltersMenu()
     filterBrowserAction->setShortcutContext(Qt::ApplicationShortcut);
     m_filtersMenu->addSeparator();
 
-    std::vector<Document::FilterInfo> infos = m_doc->filterInfos();
+    std::vector<Document::FilterInfo> infos = filterInfos;
     if (infos.empty()) {
         QAction *emptyAction = m_filtersMenu->addAction(tr("No filters available"));
         emptyAction->setEnabled(false);

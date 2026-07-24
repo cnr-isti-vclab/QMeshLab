@@ -1,5 +1,6 @@
 #pragma once
 
+#include "document.h"
 #include <QMainWindow>
 #include <QImage>
 #include <QStringList>
@@ -13,7 +14,6 @@
 #include <memory>
 #include <vector>
 
-class Document;
 class InteractiveTool;
 class RenderWidget;
 class LayerWidget;
@@ -93,7 +93,9 @@ private:
     void refreshRecentMeshesMenu();
     void openRecentMeshByIndex(int index);
     void syncCameraViewsFrom(RenderWidget *sourceView);
+    void refreshFilterUi();
     void refreshFiltersMenu();
+    void refreshFiltersMenu(const std::vector<Document::FilterInfo> &infos);
     void setupToolsMenu(QMenu *toolsMenu);
     void setActiveToolIndex(int index);   // -1 clears the active tool
     void exitActiveTool();                // Esc from a view: uncheck + clear

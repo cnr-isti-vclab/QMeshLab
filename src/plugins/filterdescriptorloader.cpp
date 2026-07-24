@@ -2,6 +2,7 @@
 
 #include "document.h"
 #include "vcgmesh.h"
+#include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -314,6 +315,26 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
     std::vector<MeshFilterDescriptor> &descriptors,
     const Document &doc)
 {
+    auto usesToken = [&descriptors](const QString &token) {
+        for (const MeshFilterDescriptor &fd : descriptors) {
+            for (const MeshFilterParameterDescriptor &p : fd.parameters) {
+                if (p.defaultValue.toString() == token
+                    || p.minValue.toString() == token
+                    || p.maxValue.toString() == token)
+                    return true;
+            }
+        }
+        return false;
+    };
+    const bool needSelectedFaces =
+        usesToken(QStringLiteral("@hasSelectedFaces"))
+        || usesToken(QStringLiteral("@selOrFaceCountHalf"));
+    const bool needSelectedVerts = usesToken(QStringLiteral("@hasSelectedVerts"));
+    const bool needVertexQuality =
+        usesToken(QStringLiteral("@qualityVMin")) || usesToken(QStringLiteral("@qualityVMax"));
+    const bool needFaceQuality =
+        usesToken(QStringLiteral("@qualityFMin")) || usesToken(QStringLiteral("@qualityFMax"));
+
     double bboxDiag = 1.0;
     double qualityVMin = 0.0, qualityVMax = 1.0;
     double qualityFMin = 0.0, qualityFMax = 1.0;
@@ -327,16 +348,22 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
         const VCGMesh &mesh = doc.mesh(ci).mesh;
         bboxDiag = std::max(1e-9, double(mesh.bbox.Diag()));
         faceCount = mesh.FN();
-        selFaces = vcg::tri::UpdateSelection<VCGMesh>::FaceCount(mesh);
-        const int selVerts = vcg::tri::UpdateSelection<VCGMesh>::VertexCount(mesh);
+        if (needSelectedFaces)
+            selFaces = vcg::tri::UpdateSelection<VCGMesh>::FaceCount(mesh);
+        const int selVerts = needSelectedVerts
+            ? int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(mesh))
+            : 0;
         hasSelectedFaces = (selFaces > 0);
         hasSelectedVerts = (selVerts > 0);
-        if (mesh.VN() > 0) {
+        const int ioMask = doc.mesh(ci).ioMask;
+        if (needVertexQuality && (ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY)
+            && mesh.VN() > 0) {
             const auto vr = vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityMinMax(mesh);
             qualityVMin = std::min(double(vr.first), double(vr.second));
             qualityVMax = std::max(double(vr.first), double(vr.second));
         }
-        if (mesh.FN() > 0) {
+        if (needFaceQuality && (ioMask & vcg::tri::io::Mask::IOM_FACEQUALITY)
+            && mesh.FN() > 0) {
             const auto fr = vcg::tri::Stat<VCGMesh>::ComputePerFaceQualityMinMax(mesh);
             qualityFMin = std::min(double(fr.first), double(fr.second));
             qualityFMax = std::max(double(fr.first), double(fr.second));

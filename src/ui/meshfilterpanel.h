@@ -28,6 +28,7 @@ public:
     explicit MeshFilterPanel(Document *doc, QWidget *parent = nullptr);
 
     void reloadFilters();
+    void reloadFilters(const std::vector<Document::FilterInfo> &filters);
     void showSearchResults();
     void focusSearch();
     void selectFilterByKey(const QString &filterKey, bool openParameters = true);

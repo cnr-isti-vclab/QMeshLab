@@ -10,6 +10,7 @@
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/simplex/face/topology.h>
 #include <QEventLoop>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>

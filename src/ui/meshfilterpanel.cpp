@@ -1026,23 +1026,24 @@ void MeshFilterPanel::buildUi()
 
 void MeshFilterPanel::reloadFilters()
 {
+    reloadFilters(m_doc ? m_doc->filterInfos() : std::vector<Document::FilterInfo>{});
+}
+
+void MeshFilterPanel::reloadFilters(const std::vector<Document::FilterInfo> &filters)
+{
     cacheCurrentFilterParameters();
     const QString previousKey = m_currentFilterKey;
-    if (m_doc) {
-        m_filters = m_doc->filterInfos();
-        std::sort(
-            m_filters.begin(),
-            m_filters.end(),
-            [](const Document::FilterInfo &a, const Document::FilterInfo &b) {
-                const int menuCmp =
-                    a.descriptor.menuPath.compare(b.descriptor.menuPath, Qt::CaseInsensitive);
-                if (menuCmp != 0)
-                    return menuCmp < 0;
-                return a.descriptor.name.compare(b.descriptor.name, Qt::CaseInsensitive) < 0;
-            });
-    } else {
-        m_filters.clear();
-    }
+    m_filters = filters;
+    std::sort(
+        m_filters.begin(),
+        m_filters.end(),
+        [](const Document::FilterInfo &a, const Document::FilterInfo &b) {
+            const int menuCmp =
+                a.descriptor.menuPath.compare(b.descriptor.menuPath, Qt::CaseInsensitive);
+            if (menuCmp != 0)
+                return menuCmp < 0;
+            return a.descriptor.name.compare(b.descriptor.name, Qt::CaseInsensitive) < 0;
+        });
 
     rebuildResultsList();
     if (!previousKey.isEmpty()) {
