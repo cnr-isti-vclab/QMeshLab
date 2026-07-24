@@ -164,6 +164,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
 
 
     const Document::MeshEntry &sourceEntry = doc.mesh(meshIndex);
+    const QMatrix4x4 sourceTransform = sourceEntry.transform;
     const VCGMesh &sourceMesh = sourceEntry.mesh;
     if (sourceMesh.VN() <= 0 || sourceMesh.FN() <= 0)
         return fail(QObject::tr("Texture defragmentation requires a non-empty triangular mesh."));
@@ -540,7 +541,13 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
             convertedTexs.push_back(*(t.get()));
         }
 
-        std::vector<QImage> packedTexs = TexturePacker::simplePacking(convertedTexs, ap.targetTexCount, outputMesh);
+        QString packingError;
+        std::vector<QImage> packedTexs =
+            TexturePacker::simplePacking(convertedTexs, ap.targetTexCount, 4, outputMesh, &packingError);
+        if (packedTexs.empty()) {
+            doc.finishFilterProgress(false, packingError);
+            return fail(packingError);
+        }
 
         // Replace the entries in newTextures with our new merged results
         renderedTextures.clear();
@@ -568,7 +575,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     }
 
     Document::MeshEntry &newEntry = doc.mesh(newIndex);
-    newEntry.transform = sourceEntry.transform;
+    newEntry.transform = sourceTransform;
     std::vector<MeshIOTextureAsset> outputAssets;
     outputAssets.reserve(renderedTextures.size());
     for (int i = 0; i < int(renderedTextures.size()); ++i) {

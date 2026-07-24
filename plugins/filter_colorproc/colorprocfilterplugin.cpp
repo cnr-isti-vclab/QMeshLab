@@ -601,6 +601,20 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             return fail(QObject::tr("This metric is meaningless for triangle-only meshes (all faces are planar by definition)."));
         }
 
+        Scalar areaScaleVal = 0;
+        if (metricId == QStringLiteral("texture_area_distortion")) {
+            Scalar edgeScaleVal = 0;
+            if (useWedgeTex)
+                vcg::tri::Distortion<VCGMesh, true>::MeshScalingFactor(
+                    mesh, areaScaleVal, edgeScaleVal);
+            else
+                vcg::tri::Distortion<VCGMesh, false>::MeshScalingFactor(
+                    mesh, areaScaleVal, edgeScaleVal);
+            if (!std::isfinite(areaScaleVal))
+                return fail(QObject::tr(
+                    "Texture area distortion is undefined because the total UV area is zero."));
+        }
+
         for (VCGFace &face : mesh.face) {
             if (face.IsD())
                 continue;
@@ -617,14 +631,10 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
                     ? vcg::tri::Distortion<VCGMesh, true>::AngleDistortion(&face)
                     : vcg::tri::Distortion<VCGMesh, false>::AngleDistortion(&face);
             else if (metricId == QStringLiteral("texture_area_distortion")) {
-                Scalar areaScaleVal = 0, edgeScaleVal = 0;
-                if (useWedgeTex) {
-                    vcg::tri::Distortion<VCGMesh, true>::MeshScalingFactor(mesh, areaScaleVal, edgeScaleVal);
+                if (useWedgeTex)
                     face.Q() = vcg::tri::Distortion<VCGMesh, true>::AreaDistortion(&face, areaScaleVal);
-                } else {
-                    vcg::tri::Distortion<VCGMesh, false>::MeshScalingFactor(mesh, areaScaleVal, edgeScaleVal);
+                else
                     face.Q() = vcg::tri::Distortion<VCGMesh, false>::AreaDistortion(&face, areaScaleVal);
-                }
             }
         }
 

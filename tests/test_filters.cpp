@@ -1,6 +1,7 @@
 #include <QtTest/QtTest>
 
 #include "document.h"
+#include "textureassociationutils.h"
 
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -62,6 +63,24 @@ void makeOpenDiskMesh(VCGMesh &mesh)
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 }
 
+void makeTwoTextureTriangles(VCGMesh &mesh)
+{
+    mesh.Clear();
+    mesh.face.EnableWedgeTexCoord();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 6);
+    for (int i = 0; i < 6; ++i)
+        mesh.vert[size_t(i)].P() = vcg::Point3f(float(i % 3), float(i / 3), 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 3, 4, 5);
+    for (int face = 0; face < 2; ++face) {
+        mesh.face[size_t(face)].WT(0) = VCGFace::TexCoordType(0.0f, 0.0f);
+        mesh.face[size_t(face)].WT(1) = VCGFace::TexCoordType(1.0f, 0.0f);
+        mesh.face[size_t(face)].WT(2) = VCGFace::TexCoordType(0.0f, 1.0f);
+        for (int corner = 0; corner < 3; ++corner)
+            mesh.face[size_t(face)].WT(corner).N() = face;
+    }
+}
+
 void makeIcpPointCloud(VCGMesh &mesh)
 {
     mesh.Clear();
@@ -107,6 +126,8 @@ private slots:
     void voronoiSolidWireframeRunsOnLoadedMesh();
     void icpBetweenPointCloudsUpdatesSourceTransform();
     void translateFilterMovesOnlyCurrentMesh();
+    void packTextureImagesCreatesGutteredAtlas();
+    void textureAreaDistortionCompletes();
     void libiglParametrizationFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
 };
@@ -669,6 +690,108 @@ void FilterTests::translateFilterMovesOnlyCurrentMesh()
     expected.setToIdentity();
     expected.translate(1.0f, 0.0f, 0.0f);
     QVERIFY(matrixNear(doc.mesh(1).transform, expected));
+}
+
+void FilterTests::packTextureImagesCreatesGutteredAtlas()
+{
+    Document doc;
+    VCGMesh mesh;
+    makeTwoTextureTriangles(mesh);
+    const int meshIndex = doc.addMesh(
+        mesh,
+        QStringLiteral("Two textures"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QCOMPARE(meshIndex, 0);
+
+    QImage red(2, 2, QImage::Format_RGBA8888);
+    QImage green(2, 2, QImage::Format_RGBA8888);
+    red.fill(Qt::red);
+    green.fill(Qt::green);
+    TextureAssociationUtils::replaceTextureAssociations(
+        doc.mesh(meshIndex),
+        {
+            TextureAssociationUtils::makeTextureAssetFromImage(red, QStringLiteral("red.png")),
+            TextureAssociationUtils::makeTextureAssetFromImage(green, QStringLiteral("green.png"))
+        });
+
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("pack_textures")) {
+            filterKey = info.key;
+            QCOMPARE(info.descriptor.name, QStringLiteral("Pack Texture Images"));
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("containerNum"), 1);
+    params.insert(QStringLiteral("gutter"), 2);
+    const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+
+    const auto &output = doc.mesh(result.newMeshIndices.front());
+    QCOMPARE(output.textureAssets.size(), size_t(1));
+    const QImage &atlas = output.textureAssets.front().image;
+    QVERIFY(!atlas.isNull());
+    int redPixels = 0;
+    int greenPixels = 0;
+    for (int y = 0; y < atlas.height(); ++y) {
+        for (int x = 0; x < atlas.width(); ++x) {
+            const QColor color = atlas.pixelColor(x, y);
+            redPixels += color == QColor(Qt::red);
+            greenPixels += color == QColor(Qt::green);
+        }
+    }
+    QVERIFY(redPixels >= 36);
+    QVERIFY(greenPixels >= 36);
+    for (const VCGFace &face : output.mesh.face) {
+        for (int corner = 0; corner < 3; ++corner) {
+            QCOMPARE(face.cWT(corner).N(), 0);
+            QVERIFY(face.cWT(corner).U() > 0.0f && face.cWT(corner).U() < 1.0f);
+            QVERIFY(face.cWT(corner).V() > 0.0f && face.cWT(corner).V() < 1.0f);
+        }
+    }
+}
+
+void FilterTests::textureAreaDistortionCompletes()
+{
+    Document doc;
+    VCGMesh mesh;
+    makeOpenDiskMesh(mesh);
+    mesh.face.EnableWedgeTexCoord();
+    for (VCGFace &face : mesh.face) {
+        for (int corner = 0; corner < 3; ++corner) {
+            face.WT(corner).U() = face.cP(corner).X();
+            face.WT(corner).V() = face.cP(corner).Y();
+            face.WT(corner).N() = 0;
+        }
+    }
+    QCOMPARE(
+        doc.addMesh(
+            mesh,
+            QStringLiteral("Parameterized disk"),
+            vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD),
+        0);
+
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("compute_scalar_by_aspect_ratio_per_face")) {
+            filterKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("Metric"), QStringLiteral("texture_area_distortion"));
+    const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    for (const VCGFace &face : doc.mesh(0).mesh.face) {
+        QVERIFY(std::isfinite(face.cQ()));
+        QVERIFY(std::abs(face.cQ()) < 1e-6f);
+    }
 }
 
 void FilterTests::libiglParametrizationFiltersRunWhenAvailable()

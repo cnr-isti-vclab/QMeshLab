@@ -1,336 +1,215 @@
 /****************************************************************************
 * MeshLab                                                           o o     *
-* A versatile mesh processing toolbox                             o     o   *
-*                                                                _   O  _   *
-* Copyright(C) 2005                                                \/)\/    *
-* Visual Computing Lab                                            /\/|      *
-* ISTI - Italian National Research Council                           |      *
-*                                                                    \      *
-* All rights reserved.                                                      *
-*                                                                           *
-* This program is free software; you can redistribute it and/or modify      *
-* it under the terms of the GNU General Public License as published by      *
-* the Free Software Foundation; either version 2 of the License, or         *
-* (at your option) any later version.                                       *
-*                                                                           *
-* This program is distributed in the hope that it will be useful,           *
-* but WITHOUT ANY WARRANTY; without even the implied warranty of            *
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             *
-* GNU General Public License (http://www.gnu.org/licenses/gpl.txt)          *
-* for more details.                                                         *
-*                                                                           *
+* Copyright(C) 2005 Visual Computing Lab - ISTI CNR                         *
+* GPL-2.0-or-later                                                          *
 ****************************************************************************/
 
 #include "texture_packer.hpp"
 
+#include <QObject>
 #include <QPainter>
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
-#include "document.h"
-
-MeshFilterRunResult fail(const QString &message)
+std::vector<QImage> TexturePacker::simplePacking(
+    const std::vector<QImage> &sourceImages,
+    int outputCount,
+    int gutter,
+    VCGMesh &mesh,
+    QString *error)
 {
-    MeshFilterRunResult result;
-    result.success = false;
-    result.documentModified = false;
-    result.errorMessage = message;
-    return result;
-}
-
-MeshFilterRunResult success(const QStringList &info, int newMeshIndex)
-{
-    MeshFilterRunResult result;
-    result.success = true;
-    result.documentModified = true;
-    result.infoMessages = info;
-    if (newMeshIndex >= 0)
-        result.newMeshIndices.push_back(newMeshIndex);
-    return result;
-}
-
-std::vector<QImage> TexturePacker::simplePacking (
-    const std::vector<QImage> &srcTexts,
-    const int containerNum,
-    VCGMesh &mesh)
-{
-
-    // The packer assumes that the number of input textures
-    // is major or equal than the requested number of outputs.
-    TexturePacker packer(srcTexts, containerNum, mesh);
-    packer.findBestPlacement();
-    packer.updateMeshUV();
-    auto output = packer.rasterizeContainers();
-    return output;
+    if (error)
+        error->clear();
+    TexturePacker packer(sourceImages, outputCount, gutter, mesh, error);
+    if (!packer.validate() || !packer.findPlacements())
+        return {};
+    packer.updateMeshUVs();
+    return packer.rasterize();
 }
 
 TexturePacker::TexturePacker(
-    const std::vector<QImage> &srcTexts,
-    int containerNum,
-    VCGMesh &mesh)
-        : srcNum(srcTexts.size()), containerNum(containerNum), mesh(mesh)
+    const std::vector<QImage> &sourceImages,
+    int outputCount,
+    int gutter,
+    VCGMesh &mesh,
+    QString *error)
+    : m_gutter(gutter), m_mesh(mesh), m_error(error)
 {
-    // Note, we are assuming that the number of source textures
-    // is major or equal than the number of requested outputs.
-    // The check is always done before construction by the static
-    // function `pack`.
-    //
-    // We first initialize both`srcToContainer` and `containerSize`.
-    // `srcToContainer` has `srcNum` fixed number of entries; `containerSize`
-    // has `containerNum` fixed number of entries.
-    //
-    // We then distribute the source textures among the container.
-    // The distribution is done equally by using integer ceiling division.
-    // The last container usually holds a smaller number of sources if the
-    // division is not exact.
+    m_sources.reserve(sourceImages.size());
+    for (const QImage &image : sourceImages)
+        m_sources.push_back({ image });
 
-    srcToContainer.reserve(srcNum);
-    containerToSrc.reserve(containerNum);
-    for (int i = 0; i < srcNum; ++i) {
-        srcToContainer.push_back({ .srcRef = srcTexts[i] } );
-    }
-    for (int i = 0; i < containerNum; ++i) {
-        containerToSrc.push_back({}    );
-        containerToSrc[i].srcContained.reserve((srcNum + containerNum - 1) / containerNum);
-    }
-
-    // We determine the amount of sources per container dynamically.
-    // It this way we guarantee a balanced distribution.
-    int srcLeft = srcNum;
-    int containerLeft = containerNum;
-    int currContainer = 0;
-    int srcID = 0;
-    while (srcLeft > 0) {
-        const int numOfSrcPerContainer = (srcLeft + containerLeft - 1) / containerLeft;
-
-        // For the container we update its mapping by adding
-        // the current source to the ones it will pack.
-        //
-        // For the source texture we construct its map entry
-        // by setting its container to `currContainer`.
-        for (int i = 0; i < numOfSrcPerContainer; ++i) {
-            containerToSrc[currContainer].srcContained.push_back(srcID);
-            srcToContainer[srcID].containerID = currContainer;
-            srcID++;
-        }
-
-        // Update the left counters
-        srcLeft -= numOfSrcPerContainer;
-        containerLeft -= 1;
-        currContainer++;
+    if (outputCount <= 0)
+        return;
+    m_containers.resize(size_t(outputCount));
+    for (int source = 0; source < int(m_sources.size()); ++source) {
+        const int container = source % outputCount;
+        m_sources[size_t(source)].container = container;
+        m_containers[size_t(container)].sources.push_back(source);
     }
 }
 
-void TexturePacker::findBestPlacement() {
-    // For each container we compute the heuristic optimal square which is
-    // able to store all the textures associated with that container.
-    //
-    // This square will have as total area the sum of all sources' area.
-    // A side of the square has length equal to the square root of its area.
-    //
-    // Computed the square, we try to pack the textures within using a bin packer
-    // technique via the VCGLib function RectPacker::PackInt. The algorithm returns
-    // true if it was able to pack everything. If not, we increment the square's size
-    // by 10% and repeat the process until we are able to.
-    //
-    // The resulting square's size is assigned to the container's entry in `containerToSrc`.
-    // The source entries in `srcToContainer` are updated with their new offset positions.
-    for (int containerID = 0; containerID < containerToSrc.size(); ++containerID) {
+bool TexturePacker::fail(const QString &message)
+{
+    if (m_error)
+        *m_error = message;
+    return false;
+}
 
-        // If the current container has to pack just a single texture, simply copy it
-        // without doing any actual packing.
-        if (containerToSrc[containerID].srcContained.size() == 1) {
-            const int srcID = containerToSrc[containerID].srcContained[0];
-            srcToContainer[srcID].containerOff = vcg::Point2i(0,0);
-            containerToSrc[containerID].finalSize = vcg::Point2i(
-                srcToContainer[srcID].srcRef.get().size().width(),
-                srcToContainer[srcID].srcRef.get().size().height()
-                );
+bool TexturePacker::validate()
+{
+    if (m_sources.empty())
+        return fail(QObject::tr("No source texture images were provided."));
+    if (m_containers.empty() || m_containers.size() > m_sources.size())
+        return fail(QObject::tr("The output texture count must be between 1 and %1.")
+                        .arg(m_sources.size()));
+    if (m_gutter < 0 || m_gutter > std::numeric_limits<int>::max() / 2)
+        return fail(QObject::tr("The texture gutter is outside the supported range."));
+    if (!m_mesh.face.IsWedgeTexCoordEnabled())
+        return fail(QObject::tr("The mesh does not have per-wedge texture coordinates."));
+
+    constexpr float tolerance = 1e-6f;
+    for (int source = 0; source < int(m_sources.size()); ++source) {
+        const QImage &image = m_sources[size_t(source)].image.get();
+        if (image.isNull() || image.width() <= 0 || image.height() <= 0)
+            return fail(QObject::tr("Source texture %1 has no valid image data.").arg(source));
+        if (image.width() > std::numeric_limits<int>::max() - 2 * m_gutter
+            || image.height() > std::numeric_limits<int>::max() - 2 * m_gutter) {
+            return fail(QObject::tr("Source texture %1 is too large to add the requested gutter.")
+                            .arg(source));
+        }
+    }
+
+    for (int faceIndex = 0; faceIndex < m_mesh.FN(); ++faceIndex) {
+        const VCGFace &face = m_mesh.face[size_t(faceIndex)];
+        if (face.IsD())
             continue;
-        }
-
-        // Computing the heuristic square.
-        // The algorithm RectPacker requires an array containing all size
-        // of the source textures. We construct it in parallel with the computation
-        // of the square's area.
-        std::vector<vcg::Point2i> srcSizes;
-        int squareArea = 0;
-        for (const int srcID : containerToSrc[containerID].srcContained) {
-            const int srcWidth = srcToContainer[srcID].srcRef.get().size().width();
-            const int srcHeight = srcToContainer[srcID].srcRef.get().size().height();
-            srcSizes.push_back(vcg::Point2i(srcWidth, srcHeight));
-
-            squareArea += srcWidth * srcHeight;
-        }
-        const int squareSide = std::sqrt(squareArea);
-        vcg::Point2i squareSize(squareSide, squareSide);
-
-        // Trying to pack every texture in the current square
-        std::vector<vcg::Point2i> srcOffsets;
-        vcg::Point2i boundingBox;
-        bool successPacking = false;
-        while (!successPacking) {
-            // boundingBox contains the bounding box delimiting the
-            // square area fitting all the sources within the container.
-            //
-            // Maybe it could be used to set it as the optimal size
-            // of the container
-            successPacking = vcg::RectPacker<float>::PackInt(
-                srcSizes,
-                squareSize,
-                srcOffsets,
-                boundingBox);
-
-            // If the algorithm wasn't able to pack the textures into the
-            // current square, increase its size by 10%.
-            if (!successPacking) {
-                squareSize.X() *= 1.1;
-                squareSize.Y() *= 1.1;
+        const int source = face.cWT(0).N();
+        if (source < 0 || source >= int(m_sources.size()))
+            return fail(QObject::tr("Face %1 references invalid texture %2.")
+                            .arg(faceIndex).arg(source));
+        for (int corner = 0; corner < 3; ++corner) {
+            const auto &uv = face.cWT(corner);
+            if (uv.N() != source)
+                return fail(QObject::tr("Face %1 references more than one texture.").arg(faceIndex));
+            if (!std::isfinite(uv.U()) || !std::isfinite(uv.V())
+                || uv.U() < -tolerance || uv.U() > 1.0f + tolerance
+                || uv.V() < -tolerance || uv.V() > 1.0f + tolerance) {
+                return fail(QObject::tr(
+                    "Face %1 has UV coordinates outside [0,1]; repeated textures cannot be packed safely.")
+                                .arg(faceIndex));
             }
         }
-        // Update `containerToSrc` and `srcToContainer` accordingly.
-        // `containerToSrc` needs to updated the entry of the current
-        // container with its newly computed size.
-        //
-        // `srcToContainer` needs to update the offsets of the sources
-        // that have been placed by the current container. Note that
-        // srcOffset isn't indexed in the same way as `srcToContainer`.
-        // The i-th entry of srcOffset refers to the source having
-        // the ID stored in containerToSrc[containerID].srcContained[i].
-        // Graphically:
-        //
-        // sourceOffset
-        // idx:                         |   0      |    1     |    2     | ... |
-        // sourceOffset:                | offset_0 | offset_1 | offset_2 | ... |
-        //                                   |          |           |      ...
-        //                                  \/         \/          \/
-        // containerToSrc[containerID]: | 1        |   3       |   5     | ... |
-        //
-        // So offset_0 is associated to the source of index 1, offset_1 to the source
-        // of index 3, and so on...
-        //
-        containerToSrc[containerID].finalSize = boundingBox;
-        for (int i = 0; i < srcOffsets.size(); ++i) {
-            const int srcID = containerToSrc[containerID].srcContained[i];
-            srcToContainer[srcID].containerOff = srcOffsets[i];
-        }
     }
+    return true;
 }
 
-void TexturePacker::updateMeshUV() {
-    // For each non-deleted face we retrieve its source texture id
-    // which is referred to by its UV coordinates. Recall that this value
-    // can be retrieved by the `N()` field.
-    //
-    // We retrieve using `srcToContainer` the container ID and the starting
-    // UV position for the coordinates.
-    //
-    // Note that by default each face stores its UV positions normalized in
-    // respect to its source texture image pixel space. So we first need to
-    // port them in the source texture image pixel space and then normalize
-    // it according to the container's pixel space.
-    //
-    // Additionally, for the V coordinate there is a subtle quirk: the container
-    // is stored as a QImage, this type stores pixels top-down (V = 0 is at the top).
-    // The V coordinates in MeshLab are stored bottom-up (V = 0 is at the bottom).
-    // Graphically:
-    //
-    //                  U
-    //      _____________>        v ^
-    //      |                       |
-    //      |                       |
-    //      |                       |
-    //      |                       |____________>
-    //   V \/                                    U
-    //          QImage                  MeshLab
-    // Thus we need to take into account the conversion while updating the V coordinate.
-    for (auto &face : mesh.face) {
+bool TexturePacker::findPlacements()
+{
+    const int maxInt = std::numeric_limits<int>::max();
+    for (Container &container : m_containers) {
+        std::vector<vcg::Point2i> sizes;
+        sizes.reserve(container.sources.size());
+        long double area = 0.0;
+        for (const int source : container.sources) {
+            const QImage &image = m_sources[size_t(source)].image.get();
+            const int width = image.width() + 2 * m_gutter;
+            const int height = image.height() + 2 * m_gutter;
+            sizes.emplace_back(width, height);
+            area += static_cast<long double>(width) * height;
+        }
 
-        if (face.IsD()) {
+        const long double sideValue = std::ceil(std::sqrt(area));
+        if (sideValue > maxInt)
+            return fail(QObject::tr("Packed texture dimensions exceed the supported integer range."));
+        vcg::Point2i trialSize(std::max(1, int(sideValue)), std::max(1, int(sideValue)));
+        std::vector<vcg::Point2i> offsets;
+        vcg::Point2i bounds;
+        while (!vcg::RectPacker<float>::PackInt(sizes, trialSize, offsets, bounds)) {
+            const long double grown = std::ceil(trialSize.X() * 1.1L);
+            const int next = grown >= maxInt
+                ? maxInt
+                : std::max(trialSize.X() + 1, int(grown));
+            if (next <= trialSize.X())
+                return fail(QObject::tr("Unable to find a finite texture packing."));
+            trialSize = vcg::Point2i(next, next);
+        }
+
+        container.size = bounds;
+        for (int i = 0; i < int(offsets.size()); ++i)
+            m_sources[size_t(container.sources[size_t(i)])].offset = offsets[size_t(i)];
+    }
+    return true;
+}
+
+void TexturePacker::updateMeshUVs()
+{
+    for (VCGFace &face : m_mesh.face) {
+        if (face.IsD())
             continue;
-        }
+        const int sourceIndex = face.cWT(0).N();
+        const Source &source = m_sources[size_t(sourceIndex)];
+        const Container &container = m_containers[size_t(source.container)];
+        const QImage &image = source.image.get();
+        const float x = float(source.offset.X() + m_gutter);
+        const float yFromBottom =
+            float(container.size.Y() - source.offset.Y() - m_gutter - image.height());
 
-        const int srcID = face.WT(0).N();
-        const int containerID = srcToContainer[srcID].containerID;
-        const vcg::Point2i containerOff = srcToContainer[srcID].containerOff;
-        const vcg::Point2i containerSize = containerToSrc[containerID].finalSize;
-        const vcg::Point2i srcSize = vcg::Point2i(
-            srcToContainer[srcID].srcRef.get().width(),
-            srcToContainer[srcID].srcRef.get().height()
-            );
-
-        for (int k = 0; k < face.VN(); ++k) {
-            face.WT(k).N() = containerID;
-
-            // Wrap the original UVs to ensure they are strictly between 0.0 and 1.0
-            // This is done because since the original coordinates allowed for wrap back,
-            // any value that exceeded the top (i.e., 1.5 would have been treated as 0.5).
-            // However, this is not good for our conversion procedure, because 1.5 will be
-            // converted in a totally different position within the container's pixel space
-            // compared to 0.5.
-            //
-            // For this reason we enforce that all values are within 0.0 and 1.0.
-            const float wrappedU = face.WT(k).U() > 1.0f ? face.WT(k).U() - std::floor(face.WT(k).U()) : face.WT(k).U();
-            const float newU = ( ( wrappedU * srcSize.X() ) + containerOff.X() ) / containerSize.X();
-            face.WT(k).U() =  newU;
-
-            // The offset for V() needs to be converted to bottom-up (meshlab coordinate system).
-            const float wrappedV = face.WT(k).V() > 1.0f ? face.WT(k).V() - std::floor(face.WT(k).V()) : face.WT(k).V();
-            const float vOffsetFromBottom = containerSize.Y() - containerOff.Y() - srcSize.Y();
-            const float newV = ( ( wrappedV * srcSize.Y() ) + vOffsetFromBottom ) / containerSize.Y();
-            face.WT(k).V() = newV;
+        for (int corner = 0; corner < 3; ++corner) {
+            auto &uv = face.WT(corner);
+            uv.N() = source.container;
+            uv.U() = (std::clamp(uv.U(), 0.0f, 1.0f) * image.width() + x)
+                / container.size.X();
+            uv.V() = (std::clamp(uv.V(), 0.0f, 1.0f) * image.height() + yFromBottom)
+                / container.size.Y();
         }
     }
 }
 
-std::vector<QImage> TexturePacker::rasterizeContainers() {
-    // and to add a description to the static method `simplePacking`
-
-    // The function assumes all source textures share the same format.
-    //
-    // For each container we generate one blank image having the corresponding
-    // size. Recall that the size of each container is stored in the corresponding
-    // entry in `containerToSrc`.
-    //
-    // Then we retrieve the set of sources that must be painted onto the image.
-    // Recall that this set (stored by the indices of the sources) is in the
-    // corresponding field of the container's entry in `containerToSrc`.
-    //
-    // For each source texture to paint, we draw it starting at its upper-left
-    // position within the container. Recall that this value is stored in the
-    // corresponding field on the source's entry in `srcToContainer`.
-    const QImage::Format format = srcToContainer[0].srcRef.get().format();
-    std::vector<QImage> rasterContainers;
-
-    for (const auto &container : containerToSrc) {
-
-        // Construct the blank image
-        const QSize containerSize = {
-            container.finalSize.X(),
-            container.finalSize.Y()
-        };
-        QImage currImage(containerSize, format);
-        currImage.fill(0);
-
-        // Fill the blank image with its source textures
-        QPainter containerPainter(&currImage);
-
-        for (const auto &srcID : container.srcContained) {
-            const QImage &srcImage = srcToContainer[srcID].srcRef.get();
-            // By setting `CompositionMode_Source` we guarantee that the
-            // pixels from the source image will overwrite the blank pixels
-            // of the container directly, without any alpha blending.
-			containerPainter.setCompositionMode (QPainter::CompositionMode_Source);
-            const QPoint leftCornerPos =
-                {
-                srcToContainer[srcID].containerOff.X(),
-                srcToContainer[srcID].containerOff.Y()
-                };
-            containerPainter.drawImage(leftCornerPos, srcImage);
+std::vector<QImage> TexturePacker::rasterize()
+{
+    std::vector<QImage> output;
+    output.reserve(m_containers.size());
+    for (const Container &container : m_containers) {
+        QImage image(
+            container.size.X(), container.size.Y(), QImage::Format_RGBA8888);
+        if (image.isNull()) {
+            fail(QObject::tr("Unable to allocate a packed texture image."));
+            return {};
         }
-        containerPainter.end();
+        image.fill(Qt::transparent);
+        QPainter painter(&image);
+        if (!painter.isActive()) {
+            fail(QObject::tr("Unable to paint a packed texture image."));
+            return {};
+        }
+        painter.setCompositionMode(QPainter::CompositionMode_Source);
 
-        // Store the rasterized container in the result
-        rasterContainers.push_back(currImage);
+        for (const int sourceIndex : container.sources) {
+            const Source &source = m_sources[size_t(sourceIndex)];
+            const QImage &src = source.image.get();
+            const int x = source.offset.X();
+            const int y = source.offset.Y();
+            const int w = src.width();
+            const int h = src.height();
+            const int g = m_gutter;
+            painter.drawImage(QPoint(x + g, y + g), src);
+            if (g == 0)
+                continue;
+
+            painter.drawImage(QRect(x, y + g, g, h), src, QRect(0, 0, 1, h));
+            painter.drawImage(QRect(x + g + w, y + g, g, h), src, QRect(w - 1, 0, 1, h));
+            painter.drawImage(QRect(x + g, y, w, g), src, QRect(0, 0, w, 1));
+            painter.drawImage(QRect(x + g, y + g + h, w, g), src, QRect(0, h - 1, w, 1));
+            painter.drawImage(QRect(x, y, g, g), src, QRect(0, 0, 1, 1));
+            painter.drawImage(QRect(x + g + w, y, g, g), src, QRect(w - 1, 0, 1, 1));
+            painter.drawImage(QRect(x, y + g + h, g, g), src, QRect(0, h - 1, 1, 1));
+            painter.drawImage(
+                QRect(x + g + w, y + g + h, g, g), src, QRect(w - 1, h - 1, 1, 1));
+        }
+        painter.end();
+        output.push_back(std::move(image));
     }
-
-    return rasterContainers;
+    return output;
 }

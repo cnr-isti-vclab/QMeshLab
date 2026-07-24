@@ -1411,76 +1411,85 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterPackTextures)) {
-        // We copy the input mesh in a new layer.
-        //
-        // When retrieving the user-provided parameters, be sure that the number of source textures is
-        // strictly major than the number of requested container textures, otherwise exit immediately
-        // telling the user about it.
-        //
-        // The packing process is handled by the static function `TexturePacker::simplePacking`. Be aware
-        // that the method updates the UV coordinates of the provided input mesh to take into account its
-        // new output textures. The function will return the array of final QImages.
-        //
-        // Substitute the current textures of the mesh with the one returned by the function.
-
-        // The input textures need to satisfy the following properties:
-        //
-        // * It must have vertices and faces.
-        //
-        // * It must have per-wedge texture coordinates.
-        //
-        // * It must have at least one associated texture image.
-        //
-        // If just one of the properties is not satisfied, the filter fails right away.
-		const Document::MeshEntry &sourceEntry = doc.mesh(meshIndex);
+        const Document::MeshEntry &sourceEntry = doc.mesh(meshIndex);
         const VCGMesh &sourceMesh = sourceEntry.mesh;
-        if (sourceMesh.VN() <= 0 || sourceMesh.FN() <= 0) {
-            return fail(QObject::tr("Pack textures requires a non-empty triangular mesh."));
-        }
-        if (!vcg::tri::HasPerWedgeTexCoord(sourceMesh)) {
-            return fail(QObject::tr("Pack textures requires per-wedge texture coordinates."));
-        }
-        if (Document::meshTextureAssociationCount(sourceEntry) <= 0) {
-            return fail(QObject::tr("Pack textures requires at least one associated texture image."));
-        }
+        if (sourceMesh.VN() <= 0 || sourceMesh.FN() <= 0)
+            return fail(QObject::tr("Pack Texture Images requires a non-empty triangular mesh."));
+        if (!vcg::tri::HasPerWedgeTexCoord(sourceMesh))
+            return fail(QObject::tr("Pack Texture Images requires per-wedge texture coordinates."));
 
-        // The filter requires that the number of input textures must be strictly major than the number of container
-        // textures. If this does not hold, the filter fails right away.
-        int containerNum = params.getInt(QStringLiteral("containerNum"));
-        int sourceNum = sourceMesh.textures.size();
-        if (containerNum >= sourceNum) {
-            return fail(Document::tr("The number of output textures (%1) must be strictly minor than the number of input textures(%2)")
-                .arg(containerNum)
-                .arg(sourceNum));
-        }
-
-        doc.beginFilterProgress(QObject::tr("Pack Textures"));
-        auto progress = [&](int pct, const char *label) {
-            if (vcg::CallBackPos *cb = doc.progressCallback()) {
-                (*cb)(pct, label);
+        std::vector<int> usedGroups;
+        for (const VCGFace &face : sourceMesh.face) {
+            if (face.IsD())
+                continue;
+            const int group = face.cWT(0).N();
+            if (group < 0)
+                return fail(QObject::tr("A face references a negative texture index."));
+            for (int corner = 1; corner < 3; ++corner) {
+                if (face.cWT(corner).N() != group)
+                    return fail(QObject::tr("A face references more than one texture."));
             }
-        };
+            usedGroups.push_back(group);
+        }
+        std::sort(usedGroups.begin(), usedGroups.end());
+        usedGroups.erase(std::unique(usedGroups.begin(), usedGroups.end()), usedGroups.end());
+        if (usedGroups.empty())
+            return fail(QObject::tr("Pack Texture Images requires used texture images."));
+        if (usedGroups.size() < 2)
+            return fail(QObject::tr("Pack Texture Images requires at least two used texture images."));
 
-        // Copy the source texture images into the vector `srcTextures`. This vector will be
-        // used by the packing process.
+        const int outputCount = params.getInt(QStringLiteral("containerNum"));
+        const int gutter = params.getInt(QStringLiteral("gutter"));
+        if (outputCount <= 0 || outputCount >= int(usedGroups.size())) {
+            return fail(QObject::tr(
+                "Target textures must be between 1 and %1 for this mesh.")
+                            .arg(std::max(0, int(usedGroups.size()) - 1)));
+        }
+
         std::vector<QImage> srcTextures;
-        QImage sourceImage;
-        QString sourceImageError;
-        int idTex = 0;
-        for (const auto &srcText : sourceEntry.textureAssets) {
-            if (!Tex::loadAssociatedTextureImage(sourceEntry, idTex, sourceImage, sourceImageError)) {
-                return fail(sourceImageError);
-            }
-            srcTextures.push_back(sourceImage.copy());
-            idTex++;
+        srcTextures.reserve(usedGroups.size());
+        for (const int group : usedGroups) {
+            QImage image;
+            QString error;
+            if (!Tex::loadAssociatedTextureImage(sourceEntry, group, image, error))
+                return fail(error);
+            srcTextures.push_back(std::move(image));
         }
 
-        // Create copy layer where to store the final container images.
+        doc.beginFilterProgress(QObject::tr("Pack Texture Images"));
+        auto progress = [&](int pct, const char *label) {
+            if (vcg::CallBackPos *cb = doc.progressCallback())
+                (*cb)(pct, label);
+        };
+        progress(10, "Preparing texture groups...");
+
         VCGMesh outputMesh;
         outputMesh.face.EnableWedgeTexCoord();
-        const QString outputName = QObject::tr("pack_textures_%1").arg(sourceEntry.name);
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(outputMesh, sourceMesh);
-        const int outputMask = (sourceEntry.ioMask | Mask::IOM_WEDGTEXCOORD) & ~Mask::IOM_VERTTEXCOORD;
+        for (VCGFace &face : outputMesh.face) {
+            if (face.IsD())
+                continue;
+            const auto it = std::lower_bound(
+                usedGroups.begin(), usedGroups.end(), int(face.cWT(0).N()));
+            const int compactGroup = int(it - usedGroups.begin());
+            for (int corner = 0; corner < 3; ++corner)
+                face.WT(corner).N() = compactGroup;
+        }
+
+        progress(50, "Packing texture images...");
+        QString packingError;
+        std::vector<QImage> packedTextures = TexturePacker::simplePacking(
+            srcTextures, outputCount, gutter, outputMesh, &packingError);
+        if (packedTextures.empty()) {
+            doc.finishFilterProgress(false, packingError);
+            return fail(packingError);
+        }
+
+        outputMesh.textures.clear();
+        const QString outputName = QObject::tr("packed_textures_%1").arg(sourceEntry.name);
+        const QMatrix4x4 outputTransform = sourceEntry.transform;
+        const int outputMask =
+            (sourceEntry.ioMask | Mask::IOM_WEDGTEXCOORD) & ~Mask::IOM_VERTTEXCOORD;
         const int outputIndex = doc.addMesh(outputMesh, outputName, outputMask);
         if (outputIndex < 0) {
             const QString message = QObject::tr("Failed to add packed-texture mesh to the document.");
@@ -1488,36 +1497,30 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             return fail(message);
         }
         Document::MeshEntry &outputEntry = doc.mesh(outputIndex);
-        outputEntry.transform = sourceEntry.transform;
+        outputEntry.transform = outputTransform;
 
-        // Apply texture packer
-        progress(50, "Packing source textures...");
-		std::vector<QImage> containerTextures = TexturePacker::simplePacking(srcTextures, containerNum, outputEntry.mesh);
-
-        // Add the new container textures to the output entry.
-        QString base = QStringLiteral("container");
         std::vector<MeshIOTextureAsset> outputAssets;
-        outputAssets.reserve(containerTextures.size());
-        for (int i = 0; i < containerTextures.size(); ++i) {
-            const QString texName = QStringLiteral("%1_%2.png").arg(base).arg(i);
-            outputAssets.push_back(Tex::makeTextureAssetFromImage(containerTextures[i], texName, texName));
+        outputAssets.reserve(packedTextures.size());
+        for (int i = 0; i < int(packedTextures.size()); ++i) {
+            const QString name = QStringLiteral("packed_texture_%1.png").arg(i);
+            outputAssets.push_back(
+                Tex::makeTextureAssetFromImage(packedTextures[size_t(i)], name));
         }
         Tex::replaceTextureAssociations(outputEntry, outputAssets);
-
-
-        // Update the output entry to make Qmeshlab aware of the new texture images.
         doc.markMeshMaterialChanged(
             outputIndex,
-            QObject::tr("Created packed-textures mesh '%1'.").arg(outputEntry.name)
-            );
+            QObject::tr("Created packed-texture mesh '%1'.").arg(outputEntry.name));
 
-        // Return success.
         progress(100, "Packing complete.");
-        doc.finishFilterProgress(true, QObject::tr("Pack Textures completed."));
+        doc.finishFilterProgress(true, QObject::tr("Pack Texture Images completed."));
         MeshFilterRunResult result = {
             .success = true,
             .documentModified = true,
-            .infoMessages = { QObject::tr("Packing complete.") }
+            .infoMessages = {
+                QObject::tr("Packed %1 source images into %2 textures with a %3 px gutter.")
+                    .arg(srcTextures.size()).arg(packedTextures.size()).arg(gutter)
+            },
+            .newMeshIndices = { outputIndex }
         };
         return result;
     }
