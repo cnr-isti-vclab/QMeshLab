@@ -4065,21 +4065,40 @@ Compute discrete curvature and store it in vertex quality.
 
 ----
 
-.. _filter-per-face-quality-by-triangle-shape:
+.. _filter-per-face-quality-by-geometric-measure:
 
-Per Face Quality according to Triangle shape and aspect ratio
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Per Face Geometric Quality
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Menu:** Quality
 
-Compute per-face quality from triangle shape, texture distortion, or polygonal planarity.
+Compute face quality from triangle shape, area, or polygonal planarity.
 
-.. py:function:: ms.per_face_quality_by_triangle_shape(**params)
+.. py:function:: ms.per_face_quality_by_geometric_measure(**params)
 
    :parameters:
 
-   * **Metric** (*enum*) (default: ``area_max_side``)
-     Choose a metric to compute triangle quality.
+   * **metric** (*enum*) (default: ``area_max_side``)
+     Choose the geometric measure stored in face quality.
+
+
+----
+
+.. _filter-per-face-quality-by-texture-distortion:
+
+Per Face Texture Distortion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Menu:** Quality
+
+Measure angular or area distortion between mesh triangles and their UV mapping.
+
+.. py:function:: ms.per_face_quality_by_texture_distortion(**params)
+
+   :parameters:
+
+   * **metric** (*enum*) (default: ``angle``)
+     Choose the UV distortion measure stored in face quality.
 
 
 ----

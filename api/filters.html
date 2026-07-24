@@ -3774,20 +3774,39 @@ Choose the curvature value that you want transferred onto the scalar Quality.</p
 
 <hr class="docutils" />
 </section>
-<section id="per-face-quality-according-to-triangle-shape-and-aspect-ratio">
-<span id="filter-per-face-quality-by-triangle-shape"></span><h2>Per Face Quality according to Triangle shape and aspect ratio<a class="headerlink" href="#per-face-quality-according-to-triangle-shape-and-aspect-ratio" title="Link to this heading">¶</a></h2>
+<section id="per-face-geometric-quality">
+<span id="filter-per-face-quality-by-geometric-measure"></span><h2>Per Face Geometric Quality<a class="headerlink" href="#per-face-geometric-quality" title="Link to this heading">¶</a></h2>
 <p><strong>Menu:</strong> Quality</p>
-<p>Compute per-face quality from triangle shape, texture distortion, or polygonal planarity.</p>
+<p>Compute face quality from triangle shape, area, or polygonal planarity.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="ms.per_face_quality_by_triangle_shape">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">per_face_quality_by_triangle_shape</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ms.per_face_quality_by_triangle_shape" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="ms.per_face_quality_by_geometric_measure">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">per_face_quality_by_geometric_measure</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ms.per_face_quality_by_geometric_measure" title="Link to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p></p></dd>
 </dl>
 <ul class="simple">
-<li><p><strong>Metric</strong> (<em>enum</em>) (default: <code class="docutils literal notranslate"><span class="pre">area_max_side</span></code>)
-Choose a metric to compute triangle quality.</p></li>
+<li><p><strong>metric</strong> (<em>enum</em>) (default: <code class="docutils literal notranslate"><span class="pre">area_max_side</span></code>)
+Choose the geometric measure stored in face quality.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="per-face-texture-distortion">
+<span id="filter-per-face-quality-by-texture-distortion"></span><h2>Per Face Texture Distortion<a class="headerlink" href="#per-face-texture-distortion" title="Link to this heading">¶</a></h2>
+<p><strong>Menu:</strong> Quality</p>
+<p>Measure angular or area distortion between mesh triangles and their UV mapping.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="ms.per_face_quality_by_texture_distortion">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">per_face_quality_by_texture_distortion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ms.per_face_quality_by_texture_distortion" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<ul class="simple">
+<li><p><strong>metric</strong> (<em>enum</em>) (default: <code class="docutils literal notranslate"><span class="pre">angle</span></code>)
+Choose the UV distortion measure stored in face quality.</p></li>
 </ul>
 </dd></dl>
 
@@ -7075,8 +7094,12 @@ If enabled the unmapped texture space is colored using a pull-push filling algor
 <li><a class="reference internal" href="#ms.discrete_curvatures"><code class="docutils literal notranslate"><span class="pre">ms.discrete_curvatures()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#per-face-quality-according-to-triangle-shape-and-aspect-ratio">Per Face Quality according to Triangle shape and aspect ratio</a><ul>
-<li><a class="reference internal" href="#ms.per_face_quality_by_triangle_shape"><code class="docutils literal notranslate"><span class="pre">ms.per_face_quality_by_triangle_shape()</span></code></a></li>
+<li><a class="reference internal" href="#per-face-geometric-quality">Per Face Geometric Quality</a><ul>
+<li><a class="reference internal" href="#ms.per_face_quality_by_geometric_measure"><code class="docutils literal notranslate"><span class="pre">ms.per_face_quality_by_geometric_measure()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#per-face-texture-distortion">Per Face Texture Distortion</a><ul>
+<li><a class="reference internal" href="#ms.per_face_quality_by_texture_distortion"><code class="docutils literal notranslate"><span class="pre">ms.per_face_quality_by_texture_distortion()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#vertex-color-brightness-contrast-gamma">Vertex Color Brightness Contrast Gamma</a><ul>
