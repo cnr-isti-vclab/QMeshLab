@@ -127,7 +127,7 @@ private slots:
     void icpBetweenPointCloudsUpdatesSourceTransform();
     void translateFilterMovesOnlyCurrentMesh();
     void packTextureImagesCreatesGutteredAtlas();
-    void textureAreaDistortionCompletes();
+    void faceQualityFiltersAreSplit();
     void libiglParametrizationFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
 };
@@ -755,7 +755,7 @@ void FilterTests::packTextureImagesCreatesGutteredAtlas()
     }
 }
 
-void FilterTests::textureAreaDistortionCompletes()
+void FilterTests::faceQualityFiltersAreSplit()
 {
     Document doc;
     VCGMesh mesh;
@@ -775,18 +775,24 @@ void FilterTests::textureAreaDistortionCompletes()
             vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_WEDGTEXCOORD),
         0);
 
-    QString filterKey;
+    QString geometricFilterKey;
+    QString textureFilterKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("compute_scalar_by_aspect_ratio_per_face")) {
-            filterKey = info.key;
-            break;
-        }
+        if (info.descriptor.id == QStringLiteral("compute_scalar_by_geometric_measure_per_face"))
+            geometricFilterKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("compute_scalar_by_texture_distortion_per_face"))
+            textureFilterKey = info.key;
     }
-    QVERIFY(!filterKey.isEmpty());
+    QVERIFY(!geometricFilterKey.isEmpty());
+    QVERIFY(!textureFilterKey.isEmpty());
+
+    const MeshFilterRunResult geometricResult =
+        doc.runFilter(geometricFilterKey, MeshFilterParameterValues{});
+    QVERIFY2(geometricResult.success, qPrintable(geometricResult.errorMessage));
 
     MeshFilterParameterValues params;
-    params.insert(QStringLiteral("Metric"), QStringLiteral("texture_area_distortion"));
-    const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+    params.insert(QStringLiteral("metric"), QStringLiteral("area"));
+    const MeshFilterRunResult result = doc.runFilter(textureFilterKey, params);
     QVERIFY2(result.success, qPrintable(result.errorMessage));
     for (const VCGFace &face : doc.mesh(0).mesh.face) {
         QVERIFY(std::isfinite(face.cQ()));

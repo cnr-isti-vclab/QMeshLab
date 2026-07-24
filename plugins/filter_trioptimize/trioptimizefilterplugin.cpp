@@ -173,8 +173,8 @@ void normalizeGeometryAfterOptimization(VCGMesh &mesh)
 
 QString planarMetricName(const QString &metric)
 {
-    if (metric == QStringLiteral("inradius_circumradius"))
-        return QObject::tr("inradius/circumradius");
+    if (metric == QStringLiteral("normalized_radius_ratio"))
+        return QObject::tr("normalized radius ratio");
     if (metric == QStringLiteral("mean_ratio"))
         return QObject::tr("mean ratio");
     if (metric == QStringLiteral("delaunay"))
@@ -253,7 +253,7 @@ MeshFilterRunResult TriOptimizeFilterPlugin::runFilter(
             const std::clock_t start = std::clock();
             const QString metric = params.getEnum(QStringLiteral("planartype"));
             int performed = 0;
-            if (metric == QStringLiteral("inradius_circumradius"))
+            if (metric == QStringLiteral("normalized_radius_ratio"))
                 performed = runSinglePassEdgeFlip<QRadiiEFlip>(mesh, pp);
             else if (metric == QStringLiteral("mean_ratio"))
                 performed = runSinglePassEdgeFlip<QMeanRatioEFlip>(mesh, pp);

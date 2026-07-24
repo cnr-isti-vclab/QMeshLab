@@ -55,7 +55,8 @@ constexpr QLatin1StringView kFilterMapVQuality("compute_color_from_scalar_per_ve
 constexpr QLatin1StringView kFilterQualityMapper("compute_color_from_scalar_using_transfer_function_per_vertex");
 constexpr QLatin1StringView kFilterMapFQuality("compute_color_from_scalar_per_face");
 constexpr QLatin1StringView kFilterDiscreteCurvature("compute_scalar_by_discrete_curvature_per_vertex");
-constexpr QLatin1StringView kFilterTriangleQuality("compute_scalar_by_aspect_ratio_per_face");
+constexpr QLatin1StringView kFilterGeometricQuality("compute_scalar_by_geometric_measure_per_face");
+constexpr QLatin1StringView kFilterTextureDistortion("compute_scalar_by_texture_distortion_per_face");
 constexpr QLatin1StringView kFilterVertexSmooth("apply_color_laplacian_smoothing_per_vertex");
 constexpr QLatin1StringView kFilterFaceSmooth("apply_color_laplacian_smoothing_per_face");
 constexpr QLatin1StringView kFilterVertexToFace("compute_color_transfer_vertex_to_face");
@@ -72,7 +73,6 @@ namespace Tex = TextureAssociationUtils;
 using Scalar = VCGMesh::ScalarType;
 using Point = vcg::Point3f;
 using Histogramf = vcg::Histogram<float>;
-using Distributionf = vcg::Distribution<float>;
 
 struct CurrentMeshRef {
     int index = -1;
@@ -585,24 +585,25 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         });
     }
 
-    if (filterId == QString::fromLatin1(kFilterTriangleQuality)) {
-        ensureFaceQuality(entry);
-        Scalar minV = 0;
-        Scalar maxV = 1;
-        Distributionf distrib;
-        const QString metricId = params.getEnum(QStringLiteral("Metric"), QStringLiteral("area_max_side"));
+    const bool geometricQuality = filterId == QString::fromLatin1(kFilterGeometricQuality);
+    const bool textureDistortion = filterId == QString::fromLatin1(kFilterTextureDistortion);
+    if (geometricQuality || textureDistortion) {
+        const QString metricId = params.getEnum(
+            QStringLiteral("metric"),
+            geometricQuality ? QStringLiteral("area_max_side") : QStringLiteral("angle"));
         const bool useWedgeTex = (entry.ioMask & Mask::IOM_WEDGTEXCOORD) != 0;
         const bool hasAnyTex = (entry.ioMask & (Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTTEXCOORD)) != 0;
+        const bool planarity =
+            metricId == QStringLiteral("polygonal_planarity_max")
+            || metricId == QStringLiteral("polygonal_planarity_relative");
 
-        if ((metricId == QStringLiteral("texture_angle_distortion") || metricId == QStringLiteral("texture_area_distortion")) && !hasAnyTex)
-            return fail(QObject::tr("This metric requires texture coordinates."));
-        if ((metricId == QStringLiteral("polygonal_planarity_max") || metricId == QStringLiteral("polygonal_planarity_relative"))
-            && (entry.ioMask & Mask::IOM_BITPOLYGONAL) == 0) {
+        if (textureDistortion && !hasAnyTex)
+            return fail(QObject::tr("Texture distortion requires texture coordinates."));
+        if (geometricQuality && planarity && (entry.ioMask & Mask::IOM_BITPOLYGONAL) == 0)
             return fail(QObject::tr("This metric is meaningless for triangle-only meshes (all faces are planar by definition)."));
-        }
 
         Scalar areaScaleVal = 0;
-        if (metricId == QStringLiteral("texture_area_distortion")) {
+        if (textureDistortion && metricId == QStringLiteral("area")) {
             Scalar edgeScaleVal = 0;
             if (useWedgeTex)
                 vcg::tri::Distortion<VCGMesh, true>::MeshScalingFactor(
@@ -615,22 +616,23 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
                     "Texture area distortion is undefined because the total UV area is zero."));
         }
 
+        ensureFaceQuality(entry);
         for (VCGFace &face : mesh.face) {
             if (face.IsD())
                 continue;
-            if (metricId == QStringLiteral("area_max_side"))
+            if (geometricQuality && metricId == QStringLiteral("area_max_side"))
                 face.Q() = vcg::Quality(face.P(0), face.P(1), face.P(2));
-            else if (metricId == QStringLiteral("inradius_circumradius"))
+            else if (geometricQuality && metricId == QStringLiteral("normalized_radius_ratio"))
                 face.Q() = vcg::QualityRadii(face.P(0), face.P(1), face.P(2));
-            else if (metricId == QStringLiteral("mean_ratio"))
+            else if (geometricQuality && metricId == QStringLiteral("mean_ratio"))
                 face.Q() = vcg::QualityMeanRatio(face.P(0), face.P(1), face.P(2));
-            else if (metricId == QStringLiteral("area"))
+            else if (geometricQuality && metricId == QStringLiteral("area"))
                 face.Q() = vcg::DoubleArea(face) * 0.5f;
-            else if (metricId == QStringLiteral("texture_angle_distortion"))
+            else if (textureDistortion && metricId == QStringLiteral("angle"))
                 face.Q() = useWedgeTex
                     ? vcg::tri::Distortion<VCGMesh, true>::AngleDistortion(&face)
                     : vcg::tri::Distortion<VCGMesh, false>::AngleDistortion(&face);
-            else if (metricId == QStringLiteral("texture_area_distortion")) {
+            else if (textureDistortion && metricId == QStringLiteral("area")) {
                 if (useWedgeTex)
                     face.Q() = vcg::tri::Distortion<VCGMesh, true>::AreaDistortion(&face, areaScaleVal);
                 else
@@ -638,9 +640,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             }
         }
 
-        if (metricId == QStringLiteral("area")) {
-            vcg::tri::Stat<VCGMesh>::ComputePerFaceQualityMinMax(mesh, minV, maxV);
-        } else if (metricId == QStringLiteral("polygonal_planarity_max") || metricId == QStringLiteral("polygonal_planarity_relative")) {
+        if (geometricQuality && planarity) {
             vcg::tri::UpdateFlags<VCGMesh>::FaceClearV(mesh);
             std::vector<VCGMesh::VertexPointer> vertVec;
             std::vector<VCGMesh::FacePointer> faceVec;
@@ -667,16 +667,14 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
                 for (VCGMesh::FacePointer fp : faceVec)
                     fp->Q() = (metricId == QStringLiteral("polygonal_planarity_max")) ? maxDist : (avgDist / std::max(1e-12f, halfPerim));
             }
-            vcg::tri::Stat<VCGMesh>::ComputePerFaceQualityDistribution(mesh, distrib);
-            minV = distrib.Percentile(0.05f);
-            maxV = distrib.Percentile(0.95f);
-        } else {
-            vcg::tri::Stat<VCGMesh>::ComputePerFaceQualityDistribution(mesh, distrib);
-            minV = distrib.Percentile(0.05f);
-            maxV = distrib.Percentile(0.95f);
         }
 
-        markGeometry(doc, meshIndex, QObject::tr("Computed per-face quality on '%1'").arg(meshLabel(entry, meshIndex)));
+        markGeometry(
+            doc,
+            meshIndex,
+            geometricQuality
+                ? QObject::tr("Computed per-face geometric quality on '%1'").arg(meshLabel(entry, meshIndex))
+                : QObject::tr("Computed per-face texture distortion on '%1'").arg(meshLabel(entry, meshIndex)));
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::FaceQuality);
     }
 

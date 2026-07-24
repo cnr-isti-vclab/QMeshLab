@@ -60,15 +60,15 @@
           "enumOptions": [
             {
               "id": "area_max_side",
-              "label": "area/max side"
+              "label": "Area / squared maximum side"
             },
             {
-              "id": "inradius_circumradius",
-              "label": "inradius/circumradius"
+              "id": "normalized_radius_ratio",
+              "label": "Normalized radius ratio"
             },
             {
               "id": "mean_ratio",
-              "label": "mean ratio"
+              "label": "Mean ratio"
             },
             {
               "id": "delaunay",

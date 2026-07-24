@@ -434,33 +434,58 @@
       "outputModifies": ["VQ"]
     },
     {
-      "id": "compute_scalar_by_aspect_ratio_per_face",
+      "id": "compute_scalar_by_geometric_measure_per_face",
       "menuPath": "Quality",
-      "name": "Per Face Quality according to Triangle shape and aspect ratio",
-      "pythonName": "per_face_quality_by_triangle_shape",
-      "shortDescription": "Compute per-face quality from triangle shape, texture distortion, or polygonal planarity.",
-      "longDescriptionMarkdown": "Compute a quality depending on triangle shape and store it in face quality. The filter does not bake colors; after it runs QMeshLab switches the view to face-quality color visualization.<ol><li>area/max side of triangle<li>ratio inradius/circumradius (radii of incircle and circumcircle)<li>Mean ratio of triangle = area/(a*a + b*b + c*c)<li>Area<li>Texture Angle Distortion. Difference between angle in 3D space and texture space<li>Texture Area Distortion. Difference between area in 3D space and texture space<li>Polygonal Planarity (max distance to support plane)<li>Polygonal Planarity (relative distance to support plane)</ol>",
-      "tags": ["quality", "face", "distortion"],
+      "name": "Per Face Geometric Quality",
+      "pythonName": "per_face_quality_by_geometric_measure",
+      "shortDescription": "Compute face quality from triangle shape, area, or polygonal planarity.",
+      "longDescriptionMarkdown": "Computes a geometric measure for every face and stores the result in **face quality**. No colors are baked into the mesh; after completion QMeshLab switches the view to face-quality visualization.\n\nThe triangle-shape measures are scale independent and approach zero for degenerate triangles:\n\n- **Area / squared maximum side**: `2A / Lmax²`, where `A` is triangle area and `Lmax` is its longest side. Its range is `[0, √3/2]`; an equilateral triangle reaches `√3/2`.\n- **Normalized radius ratio**: `2r/R`, where `r` and `R` are the inradius and circumradius. Its range is `[0,1]`; an equilateral triangle reaches `1`.\n- **Mean ratio**: `4√3 A / (a²+b²+c²)`. Its range is `[0,1]`; an equilateral triangle reaches `1`.\n- **Area**: the triangle area in the mesh's squared coordinate units. This measure is not scale independent.\n\nThe planarity measures apply only to polygonal meshes represented by faux-edge triangle groups. QMeshLab fits a support plane to each polygon and assigns the same result to all its component triangles:\n\n- **Polygonal planarity (maximum)**: maximum vertex distance from the fitted plane.\n- **Polygonal planarity (relative)**: mean vertex-to-plane distance divided by the polygon's half-perimeter.",
+      "tags": ["quality", "face", "geometry", "triangle", "planarity"],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireFaces": true },
       "parameters": [
         {
-          "id": "Metric",
+          "id": "metric",
           "label": "Metric",
-          "help": "Choose a metric to compute triangle quality.",
+          "help": "Choose the geometric measure stored in face quality.",
           "group": "main",
           "type": "enum",
           "default": "area_max_side",
           "enumOptions": [
-            { "id": "area_max_side", "label": "area/max side" },
-            { "id": "inradius_circumradius", "label": "inradius/circumradius" },
+            { "id": "area_max_side", "label": "Area / squared maximum side" },
+            { "id": "normalized_radius_ratio", "label": "Normalized radius ratio" },
             { "id": "mean_ratio", "label": "Mean ratio" },
             { "id": "area", "label": "Area" },
-            { "id": "texture_angle_distortion", "label": "Texture Angle Distortion" },
-            { "id": "texture_area_distortion", "label": "Texture Area Distortion" },
-            { "id": "polygonal_planarity_max", "label": "Polygonal planarity (max)" },
+            { "id": "polygonal_planarity_max", "label": "Polygonal planarity (maximum)" },
             { "id": "polygonal_planarity_relative", "label": "Polygonal planarity (relative)" }
+          ]
+        }
+      ],
+      "outputModifies": ["FQ"]
+    },
+    {
+      "id": "compute_scalar_by_texture_distortion_per_face",
+      "menuPath": "Quality",
+      "name": "Per Face Texture Distortion",
+      "pythonName": "per_face_quality_by_texture_distortion",
+      "shortDescription": "Measure angular or area distortion between mesh triangles and their UV mapping.",
+      "longDescriptionMarkdown": "Compares every triangle in 3D with its mapping in UV space and stores the resulting dimensionless distortion in **face quality**. No colors are baked into the mesh; after completion QMeshLab switches the view to face-quality visualization. Both per-wedge and per-vertex texture coordinates are supported, and texture image files are not required.\n\n- **Angle distortion**: the mean relative angular error over the three corners, `mean(|θUV−θ3D| / θ3D)`. A value of `0` means that the mapping preserves all triangle angles; larger values indicate increasing conformal distortion. Uniform scaling and rigid transformations of the UV triangle do not affect this measure.\n- **Area distortion**: first computes one global scale `s = ΣA3D / ΣAUV`, then evaluates each face as `|s AUV−A3D| / A3D`. A value of `0` means that the face has the globally expected texel density; larger values identify local expansion or compression relative to the mesh-wide average.\n\nUV area is signed, matching VCGLib's distortion implementation. Folded triangles or charts with inconsistent orientation can cancel one another in the global UV-area sum; the area metric is rejected when this makes the global scale undefined. Degenerate 3D or UV triangles do not provide meaningful distortion values and should be removed before running the filter.",
+      "tags": ["quality", "face", "texture", "uv", "distortion"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireFaces": true, "requireTextureCoordinates": true },
+      "parameters": [
+        {
+          "id": "metric",
+          "label": "Metric",
+          "help": "Choose the UV distortion measure stored in face quality.",
+          "group": "main",
+          "type": "enum",
+          "default": "angle",
+          "enumOptions": [
+            { "id": "angle", "label": "Angle distortion" },
+            { "id": "area", "label": "Area distortion" }
           ]
         }
       ],
