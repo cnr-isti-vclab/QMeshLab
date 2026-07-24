@@ -6059,10 +6059,10 @@ Time limit for the defragmentation process. \`0\` means unlimited. This is usefu
 
 <hr class="docutils" />
 </section>
-<section id="pack-textures">
-<span id="filter-pack-texture-per-mesh"></span><h2>Pack Textures<a class="headerlink" href="#pack-textures" title="Link to this heading">¶</a></h2>
+<section id="pack-texture-images">
+<span id="filter-pack-texture-per-mesh"></span><h2>Pack Texture Images<a class="headerlink" href="#pack-texture-images" title="Link to this heading">¶</a></h2>
 <p><strong>Menu:</strong> Texture</p>
-<p>Packs the mesh’s texture in the requested number of output images.</p>
+<p>Combines complete texture images into fewer atlas images and remaps the mesh UVs.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="ms.pack_texture_per_mesh">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">pack_texture_per_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ms.pack_texture_per_mesh" title="Link to this definition">¶</a></dt>
@@ -6072,7 +6072,9 @@ Time limit for the defragmentation process. \`0\` means unlimited. This is usefu
 </dl>
 <ul class="simple">
 <li><p><strong>containerNum</strong> (<em>int</em>) (default: <code class="docutils literal notranslate"><span class="pre">1</span></code>)
-The number of resulting textures packing the original ones.</p></li>
+Number of output images. It must be smaller than the number of texture groups actually used by the mesh.</p></li>
+<li><p><strong>gutter</strong> (<em>int</em>) (default: <code class="docutils literal notranslate"><span class="pre">4</span></code>)
+Border pixels reserved around every source image. The source image edges are extruded into this area to prevent bilinear-filtering bleed.</p></li>
 </ul>
 </dd></dl>
 
@@ -7461,7 +7463,7 @@ If enabled the unmapped texture space is colored using a pull-push filling algor
 <li><a class="reference internal" href="#ms.defragment_texture_map"><code class="docutils literal notranslate"><span class="pre">ms.defragment_texture_map()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#pack-textures">Pack Textures</a><ul>
+<li><a class="reference internal" href="#pack-texture-images">Pack Texture Images</a><ul>
 <li><a class="reference internal" href="#ms.pack_texture_per_mesh"><code class="docutils literal notranslate"><span class="pre">ms.pack_texture_per_mesh()</span></code></a></li>
 </ul>
 </li>

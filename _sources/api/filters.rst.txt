@@ -6708,19 +6708,22 @@ Reduce texture atlas fragmentation by merging compatible charts and resampling t
 
 .. _filter-pack-texture-per-mesh:
 
-Pack Textures
-~~~~~~~~~~~~~
+Pack Texture Images
+~~~~~~~~~~~~~~~~~~~
 
 **Menu:** Texture
 
-Packs the mesh's texture in the requested number of output images.
+Combines complete texture images into fewer atlas images and remaps the mesh UVs.
 
 .. py:function:: ms.pack_texture_per_mesh(**params)
 
    :parameters:
 
    * **containerNum** (*int*) (default: ``1``)
-     The number of resulting textures packing the original ones.
+     Number of output images. It must be smaller than the number of texture groups actually used by the mesh.
+
+   * **gutter** (*int*) (default: ``4``)
+     Border pixels reserved around every source image. The source image edges are extruded into this area to prevent bilinear-filtering bleed.
 
 
 ----
