@@ -92,7 +92,7 @@ def _read_all_filters(source_dir):
     """Walk *source_dir* (the repository root) for filters.json files.
 
     Returns list of dicts with keys:
-      plugin_id, name, python_name, description,
+      plugin_id, name, python_name, description, long_description,
       parameters (list of dicts with name, type, default, description)
     """
     filters = []
@@ -115,8 +115,10 @@ def _read_all_filters(source_dir):
                 entries = data.get('filters', data.get('filterDescriptors', []))
                 if not isinstance(entries, list):
                     continue
+                descriptor_plugin_id = data.get('pluginId', '')
             elif isinstance(data, list):
                 entries = data
+                descriptor_plugin_id = ''
             else:
                 continue
             for entry in entries:
@@ -132,10 +134,13 @@ def _read_all_filters(source_dir):
                         'description': (p.get('help', p.get('description', '')) or '').strip(),
                     })
                 filters.append({
-                    'plugin_id': entry.get('plugin_id', ''),
+                    'plugin_id': entry.get('pluginId',
+                                           entry.get('plugin_id', descriptor_plugin_id)),
                     'name': entry.get('name', pname),
                     'python_name': pname,
                     'description': (entry.get('shortDescription', '') or '').strip(),
+                    'long_description':
+                        (entry.get('longDescriptionMarkdown', '') or '').strip(),
                     'menu': entry.get('menuPath', ''),
                     'parameters': params,
                 })
@@ -144,25 +149,25 @@ def _read_all_filters(source_dir):
 
 
 # ---------------------------------------------------------------------------
-# RST generators
+# Reference generators
 # ---------------------------------------------------------------------------
 
-def _write_filter_rst(fh, filter_list):
-    """Write the complete filters reference page."""
-    fh.write('.. _filters:\n\n')
-    fh.write('Filters\n')
-    fh.write('=======\n\n')
-    fh.write('All filters available in QMeshLab are listed below.\n')
-    fh.write('Each filter can be called as a method on a ``MeshSet`` object,\n')
-    fh.write('e.g. ``ms.apply_filter("meshing_remove_duplicate_vertices", ...)``\n')
-    fh.write('or using the dynamically-bound snake_case name:\n')
-    fh.write('``ms.meshing_remove_duplicate_vertices(...)``.\n\n')
+def _write_filter_markdown(fh, filter_list):
+    """Write the filter reference as MyST Markdown."""
+    fh.write('(filters)=\n\n')
+    fh.write('# Filters\n\n')
+    fh.write('All filters available in QMeshLab are listed below. Each filter can '
+             'be called as a method on a `MeshSet` object, for example '
+             '`ms.apply_filter("meshing_remove_duplicate_vertices", ...)`, or '
+             'using the dynamically-bound snake_case name: '
+             '`ms.meshing_remove_duplicate_vertices(...)`.\n\n')
 
-    for f in filter_list:
+    for index, f in enumerate(filter_list):
+        if index:
+            fh.write('---\n\n')
         anchor = f['python_name'].replace('_', '-')
-        fh.write(f'.. _filter-{anchor}:\n\n')
-        fh.write(f'{f["name"]}\n')
-        fh.write(f'{"~" * len(f["name"])}\n\n')
+        fh.write(f'(filter-{anchor})=\n\n')
+        fh.write(f'## {f["name"]}\n\n')
         if f['menu']:
             fh.write(f'**Menu:** {f["menu"]}\n\n')
         if f['plugin_id']:
@@ -170,22 +175,24 @@ def _write_filter_rst(fh, filter_list):
         if f['description']:
             fh.write(f'{f["description"]}\n\n')
 
-        fh.write(f'.. py:function:: ms.{f["python_name"]}(**params)\n\n')
+        fh.write(f'```{{py:function}} ms.{f["python_name"]}(**params)\n')
+        fh.write(':module: _qmeshlab\n\n')
+        long_description = f['long_description']
+        if long_description and long_description != f['description']:
+            fh.write(f'{long_description}\n\n')
         if f['parameters']:
-            fh.write('   :parameters:\n\n')
+            fh.write('**Parameters:**\n\n')
             for p in f['parameters']:
-                desc = _rst_escape(p['description'])
                 default_str = ''
                 if p['default'] is not None:
-                    default_str = f' (default: ``{p["default"]}``)'
-                fh.write(f'   * **{p["name"]}** (*{p["type"]}*){default_str}\n')
-                if desc:
-                    fh.write(f'     {desc}\n')
+                    default_str = f', default: `{p["default"]}`'
+                fh.write(f'- **{p["name"]}** (*{p["type"]}*{default_str})')
+                if p['description']:
+                    fh.write(f' — {p["description"]}')
                 fh.write('\n')
         else:
-            fh.write('   This filter has no parameters.\n\n')
-
-        fh.write('\n----\n\n')
+            fh.write('This filter has no parameters.\n')
+        fh.write('```\n\n')
 
 
 # ---------------------------------------------------------------------------
@@ -248,11 +255,15 @@ def generate(output_dir):
         _write_methods_rst(fh, 'FilterRunResult', filter_run_members,
                           extra_intro='.. py:class:: FilterRunResult\n\n   Return value from ``apply_filter``.\n')
 
-    # --- Write api/filters.rst ---
-    with open(os.path.join(output_dir, 'api', 'filters.rst'), 'w', encoding='utf-8') as fh:
-        _write_filter_rst(fh, all_filters)
+    # --- Write api/filters.md ---
+    with open(os.path.join(output_dir, 'api', 'filters.md'), 'w', encoding='utf-8') as fh:
+        _write_filter_markdown(fh, all_filters)
 
-    print(f"generate_api: wrote .rst files to {output_dir}/api/")
+    old_filter_page = os.path.join(output_dir, 'api', 'filters.rst')
+    if os.path.exists(old_filter_page):
+        os.remove(old_filter_page)
+
+    print(f"generate_api: wrote API files to {output_dir}/api/")
     print(f"              {len(meshset_members)} MeshSet methods, "
           f"{len(mlgui_members)} MlGui methods, "
           f"{len(all_filters)} filters")

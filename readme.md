@@ -76,14 +76,17 @@ Built-in filter plugin families (dependency-gated at build time):
 ### Recommended: vcpkg manifest mode
 
 Prerequisites:
-- Qt 6.11+
+- Qt 6.11+ with Qt SVG
 - CMake 3.25+
 - Build tool: `ninja` or `make`
 - vcpkg clone
 - Python development libraries when `QMESHLAB_PYTHON_CONSOLE=ON` (default)
 
 This repository contains `vcpkg.json`; non-Qt dependencies are installed via vcpkg manifest mode.
-Qt6 and Python are intentionally kept outside vcpkg, while `vcglib` remains a git submodule. `nanobind` is provided through vcpkg and is used for the private `_qmeshlab` extension behind the embedded `pymeshlab2` facade.
+Qt6 and Python are intentionally kept outside vcpkg. `vcglib` and the
+math-only JKQTMathText dependency are git submodules. `nanobind` is provided
+through vcpkg and is used for the private `_qmeshlab` extension behind the
+embedded `pymeshlab2` facade.
 
 ### Dependency Installation
 
@@ -152,6 +155,8 @@ cmake --build --preset local-no-vcpkg
 ```
 
 The local minimal preset disables dependency-heavy plugins (`io_gltf`, `io_e57`, `io_obj_rapidobj`). Because the embedded Python console is enabled by default, this path still needs local Python development files and nanobind. If you want a lean viewer-only build without those, configure with `-DQMESHLAB_PYTHON_CONSOLE=OFF`.
+LaTeX rendering in filter help can likewise be disabled with
+`-DQMESHLAB_MATH_HELP=OFF`.
 
 ## GitHub Actions: macOS DMG
 

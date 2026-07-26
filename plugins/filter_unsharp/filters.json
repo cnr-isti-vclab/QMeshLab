@@ -858,7 +858,7 @@
       "name": "Vertex Linear Morphing",
       "pythonName": "vertex_linear_morphing",
       "shortDescription": "Linearly morph the current mesh toward another mesh.",
-      "longDescriptionMarkdown": "Morph deformation of current mesh towards a target mesh with the same number of vertices and same vertex ordering. Each vertex of the source mesh is linearly interpolated towards the corresponding vertex on the target mesh using the formula:<p align='center'>result<sub><big>i</big></sub> = (1-&lambda;)*source<sub><big>i</big></sub> + &lambda;*target<sub><big>i</big></sub></p><b>Three-dimensional metamorphosis: a survey</b><br>by <i>F. Lazarus and A. Verroust</i>, Visual Computer, 1998<br><a href='https://doi.org/10.1007/s003710050149'>doi:10.1007/s003710050149</a>",
+      "longDescriptionMarkdown": "Morphs the current mesh towards a target mesh with the same number of vertices and the same vertex ordering. Each source vertex is linearly interpolated towards the corresponding target vertex:\n\n$$p_i^{\\mathrm{result}}=(1-\\lambda)p_i^{\\mathrm{source}}+\\lambda p_i^{\\mathrm{target}}.$$\n\nSee **Three-dimensional metamorphosis: a survey**, F. Lazarus and A. Verroust, *The Visual Computer*, 1998 ([doi:10.1007/s003710050149](https://doi.org/10.1007/s003710050149)).",
       "tags": [
         "smoothing",
         "morphing",

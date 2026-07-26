@@ -4,7 +4,8 @@ copyright = '2026, MeshLab Developers'
 author = 'MeshLab Developers'
 release = '0.1'
 
-extensions = []
+extensions = ['myst_parser', 'sphinx.ext.mathjax']
+myst_enable_extensions = ['dollarmath']
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'generate_api.py']

@@ -55,6 +55,20 @@ The default `MeshFilterPlugin::filters()` loads this from the Qt resource
 `pluginId`. Parameter types: `bool int double absPerc enum color point3f string
 fileOpen fileSave mesh cameraState renderState textureRef`.
 
+### Descriptions and formulas
+
+`longDescriptionMarkdown` is the single source for both the in-app help and the
+generated Python documentation. Use Markdown, with LaTeX enclosed in `$...$`
+for inline formulas or `$$...$$` for a centered formula:
+
+```json
+"longDescriptionMarkdown": "For a triangle of area $A$, the normalized quality is $$q = 2A/L_{\\max}^2.$$"
+```
+
+Because this is JSON, every LaTeX backslash must be escaped as `\\`. Keep
+formulas to standard LaTeX math commands supported by both JKQTMathText and
+MathJax; links and ordinary formatting should remain Markdown rather than HTML.
+
 ### 2. The plugin class
 
 ```cpp

@@ -1,5 +1,6 @@
 #include "meshfilterpanel.h"
 #include "filterparam.h"
+#include "mathmarkdownrenderer.h"
 
 #include <QCheckBox>
 #include <QColorDialog>
@@ -1301,7 +1302,7 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
         m_copyToConsoleButton->setVisible(true);
 #endif
     if (hasLongDescription) {
-        m_longDescriptionView->setMarkdown(longDescription);
+        MathMarkdownRenderer::setMarkdown(*m_longDescriptionView, longDescription);
     } else {
         m_longDescriptionView->clear();
     }

@@ -1,3 +1,7 @@
 [submodule "vcglib"]
 	path = vcglib
 	url = https://github.com/cnr-isti-vclab/vcglib.git
+[submodule "external/jkqtplotter"]
+	path = external/jkqtplotter
+	url = https://github.com/jkriege2/JKQtPlotter.git
+	shallow = true

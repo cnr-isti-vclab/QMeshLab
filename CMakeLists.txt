@@ -7,6 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(QT_NO_PRIVATE_MODULE_WARNING ON)
 
 option(QMESH_REQUIRE_VCPKG_DEPS "Require vcpkg toolchain for non-Qt external dependencies" ON)
+option(QMESHLAB_MATH_HELP "Render LaTeX formulas in filter help" ON)
 if (QMESH_REQUIRE_VCPKG_DEPS)
     if (NOT DEFINED VCPKG_TARGET_TRIPLET)
         message(FATAL_ERROR
@@ -19,6 +20,34 @@ if (QMESH_REQUIRE_VCPKG_DEPS)
 endif()
 
 find_package(Qt6 6.11 REQUIRED COMPONENTS Widgets GuiPrivate ShaderTools Test)
+
+if(QMESHLAB_MATH_HELP)
+    find_package(Qt6 6.11 REQUIRED COMPONENTS Xml)
+    if(NOT EXISTS "${CMAKE_SOURCE_DIR}/external/jkqtplotter/CMakeLists.txt")
+        message(FATAL_ERROR
+            "QMESHLAB_MATH_HELP=ON but external/jkqtplotter is missing. "
+            "Run: git submodule update --init external/jkqtplotter")
+    endif()
+    set(JKQtPlotter_BUILD_INCLUDE_XITS_FONTS OFF)
+    set(JKQtPlotter_BUILD_INCLUDE_FIRAMATH_FONTS ON)
+    set(JKQtPlotter_BUILD_LIB_JKQTMATH OFF)
+    set(JKQtPlotter_BUILD_LIB_JKQTMATHTEXT ON)
+    set(JKQtPlotter_BUILD_LIB_JKQTFASTPLOTTER OFF)
+    set(JKQtPlotter_BUILD_LIB_JKQTPLOTTER OFF)
+    set(JKQtPlotter_BUILD_FORCE_NO_PRINTER_SUPPORT ON)
+    set(JKQtPlotter_BUILD_WITH_PRECOMPILED_HEADERS OFF)
+    if(DEFINED BUILD_SHARED_LIBS)
+        set(_qmeshlab_build_shared_libs "${BUILD_SHARED_LIBS}")
+    endif()
+    set(BUILD_SHARED_LIBS OFF)
+    add_subdirectory(external/jkqtplotter EXCLUDE_FROM_ALL)
+    if(DEFINED _qmeshlab_build_shared_libs)
+        set(BUILD_SHARED_LIBS "${_qmeshlab_build_shared_libs}")
+        unset(_qmeshlab_build_shared_libs)
+    else()
+        unset(BUILD_SHARED_LIBS)
+    endif()
+endif()
 
 # ---------------------------------------------------------------------------
 # Optional Intel Embree ray casting (shared by core + filter_embree)
@@ -107,6 +136,17 @@ if(QMESHLAB_PYTHON_CONSOLE)
     add_subdirectory(src/python)
 endif()
 
+add_library(QMeshLabMathHelp STATIC
+    src/ui/mathmarkdownrenderer.h
+    src/ui/mathmarkdownrenderer.cpp
+)
+target_link_libraries(QMeshLabMathHelp PUBLIC Qt6::Widgets)
+target_include_directories(QMeshLabMathHelp PUBLIC ${CMAKE_SOURCE_DIR}/src/ui)
+if(QMESHLAB_MATH_HELP)
+    target_link_libraries(QMeshLabMathHelp PRIVATE JKQTPlotter6::JKQTMathText6)
+    target_compile_definitions(QMeshLabMathHelp PRIVATE QMESHLAB_MATH_HELP)
+endif()
+
 qt_add_executable(QMeshLab
     src/app/main.cpp
     src/ui/mainwindow.h src/ui/mainwindow.cpp
@@ -167,6 +207,7 @@ target_include_directories(QMeshLab PRIVATE
 
 target_link_libraries(QMeshLab PRIVATE
     QMeshLabPlugins
+    QMeshLabMathHelp
     Qt6::Widgets
     Qt6::GuiPrivate
 )
@@ -316,6 +357,17 @@ target_link_libraries(QMeshLabColorMapTests PRIVATE
 )
 
 add_test(NAME QMeshLabColorMapTests COMMAND QMeshLabColorMapTests)
+
+if(QMESHLAB_MATH_HELP)
+    qt_add_executable(QMeshLabMathMarkdownTests
+        tests/test_mathmarkdown.cpp
+    )
+    target_link_libraries(QMeshLabMathMarkdownTests PRIVATE
+        QMeshLabMathHelp
+        Qt6::Test
+    )
+    add_test(NAME QMeshLabMathMarkdownTests COMMAND QMeshLabMathMarkdownTests)
+endif()
 
 qt_add_executable(QMeshLabFilterTests
     tests/test_filters.cpp
