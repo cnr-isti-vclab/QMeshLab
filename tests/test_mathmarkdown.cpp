@@ -52,8 +52,10 @@ void MathMarkdownTests::rendersFilterFormulaSubset()
         QStringLiteral(
             "$2A/L_{\\max}^2$ and $[0,\\sqrt{3}/2]$\n\n"
             "$$D_{\\mathrm{angle}}=\\frac{1}{3}\\sum_{i=1}^{3}"
-            "\\frac{|\\theta_i^{UV}-\\theta_i^{3D}|}{\\theta_i^{3D}}.$$"));
-    QVERIFY2(imageCount(*browser.document()) == 3, qPrintable(browser.toHtml()));
+            "\\frac{|\\theta_i^{UV}-\\theta_i^{3D}|}{\\theta_i^{3D}}.$$\n\n"
+            "$$L_2=\\sqrt{\\frac{a+c}{2}}.$$\n\n"
+            "$$L_\\infty=\\sqrt{\\frac{a+c+\\sqrt{(a-c)^2+4b^2}}{2}}.$$"));
+    QVERIFY2(imageCount(*browser.document()) == 5, qPrintable(browser.toHtml()));
 }
 
 void MathMarkdownTests::ignoresCodeAndEscapedDollars()

@@ -790,13 +790,50 @@ void FilterTests::faceQualityFiltersAreSplit()
         doc.runFilter(geometricFilterKey, MeshFilterParameterValues{});
     QVERIFY2(geometricResult.success, qPrintable(geometricResult.errorMessage));
 
-    MeshFilterParameterValues params;
-    params.insert(QStringLiteral("metric"), QStringLiteral("area"));
-    const MeshFilterRunResult result = doc.runFilter(textureFilterKey, params);
-    QVERIFY2(result.success, qPrintable(result.errorMessage));
-    for (const VCGFace &face : doc.mesh(0).mesh.face) {
-        QVERIFY(std::isfinite(face.cQ()));
-        QVERIFY(std::abs(face.cQ()) < 1e-6f);
+    const std::array<std::pair<QString, float>, 5> textureMetrics = {{
+        { QStringLiteral("angle"), 0.0f },
+        { QStringLiteral("area"), 0.0f },
+        { QStringLiteral("edge"), 0.0f },
+        { QStringLiteral("l2_stretch"), 1.0f },
+        { QStringLiteral("linf_stretch"), 1.0f }
+    }};
+    for (const auto &[metric, expected] : textureMetrics) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("metric"), metric);
+        const MeshFilterRunResult result = doc.runFilter(textureFilterKey, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        for (const VCGFace &face : doc.mesh(0).mesh.face) {
+            QVERIFY(std::isfinite(face.cQ()));
+            QVERIFY(std::abs(face.cQ() - expected) < 1e-6f);
+        }
+    }
+
+    for (VCGFace &face : doc.mesh(0).mesh.face)
+        for (int corner = 0; corner < 3; ++corner)
+            face.WT(corner).P() *= 7.0f;
+    for (const auto &[metric, expected] : textureMetrics) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("metric"), metric);
+        const MeshFilterRunResult result = doc.runFilter(textureFilterKey, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        for (const VCGFace &face : doc.mesh(0).mesh.face)
+            QVERIFY(std::abs(face.cQ() - expected) < 1e-5f);
+    }
+
+    for (VCGFace &face : doc.mesh(0).mesh.face)
+        for (int corner = 0; corner < 3; ++corner)
+            face.WT(corner).U() *= 2.0f;
+    const std::array<std::pair<QString, float>, 2> anisotropicStretch = {{
+        { QStringLiteral("l2_stretch"), std::sqrt(1.25f) },
+        { QStringLiteral("linf_stretch"), std::sqrt(2.0f) }
+    }};
+    for (const auto &[metric, expected] : anisotropicStretch) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("metric"), metric);
+        const MeshFilterRunResult result = doc.runFilter(textureFilterKey, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        for (const VCGFace &face : doc.mesh(0).mesh.face)
+            QVERIFY(std::abs(face.cQ() - expected) < 1e-5f);
     }
 }
 

@@ -74,6 +74,49 @@ using Scalar = VCGMesh::ScalarType;
 using Point = vcg::Point3f;
 using Histogramf = vcg::Histogram<float>;
 
+enum class TextureDistortionMetric {
+    Angle,
+    Area,
+    Edge,
+    L2Stretch,
+    LInfStretch
+};
+
+TextureDistortionMetric textureDistortionMetric(const QString &id)
+{
+    if (id == QStringLiteral("area")) return TextureDistortionMetric::Area;
+    if (id == QStringLiteral("edge")) return TextureDistortionMetric::Edge;
+    if (id == QStringLiteral("l2_stretch")) return TextureDistortionMetric::L2Stretch;
+    if (id == QStringLiteral("linf_stretch")) return TextureDistortionMetric::LInfStretch;
+    return TextureDistortionMetric::Angle;
+}
+
+template<bool PerWedge>
+Scalar faceTextureDistortion(
+    const VCGFace &face,
+    TextureDistortionMetric metric,
+    Scalar areaScale,
+    Scalar edgeScale)
+{
+    using Distortion = vcg::tri::Distortion<VCGMesh, PerWedge>;
+    switch (metric) {
+    case TextureDistortionMetric::Area:
+        return Distortion::AreaDistortion(&face, areaScale);
+    case TextureDistortionMetric::Edge:
+        return (
+            Distortion::EdgeDistortion(&face, 0, edgeScale)
+            + Distortion::EdgeDistortion(&face, 1, edgeScale)
+            + Distortion::EdgeDistortion(&face, 2, edgeScale)) / 3;
+    case TextureDistortionMetric::L2Stretch:
+        return std::sqrt(Distortion::L2StretchEnergySquared(&face, areaScale));
+    case TextureDistortionMetric::LInfStretch:
+        return Distortion::LInfStretchEnergy(&face, areaScale);
+    case TextureDistortionMetric::Angle:
+        return Distortion::AngleDistortion(&face);
+    }
+    return 0;
+}
+
 struct CurrentMeshRef {
     int index = -1;
     Document::MeshEntry *entry = nullptr;
@@ -591,6 +634,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         const QString metricId = params.getEnum(
             QStringLiteral("metric"),
             geometricQuality ? QStringLiteral("area_max_side") : QStringLiteral("angle"));
+        const TextureDistortionMetric textureMetric = textureDistortionMetric(metricId);
         const bool useWedgeTex = (entry.ioMask & Mask::IOM_WEDGTEXCOORD) != 0;
         const bool hasAnyTex = (entry.ioMask & (Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTTEXCOORD)) != 0;
         const bool planarity =
@@ -603,17 +647,27 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             return fail(QObject::tr("This metric is meaningless for triangle-only meshes (all faces are planar by definition)."));
 
         Scalar areaScaleVal = 0;
-        if (textureDistortion && metricId == QStringLiteral("area")) {
-            Scalar edgeScaleVal = 0;
+        Scalar edgeScaleVal = 0;
+        if (textureDistortion && textureMetric != TextureDistortionMetric::Angle) {
             if (useWedgeTex)
                 vcg::tri::Distortion<VCGMesh, true>::MeshScalingFactor(
                     mesh, areaScaleVal, edgeScaleVal);
             else
                 vcg::tri::Distortion<VCGMesh, false>::MeshScalingFactor(
                     mesh, areaScaleVal, edgeScaleVal);
-            if (!std::isfinite(areaScaleVal))
+            if (textureMetric == TextureDistortionMetric::Edge
+                && (!std::isfinite(edgeScaleVal) || edgeScaleVal <= 0))
                 return fail(QObject::tr(
-                    "Texture area distortion is undefined because the total UV area is zero."));
+                    "Texture edge distortion is undefined because the total edge length is zero."));
+            if (textureMetric == TextureDistortionMetric::Area
+                && (!std::isfinite(areaScaleVal) || areaScaleVal == 0))
+                return fail(QObject::tr(
+                    "Texture area distortion is undefined because the total oriented UV area is zero."));
+            if ((textureMetric == TextureDistortionMetric::L2Stretch
+                    || textureMetric == TextureDistortionMetric::LInfStretch)
+                && (!std::isfinite(areaScaleVal) || areaScaleVal <= 0))
+                return fail(QObject::tr(
+                    "Texture stretch is undefined because the total oriented UV area is not positive."));
         }
 
         ensureFaceQuality(entry);
@@ -628,16 +682,10 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
                 face.Q() = vcg::QualityMeanRatio(face.P(0), face.P(1), face.P(2));
             else if (geometricQuality && metricId == QStringLiteral("area"))
                 face.Q() = vcg::DoubleArea(face) * 0.5f;
-            else if (textureDistortion && metricId == QStringLiteral("angle"))
+            else if (textureDistortion)
                 face.Q() = useWedgeTex
-                    ? vcg::tri::Distortion<VCGMesh, true>::AngleDistortion(&face)
-                    : vcg::tri::Distortion<VCGMesh, false>::AngleDistortion(&face);
-            else if (textureDistortion && metricId == QStringLiteral("area")) {
-                if (useWedgeTex)
-                    face.Q() = vcg::tri::Distortion<VCGMesh, true>::AreaDistortion(&face, areaScaleVal);
-                else
-                    face.Q() = vcg::tri::Distortion<VCGMesh, false>::AreaDistortion(&face, areaScaleVal);
-            }
+                    ? faceTextureDistortion<true>(face, textureMetric, areaScaleVal, edgeScaleVal)
+                    : faceTextureDistortion<false>(face, textureMetric, areaScaleVal, edgeScaleVal);
         }
 
         if (geometricQuality && planarity) {
