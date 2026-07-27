@@ -9,6 +9,8 @@
 #include <QCursor>
 #include <QDoubleSpinBox>
 #include <QDesktopServices>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QEvent>
 #include <QFile>
 #include <QFileDialog>
@@ -32,7 +34,6 @@
 #include <QStyle>
 #include <QTextBrowser>
 #include <QToolButton>
-#include <QToolTip>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QVector3D>
@@ -952,7 +953,7 @@ void MeshFilterPanel::buildUi()
         button->hide();
         return button;
     };
-    m_bibButton = makeReferenceButton(QStringLiteral("[bib]"), tr("Copy BibTeX"));
+    m_bibButton = makeReferenceButton(QStringLiteral("[bib]"), tr("Show BibTeX"));
     m_doiButton = makeReferenceButton(QStringLiteral("[doi]"), tr("Open publication DOI"));
     m_webButton = makeReferenceButton(QStringLiteral("[web]"), tr("Open publication web page"));
 #ifdef QMESHLAB_PYTHON_CONSOLE
@@ -1044,7 +1045,7 @@ void MeshFilterPanel::buildUi()
             m_longDescriptionView->setVisible(checked);
     });
     connect(m_bibButton, &QToolButton::clicked,
-            this, &MeshFilterPanel::copyCurrentReferencesBibTeX);
+            this, &MeshFilterPanel::showCurrentReferencesBibTeX);
     connect(m_doiButton, &QToolButton::clicked,
             this, [this]() { openCurrentReferenceLink(true); });
     connect(m_webButton, &QToolButton::clicked,
@@ -1393,17 +1394,34 @@ void MeshFilterPanel::updateReferenceButtons(const MeshFilterDescriptor &descrip
     m_webButton->setVisible(hasWeb);
 }
 
-void MeshFilterPanel::copyCurrentReferencesBibTeX()
+void MeshFilterPanel::showCurrentReferencesBibTeX()
 {
     const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
     if (!info || info->descriptor.references.empty())
         return;
+
     QStringList entries;
     for (const MeshFilterReference &reference : info->descriptor.references)
         entries << reference.bibTeX();
-    QGuiApplication::clipboard()->setText(entries.join(QStringLiteral("\n\n")));
-    QToolTip::showText(m_bibButton->mapToGlobal(QPoint(0, m_bibButton->height())),
-                       tr("BibTeX copied"), m_bibButton);
+    const QString bibTeX = entries.join(QStringLiteral("\n\n"));
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("BibTeX — %1").arg(info->descriptor.name));
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *text = new QPlainTextEdit(bibTeX, &dialog);
+    text->setReadOnly(true);
+    text->setLineWrapMode(QPlainTextEdit::NoWrap);
+    layout->addWidget(text);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok, &dialog);
+    QPushButton *copyButton = buttons->addButton(tr("Copy"), QDialogButtonBox::ActionRole);
+    connect(copyButton, &QPushButton::clicked, &dialog,
+            [bibTeX] { QGuiApplication::clipboard()->setText(bibTeX); });
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    layout->addWidget(buttons);
+
+    dialog.resize(640, 360);
+    dialog.exec();
 }
 
 void MeshFilterPanel::openCurrentReferenceLink(bool doi)

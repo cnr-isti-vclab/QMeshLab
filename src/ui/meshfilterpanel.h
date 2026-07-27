@@ -95,7 +95,7 @@ private:
     const Document::FilterInfo *filterByKey(const QString &filterKey) const;
     void showSearchResultsFromUi(bool focusSearch);
     void updateReferenceButtons(const MeshFilterDescriptor &descriptor);
-    void copyCurrentReferencesBibTeX();
+    void showCurrentReferencesBibTeX();
     void openCurrentReferenceLink(bool doi);
     bool eventFilter(QObject *watched, QEvent *event) override;
 
