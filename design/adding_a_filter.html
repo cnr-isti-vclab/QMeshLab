@@ -275,8 +275,7 @@ one filter, so the two compose.</p>
 <span class="w">    </span><span class="nt">&quot;project&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Upstream Project&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">&quot;repository&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://github.com/example/upstream&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">&quot;license&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SPDX-license-identifier&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;integration&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;external/upstream&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;citationMarkdown&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Optional project citation.&quot;</span>
+<span class="w">    </span><span class="nt">&quot;integration&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;external/upstream&quot;</span>
 <span class="w">  </span><span class="p">},</span>
 <span class="w">  </span><span class="nt">&quot;filters&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
@@ -304,6 +303,29 @@ one filter, so the two compose.</p>
 third-party project. It is shown in the in-app help and generated documentation.
 When <code class="docutils literal notranslate"><span class="pre">integration</span></code> names a Git submodule, its gitlink is the authoritative exact
 upstream revision; do not duplicate a commit hash in the descriptor.</p>
+<p>Publication references are declared once in the top-level <code class="docutils literal notranslate"><span class="pre">references</span></code> array
+using CSL-JSON field names, then attached to filters with <code class="docutils literal notranslate"><span class="pre">referenceIds</span></code>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;references&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span>
+<span class="w">    </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;author2026method&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;article-journal&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Method Title&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;author&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;family&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Author&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;given&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Ada&quot;</span><span class="p">}],</span>
+<span class="w">    </span><span class="nt">&quot;container-title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Journal&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;issued&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;date-parts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[[</span><span class="mi">2026</span><span class="p">]]},</span>
+<span class="w">    </span><span class="nt">&quot;DOI&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10.1234/example&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;URL&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://example.org/paper&quot;</span>
+<span class="w">  </span><span class="p">}],</span>
+<span class="w">  </span><span class="nt">&quot;filters&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span>
+<span class="w">    </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;do_something&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;referenceIds&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;author2026method&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The framework generates the in-app <code class="docutils literal notranslate"><span class="pre">[bib]</span></code>, <code class="docutils literal notranslate"><span class="pre">[doi]</span></code>, and <code class="docutils literal notranslate"><span class="pre">[web]</span></code> actions, help
+citations, online references, and the combined <code class="docutils literal notranslate"><span class="pre">references.bib</span></code>; do not repeat
+the citation in <code class="docutils literal notranslate"><span class="pre">longDescriptionMarkdown</span></code>.</p>
 </section>
 <section id="descriptions-and-formulas">
 <h3>Descriptions and formulas<a class="headerlink" href="#descriptions-and-formulas" title="Link to this heading">¶</a></h3>

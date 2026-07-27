@@ -245,6 +245,7 @@
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
 <p>All filters available in QMeshLab are listed below. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;meshing_remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.meshing_remove_duplicate_vertices(...)</span></code>.</p>
+<p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="transform-camera-extrinsics">
 <span id="filter-apply-cameras-extrinsics-transformation"></span><h2>Transform camera extrinsics<a class="headerlink" href="#transform-camera-extrinsics" title="Link to this heading">¶</a></h2>
 <p><strong>Menu:</strong> Camera</p>
@@ -671,7 +672,10 @@
 <p>This filter is intended for raw digitized surfaces representing one closed solid. Vertex and face attributes, materials, textures, and polygonal edge markings are not transferred. MeshFix has no cancellation or fine-grained progress API, so only phase-level progress is available.</p>
 <p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/MarcoAttene/MeshFix-V2.1">MeshFix 2.1</a></p>
 <p><strong>License:</strong> GPL-3.0-or-later</p>
-<p>M. Attene, <em>A lightweight approach to repairing digitized polygon meshes</em>, The Visual Computer 26 (2010). <a class="reference external" href="https://doi.org/10.1007/s00371-010-0416-3">DOI: 10.1007/s00371-010-0416-3</a>.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Marco Attene. <strong>A lightweight approach to repairing digitized polygon meshes</strong>. <em>The Visual Computer</em> (2010). <a class="reference external" href="https://doi.org/10.1007/s00371-010-0416-3">DOI</a></p></li>
+</ul>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -3886,7 +3890,11 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_screened_poisson">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_screened_poisson</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_screened_poisson" title="Link to this definition">¶</a></dt>
-<dd><p>This surface reconstruction algorithm creates watertight surfaces from oriented point sets.<br>The filter uses the original code of Michael Kazhdan and Matthew Bolitho implementing the algorithm described in the following paper:<br><i>Michael Kazhdan, Hugues Hoppe</i>,<br><b>”Screened Poisson surface reconstruction”</b><br></p>
+<dd><p>Reconstructs a watertight surface from an oriented point set using the screened Poisson formulation. The implementation uses the original PoissonRecon code by Michael Kazhdan and Matthew Bolitho.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Michael Kazhdan, Hugues Hoppe. <strong>Screened Poisson Surface Reconstruction</strong>. <em>ACM Transactions on Graphics</em> (2013). <a class="reference external" href="https://doi.org/10.1145/2487228.2487237">DOI</a> <a class="reference external" href="https://hhoppe.com/screenedpoisson.pdf">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>visibleLayer</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Enabling this flag means that all the visible layers will be used for providing the points.</p></li>
@@ -5199,11 +5207,12 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 <dt class="sig sig-object py" id="qmeshlab.ms.defragment_texture_map">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">defragment_texture_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.defragment_texture_map" title="Link to this definition">¶</a></dt>
 <dd><p>Reduces texture fragmentation by merging compatible atlas charts, repacking the resulting charts, and resampling the associated texture images onto the optimized atlas.</p>
-<p>The implemented algorithm is described in:</p>
-<p><strong>Texture Defragmentation for Photo-Reconstructed 3D Models</strong>
-Andrea Maggiordomo, Paolo Cignoni, Marco Tarini. Eurographics 2021.</p>
 <p>This QMeshLab port vendors the upstream TextureDefrag reference implementation from <code class="docutils literal notranslate"><span class="pre">https://github.com/maggio-a/texture-defrag</span></code> and adapts it to QMeshLab’s mesh-owned texture model. The filter creates a new mesh layer named <code class="docutils literal notranslate"><span class="pre">texdefrag_&lt;source&gt;</span></code> rather than overwriting the input mesh, preserving the original atlas for comparison.</p>
 <p>Implementation note: the original reference code used OpenGL to rasterize the new texture atlas. QMeshLab isolates that step behind the original <code class="docutils literal notranslate"><span class="pre">RenderTexture</span></code> boundary; this first integration uses an internal image renderer so the algorithm can run from the filter framework without requiring an OpenGL context. The renderer boundary is intentionally narrow so a QRhi backend can replace it cleanly.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Andrea Maggiordomo, Paolo Cignoni, Marco Tarini. <strong>Texture Defragmentation for Photo-Reconstructed 3D Models</strong>. <em>Computer Graphics Forum</em> (2021). <a class="reference external" href="https://doi.org/10.1111/cgf.142615">DOI</a> <a class="reference external" href="https://diglib.eg.org/items/b3e092cd-5a96-4575-975d-af22795e870b">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>matchingThreshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Threshold on the seam alignment error. Higher values allow more seams to be considered compatible, which can reduce fragmentation, but may increase runtime and risk more distortion. MeshLab default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>.</p></li>
@@ -5372,11 +5381,11 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.small_islands_remover">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">small_islands_remover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.small_islands_remover" title="Link to this definition">¶</a></dt>
-<dd><p>Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam.
-The procedure will try to avoid any distortion and overlap introduced by the removal of islands.
-The implemented algorithm is described in:</p>
-<p><strong>Texture Defragmentation for Photo-Reconstructed 3D Models</strong>
-Andrea Maggiordomo, Paolo Cignoni, Marco Tarini. Eurographics 2021.</p>
+<dd><p>Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Andrea Maggiordomo, Paolo Cignoni, Marco Tarini. <strong>Texture Defragmentation for Photo-Reconstructed 3D Models</strong>. <em>Computer Graphics Forum</em> (2021). <a class="reference external" href="https://doi.org/10.1111/cgf.142615">DOI</a> <a class="reference external" href="https://diglib.eg.org/items/b3e092cd-5a96-4575-975d-af22795e870b">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>maxMultiplier</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Islands whose UV boundary length is smaller than this factor times the median island boundary length are candidates for removal. A value of 1.0 targets all below-median islands; 0.2 targets only the absolute tiniest fragments; values above 1.0 also capture larger-than-median islands. Set to 0 to attempt removal of all islands.</p></li>

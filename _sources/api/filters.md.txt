@@ -4,6 +4,8 @@
 
 All filters available in QMeshLab are listed below. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("meshing_remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.meshing_remove_duplicate_vertices(...)`.
 
+A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
+
 (filter-apply-cameras-extrinsics-transformation)=
 
 ## Transform camera extrinsics
@@ -558,7 +560,9 @@ This filter is intended for raw digitized surfaces representing one closed solid
 
 **License:** GPL-3.0-or-later
 
-M. Attene, *A lightweight approach to repairing digitized polygon meshes*, The Visual Computer 26 (2010). [DOI: 10.1007/s00371-010-0416-3](https://doi.org/10.1007/s00371-010-0416-3).
+**References:**
+
+- Marco Attene. **A lightweight approach to repairing digitized polygon meshes**. *The Visual Computer* (2010). [DOI](https://doi.org/10.1007/s00371-010-0416-3)
 
 This filter has no parameters.
 ```
@@ -4641,7 +4645,11 @@ Creates a watertight surface from an oriented point set.
 ```{py:function} ms.generate_screened_poisson(**params)
 :module: _qmeshlab
 
-This surface reconstruction algorithm creates watertight surfaces from oriented point sets.<br>The filter uses the original code of Michael Kazhdan and Matthew Bolitho implementing the algorithm described in the following paper:<br><i>Michael Kazhdan, Hugues Hoppe</i>,<br><b>"Screened Poisson surface reconstruction"</b><br>
+Reconstructs a watertight surface from an oriented point set using the screened Poisson formulation. The implementation uses the original PoissonRecon code by Michael Kazhdan and Matthew Bolitho.
+
+**References:**
+
+- Michael Kazhdan, Hugues Hoppe. **Screened Poisson Surface Reconstruction**. *ACM Transactions on Graphics* (2013). [DOI](https://doi.org/10.1145/2487228.2487237) [Web](https://hhoppe.com/screenedpoisson.pdf)
 
 **Parameters:**
 
@@ -6314,14 +6322,13 @@ Reduce texture atlas fragmentation by merging compatible charts and resampling t
 
 Reduces texture fragmentation by merging compatible atlas charts, repacking the resulting charts, and resampling the associated texture images onto the optimized atlas.
 
-The implemented algorithm is described in:
-
-**Texture Defragmentation for Photo-Reconstructed 3D Models**
-Andrea Maggiordomo, Paolo Cignoni, Marco Tarini. Eurographics 2021.
-
 This QMeshLab port vendors the upstream TextureDefrag reference implementation from `https://github.com/maggio-a/texture-defrag` and adapts it to QMeshLab's mesh-owned texture model. The filter creates a new mesh layer named `texdefrag_<source>` rather than overwriting the input mesh, preserving the original atlas for comparison.
 
 Implementation note: the original reference code used OpenGL to rasterize the new texture atlas. QMeshLab isolates that step behind the original `RenderTexture` boundary; this first integration uses an internal image renderer so the algorithm can run from the filter framework without requiring an OpenGL context. The renderer boundary is intentionally narrow so a QRhi backend can replace it cleanly.
+
+**References:**
+
+- Andrea Maggiordomo, Paolo Cignoni, Marco Tarini. **Texture Defragmentation for Photo-Reconstructed 3D Models**. *Computer Graphics Forum* (2021). [DOI](https://doi.org/10.1111/cgf.142615) [Web](https://diglib.eg.org/items/b3e092cd-5a96-4575-975d-af22795e870b)
 
 **Parameters:**
 
@@ -6529,12 +6536,11 @@ Attempts to reduce all texture islands within a given size by merging them with 
 ```{py:function} ms.small_islands_remover(**params)
 :module: _qmeshlab
 
-Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam.
-The procedure will try to avoid any distortion and overlap introduced by the removal of islands.
-The implemented algorithm is described in:
+Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands.
 
-**Texture Defragmentation for Photo-Reconstructed 3D Models**
-Andrea Maggiordomo, Paolo Cignoni, Marco Tarini. Eurographics 2021.
+**References:**
+
+- Andrea Maggiordomo, Paolo Cignoni, Marco Tarini. **Texture Defragmentation for Photo-Reconstructed 3D Models**. *Computer Graphics Forum* (2021). [DOI](https://doi.org/10.1111/cgf.142615) [Web](https://diglib.eg.org/items/b3e092cd-5a96-4575-975d-af22795e870b)
 
 **Parameters:**
 

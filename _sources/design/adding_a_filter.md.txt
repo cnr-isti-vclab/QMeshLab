@@ -35,8 +35,7 @@ plugins/filter_foo/
     "project": "Upstream Project",
     "repository": "https://github.com/example/upstream",
     "license": "SPDX-license-identifier",
-    "integration": "external/upstream",
-    "citationMarkdown": "Optional project citation."
+    "integration": "external/upstream"
   },
   "filters": [
     {
@@ -66,6 +65,32 @@ fileOpen fileSave mesh cameraState renderState textureRef`.
 third-party project. It is shown in the in-app help and generated documentation.
 When `integration` names a Git submodule, its gitlink is the authoritative exact
 upstream revision; do not duplicate a commit hash in the descriptor.
+
+Publication references are declared once in the top-level `references` array
+using CSL-JSON field names, then attached to filters with `referenceIds`:
+
+```json
+{
+  "references": [{
+    "id": "author2026method",
+    "type": "article-journal",
+    "title": "Method Title",
+    "author": [{"family": "Author", "given": "Ada"}],
+    "container-title": "Journal",
+    "issued": {"date-parts": [[2026]]},
+    "DOI": "10.1234/example",
+    "URL": "https://example.org/paper"
+  }],
+  "filters": [{
+    "id": "do_something",
+    "referenceIds": ["author2026method"]
+  }]
+}
+```
+
+The framework generates the in-app `[bib]`, `[doi]`, and `[web]` actions, help
+citations, online references, and the combined `references.bib`; do not repeat
+the citation in `longDescriptionMarkdown`.
 
 ### Descriptions and formulas
 
