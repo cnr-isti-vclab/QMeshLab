@@ -3,15 +3,18 @@
 #include "mathmarkdownrenderer.h"
 
 #include <QCheckBox>
+#include <QClipboard>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QCursor>
 #include <QDoubleSpinBox>
+#include <QDesktopServices>
 #include <QEvent>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
@@ -29,6 +32,8 @@
 #include <QStyle>
 #include <QTextBrowser>
 #include <QToolButton>
+#include <QToolTip>
+#include <QUrl>
 #include <QVBoxLayout>
 #include <QVector3D>
 #include <QIcon>
@@ -938,6 +943,18 @@ void MeshFilterPanel::buildUi()
     m_longDescriptionToggle->setText(QStringLiteral("?"));
     m_longDescriptionToggle->setToolTip(tr("Show details"));
     m_longDescriptionToggle->hide();
+    auto makeReferenceButton = [this](const QString &text, const QString &tooltip) {
+        auto *button = new QToolButton(m_parametersPage);
+        button->setText(text);
+        button->setToolTip(tooltip);
+        button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        button->setAutoRaise(true);
+        button->hide();
+        return button;
+    };
+    m_bibButton = makeReferenceButton(QStringLiteral("[bib]"), tr("Copy BibTeX"));
+    m_doiButton = makeReferenceButton(QStringLiteral("[doi]"), tr("Open publication DOI"));
+    m_webButton = makeReferenceButton(QStringLiteral("[web]"), tr("Open publication web page"));
 #ifdef QMESHLAB_PYTHON_CONSOLE
     m_copyToConsoleButton = new QToolButton(m_parametersPage);
     m_copyToConsoleButton->setText(QStringLiteral(">_"));
@@ -961,6 +978,9 @@ void MeshFilterPanel::buildUi()
     m_resetParametersButton->setAutoRaise(true);
     m_applyButton = new QPushButton(tr("Apply"), m_parametersPage);
     headerLayout->addWidget(m_longDescriptionToggle, 0, Qt::AlignTop);
+    headerLayout->addWidget(m_bibButton, 0, Qt::AlignTop);
+    headerLayout->addWidget(m_doiButton, 0, Qt::AlignTop);
+    headerLayout->addWidget(m_webButton, 0, Qt::AlignTop);
 #ifdef QMESHLAB_PYTHON_CONSOLE
     headerLayout->addWidget(m_copyToConsoleButton, 0, Qt::AlignTop);
 #endif
@@ -1023,6 +1043,12 @@ void MeshFilterPanel::buildUi()
         if (m_longDescriptionView)
             m_longDescriptionView->setVisible(checked);
     });
+    connect(m_bibButton, &QToolButton::clicked,
+            this, &MeshFilterPanel::copyCurrentReferencesBibTeX);
+    connect(m_doiButton, &QToolButton::clicked,
+            this, [this]() { openCurrentReferenceLink(true); });
+    connect(m_webButton, &QToolButton::clicked,
+            this, [this]() { openCurrentReferenceLink(false); });
 }
 
 void MeshFilterPanel::reloadFilters()
@@ -1306,12 +1332,19 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
         }
         if (!provenance.license.isEmpty())
             provenanceLines << tr("**License:** %1").arg(provenance.license);
-        if (!provenance.citationMarkdown.isEmpty())
-            provenanceLines << provenance.citationMarkdown;
         if (!longDescription.isEmpty())
             longDescription += QStringLiteral("\n\n---\n\n");
         longDescription += provenanceLines.join(QStringLiteral("\n\n"));
     }
+    if (!info.descriptor.references.empty()) {
+        QStringList citations;
+        for (const MeshFilterReference &reference : info.descriptor.references)
+            citations << reference.markdownCitation();
+        if (!longDescription.isEmpty())
+            longDescription += QStringLiteral("\n\n---\n\n");
+        longDescription += tr("**References**\n\n") + citations.join(QStringLiteral("\n\n"));
+    }
+    updateReferenceButtons(info.descriptor);
     const bool hasLongDescription = !longDescription.isEmpty();
     m_longDescriptionToggle->setVisible(hasLongDescription);
 #ifdef QMESHLAB_PYTHON_CONSOLE
@@ -1345,6 +1378,63 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
         applyParameterValuesToEditors(cacheIt.value());
     refreshCurrentFilterApplicability();
     m_stack->setCurrentWidget(m_parametersPage);
+}
+
+void MeshFilterPanel::updateReferenceButtons(const MeshFilterDescriptor &descriptor)
+{
+    bool hasDoi = false;
+    bool hasWeb = false;
+    for (const MeshFilterReference &reference : descriptor.references) {
+        hasDoi |= !reference.doiUrl().isEmpty();
+        hasWeb |= !reference.webUrl().isEmpty();
+    }
+    m_bibButton->setVisible(!descriptor.references.empty());
+    m_doiButton->setVisible(hasDoi);
+    m_webButton->setVisible(hasWeb);
+}
+
+void MeshFilterPanel::copyCurrentReferencesBibTeX()
+{
+    const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
+    if (!info || info->descriptor.references.empty())
+        return;
+    QStringList entries;
+    for (const MeshFilterReference &reference : info->descriptor.references)
+        entries << reference.bibTeX();
+    QGuiApplication::clipboard()->setText(entries.join(QStringLiteral("\n\n")));
+    QToolTip::showText(m_bibButton->mapToGlobal(QPoint(0, m_bibButton->height())),
+                       tr("BibTeX copied"), m_bibButton);
+}
+
+void MeshFilterPanel::openCurrentReferenceLink(bool doi)
+{
+    const Document::FilterInfo *info = filterByKey(m_currentFilterKey);
+    if (!info)
+        return;
+
+    std::vector<const MeshFilterReference *> links;
+    for (const MeshFilterReference &reference : info->descriptor.references) {
+        if (!(doi ? reference.doiUrl() : reference.webUrl()).isEmpty())
+            links.push_back(&reference);
+    }
+    if (links.empty())
+        return;
+
+    const MeshFilterReference *selected = links.front();
+    if (links.size() > 1) {
+        QMenu menu(this);
+        for (const MeshFilterReference *reference : links) {
+            QAction *action = menu.addAction(reference->label());
+            action->setData(doi ? reference->doiUrl() : reference->webUrl());
+        }
+        QToolButton *button = doi ? m_doiButton : m_webButton;
+        QAction *action = menu.exec(button->mapToGlobal(QPoint(0, button->height())));
+        if (!action)
+            return;
+        QDesktopServices::openUrl(QUrl(action->data().toString()));
+        return;
+    }
+    QDesktopServices::openUrl(QUrl(doi ? selected->doiUrl() : selected->webUrl()));
 }
 
 bool MeshFilterPanel::matchesSearch(

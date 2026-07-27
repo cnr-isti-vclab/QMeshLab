@@ -117,16 +117,29 @@ def _read_all_filters(source_dir):
                     continue
                 descriptor_plugin_id = data.get('pluginId', '')
                 provenance = data.get('provenance', {})
+                reference_entries = data.get('references', [])
+                references = {
+                    ref.get('id'): ref for ref in reference_entries
+                    if isinstance(ref, dict) and ref.get('id')
+                }
+                if len(references) != len(reference_entries):
+                    raise ValueError(f'Invalid or duplicate reference id in {path}')
             elif isinstance(data, list):
                 entries = data
                 descriptor_plugin_id = ''
                 provenance = {}
+                references = {}
             else:
                 continue
             for entry in entries:
                 pname = entry.get('pythonName', entry.get('id', '')).strip()
                 if not pname:
                     continue
+                reference_ids = entry.get('referenceIds', [])
+                unknown_ids = [ref_id for ref_id in reference_ids
+                               if ref_id not in references]
+                if unknown_ids:
+                    raise ValueError(f'Unknown reference ids in {path}: {unknown_ids}')
                 params = []
                 for p in entry.get('parameters', []):
                     params.append({
@@ -145,6 +158,9 @@ def _read_all_filters(source_dir):
                         (entry.get('longDescriptionMarkdown', '') or '').strip(),
                     'menu': entry.get('menuPath', ''),
                     'provenance': provenance if isinstance(provenance, dict) else {},
+                    'references': [
+                        references[ref_id] for ref_id in reference_ids
+                    ],
                     'parameters': params,
                 })
     filters.sort(key=lambda f: (f['menu'], f['python_name']))
@@ -155,6 +171,66 @@ def _read_all_filters(source_dir):
 # Reference generators
 # ---------------------------------------------------------------------------
 
+def _reference_markdown(ref):
+    names = ', '.join(
+        ' '.join(part for part in (author.get('given', ''), author.get('family', ''))
+                 if part)
+        for author in ref.get('author', []))
+    date_parts = ref.get('issued', {}).get('date-parts', [])
+    year = date_parts[0][0] if date_parts and date_parts[0] else ''
+    result = f'{names}. ' if names else ''
+    result += f"**{ref.get('title', '')}**"
+    if ref.get('container-title'):
+        result += f". *{ref['container-title']}*"
+    if year:
+        result += f' ({year})'
+    result += '.'
+    doi = ref.get('DOI', '')
+    doi_url = f'https://doi.org/{doi}' if doi else ''
+    url = ref.get('URL', '')
+    if doi:
+        result += f' [DOI]({doi_url})'
+    if url and url.rstrip('/').lower() != doi_url.rstrip('/').lower():
+        result += f' [Web]({url})'
+    return result
+
+
+def _bibtex(ref):
+    entry_types = {
+        'article-journal': 'article',
+        'paper-conference': 'inproceedings',
+        'book': 'book',
+        'chapter': 'incollection',
+    }
+    fields = []
+
+    def add(name, value):
+        if value not in ('', None):
+            escaped = ''.join(
+                r'{\textbackslash}' if char == '\\'
+                else '\\' + char if char in '{}&%#_'
+                else char
+                for char in str(value))
+            fields.append(f'  {name} = {{{escaped}}}')
+
+    add('title', ref.get('title'))
+    add('author', ' and '.join(
+        f"{author.get('family', '')}, {author.get('given', '')}".rstrip(', ')
+        for author in ref.get('author', [])))
+    venue_field = 'journal' if ref.get('type') == 'article-journal' else 'booktitle'
+    add(venue_field, ref.get('container-title'))
+    date_parts = ref.get('issued', {}).get('date-parts', [])
+    add('year', date_parts[0][0] if date_parts and date_parts[0] else None)
+    add('volume', ref.get('volume'))
+    add('number', ref.get('issue'))
+    add('pages', (ref.get('page') or '').replace('-', '--'))
+    add('publisher', ref.get('publisher'))
+    add('doi', ref.get('DOI'))
+    add('url', ref.get('URL'))
+    entry_type = entry_types.get(ref.get('type'), 'misc')
+    return f"@{entry_type}{{{ref['id']},\n" + ',\n'.join(fields) + '\n}'
+
+
 def _write_filter_markdown(fh, filter_list):
     """Write the filter reference as MyST Markdown."""
     fh.write('(filters)=\n\n')
@@ -164,6 +240,8 @@ def _write_filter_markdown(fh, filter_list):
              '`ms.apply_filter("meshing_remove_duplicate_vertices", ...)`, or '
              'using the dynamically-bound snake_case name: '
              '`ms.meshing_remove_duplicate_vertices(...)`.\n\n')
+    fh.write('A combined bibliography for cited algorithms is available as '
+             '{download}`BibTeX <references.bib>`.\n\n')
 
     for index, f in enumerate(filter_list):
         if index:
@@ -191,8 +269,11 @@ def _write_filter_markdown(fh, filter_list):
             fh.write(f'**Upstream:** {upstream}\n\n')
         if provenance.get('license'):
             fh.write(f'**License:** {provenance["license"]}\n\n')
-        if provenance.get('citationMarkdown'):
-            fh.write(f'{provenance["citationMarkdown"]}\n\n')
+        if f['references']:
+            fh.write('**References:**\n\n')
+            for reference in f['references']:
+                fh.write(f'- {_reference_markdown(reference)}\n')
+            fh.write('\n')
         if f['parameters']:
             fh.write('**Parameters:**\n\n')
             for p in f['parameters']:
@@ -271,6 +352,19 @@ def generate(output_dir):
     # --- Write api/filters.md ---
     with open(os.path.join(output_dir, 'api', 'filters.md'), 'w', encoding='utf-8') as fh:
         _write_filter_markdown(fh, all_filters)
+
+    references = {}
+    for filter_info in all_filters:
+        for reference in filter_info['references']:
+            previous = references.setdefault(reference['id'], reference)
+            if previous != reference:
+                raise ValueError(f"Conflicting reference id: {reference['id']}")
+    with open(os.path.join(output_dir, 'api', 'references.bib'), 'w',
+              encoding='utf-8') as fh:
+        fh.write('\n\n'.join(_bibtex(references[reference_id])
+                             for reference_id in sorted(references)))
+        if references:
+            fh.write('\n')
 
     old_filter_page = os.path.join(output_dir, 'api', 'filters.rst')
     if os.path.exists(old_filter_page):

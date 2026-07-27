@@ -94,6 +94,9 @@ private:
     void updateColorButtonStyle(QWidget *button, const QColor &color) const;
     const Document::FilterInfo *filterByKey(const QString &filterKey) const;
     void showSearchResultsFromUi(bool focusSearch);
+    void updateReferenceButtons(const MeshFilterDescriptor &descriptor);
+    void copyCurrentReferencesBibTeX();
+    void openCurrentReferenceLink(bool doi);
     bool eventFilter(QObject *watched, QEvent *event) override;
 
     Document *m_doc = nullptr;
@@ -116,6 +119,9 @@ private:
     QLabel *m_filterDescriptionLabel = nullptr;
     QLabel *m_filterModifiesLabel = nullptr;
     QToolButton *m_longDescriptionToggle = nullptr;
+    QToolButton *m_bibButton = nullptr;
+    QToolButton *m_doiButton = nullptr;
+    QToolButton *m_webButton = nullptr;
     QTextBrowser *m_longDescriptionView = nullptr;
     QCheckBox *m_showAdvancedCheck = nullptr;
     QCheckBox *m_applyToAllVisible = nullptr;

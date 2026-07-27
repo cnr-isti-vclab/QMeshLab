@@ -156,6 +156,9 @@ void FilterTests::filterRegistryExposesBuiltins()
     bool hasCreateIso = false;
     bool hasCleanUnref = false;
     bool hasMeshFixRepair = false;
+    bool hasScreenedPoissonReference = false;
+    bool hasTextureDefragReference = false;
+    bool hasSmallIslandsReference = false;
     bool hasSelectOutliers = false;
     bool hasSelectColor = false;
     bool hasTriOptimizePlanar = false;
@@ -179,6 +182,30 @@ void FilterTests::filterRegistryExposesBuiltins()
             hasMeshFixRepair = true;
             QCOMPARE(info.descriptor.provenance.project, QStringLiteral("MeshFix 2.1"));
             QCOMPARE(info.descriptor.provenance.integration, QStringLiteral("external/meshfix"));
+            QCOMPARE(info.descriptor.references.size(), size_t(1));
+            QCOMPARE(info.descriptor.references.front().doi,
+                     QStringLiteral("10.1007/s00371-010-0416-3"));
+            QVERIFY(info.descriptor.references.front().bibTeX().contains(
+                QStringLiteral("@article{attene2010meshfix,")));
+        }
+        if (info.descriptor.id == QStringLiteral("surface_reconstruction_screened_poisson")) {
+            hasScreenedPoissonReference = true;
+            QCOMPARE(info.descriptor.references.size(), size_t(1));
+            QCOMPARE(info.descriptor.references.front().doi,
+                     QStringLiteral("10.1145/2487228.2487237"));
+            QVERIFY(!info.descriptor.references.front().webUrl().isEmpty());
+        }
+        if (info.descriptor.id == QStringLiteral("apply_texmap_defragmentation")) {
+            hasTextureDefragReference = true;
+            QCOMPARE(info.descriptor.references.size(), size_t(1));
+            QCOMPARE(info.descriptor.references.front().id,
+                     QStringLiteral("maggiordomo2021texture"));
+        }
+        if (info.descriptor.id == QStringLiteral("apply_small_islands_remover")) {
+            hasSmallIslandsReference = true;
+            QCOMPARE(info.descriptor.references.size(), size_t(1));
+            QCOMPARE(info.descriptor.references.front().id,
+                     QStringLiteral("maggiordomo2021texture"));
         }
         hasSelectOutliers =
             hasSelectOutliers || (info.descriptor.id == QStringLiteral("select_outliers"));
@@ -212,6 +239,9 @@ void FilterTests::filterRegistryExposesBuiltins()
     QVERIFY(hasCreateIso);
     QVERIFY(hasCleanUnref);
     QVERIFY(hasMeshFixRepair);
+    QVERIFY(hasScreenedPoissonReference);
+    QVERIFY(hasTextureDefragReference);
+    QVERIFY(hasSmallIslandsReference);
     QVERIFY(hasSelectOutliers);
     QVERIFY(hasSelectColor);
     QVERIFY(hasTriOptimizePlanar);

@@ -137,13 +137,42 @@ struct MeshFilterProvenance
     QString repository;
     QString license;
     QString integration;
-    QString citationMarkdown;
 
     bool isEmpty() const
     {
         return project.isEmpty() && repository.isEmpty() && license.isEmpty()
-            && integration.isEmpty() && citationMarkdown.isEmpty();
+            && integration.isEmpty();
     }
+};
+
+struct MeshFilterReferenceAuthor
+{
+    QString family;
+    QString given;
+};
+
+// CSL-JSON-compatible publication metadata shared by filter descriptors, the
+// in-app help, and generated documentation.
+struct MeshFilterReference
+{
+    QString id;
+    QString type;
+    QString title;
+    std::vector<MeshFilterReferenceAuthor> authors;
+    QString containerTitle;
+    QString publisher;
+    QString volume;
+    QString issue;
+    QString page;
+    int year = 0;
+    QString doi;
+    QString url;
+
+    QString label() const;
+    QString doiUrl() const;
+    QString webUrl() const;
+    QString markdownCitation() const;
+    QString bibTeX() const;
 };
 
 struct MeshFilterDescriptor
@@ -155,6 +184,7 @@ struct MeshFilterDescriptor
     QString shortDescription;
     QString longDescriptionMarkdown;
     MeshFilterProvenance provenance;
+    std::vector<MeshFilterReference> references;
     QStringList tags;
     MeshFilterInputDomain inputDomain = MeshFilterInputDomain::SingleMesh;
     MeshFilterMeshRequirements inputRequirements;

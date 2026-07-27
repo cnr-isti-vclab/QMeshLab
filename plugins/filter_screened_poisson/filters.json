@@ -1,13 +1,47 @@
 {
   "pluginId": "qmeshlab.filter.screened_poisson",
+  "references": [
+    {
+      "id": "kazhdan2013screened",
+      "type": "article-journal",
+      "title": "Screened Poisson Surface Reconstruction",
+      "author": [
+        {
+          "family": "Kazhdan",
+          "given": "Michael"
+        },
+        {
+          "family": "Hoppe",
+          "given": "Hugues"
+        }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "32",
+      "issue": "3",
+      "page": "29:1-29:13",
+      "publisher": "ACM",
+      "issued": {
+        "date-parts": [
+          [
+            2013
+          ]
+        ]
+      },
+      "DOI": "10.1145/2487228.2487237",
+      "URL": "https://hhoppe.com/screenedpoisson.pdf"
+    }
+  ],
   "filters": [
     {
       "id": "surface_reconstruction_screened_poisson",
       "menuPath": "Remeshing/Surface Reconstruction",
       "name": "Surface Reconstruction: Screened Poisson",
       "pythonName": "generate_screened_poisson",
+      "referenceIds": [
+        "kazhdan2013screened"
+      ],
       "shortDescription": "Creates a watertight surface from an oriented point set.",
-      "longDescriptionMarkdown": "This surface reconstruction algorithm creates watertight surfaces from oriented point sets.<br>The filter uses the original code of Michael Kazhdan and Matthew Bolitho implementing the algorithm described in the following paper:<br><i>Michael Kazhdan, Hugues Hoppe</i>,<br><b>\"Screened Poisson surface reconstruction\"</b><br>",
+      "longDescriptionMarkdown": "Reconstructs a watertight surface from an oriented point set using the screened Poisson formulation. The implementation uses the original PoissonRecon code by Michael Kazhdan and Matthew Bolitho.",
       "tags": [
         "reconstruction",
         "surface",

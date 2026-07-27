@@ -1,13 +1,51 @@
 {
   "pluginId": "qmeshlab.filter.texture_defragmentation",
+  "references": [
+    {
+      "id": "maggiordomo2021texture",
+      "type": "article-journal",
+      "title": "Texture Defragmentation for Photo-Reconstructed 3D Models",
+      "author": [
+        {
+          "family": "Maggiordomo",
+          "given": "Andrea"
+        },
+        {
+          "family": "Cignoni",
+          "given": "Paolo"
+        },
+        {
+          "family": "Tarini",
+          "given": "Marco"
+        }
+      ],
+      "container-title": "Computer Graphics Forum",
+      "volume": "40",
+      "issue": "2",
+      "page": "65-78",
+      "publisher": "Wiley",
+      "issued": {
+        "date-parts": [
+          [
+            2021
+          ]
+        ]
+      },
+      "DOI": "10.1111/cgf.142615",
+      "URL": "https://diglib.eg.org/items/b3e092cd-5a96-4575-975d-af22795e870b"
+    }
+  ],
   "filters": [
     {
       "id": "apply_texmap_defragmentation",
       "menuPath": "Texture",
       "name": "Texture Map Defragmentation",
       "pythonName": "defragment_texture_map",
+      "referenceIds": [
+        "maggiordomo2021texture"
+      ],
       "shortDescription": "Reduce texture atlas fragmentation by merging compatible charts and resampling the texture map.",
-      "longDescriptionMarkdown": "Reduces texture fragmentation by merging compatible atlas charts, repacking the resulting charts, and resampling the associated texture images onto the optimized atlas.\n\nThe implemented algorithm is described in:\n\n**Texture Defragmentation for Photo-Reconstructed 3D Models**\nAndrea Maggiordomo, Paolo Cignoni, Marco Tarini. Eurographics 2021.\n\nThis QMeshLab port vendors the upstream TextureDefrag reference implementation from `https://github.com/maggio-a/texture-defrag` and adapts it to QMeshLab's mesh-owned texture model. The filter creates a new mesh layer named `texdefrag_<source>` rather than overwriting the input mesh, preserving the original atlas for comparison.\n\nImplementation note: the original reference code used OpenGL to rasterize the new texture atlas. QMeshLab isolates that step behind the original `RenderTexture` boundary; this first integration uses an internal image renderer so the algorithm can run from the filter framework without requiring an OpenGL context. The renderer boundary is intentionally narrow so a QRhi backend can replace it cleanly.",
+      "longDescriptionMarkdown": "Reduces texture fragmentation by merging compatible atlas charts, repacking the resulting charts, and resampling the associated texture images onto the optimized atlas.\n\nThis QMeshLab port vendors the upstream TextureDefrag reference implementation from `https://github.com/maggio-a/texture-defrag` and adapts it to QMeshLab's mesh-owned texture model. The filter creates a new mesh layer named `texdefrag_<source>` rather than overwriting the input mesh, preserving the original atlas for comparison.\n\nImplementation note: the original reference code used OpenGL to rasterize the new texture atlas. QMeshLab isolates that step behind the original `RenderTexture` boundary; this first integration uses an internal image renderer so the algorithm can run from the filter framework without requiring an OpenGL context. The renderer boundary is intentionally narrow so a QRhi backend can replace it cleanly.",
       "tags": [
         "texture",
         "atlas",
@@ -113,8 +151,11 @@
       "menuPath": "Texture",
       "name": "Small Islands Remover",
       "pythonName": "small_islands_remover",
+      "referenceIds": [
+        "maggiordomo2021texture"
+      ],
       "shortDescription": "Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam.",
-      "longDescriptionMarkdown": "Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam.\nThe procedure will try to avoid any distortion and overlap introduced by the removal of islands.\nThe implemented algorithm is described in:\n\n**Texture Defragmentation for Photo-Reconstructed 3D Models**\nAndrea Maggiordomo, Paolo Cignoni, Marco Tarini. Eurographics 2021.",
+      "longDescriptionMarkdown": "Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands.",
       "tags": [
         "texture",
         "atlas",

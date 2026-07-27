@@ -8,6 +8,7 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <QColor>
 #include <QFile>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -70,8 +71,42 @@ MeshFilterProvenance parseProvenance(const QJsonObject &obj)
     provenance.repository = obj.value(QStringLiteral("repository")).toString();
     provenance.license = obj.value(QStringLiteral("license")).toString();
     provenance.integration = obj.value(QStringLiteral("integration")).toString();
-    provenance.citationMarkdown = obj.value(QStringLiteral("citationMarkdown")).toString();
     return provenance;
+}
+
+MeshFilterReference parseReference(const QJsonObject &obj)
+{
+    MeshFilterReference reference;
+    reference.id = obj.value(QStringLiteral("id")).toString();
+    reference.type = obj.value(QStringLiteral("type")).toString();
+    reference.title = obj.value(QStringLiteral("title")).toString();
+    reference.containerTitle = obj.value(QStringLiteral("container-title")).toString();
+    reference.publisher = obj.value(QStringLiteral("publisher")).toString();
+    reference.volume = obj.value(QStringLiteral("volume")).toVariant().toString();
+    reference.issue = obj.value(QStringLiteral("issue")).toVariant().toString();
+    reference.page = obj.value(QStringLiteral("page")).toString();
+    reference.doi = obj.value(QStringLiteral("DOI")).toString();
+    reference.url = obj.value(QStringLiteral("URL")).toString();
+
+    const QJsonArray authors = obj.value(QStringLiteral("author")).toArray();
+    for (const QJsonValue &value : authors) {
+        const QJsonObject authorObject = value.toObject();
+        reference.authors.push_back({
+            authorObject.value(QStringLiteral("family")).toString(),
+            authorObject.value(QStringLiteral("given")).toString()
+        });
+    }
+
+    const QJsonArray dateParts = obj.value(QStringLiteral("issued"))
+                                     .toObject()
+                                     .value(QStringLiteral("date-parts"))
+                                     .toArray();
+    if (!dateParts.isEmpty()) {
+        const QJsonArray firstDate = dateParts.first().toArray();
+        if (!firstDate.isEmpty())
+            reference.year = firstDate.first().toInt();
+    }
+    return reference;
 }
 
 // A QVariant that is a QString starting with "@" is a symbolic token.
@@ -315,12 +350,37 @@ std::vector<MeshFilterDescriptor> FilterDescriptorLoader::load(
     const QJsonArray filters = root.value(QStringLiteral("filters")).toArray();
     const MeshFilterProvenance provenance =
         parseProvenance(root.value(QStringLiteral("provenance")).toObject());
+    QHash<QString, MeshFilterReference> references;
+    for (const QJsonValue &value : root.value(QStringLiteral("references")).toArray()) {
+        MeshFilterReference reference = parseReference(value.toObject());
+        if (reference.id.isEmpty()) {
+            errorMessage = QStringLiteral("Reference without id in %1").arg(resourcePath);
+            return {};
+        }
+        if (references.contains(reference.id)) {
+            errorMessage = QStringLiteral("Duplicate reference id '%1' in %2")
+                               .arg(reference.id, resourcePath);
+            return {};
+        }
+        references.insert(reference.id, std::move(reference));
+    }
 
     std::vector<MeshFilterDescriptor> result;
     result.reserve(static_cast<size_t>(filters.size()));
     for (const QJsonValue &fv : filters) {
         MeshFilterDescriptor descriptor = parseFilter(fv.toObject());
         descriptor.provenance = provenance;
+        for (const QJsonValue &idValue :
+             fv.toObject().value(QStringLiteral("referenceIds")).toArray()) {
+            const QString id = idValue.toString();
+            const auto it = references.constFind(id);
+            if (it == references.constEnd()) {
+                errorMessage = QStringLiteral("Unknown reference id '%1' in %2")
+                                   .arg(id, resourcePath);
+                return {};
+            }
+            descriptor.references.push_back(it.value());
+        }
         result.push_back(std::move(descriptor));
     }
 
