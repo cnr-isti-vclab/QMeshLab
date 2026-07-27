@@ -537,6 +537,34 @@ Split non Manifold vertices until it becomes 2-Manifold.
 
 ---
 
+(filter-repair-watertight-mesh-meshfix)=
+
+## Repair Watertight Mesh (MeshFix)
+
+**Menu:** Cleaning
+
+**Plugin:** qmeshlab.filter.meshfix
+
+Repair a raw digitized mesh into a single watertight triangle mesh using MeshFix.
+
+```{py:function} ms.repair_watertight_mesh_meshfix(**params)
+:module: _qmeshlab
+
+Runs the standard MeshFix repair pipeline: keeps the connected component with the most triangles, fills all holes with refined patches, then repairs degeneracies and self-intersections. The result is created as a new geometry-only layer and preserves the input layer transform.
+
+This filter is intended for raw digitized surfaces representing one closed solid. Vertex and face attributes, materials, textures, and polygonal edge markings are not transferred. MeshFix has no cancellation or fine-grained progress API, so only phase-level progress is available.
+
+**Upstream:** [MeshFix 2.1](https://github.com/MarcoAttene/MeshFix-V2.1)
+
+**License:** GPL-3.0-or-later
+
+M. Attene, *A lightweight approach to repairing digitized polygon meshes*, The Visual Computer 26 (2010). [DOI: 10.1007/s00371-010-0416-3](https://doi.org/10.1007/s00371-010-0416-3).
+
+This filter has no parameters.
+```
+
+---
+
 (filter-snap-mismatched-borders)=
 
 ## Snap Mismatched Borders

@@ -271,6 +271,13 @@ one filter, so the two compose.</p>
 <h3>1. <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> (the declaration)<a class="headerlink" href="#filters-json-the-declaration" title="Link to this heading">¶</a></h3>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;pluginId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qmeshlab.filter.foo&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;provenance&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;project&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Upstream Project&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;repository&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://github.com/example/upstream&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;license&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SPDX-license-identifier&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;integration&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;external/upstream&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;citationMarkdown&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Optional project citation.&quot;</span>
+<span class="w">  </span><span class="p">},</span>
 <span class="w">  </span><span class="nt">&quot;filters&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;do_something&quot;</span><span class="p">,</span>
@@ -293,6 +300,10 @@ one filter, so the two compose.</p>
 <p>The default <code class="docutils literal notranslate"><span class="pre">MeshFilterPlugin::filters()</span></code> loads this from the Qt resource
 <code class="docutils literal notranslate"><span class="pre">:/filters/&lt;pluginId&gt;/filters.json</span></code>, so the <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> PREFIX must match
 <code class="docutils literal notranslate"><span class="pre">pluginId</span></code>. Parameter types: <code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">int</span> <span class="pre">double</span> <span class="pre">absPerc</span> <span class="pre">enum</span> <span class="pre">color</span> <span class="pre">point3f</span> <span class="pre">string</span> <span class="pre">fileOpen</span> <span class="pre">fileSave</span> <span class="pre">mesh</span> <span class="pre">cameraState</span> <span class="pre">renderState</span> <span class="pre">textureRef</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">provenance</span></code> is optional and declared once for every filter supplied by a
+third-party project. It is shown in the in-app help and generated documentation.
+When <code class="docutils literal notranslate"><span class="pre">integration</span></code> names a Git submodule, its gitlink is the authoritative exact
+upstream revision; do not duplicate a commit hash in the descriptor.</p>
 </section>
 <section id="descriptions-and-formulas">
 <h3>Descriptions and formulas<a class="headerlink" href="#descriptions-and-formulas" title="Link to this heading">¶</a></h3>

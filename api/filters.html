@@ -659,6 +659,24 @@
 
 <hr class="docutils" />
 </section>
+<section id="repair-watertight-mesh-meshfix">
+<span id="filter-repair-watertight-mesh-meshfix"></span><h2>Repair Watertight Mesh (MeshFix)<a class="headerlink" href="#repair-watertight-mesh-meshfix" title="Link to this heading">¶</a></h2>
+<p><strong>Menu:</strong> Cleaning</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.meshfix</p>
+<p>Repair a raw digitized mesh into a single watertight triangle mesh using MeshFix.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.repair_watertight_mesh_meshfix">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">repair_watertight_mesh_meshfix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.repair_watertight_mesh_meshfix" title="Link to this definition">¶</a></dt>
+<dd><p>Runs the standard MeshFix repair pipeline: keeps the connected component with the most triangles, fills all holes with refined patches, then repairs degeneracies and self-intersections. The result is created as a new geometry-only layer and preserves the input layer transform.</p>
+<p>This filter is intended for raw digitized surfaces representing one closed solid. Vertex and face attributes, materials, textures, and polygonal edge markings are not transferred. MeshFix has no cancellation or fine-grained progress API, so only phase-level progress is available.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/MarcoAttene/MeshFix-V2.1">MeshFix 2.1</a></p>
+<p><strong>License:</strong> GPL-3.0-or-later</p>
+<p>M. Attene, <em>A lightweight approach to repairing digitized polygon meshes</em>, The Visual Computer 26 (2010). <a class="reference external" href="https://doi.org/10.1007/s00371-010-0416-3">DOI: 10.1007/s00371-010-0416-3</a>.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="snap-mismatched-borders">
 <span id="filter-snap-mismatched-borders"></span><h2>Snap Mismatched Borders<a class="headerlink" href="#snap-mismatched-borders" title="Link to this heading">¶</a></h2>
 <p><strong>Menu:</strong> Cleaning</p>
@@ -5589,6 +5607,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#repair-non-manifold-vertices-by-splitting">Repair non Manifold Vertices by Splitting</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.repair_non_manifold_vertices"><code class="docutils literal notranslate"><span class="pre">ms.repair_non_manifold_vertices()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#repair-watertight-mesh-meshfix">Repair Watertight Mesh (MeshFix)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.repair_watertight_mesh_meshfix"><code class="docutils literal notranslate"><span class="pre">ms.repair_watertight_mesh_meshfix()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#snap-mismatched-borders">Snap Mismatched Borders</a><ul>
