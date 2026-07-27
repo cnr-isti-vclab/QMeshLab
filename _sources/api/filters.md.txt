@@ -3325,7 +3325,13 @@ Simplify using quadric-based edge-collapse.
 ```{py:function} ms.simplification_quadric_edge_collapse(**params)
 :module: _qmeshlab
 
-Simplify a mesh using a quadric based edge-collapse strategy. A variant of the well known Garland and Heckbert simplification algorithm with different weighting schemes to better cope with aspect ration and planar/degenerate quadrics areas.<br> See: <br><i>M. Garland and P. Heckbert.</i> <br><b>Surface Simplification Using Quadric Error Metrics</b> (<a href='http://mgarland.org/papers/quadrics.pdf'>pdf</a>)<br>In Proceedings of SIGGRAPH 97.<br/><br/>
+Simplifies a mesh with VCGLib's quadric edge-collapse implementation, a variant of the Garland–Heckbert algorithm with additional weighting schemes for poorly shaped faces and planar or degenerate regions.
+
+This filter uses VCGLib and remains distinct from the separately available **Original QSlim Quadric Edge Collapse** filter, which compiles Garland's original `MxEdgeQSlim` implementation.
+
+**References:**
+
+- Michael Garland, Paul S. Heckbert. **Surface Simplification Using Quadric Error Metrics**. *Proceedings of the 24th Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '97)* (1997). [DOI](https://doi.org/10.1145/258734.258849) [Web](https://github.com/alecjacobson/qslim)
 
 **Parameters:**
 
@@ -3346,6 +3352,43 @@ Simplify a mesh using a quadric based edge-collapse strategy. A variant of the w
 
 ---
 
+(filter-simplification-quadric-edge-collapse-qslim)=
+
+## Simplification: Original QSlim Quadric Edge Collapse
+
+**Menu:** Meshing
+
+**Plugin:** qmeshlab.filter.qslim
+
+Simplify a triangle mesh with Garland's original QSlim implementation.
+
+```{py:function} ms.simplification_quadric_edge_collapse_qslim(**params)
+:module: _qmeshlab
+
+Runs the original `MxEdgeQSlim` edge-contraction implementation from Michael Garland's MixKit, preserved through the pinned [QSlim 2.1 repository](https://github.com/alecjacobson/qslim). This is a separate implementation from QMeshLab's VCGLib quadric decimator, allowing results and historical behavior to be compared directly.
+
+QSlim's placement and weighting policies, boundary constraint weight, compactness threshold, and meshing penalty are exposed using their original meanings. The result is created as a new geometry-only layer and preserves the input layer transform. Vertex and face attributes, materials, textures, selections, and polygonal edge markings are not transferred. The original core has no cancellation or fine-grained progress API, so only phase-level progress is available.
+
+**Upstream:** [QSlim 2.1 (original MixKit implementation)](https://github.com/alecjacobson/qslim)
+
+**License:** LGPL-2.0-or-later with MixKit static-linking exception
+
+**References:**
+
+- Michael Garland, Paul S. Heckbert. **Surface Simplification Using Quadric Error Metrics**. *Proceedings of the 24th Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '97)* (1997). [DOI](https://doi.org/10.1145/258734.258849) [Web](https://github.com/alecjacobson/qslim)
+
+**Parameters:**
+
+- **TargetFaceNum** (*int*, default: `@faceCountHalf`) — Desired final number of faces.
+- **PlacementPolicy** (*enum*, default: `optimal`) — Original QSlim placement policy for the vertex produced by an edge contraction.
+- **WeightingPolicy** (*enum*, default: `area`) — Original QSlim policy used to weight face quadrics.
+- **BoundaryWeight** (*double*, default: `1000.0`) — Weight of the original QSlim boundary-preserving constraint. Zero disables it.
+- **CompactnessRatio** (*double*, default: `0.0`) — Minimum local triangle compactness accepted by QSlim. Zero disables this penalty.
+- **MeshingPenalty** (*double*, default: `1.0`) — Scale applied to QSlim's local validity, compactness, inversion, and degree penalties.
+```
+
+---
+
 (filter-simplification-quadric-edge-collapse-with-texture)=
 
 ## Simplification: Quadric Edge Collapse Decimation (with texture)
@@ -3359,7 +3402,11 @@ Simplify textured meshes preserving UVs.
 ```{py:function} ms.simplification_quadric_edge_collapse_with_texture(**params)
 :module: _qmeshlab
 
-Simplify a textured mesh using a Quadric based Edge Collapse Strategy preserving UV parametrization. Inspired by the QSLIM surface simplification algorithmby Michael Garland, which turned into the industry standard method for mesh simplification.<br> See: <br><i>M. Garland and P. Heckbert.</i> <br><b>Simplifying Surfaces with Color and Texture using Quadric Error Metrics</b> (<a href='http://mgarland.org/papers/quadric2.pdf'>pdf</a>)<br> In Proceedings of IEEE Visualization 98.<br/><br/>
+Simplifies a textured mesh with VCGLib's attribute-aware quadric edge-collapse implementation while preserving its UV parameterization. This follows the Garland–Heckbert extension of quadric error metrics to material attributes.
+
+**References:**
+
+- Michael Garland, Paul S. Heckbert. **Simplifying Surfaces with Color and Texture using Quadric Error Metrics**. *Proceedings of IEEE Visualization '98* (1998). [DOI](https://doi.org/10.1109/VISUAL.1998.745312) [Web](https://mgarland.org/papers/quadric2.pdf)
 
 **Parameters:**
 

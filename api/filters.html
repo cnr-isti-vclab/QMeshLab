@@ -2819,7 +2819,12 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.simplification_quadric_edge_collapse">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">simplification_quadric_edge_collapse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.simplification_quadric_edge_collapse" title="Link to this definition">¶</a></dt>
-<dd><p>Simplify a mesh using a quadric based edge-collapse strategy. A variant of the well known Garland and Heckbert simplification algorithm with different weighting schemes to better cope with aspect ration and planar/degenerate quadrics areas.<br> See: <br><i>M. Garland and P. Heckbert.</i> <br><b>Surface Simplification Using Quadric Error Metrics</b> (<a href='http://mgarland.org/papers/quadrics.pdf'>pdf</a>)<br>In Proceedings of SIGGRAPH 97.<br/><br/></p>
+<dd><p>Simplifies a mesh with VCGLib’s quadric edge-collapse implementation, a variant of the Garland–Heckbert algorithm with additional weighting schemes for poorly shaped faces and planar or degenerate regions.</p>
+<p>This filter uses VCGLib and remains distinct from the separately available <strong>Original QSlim Quadric Edge Collapse</strong> filter, which compiles Garland’s original <code class="docutils literal notranslate"><span class="pre">MxEdgeQSlim</span></code> implementation.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Michael Garland, Paul S. Heckbert. <strong>Surface Simplification Using Quadric Error Metrics</strong>. <em>Proceedings of the 24th Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH ‘97)</em> (1997). <a class="reference external" href="https://doi.org/10.1145/258734.258849">DOI</a> <a class="reference external" href="https://github.com/alecjacobson/qslim">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>TargetFaceNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;selOrFaceCountHalf</span></code>) — Desired final number of faces.</p></li>
@@ -2840,6 +2845,35 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
+<section id="simplification-original-qslim-quadric-edge-collapse">
+<span id="filter-simplification-quadric-edge-collapse-qslim"></span><h2>Simplification: Original QSlim Quadric Edge Collapse<a class="headerlink" href="#simplification-original-qslim-quadric-edge-collapse" title="Link to this heading">¶</a></h2>
+<p><strong>Menu:</strong> Meshing</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.qslim</p>
+<p>Simplify a triangle mesh with Garland’s original QSlim implementation.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.simplification_quadric_edge_collapse_qslim">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">simplification_quadric_edge_collapse_qslim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.simplification_quadric_edge_collapse_qslim" title="Link to this definition">¶</a></dt>
+<dd><p>Runs the original <code class="docutils literal notranslate"><span class="pre">MxEdgeQSlim</span></code> edge-contraction implementation from Michael Garland’s MixKit, preserved through the pinned <a class="reference external" href="https://github.com/alecjacobson/qslim">QSlim 2.1 repository</a>. This is a separate implementation from QMeshLab’s VCGLib quadric decimator, allowing results and historical behavior to be compared directly.</p>
+<p>QSlim’s placement and weighting policies, boundary constraint weight, compactness threshold, and meshing penalty are exposed using their original meanings. The result is created as a new geometry-only layer and preserves the input layer transform. Vertex and face attributes, materials, textures, selections, and polygonal edge markings are not transferred. The original core has no cancellation or fine-grained progress API, so only phase-level progress is available.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/alecjacobson/qslim">QSlim 2.1 (original MixKit implementation)</a></p>
+<p><strong>License:</strong> LGPL-2.0-or-later with MixKit static-linking exception</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Michael Garland, Paul S. Heckbert. <strong>Surface Simplification Using Quadric Error Metrics</strong>. <em>Proceedings of the 24th Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH ‘97)</em> (1997). <a class="reference external" href="https://doi.org/10.1145/258734.258849">DOI</a> <a class="reference external" href="https://github.com/alecjacobson/qslim">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>TargetFaceNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;faceCountHalf</span></code>) — Desired final number of faces.</p></li>
+<li><p><strong>PlacementPolicy</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">optimal</span></code>) — Original QSlim placement policy for the vertex produced by an edge contraction.</p></li>
+<li><p><strong>WeightingPolicy</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">area</span></code>) — Original QSlim policy used to weight face quadrics.</p></li>
+<li><p><strong>BoundaryWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1000.0</span></code>) — Weight of the original QSlim boundary-preserving constraint. Zero disables it.</p></li>
+<li><p><strong>CompactnessRatio</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Minimum local triangle compactness accepted by QSlim. Zero disables this penalty.</p></li>
+<li><p><strong>MeshingPenalty</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Scale applied to QSlim’s local validity, compactness, inversion, and degree penalties.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="simplification-quadric-edge-collapse-decimation-with-texture">
 <span id="filter-simplification-quadric-edge-collapse-with-texture"></span><h2>Simplification: Quadric Edge Collapse Decimation (with texture)<a class="headerlink" href="#simplification-quadric-edge-collapse-decimation-with-texture" title="Link to this heading">¶</a></h2>
 <p><strong>Menu:</strong> Meshing</p>
@@ -2848,7 +2882,11 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.simplification_quadric_edge_collapse_with_texture">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">simplification_quadric_edge_collapse_with_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.simplification_quadric_edge_collapse_with_texture" title="Link to this definition">¶</a></dt>
-<dd><p>Simplify a textured mesh using a Quadric based Edge Collapse Strategy preserving UV parametrization. Inspired by the QSLIM surface simplification algorithmby Michael Garland, which turned into the industry standard method for mesh simplification.<br> See: <br><i>M. Garland and P. Heckbert.</i> <br><b>Simplifying Surfaces with Color and Texture using Quadric Error Metrics</b> (<a href='http://mgarland.org/papers/quadric2.pdf'>pdf</a>)<br> In Proceedings of IEEE Visualization 98.<br/><br/></p>
+<dd><p>Simplifies a textured mesh with VCGLib’s attribute-aware quadric edge-collapse implementation while preserving its UV parameterization. This follows the Garland–Heckbert extension of quadric error metrics to material attributes.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Michael Garland, Paul S. Heckbert. <strong>Simplifying Surfaces with Color and Texture using Quadric Error Metrics</strong>. <em>Proceedings of IEEE Visualization ‘98</em> (1998). <a class="reference external" href="https://doi.org/10.1109/VISUAL.1998.745312">DOI</a> <a class="reference external" href="https://mgarland.org/papers/quadric2.pdf">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>TargetFaceNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;selOrFaceCountHalf</span></code>) — Desired final number of faces.</p></li>
@@ -6092,6 +6130,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#simplification-quadric-edge-collapse-decimation">Simplification: Quadric Edge Collapse Decimation</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.simplification_quadric_edge_collapse"><code class="docutils literal notranslate"><span class="pre">ms.simplification_quadric_edge_collapse()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#simplification-original-qslim-quadric-edge-collapse">Simplification: Original QSlim Quadric Edge Collapse</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.simplification_quadric_edge_collapse_qslim"><code class="docutils literal notranslate"><span class="pre">ms.simplification_quadric_edge_collapse_qslim()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#simplification-quadric-edge-collapse-decimation-with-texture">Simplification: Quadric Edge Collapse Decimation (with texture)</a><ul>
