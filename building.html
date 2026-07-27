@@ -251,8 +251,8 @@
 <li><p>Python packages from <code class="docutils literal notranslate"><span class="pre">docs/requirements.txt</span></code>.</p></li>
 </ul>
 </section>
-<section id="step-1-generate-the-api-rst-files">
-<h2>Step 1 — Generate the API RST files<a class="headerlink" href="#step-1-generate-the-api-rst-files" title="Link to this heading">¶</a></h2>
+<section id="step-1-generate-the-api-source-files">
+<h2>Step 1 — Generate the API source files<a class="headerlink" href="#step-1-generate-the-api-source-files" title="Link to this heading">¶</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build<span class="w"> </span>-G<span class="w"> </span>Ninja<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-DQMESH_REQUIRE_VCPKG_DEPS<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-DQMESH_MACOS_BUNDLE_ICON<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
@@ -268,8 +268,8 @@ cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"
 </pre></div>
 </div>
 <p>This introspects the <code class="docutils literal notranslate"><span class="pre">_qmeshlab</span></code> module from within the running app,
-reads all <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> files, and writes <code class="docutils literal notranslate"><span class="pre">.rst</span></code> files into
-<code class="docutils literal notranslate"><span class="pre">docs/api/</span></code>.</p>
+reads all <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> files, and writes the reStructuredText and MyST
+Markdown sources into <code class="docutils literal notranslate"><span class="pre">docs/api/</span></code>.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">QMESH_REQUIRE_VCPKG_DEPS=OFF</span></code> option is used here because the
 documentation build only needs the app binary for Python/API introspection and
 the CI job does not activate the vcpkg toolchain. The listed plugin options
@@ -341,7 +341,7 @@ on every push to <code class="docutils literal notranslate"><span class="pre">ma
             <ul>
 <li><a class="reference internal" href="#">Building the documentation</a><ul>
 <li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
-<li><a class="reference internal" href="#step-1-generate-the-api-rst-files">Step 1 — Generate the API RST files</a></li>
+<li><a class="reference internal" href="#step-1-generate-the-api-source-files">Step 1 — Generate the API source files</a></li>
 <li><a class="reference internal" href="#step-2-build-the-html-site">Step 2 — Build the HTML site</a></li>
 <li><a class="reference internal" href="#ci-pipeline">CI pipeline</a></li>
 </ul>

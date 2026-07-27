@@ -9,8 +9,8 @@ Prerequisites
 * QMeshLab compiled with ``QMESHLAB_PYTHON_CONSOLE=ON`` (default).
 * Python packages from ``docs/requirements.txt``.
 
-Step 1 — Generate the API RST files
-------------------------------------
+Step 1 — Generate the API source files
+--------------------------------------
 
 .. code-block:: bash
 
@@ -28,8 +28,8 @@ Step 1 — Generate the API RST files
    QT_QPA_PLATFORM=offscreen ./build/QMeshLab --generate-docs docs
 
 This introspects the ``_qmeshlab`` module from within the running app,
-reads all ``filters.json`` files, and writes ``.rst`` files into
-``docs/api/``.
+reads all ``filters.json`` files, and writes the reStructuredText and MyST
+Markdown sources into ``docs/api/``.
 
 The ``QMESH_REQUIRE_VCPKG_DEPS=OFF`` option is used here because the
 documentation build only needs the app binary for Python/API introspection and
