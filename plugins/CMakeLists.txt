@@ -77,6 +77,12 @@ if (TARGET QMeshLabPluginFilterMeshFix)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_MESHFIX_ENABLED=1)
 endif()
 
+add_subdirectory(filter_qslim)
+if (TARGET QMeshLabPluginFilterQSlim)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterQSlim)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_QSLIM_ENABLED=1)
+endif()
+
 add_subdirectory(filter_meshing)
 if (TARGET QMeshLabPluginFilterMeshing)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterMeshing)

@@ -1,0 +1,156 @@
+{
+  "pluginId": "qmeshlab.filter.qslim",
+  "provenance": {
+    "project": "QSlim 2.1 (original MixKit implementation)",
+    "repository": "https://github.com/alecjacobson/qslim",
+    "license": "LGPL-2.0-or-later with MixKit static-linking exception",
+    "integration": "external/qslim"
+  },
+  "references": [
+    {
+      "id": "garland1997qem",
+      "type": "paper-conference",
+      "title": "Surface Simplification Using Quadric Error Metrics",
+      "author": [
+        {
+          "family": "Garland",
+          "given": "Michael"
+        },
+        {
+          "family": "Heckbert",
+          "given": "Paul S."
+        }
+      ],
+      "container-title": "Proceedings of the 24th Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '97)",
+      "page": "209-216",
+      "publisher": "ACM Press/Addison-Wesley",
+      "issued": {
+        "date-parts": [
+          [
+            1997
+          ]
+        ]
+      },
+      "DOI": "10.1145/258734.258849",
+      "URL": "https://github.com/alecjacobson/qslim"
+    }
+  ],
+  "filters": [
+    {
+      "id": "simplification_quadric_edge_collapse_qslim",
+      "menuPath": "Meshing",
+      "name": "Simplification: Original QSlim Quadric Edge Collapse",
+      "pythonName": "simplification_quadric_edge_collapse_qslim",
+      "referenceIds": [
+        "garland1997qem"
+      ],
+      "shortDescription": "Simplify a triangle mesh with Garland's original QSlim implementation.",
+      "longDescriptionMarkdown": "Runs the original `MxEdgeQSlim` edge-contraction implementation from Michael Garland's MixKit, preserved through the pinned [QSlim 2.1 repository](https://github.com/alecjacobson/qslim). This is a separate implementation from QMeshLab's VCGLib quadric decimator, allowing results and historical behavior to be compared directly.\n\nQSlim's placement and weighting policies, boundary constraint weight, compactness threshold, and meshing penalty are exposed using their original meanings. The result is created as a new geometry-only layer and preserves the input layer transform. Vertex and face attributes, materials, textures, selections, and polygonal edge markings are not transferred. The original core has no cancellation or fine-grained progress API, so only phase-level progress is available.",
+      "tags": [
+        "meshing",
+        "simplification",
+        "QSlim",
+        "archival"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "TargetFaceNum",
+          "label": "Target number of faces",
+          "help": "Desired final number of faces.",
+          "group": "main",
+          "type": "int",
+          "default": "@faceCountHalf",
+          "min": 1,
+          "max": "@faceCount"
+        },
+        {
+          "id": "PlacementPolicy",
+          "label": "Vertex placement",
+          "help": "Original QSlim placement policy for the vertex produced by an edge contraction.",
+          "group": "main",
+          "type": "enum",
+          "default": "optimal",
+          "enumOptions": [
+            {
+              "id": "endpoints",
+              "label": "Endpoints"
+            },
+            {
+              "id": "end_or_midpoint",
+              "label": "Endpoints or midpoint"
+            },
+            {
+              "id": "line",
+              "label": "Optimal on edge line"
+            },
+            {
+              "id": "optimal",
+              "label": "Optimal"
+            }
+          ]
+        },
+        {
+          "id": "WeightingPolicy",
+          "label": "Quadric weighting",
+          "help": "Original QSlim policy used to weight face quadrics.",
+          "group": "main",
+          "type": "enum",
+          "default": "area",
+          "enumOptions": [
+            {
+              "id": "uniform",
+              "label": "Uniform"
+            },
+            {
+              "id": "area",
+              "label": "Area"
+            },
+            {
+              "id": "angle",
+              "label": "Angle"
+            }
+          ]
+        },
+        {
+          "id": "BoundaryWeight",
+          "label": "Boundary weight",
+          "help": "Weight of the original QSlim boundary-preserving constraint. Zero disables it.",
+          "group": "advanced",
+          "type": "double",
+          "default": 1000.0,
+          "min": 0.0,
+          "max": 1000000000.0,
+          "decimals": 3
+        },
+        {
+          "id": "CompactnessRatio",
+          "label": "Compactness ratio",
+          "help": "Minimum local triangle compactness accepted by QSlim. Zero disables this penalty.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "MeshingPenalty",
+          "label": "Meshing penalty",
+          "help": "Scale applied to QSlim's local validity, compactness, inversion, and degree penalties.",
+          "group": "advanced",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 6
+        }
+      ]
+    }
+  ]
+}

@@ -46,6 +46,8 @@ Built-in filter plugin families (dependency-gated at build time):
 - `filter_embree`
 - `filter_select`
 - `filter_clean`
+- `filter_meshfix`
+- `filter_qslim`
 - `filter_meshing`
 - `filter_cgal`
 - `filter_parametrization`
@@ -83,10 +85,10 @@ Prerequisites:
 - Python development libraries when `QMESHLAB_PYTHON_CONSOLE=ON` (default)
 
 This repository contains `vcpkg.json`; non-Qt dependencies are installed via vcpkg manifest mode.
-Qt6 and Python are intentionally kept outside vcpkg. `vcglib` and the
-math-only JKQTMathText dependency are git submodules. `nanobind` is provided
-through vcpkg and is used for the private `_qmeshlab` extension behind the
-embedded `pymeshlab2` facade.
+Qt6 and Python are intentionally kept outside vcpkg. `vcglib`, selected
+algorithm archives such as MeshFix and QSlim, and the math-only JKQTMathText
+dependency are git submodules. `nanobind` is provided through vcpkg and is used
+for the private `_qmeshlab` extension behind the embedded `pymeshlab2` facade.
 
 ### Dependency Installation
 

@@ -33,3 +33,16 @@ Initialize it after cloning with:
 ```sh
 git submodule update --init external/meshfix
 ```
+
+## QSlim
+
+QMeshLab preserves Garland's original QSlim edge-collapse implementation in the
+pinned `external/qslim` submodule. Only its reusable MixKit core is compiled;
+integration, licensing, and update details are in
+[`plugins/filter_qslim/UPSTREAM.md`](../plugins/filter_qslim/UPSTREAM.md).
+
+Initialize it after cloning with:
+
+```sh
+git submodule update --init external/qslim
+```

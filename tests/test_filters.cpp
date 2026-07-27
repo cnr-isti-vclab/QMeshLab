@@ -130,6 +130,7 @@ private slots:
     void basicFiltersRunOnLoadedMesh();
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
+    void qslimSimplifiesCube();
     void hausdorffRunsOnTransientMeshCopies();
     void cgalAlphaWrapRunsWhenAvailable();
     void geodesicQualityFilterDoesNotBakeVertexColors();
@@ -156,9 +157,12 @@ void FilterTests::filterRegistryExposesBuiltins()
     bool hasCreateIso = false;
     bool hasCleanUnref = false;
     bool hasMeshFixRepair = false;
+    bool hasOriginalQSlim = false;
     bool hasScreenedPoissonReference = false;
     bool hasTextureDefragReference = false;
     bool hasSmallIslandsReference = false;
+    bool hasQuadricReference = false;
+    bool hasTexturedQuadricReference = false;
     bool hasSelectOutliers = false;
     bool hasSelectColor = false;
     bool hasTriOptimizePlanar = false;
@@ -188,6 +192,17 @@ void FilterTests::filterRegistryExposesBuiltins()
             QVERIFY(info.descriptor.references.front().bibTeX().contains(
                 QStringLiteral("@article{attene2010meshfix,")));
         }
+        if (info.descriptor.id
+            == QStringLiteral("simplification_quadric_edge_collapse_qslim")) {
+            hasOriginalQSlim = true;
+            QCOMPARE(info.descriptor.provenance.project,
+                     QStringLiteral("QSlim 2.1 (original MixKit implementation)"));
+            QCOMPARE(info.descriptor.provenance.integration,
+                     QStringLiteral("external/qslim"));
+            QCOMPARE(info.descriptor.references.size(), size_t(1));
+            QCOMPARE(info.descriptor.references.front().doi,
+                     QStringLiteral("10.1145/258734.258849"));
+        }
         if (info.descriptor.id == QStringLiteral("surface_reconstruction_screened_poisson")) {
             hasScreenedPoissonReference = true;
             QCOMPARE(info.descriptor.references.size(), size_t(1));
@@ -206,6 +221,21 @@ void FilterTests::filterRegistryExposesBuiltins()
             QCOMPARE(info.descriptor.references.size(), size_t(1));
             QCOMPARE(info.descriptor.references.front().id,
                      QStringLiteral("maggiordomo2021texture"));
+        }
+        if (info.descriptor.id == QStringLiteral("meshing_decimation_quadric_edge_collapse")) {
+            hasQuadricReference = true;
+            QCOMPARE(info.descriptor.references.size(), size_t(1));
+            QCOMPARE(info.descriptor.references.front().doi,
+                     QStringLiteral("10.1145/258734.258849"));
+            QCOMPARE(info.descriptor.references.front().webUrl(),
+                     QStringLiteral("https://github.com/alecjacobson/qslim"));
+        }
+        if (info.descriptor.id
+            == QStringLiteral("meshing_decimation_quadric_edge_collapse_with_texture")) {
+            hasTexturedQuadricReference = true;
+            QCOMPARE(info.descriptor.references.size(), size_t(1));
+            QCOMPARE(info.descriptor.references.front().doi,
+                     QStringLiteral("10.1109/VISUAL.1998.745312"));
         }
         hasSelectOutliers =
             hasSelectOutliers || (info.descriptor.id == QStringLiteral("select_outliers"));
@@ -239,9 +269,12 @@ void FilterTests::filterRegistryExposesBuiltins()
     QVERIFY(hasCreateIso);
     QVERIFY(hasCleanUnref);
     QVERIFY(hasMeshFixRepair);
+    QVERIFY(hasOriginalQSlim);
     QVERIFY(hasScreenedPoissonReference);
     QVERIFY(hasTextureDefragReference);
     QVERIFY(hasSmallIslandsReference);
+    QVERIFY(hasQuadricReference);
+    QVERIFY(hasTexturedQuadricReference);
     QVERIFY(hasSelectOutliers);
     QVERIFY(hasSelectColor);
     QVERIFY(hasTriOptimizePlanar);
@@ -485,6 +518,45 @@ void FilterTests::meshFixRepairsOpenCube()
     output.face.EnableFFAdjacency();
     vcg::tri::UpdateTopology<VCGMesh>::FaceFace(output);
     QCOMPARE(vcg::tri::Clean<VCGMesh>::CountHoles(output), 0);
+}
+
+void FilterTests::qslimSimplifiesCube()
+{
+    Document doc;
+    VCGMesh input;
+    makeCubeMesh(input, 0.0f, 0.0f, 0.0f);
+    const int inputFaces = input.FN();
+    const int inputIndex = doc.addMesh(input, QStringLiteral("Cube"));
+    QVERIFY(inputIndex >= 0);
+
+    QMatrix4x4 transform;
+    transform.translate(2.0f, 3.0f, 4.0f);
+    doc.setMeshTransform(inputIndex, transform);
+
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id
+            == QStringLiteral("simplification_quadric_edge_collapse_qslim")) {
+            filterKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("TargetFaceNum"), 6);
+    const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+    QCOMPARE(doc.meshCount(), 2);
+    QCOMPARE(doc.mesh(inputIndex).mesh.FN(), inputFaces);
+
+    const int outputIndex = result.newMeshIndices.front();
+    QVERIFY(matrixNear(doc.meshTransform(outputIndex), transform));
+    const VCGMesh &output = doc.mesh(outputIndex).mesh;
+    QVERIFY(output.VN() > 0);
+    QVERIFY(output.FN() > 0);
+    QVERIFY(output.FN() <= 6);
 }
 
 void FilterTests::hausdorffRunsOnTransientMeshCopies()

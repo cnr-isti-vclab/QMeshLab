@@ -1,5 +1,61 @@
 {
   "pluginId": "qmeshlab.filter.meshing",
+  "references": [
+    {
+      "id": "garland1997qem",
+      "type": "paper-conference",
+      "title": "Surface Simplification Using Quadric Error Metrics",
+      "author": [
+        {
+          "family": "Garland",
+          "given": "Michael"
+        },
+        {
+          "family": "Heckbert",
+          "given": "Paul S."
+        }
+      ],
+      "container-title": "Proceedings of the 24th Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '97)",
+      "page": "209-216",
+      "publisher": "ACM Press/Addison-Wesley",
+      "issued": {
+        "date-parts": [
+          [
+            1997
+          ]
+        ]
+      },
+      "DOI": "10.1145/258734.258849",
+      "URL": "https://github.com/alecjacobson/qslim"
+    },
+    {
+      "id": "garland1998texture",
+      "type": "paper-conference",
+      "title": "Simplifying Surfaces with Color and Texture using Quadric Error Metrics",
+      "author": [
+        {
+          "family": "Garland",
+          "given": "Michael"
+        },
+        {
+          "family": "Heckbert",
+          "given": "Paul S."
+        }
+      ],
+      "container-title": "Proceedings of IEEE Visualization '98",
+      "page": "263-269",
+      "publisher": "IEEE Computer Society Press",
+      "issued": {
+        "date-parts": [
+          [
+            1998
+          ]
+        ]
+      },
+      "DOI": "10.1109/VISUAL.1998.745312",
+      "URL": "https://mgarland.org/papers/quadric2.pdf"
+    }
+  ],
   "filters": [
     {
       "id": "meshing_surface_subdivision_loop",
@@ -299,8 +355,11 @@
       "menuPath": "Meshing",
       "name": "Simplification: Quadric Edge Collapse Decimation",
       "pythonName": "simplification_quadric_edge_collapse",
+      "referenceIds": [
+        "garland1997qem"
+      ],
       "shortDescription": "Simplify using quadric-based edge-collapse.",
-      "longDescriptionMarkdown": "Simplify a mesh using a quadric based edge-collapse strategy. A variant of the well known Garland and Heckbert simplification algorithm with different weighting schemes to better cope with aspect ration and planar/degenerate quadrics areas.<br> See: <br><i>M. Garland and P. Heckbert.</i> <br><b>Surface Simplification Using Quadric Error Metrics</b> (<a href='http://mgarland.org/papers/quadrics.pdf'>pdf</a>)<br>In Proceedings of SIGGRAPH 97.<br/><br/>",
+      "longDescriptionMarkdown": "Simplifies a mesh with VCGLib's quadric edge-collapse implementation, a variant of the Garland–Heckbert algorithm with additional weighting schemes for poorly shaped faces and planar or degenerate regions.\n\nThis filter uses VCGLib and remains distinct from the separately available **Original QSlim Quadric Edge Collapse** filter, which compiles Garland's original `MxEdgeQSlim` implementation.",
       "tags": [
         "meshing"
       ],
@@ -444,8 +503,11 @@
       "menuPath": "Meshing",
       "name": "Simplification: Quadric Edge Collapse Decimation (with texture)",
       "pythonName": "simplification_quadric_edge_collapse_with_texture",
+      "referenceIds": [
+        "garland1998texture"
+      ],
       "shortDescription": "Simplify textured meshes preserving UVs.",
-      "longDescriptionMarkdown": "Simplify a textured mesh using a Quadric based Edge Collapse Strategy preserving UV parametrization. Inspired by the QSLIM surface simplification algorithmby Michael Garland, which turned into the industry standard method for mesh simplification.<br> See: <br><i>M. Garland and P. Heckbert.</i> <br><b>Simplifying Surfaces with Color and Texture using Quadric Error Metrics</b> (<a href='http://mgarland.org/papers/quadric2.pdf'>pdf</a>)<br> In Proceedings of IEEE Visualization 98.<br/><br/>",
+      "longDescriptionMarkdown": "Simplifies a textured mesh with VCGLib's attribute-aware quadric edge-collapse implementation while preserving its UV parameterization. This follows the Garland–Heckbert extension of quadric error metrics to material attributes.",
       "tags": [
         "meshing"
       ],
