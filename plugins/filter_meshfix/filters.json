@@ -1,0 +1,33 @@
+{
+  "pluginId": "qmeshlab.filter.meshfix",
+  "provenance": {
+    "project": "MeshFix 2.1",
+    "repository": "https://github.com/MarcoAttene/MeshFix-V2.1",
+    "license": "GPL-3.0-or-later",
+    "integration": "external/meshfix",
+    "citationMarkdown": "M. Attene, *A lightweight approach to repairing digitized polygon meshes*, The Visual Computer 26 (2010). [DOI: 10.1007/s00371-010-0416-3](https://doi.org/10.1007/s00371-010-0416-3)."
+  },
+  "filters": [
+    {
+      "id": "repair_watertight_mesh",
+      "menuPath": "Cleaning",
+      "name": "Repair Watertight Mesh (MeshFix)",
+      "pythonName": "repair_watertight_mesh_meshfix",
+      "shortDescription": "Repair a raw digitized mesh into a single watertight triangle mesh using MeshFix.",
+      "longDescriptionMarkdown": "Runs the standard MeshFix repair pipeline: keeps the connected component with the most triangles, fills all holes with refined patches, then repairs degeneracies and self-intersections. The result is created as a new geometry-only layer and preserves the input layer transform.\n\nThis filter is intended for raw digitized surfaces representing one closed solid. Vertex and face attributes, materials, textures, and polygonal edge markings are not transferred. MeshFix has no cancellation or fine-grained progress API, so only phase-level progress is available.",
+      "tags": [
+        "cleaning",
+        "repair",
+        "watertight",
+        "MeshFix"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": []
+    }
+  ]
+}

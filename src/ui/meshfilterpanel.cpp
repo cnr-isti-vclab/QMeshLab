@@ -1294,7 +1294,24 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     } else {
         m_filterModifiesLabel->setVisible(false);
     }
-    const QString longDescription = info.descriptor.longDescriptionMarkdown.trimmed();
+    QString longDescription = info.descriptor.longDescriptionMarkdown.trimmed();
+    const MeshFilterProvenance &provenance = info.descriptor.provenance;
+    if (!provenance.isEmpty()) {
+        QStringList provenanceLines;
+        if (!provenance.project.isEmpty()) {
+            const QString project = provenance.repository.isEmpty()
+                ? provenance.project
+                : QStringLiteral("[%1](%2)").arg(provenance.project, provenance.repository);
+            provenanceLines << tr("**Upstream:** %1").arg(project);
+        }
+        if (!provenance.license.isEmpty())
+            provenanceLines << tr("**License:** %1").arg(provenance.license);
+        if (!provenance.citationMarkdown.isEmpty())
+            provenanceLines << provenance.citationMarkdown;
+        if (!longDescription.isEmpty())
+            longDescription += QStringLiteral("\n\n---\n\n");
+        longDescription += provenanceLines.join(QStringLiteral("\n\n"));
+    }
     const bool hasLongDescription = !longDescription.isEmpty();
     m_longDescriptionToggle->setVisible(hasLongDescription);
 #ifdef QMESHLAB_PYTHON_CONSOLE
@@ -1340,6 +1357,7 @@ bool MeshFilterPanel::matchesSearch(
     const QString name = filterInfo.descriptor.name.toLower();
     const QString shortDesc = filterInfo.descriptor.shortDescription.toLower();
     const QString longDesc = filterInfo.descriptor.longDescriptionMarkdown.toLower();
+    const QString upstream = filterInfo.descriptor.provenance.project.toLower();
 
     for (const QString &term : terms) {
         if (term.isEmpty())
@@ -1347,7 +1365,8 @@ bool MeshFilterPanel::matchesSearch(
         const bool termMatched =
             name.contains(term)
             || shortDesc.contains(term)
-            || longDesc.contains(term);
+            || longDesc.contains(term)
+            || upstream.contains(term);
         if (!termMatched)
             return false;
     }

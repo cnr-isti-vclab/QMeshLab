@@ -131,6 +131,21 @@ struct MeshFilterCleanupAction
     QString meshParameter;
 };
 
+struct MeshFilterProvenance
+{
+    QString project;
+    QString repository;
+    QString license;
+    QString integration;
+    QString citationMarkdown;
+
+    bool isEmpty() const
+    {
+        return project.isEmpty() && repository.isEmpty() && license.isEmpty()
+            && integration.isEmpty() && citationMarkdown.isEmpty();
+    }
+};
+
 struct MeshFilterDescriptor
 {
     QString id;
@@ -139,6 +154,7 @@ struct MeshFilterDescriptor
     QString pythonName;          // explicit Python method name; auto-computed from name if empty
     QString shortDescription;
     QString longDescriptionMarkdown;
+    MeshFilterProvenance provenance;
     QStringList tags;
     MeshFilterInputDomain inputDomain = MeshFilterInputDomain::SingleMesh;
     MeshFilterMeshRequirements inputRequirements;

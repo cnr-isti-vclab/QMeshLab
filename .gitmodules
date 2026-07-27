@@ -5,3 +5,6 @@
 	path = external/jkqtplotter
 	url = https://github.com/jkriege2/JKQtPlotter.git
 	shallow = true
+[submodule "external/meshfix"]
+	path = external/meshfix
+	url = https://github.com/MarcoAttene/MeshFix-V2.1.git

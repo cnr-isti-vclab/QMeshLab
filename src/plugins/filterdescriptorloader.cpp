@@ -63,6 +63,17 @@ MeshFilterCleanupKind parseCleanupKind(const QString &s)
     return MeshFilterCleanupKind::RemoveUnreferencedVertices;
 }
 
+MeshFilterProvenance parseProvenance(const QJsonObject &obj)
+{
+    MeshFilterProvenance provenance;
+    provenance.project = obj.value(QStringLiteral("project")).toString();
+    provenance.repository = obj.value(QStringLiteral("repository")).toString();
+    provenance.license = obj.value(QStringLiteral("license")).toString();
+    provenance.integration = obj.value(QStringLiteral("integration")).toString();
+    provenance.citationMarkdown = obj.value(QStringLiteral("citationMarkdown")).toString();
+    return provenance;
+}
+
 // A QVariant that is a QString starting with "@" is a symbolic token.
 // Non-symbolic values are parsed from JSON numbers/booleans/strings.
 QVariant parseJsonValue(const QJsonValue &v)
@@ -302,11 +313,16 @@ std::vector<MeshFilterDescriptor> FilterDescriptorLoader::load(
 
     const QJsonObject root = doc.object();
     const QJsonArray filters = root.value(QStringLiteral("filters")).toArray();
+    const MeshFilterProvenance provenance =
+        parseProvenance(root.value(QStringLiteral("provenance")).toObject());
 
     std::vector<MeshFilterDescriptor> result;
     result.reserve(static_cast<size_t>(filters.size()));
-    for (const QJsonValue &fv : filters)
-        result.push_back(parseFilter(fv.toObject()));
+    for (const QJsonValue &fv : filters) {
+        MeshFilterDescriptor descriptor = parseFilter(fv.toObject());
+        descriptor.provenance = provenance;
+        result.push_back(std::move(descriptor));
+    }
 
     return result;
 }

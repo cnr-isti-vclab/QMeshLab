@@ -20,3 +20,16 @@ Initialize the dependency after cloning QMeshLab with:
 ```sh
 git submodule update --init external/jkqtplotter
 ```
+
+## MeshFix
+
+QMeshLab builds the reusable core of MeshFix directly from the pinned
+`external/meshfix` submodule. The upstream tree stays unmodified; the adapter,
+provenance, update procedure, and known API limitations are documented in
+[`plugins/filter_meshfix/UPSTREAM.md`](../plugins/filter_meshfix/UPSTREAM.md).
+
+Initialize it after cloning with:
+
+```sh
+git submodule update --init external/meshfix
+```

@@ -4,8 +4,10 @@
 #include "textureassociationutils.h"
 
 #include <wrap/io_trimesh/io_mask.h>
+#include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
+#include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/complex/allocate.h>
 #include <array>
 #include <cmath>
@@ -61,6 +63,14 @@ void makeOpenDiskMesh(VCGMesh &mesh)
 
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
+void makeOpenCubeMesh(VCGMesh &mesh)
+{
+    makeCubeMesh(mesh, 0.0f, 0.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, mesh.face[0]);
+    vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, mesh.face[1]);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
 }
 
 void makeTwoTextureTriangles(VCGMesh &mesh)
@@ -119,6 +129,7 @@ private slots:
     void filterApplicabilityReflectsDocumentState();
     void basicFiltersRunOnLoadedMesh();
     void filterParameterValidation();
+    void meshFixRepairsOpenCube();
     void cgalAlphaWrapRunsWhenAvailable();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
@@ -143,6 +154,7 @@ void FilterTests::filterRegistryExposesBuiltins()
     bool hasDuplicate = false;
     bool hasCreateIso = false;
     bool hasCleanUnref = false;
+    bool hasMeshFixRepair = false;
     bool hasSelectOutliers = false;
     bool hasSelectColor = false;
     bool hasTriOptimizePlanar = false;
@@ -162,6 +174,11 @@ void FilterTests::filterRegistryExposesBuiltins()
         hasCreateIso = hasCreateIso || (info.descriptor.id == QStringLiteral("create_noisy_isosurface"));
         hasCleanUnref =
             hasCleanUnref || (info.descriptor.id == QStringLiteral("remove_unreferenced_vertices"));
+        if (info.descriptor.id == QStringLiteral("repair_watertight_mesh")) {
+            hasMeshFixRepair = true;
+            QCOMPARE(info.descriptor.provenance.project, QStringLiteral("MeshFix 2.1"));
+            QCOMPARE(info.descriptor.provenance.integration, QStringLiteral("external/meshfix"));
+        }
         hasSelectOutliers =
             hasSelectOutliers || (info.descriptor.id == QStringLiteral("select_outliers"));
         hasSelectColor =
@@ -193,6 +210,7 @@ void FilterTests::filterRegistryExposesBuiltins()
     QVERIFY(hasDuplicate);
     QVERIFY(hasCreateIso);
     QVERIFY(hasCleanUnref);
+    QVERIFY(hasMeshFixRepair);
     QVERIFY(hasSelectOutliers);
     QVERIFY(hasSelectColor);
     QVERIFY(hasTriOptimizePlanar);
@@ -400,6 +418,42 @@ void FilterTests::filterParameterValidation()
         QVERIFY(!result.success);
         QVERIFY(result.errorMessage.contains(QStringLiteral("minimum")));
     }
+}
+
+void FilterTests::meshFixRepairsOpenCube()
+{
+    Document doc;
+    VCGMesh input;
+    makeOpenCubeMesh(input);
+    const int inputIndex = doc.addMesh(input, QStringLiteral("Open cube"));
+    QVERIFY(inputIndex >= 0);
+
+    QMatrix4x4 transform;
+    transform.translate(2.0f, 3.0f, 4.0f);
+    doc.setMeshTransform(inputIndex, transform);
+
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("repair_watertight_mesh")) {
+            filterKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    const MeshFilterRunResult result = doc.runFilter(filterKey, {});
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+    QCOMPARE(doc.meshCount(), 2);
+
+    const int outputIndex = result.newMeshIndices.front();
+    QVERIFY(matrixNear(doc.meshTransform(outputIndex), transform));
+    VCGMesh &output = doc.mesh(outputIndex).mesh;
+    QVERIFY(output.VN() > 0);
+    QVERIFY(output.FN() >= 12);
+    output.face.EnableFFAdjacency();
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(output);
+    QCOMPARE(vcg::tri::Clean<VCGMesh>::CountHoles(output), 0);
 }
 
 void FilterTests::cgalAlphaWrapRunsWhenAvailable()

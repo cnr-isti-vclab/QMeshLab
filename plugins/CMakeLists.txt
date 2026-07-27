@@ -71,6 +71,12 @@ if (TARGET QMeshLabPluginFilterClean)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_CLEAN_ENABLED=1)
 endif()
 
+add_subdirectory(filter_meshfix)
+if (TARGET QMeshLabPluginFilterMeshFix)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterMeshFix)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_MESHFIX_ENABLED=1)
+endif()
+
 add_subdirectory(filter_meshing)
 if (TARGET QMeshLabPluginFilterMeshing)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterMeshing)

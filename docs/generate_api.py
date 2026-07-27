@@ -116,9 +116,11 @@ def _read_all_filters(source_dir):
                 if not isinstance(entries, list):
                     continue
                 descriptor_plugin_id = data.get('pluginId', '')
+                provenance = data.get('provenance', {})
             elif isinstance(data, list):
                 entries = data
                 descriptor_plugin_id = ''
+                provenance = {}
             else:
                 continue
             for entry in entries:
@@ -142,6 +144,7 @@ def _read_all_filters(source_dir):
                     'long_description':
                         (entry.get('longDescriptionMarkdown', '') or '').strip(),
                     'menu': entry.get('menuPath', ''),
+                    'provenance': provenance if isinstance(provenance, dict) else {},
                     'parameters': params,
                 })
     filters.sort(key=lambda f: (f['menu'], f['python_name']))
@@ -180,6 +183,16 @@ def _write_filter_markdown(fh, filter_list):
         long_description = f['long_description']
         if long_description and long_description != f['description']:
             fh.write(f'{long_description}\n\n')
+        provenance = f['provenance']
+        project = provenance.get('project', '')
+        repository = provenance.get('repository', '')
+        if project:
+            upstream = f'[{project}]({repository})' if repository else project
+            fh.write(f'**Upstream:** {upstream}\n\n')
+        if provenance.get('license'):
+            fh.write(f'**License:** {provenance["license"]}\n\n')
+        if provenance.get('citationMarkdown'):
+            fh.write(f'{provenance["citationMarkdown"]}\n\n')
         if f['parameters']:
             fh.write('**Parameters:**\n\n')
             for p in f['parameters']:

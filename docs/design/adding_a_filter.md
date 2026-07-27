@@ -31,6 +31,13 @@ plugins/filter_foo/
 ```json
 {
   "pluginId": "qmeshlab.filter.foo",
+  "provenance": {
+    "project": "Upstream Project",
+    "repository": "https://github.com/example/upstream",
+    "license": "SPDX-license-identifier",
+    "integration": "external/upstream",
+    "citationMarkdown": "Optional project citation."
+  },
   "filters": [
     {
       "id": "do_something",
@@ -54,6 +61,11 @@ The default `MeshFilterPlugin::filters()` loads this from the Qt resource
 `:/filters/<pluginId>/filters.json`, so the `CMakeLists.txt` PREFIX must match
 `pluginId`. Parameter types: `bool int double absPerc enum color point3f string
 fileOpen fileSave mesh cameraState renderState textureRef`.
+
+`provenance` is optional and declared once for every filter supplied by a
+third-party project. It is shown in the in-app help and generated documentation.
+When `integration` names a Git submodule, its gitlink is the authoritative exact
+upstream revision; do not duplicate a commit hash in the descriptor.
 
 ### Descriptions and formulas
 
