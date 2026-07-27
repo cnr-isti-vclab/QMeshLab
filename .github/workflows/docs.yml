@@ -23,7 +23,7 @@ jobs:
           host: mac
           target: desktop
           arch: clang_64
-          modules: qtsvg qtshadertools
+          modules: qtshadertools
 
       - name: Install Python dependencies
         run: |
