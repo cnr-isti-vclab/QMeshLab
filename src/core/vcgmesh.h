@@ -62,15 +62,21 @@ class VCGMesh : public vcg::tri::TriMesh<
 // preferred, else per-vertex). Returns false if there are no usable texcoords or
 // the value is non-finite. Shared by the UV renderer and the UV-space selection
 // filter so both read parametrization coordinates the same way.
+// Reading a vcg OCF texcoord (cWT/cT) is only legal when the optional component
+// is actually ENABLED on the mesh. ioMask is merely an I/O hint and can disagree
+// with the live mesh — e.g. after an undo/redo whose restored ioMask is paired
+// with geometry that doesn't have the component — so every read below is gated on
+// the container's runtime enabled flag (reached from the element via Base()).
+// Without this guard a stale ioMask bit dereferences a null OCF backing store.
 inline bool vcgFaceCornerUV(int ioMask, const VCGFace &f, int corner, float &u, float &v)
 {
-    if (ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) {
+    if ((ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) && f.Base().IsWedgeTexCoordEnabled()) {
         const auto &wt = f.cWT(corner);
         u = wt.U();
         v = wt.V();
     } else if (ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) {
         const VCGVertex *vp = f.cV(corner);
-        if (!vp)
+        if (!vp || !vp->Base().IsTexCoordEnabled())
             return false;
         const auto &vt = vp->cT();
         u = vt.U();
@@ -83,9 +89,9 @@ inline bool vcgFaceCornerUV(int ioMask, const VCGFace &f, int corner, float &u, 
 
 inline int vcgFaceTextureGroup(int ioMask, const VCGFace &f)
 {
-    if (ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD)
+    if ((ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) && f.Base().IsWedgeTexCoordEnabled())
         return std::max(0, int(f.cWT(0).N()));
-    if ((ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) && f.cV(0))
+    if ((ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) && f.cV(0) && f.cV(0)->Base().IsTexCoordEnabled())
         return std::max(0, int(f.cV(0)->cT().N()));
     return 0;
 }

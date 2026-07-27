@@ -292,7 +292,12 @@ MeshFilterRunResult XAtlasFilterPlugin::runFilter(
 
     entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
-    doc.markMeshMaterialChanged(
+    // Per-wedge UVs live inside the VCGMesh and the undo system interns geometry
+    // by geometryRevision, so enabling the wedge-texcoord component and writing
+    // UVs is a GEOMETRY change: it must bump geometryRevision or the undo snapshot
+    // reuses the stale pre-parametrization copy (UV-less) while ioMask claims UVs,
+    // desyncing them and crashing every per-wedge reader after an undo/redo.
+    doc.markMeshGeometryChanged(
         meshIndex,
         QObject::tr("Computed xatlas UV parametrization for '%1'").arg(entry.name));
 

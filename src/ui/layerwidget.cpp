@@ -69,7 +69,8 @@ struct LayerTextureInfo {
     QString displayName;
     QString path;
     QStringList usage;
-    QImage image; // in-memory texture (e.g. a generated dummy) when there is no file
+    QImage image;       // in-memory texture (e.g. a generated dummy) when there is no file
+    int assetIndex = -1; // index into MeshEntry::textureAssets, -1 when unknown
 };
 
 std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry);
@@ -429,11 +430,14 @@ QString meshDataTooltip(const Document::MeshEntry &entry)
     return lines.join(QLatin1Char('\n'));
 }
 
+// assetIndex is the position in MeshEntry::textureAssets this ref was built from,
+// or -1 when that correspondence is not known (importer-provided material sets).
 void appendLayerTexture(
     std::vector<LayerTextureInfo> &out,
     QHash<QString, int> &byKey,
     const MeshIOMaterialTextureRef &ref,
-    const QString &usage)
+    const QString &usage,
+    int assetIndex = -1)
 {
     if (!ref.isValid())
         return;
@@ -445,14 +449,20 @@ void appendLayerTexture(
     if (displayName.isEmpty())
         displayName = QObject::tr("texture");
 
+    // Identity key: a file path when there is one, else the asset index — keying
+    // path-less textures by name would collapse two distinct in-memory textures
+    // that happen to share a name into a single row.
     const QString key = !path.isEmpty()
         ? QStringLiteral("path:%1").arg(path.toLower())
-        : QStringLiteral("name:%1").arg(displayName.toLower());
+        : (assetIndex >= 0 ? QStringLiteral("asset:%1").arg(assetIndex)
+                           : QStringLiteral("name:%1").arg(displayName.toLower()));
     const auto it = byKey.constFind(key);
     if (it != byKey.constEnd()) {
         LayerTextureInfo &existing = out[size_t(it.value())];
         if (existing.path.isEmpty() && !path.isEmpty())
             existing.path = path;
+        if (existing.assetIndex < 0)
+            existing.assetIndex = assetIndex;
         if (!usage.isEmpty() && !existing.usage.contains(usage))
             existing.usage.push_back(usage);
         return;
@@ -461,6 +471,7 @@ void appendLayerTexture(
     LayerTextureInfo info;
     info.displayName = displayName;
     info.path = path;
+    info.assetIndex = assetIndex;
     if (!usage.isEmpty())
         info.usage.push_back(usage);
     byKey.insert(key, int(out.size()));
@@ -473,10 +484,14 @@ std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &en
     QHash<QString, int> byKey;
 
     if (!entry.materialSet.empty()) {
-        for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
+        for (int slotIndex = 0; slotIndex < int(entry.materialSet.entries.size()); ++slotIndex) {
+            const MeshIOMaterialSlot &slot = entry.materialSet.entries[size_t(slotIndex)];
             const QString materialName = slot.name.trimmed();
             const QString prefix = materialName.isEmpty() ? QString() : materialName + QStringLiteral(":");
-            appendLayerTexture(out, byKey, slot.baseColorTexture, prefix + QObject::tr("Base"));
+            // Only the base-colour channel is built slot-for-asset (see
+            // replaceTextureAssociations); the other channels are appended
+            // independently and are resolved by their file path instead.
+            appendLayerTexture(out, byKey, slot.baseColorTexture, prefix + QObject::tr("Base"), slotIndex);
             appendLayerTexture(out, byKey, slot.normalTexture, prefix + QObject::tr("Normal"));
             appendLayerTexture(out, byKey, slot.occlusionTexture, prefix + QObject::tr("AO"));
             appendLayerTexture(out, byKey, slot.roughnessTexture, prefix + QObject::tr("Rough"));
@@ -489,7 +504,7 @@ std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &en
             ref.filePath = entry.textureFilePaths.at(i);
             if (i >= 0 && i < entry.textureFileNames.size())
                 ref.fileName = entry.textureFileNames.at(i);
-            appendLayerTexture(out, byKey, ref, QObject::tr("Base"));
+            appendLayerTexture(out, byKey, ref, QObject::tr("Base"), i);
         }
     }
 
@@ -500,20 +515,50 @@ std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &en
 
     // Resolve in-memory images (e.g. dummy textures with no file on disk) so the
     // thumbnail can render them instead of falling back to a placeholder.
+    // Resolution order, strongest evidence first:
+    //   1. source path  — authoritative whenever the texture is backed by a file;
+    //   2. asset index  — the same link the renderer uses (textureAssets[group]),
+    //                     and the only dependable one for path-less textures;
+    //   3. name         — last resort for importer-built material sets, whose
+    //                     slots need not correspond 1:1 to textureAssets.
+    // Name matching alone is fragile: displayName is QFileInfo(fileName).fileName(),
+    // so any asset name containing a separator, or a slot labelled differently from
+    // its asset, silently yields a blank thumbnail and a "missing" size.
     for (LayerTextureInfo &info : out) {
-        for (const MeshIOTextureAsset &asset : entry.textureAssets) {
-            if (!asset.hasImage())
-                continue;
-            const bool pathMatch = !info.path.isEmpty()
-                && QDir::fromNativeSeparators(asset.sourcePath.trimmed()) == info.path;
-            const bool nameMatch = info.path.isEmpty()
-                && !asset.name.trimmed().isEmpty()
-                && asset.name.trimmed() == info.displayName;
-            if (pathMatch || nameMatch) {
-                info.image = asset.image;
-                break;
+        const MeshIOTextureAsset *match = nullptr;
+
+        if (!info.path.isEmpty()) {
+            for (const MeshIOTextureAsset &asset : entry.textureAssets) {
+                if (asset.hasImage()
+                    && QDir::fromNativeSeparators(asset.sourcePath.trimmed()) == info.path) {
+                    match = &asset;
+                    break;
+                }
             }
         }
+
+        if (!match && info.assetIndex >= 0
+            && info.assetIndex < int(entry.textureAssets.size())) {
+            const MeshIOTextureAsset &asset = entry.textureAssets[size_t(info.assetIndex)];
+            const QString assetPath = QDir::fromNativeSeparators(asset.sourcePath.trimmed());
+            // Trust the index only where it cannot contradict a known path.
+            if (asset.hasImage()
+                && (assetPath.isEmpty() || info.path.isEmpty() || assetPath == info.path))
+                match = &asset;
+        }
+
+        if (!match && info.path.isEmpty()) {
+            for (const MeshIOTextureAsset &asset : entry.textureAssets) {
+                if (asset.hasImage() && !asset.name.trimmed().isEmpty()
+                    && asset.name.trimmed().compare(info.displayName, Qt::CaseInsensitive) == 0) {
+                    match = &asset;
+                    break;
+                }
+            }
+        }
+
+        if (match)
+            info.image = match->image;
     }
     return out;
 }
@@ -722,8 +767,15 @@ QPixmap imageThumbnail(const QImage &image, const QString &path, int w, int h)
         p.setRenderHint(QPainter::Antialiasing, true);
         QImage normalized = image;
         normalized.setDevicePixelRatio(1.0);
-        const QImage scaled =
-            normalized.scaled(w, h, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        // Smooth (area-averaging) scaling is right for mild downscales, but past a
+        // large factor it averages high-frequency content into flat grey — a 512px
+        // checkerboard with 8px checks shown at ~54px turns into a uniform square.
+        // Nearest-neighbour keeps the pattern recognisable at those ratios.
+        const int srcMax = std::max(normalized.width(), normalized.height());
+        const bool extremeDownscale = srcMax > 6 * std::max(w, h);
+        const QImage scaled = normalized.scaled(
+            w, h, Qt::KeepAspectRatio,
+            extremeDownscale ? Qt::FastTransformation : Qt::SmoothTransformation);
         const QPixmap px = QPixmap::fromImage(scaled);
         const int x = (w - px.width()) / 2;
         const int y = (h - px.height()) / 2;

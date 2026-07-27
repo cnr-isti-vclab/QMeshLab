@@ -555,7 +555,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
 
         vcg::tri::UpdateTexture<VCGMesh>::WedgeTexFromVertexTex(mesh);
         entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
-        doc.markMeshMaterialChanged(
+        // Per-wedge UVs live in the mesh; writing them is a geometry change (undo
+        // interns geometry by geometryRevision), so bump geometry, not material.
+        doc.markMeshGeometryChanged(
             meshIndex,
             QObject::tr("Converted per-vertex UVs to per-wedge UVs on '%1'.").arg(entry.name));
 
@@ -608,7 +610,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         }
 
         entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
-        doc.markMeshMaterialChanged(
+        // Writing per-wedge UVs into the mesh is a geometry change (see above).
+        doc.markMeshGeometryChanged(
             meshIndex,
             QObject::tr("Computed planar UV parametrization for '%1'.").arg(entry.name));
 
@@ -820,7 +823,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         }
 
         entry.ioMask |= Mask::IOM_WEDGTEXCOORD;
-        doc.markMeshMaterialChanged(
+        // Writing per-wedge UVs into the mesh is a geometry change (see above).
+        doc.markMeshGeometryChanged(
             meshIndex,
             QObject::tr("Computed trivial per-triangle UV parametrization for '%1'.").arg(entry.name));
 

@@ -324,16 +324,31 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             if (meshData.FN() <= 0)
                 return true;
 
-            const bool meshHasFaceColor = (source.ioMask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
-            const bool meshHasVertexColor = (source.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
+            // Gate every optional-component read on the mesh's ACTUAL capability, not
+            // just the ioMask intent bit. Per-wedge/vertex texcoords, colours and
+            // quality are vcg OCF components: calling cWT()/cC()/cQ()/cT() when the
+            // component is not enabled dereferences a null backing store and crashes.
+            // ioMask (an I/O hint) can legitimately disagree with the live mesh — e.g.
+            // after an undo/redo that pairs a restored ioMask with interned geometry —
+            // so it must never alone authorize a component access.
+            const bool meshHasFaceColor =
+                (source.ioMask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0
+                && vcg::tri::HasPerFaceColor(meshData);
+            const bool meshHasVertexColor =
+                (source.ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0
+                && vcg::tri::HasPerVertexColor(meshData);
             const bool meshHasVertexQuality =
-                (source.ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
+                (source.ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0
+                && vcg::tri::HasPerVertexQuality(meshData);
             const bool meshHasFaceQuality =
-                (source.ioMask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
+                (source.ioMask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0
+                && vcg::tri::HasPerFaceQuality(meshData);
             const bool meshHasVertexTexcoord =
-                (source.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
+                (source.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0
+                && vcg::tri::HasPerVertexTexCoord(meshData);
             const bool meshHasWedgeTexcoord =
-                (source.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
+                (source.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
+                && vcg::tri::HasPerWedgeTexCoord(meshData);
 
             const bool useFaceColor = (variant == FillVariant::PerFace) && meshHasFaceColor;
             const bool useVertexColor = (variant == FillVariant::PerVertex) && meshHasVertexColor;
