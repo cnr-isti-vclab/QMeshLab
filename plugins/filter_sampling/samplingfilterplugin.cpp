@@ -1000,6 +1000,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         const Document::MeshEntry &targetEntry = doc.mesh(targetMeshIndex);
         std::unique_ptr<VCGMesh> sampledMesh = makeWorldMesh(sampledEntry, true);
         std::unique_ptr<VCGMesh> targetMesh = makeWorldMesh(targetEntry, true);
+        targetMesh->face.EnableMark();
         const bool saveSamples = params.getBool(QStringLiteral("SaveSample"));
         const bool sampleVertices = params.getBool(QStringLiteral("SampleVert"));
         bool sampleEdges = params.getBool(QStringLiteral("SampleEdge"));
@@ -1077,6 +1078,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         const Document::MeshEntry &referenceEntry = doc.mesh(referenceMeshIndex);
         std::unique_ptr<VCGMesh> measuredMesh = makeWorldMesh(measuredEntry, false);
         std::unique_ptr<VCGMesh> referenceMesh = makeWorldMesh(referenceEntry, true);
+        referenceMesh->face.EnableMark();
         if (referenceMesh->FN() > 0) {
             vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(*referenceMesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalized(*referenceMesh);
@@ -1134,6 +1136,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
 
         std::unique_ptr<VCGMesh> sourceMesh = makeWorldMesh(sourceEntry, true);
         std::unique_ptr<VCGMesh> targetWorldMesh = makeWorldMesh(targetEntry, false);
+        sourceMesh->face.EnableMark();
         if (onlySelected
             && vcg::tri::UpdateSelection<VCGMesh>::VertexCount(*targetWorldMesh) == 0
             && vcg::tri::UpdateSelection<VCGMesh>::FaceCount(*targetWorldMesh) > 0) {

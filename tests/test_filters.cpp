@@ -130,6 +130,7 @@ private slots:
     void basicFiltersRunOnLoadedMesh();
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
+    void hausdorffRunsOnTransientMeshCopies();
     void cgalAlphaWrapRunsWhenAvailable();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
@@ -454,6 +455,37 @@ void FilterTests::meshFixRepairsOpenCube()
     output.face.EnableFFAdjacency();
     vcg::tri::UpdateTopology<VCGMesh>::FaceFace(output);
     QCOMPARE(vcg::tri::Clean<VCGMesh>::CountHoles(output), 0);
+}
+
+void FilterTests::hausdorffRunsOnTransientMeshCopies()
+{
+    Document doc;
+    VCGMesh sampled;
+    VCGMesh target;
+    makeCubeMesh(sampled, 0.0f, 0.0f, 0.0f);
+    makeCubeMesh(target, 0.05f, 0.0f, 0.0f);
+    const int sampledIndex = doc.addMesh(sampled, QStringLiteral("Sampled"));
+    const int targetIndex = doc.addMesh(target, QStringLiteral("Target"));
+    QVERIFY(sampledIndex >= 0);
+    QVERIFY(targetIndex >= 0);
+
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("get_hausdorff_distance")) {
+            filterKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("SampledMesh"), sampledIndex);
+    params.insert(QStringLiteral("TargetMesh"), targetIndex);
+    params.insert(QStringLiteral("SampleNum"), 32);
+    const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(!result.documentModified);
+    QVERIFY(result.infoMessages.join(QLatin1Char('\n')).contains(QStringLiteral("Samples:")));
 }
 
 void FilterTests::cgalAlphaWrapRunsWhenAvailable()
