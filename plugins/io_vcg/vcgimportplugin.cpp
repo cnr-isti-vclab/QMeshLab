@@ -406,6 +406,11 @@ public:
 
         return QString::fromLatin1(vcg::tri::io::Importer<VCGMesh>::ErrorMsg(errCode));
     }
+
+    bool isLoadErrorCritical(const QString &, int errCode) const override
+    {
+        return vcg::tri::io::Importer<VCGMesh>::ErrorCritical(errCode);
+    }
 };
 }
 

@@ -153,7 +153,7 @@ int Document::loadMesh(const QString &filename)
     m_callbackMode = previousCallbackMode;
     const qint64 importElapsedMs = loadTimer.elapsed();
 
-    if (err != 0) {
+    if (err != 0 && plugin->isLoadErrorCritical(filename, err)) {
         emit loadProgressFinished(false, plugin->errorString(err));
         writeLog(tr("Load failed in %1 ms: %2")
             .arg(importElapsedMs)
@@ -163,6 +163,8 @@ int Document::loadMesh(const QString &filename)
             endUndoStep(false);
         return err;
     }
+    if (err != 0)
+        writeLog(tr("Load warning: %1").arg(plugin->errorString(err)), LogSource::Application);
 
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.
@@ -378,7 +380,7 @@ int Document::reloadMesh(int index)
     m_callbackMode = previousCallbackMode;
     const qint64 importElapsedMs = loadTimer.elapsed();
 
-    if (err != 0) {
+    if (err != 0 && plugin->isLoadErrorCritical(sourcePath, err)) {
         emit loadProgressFinished(false, plugin->errorString(err));
         writeLog(
             tr("Reload failed in %1 ms: %2")
@@ -389,6 +391,8 @@ int Document::reloadMesh(int index)
             endUndoStep(false);
         return err;
     }
+    if (err != 0)
+        writeLog(tr("Reload warning: %1").arg(plugin->errorString(err)), LogSource::Application);
 
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.

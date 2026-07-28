@@ -128,6 +128,13 @@ public:
     // Human-readable error message for a given error code returned by load().
     virtual QString errorString(int errCode) const = 0;
 
+    // Some formats can return a usable mesh together with a warning.
+    virtual bool isLoadErrorCritical(const QString &filename, int errCode) const
+    {
+        (void) filename;
+        return errCode != 0;
+    }
+
     // Returns true if this plugin can save the given filename (typically by extension).
     virtual bool canSave(const QString &filename) const
     {
