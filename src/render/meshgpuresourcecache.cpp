@@ -1597,9 +1597,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         nonManifoldEdgeLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
 
         const bool hasWedgeTex =
-            (source.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0;
+            (source.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
+            && vcg::tri::HasPerWedgeTexCoord(meshData);
         const bool hasVertTex =
-            !hasWedgeTex && (source.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0;
+            !hasWedgeTex
+            && (source.ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0
+            && vcg::tri::HasPerVertexTexCoord(meshData);
         const bool hasTexCoords = hasWedgeTex || hasVertTex;
 
         struct EdgeUvSample {

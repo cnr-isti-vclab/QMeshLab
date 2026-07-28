@@ -131,6 +131,7 @@ private slots:
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
+    void splitConnectedComponentsAfterDuplicateVertexRemoval();
     void hausdorffRunsOnTransientMeshCopies();
     void cgalAlphaWrapRunsWhenAvailable();
     void geodesicQualityFilterDoesNotBakeVertexColors();
@@ -557,6 +558,55 @@ void FilterTests::qslimSimplifiesCube()
     QVERIFY(output.VN() > 0);
     QVERIFY(output.FN() > 0);
     QVERIFY(output.FN() <= 6);
+}
+
+void FilterTests::splitConnectedComponentsAfterDuplicateVertexRemoval()
+{
+    VCGMesh input;
+    input.face.EnableWedgeTexCoord();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(input, 7);
+    const std::array<vcg::Point3f, 7> vertices = {
+        vcg::Point3f(0, 0, 0), vcg::Point3f(1, 0, 0), vcg::Point3f(0, 1, 0),
+        vcg::Point3f(0, 0, 0),
+        vcg::Point3f(3, 0, 0), vcg::Point3f(4, 0, 0), vcg::Point3f(3, 1, 0)
+    };
+    for (size_t i = 0; i < vertices.size(); ++i)
+        input.vert[i].P() = vertices[i];
+    vcg::tri::Allocator<VCGMesh>::AddFace(input, 3, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(input, 4, 5, 6);
+    for (VCGFace &face : input.face)
+        for (int corner = 0; corner < 3; ++corner)
+            face.WT(corner) = VCGFace::TexCoordType(float(corner == 1), float(corner == 2));
+
+    Document doc;
+    QVERIFY(doc.addMesh(
+        input,
+        QStringLiteral("Disconnected"),
+        vcg::tri::io::Mask::IOM_WEDGTEXCOORD) >= 0);
+
+    auto filterKey = [&](const QString &id) {
+        for (const auto &info : doc.filterInfos())
+            if (info.descriptor.id == id)
+                return info.key;
+        return QString();
+    };
+
+    const MeshFilterRunResult clean =
+        doc.runFilter(filterKey(QStringLiteral("remove_duplicated_vertices")), {});
+    QVERIFY2(clean.success, qPrintable(clean.errorMessage));
+
+    const MeshFilterRunResult split = doc.runFilter(
+        filterKey(QStringLiteral("generate_splitting_by_connected_components")), {});
+    QVERIFY2(split.success, qPrintable(split.errorMessage));
+    QCOMPARE(split.newMeshIndices.size(), 2);
+    for (int meshIndex : split.newMeshIndices) {
+        const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+        QCOMPARE(mesh.FN(), 1);
+        QVERIFY(vcg::tri::HasPerWedgeTexCoord(mesh));
+        for (const VCGFace &face : mesh.face)
+            for (int corner = 0; corner < 3; ++corner)
+                QVERIFY(face.cV(corner) != nullptr);
+    }
 }
 
 void FilterTests::hausdorffRunsOnTransientMeshCopies()

@@ -2,6 +2,7 @@
 #include <QSignalSpy>
 #include <QFile>
 #include <QFileInfo>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <cmath>
 
@@ -32,6 +33,7 @@ private slots:
     void cameraShotRenderMatricesMatchProjection();
     void logReplaceLastEntryOnCarriageReturn();
     void loadMeshAddsLayerAndEmitsSignal();
+    void loadObjWithMissingMaterialLibrary();
     void addRasterImageCreatesDocumentLayer();
     void currentLayerKindFollowsMeshAndRasterSelection();
     void loadRasterImageReadsFile();
@@ -167,6 +169,46 @@ void DocumentTests::loadMeshAddsLayerAndEmitsSignal()
 
     const auto &log = doc.logMessages();
     QVERIFY(!log.empty());
+}
+
+void DocumentTests::loadObjWithMissingMaterialLibrary()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("missing_material.obj"));
+
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+    file.write(
+        "mtllib absent.mtl\n"
+        "usemtl absent\n"
+        "v 0 0 0\n"
+        "v 1 0 0\n"
+        "v 0 1 0\n"
+        "f 1 2 3\n");
+    file.close();
+
+    Document doc;
+    const QString oldPreference = doc.preferredImportPluginForExtension(QStringLiteral("obj"));
+    const auto restorePreference = qScopeGuard([&] {
+        doc.setPreferredImportPluginForExtension(QStringLiteral("obj"), oldPreference);
+    });
+
+    for (const QString &pluginId : {
+             QStringLiteral("io_obj_rapidobj"),
+             QStringLiteral("io_vcg") }) {
+        doc.setPreferredImportPluginForExtension(QStringLiteral("obj"), pluginId);
+        QCOMPARE(doc.loadMesh(path), 0);
+        QCOMPARE(doc.mesh(doc.meshCount() - 1).mesh.FN(), 1);
+    }
+
+    QVERIFY(std::any_of(
+        doc.logMessages().cbegin(),
+        doc.logMessages().cend(),
+        [](const Document::LogEntry &entry) {
+            return entry.message.contains(QStringLiteral("Load warning:"))
+                && entry.message.contains(QStringLiteral("default white material"));
+        }));
 }
 
 void DocumentTests::addRasterImageCreatesDocumentLayer()

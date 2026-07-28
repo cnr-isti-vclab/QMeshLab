@@ -719,6 +719,12 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
             vcg::tri::UpdateSelection<VCGMesh>::FaceConnectedFF(entry.mesh);
             vcg::tri::UpdateSelection<VCGMesh>::VertexFromFaceLoose(entry.mesh);
             VCGMesh componentMesh;
+            if (entry.mesh.vert.IsTexCoordEnabled())
+                componentMesh.vert.EnableTexCoord();
+            if (entry.mesh.vert.IsCurvatureDirEnabled())
+                componentMesh.vert.EnableCurvatureDir();
+            if (entry.mesh.face.IsWedgeTexCoordEnabled())
+                componentMesh.face.EnableWedgeTexCoord();
             vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(componentMesh, entry.mesh, true);
             vcg::tri::Allocator<VCGMesh>::CompactEveryVector(componentMesh);
             vcg::tri::UpdateBounding<VCGMesh>::Box(componentMesh);
