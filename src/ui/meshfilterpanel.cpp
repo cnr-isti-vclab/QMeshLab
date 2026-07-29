@@ -1466,6 +1466,11 @@ bool MeshFilterPanel::matchesSearch(
     const QString shortDesc = filterInfo.descriptor.shortDescription.toLower();
     const QString longDesc = filterInfo.descriptor.longDescriptionMarkdown.toLower();
     const QString upstream = filterInfo.descriptor.provenance.project.toLower();
+    // The category is searchable so a filter can be found by the family it belongs
+    // to ("simplification", "repair") even when the name does not repeat it — names
+    // deliberately do not echo their category. Ranking is unaffected: it uses
+    // titleMatchesAllTerms, so name matches still sort above category-only matches.
+    const QString category = filterInfo.descriptor.menuPath.toLower();
 
     for (const QString &term : terms) {
         if (term.isEmpty())
@@ -1474,7 +1479,8 @@ bool MeshFilterPanel::matchesSearch(
             name.contains(term)
             || shortDesc.contains(term)
             || longDesc.contains(term)
-            || upstream.contains(term);
+            || upstream.contains(term)
+            || category.contains(term);
         if (!termMatched)
             return false;
     }
