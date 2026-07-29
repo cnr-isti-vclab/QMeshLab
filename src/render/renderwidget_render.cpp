@@ -182,7 +182,7 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         !rasterMode
         && m_renderSettings.highlightCurrentMesh
         && (currentMeshIndex >= 0)
-        && meshVisible(currentMeshIndex);
+        && (currentMeshIndex < m_doc->meshCount());
     const RenderFramePassRequests framePassRequests = collectRenderFramePassRequests();
 
     prepareDirtyBuffers(cb, framePassRequests, currentMeshIndex, drawCurrentMeshHighlight);

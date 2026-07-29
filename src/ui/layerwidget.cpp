@@ -1199,9 +1199,6 @@ void LayerWidget::rebuildTree()
     collectExpanded(m_meshTree);
     collectExpanded(m_rasterTree);
 
-    const QString meshSelectedKey = layerItemKey(m_meshTree->currentItem());
-    const QString rasterSelectedKey = layerItemKey(m_rasterTree->currentItem());
-
     // --- Rebuild mesh tree ---
     {
         QSignalBlocker b(m_meshTree);
@@ -1345,10 +1342,7 @@ void LayerWidget::rebuildTree()
             const auto it = expandedState.constFind(itemKey);
             item->setExpanded(it != expandedState.constEnd() ? it.value() : true);
 
-            if (!meshSelectedKey.isEmpty() && meshSelectedKey == itemKey)
-                meshCurrentItem = item;
-            if (!meshCurrentItem
-                && m_doc->currentLayerKind() == CurrentLayerKind::Mesh
+            if (m_doc->currentLayerKind() == CurrentLayerKind::Mesh
                 && i == m_doc->currentMeshIndex()) {
                 meshCurrentItem = item;
             }
@@ -1432,10 +1426,7 @@ void LayerWidget::rebuildTree()
             const auto it = expandedState.constFind(itemKey);
             item->setExpanded(it != expandedState.constEnd() ? it.value() : true);
 
-            if (!rasterSelectedKey.isEmpty() && rasterSelectedKey == itemKey)
-                rasterCurrentItem = item;
-            if (!rasterCurrentItem
-                && m_doc->currentLayerKind() == CurrentLayerKind::Raster
+            if (m_doc->currentLayerKind() == CurrentLayerKind::Raster
                 && i == m_doc->currentRasterIndex()) {
                 rasterCurrentItem = item;
             }
@@ -1459,18 +1450,18 @@ void LayerWidget::rebuildTable()
 {
     m_rebuilding = true;
     const QLocale locale = QLocale::system();
+    const auto rowForLayer = [](QTableWidget *table, int role, int layerIndex) {
+        for (int row = 0; row < table->rowCount(); ++row) {
+            QTableWidgetItem *item = table->item(row, 0);
+            if (item && item->data(role).toInt() == layerIndex)
+                return row;
+        }
+        return -1;
+    };
 
     // --- Mesh table ---
     {
         QSignalBlocker meshBlocker(m_meshTable);
-        const int currentMeshRow = [&]() -> int {
-            for (int row = 0; row < m_meshTable->rowCount(); ++row) {
-                QTableWidgetItem *it = m_meshTable->item(row, 0);
-                if (it && it->data(kRoleMeshIndex).toInt() == m_doc->currentMeshIndex())
-                    return row;
-            }
-            return -1;
-        }();
 
         m_meshTable->setSortingEnabled(false);
         m_meshTable->setRowCount(m_doc->meshCount());
@@ -1535,25 +1526,17 @@ void LayerWidget::rebuildTable()
 
         m_meshTable->setSortingEnabled(true);
 
-        // Restore selection
-        if (currentMeshRow >= 0 && currentMeshRow < m_meshTable->rowCount()) {
+        const int currentMeshRow =
+            rowForLayer(m_meshTable, kRoleMeshIndex, m_doc->currentMeshIndex());
+        if (m_doc->currentLayerKind() == CurrentLayerKind::Mesh && currentMeshRow >= 0)
             m_meshTable->selectRow(currentMeshRow);
-        } else if (m_doc->currentMeshIndex() >= 0 && m_doc->currentMeshIndex() < m_meshTable->rowCount()) {
-            m_meshTable->selectRow(m_doc->currentMeshIndex());
-        }
+        else
+            m_meshTable->clearSelection();
     }
 
     // --- Raster table ---
     {
         QSignalBlocker rasterBlocker(m_rasterTable);
-        const int currentRasterRow = [&]() -> int {
-            for (int row = 0; row < m_rasterTable->rowCount(); ++row) {
-                QTableWidgetItem *it = m_rasterTable->item(row, 0);
-                if (it && it->data(kRoleRasterIndex).toInt() == m_doc->currentRasterIndex())
-                    return row;
-            }
-            return -1;
-        }();
 
         m_rasterTable->setSortingEnabled(false);
         m_rasterTable->setRowCount(m_doc->rasterCount());
@@ -1613,11 +1596,12 @@ void LayerWidget::rebuildTable()
         m_rasterTable->setSortingEnabled(true);
         m_rasterTable->setVisible(m_doc->rasterCount() > 0);
 
-        if (currentRasterRow >= 0 && currentRasterRow < m_rasterTable->rowCount()) {
+        const int currentRasterRow =
+            rowForLayer(m_rasterTable, kRoleRasterIndex, m_doc->currentRasterIndex());
+        if (m_doc->currentLayerKind() == CurrentLayerKind::Raster && currentRasterRow >= 0)
             m_rasterTable->selectRow(currentRasterRow);
-        } else if (m_doc->currentRasterIndex() >= 0 && m_doc->currentRasterIndex() < m_rasterTable->rowCount()) {
-            m_rasterTable->selectRow(m_doc->currentRasterIndex());
-        }
+        else
+            m_rasterTable->clearSelection();
     }
 
     m_rebuilding = false;

@@ -68,20 +68,24 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
 
     requests.meshes.reserve(m_doc->meshCount());
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-        if (!meshVisible(mi))
+        const bool visible = meshVisible(mi);
+        const bool highlighted =
+            m_renderSettings.highlightCurrentMesh && mi == m_doc->currentMeshIndex();
+        if (!visible && !highlighted)
             continue;
         const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
         RenderMeshPassRequests meshRequests;
         meshRequests.meshIndex = mi;
         meshRequests.meshSettings = meshSettings;
-        meshRequests.fill = meshSettings.showFill;
-        meshRequests.wire = meshSettings.showWire;
-        meshRequests.edges = meshSettings.showEdges;
-        meshRequests.boundingBox = meshSettings.showBoundingBox;
-        meshRequests.points = meshSettings.showPoints;
-        meshRequests.selection = requestsSelectionPass(meshSettings);
-        meshRequests.decoratorNormals = requestsDecoratorNormalPass(meshSettings);
-        meshRequests.decoratorBoundaries = requestsDecoratorBoundaryPass(meshSettings);
+        meshRequests.fill = visible && meshSettings.showFill;
+        meshRequests.wire = visible && meshSettings.showWire;
+        meshRequests.edges = visible && meshSettings.showEdges;
+        meshRequests.boundingBox = visible && meshSettings.showBoundingBox;
+        meshRequests.points = visible && meshSettings.showPoints;
+        meshRequests.selection = visible && requestsSelectionPass(meshSettings);
+        meshRequests.decoratorNormals = visible && requestsDecoratorNormalPass(meshSettings);
+        meshRequests.decoratorBoundaries =
+            visible && requestsDecoratorBoundaryPass(meshSettings);
 
         requests.fill = requests.fill || meshRequests.fill;
         requests.wire = requests.wire || meshRequests.wire;

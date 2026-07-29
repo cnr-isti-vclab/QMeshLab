@@ -18,8 +18,7 @@ void RenderWidget::prepareDirtyBuffers(QRhiCommandBuffer *cb)
         m_doc
         && m_renderSettings.highlightCurrentMesh
         && currentMeshIndex >= 0
-        && currentMeshIndex < m_doc->meshCount()
-        && meshVisible(currentMeshIndex);
+        && currentMeshIndex < m_doc->meshCount();
     const RenderFramePassRequests requests = collectRenderFramePassRequests();
     prepareDirtyBuffers(cb, requests, currentMeshIndex, drawCurrentMeshHighlight);
 }
@@ -326,8 +325,6 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
     const int currentMeshIndex = m_doc->currentMeshIndex();
     if (currentMeshIndex < 0)
         return;
-    if (!meshVisible(currentMeshIndex))
-        return;
 
     ensureCurrentMeshMaskResources(pixelSize);
     if (!m_currentMaskRt || !m_currentMaskBaseRt || !m_currentMaskWorkRt)
@@ -421,7 +418,8 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             true,
             QVector3D(0.0f, 0.0f, 1.0f),
             MainUbufMaterialOverrides{},
-            ubufOffset);
+            ubufOffset,
+            1.0f);
         cb->setGraphicsPipeline(m_currentMaskFillDepthOnlyPipeline.get());
         setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
         for (int bi = 0; bi < fillView.batchCount; ++bi) {
@@ -447,7 +445,8 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             true,
             QVector3D(0.0f, 0.0f, 1.0f),
             MainUbufMaterialOverrides{},
-            ubufOffset);
+            ubufOffset,
+            1.0f);
         if (m_currentMaskFatEdgesDepthOnlyPipeline
             && fatEdgeView.valid
             && fatEdgeView.vertexBuffer
@@ -503,7 +502,8 @@ void RenderWidget::renderCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pix
             true,
             QVector3D(0.0f, 0.0f, 1.0f),
             MainUbufMaterialOverrides{},
-            ubufOffset);
+            ubufOffset,
+            1.0f);
         cb->setGraphicsPipeline(m_currentMaskPointsDepthOnlyPipeline.get());
         setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
         const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
