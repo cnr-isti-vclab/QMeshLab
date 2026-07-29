@@ -677,7 +677,7 @@ QString VoronoiFilterPlugin::pluginId() const
 
 QString VoronoiFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Voronoi Filters");
+    return QObject::tr("Voronoi Filters");
 }
 
 MeshFilterRunResult VoronoiFilterPlugin::runFilter(

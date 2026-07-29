@@ -5,8 +5,8 @@
 #if QMESH_PLUGIN_FILTER_BASIC_ENABLED
 #include "plugins/filter_basic/basicfilterplugin.h"
 #endif
-#if QMESH_PLUGIN_FILTER_FUNC_ENABLED
-#include "plugins/filter_func/funcfilterplugin.h"
+#if QMESH_PLUGIN_FILTER_EXPRESSION_ENABLED
+#include "plugins/filter_expression/expressionfilterplugin.h"
 #endif
 #if QMESH_PLUGIN_FILTER_EMBREE_ENABLED
 #include "plugins/filter_embree/embreefilterplugin.h"
@@ -29,11 +29,8 @@
 #if QMESH_PLUGIN_FILTER_CGAL_ENABLED
 #include "plugins/filter_cgal/cgalfilterplugin.h"
 #endif
-#if QMESH_PLUGIN_FILTER_PARAMETRIZATION_ENABLED
-#include "plugins/filter_parametrization/parametrizationfilterplugin.h"
-#endif
-#if QMESH_PLUGIN_FILTER_MESH_BOOLEANS_ENABLED
-#include "plugins/filter_mesh_booleans/meshbooleansfilterplugin.h"
+#if QMESH_PLUGIN_FILTER_IGL_ENABLED
+#include "plugins/filter_igl/iglfilterplugin.h"
 #endif
 #if QMESH_PLUGIN_FILTER_SCREENED_POISSON_ENABLED
 #include "plugins/filter_screened_poisson/screenedpoissonfilterplugin.h"
@@ -101,8 +98,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #if QMESH_PLUGIN_FILTER_BASIC_ENABLED
     registerBasicFilterPlugin(pluginManager);
 #endif
-#if QMESH_PLUGIN_FILTER_FUNC_ENABLED
-    registerFuncFilterPlugin(pluginManager);
+#if QMESH_PLUGIN_FILTER_EXPRESSION_ENABLED
+    registerExpressionFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_EMBREE_ENABLED
     registerEmbreeFilterPlugin(pluginManager);
@@ -125,11 +122,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #if QMESH_PLUGIN_FILTER_CGAL_ENABLED
     registerCgalFilterPlugin(pluginManager);
 #endif
-#if QMESH_PLUGIN_FILTER_PARAMETRIZATION_ENABLED
-    registerParametrizationFilterPlugin(pluginManager);
-#endif
-#if QMESH_PLUGIN_FILTER_MESH_BOOLEANS_ENABLED
-    registerMeshBooleansFilterPlugin(pluginManager);
+#if QMESH_PLUGIN_FILTER_IGL_ENABLED
+    registerIglFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_SCREENED_POISSON_ENABLED
     registerScreenedPoissonFilterPlugin(pluginManager);

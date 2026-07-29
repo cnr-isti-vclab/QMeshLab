@@ -57,7 +57,7 @@ QString EmbreeFilterPlugin::pluginId() const
 
 QString EmbreeFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Embree Filters");
+    return QObject::tr("Embree Filters");
 }
 
 MeshFilterRunResult EmbreeFilterPlugin::runFilter(

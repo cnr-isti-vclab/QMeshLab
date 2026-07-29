@@ -1,9 +1,11 @@
 {
-  "pluginId": "qmeshlab.filter.mesh_booleans",
+  "pluginId": "qmeshlab.filter.igl",
   "filters": [
     {
       "id": "generate_boolean_intersection",
-      "categories": ["Meshing/Boolean"],
+      "categories": [
+        "Meshing/Boolean"
+      ],
       "name": "Mesh Boolean: Intersection",
       "pythonName": "generate_boolean_intersection",
       "shortDescription": "Create the exact intersection of two mesh layers using libigl and CGAL.",
@@ -88,7 +90,9 @@
     },
     {
       "id": "generate_boolean_union",
-      "categories": ["Meshing/Boolean"],
+      "categories": [
+        "Meshing/Boolean"
+      ],
       "name": "Mesh Boolean: Union",
       "pythonName": "generate_boolean_union",
       "shortDescription": "Create the exact union of two mesh layers using libigl and CGAL.",
@@ -173,7 +177,9 @@
     },
     {
       "id": "generate_boolean_difference",
-      "categories": ["Meshing/Boolean"],
+      "categories": [
+        "Meshing/Boolean"
+      ],
       "name": "Mesh Boolean: Difference",
       "pythonName": "generate_boolean_difference",
       "shortDescription": "Create the exact difference of two mesh layers using libigl and CGAL.",
@@ -258,7 +264,9 @@
     },
     {
       "id": "generate_boolean_xor",
-      "categories": ["Meshing/Boolean"],
+      "categories": [
+        "Meshing/Boolean"
+      ],
       "name": "Mesh Boolean: Symmetric Difference (XOR)",
       "pythonName": "generate_boolean_xor",
       "shortDescription": "Create the exact symmetric difference of two mesh layers using libigl and CGAL.",
@@ -340,6 +348,79 @@
         "VQ",
         "FC",
         "FQ"
+      ]
+    },
+    {
+      "id": "compute_texcoord_parametrization_harmonic",
+      "categories": [
+        "Parametrization/UV Creation"
+      ],
+      "name": "Harmonic Parametrization",
+      "pythonName": "compute_texcoord_parametrization_harmonic",
+      "shortDescription": "Compute a single-patch fixed-boundary harmonic UV parametrization using libigl.",
+      "longDescriptionMarkdown": "Computes a single-patch fixed-boundary harmonic parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.",
+      "tags": [
+        "texture",
+        "uv",
+        "parametrization",
+        "harmonic",
+        "libigl"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "VTex"
+      ],
+      "parameters": [
+        {
+          "id": "harm_function",
+          "label": "N-harmonic function",
+          "help": "Order of the harmonic function. `1` is harmonic, `2` is biharmonic, `3` is triharmonic, and so on.",
+          "group": "main",
+          "type": "int",
+          "default": 1,
+          "min": 1,
+          "max": 16
+        }
+      ],
+      "outputModifies": [
+        "VT",
+        "WT"
+      ]
+    },
+    {
+      "id": "compute_texcoord_parametrization_least_squares_conformal_maps",
+      "categories": [
+        "Parametrization/UV Creation"
+      ],
+      "name": "Least Squares Conformal Maps Parametrization",
+      "pythonName": "compute_texcoord_parametrization_least_squares_conformal_maps",
+      "shortDescription": "Compute a Least Squares Conformal Maps UV parametrization using libigl.",
+      "longDescriptionMarkdown": "Computes a Least Squares Conformal Maps parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.",
+      "tags": [
+        "texture",
+        "uv",
+        "parametrization",
+        "lscm",
+        "libigl"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "VTex"
+      ],
+      "parameters": [],
+      "outputModifies": [
+        "VT",
+        "WT"
       ]
     }
   ]

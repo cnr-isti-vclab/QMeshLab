@@ -437,7 +437,7 @@ QString TextureFilterPlugin::pluginId() const
 
 QString TextureFilterPlugin::name() const
 {
-    return QObject::tr("Texture Tools");
+    return QObject::tr("Texture Filters");
 }
 
 MeshFilterRunResult TextureFilterPlugin::runFilter(

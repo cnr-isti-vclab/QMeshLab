@@ -177,7 +177,7 @@ QString MeshFixFilterPlugin::pluginId() const
 
 QString MeshFixFilterPlugin::name() const
 {
-    return QObject::tr("MeshFix Filters");
+    return QObject::tr("MeshFix Repair Filters");
 }
 
 MeshFilterRunResult MeshFixFilterPlugin::runFilter(

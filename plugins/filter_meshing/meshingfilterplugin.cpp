@@ -492,7 +492,7 @@ QString MeshingFilterPlugin::pluginId() const
 
 QString MeshingFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Meshing Filters");
+    return QObject::tr("Meshing Filters");
 }
 
 MeshFilterRunResult MeshingFilterPlugin::runFilter(

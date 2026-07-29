@@ -325,6 +325,19 @@ Open question:
 
 ## Plugin Mapping Table (pass 1)
 
+> **Status (2026-07-29): partially executed.** Done — all display names normalized;
+> `filter_func` → `filter_expression`; empty `filter_intrinsic_simplification` deleted;
+> `filter_mesh_booleans` + `filter_parametrization` + `filter_igl_common` merged into
+> **`filter_igl`**. Result: 33 → **30** directories.
+>
+> **Deferred — the splits and family folds** (`filter_meshing` 37 filters → 10 targets,
+> `filter_colorproc`, `filter_unsharp`, `filter_sampling`, and the folds that would create
+> `filter_compute` / `filter_color` / `filter_smooth`). They were designed *before*
+> categories became a first-class axis, so they now largely re-implement the category
+> organization at the plugin level, while moving hundreds of lines of filter
+> implementation between 1500-line files with no automated behaviour check. The rows
+> below therefore describe the *intended* end state, not the current tree.
+
 Every existing plugin classified against decision 1. **Nothing is moved until this
 table is approved.** Evidence columns are measured from each plugin's
 `CMakeLists.txt`, `.gitmodules`, and directory contents — not inferred from names.

@@ -45,7 +45,7 @@ QString PlyMCFilterPlugin::pluginId() const
 { return QStringLiteral("qmeshlab.filter.plymc"); }
 
 QString PlyMCFilterPlugin::name() const
-{ return QStringLiteral("VCG Surface Reconstruction"); }
+{ return QStringLiteral("PlyMC Reconstruction Filters"); }
 
 MeshFilterRunResult PlyMCFilterPlugin::runFilter(
     const QString &fid, const FilterParams &p, Document &doc) const

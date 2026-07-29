@@ -177,7 +177,7 @@ QString CgalFilterPlugin::pluginId() const
 
 QString CgalFilterPlugin::name() const
 {
-    return QObject::tr("CGAL Mesh Filters");
+    return QObject::tr("CGAL Filters");
 }
 
 MeshFilterRunResult CgalFilterPlugin::runFilter(

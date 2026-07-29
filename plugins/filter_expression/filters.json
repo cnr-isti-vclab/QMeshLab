@@ -1,5 +1,5 @@
 {
-  "pluginId": "qmeshlab.filter.func",
+  "pluginId": "qmeshlab.filter.expression",
   "filters": [
     {
       "id": "conditional_vertex_selection",

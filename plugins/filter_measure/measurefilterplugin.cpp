@@ -174,7 +174,7 @@ QString MeasureFilterPlugin::pluginId() const
 
 QString MeasureFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Measure Filters");
+    return QObject::tr("Measurement Filters");
 }
 
 MeshFilterRunResult MeasureFilterPlugin::runFilter(

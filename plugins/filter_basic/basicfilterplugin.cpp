@@ -27,7 +27,7 @@ QString BasicFilterPlugin::pluginId() const
 
 QString BasicFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Basic Filters");
+    return QObject::tr("Basic Filters");
 }
 
 MeshFilterRunResult BasicFilterPlugin::runFilter(

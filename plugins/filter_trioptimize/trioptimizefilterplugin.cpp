@@ -213,7 +213,7 @@ QString TriOptimizeFilterPlugin::pluginId() const
 
 QString TriOptimizeFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab TriOptimize Filters");
+    return QObject::tr("TriOptimize Filters");
 }
 
 MeshFilterRunResult TriOptimizeFilterPlugin::runFilter(

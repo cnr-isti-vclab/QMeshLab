@@ -306,7 +306,7 @@ QString ColorProcFilterPlugin::pluginId() const
 
 QString ColorProcFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Color Processing Filters");
+    return QObject::tr("Color Filters");
 }
 
 MeshFilterRunResult ColorProcFilterPlugin::runFilter(

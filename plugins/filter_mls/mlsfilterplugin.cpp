@@ -356,7 +356,7 @@ QString MlsFilterPlugin::pluginId() const
 
 QString MlsFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab MLS Filters");
+    return QObject::tr("MLS (APSS/RIMLS) Filters");
 }
 
 MeshFilterRunResult MlsFilterPlugin::runFilter(

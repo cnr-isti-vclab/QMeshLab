@@ -1,4 +1,4 @@
-#include "parametrizationfilterplugin.h"
+#include "iglparametrization.h"
 
 #include "document.h"
 #include "filterparam.h"
@@ -82,20 +82,10 @@ bool writeVertexTexcoords(
 
 } // namespace
 
-QString ParametrizationFilterPlugin::pluginId() const
-{
-    return QStringLiteral("qmeshlab.filter.parametrization");
-}
-
-QString ParametrizationFilterPlugin::name() const
-{
-    return QObject::tr("QMeshLab libigl Parametrization Filters");
-}
-
-MeshFilterRunResult ParametrizationFilterPlugin::runFilter(
+MeshFilterRunResult runIglParametrizationFilter(
     const QString &filterId,
     const FilterParams &params,
-    Document &doc) const
+    Document &doc)
 {
     const int meshIndex = doc.currentMeshIndex();
     if (meshIndex < 0 || meshIndex >= doc.meshCount())
@@ -222,7 +212,9 @@ MeshFilterRunResult ParametrizationFilterPlugin::runFilter(
     return success(info);
 }
 
-void registerParametrizationFilterPlugin(MeshFilterPluginManager &pluginManager)
+
+bool isIglParametrizationFilter(const QString &filterId)
 {
-    pluginManager.registerPlugin(std::make_unique<ParametrizationFilterPlugin>());
+    return filterId == QString::fromLatin1(kHarmonic)
+        || filterId == QString::fromLatin1(kLscm);
 }

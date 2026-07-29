@@ -85,7 +85,7 @@ QString XAtlasFilterPlugin::pluginId() const
 
 QString XAtlasFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab xatlas Filters");
+    return QObject::tr("xatlas Parametrization Filters");
 }
 
 MeshFilterRunResult XAtlasFilterPlugin::runFilter(

@@ -1,4 +1,4 @@
-#include "funcfilterplugin.h"
+#include "expressionfilterplugin.h"
 
 #include "document.h"
 #include "filter_refine.h"
@@ -721,17 +721,17 @@ bool checkCustomAttributeName(const QString &name, QString &error)
 }
 }
 
-QString FuncFilterPlugin::pluginId() const
+QString ExpressionFilterPlugin::pluginId() const
 {
-    return QStringLiteral("qmeshlab.filter.func");
+    return QStringLiteral("qmeshlab.filter.expression");
 }
 
-QString FuncFilterPlugin::name() const
+QString ExpressionFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Function Filters");
+    return QObject::tr("Expression Filters");
 }
 
-MeshFilterRunResult FuncFilterPlugin::runFilter(
+MeshFilterRunResult ExpressionFilterPlugin::runFilter(
     const QString &filterId,
     const FilterParams &params,
     Document &doc) const
@@ -1624,7 +1624,7 @@ MeshFilterRunResult FuncFilterPlugin::runFilter(
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 }
 
-void registerFuncFilterPlugin(MeshFilterPluginManager &pluginManager)
+void registerExpressionFilterPlugin(MeshFilterPluginManager &pluginManager)
 {
-    pluginManager.registerPlugin(std::make_unique<FuncFilterPlugin>());
+    pluginManager.registerPlugin(std::make_unique<ExpressionFilterPlugin>());
 }

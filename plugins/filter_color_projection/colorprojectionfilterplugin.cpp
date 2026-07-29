@@ -146,7 +146,7 @@ QString ColorProjectionFilterPlugin::pluginId() const
 { return QStringLiteral("qmeshlab.filter.color_projection"); }
 
 QString ColorProjectionFilterPlugin::name() const
-{ return QStringLiteral("Color Projection Filters"); }
+{ return QStringLiteral("Raster Projection Filters"); }
 
 MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
     const QString &fid, const FilterParams &p, Document &doc) const

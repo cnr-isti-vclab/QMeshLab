@@ -46,7 +46,7 @@ QString CreateFilterPlugin::pluginId() const
 
 QString CreateFilterPlugin::name() const
 {
-    return QObject::tr("Create Meshes");
+    return QObject::tr("Creation Filters");
 }
 
 MeshFilterRunResult CreateFilterPlugin::runFilter(

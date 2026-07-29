@@ -187,7 +187,7 @@ QString QSlimFilterPlugin::pluginId() const
 
 QString QSlimFilterPlugin::name() const
 {
-    return QObject::tr("Original QSlim Filters");
+    return QObject::tr("QSlim Simplification Filters");
 }
 
 MeshFilterRunResult QSlimFilterPlugin::runFilter(

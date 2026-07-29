@@ -1,4 +1,4 @@
-#include "meshbooleansfilterplugin.h"
+#include "iglbooleans.h"
 
 #include "document.h"
 #include "filterparam.h"
@@ -357,20 +357,10 @@ void transferVertexAttributes(
 
 } // namespace
 
-QString MeshBooleansFilterPlugin::pluginId() const
-{
-    return QStringLiteral("qmeshlab.filter.mesh_booleans");
-}
-
-QString MeshBooleansFilterPlugin::name() const
-{
-    return QObject::tr("QMeshLab libigl Boolean Filters");
-}
-
-MeshFilterRunResult MeshBooleansFilterPlugin::runFilter(
+MeshFilterRunResult runIglBooleanFilter(
     const QString &filterId,
     const FilterParams &params,
-    Document &doc) const
+    Document &doc)
 {
     igl::MeshBooleanType operation = igl::MESH_BOOLEAN_TYPE_UNION;
     QString operationName;
@@ -492,7 +482,11 @@ MeshFilterRunResult MeshBooleansFilterPlugin::runFilter(
     return success(info, newMeshIndex);
 }
 
-void registerMeshBooleansFilterPlugin(MeshFilterPluginManager &pluginManager)
+
+bool isIglBooleanFilter(const QString &filterId)
 {
-    pluginManager.registerPlugin(std::make_unique<MeshBooleansFilterPlugin>());
+    return filterId == QString::fromLatin1(kIntersection)
+        || filterId == QString::fromLatin1(kUnion)
+        || filterId == QString::fromLatin1(kDifference)
+        || filterId == QString::fromLatin1(kXor);
 }

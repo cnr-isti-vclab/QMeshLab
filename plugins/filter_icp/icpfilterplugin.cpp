@@ -682,7 +682,7 @@ QString IcpFilterPlugin::pluginId() const
 
 QString IcpFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab ICP Filters");
+    return QObject::tr("Alignment Filters");
 }
 
 MeshFilterRunResult IcpFilterPlugin::runFilter(

@@ -42,7 +42,7 @@ QString SampleFilterPlugin::pluginId() const
 
 QString SampleFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Sample Filters");
+    return QObject::tr("Vertex Displacement Filters");
 }
 
 MeshFilterRunResult SampleFilterPlugin::runFilter(

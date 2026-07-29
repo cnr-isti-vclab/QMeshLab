@@ -152,7 +152,7 @@ QString UnsharpFilterPlugin::pluginId() const
 
 QString UnsharpFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Smoothing and Normal Filters");
+    return QObject::tr("Smoothing Filters");
 }
 
 std::vector<MeshFilterDescriptor> UnsharpFilterPlugin::filters(const Document &doc) const

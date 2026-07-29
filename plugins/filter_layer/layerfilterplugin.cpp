@@ -387,7 +387,7 @@ QString LayerFilterPlugin::pluginId() const
 
 QString LayerFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Layer Filters");
+    return QObject::tr("Layer Filters");
 }
 
 MeshFilterRunResult LayerFilterPlugin::runFilter(

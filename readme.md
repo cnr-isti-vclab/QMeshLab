@@ -40,38 +40,39 @@ Built-in I/O plugin families (dependency-gated at build time):
 
 MeshLab project files (`.mlp`) are loaded and saved directly by `Document`, combining mesh plugin I/O, mesh transforms, raster planes, and raster camera shots.
 
-Built-in filter plugin families (dependency-gated at build time):
+Built-in filter plugins (dependency-gated at build time). A plugin is a
+dependency/build unit, not a user-facing grouping — the Filters menu is organized by
+filter *category* instead, see [Vocabulary](docs/design/vocabulary.md):
 - `filter_basic`
-- `filter_func`
-- `filter_embree`
-- `filter_select`
-- `filter_clean`
-- `filter_meshfix`
-- `filter_qslim`
-- `filter_meshing`
+- `filter_camera`
 - `filter_cgal`
-- `filter_parametrization`
-- `filter_mesh_booleans`
-- `filter_screened_poisson`
-- `filter_sampling`
-- `filter_voronoi`
-- `filter_icp`
-- `filter_unsharp`
+- `filter_clean`
+- `filter_color_projection`
+- `filter_colorproc`
 - `filter_create`
+- `filter_embree`
+- `filter_expression`
 - `filter_geodesic`
+- `filter_icp`
+- `filter_igl`
+- `filter_img_patch_param`
+- `filter_layer`
+- `filter_measure`
+- `filter_meshfix`
+- `filter_meshing`
+- `filter_mls`
+- `filter_plymc`
+- `filter_qslim`
+- `filter_sample`
+- `filter_sampling`
+- `filter_screened_poisson`
+- `filter_select`
 - `filter_texture`
 - `filter_texture_defragmentation`
-- `filter_measure`
-- `filter_mls`
-- `filter_sample`
-- `filter_layer`
-- `filter_colorproc`
-- `filter_xatlas`
 - `filter_trioptimize`
-- `filter_color_projection`
-- `filter_camera`
-- `filter_img_patch_param`
-- `filter_plymc`
+- `filter_unsharp`
+- `filter_voronoi`
+- `filter_xatlas`
 
 ## Build
 

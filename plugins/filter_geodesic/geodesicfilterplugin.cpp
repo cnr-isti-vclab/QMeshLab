@@ -35,7 +35,7 @@ QString GeodesicFilterPlugin::pluginId() const
 
 QString GeodesicFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Geodesic Filters");
+    return QObject::tr("Geodesic Filters");
 }
 
 MeshFilterRunResult GeodesicFilterPlugin::runFilter(

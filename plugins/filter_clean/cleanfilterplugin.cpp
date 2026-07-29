@@ -199,7 +199,7 @@ QString CleanFilterPlugin::pluginId() const
 
 QString CleanFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Cleaning Filters");
+    return QObject::tr("Repair Filters");
 }
 
 MeshFilterRunResult CleanFilterPlugin::runFilter(

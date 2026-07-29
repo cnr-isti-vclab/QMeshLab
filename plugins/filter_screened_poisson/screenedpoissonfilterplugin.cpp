@@ -88,7 +88,7 @@ QString ScreenedPoissonFilterPlugin::pluginId() const
 
 QString ScreenedPoissonFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab PoissonRecon Filters");
+    return QObject::tr("Screened Poisson Reconstruction Filters");
 }
 
 MeshFilterRunResult ScreenedPoissonFilterPlugin::runFilter(

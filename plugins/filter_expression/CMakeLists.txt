@@ -1,7 +1,7 @@
-option(QMESH_PLUGIN_FILTER_FUNC "Build expression-based mesh filter plugin (muparser)" ON)
+option(QMESH_PLUGIN_FILTER_EXPRESSION "Build expression-based mesh filter plugin (muparser)" ON)
 
-if (NOT QMESH_PLUGIN_FILTER_FUNC)
-    message(STATUS "Skipping filter_func - plugin disabled")
+if (NOT QMESH_PLUGIN_FILTER_EXPRESSION)
+    message(STATUS "Skipping filter_expression - plugin disabled")
     return()
 endif()
 
@@ -24,40 +24,40 @@ endif()
 
 if (NOT _muparser_target AND (NOT MUPARSER_INCLUDE_DIR OR NOT MUPARSER_LIBRARY))
     message(FATAL_ERROR
-        "filter_func requires muparser from vcpkg. "
+        "filter_expression requires muparser from vcpkg. "
         "Add muparser to vcpkg.json dependencies and configure with the vcpkg toolchain.")
 endif()
 
-add_library(QMeshLabPluginFilterFunc STATIC
-    funcfilterplugin.h
-    funcfilterplugin.cpp
+add_library(QMeshLabPluginFilterExpression STATIC
+    expressionfilterplugin.h
+    expressionfilterplugin.cpp
     filter_refine.h
 )
 
-target_include_directories(QMeshLabPluginFilterFunc
+target_include_directories(QMeshLabPluginFilterExpression
     PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 if (MUPARSER_INCLUDE_DIR)
-    target_include_directories(QMeshLabPluginFilterFunc PUBLIC ${MUPARSER_INCLUDE_DIR})
+    target_include_directories(QMeshLabPluginFilterExpression PUBLIC ${MUPARSER_INCLUDE_DIR})
 endif()
 
-target_link_libraries(QMeshLabPluginFilterFunc
+target_link_libraries(QMeshLabPluginFilterExpression
     PUBLIC
         QMeshLabCore
         Qt6::Core
 )
 
 if (_muparser_target)
-    target_link_libraries(QMeshLabPluginFilterFunc PUBLIC ${_muparser_target})
+    target_link_libraries(QMeshLabPluginFilterExpression PUBLIC ${_muparser_target})
 else()
-    target_link_libraries(QMeshLabPluginFilterFunc PUBLIC ${MUPARSER_LIBRARY})
+    target_link_libraries(QMeshLabPluginFilterExpression PUBLIC ${MUPARSER_LIBRARY})
 endif()
 
 
-qt_add_resources(QMeshLabPluginFilterFunc "filter_func_descriptors"
-    PREFIX "/filters/qmeshlab.filter.func"
+qt_add_resources(QMeshLabPluginFilterExpression "filter_expression_descriptors"
+    PREFIX "/filters/qmeshlab.filter.expression"
     FILES filters.json
 )

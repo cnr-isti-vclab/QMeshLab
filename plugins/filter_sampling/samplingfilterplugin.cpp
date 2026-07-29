@@ -585,7 +585,7 @@ QString SamplingFilterPlugin::pluginId() const
 
 QString SamplingFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Sampling Filters");
+    return QObject::tr("Sampling Filters");
 }
 
 MeshFilterRunResult SamplingFilterPlugin::runFilter(

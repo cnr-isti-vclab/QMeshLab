@@ -940,7 +940,7 @@ QString ImgPatchParamFilterPlugin::pluginId() const
 { return QStringLiteral("qmeshlab.filter.img_patch_param"); }
 
 QString ImgPatchParamFilterPlugin::name() const
-{ return QStringLiteral("Image Patch Parameterization Filters"); }
+{ return QStringLiteral("Image Patch Parametrization Filters"); }
 
 MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
     const QString &fid, const FilterParams &p, Document &doc) const

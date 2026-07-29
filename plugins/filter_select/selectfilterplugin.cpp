@@ -77,7 +77,7 @@ QString SelectFilterPlugin::pluginId() const
 
 QString SelectFilterPlugin::name() const
 {
-    return QObject::tr("QMeshLab Selection Filters");
+    return QObject::tr("Selection Filters");
 }
 
 MeshFilterRunResult SelectFilterPlugin::runFilter(
