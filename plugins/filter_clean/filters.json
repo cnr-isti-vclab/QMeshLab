@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "surface_reconstruction_ball_pivoting",
-      "menuPath": "Remeshing",
+      "categories": ["Creation/Reconstruction"],
       "name": "Surface Reconstruction: Ball Pivoting",
       "pythonName": "generate_surface_reconstruction_ball_pivoting",
       "shortDescription": "Reconstruct a surface from oriented points using Ball Pivoting.",
@@ -73,7 +73,7 @@
     },
     {
       "id": "remove_vertices_wrt_quality",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Degenerate"],
       "name": "Remove Vertices wrt Quality",
       "pythonName": "remove_vertices_wrt_quality",
       "shortDescription": "Delete all vertices with quality lower than a threshold.",
@@ -109,7 +109,7 @@
     },
     {
       "id": "remove_isolated_pieces_face_num",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Degenerate"],
       "name": "Remove Isolated Pieces (wrt Face Num.)",
       "pythonName": "remove_isolated_pieces_by_face_num",
       "shortDescription": "Delete isolated connected components composed by few triangles.",
@@ -161,7 +161,7 @@
     },
     {
       "id": "remove_isolated_pieces_diameter",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Degenerate"],
       "name": "Remove Isolated Pieces (wrt Diameter)",
       "pythonName": "remove_isolated_pieces_by_diameter",
       "shortDescription": "Delete isolated connected components whose diameter is below a threshold.",
@@ -214,7 +214,7 @@
     },
     {
       "id": "remove_t_vertices",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Topology"],
       "name": "Remove T-Vertices",
       "pythonName": "remove_t_vertices",
       "shortDescription": "Remove T-vertices using edge collapse or edge flip.",
@@ -279,7 +279,7 @@
     },
     {
       "id": "snap_mismatched_borders",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Holes and Borders"],
       "name": "Snap Mismatched Borders",
       "pythonName": "snap_mismatched_borders",
       "shortDescription": "Try to snap together slightly mismatched adjacent borders.",
@@ -322,7 +322,7 @@
     },
     {
       "id": "merge_close_vertices",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Duplicates"],
       "name": "Merge Close Vertices",
       "pythonName": "merge_close_vertices",
       "shortDescription": "Merge vertices that are nearer than a threshold.",
@@ -360,7 +360,7 @@
     },
     {
       "id": "merge_wedge_texture_coord",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Duplicates"],
       "name": "Merge Wedge Texture Coord",
       "pythonName": "merge_wedge_texture_coords",
       "shortDescription": "Merge very close per-wedge texture coordinates.",
@@ -400,7 +400,7 @@
     },
     {
       "id": "remove_duplicate_faces",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Duplicates"],
       "name": "Remove Duplicate Faces",
       "pythonName": "remove_duplicate_faces",
       "shortDescription": "Delete all duplicate faces.",
@@ -422,7 +422,7 @@
     },
     {
       "id": "remove_folded_faces_by_edge_flip",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Topology"],
       "name": "Remove Isolated Folded Faces by Edge Flip",
       "pythonName": "remove_isolated_folded_faces",
       "shortDescription": "Remove isolated folded faces by edge flipping.",
@@ -451,7 +451,7 @@
     },
     {
       "id": "repair_non_manifold_edges",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Topology"],
       "name": "Repair non Manifold Edges",
       "pythonName": "repair_non_manifold_edges",
       "shortDescription": "Repair non-manifold edges by removing faces or splitting vertices.",
@@ -496,7 +496,7 @@
     },
     {
       "id": "repair_non_manifold_vertices_split",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Topology"],
       "name": "Repair non Manifold Vertices by Splitting",
       "pythonName": "repair_non_manifold_vertices",
       "shortDescription": "Split non-manifold vertices until the mesh becomes 2-manifold.",
@@ -534,7 +534,7 @@
     },
     {
       "id": "remove_unreferenced_vertices",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Duplicates"],
       "name": "Remove Unreferenced Vertices",
       "pythonName": "remove_unreferenced_vertices",
       "shortDescription": "Remove vertices that are not referenced by any face.",
@@ -557,7 +557,7 @@
     },
     {
       "id": "remove_duplicated_vertices",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Duplicates"],
       "name": "Remove Duplicate Vertices",
       "pythonName": "remove_duplicate_vertices",
       "shortDescription": "Merge vertices that have exactly the same coordinates.",
@@ -580,7 +580,7 @@
     },
     {
       "id": "remove_zero_area_faces",
-      "menuPath": "Cleaning",
+      "categories": ["Repair/Degenerate"],
       "name": "Remove Zero Area Faces",
       "pythonName": "remove_zero_area_faces",
       "shortDescription": "Remove null faces with zero area.",

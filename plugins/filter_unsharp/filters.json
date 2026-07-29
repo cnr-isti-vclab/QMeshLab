@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "meshing_cut_along_crease_edges",
-      "menuPath": "Smoothing",
+      "categories": ["Meshing/Remeshing"],
       "name": "Cut mesh along crease edges",
       "pythonName": "cut_mesh_along_crease_edges",
       "shortDescription": "Split the mesh along sharp edges.",
@@ -44,7 +44,7 @@
     },
     {
       "id": "apply_coord_laplacian_smoothing",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Smoothing"],
       "name": "Laplacian Smooth",
       "pythonName": "smooth_laplacian",
       "shortDescription": "Average vertex positions with their neighbors.",
@@ -104,7 +104,7 @@
     },
     {
       "id": "apply_coord_hc_laplacian_smoothing",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Smoothing"],
       "name": "HC Laplacian Smooth",
       "pythonName": "smooth_hc_laplacian",
       "shortDescription": "Improved Laplacian smoothing with better shape preservation.",
@@ -128,7 +128,7 @@
     },
     {
       "id": "apply_coord_laplacian_smoothing_scale_dependent",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Smoothing"],
       "name": "ScaleDependent Laplacian Smooth",
       "pythonName": "smooth_scale_dependent_laplacian",
       "shortDescription": "Fujiwara-style scale-dependent Laplacian smoothing.",
@@ -183,7 +183,7 @@
     },
     {
       "id": "apply_coord_two_steps_smoothing",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Smoothing"],
       "name": "TwoStep Smooth",
       "pythonName": "smooth_two_step",
       "shortDescription": "Feature-preserving smoothing through normal smoothing and vertex fitting.",
@@ -261,7 +261,7 @@
     },
     {
       "id": "apply_coord_taubin_smoothing",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Smoothing"],
       "name": "Taubin Smooth",
       "pythonName": "smooth_taubin",
       "shortDescription": "Lambda-mu smoothing with reduced shrinkage.",
@@ -327,7 +327,7 @@
     },
     {
       "id": "apply_coord_depth_smoothing",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Smoothing"],
       "name": "Depth Smooth",
       "pythonName": "smooth_depth",
       "shortDescription": "Smooth vertices only along a given depth direction.",
@@ -395,7 +395,7 @@
     },
     {
       "id": "apply_coord_directional_preservation",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Smoothing"],
       "name": "Directional Geometry Preservation",
       "pythonName": "smooth_directional",
       "shortDescription": "Project smoothed geometry back along a line of sight.",
@@ -441,7 +441,7 @@
     },
     {
       "id": "apply_scalar_smoothing_per_vertex",
-      "menuPath": "Smoothing",
+      "categories": ["Attribute/Scalar"],
       "name": "Smooth Vertex Quality",
       "pythonName": "smooth_vertex_quality",
       "shortDescription": "Laplacian smoothing of vertex quality values.",
@@ -464,7 +464,7 @@
     },
     {
       "id": "apply_normal_smoothing_per_face",
-      "menuPath": "Compute/Normals",
+      "categories": ["Attribute/Normal"],
       "name": "Smooth Face Normals",
       "pythonName": "smooth_face_normals",
       "shortDescription": "Laplacian smoothing of face normals.",
@@ -485,7 +485,7 @@
     },
     {
       "id": "apply_normal_unsharp_mask_per_vertex",
-      "menuPath": "Compute/Normals",
+      "categories": ["Attribute/Normal"],
       "name": "UnSharp Mask Normals",
       "pythonName": "unsharp_mask_normals",
       "shortDescription": "Enhance face normal variation using an unsharp mask.",
@@ -548,7 +548,7 @@
     },
     {
       "id": "apply_coord_unsharp_mask",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Smoothing"],
       "name": "UnSharp Mask Geometry",
       "pythonName": "unsharp_mask_geometry",
       "shortDescription": "Enhance geometric ridges and valleys with an unsharp mask.",
@@ -606,7 +606,7 @@
     },
     {
       "id": "apply_scalar_unsharp_mask_per_vertex",
-      "menuPath": "Smoothing",
+      "categories": ["Attribute/Scalar"],
       "name": "UnSharp Mask Quality",
       "pythonName": "unsharp_mask_quality",
       "shortDescription": "Enhance per-vertex quality variations with an unsharp mask.",
@@ -663,7 +663,7 @@
     },
     {
       "id": "apply_color_unsharp_mask_per_vertex",
-      "menuPath": "Smoothing",
+      "categories": ["Attribute/Color"],
       "name": "UnSharp Mask Color",
       "pythonName": "unsharp_mask_color",
       "shortDescription": "Enhance per-vertex color variation with an unsharp mask.",
@@ -720,7 +720,7 @@
     },
     {
       "id": "compute_normal_per_vertex",
-      "menuPath": "Compute/Normals",
+      "categories": ["Attribute/Normal"],
       "name": "Re-Compute Vertex Normals",
       "pythonName": "compute_vertex_normals",
       "shortDescription": "Recompute vertex normals using one of several weighting schemes.",
@@ -770,7 +770,7 @@
     },
     {
       "id": "compute_normal_per_face",
-      "menuPath": "Compute/Normals",
+      "categories": ["Attribute/Normal"],
       "name": "Re-Compute Face Normals",
       "pythonName": "compute_face_normals",
       "shortDescription": "Recompute face normals from geometry.",
@@ -791,7 +791,7 @@
     },
     {
       "id": "compute_normal_polygon_mesh_per_face",
-      "menuPath": "Compute/Normals",
+      "categories": ["Attribute/Normal"],
       "name": "Re-Compute Per-Polygon Face Normals",
       "pythonName": "compute_per_polygon_face_normals",
       "shortDescription": "Recompute polygon-shading normals for faux-edge polygon meshes.",
@@ -812,7 +812,7 @@
     },
     {
       "id": "apply_normal_normalization_per_face",
-      "menuPath": "Compute/Normals",
+      "categories": ["Attribute/Normal"],
       "name": "Normalize Face Normals",
       "pythonName": "normalize_face_normals",
       "shortDescription": "Normalize face normals to unit length.",
@@ -833,7 +833,7 @@
     },
     {
       "id": "apply_normal_normalization_per_vertex",
-      "menuPath": "Compute/Normals",
+      "categories": ["Attribute/Normal"],
       "name": "Normalize Vertex Normals",
       "pythonName": "normalize_vertex_normals",
       "shortDescription": "Normalize vertex normals to unit length.",
@@ -854,7 +854,7 @@
     },
     {
       "id": "compute_coord_linear_morphing",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Deformation"],
       "name": "Vertex Linear Morphing",
       "pythonName": "vertex_linear_morphing",
       "shortDescription": "Linearly morph the current mesh toward another mesh.",
@@ -900,7 +900,7 @@
     },
     {
       "id": "compute_scalar_by_scalar_harmonic_field_per_vertex",
-      "menuPath": "Smoothing",
+      "categories": ["Attribute/Scalar"],
       "name": "Generate Scalar Harmonic Field",
       "pythonName": "generate_scalar_harmonic_field",
       "shortDescription": "Compute a harmonic scalar field over the mesh.",

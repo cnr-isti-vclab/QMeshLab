@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "compute_topological_measures",
-      "menuPath": "Measure",
+      "categories": ["Measurement/Topological"],
       "name": "Compute Topological Measures",
       "pythonName": "compute_topological_measures",
       "shortDescription": "Compute a set of topological measures over a mesh.",
@@ -23,7 +23,7 @@
     },
     {
       "id": "compute_topological_measures_quad_meshes",
-      "menuPath": "Measure",
+      "categories": ["Measurement/Topological"],
       "name": "Compute Topological Measures for Quad Meshes",
       "pythonName": "compute_topological_measures_quad",
       "shortDescription": "Compute a set of topological measures over a quad mesh.",
@@ -42,7 +42,7 @@
     },
     {
       "id": "compute_geometric_measures",
-      "menuPath": "Measure",
+      "categories": ["Measurement/Geometric"],
       "name": "Compute Geometric Measures",
       "pythonName": "compute_geometric_measures",
       "shortDescription": "Compute a set of geometric measures of a mesh or point cloud.",
@@ -57,7 +57,7 @@
     },
     {
       "id": "compute_area_perimeter_selection",
-      "menuPath": "Measure",
+      "categories": ["Measurement/Geometric"],
       "name": "Compute Area/Perimeter of Selection",
       "pythonName": "compute_selection_area_perimeter",
       "shortDescription": "Compute area and perimeter of the face selection.",
@@ -75,7 +75,7 @@
     },
     {
       "id": "per_vertex_quality_stat",
-      "menuPath": "Measure/Quality",
+      "categories": ["Measurement/Statistics"],
       "name": "Per Vertex Quality Stat",
       "pythonName": "compute_vertex_quality_stat",
       "shortDescription": "Compute aggregate statistics over per-vertex quality.",
@@ -91,7 +91,7 @@
     },
     {
       "id": "per_face_quality_stat",
-      "menuPath": "Measure/Quality",
+      "categories": ["Measurement/Statistics"],
       "name": "Per Face Quality Stat",
       "pythonName": "compute_face_quality_stat",
       "shortDescription": "Compute aggregate statistics over per-face quality.",
@@ -107,7 +107,7 @@
     },
     {
       "id": "per_vertex_quality_histogram",
-      "menuPath": "Measure/Quality",
+      "categories": ["Measurement/Statistics"],
       "name": "Per Vertex Quality Histogram",
       "pythonName": "compute_vertex_quality_histogram",
       "shortDescription": "Compute a histogram of per-vertex quality values.",
@@ -160,7 +160,7 @@
     },
     {
       "id": "per_face_quality_histogram",
-      "menuPath": "Measure/Quality",
+      "categories": ["Measurement/Statistics"],
       "name": "Per Face Quality Histogram",
       "pythonName": "compute_face_quality_histogram",
       "shortDescription": "Compute a histogram of per-face quality values.",

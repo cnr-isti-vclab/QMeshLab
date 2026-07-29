@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "generate_xatlas_parametrization",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/UV Creation"],
       "name": "Parametrization: xatlas",
       "pythonName": "parametrize_xatlas",
       "shortDescription": "Generate a charted and packed UV atlas for the current triangular mesh using xatlas.",

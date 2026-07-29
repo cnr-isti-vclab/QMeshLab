@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "generate_from_selected_faces",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Move selected faces to another layer",
       "pythonName": "move_faces_to_layer",
       "shortDescription": "Move or duplicate the selected faces into a new mesh layer.",
@@ -29,7 +29,7 @@
     },
     {
       "id": "generate_from_selected_vertices",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Move selected vertices to another layer",
       "pythonName": "move_vertices_to_layer",
       "shortDescription": "Move or duplicate the selected vertices into a new mesh layer.",
@@ -54,7 +54,7 @@
     },
     {
       "id": "generate_splitting_by_connected_components",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Split in Connected Components",
       "pythonName": "split_in_connected_components",
       "shortDescription": "Split the current layer into one layer per connected component.",
@@ -81,7 +81,7 @@
     },
     {
       "id": "generate_copy_of_current_mesh",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Duplicate Current layer",
       "pythonName": "duplicate_layer",
       "shortDescription": "Create a new layer containing the same model as the current one.",
@@ -96,7 +96,7 @@
     },
     {
       "id": "delete_current_mesh",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Delete Current Mesh",
       "pythonName": "delete_current_mesh",
       "shortDescription": "Delete the current mesh layer.",
@@ -111,7 +111,7 @@
     },
     {
       "id": "delete_non_visible_meshes",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Delete all non visible Mesh Layers",
       "pythonName": "delete_hidden_meshes",
       "shortDescription": "Delete all non-visible mesh layers in the document.",
@@ -123,7 +123,7 @@
     },
     {
       "id": "delete_current_raster",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Delete Current Raster",
       "pythonName": "delete_current_raster",
       "shortDescription": "Delete the current raster layer.",
@@ -135,7 +135,7 @@
     },
     {
       "id": "delete_non_active_rasters",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Delete all Non Selected Rasters",
       "pythonName": "delete_non_active_rasters",
       "shortDescription": "Delete all non-active raster layers.",
@@ -147,7 +147,7 @@
     },
     {
       "id": "generate_by_merging_visible_meshes",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Flatten Visible Layers",
       "pythonName": "flatten_visible_layers",
       "shortDescription": "Flatten all or only the visible layers into a single new mesh.",
@@ -192,7 +192,7 @@
     },
     {
       "id": "set_mesh_name",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Rename Current Mesh",
       "pythonName": "rename_mesh",
       "shortDescription": "Explicitly change the label shown for the current mesh.",
@@ -216,7 +216,7 @@
     },
     {
       "id": "set_raster_name",
-      "menuPath": "Layer",
+      "categories": ["Document/Layer"],
       "name": "Rename Current Raster",
       "pythonName": "set_raster_name",
       "shortDescription": "Explicitly change the label shown for the current raster.",
@@ -237,7 +237,7 @@
     },
     {
       "id": "save_active_raster_cameras",
-      "menuPath": "Layer",
+      "categories": ["Document/Camera"],
       "name": "Export active rasters cameras to file",
       "pythonName": "save_active_raster_cameras",
       "shortDescription": "Export cameras from visible raster layers.",
@@ -261,7 +261,7 @@
     },
     {
       "id": "load_active_raster_cameras",
-      "menuPath": "Layer",
+      "categories": ["Document/Camera"],
       "name": "Import cameras for active rasters from file",
       "pythonName": "load_active_raster_cameras",
       "shortDescription": "Import cameras for visible raster layers.",
@@ -284,7 +284,7 @@
     },
     {
       "id": "render_from_render_state_json",
-      "menuPath": "Layer",
+      "categories": ["Document/Render"],
       "name": "Render from Render-State JSON",
       "pythonName": "render_from_render_state_json",
       "shortDescription": "Run a deterministic offscreen render from a serialized render-state JSON payload.",

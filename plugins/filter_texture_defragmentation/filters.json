@@ -38,7 +38,7 @@
   "filters": [
     {
       "id": "apply_texmap_defragmentation",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/Defragmentation", "Texture"],
       "name": "Texture Map Defragmentation",
       "pythonName": "defragment_texture_map",
       "referenceIds": [
@@ -148,7 +148,7 @@
     },
     {
       "id": "apply_small_islands_remover",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/Defragmentation", "Texture"],
       "name": "Small Islands Remover",
       "pythonName": "small_islands_remover",
       "referenceIds": [

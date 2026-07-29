@@ -1874,7 +1874,9 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
     QMenu menu(this);
     bool anyAdded = false;
     for (const Document::FilterInfo &info : infos) {
-        if (info.descriptor.menuPath.compare(QStringLiteral("Layer"), Qt::CaseInsensitive) != 0)
+        // Layer-management filters, wherever they sit in their category list.
+        if (!info.descriptor.categories.contains(QStringLiteral("Document/Layer"),
+                                                 Qt::CaseInsensitive))
             continue;
         QAction *action = menu.addAction(info.descriptor.name);
         action->setData(info.key);

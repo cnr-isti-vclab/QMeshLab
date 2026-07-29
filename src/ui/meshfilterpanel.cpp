@@ -1067,7 +1067,7 @@ void MeshFilterPanel::reloadFilters(const std::vector<Document::FilterInfo> &fil
         m_filters.end(),
         [](const Document::FilterInfo &a, const Document::FilterInfo &b) {
             const int menuCmp =
-                a.descriptor.menuPath.compare(b.descriptor.menuPath, Qt::CaseInsensitive);
+                a.descriptor.primaryCategory().compare(b.descriptor.primaryCategory(), Qt::CaseInsensitive);
             if (menuCmp != 0)
                 return menuCmp < 0;
             return a.descriptor.name.compare(b.descriptor.name, Qt::CaseInsensitive) < 0;
@@ -1260,9 +1260,9 @@ void MeshFilterPanel::rebuildResultsList()
     auto appendResultItem = [this](int filterIndex) {
         const Document::FilterInfo &info = m_filters[static_cast<size_t>(filterIndex)];
         m_visibleFilterIndices.push_back(filterIndex);
-        const QString text = info.descriptor.menuPath.trimmed().isEmpty()
+        const QString text = info.descriptor.primaryCategory().trimmed().isEmpty()
             ? info.descriptor.name
-            : QStringLiteral("%1 / %2").arg(info.descriptor.menuPath, info.descriptor.name);
+            : QStringLiteral("%1 / %2").arg(info.descriptor.primaryCategory(), info.descriptor.name);
         auto *item = new QListWidgetItem(text, m_resultsList);
         item->setData(Qt::UserRole, filterIndex);
         QString tip = info.descriptor.shortDescription.trimmed();
@@ -1470,7 +1470,7 @@ bool MeshFilterPanel::matchesSearch(
     // to ("simplification", "repair") even when the name does not repeat it — names
     // deliberately do not echo their category. Ranking is unaffected: it uses
     // titleMatchesAllTerms, so name matches still sort above category-only matches.
-    const QString category = filterInfo.descriptor.menuPath.toLower();
+    const QString category = filterInfo.descriptor.categories.join(QLatin1Char(' ')).toLower();
 
     for (const QString &term : terms) {
         if (term.isEmpty())

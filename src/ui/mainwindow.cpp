@@ -1995,7 +1995,7 @@ void MainWindow::refreshFiltersMenu(const std::vector<Document::FilterInfo> &fil
     }
 
     std::sort(infos.begin(), infos.end(), [](const Document::FilterInfo &a, const Document::FilterInfo &b) {
-        const int menuCmp = a.descriptor.menuPath.compare(b.descriptor.menuPath, Qt::CaseInsensitive);
+        const int menuCmp = a.descriptor.primaryCategory().compare(b.descriptor.primaryCategory(), Qt::CaseInsensitive);
         if (menuCmp != 0)
             return menuCmp < 0;
         return a.descriptor.name.compare(b.descriptor.name, Qt::CaseInsensitive) < 0;
@@ -2012,19 +2012,10 @@ void MainWindow::refreshFiltersMenu(const std::vector<Document::FilterInfo> &fil
         return parent->addMenu(title);
     };
 
-    for (const Document::FilterInfo &info : infos) {
-        QMenu *menu = m_filtersMenu;
-        const QStringList groups = info.descriptor.menuPath.split(
-            QLatin1Char('/'),
-            Qt::SkipEmptyParts);
-        for (const QString &group : groups) {
-            menu = findOrCreateSubmenu(menu, group.trimmed());
-            if (!menu)
-                break;
-        }
-        if (!menu)
-            continue;
-
+    // A filter is listed under every one of its categories, so it can be found from
+    // whichever concept the user thought of first. Cross-listing is intentional:
+    // 27 filters legitimately belong to more than one category.
+    auto addFilterAction = [this](QMenu *menu, const Document::FilterInfo &info) {
         QAction *action = menu->addAction(info.descriptor.name, this, &MainWindow::runFilterAction);
         action->setData(info.key);
         action->setEnabled(info.applicable);
@@ -2038,6 +2029,25 @@ void MainWindow::refreshFiltersMenu(const std::vector<Document::FilterInfo> &fil
         if (!tip.isEmpty()) {
             action->setToolTip(tip);
             action->setStatusTip(tip);
+        }
+    };
+
+    for (const Document::FilterInfo &info : infos) {
+        const QStringList categories = info.descriptor.categories;
+        if (categories.isEmpty()) {
+            addFilterAction(m_filtersMenu, info);
+            continue;
+        }
+        for (const QString &category : categories) {
+            QMenu *menu = m_filtersMenu;
+            for (const QString &group :
+                 category.split(QLatin1Char('/'), Qt::SkipEmptyParts)) {
+                menu = findOrCreateSubmenu(menu, group.trimmed());
+                if (!menu)
+                    break;
+            }
+            if (menu)
+                addFilterAction(menu, info);
         }
     }
 }
@@ -2944,10 +2954,11 @@ void MainWindow::showFilterPlugins()
         if (info.applicable)
             ++aggregate.applicableCount;
 
-        QString category = info.descriptor.menuPath.section('/', 0, 0).trimmed();
-        if (category.isEmpty())
-            category = tr("General");
-        aggregate.categories.insert(category);
+        const QStringList roots = info.descriptor.categoryRoots();
+        if (roots.isEmpty())
+            aggregate.categories.insert(tr("General"));
+        for (const QString &root : roots)
+            aggregate.categories.insert(root);
     }
 
     std::sort(aggregates.begin(), aggregates.end(), [](const PluginAggregate &a, const PluginAggregate &b) {
@@ -3011,7 +3022,7 @@ void MainWindow::showFilterPlugins()
             const int pluginCmp = a.pluginName.localeAwareCompare(b.pluginName);
             if (pluginCmp != 0)
                 return pluginCmp < 0;
-            const int menuCmp = a.descriptor.menuPath.localeAwareCompare(b.descriptor.menuPath);
+            const int menuCmp = a.descriptor.primaryCategory().localeAwareCompare(b.descriptor.primaryCategory());
             if (menuCmp != 0)
                 return menuCmp < 0;
             return a.descriptor.name.localeAwareCompare(b.descriptor.name) < 0;
@@ -3051,7 +3062,9 @@ void MainWindow::showFilterPlugins()
             nameItem->setData(Qt::UserRole, info.key);
         setTextCell(1, info.descriptor.effectivePythonName());
         setTextCell(2, info.pluginName);
-        setTextCell(3, info.descriptor.menuPath.isEmpty() ? tr("General") : info.descriptor.menuPath);
+        setTextCell(3, info.descriptor.categories.isEmpty()
+                           ? tr("General")
+                           : info.descriptor.categories.join(QStringLiteral(", ")));
         setTextCell(4, filterInputDomainLabel(info.descriptor.inputDomain), Qt::AlignCenter);
         setTextCell(5, filterOutputDomainLabel(info.descriptor.outputDomain), Qt::AlignCenter);
         setTextCell(6, info.descriptor.outputModifies.join(QStringLiteral(" ")), Qt::AlignCenter);

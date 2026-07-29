@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "compute_mls_projection_apss",
-      "menuPath": "MLS",
+      "categories": ["Geometry/Smoothing"],
       "name": "MLS projection (APSS)",
       "pythonName": "apply_mls_apss",
       "shortDescription": "Project a mesh or point set onto an Algebraic Point Set Surface.",
@@ -131,7 +131,7 @@
     },
     {
       "id": "compute_mls_projection_rimls",
-      "menuPath": "MLS",
+      "categories": ["Geometry/Smoothing"],
       "name": "MLS projection (RIMLS)",
       "pythonName": "apply_mls_rimls",
       "shortDescription": "Project a mesh or point set onto a Robust Implicit MLS surface.",
@@ -261,7 +261,7 @@
     },
     {
       "id": "generate_marching_cubes_apss",
-      "menuPath": "MLS",
+      "categories": ["Creation/Reconstruction"],
       "name": "Marching Cubes (APSS)",
       "pythonName": "generate_marching_cubes_apss",
       "shortDescription": "Extract an APSS iso-surface as a new mesh with marching cubes.",
@@ -344,7 +344,7 @@
     },
     {
       "id": "generate_marching_cubes_rimls",
-      "menuPath": "MLS",
+      "categories": ["Creation/Reconstruction"],
       "name": "Marching Cubes (RIMLS)",
       "pythonName": "generate_marching_cubes_rimls",
       "shortDescription": "Extract a Robust Implicit MLS iso-surface as a new mesh with marching cubes.",
@@ -429,7 +429,7 @@
     },
     {
       "id": "compute_curvature_and_color_apss_per_vertex",
-      "menuPath": "MLS",
+      "categories": ["Attribute/Curvature"],
       "name": "Compute APSS Curvature Quality",
       "pythonName": "compute_apss_curvature",
       "shortDescription": "Compute APSS curvature estimates and store them in vertex quality.",
@@ -538,7 +538,7 @@
     },
     {
       "id": "compute_curvature_and_color_rimls_per_vertex",
-      "menuPath": "MLS",
+      "categories": ["Attribute/Curvature"],
       "name": "Compute RIMLS Curvature Quality",
       "pythonName": "compute_rimls_curvature",
       "shortDescription": "Compute RIMLS curvature estimates and store them in vertex quality.",
@@ -653,7 +653,7 @@
     },
     {
       "id": "compute_custom_radius_scalar_attribute_per_vertex",
-      "menuPath": "MLS",
+      "categories": ["Measurement/Statistics"],
       "name": "Estimate radius from density",
       "pythonName": "estimate_radius_from_density",
       "shortDescription": "Estimate local point spacing for each vertex.",
@@ -687,7 +687,7 @@
     },
     {
       "id": "compute_selection_by_small_disconnected_components_per_face",
-      "menuPath": "MLS",
+      "categories": ["Selection/by Topology"],
       "name": "Select small disconnected component",
       "pythonName": "select_small_disconnected_component",
       "shortDescription": "Select the small disconnected components of a mesh.",

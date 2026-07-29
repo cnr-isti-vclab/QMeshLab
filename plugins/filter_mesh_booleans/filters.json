@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "generate_boolean_intersection",
-      "menuPath": "Layer/Boolean",
+      "categories": ["Meshing/Boolean"],
       "name": "Mesh Boolean: Intersection",
       "pythonName": "generate_boolean_intersection",
       "shortDescription": "Create the exact intersection of two mesh layers using libigl and CGAL.",
@@ -88,7 +88,7 @@
     },
     {
       "id": "generate_boolean_union",
-      "menuPath": "Layer/Boolean",
+      "categories": ["Meshing/Boolean"],
       "name": "Mesh Boolean: Union",
       "pythonName": "generate_boolean_union",
       "shortDescription": "Create the exact union of two mesh layers using libigl and CGAL.",
@@ -173,7 +173,7 @@
     },
     {
       "id": "generate_boolean_difference",
-      "menuPath": "Layer/Boolean",
+      "categories": ["Meshing/Boolean"],
       "name": "Mesh Boolean: Difference",
       "pythonName": "generate_boolean_difference",
       "shortDescription": "Create the exact difference of two mesh layers using libigl and CGAL.",
@@ -258,7 +258,7 @@
     },
     {
       "id": "generate_boolean_xor",
-      "menuPath": "Layer/Boolean",
+      "categories": ["Meshing/Boolean"],
       "name": "Mesh Boolean: Symmetric Difference (XOR)",
       "pythonName": "generate_boolean_xor",
       "shortDescription": "Create the exact symmetric difference of two mesh layers using libigl and CGAL.",

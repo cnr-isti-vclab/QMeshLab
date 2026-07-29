@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "create_tetrahedron",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Tetrahedron",
       "pythonName": "create_tetrahedron",
       "shortDescription": "Creates a Tetrahedron.",
@@ -19,7 +19,7 @@
     },
     {
       "id": "create_icosahedron",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Icosahedron",
       "pythonName": "create_icosahedron",
       "shortDescription": "Creates an Icosahedron.",
@@ -35,7 +35,7 @@
     },
     {
       "id": "create_dodecahedron",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Dodecahedron",
       "pythonName": "create_dodecahedron",
       "shortDescription": "Creates a Dodecahedron.",
@@ -51,7 +51,7 @@
     },
     {
       "id": "create_dodecahedron_sym",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Dodecahedron (symmetric)",
       "pythonName": "create_dodecahedron_symmetric",
       "shortDescription": "Creates a symmetrically triangulated Dodecahedron.",
@@ -67,7 +67,7 @@
     },
     {
       "id": "create_octahedron",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Octahedron",
       "pythonName": "create_octahedron",
       "shortDescription": "Creates an Octahedron.",
@@ -83,7 +83,7 @@
     },
     {
       "id": "create_box",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Box/Cube",
       "pythonName": "create_box",
       "shortDescription": "Creates a Box or Cube.",
@@ -112,7 +112,7 @@
     },
     {
       "id": "create_annulus",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Annulus",
       "pythonName": "create_annulus",
       "shortDescription": "Creates a flat annulus (holed disk).",
@@ -162,7 +162,7 @@
     },
     {
       "id": "create_sphere",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Sphere",
       "pythonName": "create_sphere",
       "shortDescription": "Creates a Sphere by recursive subdivision of an Icosahedron.",
@@ -200,7 +200,7 @@
     },
     {
       "id": "create_sphere_cap",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Sphere Cap",
       "pythonName": "create_sphere_cap",
       "shortDescription": "Creates a spherical dome subtended by a cone of given angle.",
@@ -239,7 +239,7 @@
     },
     {
       "id": "create_sphere_points",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Points on a Sphere",
       "pythonName": "create_points_on_sphere",
       "shortDescription": "Creates a point cloud distributed on a unit sphere.",
@@ -294,7 +294,7 @@
     },
     {
       "id": "create_cone",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Cone",
       "pythonName": "create_cone",
       "shortDescription": "Creates a Cone or truncated cone.",
@@ -354,7 +354,7 @@
     },
     {
       "id": "create_torus",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Torus",
       "pythonName": "create_torus",
       "shortDescription": "Creates a Torus.",
@@ -413,7 +413,7 @@
     },
     {
       "id": "fit_plane_to_selection",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives", "Measurement/Geometric"],
       "name": "Fit Plane to Selection",
       "pythonName": "fit_plane_to_selection",
       "shortDescription": "Creates a quad on the plane fitting the current selection.",

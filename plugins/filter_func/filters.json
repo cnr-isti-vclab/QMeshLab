@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "conditional_vertex_selection",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Attribute"],
       "name": "Conditional Vertex Selection",
       "pythonName": "select_vertices_by_condition",
       "shortDescription": "Selects vertices for which a boolean expression evaluates true.",
@@ -35,7 +35,7 @@
     },
     {
       "id": "conditional_face_selection",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Attribute"],
       "name": "Conditional Face Selection",
       "pythonName": "select_faces_by_condition",
       "shortDescription": "Selects faces for which a boolean expression evaluates true.",
@@ -67,7 +67,7 @@
     },
     {
       "id": "per_vertex_geometric_function",
-      "menuPath": "Compute/Geometry",
+      "categories": ["Geometry/Deformation"],
       "name": "Per Vertex Geometric Function",
       "pythonName": "apply_vertex_geometric_function",
       "shortDescription": "Computes new per-vertex coordinates from expressions.",
@@ -131,7 +131,7 @@
     },
     {
       "id": "per_vertex_normal_function",
-      "menuPath": "Compute/Normals",
+      "categories": ["Attribute/Normal"],
       "name": "Per Vertex Normal Function",
       "pythonName": "apply_vertex_normal_function",
       "shortDescription": "Computes new per-vertex normals from expressions.",
@@ -186,7 +186,7 @@
     },
     {
       "id": "per_face_normal_function",
-      "menuPath": "Compute/Normals",
+      "categories": ["Attribute/Normal"],
       "name": "Per Face Normal Function",
       "pythonName": "apply_face_normal_function",
       "shortDescription": "Computes new per-face normals from expressions.",
@@ -241,7 +241,7 @@
     },
     {
       "id": "per_vertex_color_function",
-      "menuPath": "Compute/Color",
+      "categories": ["Attribute/Color"],
       "name": "Per Vertex Color Function",
       "pythonName": "apply_vertex_color_function",
       "shortDescription": "Computes per-vertex RGBA colors from expressions.",
@@ -304,7 +304,7 @@
     },
     {
       "id": "per_face_color_function",
-      "menuPath": "Compute/Color",
+      "categories": ["Attribute/Color"],
       "name": "Per Face Color Function",
       "pythonName": "apply_face_color_function",
       "shortDescription": "Computes per-face RGBA colors from expressions.",
@@ -367,7 +367,7 @@
     },
     {
       "id": "per_vertex_quality_function",
-      "menuPath": "Compute/Quality",
+      "categories": ["Attribute/Scalar"],
       "name": "Per Vertex Quality Function",
       "pythonName": "apply_vertex_quality_function",
       "shortDescription": "Computes per-vertex scalar quality from an expression.",
@@ -422,7 +422,7 @@
     },
     {
       "id": "per_face_quality_function",
-      "menuPath": "Compute/Quality",
+      "categories": ["Attribute/Scalar"],
       "name": "Per Face Quality Function",
       "pythonName": "apply_face_quality_function",
       "shortDescription": "Computes per-face scalar quality from an expression.",
@@ -477,7 +477,7 @@
     },
     {
       "id": "per_vertex_texture_function",
-      "menuPath": "Compute/Texture",
+      "categories": ["Parametrization/UV Creation"],
       "name": "Per Vertex Texture Function",
       "pythonName": "apply_vertex_texture_function",
       "shortDescription": "Computes per-vertex texture coordinates from expressions.",
@@ -527,7 +527,7 @@
     },
     {
       "id": "per_wedge_texture_function",
-      "menuPath": "Compute/Texture",
+      "categories": ["Parametrization/UV Creation"],
       "name": "Per Wedge Texture Function",
       "pythonName": "apply_wedge_texture_function",
       "shortDescription": "Computes per-wedge texture coordinates from expressions.",
@@ -609,7 +609,7 @@
     },
     {
       "id": "define_per_vertex_scalar_attribute",
-      "menuPath": "Compute/Attributes",
+      "categories": ["Attribute/Custom"],
       "name": "Define New Per Vertex Custom Scalar Attribute",
       "pythonName": "define_vertex_scalar_attribute",
       "shortDescription": "Defines and fills a custom per-vertex scalar attribute.",
@@ -648,7 +648,7 @@
     },
     {
       "id": "define_per_face_scalar_attribute",
-      "menuPath": "Compute/Attributes",
+      "categories": ["Attribute/Custom"],
       "name": "Define New Per Face Custom Scalar Attribute",
       "pythonName": "define_face_scalar_attribute",
       "shortDescription": "Defines and fills a custom per-face scalar attribute.",
@@ -687,7 +687,7 @@
     },
     {
       "id": "define_per_vertex_point_attribute",
-      "menuPath": "Compute/Attributes",
+      "categories": ["Attribute/Custom"],
       "name": "Define New Per Vertex Custom Point Attribute",
       "pythonName": "define_vertex_point_attribute",
       "shortDescription": "Defines and fills a custom per-vertex point attribute.",
@@ -742,7 +742,7 @@
     },
     {
       "id": "define_per_face_point_attribute",
-      "menuPath": "Compute/Attributes",
+      "categories": ["Attribute/Custom"],
       "name": "Define New Per Face Custom Point Attribute",
       "pythonName": "define_face_point_attribute",
       "shortDescription": "Defines and fills a custom per-face point attribute.",
@@ -797,7 +797,7 @@
     },
     {
       "id": "grid_generator",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Grid Generator",
       "pythonName": "create_grid",
       "shortDescription": "Generates a regular 2D grid mesh.",
@@ -865,7 +865,7 @@
     },
     {
       "id": "implicit_surface",
-      "menuPath": "Create",
+      "categories": ["Creation/Primitives"],
       "name": "Implicit Surface",
       "pythonName": "create_implicit_surface",
       "shortDescription": "Extracts an isosurface from an implicit scalar field.",
@@ -968,7 +968,7 @@
     },
     {
       "id": "refine_user_defined",
-      "menuPath": "Remeshing",
+      "categories": ["Meshing/Subdivision"],
       "name": "Refine User-Defined",
       "pythonName": "refine_user_defined",
       "shortDescription": "Refines edges selected by an expression and places split points by expressions.",

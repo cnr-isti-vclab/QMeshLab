@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "compute_texcoord_parametrization_harmonic",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/UV Creation"],
       "name": "Harmonic Parametrization",
       "pythonName": "compute_texcoord_parametrization_harmonic",
       "shortDescription": "Compute a single-patch fixed-boundary harmonic UV parametrization using libigl.",
@@ -43,7 +43,7 @@
     },
     {
       "id": "compute_texcoord_parametrization_least_squares_conformal_maps",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/UV Creation"],
       "name": "Least Squares Conformal Maps Parametrization",
       "pythonName": "compute_texcoord_parametrization_least_squares_conformal_maps",
       "shortDescription": "Compute a Least Squares Conformal Maps UV parametrization using libigl.",

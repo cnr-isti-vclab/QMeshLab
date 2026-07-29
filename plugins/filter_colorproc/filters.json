@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "set_color_per_vertex",
-      "menuPath": "Quality",
+      "categories": ["Attribute/Color"],
       "name": "Vertex Color Filling",
       "pythonName": "vertex_color_filling",
       "shortDescription": "Fill vertex colors with a chosen color.",
@@ -20,7 +20,7 @@
     },
     {
       "id": "apply_color_thresholding_per_vertex",
-      "menuPath": "Quality",
+      "categories": ["Attribute/Color"],
       "name": "Vertex Color Thresholding",
       "pythonName": "vertex_color_thresholding",
       "shortDescription": "Apply two colors according to a lightness threshold.",
@@ -39,7 +39,7 @@
     },
     {
       "id": "apply_color_brightness_contrast_gamma_per_vertex",
-      "menuPath": "Quality",
+      "categories": ["Attribute/Color"],
       "name": "Vertex Color Brightness Contrast Gamma",
       "pythonName": "vertex_color_brightness_contrast_gamma",
       "shortDescription": "Adjust vertex-color brightness, contrast, and gamma.",
@@ -58,7 +58,7 @@
     },
     {
       "id": "apply_color_inverse_per_vertex",
-      "menuPath": "Quality",
+      "categories": ["Attribute/Color"],
       "name": "Vertex Color Invert",
       "pythonName": "vertex_color_invert",
       "shortDescription": "Invert vertex colors.",
@@ -74,7 +74,7 @@
     },
     {
       "id": "apply_color_level_adjustment_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Vertex Color Levels Adjustment",
       "pythonName": "vertex_color_levels_adjustment",
       "shortDescription": "Remap an input color interval into an output interval.",
@@ -98,7 +98,7 @@
     },
     {
       "id": "apply_color_intensity_colourisation_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Vertex Color Colourisation",
       "pythonName": "vertex_color_colourisation",
       "shortDescription": "Blend a chosen color into the existing vertex colors.",
@@ -118,7 +118,7 @@
     },
     {
       "id": "apply_color_desaturation_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Vertex Color Desaturation",
       "pythonName": "vertex_color_desaturation",
       "shortDescription": "Convert vertex colors to grayscale using a chosen method.",
@@ -147,7 +147,7 @@
     },
     {
       "id": "apply_color_equalization_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Equalize Vertex Color",
       "pythonName": "equalize_vertex_color",
       "shortDescription": "Equalize the vertex-color histogram.",
@@ -166,7 +166,7 @@
     },
     {
       "id": "apply_color_white_balance_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Vertex Color White Balance",
       "pythonName": "vertex_color_white_balance",
       "shortDescription": "Apply white balance so a chosen color becomes white.",
@@ -183,7 +183,7 @@
     },
     {
       "id": "compute_color_perlin_noise_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Perlin color",
       "pythonName": "perlin_color",
       "shortDescription": "Color the mesh with a Perlin-based color field.",
@@ -203,7 +203,7 @@
     },
     {
       "id": "apply_color_noising_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Color noise",
       "pythonName": "color_noise",
       "shortDescription": "Add random noise bits independently to RGB channels.",
@@ -220,7 +220,7 @@
     },
     {
       "id": "compute_color_scattering_per_mesh",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "PerMesh Color Scattering",
       "pythonName": "color_scattering",
       "shortDescription": "Assign a distinct random color to each visible mesh layer.",
@@ -235,7 +235,7 @@
     },
     {
       "id": "compute_set_per_mesh_color",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Set Mesh Color",
       "pythonName": "set_per_mesh_color",
       "shortDescription": "Set a solid per-mesh color used by the plain rendering material.",
@@ -250,7 +250,7 @@
     },
     {
       "id": "apply_scalar_clamping_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Scalar"],
       "name": "Clamp Vertex Quality",
       "pythonName": "clamp_vertex_quality",
       "shortDescription": "Clamp vertex quality to a chosen range or percentile crop.",
@@ -269,7 +269,7 @@
     },
     {
       "id": "apply_scalar_saturation_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Scalar"],
       "name": "Saturate Vertex Quality",
       "pythonName": "saturate_vertex_quality",
       "shortDescription": "Limit the spatial gradient of vertex quality.",
@@ -287,7 +287,7 @@
     },
     {
       "id": "compute_color_from_scalar_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color", "Attribute/Scalar"],
       "name": "Colorize by vertex Quality",
       "pythonName": "colorize_by_vertex_quality",
       "shortDescription": "Map vertex quality into vertex colors.",
@@ -327,7 +327,7 @@
     },
     {
       "id": "compute_color_from_scalar_using_transfer_function_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color", "Attribute/Scalar"],
       "name": "Quality Mapper applier",
       "pythonName": "compute_color_from_scalar_using_transfer_function_per_vertex",
       "shortDescription": "Bake vertex quality into vertex colors.",
@@ -367,7 +367,7 @@
     },
     {
       "id": "compute_color_from_scalar_per_face",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color", "Attribute/Scalar"],
       "name": "Colorize by face Quality",
       "pythonName": "colorize_by_face_quality",
       "shortDescription": "Map face quality into face colors.",
@@ -402,7 +402,7 @@
     },
     {
       "id": "compute_scalar_by_discrete_curvature_per_vertex",
-      "menuPath": "Quality",
+      "categories": ["Attribute/Curvature"],
       "name": "Discrete Curvatures",
       "pythonName": "discrete_curvatures",
       "shortDescription": "Compute discrete curvature and store it in vertex quality.",
@@ -435,7 +435,7 @@
     },
     {
       "id": "compute_scalar_by_geometric_measure_per_face",
-      "menuPath": "Quality",
+      "categories": ["Attribute/Scalar"],
       "name": "Per Face Geometric Quality",
       "pythonName": "per_face_quality_by_geometric_measure",
       "shortDescription": "Compute face quality from triangle shape, area, or polygonal planarity.",
@@ -466,7 +466,7 @@
     },
     {
       "id": "compute_scalar_by_texture_distortion_per_face",
-      "menuPath": "Quality",
+      "categories": ["Attribute/Scalar"],
       "name": "Per Face Texture Distortion",
       "pythonName": "per_face_quality_by_texture_distortion",
       "shortDescription": "Measure angular, area, edge-length, or directional stretch distortion in a UV mapping.",
@@ -496,7 +496,7 @@
     },
     {
       "id": "apply_color_laplacian_smoothing_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Smooth: Laplacian Vertex Color",
       "pythonName": "smooth_laplacian_vertex_color",
       "shortDescription": "Laplacian smooth vertex colors.",
@@ -512,7 +512,7 @@
     },
     {
       "id": "apply_color_laplacian_smoothing_per_face",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Smooth: Laplacian Face Color",
       "pythonName": "smooth_laplacian_face_color",
       "shortDescription": "Laplacian smooth face colors.",
@@ -529,7 +529,7 @@
     },
     {
       "id": "compute_color_transfer_vertex_to_face",
-      "menuPath": "Color",
+      "categories": ["Transfer/Mesh to Mesh", "Attribute/Color"],
       "name": "Transfer Color: Vertex to Face",
       "pythonName": "transfer_color_vertex_to_face",
       "shortDescription": "Transfer vertex colors to face colors.",
@@ -543,7 +543,7 @@
     },
     {
       "id": "compute_color_transfer_mesh_to_face",
-      "menuPath": "Color",
+      "categories": ["Transfer/Mesh to Mesh", "Attribute/Color"],
       "name": "Transfer Color: Mesh to Face",
       "pythonName": "transfer_color_mesh_to_face",
       "shortDescription": "Transfer the per-mesh color to face colors.",
@@ -557,7 +557,7 @@
     },
     {
       "id": "compute_color_transfer_face_to_vertex",
-      "menuPath": "Color",
+      "categories": ["Transfer/Mesh to Mesh", "Attribute/Color"],
       "name": "Transfer Color: Face to Vertex",
       "pythonName": "transfer_color_face_to_vertex",
       "shortDescription": "Transfer face colors to vertex colors.",
@@ -571,7 +571,7 @@
     },
     {
       "id": "compute_color_from_texture_per_vertex",
-      "menuPath": "Color",
+      "categories": ["Transfer/Mesh to Mesh", "Attribute/Color"],
       "name": "Transfer Color: Texture to Vertex",
       "pythonName": "transfer_color_texture_to_vertex",
       "shortDescription": "Sample associated textures into vertex colors.",
@@ -600,7 +600,7 @@
     },
     {
       "id": "compute_color_random_per_face",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Random Face Color",
       "pythonName": "random_face_color",
       "shortDescription": "Assign random colors to faces or faux-connected polygons.",
@@ -615,7 +615,7 @@
     },
     {
       "id": "compute_color_by_conntected_component_per_face",
-      "menuPath": "Color",
+      "categories": ["Attribute/Color"],
       "name": "Random Component Color",
       "pythonName": "random_component_color",
       "shortDescription": "Assign a random color to each connected component.",
@@ -630,7 +630,7 @@
     },
     {
       "id": "compute_scalar_transfer_vertex_to_face",
-      "menuPath": "Color",
+      "categories": ["Transfer/Mesh to Mesh", "Attribute/Scalar"],
       "name": "Transfer Quality: Vertex to Face",
       "pythonName": "transfer_quality_vertex_to_face",
       "shortDescription": "Transfer vertex quality to face quality.",
@@ -644,7 +644,7 @@
     },
     {
       "id": "compute_scalar_transfer_face_to_vertex",
-      "menuPath": "Color",
+      "categories": ["Transfer/Mesh to Mesh", "Attribute/Scalar"],
       "name": "Transfer Quality: Face to Vertex",
       "pythonName": "transfer_quality_face_to_vertex",
       "shortDescription": "Transfer face quality to vertex quality.",

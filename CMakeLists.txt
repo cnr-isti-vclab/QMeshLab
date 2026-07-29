@@ -87,6 +87,7 @@ add_library(QMeshLabCore STATIC
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
     src/core/viewpointoccluder.h src/core/viewpointoccluder.cpp
     src/core/vcgmesh.h
+    src/plugins/filtercategories.h src/plugins/filtercategories.cpp
     src/plugins/filterdescriptorloader.h src/plugins/filterdescriptorloader.cpp
     src/plugins/meshfilterplugin.h src/plugins/meshfilterplugin.cpp
     src/plugins/meshfilterpluginmanager.h src/plugins/meshfilterpluginmanager.cpp

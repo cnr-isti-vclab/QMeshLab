@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "compute_color_from_current_raster_projection",
-      "menuPath": "Raster",
+      "categories": ["Transfer/Raster to Mesh", "Attribute/Color"],
       "name": "Project Current Raster Color to Current Mesh",
       "pythonName": "compute_color_from_current_raster_projection",
       "shortDescription": "Project the current raster image color onto the mesh vertices.",
@@ -61,7 +61,7 @@
     },
     {
       "id": "compute_color_from_active_rasters_projection",
-      "menuPath": "Raster",
+      "categories": ["Transfer/Raster to Mesh", "Attribute/Color"],
       "name": "Project Active Rasters Color to Current Mesh",
       "pythonName": "compute_color_from_active_rasters_projection",
       "shortDescription": "Project color from all visible rasters onto the mesh vertices with weighted blending.",
@@ -151,7 +151,7 @@
     },
     {
       "id": "compute_color_and_texture_from_active_rasters_projection",
-      "menuPath": "Raster",
+      "categories": ["Transfer/Raster to Mesh", "Texture"],
       "name": "Project Active Rasters Color to Current Mesh Texture",
       "pythonName": "compute_color_and_texture_from_active_rasters_projection",
       "shortDescription": "Project color from all visible rasters onto a new mesh texture using wedge UV coordinates.",

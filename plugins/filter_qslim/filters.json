@@ -38,7 +38,7 @@
   "filters": [
     {
       "id": "simplification_quadric_edge_collapse_qslim",
-      "menuPath": "Meshing",
+      "categories": ["Meshing/Simplification"],
       "name": "Simplification: Original QSlim Quadric Edge Collapse",
       "pythonName": "simplification_quadric_edge_collapse_qslim",
       "referenceIds": [

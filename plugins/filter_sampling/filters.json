@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "generate_sampling_element",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Sampling"],
       "name": "Mesh Element Sampling",
       "pythonName": "sample_mesh_elements",
       "shortDescription": "Create a point set by subsampling mesh vertices, edges, or faces.",
@@ -55,7 +55,7 @@
     },
     {
       "id": "generate_sampling_montecarlo",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Sampling"],
       "name": "Montecarlo Sampling",
       "pythonName": "sample_montecarlo",
       "shortDescription": "Create a random point cloud from the current surface.",
@@ -129,7 +129,7 @@
     },
     {
       "id": "generate_sampling_stratified_triangle",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Sampling"],
       "name": "Stratified Triangle Sampling",
       "pythonName": "sample_stratified_triangles",
       "shortDescription": "Generate structured samples over the triangle mesh.",
@@ -198,7 +198,7 @@
     },
     {
       "id": "generate_sampling_clustered_vertex",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Sampling"],
       "name": "Clustered Vertex Sampling",
       "pythonName": "sample_clustered_vertices",
       "shortDescription": "Cluster the point set into grid cells and keep one representative per cell.",
@@ -255,7 +255,7 @@
     },
     {
       "id": "generate_sampling_poisson_disk",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Sampling"],
       "name": "Poisson-disk Sampling",
       "pythonName": "sample_poisson_disk",
       "shortDescription": "Generate well-spaced samples over a surface or point cloud.",
@@ -397,7 +397,7 @@
     },
     {
       "id": "get_hausdorff_distance",
-      "menuPath": "Sampling",
+      "categories": ["Measurement/Geometric", "Attribute/Scalar"],
       "name": "Hausdorff Distance",
       "pythonName": "compute_hausdorff_distance",
       "shortDescription": "Compute directional Hausdorff distance statistics between two meshes.",
@@ -498,7 +498,7 @@
     },
     {
       "id": "compute_scalar_by_distance_from_another_mesh_per_vertex",
-      "menuPath": "Sampling",
+      "categories": ["Measurement/Geometric", "Attribute/Scalar"],
       "name": "Distance from Reference Mesh",
       "pythonName": "compute_distance_from_reference",
       "shortDescription": "Compute per-vertex distance from another mesh or point cloud.",
@@ -560,7 +560,7 @@
     },
     {
       "id": "generate_sampling_texel",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Sampling"],
       "name": "Texel Sampling",
       "pythonName": "sample_texels",
       "shortDescription": "Create one point sample per covered texel in texture space.",
@@ -628,7 +628,7 @@
     },
     {
       "id": "transfer_attributes_per_vertex",
-      "menuPath": "Sampling",
+      "categories": ["Transfer/Mesh to Mesh"],
       "name": "Vertex Attribute Transfer",
       "pythonName": "transfer_vertex_attributes",
       "shortDescription": "Transfer attributes from one mesh to another by closest-point projection.",
@@ -758,7 +758,7 @@
     },
     {
       "id": "generate_resampled_uniform_mesh",
-      "menuPath": "Sampling",
+      "categories": ["Meshing/Remeshing"],
       "name": "Uniform Mesh Resampling",
       "pythonName": "resample_uniform",
       "shortDescription": "Build an offset mesh from a signed distance field sampled on a regular grid.",
@@ -834,7 +834,7 @@
     },
     {
       "id": "compute_color_by_point_cloud_voronoi_projection",
-      "menuPath": "Sampling",
+      "categories": ["Attribute/Color"],
       "name": "Voronoi Vertex Coloring",
       "pythonName": "voronoi_vertex_coloring",
       "shortDescription": "Color a mesh according to projected seed points from another layer.",
@@ -885,7 +885,7 @@
     },
     {
       "id": "compute_scalar_by_distance_from_point_cloud_per_vertex",
-      "menuPath": "Sampling",
+      "categories": ["Attribute/Color"],
       "name": "Disk Vertex Coloring",
       "pythonName": "disk_vertex_coloring",
       "shortDescription": "Color a mesh according to the distance from projected point-cloud disks.",
@@ -955,7 +955,7 @@
     },
     {
       "id": "generate_sampling_regular_recursive",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Sampling"],
       "name": "Regular Recursive Sampling",
       "pythonName": "sample_regular_recursive",
       "shortDescription": "Generate offset surface samples by recursively subdividing the bounding box.",
@@ -999,7 +999,7 @@
     },
     {
       "id": "generate_simplified_point_cloud",
-      "menuPath": "Sampling",
+      "categories": ["Meshing/Simplification"],
       "name": "Point Cloud Simplification",
       "pythonName": "simplify_point_cloud",
       "shortDescription": "Simplify a point cloud with Poisson-disk pruning.",

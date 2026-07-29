@@ -1,5 +1,8 @@
 #include "filterdescriptorloader.h"
 
+#include "filtercategories.h"
+#include <QDebug>
+
 #include "document.h"
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
@@ -196,7 +199,20 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
 {
     MeshFilterDescriptor d;
     d.id                    = obj.value(QStringLiteral("id")).toString();
-    d.menuPath              = obj.value(QStringLiteral("menuPath")).toString();
+    // `categories` is the authored field. A legacy single `menuPath` string is still
+    // accepted so an out-of-tree descriptor keeps loading; it is treated as one
+    // category, so an out-of-tree descriptor written against the old schema keeps
+    // loading.
+    for (const QJsonValue &c : obj.value(QStringLiteral("categories")).toArray()) {
+        const QString path = c.toString().trimmed();
+        if (!path.isEmpty() && !d.categories.contains(path))
+            d.categories << path;
+    }
+    if (d.categories.isEmpty()) {
+        const QString legacy = obj.value(QStringLiteral("menuPath")).toString().trimmed();
+        if (!legacy.isEmpty())
+            d.categories << legacy;
+    }
     d.name                  = obj.value(QStringLiteral("name")).toString();
     d.pythonName            = obj.value(QStringLiteral("pythonName")).toString();
     d.shortDescription      = obj.value(QStringLiteral("shortDescription")).toString();
@@ -384,7 +400,38 @@ std::vector<MeshFilterDescriptor> FilterDescriptorLoader::load(
         result.push_back(std::move(descriptor));
     }
 
+    validateCategories(result, resourcePath);
     return result;
+}
+
+void FilterDescriptorLoader::validateCategories(
+    const std::vector<MeshFilterDescriptor> &descriptors,
+    const QString &resourcePath)
+{
+    // The in-tree descriptors are fully migrated, so anything reported here is a typo
+    // or an out-of-tree descriptor using a stale name. Kept at warning level so a bad
+    // third-party plugin degrades rather than blocks startup.
+    //
+    // Reported once per descriptor file, listing the distinct offenders rather than
+    // one line per filter — otherwise the pre-migration state produces 272 lines.
+    QStringList unknown;
+    for (const MeshFilterDescriptor &d : descriptors) {
+        for (const QString &path : d.categories) {
+            if (path.isEmpty() || FilterCategories::isValid(path))
+                continue;
+            if (!unknown.contains(path))
+                unknown << path;
+        }
+    }
+    if (unknown.isEmpty())
+        return;
+
+    unknown.sort();
+    qWarning().noquote() << QStringLiteral(
+        "[filter categories] %1: %2 value(s) outside the ontology: %3")
+        .arg(resourcePath)
+        .arg(unknown.size())
+        .arg(unknown.join(QStringLiteral(", ")));
 }
 
 void FilterDescriptorLoader::resolveSymbolicBounds(

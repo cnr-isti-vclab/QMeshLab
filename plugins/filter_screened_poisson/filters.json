@@ -34,7 +34,7 @@
   "filters": [
     {
       "id": "surface_reconstruction_screened_poisson",
-      "menuPath": "Remeshing/Surface Reconstruction",
+      "categories": ["Creation/Reconstruction"],
       "name": "Surface Reconstruction: Screened Poisson",
       "pythonName": "generate_screened_poisson",
       "referenceIds": [
@@ -173,7 +173,7 @@
     },
     {
       "id": "surface_reconstruction_ssd",
-      "menuPath": "Remeshing/Surface Reconstruction",
+      "categories": ["Creation/Reconstruction"],
       "name": "Surface Reconstruction: SSD",
       "pythonName": "generate_ssd_reconstruction",
       "shortDescription": "Creates a watertight surface using smooth signed distance reconstruction.",
@@ -377,7 +377,7 @@
     },
     {
       "id": "surface_reconstruction_surface_trimmer",
-      "menuPath": "Remeshing/Surface Reconstruction",
+      "categories": ["Creation/Reconstruction"],
       "name": "Surface Reconstruction: Surface Trimmer",
       "pythonName": "trim_reconstructed_surface",
       "shortDescription": "Trims a reconstructed mesh using the scalar values stored on the vertices.",

@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "compute_obscurance",
-      "menuPath": "Quality/Embree",
+      "categories": ["Attribute/Scalar"],
       "name": "Compute Obscurance",
       "pythonName": "compute_obscurance",
       "shortDescription": "Computes volumetric obscurance and stores it in quality.",
@@ -48,7 +48,7 @@
     },
     {
       "id": "compute_ambient_occlusion",
-      "menuPath": "Quality/Embree",
+      "categories": ["Attribute/Scalar"],
       "name": "Compute Ambient Occlusion",
       "pythonName": "compute_ambient_occlusion",
       "shortDescription": "Computes ambient occlusion and stores it in quality.",
@@ -82,7 +82,7 @@
     },
     {
       "id": "compute_shape_diameter_function",
-      "menuPath": "Quality/Embree",
+      "categories": ["Attribute/Scalar"],
       "name": "Compute Shape Diameter Function",
       "pythonName": "compute_shape_diameter_function",
       "shortDescription": "Computes SDF and stores it in quality.",
@@ -127,7 +127,7 @@
     },
     {
       "id": "select_visible_faces",
-      "menuPath": "Selection/Embree",
+      "categories": ["Selection/by Visibility"],
       "name": "Select Visible Faces",
       "pythonName": "select_visible_faces",
       "shortDescription": "Selects faces visible from a user-defined direction.",
@@ -164,7 +164,7 @@
     },
     {
       "id": "analyze_normals",
-      "menuPath": "Normals/Embree",
+      "categories": ["Attribute/Normal"],
       "name": "Reorient Face Normals by Geometry",
       "pythonName": "reorient_face_normals",
       "shortDescription": "Reorients wrongly oriented faces using Embree ray casting.",

@@ -178,7 +178,10 @@ struct MeshFilterReference
 struct MeshFilterDescriptor
 {
     QString id;
-    QString menuPath;
+    // Ordered set of ontology categories; the first is primary (canonical home),
+    // the rest are cross-listings. Validated against FilterCategories.
+    // See docs/design/vocabulary.md §1.
+    QStringList categories;
     QString name;
     QString pythonName;          // explicit Python method name; auto-computed from name if empty
     QString shortDescription;
@@ -193,6 +196,25 @@ struct MeshFilterDescriptor
     // parameter and, when enabled, ORs the pre-run selection back after the filter.
     bool incrementalSelection = false;
     std::vector<MeshFilterParameterDescriptor> parameters;
+
+    // The canonical home of this filter: first category, or empty if unclassified.
+    // Use for single-placement contexts (sorting, one-line labels). Contexts that
+    // should reflect every category — the Filters menu, search — iterate `categories`.
+    QString primaryCategory() const
+    {
+        return categories.isEmpty() ? QString() : categories.first();
+    }
+    // Distinct top-level roots this filter belongs to, order preserved.
+    QStringList categoryRoots() const
+    {
+        QStringList out;
+        for (const QString &c : categories) {
+            const QString root = c.section(QLatin1Char('/'), 0, 0).trimmed();
+            if (!root.isEmpty() && !out.contains(root))
+                out << root;
+        }
+        return out;
+    }
 
     // Two-letter codes describing which mesh attributes this filter modifies.
     // Recognised codes: VG VN VC VQ VT VA VS FV FN FC FQ FA FS FP WT TX TM

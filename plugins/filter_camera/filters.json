@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "set_camera_per_mesh",
-      "menuPath": "Camera",
+      "categories": ["Document/Camera"],
       "name": "Set Mesh Camera",
       "pythonName": "set_camera_per_mesh",
       "shortDescription": "Set the camera parameters for the current mesh.",
@@ -58,7 +58,7 @@
     },
     {
       "id": "set_camera_per_raster",
-      "menuPath": "Camera",
+      "categories": ["Document/Camera"],
       "name": "Set Raster Camera",
       "pythonName": "set_camera_per_raster",
       "shortDescription": "Set the camera parameters for the current raster.",
@@ -112,7 +112,7 @@
     },
     {
       "id": "compute_scalar_from_camera_per_vertex",
-      "menuPath": "Camera",
+      "categories": ["Attribute/Scalar"],
       "name": "Vertex Quality from Camera",
       "pythonName": "compute_scalar_from_camera_per_vertex",
       "shortDescription": "Compute vertex quality using the camera definition, according to viewing angle or distance.",
@@ -168,7 +168,7 @@
     },
     {
       "id": "apply_cameras_rotation",
-      "menuPath": "Camera",
+      "categories": ["Document/Camera"],
       "name": "Transform: Rotate Camera or set of cameras",
       "pythonName": "apply_cameras_rotation",
       "shortDescription": "Rotate the camera, or all the cameras of the project.",
@@ -266,7 +266,7 @@
     },
     {
       "id": "apply_cameras_scaling",
-      "menuPath": "Camera",
+      "categories": ["Document/Camera"],
       "name": "Transform: Scale Camera or set of cameras",
       "pythonName": "apply_cameras_scaling",
       "shortDescription": "Scale the camera, or all the cameras of the project.",
@@ -341,7 +341,7 @@
     },
     {
       "id": "apply_cameras_translation",
-      "menuPath": "Camera",
+      "categories": ["Document/Camera"],
       "name": "Transform: Translate Camera or set of cameras",
       "pythonName": "apply_cameras_translation",
       "shortDescription": "Translate the camera, or all the cameras of the project.",
@@ -424,7 +424,7 @@
     },
     {
       "id": "apply_cameras_extrinsics_transformation",
-      "menuPath": "Camera",
+      "categories": ["Document/Camera"],
       "name": "Transform camera extrinsics",
       "pythonName": "apply_cameras_extrinsics_transformation",
       "shortDescription": "Apply a similarity transformation to the camera extrinsics.",
@@ -507,7 +507,7 @@
     },
     {
       "id": "compute_normal_from_cameras_per_vertex",
-      "menuPath": "Camera",
+      "categories": ["Attribute/Normal"],
       "name": "Re-Orient vertex normals using cameras",
       "pythonName": "compute_normal_from_cameras_per_vertex",
       "shortDescription": "Reorient vertex normals to point toward the cameras that see them best.",
@@ -522,7 +522,7 @@
     },
     {
       "id": "set_camera_to_view_selection",
-      "menuPath": "Camera",
+      "categories": ["Document/Camera"],
       "name": "Generate Camera to View Selection",
       "pythonName": "set_camera_to_view_selection",
       "shortDescription": "Position the camera to frame the current selection, looking along the average selected normal direction.",
@@ -565,7 +565,7 @@
     },
     {
       "id": "set_camera_from_direction",
-      "menuPath": "Camera",
+      "categories": ["Document/Camera"],
       "name": "Generate Camera from Direction",
       "pythonName": "set_camera_from_direction",
       "shortDescription": "Position the camera looking toward a target from an explicit direction.",

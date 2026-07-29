@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "meshing_edge_flip_by_planar_optimization",
-      "menuPath": "Remeshing",
+      "categories": ["Meshing/Remeshing"],
       "name": "Planar flipping optimization",
       "pythonName": "meshing_edge_flip_by_planar_optimization",
       "shortDescription": "Optimize local triangle quality by flipping nearly coplanar edges.",
@@ -101,7 +101,7 @@
     },
     {
       "id": "meshing_edge_flip_by_curvature_optimization",
-      "menuPath": "Remeshing",
+      "categories": ["Meshing/Remeshing"],
       "name": "Curvature flipping optimization",
       "pythonName": "meshing_edge_flip_by_curvature_optimization",
       "shortDescription": "Optimize local triangulation by reducing discrete curvature.",
@@ -180,7 +180,7 @@
     },
     {
       "id": "apply_coord_laplacian_smoothing_surface_preserving",
-      "menuPath": "Smoothing",
+      "categories": ["Geometry/Smoothing"],
       "name": "Laplacian Smooth (surface preserving)",
       "pythonName": "apply_coord_laplacian_smoothing_surface_preserving",
       "shortDescription": "Laplacian smooth while limiting normal deviation from the original surface.",

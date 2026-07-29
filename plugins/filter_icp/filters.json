@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "compute_matrix_by_icp_between_meshes",
-      "menuPath": "Remeshing",
+      "categories": ["Geometry/Alignment"],
       "name": "ICP Between Meshes",
       "pythonName": "compute_matrix_by_icp_between_meshes",
       "shortDescription": "Compute an ICP transform that aligns one mesh layer to another.",
@@ -154,7 +154,7 @@
     },
     {
       "id": "compute_matrix_by_mesh_global_alignment",
-      "menuPath": "Remeshing",
+      "categories": ["Geometry/Alignment"],
       "name": "Global Align Meshes",
       "pythonName": "compute_matrix_by_mesh_global_alignment",
       "shortDescription": "Globally align overlapping mesh layers using pairwise ICP arcs.",
@@ -327,7 +327,7 @@
     },
     {
       "id": "get_overlapping_meshes_graph",
-      "menuPath": "Measure",
+      "categories": ["Measurement/Geometric"],
       "name": "Overlapping Meshes",
       "pythonName": "get_overlapping_meshes_graph",
       "shortDescription": "Report which mesh layers overlap in an occupancy grid.",

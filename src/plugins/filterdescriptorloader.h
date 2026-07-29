@@ -18,7 +18,9 @@ class Document;
 // Each filter entry:
 //   {
 //     "id": "...",
-//     "menuPath": "...",
+//     "categories": [ "Root/Subcategory", ... ],   // ordered, first is primary;
+//                                                  // validated against FilterCategories
+//                                                  // (legacy "menuPath": "..." still read)
 //     "name": "...",
 //     "shortDescription": "...",
 //     "longDescriptionMarkdown": "...",
@@ -90,6 +92,12 @@ public:
     static std::vector<MeshFilterDescriptor> load(
         const QString &resourcePath,
         QString &errorMessage);
+
+    // Warns (once per descriptor file) about categories that are not in the
+    // ontology. See src/plugins/filtercategories.h.
+    static void validateCategories(
+        const std::vector<MeshFilterDescriptor> &descriptors,
+        const QString &resourcePath);
 
     // Resolve all "@token" symbolic values in descriptor bounds/defaults
     // against the current document state. Called from filters() implementations.

@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "generate_sampling_voronoi",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Sampling"],
       "name": "Voronoi Sampling",
       "pythonName": "generate_sampling_voronoi",
       "shortDescription": "Sample a surface and relax the samples with a geodesic Voronoi/Lloyd process.",
@@ -197,7 +197,7 @@
     },
     {
       "id": "generate_sampling_volumetric",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Sampling"],
       "name": "Volumetric Sampling",
       "pythonName": "generate_sampling_volumetric",
       "shortDescription": "Generate diagnostic Monte Carlo and surface samples inside a watertight mesh.",
@@ -265,7 +265,7 @@
     },
     {
       "id": "generate_voronoi_scaffolding",
-      "menuPath": "Sampling",
+      "categories": ["Creation/Primitives"],
       "name": "Voronoi Scaffolding",
       "pythonName": "generate_voronoi_scaffolding",
       "shortDescription": "Build a scaffold mesh from a volumetric Voronoi sampling of a watertight mesh.",
@@ -385,7 +385,7 @@
     },
     {
       "id": "generate_solid_wireframe",
-      "menuPath": "Remeshing",
+      "categories": ["Creation/Primitives"],
       "name": "Create Solid Wireframe",
       "pythonName": "generate_solid_wireframe",
       "shortDescription": "Convert the current mesh into a solid shell made of cylinders, spheres, and face prisms.",

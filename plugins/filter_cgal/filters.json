@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "generate_alpha_wrap",
-      "menuPath": "Remeshing",
+      "categories": ["Creation/Reconstruction"],
       "name": "Alpha Wrap",
       "pythonName": "generate_alpha_wrap",
       "shortDescription": "Generate a watertight alpha wrapping of the current triangular mesh using CGAL.",

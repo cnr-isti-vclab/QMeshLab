@@ -5,6 +5,7 @@
 #include <QTextStream>
 
 #include "document.h"
+#include "filtercategories.h"
 
 // Tests every filter that, according to its manifest descriptor, takes no mesh
 // as input (inputDomain == None) and produces new meshes (outputDomain ==
@@ -155,10 +156,68 @@ private:
     QVector<FilterTestResult> m_results;
 
 private slots:
+    void ontologyIsWellFormed();
+    void everyFilterIsClassified();
     void runWithDefaults_data();
     void runWithDefaults();
     void cleanupTestCase();
 };
+
+// The ontology API itself: see docs/design/vocabulary.md §1.
+void FilterCreationTests::ontologyIsWellFormed()
+{
+    const QStringList roots = FilterCategories::roots();
+    QVERIFY2(!roots.isEmpty(), "ontology must declare roots");
+
+    for (const QString &root : roots) {
+        QVERIFY2(FilterCategories::isValid(root), qPrintable(root));
+        for (const QString &sub : FilterCategories::subcategories(root))
+            QVERIFY2(FilterCategories::isValid(root + QLatin1Char('/') + sub),
+                     qPrintable(root + QLatin1Char('/') + sub));
+    }
+
+    // Rejections: unknown root, unknown subcategory, a third level (the ontology is
+    // two levels by construction), and empty.
+    QVERIFY(!FilterCategories::isValid(QStringLiteral("Nonexistent")));
+    QVERIFY(!FilterCategories::isValid(QStringLiteral("Meshing/Nonexistent")));
+    QVERIFY(!FilterCategories::isValid(QStringLiteral("Meshing/Simplification/Extra")));
+    QVERIFY(!FilterCategories::isValid(QString()));
+
+    // Surrounding whitespace is tolerated; spelling is not negotiable.
+    QVERIFY(FilterCategories::isValid(QStringLiteral(" Meshing / Simplification ")));
+    QVERIFY(!FilterCategories::isValid(QStringLiteral("meshing/simplification")));
+}
+
+// Guards the classification against drift: this is what stops a new filter
+// inventing a category, which is how the previous 32 free-text menuPath values
+// accumulated. See docs/design/filter_classification.md.
+void FilterCreationTests::everyFilterIsClassified()
+{
+    Document doc;
+    const std::vector<Document::FilterInfo> infos = doc.filterInfos();
+    QVERIFY2(!infos.empty(), "Filter registry must be non-empty");
+
+    QStringList problems;
+    for (const auto &info : infos) {
+        const MeshFilterDescriptor &d = info.descriptor;
+        if (d.categories.isEmpty()) {
+            problems << QStringLiteral("%1: no categories").arg(d.id);
+            continue;
+        }
+        QStringList seen;
+        for (const QString &c : d.categories) {
+            if (!FilterCategories::isValid(c))
+                problems << QStringLiteral("%1: '%2' is not in the ontology").arg(d.id, c);
+            if (seen.contains(c))
+                problems << QStringLiteral("%1: '%2' listed twice").arg(d.id, c);
+            seen << c;
+        }
+    }
+    if (!problems.isEmpty())
+        QFAIL(qPrintable(QStringLiteral("%1 classification problem(s):\n  %2")
+                             .arg(problems.size())
+                             .arg(problems.join(QStringLiteral("\n  ")))));
+}
 
 // Populate one row per eligible filter.  The row tag (= filter id) is used by
 // Qt Test as the sub-test name in output and in --testcase selectors.

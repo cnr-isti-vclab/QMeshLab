@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "generate_voronoi_atlas_parametrization",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/UV Creation"],
       "name": "Parametrization: Voronoi Atlas",
       "pythonName": "parametrize_voronoi_atlas",
       "shortDescription": "Build an atlased parametrization using a geodesic Voronoi partition of the surface.",
@@ -43,7 +43,7 @@
     },
     {
       "id": "compute_texcoord_transfer_wedge_to_vertex",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/UV Conversion"],
       "name": "Convert PerWedge UV into PerVertex UV",
       "pythonName": "convert_wedge_uv_to_vertex_uv",
       "shortDescription": "Convert per-wedge texture coordinates into per-vertex texture coordinates, splitting vertices when needed.",
@@ -73,7 +73,7 @@
     },
     {
       "id": "compute_texcoord_transfer_vertex_to_wedge",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/UV Conversion"],
       "name": "Convert PerVertex UV into PerWedge UV",
       "pythonName": "convert_vertex_uv_to_wedge_uv",
       "shortDescription": "Convert per-vertex texture coordinates into per-wedge texture coordinates.",
@@ -100,7 +100,7 @@
     },
     {
       "id": "compute_texcoord_parametrization_flat_plane_per_wedge",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/UV Creation"],
       "name": "Parametrization: Flat Plane",
       "pythonName": "parametrize_flat_plane",
       "shortDescription": "Generate a trivial flat-plane parametrization.",
@@ -168,7 +168,7 @@
     },
     {
       "id": "compute_texcoord_parametrization_triangle_trivial_per_wedge",
-      "menuPath": "Texture",
+      "categories": ["Parametrization/UV Creation"],
       "name": "Parametrization: Trivial Per-Triangle",
       "pythonName": "parametrize_trivial_per_triangle",
       "shortDescription": "Generate a triangle-by-triangle parametrization using either equal-size or space-optimizing layout.",
@@ -243,7 +243,7 @@
     },
     {
       "id": "set_texture_per_mesh",
-      "menuPath": "Texture",
+      "categories": ["Texture/Assignment"],
       "name": "Set Texture",
       "pythonName": "set_texture",
       "shortDescription": "Associate an existing image file with the current mesh texture coordinates.",
@@ -326,7 +326,7 @@
     },
     {
       "id": "compute_texmap_from_color",
-      "menuPath": "Texture",
+      "categories": ["Transfer/Attribute to Texture", "Texture"],
       "name": "Transfer: Vertex Color to Texture",
       "pythonName": "transfer_vertex_color_to_texture",
       "shortDescription": "Bake per-vertex color into texture image(s) using the current UV parametrization.",
@@ -405,7 +405,7 @@
     },
     {
       "id": "transfer_texture_to_color_per_vertex",
-      "menuPath": "Texture",
+      "categories": ["Transfer/Attribute to Texture", "Attribute/Color"],
       "name": "Transfer: Texture to Vertex Color",
       "pythonName": "transfer_texture_to_vertex_color",
       "shortDescription": "Generate vertex colors by sampling texture colors from the same mesh or another mesh.",
@@ -471,7 +471,7 @@
     },
     {
       "id": "transfer_attributes_to_texture_per_vertex",
-      "menuPath": "Texture",
+      "categories": ["Transfer/Attribute to Texture", "Texture"],
       "name": "Transfer: Vertex Attributes to Texture",
       "pythonName": "transfer_vertex_attributes_to_texture",
       "shortDescription": "Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.",
@@ -614,7 +614,7 @@
     },
     {
       "id": "convert_object_space_normal_map_to_tangent_space",
-      "menuPath": "Texture",
+      "categories": ["Texture/Conversion"],
       "name": "Convert: Object-Space Normal Map to Tangent-Space",
       "pythonName": "convert_normal_map_to_tangent_space",
       "shortDescription": "Convert an object-space normal map into a tangent-space normal map for the current mesh UV slot.",
@@ -719,7 +719,7 @@
     },
     {
       "id": "pack_textures",
-      "menuPath": "Texture",
+      "categories": ["Texture/Packing", "Parametrization/Atlas Packing"],
       "name": "Pack Texture Images",
       "pythonName": "pack_texture_per_mesh",
       "shortDescription": "Combines complete texture images into fewer atlas images and remaps the mesh UVs.",

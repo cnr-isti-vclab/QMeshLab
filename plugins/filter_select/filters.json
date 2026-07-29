@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "select_all",
-      "menuPath": "Selection",
+      "categories": ["Selection/Set Operations"],
       "name": "Select All",
       "pythonName": "select_all",
       "shortDescription": "Select all the faces/vertices of the current mesh.",
@@ -38,7 +38,7 @@
     },
     {
       "id": "select_none",
-      "menuPath": "Selection",
+      "categories": ["Selection/Set Operations"],
       "name": "Select None",
       "pythonName": "select_none",
       "shortDescription": "Clear the current set of selected faces/vertices.",
@@ -73,7 +73,7 @@
     },
     {
       "id": "select_by_view_angle",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Attribute"],
       "name": "Select Faces by View Angle",
       "pythonName": "select_faces_by_view_angle",
       "shortDescription": "Select faces according to angle with view direction.",
@@ -132,7 +132,7 @@
     },
     {
       "id": "select_problematic_faces",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Topology"],
       "name": "Select 'Problematic' Faces",
       "pythonName": "select_problematic_faces",
       "shortDescription": "Select problematic faces: elongated, flipped, or folded.",
@@ -213,7 +213,7 @@
     },
     {
       "id": "select_invert",
-      "menuPath": "Selection",
+      "categories": ["Selection/Set Operations"],
       "name": "Invert Selection",
       "pythonName": "invert_selection",
       "shortDescription": "Invert the current set of selected faces/vertices.",
@@ -248,7 +248,7 @@
     },
     {
       "id": "select_connected_faces",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Topology"],
       "name": "Select Connected Faces",
       "pythonName": "select_connected_faces",
       "shortDescription": "Expand selected faces to their connected components.",
@@ -273,7 +273,7 @@
     },
     {
       "id": "select_faces_from_vertices",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Topology"],
       "name": "Select Faces from Vertices",
       "pythonName": "select_faces_from_vertices",
       "shortDescription": "Transfer selection from selected vertices to faces.",
@@ -305,7 +305,7 @@
     },
     {
       "id": "select_vertices_from_faces",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Topology"],
       "name": "Select Vertices from Faces",
       "pythonName": "select_vertices_from_faces",
       "shortDescription": "Transfer selection from selected faces to vertices.",
@@ -337,7 +337,7 @@
     },
     {
       "id": "delete_selected_vertices",
-      "menuPath": "Selection",
+      "categories": ["Meshing/Deletion"],
       "name": "Delete Selected Vertices",
       "pythonName": "delete_selected_vertices",
       "shortDescription": "Delete selected vertices; incident faces are deleted too.",
@@ -360,7 +360,7 @@
     },
     {
       "id": "delete_all_faces",
-      "menuPath": "Selection",
+      "categories": ["Meshing/Deletion"],
       "name": "Delete ALL Faces",
       "pythonName": "delete_all_faces",
       "shortDescription": "Delete all faces, turning mesh into point cloud.",
@@ -379,7 +379,7 @@
     },
     {
       "id": "delete_selected_faces",
-      "menuPath": "Selection",
+      "categories": ["Meshing/Deletion"],
       "name": "Delete Selected Faces",
       "pythonName": "delete_selected_faces",
       "shortDescription": "Delete selected faces; unreferenced vertices are not deleted.",
@@ -401,7 +401,7 @@
     },
     {
       "id": "delete_selected_faces_and_vertices",
-      "menuPath": "Selection",
+      "categories": ["Meshing/Deletion"],
       "name": "Delete Selected Faces and Vertices",
       "pythonName": "delete_selected_faces_and_vertices",
       "shortDescription": "Delete selected faces and enclosed selected vertices.",
@@ -426,7 +426,7 @@
     },
     {
       "id": "select_erode",
-      "menuPath": "Selection",
+      "categories": ["Selection/Set Operations"],
       "name": "Erode Selection",
       "pythonName": "erode_selection",
       "shortDescription": "Erode (reduce) current selected faces.",
@@ -449,7 +449,7 @@
     },
     {
       "id": "select_dilate",
-      "menuPath": "Selection",
+      "categories": ["Selection/Set Operations"],
       "name": "Dilate Selection",
       "pythonName": "dilate_selection",
       "shortDescription": "Dilate (expand) current selected faces.",
@@ -472,7 +472,7 @@
     },
     {
       "id": "select_border",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Topology"],
       "name": "Select Border",
       "pythonName": "select_border",
       "shortDescription": "Select vertices and faces on mesh boundary.",
@@ -495,7 +495,7 @@
     },
     {
       "id": "select_by_face_quality",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Attribute"],
       "name": "Select by Face Quality",
       "pythonName": "select_by_face_quality",
       "shortDescription": "Select elements using per-face quality range.",
@@ -550,7 +550,7 @@
     },
     {
       "id": "select_by_vertex_quality",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Attribute"],
       "name": "Select by Vertex Quality",
       "pythonName": "select_by_vertex_quality",
       "shortDescription": "Select elements using per-vertex quality range.",
@@ -605,7 +605,7 @@
     },
     {
       "id": "select_by_color",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Attribute"],
       "name": "Select Faces by Color",
       "pythonName": "select_faces_by_color",
       "shortDescription": "Select part of the mesh based on vertex color.",
@@ -698,7 +698,7 @@
     },
     {
       "id": "select_self_intersecting_faces",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Topology"],
       "name": "Select Self Intersecting Faces",
       "pythonName": "select_self_intersecting_faces",
       "shortDescription": "Select only self intersecting faces.",
@@ -724,7 +724,7 @@
     },
     {
       "id": "select_vertex_texture_seams",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Topology", "Parametrization"],
       "name": "Select Vertex Texture Seams",
       "pythonName": "select_vertex_texture_seams",
       "shortDescription": "Select vertices on texture seams.",
@@ -748,7 +748,7 @@
     },
     {
       "id": "select_non_manifold_edges",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Topology"],
       "name": "Select non Manifold Edges",
       "pythonName": "select_non_manifold_edges",
       "shortDescription": "Select faces and vertices incident on non manifold edges.",
@@ -774,7 +774,7 @@
     },
     {
       "id": "select_non_manifold_vertices",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Topology"],
       "name": "Select non Manifold Vertices",
       "pythonName": "select_non_manifold_vertices",
       "shortDescription": "Select non manifold vertices.",
@@ -800,7 +800,7 @@
     },
     {
       "id": "select_faces_by_edge_length",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Attribute"],
       "name": "Select Faces with Edges Longer Than...",
       "pythonName": "select_faces_with_edges_longer_than",
       "shortDescription": "Select all triangles having an edge longer than threshold.",
@@ -835,7 +835,7 @@
     },
     {
       "id": "select_outliers",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Attribute"],
       "name": "Select Outliers",
       "pythonName": "select_outliers",
       "shortDescription": "Select outlier vertices using LoOP.",
@@ -880,7 +880,7 @@
     },
     {
       "id": "select_by_rectangle",
-      "menuPath": "Selection",
+      "categories": ["Selection/by Visibility"],
       "name": "Select by Rectangle (Screen)",
       "pythonName": "select_by_rectangle",
       "shortDescription": "Select vertices or faces whose screen projection falls inside a rectangle.",
