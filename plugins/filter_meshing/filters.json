@@ -60,7 +60,7 @@
     {
       "id": "meshing_surface_subdivision_loop",
       "categories": ["Meshing/Subdivision"],
-      "name": "Subdivision Surfaces: Loop",
+      "name": "Subdivide by Loop",
       "pythonName": "subdivision_loop",
       "shortDescription": "Apply Loop subdivision.",
       "longDescriptionMarkdown": "Apply Loop's Subdivision Surface algorithm. It is an approximant refinement method and it works for every triangle and has rules for extraordinary vertices.<br>",
@@ -137,7 +137,7 @@
     {
       "id": "meshing_surface_subdivision_butterfly",
       "categories": ["Meshing/Subdivision"],
-      "name": "Subdivision Surfaces: Butterfly Subdivision",
+      "name": "Subdivide by Butterfly",
       "pythonName": "subdivision_butterfly",
       "shortDescription": "Apply Butterfly subdivision.",
       "longDescriptionMarkdown": "Apply Butterfly Subdivision Surface algorithm. It is an interpolated refinement method, defined on arbitrary triangular meshes. The scheme is known to be C1 but not C2 on regular meshes<br>",
@@ -192,7 +192,7 @@
     {
       "id": "meshing_surface_subdivision_midpoint",
       "categories": ["Meshing/Subdivision"],
-      "name": "Subdivision Surfaces: Midpoint",
+      "name": "Subdivide by Midpoint",
       "pythonName": "subdivision_midpoint",
       "shortDescription": "Apply midpoint subdivision.",
       "longDescriptionMarkdown": "Apply a plain subdivision scheme where every edge is split on its midpoint. Useful to uniformly refine a mesh substituting each triangle with four smaller triangles.",
@@ -247,7 +247,7 @@
     {
       "id": "meshing_surface_subdivision_ls3_loop",
       "categories": ["Meshing/Subdivision"],
-      "name": "Subdivision Surfaces: LS3 Loop",
+      "name": "Subdivide by LS3 Loop",
       "pythonName": "subdivision_ls3_loop",
       "shortDescription": "Apply LS3 Loop subdivision.",
       "longDescriptionMarkdown": "Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement method take normals into account. <br>See:<i>Boye', S. Guennebaud, G. & Schlick, C.</i> <br><b>Least squares subdivision surfaces</b><br>Computer Graphics Forum, 2010.<br/><br/>Alternatives weighting schemes are based on the paper: <i>Barthe, L. & Kobbelt, L.</i><br><b>Subdivision scheme tuning around extraordinary vertices</b><br>Computer Aided Geometric Design, 2004, 21, 561-583.<br/>The current implementation of these schemes don't handle vertices of valence > 12",
@@ -324,7 +324,7 @@
     {
       "id": "meshing_decimation_clustering",
       "categories": ["Meshing/Simplification"],
-      "name": "Simplification: Clustering Decimation",
+      "name": "Simplify by Vertex Clustering",
       "pythonName": "simplification_clustering",
       "shortDescription": "Simplify mesh by clustering vertices on a grid.",
       "longDescriptionMarkdown": "Simplify the mesh by clustering vertices; by using a uniform grid over the mesh, the algorithm merges all the vertices in a grid cell into a single vertex. By design this approach removes all small triangles, but also create a number of non-manifold situation.<br> See: <br><br><i>Jarek Rossignac, and Paul Borrel</i>. <br><b>Multi-resolution 3D approximations for rendering complex scenes.</b><br>Modeling in computer graphics: methods and applications. Springer, 1993",
@@ -353,7 +353,7 @@
     {
       "id": "meshing_decimation_quadric_edge_collapse",
       "categories": ["Meshing/Simplification"],
-      "name": "Simplification: Quadric Edge Collapse Decimation",
+      "name": "Simplify by Quadric Edge Collapse",
       "pythonName": "simplification_quadric_edge_collapse",
       "referenceIds": [
         "garland1997qem"
@@ -501,7 +501,7 @@
     {
       "id": "meshing_decimation_quadric_edge_collapse_with_texture",
       "categories": ["Meshing/Simplification", "Texture"],
-      "name": "Simplification: Quadric Edge Collapse Decimation (with texture)",
+      "name": "Simplify by Quadric Edge Collapse with Texture",
       "pythonName": "simplification_quadric_edge_collapse_with_texture",
       "referenceIds": [
         "garland1998texture"
@@ -628,7 +628,7 @@
     {
       "id": "meshing_isotropic_explicit_remeshing",
       "categories": ["Meshing/Remeshing"],
-      "name": "Remeshing: Isotropic Explicit Remeshing",
+      "name": "Remesh Isotropically",
       "pythonName": "remeshing_isotropic",
       "shortDescription": "Explicit isotropic remeshing by local operations.",
       "longDescriptionMarkdown": "Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:<br>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.<br>Mesh optimization<br>(SIGGRAPH '93). ACM, New York, NY, USA, 19\u201326. <a href='https://doi.org/10.1145/166117.166119'>DOI</a>",
@@ -2128,7 +2128,7 @@
     {
       "id": "meshing_surface_subdivision_catmull_clark",
       "categories": ["Meshing/Subdivision"],
-      "name": "Subdivision Surfaces: Catmull-Clark",
+      "name": "Subdivide by Catmull-Clark",
       "pythonName": "subdivision_catmull_clark",
       "shortDescription": "Apply Catmull-Clark subdivision.",
       "longDescriptionMarkdown": "Apply a number of iteration of the classical Catmull-Clark Subdivision Surfaces. If the mesh is triangle based (no <a href='https://stackoverflow.com/questions/59392193'>faux edges</a>) it generates a quad mesh, otherwise it honores it the faux-edge bits",
@@ -2164,8 +2164,8 @@
     },
     {
       "id": "meshing_tri_to_quad_by_4_8_subdivision",
-      "categories": ["Meshing/Remeshing"],
-      "name": "Tri to Quad by 4-8 Subdivision",
+      "categories": ["Meshing/Quad"],
+      "name": "Convert to Quads by 4-8 Subdivision",
       "pythonName": "tri_to_quad_4_8_subdivision",
       "shortDescription": "Convert tri mesh into quad mesh by 4-8 subdivision.",
       "longDescriptionMarkdown": "Convert a tri mesh into a quad mesh by applying a 4-8 subdivision scheme.It introduces less overhead than the plain Catmull-Clark Subdivision Surfaces, and applying two step of this procedure generates the same connectivity of the Catmull-Clark subdivision approach.(it adds only a single vertex for each triangle instead of four).<br> See: <br><b>4-8 Subdivision</b><br> <i>Luiz Velho, Denis Zorin </i><br>CAGD, volume 18, Issue 5, Pages 397-427.",
@@ -2191,7 +2191,7 @@
     {
       "id": "meshing_surface_subdivision_doo_sabin",
       "categories": ["Meshing/Subdivision"],
-      "name": "Subdivision Surfaces: Doo Sabin",
+      "name": "Subdivide by Doo-Sabin",
       "pythonName": "subdivision_doo_sabin",
       "shortDescription": "Apply Doo-Sabin subdivision.",
       "longDescriptionMarkdown": "Apply the DooSabin Subdivision Surfaces. It is a Dual approximating refinement scheme that creates a new face for each vertex, edge and face. On a pure quad mesh it will add non quad face for each extraordinarhy vertex in the mesh (e.g. in a cube it will add a triangular face for each corner. On the other hand after a refinement step all the vertices will have degree 4.",
@@ -2227,8 +2227,8 @@
     },
     {
       "id": "meshing_tri_to_quad_dominant",
-      "categories": ["Meshing/Remeshing"],
-      "name": "Turn into Quad-Dominant mesh",
+      "categories": ["Meshing/Quad"],
+      "name": "Convert to Quad-Dominant Mesh",
       "pythonName": "convert_to_quad_dominant",
       "shortDescription": "Convert tri mesh to quad-dominant mesh.",
       "longDescriptionMarkdown": "Convert a tri-mesh into a quad-dominant mesh by pairing suitable triangles.",
@@ -2273,8 +2273,8 @@
     },
     {
       "id": "meshing_poly_to_tri",
-      "categories": ["Meshing/Remeshing"],
-      "name": "Turn into a Pure-Triangular mesh",
+      "categories": ["Meshing/Quad"],
+      "name": "Convert to Pure Triangles",
       "pythonName": "convert_to_triangular",
       "shortDescription": "Split any polygonal face into triangles.",
       "longDescriptionMarkdown": "Convert into a tri-mesh by splitting any polygonal face.",
@@ -2294,8 +2294,8 @@
     },
     {
       "id": "meshing_tri_to_quad_by_smart_triangle_pairing",
-      "categories": ["Meshing/Remeshing"],
-      "name": "Tri to Quad by smart triangle pairing",
+      "categories": ["Meshing/Quad"],
+      "name": "Convert to Quads by Triangle Pairing",
       "pythonName": "tri_to_quad_by_pairing",
       "shortDescription": "Pair triangles into quads.",
       "longDescriptionMarkdown": "Convert a tri-mesh into a quad mesh by pairing triangles.",

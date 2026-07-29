@@ -969,7 +969,7 @@
     {
       "id": "refine_user_defined",
       "categories": ["Meshing/Subdivision"],
-      "name": "Refine User-Defined",
+      "name": "Refine by User Expression",
       "pythonName": "refine_user_defined",
       "shortDescription": "Refines edges selected by an expression and places split points by expressions.",
       "longDescriptionMarkdown": "Refine current mesh with user defined parameters.<br>Specify a Boolean Function needed to select which edges will be cut for refinement purpose.<br>Each edge is identified with first and second vertex.<br>Arguments accepted are first and second vertex attributes:<br>",

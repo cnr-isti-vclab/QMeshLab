@@ -81,13 +81,16 @@ Two levels was chosen for growth. Eleven roots over today's 272 filters is ~25 e
 flat list becomes unbrowsable as the archive grows toward several hundred more
 implementations, whereas the second level absorbs that.
 
+The authoritative copy is `src/plugins/filtercategories.h`/`.cpp`, which the loader
+validates against; this table mirrors it and must be updated together with it.
+
 | Root | Subcategories | Scope |
 |---|---|---|
-| `Meshing` | `Remeshing` · `Simplification` · `Subdivision` · `Boolean` | Changes tessellation or connectivity for its own sake |
+| `Meshing` | `Remeshing` · `Simplification` · `Subdivision` · `Quad` · `Boolean` · `Deletion` | Changes tessellation or connectivity for its own sake |
 | `Repair` | `Duplicates` · `Topology` · `Degenerate` · `Holes and Borders` | Fixes defects: makes an invalid or damaged mesh valid |
-| `Geometry` | `Transform` · `Smoothing` · `Alignment` | Changes vertex positions or the layer matrix, connectivity untouched |
-| `Attribute` | `Normal` · `Scalar` · `Curvature` · `Color` | Computes and stores per-element attribute data |
-| `Selection` | `by Attribute` · `by Topology` · `by Visibility` | Changes selection state only |
+| `Geometry` | `Transform` · `Smoothing` · `Alignment` · `Deformation` | Changes vertex positions or the layer matrix, connectivity untouched |
+| `Attribute` | `Normal` · `Scalar` · `Curvature` · `Color` · `Custom` | Computes and stores per-element attribute data |
+| `Selection` | `by Attribute` · `by Topology` · `by Visibility` · `Set Operations` | Changes selection state only |
 | `Creation` | `Primitives` · `Reconstruction` · `Sampling` | Produces a new layer |
 | `Parametrization` | `UV Creation` · `UV Conversion` · `Atlas Packing` · `Defragmentation` | Creates or edits texture coordinates and atlas layout |
 | `Texture` | `Assignment` · `Conversion` · `Packing` | Creates or edits texture images |
@@ -109,6 +112,16 @@ for, not a variety of meshing. Its subcategories, from the existing filters:
 `Boolean` stays under `Meshing` — a boolean rebuilds topology to produce a new valid
 mesh, which is meshing work, not a document-structure operation (it was previously
 mis-filed under `Layer/Boolean`).
+
+`Meshing/Quad` holds the triangle↔quad conversions — *Convert to Quads by 4-8
+Subdivision*, *by Triangle Pairing*, *to Quad-Dominant Mesh*, *to Pure Triangles*. They
+were initially filed under `Remeshing`, but converting between triangle and quad
+representation is a distinct concern from improving element shape, and the set is
+expected to grow.
+
+`Meshing/Deletion` holds the filters that remove selected geometry. They are not
+`Selection` (they change the mesh, not the selection) and not `Repair` (nothing was
+broken).
 
 ### How category names are formed
 
@@ -364,6 +377,8 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Simplify` | Reduce element count | `Decimate`, `Reduce` |
 | `Subdivide` | Increase element count by splitting | `Refine`\* |
 | `Remesh` | Rebuild tessellation | `Retriangulate`, `Resample` (for surfaces) |
+| `Flip` | Reconnect by flipping edges; connectivity changes, vertices do not move | *(`Remesh` is too coarse for it)* |
+| `Cut` | Split a surface along a curve, introducing a boundary | **`Split`** (claimed by layer operations) |
 | `Smooth` | Reduce noise in positions/normals | `Denoise`, `Fair`, `Blur`, `Relax` |
 | `Parametrize` | Create or edit UVs | `Unwrap`, `Parameterize`, `Flatten` |
 | `Pack` | Arrange UV charts in an atlas | `Layout`, `Bin` |
@@ -450,6 +465,13 @@ Verb Object [(Backend)]
 - Add the backend in parentheses **only** when competing implementations coexist,
   which the algorithm-archive model makes routine (decision 4): *Simplify Quadric
   Edge Collapse (QSlim)*.
+
+**Exception — a well-known named result may be a noun phrase.** Where a filter's output
+*is* a conventionally named object, naming the result reads better than naming the
+action: the boolean filters are **`Mesh Union`**, `Mesh Intersection`,
+`Mesh Difference`, `Mesh Symmetric Difference` rather than *Unite Meshes* etc. Use this
+sparingly — it applies when the noun is the established term of art, not merely when a
+noun is available. Recorded so the names are not "corrected" back to verb-first later.
 
 Python name:
 

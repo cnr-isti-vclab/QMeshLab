@@ -759,7 +759,7 @@
     {
       "id": "generate_resampled_uniform_mesh",
       "categories": ["Meshing/Remeshing"],
-      "name": "Uniform Mesh Resampling",
+      "name": "Remesh Uniformly by Volumetric Resampling",
       "pythonName": "resample_uniform",
       "shortDescription": "Build an offset mesh from a signed distance field sampled on a regular grid.",
       "longDescriptionMarkdown": "Create a new mesh that is a resampled version of the current one.<br>The resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.",
@@ -1000,7 +1000,7 @@
     {
       "id": "generate_simplified_point_cloud",
       "categories": ["Meshing/Simplification"],
-      "name": "Point Cloud Simplification",
+      "name": "Simplify Point Cloud",
       "pythonName": "simplify_point_cloud",
       "shortDescription": "Simplify a point cloud with Poisson-disk pruning.",
       "longDescriptionMarkdown": "Create a new layer populated with a simplified version of the current point cloud. The simplification is performed by subsampling the original point cloud using a Poisson Disk strategy  using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012",

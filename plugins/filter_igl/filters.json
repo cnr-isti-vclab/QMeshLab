@@ -6,7 +6,7 @@
       "categories": [
         "Meshing/Boolean"
       ],
-      "name": "Mesh Boolean: Intersection",
+      "name": "Mesh Intersection",
       "pythonName": "generate_boolean_intersection",
       "shortDescription": "Create the exact intersection of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean intersection between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
@@ -93,7 +93,7 @@
       "categories": [
         "Meshing/Boolean"
       ],
-      "name": "Mesh Boolean: Union",
+      "name": "Mesh Union",
       "pythonName": "generate_boolean_union",
       "shortDescription": "Create the exact union of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean union between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
@@ -180,7 +180,7 @@
       "categories": [
         "Meshing/Boolean"
       ],
-      "name": "Mesh Boolean: Difference",
+      "name": "Mesh Difference",
       "pythonName": "generate_boolean_difference",
       "shortDescription": "Create the exact difference of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. The result is `First Mesh - Second Mesh`. Both operands should be watertight and consistently oriented.",
@@ -267,7 +267,7 @@
       "categories": [
         "Meshing/Boolean"
       ],
-      "name": "Mesh Boolean: Symmetric Difference (XOR)",
+      "name": "Mesh Symmetric Difference",
       "pythonName": "generate_boolean_xor",
       "shortDescription": "Create the exact symmetric difference of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean symmetric difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",

@@ -51,5 +51,6 @@ private:
     QCheckBox *m_onlyUnavailable = nullptr;
     QTreeWidget *m_tree = nullptr;
     QTextBrowser *m_detail = nullptr;
+    QTextBrowser *m_description = nullptr;
     QLabel *m_summary = nullptr;
 };

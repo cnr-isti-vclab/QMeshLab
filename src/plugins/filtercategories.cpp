@@ -16,8 +16,8 @@ const std::vector<Root> &ontology()
 {
     static const std::vector<Root> kOntology = {
         { "Meshing",         { QStringLiteral("Remeshing"), QStringLiteral("Simplification"),
-                               QStringLiteral("Subdivision"), QStringLiteral("Boolean"),
-                               QStringLiteral("Deletion") } },
+                               QStringLiteral("Subdivision"), QStringLiteral("Quad"),
+                               QStringLiteral("Boolean"), QStringLiteral("Deletion") } },
         { "Repair",          { QStringLiteral("Duplicates"), QStringLiteral("Topology"),
                                QStringLiteral("Degenerate"), QStringLiteral("Holes and Borders") } },
         { "Geometry",        { QStringLiteral("Transform"), QStringLiteral("Smoothing"),

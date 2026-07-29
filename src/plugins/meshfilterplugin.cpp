@@ -27,6 +27,62 @@ QString authorText(const MeshFilterReferenceAuthor &author)
     return author.given + u' ' + author.family;
 }
 
+
+// One implementation of the bibliography: field order, punctuation and which links
+// to emit. Markdown and HTML differ only in markup, so they pass different styles
+// rather than each assembling the citation themselves — that divergence previously
+// left the filter panel showing a citation missing volume, issue, pages and publisher.
+struct CitationStyle
+{
+    QString (*bold)(const QString &);
+    QString (*italic)(const QString &);
+    QString (*link)(const QString &text, const QString &url);
+    QString (*plain)(const QString &);
+};
+
+QString buildCitation(const MeshFilterReference &r, const CitationStyle &style)
+{
+    QStringList names;
+    for (const MeshFilterReferenceAuthor &author : r.authors)
+        names << style.plain(authorText(author));
+
+    QString out;
+    if (!names.isEmpty())
+        out += names.join(QStringLiteral(", ")) + QStringLiteral(". ");
+    if (!r.title.trimmed().isEmpty())
+        out += style.bold(style.plain(r.title)) + QStringLiteral(". ");
+    if (!r.containerTitle.trimmed().isEmpty())
+        out += style.italic(style.plain(r.containerTitle));
+
+    // volume(issue):pages — journal style.
+    QString locator;
+    if (!r.volume.trimmed().isEmpty()) {
+        locator = style.plain(r.volume);
+        if (!r.issue.trimmed().isEmpty())
+            locator += QStringLiteral("(%1)").arg(style.plain(r.issue));
+    }
+    if (!r.page.trimmed().isEmpty())
+        locator += (locator.isEmpty() ? QString() : QStringLiteral(":")) + style.plain(r.page);
+    if (!locator.isEmpty())
+        out += QStringLiteral(", %1").arg(locator);
+    if (!r.publisher.trimmed().isEmpty())
+        out += QStringLiteral(". %1").arg(style.plain(r.publisher));
+    if (r.year > 0)
+        out += QStringLiteral(" (%1)").arg(r.year);
+    if (!out.trimmed().endsWith(QLatin1Char('.')))
+        out += QLatin1Char('.');
+
+    QStringList links;
+    if (!r.doiUrl().isEmpty())
+        links << style.link(QStringLiteral("doi:%1").arg(style.plain(r.doi)), r.doiUrl());
+    // webUrl() already suppresses a URL that merely repeats the DOI.
+    if (!r.webUrl().isEmpty())
+        links << style.link(QObject::tr("web"), r.webUrl());
+    if (!links.isEmpty())
+        out += QStringLiteral(" %1").arg(links.join(QStringLiteral(" · ")));
+    return out;
+}
+
 } // namespace
 
 QString MeshFilterReference::label() const
@@ -62,23 +118,26 @@ QString MeshFilterReference::webUrl() const
 
 QString MeshFilterReference::markdownCitation() const
 {
-    QStringList names;
-    for (const MeshFilterReferenceAuthor &author : authors)
-        names << authorText(author);
-    QString result = names.join(QStringLiteral(", "));
-    if (!result.isEmpty())
-        result += QStringLiteral(". ");
-    result += QStringLiteral("**%1**").arg(title);
-    if (!containerTitle.isEmpty())
-        result += QStringLiteral(". *%1*").arg(containerTitle);
-    if (year > 0)
-        result += QStringLiteral(" (%1)").arg(year);
-    result += u'.';
-    if (!doi.isEmpty())
-        result += QStringLiteral(" [DOI](%1)").arg(doiUrl());
-    if (!webUrl().isEmpty())
-        result += QStringLiteral(" [Web](%1)").arg(webUrl());
-    return result;
+    static const CitationStyle style {
+        [](const QString &t) { return QStringLiteral("**%1**").arg(t); },
+        [](const QString &t) { return QStringLiteral("*%1*").arg(t); },
+        [](const QString &t, const QString &u) { return QStringLiteral("[%1](%2)").arg(t, u); },
+        [](const QString &t) { return t; },
+    };
+    return buildCitation(*this, style);
+}
+
+QString MeshFilterReference::htmlCitation() const
+{
+    static const CitationStyle style {
+        [](const QString &t) { return QStringLiteral("<b>%1</b>").arg(t); },
+        [](const QString &t) { return QStringLiteral("<i>%1</i>").arg(t); },
+        [](const QString &t, const QString &u) {
+            return QStringLiteral("<a href=\"%1\">%2</a>").arg(u.toHtmlEscaped(), t);
+        },
+        [](const QString &t) { return t.toHtmlEscaped(); },
+    };
+    return buildCitation(*this, style);
 }
 
 QString MeshFilterReference::bibTeX() const

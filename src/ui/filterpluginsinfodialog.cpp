@@ -1,6 +1,8 @@
 #include "filterpluginsinfodialog.h"
 
 #include "filtercategories.h"
+#include "filterpresentation.h"
+#include "mathmarkdownrenderer.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -55,59 +57,6 @@ QString linkHtml(const QString &url, const QString &text)
     if (url.trimmed().isEmpty())
         return {};
     return QStringLiteral("<a href=\"%1\">%2</a>").arg(esc(url), esc(text));
-}
-
-// Full bibliographic citation: every field the descriptor carries, in the order a
-// paper's bibliography would use, with DOI and web links live.
-// MeshFilterReference::markdownCitation() is deliberately not reused here — it is
-// markdown, and it drops volume, issue, pages and publisher.
-QString citationHtml(const MeshFilterReference &r)
-{
-    QStringList names;
-    for (const MeshFilterReferenceAuthor &a : r.authors) {
-        if (a.given.isEmpty())
-            names << a.family;
-        else if (a.family.isEmpty())
-            names << a.given;
-        else
-            names << a.given + QLatin1Char(' ') + a.family;
-    }
-
-    QString out;
-    if (!names.isEmpty())
-        out += esc(names.join(QStringLiteral(", "))) + QStringLiteral(". ");
-    if (!r.title.trimmed().isEmpty())
-        out += QStringLiteral("<b>%1</b>. ").arg(esc(r.title));
-    if (!r.containerTitle.trimmed().isEmpty())
-        out += QStringLiteral("<i>%1</i>").arg(esc(r.containerTitle));
-
-    // Volume(issue), pages — journal style.
-    QString locator;
-    if (!r.volume.trimmed().isEmpty()) {
-        locator = esc(r.volume);
-        if (!r.issue.trimmed().isEmpty())
-            locator += QStringLiteral("(%1)").arg(esc(r.issue));
-    }
-    if (!r.page.trimmed().isEmpty())
-        locator += (locator.isEmpty() ? QString() : QStringLiteral(":")) + esc(r.page);
-    if (!locator.isEmpty())
-        out += QStringLiteral(", %1").arg(locator);
-    if (!r.publisher.trimmed().isEmpty())
-        out += QStringLiteral(". %1").arg(esc(r.publisher));
-    if (r.year > 0)
-        out += QStringLiteral(" (%1)").arg(r.year);
-    if (!out.endsWith(QLatin1Char('.')))
-        out += QLatin1Char('.');
-
-    QStringList links;
-    if (!r.doiUrl().isEmpty())
-        links << linkHtml(r.doiUrl(), QStringLiteral("doi:%1").arg(r.doi));
-    // webUrl() already suppresses a URL that merely repeats the DOI.
-    if (!r.webUrl().isEmpty())
-        links << linkHtml(r.webUrl(), QObject::tr("web"));
-    if (!links.isEmpty())
-        out += QStringLiteral(" %1").arg(links.join(QStringLiteral(" · ")));
-    return out;
 }
 
 // Readable list of the declared input requirements.
@@ -219,33 +168,15 @@ QString formatFilterParameterDetails(const MeshFilterDescriptor &descriptor)
         "<html><body style=\"margin:0; font-size:11px; line-height:1.3;\">");
 
     if (!descriptor.outputModifies.isEmpty()) {
-        // Build a human-readable sentence from the two-letter codes.
-        static const QHash<QString, QString> codeLabels = {
-            { QStringLiteral("VG"), QObject::tr("vertex geometry") },
-            { QStringLiteral("VN"), QObject::tr("vertex normals") },
-            { QStringLiteral("VC"), QObject::tr("vertex color") },
-            { QStringLiteral("VQ"), QObject::tr("vertex quality") },
-            { QStringLiteral("VT"), QObject::tr("vertex texcoords") },
-            { QStringLiteral("VA"), QObject::tr("vertex attributes") },
-            { QStringLiteral("VS"), QObject::tr("vertex selection") },
-            { QStringLiteral("FV"), QObject::tr("face-vertex connectivity") },
-            { QStringLiteral("FN"), QObject::tr("face normals") },
-            { QStringLiteral("FC"), QObject::tr("face color") },
-            { QStringLiteral("FQ"), QObject::tr("face quality") },
-            { QStringLiteral("FA"), QObject::tr("face attributes") },
-            { QStringLiteral("FS"), QObject::tr("face selection") },
-            { QStringLiteral("FP"), QObject::tr("face polygon bits") },
-            { QStringLiteral("WT"), QObject::tr("wedge texcoords") },
-            { QStringLiteral("TX"), QObject::tr("texture images") },
-            { QStringLiteral("TM"), QObject::tr("transform matrix") },
-        };
+        // Code -> words mapping is shared with the filter panel.
+        const QStringList words = FilterPresentation::modifiedDataLabels(descriptor.outputModifies);
         QStringList labels;
-        for (const QString &code : descriptor.outputModifies) {
-            const QString label = codeLabels.value(code);
-            labels.push_back(
-                label.isEmpty()
-                    ? code.toHtmlEscaped()
-                    : QStringLiteral("%1 (%2)").arg(label.toHtmlEscaped(), code.toHtmlEscaped()));
+        for (int i = 0; i < words.size(); ++i) {
+            const QString &code = descriptor.outputModifies.at(i);
+            labels.push_back(words.at(i) == code
+                                 ? code.toHtmlEscaped()
+                                 : QStringLiteral("%1 (%2)").arg(words.at(i).toHtmlEscaped(),
+                                                                 code.toHtmlEscaped()));
         }
         html += QStringLiteral(
                     "<div style=\"margin-bottom:6px; padding:4px 6px;"
@@ -399,16 +330,34 @@ void FilterPluginsInfoDialog::buildUi()
     m_tree->setSelectionMode(QAbstractItemView::SingleSelection);
     splitter->addWidget(m_tree);
 
-    m_detail = new QTextBrowser(splitter);
-    // Route anchors explicitly rather than letting QTextBrowser navigate: it would
-    // try to load the URL as a document and blank the panel.
-    m_detail->setOpenLinks(false);
-    m_detail->setOpenExternalLinks(false);
-    connect(m_detail, &QTextBrowser::anchorClicked, this, [](const QUrl &url) {
-        if (!url.isEmpty())
-            QDesktopServices::openUrl(url);
-    });
-    splitter->addWidget(m_detail);
+    // Anchors are routed explicitly rather than letting QTextBrowser navigate: it
+    // would try to load the URL as a document and blank the panel.
+    auto openExternally = [this](QTextBrowser *browser) {
+        browser->setOpenLinks(false);
+        browser->setOpenExternalLinks(false);
+        connect(browser, &QTextBrowser::anchorClicked, this, [](const QUrl &url) {
+            if (!url.isEmpty())
+                QDesktopServices::openUrl(url);
+        });
+    };
+
+    // The right pane stacks metadata over the filter's full description. The
+    // description needs its own browser because MathMarkdownRenderer renders LaTeX to
+    // images registered as resources on that browser's document — it cannot be
+    // spliced into a composed HTML string.
+    auto *detailSplit = new QSplitter(Qt::Vertical, splitter);
+
+    m_detail = new QTextBrowser(detailSplit);
+    openExternally(m_detail);
+    detailSplit->addWidget(m_detail);
+
+    m_description = new QTextBrowser(detailSplit);
+    openExternally(m_description);
+    detailSplit->addWidget(m_description);
+
+    detailSplit->setStretchFactor(0, 3);
+    detailSplit->setStretchFactor(1, 2);
+    splitter->addWidget(detailSplit);
 
     splitter->setStretchFactor(0, 3);
     splitter->setStretchFactor(1, 4);
@@ -432,18 +381,8 @@ bool FilterPluginsInfoDialog::matches(const Document::FilterInfo &info) const
 {
     if (m_onlyUnavailable->isChecked() && info.applicable)
         return false;
-
-    const QString needle = m_search->text().trimmed().toLower();
-    if (needle.isEmpty())
-        return true;
-    // Same fields the filter panel searches, plus plugin and categories, so the two
-    // surfaces agree on what "matching" means.
-    return info.descriptor.name.toLower().contains(needle)
-        || info.descriptor.effectivePythonName().toLower().contains(needle)
-        || info.descriptor.categories.join(QLatin1Char(' ')).toLower().contains(needle)
-        || info.pluginName.toLower().contains(needle)
-        || info.descriptor.shortDescription.toLower().contains(needle)
-        || info.descriptor.provenance.project.toLower().contains(needle);
+    // Shared with the filter panel so both surfaces agree on what "matching" means.
+    return FilterPresentation::matches(info, FilterPresentation::tokenize(m_search->text()));
 }
 
 void FilterPluginsInfoDialog::rebuildTree()
@@ -571,10 +510,17 @@ void FilterPluginsInfoDialog::updateSummary(int shownFilters)
 
 void FilterPluginsInfoDialog::updateDetail()
 {
+    // The description pane only ever holds a filter's own text.
+    auto clearDescription = [this](const QString &note) {
+        m_description->setHtml(QStringLiteral("<p style=\"margin:0; color:palette(mid);\">%1</p>")
+                                   .arg(note.toHtmlEscaped()));
+    };
+
     QTreeWidgetItem *item = m_tree->currentItem();
     if (!item) {
         m_detail->setHtml(QStringLiteral("<p style=\"color:palette(mid);\">%1</p>")
                               .arg(tr("Select a plugin, category or filter.")));
+        clearDescription(tr("No filter selected."));
         return;
     }
     const QString kind = item->data(0, kRoleKind).toString();
@@ -585,16 +531,26 @@ void FilterPluginsInfoDialog::updateDetail()
                                      [&](const Document::FilterInfo &i) { return i.key == value; });
         if (it != m_filters.cend()) {
             m_detail->setHtml(filterDetailHtml(*it));
+            const QString description = it->descriptor.longDescriptionMarkdown.trimmed();
+            if (description.isEmpty())
+                clearDescription(tr("This filter has no detailed description."));
+            else
+                // Same renderer the filter panel uses, so LaTeX formulas and markdown
+                // appear identically in both places.
+                MathMarkdownRenderer::setMarkdown(*m_description, description);
             return;
         }
     } else if (kind == QStringLiteral("plugin")) {
         m_detail->setHtml(pluginDetailHtml(value));
+        clearDescription(tr("Select a filter to read its description."));
         return;
     } else if (kind == QStringLiteral("category")) {
         m_detail->setHtml(categoryDetailHtml(value));
+        clearDescription(tr("Select a filter to read its description."));
         return;
     }
     m_detail->clear();
+    clearDescription(tr("No filter selected."));
 }
 
 QString FilterPluginsInfoDialog::filterDetailHtml(const Document::FilterInfo &info) const
@@ -647,7 +603,7 @@ QString FilterPluginsInfoDialog::filterDetailHtml(const Document::FilterInfo &in
         // Hanging indent, as a bibliography would set it.
         for (const MeshFilterReference &r : d.references)
             html += QStringLiteral("<div style=\"margin:0 0 5px 14px; text-indent:-14px;\">%1</div>")
-                        .arg(citationHtml(r));
+                        .arg(r.htmlCitation());
     }
     html += QStringLiteral("</body></html>");
     return html;

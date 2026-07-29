@@ -152,6 +152,7 @@ qt_add_executable(QMeshLab
     src/app/main.cpp
     src/ui/mainwindow.h src/ui/mainwindow.cpp
     src/ui/meshfilterpanel.h src/ui/meshfilterpanel.cpp
+    src/ui/filterpresentation.h src/ui/filterpresentation.cpp
     src/ui/filterpluginsinfodialog.h src/ui/filterpluginsinfodialog.cpp
     src/ui/meshsaveoptionsdialog.h src/ui/meshsaveoptionsdialog.cpp
     src/render/renderwidget.h src/render/renderwidget.cpp

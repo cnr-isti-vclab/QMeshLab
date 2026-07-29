@@ -39,7 +39,7 @@
     {
       "id": "simplification_quadric_edge_collapse_qslim",
       "categories": ["Meshing/Simplification"],
-      "name": "Simplification: Original QSlim Quadric Edge Collapse",
+      "name": "Simplify by Quadric Edge Collapse (QSlim)",
       "pythonName": "simplification_quadric_edge_collapse_qslim",
       "referenceIds": [
         "garland1997qem"

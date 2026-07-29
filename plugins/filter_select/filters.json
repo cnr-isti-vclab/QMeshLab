@@ -338,7 +338,7 @@
     {
       "id": "delete_selected_vertices",
       "categories": ["Meshing/Deletion"],
-      "name": "Delete Selected Vertices",
+      "name": "Remove Selected Vertices",
       "pythonName": "delete_selected_vertices",
       "shortDescription": "Delete selected vertices; incident faces are deleted too.",
       "longDescriptionMarkdown": "Delete the current set of selected vertices; faces that share one of the deleted vertices are deleted too.",
@@ -361,7 +361,7 @@
     {
       "id": "delete_all_faces",
       "categories": ["Meshing/Deletion"],
-      "name": "Delete ALL Faces",
+      "name": "Remove All Faces",
       "pythonName": "delete_all_faces",
       "shortDescription": "Delete all faces, turning mesh into point cloud.",
       "longDescriptionMarkdown": "Delete ALL faces, turning the mesh into a pointcloud.",
@@ -380,7 +380,7 @@
     {
       "id": "delete_selected_faces",
       "categories": ["Meshing/Deletion"],
-      "name": "Delete Selected Faces",
+      "name": "Remove Selected Faces",
       "pythonName": "delete_selected_faces",
       "shortDescription": "Delete selected faces; unreferenced vertices are not deleted.",
       "longDescriptionMarkdown": "Delete the current set of selected faces, vertices that remains unreferenced are not deleted.",
@@ -402,7 +402,7 @@
     {
       "id": "delete_selected_faces_and_vertices",
       "categories": ["Meshing/Deletion"],
-      "name": "Delete Selected Faces and Vertices",
+      "name": "Remove Selected Faces and Vertices",
       "pythonName": "delete_selected_faces_and_vertices",
       "shortDescription": "Delete selected faces and enclosed selected vertices.",
       "longDescriptionMarkdown": "Delete the current set of selected faces and all the vertices surrounded by that faces.",

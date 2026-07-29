@@ -4,7 +4,7 @@
     {
       "id": "meshing_edge_flip_by_planar_optimization",
       "categories": ["Meshing/Remeshing"],
-      "name": "Planar flipping optimization",
+      "name": "Flip Edges by Planarity",
       "pythonName": "meshing_edge_flip_by_planar_optimization",
       "shortDescription": "Optimize local triangle quality by flipping nearly coplanar edges.",
       "longDescriptionMarkdown": "Mesh optimization by edge flipping, improving local triangle quality for face pairs whose dihedral angle is below the planar threshold. A small surface-preserving Laplacian relaxation can be run after the flip pass.",
@@ -102,7 +102,7 @@
     {
       "id": "meshing_edge_flip_by_curvature_optimization",
       "categories": ["Meshing/Remeshing"],
-      "name": "Curvature flipping optimization",
+      "name": "Flip Edges by Curvature",
       "pythonName": "meshing_edge_flip_by_curvature_optimization",
       "shortDescription": "Optimize local triangulation by reducing discrete curvature.",
       "longDescriptionMarkdown": "Mesh optimization by edge flipping to improve local mesh curvature. The method evaluates edge flips with discrete curvature metrics and applies flips that reduce the local curvature measure.",

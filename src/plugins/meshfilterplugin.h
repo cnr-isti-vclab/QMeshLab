@@ -172,6 +172,8 @@ struct MeshFilterReference
     QString doiUrl() const;
     QString webUrl() const;
     QString markdownCitation() const;
+    // Same bibliography as markdownCitation(), rendered as HTML with live links.
+    QString htmlCitation() const;
     QString bibTeX() const;
 };
 

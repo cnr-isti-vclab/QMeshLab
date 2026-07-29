@@ -1,4 +1,6 @@
 #include "meshfilterpanel.h"
+
+#include "filterpresentation.h"
 #include "filterparam.h"
 #include "mathmarkdownrenderer.h"
 
@@ -615,10 +617,7 @@ QString meshComboLabel(const Document &doc, int meshIndex)
 
 QStringList tokenizeSearchTerms(const QString &text)
 {
-    static const QRegularExpression kSpaceRe(QStringLiteral("\\s+"));
-    QStringList terms = text.trimmed().toLower().split(kSpaceRe, Qt::SkipEmptyParts);
-    terms.removeDuplicates();
-    return terms;
+    return FilterPresentation::tokenize(text);
 }
 
 // Editor widget for Point3f parameters.
@@ -1316,7 +1315,10 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     m_filterDescriptionLabel->setText(info.descriptor.shortDescription);
     const QStringList &mods = info.descriptor.outputModifies;
     if (!mods.isEmpty()) {
-        m_filterModifiesLabel->setText(tr("Modifies: ") + mods.join(QStringLiteral(" ")));
+        // Words rather than two-letter codes, matching the info dialog.
+        m_filterModifiesLabel->setText(
+            tr("Modifies: ")
+            + FilterPresentation::modifiedDataLabels(mods).join(QStringLiteral(", ")));
         m_filterModifiesLabel->setVisible(true);
     } else {
         m_filterModifiesLabel->setVisible(false);
@@ -1459,49 +1461,15 @@ bool MeshFilterPanel::matchesSearch(
     const Document::FilterInfo &filterInfo,
     const QStringList &terms) const
 {
-    if (terms.isEmpty())
-        return true;
-
-    const QString name = filterInfo.descriptor.name.toLower();
-    const QString shortDesc = filterInfo.descriptor.shortDescription.toLower();
-    const QString longDesc = filterInfo.descriptor.longDescriptionMarkdown.toLower();
-    const QString upstream = filterInfo.descriptor.provenance.project.toLower();
-    // The category is searchable so a filter can be found by the family it belongs
-    // to ("simplification", "repair") even when the name does not repeat it — names
-    // deliberately do not echo their category. Ranking is unaffected: it uses
-    // titleMatchesAllTerms, so name matches still sort above category-only matches.
-    const QString category = filterInfo.descriptor.categories.join(QLatin1Char(' ')).toLower();
-
-    for (const QString &term : terms) {
-        if (term.isEmpty())
-            continue;
-        const bool termMatched =
-            name.contains(term)
-            || shortDesc.contains(term)
-            || longDesc.contains(term)
-            || upstream.contains(term)
-            || category.contains(term);
-        if (!termMatched)
-            return false;
-    }
-    return true;
+    // Shared with the Filter Plugins Info dialog; see src/ui/filterpresentation.h.
+    return FilterPresentation::matches(filterInfo, terms);
 }
 
 bool MeshFilterPanel::titleMatchesAllTerms(
     const Document::FilterInfo &filterInfo,
     const QStringList &terms) const
 {
-    if (terms.isEmpty())
-        return true;
-
-    const QString name = filterInfo.descriptor.name.toLower();
-    for (const QString &term : terms) {
-        if (term.isEmpty())
-            continue;
-        if (!name.contains(term))
-            return false;
-    }
-    return true;
+    return FilterPresentation::titleMatchesAll(filterInfo, terms);
 }
 
 void MeshFilterPanel::clearParameterEditors()

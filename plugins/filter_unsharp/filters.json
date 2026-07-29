@@ -4,7 +4,7 @@
     {
       "id": "meshing_cut_along_crease_edges",
       "categories": ["Meshing/Remeshing"],
-      "name": "Cut mesh along crease edges",
+      "name": "Cut Along Crease Edges",
       "pythonName": "cut_mesh_along_crease_edges",
       "shortDescription": "Split the mesh along sharp edges.",
       "longDescriptionMarkdown": "Cut the mesh along crease edges, duplicating the vertices as necessary. Crease (or sharp) edges are defined according to the variation of normal of the adjacent faces.",
