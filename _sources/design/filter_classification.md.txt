@@ -1,0 +1,526 @@
+# Filter Classification — pass 1 proposal
+
+Proposed `categories` for **all 272 filters**, for review before any code moves.
+Generated (once, by rules) from the pre-migration descriptors and the ontology in
+[Vocabulary](vocabulary.md) §1; see [Filter Organization](filter_organization.md)
+for the plugin-side mapping.
+
+**Status: APPLIED** (pass 1, 2026-07-29). All 272 filters now carry a `categories`
+array; the loader validates every entry against the ontology and reports no offenders.
+The tables below are the record of what was applied — the `Note` column flags each row
+that moved somewhere other than a mechanical translation of the old `menuPath`.
+
+Representation (§2) is deliberately **out of scope** for this pass.
+
+## How to review
+
+1. Settle the four proposed new subcategories in the next section — they change
+   the ontology itself, so nothing else can be finalised first.
+2. Then walk the buckets. Rows with a **bold** note are the ones that move
+   somewhere other than where a naive `menuPath` translation would put them.
+3. Categories are **ordered**: the first is primary (canonical home); the rest
+   are cross-listings.
+
+## Proposed additions to the ontology
+
+Classifying the real filters exposed four gaps. Each needs a ruling:
+
+| Proposed | Filters | Why |
+|---|---|---|
+| `Meshing/Deletion` | 4 | *Delete Selected Faces/Vertices*, *Delete ALL Faces*. These **delete geometry**, so by the "what changed?" rule they are not `Selection` at all, and nothing is broken so they are not `Repair`. |
+| `Selection/Set Operations` | 5 | *Select All/None*, *Invert*, *Erode*, *Dilate*. Selection algebra, not selection *by a criterion* — the other three subcategories all answer "selected how?". |
+| `Attribute/Custom` | 4 | *Define New Per-Vertex/Face Custom Scalar/Point Attribute*. User-defined attributes are not normal/scalar/curvature/color. |
+| `Geometry/Deformation` | 3 | *Random Vertex Displacement*, *Vertex Linear Morphing*, *Per Vertex Geometric Function*. They move vertices but are neither an affine `Transform` nor noise-reducing `Smoothing` — *Random Vertex Displacement* **adds** noise. |
+
+A related rule this pass assumes, worth confirming: **`Geometry/Smoothing` covers
+positions only.** Smoothing an *attribute* is classified by the attribute —
+*Smooth Vertex Quality* → `Attribute/Scalar`, *Smooth: Laplacian Vertex Color* →
+`Attribute/Color`, *Smooth Face Normals* → `Attribute/Normal`.
+
+## Resulting shape
+
+272 filters → 43 distinct categories; 24 filters carry more than one.
+
+| Category | Primary | Total (incl. cross-listed) |
+|---|---|---|
+| `Attribute/Color` | 28 | 33 |
+| `Attribute/Curvature` | 4 | 4 |
+| `Attribute/Custom` **(new)** | 4 | 4 |
+| `Attribute/Normal` | 13 | 13 |
+| `Attribute/Scalar` | 19 | 26 |
+| `Creation/Primitives` | 21 | 21 |
+| `Creation/Reconstruction` | 8 | 8 |
+| `Creation/Sampling` | 9 | 9 |
+| `Document/Camera` | 10 | 10 |
+| `Document/Layer` | 11 | 11 |
+| `Document/Render` | 1 | 1 |
+| `Geometry/Alignment` | 2 | 2 |
+| `Geometry/Deformation` **(new)** | 3 | 3 |
+| `Geometry/Smoothing` | 11 | 11 |
+| `Geometry/Transform` | 12 | 12 |
+| `Measurement/Geometric` | 5 | 6 |
+| `Measurement/Statistics` | 5 | 5 |
+| `Measurement/Topological` | 3 | 3 |
+| `Meshing/Boolean` | 4 | 4 |
+| `Meshing/Deletion` **(new)** | 4 | 4 |
+| `Meshing/Remeshing` | 9 | 9 |
+| `Meshing/Simplification` | 6 | 6 |
+| `Meshing/Subdivision` | 7 | 7 |
+| `Parametrization` | 0 | 1 |
+| `Parametrization/Atlas Packing` | 0 | 1 |
+| `Parametrization/Defragmentation` | 2 | 2 |
+| `Parametrization/UV Conversion` | 2 | 2 |
+| `Parametrization/UV Creation` | 11 | 11 |
+| `Repair/Degenerate` | 4 | 4 |
+| `Repair/Duplicates` | 6 | 6 |
+| `Repair/Holes and Borders` | 2 | 2 |
+| `Repair/Topology` | 7 | 7 |
+| `Selection/Set Operations` **(new)** | 5 | 5 |
+| `Selection/by Attribute` | 8 | 8 |
+| `Selection/by Topology` | 11 | 11 |
+| `Selection/by Visibility` | 2 | 2 |
+| `Texture` | 0 | 6 |
+| `Texture/Assignment` | 1 | 1 |
+| `Texture/Conversion` | 1 | 1 |
+| `Texture/Packing` | 1 | 1 |
+| `Transfer/Attribute to Texture` | 3 | 3 |
+| `Transfer/Mesh to Mesh` | 7 | 7 |
+| `Transfer/Raster to Mesh` | 0 | 4 |
+
+**47 filters are currently mis-filed** — they move to a different root
+than their present `menuPath` implies. That is the main finding of this pass.
+
+## Proposed classification, by current bucket
+
+### `Camera` (10)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Generate Camera from Direction | `camera` | `Document/Camera` |  |
+| Generate Camera to View Selection | `camera` | `Document/Camera` |  |
+| Re-Orient vertex normals using cameras | `camera` | `Attribute/Normal` | **mis-filed** under `Camera` |
+| Set Mesh Camera | `camera` | `Document/Camera` |  |
+| Set Raster Camera | `camera` | `Document/Camera` |  |
+| Transform camera extrinsics | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
+| Transform: Rotate Camera or set of cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
+| Transform: Scale Camera or set of cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
+| Transform: Translate Camera or set of cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
+| Vertex Quality from Camera | `camera` | `Attribute/Scalar` | **mis-filed** under `Camera` <sub>touches: color, scalar</sub> |
+
+### `Cleaning` (15)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Merge Close Vertices | `clean` | `Repair/Duplicates` |  |
+| Merge Wedge Texture Coord | `clean` | `Repair/Duplicates` | <sub>touches: uv</sub> |
+| Remove Duplicate Faces | `clean` | `Repair/Duplicates` |  |
+| Remove Duplicate Vertices | `clean` | `Repair/Duplicates` |  |
+| Remove Isolated Folded Faces by Edge Flip | `clean` | `Repair/Topology` |  |
+| Remove Isolated Pieces (wrt Diameter) | `clean` | `Repair/Degenerate` |  |
+| Remove Isolated Pieces (wrt Face Num.) | `clean` | `Repair/Degenerate` |  |
+| Remove T-Vertices | `clean` | `Repair/Topology` |  |
+| Remove Unreferenced Vertices | `clean` | `Repair/Duplicates` |  |
+| Remove Vertices wrt Quality | `clean` | `Repair/Degenerate` |  |
+| Remove Zero Area Faces | `clean` | `Repair/Degenerate` |  |
+| Repair Watertight Mesh (MeshFix) | `meshfix` | `Repair/Topology` |  |
+| Repair non Manifold Edges | `clean` | `Repair/Topology` |  |
+| Repair non Manifold Vertices by Splitting | `clean` | `Repair/Topology` |  |
+| Snap Mismatched Borders | `clean` | `Repair/Holes and Borders` |  |
+
+### `Color` (24)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Clamp Vertex Quality | `colorproc` | `Attribute/Scalar` | **scalar**, not color <sub>touches: scalar</sub> |
+| Color noise | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Colorize by face Quality | `colorproc` | `Attribute/Color` · `Attribute/Scalar` | scalar -> color <sub>touches: color</sub> |
+| Colorize by vertex Quality | `colorproc` | `Attribute/Color` · `Attribute/Scalar` | scalar -> color <sub>touches: color</sub> |
+| Equalize Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| PerMesh Color Scattering | `colorproc` | `Attribute/Color` |  |
+| Perlin color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Quality Mapper applier | `colorproc` | `Attribute/Color` · `Attribute/Scalar` | scalar -> color <sub>touches: color</sub> |
+| Random Component Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Random Face Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Saturate Vertex Quality | `colorproc` | `Attribute/Scalar` | **scalar**, not color <sub>touches: color, scalar</sub> |
+| Set Mesh Color | `colorproc` | `Attribute/Color` |  |
+| Smooth: Laplacian Face Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Smooth: Laplacian Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Transfer Color: Face to Vertex | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
+| Transfer Color: Mesh to Face | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
+| Transfer Color: Texture to Vertex | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
+| Transfer Color: Vertex to Face | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
+| Transfer Quality: Face to Vertex | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Scalar` | **mis-filed** - it is a Transfer <sub>touches: scalar</sub> |
+| Transfer Quality: Vertex to Face | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Scalar` | **mis-filed** - it is a Transfer <sub>touches: scalar</sub> |
+| Vertex Color Colourisation | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Vertex Color Desaturation | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Vertex Color Levels Adjustment | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Vertex Color White Balance | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+
+### `Compute/Attributes` (4)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Define New Per Face Custom Point Attribute | `func` | `Attribute/Custom` **(new)** |  |
+| Define New Per Face Custom Scalar Attribute | `func` | `Attribute/Custom` **(new)** |  |
+| Define New Per Vertex Custom Point Attribute | `func` | `Attribute/Custom` **(new)** |  |
+| Define New Per Vertex Custom Scalar Attribute | `func` | `Attribute/Custom` **(new)** |  |
+
+### `Compute/Color` (2)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Per Face Color Function | `func` | `Attribute/Color` | <sub>touches: color</sub> |
+| Per Vertex Color Function | `func` | `Attribute/Color` | <sub>touches: color</sub> |
+
+### `Compute/Geometry` (1)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Per Vertex Geometric Function | `func` | `Geometry/Deformation` **(new)** | moves vertices by a formula |
+
+### `Compute/Normals` (9)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Normalize Face Normals | `unsharp` | `Attribute/Normal` |  |
+| Normalize Vertex Normals | `unsharp` | `Attribute/Normal` |  |
+| Per Face Normal Function | `func` | `Attribute/Normal` |  |
+| Per Vertex Normal Function | `func` | `Attribute/Normal` |  |
+| Re-Compute Face Normals | `unsharp` | `Attribute/Normal` |  |
+| Re-Compute Per-Polygon Face Normals | `unsharp` | `Attribute/Normal` |  |
+| Re-Compute Vertex Normals | `unsharp` | `Attribute/Normal` |  |
+| Smooth Face Normals | `unsharp` | `Attribute/Normal` |  |
+| UnSharp Mask Normals | `unsharp` | `Attribute/Normal` |  |
+
+### `Compute/Quality` (2)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Per Face Quality Function | `func` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Per Vertex Quality Function | `func` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+
+### `Compute/Texture` (2)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Per Vertex Texture Function | `func` | `Parametrization/UV Creation` | **writes UVs**, not an image <sub>touches: uv</sub> |
+| Per Wedge Texture Function | `func` | `Parametrization/UV Creation` | **writes UVs**, not an image <sub>touches: uv</sub> |
+
+### `Create` (16)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Annulus | `create` | `Creation/Primitives` | bucket default |
+| Box/Cube | `create` | `Creation/Primitives` | bucket default |
+| Cone | `create` | `Creation/Primitives` | bucket default |
+| Dodecahedron | `create` | `Creation/Primitives` | bucket default |
+| Dodecahedron (symmetric) | `create` | `Creation/Primitives` | bucket default |
+| Fit Plane to Selection | `create` | `Creation/Primitives` · `Measurement/Geometric` |  |
+| Grid Generator | `func` | `Creation/Primitives` |  |
+| Icosahedron | `create` | `Creation/Primitives` | bucket default |
+| Implicit Surface | `func` | `Creation/Primitives` |  |
+| Noisy Isosurface | `basic` | `Creation/Primitives` |  |
+| Octahedron | `create` | `Creation/Primitives` | bucket default |
+| Points on a Sphere | `create` | `Creation/Primitives` | bucket default |
+| Sphere | `create` | `Creation/Primitives` | bucket default |
+| Sphere Cap | `create` | `Creation/Primitives` | bucket default |
+| Tetrahedron | `create` | `Creation/Primitives` | bucket default |
+| Torus | `create` | `Creation/Primitives` | bucket default |
+
+### `Geometry/Transform` (1)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Normalize To Unit Box | `basic` | `Geometry/Transform` |  |
+
+### `Inspection` (1)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Current Mesh Info | `basic` | `Measurement/Topological` |  |
+
+### `Layer` (14)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Delete Current Mesh | `layer` | `Document/Layer` | bucket default |
+| Delete Current Raster | `layer` | `Document/Layer` | bucket default |
+| Delete all Non Selected Rasters | `layer` | `Document/Layer` | bucket default |
+| Delete all non visible Mesh Layers | `layer` | `Document/Layer` | bucket default |
+| Duplicate Current layer | `layer` | `Document/Layer` | bucket default |
+| Export active rasters cameras to file | `layer` | `Document/Camera` |  |
+| Flatten Visible Layers | `layer` | `Document/Layer` | bucket default |
+| Import cameras for active rasters from file | `layer` | `Document/Camera` |  |
+| Move selected faces to another layer | `layer` | `Document/Layer` | bucket default <sub>touches: selection</sub> |
+| Move selected vertices to another layer | `layer` | `Document/Layer` | bucket default <sub>touches: selection</sub> |
+| Rename Current Mesh | `layer` | `Document/Layer` | bucket default |
+| Rename Current Raster | `layer` | `Document/Layer` | bucket default |
+| Render from Render-State JSON | `layer` | `Document/Render` |  |
+| Split in Connected Components | `layer` | `Document/Layer` | bucket default |
+
+### `Layer/Boolean` (4)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Mesh Boolean: Difference | `mesh_booleans` | `Meshing/Boolean` | was mis-filed under `Layer` <sub>touches: color, scalar</sub> |
+| Mesh Boolean: Intersection | `mesh_booleans` | `Meshing/Boolean` | was mis-filed under `Layer` <sub>touches: color, scalar</sub> |
+| Mesh Boolean: Symmetric Difference (XOR) | `mesh_booleans` | `Meshing/Boolean` | was mis-filed under `Layer` <sub>touches: color, scalar</sub> |
+| Mesh Boolean: Union | `mesh_booleans` | `Meshing/Boolean` | was mis-filed under `Layer` <sub>touches: color, scalar</sub> |
+
+### `MLS` (8)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Compute APSS Curvature Quality | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
+| Compute RIMLS Curvature Quality | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
+| Estimate radius from density | `mls` | `Measurement/Statistics` |  |
+| MLS projection (APSS) | `mls` | `Geometry/Smoothing` |  |
+| MLS projection (RIMLS) | `mls` | `Geometry/Smoothing` |  |
+| Marching Cubes (APSS) | `mls` | `Creation/Reconstruction` |  |
+| Marching Cubes (RIMLS) | `mls` | `Creation/Reconstruction` |  |
+| Select small disconnected component | `mls` | `Selection/by Topology` | <sub>touches: selection</sub> |
+
+### `Measure` (5)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Compute Area/Perimeter of Selection | `measure` | `Measurement/Geometric` |  |
+| Compute Geometric Measures | `measure` | `Measurement/Geometric` |  |
+| Compute Topological Measures | `measure` | `Measurement/Topological` |  |
+| Compute Topological Measures for Quad Meshes | `measure` | `Measurement/Topological` |  |
+| Overlapping Meshes | `icp` | `Measurement/Geometric` |  |
+
+### `Measure/Quality` (4)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Per Face Quality Histogram | `measure` | `Measurement/Statistics` |  |
+| Per Face Quality Stat | `measure` | `Measurement/Statistics` |  |
+| Per Vertex Quality Histogram | `measure` | `Measurement/Statistics` |  |
+| Per Vertex Quality Stat | `measure` | `Measurement/Statistics` |  |
+
+### `Meshing` (38)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Build a Polyline from Selected Edges | `meshing` | `Creation/Primitives` | creates a new polyline layer |
+| Close Holes | `meshing` | `Repair/Holes and Borders` |  |
+| Compute Planar Section | `meshing` | `Creation/Primitives` | creates a new polyline layer |
+| Compute curvature principal directions | `meshing` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
+| Compute normals for point sets | `meshing` | `Attribute/Normal` |  |
+| Create Selection Perimeter Polyline | `meshing` | `Creation/Primitives` | creates a new polyline layer |
+| Geometric Cylindrical Unwrapping | `meshing` | `Parametrization/UV Creation` |  |
+| Invert Faces Orientation | `meshing` | `Repair/Topology` | orientation is topological |
+| Matrix: Freeze Current Matrix | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Matrix: Invert Current Matrix | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Matrix: Reset Current Matrix | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Matrix: Set from translation/rotation/scale | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Matrix: Set/Copy Transformation | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Re-Orient all faces coherently | `meshing` | `Repair/Topology` | orientation is topological |
+| Remeshing: Isotropic Explicit Remeshing | `meshing` | `Meshing/Remeshing` |  |
+| Select Crease Edges | `meshing` | `Selection/by Topology` |  |
+| Simplification: Clustering Decimation | `meshing` | `Meshing/Simplification` |  |
+| Simplification: Original QSlim Quadric Edge Collapse | `qslim` | `Meshing/Simplification` |  |
+| Simplification: Quadric Edge Collapse Decimation | `meshing` | `Meshing/Simplification` |  |
+| Simplification: Quadric Edge Collapse Decimation (with texture) | `meshing` | `Meshing/Simplification` · `Texture` | preserves texture <sub>touches: uv</sub> |
+| Smooth normals on point sets | `meshing` | `Attribute/Normal` |  |
+| Subdivision Surfaces: Butterfly Subdivision | `meshing` | `Meshing/Subdivision` |  |
+| Subdivision Surfaces: Catmull-Clark | `meshing` | `Meshing/Subdivision` |  |
+| Subdivision Surfaces: Doo Sabin | `meshing` | `Meshing/Subdivision` |  |
+| Subdivision Surfaces: LS3 Loop | `meshing` | `Meshing/Subdivision` |  |
+| Subdivision Surfaces: Loop | `meshing` | `Meshing/Subdivision` |  |
+| Subdivision Surfaces: Midpoint | `meshing` | `Meshing/Subdivision` |  |
+| Transform: Align to Principal Axis | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Transform: Flip and/or swap axis | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Transform: Rotate | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Transform: Rotate to Fit to a plane | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Transform: Scale, Normalize | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Transform: Translate, Center, set Origin | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
+| Tri to Quad by 4-8 Subdivision | `meshing` | `Meshing/Remeshing` |  |
+| Tri to Quad by smart triangle pairing | `meshing` | `Meshing/Remeshing` |  |
+| Turn into Quad-Dominant mesh | `meshing` | `Meshing/Remeshing` |  |
+| Turn into a Pure-Triangular mesh | `meshing` | `Meshing/Remeshing` |  |
+| Vertex Attribute Seam | `meshing` | `Repair/Duplicates` | splits vertices on attribute discontinuity <sub>touches: uv, color</sub> |
+
+### `Normals/Embree` (1)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Reorient Face Normals by Geometry | `embree` | `Attribute/Normal` |  |
+
+### `Parameterization` (2)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Parameterization + texturing from registered rasters | `img_patch_param` | `Parametrization/UV Creation` · `Texture` · `Transfer/Raster to Mesh` | <sub>touches: texture, uv</sub> |
+| Parameterization from registered rasters | `img_patch_param` | `Parametrization/UV Creation` · `Transfer/Raster to Mesh` | <sub>touches: uv</sub> |
+
+### `Quality` (7)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Discrete Curvatures | `colorproc` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
+| Per Face Geometric Quality | `colorproc` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Per Face Texture Distortion | `colorproc` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Vertex Color Brightness Contrast Gamma | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
+| Vertex Color Filling | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
+| Vertex Color Invert | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
+| Vertex Color Thresholding | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
+
+### `Quality/Embree` (3)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Compute Ambient Occlusion | `embree` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+| Compute Obscurance | `embree` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+| Compute Shape Diameter Function | `embree` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+
+### `Quality/Geodesic` (4)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Compute Border Distance Quality | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+| Compute Geodesic Distance Quality from Point | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+| Compute Geodesic Distance Quality from Selection | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+| Compute Heat Geodesic Distance Quality from Selection | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+
+### `Raster` (5)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Project Active Rasters Color to Current Mesh | `color_projection` | `Transfer/Raster to Mesh` · `Attribute/Color` | <sub>touches: color</sub> |
+| Project Active Rasters Color to Current Mesh Texture | `color_projection` | `Transfer/Raster to Mesh` · `Texture` | <sub>touches: uv</sub> |
+| Project Current Raster Color to Current Mesh | `color_projection` | `Transfer/Raster to Mesh` · `Attribute/Color` | <sub>touches: color</sub> |
+| Quality from raster coverage (Face) | `img_patch_param` | `Attribute/Scalar` · `Transfer/Raster to Mesh` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
+| Quality from raster coverage (Vertex) | `img_patch_param` | `Attribute/Scalar` · `Transfer/Raster to Mesh` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
+
+### `Remeshing` (8)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Alpha Wrap | `cgal` | `Creation/Reconstruction` | **mis-filed** as Remeshing |
+| Create Solid Wireframe | `voronoi` | `Creation/Primitives` | builds a new structure |
+| Curvature flipping optimization | `trioptimize` | `Meshing/Remeshing` | <sub>touches: scalar</sub> |
+| Global Align Meshes | `icp` | `Geometry/Alignment` | **mis-filed** as Remeshing <sub>touches: texture</sub> |
+| ICP Between Meshes | `icp` | `Geometry/Alignment` | **mis-filed** as Remeshing <sub>touches: texture</sub> |
+| Planar flipping optimization | `trioptimize` | `Meshing/Remeshing` | <sub>touches: scalar</sub> |
+| Refine User-Defined | `func` | `Meshing/Subdivision` |  |
+| Surface Reconstruction: Ball Pivoting | `clean` | `Creation/Reconstruction` | **not cleaning** - reconstruction |
+
+### `Remeshing, Smoothing and Resampling` (2)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Simplification: Edge Collapse for Marching Cube meshes | `plymc` | `Meshing/Simplification` |  |
+| Surface Reconstruction: VCG | `plymc` | `Creation/Reconstruction` |  |
+
+### `Remeshing/Surface Reconstruction` (3)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Surface Reconstruction: SSD | `screened_poisson` | `Creation/Reconstruction` |  |
+| Surface Reconstruction: Screened Poisson | `screened_poisson` | `Creation/Reconstruction` |  |
+| Surface Reconstruction: Surface Trimmer | `screened_poisson` | `Creation/Reconstruction` |  |
+
+### `Sampling` (17)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Clustered Vertex Sampling | `sampling` | `Creation/Sampling` |  |
+| Disk Vertex Coloring | `sampling` | `Attribute/Color` | <sub>touches: scalar</sub> |
+| Distance from Reference Mesh | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures <sub>touches: scalar</sub> |
+| Hausdorff Distance | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures |
+| Mesh Element Sampling | `sampling` | `Creation/Sampling` |  |
+| Montecarlo Sampling | `sampling` | `Creation/Sampling` |  |
+| Point Cloud Simplification | `sampling` | `Meshing/Simplification` | **mis-filed** as Sampling |
+| Poisson-disk Sampling | `sampling` | `Creation/Sampling` |  |
+| Regular Recursive Sampling | `sampling` | `Creation/Sampling` |  |
+| Stratified Triangle Sampling | `sampling` | `Creation/Sampling` |  |
+| Texel Sampling | `sampling` | `Creation/Sampling` |  |
+| Uniform Mesh Resampling | `sampling` | `Meshing/Remeshing` | **mis-filed** as Sampling |
+| Vertex Attribute Transfer | `sampling` | `Transfer/Mesh to Mesh` | **mis-filed** as Sampling <sub>touches: color, scalar, selection</sub> |
+| Volumetric Sampling | `voronoi` | `Creation/Sampling` |  |
+| Voronoi Sampling | `voronoi` | `Creation/Sampling` | <sub>touches: color, scalar, selection</sub> |
+| Voronoi Scaffolding | `voronoi` | `Creation/Primitives` | builds a new structure |
+| Voronoi Vertex Coloring | `sampling` | `Attribute/Color` | <sub>touches: color</sub> |
+
+### `Selection` (27)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Conditional Face Selection | `func` | `Selection/by Attribute` | <sub>touches: selection</sub> |
+| Conditional Vertex Selection | `func` | `Selection/by Attribute` | <sub>touches: selection</sub> |
+| Delete ALL Faces | `select` | `Meshing/Deletion` **(new)** | **deletes geometry** - not a Selection op |
+| Delete Selected Faces | `select` | `Meshing/Deletion` **(new)** | **deletes geometry** - not a Selection op |
+| Delete Selected Faces and Vertices | `select` | `Meshing/Deletion` **(new)** | **deletes geometry** - not a Selection op |
+| Delete Selected Vertices | `select` | `Meshing/Deletion` **(new)** | **deletes geometry** - not a Selection op |
+| Dilate Selection | `select` | `Selection/Set Operations` **(new)** | selection algebra, not a criterion <sub>touches: selection</sub> |
+| Erode Selection | `select` | `Selection/Set Operations` **(new)** | selection algebra, not a criterion <sub>touches: selection</sub> |
+| Invert Selection | `select` | `Selection/Set Operations` **(new)** | selection algebra, not a criterion <sub>touches: selection</sub> |
+| Select 'Problematic' Faces | `select` | `Selection/by Topology` | <sub>touches: selection</sub> |
+| Select All | `select` | `Selection/Set Operations` **(new)** | selection algebra, not a criterion <sub>touches: selection</sub> |
+| Select Border | `select` | `Selection/by Topology` | <sub>touches: selection</sub> |
+| Select Connected Faces | `select` | `Selection/by Topology` | <sub>touches: selection</sub> |
+| Select Faces by Color | `select` | `Selection/by Attribute` | <sub>touches: selection</sub> |
+| Select Faces by View Angle | `select` | `Selection/by Attribute` | <sub>touches: selection</sub> |
+| Select Faces from Vertices | `select` | `Selection/by Topology` | <sub>touches: selection</sub> |
+| Select Faces with Edges Longer Than... | `select` | `Selection/by Attribute` | <sub>touches: selection</sub> |
+| Select None | `select` | `Selection/Set Operations` **(new)** | selection algebra, not a criterion <sub>touches: selection</sub> |
+| Select Outliers | `select` | `Selection/by Attribute` | <sub>touches: selection</sub> |
+| Select Self Intersecting Faces | `select` | `Selection/by Topology` | <sub>touches: selection</sub> |
+| Select Vertex Texture Seams | `select` | `Selection/by Topology` · `Parametrization` | seam = UV topology <sub>touches: selection</sub> |
+| Select Vertices from Faces | `select` | `Selection/by Topology` | <sub>touches: selection</sub> |
+| Select by Face Quality | `select` | `Selection/by Attribute` | <sub>touches: selection</sub> |
+| Select by Rectangle (Screen) | `select` | `Selection/by Visibility` | <sub>touches: selection</sub> |
+| Select by Vertex Quality | `select` | `Selection/by Attribute` | <sub>touches: selection</sub> |
+| Select non Manifold Edges | `select` | `Selection/by Topology` | <sub>touches: selection</sub> |
+| Select non Manifold Vertices | `select` | `Selection/by Topology` | <sub>touches: selection</sub> |
+
+### `Selection/Embree` (1)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Select Visible Faces | `embree` | `Selection/by Visibility` | <sub>touches: selection</sub> |
+
+### `Smoothing` (16)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Cut mesh along crease edges | `unsharp` | `Meshing/Remeshing` | **topology change**, not smoothing |
+| Depth Smooth | `unsharp` | `Geometry/Smoothing` |  |
+| Directional Geometry Preservation | `unsharp` | `Geometry/Smoothing` |  |
+| Generate Scalar Harmonic Field | `unsharp` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| HC Laplacian Smooth | `unsharp` | `Geometry/Smoothing` |  |
+| Laplacian Smooth | `unsharp` | `Geometry/Smoothing` |  |
+| Laplacian Smooth (surface preserving) | `trioptimize` | `Geometry/Smoothing` |  |
+| Random Vertex Displacement | `sample` | `Geometry/Deformation` **(new)** | **adds** noise - not smoothing |
+| ScaleDependent Laplacian Smooth | `unsharp` | `Geometry/Smoothing` |  |
+| Smooth Vertex Quality | `unsharp` | `Attribute/Scalar` | **scalar**, not color <sub>touches: scalar</sub> |
+| Taubin Smooth | `unsharp` | `Geometry/Smoothing` |  |
+| TwoStep Smooth | `unsharp` | `Geometry/Smoothing` |  |
+| UnSharp Mask Color | `unsharp` | `Attribute/Color` | <sub>touches: color</sub> |
+| UnSharp Mask Geometry | `unsharp` | `Geometry/Smoothing` |  |
+| UnSharp Mask Quality | `unsharp` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Vertex Linear Morphing | `unsharp` | `Geometry/Deformation` **(new)** |  |
+
+### `Texture` (16)
+
+| Filter | Plugin | Proposed categories | Note |
+|---|---|---|---|
+| Convert PerVertex UV into PerWedge UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |
+| Convert PerWedge UV into PerVertex UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |
+| Convert: Object-Space Normal Map to Tangent-Space | `texture` | `Texture/Conversion` | <sub>touches: texture</sub> |
+| Harmonic Parametrization | `parametrization` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
+| Least Squares Conformal Maps Parametrization | `parametrization` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
+| Pack Texture Images | `texture` | `Texture/Packing` · `Parametrization/Atlas Packing` |  |
+| Parametrization: Flat Plane | `texture` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
+| Parametrization: Trivial Per-Triangle | `texture` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
+| Parametrization: Voronoi Atlas | `texture` | `Parametrization/UV Creation` |  |
+| Parametrization: xatlas | `xatlas` | `Parametrization/UV Creation` | <sub>touches: texture, uv</sub> |
+| Set Texture | `texture` | `Texture/Assignment` | <sub>touches: texture</sub> |
+| Small Islands Remover | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
+| Texture Map Defragmentation | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
+| Transfer: Texture to Vertex Color | `texture` | `Transfer/Attribute to Texture` · `Attribute/Color` | <sub>touches: color</sub> |
+| Transfer: Vertex Attributes to Texture | `texture` | `Transfer/Attribute to Texture` · `Texture` | <sub>touches: texture</sub> |
+| Transfer: Vertex Color to Texture | `texture` | `Transfer/Attribute to Texture` · `Texture` | <sub>touches: texture</sub> |
+
