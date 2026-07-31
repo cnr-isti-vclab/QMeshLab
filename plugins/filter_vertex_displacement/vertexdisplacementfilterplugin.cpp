@@ -38,6 +38,14 @@ MeshFilterRunResult fail(const QString &message)
     return { false, false, message };
 }
 
+// The progress callback returns false when the user cancels. Only the noise loop may
+// bail: it runs before any vertex is moved. Once displacement starts the mesh is being
+// mutated in place, and there is no undo checkpoint yet.
+MeshFilterRunResult interrupted()
+{
+    return { false, false, QObject::tr("Filter interrupted by user.") };
+}
+
 MeshFilterRunResult success(const QStringList &messages)
 {
     MeshFilterRunResult result;
@@ -199,8 +207,10 @@ MeshFilterRunResult displaceFractally(
             p.gain,
             weights);
         maxNoise = std::max(maxNoise, noise[i]);
-        if (cb && (i & 1023u) == 0u)
-            cb(int(50 * i / std::max<size_t>(1, mesh.vert.size())), "Computing fractal noise...");
+        if (cb && (i & 1023u) == 0u
+            && !(*cb)(int(50 * i / std::max<size_t>(1, mesh.vert.size())),
+                      "Computing fractal noise..."))
+            return interrupted();
     }
     if (!std::isfinite(maxNoise) || std::abs(maxNoise) <= std::numeric_limits<float>::epsilon())
         return fail(QObject::tr("The fractal noise has a degenerate range for these parameters."));
@@ -211,6 +221,10 @@ MeshFilterRunResult displaceFractally(
         if (vertex.IsD())
             continue;
         vertex.P() += vertex.cN() * (noise[i] * heightScale);
+        // Progress only — deliberately not cancellable. This loop mutates vertex
+        // positions and Document::runFilter takes no snapshot, so an early return
+        // would leave the mesh partly displaced with nothing to undo. It is also
+        // trivial next to the noise computation above, which is where cancelling pays.
         if (cb && (i & 1023u) == 0u)
             cb(50 + int(50 * i / std::max<size_t>(1, mesh.vert.size())), "Displacing vertices...");
     }
@@ -238,10 +252,17 @@ MeshFilterRunResult displaceRandomly(Document &doc, int meshIndex, const FilterP
         return fail(QObject::tr("Maximum displacement must be finite and non-negative."));
 
     const bool updateNormals = params.getBool(QStringLiteral("recomputeNormals"), true);
-    const int randomSeed = params.getInt(QStringLiteral("randomSeed"), 0);
-    std::mt19937 rng(randomSeed == 0
-                         ? QRandomGenerator::global()->generate()
-                         : std::mt19937::result_type(randomSeed));
+    // Seed 0 means "pick one for me". Draw it explicitly and report the value below,
+    // so a result the user likes can be reproduced by pinning that seed — a filter
+    // application has to be replayable to be worth recording in the undo history.
+    const int requestedSeed = params.getInt(QStringLiteral("randomSeed"), 0);
+    const int effectiveSeed =
+        requestedSeed != 0
+            ? requestedSeed
+            : int(QRandomGenerator::global()->bounded(1, std::numeric_limits<int>::max()));
+    // Braces, not parens: the parenthesised form is a most-vexing-parse and would
+    // declare a function rather than construct the generator.
+    std::mt19937 rng{std::mt19937::result_type(effectiveSeed)};
     std::uniform_real_distribution<float> distribution(-maximum, maximum);
     for (VCGVertex &vertex : mesh.vert) {
         if (!vertex.IsD())
@@ -249,7 +270,10 @@ MeshFilterRunResult displaceRandomly(Document &doc, int meshIndex, const FilterP
     }
 
     if (updateNormals) {
-        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFace(mesh);
+        // ...PerFaceNormalized: the plain PerVertexNormalizedPerFace leaves face
+        // normals area-weighted (length 2*area), and everything downstream assumes
+        // unit face normals. Matches the fractal path above.
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
         entry.ioMask |= vcg::tri::io::Mask::IOM_VERTNORMAL | vcg::tri::io::Mask::IOM_FACENORMAL;
     }
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
@@ -259,9 +283,10 @@ MeshFilterRunResult displaceRandomly(Document &doc, int meshIndex, const FilterP
         QObject::tr("Randomly displaced vertices of '%1'").arg(entry.name));
     return success({
         QObject::tr("Displaced %1 vertices.").arg(mesh.VN()),
-        randomSeed == 0
-            ? QObject::tr("Random seed: automatic")
-            : QObject::tr("Random seed: %1").arg(randomSeed)
+        requestedSeed == 0
+            ? QObject::tr("Random seed: %1 (generated — set randomSeed to this value to "
+                          "reproduce)").arg(effectiveSeed)
+            : QObject::tr("Random seed: %1").arg(effectiveSeed)
     });
 }
 

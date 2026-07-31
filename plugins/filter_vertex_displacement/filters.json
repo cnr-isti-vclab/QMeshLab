@@ -63,7 +63,7 @@
           "max": 2147483647
         }
       ],
-      "outputModifies": ["VG", "VN"]
+      "outputModifies": ["VG", "VN", "FN"]
     },
     {
       "id": "displace_by_fractal_brownian_motion",
@@ -86,7 +86,7 @@
         {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":1.0,"decimals":4},
         {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
       ],
-      "outputModifies": ["VG", "VN"]
+      "outputModifies": ["VG", "VN", "FN"]
     },
     {
       "id": "displace_by_standard_multifractal_noise",
@@ -110,7 +110,7 @@
         {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":1.0,"decimals":4},
         {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
       ],
-      "outputModifies": ["VG", "VN"]
+      "outputModifies": ["VG", "VN", "FN"]
     },
     {
       "id": "displace_by_heterogeneous_multifractal_noise",
@@ -134,7 +134,7 @@
         {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":1.0,"decimals":4},
         {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
       ],
-      "outputModifies": ["VG", "VN"]
+      "outputModifies": ["VG", "VN", "FN"]
     },
     {
       "id": "displace_by_hybrid_multifractal_noise",
@@ -158,7 +158,7 @@
         {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":1.0,"decimals":4},
         {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
       ],
-      "outputModifies": ["VG", "VN"]
+      "outputModifies": ["VG", "VN", "FN"]
     },
     {
       "id": "displace_by_ridged_multifractal_noise",
@@ -183,7 +183,7 @@
         {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":2.0,"decimals":4},
         {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
       ],
-      "outputModifies": ["VG", "VN"]
+      "outputModifies": ["VG", "VN", "FN"]
     }
   ]
 }
