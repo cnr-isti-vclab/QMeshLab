@@ -63,7 +63,6 @@ filter *category* instead, see [Vocabulary](docs/design/vocabulary.md):
 - `filter_mls`
 - `filter_plymc`
 - `filter_qslim`
-- `filter_sample`
 - `filter_sampling`
 - `filter_screened_poisson`
 - `filter_select`
@@ -71,6 +70,7 @@ filter *category* instead, see [Vocabulary](docs/design/vocabulary.md):
 - `filter_texture_defragmentation`
 - `filter_trioptimize`
 - `filter_unsharp`
+- `filter_vertex_displacement`
 - `filter_voronoi`
 - `filter_xatlas`
 

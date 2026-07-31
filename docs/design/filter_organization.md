@@ -406,7 +406,7 @@ for (see open ruling 5).
 | `filter_meshing` | 37 | no dep; **the single worst grab-bag** — its 37 filters span nine families, see breakdown below | 9 targets — **see open ruling 2** |
 | `filter_unsharp` | 21 | no dep; algorithm-named | `filter_smooth` (14), `filter_compute` (7 normals) |
 | `filter_trioptimize` | 3 | no dep; algorithm-named | `filter_remesh` (2), `filter_smooth` (1) |
-| `filter_sample` | 1 | no dep; **misnamed** — its one filter is a smoothing filter, and the name collides conceptually with `filter_sampling` | `filter_smooth` |
+| `filter_sample` | 1 | **Resolved:** random vertex displacement moved to the functional `filter_vertex_displacement` plugin, together with the five MeshLab fractal displacement methods | `filter_vertex_displacement` |
 | `filter_voronoi` | 4 | no dep; algorithm-named | `filter_remesh` (1), `filter_sampling` (3) |
 | `filter_geodesic` | 4 | no dep; algorithm-named | `filter_compute` |
 | `filter_icp` | 3 | no dep; **mis-filed** — ICP/Global Align/Overlapping are registration, currently under Remeshing+Measure | `filter_align` (new family) |

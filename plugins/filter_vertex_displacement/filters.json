@@ -1,0 +1,189 @@
+{
+  "pluginId": "qmeshlab.filter.vertex_displacement",
+  "provenance": {
+    "project": "MeshLab Fractal Filter",
+    "repository": "https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal",
+    "license": "GPL-2.0-or-later"
+  },
+  "references": [
+    {
+      "id": "ebert2002procedural",
+      "type": "book",
+      "title": "Texturing and Modeling: A Procedural Approach",
+      "author": [
+        {"family": "Ebert", "given": "David S."},
+        {"family": "Musgrave", "given": "F. Kenton"},
+        {"family": "Peachey", "given": "Darwyn"},
+        {"family": "Perlin", "given": "Ken"},
+        {"family": "Worley", "given": "Steven"}
+      ],
+      "publisher": "Morgan Kaufmann",
+      "issued": {"date-parts": [[2002]]}
+    }
+  ],
+  "filters": [
+    {
+      "id": "displace_vertices_randomly",
+      "categories": ["Geometry/Deformation"],
+      "name": "Displace Vertices Randomly",
+      "pythonName": "displace_vertices_randomly",
+      "shortDescription": "Move every vertex by an independently generated random vector.",
+      "longDescriptionMarkdown": "Adds an independent uniformly distributed displacement to each coordinate of every vertex. With maximum displacement $d$, each coordinate offset lies in $[-d,d]$. Set a nonzero random seed to obtain repeatable results.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {"requireVertices": true},
+      "parameters": [
+        {
+          "id": "maxDisplacement",
+          "label": "Maximum coordinate displacement",
+          "help": "Maximum absolute displacement applied independently to each coordinate.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "recomputeNormals",
+          "label": "Recompute normals",
+          "help": "Recompute face and vertex normals after displacement.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Use zero for an automatically generated seed, or a positive value for repeatable displacement.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ],
+      "outputModifies": ["VG", "VN"]
+    },
+    {
+      "id": "displace_by_fractal_brownian_motion",
+      "categories": ["Geometry/Deformation"],
+      "name": "Displace by Fractal Brownian Motion",
+      "pythonName": "displace_by_fractal_brownian_motion",
+      "referenceIds": ["ebert2002procedural"],
+      "shortDescription": "Displace vertices along their normals using fractal Brownian motion.",
+      "longDescriptionMarkdown": "Evaluates fractal Brownian motion (fBM) in normalized object space and displaces each vertex along a smoothed normal. The noise is the weighted sum $$N(\\mathbf{x})=\\sum_{i=0}^{n-1} L^{-Hi}\\,P(L^i\\mathbf{x}),$$ where $P$ is VCGLib's three-dimensional Perlin noise, $n$ is the octave count, $L$ is lacunarity, and $H$ is the fractal increment. Lower $H$ retains more high-frequency detail.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputPrepare": ["FF"],
+      "inputRequirements": {"requireVertices": true, "requireFaces": true},
+      "parameters": [
+        {"id":"maxHeight","label":"Maximum height","help":"Maximum positive displacement, relative to the mesh bounding-box diagonal.","group":"main","type":"absperc","default":"@bboxDiag01","min":0.0,"max":"@bboxDiag","decimals":6},
+        {"id":"scale","label":"Noise scale","help":"Spatial size of the base noise features; smaller values produce finer detail.","group":"main","type":"absperc","default":"@bboxDiag","min":1e-9,"max":"@bboxDiag5x","decimals":6},
+        {"id":"octaves","label":"Octaves","help":"Number of Perlin-noise frequency bands.","group":"main","type":"int","default":10,"min":1,"max":20},
+        {"id":"lacunarity","label":"Lacunarity","help":"Frequency multiplier between consecutive octaves.","group":"main","type":"double","default":2.0,"min":0.000001,"decimals":4},
+        {"id":"fractalIncrement","label":"Fractal increment","help":"Exponent controlling the spectral weight of higher frequencies.","group":"main","type":"double","default":1.2,"min":0.0,"decimals":4},
+        {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":1.0,"decimals":4},
+        {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
+      ],
+      "outputModifies": ["VG", "VN"]
+    },
+    {
+      "id": "displace_by_standard_multifractal_noise",
+      "categories": ["Geometry/Deformation"],
+      "name": "Displace by Standard Multifractal Noise",
+      "pythonName": "displace_by_standard_multifractal_noise",
+      "referenceIds": ["ebert2002procedural"],
+      "shortDescription": "Displace vertices using multiplicative standard multifractal noise.",
+      "longDescriptionMarkdown": "Evaluates standard multifractal noise in normalized object space and displaces vertices along smoothed normals. Unlike additive fBM, its octave contributions are multiplied: $$N(\\mathbf{x})=\\prod_{i=0}^{n-1}\\left(O+L^{-Hi}P(L^i\\mathbf{x})\\right).$$ The offset $O$ controls multifractality and the fractal increment $H$ controls the contribution of high frequencies.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputPrepare": ["FF"],
+      "inputRequirements": {"requireVertices": true, "requireFaces": true},
+      "parameters": [
+        {"id":"maxHeight","label":"Maximum height","help":"Maximum positive displacement, relative to the mesh bounding-box diagonal.","group":"main","type":"absperc","default":"@bboxDiag01","min":0.0,"max":"@bboxDiag","decimals":6},
+        {"id":"scale","label":"Noise scale","help":"Spatial size of the base noise features; smaller values produce finer detail.","group":"main","type":"absperc","default":"@bboxDiag","min":1e-9,"max":"@bboxDiag5x","decimals":6},
+        {"id":"octaves","label":"Octaves","help":"Number of Perlin-noise frequency bands.","group":"main","type":"int","default":8,"min":1,"max":20},
+        {"id":"lacunarity","label":"Lacunarity","help":"Frequency multiplier between consecutive octaves.","group":"main","type":"double","default":2.0,"min":0.000001,"decimals":4},
+        {"id":"fractalIncrement","label":"Fractal increment","help":"Exponent controlling the spectral weight of higher frequencies.","group":"main","type":"double","default":0.9,"min":0.0,"decimals":4},
+        {"id":"offset","label":"Offset","help":"Bias added to every octave before multiplication.","group":"main","type":"double","default":0.9,"decimals":4},
+        {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":1.0,"decimals":4},
+        {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
+      ],
+      "outputModifies": ["VG", "VN"]
+    },
+    {
+      "id": "displace_by_heterogeneous_multifractal_noise",
+      "categories": ["Geometry/Deformation"],
+      "name": "Displace by Heterogeneous Multifractal Noise",
+      "pythonName": "displace_by_heterogeneous_multifractal_noise",
+      "referenceIds": ["ebert2002procedural"],
+      "shortDescription": "Displace vertices using elevation-dependent heterogeneous multifractal noise.",
+      "longDescriptionMarkdown": "Evaluates a heterogeneous multifractal whose successive increments are modulated by the accumulated signal. This makes high-frequency detail depend on the local elevation already produced by lower octaves, yielding spatially varying roughness rather than a stationary noise field.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputPrepare": ["FF"],
+      "inputRequirements": {"requireVertices": true, "requireFaces": true},
+      "parameters": [
+        {"id":"maxHeight","label":"Maximum height","help":"Maximum positive displacement, relative to the mesh bounding-box diagonal.","group":"main","type":"absperc","default":"@bboxDiag01","min":0.0,"max":"@bboxDiag","decimals":6},
+        {"id":"scale","label":"Noise scale","help":"Spatial size of the base noise features; smaller values produce finer detail.","group":"main","type":"absperc","default":"@bboxDiag","min":1e-9,"max":"@bboxDiag5x","decimals":6},
+        {"id":"octaves","label":"Octaves","help":"Number of Perlin-noise frequency bands.","group":"main","type":"int","default":8,"min":1,"max":20},
+        {"id":"lacunarity","label":"Lacunarity","help":"Frequency multiplier between consecutive octaves.","group":"main","type":"double","default":3.0,"min":0.000001,"decimals":4},
+        {"id":"fractalIncrement","label":"Fractal increment","help":"Exponent controlling the spectral weight of higher frequencies.","group":"main","type":"double","default":0.9,"min":0.0,"decimals":4},
+        {"id":"offset","label":"Offset","help":"Bias controlling the strength of multifractal modulation.","group":"main","type":"double","default":0.4,"decimals":4},
+        {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":1.0,"decimals":4},
+        {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
+      ],
+      "outputModifies": ["VG", "VN"]
+    },
+    {
+      "id": "displace_by_hybrid_multifractal_noise",
+      "categories": ["Geometry/Deformation"],
+      "name": "Displace by Hybrid Multifractal Noise",
+      "pythonName": "displace_by_hybrid_multifractal_noise",
+      "referenceIds": ["ebert2002procedural"],
+      "shortDescription": "Displace vertices using signal-weighted hybrid multifractal noise.",
+      "longDescriptionMarkdown": "Evaluates hybrid multifractal noise, where each octave controls how strongly the following octave contributes. The feedback is clamped to avoid unbounded amplification, producing terrain-like regions with locally varying roughness.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputPrepare": ["FF"],
+      "inputRequirements": {"requireVertices": true, "requireFaces": true},
+      "parameters": [
+        {"id":"maxHeight","label":"Maximum height","help":"Maximum positive displacement, relative to the mesh bounding-box diagonal.","group":"main","type":"absperc","default":"@bboxDiag01","min":0.0,"max":"@bboxDiag","decimals":6},
+        {"id":"scale","label":"Noise scale","help":"Spatial size of the base noise features; smaller values produce finer detail.","group":"main","type":"absperc","default":"@bboxDiag","min":1e-9,"max":"@bboxDiag5x","decimals":6},
+        {"id":"octaves","label":"Octaves","help":"Number of Perlin-noise frequency bands.","group":"main","type":"int","default":8,"min":1,"max":20},
+        {"id":"lacunarity","label":"Lacunarity","help":"Frequency multiplier between consecutive octaves.","group":"main","type":"double","default":4.0,"min":0.000001,"decimals":4},
+        {"id":"fractalIncrement","label":"Fractal increment","help":"Exponent controlling the spectral weight of higher frequencies.","group":"main","type":"double","default":0.1,"min":0.0,"decimals":4},
+        {"id":"offset","label":"Offset","help":"Bias controlling the initial signal and octave feedback.","group":"main","type":"double","default":0.3,"decimals":4},
+        {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":1.0,"decimals":4},
+        {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
+      ],
+      "outputModifies": ["VG", "VN"]
+    },
+    {
+      "id": "displace_by_ridged_multifractal_noise",
+      "categories": ["Geometry/Deformation"],
+      "name": "Displace by Ridged Multifractal Noise",
+      "pythonName": "displace_by_ridged_multifractal_noise",
+      "referenceIds": ["ebert2002procedural"],
+      "shortDescription": "Displace vertices using ridged multifractal noise.",
+      "longDescriptionMarkdown": "Evaluates ridged multifractal noise by folding each Perlin signal around zero, subtracting it from the offset, and squaring it. Feedback controlled by the gain sharpens coherent ridges while suppressing detail away from them.",
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputPrepare": ["FF"],
+      "inputRequirements": {"requireVertices": true, "requireFaces": true},
+      "parameters": [
+        {"id":"maxHeight","label":"Maximum height","help":"Maximum positive displacement, relative to the mesh bounding-box diagonal.","group":"main","type":"absperc","default":"@bboxDiag01","min":0.0,"max":"@bboxDiag","decimals":6},
+        {"id":"scale","label":"Noise scale","help":"Spatial size of the base noise features; smaller values produce finer detail.","group":"main","type":"absperc","default":"@bboxDiag","min":1e-9,"max":"@bboxDiag5x","decimals":6},
+        {"id":"octaves","label":"Octaves","help":"Number of Perlin-noise frequency bands.","group":"main","type":"int","default":8,"min":1,"max":20},
+        {"id":"lacunarity","label":"Lacunarity","help":"Frequency multiplier between consecutive octaves.","group":"main","type":"double","default":4.0,"min":0.000001,"decimals":4},
+        {"id":"fractalIncrement","label":"Fractal increment","help":"Exponent controlling the spectral weight of higher frequencies.","group":"main","type":"double","default":0.5,"min":0.0,"decimals":4},
+        {"id":"offset","label":"Offset","help":"Sets the ridge level before squaring the folded signal.","group":"main","type":"double","default":0.9,"decimals":4},
+        {"id":"gain","label":"Gain","help":"Controls feedback strength and ridge sharpness.","group":"main","type":"double","default":2.0,"min":0.0,"decimals":4},
+        {"id":"seed","label":"Seed","help":"Translation of the noise domain; changing it produces another morphology.","group":"advanced","type":"double","default":2.0,"decimals":4},
+        {"id":"normalSmoothingSteps","label":"Normal smoothing steps","help":"Laplacian smoothing iterations applied to normals before displacement.","group":"advanced","type":"int","default":5,"min":0,"max":100}
+      ],
+      "outputModifies": ["VG", "VN"]
+    }
+  ]
+}

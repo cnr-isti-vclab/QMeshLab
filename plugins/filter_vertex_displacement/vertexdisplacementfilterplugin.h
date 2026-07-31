@@ -1,11 +1,11 @@
 #pragma once
 
-#include "meshfilterplugin.h"
 #include "filterparam.h"
+#include "meshfilterplugin.h"
 
 class MeshFilterPluginManager;
 
-class SampleFilterPlugin final : public MeshFilterPlugin
+class VertexDisplacementFilterPlugin final : public MeshFilterPlugin
 {
 public:
     QString pluginId() const override;
@@ -16,4 +16,4 @@ public:
         Document &doc) const override;
 };
 
-void registerSampleFilterPlugin(MeshFilterPluginManager &pluginManager);
+void registerVertexDisplacementFilterPlugin(MeshFilterPluginManager &pluginManager);

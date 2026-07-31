@@ -65,8 +65,8 @@
 #if QMESH_PLUGIN_FILTER_MLS_ENABLED
 #include "plugins/filter_mls/mlsfilterplugin.h"
 #endif
-#if QMESH_PLUGIN_FILTER_SAMPLE_ENABLED
-#include "plugins/filter_sample/samplefilterplugin.h"
+#if QMESH_PLUGIN_FILTER_VERTEX_DISPLACEMENT_ENABLED
+#include "plugins/filter_vertex_displacement/vertexdisplacementfilterplugin.h"
 #endif
 #if QMESH_PLUGIN_FILTER_LAYER_ENABLED
 #include "plugins/filter_layer/layerfilterplugin.h"
@@ -158,8 +158,8 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #if QMESH_PLUGIN_FILTER_MLS_ENABLED
     registerMlsFilterPlugin(pluginManager);
 #endif
-#if QMESH_PLUGIN_FILTER_SAMPLE_ENABLED
-    registerSampleFilterPlugin(pluginManager);
+#if QMESH_PLUGIN_FILTER_VERTEX_DISPLACEMENT_ENABLED
+    registerVertexDisplacementFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_LAYER_ENABLED
     registerLayerFilterPlugin(pluginManager);

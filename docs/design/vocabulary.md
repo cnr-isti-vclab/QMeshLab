@@ -371,6 +371,7 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Transfer` | Move data between domains/layers/rasters | **`Project`**, `Copy`, `Map`, `Push`, `Pull` |
 | `Transform` | Apply an affine change to positions | `Move` (use `Translate`), `Deform` |
 | `Translate`, `Rotate`, `Scale` | The specific affine operations | `Shift`, `Turn`, `Resize` |
+| `Displace` | Move vertices by a computed scalar or vector field while preserving connectivity | `Perturb`, `Deform` |
 | `Apply` | Apply an **existing stored** transform to geometry | *(never as a generic verb)* |
 | `Freeze` | Bake the layer matrix into vertex coordinates | `Collapse matrix`, `Commit` |
 | `Align` | Derive a registration transform between layers | `Register`, `Fit` |

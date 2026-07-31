@@ -131,6 +131,7 @@ private slots:
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
+    void vertexDisplacementFiltersRunOnCube();
     void splitConnectedComponentsAfterDuplicateVertexRemoval();
     void hausdorffRunsOnTransientMeshCopies();
     void cgalAlphaWrapRunsWhenAvailable();
@@ -558,6 +559,78 @@ void FilterTests::qslimSimplifiesCube()
     QVERIFY(output.VN() > 0);
     QVERIFY(output.FN() > 0);
     QVERIFY(output.FN() <= 6);
+}
+
+void FilterTests::vertexDisplacementFiltersRunOnCube()
+{
+    Document doc;
+    VCGMesh input;
+    makeCubeMesh(input, 0.0f, 0.0f, 0.0f);
+    QVERIFY(doc.addMesh(input, QStringLiteral("Cube")) >= 0);
+
+    const QStringList fractalIds {
+        QStringLiteral("displace_by_fractal_brownian_motion"),
+        QStringLiteral("displace_by_standard_multifractal_noise"),
+        QStringLiteral("displace_by_heterogeneous_multifractal_noise"),
+        QStringLiteral("displace_by_hybrid_multifractal_noise"),
+        QStringLiteral("displace_by_ridged_multifractal_noise")
+    };
+    QHash<QString, QString> fractalKeys;
+    QStringList found;
+    bool foundRandom = false;
+    bool foundLegacyRandom = false;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.pluginId == QStringLiteral("qmeshlab.filter.vertex_displacement")) {
+            foundRandom = foundRandom
+                || info.descriptor.id == QStringLiteral("displace_vertices_randomly");
+            if (fractalIds.contains(info.descriptor.id)) {
+                found << info.descriptor.id;
+                fractalKeys.insert(info.descriptor.id, info.key);
+            }
+        }
+        foundLegacyRandom = foundLegacyRandom
+            || info.descriptor.id == QStringLiteral("apply_coord_random_displacement");
+    }
+    QCOMPARE(found.size(), fractalIds.size());
+    QVERIFY(foundRandom);
+    QVERIFY(!foundLegacyRandom);
+    QCOMPARE(fractalKeys.size(), fractalIds.size());
+
+    for (const QString &id : fractalIds) {
+        Document runDoc;
+        VCGMesh cube;
+        makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+        QVERIFY(runDoc.addMesh(cube, QStringLiteral("Cube")) >= 0);
+
+        std::vector<vcg::Point3f> before;
+        for (const VCGVertex &vertex : runDoc.mesh(0).mesh.vert)
+            before.push_back(vertex.cP());
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("maxHeight"), 0.1);
+        params.insert(QStringLiteral("scale"), 1.0);
+        params.insert(QStringLiteral("octaves"), 3);
+        params.insert(QStringLiteral("lacunarity"), 2.0);
+        params.insert(QStringLiteral("fractalIncrement"), 1.2);
+        if (id != QStringLiteral("displace_by_fractal_brownian_motion"))
+            params.insert(QStringLiteral("offset"), 0.9);
+        if (id == QStringLiteral("displace_by_ridged_multifractal_noise"))
+            params.insert(QStringLiteral("gain"), 2.0);
+        params.insert(QStringLiteral("seed"), 1.0);
+        params.insert(QStringLiteral("normalSmoothingSteps"), 2);
+        const MeshFilterRunResult result = runDoc.runFilter(fractalKeys.value(id), params);
+        QVERIFY2(result.success, qPrintable(id + QStringLiteral(": ") + result.errorMessage));
+
+        bool changed = false;
+        for (size_t i = 0; i < before.size(); ++i) {
+            const vcg::Point3f &position = runDoc.mesh(0).mesh.vert[i].cP();
+            changed = changed || (position - before[i]).Norm() > 1e-6f;
+            QVERIFY(std::isfinite(position.X()));
+            QVERIFY(std::isfinite(position.Y()));
+            QVERIFY(std::isfinite(position.Z()));
+        }
+        QVERIFY2(changed, qPrintable(id));
+    }
 }
 
 void FilterTests::splitConnectedComponentsAfterDuplicateVertexRemoval()
