@@ -1260,8 +1260,10 @@ void MainWindow::setupToolsMenu(QMenu *toolsMenu)
     // Optional exclusivity: at most one tool checked, and it can be toggled off.
     group->setExclusionPolicy(QActionGroup::ExclusionPolicy::ExclusiveOptional);
 
-    QToolBar *toolBar = addToolBar(tr("Edit Tools"));
+    auto *toolBar = new QToolBar(tr("Edit Tools"), this);
     toolBar->setObjectName(QStringLiteral("EditToolsToolBar"));
+    toolBar->setAllowedAreas(Qt::LeftToolBarArea | Qt::RightToolBarArea);
+    addToolBar(Qt::LeftToolBarArea, toolBar);
 
     for (int i = 0; i < static_cast<int>(m_interactiveTools.size()); ++i) {
         const InteractiveTool &tool = *m_interactiveTools[size_t(i)];
