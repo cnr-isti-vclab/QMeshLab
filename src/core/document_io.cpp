@@ -210,7 +210,11 @@ int Document::loadMesh(const QString &filename)
     }
     if (!normalizedMeshTexturePaths.empty())
         entry->mesh.textures = std::move(normalizedMeshTexturePaths);
-    syncTextureAssetsFromLegacyAssociation(*entry);
+    entry->textureAssets = buildTextureAssetsFromLegacyAssociation(
+        entry->textureFileNames,
+        entry->textureFilePaths,
+        entry->mesh.textures,
+        loadedMaterialSet.textureAssets);
 
     // Also register any PBR channel textures from materialSet that were not listed in
     // mesh.textures (e.g. glTF normal / occlusion / roughness maps that have no UV slot).
@@ -441,7 +445,8 @@ int Document::reloadMesh(int index)
     entry.textureAssets = buildTextureAssetsFromLegacyAssociation(
         entry.textureFileNames,
         entry.textureFilePaths,
-        reloadedMesh.textures);
+        reloadedMesh.textures,
+        loadedMaterialSet.textureAssets);
     entry.materialSet = normalizeMaterialSet(sourcePath, loadedMaterialSet, reloadedMesh);
     entry.geometryRevision = m_nextGeometryRevision++;
     ++entry.materialRevision;

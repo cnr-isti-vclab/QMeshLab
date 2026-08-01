@@ -84,7 +84,8 @@ MeshIOMaterialSet normalizeMaterialSet(
 std::vector<MeshIOTextureAsset> buildTextureAssetsFromLegacyAssociation(
     const QStringList &textureFileNames,
     const QStringList &textureFilePaths,
-    const std::vector<std::string> &meshTextures);
+    const std::vector<std::string> &meshTextures,
+    const std::vector<MeshIOTextureAsset> &importedAssets = {});
 void syncTextureAssetsFromLegacyAssociation(Document::MeshEntry &entry);
 QSize rasterPlaneStorageSize(const RasterPlane &plane);
 QString rasterPlaneFallbackName(const RasterPlane &plane, int planeIndex);

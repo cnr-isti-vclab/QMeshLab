@@ -395,18 +395,22 @@ MeshIOMaterialSet normalizeMaterialSet(
 std::vector<MeshIOTextureAsset> buildTextureAssetsFromLegacyAssociation(
     const QStringList &textureFileNames,
     const QStringList &textureFilePaths,
-    const std::vector<std::string> &meshTextures)
+    const std::vector<std::string> &meshTextures,
+    const std::vector<MeshIOTextureAsset> &importedAssets)
 {
     int count = std::max(textureFileNames.size(), textureFilePaths.size());
     count = std::max(count, int(meshTextures.size()));
+    count = std::max(count, int(importedAssets.size()));
 
     std::vector<MeshIOTextureAsset> assets;
     assets.reserve(std::max(0, count));
     for (int i = 0; i < count; ++i) {
-        MeshIOTextureAsset asset;
-        if (i >= 0 && i < textureFileNames.size())
+        MeshIOTextureAsset asset = i < int(importedAssets.size())
+            ? importedAssets[size_t(i)]
+            : MeshIOTextureAsset{};
+        if (asset.name.trimmed().isEmpty() && i < textureFileNames.size())
             asset.name = textureFileNames.at(i).trimmed();
-        if (i >= 0 && i < textureFilePaths.size())
+        if (asset.sourcePath.trimmed().isEmpty() && i < textureFilePaths.size())
             asset.sourcePath = QDir::toNativeSeparators(textureFilePaths.at(i).trimmed());
         if (asset.sourcePath.isEmpty() && i >= 0 && i < int(meshTextures.size()))
             asset.sourcePath = QDir::toNativeSeparators(QString::fromStdString(meshTextures[size_t(i)]).trimmed());
