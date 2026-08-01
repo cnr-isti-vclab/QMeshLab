@@ -1311,6 +1311,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             if (!vcg::tri::BitQuadCreation<VCGMesh>::IsTriQuadOnly(mesh)) {
                 return fail(QObject::tr("Filter requires triangular and/or quad faces only."));
             }
+            if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) > 0)
+                return fail(QObject::tr("4-8 subdivision requires a two-manifold mesh."));
+            if (!vcg::tri::Clean<VCGMesh>::IsFaceFauxConsistent(mesh))
+                return fail(QObject::tr("Mesh has inconsistent faux-edge tagging."));
             vcg::tri::BitQuadCreation<VCGMesh>::MakePureByRefine(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerBitQuadFaceNormalized(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexFromCurrentFaceNormal(mesh);

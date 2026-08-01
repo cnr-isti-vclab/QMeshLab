@@ -131,6 +131,7 @@ private slots:
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
+    void instantMeshesRemeshesCube();
     void vertexDisplacementFiltersRunOnCube();
     void splitConnectedComponentsAfterDuplicateVertexRemoval();
     void hausdorffRunsOnTransientMeshCopies();
@@ -559,6 +560,53 @@ void FilterTests::qslimSimplifiesCube()
     QVERIFY(output.VN() > 0);
     QVERIFY(output.FN() > 0);
     QVERIFY(output.FN() <= 6);
+}
+
+void FilterTests::instantMeshesRemeshesCube()
+{
+    Document doc;
+    VCGMesh input;
+    makeCubeMesh(input, 0.0f, 0.0f, 0.0f);
+    const int inputIndex = doc.addMesh(input, QStringLiteral("Cube"));
+    QVERIFY(inputIndex >= 0);
+
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("remesh_to_quads_instant_meshes")) {
+            filterKey = info.key;
+            QCOMPARE(info.descriptor.provenance.project, QStringLiteral("Instant Meshes"));
+            QCOMPARE(info.descriptor.references.size(), size_t(1));
+            QCOMPARE(info.descriptor.references.front().doi,
+                     QStringLiteral("10.1145/2816795.2818078"));
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("targetEdgeLength"), 0.5);
+    params.insert(QStringLiteral("smoothingIterations"), 0);
+    params.insert(QStringLiteral("deterministic"), true);
+    params.insert(QStringLiteral("threads"), 2);
+    const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+    QCOMPARE(doc.meshCount(), 2);
+    const VCGMesh &output = doc.mesh(result.newMeshIndices.front()).mesh;
+    QVERIFY(output.VN() > 0);
+    QVERIFY(output.FN() > 0);
+
+    QString subdivisionKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id
+            == QStringLiteral("meshing_tri_to_quad_by_4_8_subdivision")) {
+            subdivisionKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!subdivisionKey.isEmpty());
+    const MeshFilterRunResult subdivision = doc.runFilter(subdivisionKey, {});
+    QVERIFY2(subdivision.success, qPrintable(subdivision.errorMessage));
 }
 
 void FilterTests::vertexDisplacementFiltersRunOnCube()

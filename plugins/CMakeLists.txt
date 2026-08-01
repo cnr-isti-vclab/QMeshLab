@@ -83,6 +83,12 @@ if (TARGET QMeshLabPluginFilterQSlim)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_QSLIM_ENABLED=1)
 endif()
 
+add_subdirectory(filter_instant_meshes)
+if (TARGET QMeshLabPluginFilterInstantMeshes)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterInstantMeshes)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_INSTANT_MESHES_ENABLED=1)
+endif()
+
 add_subdirectory(filter_meshing)
 if (TARGET QMeshLabPluginFilterMeshing)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterMeshing)

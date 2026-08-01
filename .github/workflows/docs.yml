@@ -29,6 +29,9 @@ jobs:
         run: |
           pip install -r docs/requirements.txt
 
+      - name: Install native dependencies
+        run: brew install eigen tbb
+
       - name: Configure and build
         run: |
           cmake -S . -B build -G Ninja \

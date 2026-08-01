@@ -1,0 +1,55 @@
+{
+  "pluginId": "qmeshlab.filter.instant_meshes",
+  "provenance": {
+    "project": "Instant Meshes",
+    "repository": "https://github.com/wjakob/instant-meshes",
+    "license": "BSD-3-Clause",
+    "integration": "plugins/filter_instant_meshes/upstream"
+  },
+  "references": [
+    {
+      "id": "jakob2015instant",
+      "type": "article-journal",
+      "title": "Instant Field-Aligned Meshes",
+      "author": [
+        {"family": "Jakob", "given": "Wenzel"},
+        {"family": "Tarini", "given": "Marco"},
+        {"family": "Panozzo", "given": "Daniele"},
+        {"family": "Sorkine-Hornung", "given": "Olga"}
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "34",
+      "issue": "6",
+      "page": "189:1-189:15",
+      "issued": {"date-parts": [[2015, 11]]},
+      "DOI": "10.1145/2816795.2818078",
+      "URL": "https://igl.ethz.ch/projects/instant-meshes/"
+    }
+  ],
+  "filters": [
+    {
+      "id": "remesh_to_quads_instant_meshes",
+      "categories": ["Meshing/Remeshing"],
+      "name": "Remesh to Quads (Instant Meshes)",
+      "pythonName": "remesh_to_quads_instant_meshes",
+      "referenceIds": ["jakob2015instant"],
+      "shortDescription": "Generate an isotropic, field-aligned quad or quad-dominant mesh with Instant Meshes.",
+      "longDescriptionMarkdown": "Runs the original **Instant Field-Aligned Meshes** pipeline by Jakob et al. The method builds a multiresolution hierarchy, optimizes a four-fold rotational orientation field and a compatible position field, then extracts a new surface whose edges follow those fields. It is a local, parallel method designed to scale linearly with input size.\n\nThe result is created as a new geometry-only layer. QMeshLab stores each generated quad as two triangles connected by a VCGLib faux edge, preserving polygonal rendering and saving. Vertex attributes, selections, materials and textures are not transferred. **Pure quads** subdivides irregular extracted faces to obtain only quads; **quad dominant** retains exceptional triangles. The target edge length is approximate because extraction is driven by the optimized fields.",
+      "tags": ["meshing", "remeshing", "quadrangulation", "Instant Meshes", "archival"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {"requireVertices": true, "requireFaces": true},
+      "parameters": [
+        {"id":"targetEdgeLength","label":"Target edge length","help":"Approximate world-space edge length of the generated mesh.","group":"main","type":"absperc","default":"@bboxDiag01","min":1e-9,"max":"@bboxDiag","decimals":6},
+        {"id":"outputTopology","label":"Output topology","help":"Pure quads subdivides exceptional faces; quad dominant permits triangles around irregular regions.","group":"main","type":"enum","default":"pure_quads","enumOptions":[{"id":"pure_quads","label":"Pure quads"},{"id":"quad_dominant","label":"Quad dominant"}]},
+        {"id":"detectCreases","label":"Detect sharp creases","help":"Split normals at sufficiently sharp input edges so the generated field follows them.","group":"main","type":"bool","default":false},
+        {"id":"creaseAngle","label":"Crease angle","help":"Dihedral-angle threshold used when sharp-crease detection is enabled.","group":"main","type":"double","default":30.0,"min":0.0,"max":180.0,"decimals":2},
+        {"id":"alignBoundaries","label":"Align to boundaries","help":"Constrain the orientation and position fields to open mesh boundaries.","group":"advanced","type":"bool","default":false},
+        {"id":"optimizationSpace","label":"Optimization space","help":"Extrinsic optimization uses embedded 3D directions; intrinsic optimization transports directions over the surface.","group":"advanced","type":"enum","default":"extrinsic","enumOptions":[{"id":"extrinsic","label":"Extrinsic"},{"id":"intrinsic","label":"Intrinsic"}]},
+        {"id":"smoothingIterations","label":"Reprojection smoothing steps","help":"Post-extraction smoothing iterations with projection back to the input surface. Zero disables smoothing and BVH construction.","group":"advanced","type":"int","default":2,"min":0,"max":20},
+        {"id":"deterministic","label":"Deterministic","help":"Prefer reproducible graph construction and ordering at some performance cost.","group":"advanced","type":"bool","default":false},
+        {"id":"threads","label":"Maximum threads","help":"Maximum oneTBB parallelism. Zero uses the runtime default.","group":"advanced","type":"int","default":0,"min":0,"max":256}
+      ]
+    }
+  ]
+}

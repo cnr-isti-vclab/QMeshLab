@@ -23,6 +23,9 @@
 #if QMESH_PLUGIN_FILTER_QSLIM_ENABLED
 #include "plugins/filter_qslim/qslimfilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_INSTANT_MESHES_ENABLED
+#include "plugins/filter_instant_meshes/instantmeshesfilterplugin.h"
+#endif
 #if QMESH_PLUGIN_FILTER_MESHING_ENABLED
 #include "plugins/filter_meshing/meshingfilterplugin.h"
 #endif
@@ -115,6 +118,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_QSLIM_ENABLED
     registerQSlimFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_INSTANT_MESHES_ENABLED
+    registerInstantMeshesFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_MESHING_ENABLED
     registerMeshingFilterPlugin(pluginManager);

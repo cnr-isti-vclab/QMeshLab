@@ -13,6 +13,7 @@
     "rapidobj",
     "muparser",
     "embree",
+    "tbb",
     "cgal",
     {
       "name": "libigl",
