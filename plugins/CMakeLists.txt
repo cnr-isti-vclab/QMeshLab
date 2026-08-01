@@ -41,6 +41,12 @@ if (TARGET QMeshLabPluginIOGLTF)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_IO_GLTF_ENABLED=1)
 endif()
 
+add_subdirectory(io_3mf)
+if (TARGET QMeshLabPluginIO3MF)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginIO3MF)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_IO_3MF_ENABLED=1)
+endif()
+
 add_subdirectory(filter_basic)
 if (TARGET QMeshLabPluginFilterBasic)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterBasic)

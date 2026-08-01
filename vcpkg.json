@@ -8,6 +8,7 @@
     "draco",
     "nanobind",
     "tinygltf",
+    "lib3mf",
     "libe57format",
     "xerces-c",
     "rapidobj",

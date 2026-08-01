@@ -28,6 +28,7 @@ class DocumentTests : public QObject
     Q_OBJECT
 
 private slots:
+    // Document and built-in I/O integration tests.
     void cameraShotProjectsThroughImageCenter();
     void cameraShotUnprojectsImageCenter();
     void cameraShotRenderMatricesMatchProjection();
@@ -43,6 +44,7 @@ private slots:
     void undoRedoRestoresMeshList();
     void undoTreeBranchingPreservesAlternateFuture();
     void openDialogFilterContainsKnownFormats();
+    void saveAndLoad3MFRoundTrip();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
     void benchmarkLoadMesh();
 };
@@ -441,6 +443,34 @@ void DocumentTests::openDialogFilterContainsKnownFormats()
     QVERIFY(filters.first().contains(QStringLiteral("*.mlp")));
     QVERIFY(filter.contains(QStringLiteral("MeshLab Project (*.mlp)")));
     QVERIFY(filter.contains(QStringLiteral("All Files (*)")));
+    QVERIFY(filter.contains(QStringLiteral("3MF Files (*.3mf)")));
+}
+
+void DocumentTests::saveAndLoad3MFRoundTrip()
+{
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(2.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 3.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+
+    Document source;
+    const int meshIndex = source.addMesh(mesh, QStringLiteral("triangle"));
+    QVERIFY(meshIndex >= 0);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("roundtrip.3mf"));
+    QCOMPARE(source.saveMesh(meshIndex, path), 0);
+    QVERIFY(QFileInfo(path).size() > 0);
+
+    Document loaded;
+    QCOMPARE(loaded.loadMesh(path), 0);
+    QCOMPARE(loaded.meshCount(), 1);
+    QCOMPARE(loaded.mesh(0).mesh.VN(), 3);
+    QCOMPARE(loaded.mesh(0).mesh.FN(), 1);
+    const VCGMesh &result = loaded.mesh(0).mesh;
+    QCOMPARE(result.vert[1].cP().X(), 2.0f);
+    QCOMPARE(result.vert[2].cP().Y(), 3.0f);
 }
 
 void DocumentTests::savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist()
