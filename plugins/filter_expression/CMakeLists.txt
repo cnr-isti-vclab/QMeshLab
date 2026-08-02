@@ -23,9 +23,11 @@ if (NOT _muparser_target)
 endif()
 
 if (NOT _muparser_target AND (NOT MUPARSER_INCLUDE_DIR OR NOT MUPARSER_LIBRARY))
-    message(FATAL_ERROR
-        "filter_expression requires muparser from vcpkg. "
-        "Add muparser to vcpkg.json dependencies and configure with the vcpkg toolchain.")
+    # Skip, do not fail: every other dependency-gated plugin degrades this way, and a
+    # missing optional dependency must never break configure for everyone else. This
+    # was a FATAL_ERROR, so a build without vcpkg (the docs workflow) died here.
+    message(STATUS "Skipping filter_expression - muparser not found")
+    return()
 endif()
 
 add_library(QMeshLabPluginFilterExpression STATIC

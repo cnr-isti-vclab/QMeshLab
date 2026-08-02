@@ -28,6 +28,13 @@ target_include_directories(QMeshLabInstantMeshesCore PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/upstream/ext/pcg32"
 )
 target_link_libraries(QMeshLabInstantMeshesCore PUBLIC Eigen3::Eigen TBB::tbb)
+
+# The adapter compiles against vcglib's bundled Eigen 3.4.0 (QMeshLabCore exports that
+# include dir publicly), so the core must use the same one: otherwise the two halves of
+# this plugin disagree on Eigen's internals and the matrices the adapter builds are
+# reinterpreted with a different layout by the core.
+target_include_directories(QMeshLabInstantMeshesCore BEFORE PUBLIC
+    ${CMAKE_SOURCE_DIR}/vcglib/eigenlib)
 target_compile_features(QMeshLabInstantMeshesCore PUBLIC cxx_std_17)
 if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
     target_compile_options(QMeshLabInstantMeshesCore PRIVATE

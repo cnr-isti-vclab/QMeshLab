@@ -43,7 +43,7 @@ jobs:
             -DQMESH_PLUGIN_OBJ_RAPIDOBJ=OFF \
             -DQMESH_PLUGIN_E57=OFF \
             -DQMESH_PLUGIN_GLTF=OFF \
-            -DQMESH_PLUGIN_FILTER_FUNC=OFF \
+            -DQMESH_PLUGIN_FILTER_EXPRESSION=OFF \
             -DQMESH_PLUGIN_FILTER_EMBREE=OFF
           cmake --build build --target QMeshLab -j4
 
