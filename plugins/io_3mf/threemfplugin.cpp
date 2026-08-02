@@ -181,6 +181,12 @@ public:
         return QFileInfo(filename).suffix().compare(QStringLiteral("3mf"), Qt::CaseInsensitive) == 0;
     }
     bool canSave(const QString &filename) const override { return canLoad(filename); }
+    MeshIOCapabilities loadCapabilities(const QString &) const override
+    {
+        return { Mask::IOM_VERTCOORD | Mask::IOM_FACEINDEX | Mask::IOM_FACECOLOR
+                | Mask::IOM_WEDGTEXCOORD | Mask::IOM_WEDGTEXMULTI,
+            true, true };
+    }
     QString filterString() const override { return QObject::tr("3MF Files (*.3mf)"); }
     QString saveFilterString() const override { return filterString(); }
 
@@ -236,6 +242,7 @@ public:
                     MeshIOMaterialSlot material;
                     material.name = QObject::tr("3MF texture %1").arg(slot + 1);
                     material.baseColorTexture.fileName = name;
+                    material.baseColorTexture.assetIndex = slot;
                     materials->entries.push_back(std::move(material));
                 }
             }

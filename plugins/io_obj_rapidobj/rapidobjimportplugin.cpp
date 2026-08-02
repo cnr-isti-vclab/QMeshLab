@@ -117,6 +117,15 @@ public:
         return supportedExtensions().contains(ext);
     }
 
+    MeshIOCapabilities loadCapabilities(const QString &) const override
+    {
+        using M = vcg::tri::io::Mask;
+        return { M::IOM_VERTCOORD | M::IOM_VERTCOLOR | M::IOM_VERTNORMAL
+                | M::IOM_EDGEINDEX | M::IOM_FACEINDEX | M::IOM_FACECOLOR
+                | M::IOM_WEDGTEXCOORD,
+            true, true };
+    }
+
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
         return load(filename, mesh, cb, outLoadMask, nullptr);

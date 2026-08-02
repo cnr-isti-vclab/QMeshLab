@@ -156,8 +156,11 @@ std::vector<MeshIOPluginManager::PluginInfo> MeshIOPluginManager::pluginInfos() 
             if (!ext.isEmpty()) {
                 info.extensions << ext;
                 const QString probeFileName = QStringLiteral("dummy.%1").arg(ext);
-                if (plugin->canSave(probeFileName))
+                info.loadCapabilities.insert(ext, plugin->loadCapabilities(probeFileName));
+                if (plugin->canSave(probeFileName)) {
                     info.saveExtensions << ext;
+                    info.saveCapabilities.insert(ext, plugin->saveCapabilities(probeFileName));
+                }
             }
         }
         info.extensions.removeDuplicates();

@@ -45,6 +45,7 @@ private slots:
     void undoTreeBranchingPreservesAlternateFuture();
     void openDialogFilterContainsKnownFormats();
     void saveAndLoad3MFRoundTrip();
+    void saveAndLoadEmbeddedGLBTexture();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
     void benchmarkLoadMesh();
 };
@@ -471,6 +472,52 @@ void DocumentTests::saveAndLoad3MFRoundTrip()
     const VCGMesh &result = loaded.mesh(0).mesh;
     QCOMPARE(result.vert[1].cP().X(), 2.0f);
     QCOMPARE(result.vert[2].cP().Y(), 3.0f);
+}
+
+void DocumentTests::saveAndLoadEmbeddedGLBTexture()
+{
+    // Embedded images must remain in memory across export and import.
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0, 0, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(1, 0, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0, 1, 0));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    mesh.face.EnableWedgeTexCoord();
+    mesh.textures.push_back("embedded.png");
+    for (int corner = 0; corner < 3; ++corner)
+        mesh.face[0].WT(corner).N() = 0;
+
+    Document source;
+    const int meshIndex = source.addMesh(
+        mesh, QStringLiteral("textured"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QImage image(2, 1, QImage::Format_RGBA8888);
+    image.setPixelColor(0, 0, Qt::red);
+    image.setPixelColor(1, 0, Qt::green);
+    MeshIOTextureAsset asset;
+    asset.name = QStringLiteral("embedded.png");
+    asset.image = image;
+    source.mesh(meshIndex).textureAssets = { asset };
+    source.mesh(meshIndex).materialSet.entries.resize(1);
+    source.mesh(meshIndex).materialSet.entries[0].baseColorTexture.fileName = asset.name;
+    source.mesh(meshIndex).materialSet.entries[0].baseColorTexture.assetIndex = 0;
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("embedded.glb"));
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+    options.embedTextures = true;
+    QCOMPARE(source.saveMesh(meshIndex, path, options), 0);
+
+    Document loaded;
+    QCOMPARE(loaded.loadMesh(path), 0);
+    const MeshIOTextureAsset *loadedAsset = Document::meshTextureAsset(loaded.mesh(0), 0);
+    QVERIFY(loadedAsset);
+    QCOMPARE(loadedAsset->image.size(), QSize(2, 1));
+    QCOMPARE(loadedAsset->image.pixelColor(0, 0), QColor(Qt::red));
+    QCOMPARE(loadedAsset->image.pixelColor(1, 0), QColor(Qt::green));
 }
 
 void DocumentTests::savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist()

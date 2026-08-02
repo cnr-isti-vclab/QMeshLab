@@ -24,8 +24,6 @@
 #include <QImageReader>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonDocument>
 #include <QImageWriter>
 #include <QGuiApplication>
 #include <QMenu>
@@ -100,6 +98,33 @@ bool sameRecentPath(const QString &a, const QString &b)
 QString fileExtensionLower(const QString &path)
 {
     return QFileInfo(path).suffix().toLower();
+}
+
+QString ioCapabilityText(const MeshIOCapabilities &capabilities)
+{
+    using M = vcg::tri::io::Mask;
+    const int m = capabilities.mask;
+    QStringList out;
+    if (m & M::IOM_VERTCOORD)    out << QObject::tr("vertices");
+    if (m & M::IOM_EDGEINDEX)    out << QObject::tr("edges");
+    if (m & M::IOM_FACEINDEX)    out << QObject::tr("faces");
+    if (m & M::IOM_VERTNORMAL)   out << QObject::tr("vertex normals");
+    if (m & M::IOM_FACENORMAL)   out << QObject::tr("face normals");
+    if (m & M::IOM_WEDGNORMAL)   out << QObject::tr("corner normals");
+    if (m & M::IOM_VERTCOLOR)    out << QObject::tr("vertex colors");
+    if (m & M::IOM_FACECOLOR)    out << QObject::tr("face colors");
+    if (m & M::IOM_WEDGCOLOR)    out << QObject::tr("corner colors");
+    if (m & M::IOM_VERTQUALITY)  out << QObject::tr("vertex quality");
+    if (m & M::IOM_FACEQUALITY)  out << QObject::tr("face quality");
+    if (m & M::IOM_VERTTEXCOORD) out << QObject::tr("vertex UVs");
+    if (m & M::IOM_WEDGTEXCOORD) out << QObject::tr("corner UVs");
+    if (m & M::IOM_WEDGTEXMULTI) out << QObject::tr("texture groups");
+    if (m & M::IOM_VERTRADIUS)   out << QObject::tr("vertex radius");
+    if (m & M::IOM_CAMERA)       out << QObject::tr("camera");
+    if (m & M::IOM_BITPOLYGONAL) out << QObject::tr("polygons");
+    if (capabilities.materials)   out << QObject::tr("materials");
+    if (capabilities.textureImages) out << QObject::tr("texture images");
+    return out.isEmpty() ? QObject::tr("not declared") : out.join(QStringLiteral(", "));
 }
 
 QString extensionFromNameFilter(const QString &nameFilter)
@@ -2631,6 +2656,55 @@ void MainWindow::showImportPlugins()
         label->setStyleSheet(QStringLiteral("color: palette(mid);"));
         layout->addWidget(label);
     }
+
+    layout->addSpacing(8);
+    layout->addWidget(new QLabel(tr("Format data support"), &dialog));
+    auto *capabilityTable = new QTableWidget(&dialog);
+    capabilityTable->setColumnCount(4);
+    capabilityTable->setHorizontalHeaderLabels(
+        { tr("Format"), tr("Plugin"), tr("Import"), tr("Export") });
+    capabilityTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    capabilityTable->setSelectionMode(QAbstractItemView::NoSelection);
+    capabilityTable->setFocusPolicy(Qt::NoFocus);
+    capabilityTable->verticalHeader()->hide();
+    capabilityTable->setWordWrap(true);
+
+    QHash<QString, int> capabilityRows;
+    auto ensureCapabilityRow = [&](const QString &id, const QString &name, const QString &ext) {
+        const QString key = id + QLatin1Char('\n') + ext;
+        const auto existing = capabilityRows.constFind(key);
+        if (existing != capabilityRows.constEnd())
+            return existing.value();
+        const int row = capabilityTable->rowCount();
+        capabilityTable->insertRow(row);
+        capabilityTable->setItem(row, 0, new QTableWidgetItem(QStringLiteral(".%1").arg(ext)));
+        capabilityTable->setItem(row, 1, new QTableWidgetItem(name));
+        capabilityTable->setItem(row, 2, new QTableWidgetItem(tr("-")));
+        capabilityTable->setItem(row, 3, new QTableWidgetItem(tr("-")));
+        capabilityRows.insert(key, row);
+        return row;
+    };
+    for (const Document::ImportPluginInfo &plugin : importPlugins) {
+        for (const QString &ext : plugin.extensions) {
+            const int row = ensureCapabilityRow(plugin.id, plugin.name, ext);
+            capabilityTable->item(row, 2)->setText(
+                ioCapabilityText(plugin.capabilities.value(ext)));
+        }
+    }
+    for (const Document::ExportPluginInfo &plugin : exportPlugins) {
+        for (const QString &ext : plugin.extensions) {
+            const int row = ensureCapabilityRow(plugin.id, plugin.name, ext);
+            capabilityTable->item(row, 3)->setText(
+                ioCapabilityText(plugin.capabilities.value(ext)));
+        }
+    }
+    capabilityTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    capabilityTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    capabilityTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    capabilityTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+    capabilityTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    capabilityTable->setMinimumHeight(180);
+    layout->addWidget(capabilityTable, 2);
 
     auto *buttons =
         new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dialog);

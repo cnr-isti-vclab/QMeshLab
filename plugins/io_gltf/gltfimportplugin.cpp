@@ -676,21 +676,20 @@ QString makeCopiedTextureUri(
     return candidateName;
 }
 
-bool fillTinyGltfImageFromFile(
+bool fillTinyGltfImage(
     tinygltf::Image &outImage,
-    const QString &texturePath,
+    QImage image,
     int textureSlot,
-    vcg::CallBackPos *cb)
+    vcg::CallBackPos *cb,
+    const QString &source = QString())
 {
-    QImageReader reader(texturePath);
-    QImage image = reader.read();
     if (image.isNull()) {
         reportProgress(
             cb,
             0,
-            QObject::tr("glTF export warning: failed loading texture #%1 from %2")
+            QObject::tr("glTF export warning: failed loading texture #%1%2")
                 .arg(textureSlot)
-                .arg(texturePath));
+                .arg(source.isEmpty() ? QString() : QObject::tr(" from %1").arg(source)));
         return false;
     }
 
@@ -719,6 +718,37 @@ bool fillTinyGltfImageFromFile(
     return true;
 }
 
+bool fillTinyGltfImageFromFile(
+    tinygltf::Image &outImage,
+    const QString &texturePath,
+    int textureSlot,
+    vcg::CallBackPos *cb)
+{
+    QImageReader reader(texturePath);
+    return fillTinyGltfImage(outImage, reader.read(), textureSlot, cb, texturePath);
+}
+
+QString saveTextureImage(
+    const QString &targetFilePath,
+    const QImage &image,
+    const QString &preferredName,
+    int textureSlot,
+    vcg::CallBackPos *cb)
+{
+    const QDir outDir = QFileInfo(targetFilePath).absoluteDir();
+    QString base = QFileInfo(preferredName).completeBaseName();
+    if (base.isEmpty())
+        base = QStringLiteral("texture_%1").arg(textureSlot);
+    QString name = base + QStringLiteral(".png");
+    for (int suffix = 1; QFileInfo::exists(outDir.filePath(name)); ++suffix)
+        name = QStringLiteral("%1_%2.png").arg(base).arg(suffix);
+    if (image.save(outDir.filePath(name), "PNG"))
+        return name;
+    reportProgress(cb, 0,
+        QObject::tr("glTF export warning: failed writing texture #%1").arg(textureSlot));
+    return QString();
+}
+
 class GLTFImportPlugin final : public MeshIOPlugin
 {
 public:
@@ -740,6 +770,20 @@ public:
     bool canLoad(const QString &filename) const override
     {
         return isSupportedExtension(normalizedExtension(filename));
+    }
+
+    MeshIOCapabilities loadCapabilities(const QString &) const override
+    {
+        using M = vcg::tri::io::Mask;
+        return { M::IOM_VERTCOORD | M::IOM_VERTCOLOR | M::IOM_VERTNORMAL
+                | M::IOM_EDGEINDEX | M::IOM_FACEINDEX | M::IOM_WEDGTEXCOORD
+                | M::IOM_WEDGTEXMULTI,
+            true, true };
+    }
+
+    MeshIOCapabilities saveCapabilities(const QString &filename) const override
+    {
+        return { saveMaskCapability(filename), true, true };
     }
 
     bool canSave(const QString &filename) const override
@@ -999,9 +1043,11 @@ public:
         // -- Texture resolution ------------------------------------------------
 
         std::unordered_map<int, int> imageToTextureSlot;
+        std::unordered_map<int, int> imageToAssetIndex;
         std::unordered_map<int, QString> imageToResolvedUri;
         std::vector<std::string> textureFiles;
-        const QFileInfo inputInfo(filename);
+        MeshIOMaterialSet materialSet;
+        materialSet.entries.reserve(model.materials.size());
 
         auto resolveImageUri = [&](int imageIndex) -> QString {
             if (imageIndex < 0 || imageIndex >= int(model.images.size()))
@@ -1049,23 +1095,17 @@ public:
                     return QString();
                 }
 
-                QDir tmpDir(QDir::tempPath() + QStringLiteral("/qmeshlab_gltf_textures"));
-                if (!tmpDir.exists())
-                    tmpDir.mkpath(QStringLiteral("."));
                 const QString baseName = QFileInfo(filename).completeBaseName();
-                const QString fileName = QStringLiteral("%1_img_%2.bmp").arg(baseName).arg(imageIndex);
-                const QString absPath = tmpDir.filePath(fileName);
-                if (!qimg.save(absPath, "BMP")) {
-                    ++textureDecodeFailureCount;
-                    reportProgress(
-                        cb,
-                        0,
-                        QObject::tr("glTF warning: failed saving embedded texture #%1 to '%2'.")
-                            .arg(imageIndex)
-                            .arg(absPath));
-                    return QString();
-                }
-                uri = absPath;
+                QString imageName = QString::fromStdString(img.name).trimmed();
+                if (imageName.isEmpty())
+                    imageName = QStringLiteral("%1_img_%2.png").arg(baseName).arg(imageIndex);
+                MeshIOTextureAsset asset;
+                asset.name = QFileInfo(imageName).fileName();
+                asset.image = std::move(qimg);
+                const int assetIndex = int(materialSet.textureAssets.size());
+                materialSet.textureAssets.push_back(std::move(asset));
+                imageToAssetIndex[imageIndex] = assetIndex;
+                uri = materialSet.textureAssets[size_t(assetIndex)].name;
             } else {
                 QString resolvedTexturePath = uri;
                 if (QFileInfo(uri).isRelative())
@@ -1095,8 +1135,12 @@ public:
             const QString resolvedUri = resolveImageUri(imageIndex);
             if (resolvedUri.isEmpty())
                 return ref;
-            ref.filePath = resolvedUri;
             ref.fileName = QFileInfo(resolvedUri).fileName();
+            const auto asset = imageToAssetIndex.find(imageIndex);
+            if (asset != imageToAssetIndex.end())
+                ref.assetIndex = asset->second;
+            else
+                ref.filePath = resolvedUri;
             return ref;
         };
 
@@ -1121,11 +1165,14 @@ public:
                 if (displayName.isEmpty())
                     displayName = QObject::tr("Texture %1").arg(ti);
 
-                const QString status =
-                    resolvedUri.trimmed().isEmpty() ? QObject::tr("missing") : QObject::tr("found");
+                const bool embedded = imageToAssetIndex.find(imageIndex) != imageToAssetIndex.end();
+                const QString status = resolvedUri.trimmed().isEmpty()
+                    ? QObject::tr("missing")
+                    : (embedded ? QObject::tr("embedded") : QObject::tr("found"));
                 const QString source = resolvedUri.trimmed().isEmpty()
                     ? QObject::tr("unresolved")
-                    : QDir::toNativeSeparators(resolvedUri);
+                    : (embedded ? QObject::tr("in memory")
+                                : QDir::toNativeSeparators(resolvedUri));
 
                 if (int(textureFileEntries.size()) < kMaxTextureEntriesInLog) {
                     textureFileEntries.push_back(
@@ -1171,8 +1218,6 @@ public:
             return slot;
         };
 
-        MeshIOMaterialSet materialSet;
-        materialSet.entries.reserve(model.materials.size());
         for (size_t mi = 0; mi < model.materials.size(); ++mi) {
             const tinygltf::Material &mat = model.materials[mi];
             MeshIOMaterialSlot slot;
@@ -1452,6 +1497,16 @@ public:
         const MeshIOSaveOptions &options,
         vcg::CallBackPos *cb) const override
     {
+        return save(filename, mesh, options, cb, nullptr);
+    }
+
+    int save(
+        const QString &filename,
+        VCGMesh &mesh,
+        const MeshIOSaveOptions &options,
+        vcg::CallBackPos *cb,
+        const MeshIOTextureContext *textureContext) const override
+    {
         const QString ext = normalizedExtension(filename);
         if (!isSupportedExtension(ext))
             return kErrSaveUnsupported;
@@ -1650,12 +1705,32 @@ public:
                     continue;
 
                 const QString sourceTexturePath = QString::fromStdString(mesh.textures[size_t(slot)]);
+                const MeshIOTextureAsset *asset = nullptr;
+                if (textureContext && textureContext->textureAssets) {
+                    int assetIndex = slot;
+                    if (textureContext->materialSet
+                        && slot < int(textureContext->materialSet->entries.size())) {
+                        const int referenced = textureContext->materialSet->entries[size_t(slot)]
+                                                   .baseColorTexture.assetIndex;
+                        if (referenced >= 0)
+                            assetIndex = referenced;
+                    }
+                    if (assetIndex >= 0
+                        && assetIndex < int(textureContext->textureAssets->size())) {
+                        asset = &textureContext->textureAssets->at(size_t(assetIndex));
+                    }
+                }
                 tinygltf::Image image;
                 if (embedTextures) {
-                    if (!fillTinyGltfImageFromFile(image, sourceTexturePath, slot, cb))
+                    const bool loaded = asset && asset->hasImage()
+                        ? fillTinyGltfImage(image, asset->image, slot, cb)
+                        : fillTinyGltfImageFromFile(image, sourceTexturePath, slot, cb);
+                    if (!loaded)
                         continue;
                 } else {
-                    const QString uri = makeCopiedTextureUri(filename, sourceTexturePath, cb, slot);
+                    const QString uri = asset && asset->hasImage()
+                        ? saveTextureImage(filename, asset->image, asset->name, slot, cb)
+                        : makeCopiedTextureUri(filename, sourceTexturePath, cb, slot);
                     if (uri.isEmpty())
                         continue;
                     image.uri = uri.toStdString();

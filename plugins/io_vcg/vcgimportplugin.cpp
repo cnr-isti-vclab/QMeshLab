@@ -106,6 +106,33 @@ int saveMaskCapabilityForExtension(const QString &ext)
     return 0;
 }
 
+int loadMaskCapabilityForExtension(const QString &ext)
+{
+    using M = vcg::tri::io::Mask;
+    if (ext == QLatin1String("ply"))
+        return M::IOM_VERTCOORD | M::IOM_VERTFLAGS | M::IOM_VERTCOLOR
+            | M::IOM_VERTQUALITY | M::IOM_VERTNORMAL | M::IOM_VERTTEXCOORD
+            | M::IOM_VERTRADIUS | M::IOM_EDGEINDEX | M::IOM_FACEINDEX
+            | M::IOM_FACEFLAGS | M::IOM_FACECOLOR | M::IOM_FACEQUALITY
+            | M::IOM_FACENORMAL | M::IOM_WEDGCOLOR | M::IOM_WEDGTEXCOORD
+            | M::IOM_WEDGNORMAL | M::IOM_CAMERA;
+    if (ext == QLatin1String("obj"))
+        return M::IOM_VERTCOORD | M::IOM_VERTCOLOR | M::IOM_VERTNORMAL
+            | M::IOM_VERTTEXCOORD | M::IOM_EDGEINDEX | M::IOM_FACEINDEX
+            | M::IOM_FACECOLOR | M::IOM_FACENORMAL | M::IOM_WEDGTEXCOORD
+            | M::IOM_WEDGNORMAL;
+    if (ext == QLatin1String("stl"))
+        return M::IOM_VERTCOORD | M::IOM_FACEINDEX | M::IOM_FACECOLOR
+            | M::IOM_FACENORMAL;
+    if (ext == QLatin1String("off"))
+        return M::IOM_VERTCOORD | M::IOM_VERTCOLOR | M::IOM_VERTNORMAL
+            | M::IOM_FACEINDEX | M::IOM_FACECOLOR | M::IOM_FACENORMAL
+            | M::IOM_BITPOLYGONAL;
+    if (ext == QLatin1String("vmi"))
+        return M::IOM_ALL;
+    return 0;
+}
+
 bool plySaveWritesTextureReferences(int saveMask)
 {
     return (saveMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
@@ -266,6 +293,20 @@ public:
     bool canSave(const QString &filename) const override
     {
         return isSupportedSaveExtension(normalizedExtension(filename));
+    }
+
+    MeshIOCapabilities loadCapabilities(const QString &filename) const override
+    {
+        const QString ext = normalizedExtension(filename);
+        return { loadMaskCapabilityForExtension(ext), ext == QLatin1String("obj"),
+            ext == QLatin1String("obj") || ext == QLatin1String("ply") };
+    }
+
+    MeshIOCapabilities saveCapabilities(const QString &filename) const override
+    {
+        const QString ext = normalizedExtension(filename);
+        return { saveMaskCapabilityForExtension(ext), ext == QLatin1String("obj"),
+            ext == QLatin1String("obj") || ext == QLatin1String("ply") };
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override

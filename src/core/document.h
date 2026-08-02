@@ -95,12 +95,14 @@ public:
         QString id;
         QString name;
         QStringList extensions;
+        QHash<QString, MeshIOCapabilities> capabilities;
     };
 
     struct ExportPluginInfo {
         QString id;
         QString name;
         QStringList extensions;
+        QHash<QString, MeshIOCapabilities> capabilities;
     };
 
     struct FilterInfo {

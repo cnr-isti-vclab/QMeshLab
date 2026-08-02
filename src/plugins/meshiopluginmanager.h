@@ -17,6 +17,8 @@ public:
         QString name;
         QStringList extensions;
         QStringList saveExtensions;
+        QHash<QString, MeshIOCapabilities> loadCapabilities;
+        QHash<QString, MeshIOCapabilities> saveCapabilities;
     };
 
     MeshIOPluginManager();

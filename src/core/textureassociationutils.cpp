@@ -189,6 +189,7 @@ void replaceTextureAssociations(
         slot.name = QObject::tr("Material %1").arg(i + 1);
         slot.baseColorTexture.fileName = asset.name.trimmed();
         slot.baseColorTexture.filePath = asset.sourcePath.trimmed();
+        slot.baseColorTexture.assetIndex = i;
         entry.materialSet.entries.push_back(std::move(slot));
     }
 }
@@ -198,6 +199,7 @@ void appendTextureAssociations(
     const std::vector<MeshIOTextureAsset> &assets)
 {
     const int slotBase = Document::meshTextureAssociationCount(entry);
+    const int assetBase = int(entry.textureAssets.size());
     for (const MeshIOTextureAsset &asset : assets)
         entry.textureAssets.push_back(asset);
     rebuildLegacyTextureAssociation(entry);
@@ -207,6 +209,7 @@ void appendTextureAssociations(
         slot.name = QObject::tr("Material %1").arg(slotBase + i + 1);
         slot.baseColorTexture.fileName = asset.name.trimmed();
         slot.baseColorTexture.filePath = asset.sourcePath.trimmed();
+        slot.baseColorTexture.assetIndex = assetBase + i;
         entry.materialSet.entries.push_back(std::move(slot));
     }
 }

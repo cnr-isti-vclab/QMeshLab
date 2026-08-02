@@ -77,6 +77,8 @@ int defaultTextureIndexForChannel(
         const int textureIndex = findTextureIndexByPath(entry, ref->filePath);
         if (textureIndex >= 0)
             return textureIndex;
+        if (ref->assetIndex >= 0)
+            return ref->assetIndex;
     }
     if (channel == MaterialTextureChannel::BaseColor && Document::meshTextureAssociationCount(entry) > 0)
         return 0;

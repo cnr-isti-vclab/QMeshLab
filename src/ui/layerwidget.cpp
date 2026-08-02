@@ -488,13 +488,14 @@ std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &en
             const MeshIOMaterialSlot &slot = entry.materialSet.entries[size_t(slotIndex)];
             const QString materialName = slot.name.trimmed();
             const QString prefix = materialName.isEmpty() ? QString() : materialName + QStringLiteral(":");
-            // Only the base-colour channel is built slot-for-asset (see
-            // replaceTextureAssociations); the other channels are appended
-            // independently and are resolved by their file path instead.
-            appendLayerTexture(out, byKey, slot.baseColorTexture, prefix + QObject::tr("Base"), slotIndex);
-            appendLayerTexture(out, byKey, slot.normalTexture, prefix + QObject::tr("Normal"));
-            appendLayerTexture(out, byKey, slot.occlusionTexture, prefix + QObject::tr("AO"));
-            appendLayerTexture(out, byKey, slot.roughnessTexture, prefix + QObject::tr("Rough"));
+            appendLayerTexture(out, byKey, slot.baseColorTexture,
+                prefix + QObject::tr("Base"), slot.baseColorTexture.assetIndex);
+            appendLayerTexture(out, byKey, slot.normalTexture,
+                prefix + QObject::tr("Normal"), slot.normalTexture.assetIndex);
+            appendLayerTexture(out, byKey, slot.occlusionTexture,
+                prefix + QObject::tr("AO"), slot.occlusionTexture.assetIndex);
+            appendLayerTexture(out, byKey, slot.roughnessTexture,
+                prefix + QObject::tr("Rough"), slot.roughnessTexture.assetIndex);
         }
     }
 

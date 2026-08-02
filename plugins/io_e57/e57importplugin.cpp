@@ -87,6 +87,11 @@ public:
         return normalizedExtension(filename) == QLatin1String("e57");
     }
 
+    MeshIOCapabilities loadCapabilities(const QString &) const override
+    {
+        return { vcg::tri::io::Mask::IOM_VERTCOORD, false, false };
+    }
+
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
         if (outLoadMask)

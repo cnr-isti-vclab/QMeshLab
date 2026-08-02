@@ -455,9 +455,22 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 };
 
                 auto textureAssetForGroup = [&](int textureGroup) -> const MeshIOTextureAsset * {
+                    if (const MeshIOMaterialSlot *slot = materialEntryForGroup(textureGroup)) {
+                        const int assetIndex = slot->baseColorTexture.assetIndex;
+                        if (assetIndex >= 0 && assetIndex < int(textureAssets.size()))
+                            return &textureAssets[size_t(assetIndex)];
+                        return nullptr;
+                    }
                     if (textureGroup < 0 || textureGroup >= int(textureAssets.size()))
                         return nullptr;
                     return &textureAssets[size_t(textureGroup)];
+                };
+
+                auto textureAssetForRef = [&](const MeshIOMaterialTextureRef &ref)
+                    -> const MeshIOTextureAsset * {
+                    if (ref.assetIndex < 0 || ref.assetIndex >= int(textureAssets.size()))
+                        return nullptr;
+                    return &textureAssets[size_t(ref.assetIndex)];
                 };
 
                 auto channelTexturePath = [&](int textureGroup, TextureChannel channel) -> QString {
@@ -528,9 +541,13 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     group.normalPath = channelTexturePath(textureGroup, TextureChannel::Normal);
                     group.occlusionPath = channelTexturePath(textureGroup, TextureChannel::Occlusion);
                     group.roughnessPath = channelTexturePath(textureGroup, TextureChannel::Roughness);
-                    prepareTextureFromPath(group.normal, group.normalPath, nullptr);
-                    prepareTextureFromPath(group.occlusion, group.occlusionPath, nullptr);
-                    prepareTextureFromPath(group.roughness, group.roughnessPath, nullptr);
+                    const MeshIOMaterialSlot *slot = materialEntryForGroup(textureGroup);
+                    prepareTextureFromPath(group.normal, group.normalPath,
+                        slot ? textureAssetForRef(slot->normalTexture) : nullptr);
+                    prepareTextureFromPath(group.occlusion, group.occlusionPath,
+                        slot ? textureAssetForRef(slot->occlusionTexture) : nullptr);
+                    prepareTextureFromPath(group.roughness, group.roughnessPath,
+                        slot ? textureAssetForRef(slot->roughnessTexture) : nullptr);
 
                     group.ready = true;
                     return true;

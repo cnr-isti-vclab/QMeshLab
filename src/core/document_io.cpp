@@ -50,6 +50,7 @@ std::vector<Document::ImportPluginInfo> Document::importPluginInfos() const
         out.id = info.id;
         out.name = info.name;
         out.extensions = info.extensions;
+        out.capabilities = info.loadCapabilities;
         infos.push_back(std::move(out));
     }
     return infos;
@@ -68,6 +69,7 @@ std::vector<Document::ExportPluginInfo> Document::exportPluginInfos() const
         out.id = info.id;
         out.name = info.name;
         out.extensions = info.saveExtensions;
+        out.capabilities = info.saveCapabilities;
         infos.push_back(std::move(out));
     }
     return infos;

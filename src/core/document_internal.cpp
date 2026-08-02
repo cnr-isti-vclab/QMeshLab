@@ -341,6 +341,11 @@ MeshIOMaterialTextureRef normalizeMaterialTextureRef(
     MeshIOMaterialTextureRef dst = src;
     const QString name = src.fileName.trimmed();
     const QString path = src.filePath.trimmed();
+    if (src.assetIndex >= 0 && path.isEmpty()) {
+        dst.fileName = name;
+        dst.filePath.clear();
+        return dst;
+    }
     const QString source = !path.isEmpty() ? path : name;
     if (!source.isEmpty()) {
         if (meshFilePath.trimmed().isEmpty())
@@ -410,9 +415,9 @@ std::vector<MeshIOTextureAsset> buildTextureAssetsFromLegacyAssociation(
             : MeshIOTextureAsset{};
         if (asset.name.trimmed().isEmpty() && i < textureFileNames.size())
             asset.name = textureFileNames.at(i).trimmed();
-        if (asset.sourcePath.trimmed().isEmpty() && i < textureFilePaths.size())
+        if (!asset.hasImage() && asset.sourcePath.trimmed().isEmpty() && i < textureFilePaths.size())
             asset.sourcePath = QDir::toNativeSeparators(textureFilePaths.at(i).trimmed());
-        if (asset.sourcePath.isEmpty() && i >= 0 && i < int(meshTextures.size()))
+        if (!asset.hasImage() && asset.sourcePath.isEmpty() && i >= 0 && i < int(meshTextures.size()))
             asset.sourcePath = QDir::toNativeSeparators(QString::fromStdString(meshTextures[size_t(i)]).trimmed());
         if (asset.name.isEmpty() && !asset.sourcePath.isEmpty())
             asset.name = QFileInfo(asset.sourcePath).fileName();

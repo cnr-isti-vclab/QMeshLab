@@ -27,10 +27,11 @@ struct MeshIOMaterialTextureRef
 {
     QString fileName;
     QString filePath;
+    int assetIndex = -1;
 
     bool isValid() const
     {
-        return !fileName.trimmed().isEmpty() || !filePath.trimmed().isEmpty();
+        return assetIndex >= 0 || !fileName.trimmed().isEmpty() || !filePath.trimmed().isEmpty();
     }
 };
 
@@ -82,6 +83,13 @@ struct MeshIOTextureContext
     const MeshIOMaterialSet *materialSet = nullptr;
 };
 
+struct MeshIOCapabilities
+{
+    int mask = 0;
+    bool materials = false;
+    bool textureImages = false;
+};
+
 // Abstract interface for a mesh I/O plugin.
 // Implement this to add support for new file formats.
 class MeshIOPlugin
@@ -100,6 +108,13 @@ public:
 
     // Returns true if this plugin can handle the given filename (by extension).
     virtual bool canLoad(const QString &filename) const = 0;
+
+    // Data categories that this format can import. Actual files may contain a subset.
+    virtual MeshIOCapabilities loadCapabilities(const QString &filename) const
+    {
+        (void) filename;
+        return {};
+    }
 
     // Loads the mesh from filename into mesh.
     // The optional callback cb follows vcg::CallBackPos convention for progress reporting.
@@ -184,5 +199,10 @@ public:
     {
         (void) filename;
         return 0;
+    }
+
+    virtual MeshIOCapabilities saveCapabilities(const QString &filename) const
+    {
+        return { saveMaskCapability(filename), false, false };
     }
 };

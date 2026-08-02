@@ -69,6 +69,13 @@ QString Document::meshTextureSourcePath(const MeshEntry &entry, int textureIndex
 
 const MeshIOTextureAsset *Document::meshTextureAsset(const MeshEntry &entry, int textureIndex)
 {
+    if (textureIndex >= 0 && textureIndex < int(entry.materialSet.entries.size())) {
+        const int assetIndex = entry.materialSet.entries[size_t(textureIndex)]
+                                   .baseColorTexture.assetIndex;
+        if (assetIndex >= 0 && assetIndex < int(entry.textureAssets.size()))
+            return &entry.textureAssets[size_t(assetIndex)];
+        return nullptr;
+    }
     if (textureIndex < 0 || textureIndex >= int(entry.textureAssets.size()))
         return nullptr;
     return &entry.textureAssets[size_t(textureIndex)];
@@ -83,4 +90,3 @@ QString Document::rasterPlaneSourcePath(const RasterPlane &plane)
 {
     return QDir::toNativeSeparators(plane.sourcePath.trimmed());
 }
-
