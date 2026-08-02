@@ -132,7 +132,7 @@ Laplacian smooth with limited surface modification: each vertex moves toward the
 
 ## Per Face Color Function
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Computes per-face RGBA colors from expressions.
 
@@ -156,7 +156,7 @@ Color function using muparser lib to generate new RGBA color for every face<br>R
 
 ## Per Face Normal Function
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Computes new per-face normals from expressions.
 
@@ -179,7 +179,7 @@ Normal function using muparser to generate new Normal for every face<br>
 
 ## Per Face Quality Function
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Computes per-face scalar quality from an expression.
 
@@ -260,7 +260,7 @@ Project a mesh (or a point set) onto the MLS surface defined by itself or anothe
 
 ## Per Vertex Color Function
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Computes per-vertex RGBA colors from expressions.
 
@@ -284,7 +284,7 @@ Color function using muparser lib to generate new RGBA color for every vertex<br
 
 ## Per Vertex Geometric Function
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Computes new per-vertex coordinates from expressions.
 
@@ -308,7 +308,7 @@ Geometric function using muparser lib to generate new Coord<br>You can change x,
 
 ## Per Vertex Normal Function
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Computes new per-vertex normals from expressions.
 
@@ -331,7 +331,7 @@ Normal function using muparser to generate new Normal for every vertex<br>
 
 ## Per Vertex Quality Function
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Computes per-vertex scalar quality from an expression.
 
@@ -354,7 +354,7 @@ Quality function using muparser to generate new Quality for every vertex<br>
 
 ## Per Vertex Texture Function
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Computes per-vertex texture coordinates from expressions.
 
@@ -376,7 +376,7 @@ Texture function using muparser to generate new texture coords for every vertex<
 
 ## Per Wedge Texture Function
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Computes per-wedge texture coordinates from expressions.
 
@@ -1306,7 +1306,7 @@ Requires at least one visible raster with a valid camera and a 2-manifold mesh.
 
 ## Harmonic Parametrization
 
-**Plugin:** qmeshlab.filter.parametrization
+**Plugin:** qmeshlab.filter.igl
 
 Compute a single-patch fixed-boundary harmonic UV parametrization using libigl.
 
@@ -1326,7 +1326,7 @@ Computes a single-patch fixed-boundary harmonic parametrization of the current m
 
 ## Least Squares Conformal Maps Parametrization
 
-**Plugin:** qmeshlab.filter.parametrization
+**Plugin:** qmeshlab.filter.igl
 
 Compute a Least Squares Conformal Maps UV parametrization using libigl.
 
@@ -1462,7 +1462,7 @@ Converts an object-space normal map into a tangent-space normal map using the cu
 
 (filter-convert-to-quad-dominant)=
 
-## Turn into Quad-Dominant mesh
+## Convert to Quad-Dominant Mesh
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -1482,7 +1482,7 @@ Convert a tri-mesh into a quad-dominant mesh by pairing suitable triangles.
 
 (filter-convert-to-triangular)=
 
-## Turn into a Pure-Triangular mesh
+## Convert to Pure Triangles
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -1639,7 +1639,7 @@ This filter has no parameters.
 
 ## Grid Generator
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Generates a regular 2D grid mesh.
 
@@ -1681,7 +1681,7 @@ This filter has no parameters.
 
 ## Implicit Surface
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Extracts an isosurface from an implicit scalar field.
 
@@ -1846,7 +1846,7 @@ Create a Torus
 
 (filter-cut-mesh-along-crease-edges)=
 
-## Cut mesh along crease edges
+## Cut Along Crease Edges
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -1868,7 +1868,7 @@ Cut the mesh along crease edges, duplicating the vertices as necessary. Crease (
 
 ## Define New Per Face Custom Point Attribute
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Defines and fills a custom per-face point attribute.
 
@@ -1891,7 +1891,7 @@ Add a new Per-Face custom point attribute to current mesh and fill it with the d
 
 ## Define New Per Face Custom Scalar Attribute
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Defines and fills a custom per-face scalar attribute.
 
@@ -1912,7 +1912,7 @@ Add a new Per-Face custom scalar attribute to current mesh and fill it with the 
 
 ## Define New Per Vertex Custom Point Attribute
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Defines and fills a custom per-vertex point attribute.
 
@@ -1935,7 +1935,7 @@ Add a new Per-Vertex custom point attribute to current mesh and fill it with the
 
 ## Define New Per Vertex Custom Scalar Attribute
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Defines and fills a custom per-vertex scalar attribute.
 
@@ -1988,7 +1988,7 @@ Implementation note: the original reference code used OpenGL to rasterize the ne
 
 (filter-delete-all-faces)=
 
-## Delete ALL Faces
+## Remove All Faces
 
 **Plugin:** qmeshlab.filter.select
 
@@ -2078,7 +2078,7 @@ This filter has no parameters.
 
 (filter-delete-selected-faces)=
 
-## Delete Selected Faces
+## Remove Selected Faces
 
 **Plugin:** qmeshlab.filter.select
 
@@ -2096,7 +2096,7 @@ This filter has no parameters.
 
 (filter-delete-selected-faces-and-vertices)=
 
-## Delete Selected Faces and Vertices
+## Remove Selected Faces and Vertices
 
 **Plugin:** qmeshlab.filter.select
 
@@ -2114,7 +2114,7 @@ This filter has no parameters.
 
 (filter-delete-selected-vertices)=
 
-## Delete Selected Vertices
+## Remove Selected Vertices
 
 **Plugin:** qmeshlab.filter.select
 
@@ -2188,6 +2188,207 @@ Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of
 - **Radius** (*absperc*, default: `@bboxDiagTenth`) — Disk radius around each point-cloud seed.
 - **SampleRadius** (*bool*, default: `False`) — Use the per-vertex quality of the seed cloud as the disk radius.
 - **ApproximateGeodetic** (*bool*, default: `False`) — Weight the Euclidean distance by the normal difference between the two points.
+```
+
+---
+
+(filter-displace-by-fractal-brownian-motion)=
+
+## Displace by Fractal Brownian Motion
+
+**Plugin:** qmeshlab.filter.vertex_displacement
+
+Displace vertices along their normals using fractal Brownian motion.
+
+```{py:function} ms.displace_by_fractal_brownian_motion(**params)
+:module: _qmeshlab
+
+Evaluates fractal Brownian motion (fBM) in normalized object space and displaces each vertex along a smoothed normal. The noise is the weighted sum $$N(\mathbf{x})=\sum_{i=0}^{n-1} L^{-Hi}\,P(L^i\mathbf{x}),$$ where $P$ is VCGLib's three-dimensional Perlin noise, $n$ is the octave count, $L$ is lacunarity, and $H$ is the fractal increment. Lower $H$ retains more high-frequency detail.
+
+**Upstream:** [MeshLab Fractal Filter](https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal)
+
+**License:** GPL-2.0-or-later
+
+**References:**
+
+- David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. **Texturing and Modeling: A Procedural Approach** (2002).
+
+**Parameters:**
+
+- **maxHeight** (*absperc*, default: `@bboxDiag01`) — Maximum positive displacement, relative to the mesh bounding-box diagonal.
+- **scale** (*absperc*, default: `@bboxDiag`) — Spatial size of the base noise features; smaller values produce finer detail.
+- **octaves** (*int*, default: `10`) — Number of Perlin-noise frequency bands.
+- **lacunarity** (*double*, default: `2.0`) — Frequency multiplier between consecutive octaves.
+- **fractalIncrement** (*double*, default: `1.2`) — Exponent controlling the spectral weight of higher frequencies.
+- **seed** (*double*, default: `1.0`) — Translation of the noise domain; changing it produces another morphology.
+- **normalSmoothingSteps** (*int*, default: `5`) — Laplacian smoothing iterations applied to normals before displacement.
+```
+
+---
+
+(filter-displace-by-heterogeneous-multifractal-noise)=
+
+## Displace by Heterogeneous Multifractal Noise
+
+**Plugin:** qmeshlab.filter.vertex_displacement
+
+Displace vertices using elevation-dependent heterogeneous multifractal noise.
+
+```{py:function} ms.displace_by_heterogeneous_multifractal_noise(**params)
+:module: _qmeshlab
+
+Evaluates a heterogeneous multifractal whose successive increments are modulated by the accumulated signal. This makes high-frequency detail depend on the local elevation already produced by lower octaves, yielding spatially varying roughness rather than a stationary noise field.
+
+**Upstream:** [MeshLab Fractal Filter](https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal)
+
+**License:** GPL-2.0-or-later
+
+**References:**
+
+- David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. **Texturing and Modeling: A Procedural Approach** (2002).
+
+**Parameters:**
+
+- **maxHeight** (*absperc*, default: `@bboxDiag01`) — Maximum positive displacement, relative to the mesh bounding-box diagonal.
+- **scale** (*absperc*, default: `@bboxDiag`) — Spatial size of the base noise features; smaller values produce finer detail.
+- **octaves** (*int*, default: `8`) — Number of Perlin-noise frequency bands.
+- **lacunarity** (*double*, default: `3.0`) — Frequency multiplier between consecutive octaves.
+- **fractalIncrement** (*double*, default: `0.9`) — Exponent controlling the spectral weight of higher frequencies.
+- **offset** (*double*, default: `0.4`) — Bias controlling the strength of multifractal modulation.
+- **seed** (*double*, default: `1.0`) — Translation of the noise domain; changing it produces another morphology.
+- **normalSmoothingSteps** (*int*, default: `5`) — Laplacian smoothing iterations applied to normals before displacement.
+```
+
+---
+
+(filter-displace-by-hybrid-multifractal-noise)=
+
+## Displace by Hybrid Multifractal Noise
+
+**Plugin:** qmeshlab.filter.vertex_displacement
+
+Displace vertices using signal-weighted hybrid multifractal noise.
+
+```{py:function} ms.displace_by_hybrid_multifractal_noise(**params)
+:module: _qmeshlab
+
+Evaluates hybrid multifractal noise, where each octave controls how strongly the following octave contributes. The feedback is clamped to avoid unbounded amplification, producing terrain-like regions with locally varying roughness.
+
+**Upstream:** [MeshLab Fractal Filter](https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal)
+
+**License:** GPL-2.0-or-later
+
+**References:**
+
+- David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. **Texturing and Modeling: A Procedural Approach** (2002).
+
+**Parameters:**
+
+- **maxHeight** (*absperc*, default: `@bboxDiag01`) — Maximum positive displacement, relative to the mesh bounding-box diagonal.
+- **scale** (*absperc*, default: `@bboxDiag`) — Spatial size of the base noise features; smaller values produce finer detail.
+- **octaves** (*int*, default: `8`) — Number of Perlin-noise frequency bands.
+- **lacunarity** (*double*, default: `4.0`) — Frequency multiplier between consecutive octaves.
+- **fractalIncrement** (*double*, default: `0.1`) — Exponent controlling the spectral weight of higher frequencies.
+- **offset** (*double*, default: `0.3`) — Bias controlling the initial signal and octave feedback.
+- **seed** (*double*, default: `1.0`) — Translation of the noise domain; changing it produces another morphology.
+- **normalSmoothingSteps** (*int*, default: `5`) — Laplacian smoothing iterations applied to normals before displacement.
+```
+
+---
+
+(filter-displace-by-ridged-multifractal-noise)=
+
+## Displace by Ridged Multifractal Noise
+
+**Plugin:** qmeshlab.filter.vertex_displacement
+
+Displace vertices using ridged multifractal noise.
+
+```{py:function} ms.displace_by_ridged_multifractal_noise(**params)
+:module: _qmeshlab
+
+Evaluates ridged multifractal noise by folding each Perlin signal around zero, subtracting it from the offset, and squaring it. Feedback controlled by the gain sharpens coherent ridges while suppressing detail away from them.
+
+**Upstream:** [MeshLab Fractal Filter](https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal)
+
+**License:** GPL-2.0-or-later
+
+**References:**
+
+- David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. **Texturing and Modeling: A Procedural Approach** (2002).
+
+**Parameters:**
+
+- **maxHeight** (*absperc*, default: `@bboxDiag01`) — Maximum positive displacement, relative to the mesh bounding-box diagonal.
+- **scale** (*absperc*, default: `@bboxDiag`) — Spatial size of the base noise features; smaller values produce finer detail.
+- **octaves** (*int*, default: `8`) — Number of Perlin-noise frequency bands.
+- **lacunarity** (*double*, default: `4.0`) — Frequency multiplier between consecutive octaves.
+- **fractalIncrement** (*double*, default: `0.5`) — Exponent controlling the spectral weight of higher frequencies.
+- **offset** (*double*, default: `0.9`) — Sets the ridge level before squaring the folded signal.
+- **gain** (*double*, default: `2.0`) — Controls feedback strength and ridge sharpness.
+- **seed** (*double*, default: `2.0`) — Translation of the noise domain; changing it produces another morphology.
+- **normalSmoothingSteps** (*int*, default: `5`) — Laplacian smoothing iterations applied to normals before displacement.
+```
+
+---
+
+(filter-displace-by-standard-multifractal-noise)=
+
+## Displace by Standard Multifractal Noise
+
+**Plugin:** qmeshlab.filter.vertex_displacement
+
+Displace vertices using multiplicative standard multifractal noise.
+
+```{py:function} ms.displace_by_standard_multifractal_noise(**params)
+:module: _qmeshlab
+
+Evaluates standard multifractal noise in normalized object space and displaces vertices along smoothed normals. Unlike additive fBM, its octave contributions are multiplied: $$N(\mathbf{x})=\prod_{i=0}^{n-1}\left(O+L^{-Hi}P(L^i\mathbf{x})\right).$$ The offset $O$ controls multifractality and the fractal increment $H$ controls the contribution of high frequencies.
+
+**Upstream:** [MeshLab Fractal Filter](https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal)
+
+**License:** GPL-2.0-or-later
+
+**References:**
+
+- David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. **Texturing and Modeling: A Procedural Approach** (2002).
+
+**Parameters:**
+
+- **maxHeight** (*absperc*, default: `@bboxDiag01`) — Maximum positive displacement, relative to the mesh bounding-box diagonal.
+- **scale** (*absperc*, default: `@bboxDiag`) — Spatial size of the base noise features; smaller values produce finer detail.
+- **octaves** (*int*, default: `8`) — Number of Perlin-noise frequency bands.
+- **lacunarity** (*double*, default: `2.0`) — Frequency multiplier between consecutive octaves.
+- **fractalIncrement** (*double*, default: `0.9`) — Exponent controlling the spectral weight of higher frequencies.
+- **offset** (*double*, default: `0.9`) — Bias added to every octave before multiplication.
+- **seed** (*double*, default: `1.0`) — Translation of the noise domain; changing it produces another morphology.
+- **normalSmoothingSteps** (*int*, default: `5`) — Laplacian smoothing iterations applied to normals before displacement.
+```
+
+---
+
+(filter-displace-vertices-randomly)=
+
+## Displace Vertices Randomly
+
+**Plugin:** qmeshlab.filter.vertex_displacement
+
+Move every vertex by an independently generated random vector.
+
+```{py:function} ms.displace_vertices_randomly(**params)
+:module: _qmeshlab
+
+Adds an independent uniformly distributed displacement to each coordinate of every vertex. With maximum displacement $d$, each coordinate offset lies in $[-d,d]$. Set a nonzero random seed to obtain repeatable results.
+
+**Upstream:** [MeshLab Fractal Filter](https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal)
+
+**License:** GPL-2.0-or-later
+
+**Parameters:**
+
+- **maxDisplacement** (*absperc*, default: `@bboxDiag01`) — Maximum absolute displacement applied independently to each coordinate.
+- **recomputeNormals** (*bool*, default: `True`) — Recompute face and vertex normals after displacement.
+- **randomSeed** (*int*, default: `0`) — Use zero for an automatically generated seed, or a positive value for repeatable displacement.
 ```
 
 ---
@@ -2343,9 +2544,9 @@ Original MeshLab plugin contribution: Lex van der Sluijs, PTC.
 
 (filter-generate-boolean-difference)=
 
-## Mesh Boolean: Difference
+## Mesh Difference
 
-**Plugin:** qmeshlab.filter.mesh_booleans
+**Plugin:** qmeshlab.filter.igl
 
 Create the exact difference of two mesh layers using libigl and CGAL.
 
@@ -2368,9 +2569,9 @@ Executes an exact boolean difference between two mesh layers and creates the res
 
 (filter-generate-boolean-intersection)=
 
-## Mesh Boolean: Intersection
+## Mesh Intersection
 
-**Plugin:** qmeshlab.filter.mesh_booleans
+**Plugin:** qmeshlab.filter.igl
 
 Create the exact intersection of two mesh layers using libigl and CGAL.
 
@@ -2393,9 +2594,9 @@ Executes an exact boolean intersection between two mesh layers and creates the r
 
 (filter-generate-boolean-union)=
 
-## Mesh Boolean: Union
+## Mesh Union
 
-**Plugin:** qmeshlab.filter.mesh_booleans
+**Plugin:** qmeshlab.filter.igl
 
 Create the exact union of two mesh layers using libigl and CGAL.
 
@@ -2418,9 +2619,9 @@ Executes an exact boolean union between two mesh layers and creates the result a
 
 (filter-generate-boolean-xor)=
 
-## Mesh Boolean: Symmetric Difference (XOR)
+## Mesh Symmetric Difference
 
-**Plugin:** qmeshlab.filter.mesh_booleans
+**Plugin:** qmeshlab.filter.igl
 
 Create the exact symmetric difference of two mesh layers using libigl and CGAL.
 
@@ -3057,7 +3258,7 @@ Merge together per-wedge texture coords that are very close. Used to correct app
 
 (filter-meshing-decimation-edge-collapse-for-marching-cube-meshes)=
 
-## Simplification: Edge Collapse for Marching Cube meshes
+## Simplify Marching-Cubes Mesh by Edge Collapse
 
 **Plugin:** qmeshlab.filter.plymc
 
@@ -3079,7 +3280,7 @@ A simplification/cleaning algorithm that works only on meshes generated by March
 
 (filter-meshing-edge-flip-by-curvature-optimization)=
 
-## Curvature flipping optimization
+## Flip Edges by Curvature
 
 **Plugin:** qmeshlab.filter.trioptimize
 
@@ -3101,7 +3302,7 @@ Mesh optimization by edge flipping to improve local mesh curvature. The method e
 
 (filter-meshing-edge-flip-by-planar-optimization)=
 
-## Planar flipping optimization
+## Flip Edges by Planarity
 
 **Plugin:** qmeshlab.filter.trioptimize
 
@@ -3507,33 +3708,11 @@ This filter has no parameters.
 
 ---
 
-(filter-random-vertex-displacement)=
-
-## Random Vertex Displacement
-
-**Plugin:** qmeshlab.filter.sample
-
-Move the vertices of the current mesh by a bounded random amount.
-
-```{py:function} ms.random_vertex_displacement(**params)
-:module: _qmeshlab
-
-Move the vertices of the mesh of a random quantity.
-
-**Parameters:**
-
-- **UpdateNormals** (*bool*, default: `True`) — Toggle the recomputation of the normals after the random displacement. If disabled the face normals will remain unchanged, resulting in a visually pleasant effect.
-- **Displacement** (*absperc*, default: `@bboxDiag01`) — The vertices are displaced by a vector whose norm is bounded by this value.
-- **RandomSeed** (*int*, default: `0`) — The seed used to generate random values. If seed is zero no fixed random seed is used.
-```
-
----
-
 (filter-refine-user-defined)=
 
-## Refine User-Defined
+## Refine by User Expression
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Refines edges selected by an expression and places split points by expressions.
 
@@ -3552,9 +3731,47 @@ Refine current mesh with user defined parameters.<br>Specify a Boolean Function 
 
 ---
 
+(filter-remesh-to-quads-instant-meshes)=
+
+## Remesh to Quads (Instant Meshes)
+
+**Plugin:** qmeshlab.filter.instant_meshes
+
+Generate an isotropic, field-aligned quad or quad-dominant mesh with Instant Meshes.
+
+```{py:function} ms.remesh_to_quads_instant_meshes(**params)
+:module: _qmeshlab
+
+Runs the original **Instant Field-Aligned Meshes** pipeline by Jakob et al. The method builds a multiresolution hierarchy, optimizes a four-fold rotational orientation field and a compatible position field, then extracts a new surface whose edges follow those fields. It is a local, parallel method designed to scale linearly with input size.
+
+The result is created as a new geometry-only layer. QMeshLab stores each generated quad as two triangles connected by a VCGLib faux edge, preserving polygonal rendering and saving. Vertex attributes, selections, materials and textures are not transferred. **Pure quads** subdivides irregular extracted faces to obtain only quads; **quad dominant** retains exceptional triangles. The target edge length is approximate because extraction is driven by the optimized fields.
+
+**Upstream:** [Instant Meshes](https://github.com/wjakob/instant-meshes)
+
+**License:** BSD-3-Clause
+
+**References:**
+
+- Wenzel Jakob, Marco Tarini, Daniele Panozzo, Olga Sorkine-Hornung. **Instant Field-Aligned Meshes**. *ACM Transactions on Graphics* (2015). [DOI](https://doi.org/10.1145/2816795.2818078) [Web](https://igl.ethz.ch/projects/instant-meshes/)
+
+**Parameters:**
+
+- **targetEdgeLength** (*absperc*, default: `@bboxDiag01`) — Approximate world-space edge length of the generated mesh.
+- **outputTopology** (*enum*, default: `pure_quads`) — Pure quads subdivides exceptional faces; quad dominant permits triangles around irregular regions.
+- **detectCreases** (*bool*, default: `False`) — Split normals at sufficiently sharp input edges so the generated field follows them.
+- **creaseAngle** (*double*, default: `30.0`) — Dihedral-angle threshold used when sharp-crease detection is enabled.
+- **alignBoundaries** (*bool*, default: `False`) — Constrain the orientation and position fields to open mesh boundaries.
+- **optimizationSpace** (*enum*, default: `extrinsic`) — Extrinsic optimization uses embedded 3D directions; intrinsic optimization transports directions over the surface.
+- **smoothingIterations** (*int*, default: `2`) — Post-extraction smoothing iterations with projection back to the input surface. Zero disables smoothing and BVH construction.
+- **deterministic** (*bool*, default: `False`) — Prefer reproducible graph construction and ordering at some performance cost.
+- **threads** (*int*, default: `0`) — Maximum oneTBB parallelism. Zero uses the runtime default.
+```
+
+---
+
 (filter-remeshing-isotropic)=
 
-## Remeshing: Isotropic Explicit Remeshing
+## Remesh Isotropically
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -3913,7 +4130,7 @@ This filter has no parameters.
 
 (filter-resample-uniform)=
 
-## Uniform Mesh Resampling
+## Remesh Uniformly by Volumetric Resampling
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -4326,7 +4543,7 @@ Select part of the mesh based on its color.
 
 ## Conditional Face Selection
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Selects faces for which a boolean expression evaluates true.
 
@@ -4562,7 +4779,7 @@ This filter has no parameters.
 
 ## Conditional Vertex Selection
 
-**Plugin:** qmeshlab.filter.func
+**Plugin:** qmeshlab.filter.expression
 
 Selects vertices for which a boolean expression evaluates true.
 
@@ -4773,7 +4990,7 @@ Set a texture associated with current mesh parametrization.<br>If the texture pr
 
 (filter-simplification-clustering)=
 
-## Simplification: Clustering Decimation
+## Simplify by Vertex Clustering
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -4793,7 +5010,7 @@ Simplify the mesh by clustering vertices; by using a uniform grid over the mesh,
 
 (filter-simplification-quadric-edge-collapse)=
 
-## Simplification: Quadric Edge Collapse Decimation
+## Simplify by Quadric Edge Collapse
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -4831,7 +5048,7 @@ This filter uses VCGLib and remains distinct from the separately available **Ori
 
 (filter-simplification-quadric-edge-collapse-qslim)=
 
-## Simplification: Original QSlim Quadric Edge Collapse
+## Simplify by Quadric Edge Collapse (QSlim)
 
 **Plugin:** qmeshlab.filter.qslim
 
@@ -4866,7 +5083,7 @@ QSlim's placement and weighting policies, boundary constraint weight, compactnes
 
 (filter-simplification-quadric-edge-collapse-with-texture)=
 
-## Simplification: Quadric Edge Collapse Decimation (with texture)
+## Simplify by Quadric Edge Collapse with Texture
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -4899,7 +5116,7 @@ Simplifies a textured mesh with VCGLib's attribute-aware quadric edge-collapse i
 
 (filter-simplify-point-cloud)=
 
-## Point Cloud Simplification
+## Simplify Point Cloud
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -5248,7 +5465,7 @@ Split current layer into many layers, one for each connected component.
 
 (filter-subdivision-butterfly)=
 
-## Subdivision Surfaces: Butterfly Subdivision
+## Subdivide by Butterfly
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5270,7 +5487,7 @@ Apply Butterfly Subdivision Surface algorithm. It is an interpolated refinement 
 
 (filter-subdivision-catmull-clark)=
 
-## Subdivision Surfaces: Catmull-Clark
+## Subdivide by Catmull-Clark
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5290,7 +5507,7 @@ Apply a number of iteration of the classical Catmull-Clark Subdivision Surfaces.
 
 (filter-subdivision-doo-sabin)=
 
-## Subdivision Surfaces: Doo Sabin
+## Subdivide by Doo-Sabin
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5310,7 +5527,7 @@ Apply the DooSabin Subdivision Surfaces. It is a Dual approximating refinement s
 
 (filter-subdivision-loop)=
 
-## Subdivision Surfaces: Loop
+## Subdivide by Loop
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5333,7 +5550,7 @@ Apply Loop's Subdivision Surface algorithm. It is an approximant refinement meth
 
 (filter-subdivision-ls3-loop)=
 
-## Subdivision Surfaces: LS3 Loop
+## Subdivide by LS3 Loop
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5356,7 +5573,7 @@ Apply LS3 Subdivision Surface algorithm using Loop's weights. This refinement me
 
 (filter-subdivision-midpoint)=
 
-## Subdivision Surfaces: Midpoint
+## Subdivide by Midpoint
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5744,7 +5961,7 @@ Generate a matrix transformation that translate the mesh. The mesh can be transl
 
 (filter-tri-to-quad-4-8-subdivision)=
 
-## Tri to Quad by 4-8 Subdivision
+## Convert to Quads by 4-8 Subdivision
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5762,7 +5979,7 @@ This filter has no parameters.
 
 (filter-tri-to-quad-by-pairing)=
 
-## Tri to Quad by smart triangle pairing
+## Convert to Quads by Triangle Pairing
 
 **Plugin:** qmeshlab.filter.meshing
 

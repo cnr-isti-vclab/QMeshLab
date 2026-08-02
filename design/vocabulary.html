@@ -318,6 +318,8 @@ a category must be either a root or a declared <code class="docutils literal not
 <p>Two levels was chosen for growth. Eleven roots over today’s 272 filters is ~25 each; a
 flat list becomes unbrowsable as the archive grows toward several hundred more
 implementations, whereas the second level absorbs that.</p>
+<p>The authoritative copy is <code class="docutils literal notranslate"><span class="pre">src/plugins/filtercategories.h</span></code>/<code class="docutils literal notranslate"><span class="pre">.cpp</span></code>, which the loader
+validates against; this table mirrors it and must be updated together with it.</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -328,7 +330,7 @@ implementations, whereas the second level absorbs that.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Meshing</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Remeshing</span></code> · <code class="docutils literal notranslate"><span class="pre">Simplification</span></code> · <code class="docutils literal notranslate"><span class="pre">Subdivision</span></code> · <code class="docutils literal notranslate"><span class="pre">Boolean</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Remeshing</span></code> · <code class="docutils literal notranslate"><span class="pre">Simplification</span></code> · <code class="docutils literal notranslate"><span class="pre">Subdivision</span></code> · <code class="docutils literal notranslate"><span class="pre">Quad</span></code> · <code class="docutils literal notranslate"><span class="pre">Boolean</span></code> · <code class="docutils literal notranslate"><span class="pre">Deletion</span></code></p></td>
 <td><p>Changes tessellation or connectivity for its own sake</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Repair</span></code></p></td>
@@ -336,15 +338,15 @@ implementations, whereas the second level absorbs that.</p>
 <td><p>Fixes defects: makes an invalid or damaged mesh valid</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Geometry</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transform</span></code> · <code class="docutils literal notranslate"><span class="pre">Smoothing</span></code> · <code class="docutils literal notranslate"><span class="pre">Alignment</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transform</span></code> · <code class="docutils literal notranslate"><span class="pre">Smoothing</span></code> · <code class="docutils literal notranslate"><span class="pre">Alignment</span></code> · <code class="docutils literal notranslate"><span class="pre">Deformation</span></code></p></td>
 <td><p>Changes vertex positions or the layer matrix, connectivity untouched</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Attribute</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Normal</span></code> · <code class="docutils literal notranslate"><span class="pre">Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Curvature</span></code> · <code class="docutils literal notranslate"><span class="pre">Color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Normal</span></code> · <code class="docutils literal notranslate"><span class="pre">Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Curvature</span></code> · <code class="docutils literal notranslate"><span class="pre">Color</span></code> · <code class="docutils literal notranslate"><span class="pre">Custom</span></code></p></td>
 <td><p>Computes and stores per-element attribute data</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Selection</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Attribute</span></code> · <code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Topology</span></code> · <code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Visibility</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Attribute</span></code> · <code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Topology</span></code> · <code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Visibility</span></code> · <code class="docutils literal notranslate"><span class="pre">Set</span> <span class="pre">Operations</span></code></p></td>
 <td><p>Changes selection state only</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Creation</span></code></p></td>
@@ -403,6 +405,14 @@ for, not a variety of meshing. Its subcategories, from the existing filters:</p>
 <p><code class="docutils literal notranslate"><span class="pre">Boolean</span></code> stays under <code class="docutils literal notranslate"><span class="pre">Meshing</span></code> — a boolean rebuilds topology to produce a new valid
 mesh, which is meshing work, not a document-structure operation (it was previously
 mis-filed under <code class="docutils literal notranslate"><span class="pre">Layer/Boolean</span></code>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">Meshing/Quad</span></code> holds the triangle↔quad conversions — <em>Convert to Quads by 4-8
+Subdivision</em>, <em>by Triangle Pairing</em>, <em>to Quad-Dominant Mesh</em>, <em>to Pure Triangles</em>. They
+were initially filed under <code class="docutils literal notranslate"><span class="pre">Remeshing</span></code>, but converting between triangle and quad
+representation is a distinct concern from improving element shape, and the set is
+expected to grow.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code> holds the filters that remove selected geometry. They are not
+<code class="docutils literal notranslate"><span class="pre">Selection</span></code> (they change the mesh, not the selection) and not <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (nothing was
+broken).</p>
 </section>
 <section id="how-category-names-are-formed">
 <h3>How category names are formed<a class="headerlink" href="#how-category-names-are-formed" title="Link to this heading">¶</a></h3>
@@ -861,51 +871,63 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p>The specific affine operations</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Shift</span></code>, <code class="docutils literal notranslate"><span class="pre">Turn</span></code>, <code class="docutils literal notranslate"><span class="pre">Resize</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Apply</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Displace</span></code></p></td>
+<td><p>Move vertices by a computed scalar or vector field while preserving connectivity</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Perturb</span></code>, <code class="docutils literal notranslate"><span class="pre">Deform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Apply</span></code></p></td>
 <td><p>Apply an <strong>existing stored</strong> transform to geometry</p></td>
 <td><p><em>(never as a generic verb)</em></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Freeze</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Freeze</span></code></p></td>
 <td><p>Bake the layer matrix into vertex coordinates</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Collapse</span> <span class="pre">matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">Commit</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Align</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Align</span></code></p></td>
 <td><p>Derive a registration transform between layers</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Register</span></code>, <code class="docutils literal notranslate"><span class="pre">Fit</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Simplify</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Simplify</span></code></p></td>
 <td><p>Reduce element count</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Decimate</span></code>, <code class="docutils literal notranslate"><span class="pre">Reduce</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Subdivide</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Subdivide</span></code></p></td>
 <td><p>Increase element count by splitting</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Refine</span></code>*</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Remesh</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Remesh</span></code></p></td>
 <td><p>Rebuild tessellation</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Retriangulate</span></code>, <code class="docutils literal notranslate"><span class="pre">Resample</span></code> (for surfaces)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Smooth</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Flip</span></code></p></td>
+<td><p>Reconnect by flipping edges; connectivity changes, vertices do not move</p></td>
+<td><p><em>(<code class="docutils literal notranslate"><span class="pre">Remesh</span></code> is too coarse for it)</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Cut</span></code></p></td>
+<td><p>Split a surface along a curve, introducing a boundary</p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">Split</span></code></strong> (claimed by layer operations)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Smooth</span></code></p></td>
 <td><p>Reduce noise in positions/normals</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Denoise</span></code>, <code class="docutils literal notranslate"><span class="pre">Fair</span></code>, <code class="docutils literal notranslate"><span class="pre">Blur</span></code>, <code class="docutils literal notranslate"><span class="pre">Relax</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Parametrize</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Parametrize</span></code></p></td>
 <td><p>Create or edit UVs</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Unwrap</span></code>, <code class="docutils literal notranslate"><span class="pre">Parameterize</span></code>, <code class="docutils literal notranslate"><span class="pre">Flatten</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Pack</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Pack</span></code></p></td>
 <td><p>Arrange UV charts in an atlas</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Layout</span></code>, <code class="docutils literal notranslate"><span class="pre">Bin</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Set</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Set</span></code></p></td>
 <td><p>Assign a value or state</p></td>
 <td><p><em>(prefer over <code class="docutils literal notranslate"><span class="pre">Define</span></code>, <code class="docutils literal notranslate"><span class="pre">Assign</span></code>)</em></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Convert</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Convert</span></code></p></td>
 <td><p>Change representation, same information</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Translate</span></code>, <code class="docutils literal notranslate"><span class="pre">Cast</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Duplicate</span></code>, <code class="docutils literal notranslate"><span class="pre">Split</span></code>, <code class="docutils literal notranslate"><span class="pre">Extract</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Duplicate</span></code>, <code class="docutils literal notranslate"><span class="pre">Split</span></code>, <code class="docutils literal notranslate"><span class="pre">Extract</span></code></p></td>
 <td><p>Layer-structure operations</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Clone</span></code>, <code class="docutils literal notranslate"><span class="pre">Separate</span></code>, <code class="docutils literal notranslate"><span class="pre">Detach</span></code></p></td>
 </tr>
@@ -1039,6 +1061,12 @@ pass so the two stay consistent. Until then, expect <code class="docutils litera
 which the algorithm-archive model makes routine (decision 4): <em>Simplify Quadric
 Edge Collapse (QSlim)</em>.</p></li>
 </ul>
+<p><strong>Exception — a well-known named result may be a noun phrase.</strong> Where a filter’s output
+<em>is</em> a conventionally named object, naming the result reads better than naming the
+action: the boolean filters are <strong><code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">Union</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">Intersection</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">Difference</span></code>, <code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">Symmetric</span> <span class="pre">Difference</span></code> rather than <em>Unite Meshes</em> etc. Use this
+sparingly — it applies when the noun is the established term of art, not merely when a
+noun is available. Recorded so the names are not “corrected” back to verb-first later.</p>
 <p>Python name:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>verb_object[_backend]
 </pre></div>

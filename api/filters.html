@@ -352,7 +352,7 @@
 </section>
 <section id="per-face-color-function">
 <span id="filter-apply-face-color-function"></span><h2>Per Face Color Function<a class="headerlink" href="#per-face-color-function" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes per-face RGBA colors from expressions.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_face_color_function">
@@ -372,7 +372,7 @@
 </section>
 <section id="per-face-normal-function">
 <span id="filter-apply-face-normal-function"></span><h2>Per Face Normal Function<a class="headerlink" href="#per-face-normal-function" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes new per-face normals from expressions.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_face_normal_function">
@@ -391,7 +391,7 @@
 </section>
 <section id="per-face-quality-function">
 <span id="filter-apply-face-quality-function"></span><h2>Per Face Quality Function<a class="headerlink" href="#per-face-quality-function" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes per-face scalar quality from an expression.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_face_quality_function">
@@ -460,7 +460,7 @@
 </section>
 <section id="per-vertex-color-function">
 <span id="filter-apply-vertex-color-function"></span><h2>Per Vertex Color Function<a class="headerlink" href="#per-vertex-color-function" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes per-vertex RGBA colors from expressions.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_vertex_color_function">
@@ -480,7 +480,7 @@
 </section>
 <section id="per-vertex-geometric-function">
 <span id="filter-apply-vertex-geometric-function"></span><h2>Per Vertex Geometric Function<a class="headerlink" href="#per-vertex-geometric-function" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes new per-vertex coordinates from expressions.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_vertex_geometric_function">
@@ -500,7 +500,7 @@
 </section>
 <section id="per-vertex-normal-function">
 <span id="filter-apply-vertex-normal-function"></span><h2>Per Vertex Normal Function<a class="headerlink" href="#per-vertex-normal-function" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes new per-vertex normals from expressions.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_vertex_normal_function">
@@ -519,7 +519,7 @@
 </section>
 <section id="per-vertex-quality-function">
 <span id="filter-apply-vertex-quality-function"></span><h2>Per Vertex Quality Function<a class="headerlink" href="#per-vertex-quality-function" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes per-vertex scalar quality from an expression.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_vertex_quality_function">
@@ -538,7 +538,7 @@
 </section>
 <section id="per-vertex-texture-function">
 <span id="filter-apply-vertex-texture-function"></span><h2>Per Vertex Texture Function<a class="headerlink" href="#per-vertex-texture-function" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes per-vertex texture coordinates from expressions.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_vertex_texture_function">
@@ -556,7 +556,7 @@
 </section>
 <section id="per-wedge-texture-function">
 <span id="filter-apply-wedge-texture-function"></span><h2>Per Wedge Texture Function<a class="headerlink" href="#per-wedge-texture-function" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes per-wedge texture coordinates from expressions.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_wedge_texture_function">
@@ -1316,7 +1316,7 @@
 </section>
 <section id="harmonic-parametrization">
 <span id="filter-compute-texcoord-parametrization-harmonic"></span><h2>Harmonic Parametrization<a class="headerlink" href="#harmonic-parametrization" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.parametrization</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Compute a single-patch fixed-boundary harmonic UV parametrization using libigl.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_texcoord_parametrization_harmonic">
@@ -1332,7 +1332,7 @@
 </section>
 <section id="least-squares-conformal-maps-parametrization">
 <span id="filter-compute-texcoord-parametrization-least-squares-conformal-maps"></span><h2>Least Squares Conformal Maps Parametrization<a class="headerlink" href="#least-squares-conformal-maps-parametrization" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.parametrization</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Compute a Least Squares Conformal Maps UV parametrization using libigl.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_texcoord_parametrization_least_squares_conformal_maps">
@@ -1438,8 +1438,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="turn-into-quad-dominant-mesh">
-<span id="filter-convert-to-quad-dominant"></span><h2>Turn into Quad-Dominant mesh<a class="headerlink" href="#turn-into-quad-dominant-mesh" title="Link to this heading">¶</a></h2>
+<section id="convert-to-quad-dominant-mesh">
+<span id="filter-convert-to-quad-dominant"></span><h2>Convert to Quad-Dominant Mesh<a class="headerlink" href="#convert-to-quad-dominant-mesh" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Convert tri mesh to quad-dominant mesh.</p>
 <dl class="py function">
@@ -1454,8 +1454,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="turn-into-a-pure-triangular-mesh">
-<span id="filter-convert-to-triangular"></span><h2>Turn into a Pure-Triangular mesh<a class="headerlink" href="#turn-into-a-pure-triangular-mesh" title="Link to this heading">¶</a></h2>
+<section id="convert-to-pure-triangles">
+<span id="filter-convert-to-triangular"></span><h2>Convert to Pure Triangles<a class="headerlink" href="#convert-to-pure-triangles" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Split any polygonal face into triangles.</p>
 <dl class="py function">
@@ -1574,7 +1574,7 @@
 </section>
 <section id="grid-generator">
 <span id="filter-create-grid"></span><h2>Grid Generator<a class="headerlink" href="#grid-generator" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Generates a regular 2D grid mesh.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.create_grid">
@@ -1607,7 +1607,7 @@
 </section>
 <section id="implicit-surface">
 <span id="filter-create-implicit-surface"></span><h2>Implicit Surface<a class="headerlink" href="#implicit-surface" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Extracts an isosurface from an implicit scalar field.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.create_implicit_surface">
@@ -1737,8 +1737,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="cut-mesh-along-crease-edges">
-<span id="filter-cut-mesh-along-crease-edges"></span><h2>Cut mesh along crease edges<a class="headerlink" href="#cut-mesh-along-crease-edges" title="Link to this heading">¶</a></h2>
+<section id="cut-along-crease-edges">
+<span id="filter-cut-mesh-along-crease-edges"></span><h2>Cut Along Crease Edges<a class="headerlink" href="#cut-along-crease-edges" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Split the mesh along sharp edges.</p>
 <dl class="py function">
@@ -1755,7 +1755,7 @@
 </section>
 <section id="define-new-per-face-custom-point-attribute">
 <span id="filter-define-face-point-attribute"></span><h2>Define New Per Face Custom Point Attribute<a class="headerlink" href="#define-new-per-face-custom-point-attribute" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Defines and fills a custom per-face point attribute.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.define_face_point_attribute">
@@ -1774,7 +1774,7 @@
 </section>
 <section id="define-new-per-face-custom-scalar-attribute">
 <span id="filter-define-face-scalar-attribute"></span><h2>Define New Per Face Custom Scalar Attribute<a class="headerlink" href="#define-new-per-face-custom-scalar-attribute" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Defines and fills a custom per-face scalar attribute.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.define_face_scalar_attribute">
@@ -1791,7 +1791,7 @@
 </section>
 <section id="define-new-per-vertex-custom-point-attribute">
 <span id="filter-define-vertex-point-attribute"></span><h2>Define New Per Vertex Custom Point Attribute<a class="headerlink" href="#define-new-per-vertex-custom-point-attribute" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Defines and fills a custom per-vertex point attribute.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.define_vertex_point_attribute">
@@ -1810,7 +1810,7 @@
 </section>
 <section id="define-new-per-vertex-custom-scalar-attribute">
 <span id="filter-define-vertex-scalar-attribute"></span><h2>Define New Per Vertex Custom Scalar Attribute<a class="headerlink" href="#define-new-per-vertex-custom-scalar-attribute" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Defines and fills a custom per-vertex scalar attribute.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.define_vertex_scalar_attribute">
@@ -1853,8 +1853,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="delete-all-faces">
-<span id="filter-delete-all-faces"></span><h2>Delete ALL Faces<a class="headerlink" href="#delete-all-faces" title="Link to this heading">¶</a></h2>
+<section id="remove-all-faces">
+<span id="filter-delete-all-faces"></span><h2>Remove All Faces<a class="headerlink" href="#remove-all-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Delete all faces, turning mesh into point cloud.</p>
 <dl class="py function">
@@ -1918,8 +1918,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="delete-selected-faces">
-<span id="filter-delete-selected-faces"></span><h2>Delete Selected Faces<a class="headerlink" href="#delete-selected-faces" title="Link to this heading">¶</a></h2>
+<section id="remove-selected-faces">
+<span id="filter-delete-selected-faces"></span><h2>Remove Selected Faces<a class="headerlink" href="#remove-selected-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Delete selected faces; unreferenced vertices are not deleted.</p>
 <dl class="py function">
@@ -1931,8 +1931,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="delete-selected-faces-and-vertices">
-<span id="filter-delete-selected-faces-and-vertices"></span><h2>Delete Selected Faces and Vertices<a class="headerlink" href="#delete-selected-faces-and-vertices" title="Link to this heading">¶</a></h2>
+<section id="remove-selected-faces-and-vertices">
+<span id="filter-delete-selected-faces-and-vertices"></span><h2>Remove Selected Faces and Vertices<a class="headerlink" href="#remove-selected-faces-and-vertices" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Delete selected faces and enclosed selected vertices.</p>
 <dl class="py function">
@@ -1944,8 +1944,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="delete-selected-vertices">
-<span id="filter-delete-selected-vertices"></span><h2>Delete Selected Vertices<a class="headerlink" href="#delete-selected-vertices" title="Link to this heading">¶</a></h2>
+<section id="remove-selected-vertices">
+<span id="filter-delete-selected-vertices"></span><h2>Remove Selected Vertices<a class="headerlink" href="#remove-selected-vertices" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Delete selected vertices; incident faces are deleted too.</p>
 <dl class="py function">
@@ -2001,6 +2001,171 @@
 <li><p><strong>Radius</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagTenth</span></code>) — Disk radius around each point-cloud seed.</p></li>
 <li><p><strong>SampleRadius</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Use the per-vertex quality of the seed cloud as the disk radius.</p></li>
 <li><p><strong>ApproximateGeodetic</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Weight the Euclidean distance by the normal difference between the two points.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="displace-by-fractal-brownian-motion">
+<span id="filter-displace-by-fractal-brownian-motion"></span><h2>Displace by Fractal Brownian Motion<a class="headerlink" href="#displace-by-fractal-brownian-motion" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
+<p>Displace vertices along their normals using fractal Brownian motion.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.displace_by_fractal_brownian_motion">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">displace_by_fractal_brownian_motion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.displace_by_fractal_brownian_motion" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluates fractal Brownian motion (fBM) in normalized object space and displaces each vertex along a smoothed normal. The noise is the weighted sum $<span class="math notranslate nohighlight">\(N(\mathbf{x})=\sum_{i=0}^{n-1} L^{-Hi}\,P(L^i\mathbf{x}),\)</span><span class="math notranslate nohighlight">\( where \)</span>P<span class="math notranslate nohighlight">\( is VCGLib's three-dimensional Perlin noise, \)</span>n<span class="math notranslate nohighlight">\( is the octave count, \)</span>L<span class="math notranslate nohighlight">\( is lacunarity, and \)</span>H<span class="math notranslate nohighlight">\( is the fractal increment. Lower \)</span>H$ retains more high-frequency detail.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal">MeshLab Fractal Filter</a></p>
+<p><strong>License:</strong> GPL-2.0-or-later</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. <strong>Texturing and Modeling: A Procedural Approach</strong> (2002).</p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maxHeight</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Maximum positive displacement, relative to the mesh bounding-box diagonal.</p></li>
+<li><p><strong>scale</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>) — Spatial size of the base noise features; smaller values produce finer detail.</p></li>
+<li><p><strong>octaves</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of Perlin-noise frequency bands.</p></li>
+<li><p><strong>lacunarity</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Frequency multiplier between consecutive octaves.</p></li>
+<li><p><strong>fractalIncrement</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.2</span></code>) — Exponent controlling the spectral weight of higher frequencies.</p></li>
+<li><p><strong>seed</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Translation of the noise domain; changing it produces another morphology.</p></li>
+<li><p><strong>normalSmoothingSteps</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Laplacian smoothing iterations applied to normals before displacement.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="displace-by-heterogeneous-multifractal-noise">
+<span id="filter-displace-by-heterogeneous-multifractal-noise"></span><h2>Displace by Heterogeneous Multifractal Noise<a class="headerlink" href="#displace-by-heterogeneous-multifractal-noise" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
+<p>Displace vertices using elevation-dependent heterogeneous multifractal noise.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.displace_by_heterogeneous_multifractal_noise">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">displace_by_heterogeneous_multifractal_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.displace_by_heterogeneous_multifractal_noise" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluates a heterogeneous multifractal whose successive increments are modulated by the accumulated signal. This makes high-frequency detail depend on the local elevation already produced by lower octaves, yielding spatially varying roughness rather than a stationary noise field.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal">MeshLab Fractal Filter</a></p>
+<p><strong>License:</strong> GPL-2.0-or-later</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. <strong>Texturing and Modeling: A Procedural Approach</strong> (2002).</p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maxHeight</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Maximum positive displacement, relative to the mesh bounding-box diagonal.</p></li>
+<li><p><strong>scale</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>) — Spatial size of the base noise features; smaller values produce finer detail.</p></li>
+<li><p><strong>octaves</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — Number of Perlin-noise frequency bands.</p></li>
+<li><p><strong>lacunarity</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">3.0</span></code>) — Frequency multiplier between consecutive octaves.</p></li>
+<li><p><strong>fractalIncrement</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.9</span></code>) — Exponent controlling the spectral weight of higher frequencies.</p></li>
+<li><p><strong>offset</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.4</span></code>) — Bias controlling the strength of multifractal modulation.</p></li>
+<li><p><strong>seed</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Translation of the noise domain; changing it produces another morphology.</p></li>
+<li><p><strong>normalSmoothingSteps</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Laplacian smoothing iterations applied to normals before displacement.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="displace-by-hybrid-multifractal-noise">
+<span id="filter-displace-by-hybrid-multifractal-noise"></span><h2>Displace by Hybrid Multifractal Noise<a class="headerlink" href="#displace-by-hybrid-multifractal-noise" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
+<p>Displace vertices using signal-weighted hybrid multifractal noise.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.displace_by_hybrid_multifractal_noise">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">displace_by_hybrid_multifractal_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.displace_by_hybrid_multifractal_noise" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluates hybrid multifractal noise, where each octave controls how strongly the following octave contributes. The feedback is clamped to avoid unbounded amplification, producing terrain-like regions with locally varying roughness.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal">MeshLab Fractal Filter</a></p>
+<p><strong>License:</strong> GPL-2.0-or-later</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. <strong>Texturing and Modeling: A Procedural Approach</strong> (2002).</p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maxHeight</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Maximum positive displacement, relative to the mesh bounding-box diagonal.</p></li>
+<li><p><strong>scale</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>) — Spatial size of the base noise features; smaller values produce finer detail.</p></li>
+<li><p><strong>octaves</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — Number of Perlin-noise frequency bands.</p></li>
+<li><p><strong>lacunarity</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">4.0</span></code>) — Frequency multiplier between consecutive octaves.</p></li>
+<li><p><strong>fractalIncrement</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.1</span></code>) — Exponent controlling the spectral weight of higher frequencies.</p></li>
+<li><p><strong>offset</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Bias controlling the initial signal and octave feedback.</p></li>
+<li><p><strong>seed</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Translation of the noise domain; changing it produces another morphology.</p></li>
+<li><p><strong>normalSmoothingSteps</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Laplacian smoothing iterations applied to normals before displacement.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="displace-by-ridged-multifractal-noise">
+<span id="filter-displace-by-ridged-multifractal-noise"></span><h2>Displace by Ridged Multifractal Noise<a class="headerlink" href="#displace-by-ridged-multifractal-noise" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
+<p>Displace vertices using ridged multifractal noise.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.displace_by_ridged_multifractal_noise">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">displace_by_ridged_multifractal_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.displace_by_ridged_multifractal_noise" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluates ridged multifractal noise by folding each Perlin signal around zero, subtracting it from the offset, and squaring it. Feedback controlled by the gain sharpens coherent ridges while suppressing detail away from them.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal">MeshLab Fractal Filter</a></p>
+<p><strong>License:</strong> GPL-2.0-or-later</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. <strong>Texturing and Modeling: A Procedural Approach</strong> (2002).</p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maxHeight</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Maximum positive displacement, relative to the mesh bounding-box diagonal.</p></li>
+<li><p><strong>scale</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>) — Spatial size of the base noise features; smaller values produce finer detail.</p></li>
+<li><p><strong>octaves</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — Number of Perlin-noise frequency bands.</p></li>
+<li><p><strong>lacunarity</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">4.0</span></code>) — Frequency multiplier between consecutive octaves.</p></li>
+<li><p><strong>fractalIncrement</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Exponent controlling the spectral weight of higher frequencies.</p></li>
+<li><p><strong>offset</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.9</span></code>) — Sets the ridge level before squaring the folded signal.</p></li>
+<li><p><strong>gain</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Controls feedback strength and ridge sharpness.</p></li>
+<li><p><strong>seed</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Translation of the noise domain; changing it produces another morphology.</p></li>
+<li><p><strong>normalSmoothingSteps</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Laplacian smoothing iterations applied to normals before displacement.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="displace-by-standard-multifractal-noise">
+<span id="filter-displace-by-standard-multifractal-noise"></span><h2>Displace by Standard Multifractal Noise<a class="headerlink" href="#displace-by-standard-multifractal-noise" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
+<p>Displace vertices using multiplicative standard multifractal noise.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.displace_by_standard_multifractal_noise">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">displace_by_standard_multifractal_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.displace_by_standard_multifractal_noise" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluates standard multifractal noise in normalized object space and displaces vertices along smoothed normals. Unlike additive fBM, its octave contributions are multiplied: $<span class="math notranslate nohighlight">\(N(\mathbf{x})=\prod_{i=0}^{n-1}\left(O+L^{-Hi}P(L^i\mathbf{x})\right).\)</span><span class="math notranslate nohighlight">\( The offset \)</span>O<span class="math notranslate nohighlight">\( controls multifractality and the fractal increment \)</span>H$ controls the contribution of high frequencies.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal">MeshLab Fractal Filter</a></p>
+<p><strong>License:</strong> GPL-2.0-or-later</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>David S. Ebert, F. Kenton Musgrave, Darwyn Peachey, Ken Perlin, Steven Worley. <strong>Texturing and Modeling: A Procedural Approach</strong> (2002).</p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maxHeight</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Maximum positive displacement, relative to the mesh bounding-box diagonal.</p></li>
+<li><p><strong>scale</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>) — Spatial size of the base noise features; smaller values produce finer detail.</p></li>
+<li><p><strong>octaves</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — Number of Perlin-noise frequency bands.</p></li>
+<li><p><strong>lacunarity</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Frequency multiplier between consecutive octaves.</p></li>
+<li><p><strong>fractalIncrement</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.9</span></code>) — Exponent controlling the spectral weight of higher frequencies.</p></li>
+<li><p><strong>offset</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.9</span></code>) — Bias added to every octave before multiplication.</p></li>
+<li><p><strong>seed</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Translation of the noise domain; changing it produces another morphology.</p></li>
+<li><p><strong>normalSmoothingSteps</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Laplacian smoothing iterations applied to normals before displacement.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="displace-vertices-randomly">
+<span id="filter-displace-vertices-randomly"></span><h2>Displace Vertices Randomly<a class="headerlink" href="#displace-vertices-randomly" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
+<p>Move every vertex by an independently generated random vector.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.displace_vertices_randomly">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">displace_vertices_randomly</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.displace_vertices_randomly" title="Link to this definition">¶</a></dt>
+<dd><p>Adds an independent uniformly distributed displacement to each coordinate of every vertex. With maximum displacement <span class="math notranslate nohighlight">\(d\)</span>, each coordinate offset lies in <span class="math notranslate nohighlight">\([-d,d]\)</span>. Set a nonzero random seed to obtain repeatable results.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/cnr-isti-vclab/meshlab/tree/main/src/meshlabplugins/filter_fractal">MeshLab Fractal Filter</a></p>
+<p><strong>License:</strong> GPL-2.0-or-later</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maxDisplacement</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Maximum absolute displacement applied independently to each coordinate.</p></li>
+<li><p><strong>recomputeNormals</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Recompute face and vertex normals after displacement.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Use zero for an automatically generated seed, or a positive value for repeatable displacement.</p></li>
 </ul>
 </dd></dl>
 
@@ -2123,9 +2288,9 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="mesh-boolean-difference">
-<span id="filter-generate-boolean-difference"></span><h2>Mesh Boolean: Difference<a class="headerlink" href="#mesh-boolean-difference" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.mesh_booleans</p>
+<section id="mesh-difference">
+<span id="filter-generate-boolean-difference"></span><h2>Mesh Difference<a class="headerlink" href="#mesh-difference" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Create the exact difference of two mesh layers using libigl and CGAL.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_difference">
@@ -2144,9 +2309,9 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="mesh-boolean-intersection">
-<span id="filter-generate-boolean-intersection"></span><h2>Mesh Boolean: Intersection<a class="headerlink" href="#mesh-boolean-intersection" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.mesh_booleans</p>
+<section id="mesh-intersection">
+<span id="filter-generate-boolean-intersection"></span><h2>Mesh Intersection<a class="headerlink" href="#mesh-intersection" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Create the exact intersection of two mesh layers using libigl and CGAL.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_intersection">
@@ -2165,9 +2330,9 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="mesh-boolean-union">
-<span id="filter-generate-boolean-union"></span><h2>Mesh Boolean: Union<a class="headerlink" href="#mesh-boolean-union" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.mesh_booleans</p>
+<section id="mesh-union">
+<span id="filter-generate-boolean-union"></span><h2>Mesh Union<a class="headerlink" href="#mesh-union" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Create the exact union of two mesh layers using libigl and CGAL.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_union">
@@ -2186,9 +2351,9 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="mesh-boolean-symmetric-difference-xor">
-<span id="filter-generate-boolean-xor"></span><h2>Mesh Boolean: Symmetric Difference (XOR)<a class="headerlink" href="#mesh-boolean-symmetric-difference-xor" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.mesh_booleans</p>
+<section id="mesh-symmetric-difference">
+<span id="filter-generate-boolean-xor"></span><h2>Mesh Symmetric Difference<a class="headerlink" href="#mesh-symmetric-difference" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Create the exact symmetric difference of two mesh layers using libigl and CGAL.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_xor">
@@ -2719,8 +2884,8 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="simplification-edge-collapse-for-marching-cube-meshes">
-<span id="filter-meshing-decimation-edge-collapse-for-marching-cube-meshes"></span><h2>Simplification: Edge Collapse for Marching Cube meshes<a class="headerlink" href="#simplification-edge-collapse-for-marching-cube-meshes" title="Link to this heading">¶</a></h2>
+<section id="simplify-marching-cubes-mesh-by-edge-collapse">
+<span id="filter-meshing-decimation-edge-collapse-for-marching-cube-meshes"></span><h2>Simplify Marching-Cubes Mesh by Edge Collapse<a class="headerlink" href="#simplify-marching-cubes-mesh-by-edge-collapse" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.plymc</p>
 <p>Simplify only meshes generated by Marching Cubes, preserving the grid structure.</p>
 <dl class="py function">
@@ -2737,8 +2902,8 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="curvature-flipping-optimization">
-<span id="filter-meshing-edge-flip-by-curvature-optimization"></span><h2>Curvature flipping optimization<a class="headerlink" href="#curvature-flipping-optimization" title="Link to this heading">¶</a></h2>
+<section id="flip-edges-by-curvature">
+<span id="filter-meshing-edge-flip-by-curvature-optimization"></span><h2>Flip Edges by Curvature<a class="headerlink" href="#flip-edges-by-curvature" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.trioptimize</p>
 <p>Optimize local triangulation by reducing discrete curvature.</p>
 <dl class="py function">
@@ -2755,8 +2920,8 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="planar-flipping-optimization">
-<span id="filter-meshing-edge-flip-by-planar-optimization"></span><h2>Planar flipping optimization<a class="headerlink" href="#planar-flipping-optimization" title="Link to this heading">¶</a></h2>
+<section id="flip-edges-by-planarity">
+<span id="filter-meshing-edge-flip-by-planar-optimization"></span><h2>Flip Edges by Planarity<a class="headerlink" href="#flip-edges-by-planarity" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.trioptimize</p>
 <p>Optimize local triangle quality by flipping nearly coplanar edges.</p>
 <dl class="py function">
@@ -3100,27 +3265,9 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="random-vertex-displacement">
-<span id="filter-random-vertex-displacement"></span><h2>Random Vertex Displacement<a class="headerlink" href="#random-vertex-displacement" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.sample</p>
-<p>Move the vertices of the current mesh by a bounded random amount.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.random_vertex_displacement">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">random_vertex_displacement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.random_vertex_displacement" title="Link to this definition">¶</a></dt>
-<dd><p>Move the vertices of the mesh of a random quantity.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>UpdateNormals</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Toggle the recomputation of the normals after the random displacement. If disabled the face normals will remain unchanged, resulting in a visually pleasant effect.</p></li>
-<li><p><strong>Displacement</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — The vertices are displaced by a vector whose norm is bounded by this value.</p></li>
-<li><p><strong>RandomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — The seed used to generate random values. If seed is zero no fixed random seed is used.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="refine-user-defined">
-<span id="filter-refine-user-defined"></span><h2>Refine User-Defined<a class="headerlink" href="#refine-user-defined" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<section id="refine-by-user-expression">
+<span id="filter-refine-user-defined"></span><h2>Refine by User Expression<a class="headerlink" href="#refine-by-user-expression" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Refines edges selected by an expression and places split points by expressions.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.refine_user_defined">
@@ -3137,8 +3284,39 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="remeshing-isotropic-explicit-remeshing">
-<span id="filter-remeshing-isotropic"></span><h2>Remeshing: Isotropic Explicit Remeshing<a class="headerlink" href="#remeshing-isotropic-explicit-remeshing" title="Link to this heading">¶</a></h2>
+<section id="remesh-to-quads-instant-meshes">
+<span id="filter-remesh-to-quads-instant-meshes"></span><h2>Remesh to Quads (Instant Meshes)<a class="headerlink" href="#remesh-to-quads-instant-meshes" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.instant_meshes</p>
+<p>Generate an isotropic, field-aligned quad or quad-dominant mesh with Instant Meshes.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.remesh_to_quads_instant_meshes">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remesh_to_quads_instant_meshes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remesh_to_quads_instant_meshes" title="Link to this definition">¶</a></dt>
+<dd><p>Runs the original <strong>Instant Field-Aligned Meshes</strong> pipeline by Jakob et al. The method builds a multiresolution hierarchy, optimizes a four-fold rotational orientation field and a compatible position field, then extracts a new surface whose edges follow those fields. It is a local, parallel method designed to scale linearly with input size.</p>
+<p>The result is created as a new geometry-only layer. QMeshLab stores each generated quad as two triangles connected by a VCGLib faux edge, preserving polygonal rendering and saving. Vertex attributes, selections, materials and textures are not transferred. <strong>Pure quads</strong> subdivides irregular extracted faces to obtain only quads; <strong>quad dominant</strong> retains exceptional triangles. The target edge length is approximate because extraction is driven by the optimized fields.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/wjakob/instant-meshes">Instant Meshes</a></p>
+<p><strong>License:</strong> BSD-3-Clause</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Wenzel Jakob, Marco Tarini, Daniele Panozzo, Olga Sorkine-Hornung. <strong>Instant Field-Aligned Meshes</strong>. <em>ACM Transactions on Graphics</em> (2015). <a class="reference external" href="https://doi.org/10.1145/2816795.2818078">DOI</a> <a class="reference external" href="https://igl.ethz.ch/projects/instant-meshes/">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>targetEdgeLength</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Approximate world-space edge length of the generated mesh.</p></li>
+<li><p><strong>outputTopology</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">pure_quads</span></code>) — Pure quads subdivides exceptional faces; quad dominant permits triangles around irregular regions.</p></li>
+<li><p><strong>detectCreases</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Split normals at sufficiently sharp input edges so the generated field follows them.</p></li>
+<li><p><strong>creaseAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Dihedral-angle threshold used when sharp-crease detection is enabled.</p></li>
+<li><p><strong>alignBoundaries</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Constrain the orientation and position fields to open mesh boundaries.</p></li>
+<li><p><strong>optimizationSpace</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">extrinsic</span></code>) — Extrinsic optimization uses embedded 3D directions; intrinsic optimization transports directions over the surface.</p></li>
+<li><p><strong>smoothingIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">2</span></code>) — Post-extraction smoothing iterations with projection back to the input surface. Zero disables smoothing and BVH construction.</p></li>
+<li><p><strong>deterministic</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Prefer reproducible graph construction and ordering at some performance cost.</p></li>
+<li><p><strong>threads</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Maximum oneTBB parallelism. Zero uses the runtime default.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="remesh-isotropically">
+<span id="filter-remeshing-isotropic"></span><h2>Remesh Isotropically<a class="headerlink" href="#remesh-isotropically" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Explicit isotropic remeshing by local operations.</p>
 <dl class="py function">
@@ -3418,8 +3596,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="uniform-mesh-resampling">
-<span id="filter-resample-uniform"></span><h2>Uniform Mesh Resampling<a class="headerlink" href="#uniform-mesh-resampling" title="Link to this heading">¶</a></h2>
+<section id="remesh-uniformly-by-volumetric-resampling">
+<span id="filter-resample-uniform"></span><h2>Remesh Uniformly by Volumetric Resampling<a class="headerlink" href="#remesh-uniformly-by-volumetric-resampling" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.sampling</p>
 <p>Build an offset mesh from a signed distance field sampled on a regular grid.</p>
 <dl class="py function">
@@ -3758,7 +3936,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 </section>
 <section id="conditional-face-selection">
 <span id="filter-select-faces-by-condition"></span><h2>Conditional Face Selection<a class="headerlink" href="#conditional-face-selection" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Selects faces for which a boolean expression evaluates true.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.select_faces_by_condition">
@@ -3945,7 +4123,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 </section>
 <section id="conditional-vertex-selection">
 <span id="filter-select-vertices-by-condition"></span><h2>Conditional Vertex Selection<a class="headerlink" href="#conditional-vertex-selection" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.func</p>
+<p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Selects vertices for which a boolean expression evaluates true.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.select_vertices_by_condition">
@@ -4117,8 +4295,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="simplification-clustering-decimation">
-<span id="filter-simplification-clustering"></span><h2>Simplification: Clustering Decimation<a class="headerlink" href="#simplification-clustering-decimation" title="Link to this heading">¶</a></h2>
+<section id="simplify-by-vertex-clustering">
+<span id="filter-simplification-clustering"></span><h2>Simplify by Vertex Clustering<a class="headerlink" href="#simplify-by-vertex-clustering" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Simplify mesh by clustering vertices on a grid.</p>
 <dl class="py function">
@@ -4133,8 +4311,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="simplification-quadric-edge-collapse-decimation">
-<span id="filter-simplification-quadric-edge-collapse"></span><h2>Simplification: Quadric Edge Collapse Decimation<a class="headerlink" href="#simplification-quadric-edge-collapse-decimation" title="Link to this heading">¶</a></h2>
+<section id="simplify-by-quadric-edge-collapse">
+<span id="filter-simplification-quadric-edge-collapse"></span><h2>Simplify by Quadric Edge Collapse<a class="headerlink" href="#simplify-by-quadric-edge-collapse" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Simplify using quadric-based edge-collapse.</p>
 <dl class="py function">
@@ -4166,8 +4344,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="simplification-original-qslim-quadric-edge-collapse">
-<span id="filter-simplification-quadric-edge-collapse-qslim"></span><h2>Simplification: Original QSlim Quadric Edge Collapse<a class="headerlink" href="#simplification-original-qslim-quadric-edge-collapse" title="Link to this heading">¶</a></h2>
+<section id="simplify-by-quadric-edge-collapse-qslim">
+<span id="filter-simplification-quadric-edge-collapse-qslim"></span><h2>Simplify by Quadric Edge Collapse (QSlim)<a class="headerlink" href="#simplify-by-quadric-edge-collapse-qslim" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.qslim</p>
 <p>Simplify a triangle mesh with Garland’s original QSlim implementation.</p>
 <dl class="py function">
@@ -4194,8 +4372,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="simplification-quadric-edge-collapse-decimation-with-texture">
-<span id="filter-simplification-quadric-edge-collapse-with-texture"></span><h2>Simplification: Quadric Edge Collapse Decimation (with texture)<a class="headerlink" href="#simplification-quadric-edge-collapse-decimation-with-texture" title="Link to this heading">¶</a></h2>
+<section id="simplify-by-quadric-edge-collapse-with-texture">
+<span id="filter-simplification-quadric-edge-collapse-with-texture"></span><h2>Simplify by Quadric Edge Collapse with Texture<a class="headerlink" href="#simplify-by-quadric-edge-collapse-with-texture" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Simplify textured meshes preserving UVs.</p>
 <dl class="py function">
@@ -4223,8 +4401,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="point-cloud-simplification">
-<span id="filter-simplify-point-cloud"></span><h2>Point Cloud Simplification<a class="headerlink" href="#point-cloud-simplification" title="Link to this heading">¶</a></h2>
+<section id="simplify-point-cloud">
+<span id="filter-simplify-point-cloud"></span><h2>Simplify Point Cloud<a class="headerlink" href="#simplify-point-cloud" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.sampling</p>
 <p>Simplify a point cloud with Poisson-disk pruning.</p>
 <dl class="py function">
@@ -4505,8 +4683,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="subdivision-surfaces-butterfly-subdivision">
-<span id="filter-subdivision-butterfly"></span><h2>Subdivision Surfaces: Butterfly Subdivision<a class="headerlink" href="#subdivision-surfaces-butterfly-subdivision" title="Link to this heading">¶</a></h2>
+<section id="subdivide-by-butterfly">
+<span id="filter-subdivision-butterfly"></span><h2>Subdivide by Butterfly<a class="headerlink" href="#subdivide-by-butterfly" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Apply Butterfly subdivision.</p>
 <dl class="py function">
@@ -4523,8 +4701,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="subdivision-surfaces-catmull-clark">
-<span id="filter-subdivision-catmull-clark"></span><h2>Subdivision Surfaces: Catmull-Clark<a class="headerlink" href="#subdivision-surfaces-catmull-clark" title="Link to this heading">¶</a></h2>
+<section id="subdivide-by-catmull-clark">
+<span id="filter-subdivision-catmull-clark"></span><h2>Subdivide by Catmull-Clark<a class="headerlink" href="#subdivide-by-catmull-clark" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Apply Catmull-Clark subdivision.</p>
 <dl class="py function">
@@ -4539,8 +4717,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="subdivision-surfaces-doo-sabin">
-<span id="filter-subdivision-doo-sabin"></span><h2>Subdivision Surfaces: Doo Sabin<a class="headerlink" href="#subdivision-surfaces-doo-sabin" title="Link to this heading">¶</a></h2>
+<section id="subdivide-by-doo-sabin">
+<span id="filter-subdivision-doo-sabin"></span><h2>Subdivide by Doo-Sabin<a class="headerlink" href="#subdivide-by-doo-sabin" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Apply Doo-Sabin subdivision.</p>
 <dl class="py function">
@@ -4555,8 +4733,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="subdivision-surfaces-loop">
-<span id="filter-subdivision-loop"></span><h2>Subdivision Surfaces: Loop<a class="headerlink" href="#subdivision-surfaces-loop" title="Link to this heading">¶</a></h2>
+<section id="subdivide-by-loop">
+<span id="filter-subdivision-loop"></span><h2>Subdivide by Loop<a class="headerlink" href="#subdivide-by-loop" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Apply Loop subdivision.</p>
 <dl class="py function">
@@ -4574,8 +4752,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="subdivision-surfaces-ls3-loop">
-<span id="filter-subdivision-ls3-loop"></span><h2>Subdivision Surfaces: LS3 Loop<a class="headerlink" href="#subdivision-surfaces-ls3-loop" title="Link to this heading">¶</a></h2>
+<section id="subdivide-by-ls3-loop">
+<span id="filter-subdivision-ls3-loop"></span><h2>Subdivide by LS3 Loop<a class="headerlink" href="#subdivide-by-ls3-loop" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Apply LS3 Loop subdivision.</p>
 <dl class="py function">
@@ -4593,8 +4771,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="subdivision-surfaces-midpoint">
-<span id="filter-subdivision-midpoint"></span><h2>Subdivision Surfaces: Midpoint<a class="headerlink" href="#subdivision-surfaces-midpoint" title="Link to this heading">¶</a></h2>
+<section id="subdivide-by-midpoint">
+<span id="filter-subdivision-midpoint"></span><h2>Subdivide by Midpoint<a class="headerlink" href="#subdivide-by-midpoint" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Apply midpoint subdivision.</p>
 <dl class="py function">
@@ -4909,8 +5087,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="tri-to-quad-by-4-8-subdivision">
-<span id="filter-tri-to-quad-4-8-subdivision"></span><h2>Tri to Quad by 4-8 Subdivision<a class="headerlink" href="#tri-to-quad-by-4-8-subdivision" title="Link to this heading">¶</a></h2>
+<section id="convert-to-quads-by-4-8-subdivision">
+<span id="filter-tri-to-quad-4-8-subdivision"></span><h2>Convert to Quads by 4-8 Subdivision<a class="headerlink" href="#convert-to-quads-by-4-8-subdivision" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Convert tri mesh into quad mesh by 4-8 subdivision.</p>
 <dl class="py function">
@@ -4922,8 +5100,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="tri-to-quad-by-smart-triangle-pairing">
-<span id="filter-tri-to-quad-by-pairing"></span><h2>Tri to Quad by smart triangle pairing<a class="headerlink" href="#tri-to-quad-by-smart-triangle-pairing" title="Link to this heading">¶</a></h2>
+<section id="convert-to-quads-by-triangle-pairing">
+<span id="filter-tri-to-quad-by-pairing"></span><h2>Convert to Quads by Triangle Pairing<a class="headerlink" href="#convert-to-quads-by-triangle-pairing" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Pair triangles into quads.</p>
 <dl class="py function">
@@ -5544,11 +5722,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.convert_normal_map_to_tangent_space"><code class="docutils literal notranslate"><span class="pre">ms.convert_normal_map_to_tangent_space()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#turn-into-quad-dominant-mesh">Turn into Quad-Dominant mesh</a><ul>
+<li><a class="reference internal" href="#convert-to-quad-dominant-mesh">Convert to Quad-Dominant Mesh</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.convert_to_quad_dominant"><code class="docutils literal notranslate"><span class="pre">ms.convert_to_quad_dominant()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#turn-into-a-pure-triangular-mesh">Turn into a Pure-Triangular mesh</a><ul>
+<li><a class="reference internal" href="#convert-to-pure-triangles">Convert to Pure Triangles</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.convert_to_triangular"><code class="docutils literal notranslate"><span class="pre">ms.convert_to_triangular()</span></code></a></li>
 </ul>
 </li>
@@ -5620,7 +5798,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.create_torus"><code class="docutils literal notranslate"><span class="pre">ms.create_torus()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#cut-mesh-along-crease-edges">Cut mesh along crease edges</a><ul>
+<li><a class="reference internal" href="#cut-along-crease-edges">Cut Along Crease Edges</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.cut_mesh_along_crease_edges"><code class="docutils literal notranslate"><span class="pre">ms.cut_mesh_along_crease_edges()</span></code></a></li>
 </ul>
 </li>
@@ -5644,7 +5822,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.defragment_texture_map"><code class="docutils literal notranslate"><span class="pre">ms.defragment_texture_map()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#delete-all-faces">Delete ALL Faces</a><ul>
+<li><a class="reference internal" href="#remove-all-faces">Remove All Faces</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.delete_all_faces"><code class="docutils literal notranslate"><span class="pre">ms.delete_all_faces()</span></code></a></li>
 </ul>
 </li>
@@ -5664,15 +5842,15 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.delete_non_active_rasters"><code class="docutils literal notranslate"><span class="pre">ms.delete_non_active_rasters()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#delete-selected-faces">Delete Selected Faces</a><ul>
+<li><a class="reference internal" href="#remove-selected-faces">Remove Selected Faces</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.delete_selected_faces"><code class="docutils literal notranslate"><span class="pre">ms.delete_selected_faces()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#delete-selected-faces-and-vertices">Delete Selected Faces and Vertices</a><ul>
+<li><a class="reference internal" href="#remove-selected-faces-and-vertices">Remove Selected Faces and Vertices</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.delete_selected_faces_and_vertices"><code class="docutils literal notranslate"><span class="pre">ms.delete_selected_faces_and_vertices()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#delete-selected-vertices">Delete Selected Vertices</a><ul>
+<li><a class="reference internal" href="#remove-selected-vertices">Remove Selected Vertices</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.delete_selected_vertices"><code class="docutils literal notranslate"><span class="pre">ms.delete_selected_vertices()</span></code></a></li>
 </ul>
 </li>
@@ -5686,6 +5864,30 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#disk-vertex-coloring">Disk Vertex Coloring</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.disk_vertex_coloring"><code class="docutils literal notranslate"><span class="pre">ms.disk_vertex_coloring()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#displace-by-fractal-brownian-motion">Displace by Fractal Brownian Motion</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.displace_by_fractal_brownian_motion"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_fractal_brownian_motion()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#displace-by-heterogeneous-multifractal-noise">Displace by Heterogeneous Multifractal Noise</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.displace_by_heterogeneous_multifractal_noise"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_heterogeneous_multifractal_noise()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#displace-by-hybrid-multifractal-noise">Displace by Hybrid Multifractal Noise</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.displace_by_hybrid_multifractal_noise"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_hybrid_multifractal_noise()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#displace-by-ridged-multifractal-noise">Displace by Ridged Multifractal Noise</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.displace_by_ridged_multifractal_noise"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_ridged_multifractal_noise()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#displace-by-standard-multifractal-noise">Displace by Standard Multifractal Noise</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.displace_by_standard_multifractal_noise"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_standard_multifractal_noise()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#displace-vertices-randomly">Displace Vertices Randomly</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.displace_vertices_randomly"><code class="docutils literal notranslate"><span class="pre">ms.displace_vertices_randomly()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#duplicate-current-layer">Duplicate Current layer</a><ul>
@@ -5716,19 +5918,19 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.generate_alpha_wrap"><code class="docutils literal notranslate"><span class="pre">ms.generate_alpha_wrap()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mesh-boolean-difference">Mesh Boolean: Difference</a><ul>
+<li><a class="reference internal" href="#mesh-difference">Mesh Difference</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_difference"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_difference()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mesh-boolean-intersection">Mesh Boolean: Intersection</a><ul>
+<li><a class="reference internal" href="#mesh-intersection">Mesh Intersection</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_intersection"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_intersection()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mesh-boolean-union">Mesh Boolean: Union</a><ul>
+<li><a class="reference internal" href="#mesh-union">Mesh Union</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_union"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_union()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mesh-boolean-symmetric-difference-xor">Mesh Boolean: Symmetric Difference (XOR)</a><ul>
+<li><a class="reference internal" href="#mesh-symmetric-difference">Mesh Symmetric Difference</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_xor"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_xor()</span></code></a></li>
 </ul>
 </li>
@@ -5832,15 +6034,15 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.merge_wedge_texture_coords"><code class="docutils literal notranslate"><span class="pre">ms.merge_wedge_texture_coords()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#simplification-edge-collapse-for-marching-cube-meshes">Simplification: Edge Collapse for Marching Cube meshes</a><ul>
+<li><a class="reference internal" href="#simplify-marching-cubes-mesh-by-edge-collapse">Simplify Marching-Cubes Mesh by Edge Collapse</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.meshing_decimation_edge_collapse_for_marching_cube_meshes"><code class="docutils literal notranslate"><span class="pre">ms.meshing_decimation_edge_collapse_for_marching_cube_meshes()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#curvature-flipping-optimization">Curvature flipping optimization</a><ul>
+<li><a class="reference internal" href="#flip-edges-by-curvature">Flip Edges by Curvature</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.meshing_edge_flip_by_curvature_optimization"><code class="docutils literal notranslate"><span class="pre">ms.meshing_edge_flip_by_curvature_optimization()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#planar-flipping-optimization">Planar flipping optimization</a><ul>
+<li><a class="reference internal" href="#flip-edges-by-planarity">Flip Edges by Planarity</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.meshing_edge_flip_by_planar_optimization"><code class="docutils literal notranslate"><span class="pre">ms.meshing_edge_flip_by_planar_optimization()</span></code></a></li>
 </ul>
 </li>
@@ -5904,15 +6106,15 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.random_face_color"><code class="docutils literal notranslate"><span class="pre">ms.random_face_color()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#random-vertex-displacement">Random Vertex Displacement</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.random_vertex_displacement"><code class="docutils literal notranslate"><span class="pre">ms.random_vertex_displacement()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#refine-user-defined">Refine User-Defined</a><ul>
+<li><a class="reference internal" href="#refine-by-user-expression">Refine by User Expression</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.refine_user_defined"><code class="docutils literal notranslate"><span class="pre">ms.refine_user_defined()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#remeshing-isotropic-explicit-remeshing">Remeshing: Isotropic Explicit Remeshing</a><ul>
+<li><a class="reference internal" href="#remesh-to-quads-instant-meshes">Remesh to Quads (Instant Meshes)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.remesh_to_quads_instant_meshes"><code class="docutils literal notranslate"><span class="pre">ms.remesh_to_quads_instant_meshes()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#remesh-isotropically">Remesh Isotropically</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remeshing_isotropic"><code class="docutils literal notranslate"><span class="pre">ms.remeshing_isotropic()</span></code></a></li>
 </ul>
 </li>
@@ -5980,7 +6182,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.repair_watertight_mesh_meshfix"><code class="docutils literal notranslate"><span class="pre">ms.repair_watertight_mesh_meshfix()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#uniform-mesh-resampling">Uniform Mesh Resampling</a><ul>
+<li><a class="reference internal" href="#remesh-uniformly-by-volumetric-resampling">Remesh Uniformly by Volumetric Resampling</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.resample_uniform"><code class="docutils literal notranslate"><span class="pre">ms.resample_uniform()</span></code></a></li>
 </ul>
 </li>
@@ -6140,23 +6342,23 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.set_texture"><code class="docutils literal notranslate"><span class="pre">ms.set_texture()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#simplification-clustering-decimation">Simplification: Clustering Decimation</a><ul>
+<li><a class="reference internal" href="#simplify-by-vertex-clustering">Simplify by Vertex Clustering</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.simplification_clustering"><code class="docutils literal notranslate"><span class="pre">ms.simplification_clustering()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#simplification-quadric-edge-collapse-decimation">Simplification: Quadric Edge Collapse Decimation</a><ul>
+<li><a class="reference internal" href="#simplify-by-quadric-edge-collapse">Simplify by Quadric Edge Collapse</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.simplification_quadric_edge_collapse"><code class="docutils literal notranslate"><span class="pre">ms.simplification_quadric_edge_collapse()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#simplification-original-qslim-quadric-edge-collapse">Simplification: Original QSlim Quadric Edge Collapse</a><ul>
+<li><a class="reference internal" href="#simplify-by-quadric-edge-collapse-qslim">Simplify by Quadric Edge Collapse (QSlim)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.simplification_quadric_edge_collapse_qslim"><code class="docutils literal notranslate"><span class="pre">ms.simplification_quadric_edge_collapse_qslim()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#simplification-quadric-edge-collapse-decimation-with-texture">Simplification: Quadric Edge Collapse Decimation (with texture)</a><ul>
+<li><a class="reference internal" href="#simplify-by-quadric-edge-collapse-with-texture">Simplify by Quadric Edge Collapse with Texture</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.simplification_quadric_edge_collapse_with_texture"><code class="docutils literal notranslate"><span class="pre">ms.simplification_quadric_edge_collapse_with_texture()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#point-cloud-simplification">Point Cloud Simplification</a><ul>
+<li><a class="reference internal" href="#simplify-point-cloud">Simplify Point Cloud</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.simplify_point_cloud"><code class="docutils literal notranslate"><span class="pre">ms.simplify_point_cloud()</span></code></a></li>
 </ul>
 </li>
@@ -6220,27 +6422,27 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.split_in_connected_components"><code class="docutils literal notranslate"><span class="pre">ms.split_in_connected_components()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#subdivision-surfaces-butterfly-subdivision">Subdivision Surfaces: Butterfly Subdivision</a><ul>
+<li><a class="reference internal" href="#subdivide-by-butterfly">Subdivide by Butterfly</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.subdivision_butterfly"><code class="docutils literal notranslate"><span class="pre">ms.subdivision_butterfly()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#subdivision-surfaces-catmull-clark">Subdivision Surfaces: Catmull-Clark</a><ul>
+<li><a class="reference internal" href="#subdivide-by-catmull-clark">Subdivide by Catmull-Clark</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.subdivision_catmull_clark"><code class="docutils literal notranslate"><span class="pre">ms.subdivision_catmull_clark()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#subdivision-surfaces-doo-sabin">Subdivision Surfaces: Doo Sabin</a><ul>
+<li><a class="reference internal" href="#subdivide-by-doo-sabin">Subdivide by Doo-Sabin</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.subdivision_doo_sabin"><code class="docutils literal notranslate"><span class="pre">ms.subdivision_doo_sabin()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#subdivision-surfaces-loop">Subdivision Surfaces: Loop</a><ul>
+<li><a class="reference internal" href="#subdivide-by-loop">Subdivide by Loop</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.subdivision_loop"><code class="docutils literal notranslate"><span class="pre">ms.subdivision_loop()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#subdivision-surfaces-ls3-loop">Subdivision Surfaces: LS3 Loop</a><ul>
+<li><a class="reference internal" href="#subdivide-by-ls3-loop">Subdivide by LS3 Loop</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.subdivision_ls3_loop"><code class="docutils literal notranslate"><span class="pre">ms.subdivision_ls3_loop()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#subdivision-surfaces-midpoint">Subdivision Surfaces: Midpoint</a><ul>
+<li><a class="reference internal" href="#subdivide-by-midpoint">Subdivide by Midpoint</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.subdivision_midpoint"><code class="docutils literal notranslate"><span class="pre">ms.subdivision_midpoint()</span></code></a></li>
 </ul>
 </li>
@@ -6308,11 +6510,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.transform_translate"><code class="docutils literal notranslate"><span class="pre">ms.transform_translate()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#tri-to-quad-by-4-8-subdivision">Tri to Quad by 4-8 Subdivision</a><ul>
+<li><a class="reference internal" href="#convert-to-quads-by-4-8-subdivision">Convert to Quads by 4-8 Subdivision</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.tri_to_quad_4_8_subdivision"><code class="docutils literal notranslate"><span class="pre">ms.tri_to_quad_4_8_subdivision()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#tri-to-quad-by-smart-triangle-pairing">Tri to Quad by smart triangle pairing</a><ul>
+<li><a class="reference internal" href="#convert-to-quads-by-triangle-pairing">Convert to Quads by Triangle Pairing</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.tri_to_quad_by_pairing"><code class="docutils literal notranslate"><span class="pre">ms.tri_to_quad_by_pairing()</span></code></a></li>
 </ul>
 </li>

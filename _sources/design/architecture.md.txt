@@ -136,7 +136,7 @@ Defined in `renderingsettings.h`:
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 
 Built-in I/O (when enabled at build time): `io_vcg`, `io_obj_rapidobj`, `io_gltf`, `io_e57`.  
-Built-in filters (when enabled at build time): `filter_basic`, `filter_func`, `filter_embree`, `filter_select`, `filter_clean`, `filter_meshing`, `filter_cgal`, `filter_parametrization`, `filter_mesh_booleans`, `filter_screened_poisson`, `filter_sampling`, `filter_voronoi`, `filter_icp`, `filter_unsharp`, `filter_create`, `filter_geodesic`, `filter_texture`, `filter_texture_defragmentation`, `filter_measure`, `filter_mls`, `filter_sample`, `filter_layer`, `filter_colorproc`, `filter_xatlas`, `filter_trioptimize`, `filter_color_projection`, `filter_camera`, `filter_img_patch_param`, `filter_plymc`.
+Built-in filter plugins (when enabled at build time): `filter_basic`, `filter_camera`, `filter_cgal`, `filter_clean`, `filter_color_projection`, `filter_colorproc`, `filter_create`, `filter_embree`, `filter_expression`, `filter_geodesic`, `filter_icp`, `filter_igl`, `filter_img_patch_param`, `filter_layer`, `filter_measure`, `filter_meshfix`, `filter_meshing`, `filter_mls`, `filter_plymc`, `filter_qslim`, `filter_sampling`, `filter_screened_poisson`, `filter_select`, `filter_texture`, `filter_texture_defragmentation`, `filter_trioptimize`, `filter_unsharp`, `filter_vertex_displacement`, `filter_voronoi`, `filter_xatlas`.
 
 ## State Ownership
 

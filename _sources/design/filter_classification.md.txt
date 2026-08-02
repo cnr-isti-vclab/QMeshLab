@@ -63,8 +63,9 @@ positions only.** Smoothing an *attribute* is classified by the attribute —
 | `Measurement/Topological` | 3 | 3 |
 | `Meshing/Boolean` | 4 | 4 |
 | `Meshing/Deletion` **(new)** | 4 | 4 |
-| `Meshing/Remeshing` | 9 | 9 |
+| `Meshing/Remeshing` | 5 | 5 |
 | `Meshing/Simplification` | 6 | 6 |
+| `Meshing/Quad` **(new)** | 4 | 4 |
 | `Meshing/Subdivision` | 7 | 7 |
 | `Parametrization` | 0 | 1 |
 | `Parametrization/Atlas Packing` | 0 | 1 |
@@ -336,10 +337,10 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Transform: Rotate to Fit to a plane | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
 | Transform: Scale, Normalize | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
 | Transform: Translate, Center, set Origin | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
-| Tri to Quad by 4-8 Subdivision | `meshing` | `Meshing/Remeshing` |  |
-| Tri to Quad by smart triangle pairing | `meshing` | `Meshing/Remeshing` |  |
-| Turn into Quad-Dominant mesh | `meshing` | `Meshing/Remeshing` |  |
-| Turn into a Pure-Triangular mesh | `meshing` | `Meshing/Remeshing` |  |
+| Tri to Quad by 4-8 Subdivision | `meshing` | `Meshing/Quad` |  |
+| Tri to Quad by smart triangle pairing | `meshing` | `Meshing/Quad` |  |
+| Turn into Quad-Dominant mesh | `meshing` | `Meshing/Quad` |  |
+| Turn into a Pure-Triangular mesh | `meshing` | `Meshing/Quad` |  |
 | Vertex Attribute Seam | `meshing` | `Repair/Duplicates` | splits vertices on attribute discontinuity <sub>touches: uv, color</sub> |
 
 ### `Normals/Embree` (1)
