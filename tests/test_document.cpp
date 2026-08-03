@@ -453,25 +453,37 @@ void DocumentTests::saveAndLoad3MFRoundTrip()
     vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 0.0f, 0.0f));
     vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(2.0f, 0.0f, 0.0f));
     vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 3.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(2.0f, 3.0f, 0.0f));
     vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(1), size_t(3), size_t(2));
+    mesh.face[0].C() = vcg::Color4b(255, 0, 0, 255);
+    mesh.face[1].C() = vcg::Color4b(0, 0, 255, 128);
 
     Document source;
-    const int meshIndex = source.addMesh(mesh, QStringLiteral("triangle"));
+    const int meshIndex = source.addMesh(
+        mesh, QStringLiteral("triangles"), vcg::tri::io::Mask::IOM_FACECOLOR);
     QVERIFY(meshIndex >= 0);
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     const QString path = dir.filePath(QStringLiteral("roundtrip.3mf"));
-    QCOMPARE(source.saveMesh(meshIndex, path), 0);
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_FACECOLOR;
+    QCOMPARE(source.saveMesh(meshIndex, path, options), 0);
     QVERIFY(QFileInfo(path).size() > 0);
 
     Document loaded;
     QCOMPARE(loaded.loadMesh(path), 0);
     QCOMPARE(loaded.meshCount(), 1);
-    QCOMPARE(loaded.mesh(0).mesh.VN(), 3);
-    QCOMPARE(loaded.mesh(0).mesh.FN(), 1);
+    QCOMPARE(loaded.mesh(0).mesh.VN(), 4);
+    QCOMPARE(loaded.mesh(0).mesh.FN(), 2);
+    QVERIFY(loaded.mesh(0).ioMask & vcg::tri::io::Mask::IOM_FACECOLOR);
     const VCGMesh &result = loaded.mesh(0).mesh;
     QCOMPARE(result.vert[1].cP().X(), 2.0f);
     QCOMPARE(result.vert[2].cP().Y(), 3.0f);
+    QCOMPARE(result.face[0].cC(), vcg::Color4b(255, 0, 0, 255));
+    QCOMPARE(result.face[1].cC(), vcg::Color4b(0, 0, 255, 128));
 }
 
 void DocumentTests::saveAndLoadEmbeddedGLBTexture()

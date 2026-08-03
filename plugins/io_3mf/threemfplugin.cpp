@@ -296,7 +296,7 @@ public:
     int save(
         const QString &filename,
         VCGMesh &mesh,
-        const MeshIOSaveOptions &,
+        const MeshIOSaveOptions &options,
         vcg::CallBackPos *cb) const override
     {
         if (mesh.VN() == 0)
@@ -326,7 +326,11 @@ public:
             }
 
             std::vector<Lib3MF::sTriangle> triangles;
+            std::vector<std::uint32_t> triangleColors;
             triangles.reserve(std::size_t(mesh.FN()));
+            const bool writeFaceColors = (options.mask & Mask::IOM_FACECOLOR) != 0;
+            if (writeFaceColors)
+                triangleColors.reserve(std::size_t(mesh.FN()));
             const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
             for (const VCGFace &face : mesh.face) {
                 if (face.IsD())
@@ -340,9 +344,44 @@ public:
                     triangle.m_Indices[corner] = remap[std::size_t(source)];
                 }
                 triangles.push_back(triangle);
+                if (writeFaceColors) {
+                    const vcg::Color4b &c = face.cC();
+                    triangleColors.push_back(
+                        (std::uint32_t(c[0]) << 24) | (std::uint32_t(c[1]) << 16)
+                        | (std::uint32_t(c[2]) << 8) | std::uint32_t(c[3]));
+                }
             }
 
             object->SetGeometry(vertices, triangles);
+            if (!triangleColors.empty()) {
+                const auto colors = model->AddColorGroup();
+                std::map<std::uint32_t, Lib3MF_uint32> properties;
+                for (const std::uint32_t rgba : triangleColors) {
+                    if (properties.find(rgba) != properties.end())
+                        continue;
+                    Lib3MF::sColor c {};
+                    c.m_Red = Lib3MF_uint8(rgba >> 24);
+                    c.m_Green = Lib3MF_uint8(rgba >> 16);
+                    c.m_Blue = Lib3MF_uint8(rgba >> 8);
+                    c.m_Alpha = Lib3MF_uint8(rgba);
+                    properties.emplace(rgba, colors->AddColor(c));
+                }
+
+                const Lib3MF_uint32 resourceId = colors->GetUniqueResourceID();
+                if (properties.size() == 1) {
+                    object->SetObjectLevelProperty(resourceId, properties.begin()->second);
+                } else {
+                    for (std::size_t i = 0; i < triangleColors.size(); ++i) {
+                        const Lib3MF_uint32 property = properties.at(triangleColors[i]);
+                        Lib3MF::sTriangleProperties p {};
+                        p.m_ResourceID = resourceId;
+                        p.m_PropertyIDs[0] = property;
+                        p.m_PropertyIDs[1] = property;
+                        p.m_PropertyIDs[2] = property;
+                        object->SetTriangleProperties(Lib3MF_uint32(i), p);
+                    }
+                }
+            }
             model->AddBuildItem(object.get(), wrapper->GetIdentityTransform());
             model->QueryWriter("3mf")->WriteToFile(filename.toStdString());
             progress(cb, 100, QObject::tr("Writing 3MF done."));
@@ -355,7 +394,7 @@ public:
 
     int saveMaskCapability(const QString &) const override
     {
-        return Mask::IOM_VERTCOORD | Mask::IOM_FACEINDEX;
+        return Mask::IOM_VERTCOORD | Mask::IOM_FACEINDEX | Mask::IOM_FACECOLOR;
     }
 
     QString errorString(int code) const override
