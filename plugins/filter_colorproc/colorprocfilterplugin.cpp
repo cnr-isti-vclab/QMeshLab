@@ -52,7 +52,6 @@ constexpr QLatin1StringView kFilterSetMeshColor("compute_set_per_mesh_color");
 constexpr QLatin1StringView kFilterClampQuality("apply_scalar_clamping_per_vertex");
 constexpr QLatin1StringView kFilterSaturateQuality("apply_scalar_saturation_per_vertex");
 constexpr QLatin1StringView kFilterMapVQuality("compute_color_from_scalar_per_vertex");
-constexpr QLatin1StringView kFilterQualityMapper("compute_color_from_scalar_using_transfer_function_per_vertex");
 constexpr QLatin1StringView kFilterMapFQuality("compute_color_from_scalar_per_face");
 constexpr QLatin1StringView kFilterDiscreteCurvature("compute_scalar_by_discrete_curvature_per_vertex");
 constexpr QLatin1StringView kFilterGeometricQuality("compute_scalar_by_geometric_measure_per_face");
@@ -483,7 +482,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             toColor4b(colorParam(params, QStringLiteral("color2"))),
             params.getBool(QStringLiteral("onSelected"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Applied Perlin color to '%1'").arg(meshLabel(entry, meshIndex)));
+        markGeometry(doc, meshIndex, QObject::tr("Colorized '%1' by Perlin noise").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -509,8 +508,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality, info);
     }
 
-    if (filterId == QString::fromLatin1(kFilterMapVQuality)
-        || filterId == QString::fromLatin1(kFilterQualityMapper)) {
+    if (filterId == QString::fromLatin1(kFilterMapVQuality)) {
         Histogramf hist;
         vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityHistogram(mesh, hist);
         const QString colorMapId = resolvedColorMapId(params);

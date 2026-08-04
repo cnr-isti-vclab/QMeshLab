@@ -430,7 +430,7 @@
     {
       "id": "compute_curvature_and_color_apss_per_vertex",
       "categories": ["Attribute/Curvature"],
-      "name": "Compute APSS Curvature Quality",
+      "name": "Compute Curvature (APSS)",
       "pythonName": "compute_apss_curvature",
       "shortDescription": "Compute APSS curvature estimates and store them in vertex quality.",
       "longDescriptionMarkdown": "Compute curvature values on the vertices of a mesh or point set and store them in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
@@ -539,7 +539,7 @@
     {
       "id": "compute_curvature_and_color_rimls_per_vertex",
       "categories": ["Attribute/Curvature"],
-      "name": "Compute RIMLS Curvature Quality",
+      "name": "Compute Curvature (RIMLS)",
       "pythonName": "compute_rimls_curvature",
       "shortDescription": "Compute RIMLS curvature estimates and store them in vertex quality.",
       "longDescriptionMarkdown": "Compute curvature values on the vertices of a mesh or point set and store them in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",

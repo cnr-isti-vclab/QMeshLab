@@ -211,7 +211,7 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         return ok({QObject::tr("Set camera for raster '%1'.").arg(re.name)});
     }
 
-    // --- Vertex Quality from Camera ---
+    // --- Compute Vertex Scalar from Camera ---
     if (fid == QString::fromLatin1(kQualityFromCamera)) {
         int mi = doc.currentMeshIndex();
         if (mi < 0) return fail(QObject::tr("No current mesh."));

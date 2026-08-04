@@ -132,7 +132,7 @@
     {
       "id": "per_vertex_normal_function",
       "categories": ["Attribute/Normal"],
-      "name": "Per Vertex Normal Function",
+      "name": "Compute Vertex Normals by Expression",
       "pythonName": "apply_vertex_normal_function",
       "shortDescription": "Computes new per-vertex normals from expressions.",
       "longDescriptionMarkdown": "Normal function using muparser to generate new Normal for every vertex<br>",
@@ -187,7 +187,7 @@
     {
       "id": "per_face_normal_function",
       "categories": ["Attribute/Normal"],
-      "name": "Per Face Normal Function",
+      "name": "Compute Face Normals by Expression",
       "pythonName": "apply_face_normal_function",
       "shortDescription": "Computes new per-face normals from expressions.",
       "longDescriptionMarkdown": "Normal function using muparser to generate new Normal for every face<br>",
@@ -242,7 +242,7 @@
     {
       "id": "per_vertex_color_function",
       "categories": ["Attribute/Color"],
-      "name": "Per Vertex Color Function",
+      "name": "Compute Vertex Color by Expression",
       "pythonName": "apply_vertex_color_function",
       "shortDescription": "Computes per-vertex RGBA colors from expressions.",
       "longDescriptionMarkdown": "Color function using muparser lib to generate new RGBA color for every vertex<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br>",
@@ -305,7 +305,7 @@
     {
       "id": "per_face_color_function",
       "categories": ["Attribute/Color"],
-      "name": "Per Face Color Function",
+      "name": "Compute Face Color by Expression",
       "pythonName": "apply_face_color_function",
       "shortDescription": "Computes per-face RGBA colors from expressions.",
       "longDescriptionMarkdown": "Color function using muparser lib to generate new RGBA color for every face<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br>",
@@ -368,7 +368,7 @@
     {
       "id": "per_vertex_quality_function",
       "categories": ["Attribute/Scalar"],
-      "name": "Per Vertex Quality Function",
+      "name": "Compute Vertex Scalar by Expression",
       "pythonName": "apply_vertex_quality_function",
       "shortDescription": "Computes per-vertex scalar quality from an expression.",
       "longDescriptionMarkdown": "Quality function using muparser to generate new Quality for every vertex<br>",
@@ -423,7 +423,7 @@
     {
       "id": "per_face_quality_function",
       "categories": ["Attribute/Scalar"],
-      "name": "Per Face Quality Function",
+      "name": "Compute Face Scalar by Expression",
       "pythonName": "apply_face_quality_function",
       "shortDescription": "Computes per-face scalar quality from an expression.",
       "longDescriptionMarkdown": "Quality function using muparser to generate new Quality for every face<br>Insert three function each one for quality of the three vertex of a face<br>",
@@ -610,7 +610,7 @@
     {
       "id": "define_per_vertex_scalar_attribute",
       "categories": ["Attribute/Custom"],
-      "name": "Define New Per Vertex Custom Scalar Attribute",
+      "name": "Define Custom Vertex Scalar Attribute",
       "pythonName": "define_vertex_scalar_attribute",
       "shortDescription": "Defines and fills a custom per-vertex scalar attribute.",
       "longDescriptionMarkdown": "Add a new Per-Vertex custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>",
@@ -649,7 +649,7 @@
     {
       "id": "define_per_face_scalar_attribute",
       "categories": ["Attribute/Custom"],
-      "name": "Define New Per Face Custom Scalar Attribute",
+      "name": "Define Custom Face Scalar Attribute",
       "pythonName": "define_face_scalar_attribute",
       "shortDescription": "Defines and fills a custom per-face scalar attribute.",
       "longDescriptionMarkdown": "Add a new Per-Face custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>",
@@ -688,7 +688,7 @@
     {
       "id": "define_per_vertex_point_attribute",
       "categories": ["Attribute/Custom"],
-      "name": "Define New Per Vertex Custom Point Attribute",
+      "name": "Define Custom Vertex Point Attribute",
       "pythonName": "define_vertex_point_attribute",
       "shortDescription": "Defines and fills a custom per-vertex point attribute.",
       "longDescriptionMarkdown": "Add a new Per-Vertex custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>",
@@ -743,7 +743,7 @@
     {
       "id": "define_per_face_point_attribute",
       "categories": ["Attribute/Custom"],
-      "name": "Define New Per Face Custom Point Attribute",
+      "name": "Define Custom Face Point Attribute",
       "pythonName": "define_face_point_attribute",
       "shortDescription": "Defines and fills a custom per-face point attribute.",
       "longDescriptionMarkdown": "Add a new Per-Face custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>",

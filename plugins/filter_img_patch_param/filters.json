@@ -229,7 +229,7 @@
     {
       "id": "compute_scalar_from_raster_coverage_per_vertex",
       "categories": ["Attribute/Scalar", "Transfer/Raster to Mesh"],
-      "name": "Quality from raster coverage (Vertex)",
+      "name": "Compute Vertex Scalar from Raster Coverage",
       "pythonName": "compute_scalar_from_raster_coverage_per_vertex",
       "shortDescription": "Compute a quality value representing the number of images into which each vertex of the active mesh is visible.",
       "longDescriptionMarkdown": "Compute a quality value representing the number of images into which each vertex of the active mesh is visible. For each active raster, a software depth buffer is built and each vertex is tested for visibility (inside the image bounds, front-facing, and passing the depth test). The quality value counts how many rasters each vertex is visible in. Optionally normalizes to [0,1].",
@@ -265,7 +265,7 @@
     {
       "id": "compute_scalar_from_raster_coverage_per_face",
       "categories": ["Attribute/Scalar", "Transfer/Raster to Mesh"],
-      "name": "Quality from raster coverage (Face)",
+      "name": "Compute Face Scalar from Raster Coverage",
       "pythonName": "compute_scalar_from_raster_coverage_per_face",
       "shortDescription": "Compute a quality value representing the number of images into which each face of the active mesh is visible.",
       "longDescriptionMarkdown": "Compute a quality value representing the number of images into which each face of the active mesh is visible. For each active raster, a software depth buffer is built and each face is tested for visibility. A face is considered visible if at least one of its three vertices is visible. The quality value counts how many rasters each face is visible in. Optionally normalizes to [0,1].",

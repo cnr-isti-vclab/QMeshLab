@@ -246,8 +246,8 @@
       "categories": ["Texture/Assignment"],
       "name": "Set Texture",
       "pythonName": "set_texture",
-      "shortDescription": "Associate an existing image file with the current mesh texture coordinates.",
-      "longDescriptionMarkdown": "Set a texture associated with current mesh parametrization.<br>If the texture provided exists, then it will be simply associated to the current mesh; else the filter will fail with no further actions. If specified it can create and associate a dummy texture with a specified grid or checkboard pattern.",
+      "shortDescription": "Associate an image or generated dummy texture with the current mesh UV coordinates.",
+      "longDescriptionMarkdown": "Associates one texture with the current mesh UV parametrization, replacing its existing texture associations. By default, the filter generates a checkerboard that makes UV scale and distortion immediately visible. Disable **Use dummy texture** to select an existing image file instead.",
       "tags": [
         "texture",
         "uv",
@@ -262,6 +262,14 @@
       },
       "parameters": [
         {
+          "id": "use_dummy_texture",
+          "label": "Use dummy texture",
+          "help": "If checked, generate a dummy texture instead of loading an image. Disable it to select an image using 'Texture file'.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
           "id": "textName",
           "label": "Texture file",
           "help": "Sets the given input image as unique texture of the mesh.",
@@ -272,14 +280,6 @@
           "fileNameFilters": [
             "Images (*.png *.jpg *.jpeg *.dds *.bmp *.tif *.tiff)"
           ]
-        },
-        {
-          "id": "use_dummy_texture",
-          "label": "Use dummy texture",
-          "help": "If checked, the filter will set a dummy texture instead of loading an image. The 'Texture file' parameter will be ignored.",
-          "group": "main",
-          "type": "bool",
-          "default": false
         },
         {
           "id": "dummy_img_size",
@@ -293,25 +293,25 @@
         },
         {
           "id": "dummy_check_size",
-          "label": "Check size",
+          "label": "Cell size",
           "help": "Size in pixel of the checkerboard or grid cell of the dummy texture.",
           "group": "main",
           "type": "int",
-          "default": 8,
+          "default": 64,
           "min": 1,
           "max": 32768
         },
         {
           "id": "dummy_type",
           "label": "Dummy Texture Type",
-          "help": "Choose what kind of dummy texture you want, a grid with lines or a checkboard.",
+          "help": "Choose between a checkerboard and a line grid.",
           "group": "main",
           "type": "enum",
-          "default": "checkboard",
+          "default": "checkerboard",
           "enumOptions": [
             {
-              "id": "checkboard",
-              "label": "Checkboard"
+              "id": "checkerboard",
+              "label": "Checkerboard"
             },
             {
               "id": "grid",

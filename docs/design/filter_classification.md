@@ -34,7 +34,7 @@ Classifying the real filters exposed four gaps. Each needs a ruling:
 
 A related rule this pass assumes, worth confirming: **`Geometry/Smoothing` covers
 positions only.** Smoothing an *attribute* is classified by the attribute —
-*Smooth Vertex Quality* → `Attribute/Scalar`, *Smooth: Laplacian Vertex Color* →
+*Smooth Vertex Scalar* → `Attribute/Scalar`, *Smooth Vertex Color* →
 `Attribute/Color`, *Smooth Face Normals* → `Attribute/Normal`.
 
 ## Resulting shape
@@ -99,14 +99,14 @@ than their present `menuPath` implies. That is the main finding of this pass.
 |---|---|---|---|
 | Generate Camera from Direction | `camera` | `Document/Camera` |  |
 | Generate Camera to View Selection | `camera` | `Document/Camera` |  |
-| Re-Orient vertex normals using cameras | `camera` | `Attribute/Normal` | **mis-filed** under `Camera` |
+| Orient Vertex Normals by Cameras | `camera` | `Attribute/Normal` | **mis-filed** under `Camera` |
 | Set Mesh Camera | `camera` | `Document/Camera` |  |
 | Set Raster Camera | `camera` | `Document/Camera` |  |
 | Transform camera extrinsics | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
 | Transform: Rotate Camera or set of cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
 | Transform: Scale Camera or set of cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
 | Transform: Translate Camera or set of cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
-| Vertex Quality from Camera | `camera` | `Attribute/Scalar` | **mis-filed** under `Camera` <sub>touches: color, scalar</sub> |
+| Compute Vertex Scalar from Camera | `camera` | `Attribute/Scalar` | **mis-filed** under `Camera` <sub>touches: color, scalar</sub> |
 
 ### `Cleaning` (15)
 
@@ -132,46 +132,45 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Clamp Vertex Quality | `colorproc` | `Attribute/Scalar` | **scalar**, not color <sub>touches: scalar</sub> |
-| Color noise | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| Colorize by face Quality | `colorproc` | `Attribute/Color` · `Attribute/Scalar` | scalar -> color <sub>touches: color</sub> |
-| Colorize by vertex Quality | `colorproc` | `Attribute/Color` · `Attribute/Scalar` | scalar -> color <sub>touches: color</sub> |
+| Clamp Vertex Scalar | `colorproc` | `Attribute/Scalar` | **scalar**, not color <sub>touches: scalar</sub> |
+| Add Noise to Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Colorize Faces by Scalar | `colorproc` | `Attribute/Color` · `Attribute/Scalar` | scalar -> color <sub>touches: color</sub> |
+| Colorize Vertices by Scalar | `colorproc` | `Attribute/Color` · `Attribute/Scalar` | scalar -> color <sub>touches: color</sub> |
 | Equalize Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| PerMesh Color Scattering | `colorproc` | `Attribute/Color` |  |
-| Perlin color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| Quality Mapper applier | `colorproc` | `Attribute/Color` · `Attribute/Scalar` | scalar -> color <sub>touches: color</sub> |
-| Random Component Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| Random Face Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| Saturate Vertex Quality | `colorproc` | `Attribute/Scalar` | **scalar**, not color <sub>touches: color, scalar</sub> |
+| Set Random Layer Color | `colorproc` | `Attribute/Color` |  |
+| Colorize Vertices by Perlin Noise | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Set Random Component Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Set Random Face Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Clamp Vertex Scalar Gradient | `colorproc` | `Attribute/Scalar` | **scalar**, not color <sub>touches: color, scalar</sub> |
 | Set Mesh Color | `colorproc` | `Attribute/Color` |  |
-| Smooth: Laplacian Face Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| Smooth: Laplacian Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Smooth Face Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Smooth Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
 | Transfer Color: Face to Vertex | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
 | Transfer Color: Mesh to Face | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
 | Transfer Color: Texture to Vertex | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
 | Transfer Color: Vertex to Face | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
 | Transfer Quality: Face to Vertex | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Scalar` | **mis-filed** - it is a Transfer <sub>touches: scalar</sub> |
 | Transfer Quality: Vertex to Face | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Scalar` | **mis-filed** - it is a Transfer <sub>touches: scalar</sub> |
-| Vertex Color Colourisation | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| Vertex Color Desaturation | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| Vertex Color Levels Adjustment | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| Vertex Color White Balance | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Tint Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Desaturate Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Adjust Vertex Color Levels | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
+| Adjust Vertex Color White Balance | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
 
 ### `Compute/Attributes` (4)
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Define New Per Face Custom Point Attribute | `func` | `Attribute/Custom` **(new)** |  |
-| Define New Per Face Custom Scalar Attribute | `func` | `Attribute/Custom` **(new)** |  |
-| Define New Per Vertex Custom Point Attribute | `func` | `Attribute/Custom` **(new)** |  |
-| Define New Per Vertex Custom Scalar Attribute | `func` | `Attribute/Custom` **(new)** |  |
+| Define Custom Face Point Attribute | `func` | `Attribute/Custom` **(new)** |  |
+| Define Custom Face Scalar Attribute | `func` | `Attribute/Custom` **(new)** |  |
+| Define Custom Vertex Point Attribute | `func` | `Attribute/Custom` **(new)** |  |
+| Define Custom Vertex Scalar Attribute | `func` | `Attribute/Custom` **(new)** |  |
 
 ### `Compute/Color` (2)
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Per Face Color Function | `func` | `Attribute/Color` | <sub>touches: color</sub> |
-| Per Vertex Color Function | `func` | `Attribute/Color` | <sub>touches: color</sub> |
+| Compute Face Color by Expression | `func` | `Attribute/Color` | <sub>touches: color</sub> |
+| Compute Vertex Color by Expression | `func` | `Attribute/Color` | <sub>touches: color</sub> |
 
 ### `Compute/Geometry` (1)
 
@@ -185,20 +184,20 @@ than their present `menuPath` implies. That is the main finding of this pass.
 |---|---|---|---|
 | Normalize Face Normals | `unsharp` | `Attribute/Normal` |  |
 | Normalize Vertex Normals | `unsharp` | `Attribute/Normal` |  |
-| Per Face Normal Function | `func` | `Attribute/Normal` |  |
-| Per Vertex Normal Function | `func` | `Attribute/Normal` |  |
-| Re-Compute Face Normals | `unsharp` | `Attribute/Normal` |  |
-| Re-Compute Per-Polygon Face Normals | `unsharp` | `Attribute/Normal` |  |
-| Re-Compute Vertex Normals | `unsharp` | `Attribute/Normal` |  |
+| Compute Face Normals by Expression | `func` | `Attribute/Normal` |  |
+| Compute Vertex Normals by Expression | `func` | `Attribute/Normal` |  |
+| Compute Face Normals | `unsharp` | `Attribute/Normal` |  |
+| Compute Polygon Face Normals | `unsharp` | `Attribute/Normal` |  |
+| Compute Vertex Normals | `unsharp` | `Attribute/Normal` |  |
 | Smooth Face Normals | `unsharp` | `Attribute/Normal` |  |
-| UnSharp Mask Normals | `unsharp` | `Attribute/Normal` |  |
+| Sharpen Face Normals by Unsharp Mask | `unsharp` | `Attribute/Normal` |  |
 
 ### `Compute/Quality` (2)
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Per Face Quality Function | `func` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
-| Per Vertex Quality Function | `func` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Compute Face Scalar by Expression | `func` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Compute Vertex Scalar by Expression | `func` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
 
 ### `Compute/Texture` (2)
 
@@ -272,8 +271,8 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Compute APSS Curvature Quality | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
-| Compute RIMLS Curvature Quality | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
+| Compute Curvature (APSS) | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
+| Compute Curvature (RIMLS) | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
 | Estimate radius from density | `mls` | `Measurement/Statistics` |  |
 | MLS projection (APSS) | `mls` | `Geometry/Smoothing` |  |
 | MLS projection (RIMLS) | `mls` | `Geometry/Smoothing` |  |
@@ -307,8 +306,8 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Build a Polyline from Selected Edges | `meshing` | `Creation/Primitives` | creates a new polyline layer |
 | Close Holes | `meshing` | `Repair/Holes and Borders` |  |
 | Compute Planar Section | `meshing` | `Creation/Primitives` | creates a new polyline layer |
-| Compute curvature principal directions | `meshing` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
-| Compute normals for point sets | `meshing` | `Attribute/Normal` |  |
+| Compute Principal Curvature Directions | `meshing` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
+| Compute Point Cloud Normals | `meshing` | `Attribute/Normal` |  |
 | Create Selection Perimeter Polyline | `meshing` | `Creation/Primitives` | creates a new polyline layer |
 | Geometric Cylindrical Unwrapping | `meshing` | `Parametrization/UV Creation` |  |
 | Invert Faces Orientation | `meshing` | `Repair/Topology` | orientation is topological |
@@ -324,7 +323,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Simplification: Original QSlim Quadric Edge Collapse | `qslim` | `Meshing/Simplification` |  |
 | Simplification: Quadric Edge Collapse Decimation | `meshing` | `Meshing/Simplification` |  |
 | Simplification: Quadric Edge Collapse Decimation (with texture) | `meshing` | `Meshing/Simplification` · `Texture` | preserves texture <sub>touches: uv</sub> |
-| Smooth normals on point sets | `meshing` | `Attribute/Normal` |  |
+| Smooth Point Cloud Normals | `meshing` | `Attribute/Normal` |  |
 | Subdivision Surfaces: Butterfly Subdivision | `meshing` | `Meshing/Subdivision` |  |
 | Subdivision Surfaces: Catmull-Clark | `meshing` | `Meshing/Subdivision` |  |
 | Subdivision Surfaces: Doo Sabin | `meshing` | `Meshing/Subdivision` |  |
@@ -347,7 +346,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Reorient Face Normals by Geometry | `embree` | `Attribute/Normal` |  |
+| Orient Face Normals by Ray Casting | `embree` | `Attribute/Normal` |  |
 
 ### `Parameterization` (2)
 
@@ -360,13 +359,13 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Discrete Curvatures | `colorproc` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
-| Per Face Geometric Quality | `colorproc` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
-| Per Face Texture Distortion | `colorproc` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
-| Vertex Color Brightness Contrast Gamma | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
-| Vertex Color Filling | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
-| Vertex Color Invert | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
-| Vertex Color Thresholding | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
+| Compute Curvature (Discrete) | `colorproc` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
+| Compute Face Scalar from Geometry | `colorproc` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Compute UV Distortion | `colorproc` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Adjust Vertex Color Brightness/Contrast/Gamma | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
+| Set Vertex Color | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
+| Invert Vertex Color | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
+| Threshold Vertex Color | `colorproc` | `Attribute/Color` | **mis-filed** under `Quality` <sub>touches: color</sub> |
 
 ### `Quality/Embree` (3)
 
@@ -380,10 +379,10 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Compute Border Distance Quality | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
-| Compute Geodesic Distance Quality from Point | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
-| Compute Geodesic Distance Quality from Selection | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
-| Compute Heat Geodesic Distance Quality from Selection | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+| Compute Geodesic Distance from Border | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+| Compute Geodesic Distance from Point | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+| Compute Geodesic Distance from Selection | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
+| Compute Geodesic Distance from Selection (Heat Method) | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
 
 ### `Raster` (5)
 
@@ -392,8 +391,8 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Project Active Rasters Color to Current Mesh | `color_projection` | `Transfer/Raster to Mesh` · `Attribute/Color` | <sub>touches: color</sub> |
 | Project Active Rasters Color to Current Mesh Texture | `color_projection` | `Transfer/Raster to Mesh` · `Texture` | <sub>touches: uv</sub> |
 | Project Current Raster Color to Current Mesh | `color_projection` | `Transfer/Raster to Mesh` · `Attribute/Color` | <sub>touches: color</sub> |
-| Quality from raster coverage (Face) | `img_patch_param` | `Attribute/Scalar` · `Transfer/Raster to Mesh` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
-| Quality from raster coverage (Vertex) | `img_patch_param` | `Attribute/Scalar` · `Transfer/Raster to Mesh` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
+| Compute Face Scalar from Raster Coverage | `img_patch_param` | `Attribute/Scalar` · `Transfer/Raster to Mesh` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
+| Compute Vertex Scalar from Raster Coverage | `img_patch_param` | `Attribute/Scalar` · `Transfer/Raster to Mesh` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
 
 ### `Remeshing` (8)
 
@@ -428,7 +427,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
 | Clustered Vertex Sampling | `sampling` | `Creation/Sampling` |  |
-| Disk Vertex Coloring | `sampling` | `Attribute/Color` | <sub>touches: scalar</sub> |
+| Colorize Vertices by Disk Distance | `sampling` | `Attribute/Color` | <sub>touches: scalar</sub> |
 | Distance from Reference Mesh | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures <sub>touches: scalar</sub> |
 | Hausdorff Distance | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures |
 | Mesh Element Sampling | `sampling` | `Creation/Sampling` |  |
@@ -443,7 +442,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Volumetric Sampling | `voronoi` | `Creation/Sampling` |  |
 | Voronoi Sampling | `voronoi` | `Creation/Sampling` | <sub>touches: color, scalar, selection</sub> |
 | Voronoi Scaffolding | `voronoi` | `Creation/Primitives` | builds a new structure |
-| Voronoi Vertex Coloring | `sampling` | `Attribute/Color` | <sub>touches: color</sub> |
+| Colorize Vertices by Voronoi Regions | `sampling` | `Attribute/Color` | <sub>touches: color</sub> |
 
 ### `Selection` (27)
 
@@ -490,18 +489,18 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Cut mesh along crease edges | `unsharp` | `Meshing/Remeshing` | **topology change**, not smoothing |
 | Depth Smooth | `unsharp` | `Geometry/Smoothing` |  |
 | Directional Geometry Preservation | `unsharp` | `Geometry/Smoothing` |  |
-| Generate Scalar Harmonic Field | `unsharp` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Compute Harmonic Scalar Field | `unsharp` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
 | HC Laplacian Smooth | `unsharp` | `Geometry/Smoothing` |  |
 | Laplacian Smooth | `unsharp` | `Geometry/Smoothing` |  |
 | Laplacian Smooth (surface preserving) | `trioptimize` | `Geometry/Smoothing` |  |
 | Random Vertex Displacement | `sample` | `Geometry/Deformation` **(new)** | **adds** noise - not smoothing |
 | ScaleDependent Laplacian Smooth | `unsharp` | `Geometry/Smoothing` |  |
-| Smooth Vertex Quality | `unsharp` | `Attribute/Scalar` | **scalar**, not color <sub>touches: scalar</sub> |
+| Smooth Vertex Scalar | `unsharp` | `Attribute/Scalar` | **scalar**, not color <sub>touches: scalar</sub> |
 | Taubin Smooth | `unsharp` | `Geometry/Smoothing` |  |
 | TwoStep Smooth | `unsharp` | `Geometry/Smoothing` |  |
-| UnSharp Mask Color | `unsharp` | `Attribute/Color` | <sub>touches: color</sub> |
+| Sharpen Vertex Color by Unsharp Mask | `unsharp` | `Attribute/Color` | <sub>touches: color</sub> |
 | UnSharp Mask Geometry | `unsharp` | `Geometry/Smoothing` |  |
-| UnSharp Mask Quality | `unsharp` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
+| Sharpen Vertex Scalar by Unsharp Mask | `unsharp` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
 | Vertex Linear Morphing | `unsharp` | `Geometry/Deformation` **(new)** |  |
 
 ### `Texture` (16)

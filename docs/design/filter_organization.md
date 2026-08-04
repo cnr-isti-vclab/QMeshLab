@@ -145,8 +145,8 @@ Consequences, and the current state of each:
 | Case | Filters | Status |
 |---|---|---|
 | Unconditional bake inside a `Compute` filter | *Compute Obscurance*, *Compute Ambient Occlusion* | **Fixed.** Both wrote vertex *and* face colour while their descriptors declared only `outputModifies: [FQ, VQ]` — the code violated its own contract. The bake is removed; the `FaceQuality` visualization hint they already returned now does the job. |
-| Opt-in `map to colour` parameter on a compute filter | *Vertex Quality from Camera* (`map`), *Per Vertex/Face Quality Function* (`mapToColor`), *Generate Scalar Harmonic Field* (`colorize`) | **Deferred to pass 2.** These are opt-in rather than automatic, but the option is now redundant. Removing a parameter is script-visible, so it belongs with the parameter-id pass. |
-| Colorizing is the filter's actual purpose | *Colorize by vertex/face Quality*, *Quality Mapper applier* | **Correct as-is** — these are `Attribute/Color` filters by definition. |
+| Opt-in `map to colour` parameter on a compute filter | *Compute Vertex Scalar from Camera* (`map`), *Per Vertex/Face Quality Function* (`mapToColor`), *Compute Harmonic Scalar Field* (`colorize`) | **Deferred to pass 2.** These are opt-in rather than automatic, but the option is now redundant. Removing a parameter is script-visible, so it belongs with the parameter-id pass. |
+| Colorizing is the filter's actual purpose | *Colorize by vertex/face Quality* | **Correct as-is** — these are `Attribute/Color` filters by definition. |
 | Colorizing a newly created layer | *Voronoi/Volumetric Sampling* volume meshes | **Acceptable** — writes to a new layer, destroys nothing. Low priority. |
 
 ## Deferred: document-dependent defaults
@@ -426,8 +426,8 @@ family rather than a one-filter stub.
 | `filter_remesh` | 14 | *remeshing* — Isotropic Explicit · Tri to Quad (4-8) · Quad-Dominant · Pure-Triangular · Tri to Quad smart pairing · *subdivision* — Loop · Butterfly · Midpoint · LS3 Loop · Catmull-Clark · Doo Sabin · *simplification* — Clustering Decimation · Quadric Edge Collapse · QEC with texture |
 | `filter_clean` | 4 | Re-Orient faces coherently · Invert Faces Orientation · Close Holes · Vertex Attribute Seam |
 | `filter_create` | 3 | Build Polyline from Selected Edges · Create Selection Perimeter Polyline · Compute Planar Section |
-| `filter_compute` | 2 | Compute normals for point sets · Compute curvature principal directions |
-| `filter_smooth` | 1 | Smooth normals on point sets |
+| `filter_compute` | 2 | Compute Point Cloud Normals · Compute Principal Curvature Directions |
+| `filter_smooth` | 1 | Smooth Point Cloud Normals |
 | `filter_parametrize` | 1 | Geometric Cylindrical Unwrapping |
 | `filter_select` | 1 | Select Crease Edges |
 

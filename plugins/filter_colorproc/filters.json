@@ -4,7 +4,7 @@
     {
       "id": "set_color_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Vertex Color Filling",
+      "name": "Set Vertex Color",
       "pythonName": "vertex_color_filling",
       "shortDescription": "Fill vertex colors with a chosen color.",
       "longDescriptionMarkdown": "Fills the color of the vertices of the mesh with a color chosen by the user.",
@@ -21,7 +21,7 @@
     {
       "id": "apply_color_thresholding_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Vertex Color Thresholding",
+      "name": "Threshold Vertex Color",
       "pythonName": "vertex_color_thresholding",
       "shortDescription": "Apply two colors according to a lightness threshold.",
       "longDescriptionMarkdown": "Colors the vertices of the mesh using two colors according to a lightness threshold (on the original color).",
@@ -40,7 +40,7 @@
     {
       "id": "apply_color_brightness_contrast_gamma_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Vertex Color Brightness Contrast Gamma",
+      "name": "Adjust Vertex Color Brightness/Contrast/Gamma",
       "pythonName": "vertex_color_brightness_contrast_gamma",
       "shortDescription": "Adjust vertex-color brightness, contrast, and gamma.",
       "longDescriptionMarkdown": "Change the color the vertices of the mesh adjusting brightness, contrast and gamma.",
@@ -59,7 +59,7 @@
     {
       "id": "apply_color_inverse_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Vertex Color Invert",
+      "name": "Invert Vertex Color",
       "pythonName": "vertex_color_invert",
       "shortDescription": "Invert vertex colors.",
       "longDescriptionMarkdown": "Inverts the colors of the vertices of the mesh.",
@@ -75,7 +75,7 @@
     {
       "id": "apply_color_level_adjustment_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Vertex Color Levels Adjustment",
+      "name": "Adjust Vertex Color Levels",
       "pythonName": "vertex_color_levels_adjustment",
       "shortDescription": "Remap an input color interval into an output interval.",
       "longDescriptionMarkdown": "The filter allows adjustment of color levels. It is a custom way to map an interval of color into another one. The user can set the input minimum and maximum levels, gamma and the output minimum and maximum levels (many tools call them respectively input black point, white point, gray point, output black point and white point).",
@@ -99,7 +99,7 @@
     {
       "id": "apply_color_intensity_colourisation_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Vertex Color Colourisation",
+      "name": "Tint Vertex Color",
       "pythonName": "vertex_color_colourisation",
       "shortDescription": "Blend a chosen color into the existing vertex colors.",
       "longDescriptionMarkdown": "Allows the application of a color to the mesh. In spite of the Fill operation, the color is blended with the mesh according to a given intensity.",
@@ -119,7 +119,7 @@
     {
       "id": "apply_color_desaturation_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Vertex Color Desaturation",
+      "name": "Desaturate Vertex Color",
       "pythonName": "vertex_color_desaturation",
       "shortDescription": "Convert vertex colors to grayscale using a chosen method.",
       "longDescriptionMarkdown": "The filter desaturates the colors of the mesh. This provides a simple way to convert a mesh in gray tones. The user can choose the desaturation method to apply; they are based on Lightness, Luminosity and Average.",
@@ -167,7 +167,7 @@
     {
       "id": "apply_color_white_balance_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Vertex Color White Balance",
+      "name": "Adjust Vertex Color White Balance",
       "pythonName": "vertex_color_white_balance",
       "shortDescription": "Apply white balance so a chosen color becomes white.",
       "longDescriptionMarkdown": "The filter provides a standard white balance transformation. It is done correcting the RGB channels with a factor such that, the brighter color in the mesh, that is supposed to be white, becomes really white.",
@@ -184,7 +184,7 @@
     {
       "id": "compute_color_perlin_noise_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Perlin color",
+      "name": "Colorize Vertices by Perlin Noise",
       "pythonName": "perlin_color",
       "shortDescription": "Color the mesh with a Perlin-based color field.",
       "longDescriptionMarkdown": "Paints the mesh using PerlinColor function. The color assigned to vertices depends on their position in the space; it means that near vertices will be painted with similar colors.",
@@ -204,7 +204,7 @@
     {
       "id": "apply_color_noising_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Color noise",
+      "name": "Add Noise to Vertex Color",
       "pythonName": "color_noise",
       "shortDescription": "Add random noise bits independently to RGB channels.",
       "longDescriptionMarkdown": "Adds to the color the requested amount of bits of noise. Bits of noise are added independently for each RGB channel.",
@@ -221,7 +221,7 @@
     {
       "id": "compute_color_scattering_per_mesh",
       "categories": ["Attribute/Color"],
-      "name": "PerMesh Color Scattering",
+      "name": "Set Random Layer Color",
       "pythonName": "color_scattering",
       "shortDescription": "Assign a distinct random color to each visible mesh layer.",
       "longDescriptionMarkdown": "Assigns a random color to each visible mesh layer in the document. Colors change every time the filter is executed, but are always chosen so that they differ as much as possible.",
@@ -251,7 +251,7 @@
     {
       "id": "apply_scalar_clamping_per_vertex",
       "categories": ["Attribute/Scalar"],
-      "name": "Clamp Vertex Quality",
+      "name": "Clamp Vertex Scalar",
       "pythonName": "clamp_vertex_quality",
       "shortDescription": "Clamp vertex quality to a chosen range or percentile crop.",
       "longDescriptionMarkdown": "Clamp vertex quality values to a given range according to specific values or to percentiles",
@@ -270,7 +270,7 @@
     {
       "id": "apply_scalar_saturation_per_vertex",
       "categories": ["Attribute/Scalar"],
-      "name": "Saturate Vertex Quality",
+      "name": "Clamp Vertex Scalar Gradient",
       "pythonName": "saturate_vertex_quality",
       "shortDescription": "Limit the spatial gradient of vertex quality.",
       "longDescriptionMarkdown": "Saturate vertex quality, so that for each vertex the gradient of the quality is lower than the given threshold value (in absolute value)\nThe saturation is done in a conservative way (quality is always decreased and never increased)",
@@ -288,7 +288,7 @@
     {
       "id": "compute_color_from_scalar_per_vertex",
       "categories": ["Attribute/Color", "Attribute/Scalar"],
-      "name": "Colorize by vertex Quality",
+      "name": "Colorize Vertices by Scalar",
       "pythonName": "colorize_by_vertex_quality",
       "shortDescription": "Map vertex quality into vertex colors.",
       "longDescriptionMarkdown": "Color vertices depending on their quality field. The filter uses the same colormap sampling and range normalization used by QMeshLab quality visualization, so it can bake the current quality display into vertex colors.",
@@ -326,49 +326,9 @@
       "outputModifies": ["VC"]
     },
     {
-      "id": "compute_color_from_scalar_using_transfer_function_per_vertex",
-      "categories": ["Attribute/Color", "Attribute/Scalar"],
-      "name": "Quality Mapper applier",
-      "pythonName": "compute_color_from_scalar_using_transfer_function_per_vertex",
-      "shortDescription": "Bake vertex quality into vertex colors.",
-      "longDescriptionMarkdown": "MeshLab-compatible quality-to-color baking. QMeshLab samples the same colormap/range code used by quality visualization instead of importing the old transfer-function editor.",
-      "tags": ["quality", "vertex", "color", "meshlab"],
-      "inputDomain": "SingleMesh",
-      "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": { "requireVertices": true, "requireVertexQuality": true },
-      "parameters": [
-        { "id": "minVal", "label": "Min", "help": "The value mapped to the lower end of the scale.", "group": "main", "type": "double", "default": "@qualityVMin", "decimals": 6 },
-        { "id": "maxVal", "label": "Max", "help": "The value mapped to the upper end of the scale.", "group": "main", "type": "double", "default": "@qualityVMax", "decimals": 6 },
-        { "id": "perc", "label": "Percentile Crop [0..100]", "help": "If not zero this value is used for percentile cropping of the quality values.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 100.0, "decimals": 3 },
-        { "id": "zeroSym", "label": "Zero Symmetric", "help": "If true the min/max range is enlarged to be symmetric around zero.", "group": "advanced", "type": "bool", "default": false },
-        {
-          "id": "colorMap",
-          "label": "Color Map",
-          "help": "The color map to use. Built-in QMeshLab maps match the quality visualization panel; RGB and RdPu preserve legacy VCGLib behavior.",
-          "group": "advanced",
-          "type": "enum",
-          "default": "rainbow",
-          "enumOptions": [
-            { "id": "rgb", "label": "RGB" },
-            { "id": "rainbow", "label": "Rainbow" },
-            { "id": "gray", "label": "Gray" },
-            { "id": "viridis", "label": "Viridis" },
-            { "id": "plasma", "label": "Plasma" },
-            { "id": "cividis", "label": "Cividis" },
-            { "id": "turbo", "label": "Turbo" },
-            { "id": "rdpu", "label": "RdPu" },
-            { "id": "constant", "label": "Constant White" }
-          ]
-        },
-        { "id": "invert", "label": "Invert Color Map", "help": "Invert the selected QMeshLab colormap before sampling, matching the quality visualization panel. Legacy RGB/RdPu maps ignore this option.", "group": "advanced", "type": "bool", "default": false },
-        { "id": "colorMapId", "label": "Color Map Id Override", "help": "Optional exact QMeshLab colormap id. Leave empty for the selected Color Map enum. This is mainly used internally when baking the current view and also supports external colormaps loaded by QMeshLab.", "group": "advanced", "type": "string", "default": "" }
-      ],
-      "outputModifies": ["VC"]
-    },
-    {
       "id": "compute_color_from_scalar_per_face",
       "categories": ["Attribute/Color", "Attribute/Scalar"],
-      "name": "Colorize by face Quality",
+      "name": "Colorize Faces by Scalar",
       "pythonName": "colorize_by_face_quality",
       "shortDescription": "Map face quality into face colors.",
       "longDescriptionMarkdown": "Color faces depending on their quality field (manually equalized).",
@@ -403,7 +363,7 @@
     {
       "id": "compute_scalar_by_discrete_curvature_per_vertex",
       "categories": ["Attribute/Curvature"],
-      "name": "Discrete Curvatures",
+      "name": "Compute Curvature (Discrete)",
       "pythonName": "discrete_curvatures",
       "shortDescription": "Compute discrete curvature and store it in vertex quality.",
       "longDescriptionMarkdown": "Compute discrete curvature and store it in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br>Computed as described in:<br>'<i>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</i>' <br>M. Meyer, M. Desbrun, P. Schroder, A. H. Barr",
@@ -436,7 +396,7 @@
     {
       "id": "compute_scalar_by_geometric_measure_per_face",
       "categories": ["Attribute/Scalar"],
-      "name": "Per Face Geometric Quality",
+      "name": "Compute Face Scalar from Geometry",
       "pythonName": "per_face_quality_by_geometric_measure",
       "shortDescription": "Compute face quality from triangle shape, area, or polygonal planarity.",
       "longDescriptionMarkdown": "Computes a geometric measure for every face and stores the result in **face quality**. No colors are baked into the mesh; after completion QMeshLab switches the view to face-quality visualization.\n\nThe triangle-shape measures are scale independent and approach zero for degenerate triangles:\n\n- **Area / squared maximum side**: $2A/L_{\\max}^2$, where $A$ is triangle area and $L_{\\max}$ is its longest side. Its range is $[0,\\sqrt{3}/2]$; an equilateral triangle reaches $\\sqrt{3}/2$.\n- **Normalized radius ratio**: $2r/R$, where $r$ and $R$ are the inradius and circumradius. Its range is $[0,1]$; an equilateral triangle reaches $1$.\n- **Mean ratio**: $4\\sqrt{3}A/(a^2+b^2+c^2)$. Its range is $[0,1]$; an equilateral triangle reaches $1$.\n- **Area**: the triangle area in the mesh's squared coordinate units. This measure is not scale independent.\n\nThe planarity measures apply only to polygonal meshes represented by faux-edge triangle groups. QMeshLab fits a support plane to each polygon and assigns the same result to all its component triangles:\n\n- **Polygonal planarity (maximum)**: maximum vertex distance from the fitted plane.\n- **Polygonal planarity (relative)**: mean vertex-to-plane distance divided by the polygon's half-perimeter.",
@@ -467,7 +427,7 @@
     {
       "id": "compute_scalar_by_texture_distortion_per_face",
       "categories": ["Attribute/Scalar"],
-      "name": "Per Face Texture Distortion",
+      "name": "Compute UV Distortion",
       "pythonName": "per_face_quality_by_texture_distortion",
       "shortDescription": "Measure angular, area, edge-length, or directional stretch distortion in a UV mapping.",
       "longDescriptionMarkdown": "Compares every triangle in 3D with its mapping in UV space and stores the resulting dimensionless distortion in **face quality**. No colors are baked into the mesh; after completion QMeshLab switches the view to face-quality visualization. Both per-wedge and per-vertex texture coordinates are supported, and texture image files are not required.\n\n- **Angle distortion**: the mean relative angular error over the three corners,\n\n$$D_{\\mathrm{angle}}=\\frac{1}{3}\\sum_{i=1}^{3}\\frac{|\\theta_i^{UV}-\\theta_i^{3D}|}{\\theta_i^{3D}}.$$\n\nA value of $0$ means that the mapping preserves all triangle angles; larger values indicate increasing conformal distortion. Uniform scaling and rigid transformations of the UV triangle do not affect this measure.\n\n- **Area distortion**: first computes one global area scale $s_A=\\sum A_{3D}/\\sum A_{UV}$, then evaluates each face as\n\n$$D_{\\mathrm{area}}=\\frac{|s_A A_{UV}-A_{3D}|}{A_{3D}}.$$\n\nA value of $0$ means that the face has the globally expected texel density; larger values identify local expansion or compression relative to the mesh-wide average.\n\n- **Edge-length distortion**: uses the global length scale $s_L=\\sum l_{3D}/\\sum l_{UV}$ and averages the relative error of the three edges,\n\n$$D_{\\mathrm{edge}}=\\frac{1}{3}\\sum_{i=1}^{3}\\frac{|s_L l_i^{UV}-l_i^{3D}|}{l_i^{3D}}.$$\n\nThe ideal value is $0$. Unlike angle distortion, this measure responds to local changes in scale as well as triangle shape.\n\n- **L2 stretch**: measures the root-mean-square directional stretch of the locally linear map from texture space to the surface,\n\n$$L_2=\\sqrt{\\frac{a+c}{2}},\\qquad a=\\frac{\\|S_s\\|^2}{s_A},\\quad c=\\frac{\\|S_t\\|^2}{s_A}.$$\n\nThe ideal value is $1$. It summarizes average sampling distortion within the triangle.\n\n- **L-infinity stretch**: measures the largest directional stretch,\n\n$$L_\\infty=\\sqrt{\\frac{a+c+\\sqrt{(a-c)^2+4b^2}}{2}},\\qquad b=\\frac{S_s\\cdot S_t}{s_A}.$$\n\nThe ideal value is $1$. It highlights the worst local undersampling direction and is therefore more conservative than L2 stretch.\n\nThe global normalization makes every metric invariant to uniform resizing of the complete UV map. UV area is oriented, matching VCGLib's distortion implementation. A zero total oriented UV area makes area normalization undefined; stretch additionally requires that total to be positive. For L2 and L-infinity stretch, folded or degenerate individual UV triangles produce non-finite quality values, which are excluded from the displayed finite quality range.",
@@ -497,7 +457,7 @@
     {
       "id": "apply_color_laplacian_smoothing_per_vertex",
       "categories": ["Attribute/Color"],
-      "name": "Smooth: Laplacian Vertex Color",
+      "name": "Smooth Vertex Color",
       "pythonName": "smooth_laplacian_vertex_color",
       "shortDescription": "Laplacian smooth vertex colors.",
       "longDescriptionMarkdown": "Laplacian Smooth Vertex Color",
@@ -513,7 +473,7 @@
     {
       "id": "apply_color_laplacian_smoothing_per_face",
       "categories": ["Attribute/Color"],
-      "name": "Smooth: Laplacian Face Color",
+      "name": "Smooth Face Color",
       "pythonName": "smooth_laplacian_face_color",
       "shortDescription": "Laplacian smooth face colors.",
       "longDescriptionMarkdown": "Laplacian Smooth Face Color",
@@ -601,7 +561,7 @@
     {
       "id": "compute_color_random_per_face",
       "categories": ["Attribute/Color"],
-      "name": "Random Face Color",
+      "name": "Set Random Face Color",
       "pythonName": "random_face_color",
       "shortDescription": "Assign random colors to faces or faux-connected polygons.",
       "longDescriptionMarkdown": "Colorize Faces randomly. If internal edges are present they are used. Useful for quads.",
@@ -616,7 +576,7 @@
     {
       "id": "compute_color_by_conntected_component_per_face",
       "categories": ["Attribute/Color"],
-      "name": "Random Component Color",
+      "name": "Set Random Component Color",
       "pythonName": "random_component_color",
       "shortDescription": "Assign a random color to each connected component.",
       "longDescriptionMarkdown": "Colorize each connected component randomly.",

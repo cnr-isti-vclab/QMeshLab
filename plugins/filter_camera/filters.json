@@ -113,7 +113,7 @@
     {
       "id": "compute_scalar_from_camera_per_vertex",
       "categories": ["Attribute/Scalar"],
-      "name": "Vertex Quality from Camera",
+      "name": "Compute Vertex Scalar from Camera",
       "pythonName": "compute_scalar_from_camera_per_vertex",
       "shortDescription": "Compute vertex quality using the camera definition, according to viewing angle or distance.",
       "longDescriptionMarkdown": "Compute vertex quality using the camera definition, according to viewing angle or distance. Uses the current raster camera if available.",
@@ -508,7 +508,7 @@
     {
       "id": "compute_normal_from_cameras_per_vertex",
       "categories": ["Attribute/Normal"],
-      "name": "Re-Orient vertex normals using cameras",
+      "name": "Orient Vertex Normals by Cameras",
       "pythonName": "compute_normal_from_cameras_per_vertex",
       "shortDescription": "Reorient vertex normals to point toward the cameras that see them best.",
       "longDescriptionMarkdown": "Reorient vertex normals using visible rasters. For each vertex, the best camera is chosen among all visible rasters and the normal is oriented to face toward that camera. If the per-vertex attribute 'correspondences' exists (from Bundler .out imports), the original Bundler camera indices are used instead.",
