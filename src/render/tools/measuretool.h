@@ -38,12 +38,13 @@ private:
         double length = 0.0;
     };
 
-    enum class PickAction { None, AddPoint, DragPoint };
+    enum class PickAction { None, AddPoint, DragPoint, PreviewPoint };
 
     int pointAt(const QPointF &screenPos) const;
     void finishSegment(std::size_t point);
     void updateLengths(std::size_t point);
     void clearPendingPoint();
+    void exportMeasurements();
     void printMeasurements() const;
     void saveMeasurements() const;
 
@@ -56,5 +57,7 @@ private:
     int m_dragPoint = -1;
     QPoint m_pressPos;
     bool m_dragging = false;
+    QVector3D m_previewPoint;
+    bool m_hasPreviewPoint = false;
     PickAction m_pickAction = PickAction::None;
 };

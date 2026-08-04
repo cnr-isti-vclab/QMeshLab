@@ -307,7 +307,7 @@ struct SceneRasterProjectedDrawItem {
 
     void createOverlayButtons();
     void layoutOverlayButtons();
-    void showInteractionStatusOverlay(const QString &text);
+    void showInteractionStatusOverlay(const QString &text, bool persistent = false);
     void emitCameraStateChangedIfNeeded();
     bool computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const;
     // World-space bbox over all visible meshes' full geometry (not gated on the

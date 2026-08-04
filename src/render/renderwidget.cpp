@@ -1026,6 +1026,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
     setFocusPolicy(Qt::StrongFocus); // receive key events for interactive tools
+    setMouseTracking(true); // interactive tools need button-free hover feedback
     m_currentViewIndicator = new QWidget(this);
     m_currentViewIndicator->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     m_currentViewIndicator->setStyleSheet(QStringLiteral(
@@ -2005,7 +2006,11 @@ void RenderWidget::createOverlayButtons()
     m_interactionStatusOverlayTimer = new QTimer(this);
     m_interactionStatusOverlayTimer->setSingleShot(true);
     connect(m_interactionStatusOverlayTimer, &QTimer::timeout, this, [this]() {
-        if (m_interactionStatusOverlayLabel)
+        // Transient camera/view messages may temporarily replace the command
+        // help. Restore that help while an interactive tool remains active.
+        if (m_activeTool && !m_activeTool->statusHint().isEmpty())
+            showInteractionStatusOverlay(m_activeTool->statusHint(), true);
+        else if (m_interactionStatusOverlayLabel)
             m_interactionStatusOverlayLabel->hide();
     });
     for (int i = 0; i <= 10; ++i) {
@@ -2235,14 +2240,16 @@ void RenderWidget::emitCameraStateChangedIfNeeded()
     emit cameraStateChanged(this);
 }
 
-void RenderWidget::showInteractionStatusOverlay(const QString &text)
+void RenderWidget::showInteractionStatusOverlay(const QString &text, bool persistent)
 {
     if (!m_interactionStatusOverlayLabel || text.isEmpty())
         return;
     m_interactionStatusOverlayLabel->setText(text);
     m_interactionStatusOverlayLabel->show();
     layoutOverlayButtons();
-    if (m_interactionStatusOverlayTimer)
+    if (m_interactionStatusOverlayTimer && persistent)
+        m_interactionStatusOverlayTimer->stop();
+    else if (m_interactionStatusOverlayTimer)
         m_interactionStatusOverlayTimer->start(1200);
 }
 
@@ -3069,10 +3076,15 @@ void RenderWidget::setActiveTool(InteractiveTool *tool)
     m_toolOwnerIsCurrent = true;
     if (m_activeTool) {
         m_activeTool->activate(*this);
-        showInteractionStatusOverlay(m_activeTool->statusHint());
+        showInteractionStatusOverlay(m_activeTool->statusHint(), true);
         if (m_doc)
             m_doc->writeLog(tr("Tool engaged: %1").arg(m_activeTool->name()),
                             Document::LogSource::Application);
+    } else {
+        if (m_interactionStatusOverlayTimer)
+            m_interactionStatusOverlayTimer->stop();
+        if (m_interactionStatusOverlayLabel)
+            m_interactionStatusOverlayLabel->hide();
     }
     applyToolCursor();
     updateToolBadge();
@@ -3332,6 +3344,10 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
         if (e)
             e->accept();
         update();
+        // Tool feedback such as endpoint hover highlights is painted by a
+        // transparent child widget, which does not repaint with the QRhi view.
+        if (m_toolOverlayWidget)
+            m_toolOverlayWidget->update();
         return;
     }
     if (m_viewMode == ViewMode::ParametrizationUV) {

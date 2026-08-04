@@ -4,6 +4,7 @@
 #include "renderwidget.h"
 
 #include <vcg/space/distance3.h>
+#include <vcg/complex/allocate.h>
 
 #include <QFileDialog>
 #include <QFileInfo>
@@ -19,6 +20,26 @@
 
 #include <cmath>
 
+namespace {
+
+bool projectPoint(
+    const QVector3D &world,
+    const QMatrix4x4 &worldToClip,
+    const QSize &viewportSize,
+    QPointF &screen)
+{
+    const QVector4D clip = worldToClip * QVector4D(world, 1.0f);
+    if (clip.w() <= 1e-6f)
+        return false;
+    const QVector3D ndc = clip.toVector3DAffine();
+    screen = QPointF(
+        (ndc.x() * 0.5f + 0.5f) * viewportSize.width(),
+        (1.0f - (ndc.y() * 0.5f + 0.5f)) * viewportSize.height());
+    return std::isfinite(screen.x()) && std::isfinite(screen.y());
+}
+
+} // namespace
+
 QString MeasureTool::id() const
 {
     return QStringLiteral("measure");
@@ -32,7 +53,7 @@ QString MeasureTool::name() const
 QString MeasureTool::statusHint() const
 {
     return QObject::tr(
-        "Measure: click two surface points — C clear, Backspace undo last, P print, S save; Tab: camera, Esc: exit");
+        "Measure: click two points; click an endpoint to continue, or drag it to edit — C clear, Backspace undo, P print, S save, X export layer");
 }
 
 QString MeasureTool::badgeDetail() const
@@ -58,6 +79,11 @@ void MeasureTool::activate(RenderWidget &view)
     m_points.clear();
     m_measurements.clear();
     m_pendingPoint = -1;
+    m_pendingPointIsNew = false;
+    m_hoverPoint = m_pressedPoint = m_dragPoint = -1;
+    m_dragging = false;
+    m_hasPreviewPoint = false;
+    m_pickAction = PickAction::None;
 }
 
 void MeasureTool::deactivate(bool commit)
@@ -65,6 +91,11 @@ void MeasureTool::deactivate(bool commit)
     m_points.clear();
     m_measurements.clear();
     m_pendingPoint = -1;
+    m_pendingPointIsNew = false;
+    m_hoverPoint = m_pressedPoint = m_dragPoint = -1;
+    m_dragging = false;
+    m_hasPreviewPoint = false;
+    m_pickAction = PickAction::None;
     InteractiveTool::deactivate(commit);
 }
 
@@ -89,7 +120,18 @@ bool MeasureTool::mouseMove(QMouseEvent *e)
         return false;
     if (!(e->buttons() & Qt::LeftButton)) {
         m_hoverPoint = pointAt(e->position());
-        return m_hoverPoint >= 0;
+        if (m_pendingPoint >= 0) {
+            if (m_hoverPoint >= 0) {
+                m_previewPoint = m_points[std::size_t(m_hoverPoint)];
+                m_hasPreviewPoint = true;
+            } else {
+                // Asynchronous GPU picking keeps the rubber-band endpoint on
+                // the visible mesh surface without doing a CPU intersection.
+                m_pickAction = PickAction::PreviewPoint;
+                m_view->requestSurfacePick(e->position().toPoint());
+            }
+        }
+        return true; // repaint when the hover highlight appears or disappears
     }
     if (m_pressedPoint < 0)
         return false;
@@ -131,8 +173,14 @@ bool MeasureTool::mouseRelease(QMouseEvent *e)
 
 void MeasureTool::onSurfacePicked(const SurfacePick &result)
 {
-    if (!m_view || !result.hit)
+    if (!m_view)
         return;
+    if (!result.hit) {
+        if (m_pickAction == PickAction::PreviewPoint)
+            m_hasPreviewPoint = false;
+        m_pickAction = PickAction::None;
+        return;
+    }
     if (m_pickAction == PickAction::DragPoint) {
         if (m_dragPoint >= 0 && std::size_t(m_dragPoint) < m_points.size()) {
             m_points[std::size_t(m_dragPoint)] = result.worldPos;
@@ -142,7 +190,14 @@ void MeasureTool::onSurfacePicked(const SurfacePick &result)
         return;
     }
     if (m_pickAction != PickAction::AddPoint)
+    {
+        if (m_pickAction == PickAction::PreviewPoint) {
+            m_previewPoint = result.worldPos;
+            m_hasPreviewPoint = true;
+            m_pickAction = PickAction::None;
+        }
         return;
+    }
     m_pickAction = PickAction::None;
 
     m_points.push_back(result.worldPos);
@@ -153,6 +208,34 @@ void MeasureTool::onSurfacePicked(const SurfacePick &result)
         return;
     }
     finishSegment(point);
+}
+
+int MeasureTool::pointAt(const QPointF &screenPos) const
+{
+    if (!m_view)
+        return -1;
+    const QMatrix4x4 worldToClip = m_view->projectionMatrix() * m_view->viewMatrix();
+    const QSize viewportSize = m_view->size();
+    int nearest = -1;
+    qreal nearestSquared = 9.0 * 9.0;
+
+    // Only referenced points are editable. This also makes points left unused by
+    // deleting a segment harmless without a separate compaction data structure.
+    for (const Measurement &m : m_measurements) {
+        const std::size_t indices[2] = {m.a, m.b};
+        for (const std::size_t index : indices) {
+            QPointF projected;
+            if (!projectPoint(m_points[index], worldToClip, viewportSize, projected))
+                continue;
+            const QPointF delta = projected - screenPos;
+            const qreal squared = delta.x() * delta.x() + delta.y() * delta.y();
+            if (squared <= nearestSquared) {
+                nearestSquared = squared;
+                nearest = int(index);
+            }
+        }
+    }
+    return nearest;
 }
 
 void MeasureTool::finishSegment(std::size_t point)
@@ -167,6 +250,7 @@ void MeasureTool::finishSegment(std::size_t point)
         vcg::Point3d(a.x(), a.y(), a.z()), vcg::Point3d(b.x(), b.y(), b.z()))});
     m_pendingPoint = -1;
     m_pendingPointIsNew = false;
+    m_hasPreviewPoint = false;
     if (Document *doc = m_view->document()) {
         const Measurement &m = m_measurements.back();
         doc->writeLog(
@@ -195,12 +279,14 @@ void MeasureTool::clearPendingPoint()
         m_points.pop_back();
     m_pendingPoint = -1;
     m_pendingPointIsNew = false;
+    m_hasPreviewPoint = false;
 }
 
 void MeasureTool::cancelGesture()
 {
     clearPendingPoint();
     m_pressedPoint = m_dragPoint = -1;
+    m_hasPreviewPoint = false;
     m_pickAction = PickAction::None;
 }
 
@@ -213,6 +299,10 @@ bool MeasureTool::keyPress(QKeyEvent *e)
         m_measurements.clear();
         m_pendingPoint = -1;
         m_pendingPointIsNew = false;
+        m_hoverPoint = m_pressedPoint = m_dragPoint = -1;
+        m_dragging = false;
+        m_hasPreviewPoint = false;
+        m_pickAction = PickAction::None;
         return true;
     }
     if (e->key() == Qt::Key_Backspace || e->key() == Qt::Key_Delete) {
@@ -230,7 +320,48 @@ bool MeasureTool::keyPress(QKeyEvent *e)
         saveMeasurements();
         return true;
     }
+    if (e->key() == Qt::Key_X) {
+        exportMeasurements();
+        return true;
+    }
     return false;
+}
+
+void MeasureTool::exportMeasurements()
+{
+    if (!m_view || !m_view->document() || m_measurements.empty())
+        return;
+
+    // Keep shared polyline junctions shared in the exported edge mesh while
+    // omitting point records left unused after deleting measurements.
+    std::vector<int> pointMap(m_points.size(), -1);
+    int vertexCount = 0;
+    for (const Measurement &m : m_measurements) {
+        if (pointMap[m.a] < 0)
+            pointMap[m.a] = vertexCount++;
+        if (pointMap[m.b] < 0)
+            pointMap[m.b] = vertexCount++;
+    }
+
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, vertexCount);
+    for (std::size_t i = 0; i < m_points.size(); ++i) {
+        if (pointMap[i] < 0)
+            continue;
+        const QVector3D &p = m_points[i];
+        mesh.vert[std::size_t(pointMap[i])].P() = vcg::Point3f(p.x(), p.y(), p.z());
+    }
+    vcg::tri::Allocator<VCGMesh>::AddEdges(mesh, m_measurements.size());
+    for (std::size_t i = 0; i < m_measurements.size(); ++i) {
+        const Measurement &m = m_measurements[i];
+        mesh.edge[i].V(0) = &mesh.vert[std::size_t(pointMap[m.a])];
+        mesh.edge[i].V(1) = &mesh.vert[std::size_t(pointMap[m.b])];
+    }
+
+    Document *doc = m_view->document();
+    doc->beginUndoStep(QObject::tr("Export Measurements"));
+    doc->addMesh(mesh, QObject::tr("Measurements"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc->endUndoStep(true);
 }
 
 void MeasureTool::printMeasurements() const
@@ -306,23 +437,15 @@ void MeasureTool::paintOverlay(
     const QMatrix4x4 &worldToClip,
     const QSize &viewportSize)
 {
-    auto project = [&](const QVector3D &world, QPointF &screen) {
-        const QVector4D clip = worldToClip * QVector4D(world, 1.0f);
-        if (clip.w() <= 1e-6f)
-            return false;
-        const QVector3D ndc = clip.toVector3DAffine();
-        screen = QPointF(
-            (ndc.x() * 0.5f + 0.5f) * viewportSize.width(),
-            (1.0f - (ndc.y() * 0.5f + 0.5f)) * viewportSize.height());
-        return std::isfinite(screen.x()) && std::isfinite(screen.y());
-    };
-
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setBrush(QColor(85, 170, 255));
     for (std::size_t i = 0; i < m_measurements.size(); ++i) {
         const Measurement &m = m_measurements[i];
+        const QVector3D &worldA = m_points[m.a];
+        const QVector3D &worldB = m_points[m.b];
         QPointF a, b;
-        if (!project(m.a, a) || !project(m.b, b))
+        if (!projectPoint(worldA, worldToClip, viewportSize, a)
+            || !projectPoint(worldB, worldToClip, viewportSize, b))
             continue;
         QPen pen(QColor(85, 170, 255), 2.0);
         pen.setCosmetic(true);
@@ -331,17 +454,33 @@ void MeasureTool::paintOverlay(
         painter.drawEllipse(b, 4.0, 4.0);
         const QString label = QStringLiteral("M%1: %2").arg(i).arg(m.length, 0, 'g', 8);
         const QRectF textRect = painter.fontMetrics().boundingRect(label).adjusted(-5, -3, 5, 3);
-        const QRectF placed = textRect.translated(b + QPointF(9, -9) - textRect.topLeft());
+        const QPointF midpoint = (a + b) * 0.5;
+        const QRectF placed = textRect.translated(midpoint + QPointF(8, -8) - textRect.topLeft());
         painter.fillRect(placed, QColor(20, 20, 24, 190));
         painter.setPen(Qt::white);
         painter.drawText(placed, Qt::AlignCenter, label);
     }
-    if (m_hasFirstPoint) {
+    if (m_pendingPoint >= 0 && std::size_t(m_pendingPoint) < m_points.size()) {
         QPointF p;
-        if (project(m_firstPoint, p)) {
+        if (projectPoint(m_points[std::size_t(m_pendingPoint)], worldToClip, viewportSize, p)) {
             painter.setBrush(QColor(255, 170, 85));
             painter.setPen(QPen(QColor(255, 220, 160), 2.0));
             painter.drawEllipse(p, 5.0, 5.0);
+        }
+    }
+    if (m_hoverPoint >= 0 && std::size_t(m_hoverPoint) < m_points.size()) {
+        QPointF p;
+        if (projectPoint(m_points[std::size_t(m_hoverPoint)], worldToClip, viewportSize, p)) {
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen(QColor(255, 230, 120), 2.5));
+            painter.drawEllipse(p, 8.0, 8.0);
+
+            const QString hint = QObject::tr("Click to continue · Drag to move");
+            const QRectF textRect = painter.fontMetrics().boundingRect(hint).adjusted(-5, -3, 5, 3);
+            const QRectF placed = textRect.translated(p + QPointF(12, 12) - textRect.topLeft());
+            painter.fillRect(placed, QColor(20, 20, 24, 210));
+            painter.setPen(QColor(255, 240, 170));
+            painter.drawText(placed, Qt::AlignCenter, hint);
         }
     }
 }
@@ -349,8 +488,11 @@ void MeasureTool::paintOverlay(
 std::vector<ToolLineSegment> MeasureTool::depthCuedLines() const
 {
     std::vector<ToolLineSegment> lines;
-    lines.reserve(m_measurements.size());
+    lines.reserve(m_measurements.size() + 1);
     for (const Measurement &m : m_measurements)
-        lines.push_back({m.a, m.b});
+        lines.push_back({m_points[m.a], m_points[m.b]});
+    if (m_pendingPoint >= 0 && std::size_t(m_pendingPoint) < m_points.size()
+        && m_hasPreviewPoint)
+        lines.push_back({m_points[std::size_t(m_pendingPoint)], m_previewPoint});
     return lines;
 }
