@@ -481,6 +481,7 @@ struct SceneRasterProjectedDrawItem {
     // routes the mouse to the camera until it becomes current again.
     bool m_toolOwnerIsCurrent = true;
     QLabel *m_toolBadgeLabel = nullptr; // persistent "tool owned here" indicator
+    QWidget *m_toolOverlayWidget = nullptr; // transparent screen-space tool drawing
     // The tool receives mouse input only when owned-here, current, and not suspended.
     bool toolLive() const { return m_activeTool && m_toolOwnerIsCurrent && !m_toolSuspended; }
     // Tools operate in the 3D scene and the UV parametrization views (not raster).

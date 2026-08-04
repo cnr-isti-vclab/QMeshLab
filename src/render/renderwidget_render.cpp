@@ -517,4 +517,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     }
 
     emit frameRendered(cpuMs, gpuMs, gpuTimingSupported, gpuSampleValid);
+    if (m_toolOverlayWidget)
+        m_toolOverlayWidget->update();
 }

@@ -10,6 +10,9 @@
 class RenderWidget;
 class QMouseEvent;
 class QKeyEvent;
+class QPainter;
+class QMatrix4x4;
+class QSize;
 
 // Result of an asynchronous GPU surface pick (see RenderWidget::requestSurfacePick).
 struct SurfacePick
@@ -58,6 +61,18 @@ public:
     virtual bool mouseMove(QMouseEvent *e) { (void)e; return false; }
     virtual bool mouseRelease(QMouseEvent *e) { (void)e; return false; }
     virtual bool keyPress(QKeyEvent *e) { (void)e; return false; }
+
+    // Optional screen-space overlay. The matrix maps world coordinates to clip
+    // space; viewportSize is in logical widget pixels.
+    virtual void paintOverlay(
+        QPainter &painter,
+        const QMatrix4x4 &worldToClip,
+        const QSize &viewportSize)
+    {
+        (void)painter;
+        (void)worldToClip;
+        (void)viewportSize;
+    }
 
     // Delivered (asynchronously) after a RenderWidget::requestSurfacePick issued
     // by this tool completes. result.hit is false when the click missed all meshes.

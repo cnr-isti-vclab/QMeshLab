@@ -19,6 +19,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QPainter>
+#include <QPaintEvent>
 #include <QPixmap>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -34,6 +35,34 @@
 #include <utility>
 
 namespace {
+
+class InteractiveToolOverlay final : public QWidget
+{
+public:
+    explicit InteractiveToolOverlay(RenderWidget *view)
+        : QWidget(view), m_view(view)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        setAttribute(Qt::WA_TranslucentBackground, true);
+        setAutoFillBackground(false);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        InteractiveTool *tool = m_view ? m_view->activeTool() : nullptr;
+        if (!tool || m_view->viewMode() != RenderWidget::ViewMode::Scene3D)
+            return;
+        QPainter painter(this);
+        tool->paintOverlay(
+            painter,
+            m_view->projectionMatrix() * m_view->viewMatrix(),
+            size());
+    }
+
+private:
+    RenderWidget *m_view = nullptr;
+};
 
 bool fuzzyFloatEqual(float a, float b, float eps = 1e-6f)
 {
@@ -1007,6 +1036,9 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         "}"));
     m_currentViewIndicator->hide();
 
+    m_toolOverlayWidget = new InteractiveToolOverlay(this);
+    m_toolOverlayWidget->setGeometry(rect());
+
     createOverlayButtons();
     m_uvTextureGroupList = new QListWidget(this);
     m_uvTextureGroupList->setViewMode(QListView::IconMode);
@@ -1036,8 +1068,10 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         // encoded no longer maps to the same index. Rejecting it avoids
         // selecting the wrong layer, and cancels any in-progress tool gesture.
         ++m_depthPickSequence;
-        if (m_activeTool)
+        if (m_activeTool) {
             m_activeTool->cancelGesture();
+            updateToolBadge();
+        }
         if (index >= 0 && index <= int(m_meshVisibility.size()))
             m_meshVisibility.insert(m_meshVisibility.begin() + index, true);
         else
@@ -1058,8 +1092,10 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int index) {
         ++m_depthPickSequence; // invalidate in-flight picks (see meshAdded)
-        if (m_activeTool)
+        if (m_activeTool) {
             m_activeTool->cancelGesture();
+            updateToolBadge();
+        }
         if (index >= 0 && index < int(m_meshVisibility.size()))
             m_meshVisibility.erase(m_meshVisibility.begin() + index);
         else
@@ -3040,6 +3076,8 @@ void RenderWidget::setActiveTool(InteractiveTool *tool)
     }
     applyToolCursor();
     updateToolBadge();
+    if (m_toolOverlayWidget)
+        m_toolOverlayWidget->update();
     update();
 }
 
@@ -3455,6 +3493,8 @@ void RenderWidget::resizeEvent(QResizeEvent *e)
     QRhiWidget::resizeEvent(e);
     if (m_currentViewIndicator)
         m_currentViewIndicator->setGeometry(rect().adjusted(1, 1, -1, -1));
+    if (m_toolOverlayWidget)
+        m_toolOverlayWidget->setGeometry(rect());
     updateQualityHistogramOverlay();
     layoutOverlayButtons();
 }

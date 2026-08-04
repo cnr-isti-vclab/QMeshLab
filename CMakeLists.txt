@@ -172,7 +172,7 @@ qt_add_executable(QMeshLab
     src/render/interactivetool.h src/render/interactivetoolfactory.cpp
     src/render/tools/selectlayertool.h src/render/tools/selectlayertool.cpp
     src/render/tools/rubberbandselecttool.h src/render/tools/rubberbandselecttool.cpp
-    src/render/tools/rubberbandselecttool.h src/render/tools/rubberbandselecttool.cpp
+    src/render/tools/measuretool.h src/render/tools/measuretool.cpp
     src/ui/layerwidget.h src/ui/layerwidget.cpp
     src/ui/undographwidget.h src/ui/undographwidget.cpp
 )
@@ -309,7 +309,9 @@ qt_add_resources(QMeshLab "icons"
         img/layer_eye_close.png
         img/tool_select_layer.png
         img/tool_select_rect.png
+        img/icon_measure.png
         img/cur_pick.png
+        img/cur_measure.png
         img/cur_trackball.png
         img/cur_sel_rect.png
         img/cur_sel_rect_plus.png

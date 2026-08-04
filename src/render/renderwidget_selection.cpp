@@ -299,6 +299,9 @@ void RenderWidget::executePendingDepthPick(
                 result.meshIndex = result.hit ? meshIndex : -1;
                 result.worldPos = worldPos;
                 self->m_activeTool->onSurfacePicked(result);
+                self->updateToolBadge();
+                if (self->m_toolOverlayWidget)
+                    self->m_toolOverlayWidget->update();
             }
         },
             Qt::QueuedConnection);
