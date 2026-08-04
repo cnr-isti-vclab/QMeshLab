@@ -189,7 +189,12 @@ void Document::setSuppressUndo(bool s)
     m_undoManager->setSuppressUndo(s);
 }
 
-std::optional<ScriptAction> Document::undoNodeScriptAction(int nodeId) const
+std::vector<ScriptAction> Document::undoNodeScriptActions(int nodeId) const
 {
-    return m_undoManager->nodeScriptAction(nodeId);
+    return m_undoManager->nodeScriptActions(nodeId);
+}
+
+void Document::recordScriptAction(const ScriptAction &scriptAction)
+{
+    m_undoManager->recordScriptAction(scriptAction);
 }

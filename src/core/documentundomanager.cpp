@@ -474,8 +474,13 @@ bool DocumentUndoManager::makeRoot(int nodeId)
         compacted.push_back(std::move(n));
     }
     // The new root (nodeId) has no parent and no label (it is a root state).
-    compacted[remap[nodeId]].parentId = -1;
-    compacted[remap[nodeId]].label.clear();
+    UndoNode &newRoot = compacted[remap[nodeId]];
+    newRoot.parentId = -1;
+    newRoot.label.clear();
+    // Actions that produced the new baseline must not be replayed. Informational
+    // calls made afterwards remain valid and stay in trailingActionRecords.
+    newRoot.prefixActionRecords.clear();
+    newRoot.actionRecord.reset();
 
     m_undoNodes = std::move(compacted);
     m_undoCurrentNode = remap.count(effectiveCurrent) ? remap[effectiveCurrent] : remap[nodeId];
@@ -635,6 +640,8 @@ void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, Und
     child.storageKind = UndoStorageKind::FullSnapshot;
     child.label    = label;
     child.parentId = m_undoCurrentNode;
+    child.prefixActionRecords = std::move(
+        m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].trailingActionRecords);
     if (scriptAction.has_value())
         child.actionRecord = UndoActionRecord::fromScriptAction(*scriptAction);
 
@@ -696,6 +703,8 @@ void DocumentUndoManager::pushDeltaStep(
     child.storageKind = UndoStorageKind::Delta;
     child.label = label;
     child.parentId = m_undoCurrentNode;
+    child.prefixActionRecords = std::move(
+        m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].trailingActionRecords);
     child.beforeSelection = std::move(before);
     child.afterSelection = std::move(after);
     if (scriptAction.has_value())
@@ -733,15 +742,36 @@ void DocumentUndoManager::pushDeltaStep(
     emitStateChanged();
 }
 
-std::optional<ScriptAction> DocumentUndoManager::nodeScriptAction(int nodeId) const
+std::vector<ScriptAction> DocumentUndoManager::nodeScriptActions(int nodeId) const
 {
+    std::vector<ScriptAction> actions;
     if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
-        return {};
-    const std::optional<UndoActionRecord> &record =
-        m_undoNodes[static_cast<size_t>(nodeId)].actionRecord;
-    if (!record.has_value())
-        return {};
-    return record->toScriptAction();
+        return actions;
+    const UndoNode &node = m_undoNodes[static_cast<size_t>(nodeId)];
+    actions.reserve(node.prefixActionRecords.size() + node.trailingActionRecords.size() + 1);
+    for (const UndoActionRecord &record : node.prefixActionRecords)
+        actions.push_back(record.toScriptAction());
+    if (node.actionRecord.has_value())
+        actions.push_back(node.actionRecord->toScriptAction());
+    for (const UndoActionRecord &record : node.trailingActionRecords)
+        actions.push_back(record.toScriptAction());
+    return actions;
+}
+
+void DocumentUndoManager::recordScriptAction(const ScriptAction &scriptAction)
+{
+    if (m_restoringUndoRedo || m_suppressUndo)
+        return;
+    if (m_undoCurrentNode < 0) {
+        UndoNode root;
+        root.state = m_doc.captureUndoState();
+        root.parentId = -1;
+        m_undoNodes.push_back(std::move(root));
+        m_undoCurrentNode = 0;
+    }
+    m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].trailingActionRecords.push_back(
+        UndoActionRecord::fromScriptAction(scriptAction));
+    emitStateChanged();
 }
 
 // Prune the oldest ancestor nodes until the tree has at most m_undoLimit nodes

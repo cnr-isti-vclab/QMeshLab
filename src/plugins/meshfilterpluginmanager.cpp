@@ -685,13 +685,11 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         };
     }
 
-    const bool wrapUndo = (targetDescriptor->outputDomain != MeshFilterOutputDomain::Information);
     // A filter that only touches selection bits (VS/FS) on a single mesh can use
     // the cheap bit-packed delta-undo path instead of a full geometry snapshot —
     // critical for large meshes, where snapshotting is seconds of deep-copy.
     const bool selectionOnlyUndo =
-        wrapUndo
-        && targetDescriptor->inputDomain == MeshFilterInputDomain::SingleMesh
+        targetDescriptor->inputDomain == MeshFilterInputDomain::SingleMesh
         && !targetDescriptor->outputModifies.isEmpty()
         && std::all_of(
                targetDescriptor->outputModifies.cbegin(),
@@ -700,25 +698,27 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
                    return code == QStringLiteral("VS") || code == QStringLiteral("FS");
                });
     const int originalCurrentMeshIndex = doc.currentMeshIndex();
-    if (wrapUndo) {
-        ScriptAction sa;
-        sa.kind = QStringLiteral("filter");
-        sa.filterKey = filterKey;
-        sa.currentMeshIndex = doc.currentMeshIndex();
-        sa.currentRasterIndex = doc.currentRasterIndex();
-        sa.currentLayerKind = doc.currentLayerKind();
-        // Preserve the original invocation values for history/script export so
-        // the generated Python call matches what the user explicitly chose in
-        // the GUI, rather than the post-normalized internal representation.
-        for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it)
-            sa.params[it.key()] = it.value();
-        sa.pythonCall = filterCallToPython(*targetDescriptor, parameters, true);
-        sa.compactPythonCall = filterCallToPython(*targetDescriptor, parameters, false);
-        if (selectionOnlyUndo && originalCurrentMeshIndex >= 0)
-            doc.beginUndoStep(targetDescriptor->name, sa, originalCurrentMeshIndex);
-        else
-            doc.beginUndoStep(targetDescriptor->name, sa);
-    }
+    ScriptAction scriptAction;
+    scriptAction.kind = QStringLiteral("filter");
+    scriptAction.filterKey = filterKey;
+    scriptAction.currentMeshIndex = doc.currentMeshIndex();
+    scriptAction.currentRasterIndex = doc.currentRasterIndex();
+    scriptAction.currentLayerKind = doc.currentLayerKind();
+    // Preserve the original invocation values for history/script export so the
+    // generated Python call matches what the user explicitly chose in the GUI.
+    for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it)
+        scriptAction.params[it.key()] = it.value();
+    scriptAction.pythonCall = filterCallToPython(*targetDescriptor, parameters, true);
+    scriptAction.compactPythonCall = filterCallToPython(*targetDescriptor, parameters, false);
+
+    // Even an informational filter gets an outer transaction. If it creates
+    // output conditionally, nested Document operations then collapse into this
+    // single filter step. A non-mutating result discards the snapshot below but
+    // retains its ScriptAction separately for Python history generation.
+    if (selectionOnlyUndo && originalCurrentMeshIndex >= 0)
+        doc.beginUndoStep(targetDescriptor->name, scriptAction, originalCurrentMeshIndex);
+    else
+        doc.beginUndoStep(targetDescriptor->name, scriptAction);
 
     const FilterParams typedParams(normalizedParameters);
     const CleanupApplicationResult preCleanup =
@@ -753,8 +753,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         const MultiMeshPreparationScope prepScope = prepareMeshesForFilter(*targetDescriptor, typedParams, doc);
         result = targetPlugin->runFilter(filterId, typedParams, doc);
         if (!result.success) {
-            if (wrapUndo)
-                doc.endUndoStep(false, true);
+            doc.endUndoStep(false, true);
             return result;
         }
 
@@ -800,8 +799,9 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     // document meshes with deleted elements in storage.
     compactMeshesAfterSuccessfulFilter(*targetDescriptor, result, doc, originalCurrentMeshIndex);
 
-    if (wrapUndo)
-        doc.endUndoStep(result.documentModified);
+    doc.endUndoStep(result.documentModified);
+    if (!result.documentModified)
+        doc.recordScriptAction(scriptAction);
 
     for (const QString &line : result.infoMessages) {
         if (!line.isEmpty()) {

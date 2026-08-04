@@ -177,7 +177,11 @@ struct UndoNode {
     int       preferredChild = -1; // which child to follow on redo() (-1 = none)
 
     // Optional action metadata.
+    // Informational filter calls do not create undo nodes. They remain ordered
+    // around the state-changing action through these two lists.
+    std::vector<UndoActionRecord> prefixActionRecords;
     std::optional<UndoActionRecord> actionRecord;
+    std::vector<UndoActionRecord> trailingActionRecords;
 
     // Optional selection deltas (used when storageKind == Delta).
     // Storing compact bit flags instead of a full mesh deep-copy.

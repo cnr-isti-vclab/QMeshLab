@@ -42,7 +42,8 @@ public:
     int undoCursorPosition() const;
     int currentNodeId() const { return m_undoCurrentNode; }
     std::vector<UndoTreeNodeInfo> undoTreeInfo() const;
-    std::optional<ScriptAction> nodeScriptAction(int nodeId) const;
+    std::vector<ScriptAction> nodeScriptActions(int nodeId) const;
+    void recordScriptAction(const ScriptAction &scriptAction);
 
     bool jumpToNode(int nodeId, bool restoreCamera = true);
     bool updateNodeCamera(int nodeId, const ViewState &viewState);

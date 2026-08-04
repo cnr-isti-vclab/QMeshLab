@@ -184,7 +184,8 @@ public:
     QStringList undoStackLabels() const;
     int undoCursorPosition() const;
     std::vector<UndoTreeNodeInfo> undoTreeInfo() const;
-    std::optional<ScriptAction> undoNodeScriptAction(int nodeId) const;
+    std::vector<ScriptAction> undoNodeScriptActions(int nodeId) const;
+    void recordScriptAction(const ScriptAction &scriptAction);
     int undoCurrentNodeId() const;
     bool jumpToUndoNode(int nodeId, bool restoreCamera = true);
     bool updateUndoNodeCamera(int nodeId);

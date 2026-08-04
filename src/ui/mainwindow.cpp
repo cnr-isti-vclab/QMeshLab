@@ -716,9 +716,10 @@ MainWindow::MainWindow(QWidget *parent)
         // Collect file paths for common prefix detection
         QStringList allPaths;
         for (const auto &info : m_doc->undoTreeInfo()) {
-            auto sa = m_doc->undoNodeScriptAction(info.nodeId);
-            if (sa.has_value() && !sa->filePaths.isEmpty())
-                allPaths.append(sa->filePaths);
+            for (const ScriptAction &sa : m_doc->undoNodeScriptActions(info.nodeId)) {
+                if (!sa.filePaths.isEmpty())
+                    allPaths.append(sa.filePaths);
+            }
         }
         QString commonDir;
         if (!allPaths.isEmpty()) {
@@ -764,55 +765,53 @@ MainWindow::MainWindow(QWidget *parent)
         int exportedCurrentRasterIndex = -1;
 
         for (const auto &pn : path) {
-            auto sa = m_doc->undoNodeScriptAction(pn.nodeId);
-            if (!sa.has_value()) continue;
-
-            if (sa->kind == QStringLiteral("filter")) {
-                if (sa->currentMeshIndex >= 0 && sa->currentMeshIndex != exportedCurrentMeshIndex) {
-                    lines << QStringLiteral("ms.set_current_mesh(%1)").arg(sa->currentMeshIndex);
-                    exportedCurrentMeshIndex = sa->currentMeshIndex;
-                }
-                if (sa->currentRasterIndex >= 0 && sa->currentRasterIndex != exportedCurrentRasterIndex) {
-                    lines << QStringLiteral("ms.set_current_raster(%1)").arg(sa->currentRasterIndex);
-                    exportedCurrentRasterIndex = sa->currentRasterIndex;
-                }
-                const QString recordedCall = includeDefaultParameters
-                    ? sa->pythonCall.trimmed()
-                    : sa->compactPythonCall.trimmed();
-                if (!recordedCall.isEmpty()) {
-                    lines << recordedCall;
-                    continue;
-                }
-                const MeshFilterDescriptor *desc = nullptr;
-                for (const auto &fi : m_doc->filterInfos()) {
-                    if (fi.key == sa->filterKey) {
-                        desc = &fi.descriptor;
-                        break;
+            for (const ScriptAction &sa : m_doc->undoNodeScriptActions(pn.nodeId)) {
+                if (sa.kind == QStringLiteral("filter")) {
+                    if (sa.currentMeshIndex >= 0 && sa.currentMeshIndex != exportedCurrentMeshIndex) {
+                        lines << QStringLiteral("ms.set_current_mesh(%1)").arg(sa.currentMeshIndex);
+                        exportedCurrentMeshIndex = sa.currentMeshIndex;
                     }
-                }
-                if (desc) {
-                    lines << filterCallToPython(*desc, sa->params, includeDefaultParameters);
-                } else {
-                    lines << QStringLiteral("# unknown filter: %1").arg(sa->filterKey);
-                }
-            } else if (sa->kind == QStringLiteral("load_mesh")) {
-                for (const QString &fp : sa->filePaths) {
-                    QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
-                    lines << QStringLiteral("ms.load_new_mesh(\"%1\")").arg(rel.replace('\\', '/'));
-                    exportedCurrentMeshIndex = -1;
-                }
-            } else if (sa->kind == QStringLiteral("load_raster")) {
-                for (const QString &fp : sa->filePaths) {
-                    QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
-                    lines << QStringLiteral("ms.load_new_raster(\"%1\")").arg(rel.replace('\\', '/'));
-                    exportedCurrentRasterIndex = -1;
-                }
-            } else if (sa->kind == QStringLiteral("load_project")) {
-                for (const QString &fp : sa->filePaths) {
-                    QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
-                    lines << QStringLiteral("ms.load_project(\"%1\")").arg(rel.replace('\\', '/'));
-                    exportedCurrentMeshIndex = -1;
-                    exportedCurrentRasterIndex = -1;
+                    if (sa.currentRasterIndex >= 0 && sa.currentRasterIndex != exportedCurrentRasterIndex) {
+                        lines << QStringLiteral("ms.set_current_raster(%1)").arg(sa.currentRasterIndex);
+                        exportedCurrentRasterIndex = sa.currentRasterIndex;
+                    }
+                    const QString recordedCall = includeDefaultParameters
+                        ? sa.pythonCall.trimmed()
+                        : sa.compactPythonCall.trimmed();
+                    if (!recordedCall.isEmpty()) {
+                        lines << recordedCall;
+                        continue;
+                    }
+                    const MeshFilterDescriptor *desc = nullptr;
+                    for (const auto &fi : m_doc->filterInfos()) {
+                        if (fi.key == sa.filterKey) {
+                            desc = &fi.descriptor;
+                            break;
+                        }
+                    }
+                    if (desc)
+                        lines << filterCallToPython(*desc, sa.params, includeDefaultParameters);
+                    else
+                        lines << QStringLiteral("# unknown filter: %1").arg(sa.filterKey);
+                } else if (sa.kind == QStringLiteral("load_mesh")) {
+                    for (const QString &fp : sa.filePaths) {
+                        QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
+                        lines << QStringLiteral("ms.load_new_mesh(\"%1\")").arg(rel.replace('\\', '/'));
+                        exportedCurrentMeshIndex = -1;
+                    }
+                } else if (sa.kind == QStringLiteral("load_raster")) {
+                    for (const QString &fp : sa.filePaths) {
+                        QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
+                        lines << QStringLiteral("ms.load_new_raster(\"%1\")").arg(rel.replace('\\', '/'));
+                        exportedCurrentRasterIndex = -1;
+                    }
+                } else if (sa.kind == QStringLiteral("load_project")) {
+                    for (const QString &fp : sa.filePaths) {
+                        QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
+                        lines << QStringLiteral("ms.load_project(\"%1\")").arg(rel.replace('\\', '/'));
+                        exportedCurrentMeshIndex = -1;
+                        exportedCurrentRasterIndex = -1;
+                    }
                 }
             }
         }

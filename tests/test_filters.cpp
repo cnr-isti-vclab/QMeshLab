@@ -755,10 +755,31 @@ void FilterTests::hausdorffRunsOnTransientMeshCopies()
     params.insert(QStringLiteral("SampledMesh"), sampledIndex);
     params.insert(QStringLiteral("TargetMesh"), targetIndex);
     params.insert(QStringLiteral("SampleNum"), 32);
+    const std::size_t historySize = doc.undoTreeInfo().size();
     const MeshFilterRunResult result = doc.runFilter(filterKey, params);
     QVERIFY2(result.success, qPrintable(result.errorMessage));
     QVERIFY(!result.documentModified);
     QVERIFY(result.infoMessages.join(QLatin1Char('\n')).contains(QStringLiteral("Samples:")));
+    QCOMPARE(doc.undoTreeInfo().size(), historySize);
+    const auto informationalActions = doc.undoNodeScriptActions(doc.undoCurrentNodeId());
+    QVERIFY(std::any_of(
+        informationalActions.begin(), informationalActions.end(),
+        [&filterKey](const ScriptAction &action) { return action.filterKey == filterKey; }));
+
+    params.insert(QStringLiteral("SaveSample"), true);
+    const int meshCountBeforeSamples = doc.meshCount();
+    const MeshFilterRunResult savedResult = doc.runFilter(filterKey, params);
+    QVERIFY2(savedResult.success, qPrintable(savedResult.errorMessage));
+    QVERIFY(savedResult.documentModified);
+    QCOMPARE(doc.meshCount(), meshCountBeforeSamples + 2);
+    QCOMPARE(doc.undoTreeInfo().size(), historySize + 1);
+    QCOMPARE(doc.undoText(), QStringLiteral("Hausdorff Distance"));
+    const auto savedActions = doc.undoNodeScriptActions(doc.undoCurrentNodeId());
+    QCOMPARE(int(std::count_if(
+        savedActions.begin(), savedActions.end(),
+        [&filterKey](const ScriptAction &action) { return action.filterKey == filterKey; })), 2);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.meshCount(), meshCountBeforeSamples);
 }
 
 void FilterTests::cgalAlphaWrapRunsWhenAvailable()
