@@ -61,6 +61,7 @@ inline constexpr int kRasterProjectedVertexStrideFloats = 3;
 inline constexpr int kRasterProjectedFrustumVertexCount = 16;
 inline constexpr int kDecoratorUbufSize = 80; // mat4 mvp + vec4 color
 inline constexpr int kDecoratorFatUbufSize = 96; // mat4 mvp + vec4 color + vec4(width, invW, invH, _)
+inline constexpr int kToolLineUbufSize = 96;
 inline constexpr int kDecoratorSlotVertexNormals = 0;
 inline constexpr int kDecoratorSlotFaceNormals = 1;
 inline constexpr int kDecoratorSlotBoundaryEdges = 2;

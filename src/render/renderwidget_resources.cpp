@@ -1,6 +1,7 @@
 #include "renderwidget.h"
 #include "document.h"
 #include "meshgpuresourcecache.h"
+#include "linerenderer.h"
 #include "renderwidget_internal.h"
 #include <QElapsedTimer>
 #include <QImage>
@@ -534,6 +535,14 @@ void RenderWidget::ensureRenderResources()
         m_decoratorFatSrb.reset();
         m_decoratorFatPipeline.reset();
         m_decoratorPointPipeline.reset();
+        for (auto &ubuf : m_toolLineUbufs)
+            ubuf.reset();
+        m_toolLineVbuf.reset();
+        for (auto &srb : m_toolLineSrbs)
+            srb.reset();
+        m_toolLineHiddenPipeline.reset();
+        m_toolLineVisiblePipeline.reset();
+        m_toolLineVertexCount = 0;
         for (auto &srb : m_decoratorSrbs)
             srb.reset();
         for (auto &ubuf : m_decoratorUbufs)
@@ -1628,6 +1637,79 @@ void RenderWidget::ensureRenderResources()
             }
         }
     }
+
+    for (int pass = 0; pass < 2; ++pass) {
+        if (!m_toolLineUbufs[pass]) {
+            m_toolLineUbufs[pass].reset(
+                m_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, kToolLineUbufSize));
+            if (!m_toolLineUbufs[pass] || !m_toolLineUbufs[pass]->create())
+                m_toolLineUbufs[pass].reset();
+        }
+        if (!m_toolLineSrbs[pass] && m_toolLineUbufs[pass]) {
+            m_toolLineSrbs[pass].reset(m_rhi->newShaderResourceBindings());
+            m_toolLineSrbs[pass]->setBindings({
+                QRhiShaderResourceBinding::uniformBuffer(
+                    0,
+                    QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                    m_toolLineUbufs[pass].get())
+            });
+            if (!m_toolLineSrbs[pass]->create())
+                m_toolLineSrbs[pass].reset();
+        }
+    }
+    // Both passes share geometry and shaders.  Only the second pipeline tests
+    // scene depth; neither writes it, so this visual cue cannot affect the scene.
+    auto makeToolLinePipeline = [&](std::unique_ptr<QRhiGraphicsPipeline> &pipeline,
+                                    QRhiShaderResourceBindings *srb,
+                                    bool depthTest) {
+        if (pipeline || !srb)
+            return;
+        pipeline.reset(m_rhi->newGraphicsPipeline());
+        const QShader vs = loadShader(QStringLiteral(":/shaders/overlay_fat_decorator.vert.qsb"));
+        const QShader fs = loadShader(QStringLiteral(":/shaders/overlay_fat_decorator.frag.qsb"));
+        if (!vs.isValid() || !fs.isValid()) {
+            qWarning("Failed to load interactive-tool line shaders");
+            pipeline.reset();
+            return;
+        }
+        pipeline->setShaderStages({
+            { QRhiShaderStage::Vertex, vs },
+            { QRhiShaderStage::Fragment, fs }
+        });
+        pipeline->setTopology(QRhiGraphicsPipeline::Triangles);
+        pipeline->setDepthTest(depthTest);
+        pipeline->setDepthWrite(false);
+        pipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
+        pipeline->setDepthBias(-1);
+        pipeline->setSlopeScaledDepthBias(-1.0f);
+        pipeline->setCullMode(QRhiGraphicsPipeline::None);
+        QRhiGraphicsPipeline::TargetBlend blend;
+        blend.enable = true;
+        blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
+        blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        blend.opColor = QRhiGraphicsPipeline::Add;
+        blend.srcAlpha = QRhiGraphicsPipeline::One;
+        blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        blend.opAlpha = QRhiGraphicsPipeline::Add;
+        pipeline->setTargetBlends({blend});
+        QRhiVertexInputLayout layout;
+        layout.setBindings({{LineRenderer::kFatLineStrideFloats * sizeof(float)}});
+        layout.setAttributes({
+            {0, 0, QRhiVertexInputAttribute::Float3, 0},
+            {0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float)},
+            {0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float)},
+            {0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float)}
+        });
+        pipeline->setVertexInputLayout(layout);
+        pipeline->setShaderResourceBindings(srb);
+        pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
+        if (!pipeline->create()) {
+            qWarning("Failed to create interactive-tool line pipeline");
+            pipeline.reset();
+        }
+    };
+    makeToolLinePipeline(m_toolLineHiddenPipeline, m_toolLineSrbs[0].get(), false);
+    makeToolLinePipeline(m_toolLineVisiblePipeline, m_toolLineSrbs[1].get(), true);
 
     if (!m_currentMaskFillPipeline && m_currentMaskRp) {
         m_currentMaskFillPipeline.reset(m_rhi->newGraphicsPipeline());

@@ -1,13 +1,102 @@
 #include "renderwidget.h"
 #include "colormap.h"
 #include "document.h"
+#include "interactivetool.h"
+#include "linerenderer.h"
 #include "renderwidget_internal.h"
 #include <QLabel>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 
 using namespace RenderWidgetInternal;
+
+/**
+ * @brief Prepares the depth-cued lines for the active tool.
+ *
+ * @param updates The resource update batch to use for updating GPU buffers.
+ * @param mvp The model-view-projection matrix.
+ * @param pixelSize The size of the render target in pixels.
+ */
+void RenderWidget::prepareToolDepthCuedLines(
+    QRhiResourceUpdateBatch *&updates,
+    const QMatrix4x4 &mvp,
+    const QSize &pixelSize)
+{
+    const std::vector<ToolLineSegment> lines = m_activeTool
+        ? m_activeTool->depthCuedLines()
+        : std::vector<ToolLineSegment>();
+    std::vector<float> segments;
+    segments.reserve(lines.size() * LineRenderer::kLineStrideFloats);
+    for (const ToolLineSegment &line : lines) {
+        segments.insert(segments.end(), {
+            line.a.x(), line.a.y(), line.a.z(), line.b.x(), line.b.y(), line.b.z()
+        });
+    }
+    const std::vector<float> vertices = LineRenderer::buildFatLineVertices(segments);
+    const int vertexCount = int(vertices.size() / LineRenderer::kFatLineStrideFloats);
+    if (vertexCount == 0) {
+        m_toolLineVertexCount = 0;
+        return;
+    }
+    if (!m_toolLineVbuf || vertexCount != m_toolLineVertexCount) {
+        m_toolLineVbuf.reset(m_rhi->newBuffer(
+            QRhiBuffer::Dynamic,
+            QRhiBuffer::VertexBuffer,
+            int(vertices.size() * sizeof(float))));
+        if (!m_toolLineVbuf || !m_toolLineVbuf->create()) {
+            m_toolLineVbuf.reset();
+            m_toolLineVertexCount = 0;
+            return;
+        }
+    }
+    m_toolLineVertexCount = vertexCount;
+    if (!updates)
+        updates = m_rhi->nextResourceUpdateBatch();
+    updates->updateDynamicBuffer(
+        m_toolLineVbuf.get(), 0, int(vertices.size() * sizeof(float)), vertices.data());
+
+    // Draw the same geometry twice.  The first pass ignores depth and produces
+    // an opaque dotted line everywhere; the second is depth-tested and replaces
+    // its visible portions with a thicker solid line.  Thus the depth buffer
+    // alone classifies the line, without CPU ray casting or a depth readback.
+    for (int pass = 0; pass < 2; ++pass) {
+        if (!m_toolLineUbufs[pass])
+            continue;
+        float data[kToolLineUbufSize / sizeof(float)] = {};
+        memcpy(data, mvp.constData(), 16 * sizeof(float));
+        data[16] = 170.0f / 255.0f; // color.r
+        data[17] = 1.0f;            // color.g
+        data[18] = 1.0f;            // color.b
+        data[19] = 1.0f;            // color.a: dashes provide the occlusion cue
+        data[20] = 3.5f; // params.x: same width; dashes alone indicate occlusion
+        data[21] = 1.0f / float(qMax(1, pixelSize.width()));  // params.y: 1 / viewport width
+        data[22] = 1.0f / float(qMax(1, pixelSize.height())); // params.z: 1 / viewport height
+        data[23] = pass == 0 ? 1.0f : 0.0f; // params.w: enable dash pattern
+        updates->updateDynamicBuffer(m_toolLineUbufs[pass].get(), 0, kToolLineUbufSize, data);
+    }
+}
+
+void RenderWidget::drawToolDepthCuedLines(QRhiCommandBuffer *cb)
+{
+    if (!cb || !m_toolLineVbuf || m_toolLineVertexCount <= 0)
+        return;
+    const QRhiCommandBuffer::VertexInput input(m_toolLineVbuf.get(), 0);
+    QRhiGraphicsPipeline *pipelines[2] = {
+        m_toolLineHiddenPipeline.get(), m_toolLineVisiblePipeline.get()
+    };
+    // Ordering matters: the depth-tested solid pass covers the dotted base pass
+    // only where the measurement segment is visible to the camera.
+    for (int pass = 0; pass < 2; ++pass) {
+        if (!pipelines[pass] || !m_toolLineSrbs[pass])
+            continue;
+        cb->setGraphicsPipeline(pipelines[pass]);
+        cb->setShaderResources(m_toolLineSrbs[pass].get());
+        cb->setVertexInput(0, 1, &input);
+        cb->draw(m_toolLineVertexCount);
+    }
+}
 
 void RenderWidget::initialize(QRhiCommandBuffer *cb)
 {
@@ -447,6 +536,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (framePlan.hasFillPass())
         renderSceneFillPrepasses(cb, framePlan);
 
+    if (!rasterMode)
+        prepareToolDepthCuedLines(u, vp, sz);
+
     cb->beginPass(renderTarget(), m_renderSettings.sceneBackgroundBottomColor, { 1.0f, 0 }, u);
     cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
 
@@ -466,6 +558,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (framePlan.hasRasterProjectedPass())
         renderSceneRasterProjected(cb, framePlan);
     renderSceneDecoratorItems(cb, framePlan);
+    if (!rasterMode)
+        drawToolDepthCuedLines(cb);
 
     // In RasterImage mode the raster must be a screen-space overlay over the
     // 3D scene (no depth test), controlled by raster opacity.

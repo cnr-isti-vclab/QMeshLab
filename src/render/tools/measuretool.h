@@ -3,6 +3,7 @@
 #include "interactivetool.h"
 
 #include <QVector3D>
+#include <QPoint>
 
 #include <vector>
 
@@ -19,6 +20,8 @@ public:
     void activate(RenderWidget &view) override;
     void deactivate(bool commit) override;
     bool mousePress(QMouseEvent *e) override;
+    bool mouseMove(QMouseEvent *e) override;
+    bool mouseRelease(QMouseEvent *e) override;
     bool keyPress(QKeyEvent *e) override;
     void onSurfacePicked(const SurfacePick &result) override;
     void cancelGesture() override;
@@ -26,18 +29,32 @@ public:
         QPainter &painter,
         const QMatrix4x4 &worldToClip,
         const QSize &viewportSize) override;
+    std::vector<ToolLineSegment> depthCuedLines() const override;
 
 private:
     struct Measurement {
-        QVector3D a;
-        QVector3D b;
+        std::size_t a = 0;
+        std::size_t b = 0;
         double length = 0.0;
     };
 
+    enum class PickAction { None, AddPoint, DragPoint };
+
+    int pointAt(const QPointF &screenPos) const;
+    void finishSegment(std::size_t point);
+    void updateLengths(std::size_t point);
+    void clearPendingPoint();
     void printMeasurements() const;
     void saveMeasurements() const;
 
+    std::vector<QVector3D> m_points;
     std::vector<Measurement> m_measurements;
-    QVector3D m_firstPoint;
-    bool m_hasFirstPoint = false;
+    int m_pendingPoint = -1;
+    bool m_pendingPointIsNew = false;
+    int m_hoverPoint = -1;
+    int m_pressedPoint = -1;
+    int m_dragPoint = -1;
+    QPoint m_pressPos;
+    bool m_dragging = false;
+    PickAction m_pickAction = PickAction::None;
 };

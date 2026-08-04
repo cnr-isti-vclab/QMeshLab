@@ -8,10 +8,11 @@ layout(location = 3) in float inSide;
 layout(std140, binding = 0) uniform buf {
     mat4 mvp;
     vec4 color;
-    vec4 params; // x = width(px), y = invW, z = invH
+    vec4 params; // width(px), 1/viewport width, 1/viewport height, dashed flag
 } ub;
 
 layout(location = 0) out float vSide;
+layout(location = 1) out float vAlongPx;
 
 void main()
 {
@@ -36,4 +37,5 @@ void main()
 
     gl_Position = baseClip;
     vSide = inSide;
+    vAlongPx = inAlong * length((ndc1 - ndc0) * 0.5 / ub.params.yz);
 }

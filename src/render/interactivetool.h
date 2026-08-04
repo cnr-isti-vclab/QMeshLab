@@ -22,6 +22,12 @@ struct SurfacePick
     QVector3D worldPos;
 };
 
+struct ToolLineSegment
+{
+    QVector3D a;
+    QVector3D b;
+};
+
 // Base class for interactive editing tools (selection, transform, measure, …).
 //
 // A tool is a thin interactive front-end: it captures mouse/keyboard input in a
@@ -73,6 +79,9 @@ public:
         (void)worldToClip;
         (void)viewportSize;
     }
+    // World-space segments drawn with the standard depth cue: dotted where
+    // occluded by scene geometry, thicker and solid where visible.
+    virtual std::vector<ToolLineSegment> depthCuedLines() const { return {}; }
 
     // Delivered (asynchronously) after a RenderWidget::requestSurfacePick issued
     // by this tool completes. result.hit is false when the click missed all meshes.

@@ -454,6 +454,11 @@ struct SceneRasterProjectedDrawItem {
     void processCurrentMeshMask(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshDebugView(QRhiCommandBuffer *cb, const QSize &pixelSize);
     void drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pixelSize);
+    void prepareToolDepthCuedLines(
+        QRhiResourceUpdateBatch *&updates,
+        const QMatrix4x4 &mvp,
+        const QSize &pixelSize);
+    void drawToolDepthCuedLines(QRhiCommandBuffer *cb);
     void syncRasterCacheWithDocument();
     void ensureRasterResources(
         QRhiCommandBuffer *cb,
@@ -608,6 +613,12 @@ struct SceneRasterProjectedDrawItem {
     std::unique_ptr<QRhiShaderResourceBindings> m_decoratorFatSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorFatPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_decoratorPointPipeline;
+    std::array<std::unique_ptr<QRhiBuffer>, 2> m_toolLineUbufs;
+    std::unique_ptr<QRhiBuffer> m_toolLineVbuf;
+    std::array<std::unique_ptr<QRhiShaderResourceBindings>, 2> m_toolLineSrbs;
+    std::unique_ptr<QRhiGraphicsPipeline> m_toolLineHiddenPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> m_toolLineVisiblePipeline;
+    int m_toolLineVertexCount = 0;
     // Radiance Scaling gradient buffer (pass 1 pre-pass)
     std::unique_ptr<QRhiTexture> m_rsGradTexture;          // RGBA32F (gx,gy,logZ,1)
     std::unique_ptr<QRhiRenderBuffer> m_rsGradDepth;
