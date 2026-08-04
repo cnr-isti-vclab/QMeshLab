@@ -18,6 +18,7 @@
 #include <QTextStream>
 #include <QVector4D>
 
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -76,6 +77,11 @@ QCursor MeasureTool::cursor() const
 void MeasureTool::activate(RenderWidget &view)
 {
     InteractiveTool::activate(view);
+    resetSession();
+}
+
+void MeasureTool::resetSession()
+{
     m_points.clear();
     m_measurements.clear();
     m_pendingPoint = -1;
@@ -88,21 +94,13 @@ void MeasureTool::activate(RenderWidget &view)
 
 void MeasureTool::deactivate(bool commit)
 {
-    m_points.clear();
-    m_measurements.clear();
-    m_pendingPoint = -1;
-    m_pendingPointIsNew = false;
-    m_hoverPoint = m_pressedPoint = m_dragPoint = -1;
-    m_dragging = false;
-    m_hasPreviewPoint = false;
-    m_pickAction = PickAction::None;
+    resetSession();
     InteractiveTool::deactivate(commit);
 }
 
 bool MeasureTool::mousePress(QMouseEvent *e)
 {
-    if (!m_view || !e || e->button() != Qt::LeftButton
-        || m_view->viewMode() != RenderWidget::ViewMode::Scene3D)
+    if (!m_view || !e || e->button() != Qt::LeftButton)
         return false;
     m_pressedPoint = pointAt(e->position());
     m_pressPos = e->position().toPoint();
@@ -184,7 +182,6 @@ void MeasureTool::onSurfacePicked(const SurfacePick &result)
     if (m_pickAction == PickAction::DragPoint) {
         if (m_dragPoint >= 0 && std::size_t(m_dragPoint) < m_points.size()) {
             m_points[std::size_t(m_dragPoint)] = result.worldPos;
-            updateLengths(std::size_t(m_dragPoint));
         }
         m_pickAction = PickAction::None;
         return;
@@ -244,30 +241,41 @@ void MeasureTool::finishSegment(std::size_t point)
         || point >= m_points.size() || std::size_t(m_pendingPoint) == point)
         return;
     const std::size_t first = std::size_t(m_pendingPoint);
-    const QVector3D &a = m_points[first];
-    const QVector3D &b = m_points[point];
-    m_measurements.push_back({first, point, vcg::Distance(
-        vcg::Point3d(a.x(), a.y(), a.z()), vcg::Point3d(b.x(), b.y(), b.z()))});
+    m_measurements.push_back({first, point});
     m_pendingPoint = -1;
     m_pendingPointIsNew = false;
     m_hasPreviewPoint = false;
     if (Document *doc = m_view->document()) {
         const Measurement &m = m_measurements.back();
         doc->writeLog(
-            QObject::tr("Distance M%1: %2").arg(m_measurements.size() - 1).arg(m.length, 0, 'g', 12),
+            QObject::tr("Distance M%1: %2")
+                .arg(m_measurements.size() - 1)
+                .arg(measurementLength(m), 0, 'g', 12),
             Document::LogSource::Application);
     }
 }
 
-void MeasureTool::updateLengths(std::size_t point)
+double MeasureTool::measurementLength(const Measurement &measurement) const
 {
-    for (Measurement &m : m_measurements) {
-        if (m.a != point && m.b != point)
-            continue;
-        const QVector3D &a = m_points[m.a];
-        const QVector3D &b = m_points[m.b];
-        m.length = vcg::Distance(
-            vcg::Point3d(a.x(), a.y(), a.z()), vcg::Point3d(b.x(), b.y(), b.z()));
+    const QVector3D &a = m_points[measurement.a];
+    const QVector3D &b = m_points[measurement.b];
+    return vcg::Distance(
+        vcg::Point3d(a.x(), a.y(), a.z()),
+        vcg::Point3d(b.x(), b.y(), b.z()));
+}
+
+void MeasureTool::trimUnusedPoints()
+{
+    // Segments are removed in reverse creation order, so any point that becomes
+    // unreferenced is at the end. Preserve the shared endpoints still in use.
+    while (!m_points.empty()) {
+        const std::size_t last = m_points.size() - 1;
+        const bool referenced = std::any_of(
+            m_measurements.begin(), m_measurements.end(),
+            [last](const Measurement &m) { return m.a == last || m.b == last; });
+        if (referenced || m_pendingPoint == int(last))
+            break;
+        m_points.pop_back();
     }
 }
 
@@ -295,21 +303,16 @@ bool MeasureTool::keyPress(QKeyEvent *e)
     if (!e)
         return false;
     if (e->key() == Qt::Key_C) {
-        m_points.clear();
-        m_measurements.clear();
-        m_pendingPoint = -1;
-        m_pendingPointIsNew = false;
-        m_hoverPoint = m_pressedPoint = m_dragPoint = -1;
-        m_dragging = false;
-        m_hasPreviewPoint = false;
-        m_pickAction = PickAction::None;
+        resetSession();
         return true;
     }
     if (e->key() == Qt::Key_Backspace || e->key() == Qt::Key_Delete) {
         if (m_pendingPoint >= 0)
             clearPendingPoint();
-        else if (!m_measurements.empty())
+        else if (!m_measurements.empty()) {
             m_measurements.pop_back();
+            trimUnusedPoints();
+        }
         return true;
     }
     if (e->key() == Qt::Key_P) {
@@ -332,30 +335,20 @@ void MeasureTool::exportMeasurements()
     if (!m_view || !m_view->document() || m_measurements.empty())
         return;
 
-    // Keep shared polyline junctions shared in the exported edge mesh while
-    // omitting point records left unused after deleting measurements.
-    std::vector<int> pointMap(m_points.size(), -1);
-    int vertexCount = 0;
-    for (const Measurement &m : m_measurements) {
-        if (pointMap[m.a] < 0)
-            pointMap[m.a] = vertexCount++;
-        if (pointMap[m.b] < 0)
-            pointMap[m.b] = vertexCount++;
-    }
-
+    // A newly selected first point is not part of a completed measurement yet.
+    const std::size_t vertexCount =
+        m_points.size() - (m_pendingPointIsNew ? std::size_t(1) : std::size_t(0));
     VCGMesh mesh;
     vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, vertexCount);
-    for (std::size_t i = 0; i < m_points.size(); ++i) {
-        if (pointMap[i] < 0)
-            continue;
+    for (std::size_t i = 0; i < vertexCount; ++i) {
         const QVector3D &p = m_points[i];
-        mesh.vert[std::size_t(pointMap[i])].P() = vcg::Point3f(p.x(), p.y(), p.z());
+        mesh.vert[i].P() = vcg::Point3f(p.x(), p.y(), p.z());
     }
     vcg::tri::Allocator<VCGMesh>::AddEdges(mesh, m_measurements.size());
     for (std::size_t i = 0; i < m_measurements.size(); ++i) {
         const Measurement &m = m_measurements[i];
-        mesh.edge[i].V(0) = &mesh.vert[std::size_t(pointMap[m.a])];
-        mesh.edge[i].V(1) = &mesh.vert[std::size_t(pointMap[m.b])];
+        mesh.edge[i].V(0) = &mesh.vert[m.a];
+        mesh.edge[i].V(1) = &mesh.vert[m.b];
     }
 
     Document *doc = m_view->document();
@@ -377,7 +370,7 @@ void MeasureTool::printMeasurements() const
         const QVector3D &b = m_points[m.b];
         doc->writeLog(
             QStringLiteral("M%1: %2 [%3, %4, %5] [%6, %7, %8]")
-                .arg(i).arg(m.length, 0, 'g', 12)
+                .arg(i).arg(measurementLength(m), 0, 'g', 12)
                 .arg(a.x(), 0, 'g', 12).arg(a.y(), 0, 'g', 12).arg(a.z(), 0, 'g', 12)
                 .arg(b.x(), 0, 'g', 12).arg(b.y(), 0, 'g', 12).arg(b.z(), 0, 'g', 12),
             Document::LogSource::Application);
@@ -419,7 +412,7 @@ void MeasureTool::saveMeasurements() const
         const Measurement &m = m_measurements[i];
         const QVector3D &a = m_points[m.a];
         const QVector3D &b = m_points[m.b];
-        out << 'M' << i << '\t' << m.length
+        out << 'M' << i << '\t' << measurementLength(m)
             << '\t' << a.x() << '\t' << a.y() << '\t' << a.z()
             << '\t' << b.x() << '\t' << b.y() << '\t' << b.z() << '\n';
     }
@@ -452,7 +445,8 @@ void MeasureTool::paintOverlay(
         painter.setPen(pen);
         painter.drawEllipse(a, 4.0, 4.0);
         painter.drawEllipse(b, 4.0, 4.0);
-        const QString label = QStringLiteral("M%1: %2").arg(i).arg(m.length, 0, 'g', 8);
+        const QString label = QStringLiteral("M%1: %2")
+            .arg(i).arg(measurementLength(m), 0, 'g', 8);
         const QRectF textRect = painter.fontMetrics().boundingRect(label).adjusted(-5, -3, 5, 3);
         const QPointF midpoint = (a + b) * 0.5;
         const QRectF placed = textRect.translated(midpoint + QPointF(8, -8) - textRect.topLeft());

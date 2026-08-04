@@ -303,8 +303,6 @@ void RenderWidget::executePendingDepthPick(
                 // A pick may change GPU-rendered tool geometry (for example a
                 // measurement rubber band), not only its QPainter overlay.
                 self->update();
-                if (self->m_toolOverlayWidget)
-                    self->m_toolOverlayWidget->update();
             }
         },
             Qt::QueuedConnection);

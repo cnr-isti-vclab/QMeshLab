@@ -1068,7 +1068,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         // A structural change invalidates any in-flight pick: the mesh id it
         // encoded no longer maps to the same index. Rejecting it avoids
         // selecting the wrong layer, and cancels any in-progress tool gesture.
-        ++m_depthPickSequence;
+        invalidateToolPick();
         if (m_activeTool) {
             m_activeTool->cancelGesture();
             updateToolBadge();
@@ -1092,7 +1092,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         update();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int index) {
-        ++m_depthPickSequence; // invalidate in-flight picks (see meshAdded)
+        invalidateToolPick(); // invalidate in-flight picks (see meshAdded)
         if (m_activeTool) {
             m_activeTool->cancelGesture();
             updateToolBadge();
@@ -1127,6 +1127,11 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         update();
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
+        invalidateToolPick();
+        if (m_activeTool) {
+            m_activeTool->cancelGesture();
+            updateToolBadge();
+        }
         syncPerMeshRenderModesWithDocument();
         syncOverlaySettingsToCurrentMesh();
         refreshColorSourceAvailability();
@@ -1775,6 +1780,10 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
     if (!canSwitchToViewMode(mode, errorMessage))
         return false;
 
+    invalidateToolPick();
+    if (m_activeTool)
+        m_activeTool->cancelGesture();
+
     if (mode == ViewMode::ParametrizationUV) {
         m_depthPickPending = false;
         m_uvFitRequested = true;
@@ -1790,6 +1799,8 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
     }
 
     m_viewMode = mode;
+    applyToolCursor();
+    updateToolBadge();
     syncUvTextureGroupUi();
     if (m_overlayPanel)
         m_overlayPanel->setViewerModeUv(m_viewMode == ViewMode::ParametrizationUV);
@@ -3065,6 +3076,7 @@ void RenderWidget::setActiveTool(InteractiveTool *tool)
 {
     if (m_activeTool == tool)
         return;
+    invalidateToolPick();
     if (m_activeTool) {
         if (m_doc)
             m_doc->writeLog(tr("Tool disengaged: %1").arg(m_activeTool->name()),
@@ -3088,8 +3100,6 @@ void RenderWidget::setActiveTool(InteractiveTool *tool)
     }
     applyToolCursor();
     updateToolBadge();
-    if (m_toolOverlayWidget)
-        m_toolOverlayWidget->update();
     update();
 }
 
@@ -3099,11 +3109,26 @@ void RenderWidget::setToolOwnerIsCurrent(bool current)
         return;
     m_toolOwnerIsCurrent = current;
     // Losing focus discards any half-finished gesture (it was bound to this view).
-    if (!current && m_activeTool)
+    if (!current && m_activeTool) {
+        invalidateToolPick();
         m_activeTool->cancelGesture();
+    }
     applyToolCursor();
     updateToolBadge();
     update();
+}
+
+bool RenderWidget::toolAllowedInCurrentMode() const
+{
+    return m_viewMode == ViewMode::Scene3D
+        || (m_viewMode == ViewMode::ParametrizationUV
+            && m_activeTool && m_activeTool->supportsUvView());
+}
+
+bool RenderWidget::toolLive() const
+{
+    return m_activeTool && m_toolOwnerIsCurrent && !m_toolSuspended
+        && toolAllowedInCurrentMode();
 }
 
 void RenderWidget::applyToolCursor()
@@ -3125,7 +3150,9 @@ void RenderWidget::updateToolBadge()
         return;
     }
     const bool live = toolLive();
-    const QString state = !m_toolOwnerIsCurrent
+    const QString state = !toolAllowedInCurrentMode()
+        ? tr("unavailable in this view")
+        : !m_toolOwnerIsCurrent
         ? tr("suspended — click this view to resume")
         : m_toolSuspended ? tr("camera (Tab to resume)")
                           : tr("active — Tab: camera, Esc: exit");
@@ -3156,6 +3183,12 @@ void RenderWidget::requestSurfacePick(QPoint pixel)
     m_depthPickPending = true;
     m_depthPickPurpose = PickPurpose::Tool;
     update();
+}
+
+void RenderWidget::invalidateToolPick()
+{
+    ++m_depthPickSequence;
+    m_depthPickPending = false;
 }
 
 void RenderWidget::keyPressEvent(QKeyEvent *e)
@@ -3344,10 +3377,6 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
         if (e)
             e->accept();
         update();
-        // Tool feedback such as endpoint hover highlights is painted by a
-        // transparent child widget, which does not repaint with the QRhi view.
-        if (m_toolOverlayWidget)
-            m_toolOverlayWidget->update();
         return;
     }
     if (m_viewMode == ViewMode::ParametrizationUV) {

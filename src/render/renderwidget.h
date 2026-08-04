@@ -487,14 +487,14 @@ struct SceneRasterProjectedDrawItem {
     bool m_toolOwnerIsCurrent = true;
     QLabel *m_toolBadgeLabel = nullptr; // persistent "tool owned here" indicator
     QWidget *m_toolOverlayWidget = nullptr; // transparent screen-space tool drawing
-    // The tool receives mouse input only when owned-here, current, and not suspended.
-    bool toolLive() const { return m_activeTool && m_toolOwnerIsCurrent && !m_toolSuspended; }
-    // Tools operate in the 3D scene and the UV parametrization views (not raster).
-    bool toolAllowedInCurrentMode() const {
-        return m_viewMode == ViewMode::Scene3D || m_viewMode == ViewMode::ParametrizationUV;
-    }
+    // View support is a tool capability: all tools support 3D, while only some
+    // explicitly support UV. Raster mode never routes input to tools.
+    bool toolAllowedInCurrentMode() const;
+    // The tool receives mouse input only when owned-here, current, supported, and not suspended.
+    bool toolLive() const;
     void applyToolCursor(); // sets the cursor for the current tool/suspend state
     void updateToolBadge();  // refreshes the persistent tool-status badge
+    void invalidateToolPick(); // reject pending/in-flight asynchronous tool picks
     // Distinguishes a double-click recenter pick from a tool-requested pick that
     // shares the same depth-pick machinery.
     enum class PickPurpose { Recenter, Tool };

@@ -35,14 +35,15 @@ private:
     struct Measurement {
         std::size_t a = 0;
         std::size_t b = 0;
-        double length = 0.0;
     };
 
     enum class PickAction { None, AddPoint, DragPoint, PreviewPoint };
 
     int pointAt(const QPointF &screenPos) const;
+    void resetSession();
     void finishSegment(std::size_t point);
-    void updateLengths(std::size_t point);
+    double measurementLength(const Measurement &measurement) const;
+    void trimUnusedPoints();
     void clearPendingPoint();
     void exportMeasurements();
     void printMeasurements() const;

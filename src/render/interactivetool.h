@@ -32,11 +32,10 @@ struct ToolLineSegment
 //
 // A tool is a thin interactive front-end: it captures mouse/keyboard input in a
 // RenderWidget, gives live visual feedback, and — when it produces a lasting
-// document change — commits that change by calling Document::runFilter() exactly
-// once. runFilter() already wraps itself in one undo step and records the Python
-// call, so a whole tool session collapses into a single, replayable, scriptable
-// undo node, indistinguishable from a menu-invoked filter. Tools therefore never
-// touch the undo stack themselves.
+// document change — normally commits that change by calling Document::runFilter()
+// exactly once. This produces one replayable undo node. Operations derived only
+// from transient UI state (for example exporting measurement segments) may use a
+// Document layer operation, which still owns its undo step.
 //
 // A tool is active in at most one view at a time. activate()/deactivate() bracket
 // the session; deactivate(false) means the session was cancelled and any pending
@@ -57,6 +56,9 @@ public:
     virtual QString iconPath() const { return {}; }
     // Cursor shown while the tool owns the mouse (not suspended).
     virtual QCursor cursor() const { return QCursor(Qt::CrossCursor); }
+    // The 3D scene is supported by every tool. Only tools that explicitly opt in
+    // receive input in the parametrization view.
+    virtual bool supportsUvView() const { return false; }
 
     virtual void activate(RenderWidget &view) { m_view = &view; }
     virtual void deactivate(bool commit) { (void)commit; m_view = nullptr; }
@@ -80,7 +82,7 @@ public:
         (void)viewportSize;
     }
     // World-space segments drawn with the standard depth cue: dotted where
-    // occluded by scene geometry, thicker and solid where visible.
+    // occluded by scene geometry and solid where visible.
     virtual std::vector<ToolLineSegment> depthCuedLines() const { return {}; }
 
     // Delivered (asynchronously) after a RenderWidget::requestSurfacePick issued

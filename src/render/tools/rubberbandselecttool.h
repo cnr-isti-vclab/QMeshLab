@@ -20,6 +20,7 @@ public:
     QString badgeDetail() const override;
     QString iconPath() const override;
     QCursor cursor() const override;
+    bool supportsUvView() const override { return true; }
 
     void deactivate(bool commit) override;
     bool mousePress(QMouseEvent *e) override;

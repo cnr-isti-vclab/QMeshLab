@@ -59,7 +59,7 @@ void RenderWidget::prepareToolDepthCuedLines(
 
     // Draw the same geometry twice.  The first pass ignores depth and produces
     // an opaque dotted line everywhere; the second is depth-tested and replaces
-    // its visible portions with a thicker solid line.  Thus the depth buffer
+    // its visible portions with a solid line. Thus the depth buffer
     // alone classifies the line, without CPU ray casting or a depth readback.
     for (int pass = 0; pass < 2; ++pass) {
         if (!m_toolLineUbufs[pass])

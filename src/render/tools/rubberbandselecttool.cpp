@@ -30,10 +30,10 @@ QString RubberBandSelectTool::statusHint() const
 
 QString RubberBandSelectTool::badgeDetail() const
 {
-    // Occlusion only applies to face selection.
-    if (m_visibleOnly && m_selectFaces)
-        return QObject::tr("👁 visible-only");
-    return {};
+    if (!m_selectFaces)
+        return QObject::tr("vertices");
+    return m_visibleOnly ? QObject::tr("faces · visible-only")
+                         : QObject::tr("faces");
 }
 
 QString RubberBandSelectTool::iconPath() const
