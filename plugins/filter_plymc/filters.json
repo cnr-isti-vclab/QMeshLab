@@ -4,7 +4,7 @@
     {
       "id": "generate_surface_reconstruction_vcg",
       "categories": ["Creation/Reconstruction"],
-      "name": "Surface Reconstruction: VCG",
+      "name": "Reconstruct Surface by Volumetric Merging",
       "pythonName": "generate_surface_reconstruction_vcg",
       "shortDescription": "A volumetric surface reconstruction algorithm that creates a mesh from all visible layers.",
       "longDescriptionMarkdown": "Surface reconstruction algorithm using volumetric distance fields and Marching Cubes. All visible meshes/point clouds are used to build the volumetric field. Supports sub-volume splitting for very high resolution reconstructions, geodesic weighting for smooth blending of overlapping range maps, hole filling via volume dilation, and optional vertex splatting.",

@@ -103,7 +103,7 @@ MeshFilterRunResult PlyMCFilterPlugin::runFilter(
         return ok({QObject::tr("MC simplification done.")});
     }
 
-    // --- Surface Reconstruction: VCG ---
+    // --- Reconstruct Surface by Volumetric Merging ---
     if (fid == QString::fromLatin1(kRecon)) {
         // Collect visible meshes
         std::vector<int> visibleMeshes;

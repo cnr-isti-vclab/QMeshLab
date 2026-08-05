@@ -210,22 +210,22 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Annulus | `create` | `Creation/Primitives` | bucket default |
-| Box/Cube | `create` | `Creation/Primitives` | bucket default |
-| Cone | `create` | `Creation/Primitives` | bucket default |
-| Dodecahedron | `create` | `Creation/Primitives` | bucket default |
-| Dodecahedron (symmetric) | `create` | `Creation/Primitives` | bucket default |
-| Fit Plane to Selection | `create` | `Creation/Primitives` · `Measurement/Geometric` |  |
-| Grid Generator | `func` | `Creation/Primitives` |  |
-| Icosahedron | `create` | `Creation/Primitives` | bucket default |
-| Implicit Surface | `func` | `Creation/Primitives` |  |
-| Noisy Isosurface | `basic` | `Creation/Primitives` |  |
-| Octahedron | `create` | `Creation/Primitives` | bucket default |
-| Points on a Sphere | `create` | `Creation/Primitives` | bucket default |
-| Sphere | `create` | `Creation/Primitives` | bucket default |
-| Sphere Cap | `create` | `Creation/Primitives` | bucket default |
-| Tetrahedron | `create` | `Creation/Primitives` | bucket default |
-| Torus | `create` | `Creation/Primitives` | bucket default |
+| Create Annulus | `create` | `Creation/Primitives` | bucket default |
+| Create Box | `create` | `Creation/Primitives` | bucket default |
+| Create Cone | `create` | `Creation/Primitives` | bucket default |
+| Create Dodecahedron | `create` | `Creation/Primitives` | bucket default |
+| Create Symmetric Dodecahedron | `create` | `Creation/Primitives` | bucket default |
+| Create Plane from Selection | `create` | `Creation/Primitives` · `Measurement/Geometric` |  |
+| Create Grid | `func` | `Creation/Primitives` |  |
+| Create Icosahedron | `create` | `Creation/Primitives` | bucket default |
+| Create Isosurface from Expression | `func` | `Creation/Primitives` |  |
+| Create Isosurface from Perlin Noise | `basic` | `Creation/Primitives` |  |
+| Create Octahedron | `create` | `Creation/Primitives` | bucket default |
+| Create Points on a Sphere | `create` | `Creation/Primitives` | bucket default |
+| Create Sphere | `create` | `Creation/Primitives` | bucket default |
+| Create Sphere Cap | `create` | `Creation/Primitives` | bucket default |
+| Create Tetrahedron | `create` | `Creation/Primitives` | bucket default |
+| Create Torus | `create` | `Creation/Primitives` | bucket default |
 
 ### `Geometry/Transform` (1)
 
@@ -276,8 +276,8 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Estimate radius from density | `mls` | `Measurement/Statistics` |  |
 | MLS projection (APSS) | `mls` | `Geometry/Smoothing` |  |
 | MLS projection (RIMLS) | `mls` | `Geometry/Smoothing` |  |
-| Marching Cubes (APSS) | `mls` | `Creation/Reconstruction` |  |
-| Marching Cubes (RIMLS) | `mls` | `Creation/Reconstruction` |  |
+| Reconstruct Surface by Marching Cubes (APSS) | `mls` | `Creation/Reconstruction` |  |
+| Reconstruct Surface by Marching Cubes (RIMLS) | `mls` | `Creation/Reconstruction` |  |
 | Select small disconnected component | `mls` | `Selection/by Topology` | <sub>touches: selection</sub> |
 
 ### `Measure` (5)
@@ -303,12 +303,12 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Build a Polyline from Selected Edges | `meshing` | `Creation/Primitives` | creates a new polyline layer |
+| Create Polyline from Selected Edges | `meshing` | `Creation/Primitives` | creates a new polyline layer |
 | Close Holes | `meshing` | `Repair/Holes and Borders` |  |
-| Compute Planar Section | `meshing` | `Creation/Primitives` | creates a new polyline layer |
+| Create Polyline from Planar Section | `meshing` | `Creation/Primitives` | creates a new polyline layer |
 | Compute Principal Curvature Directions | `meshing` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
 | Compute Point Cloud Normals | `meshing` | `Attribute/Normal` |  |
-| Create Selection Perimeter Polyline | `meshing` | `Creation/Primitives` | creates a new polyline layer |
+| Create Polyline from Selection Perimeter | `meshing` | `Creation/Primitives` | creates a new polyline layer |
 | Geometric Cylindrical Unwrapping | `meshing` | `Parametrization/UV Creation` |  |
 | Invert Faces Orientation | `meshing` | `Repair/Topology` | orientation is topological |
 | Matrix: Freeze Current Matrix | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
@@ -398,50 +398,50 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Alpha Wrap | `cgal` | `Creation/Reconstruction` | **mis-filed** as Remeshing |
+| Reconstruct Surface by Alpha Wrapping | `cgal` | `Creation/Reconstruction` | **mis-filed** as Remeshing |
 | Create Solid Wireframe | `voronoi` | `Creation/Primitives` | builds a new structure |
 | Curvature flipping optimization | `trioptimize` | `Meshing/Remeshing` | <sub>touches: scalar</sub> |
 | Global Align Meshes | `icp` | `Geometry/Alignment` | **mis-filed** as Remeshing <sub>touches: texture</sub> |
 | ICP Between Meshes | `icp` | `Geometry/Alignment` | **mis-filed** as Remeshing <sub>touches: texture</sub> |
 | Planar flipping optimization | `trioptimize` | `Meshing/Remeshing` | <sub>touches: scalar</sub> |
 | Refine User-Defined | `func` | `Meshing/Subdivision` |  |
-| Surface Reconstruction: Ball Pivoting | `clean` | `Creation/Reconstruction` | **not cleaning** - reconstruction |
+| Reconstruct Surface by Ball Pivoting | `clean` | `Creation/Reconstruction` | **not cleaning** - reconstruction |
 
 ### `Remeshing, Smoothing and Resampling` (2)
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
 | Simplification: Edge Collapse for Marching Cube meshes | `plymc` | `Meshing/Simplification` |  |
-| Surface Reconstruction: VCG | `plymc` | `Creation/Reconstruction` |  |
+| Reconstruct Surface by Volumetric Merging | `plymc` | `Creation/Reconstruction` |  |
 
 ### `Remeshing/Surface Reconstruction` (3)
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Surface Reconstruction: SSD | `screened_poisson` | `Creation/Reconstruction` |  |
-| Surface Reconstruction: Screened Poisson | `screened_poisson` | `Creation/Reconstruction` |  |
-| Surface Reconstruction: Surface Trimmer | `screened_poisson` | `Creation/Reconstruction` |  |
+| Reconstruct Surface by Smooth Signed Distance | `screened_poisson` | `Creation/Reconstruction` |  |
+| Reconstruct Surface by Screened Poisson | `screened_poisson` | `Creation/Reconstruction` |  |
+| Trim Surface by Scalar Isovalue | `screened_poisson` | `Creation/Reconstruction` |  |
 
 ### `Sampling` (17)
 
 | Filter | Plugin | Proposed categories | Note |
 |---|---|---|---|
-| Clustered Vertex Sampling | `sampling` | `Creation/Sampling` |  |
+| Sample Vertices by Clustering | `sampling` | `Creation/Sampling` |  |
 | Colorize Vertices by Disk Distance | `sampling` | `Attribute/Color` | <sub>touches: scalar</sub> |
 | Distance from Reference Mesh | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures <sub>touches: scalar</sub> |
 | Hausdorff Distance | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures |
-| Mesh Element Sampling | `sampling` | `Creation/Sampling` |  |
-| Montecarlo Sampling | `sampling` | `Creation/Sampling` |  |
+| Sample Mesh Elements | `sampling` | `Creation/Sampling` |  |
+| Sample Surface by Monte Carlo | `sampling` | `Creation/Sampling` |  |
 | Point Cloud Simplification | `sampling` | `Meshing/Simplification` | **mis-filed** as Sampling |
-| Poisson-disk Sampling | `sampling` | `Creation/Sampling` |  |
-| Regular Recursive Sampling | `sampling` | `Creation/Sampling` |  |
-| Stratified Triangle Sampling | `sampling` | `Creation/Sampling` |  |
-| Texel Sampling | `sampling` | `Creation/Sampling` |  |
+| Sample Surface by Poisson Disk | `sampling` | `Creation/Sampling` |  |
+| Sample Offset Surface Recursively | `sampling` | `Creation/Sampling` |  |
+| Sample Surface by Stratified Triangles | `sampling` | `Creation/Sampling` |  |
+| Sample Texels | `sampling` | `Creation/Sampling` |  |
 | Uniform Mesh Resampling | `sampling` | `Meshing/Remeshing` | **mis-filed** as Sampling |
 | Vertex Attribute Transfer | `sampling` | `Transfer/Mesh to Mesh` | **mis-filed** as Sampling <sub>touches: color, scalar, selection</sub> |
-| Volumetric Sampling | `voronoi` | `Creation/Sampling` |  |
-| Voronoi Sampling | `voronoi` | `Creation/Sampling` | <sub>touches: color, scalar, selection</sub> |
-| Voronoi Scaffolding | `voronoi` | `Creation/Primitives` | builds a new structure |
+| Sample Volume | `voronoi` | `Creation/Sampling` |  |
+| Sample Surface by Voronoi Relaxation | `voronoi` | `Creation/Sampling` | <sub>touches: color, scalar, selection</sub> |
+| Create Voronoi Scaffolding | `voronoi` | `Creation/Primitives` | builds a new structure |
 | Colorize Vertices by Voronoi Regions | `sampling` | `Attribute/Color` | <sub>touches: color</sub> |
 
 ### `Selection` (27)

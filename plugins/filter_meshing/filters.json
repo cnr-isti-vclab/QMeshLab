@@ -2365,7 +2365,7 @@
     {
       "id": "generate_polyline_from_selected_edges",
       "categories": ["Creation/Primitives"],
-      "name": "Build a Polyline from Selected Edges",
+      "name": "Create Polyline from Selected Edges",
       "pythonName": "build_polyline_from_selection",
       "shortDescription": "Create edge mesh from selected edges.",
       "longDescriptionMarkdown": "Create a new Layer with an edge mesh composed only by the selected edges of the current mesh",
@@ -2476,7 +2476,7 @@
     {
       "id": "generate_polyline_from_selection_perimeter",
       "categories": ["Creation/Primitives"],
-      "name": "Create Selection Perimeter Polyline",
+      "name": "Create Polyline from Selection Perimeter",
       "pythonName": "create_selection_perimeter",
       "shortDescription": "Create polyline from selection perimeter.",
       "longDescriptionMarkdown": "Create a new Layer with an edge mesh (polyline) tracing the perimeter of the **selected faces**: every edge of a selected face whose adjacent face is not selected. Selecting all the faces of the mesh therefore converts its boundary edges into a polyline.<br>To build a polyline from an *edge* selection instead, use *Build a Polyline from Selected Edges*.",
@@ -2496,7 +2496,7 @@
     {
       "id": "generate_polyline_from_planar_section",
       "categories": ["Creation/Primitives"],
-      "name": "Compute Planar Section",
+      "name": "Create Polyline from Planar Section",
       "pythonName": "compute_planar_section",
       "shortDescription": "Compute planar section polyline.",
       "longDescriptionMarkdown": "Compute the polyline representing a planar section (a slice) of a mesh; if the resulting polyline is closed the result is filled and also a triangular mesh representing the section is saved",

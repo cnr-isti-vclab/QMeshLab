@@ -204,7 +204,7 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
     if (!std::isfinite(offset) || offset <= 0.0)
         return fail(QObject::tr("Offset must be a finite value larger than zero."));
 
-    doc.beginFilterProgress(QObject::tr("Alpha Wrap"));
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Alpha Wrapping"));
     if (vcg::CallBackPos *cb = doc.progressCallback())
         (*cb)(5, "Preparing triangle soup...");
 

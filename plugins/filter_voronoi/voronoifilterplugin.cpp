@@ -166,7 +166,7 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
             return fail(QObject::tr("Quality Weighted distance requires a non-constant vertex quality field."));
     }
 
-    doc.beginFilterProgress(QObject::tr("Voronoi Sampling"));
+    doc.beginFilterProgress(QObject::tr("Sample Surface by Voronoi Relaxation"));
     vcg::CallBackPos *cb = doc.progressCallback();
 
     try {
@@ -364,7 +364,7 @@ MeshFilterRunResult runVolumeSampling(const FilterParams &params, Document &doc)
     if (mesh.bbox.Diag() <= 0.0f)
         return fail(QObject::tr("Volumetric Sampling requires a mesh with a non-zero bounding box."));
 
-    doc.beginFilterProgress(QObject::tr("Volumetric Sampling"));
+    doc.beginFilterProgress(QObject::tr("Sample Volume"));
     vcg::CallBackPos *cb = doc.progressCallback();
 
     try {
@@ -462,7 +462,7 @@ MeshFilterRunResult runVoronoiScaffolding(const FilterParams &params, Document &
     if (mesh.bbox.Diag() <= 0.0f)
         return fail(QObject::tr("Voronoi Scaffolding requires a mesh with a non-zero bounding box."));
 
-    doc.beginFilterProgress(QObject::tr("Voronoi Scaffolding"));
+    doc.beginFilterProgress(QObject::tr("Create Voronoi Scaffolding"));
     vcg::CallBackPos *cb = doc.progressCallback();
 
     try {

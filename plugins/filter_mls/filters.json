@@ -262,7 +262,7 @@
     {
       "id": "generate_marching_cubes_apss",
       "categories": ["Creation/Reconstruction"],
-      "name": "Marching Cubes (APSS)",
+      "name": "Reconstruct Surface by Marching Cubes (APSS)",
       "pythonName": "generate_marching_cubes_apss",
       "shortDescription": "Extract an APSS iso-surface as a new mesh with marching cubes.",
       "longDescriptionMarkdown": "Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
@@ -345,7 +345,7 @@
     {
       "id": "generate_marching_cubes_rimls",
       "categories": ["Creation/Reconstruction"],
-      "name": "Marching Cubes (RIMLS)",
+      "name": "Reconstruct Surface by Marching Cubes (RIMLS)",
       "pythonName": "generate_marching_cubes_rimls",
       "shortDescription": "Extract a Robust Implicit MLS iso-surface as a new mesh with marching cubes.",
       "longDescriptionMarkdown": "Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",

@@ -6,10 +6,11 @@ Proposed display names aligned to the naming grammar in [Vocabulary](vocabulary.
 Verb Object [(Backend)]
 ```
 
-**Status: display names APPLIED for `Meshing`** (30, 2026-07-30) **and `Attribute`**
-(64, 2026-08-04). Remaining roots, largest first: `Creation` (38), `Geometry` (33),
-`Selection` (26), `Document` (22), `Repair` (19), `Parametrization` (15),
-`Measurement` (13), `Transfer` (13), `Texture` (3).
+**Status: display names APPLIED for `Meshing`** (30, 2026-07-30), **`Attribute`**
+(64, 2026-08-04) **and `Creation`** (38, 2026-08-05) — 132 of 277 filters done.
+Remaining roots, largest first: `Geometry` (33), `Selection` (26), `Document` (22),
+`Repair` (19), `Parametrization` (15), `Measurement` (13), `Transfer` (13),
+`Texture` (3).
 
 Python names are shown too (`verb_object[_backend]`) because they should change in the
 same breath, but they are **pass 2** — they are the scripting contract, so they land
@@ -432,3 +433,169 @@ All settled (2026-08-04).
    API for QMeshLab outranks pymeshlab script compatibility. Pass 2 therefore renames all
    `pythonName`s outright, with no alias mechanism and no deprecation window. Recorded
    here because it removes a prerequisite that pass 2 would otherwise have needed.
+
+---
+
+# Round 3 — `Creation` (38 filters)
+
+**Status: APPLIED** (2026-08-05). 37 names changed, 1 already conformed. Verified
+mechanically: JSON valid across all descriptor files, no old name survives, no duplicate
+display name among the 277, every proposed name present, build clean, tests unchanged
+from baseline (`FilterTests` 22/1, `FilterCreationTests` 19/0, `DocumentTests` 15/6 —
+all pre-existing).
+
+Structurally the easiest root — three subcategories, each with an obvious canonical verb
+(`Create`, `Reconstruct`, `Sample`) — but it contains the one genuinely contested
+decision of the whole naming effort. See ruling 1.
+
+## Creation/Primitives (21)
+
+| Current | Proposed | Python |
+|---|---|---|
+| Annulus | **Create Annulus** | `create_annulus` |
+| Box/Cube | **Create Box** | `create_box` |
+| Cone | **Create Cone** | `create_cone` |
+| Dodecahedron | **Create Dodecahedron** | `create_dodecahedron` |
+| Dodecahedron (symmetric) | **Create Symmetric Dodecahedron** | `create_symmetric_dodecahedron` |
+| Icosahedron | **Create Icosahedron** | `create_icosahedron` |
+| Octahedron | **Create Octahedron** | `create_octahedron` |
+| Sphere | **Create Sphere** | `create_sphere` |
+| Sphere Cap | **Create Sphere Cap** | `create_sphere_cap` |
+| Tetrahedron | **Create Tetrahedron** | `create_tetrahedron` |
+| Torus | **Create Torus** | `create_torus` |
+| Points on a Sphere | **Create Points on a Sphere** | `create_points_on_a_sphere` |
+| Grid Generator | **Create Grid** | `create_grid` |
+| Implicit Surface | **Create Isosurface from Expression** | `create_isosurface_from_expression` |
+| Noisy Isosurface | **Create Isosurface from Perlin Noise** | `create_isosurface_from_perlin_noise` |
+| Fit Plane to Selection | **Create Plane from Selection** | `create_plane_from_selection` |
+| Compute Planar Section | **Create Polyline from Planar Section** | `create_polyline_from_planar_section` |
+| Build a Polyline from Selected Edges | **Create Polyline from Selected Edges** | `create_polyline_from_selected_edges` |
+| Create Selection Perimeter Polyline | **Create Polyline from Selection Perimeter** | `create_polyline_from_selection_perimeter` |
+| Create Solid Wireframe | **Create Solid Wireframe** | `create_solid_wireframe` |
+| Voronoi Scaffolding | **Create Voronoi Scaffolding** | `create_voronoi_scaffolding` |
+
+The **three polyline filters become one family**, distinguished by the input at the end
+of the name. This is the direct fix for the confusion the duplicate sweep turned up: two
+of them previously read as near-identical (*Build a Polyline from Selected Edges* /
+*Create Selection Perimeter Polyline*) and their descriptions claimed the same input.
+
+*Compute Planar Section* changes verb: it produces a new layer, so `Compute` — which the
+lexicon defines as *calculate and store an attribute* — was simply the wrong word.
+
+*Fit Plane to Selection* → *Create Plane from Selection* because `Fit` is a rejected
+synonym for `Align`, and the filter's observable result is a new quad layer.
+
+*Implicit Surface* / *Noisy Isosurface* become a visible pair: both build a scalar field
+on a grid and run marching cubes, differing only in where the field comes from.
+
+## Creation/Reconstruction (8)
+
+`Surface Reconstruction:` repeats the category, so it goes; `Reconstruct` leads.
+
+| Current | Proposed | Python |
+|---|---|---|
+| Surface Reconstruction: Screened Poisson | **Reconstruct Surface by Screened Poisson** | `reconstruct_surface_by_screened_poisson` |
+| Surface Reconstruction: SSD | **Reconstruct Surface by Smooth Signed Distance** | `reconstruct_surface_by_smooth_signed_distance` |
+| Surface Reconstruction: Ball Pivoting | **Reconstruct Surface by Ball Pivoting** | `reconstruct_surface_by_ball_pivoting` |
+| Surface Reconstruction: VCG | **Reconstruct Surface by Volumetric Merging** | `reconstruct_surface_by_volumetric_merging` |
+| Alpha Wrap | **Reconstruct Surface by Alpha Wrapping** | `reconstruct_surface_by_alpha_wrapping` |
+| Marching Cubes (APSS) | **Reconstruct Surface by Marching Cubes (APSS)** | `reconstruct_surface_by_marching_cubes_apss` |
+| Marching Cubes (RIMLS) | **Reconstruct Surface by Marching Cubes (RIMLS)** | `reconstruct_surface_by_marching_cubes_rimls` |
+| Surface Reconstruction: Surface Trimmer | **Trim Surface by Scalar Isovalue** | `trim_surface_by_scalar_isovalue` |
+
+*Surface Reconstruction: VCG* was named for its **library**, which decision 3 forbids in
+a category and which tells the user nothing here either. The algorithm is volumetric
+merging of range maps, so that is what the name says; the backend parenthesis is dropped
+because nothing competes with it.
+
+*Surface Reconstruction: Surface Trimmer* is not a reconstruction at all — it is the
+post-processing companion to Poisson. See ruling 3.
+
+## Creation/Sampling (9)
+
+Becomes fully regular: `Sample <what> by <method>`.
+
+| Current | Proposed | Python |
+|---|---|---|
+| Montecarlo Sampling | **Sample Surface by Monte Carlo** | `sample_surface_by_monte_carlo` |
+| Poisson-disk Sampling | **Sample Surface by Poisson Disk** | `sample_surface_by_poisson_disk` |
+| Stratified Triangle Sampling | **Sample Surface by Stratified Triangles** | `sample_surface_by_stratified_triangles` |
+| Voronoi Sampling | **Sample Surface by Voronoi Relaxation** | `sample_surface_by_voronoi_relaxation` |
+| Clustered Vertex Sampling | **Sample Vertices by Clustering** | `sample_vertices_by_clustering` |
+| Mesh Element Sampling | **Sample Mesh Elements** | `sample_mesh_elements` |
+| Regular Recursive Sampling | **Sample Offset Surface Recursively** | `sample_offset_surface_recursively` |
+| Texel Sampling | **Sample Texels** | `sample_texels` |
+| Volumetric Sampling | **Sample Volume** | `sample_volume` |
+
+`Montecarlo` gains its conventional space. Nothing else here is contentious: the noun
+after `Sample` says what is sampled, the method follows `by`.
+
+## Verbs added to the lexicon
+
+One, and it is contested — see ruling 3.
+
+| Verb | Means | Why the existing lexicon was not enough |
+|---|---|---|
+| `Trim` | Cut a surface along an isovalue of a scalar field and discard one side | Neither `Remove` (which deletes whole elements matching a predicate) nor `Cut` (which introduces a boundary but keeps both sides) describes it |
+
+## Rulings
+
+All settled (2026-08-05).
+
+1. ~~Does every primitive need the word `Create`?~~ **Yes.** Fourteen filters were bare
+   nouns, and rule 2 (*never repeat the category*) plus the named-result exception both
+   argued for leaving them. `Create` wins because it carries an invariant — *a new layer
+   appears in the layer list* — that holds across all 277 filters and that was the
+   deciding argument in round 2 ruling 2, where `Create` was **refused** to the
+   custom-attribute filters precisely to protect it. Dropping the verb from the filters
+   that actually create layers would make the invariant invisible where it matters most.
+   Two supporting reasons: the subcategory is not uniformly noun-able (7 of 21 are not
+   named objects), and filters are reached by flat search and Python, where a bare
+   `Sphere` does not say what will happen.
+2. ~~Spell out `SSD`?~~ **Yes — `Reconstruct Surface by Smooth Signed Distance`.** Long,
+   but parallel with *Screened Poisson* and it keeps the no-unexplained-abbreviations
+   rule intact for the Python name.
+3. ~~`Trim` as a new verb — and is the filter's behaviour really what the description
+   claims?~~ **Verified in code, and `Trim` is admitted.**
+   `runSurfaceTrimmerImpl` in `poissonrecon_backend.cpp`:
+
+   - `splitPolygon(..., trimValue)` splits **every** polygon along the isovalue of vertex
+     quality, creating **new vertices interpolated on the cut edges**;
+   - only `gtPolygons` — the side above the threshold — is kept;
+   - small disconnected islands are optionally dropped (`islandAreaRatio`,
+     `removeIslands`);
+   - the result is triangulated and the mesh rebuilt in place.
+
+   So `Remove Faces by Scalar Threshold` would be actively wrong: vertices appear that
+   were not in the input, and no whole face is tested against a predicate. `Remove`
+   cannot describe this; `Cut` keeps both sides. `Trim` is the term of art and earns its
+   lexicon entry.
+
+   The filter stays in `Creation/Reconstruction`: it is meaningless except as the
+   post-processing companion to Poisson-family reconstruction, and moving it away from
+   the filters it exists to serve would help nobody.
+
+## Reconstruction output domain: interpolating vs approximating
+
+An earlier draft of this section flagged `Surface Reconstruction: Ball Pivoting` as
+inconsistent for declaring `ModifyCurrentMesh` where every other reconstruction declares
+`NewMeshes`. **That was wrong**, and the distinction it missed is worth recording as a
+rule.
+
+| Mechanism | Filters | `outputDomain` |
+|---|---|---|
+| **Approximating** — fit an implicit field and extract it, or build an offset surface. Output vertices are new. | Screened Poisson, Smooth Signed Distance, Volumetric Merging, Alpha Wrapping, Marching Cubes (APSS), Marching Cubes (RIMLS) | `NewMeshes` — 6/6 |
+| **Interpolating** — the input points *are* the output vertices; only connectivity is added. | Ball Pivoting | `ModifyCurrentMesh` — 1/1 |
+
+`vcg::tri::BallPivoting<VCGMesh> pivot(mesh, ...)` runs on the layer's own mesh and adds
+faces to the existing vertex set, so `ModifyCurrentMesh` is not an oversight but the
+honest declaration: nothing is destroyed, the point cloud is still there and now carries
+a surface. Emitting a new layer would duplicate every point for no gain.
+
+Ball Pivoting is currently the **only** interpolating reconstruction in the tree — there
+is no Delaunay, convex hull, or advancing-front filter in `filter_cgal`, `filter_igl`,
+`filter_meshfix` or `filter_clean`. The rule is recorded because that is exactly the
+family an igl plugin would add:
+
+> An interpolating reconstruction declares `ModifyCurrentMesh`; an approximating one
+> declares `NewMeshes`.

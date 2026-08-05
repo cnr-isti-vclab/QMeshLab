@@ -35,7 +35,7 @@
     {
       "id": "surface_reconstruction_screened_poisson",
       "categories": ["Creation/Reconstruction"],
-      "name": "Surface Reconstruction: Screened Poisson",
+      "name": "Reconstruct Surface by Screened Poisson",
       "pythonName": "generate_screened_poisson",
       "referenceIds": [
         "kazhdan2013screened"
@@ -174,7 +174,7 @@
     {
       "id": "surface_reconstruction_ssd",
       "categories": ["Creation/Reconstruction"],
-      "name": "Surface Reconstruction: SSD",
+      "name": "Reconstruct Surface by Smooth Signed Distance",
       "pythonName": "generate_ssd_reconstruction",
       "shortDescription": "Creates a watertight surface using smooth signed distance reconstruction.",
       "longDescriptionMarkdown": "This filter reconstructs a surface from an oriented point set using the SSD reconstruction formulation provided by the `PoissonRecon` code base.\n\nCompared to Screened Poisson, the SSD formulation exposes separate weights for zero-crossing, gradient, and bi-Laplacian terms, making it useful when you want more direct control over smoothness and interpolation.",
@@ -378,7 +378,7 @@
     {
       "id": "surface_reconstruction_surface_trimmer",
       "categories": ["Creation/Reconstruction"],
-      "name": "Surface Reconstruction: Surface Trimmer",
+      "name": "Trim Surface by Scalar Isovalue",
       "pythonName": "trim_reconstructed_surface",
       "shortDescription": "Trims a reconstructed mesh using the scalar values stored on the vertices.",
       "longDescriptionMarkdown": "This filter trims a reconstructed surface by cutting the mesh along an isovalue defined over the vertices.\n\nIt is especially useful after Poisson-based reconstruction when the vertex quality stores the reconstruction density, allowing low-confidence regions to be removed.",

@@ -4,7 +4,7 @@
     {
       "id": "generate_sampling_voronoi",
       "categories": ["Creation/Sampling"],
-      "name": "Voronoi Sampling",
+      "name": "Sample Surface by Voronoi Relaxation",
       "pythonName": "generate_sampling_voronoi",
       "shortDescription": "Sample a surface and relax the samples with a geodesic Voronoi/Lloyd process.",
       "longDescriptionMarkdown": "Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The selected vertices of the current mesh become the final seeds, and two additional layers are produced: a Voronoi region mesh and a polyline representation of the Voronoi boundaries.",
@@ -198,7 +198,7 @@
     {
       "id": "generate_sampling_volumetric",
       "categories": ["Creation/Sampling"],
-      "name": "Volumetric Sampling",
+      "name": "Sample Volume",
       "pythonName": "generate_sampling_volumetric",
       "shortDescription": "Generate diagnostic Monte Carlo and surface samples inside a watertight mesh.",
       "longDescriptionMarkdown": "Compute a volumetric Monte Carlo sampling of a watertight mesh and add diagnostic sample layers. This follows the original MeshLab filter behavior: the Poisson-filtered volume point set is not emitted yet by the upstream implementation.",
@@ -266,7 +266,7 @@
     {
       "id": "generate_voronoi_scaffolding",
       "categories": ["Creation/Primitives"],
-      "name": "Voronoi Scaffolding",
+      "name": "Create Voronoi Scaffolding",
       "pythonName": "generate_voronoi_scaffolding",
       "shortDescription": "Build a scaffold mesh from a volumetric Voronoi sampling of a watertight mesh.",
       "longDescriptionMarkdown": "Build a volumetric Voronoi sampling of the current mesh, relax the internal seeds, and extract a scaffold mesh from the implicit Voronoi structure.",

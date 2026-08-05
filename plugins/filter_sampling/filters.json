@@ -4,7 +4,7 @@
     {
       "id": "generate_sampling_element",
       "categories": ["Creation/Sampling"],
-      "name": "Mesh Element Sampling",
+      "name": "Sample Mesh Elements",
       "pythonName": "sample_mesh_elements",
       "shortDescription": "Create a point set by subsampling mesh vertices, edges, or faces.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; at most one sample for each element of the mesh is created. Samples are taking in a uniform way, one for each element (vertex/edge/face); all the elements have the same probability of being chosen.",
@@ -56,7 +56,7 @@
     {
       "id": "generate_sampling_montecarlo",
       "categories": ["Creation/Sampling"],
-      "name": "Montecarlo Sampling",
+      "name": "Sample Surface by Monte Carlo",
       "pythonName": "sample_montecarlo",
       "shortDescription": "Create a random point cloud from the current surface.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; samples are generated in a randomly uniform way, or with a distribution biased by the per-vertex quality values of the mesh.",
@@ -130,7 +130,7 @@
     {
       "id": "generate_sampling_stratified_triangle",
       "categories": ["Creation/Sampling"],
-      "name": "Stratified Triangle Sampling",
+      "name": "Sample Surface by Stratified Triangles",
       "pythonName": "sample_stratified_triangles",
       "shortDescription": "Generate structured samples over the triangle mesh.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; to generate multiple samples inside a triangle each triangle is subdivided according to various <i>stratified</i> strategies. Distribution is often biased by triangle shape.",
@@ -199,7 +199,7 @@
     {
       "id": "generate_sampling_clustered_vertex",
       "categories": ["Creation/Sampling"],
-      "name": "Clustered Vertex Sampling",
+      "name": "Sample Vertices by Clustering",
       "pythonName": "sample_clustered_vertices",
       "shortDescription": "Cluster the point set into grid cells and keep one representative per cell.",
       "longDescriptionMarkdown": "Create a new layer populated with a subsampling of the vertices of the current mesh; the subsampling is driven by a simple one-per-gridded cell strategy.",
@@ -256,7 +256,7 @@
     {
       "id": "generate_sampling_poisson_disk",
       "categories": ["Creation/Sampling"],
-      "name": "Poisson-disk Sampling",
+      "name": "Sample Surface by Poisson Disk",
       "pythonName": "sample_poisson_disk",
       "shortDescription": "Generate well-spaced samples over a surface or point cloud.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012",
@@ -561,7 +561,7 @@
     {
       "id": "generate_sampling_texel",
       "categories": ["Creation/Sampling"],
-      "name": "Texel Sampling",
+      "name": "Sample Texels",
       "pythonName": "sample_texels",
       "shortDescription": "Create one point sample per covered texel in texture space.",
       "longDescriptionMarkdown": "Create a new layer with a point sampling of the current mesh, a sample for each texel of the mesh is generated",
@@ -956,7 +956,7 @@
     {
       "id": "generate_sampling_regular_recursive",
       "categories": ["Creation/Sampling"],
-      "name": "Regular Recursive Sampling",
+      "name": "Sample Offset Surface Recursively",
       "pythonName": "sample_regular_recursive",
       "shortDescription": "Generate offset surface samples by recursively subdividing the bounding box.",
       "longDescriptionMarkdown": "The bounding box is recursively partitioned in a octree style, center of bbox are considered, when the center is nearer to the surface than a given threshold it is projected on it. It works also for building offsetted samples.",

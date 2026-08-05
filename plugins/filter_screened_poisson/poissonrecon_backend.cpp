@@ -673,7 +673,7 @@ MeshFilterRunResult runSurfaceTrimmerImpl(
     const bool polygonMeshRequested = boolParameter(parameters, QStringLiteral("polygonMesh"), false);
 
     vcg::CallBackPos *cb = doc.progressCallback();
-    const QString progressLabel = QObject::tr("Surface Reconstruction: Surface Trimmer");
+    const QString progressLabel = QObject::tr("Trim Surface by Scalar Isovalue");
     doc.beginFilterProgress(progressLabel);
     reportProgress(cb, 0, QObject::tr("Preparing Surface Trimmer input..."), true);
 
@@ -817,7 +817,7 @@ MeshFilterRunResult runScreenedPoissonFilter(
     const int requestedThreads = std::max(1, intParameter(parameters, QStringLiteral("threads"), 1));
     const qsizetype inputSampleCount = countInputSamples(doc, meshIndices);
     vcg::CallBackPos *cb = doc.progressCallback();
-    doc.beginFilterProgress(QObject::tr("Surface Reconstruction: Screened Poisson"));
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Screened Poisson"));
     reportProgress(
         cb,
         0,
@@ -957,7 +957,7 @@ MeshFilterRunResult runSSDReconFilter(
     const int requestedThreads = std::max(1, intParameter(parameters, QStringLiteral("threads"), 1));
     const qsizetype inputSampleCount = countInputSamples(doc, meshIndices);
     vcg::CallBackPos *cb = doc.progressCallback();
-    doc.beginFilterProgress(QObject::tr("Surface Reconstruction: SSD"));
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Smooth Signed Distance"));
     reportProgress(
         cb,
         0,

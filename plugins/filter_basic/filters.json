@@ -75,7 +75,7 @@
     {
       "id": "create_noisy_isosurface",
       "categories": ["Creation/Primitives"],
-      "name": "Noisy Isosurface",
+      "name": "Create Isosurface from Perlin Noise",
       "pythonName": "generate_noisy_isosurface",
       "shortDescription": "Creates an isosurface perturbed by 3D Perlin noise.",
       "longDescriptionMarkdown": "Generates a scalar field over a cubic grid and extracts an isosurface using marching cubes.",

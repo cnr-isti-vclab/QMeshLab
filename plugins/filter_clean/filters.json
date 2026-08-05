@@ -4,7 +4,7 @@
     {
       "id": "surface_reconstruction_ball_pivoting",
       "categories": ["Creation/Reconstruction"],
-      "name": "Surface Reconstruction: Ball Pivoting",
+      "name": "Reconstruct Surface by Ball Pivoting",
       "pythonName": "generate_surface_reconstruction_ball_pivoting",
       "shortDescription": "Reconstruct a surface from oriented points using Ball Pivoting.",
       "longDescriptionMarkdown": "Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud. <br>Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.<br><b>The ball-pivoting algorithm for surface reconstruction.</b><br>IEEE TVCG 1999",

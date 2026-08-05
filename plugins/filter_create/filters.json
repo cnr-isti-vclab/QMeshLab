@@ -4,7 +4,7 @@
     {
       "id": "create_tetrahedron",
       "categories": ["Creation/Primitives"],
-      "name": "Tetrahedron",
+      "name": "Create Tetrahedron",
       "pythonName": "create_tetrahedron",
       "shortDescription": "Creates a Tetrahedron.",
       "longDescriptionMarkdown": "Create a Tetrahedron",
@@ -20,7 +20,7 @@
     {
       "id": "create_icosahedron",
       "categories": ["Creation/Primitives"],
-      "name": "Icosahedron",
+      "name": "Create Icosahedron",
       "pythonName": "create_icosahedron",
       "shortDescription": "Creates an Icosahedron.",
       "longDescriptionMarkdown": "Create an Icosahedron",
@@ -36,7 +36,7 @@
     {
       "id": "create_dodecahedron",
       "categories": ["Creation/Primitives"],
-      "name": "Dodecahedron",
+      "name": "Create Dodecahedron",
       "pythonName": "create_dodecahedron",
       "shortDescription": "Creates a Dodecahedron.",
       "longDescriptionMarkdown": "Create a Dodecahedron",
@@ -52,7 +52,7 @@
     {
       "id": "create_dodecahedron_sym",
       "categories": ["Creation/Primitives"],
-      "name": "Dodecahedron (symmetric)",
+      "name": "Create Symmetric Dodecahedron",
       "pythonName": "create_dodecahedron_symmetric",
       "shortDescription": "Creates a symmetrically triangulated Dodecahedron.",
       "longDescriptionMarkdown": "Create a Dodecahedron, but triangulated with an additional vertex in the middle of each face to preserve symmetry.",
@@ -68,7 +68,7 @@
     {
       "id": "create_octahedron",
       "categories": ["Creation/Primitives"],
-      "name": "Octahedron",
+      "name": "Create Octahedron",
       "pythonName": "create_octahedron",
       "shortDescription": "Creates an Octahedron.",
       "longDescriptionMarkdown": "Create an Octahedron",
@@ -84,7 +84,7 @@
     {
       "id": "create_box",
       "categories": ["Creation/Primitives"],
-      "name": "Box/Cube",
+      "name": "Create Box",
       "pythonName": "create_box",
       "shortDescription": "Creates a Box or Cube.",
       "longDescriptionMarkdown": "Create a Box, Cube, Hexahedron. You can specify the side length.",
@@ -113,7 +113,7 @@
     {
       "id": "create_annulus",
       "categories": ["Creation/Primitives"],
-      "name": "Annulus",
+      "name": "Create Annulus",
       "pythonName": "create_annulus",
       "shortDescription": "Creates a flat annulus (holed disk).",
       "longDescriptionMarkdown": "Create an Annulus e.g. a flat region bounded by two concentric circles, or a holed disk.",
@@ -163,7 +163,7 @@
     {
       "id": "create_sphere",
       "categories": ["Creation/Primitives"],
-      "name": "Sphere",
+      "name": "Create Sphere",
       "pythonName": "create_sphere",
       "shortDescription": "Creates a Sphere by recursive subdivision of an Icosahedron.",
       "longDescriptionMarkdown": "Create a Sphere, whose topology is obtained as regular subdivision of an icosahedron.",
@@ -201,7 +201,7 @@
     {
       "id": "create_sphere_cap",
       "categories": ["Creation/Primitives"],
-      "name": "Sphere Cap",
+      "name": "Create Sphere Cap",
       "pythonName": "create_sphere_cap",
       "shortDescription": "Creates a spherical dome subtended by a cone of given angle.",
       "longDescriptionMarkdown": "Create a Sphere Cap, or spherical dome, subtended by a cone of given angle",
@@ -240,7 +240,7 @@
     {
       "id": "create_sphere_points",
       "categories": ["Creation/Primitives"],
-      "name": "Points on a Sphere",
+      "name": "Create Points on a Sphere",
       "pythonName": "create_points_on_sphere",
       "shortDescription": "Creates a point cloud distributed on a unit sphere.",
       "longDescriptionMarkdown": "Create a spherical point cloud, it can be random or regularly distributed.",
@@ -295,7 +295,7 @@
     {
       "id": "create_cone",
       "categories": ["Creation/Primitives"],
-      "name": "Cone",
+      "name": "Create Cone",
       "pythonName": "create_cone",
       "shortDescription": "Creates a Cone or truncated cone.",
       "longDescriptionMarkdown": "Create a Cone",
@@ -355,7 +355,7 @@
     {
       "id": "create_torus",
       "categories": ["Creation/Primitives"],
-      "name": "Torus",
+      "name": "Create Torus",
       "pythonName": "create_torus",
       "shortDescription": "Creates a Torus.",
       "longDescriptionMarkdown": "Create a Torus",
@@ -414,7 +414,7 @@
     {
       "id": "fit_plane_to_selection",
       "categories": ["Creation/Primitives", "Measurement/Geometric"],
-      "name": "Fit Plane to Selection",
+      "name": "Create Plane from Selection",
       "pythonName": "fit_plane_to_selection",
       "shortDescription": "Creates a quad on the plane fitting the current selection.",
       "longDescriptionMarkdown": "Fits a plane to the selected vertices (or vertices of selected faces) of the current mesh and creates a new planar quad mesh aligned to that plane.",
