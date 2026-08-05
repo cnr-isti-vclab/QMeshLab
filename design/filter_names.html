@@ -248,10 +248,11 @@
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Verb Object [(Backend)]
 </pre></div>
 </div>
-<p><strong>Status: the 30 <code class="docutils literal notranslate"><span class="pre">Meshing</span></code> display names are APPLIED</strong> (2026-07-30). The other roots
-follow the same treatment; <code class="docutils literal notranslate"><span class="pre">Attribute</span></code> (68) and <code class="docutils literal notranslate"><span class="pre">Creation</span></code> (38) are the largest.</p>
-<p>Python names in the tables below are <strong>not</strong> applied — they are pass 2, being the
-scripting contract.</p>
+<p><strong>Status: display names APPLIED for <code class="docutils literal notranslate"><span class="pre">Meshing</span></code></strong> (30, 2026-07-30), <strong><code class="docutils literal notranslate"><span class="pre">Attribute</span></code></strong>
+(64, 2026-08-04) <strong>and <code class="docutils literal notranslate"><span class="pre">Creation</span></code></strong> (38, 2026-08-05) — 132 of 277 filters done.
+Remaining roots, largest first: <code class="docutils literal notranslate"><span class="pre">Geometry</span></code> (33), <code class="docutils literal notranslate"><span class="pre">Selection</span></code> (26), <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22),
+<code class="docutils literal notranslate"><span class="pre">Repair</span></code> (19), <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (15), <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (13), <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13),
+<code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3).</p>
 <p>Python names are shown too (<code class="docutils literal notranslate"><span class="pre">verb_object[_backend]</span></code>) because they should change in the
 same breath, but they are <strong>pass 2</strong> — they are the scripting contract, so they land
 separately from the display names.</p>
@@ -542,12 +543,957 @@ named-result exception so they are not “corrected” back to verb-first.</p></
 </ol>
 <p>Applied: all 30 display names. Verified — no old name survives as a filter name, no
 duplicate display names across the 272, JSON intact, build and tests clean.</p>
-<p>Not applied: the 30 Python names (pass 2), and the remaining 242 filters, where
-<code class="docutils literal notranslate"><span class="pre">Attribute</span></code> (68) and <code class="docutils literal notranslate"><span class="pre">Creation</span></code> (38) are the largest and where the <em>Colorize vs Compute</em>
-confusion lives.</p>
 <p>Note for whoever regenerates the docs: <code class="docutils literal notranslate"><span class="pre">docs/api/filters.rst</span></code> still contains the old
 names, but it is a <strong>stale artifact</strong> — <code class="docutils literal notranslate"><span class="pre">generate_api.py</span></code> deletes it, so it disappears on
 the next <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code> run rather than needing a hand edit.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section class="tex2jax_ignore mathjax_ignore" id="round-2-attribute-65-filters-64">
+<h1>Round 2 — <code class="docutils literal notranslate"><span class="pre">Attribute</span></code> (65 filters → 64)<a class="headerlink" href="#round-2-attribute-65-filters-64" title="Link to this heading">¶</a></h1>
+<p><strong>Status: APPLIED</strong> (2026-08-04). 56 names changed, 8 already conformed, 1 filter
+removed as a duplicate. Verified mechanically: JSON valid across all 31 descriptor
+files, no old name survives as a filter name, no duplicate display name among the 277,
+every proposed name present, build clean, test results unchanged from the pre-change
+baseline (<code class="docutils literal notranslate"><span class="pre">FilterTests</span></code> 22/1, <code class="docutils literal notranslate"><span class="pre">FilterCreationTests</span></code> 19/0, <code class="docutils literal notranslate"><span class="pre">DocumentTests</span></code> 15/6 — the
+failures are pre-existing and were confirmed identical with the changes stashed).</p>
+<p>The largest root and the least regular: 61 of the 65 names do not lead with a verb, and
+the same operation is spelled three different ways across plugins (<code class="docutils literal notranslate"><span class="pre">Re-Compute</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Compute</span></code>, bare noun). It is also where the <code class="docutils literal notranslate"><span class="pre">scalar</span></code>-not-<code class="docutils literal notranslate"><span class="pre">quality</span></code> ruling
+(<a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> §4) first bites — 17 names say <em>Quality</em> today.</p>
+<p>Three cross-cutting patterns do most of the work:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Pattern</p></th>
+<th class="head"><p>Applies to</p></th>
+<th class="head"><p>Example</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">&lt;Object&gt;</span> <span class="pre">by</span> <span class="pre">Expression</span></code></p></td>
+<td><p>the 8 <code class="docutils literal notranslate"><span class="pre">filter_expression</span></code> entries</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Per</span> <span class="pre">Vertex</span> <span class="pre">Color</span> <span class="pre">Function</span></code> → <strong>Compute Vertex Color by Expression</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Sharpen</span> <span class="pre">&lt;Object&gt;</span> <span class="pre">by</span> <span class="pre">Unsharp</span> <span class="pre">Mask</span></code></p></td>
+<td><p>the 3 unsharp entries here (a 4th is in <code class="docutils literal notranslate"><span class="pre">Geometry</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UnSharp</span> <span class="pre">Mask</span> <span class="pre">Color</span></code> → <strong>Sharpen Vertex Color by Unsharp Mask</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">&lt;Object&gt;</span> <span class="pre">(&lt;Backend&gt;)</span></code></p></td>
+<td><p>competing curvature / geodesic implementations</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Discrete</span> <span class="pre">Curvatures</span></code> → <strong>Compute Curvature (Discrete)</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="attribute-normal-13">
+<h2>Attribute/Normal (13)<a class="headerlink" href="#attribute-normal-13" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Re-Compute Vertex Normals</p></td>
+<td><p><strong>Compute Vertex Normals</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_normals</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Re-Compute Face Normals</p></td>
+<td><p><strong>Compute Face Normals</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_normals</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Re-Compute Per-Polygon Face Normals</p></td>
+<td><p><strong>Compute Polygon Face Normals</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_polygon_face_normals</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute normals for point sets</p></td>
+<td><p><strong>Compute Point Cloud Normals</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_normals</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Per Vertex Normal Function</p></td>
+<td><p><strong>Compute Vertex Normals by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_normals_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Per Face Normal Function</p></td>
+<td><p><strong>Compute Face Normals by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_normals_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Normalize Vertex Normals</p></td>
+<td><p><strong>Normalize Vertex Normals</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalize_vertex_normals</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Normalize Face Normals</p></td>
+<td><p><strong>Normalize Face Normals</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalize_face_normals</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Re-Orient vertex normals using cameras</p></td>
+<td><p><strong>Orient Vertex Normals by Cameras</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_vertex_normals_by_cameras</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Reorient Face Normals by Geometry</p></td>
+<td><p><strong>Orient Face Normals by Ray Casting</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_face_normals_by_ray_casting</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Face Normals</p></td>
+<td><p><strong>Smooth Face Normals</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_face_normals</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth normals on point sets</p></td>
+<td><p><strong>Smooth Point Cloud Normals</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_point_cloud_normals</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>UnSharp Mask Normals</p></td>
+<td><p><strong>Sharpen Face Normals by Unsharp Mask</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpen_face_normals_by_unsharp_mask</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Re-Compute</span></code> → <code class="docutils literal notranslate"><span class="pre">Compute</span></code> is the casing rule in <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> §5 applied
+literally; the “Re-” carried no information, since every one of these overwrites whatever
+was there.</p>
+<p><em>Orient Face Normals by Ray Casting</em> keeps its method in the name because it competes
+with <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code>’s coherent-orientation filter, which works purely topologically.
+The two are now visibly a pair rather than two unrelated names.</p>
+</section>
+<section id="attribute-scalar-19">
+<h2>Attribute/Scalar (19)<a class="headerlink" href="#attribute-scalar-19" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">Quality</span></code> → <code class="docutils literal notranslate"><span class="pre">Scalar</span></code> root-and-branch pass. Note that in the geodesic family the word
+disappears entirely rather than being replaced: the object of the sentence is the
+<em>distance</em>, and the category already says the result is a scalar.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Border Distance Quality</p></td>
+<td><p><strong>Compute Geodesic Distance from Border</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_border</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Geodesic Distance Quality from Point</p></td>
+<td><p><strong>Compute Geodesic Distance from Point</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_point</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Geodesic Distance Quality from Selection</p></td>
+<td><p><strong>Compute Geodesic Distance from Selection</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_selection</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Heat Geodesic Distance Quality from Selection</p></td>
+<td><p><strong>Compute Geodesic Distance from Selection (Heat Method)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_selection_heat</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Ambient Occlusion</p></td>
+<td><p><strong>Compute Ambient Occlusion</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_ambient_occlusion</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Obscurance</p></td>
+<td><p><strong>Compute Obscurance</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_obscurance</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Shape Diameter Function</p></td>
+<td><p><strong>Compute Shape Diameter Function</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_shape_diameter_function</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Generate Scalar Harmonic Field</p></td>
+<td><p><strong>Compute Harmonic Scalar Field</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_harmonic_scalar_field</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Per Face Geometric Quality</p></td>
+<td><p><strong>Compute Face Scalar from Geometry</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_scalar_from_geometry</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Per Face Texture Distortion</p></td>
+<td><p><strong>Compute UV Distortion</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_uv_distortion</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Quality from raster coverage (Vertex)</p></td>
+<td><p><strong>Compute Vertex Scalar from Raster Coverage</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_scalar_from_raster_coverage</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Quality from raster coverage (Face)</p></td>
+<td><p><strong>Compute Face Scalar from Raster Coverage</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_scalar_from_raster_coverage</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Vertex Quality from Camera</p></td>
+<td><p><strong>Compute Vertex Scalar from Camera</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_scalar_from_camera</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Per Vertex Quality Function</p></td>
+<td><p><strong>Compute Vertex Scalar by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_scalar_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Per Face Quality Function</p></td>
+<td><p><strong>Compute Face Scalar by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_scalar_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Clamp Vertex Quality</p></td>
+<td><p><strong>Clamp Vertex Scalar</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clamp_vertex_scalar</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Saturate Vertex Quality</p></td>
+<td><p><strong>Clamp Vertex Scalar Gradient</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clamp_vertex_scalar_gradient</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Vertex Quality</p></td>
+<td><p><strong>Smooth Vertex Scalar</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertex_scalar</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>UnSharp Mask Quality</p></td>
+<td><p><strong>Sharpen Vertex Scalar by Unsharp Mask</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpen_vertex_scalar_by_unsharp_mask</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><em>Generate</em> → <em>Compute</em>: <code class="docutils literal notranslate"><span class="pre">Generate</span></code> is a rejected synonym for <code class="docutils literal notranslate"><span class="pre">Create</span></code>, and <code class="docutils literal notranslate"><span class="pre">Create</span></code> means
+<em>produce a new layer</em>. This filter writes an attribute on the current mesh, so the verb
+is <code class="docutils literal notranslate"><span class="pre">Compute</span></code>.</p>
+<p><em>Saturate Vertex Quality</em> is the one outright translation: nothing about it saturates
+anything: it bounds the spatial gradient of the field so values cannot change faster than
+a given rate. <strong>Clamp Vertex Scalar Gradient</strong> says what it does, and pairs it with the
+filter directly above:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Bounds</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Clamp</span> <span class="pre">Vertex</span> <span class="pre">Scalar</span></code></p></td>
+<td><p>the values</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Clamp</span> <span class="pre">Vertex</span> <span class="pre">Scalar</span> <span class="pre">Gradient</span></code></p></td>
+<td><p>the rate of change of the values</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Caveat recorded so the name is not “corrected” later: the implementation is one-sided,
+only ever decreasing values, so it is not a symmetric two-sided clamp. It does enforce
+|∇q| ≤ threshold, which is a clamp of the gradient, and the description spells out the
+conservative behaviour.</p>
+</section>
+<section id="attribute-curvature-4">
+<h2>Attribute/Curvature (4)<a class="headerlink" href="#attribute-curvature-4" title="Link to this heading">¶</a></h2>
+<p>Three competing curvature estimators plus the directions filter. Backend in parentheses
+is load-bearing here, exactly as in <code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Discrete Curvatures</p></td>
+<td><p><strong>Compute Curvature (Discrete)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_discrete</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute APSS Curvature Quality</p></td>
+<td><p><strong>Compute Curvature (APSS)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_apss</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute RIMLS Curvature Quality</p></td>
+<td><p><strong>Compute Curvature (RIMLS)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_curvature_rimls</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute curvature principal directions</p></td>
+<td><p><strong>Compute Principal Curvature Directions</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_principal_curvature_directions</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The three estimators become directly comparable in the menu, which is the point of the
+archive model. Today they sort apart (<code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">APSS…</span></code>, <code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">RIMLS…</span></code>, <code class="docutils literal notranslate"><span class="pre">Discrete…</span></code>) and
+read as unrelated filters.</p>
+</section>
+<section id="attribute-custom-4">
+<h2>Attribute/Custom (4)<a class="headerlink" href="#attribute-custom-4" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Define New Per Vertex Custom Scalar Attribute</p></td>
+<td><p><strong>Define Custom Vertex Scalar Attribute</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_vertex_scalar_attribute</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Define New Per Vertex Custom Point Attribute</p></td>
+<td><p><strong>Define Custom Vertex Point Attribute</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_vertex_point_attribute</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Define New Per Face Custom Scalar Attribute</p></td>
+<td><p><strong>Define Custom Face Scalar Attribute</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_face_scalar_attribute</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Define New Per Face Custom Point Attribute</p></td>
+<td><p><strong>Define Custom Face Point Attribute</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_face_point_attribute</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Only <code class="docutils literal notranslate"><span class="pre">New</span></code> and <code class="docutils literal notranslate"><span class="pre">Per</span></code> are dropped, both redundant. <code class="docutils literal notranslate"><span class="pre">Define</span></code> is kept rather than converted
+to the lexicon’s <code class="docutils literal notranslate"><span class="pre">Set</span></code> — see ruling 2.</p>
+</section>
+<section id="attribute-color-24">
+<h2>Attribute/Color (24)<a class="headerlink" href="#attribute-color-24" title="Link to this heading">¶</a></h2>
+<blockquote>
+<div><p><strong>One filter removed, not renamed.</strong> <em>Quality Mapper applier</em> was a duplicate of
+<em>Colorize by vertex Quality</em>: identical parameters, identical categories and
+input/output declarations, and literally the same code path (<code class="docutils literal notranslate"><span class="pre">kFilterMapVQuality</span> <span class="pre">||</span> <span class="pre">kFilterQualityMapper</span></code> in one <code class="docutils literal notranslate"><span class="pre">if</span></code>). It survived as a MeshLab compatibility shim — in
+MeshLab it was driven by the Quality Mapper <em>dialog</em>, an editable transfer-function
+curve that QMeshLab never ported, so the filter was wired to the plain ramp and became
+a clone. Descriptor entry and dispatch branch deleted; no alias kept, since a
+consistent Python API for QMeshLab outranks pymeshlab script compatibility (ruling 5).
+A real transfer-function editor remains a legitimate future feature, and the name
+<em>Colorize Vertices by Scalar Transfer Function</em> is reserved for it.</p>
+</div></blockquote>
+<p>The <code class="docutils literal notranslate"><span class="pre">Colorize</span></code> / <code class="docutils literal notranslate"><span class="pre">Set</span></code> split is the organising idea, and it resolves the <em>Colorize vs
+Compute</em> confusion flagged at the end of round 1:</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Colorize</span></code></strong> — colour <em>derived from other data</em> (a scalar field, a distance, a noise
+field). Reading the mesh tells you something.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Set</span></code></strong> — colour <em>assigned</em>, carrying no information about the geometry (a fixed
+colour, a random one per component).</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Adjust</span></code> / <code class="docutils literal notranslate"><span class="pre">Invert</span></code> / …</strong> — colour <em>edited</em>, an image-processing operation on colour
+that is already there.</p></li>
+</ul>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Colorize by vertex Quality</p></td>
+<td><p><strong>Colorize Vertices by Scalar</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Colorize by face Quality</p></td>
+<td><p><strong>Colorize Faces by Scalar</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_faces_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Perlin color</p></td>
+<td><p><strong>Colorize Vertices by Perlin Noise</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_perlin_noise</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Disk Vertex Coloring</p></td>
+<td><p><strong>Colorize Vertices by Disk Distance</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_disk_distance</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Voronoi Vertex Coloring</p></td>
+<td><p><strong>Colorize Vertices by Voronoi Regions</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_voronoi_regions</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Per Vertex Color Function</p></td>
+<td><p><strong>Compute Vertex Color by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_color_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Per Face Color Function</p></td>
+<td><p><strong>Compute Face Color by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_color_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Vertex Color Filling</p></td>
+<td><p><strong>Set Vertex Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Mesh Color</p></td>
+<td><p><strong>Set Mesh Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_mesh_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Random Face Color</p></td>
+<td><p><strong>Set Random Face Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_random_face_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Random Component Color</p></td>
+<td><p><strong>Set Random Component Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_random_component_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>PerMesh Color Scattering</p></td>
+<td><p><strong>Set Random Layer Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_random_layer_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Vertex Color Brightness Contrast Gamma</p></td>
+<td><p><strong>Adjust Vertex Color Brightness/Contrast/Gamma</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">adjust_vertex_color_brightness_contrast_gamma</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Vertex Color Levels Adjustment</p></td>
+<td><p><strong>Adjust Vertex Color Levels</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">adjust_vertex_color_levels</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Vertex Color White Balance</p></td>
+<td><p><strong>Adjust Vertex Color White Balance</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">adjust_vertex_color_white_balance</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Vertex Color Invert</p></td>
+<td><p><strong>Invert Vertex Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">invert_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Vertex Color Desaturation</p></td>
+<td><p><strong>Desaturate Vertex Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">desaturate_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Vertex Color Thresholding</p></td>
+<td><p><strong>Threshold Vertex Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">threshold_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Vertex Color Colourisation</p></td>
+<td><p><strong>Tint Vertex Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tint_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Equalize Vertex Color</p></td>
+<td><p><strong>Equalize Vertex Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">equalize_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Color noise</p></td>
+<td><p><strong>Add Noise to Vertex Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">add_noise_to_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth: Laplacian Vertex Color</p></td>
+<td><p><strong>Smooth Vertex Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertex_color</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth: Laplacian Face Color</p></td>
+<td><p><strong>Smooth Face Color</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_face_color</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>UnSharp Mask Color</p></td>
+<td><p><strong>Sharpen Vertex Color by Unsharp Mask</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpen_vertex_color_by_unsharp_mask</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">PerMesh</span> <span class="pre">Color</span> <span class="pre">Scattering</span></code> → <strong>Set Random Layer Color</strong> applies the <code class="docutils literal notranslate"><span class="pre">mesh</span></code> vs <code class="docutils literal notranslate"><span class="pre">layer</span></code>
+ruling: it iterates over document layers and gives each a distinct colour, so it is a
+layer operation even though what it writes is a mesh attribute.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Smooth:</span> <span class="pre">Laplacian</span> <span class="pre">…</span></code> drops the method: Laplacian is the only smoothing offered, and if a
+second scheme ever lands it comes back as <code class="docutils literal notranslate"><span class="pre">Smooth</span> <span class="pre">Vertex</span> <span class="pre">Color</span> <span class="pre">(Taubin)</span></code>.</p>
+</section>
+<section id="id1">
+<h2>Verbs added to the lexicon<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<p>Two new general verbs, plus a group of standard attribute-editing operations that are
+better recorded as a set than as ten separate lexicon rows.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Verb</p></th>
+<th class="head"><p>Means</p></th>
+<th class="head"><p>Why the existing lexicon was not enough</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Orient</span></code></p></td>
+<td><p>Make normals point consistently, or toward a reference</p></td>
+<td><p>Distinct from <code class="docutils literal notranslate"><span class="pre">Compute</span></code> (values are flipped, not recalculated); also the canonical form of <code class="docutils literal notranslate"><span class="pre">Re-Orient</span></code>/<code class="docutils literal notranslate"><span class="pre">Reorient</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Sharpen</span></code></p></td>
+<td><p>Enhance local variation in an attribute</p></td>
+<td><p>The four unsharp-mask filters had no verb at all; <code class="docutils literal notranslate"><span class="pre">Sharpen</span> <span class="pre">X</span> <span class="pre">by</span> <span class="pre">Unsharp</span> <span class="pre">Mask</span></code> matches <code class="docutils literal notranslate"><span class="pre">Simplify</span> <span class="pre">by</span> <span class="pre">…</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Attribute-editing verbs</strong> (standard image/signal operations, admitted as a closed
+group): <code class="docutils literal notranslate"><span class="pre">Normalize</span></code>, <code class="docutils literal notranslate"><span class="pre">Adjust</span></code>, <code class="docutils literal notranslate"><span class="pre">Clamp</span></code>, <code class="docutils literal notranslate"><span class="pre">Invert</span></code>, <code class="docutils literal notranslate"><span class="pre">Equalize</span></code>, <code class="docutils literal notranslate"><span class="pre">Desaturate</span></code>, <code class="docutils literal notranslate"><span class="pre">Threshold</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Tint</span></code>. Each keeps its ordinary meaning; none may be used where <code class="docutils literal notranslate"><span class="pre">Compute</span></code> (derive from
+geometry) or <code class="docutils literal notranslate"><span class="pre">Set</span></code> (assign a constant) is accurate.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Define</span></code> is also admitted, but <strong>narrowly</strong>: declaring a new named custom attribute, and
+nothing else. It is otherwise still a rejected synonym for <code class="docutils literal notranslate"><span class="pre">Set</span></code>.</p>
+</section>
+<section id="duplicate-sweep-2026-08-04">
+<h2>Duplicate sweep (2026-08-04)<a class="headerlink" href="#duplicate-sweep-2026-08-04" title="Link to this heading">¶</a></h2>
+<p>Run before applying round 2, prompted by finding that <em>Quality Mapper applier</em> was a
+clone. Five independent tests over all 277 filters:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Test</p></th>
+<th class="head"><p>What it looks for</p></th>
+<th class="head"><p>Hits</p></th>
+<th class="head"><p>True positives</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>Identical behavioural signature (parameters + domains + requirements + <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> + categories)</p></td>
+<td><p>12 groups</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>B</p></td>
+<td><p>Two or more filter ids sharing one dispatch branch</p></td>
+<td><p>9 groups</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-even"><td><p>C</p></td>
+<td><p>Shared branch where the ids are <strong>never re-tested inside</strong> — the <em>Quality Mapper</em> signature</p></td>
+<td><p>1</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>D</p></td>
+<td><p>Cross-plugin name-token overlap ≥ 0.6</p></td>
+<td><p>12 pairs</p></td>
+<td><p>0 (1 naming defect)</p></td>
+</tr>
+<tr class="row-even"><td><p>E</p></td>
+<td><p>Duplicate <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>, or display name</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Result: no further clones. <em>Quality Mapper applier</em> was the only one.</strong></p>
+<p>Test A is weak alone — filters with no parameters collide trivially (the five Platonic
+solids, the four igl booleans, three no-parameter selections), as do families that differ
+only in an internal constant (<code class="docutils literal notranslate"><span class="pre">Subdivide</span> <span class="pre">by</span> <span class="pre">Butterfly</span></code> / <code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Midpoint</span></code>). Test C is the
+sharp one, and its single hit is the APSS-vs-RIMLS surface factory in <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code>, where
+the three ids legitimately share “use APSS” and are discriminated at three later sites.</p>
+<section id="not-duplicates-but-defects-found-on-the-way">
+<h3>Not duplicates, but defects found on the way<a class="headerlink" href="#not-duplicates-but-defects-found-on-the-way" title="Link to this heading">¶</a></h3>
+<ol class="arabic">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">Selection</span> <span class="pre">Perimeter</span> <span class="pre">Polyline</span></code> has a wrong description.</strong> It says the polyline
+is “composed by the selected edges of the current mesh”; the code walks <em>selected
+faces</em> and emits each edge whose neighbour is unselected. Its sibling
+<code class="docutils literal notranslate"><span class="pre">Build</span> <span class="pre">a</span> <span class="pre">Polyline</span> <span class="pre">from</span> <span class="pre">Selected</span> <span class="pre">Edges</span></code> is the one that reads the edge selection
+(<code class="docutils literal notranslate"><span class="pre">BuildFromFaceEdgeSel</span></code>). Two genuinely different filters whose descriptions claim the
+same input.</p></li>
+<li><p><strong>Two indistinguishable names for two different algorithms</strong> — the only real find of
+test D, and one to fix in the <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> round rather than here:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Name</p></th>
+<th class="head"><p>Plugin</p></th>
+<th class="head"><p>Mechanism</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><em>Transfer Color: Texture to Vertex</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
+<td><p>exact per-wedge UV lookup, same mesh only</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Transfer: Texture to Vertex Color</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
+<td><p>closest-point resampling in world space, across two layers, with a distance bound</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Neither is redundant: the first is the exact fast path, the second the only one that
+crosses layers. But the names differ by word order alone, which is unusable. The
+second needs its mechanism in the name.</p>
+</li>
+<li><p><strong>No filter can declare “requires a selection”.</strong> Both polyline filters check for a
+selection at runtime and fail with a message; the <code class="docutils literal notranslate"><span class="pre">inputRequirements</span></code> schema has keys
+for vertices, edges, faces, colour, texcoords, textures and quality, but none for
+selection state, so the UI cannot grey them out. A framework gap, noted not fixed.</p></li>
+</ol>
+</section>
+</section>
+<section id="id2">
+<h2>Rulings<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h2>
+<p>All settled (2026-08-04).</p>
+<ol class="arabic">
+<li><p>~~Are the slashes in <code class="docutils literal notranslate"><span class="pre">Adjust</span> <span class="pre">Vertex</span> <span class="pre">Color</span> <span class="pre">Brightness/Contrast/Gamma</span></code> acceptable?~~
+<strong>Yes, kept.</strong> The filter really does all three.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Define</span></code> or <code class="docutils literal notranslate"><span class="pre">Set</span></code> for custom attributes — or <code class="docutils literal notranslate"><span class="pre">Create</span></code>?~~ <strong><code class="docutils literal notranslate"><span class="pre">Define</span></code>, admitted
+narrowly.</strong> <code class="docutils literal notranslate"><span class="pre">Create</span></code> was considered and rejected: it carries the invariant <em>a new
+layer appears in the layer list</em>, which holds exactly today — every filter named
+<code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">*</span></code> declares <code class="docutils literal notranslate"><span class="pre">outputDomain:</span> <span class="pre">NewMeshes</span></code>, while all four custom-attribute
+filters are <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code>. Spending <code class="docutils literal notranslate"><span class="pre">Create</span></code> here would break a rule that makes
+the menu readable, for the sake of four filters. <code class="docutils literal notranslate"><span class="pre">Set</span></code> was rejected because these
+declare a new named attribute rather than assign to an existing one.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Saturate</span></code> → <code class="docutils literal notranslate"><span class="pre">Limit</span> <span class="pre">…</span> <span class="pre">Gradient</span></code>?~~ <strong><code class="docutils literal notranslate"><span class="pre">Clamp</span> <span class="pre">Vertex</span> <span class="pre">Scalar</span> <span class="pre">Gradient</span></code></strong> — better than
+the proposal, since it reuses a lexicon verb instead of adding <code class="docutils literal notranslate"><span class="pre">Limit</span></code> and pairs the
+filter with <code class="docutils literal notranslate"><span class="pre">Clamp</span> <span class="pre">Vertex</span> <span class="pre">Scalar</span></code> directly above it.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">Curvature</span> <span class="pre">(Discrete)</span></code> demotes the familiar name into a parenthesis — worth
+the regularity?~~ <strong>Yes, proceed.</strong> Verified that the three are genuinely competing
+implementations of one quantity rather than different quantities sharing a word:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Method</p></th>
+<th class="head"><p>Writes</p></th>
+<th class="head"><p>Offers</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Discrete Curvatures</p></td>
+<td><p>discrete differential operators (Meyer et al.)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VQ</span></code></p></td>
+<td><p>Mean / Gaussian / RMS / ABS</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute APSS Curvature Quality</p></td>
+<td><p>algebraic point set surfaces (MLS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VQ</span></code></p></td>
+<td><p>Mean / Gauss / K1 / K2 / ApproxMean</p></td>
+</tr>
+<tr class="row-even"><td><p>Compute RIMLS Curvature Quality</p></td>
+<td><p>robust implicit MLS</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VQ</span></code></p></td>
+<td><p>Mean / Gauss / K1 / K2</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Same output slot, same quantity, overlapping type enums — exactly what the
+parenthesised backend exists for, and the same trade already accepted across
+<code class="docutils literal notranslate"><span class="pre">Meshing</span></code>. Search still finds “discrete” via the description.</p>
+<p><em>Compute curvature principal directions</em> stays apart on merit: it is the only one
+writing <code class="docutils literal notranslate"><span class="pre">VA</span></code>, and its <code class="docutils literal notranslate"><span class="pre">Method</span></code> enum is five further algorithms (Taubin, PCA, Normal
+Cycles, Quadric Fitting, Scale-Dependent Quadric Fitting). Its unique output is the
+directions, so it is named for them.</p>
+</li>
+<li><p>~~Keep MeshLab <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s as aliases when renaming?~~ <strong>No.</strong> A consistent Python
+API for QMeshLab outranks pymeshlab script compatibility. Pass 2 therefore renames all
+<code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s outright, with no alias mechanism and no deprecation window. Recorded
+here because it removes a prerequisite that pass 2 would otherwise have needed.</p></li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section class="tex2jax_ignore mathjax_ignore" id="round-3-creation-38-filters">
+<h1>Round 3 — <code class="docutils literal notranslate"><span class="pre">Creation</span></code> (38 filters)<a class="headerlink" href="#round-3-creation-38-filters" title="Link to this heading">¶</a></h1>
+<p><strong>Status: APPLIED</strong> (2026-08-05). 37 names changed, 1 already conformed. Verified
+mechanically: JSON valid across all descriptor files, no old name survives, no duplicate
+display name among the 277, every proposed name present, build clean, tests unchanged
+from baseline (<code class="docutils literal notranslate"><span class="pre">FilterTests</span></code> 22/1, <code class="docutils literal notranslate"><span class="pre">FilterCreationTests</span></code> 19/0, <code class="docutils literal notranslate"><span class="pre">DocumentTests</span></code> 15/6 —
+all pre-existing).</p>
+<p>Structurally the easiest root — three subcategories, each with an obvious canonical verb
+(<code class="docutils literal notranslate"><span class="pre">Create</span></code>, <code class="docutils literal notranslate"><span class="pre">Reconstruct</span></code>, <code class="docutils literal notranslate"><span class="pre">Sample</span></code>) — but it contains the one genuinely contested
+decision of the whole naming effort. See ruling 1.</p>
+<section id="creation-primitives-21">
+<h2>Creation/Primitives (21)<a class="headerlink" href="#creation-primitives-21" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Annulus</p></td>
+<td><p><strong>Create Annulus</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_annulus</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Box/Cube</p></td>
+<td><p><strong>Create Box</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_box</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Cone</p></td>
+<td><p><strong>Create Cone</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_cone</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Dodecahedron</p></td>
+<td><p><strong>Create Dodecahedron</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_dodecahedron</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Dodecahedron (symmetric)</p></td>
+<td><p><strong>Create Symmetric Dodecahedron</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_symmetric_dodecahedron</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Icosahedron</p></td>
+<td><p><strong>Create Icosahedron</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_icosahedron</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Octahedron</p></td>
+<td><p><strong>Create Octahedron</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_octahedron</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sphere</p></td>
+<td><p><strong>Create Sphere</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_sphere</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Sphere Cap</p></td>
+<td><p><strong>Create Sphere Cap</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_sphere_cap</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Tetrahedron</p></td>
+<td><p><strong>Create Tetrahedron</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_tetrahedron</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Torus</p></td>
+<td><p><strong>Create Torus</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_torus</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Points on a Sphere</p></td>
+<td><p><strong>Create Points on a Sphere</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_points_on_a_sphere</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Grid Generator</p></td>
+<td><p><strong>Create Grid</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_grid</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Implicit Surface</p></td>
+<td><p><strong>Create Isosurface from Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_isosurface_from_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Noisy Isosurface</p></td>
+<td><p><strong>Create Isosurface from Perlin Noise</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_isosurface_from_perlin_noise</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Fit Plane to Selection</p></td>
+<td><p><strong>Create Plane from Selection</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_plane_from_selection</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Planar Section</p></td>
+<td><p><strong>Create Polyline from Planar Section</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_planar_section</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Build a Polyline from Selected Edges</p></td>
+<td><p><strong>Create Polyline from Selected Edges</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_selected_edges</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Create Selection Perimeter Polyline</p></td>
+<td><p><strong>Create Polyline from Selection Perimeter</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_selection_perimeter</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Create Solid Wireframe</p></td>
+<td><p><strong>Create Solid Wireframe</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_solid_wireframe</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Voronoi Scaffolding</p></td>
+<td><p><strong>Create Voronoi Scaffolding</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_voronoi_scaffolding</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The <strong>three polyline filters become one family</strong>, distinguished by the input at the end
+of the name. This is the direct fix for the confusion the duplicate sweep turned up: two
+of them previously read as near-identical (<em>Build a Polyline from Selected Edges</em> /
+<em>Create Selection Perimeter Polyline</em>) and their descriptions claimed the same input.</p>
+<p><em>Compute Planar Section</em> changes verb: it produces a new layer, so <code class="docutils literal notranslate"><span class="pre">Compute</span></code> — which the
+lexicon defines as <em>calculate and store an attribute</em> — was simply the wrong word.</p>
+<p><em>Fit Plane to Selection</em> → <em>Create Plane from Selection</em> because <code class="docutils literal notranslate"><span class="pre">Fit</span></code> is a rejected
+synonym for <code class="docutils literal notranslate"><span class="pre">Align</span></code>, and the filter’s observable result is a new quad layer.</p>
+<p><em>Implicit Surface</em> / <em>Noisy Isosurface</em> become a visible pair: both build a scalar field
+on a grid and run marching cubes, differing only in where the field comes from.</p>
+</section>
+<section id="creation-reconstruction-8">
+<h2>Creation/Reconstruction (8)<a class="headerlink" href="#creation-reconstruction-8" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Surface</span> <span class="pre">Reconstruction:</span></code> repeats the category, so it goes; <code class="docutils literal notranslate"><span class="pre">Reconstruct</span></code> leads.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Surface Reconstruction: Screened Poisson</p></td>
+<td><p><strong>Reconstruct Surface by Screened Poisson</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_screened_poisson</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Surface Reconstruction: SSD</p></td>
+<td><p><strong>Reconstruct Surface by Smooth Signed Distance</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_smooth_signed_distance</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Surface Reconstruction: Ball Pivoting</p></td>
+<td><p><strong>Reconstruct Surface by Ball Pivoting</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_ball_pivoting</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Surface Reconstruction: VCG</p></td>
+<td><p><strong>Reconstruct Surface by Volumetric Merging</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_volumetric_merging</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Alpha Wrap</p></td>
+<td><p><strong>Reconstruct Surface by Alpha Wrapping</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_alpha_wrapping</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Marching Cubes (APSS)</p></td>
+<td><p><strong>Reconstruct Surface by Marching Cubes (APSS)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_marching_cubes_apss</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Marching Cubes (RIMLS)</p></td>
+<td><p><strong>Reconstruct Surface by Marching Cubes (RIMLS)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">reconstruct_surface_by_marching_cubes_rimls</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Surface Reconstruction: Surface Trimmer</p></td>
+<td><p><strong>Trim Surface by Scalar Isovalue</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trim_surface_by_scalar_isovalue</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><em>Surface Reconstruction: VCG</em> was named for its <strong>library</strong>, which decision 3 forbids in
+a category and which tells the user nothing here either. The algorithm is volumetric
+merging of range maps, so that is what the name says; the backend parenthesis is dropped
+because nothing competes with it.</p>
+<p><em>Surface Reconstruction: Surface Trimmer</em> is not a reconstruction at all — it is the
+post-processing companion to Poisson. See ruling 3.</p>
+</section>
+<section id="creation-sampling-9">
+<h2>Creation/Sampling (9)<a class="headerlink" href="#creation-sampling-9" title="Link to this heading">¶</a></h2>
+<p>Becomes fully regular: <code class="docutils literal notranslate"><span class="pre">Sample</span> <span class="pre">&lt;what&gt;</span> <span class="pre">by</span> <span class="pre">&lt;method&gt;</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Montecarlo Sampling</p></td>
+<td><p><strong>Sample Surface by Monte Carlo</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_surface_by_monte_carlo</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Poisson-disk Sampling</p></td>
+<td><p><strong>Sample Surface by Poisson Disk</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_surface_by_poisson_disk</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Stratified Triangle Sampling</p></td>
+<td><p><strong>Sample Surface by Stratified Triangles</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_surface_by_stratified_triangles</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Voronoi Sampling</p></td>
+<td><p><strong>Sample Surface by Voronoi Relaxation</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_surface_by_voronoi_relaxation</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Clustered Vertex Sampling</p></td>
+<td><p><strong>Sample Vertices by Clustering</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_vertices_by_clustering</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Mesh Element Sampling</p></td>
+<td><p><strong>Sample Mesh Elements</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_mesh_elements</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Regular Recursive Sampling</p></td>
+<td><p><strong>Sample Offset Surface Recursively</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_offset_surface_recursively</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Texel Sampling</p></td>
+<td><p><strong>Sample Texels</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_texels</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Volumetric Sampling</p></td>
+<td><p><strong>Sample Volume</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sample_volume</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Montecarlo</span></code> gains its conventional space. Nothing else here is contentious: the noun
+after <code class="docutils literal notranslate"><span class="pre">Sample</span></code> says what is sampled, the method follows <code class="docutils literal notranslate"><span class="pre">by</span></code>.</p>
+</section>
+<section id="id3">
+<h2>Verbs added to the lexicon<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h2>
+<p>One, and it is contested — see ruling 3.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Verb</p></th>
+<th class="head"><p>Means</p></th>
+<th class="head"><p>Why the existing lexicon was not enough</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Trim</span></code></p></td>
+<td><p>Cut a surface along an isovalue of a scalar field and discard one side</p></td>
+<td><p>Neither <code class="docutils literal notranslate"><span class="pre">Remove</span></code> (which deletes whole elements matching a predicate) nor <code class="docutils literal notranslate"><span class="pre">Cut</span></code> (which introduces a boundary but keeps both sides) describes it</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h2>Rulings<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h2>
+<p>All settled (2026-08-05).</p>
+<ol class="arabic">
+<li><p>~~Does every primitive need the word <code class="docutils literal notranslate"><span class="pre">Create</span></code>?~~ <strong>Yes.</strong> Fourteen filters were bare
+nouns, and rule 2 (<em>never repeat the category</em>) plus the named-result exception both
+argued for leaving them. <code class="docutils literal notranslate"><span class="pre">Create</span></code> wins because it carries an invariant — <em>a new layer
+appears in the layer list</em> — that holds across all 277 filters and that was the
+deciding argument in round 2 ruling 2, where <code class="docutils literal notranslate"><span class="pre">Create</span></code> was <strong>refused</strong> to the
+custom-attribute filters precisely to protect it. Dropping the verb from the filters
+that actually create layers would make the invariant invisible where it matters most.
+Two supporting reasons: the subcategory is not uniformly noun-able (7 of 21 are not
+named objects), and filters are reached by flat search and Python, where a bare
+<code class="docutils literal notranslate"><span class="pre">Sphere</span></code> does not say what will happen.</p></li>
+<li><p>~~Spell out <code class="docutils literal notranslate"><span class="pre">SSD</span></code>?~~ <strong>Yes — <code class="docutils literal notranslate"><span class="pre">Reconstruct</span> <span class="pre">Surface</span> <span class="pre">by</span> <span class="pre">Smooth</span> <span class="pre">Signed</span> <span class="pre">Distance</span></code>.</strong> Long,
+but parallel with <em>Screened Poisson</em> and it keeps the no-unexplained-abbreviations
+rule intact for the Python name.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Trim</span></code> as a new verb — and is the filter’s behaviour really what the description
+claims?~~ <strong>Verified in code, and <code class="docutils literal notranslate"><span class="pre">Trim</span></code> is admitted.</strong>
+<code class="docutils literal notranslate"><span class="pre">runSurfaceTrimmerImpl</span></code> in <code class="docutils literal notranslate"><span class="pre">poissonrecon_backend.cpp</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">splitPolygon(...,</span> <span class="pre">trimValue)</span></code> splits <strong>every</strong> polygon along the isovalue of vertex
+quality, creating <strong>new vertices interpolated on the cut edges</strong>;</p></li>
+<li><p>only <code class="docutils literal notranslate"><span class="pre">gtPolygons</span></code> — the side above the threshold — is kept;</p></li>
+<li><p>small disconnected islands are optionally dropped (<code class="docutils literal notranslate"><span class="pre">islandAreaRatio</span></code>,
+<code class="docutils literal notranslate"><span class="pre">removeIslands</span></code>);</p></li>
+<li><p>the result is triangulated and the mesh rebuilt in place.</p></li>
+</ul>
+<p>So <code class="docutils literal notranslate"><span class="pre">Remove</span> <span class="pre">Faces</span> <span class="pre">by</span> <span class="pre">Scalar</span> <span class="pre">Threshold</span></code> would be actively wrong: vertices appear that
+were not in the input, and no whole face is tested against a predicate. <code class="docutils literal notranslate"><span class="pre">Remove</span></code>
+cannot describe this; <code class="docutils literal notranslate"><span class="pre">Cut</span></code> keeps both sides. <code class="docutils literal notranslate"><span class="pre">Trim</span></code> is the term of art and earns its
+lexicon entry.</p>
+<p>The filter stays in <code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code>: it is meaningless except as the
+post-processing companion to Poisson-family reconstruction, and moving it away from
+the filters it exists to serve would help nobody.</p>
+</li>
+</ol>
+</section>
+<section id="reconstruction-output-domain-interpolating-vs-approximating">
+<h2>Reconstruction output domain: interpolating vs approximating<a class="headerlink" href="#reconstruction-output-domain-interpolating-vs-approximating" title="Link to this heading">¶</a></h2>
+<p>An earlier draft of this section flagged <code class="docutils literal notranslate"><span class="pre">Surface</span> <span class="pre">Reconstruction:</span> <span class="pre">Ball</span> <span class="pre">Pivoting</span></code> as
+inconsistent for declaring <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code> where every other reconstruction declares
+<code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code>. <strong>That was wrong</strong>, and the distinction it missed is worth recording as a
+rule.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mechanism</p></th>
+<th class="head"><p>Filters</p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">outputDomain</span></code></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Approximating</strong> — fit an implicit field and extract it, or build an offset surface. Output vertices are new.</p></td>
+<td><p>Screened Poisson, Smooth Signed Distance, Volumetric Merging, Alpha Wrapping, Marching Cubes (APSS), Marching Cubes (RIMLS)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code> — 6/6</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Interpolating</strong> — the input points <em>are</em> the output vertices; only connectivity is added.</p></td>
+<td><p>Ball Pivoting</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code> — 1/1</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">vcg::tri::BallPivoting&lt;VCGMesh&gt;</span> <span class="pre">pivot(mesh,</span> <span class="pre">...)</span></code> runs on the layer’s own mesh and adds
+faces to the existing vertex set, so <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code> is not an oversight but the
+honest declaration: nothing is destroyed, the point cloud is still there and now carries
+a surface. Emitting a new layer would duplicate every point for no gain.</p>
+<p>Ball Pivoting is currently the <strong>only</strong> interpolating reconstruction in the tree — there
+is no Delaunay, convex hull, or advancing-front filter in <code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code>,
+<code class="docutils literal notranslate"><span class="pre">filter_meshfix</span></code> or <code class="docutils literal notranslate"><span class="pre">filter_clean</span></code>. The rule is recorded because that is exactly the
+family an igl plugin would add:</p>
+<blockquote>
+<div><p>An interpolating reconstruction declares <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code>; an approximating one
+declares <code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code>.</p>
+</div></blockquote>
 </section>
 </section>
 
@@ -598,6 +1544,29 @@ the next <code class="docutils literal notranslate"><span class="pre">--generate
 <li><a class="reference internal" href="#meshing-subdivision">Meshing/Subdivision</a></li>
 <li><a class="reference internal" href="#verbs-added-to-the-lexicon">Verbs added to the lexicon</a></li>
 <li><a class="reference internal" href="#rulings">Rulings</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#round-2-attribute-65-filters-64">Round 2 — <code class="docutils literal notranslate"><span class="pre">Attribute</span></code> (65 filters → 64)</a><ul>
+<li><a class="reference internal" href="#attribute-normal-13">Attribute/Normal (13)</a></li>
+<li><a class="reference internal" href="#attribute-scalar-19">Attribute/Scalar (19)</a></li>
+<li><a class="reference internal" href="#attribute-curvature-4">Attribute/Curvature (4)</a></li>
+<li><a class="reference internal" href="#attribute-custom-4">Attribute/Custom (4)</a></li>
+<li><a class="reference internal" href="#attribute-color-24">Attribute/Color (24)</a></li>
+<li><a class="reference internal" href="#id1">Verbs added to the lexicon</a></li>
+<li><a class="reference internal" href="#duplicate-sweep-2026-08-04">Duplicate sweep (2026-08-04)</a><ul>
+<li><a class="reference internal" href="#not-duplicates-but-defects-found-on-the-way">Not duplicates, but defects found on the way</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id2">Rulings</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#round-3-creation-38-filters">Round 3 — <code class="docutils literal notranslate"><span class="pre">Creation</span></code> (38 filters)</a><ul>
+<li><a class="reference internal" href="#creation-primitives-21">Creation/Primitives (21)</a></li>
+<li><a class="reference internal" href="#creation-reconstruction-8">Creation/Reconstruction (8)</a></li>
+<li><a class="reference internal" href="#creation-sampling-9">Creation/Sampling (9)</a></li>
+<li><a class="reference internal" href="#id3">Verbs added to the lexicon</a></li>
+<li><a class="reference internal" href="#id4">Rulings</a></li>
+<li><a class="reference internal" href="#reconstruction-output-domain-interpolating-vs-approximating">Reconstruction output domain: interpolating vs approximating</a></li>
 </ul>
 </li>
 </ul>

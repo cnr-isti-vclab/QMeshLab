@@ -395,15 +395,15 @@ both redundant and <strong>destructive</strong> — it silently overwrites any c
 <td><p><strong>Fixed.</strong> Both wrote vertex <em>and</em> face colour while their descriptors declared only <code class="docutils literal notranslate"><span class="pre">outputModifies:</span> <span class="pre">[FQ,</span> <span class="pre">VQ]</span></code> — the code violated its own contract. The bake is removed; the <code class="docutils literal notranslate"><span class="pre">FaceQuality</span></code> visualization hint they already returned now does the job.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Opt-in <code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">to</span> <span class="pre">colour</span></code> parameter on a compute filter</p></td>
-<td><p><em>Vertex Quality from Camera</em> (<code class="docutils literal notranslate"><span class="pre">map</span></code>), <em>Per Vertex/Face Quality Function</em> (<code class="docutils literal notranslate"><span class="pre">mapToColor</span></code>), <em>Generate Scalar Harmonic Field</em> (<code class="docutils literal notranslate"><span class="pre">colorize</span></code>)</p></td>
+<td><p><em>Compute Vertex Scalar from Camera</em> (<code class="docutils literal notranslate"><span class="pre">map</span></code>), <em>Per Vertex/Face Quality Function</em> (<code class="docutils literal notranslate"><span class="pre">mapToColor</span></code>), <em>Compute Harmonic Scalar Field</em> (<code class="docutils literal notranslate"><span class="pre">colorize</span></code>)</p></td>
 <td><p><strong>Deferred to pass 2.</strong> These are opt-in rather than automatic, but the option is now redundant. Removing a parameter is script-visible, so it belongs with the parameter-id pass.</p></td>
 </tr>
 <tr class="row-even"><td><p>Colorizing is the filter’s actual purpose</p></td>
-<td><p><em>Colorize by vertex/face Quality</em>, <em>Quality Mapper applier</em></p></td>
+<td><p><em>Colorize by vertex/face Quality</em></p></td>
 <td><p><strong>Correct as-is</strong> — these are <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> filters by definition.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Colorizing a newly created layer</p></td>
-<td><p><em>Voronoi/Volumetric Sampling</em> volume meshes</p></td>
+<td><p><em>Sample Surface by Voronoi Relaxation</em> / <em>Sample Volume</em> volume meshes</p></td>
 <td><p><strong>Acceptable</strong> — writes to a new layer, destroys nothing. Low priority.</p></td>
 </tr>
 </tbody>
@@ -773,7 +773,7 @@ for (see open ruling 5).</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_basic</span></code></p></td>
 <td><p>3</p></td>
 <td><p>no dep; three unrelated filters</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_measure</span></code> (Current Mesh Info), <code class="docutils literal notranslate"><span class="pre">filter_transform</span></code> (Normalize To Unit Box), <code class="docutils literal notranslate"><span class="pre">filter_create</span></code> (Noisy Isosurface)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_measure</span></code> (Current Mesh Info), <code class="docutils literal notranslate"><span class="pre">filter_transform</span></code> (Normalize To Unit Box), <code class="docutils literal notranslate"><span class="pre">filter_create</span></code> (Create Isosurface from Perlin Noise)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_create</span></code></p></td>
 <td><p>13</p></td>
@@ -783,7 +783,7 @@ for (see open ruling 5).</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_clean</span></code></p></td>
 <td><p>15</p></td>
 <td><p>already a family name</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_clean</span></code> (14), <code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code> (1 — its lone non-Cleaning filter is <em>Surface Reconstruction: Ball Pivoting</em>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_clean</span></code> (14), <code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code> (1 — its lone non-Cleaning filter is <em>Reconstruct Surface by Ball Pivoting</em>)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_select</span></code></p></td>
 <td><p>25</p></td>
@@ -858,7 +858,7 @@ for (see open ruling 5).</p>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_plymc</span></code></p></td>
 <td><p>2</p></td>
 <td><p>no dep — uses vcglib’s own <code class="docutils literal notranslate"><span class="pre">create/plymc/plymc.h</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code> (1 <em>Surface Reconstruction: VCG</em>), <code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code> (1 <em>Edge Collapse for Marching Cube meshes</em>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code> (1 <em>Reconstruct Surface by Volumetric Merging</em>), <code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code> (1 <em>Edge Collapse for Marching Cube meshes</em>)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_img_patch_param</span></code></p></td>
 <td><p>4</p></td>
@@ -902,15 +902,15 @@ family rather than a one-filter stub.</p>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_create</span></code></p></td>
 <td><p>3</p></td>
-<td><p>Build Polyline from Selected Edges · Create Selection Perimeter Polyline · Compute Planar Section</p></td>
+<td><p>Create Polyline from Selected Edges · Create Polyline from Selection Perimeter · Create Polyline from Planar Section</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_compute</span></code></p></td>
 <td><p>2</p></td>
-<td><p>Compute normals for point sets · Compute curvature principal directions</p></td>
+<td><p>Compute Point Cloud Normals · Compute Principal Curvature Directions</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_smooth</span></code></p></td>
 <td><p>1</p></td>
-<td><p>Smooth normals on point sets</p></td>
+<td><p>Smooth Point Cloud Normals</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_parametrize</span></code></p></td>
 <td><p>1</p></td>

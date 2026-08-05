@@ -130,7 +130,7 @@ Laplacian smooth with limited surface modification: each vertex moves toward the
 
 (filter-apply-face-color-function)=
 
-## Per Face Color Function
+## Compute Face Color by Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -154,7 +154,7 @@ Color function using muparser lib to generate new RGBA color for every face<br>R
 
 (filter-apply-face-normal-function)=
 
-## Per Face Normal Function
+## Compute Face Normals by Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -177,7 +177,7 @@ Normal function using muparser to generate new Normal for every face<br>
 
 (filter-apply-face-quality-function)=
 
-## Per Face Quality Function
+## Compute Face Scalar by Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -258,7 +258,7 @@ Project a mesh (or a point set) onto the MLS surface defined by itself or anothe
 
 (filter-apply-vertex-color-function)=
 
-## Per Vertex Color Function
+## Compute Vertex Color by Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -306,7 +306,7 @@ Geometric function using muparser lib to generate new Coord<br>You can change x,
 
 (filter-apply-vertex-normal-function)=
 
-## Per Vertex Normal Function
+## Compute Vertex Normals by Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -329,7 +329,7 @@ Normal function using muparser to generate new Normal for every vertex<br>
 
 (filter-apply-vertex-quality-function)=
 
-## Per Vertex Quality Function
+## Compute Vertex Scalar by Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -400,7 +400,7 @@ Texture function using muparser to generate new per wedge tex coords for every f
 
 (filter-build-polyline-from-selection)=
 
-## Build a Polyline from Selected Edges
+## Create Polyline from Selected Edges
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -418,7 +418,7 @@ This filter has no parameters.
 
 (filter-clamp-vertex-quality)=
 
-## Clamp Vertex Quality
+## Clamp Vertex Scalar
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -466,7 +466,7 @@ Close holes whose boundary is composed by a number of edges smaller than a given
 
 (filter-color-noise)=
 
-## Color noise
+## Add Noise to Vertex Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -487,7 +487,7 @@ Adds to the color the requested amount of bits of noise. Bits of noise are added
 
 (filter-color-scattering)=
 
-## PerMesh Color Scattering
+## Set Random Layer Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -507,7 +507,7 @@ Assigns a random color to each visible mesh layer in the document. Colors change
 
 (filter-colorize-by-face-quality)=
 
-## Colorize by face Quality
+## Colorize Faces by Scalar
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -531,7 +531,7 @@ Color faces depending on their quality field (manually equalized).
 
 (filter-colorize-by-vertex-quality)=
 
-## Colorize by vertex Quality
+## Colorize Vertices by Scalar
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -577,7 +577,7 @@ Compute Ambient Occlusion.This filter is a shading technique used in computer gr
 
 (filter-compute-apss-curvature)=
 
-## Compute APSS Curvature Quality
+## Compute Curvature (APSS)
 
 **Plugin:** qmeshlab.filter.mls
 
@@ -602,7 +602,7 @@ Compute curvature values on the vertices of a mesh or point set and store them i
 
 (filter-compute-border-distance-quality)=
 
-## Compute Border Distance Quality
+## Compute Geodesic Distance from Border
 
 **Plugin:** qmeshlab.filter.geodesic
 
@@ -698,35 +698,9 @@ Projects color information from the current raster onto the mesh vertices using 
 
 ---
 
-(filter-compute-color-from-scalar-using-transfer-function-per-vertex)=
-
-## Quality Mapper applier
-
-**Plugin:** qmeshlab.filter.colorproc
-
-Bake vertex quality into vertex colors.
-
-```{py:function} ms.compute_color_from_scalar_using_transfer_function_per_vertex(**params)
-:module: _qmeshlab
-
-MeshLab-compatible quality-to-color baking. QMeshLab samples the same colormap/range code used by quality visualization instead of importing the old transfer-function editor.
-
-**Parameters:**
-
-- **minVal** (*double*, default: `@qualityVMin`) — The value mapped to the lower end of the scale.
-- **maxVal** (*double*, default: `@qualityVMax`) — The value mapped to the upper end of the scale.
-- **perc** (*double*, default: `0.0`) — If not zero this value is used for percentile cropping of the quality values.
-- **zeroSym** (*bool*, default: `False`) — If true the min/max range is enlarged to be symmetric around zero.
-- **colorMap** (*enum*, default: `rainbow`) — The color map to use. Built-in QMeshLab maps match the quality visualization panel; RGB and RdPu preserve legacy VCGLib behavior.
-- **invert** (*bool*, default: `False`) — Invert the selected QMeshLab colormap before sampling, matching the quality visualization panel. Legacy RGB/RdPu maps ignore this option.
-- **colorMapId** (*string*, default: ``) — Optional exact QMeshLab colormap id. Leave empty for the selected Color Map enum. This is mainly used internally when baking the current view and also supports external colormaps loaded by QMeshLab.
-```
-
----
-
 (filter-compute-curvature-principal-directions)=
 
-## Compute curvature principal directions
+## Compute Principal Curvature Directions
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -772,7 +746,7 @@ Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and 
 
 (filter-compute-face-normals)=
 
-## Re-Compute Face Normals
+## Compute Face Normals
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -831,7 +805,7 @@ This filter has no parameters.
 
 (filter-compute-geodesic-distance-from-point)=
 
-## Compute Geodesic Distance Quality from Point
+## Compute Geodesic Distance from Point
 
 **Plugin:** qmeshlab.filter.geodesic
 
@@ -852,7 +826,7 @@ Store in the vertex quality field the geodesic distance from a given point on th
 
 (filter-compute-geodesic-distance-from-selection)=
 
-## Compute Geodesic Distance Quality from Selection
+## Compute Geodesic Distance from Selection
 
 **Plugin:** qmeshlab.filter.geodesic
 
@@ -918,7 +892,7 @@ Compute the Hausdorff Distance between two layers, sampling one of the two and f
 
 (filter-compute-heat-geodesic-distance)=
 
-## Compute Heat Geodesic Distance Quality from Selection
+## Compute Geodesic Distance from Selection (Heat Method)
 
 **Plugin:** qmeshlab.filter.geodesic
 
@@ -1006,7 +980,7 @@ Build an overlap graph among the selected document layers, run ICP on sufficient
 
 (filter-compute-normal-from-cameras-per-vertex)=
 
-## Re-Orient vertex normals using cameras
+## Orient Vertex Normals by Cameras
 
 **Plugin:** qmeshlab.filter.camera
 
@@ -1045,7 +1019,7 @@ Compute ambient Obscurance. <br />Ambient obscurance is a computer graphics tech
 
 (filter-compute-per-polygon-face-normals)=
 
-## Re-Compute Per-Polygon Face Normals
+## Compute Polygon Face Normals
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -1063,7 +1037,7 @@ This filter has no parameters.
 
 (filter-compute-planar-section)=
 
-## Compute Planar Section
+## Create Polyline from Planar Section
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -1088,7 +1062,7 @@ Compute the polyline representing a planar section (a slice) of a mesh; if the r
 
 (filter-compute-point-cloud-normals)=
 
-## Compute normals for point sets
+## Compute Point Cloud Normals
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -1111,7 +1085,7 @@ Compute the normals of the vertices of a mesh without exploiting the triangle co
 
 (filter-compute-rimls-curvature)=
 
-## Compute RIMLS Curvature Quality
+## Compute Curvature (RIMLS)
 
 **Plugin:** qmeshlab.filter.mls
 
@@ -1137,7 +1111,7 @@ Compute curvature values on the vertices of a mesh or point set and store them i
 
 (filter-compute-scalar-from-camera-per-vertex)=
 
-## Vertex Quality from Camera
+## Compute Vertex Scalar from Camera
 
 **Plugin:** qmeshlab.filter.camera
 
@@ -1161,7 +1135,7 @@ Compute vertex quality using the camera definition, according to viewing angle o
 
 (filter-compute-scalar-from-raster-coverage-per-face)=
 
-## Quality from raster coverage (Face)
+## Compute Face Scalar from Raster Coverage
 
 **Plugin:** qmeshlab.filter.img_patch_param
 
@@ -1182,7 +1156,7 @@ Compute a quality value representing the number of images into which each face o
 
 (filter-compute-scalar-from-raster-coverage-per-vertex)=
 
-## Quality from raster coverage (Vertex)
+## Compute Vertex Scalar from Raster Coverage
 
 **Plugin:** qmeshlab.filter.img_patch_param
 
@@ -1374,7 +1348,7 @@ This filter has no parameters.
 
 (filter-compute-vertex-normals)=
 
-## Re-Compute Vertex Normals
+## Compute Vertex Normals
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -1536,7 +1510,7 @@ This filter has no parameters.
 
 (filter-create-annulus)=
 
-## Annulus
+## Create Annulus
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1558,7 +1532,7 @@ Create an Annulus e.g. a flat region bounded by two concentric circles, or a hol
 
 (filter-create-box)=
 
-## Box/Cube
+## Create Box
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1578,7 +1552,7 @@ Create a Box, Cube, Hexahedron. You can specify the side length.
 
 (filter-create-cone)=
 
-## Cone
+## Create Cone
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1601,7 +1575,7 @@ Create a Cone
 
 (filter-create-dodecahedron)=
 
-## Dodecahedron
+## Create Dodecahedron
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1619,7 +1593,7 @@ This filter has no parameters.
 
 (filter-create-dodecahedron-symmetric)=
 
-## Dodecahedron (symmetric)
+## Create Symmetric Dodecahedron
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1637,7 +1611,7 @@ This filter has no parameters.
 
 (filter-create-grid)=
 
-## Grid Generator
+## Create Grid
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -1661,7 +1635,7 @@ Generate a new 2D Grid mesh with number of vertices on X and Y axis specified by
 
 (filter-create-icosahedron)=
 
-## Icosahedron
+## Create Icosahedron
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1679,7 +1653,7 @@ This filter has no parameters.
 
 (filter-create-implicit-surface)=
 
-## Implicit Surface
+## Create Isosurface from Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -1706,7 +1680,7 @@ Generate a new mesh that corresponds to the 0 valued isosurface defined by the s
 
 (filter-create-octahedron)=
 
-## Octahedron
+## Create Octahedron
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1724,7 +1698,7 @@ This filter has no parameters.
 
 (filter-create-points-on-sphere)=
 
-## Points on a Sphere
+## Create Points on a Sphere
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1745,7 +1719,7 @@ Create a spherical point cloud, it can be random or regularly distributed.
 
 (filter-create-selection-perimeter)=
 
-## Create Selection Perimeter Polyline
+## Create Polyline from Selection Perimeter
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -1754,7 +1728,7 @@ Create polyline from selection perimeter.
 ```{py:function} ms.create_selection_perimeter(**params)
 :module: _qmeshlab
 
-Create a new Layer with an edge mesh (polyline) composed by the selected edges of the current mesh. It can be used to convert the boundary edges of a mesh into a polyline by selecting all the faces of the mesh.
+Create a new Layer with an edge mesh (polyline) tracing the perimeter of the **selected faces**: every edge of a selected face whose adjacent face is not selected. Selecting all the faces of the mesh therefore converts its boundary edges into a polyline.<br>To build a polyline from an *edge* selection instead, use *Build a Polyline from Selected Edges*.
 
 This filter has no parameters.
 ```
@@ -1763,7 +1737,7 @@ This filter has no parameters.
 
 (filter-create-sphere)=
 
-## Sphere
+## Create Sphere
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1784,7 +1758,7 @@ Create a Sphere, whose topology is obtained as regular subdivision of an icosahe
 
 (filter-create-sphere-cap)=
 
-## Sphere Cap
+## Create Sphere Cap
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1805,7 +1779,7 @@ Create a Sphere Cap, or spherical dome, subtended by a cone of given angle
 
 (filter-create-tetrahedron)=
 
-## Tetrahedron
+## Create Tetrahedron
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1823,7 +1797,7 @@ This filter has no parameters.
 
 (filter-create-torus)=
 
-## Torus
+## Create Torus
 
 **Plugin:** qmeshlab.filter.create
 
@@ -1866,7 +1840,7 @@ Cut the mesh along crease edges, duplicating the vertices as necessary. Crease (
 
 (filter-define-face-point-attribute)=
 
-## Define New Per Face Custom Point Attribute
+## Define Custom Face Point Attribute
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -1889,7 +1863,7 @@ Add a new Per-Face custom point attribute to current mesh and fill it with the d
 
 (filter-define-face-scalar-attribute)=
 
-## Define New Per Face Custom Scalar Attribute
+## Define Custom Face Scalar Attribute
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -1910,7 +1884,7 @@ Add a new Per-Face custom scalar attribute to current mesh and fill it with the 
 
 (filter-define-vertex-point-attribute)=
 
-## Define New Per Vertex Custom Point Attribute
+## Define Custom Vertex Point Attribute
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -1933,7 +1907,7 @@ Add a new Per-Vertex custom point attribute to current mesh and fill it with the
 
 (filter-define-vertex-scalar-attribute)=
 
-## Define New Per Vertex Custom Scalar Attribute
+## Define Custom Vertex Scalar Attribute
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -2150,7 +2124,7 @@ This filter has no parameters.
 
 (filter-discrete-curvatures)=
 
-## Discrete Curvatures
+## Compute Curvature (Discrete)
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -2170,7 +2144,7 @@ Compute discrete curvature and store it in vertex quality. The filter does not b
 
 (filter-disk-vertex-coloring)=
 
-## Disk Vertex Coloring
+## Colorize Vertices by Disk Distance
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -2472,7 +2446,7 @@ Estimate the local point spacing (aka radius) around each vertex using a basic e
 
 (filter-fit-plane-to-selection)=
 
-## Fit Plane to Selection
+## Create Plane from Selection
 
 **Plugin:** qmeshlab.filter.create
 
@@ -2516,7 +2490,7 @@ Flatten all or only the visible layers into a single new mesh.<br>Transformation
 
 (filter-generate-alpha-wrap)=
 
-## Alpha Wrap
+## Reconstruct Surface by Alpha Wrapping
 
 **Plugin:** qmeshlab.filter.cgal
 
@@ -2644,7 +2618,7 @@ Executes an exact boolean symmetric difference between two mesh layers and creat
 
 (filter-generate-marching-cubes-apss)=
 
-## Marching Cubes (APSS)
+## Reconstruct Surface by Marching Cubes (APSS)
 
 **Plugin:** qmeshlab.filter.mls
 
@@ -2669,7 +2643,7 @@ Extract the iso-surface (as a mesh) of a MLS surface defined by the current poin
 
 (filter-generate-marching-cubes-rimls)=
 
-## Marching Cubes (RIMLS)
+## Reconstruct Surface by Marching Cubes (RIMLS)
 
 **Plugin:** qmeshlab.filter.mls
 
@@ -2694,7 +2668,7 @@ Extract the iso-surface (as a mesh) of a MLS surface defined by the current poin
 
 (filter-generate-noisy-isosurface)=
 
-## Noisy Isosurface
+## Create Isosurface from Perlin Noise
 
 **Plugin:** qmeshlab.filter.basic
 
@@ -2714,7 +2688,7 @@ Generates a scalar field over a cubic grid and extracts an isosurface using marc
 
 (filter-generate-sampling-volumetric)=
 
-## Volumetric Sampling
+## Sample Volume
 
 **Plugin:** qmeshlab.filter.voronoi
 
@@ -2737,7 +2711,7 @@ Compute a volumetric Monte Carlo sampling of a watertight mesh and add diagnosti
 
 (filter-generate-sampling-voronoi)=
 
-## Voronoi Sampling
+## Sample Surface by Voronoi Relaxation
 
 **Plugin:** qmeshlab.filter.voronoi
 
@@ -2767,7 +2741,7 @@ Compute a point sampling over the current mesh and perform Lloyd relaxation on t
 
 (filter-generate-scalar-harmonic-field)=
 
-## Generate Scalar Harmonic Field
+## Compute Harmonic Scalar Field
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -2791,7 +2765,7 @@ Generates a scalar harmonic field over the mesh. Input scalar values must be ass
 
 (filter-generate-screened-poisson)=
 
-## Surface Reconstruction: Screened Poisson
+## Reconstruct Surface by Screened Poisson
 
 **Plugin:** qmeshlab.filter.screened_poisson
 
@@ -2856,7 +2830,7 @@ Create a new solid wireframe layer by replacing edges with cylinders, vertices w
 
 (filter-generate-ssd-reconstruction)=
 
-## Surface Reconstruction: SSD
+## Reconstruct Surface by Smooth Signed Distance
 
 **Plugin:** qmeshlab.filter.screened_poisson
 
@@ -2896,7 +2870,7 @@ Compared to Screened Poisson, the SSD formulation exposes separate weights for z
 
 (filter-generate-surface-reconstruction-ball-pivoting)=
 
-## Surface Reconstruction: Ball Pivoting
+## Reconstruct Surface by Ball Pivoting
 
 **Plugin:** qmeshlab.filter.clean
 
@@ -2919,7 +2893,7 @@ Given a point cloud with normals it reconstructs a surface using the <b>Ball Piv
 
 (filter-generate-surface-reconstruction-vcg)=
 
-## Surface Reconstruction: VCG
+## Reconstruct Surface by Volumetric Merging
 
 **Plugin:** qmeshlab.filter.plymc
 
@@ -2946,7 +2920,7 @@ Surface reconstruction algorithm using volumetric distance fields and Marching C
 
 (filter-generate-voronoi-scaffolding)=
 
-## Voronoi Scaffolding
+## Create Voronoi Scaffolding
 
 **Plugin:** qmeshlab.filter.voronoi
 
@@ -3566,7 +3540,7 @@ Practical tuning notes:
 
 (filter-per-face-quality-by-geometric-measure)=
 
-## Per Face Geometric Quality
+## Compute Face Scalar from Geometry
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -3598,7 +3572,7 @@ The planarity measures apply only to polygonal meshes represented by faux-edge t
 
 (filter-per-face-quality-by-texture-distortion)=
 
-## Per Face Texture Distortion
+## Compute UV Distortion
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -3650,7 +3624,7 @@ The global normalization makes every metric invariant to uniform resizing of the
 
 (filter-perlin-color)=
 
-## Perlin color
+## Colorize Vertices by Perlin Noise
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -3674,7 +3648,7 @@ Paints the mesh using PerlinColor function. The color assigned to vertices depen
 
 (filter-random-component-color)=
 
-## Random Component Color
+## Set Random Component Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -3692,7 +3666,7 @@ This filter has no parameters.
 
 (filter-random-face-color)=
 
-## Random Face Color
+## Set Random Face Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -4041,7 +4015,7 @@ This filter has no parameters.
 
 (filter-reorient-face-normals)=
 
-## Reorient Face Normals by Geometry
+## Orient Face Normals by Ray Casting
 
 **Plugin:** qmeshlab.filter.embree
 
@@ -4155,7 +4129,7 @@ Create a new mesh that is a resampled version of the current one.<br>The resampl
 
 (filter-sample-clustered-vertices)=
 
-## Clustered Vertex Sampling
+## Sample Vertices by Clustering
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -4177,7 +4151,7 @@ Create a new layer populated with a subsampling of the vertices of the current m
 
 (filter-sample-mesh-elements)=
 
-## Mesh Element Sampling
+## Sample Mesh Elements
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -4198,7 +4172,7 @@ Create a new layer populated with a point sampling of the current mesh; at most 
 
 (filter-sample-montecarlo)=
 
-## Montecarlo Sampling
+## Sample Surface by Monte Carlo
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -4223,7 +4197,7 @@ Create a new layer populated with a point sampling of the current mesh; samples 
 
 (filter-sample-poisson-disk)=
 
-## Poisson-disk Sampling
+## Sample Surface by Poisson Disk
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -4255,7 +4229,7 @@ Create a new layer populated with a point sampling of the current mesh;samples a
 
 (filter-sample-regular-recursive)=
 
-## Regular Recursive Sampling
+## Sample Offset Surface Recursively
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -4276,7 +4250,7 @@ The bounding box is recursively partitioned in a octree style, center of bbox ar
 
 (filter-sample-stratified-triangles)=
 
-## Stratified Triangle Sampling
+## Sample Surface by Stratified Triangles
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -4298,7 +4272,7 @@ Create a new layer populated with a point sampling of the current mesh; to gener
 
 (filter-sample-texels)=
 
-## Texel Sampling
+## Sample Texels
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -4322,7 +4296,7 @@ Create a new layer with a point sampling of the current mesh, a sample for each 
 
 (filter-saturate-vertex-quality)=
 
-## Saturate Vertex Quality
+## Clamp Vertex Scalar Gradient
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -4970,20 +4944,20 @@ Explicitly change the label shown for the current raster.
 
 **Plugin:** qmeshlab.filter.texture
 
-Associate an existing image file with the current mesh texture coordinates.
+Associate an image or generated dummy texture with the current mesh UV coordinates.
 
 ```{py:function} ms.set_texture(**params)
 :module: _qmeshlab
 
-Set a texture associated with current mesh parametrization.<br>If the texture provided exists, then it will be simply associated to the current mesh; else the filter will fail with no further actions. If specified it can create and associate a dummy texture with a specified grid or checkboard pattern.
+Associates one texture with the current mesh UV parametrization, replacing its existing texture associations. By default, the filter generates a checkerboard that makes UV scale and distortion immediately visible. Disable **Use dummy texture** to select an existing image file instead.
 
 **Parameters:**
 
+- **use_dummy_texture** (*bool*, default: `True`) — If checked, generate a dummy texture instead of loading an image. Disable it to select an image using 'Texture file'.
 - **textName** (*fileopen*, default: ``) — Sets the given input image as unique texture of the mesh.
-- **use_dummy_texture** (*bool*, default: `False`) — If checked, the filter will set a dummy texture instead of loading an image. The 'Texture file' parameter will be ignored.
 - **dummy_img_size** (*int*, default: `512`) — Size in pixel of the square dummy texture.
-- **dummy_check_size** (*int*, default: `8`) — Size in pixel of the checkerboard or grid cell of the dummy texture.
-- **dummy_type** (*enum*, default: `checkboard`) — Choose what kind of dummy texture you want, a grid with lines or a checkboard.
+- **dummy_check_size** (*int*, default: `64`) — Size in pixel of the checkerboard or grid cell of the dummy texture.
+- **dummy_type** (*enum*, default: `checkerboard`) — Choose between a checkerboard and a line grid.
 ```
 
 ---
@@ -5276,7 +5250,7 @@ Laplacian smooth. Average each vertex position with weighted positions of neighb
 
 (filter-smooth-laplacian-face-color)=
 
-## Smooth: Laplacian Face Color
+## Smooth Face Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -5296,7 +5270,7 @@ Laplacian Smooth Face Color
 
 (filter-smooth-laplacian-vertex-color)=
 
-## Smooth: Laplacian Vertex Color
+## Smooth Vertex Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -5316,7 +5290,7 @@ Laplacian Smooth Vertex Color
 
 (filter-smooth-point-cloud-normals)=
 
-## Smooth normals on point sets
+## Smooth Point Cloud Normals
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5406,7 +5380,7 @@ Two Steps Smoothing, a feature preserving/enhancing fairing filter based on two 
 
 (filter-smooth-vertex-quality)=
 
-## Smooth Vertex Quality
+## Smooth Vertex Scalar
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -5997,7 +5971,7 @@ This filter has no parameters.
 
 (filter-trim-reconstructed-surface)=
 
-## Surface Reconstruction: Surface Trimmer
+## Trim Surface by Scalar Isovalue
 
 **Plugin:** qmeshlab.filter.screened_poisson
 
@@ -6022,7 +5996,7 @@ It is especially useful after Poisson-based reconstruction when the vertex quali
 
 (filter-unsharp-mask-color)=
 
-## UnSharp Mask Color
+## Sharpen Vertex Color by Unsharp Mask
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -6066,7 +6040,7 @@ Apply Unsharp filter to geometric shape, putting in more evidence ridges and val
 
 (filter-unsharp-mask-normals)=
 
-## UnSharp Mask Normals
+## Sharpen Face Normals by Unsharp Mask
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -6089,7 +6063,7 @@ Unsharp mask filtering of the normals per face, putting in more evidence normal 
 
 (filter-unsharp-mask-quality)=
 
-## UnSharp Mask Quality
+## Sharpen Vertex Scalar by Unsharp Mask
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -6133,7 +6107,7 @@ Make all selected vertex attributes connectivity-independent:<br/>vertices are d
 
 (filter-vertex-color-brightness-contrast-gamma)=
 
-## Vertex Color Brightness Contrast Gamma
+## Adjust Vertex Color Brightness/Contrast/Gamma
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -6156,7 +6130,7 @@ Change the color the vertices of the mesh adjusting brightness, contrast and gam
 
 (filter-vertex-color-colourisation)=
 
-## Vertex Color Colourisation
+## Tint Vertex Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -6180,7 +6154,7 @@ Allows the application of a color to the mesh. In spite of the Fill operation, t
 
 (filter-vertex-color-desaturation)=
 
-## Vertex Color Desaturation
+## Desaturate Vertex Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -6201,7 +6175,7 @@ The filter desaturates the colors of the mesh. This provides a simple way to con
 
 (filter-vertex-color-filling)=
 
-## Vertex Color Filling
+## Set Vertex Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -6222,7 +6196,7 @@ Fills the color of the vertices of the mesh with a color chosen by the user.
 
 (filter-vertex-color-invert)=
 
-## Vertex Color Invert
+## Invert Vertex Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -6242,7 +6216,7 @@ Inverts the colors of the vertices of the mesh.
 
 (filter-vertex-color-levels-adjustment)=
 
-## Vertex Color Levels Adjustment
+## Adjust Vertex Color Levels
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -6270,7 +6244,7 @@ The filter allows adjustment of color levels. It is a custom way to map an inter
 
 (filter-vertex-color-thresholding)=
 
-## Vertex Color Thresholding
+## Threshold Vertex Color
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -6293,7 +6267,7 @@ Colors the vertices of the mesh using two colors according to a lightness thresh
 
 (filter-vertex-color-white-balance)=
 
-## Vertex Color White Balance
+## Adjust Vertex Color White Balance
 
 **Plugin:** qmeshlab.filter.colorproc
 
@@ -6339,7 +6313,7 @@ See **Three-dimensional metamorphosis: a survey**, F. Lazarus and A. Verroust, *
 
 (filter-voronoi-vertex-coloring)=
 
-## Voronoi Vertex Coloring
+## Colorize Vertices by Voronoi Regions
 
 **Plugin:** qmeshlab.filter.sampling
 

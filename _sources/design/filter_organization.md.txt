@@ -145,9 +145,9 @@ Consequences, and the current state of each:
 | Case | Filters | Status |
 |---|---|---|
 | Unconditional bake inside a `Compute` filter | *Compute Obscurance*, *Compute Ambient Occlusion* | **Fixed.** Both wrote vertex *and* face colour while their descriptors declared only `outputModifies: [FQ, VQ]` — the code violated its own contract. The bake is removed; the `FaceQuality` visualization hint they already returned now does the job. |
-| Opt-in `map to colour` parameter on a compute filter | *Vertex Quality from Camera* (`map`), *Per Vertex/Face Quality Function* (`mapToColor`), *Generate Scalar Harmonic Field* (`colorize`) | **Deferred to pass 2.** These are opt-in rather than automatic, but the option is now redundant. Removing a parameter is script-visible, so it belongs with the parameter-id pass. |
-| Colorizing is the filter's actual purpose | *Colorize by vertex/face Quality*, *Quality Mapper applier* | **Correct as-is** — these are `Attribute/Color` filters by definition. |
-| Colorizing a newly created layer | *Voronoi/Volumetric Sampling* volume meshes | **Acceptable** — writes to a new layer, destroys nothing. Low priority. |
+| Opt-in `map to colour` parameter on a compute filter | *Compute Vertex Scalar from Camera* (`map`), *Per Vertex/Face Quality Function* (`mapToColor`), *Compute Harmonic Scalar Field* (`colorize`) | **Deferred to pass 2.** These are opt-in rather than automatic, but the option is now redundant. Removing a parameter is script-visible, so it belongs with the parameter-id pass. |
+| Colorizing is the filter's actual purpose | *Colorize by vertex/face Quality* | **Correct as-is** — these are `Attribute/Color` filters by definition. |
+| Colorizing a newly created layer | *Sample Surface by Voronoi Relaxation* / *Sample Volume* volume meshes | **Acceptable** — writes to a new layer, destroys nothing. Low priority. |
 
 ## Deferred: document-dependent defaults
 
@@ -393,9 +393,9 @@ for (see open ruling 5).
 
 | Current | Filters | Why it fails both tests | Target(s) |
 |---|---|---|---|
-| `filter_basic` | 3 | no dep; three unrelated filters | `filter_measure` (Current Mesh Info), `filter_transform` (Normalize To Unit Box), `filter_create` (Noisy Isosurface) |
+| `filter_basic` | 3 | no dep; three unrelated filters | `filter_measure` (Current Mesh Info), `filter_transform` (Normalize To Unit Box), `filter_create` (Create Isosurface from Perlin Noise) |
 | `filter_create` | 13 | already a family name | `filter_create` (unchanged) |
-| `filter_clean` | 15 | already a family name | `filter_clean` (14), `filter_reconstruct` (1 — its lone non-Cleaning filter is *Surface Reconstruction: Ball Pivoting*) |
+| `filter_clean` | 15 | already a family name | `filter_clean` (14), `filter_reconstruct` (1 — its lone non-Cleaning filter is *Reconstruct Surface by Ball Pivoting*) |
 | `filter_select` | 25 | already a family name | `filter_select` (unchanged) |
 | `filter_colorproc` | 31 | no dep; name is provenance-ish | `filter_color` (24), `filter_compute` (7 Quality — per the compute-vs-colorize rule) |
 | `filter_measure` | 8 | already a family name | `filter_measure` (unchanged) |
@@ -410,7 +410,7 @@ for (see open ruling 5).
 | `filter_voronoi` | 4 | no dep; algorithm-named | `filter_remesh` (1), `filter_sampling` (3) |
 | `filter_geodesic` | 4 | no dep; algorithm-named | `filter_compute` |
 | `filter_icp` | 3 | no dep; **mis-filed** — ICP/Global Align/Overlapping are registration, currently under Remeshing+Measure | `filter_align` (new family) |
-| `filter_plymc` | 2 | no dep — uses vcglib's own `create/plymc/plymc.h` | `filter_reconstruct` (1 *Surface Reconstruction: VCG*), `filter_remesh` (1 *Edge Collapse for Marching Cube meshes*) |
+| `filter_plymc` | 2 | no dep — uses vcglib's own `create/plymc/plymc.h` | `filter_reconstruct` (1 *Reconstruct Surface by Volumetric Merging*), `filter_remesh` (1 *Edge Collapse for Marching Cube meshes*) |
 | `filter_img_patch_param` | 4 | no dep | `filter_parametrize` (2), `filter_compute` (2 — "Quality from raster coverage" is a Compute, not a Raster op) |
 | `filter_color_projection` | 3 | no dep | `filter_transfer` (raster→mesh/texture projection) |
 
@@ -425,9 +425,9 @@ family rather than a one-filter stub.
 | `filter_transform` | 11 | Flip/swap axis · Rotate · Rotate to Fit a plane · Align to Principal Axis · Scale, Normalize · Translate, Center, set Origin · Matrix: Reset / Freeze / Invert / Set from TRS / Set-Copy |
 | `filter_remesh` | 14 | *remeshing* — Isotropic Explicit · Tri to Quad (4-8) · Quad-Dominant · Pure-Triangular · Tri to Quad smart pairing · *subdivision* — Loop · Butterfly · Midpoint · LS3 Loop · Catmull-Clark · Doo Sabin · *simplification* — Clustering Decimation · Quadric Edge Collapse · QEC with texture |
 | `filter_clean` | 4 | Re-Orient faces coherently · Invert Faces Orientation · Close Holes · Vertex Attribute Seam |
-| `filter_create` | 3 | Build Polyline from Selected Edges · Create Selection Perimeter Polyline · Compute Planar Section |
-| `filter_compute` | 2 | Compute normals for point sets · Compute curvature principal directions |
-| `filter_smooth` | 1 | Smooth normals on point sets |
+| `filter_create` | 3 | Create Polyline from Selected Edges · Create Polyline from Selection Perimeter · Create Polyline from Planar Section |
+| `filter_compute` | 2 | Compute Point Cloud Normals · Compute Principal Curvature Directions |
+| `filter_smooth` | 1 | Smooth Point Cloud Normals |
 | `filter_parametrize` | 1 | Geometric Cylindrical Unwrapping |
 | `filter_select` | 1 | Select Crease Edges |
 

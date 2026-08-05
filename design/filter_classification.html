@@ -297,7 +297,7 @@ are cross-listings.</p></li>
 </div>
 <p>A related rule this pass assumes, worth confirming: <strong><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code> covers
 positions only.</strong> Smoothing an <em>attribute</em> is classified by the attribute —
-<em>Smooth Vertex Quality</em> → <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, <em>Smooth: Laplacian Vertex Color</em> →
+<em>Smooth Vertex Scalar</em> → <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, <em>Smooth Vertex Color</em> →
 <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>, <em>Smooth Face Normals</em> → <code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code>.</p>
 </section>
 <section id="resulting-shape">
@@ -518,7 +518,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Re-Orient vertex normals using cameras</p></td>
+<tr class="row-even"><td><p>Orient Vertex Normals by Cameras</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Camera</span></code></p></td>
@@ -553,7 +553,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p>transforms the <strong>camera</strong>, not the mesh</p></td>
 </tr>
-<tr class="row-odd"><td><p>Vertex Quality from Camera</p></td>
+<tr class="row-odd"><td><p>Compute Vertex Scalar from Camera</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Camera</span></code> <sub>touches: color, scalar</sub></p></td>
@@ -665,22 +665,22 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Clamp Vertex Quality</p></td>
+<tr class="row-even"><td><p>Clamp Vertex Scalar</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>scalar</strong>, not color <sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Color noise</p></td>
+<tr class="row-odd"><td><p>Add Noise to Vertex Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Colorize by face Quality</p></td>
+<tr class="row-even"><td><p>Colorize Faces by Scalar</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p>scalar -&gt; color <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Colorize by vertex Quality</p></td>
+<tr class="row-odd"><td><p>Colorize Vertices by Scalar</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p>scalar -&gt; color <sub>touches: color</sub></p></td>
@@ -690,97 +690,92 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>PerMesh Color Scattering</p></td>
+<tr class="row-odd"><td><p>Set Random Layer Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Perlin color</p></td>
+<tr class="row-even"><td><p>Colorize Vertices by Perlin Noise</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Quality Mapper applier</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
-<td><p>scalar -&gt; color <sub>touches: color</sub></p></td>
-</tr>
-<tr class="row-even"><td><p>Random Component Color</p></td>
+<tr class="row-odd"><td><p>Set Random Component Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Random Face Color</p></td>
+<tr class="row-even"><td><p>Set Random Face Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Saturate Vertex Quality</p></td>
+<tr class="row-odd"><td><p>Clamp Vertex Scalar Gradient</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>scalar</strong>, not color <sub>touches: color, scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Set Mesh Color</p></td>
+<tr class="row-even"><td><p>Set Mesh Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Smooth: Laplacian Face Color</p></td>
+<tr class="row-odd"><td><p>Smooth Face Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Smooth: Laplacian Vertex Color</p></td>
+<tr class="row-even"><td><p>Smooth Vertex Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Transfer Color: Face to Vertex</p></td>
+<tr class="row-odd"><td><p>Transfer Color: Face to Vertex</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Transfer Color: Mesh to Face</p></td>
+<tr class="row-even"><td><p>Transfer Color: Mesh to Face</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Transfer Color: Texture to Vertex</p></td>
+<tr class="row-odd"><td><p>Transfer Color: Texture to Vertex</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Transfer Color: Vertex to Face</p></td>
+<tr class="row-even"><td><p>Transfer Color: Vertex to Face</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Transfer Quality: Face to Vertex</p></td>
+<tr class="row-odd"><td><p>Transfer Quality: Face to Vertex</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Transfer Quality: Vertex to Face</p></td>
+<tr class="row-even"><td><p>Transfer Quality: Vertex to Face</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Vertex Color Colourisation</p></td>
+<tr class="row-odd"><td><p>Tint Vertex Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Vertex Color Desaturation</p></td>
+<tr class="row-even"><td><p>Desaturate Vertex Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Vertex Color Levels Adjustment</p></td>
+<tr class="row-odd"><td><p>Adjust Vertex Color Levels</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Vertex Color White Balance</p></td>
+<tr class="row-even"><td><p>Adjust Vertex Color White Balance</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
@@ -801,22 +796,22 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Define New Per Face Custom Point Attribute</p></td>
+<tr class="row-even"><td><p>Define Custom Face Point Attribute</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> <strong>(new)</strong></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Define New Per Face Custom Scalar Attribute</p></td>
+<tr class="row-odd"><td><p>Define Custom Face Scalar Attribute</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> <strong>(new)</strong></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Define New Per Vertex Custom Point Attribute</p></td>
+<tr class="row-even"><td><p>Define Custom Vertex Point Attribute</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> <strong>(new)</strong></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Define New Per Vertex Custom Scalar Attribute</p></td>
+<tr class="row-odd"><td><p>Define Custom Vertex Scalar Attribute</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code> <strong>(new)</strong></p></td>
 <td><p></p></td>
@@ -837,12 +832,12 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Per Face Color Function</p></td>
+<tr class="row-even"><td><p>Compute Face Color by Expression</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Per Vertex Color Function</p></td>
+<tr class="row-odd"><td><p>Compute Vertex Color by Expression</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
@@ -894,27 +889,27 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Per Face Normal Function</p></td>
+<tr class="row-even"><td><p>Compute Face Normals by Expression</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Per Vertex Normal Function</p></td>
+<tr class="row-odd"><td><p>Compute Vertex Normals by Expression</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Re-Compute Face Normals</p></td>
+<tr class="row-even"><td><p>Compute Face Normals</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Re-Compute Per-Polygon Face Normals</p></td>
+<tr class="row-odd"><td><p>Compute Polygon Face Normals</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Re-Compute Vertex Normals</p></td>
+<tr class="row-even"><td><p>Compute Vertex Normals</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
@@ -924,7 +919,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>UnSharp Mask Normals</p></td>
+<tr class="row-even"><td><p>Sharpen Face Normals by Unsharp Mask</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
@@ -945,12 +940,12 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Per Face Quality Function</p></td>
+<tr class="row-even"><td><p>Compute Face Scalar by Expression</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Per Vertex Quality Function</p></td>
+<tr class="row-odd"><td><p>Compute Vertex Scalar by Expression</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
@@ -997,82 +992,82 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Annulus</p></td>
+<tr class="row-even"><td><p>Create Annulus</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Box/Cube</p></td>
+<tr class="row-odd"><td><p>Create Box</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-even"><td><p>Cone</p></td>
+<tr class="row-even"><td><p>Create Cone</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Dodecahedron</p></td>
+<tr class="row-odd"><td><p>Create Dodecahedron</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-even"><td><p>Dodecahedron (symmetric)</p></td>
+<tr class="row-even"><td><p>Create Symmetric Dodecahedron</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Fit Plane to Selection</p></td>
+<tr class="row-odd"><td><p>Create Plane from Selection</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code> · <code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Grid Generator</p></td>
+<tr class="row-even"><td><p>Create Grid</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Icosahedron</p></td>
+<tr class="row-odd"><td><p>Create Icosahedron</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-even"><td><p>Implicit Surface</p></td>
+<tr class="row-even"><td><p>Create Isosurface from Expression</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Noisy Isosurface</p></td>
+<tr class="row-odd"><td><p>Create Isosurface from Perlin Noise</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">basic</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Octahedron</p></td>
+<tr class="row-even"><td><p>Create Octahedron</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Points on a Sphere</p></td>
+<tr class="row-odd"><td><p>Create Points on a Sphere</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-even"><td><p>Sphere</p></td>
+<tr class="row-even"><td><p>Create Sphere</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Sphere Cap</p></td>
+<tr class="row-odd"><td><p>Create Sphere Cap</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-even"><td><p>Tetrahedron</p></td>
+<tr class="row-even"><td><p>Create Tetrahedron</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Torus</p></td>
+<tr class="row-odd"><td><p>Create Torus</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>bucket default</p></td>
@@ -1257,12 +1252,12 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Compute APSS Curvature Quality</p></td>
+<tr class="row-even"><td><p>Compute Curvature (APSS)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Compute RIMLS Curvature Quality</p></td>
+<tr class="row-odd"><td><p>Compute Curvature (RIMLS)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
@@ -1282,12 +1277,12 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Marching Cubes (APSS)</p></td>
+<tr class="row-odd"><td><p>Reconstruct Surface by Marching Cubes (APSS)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Marching Cubes (RIMLS)</p></td>
+<tr class="row-even"><td><p>Reconstruct Surface by Marching Cubes (RIMLS)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
 <td><p></p></td>
@@ -1390,7 +1385,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Build a Polyline from Selected Edges</p></td>
+<tr class="row-even"><td><p>Create Polyline from Selected Edges</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>creates a new polyline layer</p></td>
@@ -1400,22 +1395,22 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Compute Planar Section</p></td>
+<tr class="row-even"><td><p>Create Polyline from Planar Section</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>creates a new polyline layer</p></td>
 </tr>
-<tr class="row-odd"><td><p>Compute curvature principal directions</p></td>
+<tr class="row-odd"><td><p>Compute Principal Curvature Directions</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Compute normals for point sets</p></td>
+<tr class="row-even"><td><p>Compute Point Cloud Normals</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Create Selection Perimeter Polyline</p></td>
+<tr class="row-odd"><td><p>Create Polyline from Selection Perimeter</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>creates a new polyline layer</p></td>
@@ -1490,7 +1485,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
 <td><p>preserves texture <sub>touches: uv</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Smooth normals on point sets</p></td>
+<tr class="row-even"><td><p>Smooth Point Cloud Normals</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
@@ -1596,7 +1591,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Reorient Face Normals by Geometry</p></td>
+<tr class="row-even"><td><p>Orient Face Normals by Ray Casting</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">embree</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
 <td><p></p></td>
@@ -1643,37 +1638,37 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Discrete Curvatures</p></td>
+<tr class="row-even"><td><p>Compute Curvature (Discrete)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Per Face Geometric Quality</p></td>
+<tr class="row-odd"><td><p>Compute Face Scalar from Geometry</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Per Face Texture Distortion</p></td>
+<tr class="row-even"><td><p>Compute UV Distortion</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Vertex Color Brightness Contrast Gamma</p></td>
+<tr class="row-odd"><td><p>Adjust Vertex Color Brightness/Contrast/Gamma</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Quality</span></code> <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Vertex Color Filling</p></td>
+<tr class="row-even"><td><p>Set Vertex Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Quality</span></code> <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Vertex Color Invert</p></td>
+<tr class="row-odd"><td><p>Invert Vertex Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Quality</span></code> <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Vertex Color Thresholding</p></td>
+<tr class="row-even"><td><p>Threshold Vertex Color</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> under <code class="docutils literal notranslate"><span class="pre">Quality</span></code> <sub>touches: color</sub></p></td>
@@ -1725,22 +1720,22 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Compute Border Distance Quality</p></td>
+<tr class="row-even"><td><p>Compute Geodesic Distance from Border</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">geodesic</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p>backend dropped <sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Compute Geodesic Distance Quality from Point</p></td>
+<tr class="row-odd"><td><p>Compute Geodesic Distance from Point</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">geodesic</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p>backend dropped <sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Compute Geodesic Distance Quality from Selection</p></td>
+<tr class="row-even"><td><p>Compute Geodesic Distance from Selection</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">geodesic</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p>backend dropped <sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Compute Heat Geodesic Distance Quality from Selection</p></td>
+<tr class="row-odd"><td><p>Compute Geodesic Distance from Selection (Heat Method)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">geodesic</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p>backend dropped <sub>touches: scalar</sub></p></td>
@@ -1776,12 +1771,12 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Quality from raster coverage (Face)</p></td>
+<tr class="row-odd"><td><p>Compute Face Scalar from Raster Coverage</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
 <td><p><strong>mis-filed</strong> as <code class="docutils literal notranslate"><span class="pre">Raster</span></code> <sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Quality from raster coverage (Vertex)</p></td>
+<tr class="row-even"><td><p>Compute Vertex Scalar from Raster Coverage</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
 <td><p><strong>mis-filed</strong> as <code class="docutils literal notranslate"><span class="pre">Raster</span></code> <sub>touches: scalar</sub></p></td>
@@ -1802,7 +1797,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Alpha Wrap</p></td>
+<tr class="row-even"><td><p>Reconstruct Surface by Alpha Wrapping</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">cgal</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
 <td><p><strong>mis-filed</strong> as Remeshing</p></td>
@@ -1837,7 +1832,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Subdivision</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Surface Reconstruction: Ball Pivoting</p></td>
+<tr class="row-odd"><td><p>Reconstruct Surface by Ball Pivoting</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
 <td><p><strong>not cleaning</strong> - reconstruction</p></td>
@@ -1863,7 +1858,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Surface Reconstruction: VCG</p></td>
+<tr class="row-odd"><td><p>Reconstruct Surface by Volumetric Merging</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">plymc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
 <td><p></p></td>
@@ -1884,17 +1879,17 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Surface Reconstruction: SSD</p></td>
+<tr class="row-even"><td><p>Reconstruct Surface by Smooth Signed Distance</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">screened_poisson</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Surface Reconstruction: Screened Poisson</p></td>
+<tr class="row-odd"><td><p>Reconstruct Surface by Screened Poisson</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">screened_poisson</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Surface Reconstruction: Surface Trimmer</p></td>
+<tr class="row-even"><td><p>Trim Surface by Scalar Isovalue</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">screened_poisson</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
 <td><p></p></td>
@@ -1915,12 +1910,12 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Clustered Vertex Sampling</p></td>
+<tr class="row-even"><td><p>Sample Vertices by Clustering</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Disk Vertex Coloring</p></td>
+<tr class="row-odd"><td><p>Colorize Vertices by Disk Distance</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
@@ -1935,12 +1930,12 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it measures</p></td>
 </tr>
-<tr class="row-even"><td><p>Mesh Element Sampling</p></td>
+<tr class="row-even"><td><p>Sample Mesh Elements</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Montecarlo Sampling</p></td>
+<tr class="row-odd"><td><p>Sample Surface by Monte Carlo</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
 <td><p></p></td>
@@ -1950,22 +1945,22 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code></p></td>
 <td><p><strong>mis-filed</strong> as Sampling</p></td>
 </tr>
-<tr class="row-odd"><td><p>Poisson-disk Sampling</p></td>
+<tr class="row-odd"><td><p>Sample Surface by Poisson Disk</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Regular Recursive Sampling</p></td>
+<tr class="row-even"><td><p>Sample Offset Surface Recursively</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Stratified Triangle Sampling</p></td>
+<tr class="row-odd"><td><p>Sample Surface by Stratified Triangles</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Texel Sampling</p></td>
+<tr class="row-even"><td><p>Sample Texels</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
 <td><p></p></td>
@@ -1980,22 +1975,22 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
 <td><p><strong>mis-filed</strong> as Sampling <sub>touches: color, scalar, selection</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Volumetric Sampling</p></td>
+<tr class="row-odd"><td><p>Sample Volume</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">voronoi</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Voronoi Sampling</p></td>
+<tr class="row-even"><td><p>Sample Surface by Voronoi Relaxation</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">voronoi</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
 <td><p><sub>touches: color, scalar, selection</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Voronoi Scaffolding</p></td>
+<tr class="row-odd"><td><p>Create Voronoi Scaffolding</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">voronoi</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>builds a new structure</p></td>
 </tr>
-<tr class="row-even"><td><p>Voronoi Vertex Coloring</p></td>
+<tr class="row-even"><td><p>Colorize Vertices by Voronoi Regions</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
@@ -2203,7 +2198,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Generate Scalar Harmonic Field</p></td>
+<tr class="row-odd"><td><p>Compute Harmonic Scalar Field</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
@@ -2233,7 +2228,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Smooth Vertex Quality</p></td>
+<tr class="row-odd"><td><p>Smooth Vertex Scalar</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>scalar</strong>, not color <sub>touches: scalar</sub></p></td>
@@ -2248,7 +2243,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>UnSharp Mask Color</p></td>
+<tr class="row-even"><td><p>Sharpen Vertex Color by Unsharp Mask</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
@@ -2258,7 +2253,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>UnSharp Mask Quality</p></td>
+<tr class="row-even"><td><p>Sharpen Vertex Scalar by Unsharp Mask</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">unsharp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
