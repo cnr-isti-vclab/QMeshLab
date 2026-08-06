@@ -99,6 +99,12 @@ public:
         const std::vector<MeshFilterDescriptor> &descriptors,
         const QString &resourcePath);
 
+    // Warns about absperc parameters missing min/max: without a max, "100%" resolves to
+    // 1.0 model units instead of the intended @bboxDiag, and the slider is meaningless.
+    static void validateAbsPercBounds(
+        const std::vector<MeshFilterDescriptor> &descriptors,
+        const QString &resourcePath);
+
     // Resolve all "@token" symbolic values in descriptor bounds/defaults
     // against the current document state. Called from filters() implementations.
     static void resolveSymbolicBounds(

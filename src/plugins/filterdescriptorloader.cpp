@@ -402,7 +402,35 @@ std::vector<MeshFilterDescriptor> FilterDescriptorLoader::load(
     }
 
     validateCategories(result, resourcePath);
+    validateAbsPercBounds(result, resourcePath);
     return result;
+}
+
+void FilterDescriptorLoader::validateAbsPercBounds(
+    const std::vector<MeshFilterDescriptor> &descriptors,
+    const QString &resourcePath)
+{
+    // An absperc parameter is a percentage *of its max*, so a missing max silently makes
+    // 100% mean 1.0 in model units — the slider then has no relation to the mesh, which
+    // is impossible to spot from the UI alone. Warn rather than fail: the parameter still
+    // works as an absolute value.
+    QStringList offenders;
+    for (const MeshFilterDescriptor &d : descriptors) {
+        for (const MeshFilterParameterDescriptor &p : d.parameters) {
+            if (p.type != MeshFilterParameterType::AbsPerc)
+                continue;
+            if (p.minValue.isValid() && p.maxValue.isValid())
+                continue;
+            offenders << QStringLiteral("%1.%2").arg(d.id, p.id);
+        }
+    }
+    if (offenders.isEmpty())
+        return;
+
+    qWarning().noquote() << QStringLiteral(
+        "[filter parameters] %1: absperc parameter(s) without min/max, so percentages are "
+        "relative to 1.0 instead of the mesh: %2")
+        .arg(resourcePath, offenders.join(QStringLiteral(", ")));
 }
 
 void FilterDescriptorLoader::validateCategories(

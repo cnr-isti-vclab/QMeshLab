@@ -225,56 +225,64 @@ MeshFilterRunResult runAlphaShape(const FilterParams &params, Document &doc)
     if (vcg::CallBackPos *cb = doc.progressCallback())
         (*cb)(10, "Building Delaunay triangulation...");
 
-    std::vector<AlphaShape::Facet> facets;
+    // Everything that touches a Cell_handle must stay inside this scope: the handles point
+    // into `shape`'s compact container, so consuming them after it dies is a use-after-free.
+    VCGMesh output;
     try {
         AlphaShape shape(points.begin(), points.end(), Kernel::FT(alpha * alpha),
                          AlphaShape::GENERAL);
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(60, "Classifying facets...");
+
+        std::vector<AlphaShape::Facet> facets;
         shape.get_alpha_shape_facets(std::back_inserter(facets), AlphaShape::REGULAR);
         if (wantComplex)
             shape.get_alpha_shape_facets(std::back_inserter(facets), AlphaShape::SINGULAR);
+
+        if (facets.empty()) {
+            const QString message = QObject::tr(
+                "The alpha shape is empty at alpha = %1. Try a larger value.")
+                    .arg(QString::number(alpha, 'g', 6));
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(85, "Building output mesh...");
+
+        std::unordered_map<const void *, int> vertexIndex;
+        for (const AlphaShape::Facet &facet : facets) {
+            const AlphaShape::Cell_handle cell = facet.first;
+            const int opposite = facet.second;
+            int corner[3];
+            bool allFinite = true;
+            for (int k = 0; k < 3 && allFinite; ++k) {
+                auto handle = cell->vertex((opposite + k + 1) % 4);
+                if (shape.is_infinite(handle)) {
+                    allFinite = false;
+                    break;
+                }
+                const void *key = &*handle;
+                auto it = vertexIndex.find(key);
+                if (it == vertexIndex.end()) {
+                    const CgalPoint &p = handle->point();
+                    auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(
+                        output, vcg::Point3f(float(p.x()), float(p.y()), float(p.z())));
+                    it = vertexIndex.emplace(key, int(vcg::tri::Index(output, *vi))).first;
+                }
+                corner[k] = it->second;
+            }
+            if (!allFinite)
+                continue;
+            if (corner[0] == corner[1] || corner[1] == corner[2] || corner[0] == corner[2])
+                continue;
+            vcg::tri::Allocator<VCGMesh>::AddFace(output, corner[0], corner[1], corner[2]);
+        }
     } catch (const std::exception &e) {
         const QString message =
             QObject::tr("CGAL alpha shape failed: %1").arg(QString::fromLocal8Bit(e.what()));
         doc.finishFilterProgress(false, message);
         return fail(message);
-    }
-
-    if (facets.empty()) {
-        const QString message = QObject::tr(
-            "The alpha shape is empty at alpha = %1. Try a larger value.")
-                .arg(QString::number(alpha, 'g', 6));
-        doc.finishFilterProgress(false, message);
-        return fail(message);
-    }
-
-    if (vcg::CallBackPos *cb = doc.progressCallback())
-        (*cb)(85, "Building output mesh...");
-
-    VCGMesh output;
-    std::unordered_map<const void *, int> vertexIndex;
-    for (const AlphaShape::Facet &facet : facets) {
-        const AlphaShape::Cell_handle cell = facet.first;
-        const int opposite = facet.second;
-        int corner[3];
-        bool ok = true;
-        for (int k = 0; k < 3; ++k) {
-            auto handle = cell->vertex((opposite + k + 1) % 4);
-            const void *key = &*handle;
-            auto it = vertexIndex.find(key);
-            if (it == vertexIndex.end()) {
-                const CgalPoint &p = handle->point();
-                auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(
-                    output, vcg::Point3f(float(p.x()), float(p.y()), float(p.z())));
-                const int index = int(vcg::tri::Index(output, *vi));
-                it = vertexIndex.emplace(key, index).first;
-            }
-            corner[k] = it->second;
-        }
-        if (!ok || corner[0] == corner[1] || corner[1] == corner[2] || corner[0] == corner[2])
-            continue;
-        vcg::tri::Allocator<VCGMesh>::AddFace(output, corner[0], corner[1], corner[2]);
     }
 
     if (output.FN() <= 0) {

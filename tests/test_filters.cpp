@@ -141,6 +141,7 @@ private slots:
     void selectVisibleVerticesSelectsNearSideOnly();
     void selectVisibleVerticesRejectsEnclosedViewpoint();
     void alphaShapeConvergesToConvexHull();
+    void alphaShapeHandlesALargePointSet();
     void voronoiFilteringReconstructsASphere();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
@@ -1002,8 +1003,12 @@ void FilterTests::alphaShapeConvergesToConvexHull()
         QSKIP("CGAL plugin is not available in this build.");
     QVERIFY2(doc.runFilter(icosaKey, {}).success, "create_icosahedron failed");
 
+    // alpha is an absperc bounded by the bounding-box diagonal, which for a convex point
+    // set is comfortably past the largest Delaunay circumradius — so the shape has
+    // converged to the hull.
     MeshFilterParameterValues big;
-    big.insert(QStringLiteral("alpha"), 100.0); // far beyond the icosahedron's radius
+    big.insert(QStringLiteral("alpha"),
+               double(doc.mesh(doc.currentMeshIndex()).mesh.bbox.Diag()));
     big.insert(QStringLiteral("output"), QStringLiteral("shape"));
     const MeshFilterRunResult result = doc.runFilter(alphaKey, big);
     QVERIFY2(result.success, qPrintable(result.errorMessage));
@@ -1016,6 +1021,57 @@ void FilterTests::alphaShapeConvergesToConvexHull()
     // Face scalar carries the circumradius, so it must be populated and positive.
     for (const VCGFace &f : shape.face)
         QVERIFY(f.cQ() > 0.0f);
+}
+
+// Regression: the facet handles point into the CGAL triangulation, so the output mesh
+// must be built while it is still alive. Consuming them afterwards is a use-after-free
+// that a 12-vertex icosahedron hides (the freed cells are simply not reused yet) and a
+// real model reliably crashes on. A subdivided sphere allocates enough to expose it,
+// and the interpolating property gives a cheap correctness check: every output vertex
+// is an input point, so all of them must sit on the source bounding box.
+void FilterTests::alphaShapeHandlesALargePointSet()
+{
+    Document doc;
+
+    QString sphereKey;
+    QString alphaKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_sphere"))
+            sphereKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_alpha_shape"))
+            alphaKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    if (alphaKey.isEmpty())
+        QSKIP("CGAL plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const VCGMesh &source = doc.mesh(doc.currentMeshIndex()).mesh;
+    const int sourceVN = source.VN();
+    QVERIFY2(sourceVN > 500, "sphere too small to exercise the allocator");
+    const vcg::Box3f sourceBox = source.bbox;
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("alpha"), double(sourceBox.Diag()));
+    params.insert(QStringLiteral("output"), QStringLiteral("shape"));
+    const MeshFilterRunResult result = doc.runFilter(alphaKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+
+    const VCGMesh &shape = doc.mesh(result.newMeshIndices.front()).mesh;
+    QVERIFY(shape.FN() > 0);
+    QVERIFY(shape.VN() > 0);
+    // Interpolating: output vertices are a subset of the input points.
+    QVERIFY(shape.VN() <= sourceVN);
+
+    // A dangling handle yields garbage coordinates rather than input points.
+    vcg::Box3f tolerant = sourceBox;
+    tolerant.Offset(sourceBox.Diag() * 0.001f);
+    for (const VCGVertex &v : shape.vert) {
+        const vcg::Point3f &p = v.cP();
+        QVERIFY(std::isfinite(p.X()) && std::isfinite(p.Y()) && std::isfinite(p.Z()));
+        QVERIFY2(tolerant.IsIn(p), "alpha shape vertex outside the input bounding box");
+    }
 }
 
 // The crust needs a closed, well-sampled surface, so a subdivided sphere is the fair

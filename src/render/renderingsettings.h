@@ -150,12 +150,22 @@ struct PerMeshRenderSettings {
     bool showSelection = true;
     bool showSelectionVertices = true;
     bool showSelectionFaces = true;
-    bool decoratorVertexNormals = false;
-    bool decoratorFaceNormals = false;
-    bool decoratorBoundaryEdges = false;
-    bool decoratorTextureSeams = false;
+    // Master switch for the normal decorator pass, driven by its toolbar button. As with
+    // the boundary pass below, the button owns only this flag; the three sub-options are
+    // the panel's own state.
+    bool decoratorNormals = false;
+    bool decoratorVertexNormals = true;
+    bool decoratorFaceNormals = true;
+    // Master switch for the boundary decorator pass, driven by its toolbar button. The
+    // four flags below are the panel's own state and are never written by the button, so
+    // toggling the pass off and on restores exactly what the user had selected.
+    bool decoratorBoundary = false;
+    bool decoratorBoundaryEdges = true;
+    bool decoratorTextureSeams = true;
     bool decoratorNonManifoldEdges = false;
     bool decoratorNonManifoldVertices = false;
+    // Unlike the two normal flags above this stays off by default: it needs per-vertex
+    // principal-direction attributes, so it draws nothing until curvature is computed.
     bool decoratorCurvatureDir = false;
     bool pointLighting = false;
     bool wireLighting = false;
@@ -196,10 +206,12 @@ struct PerMeshRenderSettings {
             && showSelection == o.showSelection
             && showSelectionVertices == o.showSelectionVertices
             && showSelectionFaces == o.showSelectionFaces
+            && decoratorNormals == o.decoratorNormals
             && decoratorVertexNormals == o.decoratorVertexNormals
             && decoratorFaceNormals == o.decoratorFaceNormals
             && decoratorBoundaryEdges == o.decoratorBoundaryEdges
             && decoratorTextureSeams == o.decoratorTextureSeams
+            && decoratorBoundary == o.decoratorBoundary
             && decoratorNonManifoldEdges == o.decoratorNonManifoldEdges
             && decoratorNonManifoldVertices == o.decoratorNonManifoldVertices
             && decoratorCurvatureDir == o.decoratorCurvatureDir

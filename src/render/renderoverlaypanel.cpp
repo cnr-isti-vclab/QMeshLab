@@ -1543,30 +1543,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindPassButton(m_qualityHistogramSettingsArrow, RenderPass::QualityHistogram, true);
 
     bindMeshToolToggle(m_bboxButton, &PerMeshRenderSettings::showBoundingBox);
-    connect(m_normalsDecoratorsButton, &QToolButton::toggled, this, [this](bool checked) {
-        const bool changed =
-            (m_meshSettings.decoratorVertexNormals != checked)
-            || (m_meshSettings.decoratorFaceNormals != checked)
-            || (m_meshSettings.decoratorCurvatureDir != checked);
-        if (!changed)
-            return;
-        m_meshSettings.decoratorVertexNormals = checked;
-        m_meshSettings.decoratorFaceNormals = checked;
-        m_meshSettings.decoratorCurvatureDir = checked;
-        setMeshSettings(m_meshSettings);
-        emit meshSettingsChanged(m_meshSettings);
-    });
-    connect(m_boundaryDecoratorsButton, &QToolButton::toggled, this, [this](bool checked) {
-        const bool changed =
-            (m_meshSettings.decoratorBoundaryEdges != checked)
-            || (m_meshSettings.decoratorTextureSeams != checked);
-        if (!changed)
-            return;
-        m_meshSettings.decoratorBoundaryEdges = checked;
-        m_meshSettings.decoratorTextureSeams = checked;
-        setMeshSettings(m_meshSettings);
-        emit meshSettingsChanged(m_meshSettings);
-    });
+    // Plain pass toggles, like Points/Edges/Wire/Fill: each owns only its master flag and
+    // leaves the checkboxes alone, so switching a pass off and on is lossless.
+    bindMeshToolToggle(m_normalsDecoratorsButton, &PerMeshRenderSettings::decoratorNormals);
+    bindMeshToolToggle(m_boundaryDecoratorsButton, &PerMeshRenderSettings::decoratorBoundary);
     bindMeshToolToggle(m_pointsButton, &PerMeshRenderSettings::showPoints);
     bindMeshToolToggle(m_edgesButton, &PerMeshRenderSettings::showEdges);
     bindMeshToolToggle(m_wireButton, &PerMeshRenderSettings::showWire);
@@ -1585,6 +1565,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     updateColorButtonStyle(m_decoratorCurvatureDirPD2ColorButton, m_meshSettings.decoratorCurvatureDirPD2Color);
     updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_meshSettings.decoratorBoundaryEdgeColor);
     updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_meshSettings.decoratorTextureSeamColor);
+    updateColorButtonStyle(
+        m_decoratorNonManifoldEdgeColorButton, m_meshSettings.decoratorNonManifoldEdgeColor);
+    updateColorButtonStyle(
+        m_decoratorNonManifoldVertexColorButton, m_meshSettings.decoratorNonManifoldVertexColor);
     updateColorButtonStyle(m_bboxColorButton, m_meshSettings.bboxWireColor);
     updateColorButtonStyle(m_pointsColorButton, m_meshSettings.pointColor);
     updateColorButtonStyle(m_edgeColorButton, m_meshSettings.edgeColor);
@@ -1870,14 +1854,11 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
     }
     if (m_normalsDecoratorsButton) {
         QSignalBlocker blocker(m_normalsDecoratorsButton);
-        m_normalsDecoratorsButton->setChecked(
-            m_meshSettings.decoratorVertexNormals || m_meshSettings.decoratorFaceNormals
-            || m_meshSettings.decoratorCurvatureDir);
+        m_normalsDecoratorsButton->setChecked(m_meshSettings.decoratorNormals);
     }
     if (m_boundaryDecoratorsButton) {
         QSignalBlocker blocker(m_boundaryDecoratorsButton);
-        m_boundaryDecoratorsButton->setChecked(
-            m_meshSettings.decoratorBoundaryEdges || m_meshSettings.decoratorTextureSeams);
+        m_boundaryDecoratorsButton->setChecked(m_meshSettings.decoratorBoundary);
     }
     if (m_pointsButton) {
         QSignalBlocker blocker(m_pointsButton);
@@ -2113,6 +2094,10 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
     updateColorButtonStyle(m_decoratorCurvatureDirPD2ColorButton, m_meshSettings.decoratorCurvatureDirPD2Color);
     updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_meshSettings.decoratorBoundaryEdgeColor);
     updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_meshSettings.decoratorTextureSeamColor);
+    updateColorButtonStyle(
+        m_decoratorNonManifoldEdgeColorButton, m_meshSettings.decoratorNonManifoldEdgeColor);
+    updateColorButtonStyle(
+        m_decoratorNonManifoldVertexColorButton, m_meshSettings.decoratorNonManifoldVertexColor);
     updateColorButtonStyle(m_bboxColorButton, m_meshSettings.bboxWireColor);
     updateColorButtonStyle(m_pointsColorButton, m_meshSettings.pointColor);
     updateColorButtonStyle(m_edgeColorButton, m_meshSettings.edgeColor);

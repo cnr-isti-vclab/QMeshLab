@@ -85,7 +85,10 @@
           "help": "Radius of the probing ball, as a percentage of the bounding box diagonal. Small values carve the shape away; large values converge to the convex hull.",
           "group": "main",
           "type": "absperc",
-          "default": "@bboxDiag002"
+          "default": "@bboxDiag002",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
         },
         {
           "id": "output",

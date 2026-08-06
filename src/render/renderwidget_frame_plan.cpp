@@ -14,17 +14,22 @@ bool requestsSelectionPass(const PerMeshRenderSettings &settings)
 
 bool requestsDecoratorNormalPass(const PerMeshRenderSettings &settings)
 {
-    return settings.decoratorVertexNormals
-        || settings.decoratorFaceNormals
-        || settings.decoratorCurvatureDir;
+    // Same contract as the boundary pass: the button gates, the checkboxes choose.
+    return settings.decoratorNormals
+        && (settings.decoratorVertexNormals
+            || settings.decoratorFaceNormals
+            || settings.decoratorCurvatureDir);
 }
 
 bool requestsDecoratorBoundaryPass(const PerMeshRenderSettings &settings)
 {
-    return settings.decoratorBoundaryEdges
-        || settings.decoratorTextureSeams
-        || settings.decoratorNonManifoldEdges
-        || settings.decoratorNonManifoldVertices;
+    // The toolbar button gates the whole pass; the four checkboxes only say what it
+    // draws. Nothing here writes back to them, so the panel keeps its state while off.
+    return settings.decoratorBoundary
+        && (settings.decoratorBoundaryEdges
+            || settings.decoratorTextureSeams
+            || settings.decoratorNonManifoldEdges
+            || settings.decoratorNonManifoldVertices);
 }
 
 } // namespace

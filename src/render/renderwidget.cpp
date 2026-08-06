@@ -631,6 +631,7 @@ QJsonObject perMeshSettingsToJsonObject(
         s.showSelectionVertices,
         def.showSelectionVertices);
     putBool(QStringLiteral("show_selection_faces"), s.showSelectionFaces, def.showSelectionFaces);
+    putBool(QStringLiteral("decorator_normals"), s.decoratorNormals, def.decoratorNormals);
     putBool(
         QStringLiteral("decorator_vertex_normals"),
         s.decoratorVertexNormals,
@@ -639,6 +640,7 @@ QJsonObject perMeshSettingsToJsonObject(
         QStringLiteral("decorator_face_normals"),
         s.decoratorFaceNormals,
         def.decoratorFaceNormals);
+    putBool(QStringLiteral("decorator_boundary"), s.decoratorBoundary, def.decoratorBoundary);
     putBool(
         QStringLiteral("decorator_boundary_edges"),
         s.decoratorBoundaryEdges,
@@ -825,8 +827,10 @@ bool parsePerMeshSettingsObject(const QJsonObject &obj, PerMeshRenderSettings &o
         || !parseBoolField("show_selection", out.showSelection)
         || !parseBoolField("show_selection_vertices", out.showSelectionVertices)
         || !parseBoolField("show_selection_faces", out.showSelectionFaces)
+        || !parseBoolField("decorator_normals", out.decoratorNormals)
         || !parseBoolField("decorator_vertex_normals", out.decoratorVertexNormals)
         || !parseBoolField("decorator_face_normals", out.decoratorFaceNormals)
+        || !parseBoolField("decorator_boundary", out.decoratorBoundary)
         || !parseBoolField("decorator_boundary_edges", out.decoratorBoundaryEdges)
         || !parseBoolField("decorator_texture_seams", out.decoratorTextureSeams)
         || !parseBoolField("decorator_non_manifold_edges", out.decoratorNonManifoldEdges)
@@ -856,6 +860,28 @@ bool parsePerMeshSettingsObject(const QJsonObject &obj, PerMeshRenderSettings &o
         || !parseFloatField("wire_size", out.wireSize)
         || !parseColorField("fill_color", out.fillColor)) {
         return fail(QObject::tr("Invalid render-state JSON: one or more mesh_render_modes fields have invalid types."));
+    }
+
+    // State written before the decorators gained their master switches has no
+    // "decorator_normals"/"decorator_boundary" key and encoded "pass on" by having a
+    // sub-flag true. Those sub-flags used to default to false, so only the keys actually
+    // present are evidence: reading the current defaults instead would switch the
+    // decorator on for every old project that had it off.
+    const auto trueIfPresent = [&](const char *key) {
+        const QString k = QString::fromLatin1(key);
+        return obj.contains(k) && obj.value(k).isBool() && obj.value(k).toBool();
+    };
+    if (!obj.contains(QStringLiteral("decorator_normals"))) {
+        out.decoratorVertexNormals = trueIfPresent("decorator_vertex_normals");
+        out.decoratorFaceNormals = trueIfPresent("decorator_face_normals");
+        out.decoratorNormals = out.decoratorVertexNormals || out.decoratorFaceNormals
+            || out.decoratorCurvatureDir;
+    }
+    if (!obj.contains(QStringLiteral("decorator_boundary"))) {
+        out.decoratorBoundaryEdges = trueIfPresent("decorator_boundary_edges");
+        out.decoratorTextureSeams = trueIfPresent("decorator_texture_seams");
+        out.decoratorBoundary = out.decoratorBoundaryEdges || out.decoratorTextureSeams
+            || out.decoratorNonManifoldEdges || out.decoratorNonManifoldVertices;
     }
 
     if (!parseEnumInt(obj, QStringLiteral("fill_material"), out.fillMaterial)

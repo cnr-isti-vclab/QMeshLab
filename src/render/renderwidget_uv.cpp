@@ -1312,7 +1312,8 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 drawUvLineSetStable(
                     meshSettings.edgeColor, meshSettings.edgeSize, uvGpu.wireVbuf.get(),
                     wireRange.vertexCount, wireRange.byteOffset);
-            if (meshMode.decoratorBoundaryEdges)
+            // The toolbar button gates this pass in the UV view too.
+            if (meshMode.decoratorBoundary && meshMode.decoratorBoundaryEdges)
             {
                 const UvMeshGpu::DrawRange range = groupRange(uvGpu.boundaryEdgeGroups);
                 drawUvLineSetStable(
@@ -1322,7 +1323,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                     range.vertexCount,
                     range.byteOffset);
             }
-            if (meshMode.decoratorTextureSeams)
+            if (meshMode.decoratorBoundary && meshMode.decoratorTextureSeams)
             {
                 const UvMeshGpu::DrawRange range = groupRange(uvGpu.textureSeamGroups);
                 drawUvLineSetStable(
