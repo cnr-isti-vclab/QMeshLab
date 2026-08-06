@@ -1486,14 +1486,113 @@ rule.</p>
 faces to the existing vertex set, so <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code> is not an oversight but the
 honest declaration: nothing is destroyed, the point cloud is still there and now carries
 a surface. Emitting a new layer would duplicate every point for no gain.</p>
+<p><strong>Alpha Wrapping is approximating, despite the name.</strong> Worth stating outright, because
+alpha <em>shapes</em> are the opposite: an alpha complex (Edelsbrunner-Mucke) is a subcomplex of
+the Delaunay triangulation of the input points, so its vertices <em>are</em> the input points — a
+textbook interpolating reconstruction. CGAL’s <code class="docutils literal notranslate"><span class="pre">alpha_wrap_3</span></code> is a different and much newer
+algorithm (<em>Alpha Wrapping with an Offset</em>, Portaneri et al. 2022) that shares only the
+Greek letter: it refines a 3D Delaunay triangulation with Steiner points and carves it,
+and its <code class="docutils literal notranslate"><span class="pre">Offset</span></code> parameter <strong>must be strictly positive</strong>, so the output surface cannot
+pass through the input points. Same letter, opposite side of the line.</p>
+<section id="alpha-wrap-now-accepts-point-clouds-fixed">
+<h3>Alpha Wrap now accepts point clouds (fixed)<a class="headerlink" href="#alpha-wrap-now-accepts-point-clouds-fixed" title="Link to this heading">¶</a></h3>
+<p>Found while checking the above. <code class="docutils literal notranslate"><span class="pre">cgalfilterplugin.cpp</span></code> called only the <strong>triangle soup</strong>
+overload, and <code class="docutils literal notranslate"><span class="pre">buildTriangleSoup</span></code> failed with <em>“requires at least one valid triangular
+face”</em> whenever the face list was empty; the descriptor declared <code class="docutils literal notranslate"><span class="pre">requireFaces:</span> <span class="pre">true</span></code> to
+match. CGAL also provides a <strong>point set</strong> overload (<code class="docutils literal notranslate"><span class="pre">alpha_wrap_3(points,</span> <span class="pre">alpha,</span> <span class="pre">offset,</span> <span class="pre">out)</span></code>, routing to <code class="docutils literal notranslate"><span class="pre">oracle.add_point_set</span></code>) which needs <strong>no normals</strong> — unlike Poisson,
+the strictly positive offset defines the envelope by itself. The face requirement was
+QMeshLab’s wiring, not the algorithm’s.</p>
+<p><strong>Fixed</strong> (2026-08-05): <code class="docutils literal notranslate"><span class="pre">buildTriangleSoup</span></code> now tolerates an empty face list, the call
+site branches to the point-set overload, <code class="docutils literal notranslate"><span class="pre">requireFaces</span></code> is dropped, the info message
+reports “Input point set: N points”, and the description explains both paths. Covered by
+<code class="docutils literal notranslate"><span class="pre">FilterTests::cgalAlphaWrapAcceptsPointClouds</span></code>, which strips faces through the real
+<code class="docutils literal notranslate"><span class="pre">Remove</span> <span class="pre">All</span> <span class="pre">Faces</span></code> filter and then wraps the resulting cloud.</p>
+<p><strong>The two paths are not equivalent, and the description now says so.</strong> They select
+structurally different CGAL oracles:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>Triangle soup</p></th>
+<th class="head"><p>Point set</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Oracle</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Triangle_soup_oracle</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Point_set_oracle</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>AABB tree over</p></td>
+<td><p><strong>triangles</strong> (<code class="docutils literal notranslate"><span class="pre">AABB_triangle_primitive_3</span></code>)</p></td>
+<td><p><strong>points</strong> (<code class="docutils literal notranslate"><span class="pre">AABB_primitive</span></code> over <code class="docutils literal notranslate"><span class="pre">vector&lt;Point_3&gt;</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alpha</span></code> at construction</p></td>
+<td><p><strong>yes</strong></p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p>Subdivides the input</p></td>
+<td><p><strong>yes</strong> — <code class="docutils literal notranslate"><span class="pre">AABB_tree_oracle_splitter</span></code>, <code class="docutils literal notranslate"><span class="pre">Splitter_base(alpha)</span></code></p></td>
+<td><p>no</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>CGAL states the alpha coupling outright in <code class="docutils literal notranslate"><span class="pre">Triangle_soup_oracle</span></code>: <em>“the oracle will be
+adapted to this particular ‘alpha’, and so when calling again AW3(other_alpha) the oracle
+might not have performed a split that is adapted to this other alpha value.”</em></p>
+<p>So with faces, triangle <strong>interiors</strong> are solid to the wrap and oversized faces are split
+to the alpha scale; without faces the input is isolated points and the envelope comes from
+the offset around each one. Where a triangle spans a wide gap the point-set path sees only
+its three corners, and the ball can roll between them and dent or hole the result. The
+point-cloud path is sound only when sampling is dense relative to <code class="docutils literal notranslate"><span class="pre">Alpha</span></code> and <code class="docutils literal notranslate"><span class="pre">Offset</span></code> —
+if a layer has faces, keep them.</p>
+<p>This also settles a classification doubt raised earlier in this document: an earlier note
+here suggested Alpha Wrap might be mis-filed, since “its input is a mesh, not a point
+cloud” — but that was an accident of the wiring. With point clouds accepted it is
+unambiguously an unstructured-input-to-surface reconstruction, so
+<code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code> is correct and there is no case for moving it next to
+<code class="docutils literal notranslate"><span class="pre">Repair</span> <span class="pre">Watertight</span> <span class="pre">Mesh</span> <span class="pre">(MeshFix)</span></code>. It remains <strong>approximating</strong> either way.</p>
 <p>Ball Pivoting is currently the <strong>only</strong> interpolating reconstruction in the tree — there
 is no Delaunay, convex hull, or advancing-front filter in <code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code>,
 <code class="docutils literal notranslate"><span class="pre">filter_meshfix</span></code> or <code class="docutils literal notranslate"><span class="pre">filter_clean</span></code>. The rule is recorded because that is exactly the
 family an igl plugin would add:</p>
 <blockquote>
-<div><p>An interpolating reconstruction declares <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code>; an approximating one
-declares <code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code>.</p>
+<div><p><strong>Ball Pivoting is the only reconstruction that works <em>in place</em>, on the current
+mesh, optionally discarding the original face set. Every other reconstruction emits a
+new layer.</strong></p>
 </div></blockquote>
+<p>That is the whole of it, and it is a <strong>design choice about where the result goes</strong>, not a
+property of the algorithm. Two earlier drafts of this section tried to derive it from the
+mathematics and both were wrong:</p>
+<ul class="simple">
+<li><p><em>“interpolating -&gt; <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code>, approximating -&gt; <code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code>”</em> — MeshLab’s
+convex hull breaks this immediately: interpolating, yet it must emit a new layer.</p></li>
+<li><p><em>“preserves the entire input vertex set -&gt; <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code>”</em> — Ball Pivoting does
+not preserve it in any useful sense. It deletes nothing, but it does not connect
+everything either: <code class="docutils literal notranslate"><span class="pre">clustering</span></code> is passed to vcglib’s <code class="docutils literal notranslate"><span class="pre">minr</span></code>, i.e. <code class="docutils literal notranslate"><span class="pre">min_edge</span></code>, a
+<strong>minimum edge length</strong>, so points nearer than that to an existing vertex are skipped,
+as are points the ball cannot reach. They survive as unreferenced vertices.</p></li>
+</ul>
+<p>The interpolating/approximating distinction is still worth knowing (it is why Alpha
+Wrapping never touches the input points, and it is the family the qhull filters belong
+to), but it does <strong>not</strong> determine <code class="docutils literal notranslate"><span class="pre">outputDomain</span></code>. Nothing algorithmic does. A convex hull
+could be computed in place too, by replacing the mesh; MeshLab simply chose not to.</p>
+<p>The open design question, then, is a UX one rather than a classification one: should
+reconstruction be uniform — always a new layer, so the input survives for comparison — or
+is in-place Ball Pivoting worth keeping as the “give my point cloud a surface” workflow?
+Left as-is for now; recorded so the inconsistency is a decision rather than an accident.</p>
+</section>
+<section id="filters-meshlab-has-here-and-qmeshlab-does-not">
+<h3>Filters MeshLab has here and QMeshLab does not<a class="headerlink" href="#filters-meshlab-has-here-and-qmeshlab-does-not" title="Link to this heading">¶</a></h3>
+<p>MeshLab’s <code class="docutils literal notranslate"><span class="pre">filter_qhull</span></code> provides four filters with no QMeshLab counterpart:
+<code class="docutils literal notranslate"><span class="pre">FP_QHULL_CONVEX_HULL</span></code> (<code class="docutils literal notranslate"><span class="pre">generate_convex_hull</span></code>), <code class="docutils literal notranslate"><span class="pre">FP_QHULL_VORONOI_FILTERING</span></code>
+(Amenta-Bern reconstruction), <code class="docutils literal notranslate"><span class="pre">FP_QHULL_ALPHA_COMPLEX_AND_SHAPE</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">FP_QHULL_VISIBLE_POINTS</span></code>. The first three are the interpolating-reconstruction family
+whose absence is noted above; the fourth is a viewpoint-visibility filter and belongs with
+<code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Visibility</span></code> and <code class="docutils literal notranslate"><span class="pre">ViewpointOccluder</span></code>, not here.</p>
+<p>MeshLab computes the hull with <strong>Qhull</strong>, but <code class="docutils literal notranslate"><span class="pre">vcglib/vcg/complex/algorithms/convex_hull.h</span></code>
+already exists, so a port needs no new external dependency.</p>
+</section>
 </section>
 </section>
 
@@ -1566,7 +1665,11 @@ declares <code class="docutils literal notranslate"><span class="pre">NewMeshes<
 <li><a class="reference internal" href="#creation-sampling-9">Creation/Sampling (9)</a></li>
 <li><a class="reference internal" href="#id3">Verbs added to the lexicon</a></li>
 <li><a class="reference internal" href="#id4">Rulings</a></li>
-<li><a class="reference internal" href="#reconstruction-output-domain-interpolating-vs-approximating">Reconstruction output domain: interpolating vs approximating</a></li>
+<li><a class="reference internal" href="#reconstruction-output-domain-interpolating-vs-approximating">Reconstruction output domain: interpolating vs approximating</a><ul>
+<li><a class="reference internal" href="#alpha-wrap-now-accepts-point-clouds-fixed">Alpha Wrap now accepts point clouds (fixed)</a></li>
+<li><a class="reference internal" href="#filters-meshlab-has-here-and-qmeshlab-does-not">Filters MeshLab has here and QMeshLab does not</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

@@ -1573,6 +1573,33 @@ Create a Cone
 
 ---
 
+(filter-create-convex-hull)=
+
+## Create Convex Hull
+
+**Plugin:** qmeshlab.filter.create
+
+Create the convex hull of the current mesh or point cloud.
+
+```{py:function} ms.create_convex_hull(**params)
+:module: _qmeshlab
+
+Creates a new layer holding the **convex hull** of the current layer: the boundary of the smallest convex set containing all of its vertices.
+
+Only the vertex positions are used, so this works on a point cloud just as well as on a mesh; faces, if any, are ignored. Every hull vertex is one of the input points, and interior points are discarded — which is why the result is a new layer rather than a modification of the current one.
+
+At least 4 vertices are required, and they must not all be coincident, collinear, or coplanar.
+
+Implemented with VCGLib's Quickhull.
+
+Reference:
+C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, **The Quickhull Algorithm for Convex Hulls**, ACM Transactions on Mathematical Software 22(4), 1996.
+
+This filter has no parameters.
+```
+
+---
+
 (filter-create-dodecahedron)=
 
 ## Create Dodecahedron
@@ -2488,18 +2515,64 @@ Flatten all or only the visible layers into a single new mesh.<br>Transformation
 
 ---
 
+(filter-generate-alpha-shape)=
+
+## Reconstruct Surface by Alpha Shape (CGAL)
+
+**Plugin:** qmeshlab.filter.cgal
+
+Build the alpha complex or alpha shape of the current mesh or point cloud.
+
+```{py:function} ms.generate_alpha_shape(**params)
+:module: _qmeshlab
+
+Builds the **alpha shape** of the current layer's vertices: the subcomplex of their Delaunay triangulation kept by a ball of radius `Alpha` that can reach it without enclosing any point. Small `Alpha` values give a sparse, pitted result; as `Alpha` grows the shape fills in and converges to the convex hull.
+
+Only vertex positions are used, so a raw point cloud with no faces and no normals works — it is an *interpolating* reconstruction, meaning every output vertex is one of the input points.
+
+**Output** selects what is written:
+
+- *Alpha Shape* — the boundary of the alpha complex (CGAL `REGULAR` facets). This is the surface.
+- *Alpha Complex* — also keeps the `SINGULAR` facets, the lower-dimensional sheets that the boundary drops. Useful for seeing what the complex contains, not for a clean surface.
+
+Each face carries its **circumradius in face scalar**, so the scalar histogram shows the alpha distribution and helps pick a better value.
+
+Facet orientation comes from the Delaunay triangulation and is not made globally coherent; run *Orient Faces Coherently* if you need it.
+
+Implemented with CGAL's 3D Alpha Shapes.
+
+Reference:
+Herbert Edelsbrunner, Ernst P. Mucke, **Three-Dimensional Alpha Shapes**, ACM Transactions on Graphics 13(1), 1994.
+
+**Parameters:**
+
+- **alpha** (*absperc*, default: `@bboxDiag002`) — Radius of the probing ball, as a percentage of the bounding box diagonal. Small values carve the shape away; large values converge to the convex hull.
+- **output** (*enum*, default: `shape`) — Alpha Shape writes the boundary surface. Alpha Complex additionally writes the singular facets held by the complex.
+```
+
+---
+
 (filter-generate-alpha-wrap)=
 
 ## Reconstruct Surface by Alpha Wrapping
 
 **Plugin:** qmeshlab.filter.cgal
 
-Generate a watertight alpha wrapping of the current triangular mesh using CGAL.
+Generate a watertight alpha wrapping of the current mesh or point cloud using CGAL.
 
 ```{py:function} ms.generate_alpha_wrap(**params)
 :module: _qmeshlab
 
 Compute an alpha wrapping with an offset around the current mesh and add the result as a new mesh layer. Alpha wrapping is useful for producing robust watertight approximations of defective, self-intersecting, open, or highly detailed input geometry. Smaller `Alpha` values follow the input more tightly but increase output complexity and computation time. `Offset` controls the clearance added around the input surface and must be strictly positive.
+
+Faces are optional, but they are **used**, not merely a container for the vertices:
+
+- A layer **with faces** is wrapped as a *triangle soup*. Triangle interiors are part of the input, so a large flat face is solid to the rolling ball, and CGAL subdivides oversized faces so that the spatial structure resolves at the `Alpha` scale.
+- A layer with **only vertices** is wrapped as a *point set*, which makes this a point-cloud reconstruction method. Unlike Poisson-family reconstruction it needs no vertex normals, because the positive offset is what defines the envelope.
+
+The two paths therefore give **different results on the same geometry**. Where a triangle spans a wide gap, the point-set path sees only its three corners and the ball can roll into the space between them, denting or holing the wrap. Wrap a point cloud only when the sampling is dense relative to `Alpha` and `Offset`; if the layer has faces, keep them.
+
+The result is an *approximating* reconstruction: the offset is strictly positive, so the output surface never passes through the input points.
 
 The filter uses CGAL's 3D Alpha Wrapping implementation.
 
@@ -2914,6 +2987,42 @@ Surface reconstruction algorithm using volumetric distance fields and Marching C
 - **mergeColor** (*bool*, default: `False`) — Splat vertices into the grid instead of rasterizing faces. Requires at least one sample per voxel.
 - **simplification** (*bool*, default: `False`) — Automatically simplify the mesh after reconstruction.
 - **normalSmooth** (*int*, default: `3`) — Face normal Laplacian iterations before voxelization. Helps with noisy borders.
+```
+
+---
+
+(filter-generate-voronoi-filtering)=
+
+## Reconstruct Surface by Voronoi Filtering (CGAL)
+
+**Plugin:** qmeshlab.filter.cgal
+
+Reconstruct a surface from an unoriented point cloud with the Amenta-Bern crust.
+
+```{py:function} ms.generate_voronoi_filtering(**params)
+:module: _qmeshlab
+
+Reconstructs a surface from the current layer's vertices using **Voronoi filtering**, the crust algorithm of Amenta and Bern. It needs **no vertex normals**, which is what distinguishes it from the Poisson-family filters.
+
+How it works, in two Delaunay passes:
+
+1. Triangulate the samples. For each sample the two *poles* are found — the Voronoi vertices of its cell farthest from it, one on each side. Poles approximate the medial axis, so they lie far from the surface.
+2. Triangulate samples and poles together. A Delaunay triangle whose three corners are all samples cannot span the medial axis, so those triangles are the reconstructed surface.
+
+This is an *interpolating* reconstruction: every output vertex is one of the input points, and no new positions are invented.
+
+**Limitations**, inherent to the algorithm rather than this implementation: it assumes a **closed, well-sampled, noise-free** surface. Points lying on the convex hull have unbounded Voronoi cells and therefore no finite outer pole, so open boundaries stay ragged; noisy input scatters the poles and thins the crust. For scanned or noisy data prefer *Reconstruct Surface by Screened Poisson*.
+
+**Threshold** discards Voronoi vertices farther from their sample than that multiple of the bounding box diagonal, keeping near-degenerate cells from throwing a pole off to infinity.
+
+Built on CGAL's 3D Delaunay triangulation.
+
+Reference:
+Nina Amenta, Marshall Bern, **Surface Reconstruction by Voronoi Filtering**, Discrete & Computational Geometry 22(4), 1999.
+
+**Parameters:**
+
+- **threshold** (*double*, default: `10.0`) — Discard Voronoi vertices farther from their sample than this multiple of the bounding box diagonal. Guards against near-degenerate cells sending a pole to infinity.
 ```
 
 ---
@@ -4805,6 +4914,37 @@ Select visible face <br />This filter displays all visible faces from a given di
 **Parameters:**
 
 - **direction** (*point3f*, default: `[1.0, 1.0, 0.0]`) — Visibility ray direction.
+```
+
+---
+
+(filter-select-visible-vertices)=
+
+## Select Visible Vertices
+
+**Plugin:** qmeshlab.filter.select
+
+Select the vertices visible from a given viewpoint.
+
+```{py:function} ms.select_visible_vertices(**params)
+:module: _qmeshlab
+
+Selects the vertices of the current layer that are **visible from a viewpoint**, using the *hidden point removal* operator: the points are inverted through a sphere centred on the viewpoint, and the ones landing on the convex hull of the inverted set are the visible ones.
+
+Only vertex positions are used, so this works on a raw point cloud with no faces and no normals — which is what it is for. It is the point-cloud counterpart of *Select Visible Faces*, which needs a surface to cast rays against.
+
+**Radius Threshold** sets the inversion sphere radius as `radius * 10^threshold`. Larger values mark more points visible: use a large threshold for dense clouds and a small one for sparse clouds.
+
+The selection is **added** to the current one; clear it first for an exact result.
+
+Reference:
+Sagi Katz, Ayellet Tal, Ronen Basri, **Direct Visibility of Point Sets**, ACM Transactions on Graphics 26(3), 2007.
+
+**Parameters:**
+
+- **radiusThreshold** (*double*, default: `0.0`) — Exponent of the inversion sphere radius (radius * 10^threshold). Larger values mark more points as visible; use a large value for dense clouds, a small one for sparse clouds.
+- **usecamera** (*bool*, default: `False`) — Uses the ViewPoint from the camera associated to the current mesh. If there is no camera, an error occurs.
+- **viewpoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Viewpoint position (ignored when UseCamera is true).
 ```
 
 ---

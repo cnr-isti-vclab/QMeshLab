@@ -592,10 +592,98 @@ faces to the existing vertex set, so `ModifyCurrentMesh` is not an oversight but
 honest declaration: nothing is destroyed, the point cloud is still there and now carries
 a surface. Emitting a new layer would duplicate every point for no gain.
 
+**Alpha Wrapping is approximating, despite the name.** Worth stating outright, because
+alpha *shapes* are the opposite: an alpha complex (Edelsbrunner-Mucke) is a subcomplex of
+the Delaunay triangulation of the input points, so its vertices *are* the input points — a
+textbook interpolating reconstruction. CGAL's `alpha_wrap_3` is a different and much newer
+algorithm (*Alpha Wrapping with an Offset*, Portaneri et al. 2022) that shares only the
+Greek letter: it refines a 3D Delaunay triangulation with Steiner points and carves it,
+and its `Offset` parameter **must be strictly positive**, so the output surface cannot
+pass through the input points. Same letter, opposite side of the line.
+
+### Alpha Wrap now accepts point clouds (fixed)
+
+Found while checking the above. `cgalfilterplugin.cpp` called only the **triangle soup**
+overload, and `buildTriangleSoup` failed with *"requires at least one valid triangular
+face"* whenever the face list was empty; the descriptor declared `requireFaces: true` to
+match. CGAL also provides a **point set** overload (`alpha_wrap_3(points, alpha, offset,
+out)`, routing to `oracle.add_point_set`) which needs **no normals** — unlike Poisson,
+the strictly positive offset defines the envelope by itself. The face requirement was
+QMeshLab's wiring, not the algorithm's.
+
+**Fixed** (2026-08-05): `buildTriangleSoup` now tolerates an empty face list, the call
+site branches to the point-set overload, `requireFaces` is dropped, the info message
+reports "Input point set: N points", and the description explains both paths. Covered by
+`FilterTests::cgalAlphaWrapAcceptsPointClouds`, which strips faces through the real
+`Remove All Faces` filter and then wraps the resulting cloud.
+
+**The two paths are not equivalent, and the description now says so.** They select
+structurally different CGAL oracles:
+
+| | Triangle soup | Point set |
+|---|---|---|
+| Oracle | `Triangle_soup_oracle` | `Point_set_oracle` |
+| AABB tree over | **triangles** (`AABB_triangle_primitive_3`) | **points** (`AABB_primitive` over `vector<Point_3>`) |
+| `alpha` at construction | **yes** | no |
+| Subdivides the input | **yes** — `AABB_tree_oracle_splitter`, `Splitter_base(alpha)` | no |
+
+CGAL states the alpha coupling outright in `Triangle_soup_oracle`: *"the oracle will be
+adapted to this particular 'alpha', and so when calling again AW3(other_alpha) the oracle
+might not have performed a split that is adapted to this other alpha value."*
+
+So with faces, triangle **interiors** are solid to the wrap and oversized faces are split
+to the alpha scale; without faces the input is isolated points and the envelope comes from
+the offset around each one. Where a triangle spans a wide gap the point-set path sees only
+its three corners, and the ball can roll between them and dent or hole the result. The
+point-cloud path is sound only when sampling is dense relative to `Alpha` and `Offset` —
+if a layer has faces, keep them.
+
+This also settles a classification doubt raised earlier in this document: an earlier note
+here suggested Alpha Wrap might be mis-filed, since "its input is a mesh, not a point
+cloud" — but that was an accident of the wiring. With point clouds accepted it is
+unambiguously an unstructured-input-to-surface reconstruction, so
+`Creation/Reconstruction` is correct and there is no case for moving it next to
+`Repair Watertight Mesh (MeshFix)`. It remains **approximating** either way.
+
 Ball Pivoting is currently the **only** interpolating reconstruction in the tree — there
 is no Delaunay, convex hull, or advancing-front filter in `filter_cgal`, `filter_igl`,
 `filter_meshfix` or `filter_clean`. The rule is recorded because that is exactly the
 family an igl plugin would add:
 
-> An interpolating reconstruction declares `ModifyCurrentMesh`; an approximating one
-> declares `NewMeshes`.
+> **Ball Pivoting is the only reconstruction that works *in place*, on the current
+> mesh, optionally discarding the original face set. Every other reconstruction emits a
+> new layer.**
+
+That is the whole of it, and it is a **design choice about where the result goes**, not a
+property of the algorithm. Two earlier drafts of this section tried to derive it from the
+mathematics and both were wrong:
+
+- *"interpolating -> `ModifyCurrentMesh`, approximating -> `NewMeshes`"* — MeshLab's
+  convex hull breaks this immediately: interpolating, yet it must emit a new layer.
+- *"preserves the entire input vertex set -> `ModifyCurrentMesh`"* — Ball Pivoting does
+  not preserve it in any useful sense. It deletes nothing, but it does not connect
+  everything either: `clustering` is passed to vcglib's `minr`, i.e. `min_edge`, a
+  **minimum edge length**, so points nearer than that to an existing vertex are skipped,
+  as are points the ball cannot reach. They survive as unreferenced vertices.
+
+The interpolating/approximating distinction is still worth knowing (it is why Alpha
+Wrapping never touches the input points, and it is the family the qhull filters belong
+to), but it does **not** determine `outputDomain`. Nothing algorithmic does. A convex hull
+could be computed in place too, by replacing the mesh; MeshLab simply chose not to.
+
+The open design question, then, is a UX one rather than a classification one: should
+reconstruction be uniform — always a new layer, so the input survives for comparison — or
+is in-place Ball Pivoting worth keeping as the "give my point cloud a surface" workflow?
+Left as-is for now; recorded so the inconsistency is a decision rather than an accident.
+
+### Filters MeshLab has here and QMeshLab does not
+
+MeshLab's `filter_qhull` provides four filters with no QMeshLab counterpart:
+`FP_QHULL_CONVEX_HULL` (`generate_convex_hull`), `FP_QHULL_VORONOI_FILTERING`
+(Amenta-Bern reconstruction), `FP_QHULL_ALPHA_COMPLEX_AND_SHAPE`, and
+`FP_QHULL_VISIBLE_POINTS`. The first three are the interpolating-reconstruction family
+whose absence is noted above; the fourth is a viewpoint-visibility filter and belongs with
+`Selection/by Visibility` and `ViewpointOccluder`, not here.
+
+MeshLab computes the hull with **Qhull**, but `vcglib/vcg/complex/algorithms/convex_hull.h`
+already exists, so a port needs no new external dependency.

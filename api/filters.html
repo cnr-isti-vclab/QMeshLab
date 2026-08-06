@@ -1524,6 +1524,24 @@
 
 <hr class="docutils" />
 </section>
+<section id="create-convex-hull">
+<span id="filter-create-convex-hull"></span><h2>Create Convex Hull<a class="headerlink" href="#create-convex-hull" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.create</p>
+<p>Create the convex hull of the current mesh or point cloud.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.create_convex_hull">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_convex_hull</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.create_convex_hull" title="Link to this definition">¶</a></dt>
+<dd><p>Creates a new layer holding the <strong>convex hull</strong> of the current layer: the boundary of the smallest convex set containing all of its vertices.</p>
+<p>Only the vertex positions are used, so this works on a point cloud just as well as on a mesh; faces, if any, are ignored. Every hull vertex is one of the input points, and interior points are discarded — which is why the result is a new layer rather than a modification of the current one.</p>
+<p>At least 4 vertices are required, and they must not all be coincident, collinear, or coplanar.</p>
+<p>Implemented with VCGLib’s Quickhull.</p>
+<p>Reference:
+C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algorithm for Convex Hulls</strong>, ACM Transactions on Mathematical Software 22(4), 1996.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="create-dodecahedron">
 <span id="filter-create-dodecahedron"></span><h2>Create Dodecahedron<a class="headerlink" href="#create-dodecahedron" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.create</p>
@@ -2245,14 +2263,49 @@
 
 <hr class="docutils" />
 </section>
+<section id="reconstruct-surface-by-alpha-shape-cgal">
+<span id="filter-generate-alpha-shape"></span><h2>Reconstruct Surface by Alpha Shape (CGAL)<a class="headerlink" href="#reconstruct-surface-by-alpha-shape-cgal" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
+<p>Build the alpha complex or alpha shape of the current mesh or point cloud.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_alpha_shape">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_alpha_shape</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_alpha_shape" title="Link to this definition">¶</a></dt>
+<dd><p>Builds the <strong>alpha shape</strong> of the current layer’s vertices: the subcomplex of their Delaunay triangulation kept by a ball of radius <code class="docutils literal notranslate"><span class="pre">Alpha</span></code> that can reach it without enclosing any point. Small <code class="docutils literal notranslate"><span class="pre">Alpha</span></code> values give a sparse, pitted result; as <code class="docutils literal notranslate"><span class="pre">Alpha</span></code> grows the shape fills in and converges to the convex hull.</p>
+<p>Only vertex positions are used, so a raw point cloud with no faces and no normals works — it is an <em>interpolating</em> reconstruction, meaning every output vertex is one of the input points.</p>
+<p><strong>Output</strong> selects what is written:</p>
+<ul class="simple">
+<li><p><em>Alpha Shape</em> — the boundary of the alpha complex (CGAL <code class="docutils literal notranslate"><span class="pre">REGULAR</span></code> facets). This is the surface.</p></li>
+<li><p><em>Alpha Complex</em> — also keeps the <code class="docutils literal notranslate"><span class="pre">SINGULAR</span></code> facets, the lower-dimensional sheets that the boundary drops. Useful for seeing what the complex contains, not for a clean surface.</p></li>
+</ul>
+<p>Each face carries its <strong>circumradius in face scalar</strong>, so the scalar histogram shows the alpha distribution and helps pick a better value.</p>
+<p>Facet orientation comes from the Delaunay triangulation and is not made globally coherent; run <em>Orient Faces Coherently</em> if you need it.</p>
+<p>Implemented with CGAL’s 3D Alpha Shapes.</p>
+<p>Reference:
+Herbert Edelsbrunner, Ernst P. Mucke, <strong>Three-Dimensional Alpha Shapes</strong>, ACM Transactions on Graphics 13(1), 1994.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>alpha</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Radius of the probing ball, as a percentage of the bounding box diagonal. Small values carve the shape away; large values converge to the convex hull.</p></li>
+<li><p><strong>output</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">shape</span></code>) — Alpha Shape writes the boundary surface. Alpha Complex additionally writes the singular facets held by the complex.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="reconstruct-surface-by-alpha-wrapping">
 <span id="filter-generate-alpha-wrap"></span><h2>Reconstruct Surface by Alpha Wrapping<a class="headerlink" href="#reconstruct-surface-by-alpha-wrapping" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
-<p>Generate a watertight alpha wrapping of the current triangular mesh using CGAL.</p>
+<p>Generate a watertight alpha wrapping of the current mesh or point cloud using CGAL.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_alpha_wrap">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_alpha_wrap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_alpha_wrap" title="Link to this definition">¶</a></dt>
 <dd><p>Compute an alpha wrapping with an offset around the current mesh and add the result as a new mesh layer. Alpha wrapping is useful for producing robust watertight approximations of defective, self-intersecting, open, or highly detailed input geometry. Smaller <code class="docutils literal notranslate"><span class="pre">Alpha</span></code> values follow the input more tightly but increase output complexity and computation time. <code class="docutils literal notranslate"><span class="pre">Offset</span></code> controls the clearance added around the input surface and must be strictly positive.</p>
+<p>Faces are optional, but they are <strong>used</strong>, not merely a container for the vertices:</p>
+<ul class="simple">
+<li><p>A layer <strong>with faces</strong> is wrapped as a <em>triangle soup</em>. Triangle interiors are part of the input, so a large flat face is solid to the rolling ball, and CGAL subdivides oversized faces so that the spatial structure resolves at the <code class="docutils literal notranslate"><span class="pre">Alpha</span></code> scale.</p></li>
+<li><p>A layer with <strong>only vertices</strong> is wrapped as a <em>point set</em>, which makes this a point-cloud reconstruction method. Unlike Poisson-family reconstruction it needs no vertex normals, because the positive offset is what defines the envelope.</p></li>
+</ul>
+<p>The two paths therefore give <strong>different results on the same geometry</strong>. Where a triangle spans a wide gap, the point-set path sees only its three corners and the ball can roll into the space between them, denting or holing the wrap. Wrap a point cloud only when the sampling is dense relative to <code class="docutils literal notranslate"><span class="pre">Alpha</span></code> and <code class="docutils literal notranslate"><span class="pre">Offset</span></code>; if the layer has faces, keep them.</p>
+<p>The result is an <em>approximating</em> reconstruction: the offset is strictly positive, so the output surface never passes through the input points.</p>
 <p>The filter uses CGAL’s 3D Alpha Wrapping implementation.</p>
 <p>Reference:
 Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez, <strong>Alpha Wrapping with an Offset</strong>, 2022.</p>
@@ -2602,6 +2655,33 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 <li><p><strong>mergeColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Splat vertices into the grid instead of rasterizing faces. Requires at least one sample per voxel.</p></li>
 <li><p><strong>simplification</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Automatically simplify the mesh after reconstruction.</p></li>
 <li><p><strong>normalSmooth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Face normal Laplacian iterations before voxelization. Helps with noisy borders.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="reconstruct-surface-by-voronoi-filtering-cgal">
+<span id="filter-generate-voronoi-filtering"></span><h2>Reconstruct Surface by Voronoi Filtering (CGAL)<a class="headerlink" href="#reconstruct-surface-by-voronoi-filtering-cgal" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
+<p>Reconstruct a surface from an unoriented point cloud with the Amenta-Bern crust.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_voronoi_filtering">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_voronoi_filtering</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_voronoi_filtering" title="Link to this definition">¶</a></dt>
+<dd><p>Reconstructs a surface from the current layer’s vertices using <strong>Voronoi filtering</strong>, the crust algorithm of Amenta and Bern. It needs <strong>no vertex normals</strong>, which is what distinguishes it from the Poisson-family filters.</p>
+<p>How it works, in two Delaunay passes:</p>
+<ol class="arabic simple">
+<li><p>Triangulate the samples. For each sample the two <em>poles</em> are found — the Voronoi vertices of its cell farthest from it, one on each side. Poles approximate the medial axis, so they lie far from the surface.</p></li>
+<li><p>Triangulate samples and poles together. A Delaunay triangle whose three corners are all samples cannot span the medial axis, so those triangles are the reconstructed surface.</p></li>
+</ol>
+<p>This is an <em>interpolating</em> reconstruction: every output vertex is one of the input points, and no new positions are invented.</p>
+<p><strong>Limitations</strong>, inherent to the algorithm rather than this implementation: it assumes a <strong>closed, well-sampled, noise-free</strong> surface. Points lying on the convex hull have unbounded Voronoi cells and therefore no finite outer pole, so open boundaries stay ragged; noisy input scatters the poles and thins the crust. For scanned or noisy data prefer <em>Reconstruct Surface by Screened Poisson</em>.</p>
+<p><strong>Threshold</strong> discards Voronoi vertices farther from their sample than that multiple of the bounding box diagonal, keeping near-degenerate cells from throwing a pole off to infinity.</p>
+<p>Built on CGAL’s 3D Delaunay triangulation.</p>
+<p>Reference:
+Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering</strong>, Discrete &amp; Computational Geometry 22(4), 1999.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>threshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">10.0</span></code>) — Discard Voronoi vertices farther from their sample than this multiple of the bounding box diagonal. Guards against near-degenerate cells sending a pole to infinity.</p></li>
 </ul>
 </dd></dl>
 
@@ -4142,6 +4222,29 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Visibility ray direction.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="select-visible-vertices">
+<span id="filter-select-visible-vertices"></span><h2>Select Visible Vertices<a class="headerlink" href="#select-visible-vertices" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.select</p>
+<p>Select the vertices visible from a given viewpoint.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.select_visible_vertices">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_visible_vertices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.select_visible_vertices" title="Link to this definition">¶</a></dt>
+<dd><p>Selects the vertices of the current layer that are <strong>visible from a viewpoint</strong>, using the <em>hidden point removal</em> operator: the points are inverted through a sphere centred on the viewpoint, and the ones landing on the convex hull of the inverted set are the visible ones.</p>
+<p>Only vertex positions are used, so this works on a raw point cloud with no faces and no normals — which is what it is for. It is the point-cloud counterpart of <em>Select Visible Faces</em>, which needs a surface to cast rays against.</p>
+<p><strong>Radius Threshold</strong> sets the inversion sphere radius as <code class="docutils literal notranslate"><span class="pre">radius</span> <span class="pre">*</span> <span class="pre">10^threshold</span></code>. Larger values mark more points visible: use a large threshold for dense clouds and a small one for sparse clouds.</p>
+<p>The selection is <strong>added</strong> to the current one; clear it first for an exact result.</p>
+<p>Reference:
+Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</strong>, ACM Transactions on Graphics 26(3), 2007.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>radiusThreshold</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Exponent of the inversion sphere radius (radius * 10^threshold). Larger values mark more points as visible; use a large value for dense clouds, a small one for sparse clouds.</p></li>
+<li><p><strong>usecamera</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Uses the ViewPoint from the camera associated to the current mesh. If there is no camera, an error occurs.</p></li>
+<li><p><strong>viewpoint</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Viewpoint position (ignored when UseCamera is true).</p></li>
 </ul>
 </dd></dl>
 
@@ -5724,6 +5827,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.create_cone"><code class="docutils literal notranslate"><span class="pre">ms.create_cone()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#create-convex-hull">Create Convex Hull</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.create_convex_hull"><code class="docutils literal notranslate"><span class="pre">ms.create_convex_hull()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#create-dodecahedron">Create Dodecahedron</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.create_dodecahedron"><code class="docutils literal notranslate"><span class="pre">ms.create_dodecahedron()</span></code></a></li>
 </ul>
@@ -5888,6 +5995,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.flatten_visible_layers"><code class="docutils literal notranslate"><span class="pre">ms.flatten_visible_layers()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#reconstruct-surface-by-alpha-shape-cgal">Reconstruct Surface by Alpha Shape (CGAL)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_alpha_shape"><code class="docutils literal notranslate"><span class="pre">ms.generate_alpha_shape()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#reconstruct-surface-by-alpha-wrapping">Reconstruct Surface by Alpha Wrapping</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_alpha_wrap"><code class="docutils literal notranslate"><span class="pre">ms.generate_alpha_wrap()</span></code></a></li>
 </ul>
@@ -5950,6 +6061,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#reconstruct-surface-by-volumetric-merging">Reconstruct Surface by Volumetric Merging</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_surface_reconstruction_vcg"><code class="docutils literal notranslate"><span class="pre">ms.generate_surface_reconstruction_vcg()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#reconstruct-surface-by-voronoi-filtering-cgal">Reconstruct Surface by Voronoi Filtering (CGAL)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_voronoi_filtering"><code class="docutils literal notranslate"><span class="pre">ms.generate_voronoi_filtering()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#create-voronoi-scaffolding">Create Voronoi Scaffolding</a><ul>
@@ -6286,6 +6401,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#select-visible-faces">Select Visible Faces</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_visible_faces"><code class="docutils literal notranslate"><span class="pre">ms.select_visible_faces()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#select-visible-vertices">Select Visible Vertices</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.select_visible_vertices"><code class="docutils literal notranslate"><span class="pre">ms.select_visible_vertices()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#generate-camera-from-direction">Generate Camera from Direction</a><ul>
