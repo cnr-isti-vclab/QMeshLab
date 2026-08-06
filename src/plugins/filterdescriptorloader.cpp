@@ -177,6 +177,7 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
         }
         p.defaultValue = QVariant::fromValue(QVector3D(x, y, z));
         p.point3fRole  = obj.value(QStringLiteral("point3fRole")).toString(QStringLiteral("point"));
+        p.point3fDefaultPreset = obj.value(QStringLiteral("point3fDefaultPreset")).toString();
     } else {
         p.defaultValue = parseJsonValue(obj.value(QStringLiteral("default")));
         p.minValue     = parseJsonValue(obj.value(QStringLiteral("min")));

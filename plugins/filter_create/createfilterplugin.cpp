@@ -3,6 +3,7 @@
 #include "document.h"
 #include "meshfilterpluginmanager.h"
 #include "vcgmesh.h"
+#include <vcg/complex/algorithms/convex_hull.h>
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/point_sampling.h>
 #include <vcg/complex/algorithms/smooth.h>
@@ -27,6 +28,7 @@ constexpr QLatin1StringView kFilterCreateOctahedron("create_octahedron");
 constexpr QLatin1StringView kFilterCreateCone("create_cone");
 constexpr QLatin1StringView kFilterCreateTorus("create_torus");
 constexpr QLatin1StringView kFilterFitPlane("fit_plane_to_selection");
+constexpr QLatin1StringView kFilterConvexHull("create_convex_hull");
 
 MeshFilterRunResult success(const QString &name, int newIndex)
 {
@@ -296,6 +298,44 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
 
         const int idx = doc.addMesh(m, QStringLiteral("Fitted Plane"));
         return success(doc.mesh(idx).name, idx);
+    }
+
+    if (filterId == QString::fromLatin1(kFilterConvexHull)) {
+        const int meshIndex = doc.currentMeshIndex();
+        if (meshIndex < 0 || meshIndex >= doc.meshCount())
+            return { false, false, QObject::tr("No current mesh selected.") };
+
+        const VCGMesh &src = doc.mesh(meshIndex).mesh;
+        if (src.VN() < 4)
+            return { false, false, QObject::tr("A convex hull needs at least 4 vertices.") };
+
+        // ComputeConvexHull compacts its input and clears the visited flags on it, so it
+        // must never be handed the document's own mesh.
+        VCGMesh work;
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(work, src);
+
+        VCGMesh hull;
+        {
+            VCGMeshFFAdjScope ffAdj(hull); // RequireFFAdjacency on the output mesh
+            if (!vcg::tri::ConvexHull<VCGMesh, VCGMesh>::ComputeConvexHull(work, hull))
+                return { false, false,
+                    QObject::tr("Convex hull computation failed: the points may be degenerate "
+                                "(all coincident, collinear, or coplanar).") };
+        }
+        // "indexInput" maps hull vertices back to the source; ancillary, so drop it rather
+        // than carry it into the document and its undo snapshots.
+        vcg::tri::Allocator<VCGMesh>::DeletePerVertexAttribute(hull, std::string("indexInput"));
+        vcg::tri::UpdateBounding<VCGMesh>::Box(hull);
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(hull);
+
+        const int idx = doc.addMesh(
+            hull, QStringLiteral("Convex Hull"), vcg::tri::io::Mask::IOM_VERTNORMAL);
+        if (idx < 0)
+            return { false, false, QObject::tr("Failed to add the convex hull layer.") };
+        MeshFilterRunResult r = success(doc.mesh(idx).name, idx);
+        r.infoMessages << QObject::tr("Hull: %1 vertices, %2 faces (from %3 input vertices).")
+                              .arg(hull.VN()).arg(hull.FN()).arg(src.VN());
+        return r;
     }
 
     return { false, false, QObject::tr("Unknown filter id: %1").arg(filterId) };

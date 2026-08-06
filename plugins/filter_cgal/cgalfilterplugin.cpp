@@ -4,8 +4,14 @@
 #include "meshfilterpluginmanager.h"
 #include "vcgmesh.h"
 
+#include <CGAL/Alpha_shape_3.h>
+#include <CGAL/Alpha_shape_cell_base_3.h>
+#include <CGAL/Alpha_shape_vertex_base_3.h>
+#include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Surface_mesh.h>
+#include <CGAL/Triangulation_data_structure_3.h>
+#include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <CGAL/alpha_wrap_3.h>
 #include <CGAL/boost/graph/iterator.h>
 #include <wrap/io_trimesh/io_mask.h>
@@ -17,16 +23,35 @@
 #include <array>
 #include <cmath>
 #include <exception>
+#include <limits>
+#include <unordered_map>
 #include <vector>
 
 namespace {
 
 constexpr QLatin1StringView kFilterAlphaWrap("generate_alpha_wrap");
+constexpr QLatin1StringView kFilterAlphaShape("generate_alpha_shape");
+constexpr QLatin1StringView kFilterVoronoiFiltering("generate_voronoi_filtering");
 using Mask = vcg::tri::io::Mask;
 using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 using CgalPoint = Kernel::Point_3;
 using CgalMesh = CGAL::Surface_mesh<CgalPoint>;
 using Triangle = std::array<std::size_t, 3>;
+
+// Alpha shapes need their own triangulation types: the cell and vertex bases carry the
+// per-simplex alpha intervals that classify each simplex as the alpha value sweeps.
+using AsVertexBase = CGAL::Alpha_shape_vertex_base_3<Kernel>;
+using AsCellBase = CGAL::Alpha_shape_cell_base_3<Kernel>;
+using AsTds = CGAL::Triangulation_data_structure_3<AsVertexBase, AsCellBase>;
+using AsTriangulation = CGAL::Delaunay_triangulation_3<Kernel, AsTds>;
+using AlphaShape = CGAL::Alpha_shape_3<AsTriangulation>;
+
+// Plain Delaunay for the pole-finding pass, and an info-carrying one for the second pass
+// where sample points and poles must be told apart.
+using PlainDelaunay = CGAL::Delaunay_triangulation_3<Kernel>;
+using CrustVertexBase = CGAL::Triangulation_vertex_base_with_info_3<bool, Kernel>;
+using CrustTds = CGAL::Triangulation_data_structure_3<CrustVertexBase>;
+using CrustDelaunay = CGAL::Delaunay_triangulation_3<Kernel, CrustTds>;
 
 MeshFilterRunResult fail(const QString &message)
 {
@@ -106,10 +131,7 @@ bool buildTriangleSoup(const VCGMesh &mesh,
         error = QObject::tr("Alpha Wrap requires at least one valid vertex.");
         return false;
     }
-    if (triangles.empty()) {
-        error = QObject::tr("Alpha Wrap requires at least one valid triangular face.");
-        return false;
-    }
+    // An empty triangle list is allowed: the caller then wraps the bare point set.
     return true;
 }
 
@@ -168,6 +190,315 @@ bool copyCgalMeshToVcg(const CgalMesh &source, VCGMesh &target, QString &error)
     return true;
 }
 
+// Alpha complex / alpha shape of the current layer's vertices.
+//
+// CGAL's alpha values are *squared* radii, so the user-facing radius is squared on the
+// way in. The facet classification is what separates the two outputs: REGULAR facets are
+// on the boundary of the alpha complex — the alpha shape proper — while SINGULAR facets
+// are the lower-dimensional bits the complex keeps and the shape drops.
+MeshFilterRunResult runAlphaShape(const FilterParams &params, Document &doc)
+{
+    const int meshIndex = doc.currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+
+    const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    if (mesh.VN() < 4)
+        return fail(QObject::tr("An alpha shape needs at least 4 vertices."));
+
+    const double alpha = params.getDouble(QStringLiteral("alpha"), 0.0);
+    if (!std::isfinite(alpha) || alpha <= 0.0)
+        return fail(QObject::tr("Alpha must be a finite value larger than zero."));
+    const bool wantComplex = params.getEnum(QStringLiteral("output")) == QStringLiteral("complex");
+
+    std::vector<CgalPoint> points;
+    points.reserve(std::size_t(std::max(0, mesh.VN())));
+    for (const VCGVertex &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        points.emplace_back(v.cP().X(), v.cP().Y(), v.cP().Z());
+    }
+    if (points.size() < 4)
+        return fail(QObject::tr("An alpha shape needs at least 4 live vertices."));
+
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Alpha Shape (CGAL)"));
+    if (vcg::CallBackPos *cb = doc.progressCallback())
+        (*cb)(10, "Building Delaunay triangulation...");
+
+    std::vector<AlphaShape::Facet> facets;
+    try {
+        AlphaShape shape(points.begin(), points.end(), Kernel::FT(alpha * alpha),
+                         AlphaShape::GENERAL);
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(60, "Classifying facets...");
+        shape.get_alpha_shape_facets(std::back_inserter(facets), AlphaShape::REGULAR);
+        if (wantComplex)
+            shape.get_alpha_shape_facets(std::back_inserter(facets), AlphaShape::SINGULAR);
+    } catch (const std::exception &e) {
+        const QString message =
+            QObject::tr("CGAL alpha shape failed: %1").arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    if (facets.empty()) {
+        const QString message = QObject::tr(
+            "The alpha shape is empty at alpha = %1. Try a larger value.")
+                .arg(QString::number(alpha, 'g', 6));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    if (vcg::CallBackPos *cb = doc.progressCallback())
+        (*cb)(85, "Building output mesh...");
+
+    VCGMesh output;
+    std::unordered_map<const void *, int> vertexIndex;
+    for (const AlphaShape::Facet &facet : facets) {
+        const AlphaShape::Cell_handle cell = facet.first;
+        const int opposite = facet.second;
+        int corner[3];
+        bool ok = true;
+        for (int k = 0; k < 3; ++k) {
+            auto handle = cell->vertex((opposite + k + 1) % 4);
+            const void *key = &*handle;
+            auto it = vertexIndex.find(key);
+            if (it == vertexIndex.end()) {
+                const CgalPoint &p = handle->point();
+                auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(
+                    output, vcg::Point3f(float(p.x()), float(p.y()), float(p.z())));
+                const int index = int(vcg::tri::Index(output, *vi));
+                it = vertexIndex.emplace(key, index).first;
+            }
+            corner[k] = it->second;
+        }
+        if (!ok || corner[0] == corner[1] || corner[1] == corner[2] || corner[0] == corner[2])
+            continue;
+        vcg::tri::Allocator<VCGMesh>::AddFace(output, corner[0], corner[1], corner[2]);
+    }
+
+    if (output.FN() <= 0) {
+        const QString message = QObject::tr("The alpha shape produced no faces.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    // MeshLab stores the facet circumradius in face quality; keep that, it is what makes
+    // the result explorable with the scalar histogram.
+    for (VCGFace &f : output.face) {
+        const float a = (f.cV(1)->cP() - f.cV(0)->cP()).Norm();
+        const float b = (f.cV(2)->cP() - f.cV(1)->cP()).Norm();
+        const float c = (f.cV(0)->cP() - f.cV(2)->cP()).Norm();
+        const float area = vcg::DoubleArea(f) * 0.5f;
+        f.Q() = (area > std::numeric_limits<float>::epsilon()) ? (a * b * c) / (4.0f * area) : 0.0f;
+    }
+
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(output);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
+
+    const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL
+        | Mask::IOM_FACEQUALITY;
+    const int newIndex = doc.addMesh(
+        output,
+        wantComplex ? QObject::tr("Alpha Complex") : QObject::tr("Alpha Shape"),
+        ioMask);
+    if (newIndex < 0) {
+        const QString message = QObject::tr("Failed to add the alpha shape layer.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+    doc.finishFilterProgress(true, QObject::tr("Generated alpha shape."));
+
+    QStringList info;
+    info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
+         << QObject::tr("Alpha: %1").arg(QString::number(alpha, 'g', 6))
+         << QObject::tr("Input: %1 points.").arg(points.size())
+         << QObject::tr("Output mesh: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
+    return success(info, newIndex);
+}
+
+// Voronoi filtering — the Amenta/Bern "crust". Two Delaunay passes:
+//
+//  1. Triangulate the samples. For each sample p, its *poles* are the two Voronoi
+//     vertices of its cell farthest from it, one on each side: p+ is the farthest one,
+//     p- the farthest lying in the opposite half-space. The poles approximate the medial
+//     axis, so they sit far from the surface.
+//  2. Triangulate samples *and* poles together. A Delaunay triangle whose three corners
+//     are all samples cannot span the medial axis, so those triangles are the surface.
+//
+// The guarantee assumes a closed, well-sampled surface. Points on the convex hull have
+// unbounded Voronoi cells and thus no finite outer pole, so boundaries stay ragged — a
+// property of the algorithm, not of this implementation.
+MeshFilterRunResult runVoronoiFiltering(const FilterParams &params, Document &doc)
+{
+    const int meshIndex = doc.currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+
+    const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    if (mesh.VN() < 4)
+        return fail(QObject::tr("Voronoi filtering needs at least 4 vertices."));
+
+    const double threshold = params.getDouble(QStringLiteral("threshold"), 10.0);
+    if (!std::isfinite(threshold) || threshold <= 0.0)
+        return fail(QObject::tr("Threshold must be a finite value larger than zero."));
+
+    std::vector<CgalPoint> samples;
+    samples.reserve(std::size_t(std::max(0, mesh.VN())));
+    for (const VCGVertex &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        samples.emplace_back(v.cP().X(), v.cP().Y(), v.cP().Z());
+    }
+    if (samples.size() < 4)
+        return fail(QObject::tr("Voronoi filtering needs at least 4 live vertices."));
+
+    // Voronoi vertices of an almost-degenerate cell shoot off to infinity; anything
+    // farther than this from its sample is discarded rather than used as a pole.
+    const double diagonal = double(mesh.bbox.Diag());
+    const double maxPoleDistance = (diagonal > 0.0 ? diagonal : 1.0) * threshold;
+
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Voronoi Filtering (CGAL)"));
+    if (vcg::CallBackPos *cb = doc.progressCallback())
+        (*cb)(10, "Triangulating samples...");
+
+    VCGMesh output;
+    int poleCount = 0;
+    try {
+        PlainDelaunay delaunay(samples.begin(), samples.end());
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(35, "Selecting poles...");
+
+        std::vector<CgalPoint> poles;
+        std::vector<PlainDelaunay::Cell_handle> cells;
+        for (auto v = delaunay.finite_vertices_begin(); v != delaunay.finite_vertices_end(); ++v) {
+            const CgalPoint &p = v->point();
+            cells.clear();
+            delaunay.finite_incident_cells(v, std::back_inserter(cells));
+
+            // First pole: farthest Voronoi vertex of this cell.
+            CgalPoint firstPole;
+            double bestSquared = -1.0;
+            for (const auto &cell : cells) {
+                const CgalPoint dual = delaunay.dual(cell);
+                const double squared = CGAL::squared_distance(p, dual);
+                if (squared > maxPoleDistance * maxPoleDistance)
+                    continue;
+                if (squared > bestSquared) {
+                    bestSquared = squared;
+                    firstPole = dual;
+                }
+            }
+            if (bestSquared <= 0.0)
+                continue; // unbounded or degenerate cell: no usable pole
+            poles.push_back(firstPole);
+
+            // Second pole: farthest Voronoi vertex on the other side of the surface.
+            const Kernel::Vector_3 outward = firstPole - p;
+            CgalPoint secondPole;
+            double bestOpposite = -1.0;
+            for (const auto &cell : cells) {
+                const CgalPoint dual = delaunay.dual(cell);
+                if ((dual - p) * outward >= 0.0)
+                    continue;
+                const double squared = CGAL::squared_distance(p, dual);
+                if (squared > maxPoleDistance * maxPoleDistance)
+                    continue;
+                if (squared > bestOpposite) {
+                    bestOpposite = squared;
+                    secondPole = dual;
+                }
+            }
+            if (bestOpposite > 0.0)
+                poles.push_back(secondPole);
+        }
+        poleCount = int(poles.size());
+        if (poles.empty()) {
+            const QString message = QObject::tr(
+                "No poles could be selected. The point set may be too small, degenerate, or "
+                "entirely on its convex hull.");
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(60, "Triangulating samples and poles...");
+
+        // Second pass. Samples are flagged true, poles false.
+        std::vector<std::pair<CgalPoint, bool>> tagged;
+        tagged.reserve(samples.size() + poles.size());
+        for (const CgalPoint &p : samples)
+            tagged.emplace_back(p, true);
+        for (const CgalPoint &p : poles)
+            tagged.emplace_back(p, false);
+        CrustDelaunay crust(tagged.begin(), tagged.end());
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(85, "Extracting the crust...");
+
+        std::unordered_map<const void *, int> vertexIndex;
+        for (auto facet = crust.finite_facets_begin(); facet != crust.finite_facets_end(); ++facet) {
+            const CrustDelaunay::Cell_handle cell = facet->first;
+            const int opposite = facet->second;
+            int corner[3];
+            bool allSamples = true;
+            for (int k = 0; k < 3 && allSamples; ++k) {
+                auto handle = cell->vertex((opposite + k + 1) % 4);
+                if (crust.is_infinite(handle) || !handle->info()) {
+                    allSamples = false;
+                    break;
+                }
+                const void *key = &*handle;
+                auto it = vertexIndex.find(key);
+                if (it == vertexIndex.end()) {
+                    const CgalPoint &p = handle->point();
+                    auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(
+                        output, vcg::Point3f(float(p.x()), float(p.y()), float(p.z())));
+                    it = vertexIndex.emplace(key, int(vcg::tri::Index(output, *vi))).first;
+                }
+                corner[k] = it->second;
+            }
+            if (!allSamples)
+                continue;
+            if (corner[0] == corner[1] || corner[1] == corner[2] || corner[0] == corner[2])
+                continue;
+            vcg::tri::Allocator<VCGMesh>::AddFace(output, corner[0], corner[1], corner[2]);
+        }
+    } catch (const std::exception &e) {
+        const QString message =
+            QObject::tr("CGAL Voronoi filtering failed: %1").arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    if (output.FN() <= 0) {
+        const QString message = QObject::tr(
+            "Voronoi filtering produced no faces. The sampling may be too sparse or too noisy.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(output);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
+
+    const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    const int newIndex = doc.addMesh(output, QObject::tr("Voronoi Filtering"), ioMask);
+    if (newIndex < 0) {
+        const QString message = QObject::tr("Failed to add the Voronoi filtering layer.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+    doc.finishFilterProgress(true, QObject::tr("Generated crust surface."));
+
+    QStringList info;
+    info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
+         << QObject::tr("Input: %1 samples, %2 poles.").arg(samples.size()).arg(poleCount)
+         << QObject::tr("Output mesh: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
+    return success(info, newIndex);
+}
+
 } // namespace
 
 QString CgalFilterPlugin::pluginId() const
@@ -185,6 +516,10 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
     const FilterParams &params,
     Document &doc) const
 {
+    if (filterId == QString::fromLatin1(kFilterAlphaShape))
+        return runAlphaShape(params, doc);
+    if (filterId == QString::fromLatin1(kFilterVoronoiFiltering))
+        return runVoronoiFiltering(params, doc);
     if (filterId != QString::fromLatin1(kFilterAlphaWrap))
         return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 
@@ -194,8 +529,9 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
 
     const Document::MeshEntry &entry = doc.mesh(meshIndex);
     const VCGMesh &mesh = entry.mesh;
-    if (mesh.VN() <= 0 || mesh.FN() <= 0)
-        return fail(QObject::tr("Alpha Wrap requires a non-empty triangular mesh."));
+    // Faces are optional: without them the point set itself is wrapped.
+    if (mesh.VN() <= 0)
+        return fail(QObject::tr("Alpha Wrap requires a mesh or point cloud with vertices."));
 
     const double alpha = params.getDouble(QStringLiteral("Alpha"), 0.0);
     const double offset = params.getDouble(QStringLiteral("Offset"), 0.0);
@@ -206,7 +542,7 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
 
     doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Alpha Wrapping"));
     if (vcg::CallBackPos *cb = doc.progressCallback())
-        (*cb)(5, "Preparing triangle soup...");
+        (*cb)(5, "Preparing alpha wrap input...");
 
     std::vector<CgalPoint> points;
     std::vector<Triangle> triangles;
@@ -216,12 +552,18 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
         doc.finishFilterProgress(false, error);
         return fail(error);
     }
+    const bool pointSetInput = triangles.empty();
 
     CgalMesh wrapResult;
     try {
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(15, "Running CGAL Alpha Wrap...");
-        CGAL::alpha_wrap_3(points, triangles, alpha, offset, wrapResult);
+        // CGAL wraps a bare point set as happily as a triangle soup; no normals needed,
+        // since the strictly positive offset is what defines the envelope.
+        if (pointSetInput)
+            CGAL::alpha_wrap_3(points, alpha, offset, wrapResult);
+        else
+            CGAL::alpha_wrap_3(points, triangles, alpha, offset, wrapResult);
     } catch (const std::exception &e) {
         const QString message = QObject::tr("CGAL Alpha Wrap failed: %1").arg(QString::fromLocal8Bit(e.what()));
         doc.finishFilterProgress(false, message);
@@ -256,7 +598,10 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
     info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
          << QObject::tr("Alpha: %1").arg(QString::number(alpha, 'g', 6))
          << QObject::tr("Offset: %1").arg(QString::number(offset, 'g', 6))
-         << QObject::tr("Input triangle soup: %1 vertices, %2 faces.").arg(points.size()).arg(triangles.size())
+         << (pointSetInput
+                 ? QObject::tr("Input point set: %1 points.").arg(points.size())
+                 : QObject::tr("Input triangle soup: %1 vertices, %2 faces.")
+                       .arg(points.size()).arg(triangles.size()))
          << QObject::tr("Output mesh: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
     if (skippedFaces > 0)
         info << QObject::tr("Skipped %1 invalid or degenerate input face(s).").arg(skippedFaces);

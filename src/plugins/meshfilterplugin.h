@@ -109,6 +109,10 @@ struct MeshFilterParameterDescriptor
     QStringList meshPrepare;
     // Only used when type == Point3f: "point" (position) or "direction" (unit vector).
     QString point3fRole = QStringLiteral("point");
+    // Optional named preset the Point3f editor starts on, instead of the literal
+    // defaultValue: "cameraEye", "trackballCenter", "bboxCenter", "viewDirection".
+    // Ignored outside the UI, where defaultValue remains the fallback.
+    QString point3fDefaultPreset;
 
     bool isAdvancedGroup() const
     {

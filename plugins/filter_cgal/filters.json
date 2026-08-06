@@ -6,20 +6,20 @@
       "categories": ["Creation/Reconstruction"],
       "name": "Reconstruct Surface by Alpha Wrapping",
       "pythonName": "generate_alpha_wrap",
-      "shortDescription": "Generate a watertight alpha wrapping of the current triangular mesh using CGAL.",
-      "longDescriptionMarkdown": "Compute an alpha wrapping with an offset around the current mesh and add the result as a new mesh layer. Alpha wrapping is useful for producing robust watertight approximations of defective, self-intersecting, open, or highly detailed input geometry. Smaller `Alpha` values follow the input more tightly but increase output complexity and computation time. `Offset` controls the clearance added around the input surface and must be strictly positive.\n\nThe filter uses CGAL's 3D Alpha Wrapping implementation.\n\nReference:\nCédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez, **Alpha Wrapping with an Offset**, 2022.\n\nOriginal MeshLab plugin contribution: Lex van der Sluijs, PTC.",
+      "shortDescription": "Generate a watertight alpha wrapping of the current mesh or point cloud using CGAL.",
+      "longDescriptionMarkdown": "Compute an alpha wrapping with an offset around the current mesh and add the result as a new mesh layer. Alpha wrapping is useful for producing robust watertight approximations of defective, self-intersecting, open, or highly detailed input geometry. Smaller `Alpha` values follow the input more tightly but increase output complexity and computation time. `Offset` controls the clearance added around the input surface and must be strictly positive.\n\nFaces are optional, but they are **used**, not merely a container for the vertices:\n\n- A layer **with faces** is wrapped as a *triangle soup*. Triangle interiors are part of the input, so a large flat face is solid to the rolling ball, and CGAL subdivides oversized faces so that the spatial structure resolves at the `Alpha` scale.\n- A layer with **only vertices** is wrapped as a *point set*, which makes this a point-cloud reconstruction method. Unlike Poisson-family reconstruction it needs no vertex normals, because the positive offset is what defines the envelope.\n\nThe two paths therefore give **different results on the same geometry**. Where a triangle spans a wide gap, the point-set path sees only its three corners and the ball can roll into the space between them, denting or holing the wrap. Wrap a point cloud only when the sampling is dense relative to `Alpha` and `Offset`; if the layer has faces, keep them.\n\nThe result is an *approximating* reconstruction: the offset is strictly positive, so the output surface never passes through the input points.\n\nThe filter uses CGAL's 3D Alpha Wrapping implementation.\n\nReference:\nCédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pierre Alliez, **Alpha Wrapping with an Offset**, 2022.\n\nOriginal MeshLab plugin contribution: Lex van der Sluijs, PTC.",
       "tags": [
         "cgal",
         "alpha wrap",
         "remeshing",
         "watertight",
+        "point cloud",
         "bibliography"
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "NewMeshes",
       "inputRequirements": {
-        "requireVertices": true,
-        "requireFaces": true
+        "requireVertices": true
       },
       "inputPrepare": [
         "BBox"
@@ -52,6 +52,94 @@
         "VG",
         "VN",
         "FN"
+      ]
+    },
+    {
+      "id": "generate_alpha_shape",
+      "categories": ["Creation/Reconstruction"],
+      "name": "Reconstruct Surface by Alpha Shape (CGAL)",
+      "pythonName": "generate_alpha_shape",
+      "shortDescription": "Build the alpha complex or alpha shape of the current mesh or point cloud.",
+      "longDescriptionMarkdown": "Builds the **alpha shape** of the current layer's vertices: the subcomplex of their Delaunay triangulation kept by a ball of radius `Alpha` that can reach it without enclosing any point. Small `Alpha` values give a sparse, pitted result; as `Alpha` grows the shape fills in and converges to the convex hull.\n\nOnly vertex positions are used, so a raw point cloud with no faces and no normals works — it is an *interpolating* reconstruction, meaning every output vertex is one of the input points.\n\n**Output** selects what is written:\n\n- *Alpha Shape* — the boundary of the alpha complex (CGAL `REGULAR` facets). This is the surface.\n- *Alpha Complex* — also keeps the `SINGULAR` facets, the lower-dimensional sheets that the boundary drops. Useful for seeing what the complex contains, not for a clean surface.\n\nEach face carries its **circumradius in face scalar**, so the scalar histogram shows the alpha distribution and helps pick a better value.\n\nFacet orientation comes from the Delaunay triangulation and is not made globally coherent; run *Orient Faces Coherently* if you need it.\n\nImplemented with CGAL's 3D Alpha Shapes.\n\nReference:\nHerbert Edelsbrunner, Ernst P. Mucke, **Three-Dimensional Alpha Shapes**, ACM Transactions on Graphics 13(1), 1994.",
+      "tags": [
+        "cgal",
+        "alpha shape",
+        "alpha complex",
+        "delaunay",
+        "point cloud",
+        "reconstruction",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "inputPrepare": [
+        "BBox"
+      ],
+      "parameters": [
+        {
+          "id": "alpha",
+          "label": "Alpha",
+          "help": "Radius of the probing ball, as a percentage of the bounding box diagonal. Small values carve the shape away; large values converge to the convex hull.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag002"
+        },
+        {
+          "id": "output",
+          "label": "Output",
+          "help": "Alpha Shape writes the boundary surface. Alpha Complex additionally writes the singular facets held by the complex.",
+          "group": "main",
+          "type": "enum",
+          "default": "shape",
+          "enumOptions": [
+            { "id": "shape", "label": "Alpha Shape" },
+            { "id": "complex", "label": "Alpha Complex" }
+          ]
+        }
+      ],
+      "outputModifies": [
+        "FQ"
+      ]
+    },
+    {
+      "id": "generate_voronoi_filtering",
+      "categories": ["Creation/Reconstruction"],
+      "name": "Reconstruct Surface by Voronoi Filtering (CGAL)",
+      "pythonName": "generate_voronoi_filtering",
+      "shortDescription": "Reconstruct a surface from an unoriented point cloud with the Amenta-Bern crust.",
+      "longDescriptionMarkdown": "Reconstructs a surface from the current layer's vertices using **Voronoi filtering**, the crust algorithm of Amenta and Bern. It needs **no vertex normals**, which is what distinguishes it from the Poisson-family filters.\n\nHow it works, in two Delaunay passes:\n\n1. Triangulate the samples. For each sample the two *poles* are found — the Voronoi vertices of its cell farthest from it, one on each side. Poles approximate the medial axis, so they lie far from the surface.\n2. Triangulate samples and poles together. A Delaunay triangle whose three corners are all samples cannot span the medial axis, so those triangles are the reconstructed surface.\n\nThis is an *interpolating* reconstruction: every output vertex is one of the input points, and no new positions are invented.\n\n**Limitations**, inherent to the algorithm rather than this implementation: it assumes a **closed, well-sampled, noise-free** surface. Points lying on the convex hull have unbounded Voronoi cells and therefore no finite outer pole, so open boundaries stay ragged; noisy input scatters the poles and thins the crust. For scanned or noisy data prefer *Reconstruct Surface by Screened Poisson*.\n\n**Threshold** discards Voronoi vertices farther from their sample than that multiple of the bounding box diagonal, keeping near-degenerate cells from throwing a pole off to infinity.\n\nBuilt on CGAL's 3D Delaunay triangulation.\n\nReference:\nNina Amenta, Marshall Bern, **Surface Reconstruction by Voronoi Filtering**, Discrete & Computational Geometry 22(4), 1999.",
+      "tags": [
+        "cgal",
+        "voronoi",
+        "crust",
+        "delaunay",
+        "point cloud",
+        "reconstruction",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "inputPrepare": [
+        "BBox"
+      ],
+      "parameters": [
+        {
+          "id": "threshold",
+          "label": "Threshold",
+          "help": "Discard Voronoi vertices farther from their sample than this multiple of the bounding box diagonal. Guards against near-degenerate cells sending a pole to infinity.",
+          "group": "main",
+          "type": "double",
+          "default": 10.0,
+          "min": 0.001,
+          "max": 2000.0,
+          "decimals": 3
+        }
       ]
     }
   ]

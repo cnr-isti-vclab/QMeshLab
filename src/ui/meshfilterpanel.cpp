@@ -694,6 +694,38 @@ public:
                 this, [this]() { onPresetSelected(m_combo->currentIndex()); });
     }
 
+    // Start on a named preset rather than a literal value, so a viewpoint parameter can
+    // open already holding where the user is looking from. Returns false when the token
+    // is unknown or its context provider is unavailable, leaving the caller to fall back
+    // to the descriptor's literal default.
+    bool selectPreset(const QString &token)
+    {
+        static const QHash<QString, const char *> kTokenLabels = {
+            { QStringLiteral("cameraEye"), QT_TR_NOOP("Camera Eye Position") },
+            { QStringLiteral("trackballCenter"), QT_TR_NOOP("Trackball Center") },
+            { QStringLiteral("bboxCenter"), QT_TR_NOOP("Mesh BBox Center") },
+            { QStringLiteral("viewDirection"), QT_TR_NOOP("View Direction") },
+            { QStringLiteral("origin"), QT_TR_NOOP("Origin") },
+        };
+        const auto it = kTokenLabels.constFind(token);
+        if (it == kTokenLabels.constEnd())
+            return false;
+        const QString label = QObject::tr(*it);
+        for (int i = 1; i < int(m_presets.size()); ++i) {
+            if (m_presets[i].label != label)
+                continue;
+            if (m_presets[i].dynamic && !m_viewContextProvider)
+                return false;
+            const QSignalBlocker b(m_combo);
+            m_combo->setCurrentIndex(i);
+            onPresetSelected(i);
+            // A dynamic preset with no live view leaves the spinboxes at zero; treat that
+            // as unavailable so the literal default still wins.
+            return m_combo->currentIndex() == i;
+        }
+        return false;
+    }
+
     void setValue(const QVector3D &v)
     {
         // Set spinboxes quietly, then select "Custom" so the combo reflects the explicit value
@@ -1659,7 +1691,12 @@ void MeshFilterPanel::buildParameterEditors(const Document::FilterInfo &filterIn
             const QVector3D defVal = (param.defaultValue.userType() == QMetaType::QVector3D)
                 ? param.defaultValue.value<QVector3D>()
                 : QVector3D(0.0f, 0.0f, 0.0f);
-            w->setValue(defVal);
+            // A named preset wins when it can be resolved, so a viewpoint parameter opens
+            // holding the current camera rather than a literal that is often unusable.
+            if (param.point3fDefaultPreset.isEmpty()
+                || !w->selectPreset(param.point3fDefaultPreset)) {
+                w->setValue(defVal);
+            }
             editor = w;
             break;
         }

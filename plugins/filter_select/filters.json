@@ -116,6 +116,7 @@
           "group": "main",
           "type": "point3f",
           "point3fRole": "point",
+          "point3fDefaultPreset": "cameraEye",
           "default": [
             0.0,
             0.0,
@@ -1011,6 +1012,44 @@
       "outputModifies": [
         "VS",
         "FS"
+      ]
+    },
+    {
+      "id": "select_visible_vertices",
+      "categories": ["Selection/by Visibility"],
+      "name": "Select Visible Vertices",
+      "pythonName": "select_visible_vertices",
+      "shortDescription": "Select the vertices visible from a given viewpoint.",
+      "longDescriptionMarkdown": "Selects the vertices of the current layer that are **visible from a viewpoint**, using the *hidden point removal* operator: the points are inverted through a sphere centred on the viewpoint, and the ones landing on the convex hull of the inverted set are the visible ones.\n\nOnly vertex positions are used, so this works on a raw point cloud with no faces and no normals — which is what it is for. It is the point-cloud counterpart of *Select Visible Faces*, which needs a surface to cast rays against.\n\n**Radius Threshold** sets the inversion sphere radius as `radius * 10^threshold`. Larger values mark more points visible: use a large threshold for dense clouds and a small one for sparse clouds.\n\nThe selection is **added** to the current one; clear it first for an exact result.\n\nReference:\nSagi Katz, Ayellet Tal, Ronen Basri, **Direct Visibility of Point Sets**, ACM Transactions on Graphics 26(3), 2007.",
+      "tags": [
+        "selection",
+        "visibility",
+        "point cloud",
+        "hidden point removal",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "incrementalSelection": true,
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        { "id": "radiusThreshold", "label": "Radius Threshold", "help": "Exponent of the inversion sphere radius (radius * 10^threshold). Larger values mark more points as visible; use a large value for dense clouds, a small one for sparse clouds.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 7.0, "decimals": 3 },
+        { "id": "usecamera", "label": "Use ViewPoint from Mesh Camera", "help": "Uses the ViewPoint from the camera associated to the current mesh. If there is no camera, an error occurs.", "group": "main", "type": "bool", "default": false },
+        {
+          "id": "viewpoint",
+          "label": "ViewPoint",
+          "help": "Viewpoint position (ignored when UseCamera is true).",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "point",
+          "point3fDefaultPreset": "cameraEye",
+          "default": [0.0, 0.0, 0.0]
+        }
+      ],
+      "outputModifies": [
+        "VS"
       ]
     }
   ]

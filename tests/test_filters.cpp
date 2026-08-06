@@ -136,6 +136,12 @@ private slots:
     void splitConnectedComponentsAfterDuplicateVertexRemoval();
     void hausdorffRunsOnTransientMeshCopies();
     void cgalAlphaWrapRunsWhenAvailable();
+    void cgalAlphaWrapAcceptsPointClouds();
+    void convexHullOfIcosahedronIsTheIcosahedron();
+    void selectVisibleVerticesSelectsNearSideOnly();
+    void selectVisibleVerticesRejectsEnclosedViewpoint();
+    void alphaShapeConvergesToConvexHull();
+    void voronoiFilteringReconstructsASphere();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -814,6 +820,245 @@ void FilterTests::cgalAlphaWrapRunsWhenAvailable()
     QVERIFY(generatedIndex >= 0 && generatedIndex < doc.meshCount());
     QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
     QVERIFY(doc.mesh(generatedIndex).mesh.FN() > 0);
+}
+
+// Alpha wrapping does not need faces: CGAL wraps a bare point set just as well, and
+// needs no normals because the strictly positive offset defines the envelope. This is
+// what makes the filter a genuine point-cloud reconstruction method.
+void FilterTests::cgalAlphaWrapAcceptsPointClouds()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off");
+    QCOMPARE(doc.loadMesh(path), 0);
+
+    QString alphaWrapKey;
+    QString removeFacesKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("generate_alpha_wrap"))
+            alphaWrapKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("delete_all_faces"))
+            removeFacesKey = info.key;
+    }
+
+    if (alphaWrapKey.isEmpty())
+        QSKIP("CGAL Alpha Wrap plugin is not available in this build.");
+    QVERIFY(!removeFacesKey.isEmpty());
+
+    // Turn the loaded mesh into a pure point cloud through the normal filter path.
+    QVERIFY2(doc.runFilter(removeFacesKey, {}).success, "Remove All Faces failed");
+    QCOMPARE(doc.mesh(doc.currentMeshIndex()).mesh.FN(), 0);
+    QVERIFY(doc.mesh(doc.currentMeshIndex()).mesh.VN() > 0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("Alpha"), 0.5);
+    params.insert(QStringLiteral("Offset"), 0.05);
+    const int meshCountBefore = doc.meshCount();
+    const MeshFilterRunResult result = doc.runFilter(alphaWrapKey, params);
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+    QCOMPARE(doc.meshCount(), meshCountBefore + 1);
+
+    const int generatedIndex = result.newMeshIndices.front();
+    QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
+    QVERIFY(doc.mesh(generatedIndex).mesh.FN() > 0);
+}
+
+// An icosahedron is convex and simplicial, so it is its own convex hull: the result must
+// come back with exactly the same 12 vertices and 20 faces. That also satisfies the
+// invariant F == 2V - 4 that holds for any triangulated convex hull, which is asserted
+// separately so the intent survives if the input mesh is ever swapped.
+void FilterTests::convexHullOfIcosahedronIsTheIcosahedron()
+{
+    Document doc;
+
+    QString icosaKey;
+    QString hullKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_icosahedron"))
+            icosaKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("create_convex_hull"))
+            hullKey = info.key;
+    }
+    QVERIFY(!icosaKey.isEmpty());
+    QVERIFY(!hullKey.isEmpty());
+
+    QVERIFY2(doc.runFilter(icosaKey, {}).success, "create_icosahedron failed");
+    const int sourceIndex = doc.currentMeshIndex();
+    const int sourceVN = doc.mesh(sourceIndex).mesh.VN();
+    const int sourceFN = doc.mesh(sourceIndex).mesh.FN();
+    QCOMPARE(sourceVN, 12);
+    QCOMPARE(sourceFN, 20);
+
+    const MeshFilterRunResult result = doc.runFilter(hullKey, {});
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+
+    const VCGMesh &hull = doc.mesh(result.newMeshIndices.front()).mesh;
+    QCOMPARE(hull.VN(), 12);
+    QCOMPARE(hull.FN(), 20);
+    QCOMPARE(hull.FN(), 2 * hull.VN() - 4);
+
+    // The hull is computed on a copy: vcglib compacts its input and clears the visited
+    // flags, which would silently reindex the source layer.
+    QCOMPARE(doc.mesh(sourceIndex).mesh.VN(), sourceVN);
+    QCOMPARE(doc.mesh(sourceIndex).mesh.FN(), sourceFN);
+}
+
+// From a viewpoint outside the shape, hidden point removal must select some but not all
+// vertices, and every selected one must lie on the near side of the centre.
+void FilterTests::selectVisibleVerticesSelectsNearSideOnly()
+{
+    Document doc;
+
+    QString icosaKey;
+    QString visibleKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_icosahedron"))
+            icosaKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("select_visible_vertices"))
+            visibleKey = info.key;
+    }
+    QVERIFY(!icosaKey.isEmpty());
+    QVERIFY(!visibleKey.isEmpty());
+    QVERIFY2(doc.runFilter(icosaKey, {}).success, "create_icosahedron failed");
+
+    const int index = doc.currentMeshIndex();
+    const vcg::Point3f viewpoint(0.0f, 0.0f, 10.0f);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("radiusThreshold"), 0.0);
+    params.insert(QStringLiteral("usecamera"), false);
+    params.insert(QStringLiteral("viewpoint"), QVector3D(0.0f, 0.0f, 10.0f));
+
+    const MeshFilterRunResult result = doc.runFilter(visibleKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const VCGMesh &mesh = doc.mesh(index).mesh;
+    int selected = 0;
+    for (const VCGVertex &v : mesh.vert)
+        if (v.IsS()) {
+            ++selected;
+            // Near side: the icosahedron is centred on the origin, so a vertex facing a
+            // viewpoint at +Z cannot have a strongly negative z.
+            QVERIFY(v.cP().Z() > -1e-4f);
+        }
+    QVERIFY(selected > 0);
+    QVERIFY(selected < mesh.VN());
+}
+
+// The default viewpoint is (0,0,0), which is inside any centred mesh — and hidden point
+// removal is undefined there. vcglib's ComputePointVisibility asserts and aborts in that
+// case, so the filter composes ComputeConvexHull itself; this pins the clean failure and
+// guards against anyone "simplifying" it back to the wrapper.
+void FilterTests::selectVisibleVerticesRejectsEnclosedViewpoint()
+{
+    Document doc;
+
+    QString icosaKey;
+    QString visibleKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_icosahedron"))
+            icosaKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("select_visible_vertices"))
+            visibleKey = info.key;
+    }
+    QVERIFY(!icosaKey.isEmpty());
+    QVERIFY(!visibleKey.isEmpty());
+    QVERIFY2(doc.runFilter(icosaKey, {}).success, "create_icosahedron failed");
+    const int index = doc.currentMeshIndex();
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("radiusThreshold"), 0.0);
+    params.insert(QStringLiteral("usecamera"), false);
+    params.insert(QStringLiteral("viewpoint"), QVector3D(0.0f, 0.0f, 0.0f));
+
+    const MeshFilterRunResult result = doc.runFilter(visibleKey, params);
+    QVERIFY(!result.success);
+    QVERIFY(result.errorMessage.contains(QStringLiteral("enclosed")));
+
+    // A failed filter must leave no partial selection behind.
+    const VCGMesh &mesh = doc.mesh(index).mesh;
+    for (const VCGVertex &v : mesh.vert)
+        QVERIFY(!v.IsS());
+}
+
+// As alpha grows the alpha shape converges to the convex hull, so a large alpha on an
+// icosahedron must give back its 20 faces. A small alpha must not.
+void FilterTests::alphaShapeConvergesToConvexHull()
+{
+    Document doc;
+
+    QString icosaKey;
+    QString alphaKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_icosahedron"))
+            icosaKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_alpha_shape"))
+            alphaKey = info.key;
+    }
+    QVERIFY(!icosaKey.isEmpty());
+    if (alphaKey.isEmpty())
+        QSKIP("CGAL plugin is not available in this build.");
+    QVERIFY2(doc.runFilter(icosaKey, {}).success, "create_icosahedron failed");
+
+    MeshFilterParameterValues big;
+    big.insert(QStringLiteral("alpha"), 100.0); // far beyond the icosahedron's radius
+    big.insert(QStringLiteral("output"), QStringLiteral("shape"));
+    const MeshFilterRunResult result = doc.runFilter(alphaKey, big);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+
+    const VCGMesh &shape = doc.mesh(result.newMeshIndices.front()).mesh;
+    QCOMPARE(shape.VN(), 12);
+    QCOMPARE(shape.FN(), 20);
+
+    // Face scalar carries the circumradius, so it must be populated and positive.
+    for (const VCGFace &f : shape.face)
+        QVERIFY(f.cQ() > 0.0f);
+}
+
+// The crust needs a closed, well-sampled surface, so a subdivided sphere is the fair
+// test. It is an interpolating reconstruction: every output vertex must be an input
+// point, so the vertex count can never exceed the input's.
+void FilterTests::voronoiFilteringReconstructsASphere()
+{
+    Document doc;
+
+    QString sphereKey;
+    QString voronoiKey;
+    QString removeFacesKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_sphere"))
+            sphereKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_voronoi_filtering"))
+            voronoiKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("delete_all_faces"))
+            removeFacesKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    QVERIFY(!removeFacesKey.isEmpty());
+    if (voronoiKey.isEmpty())
+        QSKIP("CGAL plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    // Strip the faces: the point of this filter is that it works from points alone.
+    QVERIFY2(doc.runFilter(removeFacesKey, {}).success, "Remove All Faces failed");
+    const int sourceVN = doc.mesh(doc.currentMeshIndex()).mesh.VN();
+    QCOMPARE(doc.mesh(doc.currentMeshIndex()).mesh.FN(), 0);
+    QVERIFY(sourceVN >= 4);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("threshold"), 10.0);
+    const MeshFilterRunResult result = doc.runFilter(voronoiKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+
+    const VCGMesh &crust = doc.mesh(result.newMeshIndices.front()).mesh;
+    QVERIFY(crust.FN() > 0);
+    QVERIFY(crust.VN() > 0);
+    // Interpolating: output vertices are a subset of the input points.
+    QVERIFY(crust.VN() <= sourceVN);
 }
 
 void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()

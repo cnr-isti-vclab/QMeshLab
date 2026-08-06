@@ -15,6 +15,7 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/algorithms/clean.h>
+#include <vcg/complex/algorithms/convex_hull.h>
 #include <vcg/complex/algorithms/point_outlier.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -37,6 +38,7 @@ namespace {
 constexpr QLatin1StringView kFilterSelectAll("select_all");
 constexpr QLatin1StringView kFilterSelectNone("select_none");
 constexpr QLatin1StringView kFilterSelectByAngle("select_by_view_angle");
+constexpr QLatin1StringView kFilterSelectVisibleVerts("select_visible_vertices");
 constexpr QLatin1StringView kFilterSelectUgly("select_problematic_faces");
 constexpr QLatin1StringView kFilterSelectInvert("select_invert");
 constexpr QLatin1StringView kFilterSelectConnected("select_connected_faces");
@@ -365,6 +367,112 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             entry,
             QObject::tr("Rectangle %1 on '%2'").arg(mode, entry.name),
             messages);
+    }
+
+    if (filterId == QString::fromLatin1(kFilterSelectVisibleVerts)) {
+        if (mesh.VN() < 4)
+            return fail(QObject::tr("Visibility selection needs at least 4 vertices."));
+
+        if (params.getBool(QStringLiteral("usecamera"))) {
+            return fail(QObject::tr(
+                "Use ViewPoint from Mesh Camera is not supported in current QMeshLab data model."));
+        }
+
+        const QVector3D vp = params.getPoint3f(QStringLiteral("viewpoint"));
+        const vcg::Point3f viewpoint(float(vp.x()), float(vp.y()), float(vp.z()));
+        const float logR = float(params.getDouble(QStringLiteral("radiusThreshold")));
+
+        // Hidden point removal (Katz/Tal/Basri): mirror every point through a sphere
+        // centred on the viewpoint, then take the convex hull of the mirrored set — the
+        // points that land on it are the ones visible from the viewpoint.
+        //
+        // vcglib's ConvexHull::ComputePointVisibility packages exactly this, but it
+        // asserts that the viewpoint ends up on the hull and aborts when it does not,
+        // which is precisely what happens when the viewpoint sits inside the cloud — the
+        // default (0,0,0) on any centred mesh. Composing ComputeConvexHull directly costs
+        // a few lines, reports that case as an error instead of crashing, and keeps
+        // vcglib's debug printfs out of the log.
+        std::vector<int> sourceOfPoint;
+        sourceOfPoint.reserve(std::size_t(std::max(0, mesh.VN())));
+        float maxDist = 0.0f;
+        for (const VCGVertex &v : mesh.vert) {
+            if (v.IsD())
+                continue;
+            maxDist = std::max(maxDist, (v.cP() - viewpoint).Norm());
+        }
+        if (maxDist <= 0.0f)
+            return fail(QObject::tr("All vertices coincide with the viewpoint."));
+
+        const float radius = maxDist * std::pow(10.0f, logR);
+        VCGMesh flipped;
+        std::vector<int> visibleSources; // nothing is marked until every check has passed
+        for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+            if (mesh.vert[i].IsD())
+                continue;
+            vcg::Point3f q = mesh.vert[i].cP() - viewpoint;
+            const float d = q.Norm();
+            if (d <= std::numeric_limits<float>::epsilon()) {
+                // Sits on the viewpoint: trivially visible, and cannot be mirrored.
+                visibleSources.push_back(int(i));
+                continue;
+            }
+            q += q * (2.0f * (radius - d) / d);
+            vcg::tri::Allocator<VCGMesh>::AddVertex(flipped, q);
+            sourceOfPoint.push_back(int(i));
+        }
+        if (flipped.VN() < 4)
+            return fail(QObject::tr("Visibility selection needs at least 4 live vertices."));
+
+        // The viewpoint itself, at the origin of the mirrored frame. It is a hull vertex
+        // exactly when the viewpoint lies outside the point set.
+        const std::size_t viewpointPoint = sourceOfPoint.size();
+        vcg::tri::Allocator<VCGMesh>::AddVertex(flipped, vcg::Point3f(0.0f, 0.0f, 0.0f));
+
+        VCGMesh hull;
+        {
+            VCGMeshFFAdjScope ffAdj(hull);
+            if (!vcg::tri::ConvexHull<VCGMesh, VCGMesh>::ComputeConvexHull(flipped, hull))
+                return fail(QObject::tr("Visibility selection failed: the points are degenerate."));
+        }
+
+        auto indexInput = vcg::tri::Allocator<VCGMesh>::GetPerVertexAttribute<std::size_t>(
+            hull, std::string("indexInput"));
+        bool viewpointOnHull = false;
+        for (int i = 0; i < hull.VN(); ++i) {
+            const std::size_t source = indexInput[i];
+            if (source == viewpointPoint) {
+                viewpointOnHull = true;
+                continue;
+            }
+            if (source < sourceOfPoint.size())
+                visibleSources.push_back(sourceOfPoint[source]);
+        }
+        if (!viewpointOnHull) {
+            return fail(QObject::tr(
+                "The viewpoint (%1, %2, %3) is enclosed by the point set, so visibility is "
+                "undefined. Move it outside the mesh.")
+                    .arg(QString::number(viewpoint.X(), 'g', 4))
+                    .arg(QString::number(viewpoint.Y(), 'g', 4))
+                    .arg(QString::number(viewpoint.Z(), 'g', 4)));
+        }
+
+        int selected = 0;
+        for (int source : visibleSources) {
+            VCGVertex &v = mesh.vert[std::size_t(source)];
+            if (!v.IsS())
+                ++selected;
+            v.SetS();
+        }
+
+        return selectionResult(
+            meshIndex,
+            entry,
+            QObject::tr("Select visible vertices on '%1'").arg(entry.name),
+            { QObject::tr("Marked %1 vertices visible from (%2, %3, %4).")
+                    .arg(selected)
+                    .arg(QString::number(viewpoint.X(), 'g', 4))
+                    .arg(QString::number(viewpoint.Y(), 'g', 4))
+                    .arg(QString::number(viewpoint.Z(), 'g', 4)) });
     }
 
     if (filterId == QString::fromLatin1(kFilterSelectByAngle)) {
