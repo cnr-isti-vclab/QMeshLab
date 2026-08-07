@@ -2515,9 +2515,41 @@ Flatten all or only the visible layers into a single new mesh.<br>Transformation
 
 ---
 
+(filter-generate-advancing-front-reconstruction)=
+
+## Reconstruct Surface by Advancing Front
+
+**Plugin:** qmeshlab.filter.cgal
+
+Reconstruct a surface from an unoriented point cloud by growing a triangulation outward.
+
+```{py:function} ms.generate_advancing_front_reconstruction(**params)
+:module: _qmeshlab
+
+Grows a triangulation outward from a seed facet, repeatedly choosing the most plausible candidate triangle on the advancing boundary. It is an **interpolating** reconstruction: every output vertex is one of the input points, and no normals are required.
+
+**Radius Ratio Bound** rejects candidate triangles whose circumradius is more than this multiple of the shortest edge, which is what stops the front from bridging across gaps. Raise it on sparse or uneven sampling; lower it to keep holes open rather than filling them with sliver triangles.
+
+**Beta** is half the angle of the wedge in which only the triangle radius decides plausibility.
+
+This is CGAL's counterpart to *Reconstruct Surface by Ball Pivoting*: both grow a surface outward and interpolate the input points, but they are different algorithms and are worth comparing on the same cloud. CGAL has no ball-pivoting implementation of its own.
+
+Implemented with CGAL's Advancing Front Surface Reconstruction.
+
+Reference:
+David Cohen-Steiner, Frank Da, **A greedy Delaunay-based surface reconstruction algorithm**, The Visual Computer 20(1), 2004.
+
+**Parameters:**
+
+- **radiusRatioBound** (*double*, default: `5.0`) — Reject a candidate triangle whose circumradius exceeds this multiple of its shortest edge. Larger values close more holes; smaller values leave sparse regions open.
+- **beta** (*double*, default: `30.0`) — Half the angle of the wedge in which only the triangle radius counts towards plausibility. CGAL's default is 0.52 rad, about 30 degrees.
+```
+
+---
+
 (filter-generate-alpha-shape)=
 
-## Reconstruct Surface by Alpha Shape (CGAL)
+## Reconstruct Surface by Alpha Shape
 
 **Plugin:** qmeshlab.filter.cgal
 
@@ -2836,6 +2868,48 @@ Generates a scalar harmonic field over the mesh. Input scalar values must be ass
 
 ---
 
+(filter-generate-scale-space-reconstruction)=
+
+## Reconstruct Surface by Scale Space
+
+**Plugin:** qmeshlab.filter.cgal
+
+Reconstruct a surface by smoothing the point set to a coarser scale, then meshing it.
+
+```{py:function} ms.generate_scale_space_reconstruction(**params)
+:module: _qmeshlab
+
+Smooths the current layer's points for a number of iterations — moving them to a coarser *scale* at which a surface is easier to extract — and then triangulates the smoothed points.
+
+Only vertex positions are used, so a raw point cloud with no faces and no normals works.
+
+**Iterations** controls how far the point set is smoothed: more iterations tolerate more noise but lose detail. **Neighbors** and **Samples** configure the weighted-PCA smoother.
+
+**Mesher** selects how the smoothed points are triangulated:
+
+- *Alpha Shape* — uses **Alpha** as the probing radius, and can be asked to separate shells or to force a manifold result.
+- *Advancing Front* — grows a triangulation outward and needs no radius.
+
+Unlike the other interpolating reconstructions here, the output vertices are the **smoothed** positions, not the original points: this filter moves the geometry before meshing it. Keep the input layer if you need the originals.
+
+Implemented with CGAL's 3D Scale-Space Surface Reconstruction.
+
+Reference:
+Thijs van Lankveld, Marc van Kreveld, Remco Veltkamp, **Watertight Scenes from Urban LiDAR and Planar Surfaces**, Computer Graphics Forum 32(5), 2013.
+
+**Parameters:**
+
+- **iterations** (*int*, default: `4`) — How many times the point set is smoothed before meshing. Zero meshes the points as they are; more iterations tolerate more noise but lose detail.
+- **mesher** (*enum*, default: `alpha_shape`) — How the smoothed points are triangulated. Alpha Shape uses the Alpha radius below; Advancing Front needs no radius.
+- **alpha** (*absperc*, default: `@bboxDiag002`) — Probing ball radius for the Alpha Shape mesher, as a percentage of the bounding box diagonal. Ignored by the Advancing Front mesher.
+- **neighbors** (*int*, default: `12`) — Number of nearest neighbours used by the weighted-PCA smoother at each point.
+- **samples** (*int*, default: `300`) — Number of points sampled to estimate the smoothing neighbourhood radius.
+- **forceManifold** (*bool*, default: `True`) — Ask the Alpha Shape mesher for a manifold result, dropping the facets that would violate it.
+- **separateShells** (*bool*, default: `False`) — Keep separate shells of the Alpha Shape mesher's output apart instead of merging them.
+```
+
+---
+
 (filter-generate-screened-poisson)=
 
 ## Reconstruct Surface by Screened Poisson
@@ -2993,7 +3067,7 @@ Surface reconstruction algorithm using volumetric distance fields and Marching C
 
 (filter-generate-voronoi-filtering)=
 
-## Reconstruct Surface by Voronoi Filtering (CGAL)
+## Reconstruct Surface by Voronoi Filtering
 
 **Plugin:** qmeshlab.filter.cgal
 

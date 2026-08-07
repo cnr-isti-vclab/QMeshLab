@@ -2263,8 +2263,31 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 
 <hr class="docutils" />
 </section>
-<section id="reconstruct-surface-by-alpha-shape-cgal">
-<span id="filter-generate-alpha-shape"></span><h2>Reconstruct Surface by Alpha Shape (CGAL)<a class="headerlink" href="#reconstruct-surface-by-alpha-shape-cgal" title="Link to this heading">¶</a></h2>
+<section id="reconstruct-surface-by-advancing-front">
+<span id="filter-generate-advancing-front-reconstruction"></span><h2>Reconstruct Surface by Advancing Front<a class="headerlink" href="#reconstruct-surface-by-advancing-front" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
+<p>Reconstruct a surface from an unoriented point cloud by growing a triangulation outward.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_advancing_front_reconstruction">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_advancing_front_reconstruction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_advancing_front_reconstruction" title="Link to this definition">¶</a></dt>
+<dd><p>Grows a triangulation outward from a seed facet, repeatedly choosing the most plausible candidate triangle on the advancing boundary. It is an <strong>interpolating</strong> reconstruction: every output vertex is one of the input points, and no normals are required.</p>
+<p><strong>Radius Ratio Bound</strong> rejects candidate triangles whose circumradius is more than this multiple of the shortest edge, which is what stops the front from bridging across gaps. Raise it on sparse or uneven sampling; lower it to keep holes open rather than filling them with sliver triangles.</p>
+<p><strong>Beta</strong> is half the angle of the wedge in which only the triangle radius decides plausibility.</p>
+<p>This is CGAL’s counterpart to <em>Reconstruct Surface by Ball Pivoting</em>: both grow a surface outward and interpolate the input points, but they are different algorithms and are worth comparing on the same cloud. CGAL has no ball-pivoting implementation of its own.</p>
+<p>Implemented with CGAL’s Advancing Front Surface Reconstruction.</p>
+<p>Reference:
+David Cohen-Steiner, Frank Da, <strong>A greedy Delaunay-based surface reconstruction algorithm</strong>, The Visual Computer 20(1), 2004.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>radiusRatioBound</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">5.0</span></code>) — Reject a candidate triangle whose circumradius exceeds this multiple of its shortest edge. Larger values close more holes; smaller values leave sparse regions open.</p></li>
+<li><p><strong>beta</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half the angle of the wedge in which only the triangle radius counts towards plausibility. CGAL’s default is 0.52 rad, about 30 degrees.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="reconstruct-surface-by-alpha-shape">
+<span id="filter-generate-alpha-shape"></span><h2>Reconstruct Surface by Alpha Shape<a class="headerlink" href="#reconstruct-surface-by-alpha-shape" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
 <p>Build the alpha complex or alpha shape of the current mesh or point cloud.</p>
 <dl class="py function">
@@ -2526,6 +2549,39 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
+<section id="reconstruct-surface-by-scale-space">
+<span id="filter-generate-scale-space-reconstruction"></span><h2>Reconstruct Surface by Scale Space<a class="headerlink" href="#reconstruct-surface-by-scale-space" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
+<p>Reconstruct a surface by smoothing the point set to a coarser scale, then meshing it.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_scale_space_reconstruction">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_scale_space_reconstruction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_scale_space_reconstruction" title="Link to this definition">¶</a></dt>
+<dd><p>Smooths the current layer’s points for a number of iterations — moving them to a coarser <em>scale</em> at which a surface is easier to extract — and then triangulates the smoothed points.</p>
+<p>Only vertex positions are used, so a raw point cloud with no faces and no normals works.</p>
+<p><strong>Iterations</strong> controls how far the point set is smoothed: more iterations tolerate more noise but lose detail. <strong>Neighbors</strong> and <strong>Samples</strong> configure the weighted-PCA smoother.</p>
+<p><strong>Mesher</strong> selects how the smoothed points are triangulated:</p>
+<ul class="simple">
+<li><p><em>Alpha Shape</em> — uses <strong>Alpha</strong> as the probing radius, and can be asked to separate shells or to force a manifold result.</p></li>
+<li><p><em>Advancing Front</em> — grows a triangulation outward and needs no radius.</p></li>
+</ul>
+<p>Unlike the other interpolating reconstructions here, the output vertices are the <strong>smoothed</strong> positions, not the original points: this filter moves the geometry before meshing it. Keep the input layer if you need the originals.</p>
+<p>Implemented with CGAL’s 3D Scale-Space Surface Reconstruction.</p>
+<p>Reference:
+Thijs van Lankveld, Marc van Kreveld, Remco Veltkamp, <strong>Watertight Scenes from Urban LiDAR and Planar Surfaces</strong>, Computer Graphics Forum 32(5), 2013.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">4</span></code>) — How many times the point set is smoothed before meshing. Zero meshes the points as they are; more iterations tolerate more noise but lose detail.</p></li>
+<li><p><strong>mesher</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">alpha_shape</span></code>) — How the smoothed points are triangulated. Alpha Shape uses the Alpha radius below; Advancing Front needs no radius.</p></li>
+<li><p><strong>alpha</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Probing ball radius for the Alpha Shape mesher, as a percentage of the bounding box diagonal. Ignored by the Advancing Front mesher.</p></li>
+<li><p><strong>neighbors</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">12</span></code>) — Number of nearest neighbours used by the weighted-PCA smoother at each point.</p></li>
+<li><p><strong>samples</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">300</span></code>) — Number of points sampled to estimate the smoothing neighbourhood radius.</p></li>
+<li><p><strong>forceManifold</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Ask the Alpha Shape mesher for a manifold result, dropping the facets that would violate it.</p></li>
+<li><p><strong>separateShells</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Keep separate shells of the Alpha Shape mesher’s output apart instead of merging them.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="reconstruct-surface-by-screened-poisson">
 <span id="filter-generate-screened-poisson"></span><h2>Reconstruct Surface by Screened Poisson<a class="headerlink" href="#reconstruct-surface-by-screened-poisson" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.screened_poisson</p>
@@ -2660,8 +2716,8 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="reconstruct-surface-by-voronoi-filtering-cgal">
-<span id="filter-generate-voronoi-filtering"></span><h2>Reconstruct Surface by Voronoi Filtering (CGAL)<a class="headerlink" href="#reconstruct-surface-by-voronoi-filtering-cgal" title="Link to this heading">¶</a></h2>
+<section id="reconstruct-surface-by-voronoi-filtering">
+<span id="filter-generate-voronoi-filtering"></span><h2>Reconstruct Surface by Voronoi Filtering<a class="headerlink" href="#reconstruct-surface-by-voronoi-filtering" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
 <p>Reconstruct a surface from an unoriented point cloud with the Amenta-Bern crust.</p>
 <dl class="py function">
@@ -5995,7 +6051,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.flatten_visible_layers"><code class="docutils literal notranslate"><span class="pre">ms.flatten_visible_layers()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#reconstruct-surface-by-alpha-shape-cgal">Reconstruct Surface by Alpha Shape (CGAL)</a><ul>
+<li><a class="reference internal" href="#reconstruct-surface-by-advancing-front">Reconstruct Surface by Advancing Front</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_advancing_front_reconstruction"><code class="docutils literal notranslate"><span class="pre">ms.generate_advancing_front_reconstruction()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#reconstruct-surface-by-alpha-shape">Reconstruct Surface by Alpha Shape</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_alpha_shape"><code class="docutils literal notranslate"><span class="pre">ms.generate_alpha_shape()</span></code></a></li>
 </ul>
 </li>
@@ -6043,6 +6103,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.generate_scalar_harmonic_field"><code class="docutils literal notranslate"><span class="pre">ms.generate_scalar_harmonic_field()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#reconstruct-surface-by-scale-space">Reconstruct Surface by Scale Space</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_scale_space_reconstruction"><code class="docutils literal notranslate"><span class="pre">ms.generate_scale_space_reconstruction()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#reconstruct-surface-by-screened-poisson">Reconstruct Surface by Screened Poisson</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_screened_poisson"><code class="docutils literal notranslate"><span class="pre">ms.generate_screened_poisson()</span></code></a></li>
 </ul>
@@ -6063,7 +6127,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.generate_surface_reconstruction_vcg"><code class="docutils literal notranslate"><span class="pre">ms.generate_surface_reconstruction_vcg()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#reconstruct-surface-by-voronoi-filtering-cgal">Reconstruct Surface by Voronoi Filtering (CGAL)</a><ul>
+<li><a class="reference internal" href="#reconstruct-surface-by-voronoi-filtering">Reconstruct Surface by Voronoi Filtering</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_voronoi_filtering"><code class="docutils literal notranslate"><span class="pre">ms.generate_voronoi_filtering()</span></code></a></li>
 </ul>
 </li>
