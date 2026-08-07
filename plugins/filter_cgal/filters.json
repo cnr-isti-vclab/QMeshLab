@@ -57,7 +57,7 @@
     {
       "id": "generate_alpha_shape",
       "categories": ["Creation/Reconstruction"],
-      "name": "Reconstruct Surface by Alpha Shape (CGAL)",
+      "name": "Reconstruct Surface by Alpha Shape",
       "pythonName": "generate_alpha_shape",
       "shortDescription": "Build the alpha complex or alpha shape of the current mesh or point cloud.",
       "longDescriptionMarkdown": "Builds the **alpha shape** of the current layer's vertices: the subcomplex of their Delaunay triangulation kept by a ball of radius `Alpha` that can reach it without enclosing any point. Small `Alpha` values give a sparse, pitted result; as `Alpha` grows the shape fills in and converges to the convex hull.\n\nOnly vertex positions are used, so a raw point cloud with no faces and no normals works — it is an *interpolating* reconstruction, meaning every output vertex is one of the input points.\n\n**Output** selects what is written:\n\n- *Alpha Shape* — the boundary of the alpha complex (CGAL `REGULAR` facets). This is the surface.\n- *Alpha Complex* — also keeps the `SINGULAR` facets, the lower-dimensional sheets that the boundary drops. Useful for seeing what the complex contains, not for a clean surface.\n\nEach face carries its **circumradius in face scalar**, so the scalar histogram shows the alpha distribution and helps pick a better value.\n\nFacet orientation comes from the Delaunay triangulation and is not made globally coherent; run *Orient Faces Coherently* if you need it.\n\nImplemented with CGAL's 3D Alpha Shapes.\n\nReference:\nHerbert Edelsbrunner, Ernst P. Mucke, **Three-Dimensional Alpha Shapes**, ACM Transactions on Graphics 13(1), 1994.",
@@ -110,7 +110,7 @@
     {
       "id": "generate_voronoi_filtering",
       "categories": ["Creation/Reconstruction"],
-      "name": "Reconstruct Surface by Voronoi Filtering (CGAL)",
+      "name": "Reconstruct Surface by Voronoi Filtering",
       "pythonName": "generate_voronoi_filtering",
       "shortDescription": "Reconstruct a surface from an unoriented point cloud with the Amenta-Bern crust.",
       "longDescriptionMarkdown": "Reconstructs a surface from the current layer's vertices using **Voronoi filtering**, the crust algorithm of Amenta and Bern. It needs **no vertex normals**, which is what distinguishes it from the Poisson-family filters.\n\nHow it works, in two Delaunay passes:\n\n1. Triangulate the samples. For each sample the two *poles* are found — the Voronoi vertices of its cell farthest from it, one on each side. Poles approximate the medial axis, so they lie far from the surface.\n2. Triangulate samples and poles together. A Delaunay triangle whose three corners are all samples cannot span the medial axis, so those triangles are the reconstructed surface.\n\nThis is an *interpolating* reconstruction: every output vertex is one of the input points, and no new positions are invented.\n\n**Limitations**, inherent to the algorithm rather than this implementation: it assumes a **closed, well-sampled, noise-free** surface. Points lying on the convex hull have unbounded Voronoi cells and therefore no finite outer pole, so open boundaries stay ragged; noisy input scatters the poles and thins the crust. For scanned or noisy data prefer *Reconstruct Surface by Screened Poisson*.\n\n**Threshold** discards Voronoi vertices farther from their sample than that multiple of the bounding box diagonal, keeping near-degenerate cells from throwing a pole off to infinity.\n\nBuilt on CGAL's 3D Delaunay triangulation.\n\nReference:\nNina Amenta, Marshall Bern, **Surface Reconstruction by Voronoi Filtering**, Discrete & Computational Geometry 22(4), 1999.",
@@ -143,6 +143,159 @@
           "max": 2000.0,
           "decimals": 3
         }
+      ]
+    },
+    {
+      "id": "generate_scale_space_reconstruction",
+      "categories": ["Creation/Reconstruction"],
+      "name": "Reconstruct Surface by Scale Space",
+      "pythonName": "generate_scale_space_reconstruction",
+      "shortDescription": "Reconstruct a surface by smoothing the point set to a coarser scale, then meshing it.",
+      "longDescriptionMarkdown": "Smooths the current layer's points for a number of iterations — moving them to a coarser *scale* at which a surface is easier to extract — and then triangulates the smoothed points.\n\nOnly vertex positions are used, so a raw point cloud with no faces and no normals works.\n\n**Iterations** controls how far the point set is smoothed: more iterations tolerate more noise but lose detail. **Neighbors** and **Samples** configure the weighted-PCA smoother.\n\n**Mesher** selects how the smoothed points are triangulated:\n\n- *Alpha Shape* — uses **Alpha** as the probing radius, and can be asked to separate shells or to force a manifold result.\n- *Advancing Front* — grows a triangulation outward and needs no radius.\n\nUnlike the other interpolating reconstructions here, the output vertices are the **smoothed** positions, not the original points: this filter moves the geometry before meshing it. Keep the input layer if you need the originals.\n\nImplemented with CGAL's 3D Scale-Space Surface Reconstruction.\n\nReference:\nThijs van Lankveld, Marc van Kreveld, Remco Veltkamp, **Watertight Scenes from Urban LiDAR and Planar Surfaces**, Computer Graphics Forum 32(5), 2013.",
+      "tags": [
+        "cgal",
+        "scale space",
+        "point cloud",
+        "reconstruction",
+        "smoothing",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "inputPrepare": [
+        "BBox"
+      ],
+      "parameters": [
+        {
+          "id": "iterations",
+          "label": "Smoothing Iterations",
+          "help": "How many times the point set is smoothed before meshing. Zero meshes the points as they are; more iterations tolerate more noise but lose detail.",
+          "group": "main",
+          "type": "int",
+          "default": 4,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "id": "mesher",
+          "label": "Mesher",
+          "help": "How the smoothed points are triangulated. Alpha Shape uses the Alpha radius below; Advancing Front needs no radius.",
+          "group": "main",
+          "type": "enum",
+          "default": "alpha_shape",
+          "enumOptions": [
+            { "id": "alpha_shape", "label": "Alpha Shape" },
+            { "id": "advancing_front", "label": "Advancing Front" }
+          ]
+        },
+        {
+          "id": "alpha",
+          "label": "Alpha",
+          "help": "Probing ball radius for the Alpha Shape mesher, as a percentage of the bounding box diagonal. Ignored by the Advancing Front mesher.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag002",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "neighbors",
+          "label": "Neighbors",
+          "help": "Number of nearest neighbours used by the weighted-PCA smoother at each point.",
+          "group": "advanced",
+          "type": "int",
+          "default": 12,
+          "min": 3,
+          "max": 1000
+        },
+        {
+          "id": "samples",
+          "label": "Samples",
+          "help": "Number of points sampled to estimate the smoothing neighbourhood radius.",
+          "group": "advanced",
+          "type": "int",
+          "default": 300,
+          "min": 3,
+          "max": 100000
+        },
+        {
+          "id": "forceManifold",
+          "label": "Force Manifold",
+          "help": "Ask the Alpha Shape mesher for a manifold result, dropping the facets that would violate it.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "separateShells",
+          "label": "Separate Shells",
+          "help": "Keep separate shells of the Alpha Shape mesher's output apart instead of merging them.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ]
+    },
+    {
+      "id": "generate_advancing_front_reconstruction",
+      "categories": ["Creation/Reconstruction"],
+      "name": "Reconstruct Surface by Advancing Front",
+      "pythonName": "generate_advancing_front_reconstruction",
+      "shortDescription": "Reconstruct a surface from an unoriented point cloud by growing a triangulation outward.",
+      "longDescriptionMarkdown": "Grows a triangulation outward from a seed facet, repeatedly choosing the most plausible candidate triangle on the advancing boundary. It is an **interpolating** reconstruction: every output vertex is one of the input points, and no normals are required.\n\n**Radius Ratio Bound** rejects candidate triangles whose circumradius is more than this multiple of the shortest edge, which is what stops the front from bridging across gaps. Raise it on sparse or uneven sampling; lower it to keep holes open rather than filling them with sliver triangles.\n\n**Beta** is half the angle of the wedge in which only the triangle radius decides plausibility.\n\nThis is CGAL's counterpart to *Reconstruct Surface by Ball Pivoting*: both grow a surface outward and interpolate the input points, but they are different algorithms and are worth comparing on the same cloud. CGAL has no ball-pivoting implementation of its own.\n\nImplemented with CGAL's Advancing Front Surface Reconstruction.\n\nReference:\nDavid Cohen-Steiner, Frank Da, **A greedy Delaunay-based surface reconstruction algorithm**, The Visual Computer 20(1), 2004.",
+      "tags": [
+        "cgal",
+        "advancing front",
+        "point cloud",
+        "reconstruction",
+        "interpolating",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "inputPrepare": [
+        "BBox"
+      ],
+      "parameters": [
+        {
+          "id": "radiusRatioBound",
+          "label": "Radius Ratio Bound",
+          "help": "Reject a candidate triangle whose circumradius exceeds this multiple of its shortest edge. Larger values close more holes; smaller values leave sparse regions open.",
+          "group": "main",
+          "type": "double",
+          "default": 5.0,
+          "min": 1.0,
+          "max": 1000.0,
+          "decimals": 3
+        },
+        {
+          "id": "beta",
+          "label": "Beta (degrees)",
+          "help": "Half the angle of the wedge in which only the triangle radius counts towards plausibility. CGAL's default is 0.52 rad, about 30 degrees.",
+          "group": "advanced",
+          "type": "double",
+          "default": 30.0,
+          "min": 0.0,
+          "max": 89.9,
+          "decimals": 3
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
       ]
     }
   ]

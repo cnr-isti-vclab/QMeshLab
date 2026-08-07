@@ -4,9 +4,14 @@
 #include "meshfilterpluginmanager.h"
 #include "vcgmesh.h"
 
+#include <CGAL/Advancing_front_surface_reconstruction.h>
 #include <CGAL/Alpha_shape_3.h>
 #include <CGAL/Alpha_shape_cell_base_3.h>
 #include <CGAL/Alpha_shape_vertex_base_3.h>
+#include <CGAL/Scale_space_reconstruction_3/Advancing_front_mesher.h>
+#include <CGAL/Scale_space_reconstruction_3/Alpha_shape_mesher.h>
+#include <CGAL/Scale_space_reconstruction_3/Weighted_PCA_smoother.h>
+#include <CGAL/Scale_space_surface_reconstruction_3.h>
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Surface_mesh.h>
@@ -32,6 +37,8 @@ namespace {
 constexpr QLatin1StringView kFilterAlphaWrap("generate_alpha_wrap");
 constexpr QLatin1StringView kFilterAlphaShape("generate_alpha_shape");
 constexpr QLatin1StringView kFilterVoronoiFiltering("generate_voronoi_filtering");
+constexpr QLatin1StringView kFilterScaleSpace("generate_scale_space_reconstruction");
+constexpr QLatin1StringView kFilterAdvancingFront("generate_advancing_front_reconstruction");
 using Mask = vcg::tri::io::Mask;
 using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 using CgalPoint = Kernel::Point_3;
@@ -45,6 +52,13 @@ using AsCellBase = CGAL::Alpha_shape_cell_base_3<Kernel>;
 using AsTds = CGAL::Triangulation_data_structure_3<AsVertexBase, AsCellBase>;
 using AsTriangulation = CGAL::Delaunay_triangulation_3<Kernel, AsTds>;
 using AlphaShape = CGAL::Alpha_shape_3<AsTriangulation>;
+
+// Scale space: smooth the point set, then mesh it with either of CGAL's two meshers.
+using ScaleSpace = CGAL::Scale_space_surface_reconstruction_3<Kernel>;
+using ScaleSpaceSmoother = CGAL::Scale_space_reconstruction_3::Weighted_PCA_smoother<Kernel>;
+using ScaleSpaceAlphaMesher = CGAL::Scale_space_reconstruction_3::Alpha_shape_mesher<Kernel>;
+using ScaleSpaceAdvancingFrontMesher =
+    CGAL::Scale_space_reconstruction_3::Advancing_front_mesher<Kernel>;
 
 // Plain Delaunay for the pole-finding pass, and an info-carrying one for the second pass
 // where sample points and poles must be told apart.
@@ -221,7 +235,7 @@ MeshFilterRunResult runAlphaShape(const FilterParams &params, Document &doc)
     if (points.size() < 4)
         return fail(QObject::tr("An alpha shape needs at least 4 live vertices."));
 
-    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Alpha Shape (CGAL)"));
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Alpha Shape"));
     if (vcg::CallBackPos *cb = doc.progressCallback())
         (*cb)(10, "Building Delaunay triangulation...");
 
@@ -367,7 +381,7 @@ MeshFilterRunResult runVoronoiFiltering(const FilterParams &params, Document &do
     const double diagonal = double(mesh.bbox.Diag());
     const double maxPoleDistance = (diagonal > 0.0 ? diagonal : 1.0) * threshold;
 
-    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Voronoi Filtering (CGAL)"));
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Voronoi Filtering"));
     if (vcg::CallBackPos *cb = doc.progressCallback())
         (*cb)(10, "Triangulating samples...");
 
@@ -507,6 +521,220 @@ MeshFilterRunResult runVoronoiFiltering(const FilterParams &params, Document &do
     return success(info, newIndex);
 }
 
+// Collect the current layer's live vertex positions. Every reconstruction here works
+// from points alone, so faces and normals are ignored.
+std::vector<CgalPoint> collectPoints(const VCGMesh &mesh)
+{
+    std::vector<CgalPoint> points;
+    points.reserve(std::size_t(std::max(0, mesh.VN())));
+    for (const VCGVertex &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        points.emplace_back(v.cP().X(), v.cP().Y(), v.cP().Z());
+    }
+    return points;
+}
+
+// Build a VCG mesh from a point array plus index triples into it. Both scale space and
+// advancing front report their result this way, so unlike the alpha shape there are no
+// triangulation handles to outlive.
+void buildIndexedMesh(const std::vector<CgalPoint> &points,
+                      const std::vector<std::array<std::size_t, 3>> &facets,
+                      VCGMesh &output)
+{
+    std::vector<int> remap(points.size(), -1);
+    for (const auto &f : facets) {
+        int corner[3];
+        bool ok = true;
+        for (int k = 0; k < 3 && ok; ++k) {
+            const std::size_t idx = f[std::size_t(k)];
+            if (idx >= points.size()) {
+                ok = false;
+                break;
+            }
+            if (remap[idx] < 0) {
+                const CgalPoint &p = points[idx];
+                auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(
+                    output, vcg::Point3f(float(p.x()), float(p.y()), float(p.z())));
+                remap[idx] = int(vcg::tri::Index(output, *vi));
+            }
+            corner[k] = remap[idx];
+        }
+        if (!ok)
+            continue;
+        if (corner[0] == corner[1] || corner[1] == corner[2] || corner[0] == corner[2])
+            continue;
+        vcg::tri::Allocator<VCGMesh>::AddFace(output, corner[0], corner[1], corner[2]);
+    }
+}
+
+MeshFilterRunResult finishReconstruction(
+    Document &doc, VCGMesh &output, const QString &layerName,
+    const QString &emptyMessage, QStringList info)
+{
+    if (output.FN() <= 0) {
+        doc.finishFilterProgress(false, emptyMessage);
+        return fail(emptyMessage);
+    }
+
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(output);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
+
+    const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    const int newIndex = doc.addMesh(output, layerName, ioMask);
+    if (newIndex < 0) {
+        const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+    doc.finishFilterProgress(true, QObject::tr("Generated %1.").arg(layerName));
+
+    info.prepend(QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name));
+    info << QObject::tr("Output mesh: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
+    return success(info, newIndex);
+}
+
+// Scale-space surface reconstruction.
+//
+// The point set is smoothed for a number of iterations, producing a coarser "scale" at
+// which the surface is easier to extract; the mesher then triangulates the smoothed
+// points. Note that the output vertices are the *smoothed* positions, so unlike the
+// other interpolating reconstructions here they do not coincide with the input points.
+MeshFilterRunResult runScaleSpace(const FilterParams &params, Document &doc)
+{
+    const int meshIndex = doc.currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+
+    const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    if (mesh.VN() < 4)
+        return fail(QObject::tr("Scale-space reconstruction needs at least 4 vertices."));
+
+    const int iterations = std::max(0, params.getInt(QStringLiteral("iterations"), 4));
+    const int neighbors = std::max(3, params.getInt(QStringLiteral("neighbors"), 12));
+    const int samples = std::max(neighbors, params.getInt(QStringLiteral("samples"), 300));
+    const bool useAdvancingFront =
+        params.getEnum(QStringLiteral("mesher")) == QStringLiteral("advancing_front");
+    const double alpha = params.getDouble(QStringLiteral("alpha"), 0.0);
+    const bool separateShells = params.getBool(QStringLiteral("separateShells"), false);
+    const bool forceManifold = params.getBool(QStringLiteral("forceManifold"), true);
+    if (!useAdvancingFront && (!std::isfinite(alpha) || alpha <= 0.0))
+        return fail(QObject::tr("Alpha must be a finite value larger than zero."));
+
+    std::vector<CgalPoint> points = collectPoints(mesh);
+    if (points.size() < 4)
+        return fail(QObject::tr("Scale-space reconstruction needs at least 4 live vertices."));
+
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Scale Space"));
+
+    VCGMesh output;
+    std::size_t pointCount = 0;
+    try {
+        ScaleSpace reconstruction;
+        reconstruction.insert(points.begin(), points.end());
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(20, "Smoothing the point set...");
+        if (iterations > 0) {
+            reconstruction.increase_scale(
+                std::size_t(iterations),
+                ScaleSpaceSmoother(unsigned(neighbors), unsigned(samples)));
+        }
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(60, "Meshing...");
+        if (useAdvancingFront)
+            reconstruction.reconstruct_surface(ScaleSpaceAdvancingFrontMesher());
+        else
+            reconstruction.reconstruct_surface(
+                ScaleSpaceAlphaMesher(Kernel::FT(alpha * alpha), separateShells, forceManifold));
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(85, "Building output mesh...");
+
+        // Read back the smoothed points: the facets index into them, not into the input.
+        std::vector<CgalPoint> smoothed(
+            reconstruction.points_begin(), reconstruction.points_end());
+        pointCount = smoothed.size();
+        std::vector<std::array<std::size_t, 3>> facets(
+            reconstruction.facets_begin(), reconstruction.facets_end());
+        buildIndexedMesh(smoothed, facets, output);
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("CGAL scale-space reconstruction failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    QStringList info;
+    info << QObject::tr("Smoothed %1 point(s) over %2 iteration(s).")
+                .arg(pointCount).arg(iterations)
+         << (useAdvancingFront ? QObject::tr("Mesher: advancing front.")
+                               : QObject::tr("Mesher: alpha shape."));
+    return finishReconstruction(
+        doc, output, QObject::tr("Scale Space"),
+        QObject::tr("Scale-space reconstruction produced no faces. Try more smoothing "
+                    "iterations, or a larger alpha."),
+        info);
+}
+
+// Advancing-front surface reconstruction (Da, Cohen-Steiner and Fabri). An interpolating
+// method: it grows a triangulation outward from a seed facet, so every output vertex is
+// an input point. CGAL has no ball-pivoting implementation; this is its counterpart to
+// the vcglib Ball Pivoting filter, and the two are worth comparing.
+MeshFilterRunResult runAdvancingFront(const FilterParams &params, Document &doc)
+{
+    const int meshIndex = doc.currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+
+    const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    if (mesh.VN() < 4)
+        return fail(QObject::tr("Advancing front needs at least 4 vertices."));
+
+    const double radiusRatioBound = params.getDouble(QStringLiteral("radiusRatioBound"), 5.0);
+    const double betaDegrees = params.getDouble(QStringLiteral("beta"), 30.0);
+    if (!std::isfinite(radiusRatioBound) || radiusRatioBound <= 0.0)
+        return fail(QObject::tr("Radius ratio bound must be a finite value larger than zero."));
+    if (!std::isfinite(betaDegrees) || betaDegrees < 0.0 || betaDegrees >= 90.0)
+        return fail(QObject::tr("Beta must be in the range [0, 90) degrees."));
+
+    std::vector<CgalPoint> points = collectPoints(mesh);
+    if (points.size() < 4)
+        return fail(QObject::tr("Advancing front needs at least 4 live vertices."));
+
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Advancing Front"));
+    if (vcg::CallBackPos *cb = doc.progressCallback())
+        (*cb)(20, "Running advancing front...");
+
+    VCGMesh output;
+    try {
+        // CGAL takes beta in radians.
+        const double beta = betaDegrees * M_PI / 180.0;
+        std::vector<std::array<std::size_t, 3>> facets;
+        CGAL::advancing_front_surface_reconstruction(
+            points.begin(), points.end(), std::back_inserter(facets), radiusRatioBound, beta);
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(85, "Building output mesh...");
+        buildIndexedMesh(points, facets, output);
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("CGAL advancing front failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    QStringList info;
+    info << QObject::tr("Input: %1 points.").arg(points.size());
+    return finishReconstruction(
+        doc, output, QObject::tr("Advancing Front"),
+        QObject::tr("Advancing front produced no faces. The sampling may be too sparse "
+                    "or too noisy; try raising the radius ratio bound."),
+        info);
+}
+
 } // namespace
 
 QString CgalFilterPlugin::pluginId() const
@@ -528,6 +756,10 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
         return runAlphaShape(params, doc);
     if (filterId == QString::fromLatin1(kFilterVoronoiFiltering))
         return runVoronoiFiltering(params, doc);
+    if (filterId == QString::fromLatin1(kFilterScaleSpace))
+        return runScaleSpace(params, doc);
+    if (filterId == QString::fromLatin1(kFilterAdvancingFront))
+        return runAdvancingFront(params, doc);
     if (filterId != QString::fromLatin1(kFilterAlphaWrap))
         return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 

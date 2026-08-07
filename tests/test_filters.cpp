@@ -143,6 +143,8 @@ private slots:
     void alphaShapeConvergesToConvexHull();
     void alphaShapeHandlesALargePointSet();
     void voronoiFilteringReconstructsASphere();
+    void advancingFrontReconstructsASphere();
+    void scaleSpaceReconstructsASphere();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -1115,6 +1117,105 @@ void FilterTests::voronoiFilteringReconstructsASphere()
     QVERIFY(crust.VN() > 0);
     // Interpolating: output vertices are a subset of the input points.
     QVERIFY(crust.VN() <= sourceVN);
+}
+
+// Advancing front is interpolating, so like the crust its vertices are a subset of the
+// input points — which is also the cheap check that it did not invent geometry.
+void FilterTests::advancingFrontReconstructsASphere()
+{
+    Document doc;
+
+    QString sphereKey;
+    QString frontKey;
+    QString removeFacesKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_sphere"))
+            sphereKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_advancing_front_reconstruction"))
+            frontKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("delete_all_faces"))
+            removeFacesKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    QVERIFY(!removeFacesKey.isEmpty());
+    if (frontKey.isEmpty())
+        QSKIP("CGAL plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    QVERIFY2(doc.runFilter(removeFacesKey, {}).success, "Remove All Faces failed");
+    const VCGMesh &source = doc.mesh(doc.currentMeshIndex()).mesh;
+    const int sourceVN = source.VN();
+    const vcg::Box3f sourceBox = source.bbox;
+    QCOMPARE(source.FN(), 0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("radiusRatioBound"), 5.0);
+    params.insert(QStringLiteral("beta"), 30.0);
+    const MeshFilterRunResult result = doc.runFilter(frontKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+
+    const VCGMesh &surface = doc.mesh(result.newMeshIndices.front()).mesh;
+    QVERIFY(surface.FN() > 0);
+    QVERIFY(surface.VN() > 0);
+    QVERIFY(surface.VN() <= sourceVN);
+
+    vcg::Box3f tolerant = sourceBox;
+    tolerant.Offset(sourceBox.Diag() * 0.001f);
+    for (const VCGVertex &v : surface.vert)
+        QVERIFY2(tolerant.IsIn(v.cP()), "advancing front vertex outside the input bbox");
+}
+
+// Scale space is the one reconstruction here whose output vertices are *not* the input
+// points: smoothing moves them before meshing. So the subset check does not apply — but
+// the result must still stay near the input, and both meshers must produce a surface.
+void FilterTests::scaleSpaceReconstructsASphere()
+{
+    Document doc;
+
+    QString sphereKey;
+    QString scaleSpaceKey;
+    QString removeFacesKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_sphere"))
+            sphereKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_scale_space_reconstruction"))
+            scaleSpaceKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("delete_all_faces"))
+            removeFacesKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    QVERIFY(!removeFacesKey.isEmpty());
+    if (scaleSpaceKey.isEmpty())
+        QSKIP("CGAL plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    QVERIFY2(doc.runFilter(removeFacesKey, {}).success, "Remove All Faces failed");
+    const vcg::Box3f sourceBox = doc.mesh(doc.currentMeshIndex()).mesh.bbox;
+
+    // Both meshers must work; the alpha one additionally exercises the absperc bound.
+    const QVector<QString> meshers{ QStringLiteral("alpha_shape"),
+                                    QStringLiteral("advancing_front") };
+    for (const QString &mesher : meshers) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("iterations"), 2);
+        params.insert(QStringLiteral("mesher"), mesher);
+        params.insert(QStringLiteral("alpha"), double(sourceBox.Diag()) * 0.25);
+        const MeshFilterRunResult result = doc.runFilter(scaleSpaceKey, params);
+        QVERIFY2(result.success, qPrintable(QStringLiteral("%1: %2")
+                                                .arg(mesher, result.errorMessage)));
+        QCOMPARE(result.newMeshIndices.size(), 1);
+
+        const VCGMesh &surface = doc.mesh(result.newMeshIndices.front()).mesh;
+        QVERIFY2(surface.FN() > 0, qPrintable(mesher));
+        QVERIFY2(surface.VN() > 0, qPrintable(mesher));
+
+        // Smoothing moves points, so allow generous slack — this only catches garbage.
+        vcg::Box3f tolerant = sourceBox;
+        tolerant.Offset(sourceBox.Diag() * 0.5f);
+        for (const VCGVertex &v : surface.vert)
+            QVERIFY2(tolerant.IsIn(v.cP()), qPrintable(mesher));
+    }
 }
 
 void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()
