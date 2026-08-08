@@ -145,6 +145,9 @@ private slots:
     void voronoiFilteringReconstructsASphere();
     void advancingFrontReconstructsASphere();
     void scaleSpaceReconstructsASphere();
+    void orientNormalsFlipsInvertedNormals();
+    void cgalPoissonReconstructsASphere();
+    void kineticReconstructsABox();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -1216,6 +1219,176 @@ void FilterTests::scaleSpaceReconstructsASphere()
         for (const VCGVertex &v : surface.vert)
             QVERIFY2(tolerant.IsIn(v.cP()), qPrintable(mesher));
     }
+}
+
+// A sphere's normals should all point away from its centre. Flipping half of them gives
+// an inconsistently oriented field of exactly the kind normal estimation produces, and
+// MST orientation must repair it — that is the whole point of the filter.
+void FilterTests::orientNormalsFlipsInvertedNormals()
+{
+    Document doc;
+
+    QString sphereKey;
+    QString orientKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_sphere"))
+            sphereKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("compute_normal_orientation_per_vertex"))
+            orientKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    if (orientKey.isEmpty())
+        QSKIP("CGAL plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int index = doc.currentMeshIndex();
+
+    // Corrupt the orientation: flip every other normal.
+    {
+        VCGMesh &mesh = doc.mesh(index).mesh;
+        const vcg::Point3f centre = mesh.bbox.Center();
+        int flipped = 0;
+        for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+            // Start from the outward normal so the test does not depend on the primitive.
+            mesh.vert[i].N() = (mesh.vert[i].cP() - centre).Normalize();
+            if (i % 2 == 0) {
+                mesh.vert[i].N() = -mesh.vert[i].cN();
+                ++flipped;
+            }
+        }
+        QVERIFY(flipped > 0);
+    }
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("neighbors"), 18);
+    const MeshFilterRunResult result = doc.runFilter(orientKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    // Every normal must now agree with the outward radial direction, up to a global
+    // sign: MST orientation makes the field consistent, not necessarily outward.
+    const VCGMesh &mesh = doc.mesh(index).mesh;
+    const vcg::Point3f centre = mesh.bbox.Center();
+    int agreeing = 0;
+    int total = 0;
+    for (const VCGVertex &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        const vcg::Point3f radial = (v.cP() - centre).Normalize();
+        if (radial.dot(v.cN()) > 0.0f)
+            ++agreeing;
+        ++total;
+    }
+    QVERIFY(total > 0);
+    // Consistent means all-with or all-against; either way one of the two counts is 0.
+    QVERIFY2(agreeing == total || agreeing == 0,
+             qPrintable(QStringLiteral("%1 of %2 normals point outward — the field is "
+                                       "still inconsistent").arg(agreeing).arg(total)));
+}
+
+// CGAL's Poisson needs oriented normals, so this also exercises the pairing with the
+// orientation filter above: estimate-free radial normals, then reconstruct.
+void FilterTests::cgalPoissonReconstructsASphere()
+{
+    Document doc;
+
+    QString sphereKey;
+    QString poissonKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_sphere"))
+            sphereKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_poisson_reconstruction_cgal"))
+            poissonKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    if (poissonKey.isEmpty())
+        QSKIP("CGAL plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int index = doc.currentMeshIndex();
+    vcg::Box3f sourceBox;
+    {
+        VCGMesh &mesh = doc.mesh(index).mesh;
+        sourceBox = mesh.bbox;
+        const vcg::Point3f centre = mesh.bbox.Center();
+        for (VCGVertex &v : mesh.vert)
+            v.N() = (v.cP() - centre).Normalize();
+    }
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("smAngle"), 20.0);
+    params.insert(QStringLiteral("smRadius"), 30.0);
+    params.insert(QStringLiteral("smDistance"), 0.375);
+    const MeshFilterRunResult result = doc.runFilter(poissonKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+
+    const VCGMesh &surface = doc.mesh(result.newMeshIndices.front()).mesh;
+    QVERIFY(surface.FN() > 0);
+    QVERIFY(surface.VN() > 0);
+
+    // Approximating: vertices are new points, but must still bracket the input sphere.
+    vcg::Box3f tolerant = sourceBox;
+    tolerant.Offset(sourceBox.Diag() * 0.5f);
+    for (const VCGVertex &v : surface.vert)
+        QVERIFY2(tolerant.IsIn(v.cP()), "poisson vertex far outside the input bbox");
+}
+
+// Kinetic reconstruction is piecewise planar by construction, so a sphere is the wrong
+// test — a subdivided box is the fair one: six large planar regions with clean normals.
+void FilterTests::kineticReconstructsABox()
+{
+    Document doc;
+
+    QString boxKey;
+    QString subdivideKey;
+    QString kineticKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("create_box"))
+            boxKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("meshing_surface_subdivision_midpoint"))
+            subdivideKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("generate_kinetic_reconstruction"))
+            kineticKey = info.key;
+    }
+    QVERIFY(!boxKey.isEmpty());
+    QVERIFY(!subdivideKey.isEmpty());
+    if (kineticKey.isEmpty())
+        QSKIP("CGAL plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    const int index = doc.currentMeshIndex();
+
+    // Densify so each face carries enough samples to be detected as a planar region.
+    for (int i = 0; i < 4; ++i) {
+        MeshFilterParameterValues sub;
+        sub.insert(QStringLiteral("Iterations"), 1);
+        if (!doc.runFilter(subdivideKey, sub).success)
+            break;
+    }
+    VCGMesh &source = doc.mesh(index).mesh;
+    QVERIFY2(source.VN() > 300, "box not dense enough to detect planes");
+    const vcg::Box3f sourceBox = source.bbox;
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalized(source);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("maximumDistance"), double(sourceBox.Diag()) * 0.02);
+    params.insert(QStringLiteral("maximumAngle"), 15.0);
+    params.insert(QStringLiteral("lambda"), 0.5);
+    params.insert(QStringLiteral("minimumRegionSize"), 20);
+    params.insert(QStringLiteral("kNeighbors"), 12);
+    params.insert(QStringLiteral("intersections"), 1);
+    const MeshFilterRunResult result = doc.runFilter(kineticKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+
+    const VCGMesh &surface = doc.mesh(result.newMeshIndices.front()).mesh;
+    QVERIFY(surface.FN() > 0);
+    QVERIFY(surface.VN() > 0);
+
+    vcg::Box3f tolerant = sourceBox;
+    tolerant.Offset(sourceBox.Diag() * 0.5f);
+    for (const VCGVertex &v : surface.vert)
+        QVERIFY2(tolerant.IsIn(v.cP()), "kinetic vertex far outside the input bbox");
 }
 
 void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()

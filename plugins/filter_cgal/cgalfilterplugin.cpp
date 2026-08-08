@@ -14,7 +14,13 @@
 #include <CGAL/Scale_space_surface_reconstruction_3.h>
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Kinetic_surface_reconstruction_3.h>
+#include <CGAL/Point_set_3.h>
 #include <CGAL/Surface_mesh.h>
+#include <CGAL/compute_average_spacing.h>
+#include <CGAL/mst_orient_normals.h>
+#include <CGAL/poisson_surface_reconstruction.h>
+#include <CGAL/property_map.h>
 #include <CGAL/Triangulation_data_structure_3.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <CGAL/alpha_wrap_3.h>
@@ -25,10 +31,13 @@
 #include <vcg/complex/allocate.h>
 #include <QObject>
 #include <QStringList>
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <exception>
 #include <limits>
+#include <map>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -39,11 +48,26 @@ constexpr QLatin1StringView kFilterAlphaShape("generate_alpha_shape");
 constexpr QLatin1StringView kFilterVoronoiFiltering("generate_voronoi_filtering");
 constexpr QLatin1StringView kFilterScaleSpace("generate_scale_space_reconstruction");
 constexpr QLatin1StringView kFilterAdvancingFront("generate_advancing_front_reconstruction");
+constexpr QLatin1StringView kFilterOrientNormals("compute_normal_orientation_per_vertex");
+constexpr QLatin1StringView kFilterPoisson("generate_poisson_reconstruction_cgal");
+constexpr QLatin1StringView kFilterKinetic("generate_kinetic_reconstruction");
 using Mask = vcg::tri::io::Mask;
 using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 using CgalPoint = Kernel::Point_3;
+using CgalVector = Kernel::Vector_3;
 using CgalMesh = CGAL::Surface_mesh<CgalPoint>;
 using Triangle = std::array<std::size_t, 3>;
+
+// An oriented point that remembers where it came from. mst_orient_normals *reorders* its
+// input — it packs the successfully oriented points first — so the source vertex index
+// has to travel with the point, or the normals cannot be written back.
+using OrientedPoint = std::tuple<CgalPoint, CgalVector, std::size_t>;
+using OrientedPointMap = CGAL::Nth_of_tuple_property_map<0, OrientedPoint>;
+using OrientedNormalMap = CGAL::Nth_of_tuple_property_map<1, OrientedPoint>;
+
+// The kinetic pipeline needs a range it can introspect rather than one described by
+// property maps — see runKinetic.
+using CgalPointSet = CGAL::Point_set_3<CgalPoint, CgalVector>;
 
 // Alpha shapes need their own triangulation types: the cell and vertex bases carry the
 // per-simplex alpha intervals that classify each simplex as the alpha value sweeps.
@@ -735,6 +759,312 @@ MeshFilterRunResult runAdvancingFront(const FilterParams &params, Document &doc)
         info);
 }
 
+// Collect the current layer's live vertices as oriented points, each tagged with its
+// index in the VCG mesh so results can be written back after CGAL reorders the range.
+std::vector<OrientedPoint> collectOrientedPoints(const VCGMesh &mesh)
+{
+    std::vector<OrientedPoint> points;
+    points.reserve(std::size_t(std::max(0, mesh.VN())));
+    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+        const VCGVertex &v = mesh.vert[i];
+        if (v.IsD())
+            continue;
+        points.emplace_back(
+            CgalPoint(v.cP().X(), v.cP().Y(), v.cP().Z()),
+            CgalVector(v.cN().X(), v.cN().Y(), v.cN().Z()),
+            i);
+    }
+    return points;
+}
+
+// Orient an unoriented normal field with a minimum spanning tree of the Riemannian graph
+// (Hoppe et al.). This is the missing step between "Compute Point Cloud Normals", which
+// gives normals with arbitrary sign, and the reconstructions that need them oriented —
+// Screened Poisson, SSD, CGAL Poisson and the kinetic pipeline all require it.
+MeshFilterRunResult runOrientNormals(const FilterParams &params, Document &doc)
+{
+    const int meshIndex = doc.currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+
+    Document::MeshEntry &entry = doc.mesh(meshIndex);
+    VCGMesh &mesh = entry.mesh;
+    if (mesh.VN() < 2)
+        return fail(QObject::tr("Normal orientation needs at least 2 vertices."));
+
+    const int neighbors = std::max(1, params.getInt(QStringLiteral("neighbors"), 18));
+    const bool removeUnoriented = params.getBool(QStringLiteral("removeUnoriented"), false);
+
+    std::vector<OrientedPoint> points = collectOrientedPoints(mesh);
+    if (points.size() < 2)
+        return fail(QObject::tr("Normal orientation needs at least 2 live vertices."));
+
+    doc.beginFilterProgress(QObject::tr("Orient Point Cloud Normals"));
+    if (vcg::CallBackPos *cb = doc.progressCallback())
+        (*cb)(20, "Building the Riemannian graph...");
+
+    std::size_t orientedCount = 0;
+    try {
+        // Returns the first point it could not orient; everything before it is oriented.
+        auto unorientedBegin = CGAL::mst_orient_normals(
+            points, unsigned(neighbors),
+            CGAL::parameters::point_map(OrientedPointMap())
+                .normal_map(OrientedNormalMap()));
+        orientedCount = std::size_t(std::distance(points.begin(), unorientedBegin));
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(80, "Writing normals back...");
+
+        // The range was reordered, so the tagged index is the only way home.
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            if (removeUnoriented && i >= orientedCount)
+                continue;
+            const CgalVector &n = std::get<1>(points[i]);
+            const std::size_t vi = std::get<2>(points[i]);
+            mesh.vert[vi].N() = vcg::Point3f(float(n.x()), float(n.y()), float(n.z()));
+        }
+        if (removeUnoriented && orientedCount < points.size()) {
+            for (std::size_t i = orientedCount; i < points.size(); ++i)
+                vcg::tri::Allocator<VCGMesh>::DeleteVertex(mesh, mesh.vert[std::get<2>(points[i])]);
+        }
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("CGAL normal orientation failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    entry.ioMask |= Mask::IOM_VERTNORMAL;
+    doc.markMeshGeometryChanged(
+        meshIndex, QObject::tr("Oriented vertex normals of '%1'").arg(entry.name));
+    doc.finishFilterProgress(true, QObject::tr("Oriented vertex normals."));
+
+    const std::size_t failed = points.size() - orientedCount;
+    QStringList info;
+    info << QObject::tr("Oriented %1 of %2 normal(s).").arg(orientedCount).arg(points.size());
+    if (failed > 0) {
+        info << (removeUnoriented
+                     ? QObject::tr("Removed %1 vertex(es) that could not be oriented.").arg(failed)
+                     : QObject::tr("%1 normal(s) could not be oriented and were left as they "
+                                   "were; they usually sit on disconnected components.")
+                           .arg(failed));
+    }
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages = info;
+    return result;
+}
+
+// Poisson surface reconstruction, CGAL's implementation. It differs from the Screened
+// Poisson filter in how the implicit function is meshed: Delaunay refinement rather than
+// marching cubes, so the output is manifold with well-shaped triangles at the cost of
+// speed. Requires oriented normals — run "Orient Point Cloud Normals" first.
+MeshFilterRunResult runPoisson(const FilterParams &params, Document &doc)
+{
+    const int meshIndex = doc.currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+
+    const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    if (mesh.VN() < 4)
+        return fail(QObject::tr("Poisson reconstruction needs at least 4 vertices."));
+
+    const double smAngle = params.getDouble(QStringLiteral("smAngle"), 20.0);
+    const double smRadius = params.getDouble(QStringLiteral("smRadius"), 30.0);
+    const double smDistance = params.getDouble(QStringLiteral("smDistance"), 0.375);
+    const int spacingNeighbors = std::max(2, params.getInt(QStringLiteral("spacingNeighbors"), 6));
+
+    std::vector<OrientedPoint> points = collectOrientedPoints(mesh);
+    if (points.size() < 4)
+        return fail(QObject::tr("Poisson reconstruction needs at least 4 live vertices."));
+
+    // A zero-length normal means the layer never had normals computed; Poisson would
+    // return an unusable surface rather than fail, so say so plainly instead.
+    std::size_t degenerateNormals = 0;
+    for (const OrientedPoint &p : points) {
+        if (std::get<1>(p).squared_length() < 1e-20)
+            ++degenerateNormals;
+    }
+    if (degenerateNormals == points.size()) {
+        return fail(QObject::tr(
+            "Poisson reconstruction needs oriented normals, but this layer has none. Run "
+            "'Compute Point Cloud Normals' and then 'Orient Point Cloud Normals' first."));
+    }
+
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Poisson"));
+    if (vcg::CallBackPos *cb = doc.progressCallback())
+        (*cb)(10, "Estimating average spacing...");
+
+    VCGMesh output;
+    double spacing = 0.0;
+    try {
+        spacing = CGAL::compute_average_spacing<CGAL::Sequential_tag>(
+            points, unsigned(spacingNeighbors),
+            CGAL::parameters::point_map(OrientedPointMap()));
+        if (!(spacing > 0.0))
+            return fail(QObject::tr("Could not estimate the average point spacing."));
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(30, "Solving the Poisson equation...");
+
+        CgalMesh reconstructed;
+        const bool ok = CGAL::poisson_surface_reconstruction_delaunay(
+            points.begin(), points.end(), OrientedPointMap(), OrientedNormalMap(),
+            reconstructed, spacing, smAngle, smRadius, smDistance);
+        if (!ok) {
+            const QString message = QObject::tr(
+                "CGAL Poisson reconstruction failed. The normals may be unoriented, or the "
+                "sampling too sparse for the requested triangle size.");
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(85, "Building output mesh...");
+        QString error;
+        if (!copyCgalMeshToVcg(reconstructed, output, error)) {
+            doc.finishFilterProgress(false, error);
+            return fail(error);
+        }
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("CGAL Poisson reconstruction failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    QStringList info;
+    info << QObject::tr("Input: %1 oriented points.").arg(points.size())
+         << QObject::tr("Average spacing: %1").arg(QString::number(spacing, 'g', 6));
+    if (degenerateNormals > 0)
+        info << QObject::tr("%1 point(s) had a zero-length normal.").arg(degenerateNormals);
+    return finishReconstruction(
+        doc, output, QObject::tr("Poisson"),
+        QObject::tr("Poisson reconstruction produced no faces."), info);
+}
+
+// Kinetic surface reconstruction: detect planar shapes, regularize them, partition space
+// kinetically into convex volumes, then label volumes inside/outside with a min-cut. The
+// result is piecewise planar by construction, which suits buildings and other man-made
+// shapes far better than a smooth reconstruction. Requires oriented normals.
+MeshFilterRunResult runKinetic(const FilterParams &params, Document &doc)
+{
+    const int meshIndex = doc.currentMeshIndex();
+    if (meshIndex < 0 || meshIndex >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+
+    const VCGMesh &mesh = doc.mesh(meshIndex).mesh;
+    if (mesh.VN() < 4)
+        return fail(QObject::tr("Kinetic reconstruction needs at least 4 vertices."));
+
+    const int kNeighbors = std::max(3, params.getInt(QStringLiteral("kNeighbors"), 12));
+    const double maxDistance = params.getDouble(QStringLiteral("maximumDistance"), 0.0);
+    const double maxAngle = params.getDouble(QStringLiteral("maximumAngle"), 15.0);
+    const int minRegionSize = std::max(3, params.getInt(QStringLiteral("minimumRegionSize"), 50));
+    const int intersections = std::clamp(params.getInt(QStringLiteral("intersections"), 1), 1, 3);
+    const double lambda = params.getDouble(QStringLiteral("lambda"), 0.5);
+    if (!std::isfinite(maxDistance) || maxDistance <= 0.0)
+        return fail(QObject::tr("Maximum distance must be a finite value larger than zero."));
+    if (!std::isfinite(lambda) || lambda < 0.0 || lambda >= 1.0)
+        return fail(QObject::tr("Lambda must be in the range [0, 1)."));
+
+    std::vector<OrientedPoint> points = collectOrientedPoints(mesh);
+    if (points.size() < 4)
+        return fail(QObject::tr("Kinetic reconstruction needs at least 4 live vertices."));
+
+    doc.beginFilterProgress(QObject::tr("Reconstruct Surface by Kinetic Partition"));
+    if (vcg::CallBackPos *cb = doc.progressCallback())
+        (*cb)(10, "Detecting planar shapes...");
+
+    // Unlike the other CGAL entry points here, the kinetic pipeline deduces its kernel
+    // from the range type itself (Least_squares_plane_fit_region_for_point_set<Range>),
+    // so a tuple range with property maps does not compile — it needs a Point_set_3.
+    CgalPointSet pointSet;
+    pointSet.add_normal_map();
+    pointSet.reserve(points.size());
+    for (const OrientedPoint &p : points)
+        pointSet.insert(std::get<0>(p), std::get<1>(p));
+
+    VCGMesh output;
+    std::size_t polygonCount = 0;
+    std::size_t planeCount = 0;
+    try {
+        using Kinetic = CGAL::Kinetic_surface_reconstruction_3<
+            Kernel, CgalPointSet, CgalPointSet::Point_map, CgalPointSet::Vector_map>;
+
+        Kinetic kinetic(
+            pointSet,
+            CGAL::parameters::point_map(pointSet.point_map())
+                .normal_map(pointSet.normal_map()));
+
+        // Run the three stages separately rather than via detection_and_partition(), so
+        // that a run which finds no planes can say so instead of silently producing an
+        // empty mesh — with these parameters that is by far the most common outcome.
+        const auto detectionParams =
+            CGAL::parameters::maximum_distance(maxDistance)
+                .maximum_angle(maxAngle)
+                .k_neighbors(std::size_t(kNeighbors))
+                .minimum_region_size(std::size_t(minRegionSize));
+        planeCount = kinetic.detect_planar_shapes(detectionParams);
+        if (planeCount == 0) {
+            const QString message = QObject::tr(
+                "No planar regions were detected, so there is nothing to reconstruct. "
+                "Increase Maximum Distance to the noise scale of the data, lower "
+                "Minimum Region Size, or widen Maximum Angle.");
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(40, "Partitioning space kinetically...");
+        kinetic.initialize_partition(detectionParams);
+        kinetic.partition(std::size_t(intersections));
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(70, "Labelling volumes with a min-cut...");
+
+        // An empty external_nodes map leaves every bounding-box side to the min-cut,
+        // which is what we want: nothing here knows which side is "the ground".
+        // An empty external_nodes map leaves every bounding-box side to the min-cut,
+        // which is what we want: nothing here knows which side is "the ground".
+        std::map<typename Kinetic::KSP::Face_support, bool> externalNodes;
+        std::vector<CgalPoint> vertices;
+        std::vector<std::vector<std::size_t>> polygons;
+        kinetic.reconstruct(
+            lambda, externalNodes, std::back_inserter(vertices), std::back_inserter(polygons));
+        polygonCount = polygons.size();
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(90, "Building output mesh...");
+
+        // The partition emits convex polygons, so fan-triangulate them. (CGAL also has a
+        // reconstructed_model_trilist() that would do this and drop bounding-box faces,
+        // but in this version it is private and does not compile.)
+        std::vector<Triangle> facets;
+        for (const std::vector<std::size_t> &poly : polygons) {
+            for (std::size_t k = 2; k < poly.size(); ++k)
+                facets.push_back({ poly[0], poly[k - 1], poly[k] });
+        }
+        buildIndexedMesh(vertices, facets, output);
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("CGAL kinetic reconstruction failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    QStringList info;
+    info << QObject::tr("Input: %1 oriented points.").arg(points.size())
+         << QObject::tr("Detected %1 planar region(s).").arg(planeCount)
+         << QObject::tr("Reconstructed %1 planar polygon(s).").arg(polygonCount);
+    return finishReconstruction(
+        doc, output, QObject::tr("Kinetic"),
+        QObject::tr("Kinetic reconstruction produced no faces. Try a larger maximum "
+                    "distance, or a smaller minimum region size, so that planes are found."),
+        info);
+}
+
 } // namespace
 
 QString CgalFilterPlugin::pluginId() const
@@ -760,6 +1090,12 @@ MeshFilterRunResult CgalFilterPlugin::runFilter(
         return runScaleSpace(params, doc);
     if (filterId == QString::fromLatin1(kFilterAdvancingFront))
         return runAdvancingFront(params, doc);
+    if (filterId == QString::fromLatin1(kFilterOrientNormals))
+        return runOrientNormals(params, doc);
+    if (filterId == QString::fromLatin1(kFilterPoisson))
+        return runPoisson(params, doc);
+    if (filterId == QString::fromLatin1(kFilterKinetic))
+        return runKinetic(params, doc);
     if (filterId != QString::fromLatin1(kFilterAlphaWrap))
         return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 

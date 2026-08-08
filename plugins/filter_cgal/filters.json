@@ -3,7 +3,9 @@
   "filters": [
     {
       "id": "generate_alpha_wrap",
-      "categories": ["Creation/Reconstruction"],
+      "categories": [
+        "Creation/Reconstruction"
+      ],
       "name": "Reconstruct Surface by Alpha Wrapping",
       "pythonName": "generate_alpha_wrap",
       "shortDescription": "Generate a watertight alpha wrapping of the current mesh or point cloud using CGAL.",
@@ -56,7 +58,9 @@
     },
     {
       "id": "generate_alpha_shape",
-      "categories": ["Creation/Reconstruction"],
+      "categories": [
+        "Creation/Reconstruction"
+      ],
       "name": "Reconstruct Surface by Alpha Shape",
       "pythonName": "generate_alpha_shape",
       "shortDescription": "Build the alpha complex or alpha shape of the current mesh or point cloud.",
@@ -98,8 +102,14 @@
           "type": "enum",
           "default": "shape",
           "enumOptions": [
-            { "id": "shape", "label": "Alpha Shape" },
-            { "id": "complex", "label": "Alpha Complex" }
+            {
+              "id": "shape",
+              "label": "Alpha Shape"
+            },
+            {
+              "id": "complex",
+              "label": "Alpha Complex"
+            }
           ]
         }
       ],
@@ -109,7 +119,9 @@
     },
     {
       "id": "generate_voronoi_filtering",
-      "categories": ["Creation/Reconstruction"],
+      "categories": [
+        "Creation/Reconstruction"
+      ],
       "name": "Reconstruct Surface by Voronoi Filtering",
       "pythonName": "generate_voronoi_filtering",
       "shortDescription": "Reconstruct a surface from an unoriented point cloud with the Amenta-Bern crust.",
@@ -147,7 +159,9 @@
     },
     {
       "id": "generate_scale_space_reconstruction",
-      "categories": ["Creation/Reconstruction"],
+      "categories": [
+        "Creation/Reconstruction"
+      ],
       "name": "Reconstruct Surface by Scale Space",
       "pythonName": "generate_scale_space_reconstruction",
       "shortDescription": "Reconstruct a surface by smoothing the point set to a coarser scale, then meshing it.",
@@ -187,8 +201,14 @@
           "type": "enum",
           "default": "alpha_shape",
           "enumOptions": [
-            { "id": "alpha_shape", "label": "Alpha Shape" },
-            { "id": "advancing_front", "label": "Advancing Front" }
+            {
+              "id": "alpha_shape",
+              "label": "Alpha Shape"
+            },
+            {
+              "id": "advancing_front",
+              "label": "Advancing Front"
+            }
           ]
         },
         {
@@ -247,7 +267,9 @@
     },
     {
       "id": "generate_advancing_front_reconstruction",
-      "categories": ["Creation/Reconstruction"],
+      "categories": [
+        "Creation/Reconstruction"
+      ],
       "name": "Reconstruct Surface by Advancing Front",
       "pythonName": "generate_advancing_front_reconstruction",
       "shortDescription": "Reconstruct a surface from an unoriented point cloud by growing a triangulation outward.",
@@ -290,6 +312,225 @@
           "min": 0.0,
           "max": 89.9,
           "decimals": 3
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ]
+    },
+    {
+      "id": "compute_normal_orientation_per_vertex",
+      "categories": [
+        "Attribute/Normal"
+      ],
+      "name": "Orient Point Cloud Normals",
+      "pythonName": "compute_normal_orientation_per_vertex",
+      "shortDescription": "Make an unoriented normal field consistently point outward, using a minimum spanning tree.",
+      "longDescriptionMarkdown": "Orients the vertex normals of a point cloud so that neighbouring normals agree in sign, by propagating orientation along a **minimum spanning tree of the Riemannian graph** (Hoppe et al.).\n\nThis is the missing step between normal *estimation* and surface *reconstruction*. Filters such as *Compute Point Cloud Normals* fit a local surface and give each normal an arbitrary sign; Poisson-family and kinetic reconstruction all need normals that consistently point outward, and produce unusable results otherwise.\n\n**Neighbors** sets how many nearest neighbours are linked in the Riemannian graph. Larger values bridge gaps in sparse data but can propagate orientation across thin structures that should stay separate.\n\nA cloud in several disconnected pieces cannot be oriented as a whole: the normals of every component after the first are reported as unoriented and left untouched. Enable **Remove Unoriented Vertices** to delete them instead.\n\nImplemented with CGAL's Point Set Processing.\n\nReference:\nHugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, **Surface Reconstruction from Unorganized Points**, SIGGRAPH 1992.",
+      "tags": [
+        "cgal",
+        "normal",
+        "orientation",
+        "point cloud",
+        "mst",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "neighbors",
+          "label": "Neighbors",
+          "help": "Number of nearest neighbours linked in the Riemannian graph. Larger values bridge sparse regions but risk propagating orientation across thin structures.",
+          "group": "main",
+          "type": "int",
+          "default": 18,
+          "min": 1,
+          "max": 1000
+        },
+        {
+          "id": "removeUnoriented",
+          "label": "Remove Unoriented Vertices",
+          "help": "Delete the vertices whose normals could not be oriented instead of leaving them untouched. They are usually disconnected components.",
+          "group": "advanced",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "VN"
+      ]
+    },
+    {
+      "id": "generate_poisson_reconstruction_cgal",
+      "categories": [
+        "Creation/Reconstruction"
+      ],
+      "name": "Reconstruct Surface by Poisson (CGAL)",
+      "pythonName": "generate_poisson_reconstruction_cgal",
+      "shortDescription": "Reconstruct a watertight surface from oriented points with CGAL's Poisson solver.",
+      "longDescriptionMarkdown": "Solves the Poisson equation for an implicit function whose gradient best matches the input normal field, then extracts its zero level set.\n\nIt differs from *Reconstruct Surface by Screened Poisson* in how that level set is **meshed**: CGAL uses Delaunay refinement rather than marching cubes, so the output is manifold with well-shaped triangles and a size driven by the sampling, at the cost of being slower. The two are worth comparing on the same cloud — that is why both are here.\n\n**Requires oriented normals.** If the layer has none, run *Compute Point Cloud Normals* and then *Orient Point Cloud Normals* first.\n\nTriangle size and quality are controlled relative to the estimated average point spacing:\n\n- **Minimum Angle** — the lower bound on triangle angles, in degrees.\n- **Maximum Radius** — largest triangle circumradius, as a multiple of the spacing.\n- **Approximation Error** — how far the mesh may deviate from the level set, as a multiple of the spacing.\n\nImplemented with CGAL's Poisson Surface Reconstruction.\n\nReference:\nMichael Kazhdan, Matthew Bolitho, Hugues Hoppe, **Poisson Surface Reconstruction**, Symposium on Geometry Processing 2006.",
+      "tags": [
+        "cgal",
+        "poisson",
+        "point cloud",
+        "reconstruction",
+        "watertight",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "inputPrepare": [
+        "BBox"
+      ],
+      "parameters": [
+        {
+          "id": "smAngle",
+          "label": "Minimum Angle (degrees)",
+          "help": "Lower bound on the angles of the output triangles. Lower values are easier to satisfy; CGAL's default is 20.",
+          "group": "main",
+          "type": "double",
+          "default": 20.0,
+          "min": 1.0,
+          "max": 30.0,
+          "decimals": 3
+        },
+        {
+          "id": "smRadius",
+          "label": "Maximum Radius",
+          "help": "Largest triangle circumradius, as a multiple of the estimated average point spacing. Smaller values give a denser mesh.",
+          "group": "main",
+          "type": "double",
+          "default": 30.0,
+          "min": 0.1,
+          "max": 1000.0,
+          "decimals": 3
+        },
+        {
+          "id": "smDistance",
+          "label": "Approximation Error",
+          "help": "How far the mesh may deviate from the implicit surface, as a multiple of the average point spacing. Smaller values follow the data more closely and cost more.",
+          "group": "main",
+          "type": "double",
+          "default": 0.375,
+          "min": 0.001,
+          "max": 100.0,
+          "decimals": 4
+        },
+        {
+          "id": "spacingNeighbors",
+          "label": "Spacing Neighbors",
+          "help": "Number of neighbours used to estimate the average point spacing that the three settings above are relative to.",
+          "group": "advanced",
+          "type": "int",
+          "default": 6,
+          "min": 2,
+          "max": 100
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ]
+    },
+    {
+      "id": "generate_kinetic_reconstruction",
+      "categories": [
+        "Creation/Reconstruction"
+      ],
+      "name": "Reconstruct Surface by Kinetic Partition",
+      "pythonName": "generate_kinetic_reconstruction",
+      "shortDescription": "Reconstruct a piecewise-planar surface from oriented points by kinetic space partition and min-cut.",
+      "longDescriptionMarkdown": "A piecewise-planar reconstruction pipeline, run end to end by this one filter:\n\n1. **Shape detection** finds planar regions in the point cloud.\n2. **Regularization** aligns those planes where they are nearly parallel, coplanar or orthogonal.\n3. **Kinetic space partition** propagates the planes until they collide, cutting the bounding box into convex volumes.\n4. **Min-cut** labels each volume inside or outside; the surface is the boundary between the two labels.\n\nBecause the output is built from detected planes rather than fitted to the samples, it is planar **by construction** — which suits buildings, rooms and other man-made shapes far better than a smooth reconstruction, and is quite unsuitable for organic ones.\n\n**Requires oriented normals.** Run *Compute Point Cloud Normals* and then *Orient Point Cloud Normals* first if the layer has none.\n\n**Maximum Distance** is the most important setting: it is how far a point may sit from a plane and still belong to it, so it must be set to the scale of the noise in the data. **Lambda** trades faithfulness against simplicity — higher values give fewer, larger facets.\n\nThe reconstruction emits convex polygons, which this filter fan-triangulates because QMeshLab stores triangle meshes.\n\nImplemented with CGAL's Kinetic Surface Reconstruction.\n\nReference:\nSven Oesau, Florent Lafarge, **Kinetic Shape Reconstruction**, ACM Transactions on Graphics 39(5), 2020.",
+      "tags": [
+        "cgal",
+        "kinetic",
+        "planar",
+        "point cloud",
+        "reconstruction",
+        "urban",
+        "bibliography"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputPrepare": [
+        "BBox"
+      ],
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "maximumDistance",
+          "label": "Maximum Distance",
+          "help": "How far a point may lie from a plane and still be assigned to it. Set this to the noise scale of the data; it is the setting that most affects the result.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "maximumAngle",
+          "label": "Maximum Angle (degrees)",
+          "help": "Largest angle between a point's normal and its plane's normal for the point to be assigned to that plane.",
+          "group": "main",
+          "type": "double",
+          "default": 15.0,
+          "min": 0.1,
+          "max": 89.9,
+          "decimals": 3
+        },
+        {
+          "id": "lambda",
+          "label": "Lambda",
+          "help": "Trades data faithfulness against model complexity, in [0, 1). Higher values give a simpler surface with fewer facets.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 0.999,
+          "decimals": 3
+        },
+        {
+          "id": "minimumRegionSize",
+          "label": "Minimum Region Size",
+          "help": "Smallest number of points a detected planar region must contain to be kept.",
+          "group": "advanced",
+          "type": "int",
+          "default": 50,
+          "min": 3,
+          "max": 1000000
+        },
+        {
+          "id": "kNeighbors",
+          "label": "Neighbors",
+          "help": "Number of nearest neighbours used when growing planar regions.",
+          "group": "advanced",
+          "type": "int",
+          "default": 12,
+          "min": 3,
+          "max": 1000
+        },
+        {
+          "id": "intersections",
+          "label": "Intersections",
+          "help": "How many times propagating planes may intersect before the partition stops. Higher values give a finer partition and cost considerably more.",
+          "group": "advanced",
+          "type": "int",
+          "default": 1,
+          "min": 1,
+          "max": 3
         }
       ],
       "outputModifies": [
