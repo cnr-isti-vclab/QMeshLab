@@ -1064,6 +1064,29 @@
 
 <hr class="docutils" />
 </section>
+<section id="orient-point-cloud-normals">
+<span id="filter-compute-normal-orientation-per-vertex"></span><h2>Orient Point Cloud Normals<a class="headerlink" href="#orient-point-cloud-normals" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
+<p>Make an unoriented normal field consistently point outward, using a minimum spanning tree.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_normal_orientation_per_vertex">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_normal_orientation_per_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_normal_orientation_per_vertex" title="Link to this definition">¶</a></dt>
+<dd><p>Orients the vertex normals of a point cloud so that neighbouring normals agree in sign, by propagating orientation along a <strong>minimum spanning tree of the Riemannian graph</strong> (Hoppe et al.).</p>
+<p>This is the missing step between normal <em>estimation</em> and surface <em>reconstruction</em>. Filters such as <em>Compute Point Cloud Normals</em> fit a local surface and give each normal an arbitrary sign; Poisson-family and kinetic reconstruction all need normals that consistently point outward, and produce unusable results otherwise.</p>
+<p><strong>Neighbors</strong> sets how many nearest neighbours are linked in the Riemannian graph. Larger values bridge gaps in sparse data but can propagate orientation across thin structures that should stay separate.</p>
+<p>A cloud in several disconnected pieces cannot be oriented as a whole: the normals of every component after the first are reported as unoriented and left untouched. Enable <strong>Remove Unoriented Vertices</strong> to delete them instead.</p>
+<p>Implemented with CGAL’s Point Set Processing.</p>
+<p>Reference:
+Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>Surface Reconstruction from Unorganized Points</strong>, SIGGRAPH 1992.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>neighbors</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">18</span></code>) — Number of nearest neighbours linked in the Riemannian graph. Larger values bridge sparse regions but risk propagating orientation across thin structures.</p></li>
+<li><p><strong>removeUnoriented</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Delete the vertices whose normals could not be oriented instead of leaving them untouched. They are usually disconnected components.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="compute-obscurance">
 <span id="filter-compute-obscurance"></span><h2>Compute Obscurance<a class="headerlink" href="#compute-obscurance" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.embree</p>
@@ -2426,6 +2449,40 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
+<section id="reconstruct-surface-by-kinetic-partition">
+<span id="filter-generate-kinetic-reconstruction"></span><h2>Reconstruct Surface by Kinetic Partition<a class="headerlink" href="#reconstruct-surface-by-kinetic-partition" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
+<p>Reconstruct a piecewise-planar surface from oriented points by kinetic space partition and min-cut.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_kinetic_reconstruction">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_kinetic_reconstruction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_kinetic_reconstruction" title="Link to this definition">¶</a></dt>
+<dd><p>A piecewise-planar reconstruction pipeline, run end to end by this one filter:</p>
+<ol class="arabic simple">
+<li><p><strong>Shape detection</strong> finds planar regions in the point cloud.</p></li>
+<li><p><strong>Regularization</strong> aligns those planes where they are nearly parallel, coplanar or orthogonal.</p></li>
+<li><p><strong>Kinetic space partition</strong> propagates the planes until they collide, cutting the bounding box into convex volumes.</p></li>
+<li><p><strong>Min-cut</strong> labels each volume inside or outside; the surface is the boundary between the two labels.</p></li>
+</ol>
+<p>Because the output is built from detected planes rather than fitted to the samples, it is planar <strong>by construction</strong> — which suits buildings, rooms and other man-made shapes far better than a smooth reconstruction, and is quite unsuitable for organic ones.</p>
+<p><strong>Requires oriented normals.</strong> Run <em>Compute Point Cloud Normals</em> and then <em>Orient Point Cloud Normals</em> first if the layer has none.</p>
+<p><strong>Maximum Distance</strong> is the most important setting: it is how far a point may sit from a plane and still belong to it, so it must be set to the scale of the noise in the data. <strong>Lambda</strong> trades faithfulness against simplicity — higher values give fewer, larger facets.</p>
+<p>The reconstruction emits convex polygons, which this filter fan-triangulates because QMeshLab stores triangle meshes.</p>
+<p>Implemented with CGAL’s Kinetic Surface Reconstruction.</p>
+<p>Reference:
+Sven Oesau, Florent Lafarge, <strong>Kinetic Shape Reconstruction</strong>, ACM Transactions on Graphics 39(5), 2020.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maximumDistance</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — How far a point may lie from a plane and still be assigned to it. Set this to the noise scale of the data; it is the setting that most affects the result.</p></li>
+<li><p><strong>maximumAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">15.0</span></code>) — Largest angle between a point’s normal and its plane’s normal for the point to be assigned to that plane.</p></li>
+<li><p><strong>lambda</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Trades data faithfulness against model complexity, in [0, 1). Higher values give a simpler surface with fewer facets.</p></li>
+<li><p><strong>minimumRegionSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">50</span></code>) — Smallest number of points a detected planar region must contain to be kept.</p></li>
+<li><p><strong>kNeighbors</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">12</span></code>) — Number of nearest neighbours used when growing planar regions.</p></li>
+<li><p><strong>intersections</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — How many times propagating planes may intersect before the partition stops. Higher values give a finer partition and cost considerably more.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="reconstruct-surface-by-marching-cubes-apss">
 <span id="filter-generate-marching-cubes-apss"></span><h2>Reconstruct Surface by Marching Cubes (APSS)<a class="headerlink" href="#reconstruct-surface-by-marching-cubes-apss" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.mls</p>
@@ -2479,6 +2536,36 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>resolution</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Resolution of the side of the cubic grid used for volume creation.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="reconstruct-surface-by-poisson-cgal">
+<span id="filter-generate-poisson-reconstruction-cgal"></span><h2>Reconstruct Surface by Poisson (CGAL)<a class="headerlink" href="#reconstruct-surface-by-poisson-cgal" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.cgal</p>
+<p>Reconstruct a watertight surface from oriented points with CGAL’s Poisson solver.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_poisson_reconstruction_cgal">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_poisson_reconstruction_cgal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_poisson_reconstruction_cgal" title="Link to this definition">¶</a></dt>
+<dd><p>Solves the Poisson equation for an implicit function whose gradient best matches the input normal field, then extracts its zero level set.</p>
+<p>It differs from <em>Reconstruct Surface by Screened Poisson</em> in how that level set is <strong>meshed</strong>: CGAL uses Delaunay refinement rather than marching cubes, so the output is manifold with well-shaped triangles and a size driven by the sampling, at the cost of being slower. The two are worth comparing on the same cloud — that is why both are here.</p>
+<p><strong>Requires oriented normals.</strong> If the layer has none, run <em>Compute Point Cloud Normals</em> and then <em>Orient Point Cloud Normals</em> first.</p>
+<p>Triangle size and quality are controlled relative to the estimated average point spacing:</p>
+<ul class="simple">
+<li><p><strong>Minimum Angle</strong> — the lower bound on triangle angles, in degrees.</p></li>
+<li><p><strong>Maximum Radius</strong> — largest triangle circumradius, as a multiple of the spacing.</p></li>
+<li><p><strong>Approximation Error</strong> — how far the mesh may deviate from the level set, as a multiple of the spacing.</p></li>
+</ul>
+<p>Implemented with CGAL’s Poisson Surface Reconstruction.</p>
+<p>Reference:
+Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, <strong>Poisson Surface Reconstruction</strong>, Symposium on Geometry Processing 2006.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>smAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">20.0</span></code>) — Lower bound on the angles of the output triangles. Lower values are easier to satisfy; CGAL’s default is 20.</p></li>
+<li><p><strong>smRadius</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Largest triangle circumradius, as a multiple of the estimated average point spacing. Smaller values give a denser mesh.</p></li>
+<li><p><strong>smDistance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.375</span></code>) — How far the mesh may deviate from the implicit surface, as a multiple of the average point spacing. Smaller values follow the data more closely and cost more.</p></li>
+<li><p><strong>spacingNeighbors</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">6</span></code>) — Number of neighbours used to estimate the average point spacing that the three settings above are relative to.</p></li>
 </ul>
 </dd></dl>
 
@@ -5775,6 +5862,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_normal_from_cameras_per_vertex"><code class="docutils literal notranslate"><span class="pre">ms.compute_normal_from_cameras_per_vertex()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#orient-point-cloud-normals">Orient Point Cloud Normals</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_normal_orientation_per_vertex"><code class="docutils literal notranslate"><span class="pre">ms.compute_normal_orientation_per_vertex()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#compute-obscurance">Compute Obscurance</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_obscurance"><code class="docutils literal notranslate"><span class="pre">ms.compute_obscurance()</span></code></a></li>
 </ul>
@@ -6079,6 +6170,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_xor"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_xor()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#reconstruct-surface-by-kinetic-partition">Reconstruct Surface by Kinetic Partition</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_kinetic_reconstruction"><code class="docutils literal notranslate"><span class="pre">ms.generate_kinetic_reconstruction()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#reconstruct-surface-by-marching-cubes-apss">Reconstruct Surface by Marching Cubes (APSS)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_marching_cubes_apss"><code class="docutils literal notranslate"><span class="pre">ms.generate_marching_cubes_apss()</span></code></a></li>
 </ul>
@@ -6089,6 +6184,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#create-isosurface-from-perlin-noise">Create Isosurface from Perlin Noise</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_noisy_isosurface"><code class="docutils literal notranslate"><span class="pre">ms.generate_noisy_isosurface()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#reconstruct-surface-by-poisson-cgal">Reconstruct Surface by Poisson (CGAL)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_poisson_reconstruction_cgal"><code class="docutils literal notranslate"><span class="pre">ms.generate_poisson_reconstruction_cgal()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#sample-volume">Sample Volume</a><ul>
