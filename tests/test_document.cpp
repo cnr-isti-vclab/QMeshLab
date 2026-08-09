@@ -36,7 +36,7 @@ private slots:
     void logReplaceLastEntryOnCarriageReturn();
     void loadMeshAddsLayerAndEmitsSignal();
     void planarPolygonTessellationHandlesConcavity();
-    void loadConcavePolygonalOffPreservesFauxEdges();
+    void loadConcavePolygonFormatsPreserveFauxEdges();
     void loadObjWithMissingMaterialLibrary();
     void addRasterImageCreatesDocumentLayer();
     void currentLayerKindFollowsMeshAndRasterSelection();
@@ -224,33 +224,46 @@ void DocumentTests::planarPolygonTessellationHandlesConcavity()
     QCOMPARE(unchanged.front(), 42);
 }
 
-void DocumentTests::loadConcavePolygonalOffPreservesFauxEdges()
+void DocumentTests::loadConcavePolygonFormatsPreserveFauxEdges()
 {
-    Document doc;
-    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/concave_polygon.off");
+    for (const QString &extension : { QStringLiteral("off"), QStringLiteral("obj"), QStringLiteral("ply") }) {
+        Document doc;
+        const bool forceVcgObj = extension == QLatin1String("obj");
+        const QString oldObjPreference = doc.preferredImportPluginForExtension(QStringLiteral("obj"));
+        const auto restorePreference = qScopeGuard([&] {
+            if (forceVcgObj)
+                doc.setPreferredImportPluginForExtension(QStringLiteral("obj"), oldObjPreference);
+        });
+        if (forceVcgObj)
+            doc.setPreferredImportPluginForExtension(extension, QStringLiteral("io_vcg"));
 
-    QCOMPARE(doc.loadMesh(path), 0);
-    const Document::MeshEntry &entry = doc.mesh(0);
-    QCOMPARE(entry.mesh.VN(), 8);
-    QCOMPARE(entry.mesh.FN(), 3);
-    QVERIFY(entry.ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+        const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/concave_polygon.%1").arg(extension);
+        QCOMPARE(doc.loadMesh(path), 0);
+        const Document::MeshEntry &entry = doc.mesh(0);
+        QCOMPARE(entry.mesh.VN(), 8);
+        QCOMPARE(entry.mesh.FN(), 3);
+        QVERIFY(entry.ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL);
 
-    const VCGVertex *vertexBase = entry.mesh.vert.data();
-    const QSet<int> polygonVertices = { 2, 4, 5, 6, 7 };
-    int fauxEdgeCount = 0;
-    double triangulatedArea = 0.0;
-    for (const VCGFace &face : entry.mesh.face) {
-        for (int corner = 0; corner < 3; ++corner) {
-            QVERIFY(polygonVertices.contains(int(face.cV(corner) - vertexBase)));
-            fauxEdgeCount += face.IsF(corner) ? 1 : 0;
+        const VCGVertex *vertexBase = entry.mesh.vert.data();
+        const QSet<int> polygonVertices = { 2, 4, 5, 6, 7 };
+        int fauxEdgeCount = 0;
+        double triangulatedArea = 0.0;
+        for (const VCGFace &face : entry.mesh.face) {
+            for (int corner = 0; corner < 3; ++corner) {
+                QVERIFY(polygonVertices.contains(int(face.cV(corner) - vertexBase)));
+                fauxEdgeCount += face.IsF(corner) ? 1 : 0;
+            }
+            triangulatedArea += vcg::DoubleArea(face) * 0.5;
         }
-        triangulatedArea += vcg::DoubleArea(face) * 0.5;
-    }
 
-    // A pentagon has two internal diagonals, each marked faux on both incident triangles.
-    QCOMPARE(fauxEdgeCount, 4);
-    // Ear clipping covers the concave polygon without the overlap produced by a fan.
-    QVERIFY(std::abs(triangulatedArea - 2.5) < 1e-6);
+        // A pentagon has two internal diagonals, each marked faux on both incident triangles.
+        QCOMPARE(fauxEdgeCount, 4);
+        // Ear clipping covers the concave polygon without the overlap produced by a fan.
+        QVERIFY(std::abs(triangulatedArea - 2.5) < 1e-6);
+        if (extension == QLatin1String("ply"))
+            for (const VCGFace &face : entry.mesh.face)
+                QVERIFY(face.cC() == vcg::Color4b(10, 20, 30, 40));
+    }
 }
 
 void DocumentTests::loadObjWithMissingMaterialLibrary()
