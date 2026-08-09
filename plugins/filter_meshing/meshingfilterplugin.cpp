@@ -1330,8 +1330,8 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::Clean<PMesh>::RemoveUnreferencedVertex(baseIn);
             vcg::tri::Allocator<PMesh>::CompactEveryVector(baseIn);
             vcg::tri::CatmullClark<PMesh>::Refine(baseIn, refinedOut, it);
-            mesh.Clear();
-            vcg::tri::PolygonSupport<VCGMesh, PMesh>::ImportFromPolyMesh(mesh, refinedOut);
+            if (!vcg::tri::PolygonSupport<VCGMesh, PMesh>::ImportFromPolyMesh(mesh, refinedOut))
+                return fail(QObject::tr("Catmull-Clark produced a non-simple or non-planar polygon."));
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerBitPolygonFaceNormalized(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexFromCurrentFaceNormal(mesh);
@@ -1348,8 +1348,8 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::Clean<PMesh>::RemoveUnreferencedVertex(baseIn);
             vcg::tri::Allocator<PMesh>::CompactEveryVector(baseIn);
             vcg::tri::DooSabin<PMesh>::Refine(baseIn, refinedOut);
-            mesh.Clear();
-            vcg::tri::PolygonSupport<VCGMesh, PMesh>::ImportFromPolyMesh(mesh, refinedOut);
+            if (!vcg::tri::PolygonSupport<VCGMesh, PMesh>::ImportFromPolyMesh(mesh, refinedOut))
+                return fail(QObject::tr("Doo-Sabin produced a non-simple or non-planar polygon."));
             vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerBitPolygonFaceNormalized(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexFromCurrentFaceNormal(mesh);

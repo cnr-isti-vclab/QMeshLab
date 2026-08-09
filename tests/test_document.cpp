@@ -8,6 +8,7 @@
 
 #include "document.h"
 #include <vcg/complex/allocate.h>
+#include <vcg/space/planar_polygon_tessellation.h>
 #include <wrap/io_trimesh/io_mask.h>
 
 namespace {
@@ -34,6 +35,7 @@ private slots:
     void cameraShotRenderMatricesMatchProjection();
     void logReplaceLastEntryOnCarriageReturn();
     void loadMeshAddsLayerAndEmitsSignal();
+    void planarPolygonTessellationHandlesConcavity();
     void loadConcavePolygonalOffPreservesFauxEdges();
     void loadObjWithMissingMaterialLibrary();
     void addRasterImageCreatesDocumentLayer();
@@ -173,6 +175,53 @@ void DocumentTests::loadMeshAddsLayerAndEmitsSignal()
 
     const auto &log = doc.logMessages();
     QVERIFY(!log.empty());
+}
+
+void DocumentTests::planarPolygonTessellationHandlesConcavity()
+{
+    const std::vector<std::vector<vcg::Point3d>> polygons = {
+        { { 0, 100, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 1, 0, 0 } },
+        { { 0, 0, 0 }, { 3, 0, 0 }, { 3, 3, 0 }, { 2, 3, 0 },
+          { 2, 1, 0 }, { 1, 1, 0 }, { 1, 3, 0 }, { 0, 3, 0 } },
+        { { 0, 1, 0 }, { 2, 1, 0 }, { 2, 0, 0 }, { 1, 0, 0 }, { 0, 0, 0 } }
+    };
+
+    for (const auto &polygon : polygons) {
+        std::vector<int> triangles;
+        QVERIFY(vcg::TessellatePlanarPolygon3(polygon, triangles));
+        QCOMPARE(triangles.size(), 3 * (polygon.size() - 2));
+
+        double polygonDoubleArea = 0.0;
+        for (size_t i = 0; i < polygon.size(); ++i)
+            polygonDoubleArea += polygon[i].X() * polygon[(i + 1) % polygon.size()].Y()
+                - polygon[i].Y() * polygon[(i + 1) % polygon.size()].X();
+
+        double triangleDoubleArea = 0.0;
+        for (size_t i = 0; i < triangles.size(); i += 3) {
+            const vcg::Point3d &a = polygon[triangles[i]];
+            const vcg::Point3d &b = polygon[triangles[i + 1]];
+            const vcg::Point3d &c = polygon[triangles[i + 2]];
+            const double area = ((b - a) ^ (c - a)).Z();
+            QVERIFY(area * polygonDoubleArea > 0.0);
+            triangleDoubleArea += area;
+        }
+        QVERIFY(std::abs(triangleDoubleArea - polygonDoubleArea) < 1e-9);
+    }
+
+    const std::vector<vcg::Point3d> vertical = {
+        { 0, 0, 0 }, { 2, 0, 0 }, { 2, 0, 2 }, { 1, 0, 0.5 }, { 0, 0, 2 }
+    };
+    std::vector<int> verticalTriangles;
+    QVERIFY(vcg::TessellatePlanarPolygon3(vertical, verticalTriangles));
+    QCOMPARE(verticalTriangles.size(), size_t(9));
+
+    const std::vector<vcg::Point3d> duplicate = {
+        { 0, 0, 0 }, { 1, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 }
+    };
+    std::vector<int> unchanged = { 42 };
+    QVERIFY(!vcg::TessellatePlanarPolygon3(duplicate, unchanged));
+    QCOMPARE(unchanged.size(), size_t(1));
+    QCOMPARE(unchanged.front(), 42);
 }
 
 void DocumentTests::loadConcavePolygonalOffPreservesFauxEdges()
