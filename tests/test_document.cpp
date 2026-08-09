@@ -34,6 +34,7 @@ private slots:
     void cameraShotRenderMatricesMatchProjection();
     void logReplaceLastEntryOnCarriageReturn();
     void loadMeshAddsLayerAndEmitsSignal();
+    void loadConcavePolygonalOffPreservesFauxEdges();
     void loadObjWithMissingMaterialLibrary();
     void addRasterImageCreatesDocumentLayer();
     void currentLayerKindFollowsMeshAndRasterSelection();
@@ -172,6 +173,35 @@ void DocumentTests::loadMeshAddsLayerAndEmitsSignal()
 
     const auto &log = doc.logMessages();
     QVERIFY(!log.empty());
+}
+
+void DocumentTests::loadConcavePolygonalOffPreservesFauxEdges()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/concave_polygon.off");
+
+    QCOMPARE(doc.loadMesh(path), 0);
+    const Document::MeshEntry &entry = doc.mesh(0);
+    QCOMPARE(entry.mesh.VN(), 8);
+    QCOMPARE(entry.mesh.FN(), 3);
+    QVERIFY(entry.ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+
+    const VCGVertex *vertexBase = entry.mesh.vert.data();
+    const QSet<int> polygonVertices = { 2, 4, 5, 6, 7 };
+    int fauxEdgeCount = 0;
+    double triangulatedArea = 0.0;
+    for (const VCGFace &face : entry.mesh.face) {
+        for (int corner = 0; corner < 3; ++corner) {
+            QVERIFY(polygonVertices.contains(int(face.cV(corner) - vertexBase)));
+            fauxEdgeCount += face.IsF(corner) ? 1 : 0;
+        }
+        triangulatedArea += vcg::DoubleArea(face) * 0.5;
+    }
+
+    // A pentagon has two internal diagonals, each marked faux on both incident triangles.
+    QCOMPARE(fauxEdgeCount, 4);
+    // Ear clipping covers the concave polygon without the overlap produced by a fan.
+    QVERIFY(std::abs(triangulatedArea - 2.5) < 1e-6);
 }
 
 void DocumentTests::loadObjWithMissingMaterialLibrary()
