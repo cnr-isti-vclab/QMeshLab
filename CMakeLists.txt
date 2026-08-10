@@ -180,6 +180,7 @@ qt_add_executable(QMeshLab
     src/render/viewtrackball.h
     src/render/viewstate.h
     src/render/renderoverlaypanel.h src/render/renderoverlaypanel.cpp
+    src/render/viewaxisgizmo.h src/render/viewaxisgizmo.cpp
     src/render/interactivetool.h src/render/interactivetoolfactory.cpp
     src/render/tools/selectlayertool.h src/render/tools/selectlayertool.cpp
     src/render/tools/rubberbandselecttool.h src/render/tools/rubberbandselecttool.cpp

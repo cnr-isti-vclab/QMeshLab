@@ -4,6 +4,7 @@
 #include "interactivetool.h"
 #include "linerenderer.h"
 #include "renderwidget_internal.h"
+#include "viewaxisgizmo.h"
 #include <QLabel>
 #include <algorithm>
 #include <cmath>
@@ -250,7 +251,13 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
 
     if (!rasterMode) {
         advanceCenterAnimation();
+        // After the center: it reads the animated center back out of the state.
+        advanceRotationAnimation();
         emitCameraStateChangedIfNeeded();
+        // Every camera change funnels through a frame, so this is the one place
+        // that keeps the gizmo in sync without touching each navigation path.
+        if (m_axisGizmo)
+            m_axisGizmo->setOrientation(m_trackball.state().rotation);
     } else {
         m_depthPickPending = false;
     }

@@ -4,6 +4,7 @@
 #include "interactivetool.h"
 #include "qualityrange.h"
 #include "renderoverlaypanel.h"
+#include "viewaxisgizmo.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/update/topology.h>
@@ -1834,6 +1835,7 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
         updateBoundingBoxCornersOverlay();
     if (errorMessage)
         errorMessage->clear();
+    layoutOverlayButtons();
     update();
     return true;
 }
@@ -1956,11 +1958,53 @@ void RenderWidget::advanceCenterAnimation()
     }
 }
 
+void RenderWidget::advanceRotationAnimation()
+{
+    if (!m_rotationAnimActive)
+        return;
+
+    ViewTrackball::State st = m_trackball.state();
+    // Whatever else moves the camera wins: if the rotation is no longer the one
+    // written last frame, a drag or a restored view has overtaken the animation
+    // and it should drop out rather than fight for the trackball. Cheaper and
+    // harder to get wrong than cancelling from every navigation path.
+    if (!qFuzzyCompare(st.rotation, m_rotationAnimLastApplied)) {
+        m_rotationAnimActive = false;
+        return;
+    }
+
+    if (!m_rotationAnimTimer.isValid())
+        m_rotationAnimTimer.start();
+
+    const float t = std::clamp(
+        float(m_rotationAnimTimer.elapsed()) / float(qMax(1, m_rotationAnimDurationMs)),
+        0.0f,
+        1.0f);
+    const float eased = (t < 0.5f)
+        ? (4.0f * t * t * t)
+        : (1.0f - std::pow(-2.0f * t + 2.0f, 3.0f) / 2.0f);
+
+    st.rotation = (t >= 1.0f)
+        ? m_rotationAnimTarget
+        : QQuaternion::slerp(m_rotationAnimStart, m_rotationAnimTarget, eased);
+    m_trackball.setState(st);
+    // Read back: setState normalizes, and the comparison above must match it.
+    m_rotationAnimLastApplied = m_trackball.state().rotation;
+
+    if (t >= 1.0f)
+        m_rotationAnimActive = false;
+    else
+        update();
+}
+
 void RenderWidget::createOverlayButtons()
 {
     m_overlayPanel = new RenderOverlayPanel(this);
     m_overlayPanel->setViewerModeUv(m_viewMode == ViewMode::ParametrizationUV);
     m_overlayPanel->setGlobalSettings(m_renderSettings);
+
+    m_axisGizmo = new ViewAxisGizmo(this);
+    connect(m_axisGizmo, &ViewAxisGizmo::axisPicked, this, &RenderWidget::snapCameraToAxis);
     auto makeCornerLabel = [this](const QColor &textColor) {
         auto *label = new QLabel(this);
         label->setVisible(false);
@@ -2240,13 +2284,55 @@ void RenderWidget::layoutOverlayButtons()
         m_toolBadgeLabel->raise();
     }
 
+    // The gizmo takes the top-right corner, so everything else on that side
+    // starts below it rather than underneath it.
+    int rightColumnTop = kOverlayMargin;
+    if (m_axisGizmo) {
+        // Position on the intended visibility, not isVisible(): before the view
+        // is first shown isVisible() is still false, so gating on it left the
+        // gizmo parked at its construction position in the top-left corner.
+        const bool gizmoVisible = (m_viewMode == ViewMode::Scene3D);
+        m_axisGizmo->setVisible(gizmoVisible);
+        if (gizmoVisible) {
+            const int x = width() - m_axisGizmo->width() - kOverlayMargin;
+            m_axisGizmo->move(qMax(kOverlayMargin, x), kOverlayMargin);
+            m_axisGizmo->raise();
+            rightColumnTop = m_axisGizmo->y() + m_axisGizmo->height() + kOverlayMargin;
+        }
+    }
+
     if (m_decoratorInfoOverlayLabel && m_decoratorInfoOverlayLabel->isVisible()) {
         m_decoratorInfoOverlayLabel->adjustSize();
         const int x = width() - m_decoratorInfoOverlayLabel->width() - kOverlayMargin;
-        m_decoratorInfoOverlayLabel->move(qMax(kOverlayMargin, x), kOverlayMargin);
+        m_decoratorInfoOverlayLabel->move(qMax(kOverlayMargin, x), rightColumnTop);
         m_decoratorInfoOverlayLabel->raise();
     }
     layoutUvTextureGroupUi();
+}
+
+void RenderWidget::snapCameraToAxis(const QVector3D &axis)
+{
+    if (m_viewMode != ViewMode::Scene3D)
+        return;
+    emit viewActivated(this);
+    const ViewTrackball::State st = m_trackball.state();
+
+    // Derive the target on a copy so the look-at math stays in one place;
+    // setFromLookAt keeps radius, so framing and clip planes are untouched and
+    // only the viewing direction changes.
+    ViewTrackball target = m_trackball;
+    target.setFromLookAt(st.center + axis * st.distance, st.center, st.fovYDeg);
+    const QQuaternion targetRotation = target.state().rotation;
+    if (qFuzzyCompare(st.rotation, targetRotation))
+        return;
+
+    m_rotationAnimStart = st.rotation;
+    m_rotationAnimTarget = targetRotation;
+    m_rotationAnimLastApplied = st.rotation;
+    m_rotationAnimTimer.restart();
+    m_rotationAnimActive = true;
+    updateBoundingBoxCornersOverlay();
+    update();
 }
 
 void RenderWidget::setHelpOverlayVisible(bool visible)

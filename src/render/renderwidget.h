@@ -25,6 +25,7 @@
 class Document;
 class InteractiveTool;
 class RenderOverlayPanel;
+class ViewAxisGizmo;
 class QLabel;
 class QListWidget;
 class QTimer;
@@ -307,6 +308,8 @@ struct SceneRasterProjectedDrawItem {
 
     void createOverlayButtons();
     void layoutOverlayButtons();
+    // Move the camera onto the given world axis, keeping center and distance.
+    void snapCameraToAxis(const QVector3D &axis);
     void showInteractionStatusOverlay(const QString &text, bool persistent = false);
     void emitCameraStateChangedIfNeeded();
     bool computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const;
@@ -412,6 +415,7 @@ struct SceneRasterProjectedDrawItem {
     void startCenterAnimation(const QVector3D &targetCenter);
     void cancelCenterAnimation();
     void advanceCenterAnimation();
+    void advanceRotationAnimation();
     void updateCameraFrameIfNeeded();
     void ensureVisibilitySize();
     int fillGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const;
@@ -513,6 +517,14 @@ struct SceneRasterProjectedDrawItem {
     QVector3D m_centerAnimTarget;
     QElapsedTimer m_centerAnimTimer;
     int m_centerAnimDurationMs = 200;
+    bool m_rotationAnimActive = false;
+    QQuaternion m_rotationAnimStart;
+    QQuaternion m_rotationAnimTarget;
+    // Last rotation the animation itself wrote, so it can tell whether anything
+    // else has since taken the camera over.
+    QQuaternion m_rotationAnimLastApplied;
+    QElapsedTimer m_rotationAnimTimer;
+    int m_rotationAnimDurationMs = 220;
 
     std::unique_ptr<QRhiBuffer> m_ubuf;
     std::unique_ptr<QRhiSampler> m_textureSampler;
@@ -698,6 +710,7 @@ struct SceneRasterProjectedDrawItem {
     QPointF m_lightDragLastPos;
     RenderSettings m_renderSettings;
     RenderOverlayPanel *m_overlayPanel = nullptr;
+    ViewAxisGizmo *m_axisGizmo = nullptr;
     QWidget *m_currentViewIndicator = nullptr;
     bool m_currentViewHighlighted = false;
     QLabel *m_bboxMinCornerOverlayLabel = nullptr;
