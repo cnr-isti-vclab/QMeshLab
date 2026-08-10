@@ -13,5 +13,5 @@
 	url = https://github.com/alecjacobson/qslim.git
 [submodule "external/quadwild-bimdf"]
 	path = external/quadwild-bimdf
-	url = https://github.com/cgg-bern/quadwild-bimdf.git
+	url = ../../cgg-bern/quadwild-bimdf.git
 	branch = main
