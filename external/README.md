@@ -46,3 +46,17 @@ Initialize it after cloning with:
 ```sh
 git submodule update --init external/qslim
 ```
+
+## QuadWild-BiMDF
+
+QMeshLab keeps the GPL-3.0-or-later QuadWild-BiMDF command-line pipeline in a pinned,
+recursive submodule. Its two required executables are built in an isolated
+CMake project and bundled with QMeshLab; no upstream types or targets enter the
+application. Integration details and the update procedure are documented in
+[`plugins/filter_quadwild/UPSTREAM.md`](../plugins/filter_quadwild/UPSTREAM.md).
+
+Initialize it after cloning with:
+
+```sh
+git submodule update --init --recursive external/quadwild-bimdf
+```

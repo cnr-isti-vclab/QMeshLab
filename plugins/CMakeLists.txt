@@ -95,6 +95,12 @@ if (TARGET QMeshLabPluginFilterInstantMeshes)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_INSTANT_MESHES_ENABLED=1)
 endif()
 
+add_subdirectory(filter_quadwild)
+if (TARGET QMeshLabPluginFilterQuadWild)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterQuadWild)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_QUADWILD_ENABLED=1)
+endif()
+
 add_subdirectory(filter_meshing)
 if (TARGET QMeshLabPluginFilterMeshing)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterMeshing)

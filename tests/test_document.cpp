@@ -9,6 +9,7 @@
 #include "document.h"
 #include <vcg/complex/allocate.h>
 #include <vcg/space/planar_polygon_tessellation.h>
+#include <wrap/io_trimesh/import_obj.h>
 #include <wrap/io_trimesh/io_mask.h>
 
 namespace {
@@ -222,6 +223,14 @@ void DocumentTests::planarPolygonTessellationHandlesConcavity()
     QVERIFY(!vcg::TessellatePlanarPolygon3(duplicate, unchanged));
     QCOMPARE(unchanged.size(), size_t(1));
     QCOMPARE(unchanged.front(), 42);
+
+    const std::vector<vcg::Point3d> nonPlanarQuad = {
+        { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0.1 }, { 0, 1, 0 }
+    };
+    std::vector<int> projectedTriangles;
+    QVERIFY(!vcg::TessellatePlanarPolygon3(nonPlanarQuad, projectedTriangles));
+    QVERIFY(vcg::TessellatePlanarPolygon3(nonPlanarQuad, projectedTriangles, false));
+    QCOMPARE(projectedTriangles.size(), size_t(6));
 }
 
 void DocumentTests::loadConcavePolygonFormatsPreserveFauxEdges()
@@ -264,6 +273,22 @@ void DocumentTests::loadConcavePolygonFormatsPreserveFauxEdges()
             for (const VCGFace &face : entry.mesh.face)
                 QVERIFY(face.cC() == vcg::Color4b(10, 20, 30, 40));
     }
+
+    VCGMesh fallbackQuad;
+    int mask = 0;
+    const QByteArray path = QFile::encodeName(
+        QStringLiteral(TEST_SOURCE_DIR "/tests/data/quad_projection_fallback.obj"));
+    vcg::tri::io::ImporterOBJ<VCGMesh>::LoadMask(path.constData(), mask);
+    const int warning = vcg::tri::io::ImporterOBJ<VCGMesh>::Open(
+        fallbackQuad, path.constData(), mask);
+    QVERIFY(warning != 0);
+    QVERIFY(!vcg::tri::io::ImporterOBJ<VCGMesh>::ErrorCritical(warning));
+    QCOMPARE(fallbackQuad.FN(), 2);
+    int fauxEdgeCount = 0;
+    for (const VCGFace &face : fallbackQuad.face)
+        for (int edge = 0; edge < 3; ++edge)
+            fauxEdgeCount += face.IsF(edge) ? 1 : 0;
+    QCOMPARE(fauxEdgeCount, 2);
 }
 
 void DocumentTests::loadObjWithMissingMaterialLibrary()

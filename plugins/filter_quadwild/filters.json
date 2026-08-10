@@ -1,0 +1,69 @@
+{
+  "pluginId": "qmeshlab.filter.quadwild",
+  "provenance": {
+    "project": "QuadWild-BiMDF",
+    "repository": "https://github.com/cgg-bern/quadwild-bimdf",
+    "license": "GPL-3.0-or-later",
+    "integration": "external/quadwild-bimdf"
+  },
+  "references": [
+    {
+      "id": "pietroni2021reliable",
+      "type": "article-journal",
+      "title": "Reliable Feature-Line Driven Quad-Remeshing",
+      "author": [
+        {"family": "Pietroni", "given": "Nico"},
+        {"family": "Nuvoli", "given": "Stefano"},
+        {"family": "Alderighi", "given": "Thomas"},
+        {"family": "Cignoni", "given": "Paolo"},
+        {"family": "Tarini", "given": "Marco"}
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "publisher": "Association for Computing Machinery",
+      "volume": "40",
+      "issue": "4",
+      "page": "155:1-155:17",
+      "issued": {"date-parts": [[2021, 7]]},
+      "DOI": "10.1145/3450626.3459941",
+      "URL": "https://www.quadmesh.cloud/"
+    },
+    {
+      "id": "heistermann2023bimdf",
+      "type": "article-journal",
+      "title": "Min-Deviation-Flow in Bi-directed Graphs for T-Mesh Quantization",
+      "author": [
+        {"family": "Heistermann", "given": "Martin"},
+        {"family": "Warnett", "given": "Jethro"},
+        {"family": "Bommes", "given": "David"}
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "publisher": "ACM",
+      "volume": "42",
+      "issue": "4",
+      "issued": {"date-parts": [[2023]]},
+      "DOI": "10.1145/3592437",
+      "URL": "https://www.algohex.eu/publications/bimdf-quantization"
+    }
+  ],
+  "filters": [
+    {
+      "id": "remesh_to_quads_quadwild_bimdf",
+      "categories": ["Meshing/Remeshing"],
+      "name": "Remesh to Quads (QuadWild-BiMDF)",
+      "pythonName": "remesh_to_quads_quadwild_bimdf",
+      "referenceIds": ["pietroni2021reliable", "heistermann2023bimdf"],
+      "shortDescription": "Generate a feature-aligned pure-quad mesh with QuadWild and its open-source Bi-MDF quantizer.",
+      "longDescriptionMarkdown": "Runs the original **QuadWild** feature-line-driven remeshing pipeline, using the open-source **Bi-MDF** solver from the cgg-bern fork instead of the commercial Gurobi solver. The method computes a feature-aligned cross field, traces a coarse patch layout that may contain T-junctions and non-quadrilateral patches, and quantizes and tessellates that layout into a conforming pure-quad mesh.\n\nQMeshLab invokes the two unmodified upstream helper executables in an isolated temporary directory. Their crashes and process-level exits therefore cannot terminate QMeshLab. The result is imported through VCGLib: each quad becomes two triangles joined by a faux edge, preserving polygonal rendering and saving. Geometry is created in a new layer with the input layer transform; input attributes, selections, textures and materials are not transferred.\n\n**Feature-aware** detects creases above 35 degrees and is intended for mechanical or CAD-like surfaces. **Organic** disables automatic sharp-feature detection. **Output scale** is QuadWild's dimensionless `scaleFact`: larger values generate larger, fewer quads. This is an expensive global algorithm and can take substantial time on complex meshes.",
+      "tags": ["meshing", "remeshing", "quadrangulation", "QuadWild", "Bi-MDF", "archival"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {"requireVertices": true, "requireFaces": true},
+      "parameters": [
+        {"id":"surfacePreset","label":"Surface preset","help":"Feature-aware detects sharp creases; Organic treats the surface as smooth.","group":"main","type":"enum","default":"feature_aware","enumOptions":[{"id":"feature_aware","label":"Feature-aware"},{"id":"organic","label":"Organic"}]},
+        {"id":"outputScale","label":"Output scale","help":"Dimensionless QuadWild scale factor. Larger values produce larger and fewer quads.","group":"main","type":"double","default":1.0,"min":0.05,"max":20.0,"decimals":3},
+        {"id":"alignSingularities","label":"Align singularities","help":"Encourage irregular vertices to align across the patch layout.","group":"advanced","type":"bool","default":true},
+        {"id":"smoothOutput","label":"Smoothed output","help":"Import QuadWild's surface-projected smoothed result instead of the unsmoothed quadrangulation.","group":"advanced","type":"bool","default":true}
+      ]
+    }
+  ]
+}

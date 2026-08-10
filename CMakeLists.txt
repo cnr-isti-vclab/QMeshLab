@@ -1,4 +1,15 @@
 cmake_minimum_required(VERSION 3.25)
+
+# Must precede project(): otherwise the minimum macOS version of the shipped
+# binaries silently becomes whatever the build machine happens to run. Apple
+# Silicon only, so the floor is 15.0 rather than the 13.0 Qt would allow.
+# Tested for emptiness, not DEFINED: existing build trees already carry an empty
+# cache entry, which a plain CACHE set() would refuse to overwrite. An explicit
+# -DCMAKE_OSX_DEPLOYMENT_TARGET still wins.
+if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 15.0)
+endif()
+
 project(QMeshLab LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -214,6 +225,10 @@ target_link_libraries(QMeshLab PRIVATE
     Qt6::Widgets
     Qt6::GuiPrivate
 )
+
+if(COMMAND qmeshlab_bundle_quadwild)
+    qmeshlab_bundle_quadwild(QMeshLab)
+endif()
 
 if(QMESHLAB_PYTHON_CONSOLE)
     target_sources(QMeshLab PRIVATE

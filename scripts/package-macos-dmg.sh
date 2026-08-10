@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+#
+# Build an unsigned QMeshLab .dmg locally, mirroring .github/workflows/macos-dmg.yml.
+#
+#   scripts/package-macos-dmg.sh [--build-dir DIR] [--no-build] [--jobs N]
+#
+# Unlike the CI job this stages a copy of the bundle, so the build tree is never
+# mutated by macdeployqt and repeated runs stay reproducible.
+#
+set -euo pipefail
+
+APP_NAME=QMeshLab
+BUILD_DIR=build-release
+DO_BUILD=1
+JOBS=""
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--build-dir) BUILD_DIR="$2"; shift 2 ;;
+		--no-build)  DO_BUILD=0; shift ;;
+		--jobs)      JOBS="$2"; shift 2 ;;
+		-h|--help)   sed -n '2,9p' "$0"; exit 0 ;;
+		*) echo "unknown option: $1" >&2; exit 2 ;;
+	esac
+done
+
+cd "$(dirname "$0")/.."
+
+[ -f "$BUILD_DIR/CMakeCache.txt" ] || {
+	echo "No CMake cache in $BUILD_DIR - configure it first, e.g." >&2
+	echo "  cmake --preset vcpkg-manifest -B $BUILD_DIR -DCMAKE_BUILD_TYPE=Release" >&2
+	exit 1
+}
+
+if [ "$DO_BUILD" -eq 1 ]; then
+	cmake --build "$BUILD_DIR" ${JOBS:+-j "$JOBS"}
+fi
+
+STAGE="$BUILD_DIR/dist"
+APP="$STAGE/$APP_NAME.app"
+
+# Prune the staging dir, or a previous run's copy is picked as the source and
+# then destroyed by the rm below.
+APP_SRC="$(find "$BUILD_DIR" -path "$STAGE" -prune -o \
+	-maxdepth 3 -type d -name "$APP_NAME.app" -print -quit)"
+[ -n "$APP_SRC" ] || { echo "Could not find $APP_NAME.app under $BUILD_DIR" >&2; exit 1; }
+
+# Use the macdeployqt belonging to the Qt this build actually linked against;
+# a mismatched one from PATH silently produces a bundle that will not launch.
+QT_DIR="$(sed -n 's/^Qt6_DIR:[^=]*=//p' "$BUILD_DIR/CMakeCache.txt")"
+MACDEPLOYQT="$(cd "$QT_DIR/../../.." && pwd)/bin/macdeployqt"
+[ -x "$MACDEPLOYQT" ] || MACDEPLOYQT="$(command -v macdeployqt || true)"
+[ -x "$MACDEPLOYQT" ] || { echo "macdeployqt not found (Qt6_DIR=$QT_DIR)" >&2; exit 1; }
+
+rm -rf "$STAGE"
+mkdir -p "$STAGE"
+cp -R "$APP_SRC" "$APP"
+
+# Contents/MacOS holds executables only. Anything else is leftover output from
+# running the app in place, and would otherwise be shipped inside the dmg.
+find "$APP/Contents/MacOS" -type f | while IFS= read -r f; do
+	file "$f" | grep -q "Mach-O" || { echo "==> dropping stray $(basename "$f")"; rm -f "$f"; }
+done
+
+echo "==> macdeployqt ($MACDEPLOYQT)"
+# Homebrew splits Qt across formulas (qtbase, qtsvg, ...), so modules outside
+# qtbase are not on the main binary's rpath; point macdeployqt at the umbrella
+# lib dir so it can resolve them.
+QT_LIBDIR="$(cd "$QT_DIR/../.." && pwd)"
+"$MACDEPLOYQT" "$APP" -always-overwrite -libpath="$QT_LIBDIR"
+
+# Bundle libomp: it is a Homebrew dylib outside the .app, so an absolute link
+# path would break on any machine that does not have it installed.
+APP_BIN="$APP/Contents/MacOS/$APP_NAME"
+OMP_LINK_PATH="$(otool -L "$APP_BIN" | awk '/libomp\.dylib/ {print $1; exit}')"
+if [ -n "$OMP_LINK_PATH" ]; then
+	echo "==> embedding libomp"
+	OMP_ROOT="${OpenMP_ROOT:-$(brew --prefix libomp)}"
+	mkdir -p "$APP/Contents/Frameworks"
+	cp -f "$OMP_ROOT/lib/libomp.dylib" "$APP/Contents/Frameworks/"
+	chmod u+w "$APP/Contents/Frameworks/libomp.dylib"
+	install_name_tool -id "@rpath/libomp.dylib" "$APP/Contents/Frameworks/libomp.dylib"
+	install_name_tool -change "$OMP_LINK_PATH" \
+		"@executable_path/../Frameworks/libomp.dylib" "$APP_BIN"
+fi
+
+# install_name_tool invalidates the linker's ad-hoc signature; on Apple Silicon
+# an unsigned binary is killed on launch, so re-sign before packaging.
+echo "==> ad-hoc signing"
+codesign --force --deep --sign - "$APP"
+codesign --verify --deep "$APP"
+
+echo "==> building dmg"
+"$MACDEPLOYQT" "$APP" -always-overwrite -dmg
+GENERATED_DMG="$STAGE/$APP_NAME.dmg"
+[ -f "$GENERATED_DMG" ] || { echo "macdeployqt did not produce $GENERATED_DMG" >&2; exit 1; }
+
+# Give the mounted volume the app icon instead of the generic disk image one.
+APP_ICON="$(find "$APP/Contents/Resources" -maxdepth 1 -type f -name '*.icns' -print -quit)"
+if [ -n "$APP_ICON" ] && xcrun -f SetFile >/dev/null 2>&1; then
+	echo "==> setting volume icon"
+	RW_DMG="$STAGE/$APP_NAME-rw.dmg"
+	# hdiutil reports the resolved path, so /tmp would never match the device line.
+	MOUNT_POINT="$(cd "$(mktemp -d "/tmp/$APP_NAME.XXXXXX")" && pwd -P)"
+	hdiutil convert "$GENERATED_DMG" -format UDRW -o "${RW_DMG%.dmg}" >/dev/null
+	DEVICE_NAME="$(hdiutil attach "$RW_DMG" -mountpoint "$MOUNT_POINT" -nobrowse -readwrite |
+		awk -v mp="$MOUNT_POINT" '$NF == mp {print $1; exit}')"
+	if [ -n "$DEVICE_NAME" ]; then
+		cp -f "$APP_ICON" "$MOUNT_POINT/.VolumeIcon.icns"
+		xcrun SetFile -a C "$MOUNT_POINT"
+		xcrun SetFile -a V "$MOUNT_POINT/.VolumeIcon.icns"
+		sync
+		hdiutil detach "$DEVICE_NAME" >/dev/null
+		rm -f "$GENERATED_DMG"
+		hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 \
+			-o "${GENERATED_DMG%.dmg}" >/dev/null
+		rm -f "$RW_DMG"
+	else
+		echo "Could not mount dmg; leaving default volume icon" >&2
+		hdiutil detach "$MOUNT_POINT" 2>/dev/null || true
+	fi
+	rmdir "$MOUNT_POINT" 2>/dev/null || true
+fi
+
+DMG="$BUILD_DIR/$APP_NAME-macos-$(uname -m)-unsigned.dmg"
+rm -f "$DMG"
+mv "$GENERATED_DMG" "$DMG"
+echo
+echo "==> $DMG"
+ls -lah "$DMG"

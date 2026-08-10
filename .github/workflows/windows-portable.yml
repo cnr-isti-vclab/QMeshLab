@@ -177,6 +177,12 @@ jobs:
 
           Copy-Item $exePath $portableDir
 
+          $quadWildDir = Join-Path (Split-Path $exePath -Parent) "quadwild-bimdf"
+          if (!(Test-Path $quadWildDir)) {
+            throw "Bundled QuadWild-BiMDF directory not found beside QMeshLab.exe"
+          }
+          Copy-Item $quadWildDir (Join-Path $portableDir "quadwild-bimdf") -Recurse
+
           & windeployqt --release --compiler-runtime (Join-Path $portableDir "QMeshLab.exe")
 
           $vcpkgBin = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\vcpkg_installed\$env:VCPKG_TARGET_TRIPLET\bin"
