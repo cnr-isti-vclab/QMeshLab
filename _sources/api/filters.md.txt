@@ -4039,6 +4039,42 @@ The result is created as a new geometry-only layer. QMeshLab stores each generat
 
 ---
 
+(filter-remesh-to-quads-quadwild-bimdf)=
+
+## Remesh to Quads (QuadWild-BiMDF)
+
+**Plugin:** qmeshlab.filter.quadwild
+
+Generate a feature-aligned pure-quad mesh with QuadWild and its open-source Bi-MDF quantizer.
+
+```{py:function} ms.remesh_to_quads_quadwild_bimdf(**params)
+:module: _qmeshlab
+
+Runs the original **QuadWild** feature-line-driven remeshing pipeline, using the open-source **Bi-MDF** solver from the cgg-bern fork instead of the commercial Gurobi solver. The method computes a feature-aligned cross field, traces a coarse patch layout that may contain T-junctions and non-quadrilateral patches, and quantizes and tessellates that layout into a conforming pure-quad mesh.
+
+QMeshLab invokes the two unmodified upstream helper executables in an isolated temporary directory. Their crashes and process-level exits therefore cannot terminate QMeshLab. The result is imported through VCGLib: each quad becomes two triangles joined by a faux edge, preserving polygonal rendering and saving. Geometry is created in a new layer with the input layer transform; input attributes, selections, textures and materials are not transferred.
+
+**Feature-aware** detects creases above 35 degrees and is intended for mechanical or CAD-like surfaces. **Organic** disables automatic sharp-feature detection. **Output scale** is QuadWild's dimensionless `scaleFact`: larger values generate larger, fewer quads. This is an expensive global algorithm and can take substantial time on complex meshes.
+
+**Upstream:** [QuadWild-BiMDF](https://github.com/cgg-bern/quadwild-bimdf)
+
+**License:** GPL-3.0-or-later
+
+**References:**
+
+- Nico Pietroni, Stefano Nuvoli, Thomas Alderighi, Paolo Cignoni, Marco Tarini. **Reliable Feature-Line Driven Quad-Remeshing**. *ACM Transactions on Graphics* (2021). [DOI](https://doi.org/10.1145/3450626.3459941) [Web](https://www.quadmesh.cloud/)
+- Martin Heistermann, Jethro Warnett, David Bommes. **Min-Deviation-Flow in Bi-directed Graphs for T-Mesh Quantization**. *ACM Transactions on Graphics* (2023). [DOI](https://doi.org/10.1145/3592437) [Web](https://www.algohex.eu/publications/bimdf-quantization)
+
+**Parameters:**
+
+- **surfacePreset** (*enum*, default: `feature_aware`) — Feature-aware detects sharp creases; Organic treats the surface as smooth.
+- **outputScale** (*double*, default: `1.0`) — Dimensionless QuadWild scale factor. Larger values produce larger and fewer quads.
+- **alignSingularities** (*bool*, default: `True`) — Encourage irregular vertices to align across the patch layout.
+- **smoothOutput** (*bool*, default: `True`) — Import QuadWild's surface-projected smoothed result instead of the unsmoothed quadrangulation.
+```
+
+---
+
 (filter-remeshing-isotropic)=
 
 ## Remesh Isotropically

@@ -3516,6 +3516,34 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
+<section id="remesh-to-quads-quadwild-bimdf">
+<span id="filter-remesh-to-quads-quadwild-bimdf"></span><h2>Remesh to Quads (QuadWild-BiMDF)<a class="headerlink" href="#remesh-to-quads-quadwild-bimdf" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.quadwild</p>
+<p>Generate a feature-aligned pure-quad mesh with QuadWild and its open-source Bi-MDF quantizer.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.remesh_to_quads_quadwild_bimdf">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remesh_to_quads_quadwild_bimdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remesh_to_quads_quadwild_bimdf" title="Link to this definition">¶</a></dt>
+<dd><p>Runs the original <strong>QuadWild</strong> feature-line-driven remeshing pipeline, using the open-source <strong>Bi-MDF</strong> solver from the cgg-bern fork instead of the commercial Gurobi solver. The method computes a feature-aligned cross field, traces a coarse patch layout that may contain T-junctions and non-quadrilateral patches, and quantizes and tessellates that layout into a conforming pure-quad mesh.</p>
+<p>QMeshLab invokes the two unmodified upstream helper executables in an isolated temporary directory. Their crashes and process-level exits therefore cannot terminate QMeshLab. The result is imported through VCGLib: each quad becomes two triangles joined by a faux edge, preserving polygonal rendering and saving. Geometry is created in a new layer with the input layer transform; input attributes, selections, textures and materials are not transferred.</p>
+<p><strong>Feature-aware</strong> detects creases above 35 degrees and is intended for mechanical or CAD-like surfaces. <strong>Organic</strong> disables automatic sharp-feature detection. <strong>Output scale</strong> is QuadWild’s dimensionless <code class="docutils literal notranslate"><span class="pre">scaleFact</span></code>: larger values generate larger, fewer quads. This is an expensive global algorithm and can take substantial time on complex meshes.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/cgg-bern/quadwild-bimdf">QuadWild-BiMDF</a></p>
+<p><strong>License:</strong> GPL-3.0-or-later</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Nico Pietroni, Stefano Nuvoli, Thomas Alderighi, Paolo Cignoni, Marco Tarini. <strong>Reliable Feature-Line Driven Quad-Remeshing</strong>. <em>ACM Transactions on Graphics</em> (2021). <a class="reference external" href="https://doi.org/10.1145/3450626.3459941">DOI</a> <a class="reference external" href="https://www.quadmesh.cloud/">Web</a></p></li>
+<li><p>Martin Heistermann, Jethro Warnett, David Bommes. <strong>Min-Deviation-Flow in Bi-directed Graphs for T-Mesh Quantization</strong>. <em>ACM Transactions on Graphics</em> (2023). <a class="reference external" href="https://doi.org/10.1145/3592437">DOI</a> <a class="reference external" href="https://www.algohex.eu/publications/bimdf-quantization">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>surfacePreset</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">feature_aware</span></code>) — Feature-aware detects sharp creases; Organic treats the surface as smooth.</p></li>
+<li><p><strong>outputScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Dimensionless QuadWild scale factor. Larger values produce larger and fewer quads.</p></li>
+<li><p><strong>alignSingularities</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Encourage irregular vertices to align across the patch layout.</p></li>
+<li><p><strong>smoothOutput</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Import QuadWild’s surface-projected smoothed result instead of the unsmoothed quadrangulation.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="remesh-isotropically">
 <span id="filter-remeshing-isotropic"></span><h2>Remesh Isotropically<a class="headerlink" href="#remesh-isotropically" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
@@ -6364,6 +6392,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#remesh-to-quads-instant-meshes">Remesh to Quads (Instant Meshes)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remesh_to_quads_instant_meshes"><code class="docutils literal notranslate"><span class="pre">ms.remesh_to_quads_instant_meshes()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#remesh-to-quads-quadwild-bimdf">Remesh to Quads (QuadWild-BiMDF)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.remesh_to_quads_quadwild_bimdf"><code class="docutils literal notranslate"><span class="pre">ms.remesh_to_quads_quadwild_bimdf()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#remesh-isotropically">Remesh Isotropically</a><ul>
