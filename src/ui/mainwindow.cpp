@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 
+#include "aboutdialog.h"
 #include "filterpluginsinfodialog.h"
 #include "filterparam.h"
 #include "document.h"
@@ -2481,15 +2482,7 @@ void MainWindow::showMemoryInfo()
 
 void MainWindow::showAbout()
 {
-    QMessageBox::about(this,
-        tr("About QMeshLab"),
-        tr("QMeshLab\n"
-           "Minimal SDI mesh viewer based on Qt 6, QRhi and vcglib.\n\n"
-           "Features:\n"
-           "- Document + multiple views (3D, Layers, Log)\n"
-           "- Plugin-based mesh loading\n"
-           "- Structured logging with timings\n\n"
-           "License: GNU GPL v3"));
+    AboutDialog(this).exec();
 }
 
 void MainWindow::showImportPlugins()

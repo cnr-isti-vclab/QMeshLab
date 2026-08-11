@@ -161,6 +161,7 @@ endif()
 
 qt_add_executable(QMeshLab
     src/app/main.cpp
+    src/ui/aboutdialog.h src/ui/aboutdialog.cpp
     src/ui/mainwindow.h src/ui/mainwindow.cpp
     src/ui/meshfilterpanel.h src/ui/meshfilterpanel.cpp
     src/ui/filterpresentation.h src/ui/filterpresentation.cpp
@@ -219,6 +220,23 @@ endif()
 target_include_directories(QMeshLab PRIVATE
     ${CMAKE_SOURCE_DIR}/src/ui
 )
+
+foreach(QMESHLAB_GIT_STATE IN ITEMS .git/HEAD .git/logs/HEAD)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/${QMESHLAB_GIT_STATE}")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${CMAKE_SOURCE_DIR}/${QMESHLAB_GIT_STATE}")
+    endif()
+endforeach()
+execute_process(
+    COMMAND git -C "${CMAKE_SOURCE_DIR}" rev-parse --short=12 HEAD
+    OUTPUT_VARIABLE QMESHLAB_BUILD_ID
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT QMESHLAB_BUILD_ID)
+    set(QMESHLAB_BUILD_ID "unversioned")
+endif()
+target_compile_definitions(QMeshLab PRIVATE QMESHLAB_BUILD_ID="${QMESHLAB_BUILD_ID}")
 
 target_link_libraries(QMeshLab PRIVATE
     QMeshLabPlugins
