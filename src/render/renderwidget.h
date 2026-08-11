@@ -310,6 +310,9 @@ struct SceneRasterProjectedDrawItem {
     void layoutOverlayButtons();
     // Move the camera onto the given world axis, keeping center and distance.
     void snapCameraToAxis(const QVector3D &axis);
+    void beginGizmoOrbit(const QPointF &pos);
+    void updateGizmoOrbit(const QPointF &pos);
+    void endGizmoOrbit();
     void showInteractionStatusOverlay(const QString &text, bool persistent = false);
     void emitCameraStateChangedIfNeeded();
     bool computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const;
@@ -416,6 +419,7 @@ struct SceneRasterProjectedDrawItem {
     void cancelCenterAnimation();
     void advanceCenterAnimation();
     void advanceRotationAnimation();
+    void cancelRotationAnimation();
     void updateCameraFrameIfNeeded();
     void ensureVisibilitySize();
     int fillGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const;

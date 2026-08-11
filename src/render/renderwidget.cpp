@@ -1958,6 +1958,15 @@ void RenderWidget::advanceCenterAnimation()
     }
 }
 
+// A drag records the rotation it started from, so the animation has to be shut
+// down before the drag begins rather than self-cancelling a frame later: one
+// animated frame in between would leave that recorded start stale and the view
+// would jump on the first movement.
+void RenderWidget::cancelRotationAnimation()
+{
+    m_rotationAnimActive = false;
+}
+
 void RenderWidget::advanceRotationAnimation()
 {
     if (!m_rotationAnimActive)
@@ -2005,6 +2014,9 @@ void RenderWidget::createOverlayButtons()
 
     m_axisGizmo = new ViewAxisGizmo(this);
     connect(m_axisGizmo, &ViewAxisGizmo::axisPicked, this, &RenderWidget::snapCameraToAxis);
+    connect(m_axisGizmo, &ViewAxisGizmo::orbitBegan, this, &RenderWidget::beginGizmoOrbit);
+    connect(m_axisGizmo, &ViewAxisGizmo::orbitMoved, this, &RenderWidget::updateGizmoOrbit);
+    connect(m_axisGizmo, &ViewAxisGizmo::orbitEnded, this, &RenderWidget::endGizmoOrbit);
     auto makeCornerLabel = [this](const QColor &textColor) {
         auto *label = new QLabel(this);
         label->setVisible(false);
@@ -2308,6 +2320,47 @@ void RenderWidget::layoutOverlayButtons()
         m_decoratorInfoOverlayLabel->raise();
     }
     layoutUvTextureGroupUi();
+}
+
+// The gizmo drag is fed through the same ViewTrackball arcball as a viewport
+// drag, but with the gizmo rect standing in for the viewport. That reuses the
+// navigation model exactly - no second rotation implementation to keep in sync -
+// and the smaller square is what gives the gizmo its faster, more direct feel.
+// Synthetic events are the price of ViewTrackball taking QMouseEvent.
+void RenderWidget::beginGizmoOrbit(const QPointF &pos)
+{
+    if (!m_axisGizmo)
+        return;
+    emit viewActivated(this);
+    cancelCenterAnimation();
+    cancelRotationAnimation();
+    const QMouseEvent ev(
+        QEvent::MouseButtonPress, pos, pos, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    m_trackball.mousePress(&ev, m_axisGizmo->size());
+}
+
+void RenderWidget::updateGizmoOrbit(const QPointF &pos)
+{
+    if (!m_axisGizmo)
+        return;
+    const QMouseEvent ev(
+        QEvent::MouseMove, pos, pos, Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    if (m_trackball.mouseMove(&ev, m_axisGizmo->size())) {
+        updateBoundingBoxCornersOverlay();
+        update();
+    }
+}
+
+void RenderWidget::endGizmoOrbit()
+{
+    const QMouseEvent ev(
+        QEvent::MouseButtonRelease,
+        QPointF(),
+        QPointF(),
+        Qt::LeftButton,
+        Qt::NoButton,
+        Qt::NoModifier);
+    m_trackball.mouseRelease(&ev);
 }
 
 void RenderWidget::snapCameraToAxis(const QVector3D &axis)
@@ -3381,6 +3434,7 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
         return;
     }
     cancelCenterAnimation();
+    cancelRotationAnimation();
     // Ctrl+Shift+Left → rotate headlight
     if (e
         && e->button() == Qt::LeftButton

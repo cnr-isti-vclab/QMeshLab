@@ -10,6 +10,9 @@ namespace {
 constexpr int kGizmoSize = 84;
 constexpr qreal kHandleRadius = 9.5;
 constexpr qreal kStemWidth = 2.0;
+// Slack before a press becomes an orbit instead of a click, so a click with an
+// unsteady hand still snaps.
+constexpr int kDragThresholdPx = 4;
 
 const QColor kAxisColor[3] = {
     QColor(0xF7, 0x5C, 0x68),  // X
@@ -152,20 +155,57 @@ void ViewAxisGizmo::paintEvent(QPaintEvent *)
 
 void ViewAxisGizmo::mouseMoveEvent(QMouseEvent *e)
 {
-    setHovered(handleAt(e->position()));
-    e->ignore();
+    if (!(e->buttons() & Qt::LeftButton)) {
+        setHovered(handleAt(e->position()));
+        e->ignore();
+        return;
+    }
+
+    if (!m_dragging && (e->position() - m_pressPos).manhattanLength() > kDragThresholdPx) {
+        m_dragging = true;
+        // The pointer is driving the camera now, not pointing at a handle.
+        setHovered(-1);
+        // Begin from the press, not from here, so the arcball is anchored where
+        // the gesture actually started and the view does not jump.
+        emit orbitBegan(m_pressPos);
+    }
+    if (m_dragging)
+        emit orbitMoved(e->position());
+    e->accept();
 }
 
 void ViewAxisGizmo::mousePressEvent(QMouseEvent *e)
 {
-    const int id = (e->button() == Qt::LeftButton) ? handleAt(e->position()) : -1;
-    if (id < 0) {
-        // Ignored presses propagate to the view, so dragging through the empty
-        // corners of the gizmo still orbits instead of dead-zoning them.
+    if (e->button() != Qt::LeftButton) {
         e->ignore();
         return;
     }
-    emit axisPicked(unitAxis(id / 2, (id % 2) == 1));
+    // The whole rect is captured, empty area included: a drag has to be able to
+    // start anywhere in the gizmo, and Qt only routes the rest of the gesture
+    // here if this press is accepted.
+    m_pressedHandle = handleAt(e->position());
+    m_pressPos = e->position();
+    m_dragging = false;
+    e->accept();
+}
+
+void ViewAxisGizmo::mouseReleaseEvent(QMouseEvent *e)
+{
+    if (e->button() != Qt::LeftButton) {
+        e->ignore();
+        return;
+    }
+
+    if (m_dragging) {
+        emit orbitEnded();
+    } else if (m_pressedHandle >= 0 && handleAt(e->position()) == m_pressedHandle) {
+        // A click, and it ended on the handle it started on.
+        emit axisPicked(unitAxis(m_pressedHandle / 2, (m_pressedHandle % 2) == 1));
+    }
+
+    m_dragging = false;
+    m_pressedHandle = -1;
+    setHovered(handleAt(e->position()));
     e->accept();
 }
 

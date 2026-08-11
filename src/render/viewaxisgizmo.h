@@ -25,10 +25,19 @@ signals:
     // position is center + axis * distance.
     void axisPicked(const QVector3D &axis);
 
+    // Drag gesture, in gizmo-local coordinates. The view feeds these to its own
+    // trackball using the gizmo rect as the viewport, so dragging here is the
+    // same arcball as the viewport - just over a much smaller square, which is
+    // what makes a small gizmo orbit at a usable speed.
+    void orbitBegan(const QPointF &pos);
+    void orbitMoved(const QPointF &pos);
+    void orbitEnded();
+
 protected:
     void paintEvent(QPaintEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
+    void mouseReleaseEvent(QMouseEvent *e) override;
     void leaveEvent(QEvent *e) override;
 
 private:
@@ -47,4 +56,9 @@ private:
 
     QQuaternion m_rotation;
     int m_hovered = -1;
+    // Handle under the press, or -1. Held until release: the snap cannot commit
+    // on press without knowing yet whether the gesture turns into a drag.
+    int m_pressedHandle = -1;
+    QPointF m_pressPos;
+    bool m_dragging = false;
 };
