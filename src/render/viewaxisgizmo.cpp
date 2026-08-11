@@ -143,13 +143,17 @@ void ViewAxisGizmo::paintEvent(QPaintEvent *)
         p.setBrush(base);
         p.drawEllipse(handle.center, kHandleRadius, kHandleRadius);
 
+        QString label = QString::fromLatin1(kAxisLabel[handle.axis]);
+        if (handle.negative)
+            label.prepend(u'-');
+
         p.setPen(QColor(25, 25, 25));
         p.drawText(QRectF(handle.center.x() - kHandleRadius,
                           handle.center.y() - kHandleRadius,
                           2.0 * kHandleRadius,
                           2.0 * kHandleRadius),
                    Qt::AlignCenter,
-                   QString::fromLatin1(kAxisLabel[handle.axis]));
+                   label);
     }
 }
 
