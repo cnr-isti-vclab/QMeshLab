@@ -33,6 +33,7 @@ UndoState Document::captureUndoState() const
         snap.visible            = entry->visible;
         snap.modified           = entry->modified;
         snap.ioMask             = entry->ioMask;
+        snap.polygonFaceCount   = entry->polygonFaceCount;
 
         // Attempt to reuse an already-interned geometry object.
         // Key: (meshId, geometryRevision, selectionRevision) — the full content
@@ -143,6 +144,7 @@ void Document::restoreUndoState(const UndoState &state)
                 entry->visible          = snap.visible;
                 entry->modified         = snap.modified;
                 entry->ioMask           = snap.ioMask;
+                entry->polygonFaceCount = snap.polygonFaceCount;
                 {
                     QElapsedTimer t2; t2.start();
                     deepCopyMesh(*snap.geometry, entry->mesh);
@@ -288,4 +290,3 @@ void Document::restoreUndoState(const UndoState &state)
             LogSource::Application);
     }
 }
-

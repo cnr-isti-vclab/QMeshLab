@@ -62,6 +62,8 @@ public:
         bool visible = true;
         bool modified = false;
         int ioMask = 0;
+        // Logical face count for faux-edge polygon meshes; -1 for triangle meshes.
+        int polygonFaceCount = -1;
         VCGMesh mesh;
     };
 
@@ -236,6 +238,8 @@ public:
         const QString &contextMessage = {});
     void setCurrentMeshIndex(int index);
     void markMeshGeometryChanged(int index, const QString &contextMessage = {});
+    // Recount an existing polygon mesh; fauxEdgesModified also reconciles its polygon flag.
+    void refreshMeshPolygonFaceCount(int index, bool fauxEdgesModified = false);
     void markMeshMaterialChanged(int index, const QString &contextMessage = {});
     // Selection is stored in per-vertex/per-face BitFlags, which are captured by the
     // undo geometry snapshot.  Changes to selection must therefore bump geometryRevision

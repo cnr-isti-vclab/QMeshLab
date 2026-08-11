@@ -67,6 +67,7 @@ struct MeshSnapshot {
     bool visible = false;
     bool modified = false;
     int ioMask = 0;
+    int polygonFaceCount = -1;
     // Shared, immutable geometry; never null after capture.
     std::shared_ptr<const VCGMesh> geometry;
 };

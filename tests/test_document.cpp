@@ -757,6 +757,7 @@ void DocumentTests::savePolygonalFormatsHonorFauxEdgesAndTriangulationOption()
         vcg::tri::io::Mask::IOM_WEDGTEXCOORD
             | vcg::tri::io::Mask::IOM_BITPOLYGONAL);
     QVERIFY(meshIndex >= 0);
+    QCOMPARE(doc.mesh(meshIndex).polygonFaceCount, 1);
 
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -784,6 +785,7 @@ void DocumentTests::savePolygonalFormatsHonorFauxEdgesAndTriangulationOption()
     Document loaded;
     loaded.setPreferredImportPluginForExtension(QStringLiteral("obj"), QStringLiteral("io_vcg"));
     QCOMPARE(loaded.loadMesh(path), 0);
+    QCOMPARE(loaded.mesh(0).polygonFaceCount, 1);
     const VCGMesh &roundTrip = loaded.mesh(0).mesh;
     QCOMPARE(roundTrip.FN(), 2);
     int fauxEdges = 0;
@@ -817,6 +819,7 @@ void DocumentTests::savePolygonalFormatsHonorFauxEdgesAndTriangulationOption()
         Document loadedPly;
         loadedPly.setPreferredImportPluginForExtension(QStringLiteral("ply"), QStringLiteral("io_vcg"));
         QCOMPARE(loadedPly.loadMesh(plyPath), 0);
+        QCOMPARE(loadedPly.mesh(0).polygonFaceCount, polygonal ? 1 : -1);
         const VCGMesh &plyMesh = loadedPly.mesh(0).mesh;
         QCOMPARE(plyMesh.FN(), 2);
         int plyFauxEdges = 0;

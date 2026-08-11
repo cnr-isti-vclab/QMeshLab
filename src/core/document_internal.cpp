@@ -516,6 +516,7 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.visible = src.visible;
     dst.modified = src.modified;
     dst.ioMask = src.ioMask;
+    dst.polygonFaceCount = src.polygonFaceCount;
 }
 
 void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)

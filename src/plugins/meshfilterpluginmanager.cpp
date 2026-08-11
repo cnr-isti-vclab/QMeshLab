@@ -140,7 +140,7 @@ void compactMeshStorageInvariant(VCGMesh &mesh)
         mesh.bbox.SetNull();
 }
 
-void compactMeshesAfterSuccessfulFilter(
+void finalizeMeshesAfterSuccessfulFilter(
     const MeshFilterDescriptor &descriptor,
     const MeshFilterRunResult &result,
     Document &doc,
@@ -166,8 +166,20 @@ void compactMeshesAfterSuccessfulFilter(
             targetMeshes.insert(meshIndex);
     }
 
-    for (int meshIndex : std::as_const(targetMeshes))
+    const bool polygonStructureModified =
+        descriptor.outputModifies.contains(QStringLiteral("FV"))
+        || descriptor.outputModifies.contains(QStringLiteral("FP"));
+    const bool fauxEdgesModified = descriptor.outputModifies.contains(QStringLiteral("FP"));
+
+    for (int meshIndex : std::as_const(targetMeshes)) {
         compactMeshStorageInvariant(doc.mesh(meshIndex).mesh);
+        // Avoid recounting a newly added polygon mesh: addMesh() initialized it.
+        const bool cacheAlreadyInitialized =
+            result.newMeshIndices.contains(meshIndex)
+            && doc.mesh(meshIndex).polygonFaceCount >= 0;
+        if (polygonStructureModified && !cacheAlreadyInitialized)
+            doc.refreshMeshPolygonFaceCount(meshIndex, fauxEdgesModified);
+    }
 }
 
 CleanupApplicationResult applyCleanupActions(
@@ -797,7 +809,7 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
 
     // Enforce the framework invariant that successful filters never leave
     // document meshes with deleted elements in storage.
-    compactMeshesAfterSuccessfulFilter(*targetDescriptor, result, doc, originalCurrentMeshIndex);
+    finalizeMeshesAfterSuccessfulFilter(*targetDescriptor, result, doc, originalCurrentMeshIndex);
 
     doc.endUndoStep(result.documentModified);
     if (!result.documentModified)

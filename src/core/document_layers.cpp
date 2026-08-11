@@ -1,5 +1,7 @@
 #include "document_internal.h"
 
+#include <vcg/complex/algorithms/clean.h>
+
 using namespace DocumentInternal;
 
 void Document::removeMesh(int index)
@@ -66,6 +68,7 @@ int Document::addMesh(const VCGMesh &meshData, const QString &name, int ioMask)
 
     const int newIndex = meshCount();
     m_meshes.push_back(std::move(entry));
+    refreshMeshPolygonFaceCount(newIndex);
     writeLog(tr("Added mesh '%1' (%2 vertices, %3 faces, %4 edges)")
                  .arg(this->mesh(newIndex).name)
                  .arg(this->mesh(newIndex).mesh.VN())
@@ -499,6 +502,28 @@ void Document::markMeshGeometryChanged(int index, const QString &contextMessage)
     emit meshDataChanged(index);
     if (ownUndoStep)
         endUndoStep(true);
+}
+
+void Document::refreshMeshPolygonFaceCount(int index, bool fauxEdgesModified)
+{
+    if (index < 0 || index >= meshCount())
+        return;
+
+    MeshEntry &entry = mesh(index);
+    const int polygonBit = vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+    if ((entry.ioMask & polygonBit) == 0 && !fauxEdgesModified) {
+        entry.polygonFaceCount = -1;
+        return;
+    }
+
+    const int count = vcg::tri::Clean<VCGMesh>::CountBitPolygons(entry.mesh);
+    if (fauxEdgesModified && count == entry.mesh.FN()) {
+        entry.ioMask &= ~polygonBit;
+        entry.polygonFaceCount = -1;
+    } else {
+        entry.ioMask |= polygonBit;
+        entry.polygonFaceCount = count;
+    }
 }
 
 void Document::markMeshMaterialChanged(int index, const QString &contextMessage)

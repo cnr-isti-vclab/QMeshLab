@@ -236,6 +236,7 @@ int Document::loadMesh(const QString &filename)
 
     int index = meshCount();
     m_meshes.push_back(std::move(entry));
+    refreshMeshPolygonFaceCount(index);
 
     const qint64 elapsedMs = loadTimer.elapsed();
     const qint64 postProcessElapsedMs = std::max<qint64>(0, elapsedMs - importElapsedMs);
@@ -453,6 +454,7 @@ int Document::reloadMesh(int index)
     entry.geometryRevision = m_nextGeometryRevision++;
     ++entry.materialRevision;
     entry.modified = false;
+    refreshMeshPolygonFaceCount(index);
 
     const qint64 elapsedMs = loadTimer.elapsed();
     const qint64 postProcessElapsedMs = std::max<qint64>(0, elapsedMs - importElapsedMs);

@@ -289,6 +289,11 @@ int selectedFaceCount(const VCGMesh &mesh)
     return count;
 }
 
+int displayedFaceCount(const Document::MeshEntry &entry)
+{
+    return entry.polygonFaceCount >= 0 ? entry.polygonFaceCount : entry.mesh.FN();
+}
+
 bool isIdentityTransform(const QMatrix4x4 &m, float eps = 1e-6f)
 {
     for (int r = 0; r < 4; ++r) {
@@ -387,14 +392,19 @@ QString meshDataSummary(const Document::MeshEntry &entry)
     return tokens.join(QLatin1Char(' '));
 }
 
-QString meshDataTooltip(const Document::MeshEntry &entry)
+QString meshDataTooltip(const Document::MeshEntry &entry, int faceCount)
 {
     const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
     QStringList lines;
     lines << QObject::tr("Data: %1").arg(meshDataSummary(entry));
-    lines << QObject::tr("Counts: V=%1 F=%2 E=%3")
+    const QString triangleDetail =
+        (entry.ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL) != 0
+            ? QObject::tr(" T=%1").arg(entry.mesh.FN())
+            : QString();
+    lines << QObject::tr("Counts: V=%1 F=%2%3 E=%4")
                  .arg(entry.mesh.VN())
-                 .arg(entry.mesh.FN())
+                 .arg(faceCount)
+                 .arg(triangleDetail)
                  .arg(entry.mesh.EN());
     lines << QObject::tr("Selected: V=%1 F=%2 E=%3")
                  .arg(selectedVertexCount(entry.mesh))
@@ -1211,6 +1221,7 @@ void LayerWidget::rebuildTree()
 
         for (int i = 0; i < m_doc->meshCount(); ++i) {
             const auto &entry = m_doc->mesh(i);
+            const int faceCount = displayedFaceCount(entry);
             const MeshCustomAttributeInfo attrs = collectCustomAttributes(entry.mesh);
             const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
             const bool loaded = !entry.sourcePath.trimmed().isEmpty();
@@ -1234,7 +1245,7 @@ void LayerWidget::rebuildTree()
 
             const QString vertCountText = locale.toString(static_cast<qlonglong>(entry.mesh.VN()));
             const QString edgeCountText = locale.toString(static_cast<qlonglong>(entry.mesh.EN()));
-            const QString faceCountText = locale.toString(static_cast<qlonglong>(entry.mesh.FN()));
+            const QString faceCountText = locale.toString(static_cast<qlonglong>(faceCount));
             const int selectedVertCount = selectedVertexCount(entry.mesh);
             const int selectedEdgeCountValue = selectedEdgeCount(entry.mesh);
             const int selectedFaceCountValue = selectedFaceCount(entry.mesh);
@@ -1332,7 +1343,7 @@ void LayerWidget::rebuildTree()
                 m_meshTree->setItemWidget(tItem, 2, textureInfoWidget(m_meshTree, tex, fm));
             }
 
-            const QString dataTip = meshDataTooltip(entry);
+            const QString dataTip = meshDataTooltip(entry, faceCount);
             item->setToolTip(0, dataTip);
             item->setToolTip(1, dataTip);
             item->setToolTip(2, dataTip);
@@ -1469,6 +1480,7 @@ void LayerWidget::rebuildTable()
 
         for (int i = 0; i < m_doc->meshCount(); ++i) {
             const auto &entry = m_doc->mesh(i);
+            const int faceCount = displayedFaceCount(entry);
 
             // Eye column (0) — always read from document state
             auto *eyeItem = new QTableWidgetItem();
@@ -1492,7 +1504,7 @@ void LayerWidget::rebuildTable()
             auto *nameItem = new QTableWidgetItem(displayName);
             nameItem->setData(kRoleMeshIndex, i);
             nameItem->setFlags(nameItem->flags() | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-            nameItem->setToolTip(meshDataTooltip(entry));
+            nameItem->setToolTip(meshDataTooltip(entry, faceCount));
             m_meshTable->setItem(i, 1, nameItem);
 
             // V column (2)
@@ -1513,8 +1525,8 @@ void LayerWidget::rebuildTable()
 
             // F column (4)
             auto *fItem = new NumericTableItem(
-                locale.toString(static_cast<qlonglong>(entry.mesh.FN())),
-                static_cast<qlonglong>(entry.mesh.FN()));
+                locale.toString(static_cast<qlonglong>(faceCount)),
+                static_cast<qlonglong>(faceCount));
             fItem->setFlags(fItem->flags() & ~Qt::ItemIsEditable);
             fItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             m_meshTable->setItem(i, 4, fItem);

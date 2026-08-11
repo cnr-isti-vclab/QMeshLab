@@ -133,6 +133,7 @@ private slots:
     void qslimSimplifiesCube();
     void instantMeshesRemeshesCube();
     void catmullClarkSubdividesCube();
+    void polygonFaceCountCacheTracksFilterChanges();
     void vertexDisplacementFiltersRunOnCube();
     void splitConnectedComponentsAfterDuplicateVertexRemoval();
     void hausdorffRunsOnTransientMeshCopies();
@@ -640,6 +641,43 @@ void FilterTests::catmullClarkSubdividesCube()
     const MeshFilterRunResult result = doc.runFilter(filterKey, {});
     QVERIFY2(result.success, qPrintable(result.errorMessage));
     QVERIFY(doc.mesh(doc.currentMeshIndex()).mesh.FN() > 12);
+}
+
+void FilterTests::polygonFaceCountCacheTracksFilterChanges()
+{
+    VCGMesh quad;
+    for (const vcg::Point3f &point : {
+             vcg::Point3f(0, 0, 0), vcg::Point3f(1, 0, 0),
+             vcg::Point3f(1, 1, 0), vcg::Point3f(0, 1, 0) })
+        vcg::tri::Allocator<VCGMesh>::AddVertex(quad, point);
+    vcg::tri::Allocator<VCGMesh>::AddFace(quad, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(quad, 0, 2, 3);
+    quad.face[0].SetF(2);
+    quad.face[1].SetF(0);
+
+    Document doc;
+    const int meshIndex = doc.addMesh(
+        quad, QStringLiteral("Quad"), vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+    QCOMPARE(doc.mesh(meshIndex).polygonFaceCount, 1);
+
+    QString toTrianglesKey;
+    QString toQuadsKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("meshing_poly_to_tri"))
+            toTrianglesKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("meshing_tri_to_quad_by_smart_triangle_pairing"))
+            toQuadsKey = info.key;
+    }
+    QVERIFY(!toTrianglesKey.isEmpty());
+    QVERIFY(!toQuadsKey.isEmpty());
+
+    QVERIFY2(doc.runFilter(toTrianglesKey, {}).success, "Convert to triangles failed");
+    QCOMPARE(doc.mesh(meshIndex).polygonFaceCount, -1);
+    QVERIFY(!(doc.mesh(meshIndex).ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL));
+
+    QVERIFY2(doc.runFilter(toQuadsKey, {}).success, "Convert to quads failed");
+    QCOMPARE(doc.mesh(meshIndex).polygonFaceCount, 1);
+    QVERIFY(doc.mesh(meshIndex).ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL);
 }
 
 void FilterTests::vertexDisplacementFiltersRunOnCube()
