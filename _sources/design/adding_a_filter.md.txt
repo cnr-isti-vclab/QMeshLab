@@ -156,8 +156,8 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
 
 - **Declare `outputModifies` accurately** — the framework keys undo storage,
   compaction, and cache invalidation off it. Codes: `VG VN VC VQ VT VS FV FN FC
-  FQ FS WT TX TM` (V*/F* = vertex/face geometry, normals, color, quality,
-  texcoords, selection; `TM` = per-mesh transform matrix).
+  FQ FS FP WT TX TM` (V*/F* = vertex/face geometry, normals, color, quality,
+  texcoords, selection; `FP` = polygon/faux-edge bits; `TM` = per-mesh transform).
 - **Reuse vcglib** (`src/vcglib` → repo-root `vcglib/`) for all 3D computation.
 - **Parallelize heavy per-element loops** with `std::thread` when independent.
 - **Return useful `infoMessages`** — they appear in the log; keep `errorMessage`
