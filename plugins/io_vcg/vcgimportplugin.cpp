@@ -115,7 +115,7 @@ int loadMaskCapabilityForExtension(const QString &ext)
             | M::IOM_VERTRADIUS | M::IOM_EDGEINDEX | M::IOM_FACEINDEX
             | M::IOM_FACEFLAGS | M::IOM_FACECOLOR | M::IOM_FACEQUALITY
             | M::IOM_FACENORMAL | M::IOM_WEDGCOLOR | M::IOM_WEDGTEXCOORD
-            | M::IOM_WEDGNORMAL | M::IOM_CAMERA;
+            | M::IOM_CAMERA | M::IOM_BITPOLYGONAL;
     if (ext == QLatin1String("obj"))
         return M::IOM_VERTCOORD | M::IOM_VERTCOLOR | M::IOM_VERTNORMAL
             | M::IOM_VERTTEXCOORD | M::IOM_EDGEINDEX | M::IOM_FACEINDEX
@@ -367,7 +367,7 @@ public:
         const char *path = encodedPath.constData();
 
         if (ext == QLatin1String("ply")) {
-            const VCGMesh *meshToSave = &mesh;
+            VCGMesh *meshToSave = &mesh;
             VCGMesh exportMesh;
             const bool hasTextureAssociations =
                 !mesh.textures.empty()
@@ -380,46 +380,41 @@ public:
                     return kErrSaveTextureCopyFailed;
                 meshToSave = &exportMesh;
             }
-            if ((saveMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
-                && vcg::tri::HasPerWedgeTexCoord(*meshToSave)
-                && vcg::tri::HasPerVertexTexCoord(*meshToSave)) {
-                if (meshToSave != &exportMesh) {
-                    exportMesh.vert.EnableTexCoord();
-                    exportMesh.face.EnableWedgeTexCoord();
-                    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(exportMesh, mesh);
-                    meshToSave = &exportMesh;
-                }
-                // VCGLib's ASCII PLY exporter checks vertex texcoords before wedge
-                // texcoords; disabling VT on the temporary export mesh preserves WT.
-                exportMesh.vert.DisableTexCoord();
-            }
+            // Polygon reconstruction traverses faux edges through FF adjacency.
+            // Keep this ancillary OCF component enabled only for the export.
+            const bool restoreDisabledFF =
+                (saveMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL) != 0
+                && !meshToSave->face.IsFFAdjacencyEnabled();
+            if (restoreDisabledFF)
+                meshToSave->face.EnableFFAdjacency();
             const int err = vcg::tri::io::ExporterPLY<VCGMesh>::Save(
                 *meshToSave,
                 path,
                 saveMask,
                 options.binary,
                 cb);
+            if (restoreDisabledFF)
+                meshToSave->face.DisableFFAdjacency();
             return encodeExporterError(kErrSavePlyBase, err);
         }
-        if (ext == QLatin1String("obj")) {
+        if (ext == QLatin1String("obj") || ext == QLatin1String("off")) {
             const bool restoreDisabledFF =
                 (saveMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL) != 0
                 && !mesh.face.IsFFAdjacencyEnabled();
             if (restoreDisabledFF)
                 mesh.face.EnableFFAdjacency();
-            const int err = vcg::tri::io::ExporterOBJ<VCGMesh>::Save(mesh, path, saveMask, cb);
+            const bool obj = ext == QLatin1String("obj");
+            const int err = obj
+                ? vcg::tri::io::ExporterOBJ<VCGMesh>::Save(mesh, path, saveMask, cb)
+                : vcg::tri::io::ExporterOFF<VCGMesh>::Save(mesh, path, saveMask);
             if (restoreDisabledFF)
                 mesh.face.DisableFFAdjacency();
-            return encodeExporterError(kErrSaveObjBase, err);
+            return encodeExporterError(obj ? kErrSaveObjBase : kErrSaveOffBase, err);
         }
         if (ext == QLatin1String("stl")) {
             const int err =
                 vcg::tri::io::ExporterSTL<VCGMesh>::Save(mesh, path, options.binary, saveMask);
             return encodeExporterError(kErrSaveStlBase, err);
-        }
-        if (ext == QLatin1String("off")) {
-            const int err = vcg::tri::io::ExporterOFF<VCGMesh>::Save(mesh, path, saveMask);
-            return encodeExporterError(kErrSaveOffBase, err);
         }
 
         return kErrSaveUnsupportedFormat;

@@ -52,7 +52,7 @@ private slots:
     void saveAndLoad3MFRoundTrip();
     void saveAndLoadEmbeddedGLBTexture();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
-    void saveObjReconstructsPolygonAndPreservesBoundaryUVs();
+    void savePolygonalFormatsHonorFauxEdgesAndTriangulationOption();
     void benchmarkLoadMesh();
 };
 
@@ -724,7 +724,7 @@ void DocumentTests::savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist()
     QVERIFY(!ply.contains(QStringLiteral("0.900000 0.900000")));
 }
 
-void DocumentTests::saveObjReconstructsPolygonAndPreservesBoundaryUVs()
+void DocumentTests::savePolygonalFormatsHonorFauxEdgesAndTriangulationOption()
 {
     const int objCapability = vcg::tri::io::ExporterOBJ<VCGMesh>::GetExportMaskCapability();
     QVERIFY(objCapability & vcg::tri::io::Mask::IOM_VERTCOORD);
@@ -796,6 +796,59 @@ void DocumentTests::saveObjReconstructsPolygonAndPreservesBoundaryUVs()
         }
     }
     QCOMPARE(fauxEdges, 2);
+
+    const auto checkPly = [&](bool binary, bool polygonal) {
+        options.mask = vcg::tri::io::Mask::IOM_VERTCOORD
+            | vcg::tri::io::Mask::IOM_FACEINDEX
+            | vcg::tri::io::Mask::IOM_WEDGTEXCOORD
+            | (polygonal ? vcg::tri::io::Mask::IOM_BITPOLYGONAL : 0);
+        options.binary = binary;
+        const QString plyPath = dir.filePath(
+            QStringLiteral("quad_%1_%2.ply")
+                .arg(binary ? QStringLiteral("binary") : QStringLiteral("ascii"))
+                .arg(polygonal ? QStringLiteral("polygon") : QStringLiteral("triangles")));
+        QCOMPARE(doc.saveMesh(meshIndex, plyPath, options), 0);
+        QFile ply(plyPath);
+        QVERIFY(ply.open(QIODevice::ReadOnly));
+        const QByteArray data = ply.readAll();
+        QVERIFY(data.contains(binary ? "format binary_little_endian 1.0" : "format ascii 1.0"));
+        QVERIFY(data.contains(polygonal ? "element face 1\n" : "element face 2\n"));
+
+        Document loadedPly;
+        loadedPly.setPreferredImportPluginForExtension(QStringLiteral("ply"), QStringLiteral("io_vcg"));
+        QCOMPARE(loadedPly.loadMesh(plyPath), 0);
+        const VCGMesh &plyMesh = loadedPly.mesh(0).mesh;
+        QCOMPARE(plyMesh.FN(), 2);
+        int plyFauxEdges = 0;
+        for (const VCGFace &face : plyMesh.face)
+            for (int corner = 0; corner < 3; ++corner) {
+                const int vertex = int(face.cV(corner) - plyMesh.vert.data());
+                QCOMPARE(face.cWT(corner).U(), uv[size_t(vertex)].X());
+                QCOMPARE(face.cWT(corner).V(), uv[size_t(vertex)].Y());
+                plyFauxEdges += face.IsF(corner) ? 1 : 0;
+            }
+        QCOMPARE(plyFauxEdges, polygonal ? 2 : 0);
+    };
+    checkPly(false, true);
+    checkPly(false, false);
+    checkPly(true, true);
+    checkPly(true, false);
+
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+    const QString polygonOffPath = dir.filePath(QStringLiteral("quad.off"));
+    QCOMPARE(doc.saveMesh(meshIndex, polygonOffPath, options), 0);
+    QFile polygonOff(polygonOffPath);
+    QVERIFY(polygonOff.open(QIODevice::ReadOnly));
+    QVERIFY(polygonOff.readAll().contains("OFF\n4 1 0\n"));
+
+    options.mask &= ~vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+    const QString triangleOffPath = dir.filePath(QStringLiteral("quad_triangles.off"));
+    QCOMPARE(doc.saveMesh(meshIndex, triangleOffPath, options), 0);
+    QFile triangleOff(triangleOffPath);
+    QVERIFY(triangleOff.open(QIODevice::ReadOnly));
+    QVERIFY(triangleOff.readAll().contains("OFF\n4 2 0\n"));
 }
 
 void DocumentTests::benchmarkLoadMesh()
