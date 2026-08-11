@@ -9,6 +9,7 @@
 #include "document.h"
 #include <vcg/complex/allocate.h>
 #include <vcg/space/planar_polygon_tessellation.h>
+#include <wrap/io_trimesh/export_obj.h>
 #include <wrap/io_trimesh/import_obj.h>
 #include <wrap/io_trimesh/io_mask.h>
 
@@ -51,6 +52,7 @@ private slots:
     void saveAndLoad3MFRoundTrip();
     void saveAndLoadEmbeddedGLBTexture();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
+    void saveObjReconstructsPolygonAndPreservesBoundaryUVs();
     void benchmarkLoadMesh();
 };
 
@@ -720,6 +722,80 @@ void DocumentTests::savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist()
         qPrintable(ply));
     QVERIFY(ply.contains(QStringLiteral("6 0.100000 0.200000 0.300000 0.400000 0.500000 0.600000")));
     QVERIFY(!ply.contains(QStringLiteral("0.900000 0.900000")));
+}
+
+void DocumentTests::saveObjReconstructsPolygonAndPreservesBoundaryUVs()
+{
+    const int objCapability = vcg::tri::io::ExporterOBJ<VCGMesh>::GetExportMaskCapability();
+    QVERIFY(objCapability & vcg::tri::io::Mask::IOM_VERTCOORD);
+    QVERIFY(objCapability & vcg::tri::io::Mask::IOM_FACEINDEX);
+
+    VCGMesh mesh;
+    mesh.face.EnableWedgeTexCoord();
+    for (const VCGMesh::CoordType &point : {
+             VCGMesh::CoordType(0, 0, 0), VCGMesh::CoordType(1, 0, 0),
+             VCGMesh::CoordType(1, 1, 0), VCGMesh::CoordType(0, 1, 0) })
+        vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, point);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(2), size_t(3));
+    mesh.face[0].SetF(2);
+    mesh.face[1].SetF(0);
+
+    const std::array<vcg::Point2f, 4> uv = {
+        vcg::Point2f(0, 0), vcg::Point2f(1, 0), vcg::Point2f(1, 1), vcg::Point2f(0, 1)
+    };
+    const std::array<int, 3> secondFaceUV = { 0, 2, 3 };
+    for (int corner = 0; corner < 3; ++corner) {
+        mesh.face[0].WT(corner).P() = uv[size_t(corner)];
+        mesh.face[1].WT(corner).P() = uv[size_t(secondFaceUV[size_t(corner)])];
+    }
+
+    Document doc;
+    const int meshIndex = doc.addMesh(
+        mesh,
+        QStringLiteral("textured_quad"),
+        vcg::tri::io::Mask::IOM_WEDGTEXCOORD
+            | vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+    QVERIFY(meshIndex >= 0);
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("quad.obj"));
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_WEDGTEXCOORD
+        | vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+    QCOMPARE(doc.saveMesh(meshIndex, path, options), 0);
+    QFile obj(path);
+    QVERIFY(obj.open(QIODevice::ReadOnly));
+    QVERIFY(obj.readAll().contains("# Faces: 1"));
+
+    const QString trianglePath = dir.filePath(QStringLiteral("quad_triangles.obj"));
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_FACEINDEX;
+    QCOMPARE(doc.saveMesh(meshIndex, trianglePath, options), 0);
+    QFile triangleObj(trianglePath);
+    QVERIFY(triangleObj.open(QIODevice::ReadOnly));
+    const QByteArray triangleData = triangleObj.readAll();
+    QVERIFY(triangleData.contains("# Faces: 2"));
+    QCOMPARE(triangleData.count("\nf "), 2);
+
+    Document loaded;
+    loaded.setPreferredImportPluginForExtension(QStringLiteral("obj"), QStringLiteral("io_vcg"));
+    QCOMPARE(loaded.loadMesh(path), 0);
+    const VCGMesh &roundTrip = loaded.mesh(0).mesh;
+    QCOMPARE(roundTrip.FN(), 2);
+    int fauxEdges = 0;
+    for (const VCGFace &face : roundTrip.face) {
+        for (int corner = 0; corner < 3; ++corner) {
+            const int vertex = int(face.cV(corner) - roundTrip.vert.data());
+            QCOMPARE(face.cWT(corner).U(), uv[size_t(vertex)].X());
+            QCOMPARE(face.cWT(corner).V(), uv[size_t(vertex)].Y());
+            fauxEdges += face.IsF(corner) ? 1 : 0;
+        }
+    }
+    QCOMPARE(fauxEdges, 2);
 }
 
 void DocumentTests::benchmarkLoadMesh()

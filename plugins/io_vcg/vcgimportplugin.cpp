@@ -120,7 +120,7 @@ int loadMaskCapabilityForExtension(const QString &ext)
         return M::IOM_VERTCOORD | M::IOM_VERTCOLOR | M::IOM_VERTNORMAL
             | M::IOM_VERTTEXCOORD | M::IOM_EDGEINDEX | M::IOM_FACEINDEX
             | M::IOM_FACECOLOR | M::IOM_FACENORMAL | M::IOM_WEDGTEXCOORD
-            | M::IOM_WEDGNORMAL;
+            | M::IOM_WEDGNORMAL | M::IOM_BITPOLYGONAL;
     if (ext == QLatin1String("stl"))
         return M::IOM_VERTCOORD | M::IOM_FACEINDEX | M::IOM_FACECOLOR
             | M::IOM_FACENORMAL;
@@ -402,7 +402,14 @@ public:
             return encodeExporterError(kErrSavePlyBase, err);
         }
         if (ext == QLatin1String("obj")) {
+            const bool restoreDisabledFF =
+                (saveMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL) != 0
+                && !mesh.face.IsFFAdjacencyEnabled();
+            if (restoreDisabledFF)
+                mesh.face.EnableFFAdjacency();
             const int err = vcg::tri::io::ExporterOBJ<VCGMesh>::Save(mesh, path, saveMask, cb);
+            if (restoreDisabledFF)
+                mesh.face.DisableFFAdjacency();
             return encodeExporterError(kErrSaveObjBase, err);
         }
         if (ext == QLatin1String("stl")) {

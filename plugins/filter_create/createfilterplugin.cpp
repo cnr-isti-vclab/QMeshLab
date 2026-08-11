@@ -79,7 +79,10 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Dodecahedron<VCGMesh>(m);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Dodecahedron"));
+        const int idx = doc.addMesh(
+            m,
+            QStringLiteral("Dodecahedron"),
+            vcg::tri::io::Mask::IOM_BITPOLYGONAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -88,7 +91,10 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::DodecahedronSym<VCGMesh>(m);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Dodecahedron (sym)"));
+        const int idx = doc.addMesh(
+            m,
+            QStringLiteral("Dodecahedron (sym)"),
+            vcg::tri::io::Mask::IOM_BITPOLYGONAL);
         return success(doc.mesh(idx).name, idx);
     }
 
@@ -109,7 +115,10 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         vcg::tri::Box<VCGMesh>(m, b);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Box"));
+        const int idx = doc.addMesh(
+            m,
+            QStringLiteral("Box"),
+            vcg::tri::io::Mask::IOM_BITPOLYGONAL);
         return success(doc.mesh(idx).name, idx);
     }
 

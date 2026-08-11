@@ -203,8 +203,12 @@ int availableSaveMaskForMesh(const Document::MeshEntry &entry)
 {
     int mask = entry.ioMask;
     mask |= vcg::tri::io::Mask::IOM_VERTCOORD;
-    if (entry.mesh.FN() > 0)
+    if (entry.mesh.FN() > 0) {
         mask |= vcg::tri::io::Mask::IOM_FACEINDEX;
+        // Polygonal export is an output choice, not an optional mesh component:
+        // disabling it deliberately writes the underlying triangulation.
+        mask |= vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+    }
     if (entry.mesh.EN() > 0)
         mask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
     return mask;
@@ -227,6 +231,8 @@ int defaultSaveMaskForMesh(const Document::MeshEntry &entry, int capabilityMask)
     const int availableMask = availableSaveMaskForMesh(entry);
     int mask = availableMask & capabilityMask;
     mask |= requiredSaveMaskForMesh(entry, capabilityMask);
+    if ((entry.ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL) == 0)
+        mask &= ~vcg::tri::io::Mask::IOM_BITPOLYGONAL;
     // Prefer wedge attributes over per-vertex ones when both are available.
     if ((mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0)
         mask &= ~vcg::tri::io::Mask::IOM_VERTTEXCOORD;
