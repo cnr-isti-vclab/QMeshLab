@@ -219,18 +219,30 @@ void DocumentTests::planarPolygonTessellationHandlesConcavity()
     const std::vector<vcg::Point3d> duplicate = {
         { 0, 0, 0 }, { 1, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 }
     };
-    std::vector<int> unchanged = { 42 };
-    QVERIFY(!vcg::TessellatePlanarPolygon3(duplicate, unchanged));
-    QCOMPARE(unchanged.size(), size_t(1));
-    QCOMPARE(unchanged.front(), 42);
+    std::vector<int> fallbackTriangles;
+    bool usedFallback = false;
+    QVERIFY(vcg::TessellatePlanarPolygon3(duplicate, fallbackTriangles, &usedFallback));
+    QVERIFY(usedFallback);
+    QCOMPARE(fallbackTriangles.size(), size_t(6));
 
     const std::vector<vcg::Point3d> nonPlanarQuad = {
         { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0.1 }, { 0, 1, 0 }
     };
     std::vector<int> projectedTriangles;
-    QVERIFY(!vcg::TessellatePlanarPolygon3(nonPlanarQuad, projectedTriangles));
-    QVERIFY(vcg::TessellatePlanarPolygon3(nonPlanarQuad, projectedTriangles, false));
+    usedFallback = true;
+    QVERIFY(vcg::TessellatePlanarPolygon3(nonPlanarQuad, projectedTriangles, &usedFallback));
+    QVERIFY(!usedFallback);
     QCOMPARE(projectedTriangles.size(), size_t(6));
+
+    const std::vector<vcg::Point3d> selfIntersecting = {
+        { 0, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 }, { 1, 0, 0 }
+    };
+    fallbackTriangles.clear();
+    usedFallback = false;
+    QVERIFY(vcg::TessellatePlanarPolygon3(
+        selfIntersecting, fallbackTriangles, &usedFallback));
+    QVERIFY(usedFallback);
+    QCOMPARE(fallbackTriangles.size(), size_t(6));
 }
 
 void DocumentTests::loadConcavePolygonFormatsPreserveFauxEdges()

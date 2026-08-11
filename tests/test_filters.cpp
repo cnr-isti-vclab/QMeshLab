@@ -132,6 +132,7 @@ private slots:
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
     void instantMeshesRemeshesCube();
+    void catmullClarkSubdividesCube();
     void vertexDisplacementFiltersRunOnCube();
     void splitConnectedComponentsAfterDuplicateVertexRemoval();
     void hausdorffRunsOnTransientMeshCopies();
@@ -619,6 +620,26 @@ void FilterTests::instantMeshesRemeshesCube()
     QVERIFY(!subdivisionKey.isEmpty());
     const MeshFilterRunResult subdivision = doc.runFilter(subdivisionKey, {});
     QVERIFY2(subdivision.success, qPrintable(subdivision.errorMessage));
+}
+
+void FilterTests::catmullClarkSubdividesCube()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    QVERIFY(doc.addMesh(cube, QStringLiteral("Cube")) >= 0);
+
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("meshing_surface_subdivision_catmull_clark")) {
+            filterKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+    const MeshFilterRunResult result = doc.runFilter(filterKey, {});
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(doc.mesh(doc.currentMeshIndex()).mesh.FN() > 12);
 }
 
 void FilterTests::vertexDisplacementFiltersRunOnCube()
