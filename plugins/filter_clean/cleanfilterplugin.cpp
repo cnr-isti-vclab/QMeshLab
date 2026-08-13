@@ -469,16 +469,49 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterRemoveFoldFace)) {
         if (mesh.FN() <= 0)
             return { false, false, QObject::tr("Current mesh has no faces.") };
-        const int total = vcg::tri::Clean<VCGMesh>::RemoveFaceFoldByFlip(mesh);
+        if (entry.polygonFaceCount >= 0
+            || (entry.ioMask & Mask::IOM_BITPOLYGONAL) != 0) {
+            return {
+                false,
+                false,
+                QObject::tr("This filter requires a triangle mesh; convert polygonal faces to triangles first.")
+            };
+        }
+        if (!mesh.face.empty() && mesh.face.front().IsWedgeTexCoordEnabled()) {
+            return {
+                false,
+                false,
+                QObject::tr(
+                    "This filter cannot safely preserve per-wedge texture seams. "
+                    "Use a mesh without wedge texture coordinates.")
+            };
+        }
+        if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh, false) > 0
+            || vcg::tri::Clean<VCGMesh>::CountNonManifoldVertexFF(mesh, false, false) > 0) {
+            return { false, false, QObject::tr("This filter requires a 2-manifold mesh.") };
+        }
+        if (!vcg::tri::Clean<VCGMesh>::IsCoherentlyOrientedMesh(mesh)) {
+            return {
+                false,
+                false,
+                QObject::tr("This filter requires consistently oriented faces.")
+            };
+        }
+
+        const float threshold = float(params.getDouble(QStringLiteral("normal_threshold_deg")));
+        // inputPrepare already built FF adjacency, so avoid a second O(F log F) rebuild.
+        const int total = vcg::tri::Clean<VCGMesh>::RemoveFaceFoldByFlip(
+            mesh, threshold, true, false);
         if (total > 0) {
             compactAndUpdateGeometry(mesh);
+            entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
             doc.markMeshGeometryChanged(
                 current->index,
-                QObject::tr("Removed folded faces on '%1'").arg(entry.name));
+                QObject::tr("Repaired folded faces on '%1'").arg(entry.name));
         }
         return successResult(
             total > 0,
-            { QObject::tr("Successfully flipped %1 folded faces.").arg(total) });
+            { QObject::tr("Successfully repaired %1 folded faces by edge flip.").arg(total) });
     }
 
     if (filterId == QString::fromLatin1(kFilterRepairNonManifEdge)) {

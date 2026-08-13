@@ -105,7 +105,7 @@
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": { "requireFaces": true },
       "inputPrepare": ["FF", "VF", "FMark", "VMark"],
-      "outputModifies": ["VG", "FN"],
+      "outputModifies": ["VG", "FV", "VN", "FN"],
       "postRunCleanup": ["VF", "FF"],
       "parameters": [
         {

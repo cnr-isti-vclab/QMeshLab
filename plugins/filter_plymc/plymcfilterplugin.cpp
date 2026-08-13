@@ -92,10 +92,11 @@ MeshFilterRunResult PlyMCFilterPlugin::runFilter(
         if (result != 1)
             return fail(QObject::tr("Cannot simplify: this is not a Marching Cube-generated mesh."));
 
-        tri::Allocator<VCGMesh>::CompactFaceVector(m);
+        tri::Allocator<VCGMesh>::CompactEveryVector(m);
         float flipThreshold = float(p.getDouble(QStringLiteral("flipThreshold"), 10.0));
         tri::Clean<VCGMesh>::RemoveTVertexByFlip(m, flipThreshold, true);
         tri::Clean<VCGMesh>::RemoveFaceFoldByFlip(m);
+        tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
 
         auto &ent = doc.mesh(mi);
         ent.ioMask |= Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;

@@ -73,6 +73,43 @@ void makeOpenCubeMesh(VCGMesh &mesh)
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
 }
 
+void makeIsolatedFoldMesh(VCGMesh &mesh)
+{
+    mesh.Clear();
+    const std::array<vcg::Point3f, 6> vertices = {
+        vcg::Point3f(0.0f, 0.0f, 0.0f), vcg::Point3f(2.0f, 0.0f, 0.0f),
+        vcg::Point3f(1.0f, 2.0f, 0.0f), vcg::Point3f(1.0f, 4.0f, 0.0f),
+        vcg::Point3f(-1.5f, -1.0f, 0.0f), vcg::Point3f(3.5f, -1.0f, 0.0f)
+    };
+    for (const vcg::Point3f &point : vertices)
+        vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, point);
+
+    // Face 0 points upward, while its three consistently oriented neighbours
+    // overlap it and point downward.  Each opposite vertex lies strictly inside
+    // the corresponding neighbour, so the central fold is repairable by a flip.
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 1, 0, 3);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 2, 1, 4);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 2, 5);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
+bool isSelectedEdge(const VCGMesh &mesh, int firstVertex, int secondVertex)
+{
+    for (const VCGFace &face : mesh.face) {
+        for (int edge = 0; edge < 3; ++edge) {
+            const int a = int(vcg::tri::Index(mesh, face.cV0(edge)));
+            const int b = int(vcg::tri::Index(mesh, face.cV1(edge)));
+            if (((a == firstVertex && b == secondVertex)
+                    || (a == secondVertex && b == firstVertex))
+                && face.IsFaceEdgeS(edge))
+                return true;
+        }
+    }
+    return false;
+}
+
 void makeTwoTextureTriangles(VCGMesh &mesh)
 {
     mesh.Clear();
@@ -134,6 +171,8 @@ private slots:
     void instantMeshesRemeshesCube();
     void catmullClarkSubdividesCube();
     void polygonFaceCountCacheTracksFilterChanges();
+    void isolatedFoldRepairPreservesFlagsAndConverges();
+    void isolatedFoldRepairRejectsUnsupportedMeshes();
     void vertexDisplacementFiltersRunOnCube();
     void splitConnectedComponentsAfterDuplicateVertexRemoval();
     void hausdorffRunsOnTransientMeshCopies();
@@ -682,6 +721,100 @@ void FilterTests::polygonFaceCountCacheTracksFilterChanges()
     QVERIFY2(doc.runFilter(toQuadsKey, {}).success, "Convert to quads failed");
     QCOMPARE(doc.mesh(meshIndex).polygonFaceCount, 1);
     QVERIFY(doc.mesh(meshIndex).ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+}
+
+void FilterTests::isolatedFoldRepairPreservesFlagsAndConverges()
+{
+    VCGMesh folded;
+    makeIsolatedFoldMesh(folded);
+    folded.face[0].SetV(); // Scratch visited state must not affect detection.
+    folded.face[1].SetS();
+    folded.face[0].SetFaceEdgeS(2); // Boundary edge 2-0.
+    folded.face[1].SetFaceEdgeS(1); // Boundary edge 0-3.
+
+    Document doc;
+    const int meshIndex = doc.addMesh(folded, QStringLiteral("Isolated fold"));
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("remove_folded_faces_by_edge_flip")) {
+            filterKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    const MeshFilterRunResult result = doc.runFilter(filterKey, {});
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(result.documentModified);
+
+    const VCGMesh &repaired = doc.mesh(meshIndex).mesh;
+    QCOMPARE(repaired.FN(), 4);
+    QVERIFY(repaired.face[0].IsV());
+    QVERIFY(repaired.face[1].IsS());
+    QVERIFY(!repaired.face[0].IsS());
+    QVERIFY(isSelectedEdge(repaired, 2, 0));
+    QVERIFY(isSelectedEdge(repaired, 0, 3));
+
+    // The monotone local score must leave no further repair for a second run.
+    const MeshFilterRunResult second = doc.runFilter(filterKey, {});
+    QVERIFY2(second.success, qPrintable(second.errorMessage));
+    QVERIFY(!second.documentModified);
+}
+
+void FilterTests::isolatedFoldRepairRejectsUnsupportedMeshes()
+{
+    QString filterKey;
+    Document registry;
+    for (const auto &info : registry.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("remove_folded_faces_by_edge_flip")) {
+            filterKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    VCGMesh polygon;
+    makeIsolatedFoldMesh(polygon);
+    polygon.face[0].SetF(0);
+    Document polygonDoc;
+    polygonDoc.addMesh(
+        polygon, QStringLiteral("Polygonal"), vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+    const MeshFilterRunResult polygonResult = polygonDoc.runFilter(filterKey, {});
+    QVERIFY(!polygonResult.success);
+    QVERIFY(polygonResult.errorMessage.contains(QStringLiteral("triangle mesh")));
+
+    VCGMesh textured;
+    makeIsolatedFoldMesh(textured);
+    textured.face.EnableWedgeTexCoord();
+    Document texturedDoc;
+    texturedDoc.addMesh(
+        textured, QStringLiteral("Textured"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    const MeshFilterRunResult texturedResult = texturedDoc.runFilter(filterKey, {});
+    QVERIFY(!texturedResult.success);
+    QVERIFY(texturedResult.errorMessage.contains(QStringLiteral("texture seams")));
+
+    VCGMesh nonManifold;
+    for (const vcg::Point3f &point : {
+             vcg::Point3f(0, 0, 0), vcg::Point3f(1, 0, 0), vcg::Point3f(0, 1, 0),
+             vcg::Point3f(0, -1, 0), vcg::Point3f(0, 0, 1) })
+        vcg::tri::Allocator<VCGMesh>::AddVertex(nonManifold, point);
+    vcg::tri::Allocator<VCGMesh>::AddFace(nonManifold, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(nonManifold, 1, 0, 3);
+    vcg::tri::Allocator<VCGMesh>::AddFace(nonManifold, 0, 1, 4);
+    Document nonManifoldDoc;
+    nonManifoldDoc.addMesh(nonManifold, QStringLiteral("Non-manifold"));
+    const MeshFilterRunResult nonManifoldResult = nonManifoldDoc.runFilter(filterKey, {});
+    QVERIFY(!nonManifoldResult.success);
+    QVERIFY(nonManifoldResult.errorMessage.contains(QStringLiteral("2-manifold")));
+
+    VCGMesh unoriented;
+    makeIsolatedFoldMesh(unoriented);
+    std::swap(unoriented.face[1].V(0), unoriented.face[1].V(1));
+    Document unorientedDoc;
+    unorientedDoc.addMesh(unoriented, QStringLiteral("Unoriented"));
+    const MeshFilterRunResult unorientedResult = unorientedDoc.runFilter(filterKey, {});
+    QVERIFY(!unorientedResult.success);
+    QVERIFY(unorientedResult.errorMessage.contains(QStringLiteral("oriented")));
 }
 
 void FilterTests::vertexDisplacementFiltersRunOnCube()

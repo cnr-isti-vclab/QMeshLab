@@ -425,8 +425,8 @@
       "categories": ["Repair/Topology"],
       "name": "Remove Isolated Folded Faces by Edge Flip",
       "pythonName": "remove_isolated_folded_faces",
-      "shortDescription": "Remove isolated folded faces by edge flipping.",
-      "longDescriptionMarkdown": "Delete all the single folded faces. A face is considered folded if its normal is opposite to all the adjacent faces. It is removed by flipping it against the face f adjacent along the edge e such that the vertex opposite to e fall inside f",
+      "shortDescription": "Repair isolated folded triangles by changing the local triangulation.",
+      "longDescriptionMarkdown": "Repair an isolated folded triangle whose normal is nearly opposite to all three adjacent faces. The filter flips one supporting edge only when the opposite vertex projects strictly inside the adjacent triangle and the flip reduces the number of near-opposite normal relations in the affected neighborhood. No vertices or faces are removed.\n\nThe input must be a consistently oriented, 2-manifold triangle mesh. Polygonal faux-edge meshes and meshes with per-wedge texture coordinates are rejected because an edge flip cannot preserve their polygon boundaries or UV seams unambiguously.",
       "tags": [
         "cleaning",
         "folded",
@@ -437,16 +437,26 @@
       "inputRequirements": {
         "requireFaces": true
       },
-      "parameters": [],
+      "parameters": [
+        {
+          "id": "normal_threshold_deg",
+          "label": "Fold Angle",
+          "help": "Minimum angle, in degrees, between the candidate face normal and each adjacent face normal. Values near 180 detect only nearly reversed triangles.",
+          "group": "main",
+          "type": "double",
+          "default": 175.0,
+          "min": 90.0,
+          "max": 180.0,
+          "decimals": 1
+        }
+      ],
       "outputModifies": [
         "FV",
-        "VG",
         "VN",
         "FN"
       ],
       "inputPrepare": [
-        "FF",
-        "VMark"
+        "FF"
       ]
     },
     {
