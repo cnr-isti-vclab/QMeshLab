@@ -800,6 +800,7 @@ QRhiShaderResourceBindings *RenderWidget::shaderResourcesForFillTextures(
         || !m_ubuf
         || !m_textureSampler
         || !m_textureSamplerNearest
+        || !m_qualityColorMapSampler
         || !m_qualityColorMapTexture
         || !m_fallbackTexture
         || !m_fallbackNormalTexture
@@ -844,7 +845,7 @@ QRhiShaderResourceBindings *RenderWidget::shaderResourcesForFillTextures(
             2,
             QRhiShaderResourceBinding::FragmentStage,
             m_qualityColorMapTexture.get(),
-            m_textureSampler.get()),
+            m_qualityColorMapSampler.get()),
         QRhiShaderResourceBinding::sampledTexture(
             3,
             QRhiShaderResourceBinding::FragmentStage,

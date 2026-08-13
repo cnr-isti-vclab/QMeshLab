@@ -631,6 +631,7 @@ void RenderWidget::ensureRenderResources()
         m_textureSampler.reset();
         m_textureSamplerNearest.reset();
         m_rasterSampler.reset();
+        m_qualityColorMapSampler.reset();
         m_fallbackTexture.reset();
         m_fallbackTextureUploadPending = false;
         m_fallbackNormalTexture.reset();
@@ -727,6 +728,21 @@ void RenderWidget::ensureRenderResources()
         }
     }
 
+    if (!m_qualityColorMapSampler) {
+        // ClampToEdge, unlike the Repeat used for tiling albedo UVs. The LUT is a
+        // 1024x1 ramp whose texel centres sit at (i+0.5)/1024, so a scalar clamped to
+        // the top of its range samples at u=1.0 -> texel coordinate 1023.5, which with
+        // Repeat blends the last texel with the *wrapped* first one: the maximum of a
+        // gray ramp came out mid-gray instead of white, and the minimum likewise.
+        m_qualityColorMapSampler.reset(
+            m_rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
+                              QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
+        if (!m_qualityColorMapSampler || !m_qualityColorMapSampler->create()) {
+            m_qualityColorMapSampler.reset();
+            return;
+        }
+    }
+
     if (!m_fallbackTexture) {
         m_fallbackTexture.reset(
             m_rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1), 1));
@@ -792,6 +808,7 @@ void RenderWidget::ensureRenderResources()
     if (!m_srb) {
         if (!m_ubuf
             || !m_textureSampler
+            || !m_qualityColorMapSampler
             || !m_fallbackTexture
             || !m_fallbackNormalTexture
             || !m_fallbackOcclusionTexture
@@ -815,7 +832,7 @@ void RenderWidget::ensureRenderResources()
                 2,
                 QRhiShaderResourceBinding::FragmentStage,
                 m_qualityColorMapTexture.get(),
-                m_textureSampler.get()),
+                m_qualityColorMapSampler.get()),
             QRhiShaderResourceBinding::sampledTexture(
                 3,
                 QRhiShaderResourceBinding::FragmentStage,

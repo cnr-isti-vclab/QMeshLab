@@ -534,6 +534,10 @@ struct SceneRasterProjectedDrawItem {
     std::unique_ptr<QRhiSampler> m_textureSampler;
     std::unique_ptr<QRhiSampler> m_textureSamplerNearest;
     std::unique_ptr<QRhiSampler> m_rasterSampler;
+    // The colormap LUT needs ClampToEdge, not the Repeat of m_textureSampler: it is a
+    // 1D ramp sampled at the normalized scalar, and the ends of that range land
+    // exactly on the texture edges. See ensureResources().
+    std::unique_ptr<QRhiSampler> m_qualityColorMapSampler;
     std::unique_ptr<QRhiTexture> m_fallbackTexture;
     bool m_fallbackTextureUploadPending = false;
     std::unique_ptr<QRhiTexture> m_fallbackNormalTexture;

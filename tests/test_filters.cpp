@@ -199,6 +199,7 @@ private slots:
     void faceQualityFiltersAreSplit();
     void libiglParametrizationFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
+    void ambientOcclusionIsScaleInvariant();
     void randomSeedMakesSamplingReproducible();
     void randomSeedZeroVariesBetweenRuns();
     void randomSeedControlsExpressionRnd();
@@ -2092,6 +2093,78 @@ QString filterKeyForId(const Document &doc, const QString &filterId)
     }
     return {};
 }
+
+} // namespace
+
+// A convex closed surface cannot occlude itself: every ray leaving a face's outward
+// hemisphere escapes, so the ambient occlusion value is the same for every face
+// regardless of how far the mesh sits from the origin. It used not to be — the ray
+// self-intersection offset was a fixed 1e-4, which is only a couple of float ULPs
+// once coordinates reach the hundreds, so rays hit their own originating face and
+// those faces read as fully occluded. On Laurana (bbox diagonal ~892) that was 4.5%
+// of faces rendering black.
+void FilterTests::ambientOcclusionIsScaleInvariant()
+{
+    Document probe;
+    const QString aoKey = filterKeyForId(probe, QStringLiteral("compute_ambient_occlusion"));
+    if (aoKey.isEmpty())
+        QSKIP("Embree plugin is not available in this build.");
+    const QString sphereKey = filterKeyForId(probe, QStringLiteral("create_sphere"));
+    QVERIFY(!sphereKey.isEmpty());
+
+    // Spread of the per-face AO value, as a fraction of its mean, plus the number of
+    // faces that came out fully occluded (which on a convex body must be none).
+    const auto aoSpread = [&](float scale, int &fullyOccluded) {
+        Document doc;
+        if (!doc.runFilter(sphereKey, {}).success)
+            return -1.0;
+        VCGMesh &mesh = doc.mesh(0).mesh;
+        for (VCGVertex &v : mesh.vert)
+            v.P() *= scale;
+        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("rays"), 64);
+        if (!doc.runFilter(aoKey, params).success)
+            return -1.0;
+
+        double sum = 0.0;
+        int count = 0;
+        fullyOccluded = 0;
+        for (const VCGFace &f : doc.mesh(0).mesh.face) {
+            if (f.IsD())
+                continue;
+            sum += f.cQ();
+            ++count;
+            if (f.cQ() <= 0.0f)
+                ++fullyOccluded;
+        }
+        if (count == 0 || sum <= 0.0)
+            return -1.0;
+        const double mean = sum / count;
+        double var = 0.0;
+        for (const VCGFace &f : doc.mesh(0).mesh.face)
+            if (!f.IsD())
+                var += (f.cQ() - mean) * (f.cQ() - mean);
+        return std::sqrt(var / count) / mean;
+    };
+
+    // 0.4% is the residual from discretizing the hemisphere into 64 fixed directions;
+    // 5% leaves headroom for that without admitting self-intersection noise, which
+    // ran to 31% on Laurana and 86% on a sphere at this scale.
+    for (float scale : { 1.0f, 100.0f, 1000.0f, 10000.0f }) {
+        int fullyOccluded = -1;
+        const double spread = aoSpread(scale, fullyOccluded);
+        QVERIFY2(spread >= 0.0, "ambient occlusion run failed");
+        QVERIFY2(
+            spread < 0.05,
+            qPrintable(QStringLiteral("AO spread %1 at scale %2 (expected < 0.05)")
+                           .arg(spread).arg(scale)));
+        QCOMPARE(fullyOccluded, 0);
+    }
+}
+
+namespace {
 
 // Monte Carlo sampling of a cube, returned as the flattened sample coordinates so
 // two runs can be compared exactly.

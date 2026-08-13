@@ -105,8 +105,10 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterAmbientOcclusion)) {
+        // The self-intersection offset is left at its default of 0, which makes the
+        // adaptor derive it from the mesh bounding box. (An assignment used to sit
+        // *after* this call, where it could not affect the run.)
         adaptor.computeAmbientOcclusion(entry.mesh, rays, cb);
-        adaptor.rayEpsilon = 1e-4f; // Set ray epsilon to a small value to improve AO accuracy on thin features
         if (doc.isOperationCancelRequested())
             return interruptedResult();
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
