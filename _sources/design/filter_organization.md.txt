@@ -235,10 +235,33 @@ Recommended common names:
 | preserve boundary | `preserveBoundary` |
 | preserve topology | `preserveTopology` |
 | update normals | `updateNormals` |
-| random seed | `randomSeed` |
+| random seed | `randomSeed` (see below) |
 | iteration count | `iterations` |
 | quality threshold | `qualityThreshold` |
 | distance threshold | `distanceThreshold` |
+
+### `randomSeed`
+
+Every filter whose algorithm draws from a random generator declares exactly one
+`randomSeed` parameter — `int`, default `0`, minimum `0` — and resolves it through
+`FilterParams::getRandomSeed()`:
+
+- **`0`** (the default) draws a fresh seed, so repeated applications differ. The
+  drawn value is reported in the filter's result messages, so a result the user
+  likes can be pinned afterwards.
+- **any other value** is used verbatim, making the run exactly reproducible.
+
+Do not read the parameter with `getInt()` and hand-roll the fallback: the helper is
+what keeps "0 means surprise me" identical across filters, and it draws from
+`QRandomGenerator` rather than `time(0)` so two filters run in the same second do
+not share a seed.
+
+Where randomness is conditional — a `pca` curvature method, a `montecarlo` point
+technique, an opt-in `Random` toggle — declare the parameter anyway and report the
+seed only on the branch that actually uses it.
+
+`FilterTests::randomizedFiltersDeclareARandomSeed` pins the list of randomized
+filters; extend it when you add one.
 
 Current naming issue:
 

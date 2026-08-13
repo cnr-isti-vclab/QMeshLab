@@ -522,7 +522,7 @@ all three (ruling 2).</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">updateNormals</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>random seed</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code> (see below)</p></td>
 </tr>
 <tr class="row-odd"><td><p>iteration count</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">iterations</span></code></p></td>
@@ -536,6 +536,26 @@ all three (ruling 2).</p>
 </tbody>
 </table>
 </div>
+<section id="randomseed">
+<h3><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code><a class="headerlink" href="#randomseed" title="Link to this heading">¶</a></h3>
+<p>Every filter whose algorithm draws from a random generator declares exactly one
+<code class="docutils literal notranslate"><span class="pre">randomSeed</span></code> parameter — <code class="docutils literal notranslate"><span class="pre">int</span></code>, default <code class="docutils literal notranslate"><span class="pre">0</span></code>, minimum <code class="docutils literal notranslate"><span class="pre">0</span></code> — and resolves it through
+<code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code>:</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">0</span></code></strong> (the default) draws a fresh seed, so repeated applications differ. The
+drawn value is reported in the filter’s result messages, so a result the user
+likes can be pinned afterwards.</p></li>
+<li><p><strong>any other value</strong> is used verbatim, making the run exactly reproducible.</p></li>
+</ul>
+<p>Do not read the parameter with <code class="docutils literal notranslate"><span class="pre">getInt()</span></code> and hand-roll the fallback: the helper is
+what keeps “0 means surprise me” identical across filters, and it draws from
+<code class="docutils literal notranslate"><span class="pre">QRandomGenerator</span></code> rather than <code class="docutils literal notranslate"><span class="pre">time(0)</span></code> so two filters run in the same second do
+not share a seed.</p>
+<p>Where randomness is conditional — a <code class="docutils literal notranslate"><span class="pre">pca</span></code> curvature method, a <code class="docutils literal notranslate"><span class="pre">montecarlo</span></code> point
+technique, an opt-in <code class="docutils literal notranslate"><span class="pre">Random</span></code> toggle — declare the parameter anyway and report the
+seed only on the branch that actually uses it.</p>
+<p><code class="docutils literal notranslate"><span class="pre">FilterTests::randomizedFiltersDeclareARandomSeed</span></code> pins the list of randomized
+filters; extend it when you add one.</p>
 <p>Current naming issue:</p>
 <ul class="simple">
 <li><p>Many ported filters use MeshLab-style ids such as <code class="docutils literal notranslate"><span class="pre">TargetFaceNum</span></code>,
@@ -549,6 +569,7 @@ transition, or should the cleanup be a direct rename? Since script
 compatibility is not a priority, direct rename should be the default answer
 unless a specific problem appears.</p></li>
 </ul>
+</section>
 </section>
 <section id="defaults-and-script-generation">
 <h2>Defaults and Script Generation<a class="headerlink" href="#defaults-and-script-generation" title="Link to this heading">¶</a></h2>
@@ -1316,7 +1337,10 @@ specific release-management reason?</p></li>
 <li><a class="reference internal" href="#categories">Categories</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#parameter-naming-rules">Parameter Naming Rules</a></li>
+<li><a class="reference internal" href="#parameter-naming-rules">Parameter Naming Rules</a><ul>
+<li><a class="reference internal" href="#randomseed"><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#defaults-and-script-generation">Defaults and Script Generation</a></li>
 <li><a class="reference internal" href="#filter-side-effects">Filter Side Effects</a></li>
 <li><a class="reference internal" href="#migration-strategy">Migration Strategy</a></li>

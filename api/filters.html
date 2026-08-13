@@ -365,6 +365,7 @@
 <li><p><strong>b</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for blue output in range [0, 255].</p></li>
 <li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for alpha output in range [0, 255].</p></li>
 <li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -384,6 +385,7 @@
 <li><p><strong>y</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-fny</span></code>) — Expression for Y output.</p></li>
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-fnz</span></code>) — Expression for Z output.</p></li>
 <li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -403,6 +405,7 @@
 <li><p><strong>normalize</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Normalize computed quality into range [0, 1].</p></li>
 <li><p><strong>map</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also write a per-face color ramp. Disabled by default because QMeshLab automatically switches to face-quality visualization after the quality is computed.</p></li>
 <li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -473,6 +476,7 @@
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Expression for Z output.</p></li>
 <li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for alpha output in range [0, 255].</p></li>
 <li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -493,6 +497,7 @@
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">sin(x+y)</span></code>) — Expression for Z output.</p></li>
 <li><p><strong>a</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Expression for alpha channel (ignored for geometry).</p></li>
 <li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -512,6 +517,7 @@
 <li><p><strong>y</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-ny</span></code>) — Expression for Y output.</p></li>
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">-nz</span></code>) — Expression for Z output.</p></li>
 <li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -531,6 +537,7 @@
 <li><p><strong>normalize</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Normalize computed quality into range [0, 1].</p></li>
 <li><p><strong>map</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also write a per-vertex color ramp. Disabled by default because QMeshLab automatically switches to vertex-quality visualization after the quality is computed.</p></li>
 <li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -549,6 +556,7 @@
 <li><p><strong>u</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x</span></code>) — Expression for U texture coordinate.</p></li>
 <li><p><strong>v</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">y</span></code>) — Expression for V texture coordinate.</p></li>
 <li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -571,6 +579,7 @@
 <li><p><strong>u2</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x2</span></code>) — Expression for wedge texture coordinate.</p></li>
 <li><p><strong>v2</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">y2</span></code>) — Expression for wedge texture coordinate.</p></li>
 <li><p><strong>onselected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If enabled, the filter affects only selected elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -641,6 +650,7 @@
 <ul class="simple">
 <li><p><strong>noiseBits</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Bits of noise added to each RGB channel.</p></li>
 <li><p><strong>onSelected</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only affects selected vertices.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the added noise exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -656,7 +666,7 @@
 <dd><p>Assigns a random color to each visible mesh layer in the document. Colors change every time the filter is executed, but are always chosen so that they differ as much as possible.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>seed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Random seed used to generate scattered colors. Zero means totally random.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the color assignment exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -836,6 +846,7 @@
 <li><p><strong>CurvColorMethod</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mean</span></code>) — Choose the curvature value stored in vertex quality and shown through automatic quality visualization.</p></li>
 <li><p><strong>Scale</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagTenth</span></code>) — Scale for scale-dependent methods.</p></li>
 <li><p><strong>Autoclean</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Remove unreferenced vertices before computing.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the PCA method’s point sampling exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -970,6 +981,7 @@
 <li><p><strong>SampleFace</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Sample faces of the sampled mesh by Montecarlo sampling.</p></li>
 <li><p><strong>SampleNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — Desired number of samples for each enabled sampling strategy.</p></li>
 <li><p><strong>MaxDist</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagHalf</span></code>) — Discard sample points whose closest point is farther than this threshold.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the measured sample set exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1015,6 +1027,7 @@
 <li><p><strong>MaxAngleDeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">45.0</span></code>) — Maximum angle, in degrees, between source and reference normals for accepted correspondences.</p></li>
 <li><p><strong>MinPointNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Minimum number of accepted point pairs required for an ICP iteration to be valid.</p></li>
 <li><p><strong>SaveLastIteration</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Create two diagnostic point layers containing the last accepted source samples and their reference correspondences.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of the moving mesh exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1046,6 +1059,7 @@
 <li><p><strong>UseVertexOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Use closest vertices instead of closest points on faces.</p></li>
 <li><p><strong>MaxAngleDeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">45.0</span></code>) — Maximum accepted normal angle in degrees.</p></li>
 <li><p><strong>MinPointNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Minimum number of matched point pairs required for a valid pairwise ICP arc.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of each aligned pair exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1642,6 +1656,7 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <li><p><strong>maxY</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Sampling range parameter.</p></li>
 <li><p><strong>maxZ</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Sampling range parameter.</p></li>
 <li><p><strong>expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x*x+y*y+z*z-0.5</span></code>) — Scalar field expression f(x,y,z). The 0-isovalue is extracted.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1672,6 +1687,7 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <ul class="simple">
 <li><p><strong>point_num</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">100</span></code>) — Approximate number of points to generate.</p></li>
 <li><p><strong>technique</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">fibonacci</span></code>) — Strategy used to distribute points on the sphere.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the Monte Carlo point set exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1786,6 +1802,7 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <li><p><strong>x_expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x0</span></code>) — Expression for X component.</p></li>
 <li><p><strong>y_expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">y0</span></code>) — Expression for Y component.</p></li>
 <li><p><strong>z_expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">z0</span></code>) — Expression for Z component.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1803,6 +1820,7 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <ul class="simple">
 <li><p><strong>name</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">CustomAttrName</span></code>) — Name of the new custom attribute.</p></li>
 <li><p><strong>expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">fi</span></code>) — Expression used to compute the scalar attribute.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1822,6 +1840,7 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <li><p><strong>x_expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x</span></code>) — Expression for X component.</p></li>
 <li><p><strong>y_expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">y</span></code>) — Expression for Y component.</p></li>
 <li><p><strong>z_expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">z</span></code>) — Expression for Z component.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1839,6 +1858,7 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <ul class="simple">
 <li><p><strong>name</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">CustomAttrName</span></code>) — Name of the new custom attribute.</p></li>
 <li><p><strong>expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">x</span></code>) — Expression used to compute the scalar attribute.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1867,6 +1887,7 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <li><p><strong>uvReductionLimit</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Target UV boundary length reduction, expressed as a percentage of the input UV boundary length. The algorithm stops once this reduction has been reached, or when no further seams can be merged. <code class="docutils literal notranslate"><span class="pre">0</span></code> means no target reduction stop condition. MeshLab default: <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
 <li><p><strong>offsetFactor</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">5.0</span></code>) — Coefficient controlling the extension of the local UV optimization area. Larger values can make defragmentation more effective by giving the optimizer more room, but increase geometric optimization cost and runtime. MeshLab default: <code class="docutils literal notranslate"><span class="pre">5.0</span></code>.</p></li>
 <li><p><strong>timelimit</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Time limit for the defragmentation process. <code class="docutils literal notranslate"><span class="pre">0</span></code> means unlimited. This is useful for very large atlases where chart merging can be expensive. MeshLab default: <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -2184,7 +2205,7 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <ul class="simple">
 <li><p><strong>maxDisplacement</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Maximum absolute displacement applied independently to each coordinate.</p></li>
 <li><p><strong>recomputeNormals</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Recompute face and vertex normals after displacement.</p></li>
-<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Use zero for an automatically generated seed, or a positive value for repeatable displacement.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the displacement exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -2585,6 +2606,7 @@ Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, <strong>Poisson Surface Reconstr
 <li><p><strong>sampleVolNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">200000</span></code>) — Number of volumetric Monte Carlo samples to scatter inside the mesh.</p></li>
 <li><p><strong>poissonFiltering</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Preserve the original MeshLab option. The current upstream implementation does not emit the filtered volume layer.</p></li>
 <li><p><strong>poissonRadius</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — Radius used by the internal Poisson pruning stage.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the generated sample set exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -2609,7 +2631,7 @@ Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, <strong>Poisson Surface Reconstr
 <li><p><strong>refineFactor</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Controls how much the mesh is refined during preprocessing. Larger values create a denser supporting triangulation.</p></li>
 <li><p><strong>perturbProbability</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Probability that each seed is slightly perturbed during restricted relaxation.</p></li>
 <li><p><strong>perturbAmount</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.001</span></code>) — Perturbation amplitude as a fraction of the bounding-box diagonal.</p></li>
-<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed used by the random sampler. Use 0 to follow the library default.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the seed placement and relaxation exactly reproducible.</p></li>
 <li><p><strong>relaxType</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">squared_distance</span></code>) — How a new seed is chosen inside each Voronoi region.</p></li>
 </ul>
 </dd></dl>
@@ -2848,6 +2870,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>relaxStep</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Number of volumetric Lloyd relaxation steps for the Voronoi seeds.</p></li>
 <li><p><strong>surfFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Extract the scaffold as a structure joined to the original surface envelope.</p></li>
 <li><p><strong>elemType</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">edge</span></code>) — Voronoi feature type to extract.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the scaffolding exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -3286,6 +3309,7 @@ Leave 0 for automatic calculation.</p></li>
 <ul class="simple">
 <li><p><strong>regionNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — An estimation of the number of regions that must be generated. Smaller regions could lead to parametrizations with smaller distortion.</p></li>
 <li><p><strong>overlapFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked the resulting parametrization will be composed by overlapping regions, e.g. the resulting mesh will have duplicated faces: each region will have a ring of ovelapping duplicate faces that will ensure that border regions will be parametrized in the atlas twice. This is quite useful for building mipmap robust atlases.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas regions exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -3480,6 +3504,7 @@ Leave 0 for automatic calculation.</p></li>
 <li><p><strong>x</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">(x0+x1)/2</span></code>) — Expression for X output.</p></li>
 <li><p><strong>y</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">(y0+y1)/2</span></code>) — Expression for Y output.</p></li>
 <li><p><strong>z</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">(z0+z1)/2</span></code>) — Expression for Z output.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -3601,12 +3626,16 @@ Leave 0 for automatic calculation.</p></li>
 <section id="remove-isolated-folded-faces-by-edge-flip">
 <span id="filter-remove-isolated-folded-faces"></span><h2>Remove Isolated Folded Faces by Edge Flip<a class="headerlink" href="#remove-isolated-folded-faces-by-edge-flip" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
-<p>Remove isolated folded faces by edge flipping.</p>
+<p>Repair isolated folded triangles by changing the local triangulation.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.remove_isolated_folded_faces">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_isolated_folded_faces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remove_isolated_folded_faces" title="Link to this definition">¶</a></dt>
-<dd><p>Delete all the single folded faces. A face is considered folded if its normal is opposite to all the adjacent faces. It is removed by flipping it against the face f adjacent along the edge e such that the vertex opposite to e fall inside f</p>
-<p>This filter has no parameters.</p>
+<dd><p>Repair an isolated folded triangle whose normal is nearly opposite to all three adjacent faces. The filter flips one supporting edge only when the opposite vertex projects strictly inside the adjacent triangle and the flip reduces the number of near-opposite normal relations in the affected neighborhood. No vertices or faces are removed.</p>
+<p>The input must be a consistently oriented, 2-manifold triangle mesh. Polygonal faux-edge meshes and meshes with per-wedge texture coordinates are rejected because an edge flip cannot preserve their polygon boundaries or UV seams unambiguously.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>normal_threshold_deg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">175.0</span></code>) — Minimum angle, in degrees, between the candidate face normal and each adjacent face normal. Values near 180 detect only nearly reversed triangles.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
@@ -3876,6 +3905,7 @@ Leave 0 for automatic calculation.</p></li>
 <ul class="simple">
 <li><p><strong>Sampling</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">vertex</span></code>) — Choose which mesh elements are sampled.</p></li>
 <li><p><strong>SampleNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — Desired number of sampled elements.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the chosen subset of vertices exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -3897,6 +3927,7 @@ Leave 0 for automatic calculation.</p></li>
 <li><p><strong>RadiusVariance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — When quality-weighted sampling is used, the sampling radius may vary between r/var and r*var.</p></li>
 <li><p><strong>ExactNum</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled, try to generate exactly the requested number of samples.</p></li>
 <li><p><strong>EdgeSampling</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Restrict sampling to mesh edges.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sample positions exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -3925,6 +3956,7 @@ Leave 0 for automatic calculation.</p></li>
 <li><p><strong>ExactNumFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Search for a radius that matches the requested number of samples within the given tolerance.</p></li>
 <li><p><strong>ExactNumTolerance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.005</span></code>) — Tolerance used by precise sample count search, expressed as a fraction of the requested sample count.</p></li>
 <li><p><strong>RadiusVariance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Allow the Poisson disk radius to vary between r and r*var using vertex quality as a density bias.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the generated sample set exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -3960,6 +3992,7 @@ Leave 0 for automatic calculation.</p></li>
 <li><p><strong>SampleNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5000</span></code>) — Desired number of generated samples.</p></li>
 <li><p><strong>Sampling</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">similar_triangle</span></code>) — Choose the structured sampling strategy.</p></li>
 <li><p><strong>Random</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — For each virtual cell, choose a random sample instead of the midpoint.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sample positions inside each face exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -4174,6 +4207,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>condSelect</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">(fi</span> <span class="pre">==</span> <span class="pre">0)</span></code>) — Boolean expression evaluated per face.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -4361,6 +4395,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>condSelect</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">(q</span> <span class="pre">&lt;</span> <span class="pre">0)</span></code>) — Boolean expression evaluated per vertex.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -4669,6 +4704,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><p><strong>BestSamplePool</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of candidate attempts used when the best-sample heuristic is enabled.</p></li>
 <li><p><strong>ExactNumFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Search for a radius that matches the requested number of samples within the given tolerance.</p></li>
 <li><p><strong>ExactNumTolerance</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.005</span></code>) — Tolerance used by precise sample count search, expressed as a fraction of the requested sample count.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the surviving subset of points exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -4697,6 +4733,7 @@ Note that topologically incompatible merges are still skipped, as they cannot be
 <li><p><strong>targetTexCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Specifies the maximum number of output textures that can be generated by the filter.
 If set to zero the parameter is ignored and the algorithm employs the default packing strategy.</p></li>
 <li><p><strong>quickRun</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Speeds up the running time of the filter by never attempting again any rejected merge operation. <br> Although fast, it could lead to worst results.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 

@@ -148,6 +148,7 @@ Color function using muparser lib to generate new RGBA color for every face<br>R
 - **b** (*string*, default: `255`) — Expression for blue output in range [0, 255].
 - **a** (*string*, default: `255`) — Expression for alpha output in range [0, 255].
 - **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -171,6 +172,7 @@ Normal function using muparser to generate new Normal for every face<br>
 - **y** (*string*, default: `-fny`) — Expression for Y output.
 - **z** (*string*, default: `-fnz`) — Expression for Z output.
 - **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -194,6 +196,7 @@ Quality function using muparser to generate new Quality for every face<br>Insert
 - **normalize** (*bool*, default: `False`) — Normalize computed quality into range [0, 1].
 - **map** (*bool*, default: `False`) — Also write a per-face color ramp. Disabled by default because QMeshLab automatically switches to face-quality visualization after the quality is computed.
 - **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -276,6 +279,7 @@ Color function using muparser lib to generate new RGBA color for every vertex<br
 - **z** (*string*, default: `0`) — Expression for Z output.
 - **a** (*string*, default: `255`) — Expression for alpha output in range [0, 255].
 - **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -300,6 +304,7 @@ Geometric function using muparser lib to generate new Coord<br>You can change x,
 - **z** (*string*, default: `sin(x+y)`) — Expression for Z output.
 - **a** (*string*, default: `1`) — Expression for alpha channel (ignored for geometry).
 - **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -323,6 +328,7 @@ Normal function using muparser to generate new Normal for every vertex<br>
 - **y** (*string*, default: `-ny`) — Expression for Y output.
 - **z** (*string*, default: `-nz`) — Expression for Z output.
 - **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -346,6 +352,7 @@ Quality function using muparser to generate new Quality for every vertex<br>
 - **normalize** (*bool*, default: `False`) — Normalize computed quality into range [0, 1].
 - **map** (*bool*, default: `False`) — Also write a per-vertex color ramp. Disabled by default because QMeshLab automatically switches to vertex-quality visualization after the quality is computed.
 - **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -368,6 +375,7 @@ Texture function using muparser to generate new texture coords for every vertex<
 - **u** (*string*, default: `x`) — Expression for U texture coordinate.
 - **v** (*string*, default: `y`) — Expression for V texture coordinate.
 - **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -394,6 +402,7 @@ Texture function using muparser to generate new per wedge tex coords for every f
 - **u2** (*string*, default: `x2`) — Expression for wedge texture coordinate.
 - **v2** (*string*, default: `y2`) — Expression for wedge texture coordinate.
 - **onselected** (*bool*, default: `False`) — If enabled, the filter affects only selected elements.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -481,6 +490,7 @@ Adds to the color the requested amount of bits of noise. Bits of noise are added
 
 - **noiseBits** (*int*, default: `1`) — Bits of noise added to each RGB channel.
 - **onSelected** (*bool*, default: `False`) — If checked, only affects selected vertices.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the added noise exactly reproducible.
 ```
 
 ---
@@ -500,7 +510,7 @@ Assigns a random color to each visible mesh layer in the document. Colors change
 
 **Parameters:**
 
-- **seed** (*int*, default: `0`) — Random seed used to generate scattered colors. Zero means totally random.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the color assignment exactly reproducible.
 ```
 
 ---
@@ -717,6 +727,7 @@ Compute the principal directions of curvature with different algorithms. The sel
 - **CurvColorMethod** (*enum*, default: `mean`) — Choose the curvature value stored in vertex quality and shown through automatic quality visualization.
 - **Scale** (*absperc*, default: `@bboxDiagTenth`) — Scale for scale-dependent methods.
 - **Autoclean** (*bool*, default: `True`) — Remove unreferenced vertices before computing.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the PCA method's point sampling exactly reproducible.
 ```
 
 ---
@@ -886,6 +897,7 @@ Compute the Hausdorff Distance between two layers, sampling one of the two and f
 - **SampleFace** (*bool*, default: `False`) — Sample faces of the sampled mesh by Montecarlo sampling.
 - **SampleNum** (*int*, default: `1000`) — Desired number of samples for each enabled sampling strategy.
 - **MaxDist** (*absperc*, default: `@bboxDiagHalf`) — Discard sample points whose closest point is farther than this threshold.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the measured sample set exactly reproducible.
 ```
 
 ---
@@ -939,6 +951,7 @@ Perform Iterative Closest Point alignment between a fixed reference layer and a 
 - **MaxAngleDeg** (*double*, default: `45.0`) — Maximum angle, in degrees, between source and reference normals for accepted correspondences.
 - **MinPointNum** (*int*, default: `30`) — Minimum number of accepted point pairs required for an ICP iteration to be valid.
 - **SaveLastIteration** (*bool*, default: `False`) — Create two diagnostic point layers containing the last accepted source samples and their reference correspondences.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of the moving mesh exactly reproducible.
 ```
 
 ---
@@ -974,6 +987,7 @@ Build an overlap graph among the selected document layers, run ICP on sufficient
 - **UseVertexOnly** (*bool*, default: `False`) — Use closest vertices instead of closest points on faces.
 - **MaxAngleDeg** (*double*, default: `45.0`) — Maximum accepted normal angle in degrees.
 - **MinPointNum** (*int*, default: `30`) — Minimum number of matched point pairs required for a valid pairwise ICP arc.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of each aligned pair exactly reproducible.
 ```
 
 ---
@@ -1733,6 +1747,7 @@ Generate a new mesh that corresponds to the 0 valued isosurface defined by the s
 - **maxY** (*double*, default: `1.0`) — Sampling range parameter.
 - **maxZ** (*double*, default: `1.0`) — Sampling range parameter.
 - **expr** (*string*, default: `x*x+y*y+z*z-0.5`) — Scalar field expression f(x,y,z). The 0-isovalue is extracted.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -1772,6 +1787,7 @@ Create a spherical point cloud, it can be random or regularly distributed.
 
 - **point_num** (*int*, default: `100`) — Approximate number of points to generate.
 - **technique** (*enum*, default: `fibonacci`) — Strategy used to distribute points on the sphere.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the Monte Carlo point set exactly reproducible.
 ```
 
 ---
@@ -1916,6 +1932,7 @@ Add a new Per-Face custom point attribute to current mesh and fill it with the d
 - **x_expr** (*string*, default: `x0`) — Expression for X component.
 - **y_expr** (*string*, default: `y0`) — Expression for Y component.
 - **z_expr** (*string*, default: `z0`) — Expression for Z component.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -1937,6 +1954,7 @@ Add a new Per-Face custom scalar attribute to current mesh and fill it with the 
 
 - **name** (*string*, default: `CustomAttrName`) — Name of the new custom attribute.
 - **expr** (*string*, default: `fi`) — Expression used to compute the scalar attribute.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -1960,6 +1978,7 @@ Add a new Per-Vertex custom point attribute to current mesh and fill it with the
 - **x_expr** (*string*, default: `x`) — Expression for X component.
 - **y_expr** (*string*, default: `y`) — Expression for Y component.
 - **z_expr** (*string*, default: `z`) — Expression for Z component.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -1981,6 +2000,7 @@ Add a new Per-Vertex custom scalar attribute to current mesh and fill it with th
 
 - **name** (*string*, default: `CustomAttrName`) — Name of the new custom attribute.
 - **expr** (*string*, default: `x`) — Expression used to compute the scalar attribute.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -2015,6 +2035,7 @@ Implementation note: the original reference code used OpenGL to rasterize the ne
 - **uvReductionLimit** (*double*, default: `0.0`) — Target UV boundary length reduction, expressed as a percentage of the input UV boundary length. The algorithm stops once this reduction has been reached, or when no further seams can be merged. `0` means no target reduction stop condition. MeshLab default: `0`.
 - **offsetFactor** (*double*, default: `5.0`) — Coefficient controlling the extension of the local UV optimization area. Larger values can make defragmentation more effective by giving the optimizer more room, but increase geometric optimization cost and runtime. MeshLab default: `5.0`.
 - **timelimit** (*double*, default: `0.0`) — Time limit for the defragmentation process. `0` means unlimited. This is useful for very large atlases where chart merging can be expensive. MeshLab default: `0`.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.
 ```
 
 ---
@@ -2421,7 +2442,7 @@ Adds an independent uniformly distributed displacement to each coordinate of eve
 
 - **maxDisplacement** (*absperc*, default: `@bboxDiag01`) — Maximum absolute displacement applied independently to each coordinate.
 - **recomputeNormals** (*bool*, default: `True`) — Recompute face and vertex normals after displacement.
-- **randomSeed** (*int*, default: `0`) — Use zero for an automatically generated seed, or a positive value for repeatable displacement.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the displacement exactly reproducible.
 ```
 
 ---
@@ -2923,6 +2944,7 @@ Compute a volumetric Monte Carlo sampling of a watertight mesh and add diagnosti
 - **sampleVolNum** (*int*, default: `200000`) — Number of volumetric Monte Carlo samples to scatter inside the mesh.
 - **poissonFiltering** (*bool*, default: `True`) — Preserve the original MeshLab option. The current upstream implementation does not emit the filtered volume layer.
 - **poissonRadius** (*absperc*, default: `@bboxDiag01`) — Radius used by the internal Poisson pruning stage.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the generated sample set exactly reproducible.
 ```
 
 ---
@@ -2951,7 +2973,7 @@ Compute a point sampling over the current mesh and perform Lloyd relaxation on t
 - **refineFactor** (*int*, default: `10`) — Controls how much the mesh is refined during preprocessing. Larger values create a denser supporting triangulation.
 - **perturbProbability** (*double*, default: `0.0`) — Probability that each seed is slightly perturbed during restricted relaxation.
 - **perturbAmount** (*double*, default: `0.001`) — Perturbation amplitude as a fraction of the bounding-box diagonal.
-- **randomSeed** (*int*, default: `0`) — Seed used by the random sampler. Use 0 to follow the library default.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the seed placement and relaxation exactly reproducible.
 - **relaxType** (*enum*, default: `squared_distance`) — How a new seed is chosen inside each Voronoi region.
 ```
 
@@ -3237,6 +3259,7 @@ Build a volumetric Voronoi sampling of the current mesh, relax the internal seed
 - **relaxStep** (*int*, default: `5`) — Number of volumetric Lloyd relaxation steps for the Voronoi seeds.
 - **surfFlag** (*bool*, default: `True`) — Extract the scaffold as a structure joined to the original surface envelope.
 - **elemType** (*enum*, default: `edge`) — Voronoi feature type to extract.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the scaffolding exactly reproducible.
 ```
 
 ---
@@ -3782,6 +3805,7 @@ Build an atlased parametrization based on a geodesic voronoi partitioning of the
 
 - **regionNum** (*int*, default: `10`) — An estimation of the number of regions that must be generated. Smaller regions could lead to parametrizations with smaller distortion.
 - **overlapFlag** (*bool*, default: `False`) — If checked the resulting parametrization will be composed by overlapping regions, e.g. the resulting mesh will have duplicated faces: each region will have a ring of ovelapping duplicate faces that will ensure that border regions will be parametrized in the atlas twice. This is quite useful for building mipmap robust atlases.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas regions exactly reproducible.
 ```
 
 ---
@@ -3997,6 +4021,7 @@ Refine current mesh with user defined parameters.<br>Specify a Boolean Function 
 - **x** (*string*, default: `(x0+x1)/2`) — Expression for X output.
 - **y** (*string*, default: `(y0+y1)/2`) — Expression for Y output.
 - **z** (*string*, default: `(z0+z1)/2`) — Expression for Z output.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -4149,14 +4174,18 @@ This filter has no parameters.
 
 **Plugin:** qmeshlab.filter.clean
 
-Remove isolated folded faces by edge flipping.
+Repair isolated folded triangles by changing the local triangulation.
 
 ```{py:function} ms.remove_isolated_folded_faces(**params)
 :module: _qmeshlab
 
-Delete all the single folded faces. A face is considered folded if its normal is opposite to all the adjacent faces. It is removed by flipping it against the face f adjacent along the edge e such that the vertex opposite to e fall inside f
+Repair an isolated folded triangle whose normal is nearly opposite to all three adjacent faces. The filter flips one supporting edge only when the opposite vertex projects strictly inside the adjacent triangle and the flip reduces the number of near-opposite normal relations in the affected neighborhood. No vertices or faces are removed.
 
-This filter has no parameters.
+The input must be a consistently oriented, 2-manifold triangle mesh. Polygonal faux-edge meshes and meshes with per-wedge texture coordinates are rejected because an edge flip cannot preserve their polygon boundaries or UV seams unambiguously.
+
+**Parameters:**
+
+- **normal_threshold_deg** (*double*, default: `175.0`) — Minimum angle, in degrees, between the candidate face normal and each adjacent face normal. Values near 180 detect only nearly reversed triangles.
 ```
 
 ---
@@ -4498,6 +4527,7 @@ Create a new layer populated with a point sampling of the current mesh; at most 
 
 - **Sampling** (*enum*, default: `vertex`) — Choose which mesh elements are sampled.
 - **SampleNum** (*int*, default: `1000`) — Desired number of sampled elements.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the chosen subset of vertices exactly reproducible.
 ```
 
 ---
@@ -4523,6 +4553,7 @@ Create a new layer populated with a point sampling of the current mesh; samples 
 - **RadiusVariance** (*double*, default: `1.0`) — When quality-weighted sampling is used, the sampling radius may vary between r/var and r*var.
 - **ExactNum** (*bool*, default: `True`) — If enabled, try to generate exactly the requested number of samples.
 - **EdgeSampling** (*bool*, default: `False`) — Restrict sampling to mesh edges.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sample positions exactly reproducible.
 ```
 
 ---
@@ -4555,6 +4586,7 @@ Create a new layer populated with a point sampling of the current mesh;samples a
 - **ExactNumFlag** (*bool*, default: `False`) — Search for a radius that matches the requested number of samples within the given tolerance.
 - **ExactNumTolerance** (*double*, default: `0.005`) — Tolerance used by precise sample count search, expressed as a fraction of the requested sample count.
 - **RadiusVariance** (*double*, default: `1.0`) — Allow the Poisson disk radius to vary between r and r*var using vertex quality as a density bias.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the generated sample set exactly reproducible.
 ```
 
 ---
@@ -4598,6 +4630,7 @@ Create a new layer populated with a point sampling of the current mesh; to gener
 - **SampleNum** (*int*, default: `5000`) — Desired number of generated samples.
 - **Sampling** (*enum*, default: `similar_triangle`) — Choose the structured sampling strategy.
 - **Random** (*bool*, default: `False`) — For each virtual cell, choose a random sample instead of the midpoint.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sample positions inside each face exactly reproducible.
 ```
 
 ---
@@ -4861,6 +4894,7 @@ Boolean function using muparser lib to perform faces selection over current mesh
 **Parameters:**
 
 - **condSelect** (*string*, default: `(fi == 0)`) — Boolean expression evaluated per face.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -5097,6 +5131,7 @@ Boolean function using muparser lib to perform vertex selection over current mes
 **Parameters:**
 
 - **condSelect** (*string*, default: `(q < 0)`) — Boolean expression evaluated per vertex.
+- **randomSeed** (*int*, default: `0`) — Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.
 ```
 
 ---
@@ -5472,6 +5507,7 @@ Create a new layer populated with a simplified version of the current point clou
 - **BestSamplePool** (*int*, default: `10`) — Number of candidate attempts used when the best-sample heuristic is enabled.
 - **ExactNumFlag** (*bool*, default: `False`) — Search for a radius that matches the requested number of samples within the given tolerance.
 - **ExactNumTolerance** (*double*, default: `0.005`) — Tolerance used by precise sample count search, expressed as a fraction of the requested sample count.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the surviving subset of points exactly reproducible.
 ```
 
 ---
@@ -5504,6 +5540,7 @@ Note that topologically incompatible merges are still skipped, as they cannot be
 - **targetTexCount** (*int*, default: `0`) — Specifies the maximum number of output textures that can be generated by the filter.
 If set to zero the parameter is ignored and the algorithm employs the default packing strategy.
 - **quickRun** (*bool*, default: `False`) — Speeds up the running time of the filter by never attempting again any rejected merge operation. <br> Although fast, it could lead to worst results.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.
 ```
 
 ---
