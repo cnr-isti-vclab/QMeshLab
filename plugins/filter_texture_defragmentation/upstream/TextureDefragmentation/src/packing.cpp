@@ -36,7 +36,8 @@ typedef vcg::RasterizedOutline2Packer<float, QtOutline2Rasterizer> Rasterization
 int Pack (
     const std::vector<ChartHandle>& charts,
     TextureObjectHandle textureObject,
-    std::vector<TextureSize>& texszVec)
+    std::vector<TextureSize>& texszVec,
+    unsigned int randomSeed)
 {
     // Pack the atlas
 
@@ -114,6 +115,7 @@ int Pack (
     packingParams.rotationNum = 4;
     packingParams.gutterWidth = 4;
     packingParams.minmax = false; // not used
+    packingParams.randomSeed = randomSeed;
 
     // These variables keep track of the current packing algorithm status:
     //

@@ -160,6 +160,10 @@ private slots:
     void faceQualityFiltersAreSplit();
     void libiglParametrizationFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
+    void randomSeedMakesSamplingReproducible();
+    void randomSeedZeroVariesBetweenRuns();
+    void randomSeedControlsExpressionRnd();
+    void randomizedFiltersDeclareARandomSeed();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -1943,6 +1947,183 @@ void FilterTests::meshBooleanFiltersRunWhenAvailable()
     QVERIFY(generatedIndex >= 0 && generatedIndex < doc.meshCount());
     QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
     QVERIFY(doc.mesh(generatedIndex).mesh.FN() > 0);
+}
+
+namespace {
+
+QString filterKeyForId(const Document &doc, const QString &filterId)
+{
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == filterId)
+            return info.key;
+    }
+    return {};
+}
+
+// Monte Carlo sampling of a cube, returned as the flattened sample coordinates so
+// two runs can be compared exactly.
+std::vector<float> montecarloSamples(const QString &key, int randomSeed)
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    doc.addMesh(cube, QStringLiteral("Cube"), vcg::tri::io::Mask::IOM_VERTCOORD);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("SampleNum"), 200);
+    params.insert(QStringLiteral("randomSeed"), randomSeed);
+    const MeshFilterRunResult result = doc.runFilter(key, params);
+    if (!result.success || result.newMeshIndices.isEmpty())
+        return {};
+
+    std::vector<float> coords;
+    for (const VCGVertex &vertex : doc.mesh(result.newMeshIndices.front()).mesh.vert) {
+        coords.push_back(vertex.cP()[0]);
+        coords.push_back(vertex.cP()[1]);
+        coords.push_back(vertex.cP()[2]);
+    }
+    return coords;
+}
+
+} // namespace
+
+void FilterTests::randomSeedMakesSamplingReproducible()
+{
+    Document probe;
+    const QString key = filterKeyForId(probe, QStringLiteral("generate_sampling_montecarlo"));
+    QVERIFY(!key.isEmpty());
+
+    const std::vector<float> first = montecarloSamples(key, 12345);
+    const std::vector<float> second = montecarloSamples(key, 12345);
+    QVERIFY(!first.empty());
+    QCOMPARE(first, second);
+
+    // A different seed must actually change the sampling, otherwise the parameter
+    // would be silently ignored and the test above would pass vacuously.
+    const std::vector<float> other = montecarloSamples(key, 999);
+    QCOMPARE(other.size(), first.size());
+    QVERIFY(other != first);
+}
+
+void FilterTests::randomSeedZeroVariesBetweenRuns()
+{
+    Document probe;
+    const QString key = filterKeyForId(probe, QStringLiteral("generate_sampling_montecarlo"));
+    QVERIFY(!key.isEmpty());
+
+    const std::vector<float> first = montecarloSamples(key, 0);
+    const std::vector<float> second = montecarloSamples(key, 0);
+    QVERIFY(!first.empty());
+    QCOMPARE(second.size(), first.size());
+    QVERIFY(first != second);
+}
+
+void FilterTests::randomSeedControlsExpressionRnd()
+{
+    Document probe;
+    const QString key = filterKeyForId(probe, QStringLiteral("per_vertex_quality_function"));
+    QVERIFY(!key.isEmpty());
+
+    // Write rnd() into the per-vertex scalar so the drawn values land somewhere we
+    // can read back and compare.
+    const auto qualityAfterRun = [&key](int randomSeed) {
+        Document doc;
+        VCGMesh cube;
+        makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+        doc.addMesh(cube, QStringLiteral("Cube"), vcg::tri::io::Mask::IOM_VERTCOORD);
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("q"), QStringLiteral("rnd()"));
+        params.insert(QStringLiteral("randomSeed"), randomSeed);
+        const MeshFilterRunResult result = doc.runFilter(key, params);
+
+        std::vector<float> values;
+        if (!result.success)
+            return values;
+        for (const VCGVertex &vertex : doc.mesh(0).mesh.vert)
+            values.push_back(vertex.cQ());
+        return values;
+    };
+
+    const std::vector<float> pinnedA = qualityAfterRun(4242);
+    const std::vector<float> pinnedB = qualityAfterRun(4242);
+    QVERIFY(!pinnedA.empty());
+    QCOMPARE(pinnedA, pinnedB);
+
+    const std::vector<float> autoA = qualityAfterRun(0);
+    const std::vector<float> autoB = qualityAfterRun(0);
+    QCOMPARE(autoA.size(), pinnedA.size());
+    QVERIFY(autoA != autoB);
+}
+
+// Guard against a randomized filter being added later without a seed: every filter
+// listed here was audited to draw from a generator, so each must expose the
+// conventional control. Extend the list when a new randomized filter appears.
+void FilterTests::randomizedFiltersDeclareARandomSeed()
+{
+    const QStringList randomizedFilterIds{
+        QStringLiteral("generate_sampling_element"),
+        QStringLiteral("generate_sampling_montecarlo"),
+        QStringLiteral("generate_sampling_stratified_triangle"),
+        QStringLiteral("generate_sampling_poisson_disk"),
+        QStringLiteral("generate_simplified_point_cloud"),
+        QStringLiteral("get_hausdorff_distance"),
+        QStringLiteral("generate_sampling_voronoi"),
+        QStringLiteral("generate_sampling_volumetric"),
+        QStringLiteral("generate_voronoi_scaffolding"),
+        QStringLiteral("generate_voronoi_atlas_parametrization"),
+        QStringLiteral("compute_curvature_principal_directions_per_vertex"),
+        QStringLiteral("apply_color_noising_per_vertex"),
+        QStringLiteral("compute_color_scattering_per_mesh"),
+        QStringLiteral("create_sphere_points"),
+        QStringLiteral("displace_vertices_randomly"),
+        QStringLiteral("compute_matrix_by_icp_between_meshes"),
+        QStringLiteral("compute_matrix_by_mesh_global_alignment"),
+        QStringLiteral("apply_texmap_defragmentation"),
+        QStringLiteral("apply_small_islands_remover"),
+        // filter_expression: randomness is opt-in through the formula's rnd() /
+        // randInt() helpers, but it still has to be seedable. grid_generator is
+        // excluded on purpose — it is the one filter there with no expression.
+        QStringLiteral("conditional_vertex_selection"),
+        QStringLiteral("conditional_face_selection"),
+        QStringLiteral("per_vertex_geometric_function"),
+        QStringLiteral("per_vertex_normal_function"),
+        QStringLiteral("per_face_normal_function"),
+        QStringLiteral("per_vertex_color_function"),
+        QStringLiteral("per_face_color_function"),
+        QStringLiteral("per_vertex_quality_function"),
+        QStringLiteral("per_face_quality_function"),
+        QStringLiteral("per_vertex_texture_function"),
+        QStringLiteral("per_wedge_texture_function"),
+        QStringLiteral("define_per_vertex_scalar_attribute"),
+        QStringLiteral("define_per_face_scalar_attribute"),
+        QStringLiteral("define_per_vertex_point_attribute"),
+        QStringLiteral("define_per_face_point_attribute"),
+        QStringLiteral("implicit_surface"),
+        QStringLiteral("refine_user_defined"),
+    };
+
+    Document doc;
+    for (const QString &filterId : randomizedFilterIds) {
+        bool found = false;
+        for (const auto &info : doc.filterInfos()) {
+            if (info.descriptor.id != filterId)
+                continue;
+            found = true;
+            const auto &parameters = info.descriptor.parameters;
+            const auto seedParam = std::find_if(
+                parameters.begin(),
+                parameters.end(),
+                [](const auto &p) { return p.id == QStringLiteral("randomSeed"); });
+            QVERIFY2(
+                seedParam != parameters.end(),
+                qPrintable(filterId + QStringLiteral(" declares no randomSeed parameter")));
+            QCOMPARE(seedParam->type, MeshFilterParameterType::Int);
+            QCOMPARE(seedParam->defaultValue.toInt(), 0);
+            break;
+        }
+        QVERIFY2(found, qPrintable(filterId + QStringLiteral(" is not registered")));
+    }
 }
 
 QTEST_MAIN(FilterTests)

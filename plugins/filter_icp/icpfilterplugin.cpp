@@ -181,10 +181,15 @@ bool runIcpArc(
     const VCGMesh &movingMesh,
     const vcg::Matrix44d &movingToFixedInitial,
     const vcg::AlignPair::Param &alignParams,
+    unsigned int randomSeed,
     vcg::AlignPair::Result &alignerResult,
     QString &errorMessage)
 {
     vcg::AlignPair aligner;
+    // AlignPair seeds itself from the wall clock, which makes the sub-sampling of
+    // the moving mesh — and hence the resulting matrix — differ on every run.
+    // Overwrite it so the caller decides.
+    aligner.myrnd.initialize(randomSeed);
     vcg::AlignPair::A2Mesh fixed;
     vcg::AlignPair::A2Mesh moving;
     vcg::AlignPair::A2Grid faceGrid;
@@ -320,6 +325,8 @@ MeshFilterRunResult runTwoMeshIcp(const FilterParams &params, Document &doc)
     if (vcg::CallBackPos *cb = doc.progressCallback())
         (*cb)(5, "Preparing ICP alignment...");
 
+    const RandomSeed seed = params.getRandomSeed();
+
     try {
         vcg::AlignPair::Result alignerResult;
         QString alignError;
@@ -328,6 +335,7 @@ MeshFilterRunResult runTwoMeshIcp(const FilterParams &params, Document &doc)
                 sourceEntry.mesh,
                 qtToVcg(sourceToReference),
                 alignParamsFromFilter(params),
+                seed.value,
                 alignerResult,
                 alignError)) {
             doc.finishFilterProgress(false, alignError);
@@ -359,6 +367,7 @@ MeshFilterRunResult runTwoMeshIcp(const FilterParams &params, Document &doc)
                     .arg(sourceEntry.name, referenceEntry.name);
         if (!newMeshes.isEmpty())
             info << QObject::tr("Saved %1 diagnostic ICP point layer(s).").arg(newMeshes.size());
+        info << seed.message();
 
         doc.finishFilterProgress(true, QObject::tr("ICP alignment completed."));
         return success(transformChanged || !newMeshes.isEmpty(), info, newMeshes);
@@ -459,6 +468,7 @@ MeshFilterRunResult runGlobalIcp(const FilterParams &params, Document &doc)
     const int ogSize = params.getInt(QStringLiteral("OGSize"));
     const double arcThreshold = params.getDouble(QStringLiteral("arcThreshold"));
     const vcg::AlignPair::Param alignParams = alignParamsFromFilter(params);
+    const RandomSeed seed = params.getRandomSeed();
 
     doc.beginFilterProgress(QObject::tr("Global Align Meshes"));
     vcg::CallBackPos *cb = doc.progressCallback();
@@ -517,11 +527,14 @@ MeshFilterRunResult runGlobalIcp(const FilterParams &params, Document &doc)
                 vcg::Inverse(input.relativeTransforms[size_t(arc.s)])
                 * input.relativeTransforms[size_t(arc.t)];
             QString arcError;
+            // Offset per arc so the arcs do not all sub-sample with the same
+            // pattern, while the whole run still replays from one seed.
             const bool ok = runIcpArc(
                 doc.mesh(input.docIndices[size_t(arc.s)]).mesh,
                 doc.mesh(input.docIndices[size_t(arc.t)]).mesh,
                 movingToFixed,
                 alignParams,
+                seed.value + unsigned(arcIndex),
                 result,
                 arcError);
             result.FixName = arc.s;
@@ -618,6 +631,7 @@ MeshFilterRunResult runGlobalIcp(const FilterParams &params, Document &doc)
             .arg(validArcCount)
             .arg(candidateArcCount));
         info << QObject::tr("Affected layers: %1.").arg(touchedCount);
+        info << seed.message();
 
         doc.finishFilterProgress(true, QObject::tr("Global alignment completed."));
         return success(touchedCount > 0, info);

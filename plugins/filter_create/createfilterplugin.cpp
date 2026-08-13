@@ -30,13 +30,14 @@ constexpr QLatin1StringView kFilterCreateTorus("create_torus");
 constexpr QLatin1StringView kFilterFitPlane("fit_plane_to_selection");
 constexpr QLatin1StringView kFilterConvexHull("create_convex_hull");
 
-MeshFilterRunResult success(const QString &name, int newIndex)
+MeshFilterRunResult success(const QString &name, int newIndex, const QStringList &extraInfo = {})
 {
     MeshFilterRunResult r;
     r.success = true;
     r.documentModified = true;
     r.newMeshIndices = { newIndex };
     r.infoMessages = { QObject::tr("Created mesh '%1'").arg(name) };
+    r.infoMessages += extraInfo;
     return r;
 }
 } // namespace
@@ -164,7 +165,11 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         const QString tech = params.getEnum(QStringLiteral("technique"));
 
         std::vector<vcg::Point3f> sampleVec;
-        vcg::math::MarsenneTwisterRNG rng;
+        // Only the Monte Carlo technique draws random directions; disco ball,
+        // octahedron and Fibonacci are deterministic constructions.
+        const bool randomized = tech == QLatin1StringView("montecarlo");
+        const RandomSeed seed = params.getRandomSeed();
+        vcg::math::MarsenneTwisterRNG rng{ seed.value };
 
         if (tech == QLatin1StringView("montecarlo")) {
             for (int i = 0; i < pointNum; ++i)
@@ -185,7 +190,8 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         }
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         const int idx = doc.addMesh(m, QStringLiteral("Points on Sphere"));
-        return success(doc.mesh(idx).name, idx);
+        return success(
+            doc.mesh(idx).name, idx, randomized ? QStringList{ seed.message() } : QStringList{});
     }
 
     if (filterId == QString::fromLatin1(kFilterCreateCone)) {

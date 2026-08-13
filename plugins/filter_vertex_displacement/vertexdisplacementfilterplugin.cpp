@@ -3,7 +3,6 @@
 #include "document.h"
 #include "meshfilterpluginmanager.h"
 
-#include <QRandomGenerator>
 #include <vcg/complex/algorithms/smooth.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
@@ -252,17 +251,10 @@ MeshFilterRunResult displaceRandomly(Document &doc, int meshIndex, const FilterP
         return fail(QObject::tr("Maximum displacement must be finite and non-negative."));
 
     const bool updateNormals = params.getBool(QStringLiteral("recomputeNormals"), true);
-    // Seed 0 means "pick one for me". Draw it explicitly and report the value below,
-    // so a result the user likes can be reproduced by pinning that seed — a filter
-    // application has to be replayable to be worth recording in the undo history.
-    const int requestedSeed = params.getInt(QStringLiteral("randomSeed"), 0);
-    const int effectiveSeed =
-        requestedSeed != 0
-            ? requestedSeed
-            : int(QRandomGenerator::global()->bounded(1, std::numeric_limits<int>::max()));
+    const RandomSeed seed = params.getRandomSeed();
     // Braces, not parens: the parenthesised form is a most-vexing-parse and would
     // declare a function rather than construct the generator.
-    std::mt19937 rng{std::mt19937::result_type(effectiveSeed)};
+    std::mt19937 rng{std::mt19937::result_type(seed.value)};
     std::uniform_real_distribution<float> distribution(-maximum, maximum);
     for (VCGVertex &vertex : mesh.vert) {
         if (!vertex.IsD())
@@ -283,10 +275,7 @@ MeshFilterRunResult displaceRandomly(Document &doc, int meshIndex, const FilterP
         QObject::tr("Randomly displaced vertices of '%1'").arg(entry.name));
     return success({
         QObject::tr("Displaced %1 vertices.").arg(mesh.VN()),
-        requestedSeed == 0
-            ? QObject::tr("Random seed: %1 (generated — set randomSeed to this value to "
-                          "reproduce)").arg(effectiveSeed)
-            : QObject::tr("Random seed: %1").arg(effectiveSeed)
+        seed.message()
     });
 }
 

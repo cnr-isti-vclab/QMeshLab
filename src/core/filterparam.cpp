@@ -1,10 +1,38 @@
 #include "filterparam.h"
 
+#include <QObject>
+#include <QRandomGenerator>
 #include <QVector3D>
+
+#include <limits>
 
 FilterParams::FilterParams(const MeshFilterParameterValues &values)
     : m_values(values)
 {
+}
+
+QString RandomSeed::message() const
+{
+    return generated
+        ? QObject::tr("Random seed: %1 (generated — set randomSeed to this value to reproduce)")
+              .arg(value)
+        : QObject::tr("Random seed: %1").arg(value);
+}
+
+RandomSeed FilterParams::getRandomSeed(const QString &id) const
+{
+    RandomSeed seed;
+    const int requested = getInt(id, 0);
+    // Negative values cannot come from the UI (the declared minimum is 0) but can
+    // from a script; treat them like 0 rather than wrapping into a huge unsigned.
+    seed.generated = requested <= 0;
+    // QRandomGenerator rather than time(0): a script running two randomized
+    // filters back to back, or one filter that seeds two generators, would
+    // otherwise get the same seed twice within the same second.
+    seed.value = seed.generated
+        ? QRandomGenerator::global()->bounded(1u, unsigned(std::numeric_limits<int>::max()))
+        : unsigned(requested);
+    return seed;
 }
 
 bool FilterParams::getBool(const QString &id) const

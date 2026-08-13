@@ -12,6 +12,22 @@ struct TextureOutputRefValue
     QString filePath;
 };
 
+// Resolved value of the conventional `randomSeed` parameter (see the parameter
+// table in docs/design/filter_organization.md). Zero — the declared default —
+// means "draw a fresh seed", so each run differs; any other value is used
+// verbatim, so the run is exactly reproducible. `value` is always non-zero and
+// safe to hand to any generator.
+struct RandomSeed
+{
+    unsigned int value = 0;
+    bool generated = false;
+
+    // One line for the filter's result log. When the seed was generated it names
+    // the value to pin in order to replay this exact run: a filter application
+    // has to be replayable to be worth recording in the undo history.
+    QString message() const;
+};
+
 // Typed wrapper around a pre-normalized MeshFilterParameterValues map.
 // The manager guarantees every declared parameter is present with a valid value
 // before runFilter is called, so the no-fallback overloads are always safe.
@@ -53,6 +69,11 @@ public:
     QVector3D getPoint3f(const QString &id, const QVector3D &fallback) const;
     QString getCameraState(const QString &id, const QString &fallback) const;
     QString getRenderState(const QString &id, const QString &fallback) const;
+
+    // Resolve the conventional random-seed parameter. Absent or zero draws a
+    // fresh seed; anything else is used as-is. Every randomized filter goes
+    // through here so "0 means surprise me" behaves the same everywhere.
+    RandomSeed getRandomSeed(const QString &id = QStringLiteral("randomSeed")) const;
 
     // Access to the underlying map (for forwarding to functions that still use the raw map)
     const MeshFilterParameterValues &rawValues() const { return m_values; }

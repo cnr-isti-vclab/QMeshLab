@@ -155,7 +155,7 @@
         {
           "id": "randomSeed",
           "label": "Random seed",
-          "help": "Seed used by the random sampler. Use 0 to follow the library default.",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the seed placement and relaxation exactly reproducible.",
           "group": "advanced",
           "type": "int",
           "default": 0,
@@ -260,6 +260,16 @@
           "min": 0.0,
           "max": "@bboxDiag",
           "decimals": 6
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the generated sample set exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ]
     },
@@ -380,6 +390,16 @@
               "label": "Face"
             }
           ]
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the scaffolding exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ]
     },

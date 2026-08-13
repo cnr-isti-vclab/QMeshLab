@@ -214,7 +214,17 @@
       "inputRequirements": { "requireVertices": true, "requireVertexColor": true },
       "parameters": [
         { "id": "noiseBits", "label": "Noise bits", "help": "Bits of noise added to each RGB channel.", "group": "main", "type": "int", "default": 1, "min": 1, "max": 8 },
-        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false }
+        { "id": "onSelected", "label": "Only on selection", "help": "If checked, only affects selected vertices.", "group": "main", "type": "bool", "default": false },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the added noise exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
       ],
       "outputModifies": ["VC"]
     },
@@ -229,7 +239,7 @@
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
       "parameters": [
-        { "id": "seed", "label": "Seed", "help": "Random seed used to generate scattered colors. Zero means totally random.", "group": "main", "type": "int", "default": 0, "min": 0, "max": 2147483647 }
+        { "id": "randomSeed", "label": "Random seed", "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the color assignment exactly reproducible.", "group": "main", "type": "int", "default": 0, "min": 0, "max": 2147483647 }
       ],
       "outputModifies": []
     },

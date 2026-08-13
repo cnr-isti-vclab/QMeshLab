@@ -178,6 +178,16 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
         std::vector<Point> seedPoints;
         std::vector<bool> fixedSeeds;
         Scalar radius = 0.0f;
+        const RandomSeed seed = params.getRandomSeed();
+        // Seed perturbation during relaxation draws from a generator that is static
+        // per VoronoiProcessing instantiation, so each distance functor used below
+        // needs its own initialize() — VoronoiProcessing<VCGMesh> already is the
+        // EuclideanDistance instantiation (it is the default template argument).
+        vcg::tri::VoronoiProcessing<VCGMesh>::RandomGenerator().initialize(seed.value);
+        vcg::tri::VoronoiProcessing<VCGMesh, vcg::tri::IsotropicDistance<VCGMesh>>
+            ::RandomGenerator().initialize(seed.value);
+        vcg::tri::VoronoiProcessing<VCGMesh, vcg::tri::AnisotropicDistance<VCGMesh>>
+            ::RandomGenerator().initialize(seed.value);
         vcg::tri::PoissonSampling<VCGMesh>(
             mesh,
             seedPoints,
@@ -185,7 +195,7 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
             radius,
             Scalar(params.getDouble(QStringLiteral("radiusVariance"))),
             Scalar(0),
-            unsigned(params.getInt(QStringLiteral("randomSeed"))));
+            seed.value);
 
         if (seedPoints.empty()) {
             doc.finishFilterProgress(false, QObject::tr("The Poisson sampler produced no seed points."));
@@ -337,7 +347,8 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
                 QObject::tr("Generated %1 Voronoi seeds, %2 region vertices, and %3 polyline edges.")
                     .arg(seedVertices.size())
                     .arg(doc.mesh(voronoiIndex).mesh.VN())
-                    .arg(doc.mesh(polyIndex).mesh.EN())
+                    .arg(doc.mesh(polyIndex).mesh.EN()),
+                seed.message()
             },
             { voronoiIndex, polyIndex });
     } catch (const std::exception &e) {
@@ -372,6 +383,12 @@ MeshFilterRunResult runVolumeSampling(const FilterParams &params, Document &doc)
         sampler.seedDomainTree = nullptr;
         sampler.cb = cb;
 
+        // Init() copies this generator over the surface sampler's static one and
+        // BuildMontecarloVolumeSampling draws the volume points from it, so it has
+        // to be set before Init.
+        const RandomSeed seed = params.getRandomSeed();
+        sampler.rng.initialize(seed.value);
+
         if (cb)
             (*cb)(5, "Sampling surface...");
         sampler.Init(Scalar(params.getDouble(QStringLiteral("sampleSurfRadius"))));
@@ -381,7 +398,8 @@ MeshFilterRunResult runVolumeSampling(const FilterParams &params, Document &doc)
         Scalar poissonRadius = Scalar(params.getDouble(QStringLiteral("poissonRadius")));
         if (!std::isfinite(poissonRadius) || poissonRadius <= 0.0f)
             poissonRadius = autoVolumePoissonRadius(mesh, params.getInt(QStringLiteral("sampleVolNum")));
-        sampler.BuildVolumeSampling(params.getInt(QStringLiteral("sampleVolNum")), poissonRadius, 0);
+        sampler.BuildVolumeSampling(
+            params.getInt(QStringLiteral("sampleVolNum")), poissonRadius, int(seed.value));
 
         VCGMesh montecarloVolume;
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopy(montecarloVolume, sampler.montecarloVolumeMesh);
@@ -435,7 +453,8 @@ MeshFilterRunResult runVolumeSampling(const FilterParams &params, Document &doc)
             {
                 QObject::tr("Generated %1 Monte Carlo samples and %2 surface samples.")
                     .arg(sampler.montecarloVolumeMesh.VN())
-                    .arg(sampler.psd.poissonSurfaceMesh.VN())
+                    .arg(sampler.psd.poissonSurfaceMesh.VN()),
+                seed.message()
             },
             newMeshes);
     } catch (const std::exception &e) {
@@ -470,6 +489,11 @@ MeshFilterRunResult runVoronoiScaffolding(const FilterParams &params, Document &
         sampler.seedDomainTree = nullptr;
         sampler.cb = cb;
 
+        // Must precede Init(), which copies this generator over the surface
+        // sampler's static one.
+        const RandomSeed seed = params.getRandomSeed();
+        sampler.rng.initialize(seed.value);
+
         if (cb)
             (*cb)(10, "Sampling surface...");
         sampler.Init(Scalar(params.getDouble(QStringLiteral("sampleSurfRadius"))));
@@ -478,7 +502,7 @@ MeshFilterRunResult runVoronoiScaffolding(const FilterParams &params, Document &
             (*cb)(30, "Sampling volume...");
         const int volumeSamples = params.getInt(QStringLiteral("sampleVolNum"));
         const Scalar poissonRadius = autoVolumePoissonRadius(mesh, volumeSamples);
-        sampler.BuildVolumeSampling(volumeSamples, poissonRadius, 0);
+        sampler.BuildVolumeSampling(volumeSamples, poissonRadius, int(seed.value));
         if (sampler.seedMesh.VN() <= 0) {
             doc.finishFilterProgress(false, QObject::tr("No Voronoi seeds were generated."));
             return fail(QObject::tr("No Voronoi seeds were generated."));
@@ -563,6 +587,7 @@ MeshFilterRunResult runVoronoiScaffolding(const FilterParams &params, Document &
                 .arg(sampler.seedMesh.VN())
         };
         info.append(notes);
+        info << seed.message();
 
         doc.finishFilterProgress(true, QObject::tr("Generated Voronoi scaffolding layers."));
         return success(info, newMeshes);

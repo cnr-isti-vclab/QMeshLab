@@ -622,6 +622,13 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         std::unique_ptr<VCGMesh> prepared = makePreparedSurfaceMesh(entry.mesh);
         VCGMesh output;
         BaseSampler sampler(&output, sourceHasColor, sourceHasQuality);
+        // Only the vertex strategy is randomized (it shuffles the vertex vector),
+        // and only when fewer samples than vertices are asked for; the edge and
+        // face strategies are deterministic scans.
+        const bool randomized = sampling == QLatin1StringView("vertex");
+        const RandomSeed seed = params.getRandomSeed();
+        if (randomized)
+            SurfaceSampler::SamplingRandomGenerator().initialize(seed.value);
         if (sampling == QLatin1StringView("vertex"))
             SurfaceSampler::VertexUniform(*prepared, sampler, sampleNum);
         else if (sampling == QLatin1StringView("edge"))
@@ -640,9 +647,10 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
                 sampling != QLatin1StringView("vertex"),
                 sourceHasColor,
                 sourceHasQuality));
-        return successResult(
-            { QObject::tr("Generated %1 element samples.").arg(output.VN()) },
-            { newIndex });
+        QStringList messages{ QObject::tr("Generated %1 element samples.").arg(output.VN()) };
+        if (randomized)
+            messages << seed.message();
+        return successResult(messages, { newIndex });
     }
 
     if (filterId == QString::fromLatin1(kFilterMontecarloSampling)) {
@@ -659,6 +667,8 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         VCGMesh output;
         BaseSampler sampler(&output, sourceHasColor, sourceHasQuality);
         sampler.perFaceNormal = params.getBool(QStringLiteral("PerFaceNormal"));
+        const RandomSeed seed = params.getRandomSeed();
+        SurfaceSampler::SamplingRandomGenerator().initialize(seed.value);
 
         if (params.getBool(QStringLiteral("EdgeSampling"))) {
             SurfaceSampler::EdgeMontecarlo(*prepared, sampler, sampleNum, false);
@@ -682,7 +692,8 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             QObject::tr("Montecarlo Samples"),
             pointCloudIoMask(entry, true, sourceHasColor, sourceHasQuality));
         return successResult(
-            { QObject::tr("Generated %1 Montecarlo samples.").arg(output.VN()) },
+            { QObject::tr("Generated %1 Montecarlo samples.").arg(output.VN()),
+              seed.message() },
             { newIndex });
     }
 
@@ -698,6 +709,11 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         BaseSampler sampler(&output, sourceHasColor, sourceHasQuality);
         const QString strategy = params.getEnum(QStringLiteral("Sampling"));
         const bool randomSampling = params.getBool(QStringLiteral("Random"));
+        // Randomness here is opt-in: without 'Random' the sample positions inside
+        // each face are fixed, so there is nothing to seed.
+        const RandomSeed seed = params.getRandomSeed();
+        if (randomSampling)
+            SurfaceSampler::SamplingRandomGenerator().initialize(seed.value);
 
         if (strategy == QLatin1StringView("similar_triangle"))
             SurfaceSampler::FaceSimilar(*prepared, sampler, sampleNum, false, randomSampling);
@@ -717,9 +733,12 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             output,
             QObject::tr("Stratified Samples"),
             pointCloudIoMask(entry, true, sourceHasColor, sourceHasQuality));
-        return successResult(
-            { QObject::tr("Generated %1 stratified samples.").arg(output.VN()) },
-            { newIndex });
+        QStringList messages{
+            QObject::tr("Generated %1 stratified samples.").arg(output.VN())
+        };
+        if (randomSampling)
+            messages << seed.message();
+        return successResult(messages, { newIndex });
     }
 
     if (filterId == QString::fromLatin1(kFilterClusteredSampling)) {
@@ -785,6 +804,10 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         SurfaceSampler::PoissonDiskParam pp;
         pp.bestSampleChoiceFlag = params.getBool(QStringLiteral("BestSampleFlag"));
         pp.bestSamplePoolSize = params.getInt(QStringLiteral("BestSamplePool"));
+        // Pruning shuffles the occupied grid cells, so the surviving subset depends
+        // on the generator state.
+        const RandomSeed seed = params.getRandomSeed();
+        pp.randomSeed = seed.value;
 
         if (params.getBool(QStringLiteral("ExactNumFlag")) && !explicitRadius) {
             SurfaceSampler::PoissonDiskPruningByNumber(
@@ -813,7 +836,8 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         return successResult(
             {
                 QObject::tr("Generated %1 simplified samples.").arg(output.VN()),
-                QObject::tr("Effective radius: %1").arg(radius, 0, 'f', 6)
+                QObject::tr("Effective radius: %1").arg(radius, 0, 'f', 6),
+                seed.message()
             },
             { newIndex });
     }
@@ -845,6 +869,12 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         pp.geodesicDistanceFlag = params.getBool(QStringLiteral("ApproximateGeodesicDistance"));
         pp.bestSampleChoiceFlag = params.getBool(QStringLiteral("BestSampleFlag"));
         pp.bestSamplePoolSize = params.getInt(QStringLiteral("BestSamplePool"));
+        // Both stages draw from the generator — the Montecarlo pre-sampling and the
+        // cell shuffle inside the pruning — so seed it up front and let the pruning
+        // re-seed itself, the way vcg::tri::PoissonSampling does.
+        const RandomSeed seed = params.getRandomSeed();
+        SurfaceSampler::SamplingRandomGenerator().initialize(seed.value);
+        pp.randomSeed = seed.value;
         if (pp.radiusVariance != 1.0f) {
             if (!sourceHasQuality) {
                 return failResult(QObject::tr(
@@ -924,6 +954,7 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
                      << QObject::tr("Effective radius: %1").arg(radius, 0, 'f', 6);
         if (!subsample)
             infoMessages << QObject::tr("Generated %1 Montecarlo candidates.").arg(presampledMesh->VN());
+        infoMessages << seed.message();
         return successResult(infoMessages, newMeshIndices);
     }
 
@@ -1024,6 +1055,16 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             saveSamples ? &closestPointCloud : nullptr);
         hausdorffSampler.dist_upper_bound = maxDist;
 
+        // Every SurfaceSampling instantiation owns its own static generator, so the
+        // Hausdorff sampler has to be seeded separately from the plain BaseSampler
+        // one used elsewhere in this plugin.
+        using HausdorffSampling =
+            vcg::tri::SurfaceSampling<VCGMesh, vcg::tri::HausdorffSampler<VCGMesh>>;
+        const bool randomized = sampleVertices || sampleFaces;
+        const RandomSeed seed = params.getRandomSeed();
+        if (randomized)
+            HausdorffSampling::SamplingRandomGenerator().initialize(seed.value);
+
         if (sampleVertices)
             vcg::tri::SurfaceSampling<VCGMesh, vcg::tri::HausdorffSampler<VCGMesh>>::VertexUniform(
                 *sampledMesh, hausdorffSampler, sampleNum);
@@ -1043,6 +1084,8 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
                      << QObject::tr("Max: %1").arg(hausdorffSampler.getMaxDist(), 0, 'f', 6)
                      << QObject::tr("Mean: %1").arg(hausdorffSampler.getMeanDist(), 0, 'f', 6)
                      << QObject::tr("RMS: %1").arg(hausdorffSampler.getRMSDist(), 0, 'f', 6);
+        if (randomized)
+            infoMessages << seed.message();
 
         QVector<int> newMeshIndices;
         if (saveSamples) {

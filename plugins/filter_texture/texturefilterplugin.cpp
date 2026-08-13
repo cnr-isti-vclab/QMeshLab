@@ -485,6 +485,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         vcg::tri::VoronoiAtlas<VCGMesh>::VoronoiAtlasParam pp;
         pp.sampleNum = regionNum;
         pp.overlap = overlap;
+        const RandomSeed seed = params.getRandomSeed();
+        pp.randomSeed = seed.value;
         pp.cb = doc.progressCallback() ? doc.progressCallback() : vcg::DummyCallBackPos;
 
         vcg::tri::VoronoiAtlas<VCGMesh>::Build(baseMesh, paraMesh, pp);
@@ -508,7 +510,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         result.infoMessages = {
             QObject::tr("Generated Voronoi atlas with %1 regions after %2 iterations.")
                 .arg(pp.vas.regionNum)
-                .arg(pp.vas.iterNum)
+                .arg(pp.vas.iterNum),
+            seed.message()
         };
         return result;
     }

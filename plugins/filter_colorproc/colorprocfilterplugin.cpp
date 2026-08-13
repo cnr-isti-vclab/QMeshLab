@@ -31,7 +31,6 @@
 #include <QImage>
 #include <algorithm>
 #include <cmath>
-#include <ctime>
 #include <optional>
 #include <vector>
 
@@ -337,12 +336,8 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         if (visibleMeshes.empty())
             return fail(QObject::tr("No visible mesh layers available."));
 
-        const int seedParam = params.getInt(QStringLiteral("seed"), 0);
-        const bool automaticSeed = (seedParam == 0);
-        int seed = seedParam;
-        if (automaticSeed)
-            seed = int(std::time(nullptr));
-        vcg::math::MarsenneTwisterRNG rng{ unsigned(seed) };
+        const RandomSeed seed = params.getRandomSeed();
+        vcg::math::MarsenneTwisterRNG rng{ seed.value };
         int colorIndex = rng.generate(int(visibleMeshes.size()));
         for (int meshIndex : visibleMeshes) {
             Document::MeshEntry &entry = doc.mesh(meshIndex);
@@ -353,9 +348,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         }
         return success({
             QObject::tr("Assigned scattered colors to %1 visible mesh layers.").arg(visibleMeshes.size()),
-            automaticSeed
-                ? QObject::tr("Random seed: automatic")
-                : QObject::tr("Random seed: %1").arg(seed)
+            seed.message()
         });
     }
 
@@ -487,10 +480,15 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterColorNoise)) {
-        vcg::tri::UpdateColor<VCGMesh>::PerVertexAddNoise(mesh, params.getInt(QStringLiteral("noiseBits"), 1), params.getBool(QStringLiteral("onSelected"), false));
+        const RandomSeed seed = params.getRandomSeed();
+        vcg::tri::UpdateColor<VCGMesh>::PerVertexAddNoise(
+            mesh,
+            params.getInt(QStringLiteral("noiseBits"), 1),
+            params.getBool(QStringLiteral("onSelected"), false),
+            int(seed.value));
         ensureVertexColor(entry);
         markGeometry(doc, meshIndex, QObject::tr("Added color noise to '%1'").arg(meshLabel(entry, meshIndex)));
-        return success();
+        return success({ seed.message() });
     }
 
     if (filterId == QString::fromLatin1(kFilterSaturateQuality)) {

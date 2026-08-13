@@ -42,7 +42,9 @@
  *
  * @return the actual number of charts packed.
  */
-int Pack(const std::vector<ChartHandle>& charts, TextureObjectHandle textureObject, std::vector<TextureSize>& texszVec);
+// randomSeed controls the random chart permutations the packer tries; zero draws a
+// fresh seed on every call, any other value makes the packing reproducible.
+int Pack(const std::vector<ChartHandle>& charts, TextureObjectHandle textureObject, std::vector<TextureSize>& texszVec, unsigned int randomSeed = 0);
 
 /* Computes the UV outline(s) of the given chart. If the chart has no outlines,
  * which can happen for some inputs on small closed components that are ignored

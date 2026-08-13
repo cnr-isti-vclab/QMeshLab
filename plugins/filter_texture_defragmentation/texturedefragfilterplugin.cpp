@@ -305,6 +305,10 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
         flipped[c.first] = c.second->UVFlipped();
     ReorientCharts(graph);
 
+    // Both filters end up in the same atlas packer, which tries randomized chart
+    // permutations when the chart count is small.
+    const RandomSeed seed = params.getRandomSeed();
+
     AlgoParameters ap;
     if (filterId == QString::fromLatin1(kFilterTextureDefrag)) {
         ap.filterType = FilterType::TextureDefrag;
@@ -489,7 +493,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     // rigid transformations must move by an integer number of pixels (otherwise
     // subpixel bleeding could occur). This property is enforced by `IntegerShift`.
     std::vector<TextureSize> texszVec;
-    const int packedCount = Pack(chartsToPack, textureObject, texszVec);
+    const int packedCount = Pack(chartsToPack, textureObject, texszVec, seed.value);
     if (packedCount < int(chartsToPack.size())) {
         const QString message = QObject::tr("Texture defragmentation packing failed before all charts were packed.");
         doc.finishFilterProgress(false, message);
@@ -598,6 +602,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
         info << QObject::tr("Removed %1 zero-area face(s) before defragmentation.").arg(removedZeroFaces);
     if (removedDuplicateVertices > 0)
         info << QObject::tr("Removed %1 duplicate vertex/vertices before defragmentation.").arg(removedDuplicateVertices);
+    info << seed.message();
 
     return success(info, newIndex);
 }

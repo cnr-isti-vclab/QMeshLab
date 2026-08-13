@@ -55,7 +55,7 @@
         {
           "id": "randomSeed",
           "label": "Random seed",
-          "help": "Use zero for an automatically generated seed, or a positive value for repeatable displacement.",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the displacement exactly reproducible.",
           "group": "advanced",
           "type": "int",
           "default": 0,

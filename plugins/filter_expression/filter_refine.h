@@ -18,11 +18,24 @@ inline std::string parserStringToStd(const mu::string_type &s)
 #endif
 }
 
-inline double parserRnd()
+// The generator behind the expression language's rnd()/randInt(). thread_local so
+// that concurrent evaluations never share state; seeded per filter run by
+// seedParserRandom() from the filter's randomSeed parameter.
+inline std::mt19937 &parserRandomGenerator()
 {
     thread_local std::mt19937 gen(std::random_device{}());
+    return gen;
+}
+
+inline void seedParserRandom(unsigned int seed)
+{
+    parserRandomGenerator().seed(std::mt19937::result_type(seed));
+}
+
+inline double parserRnd()
+{
     thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
-    return dist(gen);
+    return dist(parserRandomGenerator());
 }
 
 inline double parserRandInt(double upper)

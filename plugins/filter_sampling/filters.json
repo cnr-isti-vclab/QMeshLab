@@ -50,6 +50,16 @@
           "default": 1000,
           "min": 1,
           "max": 100000000
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the chosen subset of vertices exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ]
     },
@@ -124,6 +134,16 @@
           "group": "advanced",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sample positions exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ]
     },
@@ -193,6 +213,16 @@
           "group": "advanced",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sample positions inside each face exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ]
     },
@@ -392,6 +422,16 @@
           "min": 0.001,
           "max": 1000.0,
           "decimals": 6
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the generated sample set exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ]
     },
@@ -493,6 +533,16 @@
           "min": 0.0,
           "max": "@bboxDiag5x",
           "decimals": 6
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the measured sample set exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ]
     },
@@ -1072,6 +1122,16 @@
           "min": 0.0,
           "max": 1.0,
           "decimals": 6
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the surviving subset of points exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ]
     }

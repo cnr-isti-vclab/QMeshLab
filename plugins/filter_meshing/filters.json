@@ -1979,6 +1979,16 @@
           "group": "main",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the PCA method's point sampling exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [

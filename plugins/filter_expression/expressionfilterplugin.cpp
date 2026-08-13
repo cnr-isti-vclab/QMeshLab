@@ -745,6 +745,13 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         return r;
     };
 
+    // Randomness in these filters is opt-in: it only happens if the user's formula
+    // calls rnd() or randInt(). Seed the shared generator here anyway, so that a
+    // formula which does use them is reproducible when randomSeed is pinned. The
+    // seed is not echoed in the result messages, since the vast majority of runs
+    // never touch the generator.
+    qmeshlab::filters::seedParserRandom(params.getRandomSeed().value);
+
     if (filterId == QString::fromLatin1(kFilterGrid)) {
         const int w = params.getInt(QStringLiteral("numVertX"));
         const int h = params.getInt(QStringLiteral("numVertY"));

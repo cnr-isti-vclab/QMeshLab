@@ -1119,9 +1119,14 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::UpdateNormal<VCGMesh>::NormalizePerVertex(mesh);
 
             const QString method = params.getEnum(QStringLiteral("Method"));
+            const RandomSeed seed = params.getRandomSeed();
             if (method == QStringLiteral("taubin")) {
                 vcg::tri::UpdateCurvature<VCGMesh>::PrincipalDirections(mesh);
             } else if (method == QStringLiteral("pca")) {
+                // PrincipalDirectionsPCA Monte-Carlo samples the surface to build its
+                // neighbourhood grid; the other methods here are deterministic.
+                vcg::tri::SurfaceSampling<VCGMesh, vcg::tri::TrivialSampler<VCGMesh>>
+                    ::SamplingRandomGenerator().initialize(seed.value);
                 vcg::tri::UpdateCurvature<VCGMesh>::PrincipalDirectionsPCA(mesh, scale, true, doc.progressCallback());
             } else if (method == QStringLiteral("normal_cycle")) {
                 vcg::tri::UpdateCurvature<VCGMesh>::PrincipalDirectionsNormalCycle(mesh);
@@ -1149,7 +1154,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             entry.ioMask |= Mask::IOM_VERTQUALITY;
             doc.markMeshGeometryChanged(ci, QObject::tr("Computed principal curvature directions for '%1'").arg(entry.name));
-            return qualitySuccess(ci, MeshFilterVisualizationAttribute::VertexQuality);
+            return qualitySuccess(
+                ci,
+                MeshFilterVisualizationAttribute::VertexQuality,
+                method == QStringLiteral("pca") ? QStringList{ seed.message() } : QStringList{});
         }
 
         if (filterId == QString::fromLatin1(kIdCloseHoles)) {

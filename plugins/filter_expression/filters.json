@@ -27,6 +27,16 @@
           "group": "main",
           "type": "string",
           "default": "(q < 0)"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -59,6 +69,16 @@
           "group": "main",
           "type": "string",
           "default": "(fi == 0)"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -122,6 +142,16 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -178,6 +208,16 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -233,6 +273,16 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -296,6 +346,16 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -359,6 +419,16 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -414,6 +484,16 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -469,6 +549,16 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -516,6 +606,16 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -598,6 +698,16 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -640,6 +750,16 @@
           "group": "main",
           "type": "string",
           "default": "x"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -679,6 +799,16 @@
           "group": "main",
           "type": "string",
           "default": "fi"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -734,6 +864,16 @@
           "group": "main",
           "type": "string",
           "default": "z"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -789,6 +929,16 @@
           "group": "main",
           "type": "string",
           "default": "z0"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
@@ -963,6 +1113,16 @@
           "group": "main",
           "type": "string",
           "default": "x*x+y*y+z*z-0.5"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ]
     },
@@ -1015,6 +1175,16 @@
           "group": "main",
           "type": "string",
           "default": "(z0+z1)/2"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
         }
       ],
       "outputModifies": [
