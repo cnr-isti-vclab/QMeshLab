@@ -111,6 +111,7 @@
         },
         {
           "id": "viewpoint",
+          "enabledWhen": "!usecamera",
           "label": "ViewPoint",
           "help": "Viewpoint position (ignored when UseCamera is true).",
           "group": "main",
@@ -1039,6 +1040,7 @@
         { "id": "usecamera", "label": "Use ViewPoint from Mesh Camera", "help": "Uses the ViewPoint from the camera associated to the current mesh. If there is no camera, an error occurs.", "group": "main", "type": "bool", "default": false },
         {
           "id": "viewpoint",
+          "enabledWhen": "!usecamera",
           "label": "ViewPoint",
           "help": "Viewpoint position (ignored when UseCamera is true).",
           "group": "main",

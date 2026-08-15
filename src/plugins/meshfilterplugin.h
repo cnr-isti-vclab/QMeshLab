@@ -114,6 +114,12 @@ struct MeshFilterParameterDescriptor
     // Ignored outside the UI, where defaultValue remains the fallback.
     QString point3fDefaultPreset;
 
+    // Id of a bool parameter that gates this one: the editor is disabled while that
+    // parameter is false. Prefix with '!' to invert. Empty means always enabled.
+    // Lets the descriptor express what a lot of help text currently only says in
+    // prose ("used only if 'custom axis' is chosen").
+    QString enabledWhen;
+
     bool isAdvancedGroup() const
     {
         return group.startsWith(QStringLiteral("advanced"), Qt::CaseInsensitive);

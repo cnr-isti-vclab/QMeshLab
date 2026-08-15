@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(otool *)",
+      "Bash(dig *)",
+      "Bash(xmllint --noout *)",
+      "Bash(lipo -info *)",
+      "Bash(codesign --verify *)"
+    ]
+  }
+}

@@ -74,6 +74,10 @@ public:
     // Called automatically after build() and whenever a Mesh parameter changes.
     void refreshDependentEditors();
 
+    // Re-evaluate every descriptor's `enabledWhen` gate. Called automatically after
+    // build() and after any value changes.
+    void refreshEnabledState();
+
     const std::vector<Binding> &bindings() const { return m_bindings; }
     const Binding *bindingById(const QString &parameterId) const;
 
@@ -85,6 +89,7 @@ signals:
 
 private:
     QWidget *createEditor(const MeshFilterParameterDescriptor &param);
+    bool evaluateEnabledWhen(const QString &expression) const;
     void connectEditorSignals(const Binding &binding);
     void applyValue(const Binding &binding, const QVariant &value);
     QVariant readValue(const Binding &binding) const;

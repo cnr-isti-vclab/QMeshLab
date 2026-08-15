@@ -62,6 +62,18 @@ The default `MeshFilterPlugin::filters()` loads this from the Qt resource
 `pluginId`. Parameter types: `bool int double absPerc enum color point3f string
 fileOpen fileSave mesh cameraState renderState textureRef`.
 
+A parameter that only matters when another is set should say so structurally rather
+than only in its help text:
+
+```json
+{ "id": "viewpoint", "type": "point3f", "enabledWhen": "!usecamera" }
+```
+
+`enabledWhen` names a **bool** parameter in the same filter; the editor greys out while
+that bool is false, and a leading `!` inverts it. An unknown or non-bool id leaves the
+row enabled, so a typo cannot strand a control. Conditions on enum choices or numeric
+values are not expressible — keep describing those in `help`.
+
 `provenance` is optional and declared once for every filter supplied by a
 third-party project. It is shown in the in-app help and generated documentation.
 When `integration` names a Git submodule, its gitlink is the authoritative exact

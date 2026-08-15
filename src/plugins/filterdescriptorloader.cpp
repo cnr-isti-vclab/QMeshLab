@@ -140,6 +140,7 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
     p.type         = parseParamType(obj.value(QStringLiteral("type")).toString());
     p.decimals     = obj.value(QStringLiteral("decimals")).toInt(3);
     p.fileDialogTitle = obj.value(QStringLiteral("fileDialogTitle")).toString();
+    p.enabledWhen  = obj.value(QStringLiteral("enabledWhen")).toString().trimmed();
 
     const QJsonArray nameFilters = obj.value(QStringLiteral("fileNameFilters")).toArray();
     for (const QJsonValue &fv : nameFilters)

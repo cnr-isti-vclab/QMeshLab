@@ -8,6 +8,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QLabel>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QSignalSpy>
@@ -71,6 +72,9 @@ private slots:
     void advancedVisibilityFollowsGroup();
     void resetRestoresDefaults();
     void skipsDocumentTypesWithoutADocument();
+    void enabledWhenGatesOnABool();
+    void enabledWhenSupportsNegation();
+    void enabledWhenIgnoresBadReferences();
 };
 
 void ParameterFormTests::buildsEditorsFromDefaults()
@@ -203,6 +207,62 @@ void ParameterFormTests::skipsDocumentTypesWithoutADocument()
     QVERIFY(builder.bindingById(QStringLiteral("tex")) == nullptr);
     QVERIFY(builder.bindingById(QStringLiteral("cam")) == nullptr);
     QVERIFY(builder.bindingById(QStringLiteral("count")) != nullptr);
+}
+
+void ParameterFormTests::enabledWhenGatesOnABool()
+{
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+
+    auto gate = makeParam(QStringLiteral("useRange"), MeshFilterParameterType::Bool, false);
+    auto gated = makeParam(QStringLiteral("rangeMax"), MeshFilterParameterType::Double, 1.0);
+    gated.enabledWhen = QStringLiteral("useRange");
+    builder.build({ gate, gated });
+
+    // Gate starts false, so the dependent row starts disabled...
+    QVERIFY(!builder.bindingById(QStringLiteral("rangeMax"))->editor->isEnabled());
+    QVERIFY(!builder.bindingById(QStringLiteral("rangeMax"))->formLabel->isEnabled());
+
+    // ...and follows the gate without the caller doing anything.
+    qobject_cast<QCheckBox *>(builder.bindingById(QStringLiteral("useRange"))->editor)
+        ->setChecked(true);
+    QVERIFY(builder.bindingById(QStringLiteral("rangeMax"))->editor->isEnabled());
+    QVERIFY(builder.bindingById(QStringLiteral("rangeMax"))->formLabel->isEnabled());
+}
+
+void ParameterFormTests::enabledWhenSupportsNegation()
+{
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+
+    auto gate = makeParam(QStringLiteral("automatic"), MeshFilterParameterType::Bool, true);
+    auto gated = makeParam(QStringLiteral("manualValue"), MeshFilterParameterType::Int, 3);
+    gated.enabledWhen = QStringLiteral("!automatic");
+    builder.build({ gate, gated });
+
+    QVERIFY(!builder.bindingById(QStringLiteral("manualValue"))->editor->isEnabled());
+    qobject_cast<QCheckBox *>(builder.bindingById(QStringLiteral("automatic"))->editor)
+        ->setChecked(false);
+    QVERIFY(builder.bindingById(QStringLiteral("manualValue"))->editor->isEnabled());
+}
+
+// A typo must not leave a control greyed out with no way to re-enable it.
+void ParameterFormTests::enabledWhenIgnoresBadReferences()
+{
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+
+    auto missingGate = makeParam(QStringLiteral("a"), MeshFilterParameterType::Int, 1);
+    missingGate.enabledWhen = QStringLiteral("noSuchParameter");
+    auto nonBoolGate = makeParam(QStringLiteral("b"), MeshFilterParameterType::Int, 1);
+    nonBoolGate.enabledWhen = QStringLiteral("a");
+    builder.build({ missingGate, nonBoolGate });
+
+    QVERIFY(builder.bindingById(QStringLiteral("a"))->editor->isEnabled());
+    QVERIFY(builder.bindingById(QStringLiteral("b"))->editor->isEnabled());
 }
 
 QTEST_MAIN(ParameterFormTests)

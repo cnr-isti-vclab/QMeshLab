@@ -51,6 +51,9 @@ class Document;
 //         "min": <value>,       // optional; may be "@token"
 //         "max": <value>,       // optional; may be "@token"
 //         "decimals": 3,        // optional, only for double
+//         "enabledWhen": "flag" | "!flag",  // optional: id of a bool parameter that
+//                               // gates this one; the editor greys out while the
+//                               // condition is false. '!' inverts.
 //         "meshRequirements": { ...same requirement keys as inputRequirements... },
 //         "meshPrepare": ["FF", "BBox"], // only for type=="mesh"
 //         "sourceMeshParameter": "sourceMesh", // only for textureref/textureoutputref

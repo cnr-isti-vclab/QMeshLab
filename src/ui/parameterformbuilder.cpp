@@ -953,6 +953,7 @@ void ParameterFormBuilder::build(
             labelWidget->setToolTip(param.helpMarkdown);
             editor->setToolTip(param.helpMarkdown);
         }
+
         m_layout->addRow(labelWidget, editor);
 
         if (binding.advanced && !m_advancedVisible) {
@@ -970,6 +971,7 @@ void ParameterFormBuilder::build(
         m_bindings.push_back(std::move(binding));
     }
     refreshDependentEditors();
+    refreshEnabledState();
 }
 
 QWidget *ParameterFormBuilder::createEditor(const MeshFilterParameterDescriptor &param)
@@ -1128,7 +1130,10 @@ void ParameterFormBuilder::connectEditorSignals(const Binding &binding)
     if (!editor)
         return;
     const QString id = binding.descriptor.id;
-    auto notify = [this, id]() { emit valueChanged(id); };
+    auto notify = [this, id]() {
+        refreshEnabledState();
+        emit valueChanged(id);
+    };
 
     if (auto *w = qobject_cast<QCheckBox *>(editor)) {
         connect(w, &QCheckBox::toggled, this, notify);
@@ -1305,6 +1310,7 @@ void ParameterFormBuilder::setValues(const MeshFilterParameterValues &values)
             applyValue(binding, it.value());
     }
     refreshDependentEditors();
+    refreshEnabledState();
 }
 
 void ParameterFormBuilder::resetToDefaults()
@@ -1365,5 +1371,38 @@ void ParameterFormBuilder::refreshDependentEditors()
             applySourceMeshIndex(dynamic_cast<TextureRefEditor *>(binding.editor));
         else
             applySourceMeshIndex(dynamic_cast<TextureOutputRefEditor *>(binding.editor));
+    }
+}
+
+// "paramId" enables the row while that bool is true; "!paramId" inverts it.
+// An unknown or non-bool id leaves the row enabled, so a typo degrades to the
+// previous behaviour rather than greying out a control with no way back.
+bool ParameterFormBuilder::evaluateEnabledWhen(const QString &expression) const
+{
+    QString id = expression.trimmed();
+    if (id.isEmpty())
+        return true;
+    bool negate = false;
+    if (id.startsWith(QLatin1Char('!'))) {
+        negate = true;
+        id = id.mid(1).trimmed();
+    }
+    const Binding *gate = bindingById(id);
+    if (!gate || gate->descriptor.type != MeshFilterParameterType::Bool)
+        return true;
+    const bool gateValue = readValue(*gate).toBool();
+    return negate ? !gateValue : gateValue;
+}
+
+void ParameterFormBuilder::refreshEnabledState()
+{
+    for (const Binding &binding : m_bindings) {
+        if (binding.descriptor.enabledWhen.trimmed().isEmpty())
+            continue;
+        const bool enabled = evaluateEnabledWhen(binding.descriptor.enabledWhen);
+        if (binding.formLabel)
+            binding.formLabel->setEnabled(enabled);
+        if (binding.editor)
+            binding.editor->setEnabled(enabled);
     }
 }
