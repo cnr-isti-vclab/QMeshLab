@@ -345,6 +345,38 @@ QVariant resolveToken(const QVariant &v, double bboxDiag,
 
 } // namespace
 
+std::vector<MeshFilterParameterDescriptor> FilterDescriptorLoader::loadParameters(
+    const QString &resourcePath,
+    QString &errorMessage)
+{
+    QFile f(resourcePath);
+    if (!f.open(QIODevice::ReadOnly)) {
+        errorMessage = QStringLiteral("Cannot open parameter file: %1").arg(resourcePath);
+        return {};
+    }
+
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
+    if (doc.isNull()) {
+        errorMessage = QStringLiteral("JSON parse error in %1: %2")
+                           .arg(resourcePath, err.errorString());
+        return {};
+    }
+
+    const QJsonArray parameters = doc.object().value(QStringLiteral("parameters")).toArray();
+    std::vector<MeshFilterParameterDescriptor> result;
+    result.reserve(static_cast<size_t>(parameters.size()));
+    for (const QJsonValue &pv : parameters) {
+        MeshFilterParameterDescriptor p = parseParameter(pv.toObject());
+        if (p.id.trimmed().isEmpty()) {
+            errorMessage = QStringLiteral("Parameter without id in %1").arg(resourcePath);
+            return {};
+        }
+        result.push_back(std::move(p));
+    }
+    return result;
+}
+
 std::vector<MeshFilterDescriptor> FilterDescriptorLoader::load(
     const QString &resourcePath,
     QString &errorMessage)

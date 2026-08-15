@@ -1,4 +1,6 @@
 #include "renderwidget.h"
+
+#include "preferences.h"
 #include "colormap.h"
 #include "document.h"
 #include "interactivetool.h"
@@ -1052,6 +1054,14 @@ int decimalsForStep(double step)
 RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     : QRhiWidget(parent), m_doc(doc)
 {
+    // Seed the per-view defaults from the application preferences. Only the initial
+    // value comes from here: once a view exists the user drives it from the overlay
+    // panel, and the render-state JSON carries whatever they chose.
+    m_renderSettings.qualityHistogramColorMapId =
+        Preferences::instance().stringValue(QStringLiteral("scalar.defaultColorMap"));
+    m_renderSettings.qualityHistogramBins =
+        Preferences::instance().intValue(QStringLiteral("scalar.histogramBins"));
+
     setFocusPolicy(Qt::StrongFocus); // receive key events for interactive tools
     setMouseTracking(true); // interactive tools need button-free hover feedback
     m_currentViewIndicator = new QWidget(this);

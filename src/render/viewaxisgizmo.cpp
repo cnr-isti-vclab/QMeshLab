@@ -1,5 +1,7 @@
 #include "viewaxisgizmo.h"
 
+#include "preferences.h"
+
 #include <QMouseEvent>
 #include <QPainter>
 
@@ -7,6 +9,8 @@
 
 namespace {
 
+// Fallbacks; the live values come from Preferences (view.axisGizmoSize,
+// input.dragThreshold).
 constexpr int kGizmoSize = 84;
 constexpr qreal kHandleRadius = 9.5;
 constexpr qreal kStemWidth = 2.0;
@@ -37,7 +41,8 @@ QVector3D unitAxis(int axis, bool negative)
 ViewAxisGizmo::ViewAxisGizmo(QWidget *parent)
     : QWidget(parent)
 {
-    setFixedSize(kGizmoSize, kGizmoSize);
+    const int gizmoSize = Preferences::instance().intValue(QStringLiteral("view.axisGizmoSize"));
+    setFixedSize(gizmoSize, gizmoSize);
     setMouseTracking(true);
     setToolTip(tr("Click an axis to view along it"));
 }
@@ -165,7 +170,8 @@ void ViewAxisGizmo::mouseMoveEvent(QMouseEvent *e)
         return;
     }
 
-    if (!m_dragging && (e->position() - m_pressPos).manhattanLength() > kDragThresholdPx) {
+    if (!m_dragging && (e->position() - m_pressPos).manhattanLength()
+            > Preferences::instance().intValue(QStringLiteral("input.dragThreshold"))) {
         m_dragging = true;
         // The pointer is driving the camera now, not pointing at a handle.
         setHovered(-1);

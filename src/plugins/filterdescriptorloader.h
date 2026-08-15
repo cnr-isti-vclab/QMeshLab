@@ -93,6 +93,14 @@ public:
         const QString &resourcePath,
         QString &errorMessage);
 
+    // Load a bare parameter list — a JSON object with a top-level "parameters"
+    // array using exactly the schema documented above — from a Qt resource path.
+    // Application preferences are declared this way, so they get the same editors,
+    // grouping and help text as filter parameters.
+    static std::vector<MeshFilterParameterDescriptor> loadParameters(
+        const QString &resourcePath,
+        QString &errorMessage);
+
     // Warns (once per descriptor file) about categories that are not in the
     // ontology. See src/plugins/filtercategories.h.
     static void validateCategories(

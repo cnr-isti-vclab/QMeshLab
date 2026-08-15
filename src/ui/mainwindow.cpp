@@ -58,6 +58,9 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
+#include "preferences.h"
+#include "preferencesdialog.h"
+
 #include <QSettings>
 #include <QSet>
 #include <QSpinBox>
@@ -76,7 +79,13 @@
 
 namespace {
 constexpr std::size_t kFrameStatsWindow = 100;
+// Fallback only; the live cap is the document.recentFileCount preference.
 constexpr int kRecentMeshesLimit = 8;
+
+int recentMeshesLimit()
+{
+    return Preferences::instance().intValue(QStringLiteral("document.recentFileCount"));
+}
 
 QString normalizeRecentPath(const QString &path)
 {
@@ -1039,6 +1048,16 @@ MainWindow::MainWindow(QWidget *parent)
         m_redoAction->setText(
             m_doc->canRedo() ? tr("&Redo %1").arg(m_doc->redoText()) : tr("&Redo"));
     }
+
+    editMenu->addSeparator();
+    QAction *preferencesAction = editMenu->addAction(tr("&Preferences..."), this, [this]() {
+        PreferencesDialog dialog(this);
+        dialog.exec();
+    });
+    // QKeySequence::Preferences maps to Cmd+, on macOS, which also lets the platform
+    // move the entry into the application menu where users expect it.
+    preferencesAction->setShortcut(QKeySequence::Preferences);
+    preferencesAction->setMenuRole(QAction::PreferencesRole);
 
     m_filtersMenu = menuBar()->addMenu(tr("&Filters"));
     refreshFiltersMenu();
@@ -2898,7 +2917,7 @@ void MainWindow::addRecentMesh(const QString &filePath)
 void MainWindow::sanitizeRecentMeshes()
 {
     QStringList cleaned;
-    cleaned.reserve(kRecentMeshesLimit);
+    cleaned.reserve(recentMeshesLimit());
     for (const QString &path : std::as_const(m_recentMeshes)) {
         const QString normalizedPath = normalizeRecentPath(path);
         if (normalizedPath.isEmpty())
@@ -2917,7 +2936,7 @@ void MainWindow::sanitizeRecentMeshes()
             continue;
 
         cleaned.append(normalizedPath);
-        if (cleaned.size() >= kRecentMeshesLimit)
+        if (cleaned.size() >= recentMeshesLimit())
             break;
     }
 
@@ -2943,7 +2962,7 @@ void MainWindow::refreshRecentMeshesMenu()
         QStringLiteral("Ctrl+8")
     };
 
-    for (int i = 0; i < m_recentMeshes.size() && i < kRecentMeshesLimit; ++i) {
+    for (int i = 0; i < m_recentMeshes.size() && i < recentMeshesLimit(); ++i) {
         const QString &path = m_recentMeshes[i];
         if (!m_recentActions[i]) {
             m_recentActions[i] = new QAction(this);

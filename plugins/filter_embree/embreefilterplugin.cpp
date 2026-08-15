@@ -1,6 +1,7 @@
 #include "embreefilterplugin.h"
 
 #include "document.h"
+#include "preferences.h"
 #include "meshfilterpluginmanager.h"
 #include <QVector3D>
 #include <wrap/embree/EmbreeAdaptor.h>
@@ -77,6 +78,8 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
     using Mask = vcg::tri::io::Mask;
     const int rays = std::clamp(params.getInt(QStringLiteral("rays")), 1, 8192);
     vcg::EmbreeAdaptor<VCGMesh> adaptor(entry.mesh);
+    adaptor.callbackChunkCount =
+        Preferences::instance().intValue(QStringLiteral("advanced.rayCallbackChunks"));
     vcg::CallBackPos *cb = doc.progressCallback();
     auto interruptedResult = [&]() -> MeshFilterRunResult {
         return { false, false, QObject::tr("Filter interrupted by user.") };

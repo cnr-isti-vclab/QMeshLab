@@ -1,0 +1,106 @@
+{
+  "kind": "QMeshLab.Preferences",
+  "version": 1,
+  "_comment": [
+    "Application preferences, declared with exactly the parameter schema used by",
+    "every plugin's filters.json (see docs/design/adding_a_filter.md). The same",
+    "ParameterFormBuilder that renders the filter panel renders this dialog, so a",
+    "new preference needs no UI code at all - only an entry here and a reader.",
+    "",
+    "Only put a constant here if a user could sensibly want it different. Values",
+    "that must be derived from the data (a ray epsilon, a bounding-box tolerance)",
+    "belong in the algorithm; per-invocation algorithm knobs belong in the owning",
+    "filter's filters.json; structural constants (buffer strides, UBO offsets) are",
+    "not settings at all."
+  ],
+  "parameters": [
+    {
+      "id": "view.fieldOfView",
+      "label": "Field of view",
+      "help": "Vertical field of view of the perspective camera, in degrees. Lower values flatten perspective, higher values exaggerate it.",
+      "group": "view",
+      "type": "double",
+      "default": 45.0,
+      "min": 10.0,
+      "max": 120.0,
+      "decimals": 1
+    },
+    {
+      "id": "view.nearClipRatio",
+      "label": "Near clip ratio",
+      "help": "Near clipping plane as a fraction of the scene radius. Raise it if depth precision looks poor; lower it if geometry close to the camera gets cut away.",
+      "group": "view",
+      "type": "double",
+      "default": 0.00333,
+      "min": 0.00001,
+      "max": 2.0,
+      "decimals": 5
+    },
+    {
+      "id": "view.axisGizmoSize",
+      "label": "Axis gizmo size",
+      "help": "Edge length in pixels of the orientation gizmo drawn in the corner of the 3D view.",
+      "group": "view",
+      "type": "int",
+      "default": 84,
+      "min": 32,
+      "max": 256
+    },
+    {
+      "id": "input.dragThreshold",
+      "label": "Drag threshold",
+      "help": "How far the pointer must move, in pixels, before a press becomes a drag rather than a click.",
+      "group": "input",
+      "type": "int",
+      "default": 4,
+      "min": 1,
+      "max": 32
+    },
+    {
+      "id": "scalar.defaultColorMap",
+      "label": "Default color map",
+      "help": "Color map selected when a scalar field is first displayed.",
+      "group": "scalar",
+      "type": "enum",
+      "default": "gray",
+      "enumOptions": [
+        { "id": "gray", "label": "Gray" },
+        { "id": "viridis", "label": "Viridis" },
+        { "id": "plasma", "label": "Plasma" },
+        { "id": "cividis", "label": "Cividis" },
+        { "id": "turbo", "label": "Turbo" },
+        { "id": "rainbow", "label": "Rainbow" }
+      ]
+    },
+    {
+      "id": "scalar.histogramBins",
+      "label": "Histogram bins",
+      "help": "Number of bins in the scalar histogram overlay.",
+      "group": "scalar",
+      "type": "int",
+      "default": 32,
+      "min": 4,
+      "max": 256
+    },
+    {
+      "id": "document.recentFileCount",
+      "label": "Recent files",
+      "help": "How many entries the recent-meshes menu keeps.",
+      "group": "document",
+      "type": "int",
+      "default": 10,
+      "min": 0,
+      "max": 40
+    },
+    {
+      "id": "advanced.rayCallbackChunks",
+      "label": "Ray-tracing progress chunks",
+      "help": "How many chunks the face array is split into when ray-tracing filters report progress. Higher values update the progress bar and respond to Cancel more often, at a small synchronisation cost.",
+      "group": "advanced",
+      "type": "int",
+      "default": 24,
+      "min": 1,
+      "max": 256
+    }
+  ]
+}

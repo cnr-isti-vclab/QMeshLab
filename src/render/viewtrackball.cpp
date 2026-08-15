@@ -1,5 +1,7 @@
 #include "viewtrackball.h"
 
+#include "preferences.h"
+
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
@@ -74,6 +76,8 @@ bool ViewTrackball::stateFromJson(const QJsonObject &obj, State &outState, QStri
 }
 
 namespace {
+// The min/max below stay compile-time: they are the hard range the preference is
+// declared within (resources/preferences.json), not settings themselves.
 constexpr float kDefaultTrackballFovYDeg = 45.0f;
 constexpr float kMinTrackballFovYDeg = 10.0f;
 constexpr float kMaxTrackballFovYDeg = 120.0f;
@@ -182,8 +186,14 @@ void ViewTrackball::setFromLookAt(
 
 void ViewTrackball::resetToFrame(const QVector3D &center, float radius, float distance)
 {
-    m_fovYDeg = kDefaultTrackballFovYDeg;
-    m_nearClipRatio = kDefaultNearClipRatio;
+    m_fovYDeg = std::clamp(
+        float(Preferences::instance().doubleValue(QStringLiteral("view.fieldOfView"))),
+        kMinTrackballFovYDeg,
+        kMaxTrackballFovYDeg);
+    m_nearClipRatio = std::clamp(
+        float(Preferences::instance().doubleValue(QStringLiteral("view.nearClipRatio"))),
+        kMinNearClipRatio,
+        kMaxNearClipRatio);
     setFrame(center, radius, distance);
     m_rotation = defaultTrackballRotation();
     m_navigationMode = NavigationMode::None;

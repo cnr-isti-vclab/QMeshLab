@@ -99,6 +99,7 @@ add_library(QMeshLabCore STATIC
     src/core/viewpointoccluder.h src/core/viewpointoccluder.cpp
     src/core/vcgmesh.h
     src/plugins/filtercategories.h src/plugins/filtercategories.cpp
+    src/core/preferences.h src/core/preferences.cpp
     src/plugins/filterdescriptorloader.h src/plugins/filterdescriptorloader.cpp
     src/plugins/meshfilterplugin.h src/plugins/meshfilterplugin.cpp
     src/plugins/meshfilterpluginmanager.h src/plugins/meshfilterpluginmanager.cpp
@@ -130,6 +131,12 @@ target_link_libraries(QMeshLabCore PUBLIC
 
 # Embree occlusion backend (no-op interface target when embree is unavailable).
 target_link_libraries(QMeshLabCore PRIVATE QMeshLabEmbree)
+
+qt_add_resources(QMeshLabCore "preferences"
+    PREFIX "/"
+    FILES
+        resources/preferences.json
+)
 
 qt_add_resources(QMeshLabCore "colormaps"
     PREFIX "/"
@@ -164,6 +171,8 @@ qt_add_executable(QMeshLab
     src/ui/aboutdialog.h src/ui/aboutdialog.cpp
     src/ui/mainwindow.h src/ui/mainwindow.cpp
     src/ui/meshfilterpanel.h src/ui/meshfilterpanel.cpp
+    src/ui/parameterformbuilder.h src/ui/parameterformbuilder.cpp
+    src/ui/preferencesdialog.h src/ui/preferencesdialog.cpp
     src/ui/filterpresentation.h src/ui/filterpresentation.cpp
     src/ui/filterpluginsinfodialog.h src/ui/filterpluginsinfodialog.cpp
     src/ui/meshsaveoptionsdialog.h src/ui/meshsaveoptionsdialog.cpp
@@ -445,3 +454,41 @@ target_compile_definitions(QMeshLabFilterCreationTests PRIVATE
 )
 
 add_test(NAME QMeshLabFilterCreationTests COMMAND QMeshLabFilterCreationTests)
+
+# ParameterFormBuilder deliberately depends on nothing but Document + Qt Widgets,
+# so it can be compiled straight into the test rather than dragging in the app.
+qt_add_executable(QMeshLabParameterFormTests
+    tests/test_parameterform.cpp
+    src/ui/parameterformbuilder.h src/ui/parameterformbuilder.cpp
+)
+
+target_include_directories(QMeshLabParameterFormTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/ui
+)
+
+target_link_libraries(QMeshLabParameterFormTests PRIVATE
+    QMeshLabCore
+    Qt6::Test
+    Qt6::Widgets
+)
+
+add_test(NAME QMeshLabParameterFormTests COMMAND QMeshLabParameterFormTests)
+
+qt_add_executable(QMeshLabPreferencesTests
+    tests/test_preferences.cpp
+)
+
+target_include_directories(QMeshLabPreferencesTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/core
+)
+
+# QMeshLabCore's Document pulls in the plugin registries, so link the same
+# aggregate the other document-backed tests use.
+target_link_libraries(QMeshLabPreferencesTests PRIVATE
+    QMeshLabPlugins
+    Qt6::Test
+)
+
+add_test(NAME QMeshLabPreferencesTests COMMAND QMeshLabPreferencesTests)
