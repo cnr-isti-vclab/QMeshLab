@@ -1,7 +1,8 @@
 # Adding a Filter Plugin
 
 A short, practical guide. For naming/menu taxonomy conventions see
-[Filter Organization](filter_organization.md); for the data model see
+[Filter Organization](filter_organization.md); the same parameter schema also
+declares application settings, see [Preferences](preferences.md); for the data model see
 [Data Model](data_model.md).
 
 ## What a filter is
