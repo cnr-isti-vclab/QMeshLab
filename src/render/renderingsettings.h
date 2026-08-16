@@ -289,6 +289,8 @@ struct GlobalRenderSettings {
     bool operator==(const GlobalRenderSettings &o) const
     {
         return highlightCurrentMesh == o.highlightCurrentMesh
+            && showViewCameras == o.showViewCameras
+            && fillTextureNearestSampling == o.fillTextureNearestSampling
             && showTrackballGizmo == o.showTrackballGizmo
             && showBoundingBoxCorners == o.showBoundingBoxCorners
             && showBoundingBoxDimensions == o.showBoundingBoxDimensions

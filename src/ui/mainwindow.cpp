@@ -79,9 +79,6 @@
 
 namespace {
 constexpr std::size_t kFrameStatsWindow = 100;
-// Fallback only; the live cap is the document.recentFileCount preference.
-constexpr int kRecentMeshesLimit = 8;
-
 int recentMeshesLimit()
 {
     return Preferences::instance().intValue(QStringLiteral("document.recentFileCount"));
@@ -2935,9 +2932,9 @@ void MainWindow::sanitizeRecentMeshes()
         if (alreadyInList)
             continue;
 
-        cleaned.append(normalizedPath);
         if (cleaned.size() >= recentMeshesLimit())
             break;
+        cleaned.append(normalizedPath);
     }
 
     if (cleaned != m_recentMeshes)
@@ -2951,43 +2948,18 @@ void MainWindow::refreshRecentMeshesMenu()
 {
     m_recentMenu->clear();
 
-    const std::array<QString, 8> shortcuts = {
-        QStringLiteral("Ctrl+1"),
-        QStringLiteral("Ctrl+2"),
-        QStringLiteral("Ctrl+3"),
-        QStringLiteral("Ctrl+4"),
-        QStringLiteral("Ctrl+5"),
-        QStringLiteral("Ctrl+6"),
-        QStringLiteral("Ctrl+7"),
-        QStringLiteral("Ctrl+8")
-    };
-
     for (int i = 0; i < m_recentMeshes.size() && i < recentMeshesLimit(); ++i) {
         const QString &path = m_recentMeshes[i];
-        if (!m_recentActions[i]) {
-            m_recentActions[i] = new QAction(this);
-            connect(m_recentActions[i], &QAction::triggered, this, [this, i]() {
-                openRecentMeshByIndex(i);
-            });
-        }
-        m_recentActions[i]->setText(QFileInfo(path).fileName());
-        m_recentActions[i]->setShortcut(QKeySequence(shortcuts[i]));
-        m_recentActions[i]->setToolTip(path);
-        m_recentMenu->addAction(m_recentActions[i]);
+        QAction *action = m_recentMenu->addAction(QFileInfo(path).fileName());
+        action->setData(path);
+        action->setToolTip(path);
+        if (i < 8)
+            action->setShortcut(QKeySequence(QStringLiteral("Ctrl+%1").arg(i + 1)));
+        connect(action, &QAction::triggered, this, &MainWindow::openRecentMesh);
     }
 
     m_recentMenu->setEnabled(!m_recentMeshes.isEmpty());
     m_openLastAction->setEnabled(!m_recentMeshes.isEmpty());
-}
-
-void MainWindow::openRecentMeshByIndex(int index)
-{
-    sanitizeRecentMeshes();
-    refreshRecentMeshesMenu();
-
-    if (index >= 0 && index < m_recentMeshes.size()) {
-        loadMeshFromPath(m_recentMeshes[index]);
-    }
 }
 
 void MainWindow::updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid)

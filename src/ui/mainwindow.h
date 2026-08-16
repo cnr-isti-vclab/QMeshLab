@@ -9,7 +9,6 @@
 #include <QPixmap>
 #include <QVector>
 #include <QVariantMap>
-#include <array>
 #include <deque>
 #include <memory>
 #include <vector>
@@ -91,7 +90,6 @@ private:
     void addRecentMesh(const QString &filePath);
     void sanitizeRecentMeshes();
     void refreshRecentMeshesMenu();
-    void openRecentMeshByIndex(int index);
     void syncCameraViewsFrom(RenderWidget *sourceView);
     void refreshFilterUi();
     void refreshFiltersMenu();
@@ -131,7 +129,6 @@ private:
     int m_activeToolIndex = -1;
     RenderWidget *m_toolOwnerView = nullptr; // view that hosts the active tool
     QAction *m_openLastAction = nullptr;
-    std::array<QAction *, 8> m_recentActions = {};
     QStringList m_recentMeshes;
     QProgressBar *m_loadProgressBar = nullptr;
     QProgressBar *m_filterProgressBar = nullptr;

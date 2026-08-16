@@ -109,6 +109,7 @@ add_library(QMeshLabCore STATIC
     src/render/linerenderer.h src/render/linerenderer.cpp
     src/render/meshgpuresourcecache.h src/render/meshgpuresourcecache.cpp
     src/render/renderingsettings.h
+    src/render/rendersettingsjson.h src/render/rendersettingsjson.cpp
     src/render/viewstate.h
     src/render/viewtrackball.h src/render/viewtrackball.cpp
 )
@@ -492,3 +493,19 @@ target_link_libraries(QMeshLabPreferencesTests PRIVATE
 )
 
 add_test(NAME QMeshLabPreferencesTests COMMAND QMeshLabPreferencesTests)
+
+qt_add_executable(QMeshLabRenderSettingsJsonTests
+    tests/test_rendersettingsjson.cpp
+)
+
+target_include_directories(QMeshLabRenderSettingsJsonTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/render
+)
+
+target_link_libraries(QMeshLabRenderSettingsJsonTests PRIVATE
+    QMeshLabCore
+    Qt6::Test
+)
+
+add_test(NAME QMeshLabRenderSettingsJsonTests COMMAND QMeshLabRenderSettingsJsonTests)
