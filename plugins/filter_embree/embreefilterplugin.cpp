@@ -3,6 +3,7 @@
 #include "document.h"
 #include "preferences.h"
 #include "meshfilterpluginmanager.h"
+#include <QMatrix4x4>
 #include <QVector3D>
 #include <wrap/embree/EmbreeAdaptor.h>
 #include <wrap/io_trimesh/io_mask.h>
@@ -16,7 +17,9 @@
 
 namespace {
 constexpr QLatin1StringView kFilterObscurance("compute_obscurance");
-constexpr QLatin1StringView kFilterAmbientOcclusion("compute_ambient_occlusion");
+constexpr QLatin1StringView kFilterFaceAmbientOcclusion("compute_face_ambient_occlusion");
+constexpr QLatin1StringView kFilterPointCloudAmbientOcclusion(
+    "compute_point_cloud_ambient_occlusion");
 constexpr QLatin1StringView kFilterShapeDiameter("compute_shape_diameter_function");
 constexpr QLatin1StringView kFilterSelectVisibleFaces("select_visible_faces");
 constexpr QLatin1StringView kFilterAnalyzeNormals("analyze_normals");
@@ -49,6 +52,46 @@ MeshFilterRunResult qualityResult(
     result.visualizationHints.push_back({ meshIndex, attribute });
     return result;
 }
+
+std::vector<vcg::Point3f> ambientDirections(
+    int rays,
+    float directionalBias,
+    const vcg::Point3f &coneDirection,
+    float coneAngleDegrees)
+{
+    const int coneRays = std::clamp(int(std::lround(rays * directionalBias)), 0, rays);
+    std::vector<vcg::Point3f> directions;
+    vcg::GenNormal<float>::Fibonacci(rays - coneRays, directions);
+    if (coneRays > 0) {
+        std::vector<vcg::Point3f> coneDirections;
+        vcg::GenNormal<float>::UniformCone(
+            coneRays, coneDirections, vcg::math::ToRad(coneAngleDegrees), coneDirection);
+        directions.insert(directions.end(), coneDirections.begin(), coneDirections.end());
+    }
+    return directions;
+}
+
+bool hasValidVertexNormals(const VCGMesh &mesh)
+{
+    for (const VCGVertex &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        const vcg::Point3f &n = v.cN();
+        if (!std::isfinite(n.X()) || !std::isfinite(n.Y()) || !std::isfinite(n.Z())
+            || n.SquaredNorm() <= 1e-20f)
+            return false;
+    }
+    return mesh.VN() > 0;
+}
+
+vcg::Matrix44f qtToVcg(const QMatrix4x4 &m)
+{
+    vcg::Matrix44f result;
+    for (int row = 0; row < 4; ++row)
+        for (int column = 0; column < 4; ++column)
+            result[row][column] = m(row, column);
+    return result;
+}
 }
 
 QString EmbreeFilterPlugin::pluginId() const
@@ -71,19 +114,113 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
     if (!current)
         return { false, false, errorMessage };
     Document::MeshEntry &entry = *current->entry;
-    if (entry.mesh.FN() <= 0) {
-        return { false, false, QObject::tr("Current mesh has no faces.") };
-    }
 
     using Mask = vcg::tri::io::Mask;
     const int rays = std::clamp(params.getInt(QStringLiteral("rays")), 1, 8192);
-    vcg::EmbreeAdaptor<VCGMesh> adaptor(entry.mesh);
-    adaptor.callbackChunkCount =
-        Preferences::instance().intValue(QStringLiteral("advanced.rayCallbackChunks"));
     vcg::CallBackPos *cb = doc.progressCallback();
     auto interruptedResult = [&]() -> MeshFilterRunResult {
         return { false, false, QObject::tr("Filter interrupted by user.") };
     };
+
+    const bool faceAmbient = filterId == QString::fromLatin1(kFilterFaceAmbientOcclusion);
+    const bool pointAmbient = filterId == QString::fromLatin1(kFilterPointCloudAmbientOcclusion);
+    if (faceAmbient || pointAmbient) {
+        const float bias = std::clamp(
+            float(params.getDouble(QStringLiteral("directional_bias"))), 0.0f, 1.0f);
+        const QVector3D dv = params.getPoint3f(QStringLiteral("cone_direction"));
+        const vcg::Point3f coneDirection(float(dv.x()), float(dv.y()), float(dv.z()));
+        if (bias > 0.0f && coneDirection.SquaredNorm() <= 1e-20f)
+            return { false, false, QObject::tr("Lighting direction must be non-zero.") };
+        const float coneAngle = std::clamp(
+            float(params.getDouble(QStringLiteral("cone_angle"))), 0.0f, 180.0f);
+        const std::vector<vcg::Point3f> directions =
+            ambientDirections(rays, bias, coneDirection, coneAngle);
+
+        if (faceAmbient) {
+            if (entry.mesh.FN() <= 0)
+                return { false, false, QObject::tr("Current mesh has no faces.") };
+
+            vcg::EmbreeAdaptor<VCGMesh> adaptor(entry.mesh);
+            adaptor.callbackChunkCount =
+                Preferences::instance().intValue(QStringLiteral("advanced.rayCallbackChunks"));
+            adaptor.computeAmbientOcclusion(entry.mesh, directions, cb);
+            if (doc.isOperationCancelRequested())
+                return interruptedResult();
+
+            vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
+            entry.ioMask |= Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY;
+            doc.markMeshGeometryChanged(
+                current->index,
+                QObject::tr("Computed face ambient occlusion for '%1'").arg(entry.name));
+            return qualityResult(
+                current->index, MeshFilterVisualizationAttribute::FaceQuality,
+                { QObject::tr("Computed face ambient occlusion using %1 rays").arg(rays) });
+        }
+
+        if (entry.mesh.FN() > 0) {
+            return { false, false,
+                QObject::tr("Point-cloud ambient occlusion requires a layer without faces.") };
+        }
+        const int occluderIndex = params.getMesh(QStringLiteral("occluder_mesh"));
+        if (occluderIndex < 0 || occluderIndex >= doc.meshCount()
+            || doc.mesh(occluderIndex).mesh.FN() <= 0) {
+            return { false, false,
+                QObject::tr("The point-cloud occluder must be a surface mesh with faces.") };
+        }
+
+        const QString normalSource = params.getEnum(QStringLiteral("normal_source"));
+        if (normalSource == QStringLiteral("point_normals") && !hasValidVertexNormals(entry.mesh)) {
+            return { false, false,
+                QObject::tr("Point-normal mode requires a valid normal on every point.") };
+        }
+
+        bool invertible = false;
+        const QMatrix4x4 worldToTarget = entry.transform.inverted(&invertible);
+        if (!invertible) {
+            return { false, false,
+                QObject::tr("The current mesh transform is not invertible.") };
+        }
+        Document::MeshEntry &occluder = doc.mesh(occluderIndex);
+        // Upload the occluder in target-local coordinates. This honors both layer
+        // transforms without copying what may be a very large mesh.
+        const QMatrix4x4 occluderToTargetQt = worldToTarget * occluder.transform;
+        vcg::EmbreeAdaptor<VCGMesh> adaptor(occluder.mesh, qtToVcg(occluderToTargetQt));
+        adaptor.callbackChunkCount =
+            Preferences::instance().intValue(QStringLiteral("advanced.rayCallbackChunks"));
+
+        if (normalSource == QStringLiteral("point_normals")) {
+            adaptor.computeAmbientOcclusionPerVertex(entry.mesh, directions, cb);
+        } else if (normalSource == QStringLiteral("closest_occluder_surface")) {
+            auto closestSurfaceNormal = [&adaptor](const VCGVertex &vertex) {
+                return adaptor.closestFaceNormal(vcg::Point3f::Construct(vertex.cP()));
+            };
+            adaptor.computeAmbientOcclusionPerVertex(
+                entry.mesh, directions, closestSurfaceNormal, cb);
+        } else if (normalSource == QStringLiteral("no_normal_spherical")) {
+            adaptor.computeSphericalOcclusionPerVertex(entry.mesh, directions, cb);
+        } else {
+            return { false, false, QObject::tr("Unknown point-cloud normal source.") };
+        }
+        if (doc.isOperationCancelRequested())
+            return interruptedResult();
+
+        entry.ioMask |= Mask::IOM_VERTQUALITY;
+        doc.markMeshGeometryChanged(
+            current->index,
+            QObject::tr("Computed point-cloud ambient occlusion for '%1'").arg(entry.name));
+        return qualityResult(
+            current->index, MeshFilterVisualizationAttribute::VertexQuality,
+            { QObject::tr("Computed point-cloud ambient occlusion using %1 rays against '%2'")
+                  .arg(rays)
+                  .arg(occluder.name) });
+    }
+
+    if (entry.mesh.FN() <= 0)
+        return { false, false, QObject::tr("Current mesh has no faces.") };
+
+    vcg::EmbreeAdaptor<VCGMesh> adaptor(entry.mesh);
+    adaptor.callbackChunkCount =
+        Preferences::instance().intValue(QStringLiteral("advanced.rayCallbackChunks"));
 
     if (filterId == QString::fromLatin1(kFilterObscurance)) {
         const float tau = float(params.getDouble(QStringLiteral("tau")));
@@ -104,25 +241,6 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
             QObject::tr("Computed obscurance using %1 rays and tau=%2")
                 .arg(rays)
                 .arg(QString::number(tau, 'f', 4))
-        });
-    }
-
-    if (filterId == QString::fromLatin1(kFilterAmbientOcclusion)) {
-        // The self-intersection offset is left at its default of 0, which makes the
-        // adaptor derive it from the mesh bounding box. (An assignment used to sit
-        // *after* this call, where it could not affect the run.)
-        adaptor.computeAmbientOcclusion(entry.mesh, rays, cb);
-        if (doc.isOperationCancelRequested())
-            return interruptedResult();
-        vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(entry.mesh);
-        // No color bake — see the note in the obscurance branch above.
-        entry.ioMask |= Mask::IOM_FACEQUALITY | Mask::IOM_VERTQUALITY;
-        doc.markMeshGeometryChanged(
-            current->index,
-            QObject::tr("Computed ambient occlusion for '%1'").arg(entry.name));
-
-        return qualityResult(current->index, MeshFilterVisualizationAttribute::FaceQuality, {
-            QObject::tr("Computed ambient occlusion using %1 rays").arg(rays)
         });
     }
 

@@ -47,12 +47,12 @@
       ]
     },
     {
-      "id": "compute_ambient_occlusion",
+      "id": "compute_face_ambient_occlusion",
       "categories": ["Attribute/Scalar"],
-      "name": "Compute Ambient Occlusion",
-      "pythonName": "compute_ambient_occlusion",
-      "shortDescription": "Computes ambient occlusion and stores it in quality.",
-      "longDescriptionMarkdown": "Compute Ambient Occlusion.This filter is a shading technique used in computer graphics to simulate the way light interacts with surfaces in a realistic manner.The parameter for the number of rays is defined by the user; this parameter represents the number of rays that will be shot from the barycenter of each face.The higher the number of rays, the longer the time to compute, but the better the results.These results are saved into face quality. The filter does not bake colors; after it runs QMeshLab switches the view to face-quality color visualization.This filter uses the Embree3 library by INTEL.",
+      "name": "Compute Face Ambient Occlusion",
+      "pythonName": "compute_face_ambient_occlusion",
+      "shortDescription": "Computes cosine-weighted ambient visibility on a surface mesh.",
+      "longDescriptionMarkdown": "Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored in face quality and interpolated to vertex quality; a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to face-quality visualization after completion.",
       "tags": [
         "quality",
         "embree",
@@ -67,16 +67,146 @@
         {
           "id": "rays",
           "label": "Rays",
-          "help": "Number of rays shot from each face barycenter.",
+          "help": "Number of lighting directions tested at each face barycenter.",
           "group": "main",
           "type": "int",
           "default": 64,
           "min": 1,
           "max": 8192
+        },
+        {
+          "id": "directional_bias",
+          "label": "Directional Bias",
+          "help": "Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.",
+          "group": "directions",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
+          "id": "cone_direction",
+          "label": "Lighting Direction",
+          "help": "Axis of the directionally biased lighting cone.",
+          "group": "directions",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 1.0, 0.0]
+        },
+        {
+          "id": "cone_angle",
+          "label": "Cone Angle",
+          "help": "Half-angle in degrees of the directionally biased lighting cone.",
+          "group": "directions",
+          "type": "double",
+          "default": 30.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 2
         }
       ],
       "outputModifies": [
         "FQ",
+        "VQ"
+      ]
+    },
+    {
+      "id": "compute_point_cloud_ambient_occlusion",
+      "categories": ["Attribute/Scalar"],
+      "name": "Compute Point Cloud Ambient Occlusion",
+      "pythonName": "compute_point_cloud_ambient_occlusion",
+      "shortDescription": "Computes point-cloud visibility against a surface occluder.",
+      "longDescriptionMarkdown": "Traces rays from every point of the current point-cloud layer against a separate **Occluder Mesh**, using Intel Embree. The result is stored in vertex quality; a larger value means that the point is more exposed. Layer transforms are respected, and the average direction of escaping rays is stored in the per-vertex custom attribute `BentNormal`. **Normal Source** selects the meaning of the measurement:<ul><li><b>Point cloud normals</b> computes classical cosine-weighted hemisphere visibility around each existing point normal. Every point must have a valid normal.</li><li><b>Closest occluder surface</b> uses the geometric normal of the nearest occluder triangle. This is useful when point normals are absent or noisy and the points sample that surface; it assumes that the occluder orientation is meaningful.</li><li><b>No normal (spherical occlusion)</b> tests all sampled directions with equal weight. With <b>Directional Bias</b> set to <code>0</code>, this is orientation-independent full-sphere accessibility: enclosed points have low values and exposed points have high values. It is not classical hemisphere ambient occlusion. A non-zero directional bias instead measures accessibility under the selected directional distribution.</li></ul>By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Angle**: `0` is fully uniform and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to vertex-quality visualization after completion.",
+      "tags": [
+        "quality",
+        "embree",
+        "ao",
+        "point cloud"
+      ],
+      "inputDomain": "WholeDocument",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "occluder_mesh",
+          "label": "Occluder Mesh",
+          "help": "Surface mesh tested by rays from the current point cloud.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": {
+            "requireVertices": true,
+            "requireFaces": true
+          }
+        },
+        {
+          "id": "normal_source",
+          "label": "Normal Source",
+          "help": "Selects an existing point normal, the closest occluder triangle normal, or orientation-independent spherical visibility.",
+          "group": "main",
+          "type": "enum",
+          "default": "closest_occluder_surface",
+          "enumOptions": [
+            {
+              "id": "point_normals",
+              "label": "Point cloud normals"
+            },
+            {
+              "id": "closest_occluder_surface",
+              "label": "Closest occluder surface"
+            },
+            {
+              "id": "no_normal_spherical",
+              "label": "No normal (spherical occlusion)"
+            }
+          ]
+        },
+        {
+          "id": "rays",
+          "label": "Rays",
+          "help": "Number of visibility directions tested at each point.",
+          "group": "main",
+          "type": "int",
+          "default": 64,
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "id": "directional_bias",
+          "label": "Directional Bias",
+          "help": "Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.",
+          "group": "directions",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
+          "id": "cone_direction",
+          "label": "Lighting Direction",
+          "help": "Axis of the directionally biased lighting cone.",
+          "group": "directions",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 1.0, 0.0]
+        },
+        {
+          "id": "cone_angle",
+          "label": "Cone Angle",
+          "help": "Half-angle in degrees of the directionally biased lighting cone.",
+          "group": "directions",
+          "type": "double",
+          "default": 30.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 2
+        }
+      ],
+      "outputModifies": [
         "VQ"
       ]
     },

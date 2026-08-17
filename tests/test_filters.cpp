@@ -155,6 +155,8 @@ bool matrixNear(const QMatrix4x4 &a, const QMatrix4x4 &b, float eps = 1e-3f)
     return true;
 }
 
+QString filterKeyForId(const Document &doc, const QString &filterId);
+
 } // namespace
 
 class FilterTests : public QObject
@@ -174,6 +176,7 @@ private slots:
     void isolatedFoldRepairPreservesFlagsAndConverges();
     void isolatedFoldRepairRejectsUnsupportedMeshes();
     void vertexDisplacementFiltersRunOnCube();
+    void sphericalCapPointCreationIsAreaUniform();
     void splitConnectedComponentsAfterDuplicateVertexRemoval();
     void hausdorffRunsOnTransientMeshCopies();
     void cgalAlphaWrapRunsWhenAvailable();
@@ -200,6 +203,7 @@ private slots:
     void libiglParametrizationFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
     void ambientOcclusionIsScaleInvariant();
+    void ambientOcclusionSupportsPointCloudsAndDirectionalLighting();
     void randomSeedMakesSamplingReproducible();
     void randomSeedZeroVariesBetweenRuns();
     void randomSeedControlsExpressionRnd();
@@ -887,6 +891,43 @@ void FilterTests::vertexDisplacementFiltersRunOnCube()
             QVERIFY(std::isfinite(position.Z()));
         }
         QVERIFY2(changed, qPrintable(id));
+    }
+}
+
+void FilterTests::sphericalCapPointCreationIsAreaUniform()
+{
+    Document probe;
+    const QString filterKey = filterKeyForId(
+        probe, QStringLiteral("create_points_on_a_spherical_cap"));
+    QVERIFY(!filterKey.isEmpty());
+
+    const vcg::Point3f axis = vcg::Normalized(vcg::Point3f(1.0f, 2.0f, 3.0f));
+    const float halfAngle = vcg::math::ToRad(35.0f);
+    const float expectedMeanProjection = (1.0f + std::cos(halfAngle)) * 0.5f;
+    for (const QString &technique : { QStringLiteral("fibonacci"), QStringLiteral("montecarlo") }) {
+        Document doc;
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("point_num"), 1000);
+        params.insert(QStringLiteral("direction"), QVector3D(1.0f, 2.0f, 3.0f));
+        params.insert(QStringLiteral("angle"), 35.0);
+        params.insert(QStringLiteral("technique"), technique);
+        params.insert(QStringLiteral("randomSeed"), 12345);
+        const MeshFilterRunResult result = doc.runFilter(filterKey, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        QCOMPARE(result.newMeshIndices.size(), 1);
+
+        const VCGMesh &points = doc.mesh(result.newMeshIndices.front()).mesh;
+        QCOMPARE(points.VN(), 1000);
+        QCOMPARE(points.FN(), 0);
+        double meanProjection = 0.0;
+        for (const VCGVertex &vertex : points.vert) {
+            QVERIFY(std::abs(vertex.cP().Norm() - 1.0f) < 1e-5f);
+            QVERIFY(axis * vertex.cP() >= std::cos(halfAngle) - 1e-5f);
+            QVERIFY((vertex.cN() - vertex.cP()).Norm() < 1e-5f);
+            meanProjection += axis * vertex.cP();
+        }
+        meanProjection /= points.VN();
+        QVERIFY(std::abs(meanProjection - expectedMeanProjection) < 0.01);
     }
 }
 
@@ -2106,7 +2147,8 @@ QString filterKeyForId(const Document &doc, const QString &filterId)
 void FilterTests::ambientOcclusionIsScaleInvariant()
 {
     Document probe;
-    const QString aoKey = filterKeyForId(probe, QStringLiteral("compute_ambient_occlusion"));
+    const QString aoKey = filterKeyForId(
+        probe, QStringLiteral("compute_face_ambient_occlusion"));
     if (aoKey.isEmpty())
         QSKIP("Embree plugin is not available in this build.");
     const QString sphereKey = filterKeyForId(probe, QStringLiteral("create_sphere"));
@@ -2162,6 +2204,75 @@ void FilterTests::ambientOcclusionIsScaleInvariant()
                            .arg(spread).arg(scale)));
         QCOMPARE(fullyOccluded, 0);
     }
+}
+
+// Point samples do not occlude one another, so point-cloud AO traces against a
+// separate surface. Exercise all three normal sources, including absent normals,
+// while the translated occluder also verifies layer-transform handling.
+void FilterTests::ambientOcclusionSupportsPointCloudsAndDirectionalLighting()
+{
+    Document doc;
+    const QString aoKey = filterKeyForId(
+        doc, QStringLiteral("compute_point_cloud_ambient_occlusion"));
+    if (aoKey.isEmpty())
+        QSKIP("Embree plugin is not available in this build.");
+
+    VCGMesh occluder;
+    makeCubeMesh(occluder, 0.0f, 0.0f, 0.0f);
+    const int normalMask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_VERTNORMAL
+        | vcg::tri::io::Mask::IOM_FACENORMAL;
+    QCOMPARE(doc.addMesh(occluder, QStringLiteral("Occluder"), normalMask), 0);
+    QMatrix4x4 occluderTransform;
+    occluderTransform.translate(10.0f, 0.0f, 0.0f);
+    doc.setMeshTransform(0, occluderTransform);
+
+    VCGMesh points;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(points, 2);
+    points.vert[0].P() = vcg::Point3f(10.5f, 0.5f, 0.5f);
+    points.vert[1].P() = vcg::Point3f(10.5f, 0.5f, 2.0f);
+    for (VCGVertex &v : points.vert)
+        v.N() = vcg::Point3f(0.0f, 0.0f, 1.0f);
+    QCOMPARE(doc.addMesh(
+        points, QStringLiteral("Oriented points"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTNORMAL), 1);
+    doc.setCurrentMeshIndex(1);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("occluder_mesh"), 0);
+    params.insert(QStringLiteral("normal_source"), QStringLiteral("point_normals"));
+    params.insert(QStringLiteral("rays"), 64);
+    params.insert(QStringLiteral("directional_bias"), 1.0);
+    params.insert(QStringLiteral("cone_angle"), 5.0);
+    params.insert(QStringLiteral("cone_direction"), QVector3D(0.0f, 0.0f, 1.0f));
+    MeshFilterRunResult result = doc.runFilter(aoKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(doc.mesh(1).mesh.face.size(), size_t(0));
+    QCOMPARE(doc.mesh(1).mesh.vert[0].Q(), 0.0f);
+    QVERIFY(doc.mesh(1).mesh.vert[1].Q() > 1.0f);
+
+    params.insert(QStringLiteral("cone_direction"), QVector3D(0.0f, 0.0f, -1.0f));
+    result = doc.runFilter(aoKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(doc.mesh(1).mesh.vert[1].Q(), 0.0f);
+
+    // The two remaining modes must not depend on target normals.
+    for (VCGVertex &vertex : doc.mesh(1).mesh.vert)
+        vertex.N() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+
+    params.insert(QStringLiteral("normal_source"), QStringLiteral("closest_occluder_surface"));
+    params.insert(QStringLiteral("cone_direction"), QVector3D(0.0f, 0.0f, 1.0f));
+    result = doc.runFilter(aoKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(doc.mesh(1).mesh.vert[0].Q(), 0.0f);
+    QVERIFY(doc.mesh(1).mesh.vert[1].Q() > 1.0f);
+
+    params.insert(QStringLiteral("normal_source"), QStringLiteral("no_normal_spherical"));
+    params.insert(QStringLiteral("directional_bias"), 0.0);
+    result = doc.runFilter(aoKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(doc.mesh(1).mesh.vert[0].Q(), 0.0f);
+    QVERIFY(doc.mesh(1).mesh.vert[1].Q() > 1.0f);
 }
 
 namespace {
@@ -2282,6 +2393,7 @@ void FilterTests::randomizedFiltersDeclareARandomSeed()
         QStringLiteral("apply_color_noising_per_vertex"),
         QStringLiteral("compute_color_scattering_per_mesh"),
         QStringLiteral("create_sphere_points"),
+        QStringLiteral("create_points_on_a_spherical_cap"),
         QStringLiteral("displace_vertices_randomly"),
         QStringLiteral("compute_matrix_by_icp_between_meshes"),
         QStringLiteral("compute_matrix_by_mesh_global_alignment"),

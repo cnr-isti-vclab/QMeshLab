@@ -274,7 +274,7 @@
           "enumOptions": [
             {
               "id": "montecarlo",
-              "label": "Montecarlo (random)"
+              "label": "Monte Carlo (random)"
             },
             {
               "id": "discoball",
@@ -294,6 +294,84 @@
           "id": "randomSeed",
           "label": "Random seed",
           "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the Monte Carlo point set exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ]
+    },
+    {
+      "id": "create_points_on_a_spherical_cap",
+      "categories": ["Creation/Primitives"],
+      "name": "Create Points on a Spherical Cap",
+      "pythonName": "create_points_on_a_spherical_cap",
+      "shortDescription": "Creates an area-uniform point cloud on a unit-sphere cap.",
+      "longDescriptionMarkdown": "Creates points on the surface of a unit-sphere cap centred on **Cap Direction** and bounded by **Cap Half-Angle** $\\alpha$. Every generated point also receives its outward radial normal. Both techniques are uniform with respect to spherical surface area: equivalently, $\\cos\\theta$ is distributed uniformly in $[\\cos\\alpha,1]$, rather than $\\theta$ being distributed uniformly. **Monte Carlo** generates independent random samples and can be reproduced with a non-zero seed. **Fibonacci** is deterministic and uses VCGLib's direct equal-area spherical-cap construction, producing the exact requested count without first generating and discarding points from a complete sphere. A half-angle of $180^\\circ$ covers the complete sphere.",
+      "tags": [
+        "create",
+        "point cloud",
+        "sphere",
+        "spherical cap",
+        "sampling"
+      ],
+      "inputDomain": "None",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {},
+      "parameters": [
+        {
+          "id": "point_num",
+          "label": "Number of Points",
+          "help": "Exact number of points to generate.",
+          "group": "main",
+          "type": "int",
+          "default": 100,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "id": "direction",
+          "label": "Cap Direction",
+          "help": "Direction from the sphere centre to the centre of the cap.",
+          "group": "main",
+          "type": "point3f",
+          "point3fRole": "direction",
+          "default": [0.0, 1.0, 0.0]
+        },
+        {
+          "id": "angle",
+          "label": "Cap Half-Angle",
+          "help": "Angular radius of the cap in degrees; 180 covers the complete sphere.",
+          "group": "main",
+          "type": "double",
+          "default": 30.0,
+          "min": 0.0,
+          "max": 180.0,
+          "decimals": 2
+        },
+        {
+          "id": "technique",
+          "label": "Generation Technique",
+          "help": "Random Monte Carlo sampling or deterministic Fibonacci sampling.",
+          "group": "main",
+          "type": "enum",
+          "default": "fibonacci",
+          "enumOptions": [
+            {
+              "id": "montecarlo",
+              "label": "Monte Carlo (random)"
+            },
+            {
+              "id": "fibonacci",
+              "label": "Fibonacci"
+            }
+          ]
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run; any other value makes Monte Carlo sampling exactly reproducible.",
           "group": "advanced",
           "type": "int",
           "default": 0,

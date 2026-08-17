@@ -200,7 +200,7 @@ was there.
 with `Repair/Topology`'s coherent-orientation filter, which works purely topologically.
 The two are now visibly a pair rather than two unrelated names.
 
-## Attribute/Scalar (19)
+## Attribute/Scalar (20)
 
 The `Quality` → `Scalar` root-and-branch pass. Note that in the geodesic family the word
 disappears entirely rather than being replaced: the object of the sentence is the
@@ -212,7 +212,8 @@ disappears entirely rather than being replaced: the object of the sentence is th
 | Compute Geodesic Distance Quality from Point | **Compute Geodesic Distance from Point** | `compute_geodesic_distance_from_point` |
 | Compute Geodesic Distance Quality from Selection | **Compute Geodesic Distance from Selection** | `compute_geodesic_distance_from_selection` |
 | Compute Heat Geodesic Distance Quality from Selection | **Compute Geodesic Distance from Selection (Heat Method)** | `compute_geodesic_distance_from_selection_heat` |
-| Compute Ambient Occlusion | **Compute Ambient Occlusion** | `compute_ambient_occlusion` |
+| Compute Ambient Occlusion | **Compute Face Ambient Occlusion** | `compute_face_ambient_occlusion` |
+| — | **Compute Point Cloud Ambient Occlusion** | `compute_point_cloud_ambient_occlusion` |
 | Compute Obscurance | **Compute Obscurance** | `compute_obscurance` |
 | Compute Shape Diameter Function | **Compute Shape Diameter Function** | `compute_shape_diameter_function` |
 | Generate Scalar Harmonic Field | **Compute Harmonic Scalar Field** | `compute_harmonic_scalar_field` |
@@ -448,7 +449,7 @@ Structurally the easiest root — three subcategories, each with an obvious cano
 (`Create`, `Reconstruct`, `Sample`) — but it contains the one genuinely contested
 decision of the whole naming effort. See ruling 1.
 
-## Creation/Primitives (21)
+## Creation/Primitives (22)
 
 | Current | Proposed | Python |
 |---|---|---|
@@ -464,6 +465,7 @@ decision of the whole naming effort. See ruling 1.
 | Tetrahedron | **Create Tetrahedron** | `create_tetrahedron` |
 | Torus | **Create Torus** | `create_torus` |
 | Points on a Sphere | **Create Points on a Sphere** | `create_points_on_a_sphere` |
+| — | **Create Points on a Spherical Cap** | `create_points_on_a_spherical_cap` |
 | Grid Generator | **Create Grid** | `create_grid` |
 | Implicit Surface | **Create Isosurface from Expression** | `create_isosurface_from_expression` |
 | Noisy Isosurface | **Create Isosurface from Perlin Noise** | `create_isosurface_from_perlin_noise` |

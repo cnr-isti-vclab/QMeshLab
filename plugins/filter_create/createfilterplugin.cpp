@@ -3,6 +3,7 @@
 #include "document.h"
 #include "meshfilterpluginmanager.h"
 #include "vcgmesh.h"
+#include <QVector3D>
 #include <vcg/complex/algorithms/convex_hull.h>
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/point_sampling.h>
@@ -12,6 +13,7 @@
 #include <vcg/complex/algorithms/update/selection.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/math/gen_normal.h>
+#include <vcg/math/random_generator.h>
 #include <vcg/space/fitting3.h>
 
 namespace {
@@ -20,6 +22,7 @@ constexpr QLatin1StringView kFilterCreateAnnulus("create_annulus");
 constexpr QLatin1StringView kFilterCreateSphere("create_sphere");
 constexpr QLatin1StringView kFilterCreateSphereCap("create_sphere_cap");
 constexpr QLatin1StringView kFilterCreateSpherePoints("create_sphere_points");
+constexpr QLatin1StringView kFilterCreateSphericalCapPoints("create_points_on_a_spherical_cap");
 constexpr QLatin1StringView kFilterCreateIcosahedron("create_icosahedron");
 constexpr QLatin1StringView kFilterCreateDodecahedron("create_dodecahedron");
 constexpr QLatin1StringView kFilterCreateDodecahedronSym("create_dodecahedron_sym");
@@ -160,20 +163,39 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
         return success(doc.mesh(idx).name, idx);
     }
 
-    if (filterId == QString::fromLatin1(kFilterCreateSpherePoints)) {
+    const bool spherePoints = filterId == QString::fromLatin1(kFilterCreateSpherePoints);
+    const bool capPoints = filterId == QString::fromLatin1(kFilterCreateSphericalCapPoints);
+    if (spherePoints || capPoints) {
         const int pointNum = params.getInt(QStringLiteral("point_num"));
         const QString tech = params.getEnum(QStringLiteral("technique"));
-
         std::vector<vcg::Point3f> sampleVec;
-        // Only the Monte Carlo technique draws random directions; disco ball,
-        // octahedron and Fibonacci are deterministic constructions.
         const bool randomized = tech == QLatin1StringView("montecarlo");
-        const RandomSeed seed = params.getRandomSeed();
-        vcg::math::MarsenneTwisterRNG rng{ seed.value };
+        QStringList seedInfo;
+        vcg::Point3f capDirection(0, 1, 0);
+        float capAngle = 0;
+        if (capPoints) {
+            const QVector3D d = params.getPoint3f(QStringLiteral("direction"));
+            capDirection = vcg::Point3f(d.x(), d.y(), d.z());
+            if (capDirection.SquaredNorm() <= 1e-20f)
+                return { false, false, QObject::tr("Cap direction must be non-zero.") };
+            capAngle = vcg::math::ToRad(float(params.getDouble(QStringLiteral("angle"))));
+        }
 
-        if (tech == QLatin1StringView("montecarlo")) {
-            for (int i = 0; i < pointNum; ++i)
-                sampleVec.push_back(vcg::math::GeneratePointOnUnitSphereUniform<float>(rng));
+        if (randomized) {
+            const RandomSeed seed = params.getRandomSeed();
+            vcg::math::MarsenneTwisterRNG rng{ seed.value };
+            seedInfo = { seed.message() };
+            if (capPoints) {
+                for (int i = 0; i < pointNum; ++i)
+                    sampleVec.push_back(vcg::math::GeneratePointOnUnitSphereCapUniform(
+                        rng, capAngle, capDirection));
+            } else {
+                for (int i = 0; i < pointNum; ++i)
+                    sampleVec.push_back(vcg::math::GeneratePointOnUnitSphereUniform<float>(rng));
+            }
+        } else if (capPoints) {
+            vcg::GenNormal<float>::UniformCone(
+                pointNum, sampleVec, capAngle, capDirection);
         } else if (tech == QLatin1StringView("discoball")) {
             vcg::GenNormal<float>::DiscoBall(pointNum, sampleVec);
         } else if (tech == QLatin1StringView("octahedron")) {
@@ -189,9 +211,10 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
             m.vert[size_t(i)].N() = sampleVec[size_t(i)];
         }
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
-        const int idx = doc.addMesh(m, QStringLiteral("Points on Sphere"));
-        return success(
-            doc.mesh(idx).name, idx, randomized ? QStringList{ seed.message() } : QStringList{});
+        const int idx = doc.addMesh(
+            m, capPoints ? QStringLiteral("Points on Spherical Cap")
+                         : QStringLiteral("Points on Sphere"));
+        return success(doc.mesh(idx).name, idx, seedInfo);
     }
 
     if (filterId == QString::fromLatin1(kFilterCreateCone)) {
