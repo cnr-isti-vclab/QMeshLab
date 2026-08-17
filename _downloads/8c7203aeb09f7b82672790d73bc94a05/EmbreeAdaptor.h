@@ -12,6 +12,7 @@
 #include <wrap/callback.h>
 #include <embree4/rtcore.h>
 #include <vcg/math/gen_normal.h>
+#include <vcg/space/distance3.h>
 #include <limits>
 #include <cmath>
 #include <ctime>
@@ -34,15 +35,17 @@ namespace vcg{
 
         RTCDevice device = rtcNewDevice(nullptr);
         RTCScene scene = nullptr;
-        // Derived from the mesh bounding box in loadVCGMeshInScene; see rayEpsilon.
+        MeshType *sceneMesh = nullptr;
+        Matrix44f sceneTransform = Matrix44f::Identity();
+        // Derived from the uploaded scene bounds in loadVCGMeshInScene; see rayEpsilon.
         float autoRayEpsilon = 1e-4f;
         public:
-            // Number of chunks the face array is split into for progress reporting.
+            // Number of chunks the sample array is split into for progress reporting.
             // Higher values give more frequent callback updates and finer cancellation
             // granularity, at the cost of slightly more synchronisation overhead.
             int callbackChunkCount = 24;
 
-            // Minimum ray distance (tnear) used when shooting rays from face barycenters.
+            // Minimum ray distance (tnear) used when shooting rays from surface samples.
             // Acts as a self-intersection offset: the ray starts this far from the surface
             // so it does not immediately hit the face it originates from.
             //
@@ -70,7 +73,14 @@ namespace vcg{
             // (e.g. occlusion queries): the scene needs only positions + indices,
             // so the mesh is left untouched.
             EmbreeAdaptor(MeshType &m, bool preprocess = true) {
-                scene = loadVCGMeshInScene(m, preprocess);
+                scene = loadVCGMeshInScene(m, preprocess, nullptr);
+            }
+
+            // Loads the mesh directly in another coordinate system, avoiding a
+            // transformed mesh copy when a ray target and its occluder are layers
+            // with different transforms.
+            EmbreeAdaptor(MeshType &m, const Matrix44f &transform) {
+                scene = loadVCGMeshInScene(m, false, &transform);
             }
 
             ~EmbreeAdaptor() {
@@ -190,10 +200,15 @@ namespace vcg{
             are global to the class in order to be used with the other methods.
         */
         public:
-            RTCScene loadVCGMeshInScene(MeshType &m, bool preprocess = true){
+            RTCScene loadVCGMeshInScene(
+                MeshType &m,
+                bool preprocess = true,
+                const Matrix44f *transform = nullptr){
 
             RTCScene loaded_scene = rtcNewScene(device);
             RTCGeometry geometry = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
+            sceneMesh = &m;
+            sceneTransform = transform ? *transform : Matrix44f::Identity();
 
             //a little mesh preprocessing before adding it to a RTCScene (skipped
             //for pure ray-cast use, which reads only positions + indices)
@@ -203,27 +218,25 @@ namespace vcg{
                 tri::UpdateNormal<MeshType>::PerFaceNormalized(m);
                 tri::UpdateBounding<MeshType>::Box(m);
                 tri::UpdateFlags<MeshType>::FaceClearV(m);
-            } else {
-                // Positions are all the ray-cast paths read, but the derived epsilon
-                // below still needs a bounding box.
-                tri::UpdateBounding<MeshType>::Box(m);
-            }
-
-            // A few ULPs of the coordinate magnitude is the actual requirement; the
-            // diagonal is the available proxy for it, and 1e-5 of it leaves ~2 orders
-            // of magnitude of headroom over float precision while staying far below
-            // any real feature size. The floor keeps tnear positive on a degenerate box.
-            {
-                const float diag = m.bbox.IsNull() ? 0.0f : m.bbox.Diag();
-                autoRayEpsilon = std::max(diag * 1e-5f, 1e-6f);
             }
 
             float* vb = (float*) rtcSetNewGeometryBuffer(geometry, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, 3*sizeof(float), m.VN());
+            Box3f sceneBox;
+            sceneBox.SetNull();
             for (int i = 0;i<m.VN(); i++){
-                vb[i*3]=m.vert[i].P()[0];
-                vb[i*3+1]=m.vert[i].P()[1];
-                vb[i*3+2]=m.vert[i].P()[2];
+                Point3f p = Point3f::Construct(m.vert[i].P());
+                if (transform)
+                    p = (*transform) * p;
+                sceneBox.Add(p);
+                vb[i*3]=p[0];
+                vb[i*3+1]=p[1];
+                vb[i*3+2]=p[2];
             }
+
+            // A few ULPs of the scene scale is the actual requirement. Deriving
+            // it from the uploaded positions also accounts for the optional transform.
+            const float diag = sceneBox.IsNull() ? 0.0f : sceneBox.Diag();
+            autoRayEpsilon = std::max(diag * 1e-5f, 1e-6f);
 
             unsigned* ib = (unsigned*) rtcSetNewGeometryBuffer(geometry, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, 3*sizeof(unsigned), m.FN());
             for(int i = 0;i<m.FN(); i++){
@@ -240,63 +253,94 @@ namespace vcg{
             return loaded_scene;
         }
 
-        /*
-        @Author: Paolo Fasano
-        @Parameter: MeshType &m, reference to a mesh.
-        @Parameter: int nRay, number of rays that must be generated and shoot.
-        @Description: for each face from the barycenter this method shoots n rays towards a generated direction(to infinity).
-            If the ray direction is not pointing inside than the ray is actually shoot.
-            If the ray intersect something than the face quality of the mesh is updated with the normal of the fica multiplied by the direction.
-        */
+        private:
+         struct ClosestNormalQuery {
+            const EmbreeAdaptor *adaptor;
+            Point3f point;
+            Point3f normal;
+         };
+
+         static bool closestNormalCallback(RTCPointQueryFunctionArguments *args) {
+            auto &query = *static_cast<ClosestNormalQuery *>(args->userPtr);
+            const auto &face = query.adaptor->sceneMesh->face[args->primID];
+            const Matrix44f &transform = query.adaptor->sceneTransform;
+            const Triangle3<float> triangle(
+                transform * Point3f::Construct(face.cP(0)),
+                transform * Point3f::Construct(face.cP(1)),
+                transform * Point3f::Construct(face.cP(2)));
+            const Point3f normal = TriangleNormal(triangle);
+            if (normal.SquaredNorm() <= std::numeric_limits<float>::epsilon())
+                return false;
+
+            float distance = args->query->radius;
+            Point3f closest;
+            TrianglePointDistance(triangle, query.point, distance, closest);
+            if (!std::isfinite(distance) || distance >= args->query->radius)
+                return false;
+            args->query->radius = distance;
+            query.normal = normal;
+            return true;
+         }
+
         public:
-         void computeAmbientOcclusion(MeshType &inputM, int nRay, CallBackPos *cb = nullptr){
-            std::vector<Point3f> unifDirVec;
-            GenNormal<float>::Fibonacci(nRay,unifDirVec);
-            computeAmbientOcclusion(inputM, unifDirVec, cb);
-        }
+         /* Returns the geometric normal of the nearest uploaded triangle. The
+            query reuses Embree's scene BVH and is safe to call concurrently. */
+         Point3f closestFaceNormal(const Point3f &point) const {
+            if (!scene || !sceneMesh)
+                return Point3f();
+            RTCPointQuery pointQuery { point.X(), point.Y(), point.Z(), 0.0f,
+                std::numeric_limits<float>::infinity() };
+            RTCPointQueryContext context;
+            rtcInitPointQueryContext(&context);
+            ClosestNormalQuery query { this, point, Point3f() };
+            rtcPointQuery(scene, &pointQuery, &context, closestNormalCallback, &query);
+            return query.normal;
+         }
 
-        /*
-        @Author: Paolo Fasano
-        @Parameter: MeshType &m,reference to a mesh.
-        @Parameter: std::vector<Point3f> unifDirVec, vector of direction specified by the user.
-        @Description: for each face from the barycenter this method shoots n rays towards some user generated directions(to infinity).
-            If the ray direction is not pointing inside than the ray is actually shoot.
-            If the ray intersect something than the face quality of the mesh is updated with the normal of the fica multiplied by the direction.
-
-            One more operation done in the AmbientOcclusion is to calculate the bent normal foreach face and save it in an attribute named "BentNormal"
-        */
-        public:
-         void computeAmbientOcclusion(
-             MeshType &inputM,
-             std::vector<Point3f> unifDirVec,
-             CallBackPos *cb = nullptr){
-            if (cb && !(*cb)(0, "Computing ambient occlusion")) {
-                release_global_resources();
+        private:
+         template<class ElementContainer, class BentNormalHandle, class Origin, class Normal>
+         void computeAmbientOcclusionElements(
+             ElementContainer &elements,
+             BentNormalHandle bentNormal,
+             const std::vector<Point3f> &directions,
+             Origin origin,
+             Normal elementNormal,
+             bool useNormals,
+             CallBackPos *cb){
+            if (cb && !(*cb)(0, "Computing ambient occlusion"))
                 return;
-            }
-            tri::UpdateQuality<MeshType>::FaceConstant(inputM,0);
-            typename MeshType::template PerFaceAttributeHandle<Point3f> bentNormal = vcg::tri::Allocator<MeshType>:: template GetPerFaceAttribute<Point3f>(inputM, std::string("BentNormal"));
-
-            const int faceCount = inputM.FN();
-            if (faceCount <= 0) {
-                release_global_resources();
+            const int elementCount = int(elements.size());
+            if (elementCount <= 0)
                 return;
-            }
-            const int blockSize = (cb != nullptr) ? std::max(1, faceCount / callbackChunkCount) : faceCount;
+            const int blockSize = (cb != nullptr) ? std::max(1, elementCount / callbackChunkCount) : elementCount;
             bool interrupted = false;
             const float epsilon = effectiveRayEpsilon();
 
-            auto computeFace = [&](int i) {
+            auto computeElement = [&](int i) {
+                auto &element = elements[i];
+                if (element.IsD())
+                    return;
+                element.Q() = 0;
+                bentNormal[element] = Point3f(0,0,0);
+                Point3f normal;
+                if (useNormals) {
+                    normal = elementNormal(element);
+                    if (normal.SquaredNorm() <= std::numeric_limits<float>::epsilon())
+                        return;
+                    normal.Normalize();
+                }
+
                 RTCRayHit rayhit = initRayValues();
-                Point3f b = vcg::Barycenter(inputM.face[i]);
-                updateRayOrigin(rayhit, b);
+                updateRayOrigin(rayhit, origin(element));
                 rayhit.ray.tnear  = epsilon;
 
-                Point3f bN;
+                Point3f bN(0,0,0);
                 int accRays=0;
-                for(int r = 0; r<int(unifDirVec.size()); r++){
-                    Point3f dir = unifDirVec[r];
-                    float scalarP = inputM.face[i].N()*dir;
+                for(const Point3f &dir : directions){
+                    // Surface AO integrates cosine-weighted visibility over the
+                    // normal hemisphere. Without a normal, every direction has
+                    // unit weight and the result is spherical accessibility.
+                    const float scalarP = useNormals ? normal*dir : 1.0f;
 
                     if(scalarP>0){
 
@@ -316,33 +360,100 @@ namespace vcg{
                         if (rayhit.hit.geomID == RTC_INVALID_GEOMETRY_ID){
                             bN+=dir;
                             accRays++;
-                            inputM.face[i].Q()+=scalarP;
+                            element.Q()+=scalarP;
                         }
 
                     }
                 }
                 if (accRays > 0)
-                    bentNormal[i] = bN/accRays;
-                else
-                    bentNormal[i] = Point3f(0,0,0);
+                    bentNormal[element] = bN/accRays;
             };
 
-            for (int begin = 0; begin < faceCount && !interrupted; begin += blockSize) {
-                const int end = std::min(faceCount, begin + blockSize);
+            for (int begin = 0; begin < elementCount && !interrupted; begin += blockSize) {
+                const int end = std::min(elementCount, begin + blockSize);
                 #pragma omp parallel for
                 for(int i = begin; i < end; i++)
-                    computeFace(i);
+                    computeElement(i);
 
                 if (cb) {
-                    const int pos = int((100.0 * double(end)) / double(faceCount));
-                    const std::string msg = vcg::StrFormat("Computing ambient occlusion (%d/%d)", end, faceCount);
+                    const int pos = int((100.0 * double(end)) / double(elementCount));
+                    const std::string msg = vcg::StrFormat("Computing ambient occlusion (%d/%d)", end, elementCount);
                     if (!(*cb)(pos, msg.c_str()))
                         interrupted = true;
                 }
             }
+        }
 
-            if (!interrupted)
-                tri::UpdateColor<MeshType>::PerFaceQualityGray(inputM);
+        /* Computes cosine-weighted visibility at face barycenters. The Embree
+           scene may come from another mesh. */
+        public:
+         void computeAmbientOcclusion(MeshType &inputM, int nRay, CallBackPos *cb = nullptr){
+            std::vector<Point3f> directions;
+            GenNormal<float>::Fibonacci(nRay,directions);
+            computeAmbientOcclusion(inputM, directions, cb);
+        }
+
+        public:
+         void computeAmbientOcclusion(
+             MeshType &inputM,
+             const std::vector<Point3f> &directions,
+             CallBackPos *cb = nullptr){
+            auto bentNormal = vcg::tri::Allocator<MeshType>:: template GetPerFaceAttribute<Point3f>(inputM, std::string("BentNormal"));
+            computeAmbientOcclusionElements(
+                inputM.face, bentNormal, directions,
+                [](const typename MeshType::FaceType &f) { return vcg::Barycenter(f); },
+                [](const typename MeshType::FaceType &f) { return Point3f::Construct(f.N()); },
+                true, cb);
+            release_global_resources();
+        }
+
+        /* Per-vertex counterpart for oriented point clouds. Rays originate at
+           the target vertices but intersect the mesh used to build this adaptor. */
+        public:
+         void computeAmbientOcclusionPerVertex(
+             MeshType &inputM,
+             const std::vector<Point3f> &directions,
+             CallBackPos *cb = nullptr){
+            auto bentNormal = vcg::tri::Allocator<MeshType>:: template GetPerVertexAttribute<Point3f>(inputM, std::string("BentNormal"));
+            computeAmbientOcclusionElements(
+                inputM.vert, bentNormal, directions,
+                [](const typename MeshType::VertexType &v) { return Point3f::Construct(v.P()); },
+                [](const typename MeshType::VertexType &v) { return Point3f::Construct(v.N()); },
+                true, cb);
+            release_global_resources();
+        }
+
+        /* Point-cloud AO using normals supplied by the caller. This permits a
+           surface occluder to provide the orientation without allocating a
+           temporary normal array on very large point clouds. */
+        public:
+         template<class Normal>
+         void computeAmbientOcclusionPerVertex(
+             MeshType &inputM,
+             const std::vector<Point3f> &directions,
+             Normal vertexNormal,
+             CallBackPos *cb = nullptr){
+            auto bentNormal = vcg::tri::Allocator<MeshType>:: template GetPerVertexAttribute<Point3f>(inputM, std::string("BentNormal"));
+            computeAmbientOcclusionElements(
+                inputM.vert, bentNormal, directions,
+                [](const typename MeshType::VertexType &v) { return Point3f::Construct(v.P()); },
+                vertexNormal, true, cb);
+            release_global_resources();
+        }
+
+        /* Orientation-independent visibility for point clouds without usable
+           normals. Unlike surface AO, all sampled directions have unit weight. */
+        public:
+         void computeSphericalOcclusionPerVertex(
+             MeshType &inputM,
+             const std::vector<Point3f> &directions,
+             CallBackPos *cb = nullptr){
+            auto bentNormal = vcg::tri::Allocator<MeshType>:: template GetPerVertexAttribute<Point3f>(inputM, std::string("BentNormal"));
+            computeAmbientOcclusionElements(
+                inputM.vert, bentNormal, directions,
+                [](const typename MeshType::VertexType &v) { return Point3f::Construct(v.P()); },
+                [](const typename MeshType::VertexType &) { return Point3f(); },
+                false, cb);
             release_global_resources();
         }
 

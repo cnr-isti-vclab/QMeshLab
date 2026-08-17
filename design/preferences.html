@@ -247,7 +247,7 @@
 <p>Application-wide settings reuse the filter-parameter machinery end to end: they are
 <strong>declared</strong> with the same JSON schema, <strong>rendered</strong> by the same widget builder, and
 <strong>read</strong> through one registry.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>resources/preferences.json   declaration (same schema as any filters.json &quot;parameters&quot;)
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>resources/preferences.json   declaration (same schema as any filters.json "parameters")
         │
         ├─ FilterDescriptorLoader::loadParameters()  →  MeshFilterParameterDescriptor
         │
@@ -269,9 +269,9 @@ to write.</p>
 </section>
 <section id="reading-one">
 <h2>Reading one<a class="headerlink" href="#reading-one" title="Link to this heading">¶</a></h2>
-<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;preferences.h&quot;</span>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"preferences.h"</span>
 
-<span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">chunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Preferences</span><span class="o">::</span><span class="n">instance</span><span class="p">().</span><span class="n">intValue</span><span class="p">(</span><span class="n">QStringLiteral</span><span class="p">(</span><span class="s">&quot;advanced.rayCallbackChunks&quot;</span><span class="p">));</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">chunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Preferences</span><span class="o">::</span><span class="n">instance</span><span class="p">().</span><span class="n">intValue</span><span class="p">(</span><span class="n">QStringLiteral</span><span class="p">(</span><span class="s">"advanced.rayCallbackChunks"</span><span class="p">));</span>
 </pre></div>
 </div>
 <p>A read falls back to the declared default when the value has never been set, so a call

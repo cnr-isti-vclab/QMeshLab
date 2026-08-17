@@ -303,7 +303,7 @@ from MeshLab’s own <code class="docutils literal notranslate"><span class="pre
 <p><strong>Descriptor field.</strong> The field is currently the single string <code class="docutils literal notranslate"><span class="pre">menuPath</span></code>, which has
 the same presentation bias and cannot express a set. It becomes an array named
 <code class="docutils literal notranslate"><span class="pre">categories</span></code>:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;categories&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Meshing/Simplification&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Texture&quot;</span><span class="p">]</span>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">"categories"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Meshing/Simplification"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Texture"</span><span class="p">]</span>
 </pre></div>
 </div>
 <p>Each entry must be a valid ontology path, validated by the loader. This is a
@@ -771,8 +771,8 @@ the new facet is <strong><code class="docutils literal notranslate"><span class=
 <section id="direction-matters">
 <h3>Direction matters<a class="headerlink" href="#direction-matters" title="Link to this heading">¶</a></h3>
 <p>Input and output are declared separately:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;inputRepresentation&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Point Cloud&quot;</span><span class="p">],</span>
-<span class="nt">&quot;outputRepresentation&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Mesh/Triangle&quot;</span><span class="p">]</span>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">"inputRepresentation"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Point Cloud"</span><span class="p">],</span>
+<span class="nt">"outputRepresentation"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Mesh/Triangle"</span><span class="p">]</span>
 </pre></div>
 </div>
 <p>This is what answers <em>“what turns a point cloud into a surface?”</em> and <em>“what converts

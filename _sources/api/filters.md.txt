@@ -565,26 +565,6 @@ Color vertices depending on their quality field. The filter uses the same colorm
 
 ---
 
-(filter-compute-ambient-occlusion)=
-
-## Compute Ambient Occlusion
-
-**Plugin:** qmeshlab.filter.embree
-
-Computes ambient occlusion and stores it in quality.
-
-```{py:function} ms.compute_ambient_occlusion(**params)
-:module: _qmeshlab
-
-Compute Ambient Occlusion.This filter is a shading technique used in computer graphics to simulate the way light interacts with surfaces in a realistic manner.The parameter for the number of rays is defined by the user; this parameter represents the number of rays that will be shot from the barycenter of each face.The higher the number of rays, the longer the time to compute, but the better the results.These results are saved into face quality. The filter does not bake colors; after it runs QMeshLab switches the view to face-quality color visualization.This filter uses the Embree3 library by INTEL.
-
-**Parameters:**
-
-- **rays** (*int*, default: `64`) — Number of rays shot from each face barycenter.
-```
-
----
-
 (filter-compute-apss-curvature)=
 
 ## Compute Curvature (APSS)
@@ -751,6 +731,29 @@ Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and 
 - **RefMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh or point cloud used as the reference.
 - **SignedDist** (*bool*, default: `True`) — If enabled, compute a signed distance instead of the absolute value.
 - **MaxDist** (*absperc*, default: `@bboxDiag`) — Search is interrupted when nothing is found within this range.
+```
+
+---
+
+(filter-compute-face-ambient-occlusion)=
+
+## Compute Face Ambient Occlusion
+
+**Plugin:** qmeshlab.filter.embree
+
+Computes cosine-weighted ambient visibility on a surface mesh.
+
+```{py:function} ms.compute_face_ambient_occlusion(**params)
+:module: _qmeshlab
+
+Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored in face quality and interpolated to vertex quality; a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to face-quality visualization after completion.
+
+**Parameters:**
+
+- **rays** (*int*, default: `64`) — Number of lighting directions tested at each face barycenter.
+- **directional_bias** (*double*, default: `0.0`) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.
+- **cone_direction** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Axis of the directionally biased lighting cone.
+- **cone_angle** (*double*, default: `30.0`) — Half-angle in degrees of the directionally biased lighting cone.
 ```
 
 ---
@@ -1102,6 +1105,31 @@ Compute the polyline representing a planar section (a slice) of a mesh; if the r
 - **relativeTo** (*enum*, default: `origin`) — Reference frame for plane offset.
 - **createSectionSurface** (*bool*, default: `False`) — Create triangulated section if polyline is closed.
 - **splitSurfaceWithSection** (*bool*, default: `False`) — Create under/over split layers (requires manifold mesh).
+```
+
+---
+
+(filter-compute-point-cloud-ambient-occlusion)=
+
+## Compute Point Cloud Ambient Occlusion
+
+**Plugin:** qmeshlab.filter.embree
+
+Computes point-cloud visibility against a surface occluder.
+
+```{py:function} ms.compute_point_cloud_ambient_occlusion(**params)
+:module: _qmeshlab
+
+Traces rays from every point of the current point-cloud layer against a separate **Occluder Mesh**, using Intel Embree. The result is stored in vertex quality; a larger value means that the point is more exposed. Layer transforms are respected, and the average direction of escaping rays is stored in the per-vertex custom attribute `BentNormal`. **Normal Source** selects the meaning of the measurement:<ul><li><b>Point cloud normals</b> computes classical cosine-weighted hemisphere visibility around each existing point normal. Every point must have a valid normal.</li><li><b>Closest occluder surface</b> uses the geometric normal of the nearest occluder triangle. This is useful when point normals are absent or noisy and the points sample that surface; it assumes that the occluder orientation is meaningful.</li><li><b>No normal (spherical occlusion)</b> tests all sampled directions with equal weight. With <b>Directional Bias</b> set to <code>0</code>, this is orientation-independent full-sphere accessibility: enclosed points have low values and exposed points have high values. It is not classical hemisphere ambient occlusion. A non-zero directional bias instead measures accessibility under the selected directional distribution.</li></ul>By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Angle**: `0` is fully uniform and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to vertex-quality visualization after completion.
+
+**Parameters:**
+
+- **occluder_mesh** (*mesh*, default: `@otherMeshIndex`) — Surface mesh tested by rays from the current point cloud.
+- **normal_source** (*enum*, default: `closest_occluder_surface`) — Selects an existing point normal, the closest occluder triangle normal, or orientation-independent spherical visibility.
+- **rays** (*int*, default: `64`) — Number of visibility directions tested at each point.
+- **directional_bias** (*double*, default: `0.0`) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.
+- **cone_direction** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Axis of the directionally biased lighting cone.
+- **cone_angle** (*double*, default: `30.0`) — Half-angle in degrees of the directionally biased lighting cone.
 ```
 
 ---
@@ -1766,6 +1794,30 @@ Creates an Octahedron.
 Create an Octahedron
 
 This filter has no parameters.
+```
+
+---
+
+(filter-create-points-on-a-spherical-cap)=
+
+## Create Points on a Spherical Cap
+
+**Plugin:** qmeshlab.filter.create
+
+Creates an area-uniform point cloud on a unit-sphere cap.
+
+```{py:function} ms.create_points_on_a_spherical_cap(**params)
+:module: _qmeshlab
+
+Creates points on the surface of a unit-sphere cap centred on **Cap Direction** and bounded by **Cap Half-Angle** $\alpha$. Every generated point also receives its outward radial normal. Both techniques are uniform with respect to spherical surface area: equivalently, $\cos\theta$ is distributed uniformly in $[\cos\alpha,1]$, rather than $\theta$ being distributed uniformly. **Monte Carlo** generates independent random samples and can be reproduced with a non-zero seed. **Fibonacci** is deterministic and uses VCGLib's direct equal-area spherical-cap construction, producing the exact requested count without first generating and discarding points from a complete sphere. A half-angle of $180^\circ$ covers the complete sphere.
+
+**Parameters:**
+
+- **point_num** (*int*, default: `100`) — Exact number of points to generate.
+- **direction** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Direction from the sphere centre to the centre of the cap.
+- **angle** (*double*, default: `30.0`) — Angular radius of the cap in degrees; 180 covers the complete sphere.
+- **technique** (*enum*, default: `fibonacci`) — Random Monte Carlo sampling or deterministic Fibonacci sampling.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run; any other value makes Monte Carlo sampling exactly reproducible.
 ```
 
 ---

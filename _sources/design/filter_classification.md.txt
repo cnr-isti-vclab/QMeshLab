@@ -222,6 +222,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Create Isosurface from Perlin Noise | `basic` | `Creation/Primitives` |  |
 | Create Octahedron | `create` | `Creation/Primitives` | bucket default |
 | Create Points on a Sphere | `create` | `Creation/Primitives` | bucket default |
+| Create Points on a Spherical Cap | `create` | `Creation/Primitives` | bucket default |
 | Create Sphere | `create` | `Creation/Primitives` | bucket default |
 | Create Sphere Cap | `create` | `Creation/Primitives` | bucket default |
 | Create Tetrahedron | `create` | `Creation/Primitives` | bucket default |
@@ -523,4 +524,3 @@ than their present `menuPath` implies. That is the main finding of this pass.
 | Transfer: Texture to Vertex Color | `texture` | `Transfer/Attribute to Texture` · `Attribute/Color` | <sub>touches: color</sub> |
 | Transfer: Vertex Attributes to Texture | `texture` | `Transfer/Attribute to Texture` · `Texture` | <sub>touches: texture</sub> |
 | Transfer: Vertex Color to Texture | `texture` | `Transfer/Attribute to Texture` · `Texture` | <sub>touches: texture</sub> |
-

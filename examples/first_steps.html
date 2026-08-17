@@ -253,17 +253,17 @@ view state and snapshot helpers.</p>
 <h2>Example 1 - Inspect the currently loaded meshes<a class="headerlink" href="#example-1-inspect-the-currently-loaded-meshes" title="Link to this heading">¶</a></h2>
 <p>This script prints basic information about the meshes that are already loaded
 in the current QMeshLab document.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Mesh count:&quot;</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">"Mesh count:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">())</span>
 
 <span class="k">if</span> <span class="n">ms</span><span class="o">.</span><span class="n">mesh_count</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No meshes are currently loaded.&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"No meshes are currently loaded."</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Current mesh index:&quot;</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">())</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Current mesh id:&quot;</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_id</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh index:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Current mesh id:"</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">current_mesh_id</span><span class="p">())</span>
     <span class="nb">print</span><span class="p">()</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Available filters (first 10):&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Available filters (first 10):"</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">ms</span><span class="o">.</span><span class="n">list_filters</span><span class="p">()[:</span><span class="mi">10</span><span class="p">]:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">python_name</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">" "</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">python_name</span><span class="p">,</span> <span class="s2">"-"</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -271,8 +271,8 @@ in the current QMeshLab document.</p>
 <h2>Example 2 - Create and process a noisy isosurface<a class="headerlink" href="#example-2-create-and-process-a-noisy-isosurface" title="Link to this heading">¶</a></h2>
 <p>This script creates a synthetic noisy isosurface, then applies marching-cubes
 decimation and Loop subdivision.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">&quot;create_noisy_isosurface&quot;</span><span class="p">,</span> <span class="p">{</span>
-    <span class="s2">&quot;resolution&quot;</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"create_noisy_isosurface"</span><span class="p">,</span> <span class="p">{</span>
+    <span class="s2">"resolution"</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span>
 <span class="p">})</span>
 
 <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
@@ -285,11 +285,11 @@ decimation and Loop subdivision.</p>
 
 <span class="n">ms</span><span class="o">.</span><span class="n">subdivision_loop</span><span class="p">(</span>
     <span class="n">Iterations</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="n">LoopWeight</span><span class="o">=</span><span class="s2">&quot;loop&quot;</span><span class="p">,</span>
+    <span class="n">LoopWeight</span><span class="o">=</span><span class="s2">"loop"</span><span class="p">,</span>
     <span class="n">Threshold</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Created and processed noisy isosurface.&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Created and processed noisy isosurface."</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The exact parameter names and defaults of a filter can be copied directly from
@@ -300,9 +300,9 @@ the filter panel using the “Copy Python call to console” button.</p>
 <p>This example uses <code class="docutils literal notranslate"><span class="pre">mlgui</span></code> to save the current desktop view as a PNG image.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;Downloads&quot;</span> <span class="o">/</span> <span class="s2">&quot;qmeshlab_snapshot.png&quot;</span>
+<span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">"Downloads"</span> <span class="o">/</span> <span class="s2">"qmeshlab_snapshot.png"</span>
 <span class="n">mlgui</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">output_path</span><span class="p">),</span> <span class="mi">1600</span><span class="p">,</span> <span class="mi">1200</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved </span><span class="si">{</span><span class="n">output_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Saved </span><span class="si">{</span><span class="n">output_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>

@@ -659,8 +659,8 @@ was there.</p>
 with <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code>’s coherent-orientation filter, which works purely topologically.
 The two are now visibly a pair rather than two unrelated names.</p>
 </section>
-<section id="attribute-scalar-19">
-<h2>Attribute/Scalar (19)<a class="headerlink" href="#attribute-scalar-19" title="Link to this heading">¶</a></h2>
+<section id="attribute-scalar-20">
+<h2>Attribute/Scalar (20)<a class="headerlink" href="#attribute-scalar-20" title="Link to this heading">¶</a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">Quality</span></code> → <code class="docutils literal notranslate"><span class="pre">Scalar</span></code> root-and-branch pass. Note that in the geodesic family the word
 disappears entirely rather than being replaced: the object of the sentence is the
 <em>distance</em>, and the category already says the result is a scalar.</p>
@@ -690,62 +690,66 @@ disappears entirely rather than being replaced: the object of the sentence is th
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_geodesic_distance_from_selection_heat</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Compute Ambient Occlusion</p></td>
-<td><p><strong>Compute Ambient Occlusion</strong></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">compute_ambient_occlusion</span></code></p></td>
+<td><p><strong>Compute Face Ambient Occlusion</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_face_ambient_occlusion</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Compute Obscurance</p></td>
+<tr class="row-odd"><td><p>—</p></td>
+<td><p><strong>Compute Point Cloud Ambient Occlusion</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_point_cloud_ambient_occlusion</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Compute Obscurance</p></td>
 <td><p><strong>Compute Obscurance</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_obscurance</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Compute Shape Diameter Function</p></td>
+<tr class="row-odd"><td><p>Compute Shape Diameter Function</p></td>
 <td><p><strong>Compute Shape Diameter Function</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_shape_diameter_function</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Generate Scalar Harmonic Field</p></td>
+<tr class="row-even"><td><p>Generate Scalar Harmonic Field</p></td>
 <td><p><strong>Compute Harmonic Scalar Field</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_harmonic_scalar_field</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Per Face Geometric Quality</p></td>
+<tr class="row-odd"><td><p>Per Face Geometric Quality</p></td>
 <td><p><strong>Compute Face Scalar from Geometry</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_face_scalar_from_geometry</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Per Face Texture Distortion</p></td>
+<tr class="row-even"><td><p>Per Face Texture Distortion</p></td>
 <td><p><strong>Compute UV Distortion</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_uv_distortion</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Quality from raster coverage (Vertex)</p></td>
+<tr class="row-odd"><td><p>Quality from raster coverage (Vertex)</p></td>
 <td><p><strong>Compute Vertex Scalar from Raster Coverage</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_scalar_from_raster_coverage</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Quality from raster coverage (Face)</p></td>
+<tr class="row-even"><td><p>Quality from raster coverage (Face)</p></td>
 <td><p><strong>Compute Face Scalar from Raster Coverage</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_face_scalar_from_raster_coverage</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Vertex Quality from Camera</p></td>
+<tr class="row-odd"><td><p>Vertex Quality from Camera</p></td>
 <td><p><strong>Compute Vertex Scalar from Camera</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_scalar_from_camera</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Per Vertex Quality Function</p></td>
+<tr class="row-even"><td><p>Per Vertex Quality Function</p></td>
 <td><p><strong>Compute Vertex Scalar by Expression</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_scalar_by_expression</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Per Face Quality Function</p></td>
+<tr class="row-odd"><td><p>Per Face Quality Function</p></td>
 <td><p><strong>Compute Face Scalar by Expression</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">compute_face_scalar_by_expression</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Clamp Vertex Quality</p></td>
+<tr class="row-even"><td><p>Clamp Vertex Quality</p></td>
 <td><p><strong>Clamp Vertex Scalar</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clamp_vertex_scalar</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Saturate Vertex Quality</p></td>
+<tr class="row-odd"><td><p>Saturate Vertex Quality</p></td>
 <td><p><strong>Clamp Vertex Scalar Gradient</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clamp_vertex_scalar_gradient</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Smooth Vertex Quality</p></td>
+<tr class="row-even"><td><p>Smooth Vertex Quality</p></td>
 <td><p><strong>Smooth Vertex Scalar</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertex_scalar</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>UnSharp Mask Quality</p></td>
+<tr class="row-odd"><td><p>UnSharp Mask Quality</p></td>
 <td><p><strong>Sharpen Vertex Scalar by Unsharp Mask</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sharpen_vertex_scalar_by_unsharp_mask</span></code></p></td>
 </tr>
@@ -1181,8 +1185,8 @@ all pre-existing).</p>
 <p>Structurally the easiest root — three subcategories, each with an obvious canonical verb
 (<code class="docutils literal notranslate"><span class="pre">Create</span></code>, <code class="docutils literal notranslate"><span class="pre">Reconstruct</span></code>, <code class="docutils literal notranslate"><span class="pre">Sample</span></code>) — but it contains the one genuinely contested
 decision of the whole naming effort. See ruling 1.</p>
-<section id="creation-primitives-21">
-<h2>Creation/Primitives (21)<a class="headerlink" href="#creation-primitives-21" title="Link to this heading">¶</a></h2>
+<section id="creation-primitives-22">
+<h2>Creation/Primitives (22)<a class="headerlink" href="#creation-primitives-22" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -1240,39 +1244,43 @@ decision of the whole naming effort. See ruling 1.</p>
 <td><p><strong>Create Points on a Sphere</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_points_on_a_sphere</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Grid Generator</p></td>
+<tr class="row-even"><td><p>—</p></td>
+<td><p><strong>Create Points on a Spherical Cap</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">create_points_on_a_spherical_cap</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Grid Generator</p></td>
 <td><p><strong>Create Grid</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_grid</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Implicit Surface</p></td>
+<tr class="row-even"><td><p>Implicit Surface</p></td>
 <td><p><strong>Create Isosurface from Expression</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_isosurface_from_expression</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Noisy Isosurface</p></td>
+<tr class="row-odd"><td><p>Noisy Isosurface</p></td>
 <td><p><strong>Create Isosurface from Perlin Noise</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_isosurface_from_perlin_noise</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Fit Plane to Selection</p></td>
+<tr class="row-even"><td><p>Fit Plane to Selection</p></td>
 <td><p><strong>Create Plane from Selection</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_plane_from_selection</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Compute Planar Section</p></td>
+<tr class="row-odd"><td><p>Compute Planar Section</p></td>
 <td><p><strong>Create Polyline from Planar Section</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_planar_section</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Build a Polyline from Selected Edges</p></td>
+<tr class="row-even"><td><p>Build a Polyline from Selected Edges</p></td>
 <td><p><strong>Create Polyline from Selected Edges</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_selected_edges</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Create Selection Perimeter Polyline</p></td>
+<tr class="row-odd"><td><p>Create Selection Perimeter Polyline</p></td>
 <td><p><strong>Create Polyline from Selection Perimeter</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_selection_perimeter</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Create Solid Wireframe</p></td>
+<tr class="row-even"><td><p>Create Solid Wireframe</p></td>
 <td><p><strong>Create Solid Wireframe</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_solid_wireframe</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Voronoi Scaffolding</p></td>
+<tr class="row-odd"><td><p>Voronoi Scaffolding</p></td>
 <td><p><strong>Create Voronoi Scaffolding</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">create_voronoi_scaffolding</span></code></p></td>
 </tr>
@@ -1647,7 +1655,7 @@ already exists, so a port needs no new external dependency.</p>
 </li>
 <li><a class="reference internal" href="#round-2-attribute-65-filters-64">Round 2 — <code class="docutils literal notranslate"><span class="pre">Attribute</span></code> (65 filters → 64)</a><ul>
 <li><a class="reference internal" href="#attribute-normal-13">Attribute/Normal (13)</a></li>
-<li><a class="reference internal" href="#attribute-scalar-19">Attribute/Scalar (19)</a></li>
+<li><a class="reference internal" href="#attribute-scalar-20">Attribute/Scalar (20)</a></li>
 <li><a class="reference internal" href="#attribute-curvature-4">Attribute/Curvature (4)</a></li>
 <li><a class="reference internal" href="#attribute-custom-4">Attribute/Custom (4)</a></li>
 <li><a class="reference internal" href="#attribute-color-24">Attribute/Color (24)</a></li>
@@ -1660,7 +1668,7 @@ already exists, so a port needs no new external dependency.</p>
 </ul>
 </li>
 <li><a class="reference internal" href="#round-3-creation-38-filters">Round 3 — <code class="docutils literal notranslate"><span class="pre">Creation</span></code> (38 filters)</a><ul>
-<li><a class="reference internal" href="#creation-primitives-21">Creation/Primitives (21)</a></li>
+<li><a class="reference internal" href="#creation-primitives-22">Creation/Primitives (22)</a></li>
 <li><a class="reference internal" href="#creation-reconstruction-8">Creation/Reconstruction (8)</a></li>
 <li><a class="reference internal" href="#creation-sampling-9">Creation/Sampling (9)</a></li>
 <li><a class="reference internal" href="#id3">Verbs added to the lexicon</a></li>

@@ -714,22 +714,6 @@
 
 <hr class="docutils" />
 </section>
-<section id="compute-ambient-occlusion">
-<span id="filter-compute-ambient-occlusion"></span><h2>Compute Ambient Occlusion<a class="headerlink" href="#compute-ambient-occlusion" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.embree</p>
-<p>Computes ambient occlusion and stores it in quality.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.compute_ambient_occlusion">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_ambient_occlusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_ambient_occlusion" title="Link to this definition">¶</a></dt>
-<dd><p>Compute Ambient Occlusion.This filter is a shading technique used in computer graphics to simulate the way light interacts with surfaces in a realistic manner.The parameter for the number of rays is defined by the user; this parameter represents the number of rays that will be shot from the barycenter of each face.The higher the number of rays, the longer the time to compute, but the better the results.These results are saved into face quality. The filter does not bake colors; after it runs QMeshLab switches the view to face-quality color visualization.This filter uses the Embree3 library by INTEL.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of rays shot from each face barycenter.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
 <section id="compute-curvature-apss">
 <span id="filter-compute-apss-curvature"></span><h2>Compute Curvature (APSS)<a class="headerlink" href="#compute-curvature-apss" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.mls</p>
@@ -866,6 +850,25 @@
 <li><p><strong>RefMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh or point cloud used as the reference.</p></li>
 <li><p><strong>SignedDist</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled, compute a signed distance instead of the absolute value.</p></li>
 <li><p><strong>MaxDist</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>) — Search is interrupted when nothing is found within this range.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-face-ambient-occlusion">
+<span id="filter-compute-face-ambient-occlusion"></span><h2>Compute Face Ambient Occlusion<a class="headerlink" href="#compute-face-ambient-occlusion" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.embree</p>
+<p>Computes cosine-weighted ambient visibility on a surface mesh.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_face_ambient_occlusion">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_face_ambient_occlusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_face_ambient_occlusion" title="Link to this definition">¶</a></dt>
+<dd><p>Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored in face quality and interpolated to vertex quality; a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute <code class="docutils literal notranslate"><span class="pre">BentNormal</span></code>. By default directions cover the sphere uniformly. <strong>Directional Bias</strong> replaces a fraction of them with directions inside the cone defined by <strong>Lighting Direction</strong> and <strong>Cone Angle</strong>: <code class="docutils literal notranslate"><span class="pre">0</span></code> is fully uniform ambient illumination and <code class="docutils literal notranslate"><span class="pre">1</span></code> uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to face-quality visualization after completion.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of lighting directions tested at each face barycenter.</p></li>
+<li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
+<li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
+<li><p><strong>cone_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
 </ul>
 </dd></dl>
 
@@ -1147,6 +1150,27 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 <li><p><strong>relativeTo</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">origin</span></code>) — Reference frame for plane offset.</p></li>
 <li><p><strong>createSectionSurface</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Create triangulated section if polyline is closed.</p></li>
 <li><p><strong>splitSurfaceWithSection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Create under/over split layers (requires manifold mesh).</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-point-cloud-ambient-occlusion">
+<span id="filter-compute-point-cloud-ambient-occlusion"></span><h2>Compute Point Cloud Ambient Occlusion<a class="headerlink" href="#compute-point-cloud-ambient-occlusion" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.embree</p>
+<p>Computes point-cloud visibility against a surface occluder.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_point_cloud_ambient_occlusion">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_point_cloud_ambient_occlusion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_point_cloud_ambient_occlusion" title="Link to this definition">¶</a></dt>
+<dd><p>Traces rays from every point of the current point-cloud layer against a separate <strong>Occluder Mesh</strong>, using Intel Embree. The result is stored in vertex quality; a larger value means that the point is more exposed. Layer transforms are respected, and the average direction of escaping rays is stored in the per-vertex custom attribute <code class="docutils literal notranslate"><span class="pre">BentNormal</span></code>. <strong>Normal Source</strong> selects the meaning of the measurement:<ul><li><b>Point cloud normals</b> computes classical cosine-weighted hemisphere visibility around each existing point normal. Every point must have a valid normal.</li><li><b>Closest occluder surface</b> uses the geometric normal of the nearest occluder triangle. This is useful when point normals are absent or noisy and the points sample that surface; it assumes that the occluder orientation is meaningful.</li><li><b>No normal (spherical occlusion)</b> tests all sampled directions with equal weight. With <b>Directional Bias</b> set to <code>0</code>, this is orientation-independent full-sphere accessibility: enclosed points have low values and exposed points have high values. It is not classical hemisphere ambient occlusion. A non-zero directional bias instead measures accessibility under the selected directional distribution.</li></ul>By default directions cover the sphere uniformly. <strong>Directional Bias</strong> replaces a fraction of them with directions inside the cone defined by <strong>Lighting Direction</strong> and <strong>Cone Angle</strong>: <code class="docutils literal notranslate"><span class="pre">0</span></code> is fully uniform and <code class="docutils literal notranslate"><span class="pre">1</span></code> uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to vertex-quality visualization after completion.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>occluder_mesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — Surface mesh tested by rays from the current point cloud.</p></li>
+<li><p><strong>normal_source</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">closest_occluder_surface</span></code>) — Selects an existing point normal, the closest occluder triangle normal, or orientation-independent spherical visibility.</p></li>
+<li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of visibility directions tested at each point.</p></li>
+<li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
+<li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
+<li><p><strong>cone_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
 </ul>
 </dd></dl>
 
@@ -1671,6 +1695,26 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_octahedron</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.create_octahedron" title="Link to this definition">¶</a></dt>
 <dd><p>Create an Octahedron</p>
 <p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-points-on-a-spherical-cap">
+<span id="filter-create-points-on-a-spherical-cap"></span><h2>Create Points on a Spherical Cap<a class="headerlink" href="#create-points-on-a-spherical-cap" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.create</p>
+<p>Creates an area-uniform point cloud on a unit-sphere cap.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.create_points_on_a_spherical_cap">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_points_on_a_spherical_cap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.create_points_on_a_spherical_cap" title="Link to this definition">¶</a></dt>
+<dd><p>Creates points on the surface of a unit-sphere cap centred on <strong>Cap Direction</strong> and bounded by <strong>Cap Half-Angle</strong> <span class="math notranslate nohighlight">\(\alpha\)</span>. Every generated point also receives its outward radial normal. Both techniques are uniform with respect to spherical surface area: equivalently, <span class="math notranslate nohighlight">\(\cos\theta\)</span> is distributed uniformly in <span class="math notranslate nohighlight">\([\cos\alpha,1]\)</span>, rather than <span class="math notranslate nohighlight">\(\theta\)</span> being distributed uniformly. <strong>Monte Carlo</strong> generates independent random samples and can be reproduced with a non-zero seed. <strong>Fibonacci</strong> is deterministic and uses VCGLib’s direct equal-area spherical-cap construction, producing the exact requested count without first generating and discarding points from a complete sphere. A half-angle of <span class="math notranslate nohighlight">\(180^\circ\)</span> covers the complete sphere.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>point_num</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">100</span></code>) — Exact number of points to generate.</p></li>
+<li><p><strong>direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Direction from the sphere centre to the centre of the cap.</p></li>
+<li><p><strong>angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Angular radius of the cap in degrees; 180 covers the complete sphere.</p></li>
+<li><p><strong>technique</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">fibonacci</span></code>) — Random Monte Carlo sampling or deterministic Fibonacci sampling.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run; any other value makes Monte Carlo sampling exactly reproducible.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
@@ -5851,10 +5895,6 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.colorize_by_vertex_quality"><code class="docutils literal notranslate"><span class="pre">ms.colorize_by_vertex_quality()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-ambient-occlusion">Compute Ambient Occlusion</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.compute_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_ambient_occlusion()</span></code></a></li>
-</ul>
-</li>
 <li><a class="reference internal" href="#compute-curvature-apss">Compute Curvature (APSS)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_apss_curvature"><code class="docutils literal notranslate"><span class="pre">ms.compute_apss_curvature()</span></code></a></li>
 </ul>
@@ -5881,6 +5921,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#distance-from-reference-mesh">Distance from Reference Mesh</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_distance_from_reference"><code class="docutils literal notranslate"><span class="pre">ms.compute_distance_from_reference()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-face-ambient-occlusion">Compute Face Ambient Occlusion</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_face_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_ambient_occlusion()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-face-normals">Compute Face Normals</a><ul>
@@ -5941,6 +5985,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#create-polyline-from-planar-section">Create Polyline from Planar Section</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_planar_section"><code class="docutils literal notranslate"><span class="pre">ms.compute_planar_section()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-point-cloud-ambient-occlusion">Compute Point Cloud Ambient Occlusion</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_point_cloud_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_point_cloud_ambient_occlusion()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-point-cloud-normals">Compute Point Cloud Normals</a><ul>
@@ -6065,6 +6113,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#create-octahedron">Create Octahedron</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.create_octahedron"><code class="docutils literal notranslate"><span class="pre">ms.create_octahedron()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-points-on-a-spherical-cap">Create Points on a Spherical Cap</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.create_points_on_a_spherical_cap"><code class="docutils literal notranslate"><span class="pre">ms.create_points_on_a_spherical_cap()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#create-points-on-a-sphere">Create Points on a Sphere</a><ul>
