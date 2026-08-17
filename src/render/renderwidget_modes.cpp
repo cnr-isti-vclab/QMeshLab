@@ -167,7 +167,7 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::Constant;
         mode.fillPbr.roughnessIndex = defaultRoughnessTextureIndex >= 0 ? -1 : defaultRoughnessTextureIndex;
-        if (faceCount < kWireframeDefaultFaceThreshold) {
+        if (faceCount < kFlatShadingDefaultFaceThreshold) {
             mode.fillPlain.shading = FillShading::Flat;
             mode.fillPbr.shading   = FillShading::Flat;
         }
