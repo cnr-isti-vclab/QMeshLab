@@ -997,6 +997,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         connect(checkBox, &QCheckBox::toggled, this, [this, setGlobalField, member, syncUi](bool checked) {
             setGlobalField(member, checked, syncUi);
         });
+        m_globalSyncers.push_back([this, checkBox, member] {
+            QSignalBlocker blocker(checkBox);
+            checkBox->setChecked(m_globalSettings.*member);
+        });
     };
     auto bindMeshCheckBox = [this, setMeshField](
                                 QCheckBox *checkBox,
@@ -1004,6 +1008,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
                                 bool syncUi = false) {
         connect(checkBox, &QCheckBox::toggled, this, [this, setMeshField, member, syncUi](bool checked) {
             setMeshField(member, checked, syncUi);
+        });
+        m_meshSyncers.push_back([this, checkBox, member] {
+            QSignalBlocker blocker(checkBox);
+            checkBox->setChecked(m_meshSettings.*member);
         });
     };
 
@@ -1014,6 +1022,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         connect(button, &QToolButton::toggled, this, [this, setGlobalField, member, syncUi](bool checked) {
             setGlobalField(member, checked, syncUi);
         });
+        m_globalSyncers.push_back([this, button, member] {
+            QSignalBlocker blocker(button);
+            button->setChecked(m_globalSettings.*member);
+        });
     };
     auto bindMeshToolToggle = [this, setMeshField](
                                   QToolButton *button,
@@ -1021,6 +1033,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
                                   bool syncUi = false) {
         connect(button, &QToolButton::toggled, this, [this, setMeshField, member, syncUi](bool checked) {
             setMeshField(member, checked, syncUi);
+        });
+        m_meshSyncers.push_back([this, button, member] {
+            QSignalBlocker blocker(button);
+            button->setChecked(m_meshSettings.*member);
         });
     };
 
@@ -1030,12 +1046,20 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         connect(spin, &QDoubleSpinBox::valueChanged, this, [this, setGlobalField, member](double value) {
             setGlobalField(member, static_cast<float>(value));
         });
+        m_globalSyncers.push_back([this, spin, member] {
+            QSignalBlocker blocker(spin);
+            spin->setValue(m_globalSettings.*member);
+        });
     };
     auto bindMeshFloatSpin = [this, setMeshField](
                                  QDoubleSpinBox *spin,
                                  float PerMeshRenderSettings::*member) {
         connect(spin, &QDoubleSpinBox::valueChanged, this, [this, setMeshField, member](double value) {
             setMeshField(member, static_cast<float>(value));
+        });
+        m_meshSyncers.push_back([this, spin, member] {
+            QSignalBlocker blocker(spin);
+            spin->setValue(m_meshSettings.*member);
         });
     };
 
@@ -1051,6 +1075,16 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
                     return;
                 setGlobalField(member, static_cast<EnumType>(data.toInt()));
             });
+        m_globalSyncers.push_back([this, combo, member] {
+            const int wanted = static_cast<int>(m_globalSettings.*member);
+            QSignalBlocker blocker(combo);
+            for (int i = 0; i < combo->count(); ++i) {
+                if (combo->itemData(i).toInt() == wanted) {
+                    combo->setCurrentIndex(i);
+                    break;
+                }
+            }
+        });
     };
     auto bindMeshEnumCombo = [this, setMeshField](QComboBox *combo, auto member) {
         using EnumType = std::decay_t<decltype(m_meshSettings.*member)>;
@@ -1064,6 +1098,16 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
                     return;
                 setMeshField(member, static_cast<EnumType>(data.toInt()));
             });
+        m_meshSyncers.push_back([this, combo, member] {
+            const int wanted = static_cast<int>(m_meshSettings.*member);
+            QSignalBlocker blocker(combo);
+            for (int i = 0; i < combo->count(); ++i) {
+                if (combo->itemData(i).toInt() == wanted) {
+                    combo->setCurrentIndex(i);
+                    break;
+                }
+            }
+        });
     };
 
     auto bindGlobalColorButton = [this, setGlobalField](
@@ -1077,6 +1121,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
             if (setGlobalField(member, picked))
                 updateColorButtonStyle(button, picked);
         });
+        m_globalSyncers.push_back([this, button, member] {
+            updateColorButtonStyle(button, m_globalSettings.*member);
+        });
     };
     auto bindMeshColorButton = [this, setMeshField](
                                    QPushButton *button,
@@ -1088,6 +1135,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
                 return;
             if (setMeshField(member, picked))
                 updateColorButtonStyle(button, picked);
+        });
+        m_meshSyncers.push_back([this, button, member] {
+            updateColorButtonStyle(button, m_meshSettings.*member);
         });
     };
 
@@ -1701,66 +1751,38 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
 {
     m_globalSettings = settings;
 
-    if (m_currentMeshHighlightCheck) {
-        QSignalBlocker blocker(m_currentMeshHighlightCheck);
-        m_currentMeshHighlightCheck->setChecked(m_globalSettings.highlightCurrentMesh);
-    }
+    // Reverse half of every bindGlobal* call; see m_globalSyncers.
+    for (const auto &sync : m_globalSyncers)
+        sync();
+
     if (m_showTrackballGizmoCheck) {
         QSignalBlocker blocker(m_showTrackballGizmoCheck);
         m_showTrackballGizmoCheck->setChecked(m_globalSettings.showTrackballGizmo);
     }
-    if (m_uvShowReferenceFrameCheck) {
-        QSignalBlocker blocker(m_uvShowReferenceFrameCheck);
-        m_uvShowReferenceFrameCheck->setChecked(m_globalSettings.uvShowReferenceFrame);
-    }
     if (m_uvShowFullTextureCheck) {
         QSignalBlocker blocker(m_uvShowFullTextureCheck);
         m_uvShowFullTextureCheck->setChecked(m_globalSettings.uvShowFullTexture);
-    }
-    if (m_uvTextureNearestCheck) {
-        QSignalBlocker blocker(m_uvTextureNearestCheck);
-        m_uvTextureNearestCheck->setChecked(m_globalSettings.uvTextureNearestSampling);
     }
     if (m_uvTextureChannelCombo) {
         QSignalBlocker blocker(m_uvTextureChannelCombo);
         m_uvTextureChannelCombo->setCurrentIndex(
             std::clamp(m_globalSettings.uvTextureChannel, 0, 3));
     }
-    if (m_fillTextureNearestCheck) {
-        QSignalBlocker blocker(m_fillTextureNearestCheck);
-        m_fillTextureNearestCheck->setChecked(m_globalSettings.fillTextureNearestSampling);
-    }
     if (m_bboxShowCornersCheck) {
         QSignalBlocker blocker(m_bboxShowCornersCheck);
         m_bboxShowCornersCheck->setChecked(m_globalSettings.showBoundingBoxCorners);
-    }
-    if (m_decoratorInfoCheck) {
-        QSignalBlocker blocker(m_decoratorInfoCheck);
-        m_decoratorInfoCheck->setChecked(m_globalSettings.showDecoratorInfo);
     }
     if (m_bboxShowDimensionsCheck) {
         QSignalBlocker blocker(m_bboxShowDimensionsCheck);
         m_bboxShowDimensionsCheck->setChecked(m_globalSettings.showBoundingBoxDimensions);
     }
-    if (m_qualityHistogramButton) {
-        QSignalBlocker blocker(m_qualityHistogramButton);
-        m_qualityHistogramButton->setChecked(m_globalSettings.showQualityHistogram);
-    }
     if (m_modeButton) {
         QSignalBlocker blocker(m_modeButton);
         m_modeButton->setChecked(m_globalSettings.settingsPanelVisible);
     }
-    if (m_currentMeshOutlineWidthSpin) {
-        QSignalBlocker blocker(m_currentMeshOutlineWidthSpin);
-        m_currentMeshOutlineWidthSpin->setValue(m_globalSettings.currentMeshOutlineWidth);
-    }
     if (m_currentMeshDilateRadiusSpin) {
         QSignalBlocker blocker(m_currentMeshDilateRadiusSpin);
         m_currentMeshDilateRadiusSpin->setValue(m_globalSettings.currentMeshDilateRadius);
-    }
-    if (m_currentMeshErodeRadiusSpin) {
-        QSignalBlocker blocker(m_currentMeshErodeRadiusSpin);
-        m_currentMeshErodeRadiusSpin->setValue(m_globalSettings.currentMeshErodeRadius);
     }
     if (m_currentMeshDebugViewCombo) {
         QSignalBlocker blocker(m_currentMeshDebugViewCombo);
@@ -1796,16 +1818,6 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
         QSignalBlocker blocker(m_qualityHistogramMaxSpin);
         m_qualityHistogramMaxSpin->setValue(m_globalSettings.qualityHistogramMax);
     }
-    if (m_qualityHistogramSourceCombo) {
-        QSignalBlocker blocker(m_qualityHistogramSourceCombo);
-        const int value = static_cast<int>(m_globalSettings.qualityHistogramSource);
-        for (int i = 0; i < m_qualityHistogramSourceCombo->count(); ++i) {
-            if (m_qualityHistogramSourceCombo->itemData(i).toInt() == value) {
-                m_qualityHistogramSourceCombo->setCurrentIndex(i);
-                break;
-            }
-        }
-    }
     if (m_qualityHistogramColorMapCombo) {
         QSignalBlocker blocker(m_qualityHistogramColorMapCombo);
         QString value = m_globalSettings.qualityHistogramColorMapId.trimmed().toLower();
@@ -1836,11 +1848,6 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
     syncViewerSettingsModeUi();
     updateSettingsPanelGeometry();
 
-    updateColorButtonStyle(m_currentMeshOutlineColorButton, m_globalSettings.currentMeshOutlineColor);
-    updateColorButtonStyle(m_sceneBackgroundTopColorButton, m_globalSettings.sceneBackgroundTopColor);
-    updateColorButtonStyle(
-        m_sceneBackgroundBottomColorButton,
-        m_globalSettings.sceneBackgroundBottomColor);
     syncRenderPassUiState();
 }
 
@@ -1848,97 +1855,53 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
 {
     m_meshSettings = settings;
 
-    if (m_bboxButton) {
-        QSignalBlocker blocker(m_bboxButton);
-        m_bboxButton->setChecked(m_meshSettings.showBoundingBox);
-    }
+    // Reverse half of every bindMesh* call; see m_meshSyncers.
+    for (const auto &sync : m_meshSyncers)
+        sync();
+
     if (m_normalsDecoratorsButton) {
         QSignalBlocker blocker(m_normalsDecoratorsButton);
         m_normalsDecoratorsButton->setChecked(m_meshSettings.decoratorNormals);
-    }
-    if (m_boundaryDecoratorsButton) {
-        QSignalBlocker blocker(m_boundaryDecoratorsButton);
-        m_boundaryDecoratorsButton->setChecked(m_meshSettings.decoratorBoundary);
     }
     if (m_pointsButton) {
         QSignalBlocker blocker(m_pointsButton);
         m_pointsButton->setChecked(m_meshSettings.showPoints);
     }
-    if (m_edgesButton) {
-        QSignalBlocker blocker(m_edgesButton);
-        m_edgesButton->setChecked(m_meshSettings.showEdges);
-    }
     if (m_wireButton) {
         QSignalBlocker blocker(m_wireButton);
         m_wireButton->setChecked(m_meshSettings.showWire);
-    }
-    if (m_fillButton) {
-        QSignalBlocker blocker(m_fillButton);
-        m_fillButton->setChecked(m_meshSettings.showFill);
     }
     if (m_selectionButton) {
         QSignalBlocker blocker(m_selectionButton);
         m_selectionButton->setChecked(m_meshSettings.showSelection);
     }
-    if (m_selectionShowVerticesCheck) {
-        QSignalBlocker blocker(m_selectionShowVerticesCheck);
-        m_selectionShowVerticesCheck->setChecked(m_meshSettings.showSelectionVertices);
-    }
     if (m_selectionShowFacesCheck) {
         QSignalBlocker blocker(m_selectionShowFacesCheck);
         m_selectionShowFacesCheck->setChecked(m_meshSettings.showSelectionFaces);
-    }
-    if (m_decoratorVertexNormalsCheck) {
-        QSignalBlocker blocker(m_decoratorVertexNormalsCheck);
-        m_decoratorVertexNormalsCheck->setChecked(m_meshSettings.decoratorVertexNormals);
     }
     if (m_decoratorFaceNormalsCheck) {
         QSignalBlocker blocker(m_decoratorFaceNormalsCheck);
         m_decoratorFaceNormalsCheck->setChecked(m_meshSettings.decoratorFaceNormals);
     }
-    if (m_decoratorCurvatureDirCheck) {
-        QSignalBlocker blocker(m_decoratorCurvatureDirCheck);
-        m_decoratorCurvatureDirCheck->setChecked(m_meshSettings.decoratorCurvatureDir);
-    }
     if (m_decoratorBoundaryEdgesCheck) {
         QSignalBlocker blocker(m_decoratorBoundaryEdgesCheck);
         m_decoratorBoundaryEdgesCheck->setChecked(m_meshSettings.decoratorBoundaryEdges);
-    }
-    if (m_decoratorTextureSeamsCheck) {
-        QSignalBlocker blocker(m_decoratorTextureSeamsCheck);
-        m_decoratorTextureSeamsCheck->setChecked(m_meshSettings.decoratorTextureSeams);
     }
     if (m_decoratorNonManifoldEdgesCheck) {
         QSignalBlocker blocker(m_decoratorNonManifoldEdgesCheck);
         m_decoratorNonManifoldEdgesCheck->setChecked(m_meshSettings.decoratorNonManifoldEdges);
     }
-    if (m_decoratorNonManifoldVerticesCheck) {
-        QSignalBlocker blocker(m_decoratorNonManifoldVerticesCheck);
-        m_decoratorNonManifoldVerticesCheck->setChecked(m_meshSettings.decoratorNonManifoldVertices);
-    }
     if (m_pointLightingCheck) {
         QSignalBlocker blocker(m_pointLightingCheck);
         m_pointLightingCheck->setChecked(m_meshSettings.pointLighting);
-    }
-    if (m_wireLightingCheck) {
-        QSignalBlocker blocker(m_wireLightingCheck);
-        m_wireLightingCheck->setChecked(m_meshSettings.wireLighting);
     }
     if (m_wireBackfaceCullingCheck) {
         QSignalBlocker blocker(m_wireBackfaceCullingCheck);
         m_wireBackfaceCullingCheck->setChecked(m_meshSettings.wireBackfaceCulling);
     }
-    if (m_wireRespectFauxCheck) {
-        QSignalBlocker blocker(m_wireRespectFauxCheck);
-        m_wireRespectFauxCheck->setChecked(m_meshSettings.wireRespectFaux);
-    }
     if (m_fillLightingCheck) {
         QSignalBlocker blocker(m_fillLightingCheck);
         m_fillLightingCheck->setChecked(m_meshSettings.fillLighting);
-    }
-    if (m_fillBackfaceCullingCheck) {
-        QSignalBlocker blocker(m_fillBackfaceCullingCheck);
-        m_fillBackfaceCullingCheck->setChecked(m_meshSettings.fillBackfaceCulling);
     }
     if (m_fillNormalScaleSpin) {
         QSignalBlocker blocker(m_fillNormalScaleSpin);
@@ -1987,17 +1950,9 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
         QSignalBlocker blocker(m_pointSizeSpin);
         m_pointSizeSpin->setValue(m_meshSettings.pointSize);
     }
-    if (m_wireSizeSpin) {
-        QSignalBlocker blocker(m_wireSizeSpin);
-        m_wireSizeSpin->setValue(m_meshSettings.wireSize);
-    }
     if (m_edgeSizeSpin) {
         QSignalBlocker blocker(m_edgeSizeSpin);
         m_edgeSizeSpin->setValue(m_meshSettings.edgeSize);
-    }
-    if (m_decoratorBoundaryWidthSpin) {
-        QSignalBlocker blocker(m_decoratorBoundaryWidthSpin);
-        m_decoratorBoundaryWidthSpin->setValue(m_meshSettings.decoratorBoundaryWidth);
     }
     if (m_pointColorSourceCombo) {
         QSignalBlocker blocker(m_pointColorSourceCombo);
@@ -2025,16 +1980,6 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
         for (int i = 0; i < m_fillPbrShadingCombo->count(); ++i) {
             if (m_fillPbrShadingCombo->itemData(i).toInt() == value) {
                 m_fillPbrShadingCombo->setCurrentIndex(i);
-                break;
-            }
-        }
-    }
-    if (m_fillMaterialCombo) {
-        QSignalBlocker blocker(m_fillMaterialCombo);
-        const int value = static_cast<int>(m_meshSettings.fillMaterial);
-        for (int i = 0; i < m_fillMaterialCombo->count(); ++i) {
-            if (m_fillMaterialCombo->itemData(i).toInt() == value) {
-                m_fillMaterialCombo->setCurrentIndex(i);
                 break;
             }
         }
@@ -2088,23 +2033,6 @@ void RenderOverlayPanel::setMeshSettings(const PerMeshRenderSettings &settings)
     }
     syncFillPbrUiState();
 
-    updateColorButtonStyle(m_decoratorVertexNormalColorButton, m_meshSettings.decoratorVertexNormalColor);
-    updateColorButtonStyle(m_decoratorFaceNormalColorButton, m_meshSettings.decoratorFaceNormalColor);
-    updateColorButtonStyle(m_decoratorCurvatureDirPD1ColorButton, m_meshSettings.decoratorCurvatureDirPD1Color);
-    updateColorButtonStyle(m_decoratorCurvatureDirPD2ColorButton, m_meshSettings.decoratorCurvatureDirPD2Color);
-    updateColorButtonStyle(m_decoratorBoundaryEdgeColorButton, m_meshSettings.decoratorBoundaryEdgeColor);
-    updateColorButtonStyle(m_decoratorTextureSeamColorButton, m_meshSettings.decoratorTextureSeamColor);
-    updateColorButtonStyle(
-        m_decoratorNonManifoldEdgeColorButton, m_meshSettings.decoratorNonManifoldEdgeColor);
-    updateColorButtonStyle(
-        m_decoratorNonManifoldVertexColorButton, m_meshSettings.decoratorNonManifoldVertexColor);
-    updateColorButtonStyle(m_bboxColorButton, m_meshSettings.bboxWireColor);
-    updateColorButtonStyle(m_pointsColorButton, m_meshSettings.pointColor);
-    updateColorButtonStyle(m_edgeColorButton, m_meshSettings.edgeColor);
-    updateColorButtonStyle(m_wireColorButton, m_meshSettings.wireColor);
-    updateColorButtonStyle(m_fillColorButton, m_meshSettings.fillColor);
-    updateColorButtonStyle(m_fillPbrColorButton, m_meshSettings.fillColor);
-    updateColorButtonStyle(m_uvFillColorButton, m_meshSettings.fillColor);
 }
 
 void RenderOverlayPanel::setPointColorSourceAvailability(

@@ -2,6 +2,8 @@
 
 #include "renderingsettings.h"
 #include <QWidget>
+#include <functional>
+#include <vector>
 
 class QPushButton;
 class QDoubleSpinBox;
@@ -74,6 +76,13 @@ private:
 
     RenderSettings m_globalSettings;
     PerMeshRenderSettings m_meshSettings;
+
+    // Reverse half of the bind* helpers: each bind registers a closure that writes
+    // the current struct value back into its widget. setGlobalSettings/setMeshSettings
+    // just run these, so a control cannot be bound one-way by accident — which is how
+    // the "show view cameras" checkbox ended up never refreshing.
+    std::vector<std::function<void()>> m_globalSyncers;
+    std::vector<std::function<void()>> m_meshSyncers;
     bool m_viewerModeUv = false;
 
     QWidget *m_settingsContainer = nullptr;
