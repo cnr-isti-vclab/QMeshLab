@@ -2539,7 +2539,7 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
     if (meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
         m_doc->writeLog(
             tr("Cannot bake quality colors: no current mesh selected."),
-            Document::LogSource::Error);
+            Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
 
@@ -2549,13 +2549,13 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
     if (!hasVertexQuality) {
         m_doc->writeLog(
             tr("Cannot bake quality colors: current mesh has no vertex quality."),
-            Document::LogSource::Error);
+            Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
     if (m_renderSettings.qualityHistogramSource == QualityHistogramSource::FaceQuality) {
         m_doc->writeLog(
             tr("Cannot bake to vertex color while the quality source is Face Q. Switch the source to Auto or Vertex Q."),
-            Document::LogSource::Error);
+            Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
 
@@ -2570,7 +2570,7 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
     if (!range.valid) {
         m_doc->writeLog(
             tr("Cannot bake quality colors: current quality range is not finite."),
-            Document::LogSource::Error);
+            Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
 
@@ -2604,10 +2604,10 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
             : result.errorMessage.trimmed();
         const QString msg = tr("Filter failed: %1").arg(errorText);
         m_doc->finishFilterProgress(false, msg);
-        m_doc->writeLog(msg, Document::LogSource::Error);
+        m_doc->writeLog(msg, Document::LogSource::Application, Document::LogLevel::Error);
         m_doc->writeLog(
             tr("Filter '%1' runtime: %2 ms (failed)").arg(label, elapsedText),
-            Document::LogSource::Error);
+            Document::LogSource::Application, Document::LogLevel::Debug);
         return;
     }
 
@@ -2631,7 +2631,7 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
     m_doc->finishFilterProgress(true, status);
     m_doc->writeLog(
         tr("Filter '%1' runtime: %2 ms").arg(label, elapsedText),
-        Document::LogSource::Application);
+        Document::LogSource::Application, Document::LogLevel::Debug);
     update();
 }
 

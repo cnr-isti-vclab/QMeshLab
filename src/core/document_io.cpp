@@ -122,7 +122,6 @@ int Document::loadMesh(const QString &filename)
     writeLog(tr("Loading mesh: %1").arg(filename), LogSource::Application);
 
     auto entry = std::make_unique<MeshEntry>();
-    m_lastCallbackBucket = -1;
     m_lastProgressPos = -1;
     m_loadCallbackCount = 0;
     m_loadProgressEmitCount = 0;
@@ -153,6 +152,7 @@ int Document::loadMesh(const QString &filename)
     if (!(loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))  entry->mesh.face.DisableWedgeTexCoord();
     g_callbackDocument = previousCallbackDocument;
     m_callbackMode = previousCallbackMode;
+    clearProgressLog();
     const qint64 importElapsedMs = loadTimer.elapsed();
 
     if (err != 0 && plugin->isLoadErrorCritical(filename, err)) {
@@ -166,7 +166,7 @@ int Document::loadMesh(const QString &filename)
         return err;
     }
     if (err != 0)
-        writeLog(tr("Load warning: %1").arg(plugin->errorString(err)), LogSource::Application);
+        writeLog(tr("Load warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.
@@ -253,7 +253,7 @@ int Document::loadMesh(const QString &filename)
                 .arg(meshEntry.name)
                 .arg(importElapsedMs)
                 .arg(postProcessElapsedMs),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Debug);
     }
     if (m_loadCallbackCount > 0) {
         const float processEventsMs = float(m_loadProcessEventsNs / 1000000.0);
@@ -263,13 +263,13 @@ int Document::loadMesh(const QString &filename)
                 .arg(m_loadProgressEmitCount)
                 .arg(m_loadProcessEventsCount)
                 .arg(QString::number(processEventsMs, 'f', 2)),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Debug);
     }
     writeLog(tr("File info for '%1': %2 (mask: 0x%3)")
         .arg(meshEntry.name)
         .arg(summarizeLoadMask(loadMask))
         .arg(QString::number(static_cast<quint32>(loadMask), 16).toUpper()),
-        LogSource::Application);
+        LogSource::Application, LogLevel::Debug);
     if (!declaredTextureNames.isEmpty()) {
         int existingTextureFiles = 0;
         for (const QString &path : meshEntry.textureFilePaths) {
@@ -283,7 +283,7 @@ int Document::loadMesh(const QString &filename)
             .arg(selectedTextureName.isEmpty() ? tr("none") : selectedTextureName)
             .arg(existingTextureFiles)
             .arg(meshEntry.textureFilePaths.size()),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Debug);
     }
     if (!meshEntry.materialSet.empty()) {
         int baseCount = 0;
@@ -353,7 +353,6 @@ int Document::reloadMesh(int index)
         tr("Reloading mesh '%1' from %2").arg(oldName, sourcePath),
         LogSource::Application);
 
-    m_lastCallbackBucket = -1;
     m_lastProgressPos = -1;
     m_loadCallbackCount = 0;
     m_loadProgressEmitCount = 0;
@@ -385,6 +384,7 @@ int Document::reloadMesh(int index)
     if (!(loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))  reloadedMesh.face.DisableWedgeTexCoord();
     g_callbackDocument = previousCallbackDocument;
     m_callbackMode = previousCallbackMode;
+    clearProgressLog();
     const qint64 importElapsedMs = loadTimer.elapsed();
 
     if (err != 0 && plugin->isLoadErrorCritical(sourcePath, err)) {
@@ -399,7 +399,7 @@ int Document::reloadMesh(int index)
         return err;
     }
     if (err != 0)
-        writeLog(tr("Reload warning: %1").arg(plugin->errorString(err)), LogSource::Application);
+        writeLog(tr("Reload warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.
@@ -470,7 +470,7 @@ int Document::reloadMesh(int index)
                 .arg(entry.name)
                 .arg(importElapsedMs)
                 .arg(postProcessElapsedMs),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Debug);
     }
     if (m_loadCallbackCount > 0) {
         const float processEventsMs = float(m_loadProcessEventsNs / 1000000.0);
@@ -480,13 +480,13 @@ int Document::reloadMesh(int index)
                 .arg(m_loadProgressEmitCount)
                 .arg(m_loadProcessEventsCount)
                 .arg(QString::number(processEventsMs, 'f', 2)),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Debug);
     }
     writeLog(tr("File info for '%1': %2 (mask: 0x%3)")
         .arg(entry.name)
         .arg(summarizeLoadMask(loadMask))
         .arg(QString::number(static_cast<quint32>(loadMask), 16).toUpper()),
-        LogSource::Application);
+        LogSource::Application, LogLevel::Debug);
     if (!declaredTextureNames.isEmpty()) {
         int existingTextureFiles = 0;
         for (const QString &path : entry.textureFilePaths) {
@@ -500,7 +500,7 @@ int Document::reloadMesh(int index)
             .arg(selectedTextureName.isEmpty() ? tr("none") : selectedTextureName)
             .arg(existingTextureFiles)
             .arg(entry.textureFilePaths.size()),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Debug);
     }
     if (!entry.materialSet.empty()) {
         int baseCount = 0;
@@ -584,6 +584,7 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
         &textureContext);
     g_callbackDocument = previousCallbackDocument;
     m_callbackMode = previousCallbackMode;
+    clearProgressLog();
 
     const qint64 elapsedMs = timer.elapsed();
     if (err != 0) {

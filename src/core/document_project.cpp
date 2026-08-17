@@ -39,7 +39,7 @@ int Document::loadMeshLabProject(const QString &filename)
             writeLog(
                 tr("Project mesh '%1' has no filename and was skipped")
                     .arg(projectMesh.label.isEmpty() ? tr("unnamed") : projectMesh.label),
-                LogSource::Application);
+                LogSource::Application, LogLevel::Warning);
             continue;
         }
         if (!QFileInfo::exists(meshPath)) {
@@ -53,7 +53,7 @@ int Document::loadMeshLabProject(const QString &filename)
         if (result != 0) {
             writeLog(
                 tr("Failed to load project mesh: %1").arg(meshPath),
-                LogSource::Application);
+                LogSource::Application, LogLevel::Warning);
             continue;
         }
 
@@ -123,7 +123,7 @@ int Document::loadMeshLabProject(const QString &filename)
                     .arg(addMs)
                     .arg(rasterEntry.name)
                     .arg(sz.isValid() ? tr(" (%1x%2)").arg(sz.width()).arg(sz.height()) : QString()),
-                LogSource::Application);
+                LogSource::Application, LogLevel::Debug);
             ++loadedRasters;
         }
         ++rasterIdx;
@@ -142,7 +142,7 @@ int Document::loadMeshLabProject(const QString &filename)
             .arg(projectTimer.elapsed())
             .arg(xmlParseMs)
             .arg(rasterLoopMs),
-        LogSource::Application);
+        LogSource::Application, LogLevel::Debug);
     writeLog(
         tr("MeshLab project import complete: %1 mesh(es), %2 raster(s)")
             .arg(loadedMeshes)

@@ -401,7 +401,7 @@ void MeasureTool::saveMeasurements() const
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         doc->writeLog(QObject::tr("Cannot save measurements to '%1'.").arg(path),
-                      Document::LogSource::Error);
+                      Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
     QTextStream out(&file);
@@ -418,7 +418,7 @@ void MeasureTool::saveMeasurements() const
     }
     if (!file.commit()) {
         doc->writeLog(QObject::tr("Cannot finish writing measurements to '%1'.").arg(path),
-                      Document::LogSource::Error);
+                      Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
     doc->writeLog(QObject::tr("Measurements saved to '%1'.").arg(path),

@@ -149,7 +149,7 @@ bool RubberBandSelectTool::mouseRelease(QMouseEvent *e)
         doc->runFilter(QStringLiteral("qmeshlab.filter.select::select_by_rectangle"), params);
     if (!result.success)
         doc->writeLog(QObject::tr("Rubber-band selection failed: %1").arg(result.errorMessage),
-                      Document::LogSource::Error);
+                      Document::LogSource::Application, Document::LogLevel::Error);
     return true;
 }
 

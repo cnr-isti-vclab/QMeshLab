@@ -59,10 +59,23 @@ MeshFilterRunResult Document::runFilter(
         };
     }
 
+    // Bracket the whole run: most filters call doc.progressCallback() without ever
+    // calling beginFilterProgress, so without this their callback mode would stay
+    // None and their progress would not be reported at all. Done without emitting the
+    // started/finished signals, so filters that *do* drive the lifecycle themselves
+    // still own the progress bar.
     Document *previousCallbackDocument = g_callbackDocument;
+    const CallbackMode previousCallbackMode = m_callbackMode;
     g_callbackDocument = this;
+    m_callbackMode = CallbackMode::Filter;
+
     MeshFilterRunResult result = m_filterPluginManager->runFilter(filterKey, parameters, *this);
+
+    m_callbackMode = previousCallbackMode;
     g_callbackDocument = previousCallbackDocument;
+    // The transient progress line must never outlive its run, including for filters
+    // that never called finishFilterProgress.
+    clearProgressLog();
     return result;
 }
 
@@ -73,7 +86,6 @@ vcg::CallBackPos *Document::progressCallback()
 
 void Document::beginFilterProgress(const QString &label)
 {
-    m_lastCallbackBucket = -1;
     m_lastProgressPos = -1;
     m_loadCallbackCount = 0;
     m_loadProgressEmitCount = 0;
@@ -85,6 +97,8 @@ void Document::beginFilterProgress(const QString &label)
     m_loadCallbackTimer.start();
     m_cancelRequested.store(false, std::memory_order_relaxed);
     m_callbackMode = CallbackMode::Filter;
+    // Drop any stale progress line left by an earlier operation.
+    clearProgressLog();
 
     const QString normalizedLabel = label.trimmed().isEmpty() ? tr("Filter") : label.trimmed();
     emit filterProgressStarted(normalizedLabel);
@@ -96,6 +110,9 @@ void Document::finishFilterProgress(bool success, const QString &message)
     const QString normalizedMessage = message.trimmed();
     m_callbackMode = CallbackMode::None;
     m_cancelRequested.store(false, std::memory_order_relaxed);
+    // The operation is over, so its progress line goes away; whatever the filter
+    // reports lands as ordinary log entries instead.
+    clearProgressLog();
     emit filterProgressFinished(success, normalizedMessage);
 }
 

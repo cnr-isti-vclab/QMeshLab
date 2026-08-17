@@ -180,3 +180,38 @@ void registerFooFilterPlugin(MeshFilterPluginManager &pm);
   `MainWindow::applyFilterVisualizationHints`.
 - **Follow the naming/menu taxonomy** in [Filter Organization](filter_organization.md);
   names should describe the observable result, not the algorithm.
+
+## Logging
+
+Filters normally say nothing at all: return `infoMessages` and let the framework log
+them. Use `Document::writeLog` only for what does not fit that — progress narration of a
+long multi-stage run, or diagnostics.
+
+```cpp
+doc.writeLog(msg);                                                    // Info (default)
+doc.writeLog(msg, Document::LogSource::Application, Document::LogLevel::Debug);
+```
+
+`LogSource` says *who spoke* (`Application`, `VCG`); `LogLevel` says *whether the user
+wants to hear it*, and is what the `log.verbosity` preference filters on:
+
+| Level | Use for | Examples |
+| --- | --- | --- |
+| `Error` | the operation failed and the user must know | "Cannot bake quality colors: no current mesh selected." |
+| `Warning` | it went ahead, but degraded or partially | "Project mesh '%1' has no filename and was skipped" |
+| `Info` | the normal narration of what happened — the default | "UV islands after defragmentation: %1" |
+| `Debug` | timings, counters, mask dumps, cache and GPU bookkeeping | "Load timing '%1': import %2 ms, post %3 ms" |
+
+Rules of thumb:
+
+- **Anything with a millisecond count in it is `Debug`.** So is anything a user could not
+  act on: buffer sizes, revision numbers, callback statistics, `mask: 0x…`.
+- **One line per outcome, not per element.** A per-face or per-vertex message is a bug;
+  aggregate and report once.
+- **Do not log progress.** Call `doc.progressCallback()` (or the `vcg::CallBackPos` you
+  were given) instead. The framework renders it as a single self-overwriting line that is
+  removed when the run ends, so it never accumulates in the log.
+- **Do not log the failure you are already returning.** Set `errorMessage` and
+  `success = false`; the caller logs it at `Error` once.
+- **`qWarning`/`qDebug` do not reach the log panel** — they go to the terminal only. Use
+  them for developer-only tracing, never for anything a user is meant to read.

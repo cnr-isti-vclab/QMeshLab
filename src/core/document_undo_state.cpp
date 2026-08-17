@@ -154,7 +154,7 @@ void Document::restoreUndoState(const UndoState &state)
             }
             writeLog(tr("Undo/redo — mesh restore: %1 ms (deepCopy %2)")
                 .arg(t.elapsed()).arg(copyMs),
-                LogSource::Application);
+                LogSource::Application, LogLevel::Debug);
         }
         // Notify views once for the entire mesh set.
         for (int i = 0; i < meshCount(); ++i)
@@ -164,7 +164,7 @@ void Document::restoreUndoState(const UndoState &state)
     {
         QElapsedTimer t; t.start();
         clearAllGpuResources();
-        writeLog(tr("Undo/redo — GPU cache clear: %1 ms").arg(t.elapsed()), LogSource::Application);
+        writeLog(tr("Undo/redo — GPU cache clear: %1 ms").arg(t.elapsed()), LogSource::Application, LogLevel::Debug);
     }
 
     m_nextMeshId = state.nextMeshId;
@@ -220,7 +220,7 @@ void Document::restoreUndoState(const UndoState &state)
         }
         writeLog(tr("Undo/redo — rasters: %1 ms (skipped %2, removed %3, added %4)")
             .arg(t.elapsed()).arg(skipped).arg(removed).arg(added),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Debug);
     }
 
     {
@@ -287,6 +287,6 @@ void Document::restoreUndoState(const UndoState &state)
         m_undoManager->setRestoring(prevRestoring);
         writeLog(tr("Undo/redo — signals + view restore: %1 ms (index %2, vis %3, viewSt %4)")
             .arg(sigMs + visMs + vsMs).arg(sigMs).arg(visMs).arg(vsMs),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Debug);
     }
 }

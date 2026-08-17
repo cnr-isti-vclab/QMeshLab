@@ -10,11 +10,26 @@ void Document::clearLog()
         return;
 
     m_logMessages.clear();
-    m_lastCallbackBucket = -1;
+    m_progressLogActive = false;
     emit logCleared();
 }
 
-void Document::writeLog(const QString &message, LogSource source, bool replaceLast)
+void Document::clearProgressLog()
+{
+    if (!m_progressLogActive)
+        return;
+    m_progressLogActive = false;
+    // Only remove it if it really is still the last entry. writeLog maintains that
+    // invariant, but refusing to pop otherwise means a future code path that appends
+    // behind our back costs a stale progress line rather than a deleted real message.
+    if (m_logMessages.size() != m_progressLogIndex + 1)
+        return;
+    m_logMessages.pop_back();
+    emit logLastEntryRemoved(static_cast<int>(m_progressLogIndex));
+}
+
+// Shared tail of writeLog and the progress line: normalise, timestamp, store, notify.
+void Document::appendOrReplaceLog(const QString &message, LogSource source, LogLevel level, bool replaceLast)
 {
     QString normalizedMessage = message;
     if (!replaceLast && normalizedMessage.endsWith('\r'))
@@ -34,12 +49,30 @@ void Document::writeLog(const QString &message, LogSource source, bool replaceLa
                             .arg(normalizedMessage);
 
     if (replaceLast && !m_logMessages.empty()) {
-        m_logMessages.back() = LogEntry{normalizedMessage, source};
+        m_logMessages.back() = LogEntry{normalizedMessage, source, level};
     } else {
-        m_logMessages.push_back(LogEntry{normalizedMessage, source});
+        m_logMessages.push_back(LogEntry{normalizedMessage, source, level});
     }
 
-    emit logMessageAdded(normalizedMessage, source, replaceLast);
+    emit logMessageAdded(normalizedMessage, source, level, replaceLast);
+}
+
+void Document::writeLog(const QString &message, LogSource source, LogLevel level, bool replaceLast)
+{
+    // Keep the invariant that the transient progress line is the last entry: a real
+    // message removes it, and the next progress tick appends a fresh one at the end.
+    clearProgressLog();
+    appendOrReplaceLog(message, source, level, replaceLast);
+}
+
+void Document::writeProgressLog(const QString &message)
+{
+    // Replace in place while a progress line is already up, so only the latest
+    // percentage is ever visible. Info, not Debug: it is the live feedback of an
+    // operation the user started, and it erases itself when that operation ends.
+    appendOrReplaceLog(message, LogSource::VCG, LogLevel::Info, m_progressLogActive);
+    m_progressLogActive = true;
+    m_progressLogIndex = m_logMessages.empty() ? 0 : m_logMessages.size() - 1;
 }
 
 vcg::CallBackPos *Document::logCallback()
@@ -83,6 +116,13 @@ bool Document::handleLogCallback(int pos, const char *message)
             else
                 emit filterProgressUpdated(clampedPos, text);
             ++m_loadProgressEmitCount;
+
+            // One transient line, refreshed on the same throttle as the progress bar
+            // rather than the old every-10% append, so it reads as a live counter.
+            if (text.isEmpty())
+                writeProgressLog(tr("Progress %1%").arg(clampedPos));
+            else
+                writeProgressLog(tr("%1% - %2").arg(clampedPos, 3).arg(text));
         }
 
         const bool processEventsThrottleElapsed =
@@ -99,19 +139,6 @@ bool Document::handleLogCallback(int pos, const char *message)
             ++m_loadProcessEventsCount;
         }
     }
-
-    const int bucket = clampedPos / 10;
-    if (bucket == m_lastCallbackBucket)
-        return !m_cancelRequested.load(std::memory_order_relaxed);
-
-    m_lastCallbackBucket = bucket;
-    decodeText();
-    const bool replaceLast = message ? QByteArray(message).endsWith('\r') : false;
-
-    if (text.isEmpty())
-        writeLog(tr("Progress %1%").arg(clampedPos), LogSource::VCG, replaceLast);
-    else
-        writeLog(tr("%1% - %2").arg(clampedPos, 3).arg(text), LogSource::VCG, replaceLast);
 
     return !m_cancelRequested.load(std::memory_order_relaxed);
 }

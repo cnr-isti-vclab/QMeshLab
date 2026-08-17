@@ -85,7 +85,7 @@ void Document::ensureMeshGpuResources(QRhi *rhi,
                 .arg(meshEntry.name)
                 .arg(rebuiltPasses.join(QStringLiteral(", ")))
                 .arg(QString::number(stats.elapsedMs, 'f', 2)),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Debug);
     }
 }
 

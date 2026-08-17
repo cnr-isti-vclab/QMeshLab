@@ -131,7 +131,7 @@ int Document::loadRasterImage(const QString &filename)
         writeLog(
             tr("Failed to load raster image '%1': %2")
                 .arg(normalizedFilename, reader.errorString()),
-            LogSource::Application);
+            LogSource::Application, LogLevel::Warning);
         return -1;
     }
 

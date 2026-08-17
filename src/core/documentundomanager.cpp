@@ -363,7 +363,7 @@ bool DocumentUndoManager::undo()
         .arg(timer.elapsed())
         .arg(target.state.meshes.size())
         .arg(target.state.rasters.size()),
-        Document::LogSource::Application);
+        Document::LogSource::Application, Document::LogLevel::Debug);
     return true;
 }
 
@@ -404,7 +404,7 @@ bool DocumentUndoManager::redo()
         .arg(timer.elapsed())
         .arg(target.state.meshes.size())
         .arg(target.state.rasters.size()),
-        Document::LogSource::Application);
+        Document::LogSource::Application, Document::LogLevel::Debug);
     return true;
 }
 

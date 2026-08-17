@@ -1011,11 +1011,11 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
             .arg(ri + 1).arg(doc.rasterCount())
             .arg(rc.iw).arg(rc.ih)
             .arg(oneMs),
-            Document::LogSource::Application);
+            Document::LogSource::Application, Document::LogLevel::Debug);
     }
     qint64 totalDepthMs = tDepth.elapsed();
     doc.writeLog(QObject::tr("All depth buffers: %1 ms").arg(totalDepthMs),
-                 Document::LogSource::Application);
+                 Document::LogSource::Application, Document::LogLevel::Debug);
 
     // --- Coverage (Vertex) ---
     if (fid == QString::fromLatin1(kCoverageVert)) {
@@ -1107,7 +1107,7 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         }
         doc.writeLog(QObject::tr("Depth buffers rebuilt after compaction: %1 ms")
             .arg(tDbRebuild.elapsed()),
-            Document::LogSource::Application);
+            Document::LogSource::Application, Document::LogLevel::Debug);
 
         int wMask = W_ORIENTATION;
         if (p.getBool(QStringLiteral("useDistanceWeight"), true))  wMask |= W_DISTANCE;

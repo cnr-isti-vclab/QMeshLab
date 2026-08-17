@@ -249,28 +249,98 @@ int defaultSaveMaskForMesh(const Document::MeshEntry &entry, int capabilityMask)
 
 
 
-void appendLogItem(QListWidget *logWidget, const QString &message, Document::LogSource source, bool replaceLast)
+// The level decides the colour and the tag; the source only qualifies the tag, since
+// which subsystem spoke matters far less than how loudly.
+QColor logLevelColor(Document::LogLevel level)
+{
+    switch (level) {
+    case Document::LogLevel::Error:
+        return QColor(200, 30, 30);
+    case Document::LogLevel::Warning:
+        return QColor(170, 110, 0);
+    case Document::LogLevel::Debug:
+        return QColor(130, 130, 130);
+    case Document::LogLevel::Info:
+        break;
+    }
+    return QColor(50, 50, 50);
+}
+
+QString logEntryTag(Document::LogSource source, Document::LogLevel level)
+{
+    switch (level) {
+    case Document::LogLevel::Error:
+        return QObject::tr("err");
+    case Document::LogLevel::Warning:
+        return QObject::tr("wrn");
+    case Document::LogLevel::Debug:
+        return QObject::tr("dbg");
+    case Document::LogLevel::Info:
+        break;
+    }
+    return source == Document::LogSource::VCG ? QObject::tr("vcg") : QObject::tr("app");
+}
+
+// Index of the document log entry an item renders, so the panel can drop the right one
+// even when quieter entries between them were filtered out.
+constexpr int kLogEntryIndexRole = Qt::UserRole + 1;
+
+void appendLogItem(
+    QListWidget *logWidget,
+    const QString &message,
+    Document::LogSource source,
+    Document::LogLevel level,
+    int entryIndex,
+    bool replaceLast)
 {
     QListWidgetItem *item = nullptr;
-    if (replaceLast && logWidget->count() > 0) {
+    // Reuse the last row only when it really renders the entry being replaced: at a low
+    // verbosity the document's previous entry may have been filtered out, and overwriting
+    // whatever happens to be at the bottom would corrupt an unrelated line.
+    if (replaceLast && logWidget->count() > 0
+        && logWidget->item(logWidget->count() - 1)->data(kLogEntryIndexRole).toInt() == entryIndex) {
         item = logWidget->item(logWidget->count() - 1);
     } else {
         item = new QListWidgetItem(logWidget);
     }
 
-    if (source == Document::LogSource::VCG) {
-        item->setText(QObject::tr("[vcg] %1").arg(message));
-        item->setForeground(QBrush(QColor(80, 110, 150)));
-    } else if (source == Document::LogSource::Error) {
-        item->setText(QObject::tr("[err] %1").arg(message));
-        item->setForeground(QBrush(QColor(200, 30, 30)));
-    } else {
-        item->setText(QObject::tr("[app] %1").arg(message));
-        item->setForeground(QBrush(QColor(50, 50, 50)));
-    }
+    item->setText(QStringLiteral("[%1] %2").arg(logEntryTag(source, level), message));
+    item->setForeground(QBrush(logLevelColor(level)));
+    item->setData(kLogEntryIndexRole, entryIndex);
 
     logWidget->scrollToBottom();
 }
+
+Document::LogLevel logVerbosityPreference()
+{
+    const QString id = Preferences::instance().stringValue(QStringLiteral("log.verbosity"));
+    if (id == QStringLiteral("error"))
+        return Document::LogLevel::Error;
+    if (id == QStringLiteral("warning"))
+        return Document::LogLevel::Warning;
+    if (id == QStringLiteral("debug"))
+        return Document::LogLevel::Debug;
+    return Document::LogLevel::Info;
+}
+}
+
+void MainWindow::rebuildLogPanel()
+{
+    if (!m_logListWidget || !m_doc)
+        return;
+    m_logListWidget->clear();
+    const auto &entries = m_doc->logMessages();
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        if (entries[i].level > m_logVerbosity)
+            continue;
+        appendLogItem(
+            m_logListWidget,
+            entries[i].message,
+            entries[i].source,
+            entries[i].level,
+            static_cast<int>(i),
+            false);
+    }
 }
 
 MainWindow::~MainWindow() = default;
@@ -352,7 +422,7 @@ MainWindow::MainWindow(QWidget *parent)
                 m_doc->writeLog(
                     tr("Warning: failed to restore previous render state after snapshot: %1")
                         .arg(restoreError),
-                    Document::LogSource::Application);
+                    Document::LogSource::Application, Document::LogLevel::Warning);
             }
 
             if (outImage.isNull()) {
@@ -604,15 +674,39 @@ MainWindow::MainWindow(QWidget *parent)
     m_pythonConsoleDock->hide();
 #endif
 
-    for (const auto &entry : m_doc->logMessages())
-        appendLogItem(m_logListWidget, entry.message, entry.source, false);
+    m_logVerbosity = logVerbosityPreference();
+    rebuildLogPanel();
 
     connect(m_doc, &Document::logCleared, m_logListWidget, &QListWidget::clear);
     connect(m_doc, &Document::logMessageAdded, m_logListWidget,
-        [this](const QString &message, Document::LogSource source, bool replaceLast) {
-            if (!m_logListWidget)
+        [this](const QString &message, Document::LogSource source, Document::LogLevel level, bool replaceLast) {
+            if (!m_logListWidget || level > m_logVerbosity)
                 return;
-            appendLogItem(m_logListWidget, message, source, replaceLast);
+            appendLogItem(
+                m_logListWidget,
+                message,
+                source,
+                level,
+                static_cast<int>(m_doc->logMessages().size()) - 1,
+                replaceLast);
+    });
+    // The transient progress line is removed when its operation ends; see
+    // Document::clearProgressLog(). Match on the entry index rather than assuming the
+    // panel's last item is that line - at a low verbosity it may never have been shown.
+    connect(m_doc, &Document::logLastEntryRemoved, m_logListWidget, [this](int index) {
+        if (!m_logListWidget || m_logListWidget->count() == 0)
+            return;
+        QListWidgetItem *last = m_logListWidget->item(m_logListWidget->count() - 1);
+        if (last->data(kLogEntryIndexRole).toInt() != index)
+            return;
+        delete m_logListWidget->takeItem(m_logListWidget->count() - 1);
+    });
+    connect(&Preferences::instance(), &Preferences::changed, this,
+        [this](const QString &id, const QVariant &) {
+            if (id != QStringLiteral("log.verbosity"))
+                return;
+            m_logVerbosity = logVerbosityPreference();
+            rebuildLogPanel();
     });
 
     refreshUndoHistoryPanel();
@@ -1947,11 +2041,11 @@ void MainWindow::executeFilter(
             ? errorText
             : tr("Filter failed: %1").arg(errorText);
         m_doc->finishFilterProgress(false, msg);
-        m_doc->writeLog(msg, Document::LogSource::Error);
+        m_doc->writeLog(msg, Document::LogSource::Application, Document::LogLevel::Error);
         m_doc->writeLog(
             tr("Filter '%1' runtime: %2 ms (failed)")
                 .arg(label, elapsedText),
-            Document::LogSource::Error);
+            Document::LogSource::Application, Document::LogLevel::Debug);
         return;
     }
 
@@ -1963,7 +2057,7 @@ void MainWindow::executeFilter(
     m_doc->finishFilterProgress(true, status);
     m_doc->writeLog(
         tr("Filter '%1' runtime: %2 ms").arg(label, elapsedText),
-        Document::LogSource::Application);
+        Document::LogSource::Application, Document::LogLevel::Debug);
 }
 
 void MainWindow::applyFilterVisualizationHints(const MeshFilterRunResult &result)

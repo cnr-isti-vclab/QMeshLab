@@ -1,4 +1,5 @@
 #include <QtTest/QtTest>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QFile>
 #include <QFileInfo>
@@ -36,6 +37,8 @@ private slots:
     void cameraShotUnprojectsImageCenter();
     void cameraShotRenderMatricesMatchProjection();
     void logReplaceLastEntryOnCarriageReturn();
+    void logEntriesCarryASeverityLevel();
+    void progressLogIsTransientAndRemovedOnCompletion();
     void loadMeshAddsLayerAndEmitsSignal();
     void planarPolygonTessellationHandlesConcavity();
     void loadConcavePolygonFormatsPreserveFauxEdges();
@@ -151,6 +154,18 @@ void DocumentTests::cameraShotRenderMatricesMatchProjection()
     }
 }
 
+namespace {
+// Every entry carries a "[t=<ms>] " wall-clock prefix; strip it so assertions can
+// compare the message itself.
+QString logText(const QString &entry)
+{
+    static const QRegularExpression prefix(QStringLiteral("^\\[t=\\d+\\] "));
+    QString out = entry;
+    out.remove(prefix);
+    return out;
+}
+} // namespace
+
 void DocumentTests::logReplaceLastEntryOnCarriageReturn()
 {
     Document doc;
@@ -160,8 +175,88 @@ void DocumentTests::logReplaceLastEntryOnCarriageReturn()
 
     const auto &log = doc.logMessages();
     QCOMPARE(log.size(), size_t(1));
-    QCOMPARE(log.back().message, QStringLiteral("progress"));
+    QCOMPARE(logText(log.back().message), QStringLiteral("progress"));
     QCOMPARE(log.back().source, Document::LogSource::Application);
+}
+
+// The level is stored, defaults to Info, and is ordered loudest-first so a verbosity
+// threshold is a plain comparison (the log panel filters on level <= threshold).
+void DocumentTests::logEntriesCarryASeverityLevel()
+{
+    Document doc;
+    QSignalSpy addedSpy(&doc, &Document::logMessageAdded);
+
+    doc.writeLog(QStringLiteral("plain"));
+    doc.writeLog(
+        QStringLiteral("broke"), Document::LogSource::Application, Document::LogLevel::Error);
+    doc.writeLog(
+        QStringLiteral("timing 3 ms"), Document::LogSource::VCG, Document::LogLevel::Debug);
+
+    const auto &log = doc.logMessages();
+    QCOMPARE(log.size(), size_t(3));
+    QCOMPARE(log[0].level, Document::LogLevel::Info);
+    QCOMPARE(log[1].level, Document::LogLevel::Error);
+    QCOMPARE(log[2].level, Document::LogLevel::Debug);
+    QCOMPARE(log[2].source, Document::LogSource::VCG);
+
+    QCOMPARE(addedSpy.count(), 3);
+    QCOMPARE(addedSpy.at(1).at(2).value<Document::LogLevel>(), Document::LogLevel::Error);
+
+    QVERIFY(Document::LogLevel::Error < Document::LogLevel::Warning);
+    QVERIFY(Document::LogLevel::Warning < Document::LogLevel::Info);
+    QVERIFY(Document::LogLevel::Info < Document::LogLevel::Debug);
+}
+
+// Progress occupies a single transient line that overwrites itself and is gone once
+// the operation ends, so a finished filter leaves no progress trace in the log.
+void DocumentTests::progressLogIsTransientAndRemovedOnCompletion()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_40kv.ply")) >= 0);
+
+    QString decimationKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("meshing_decimation_quadric_edge_collapse")) {
+            decimationKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!decimationKey.isEmpty());
+
+    doc.clearLog();
+    QSignalSpy addedSpy(&doc, &Document::logMessageAdded);
+    QSignalSpy removedSpy(&doc, &Document::logLastEntryRemoved);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("TargetFaceNum"), 2000);
+    const MeshFilterRunResult result = doc.runFilter(decimationKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    // The filter reported progress...
+    int progressAdds = 0;
+    int progressReplacements = 0;
+    for (const QList<QVariant> &call : addedSpy) {
+        const QString message = logText(call.at(0).toString());
+        if (!message.contains(QStringLiteral("Progress ")) && !message.contains(QStringLiteral("% - ")))
+            continue;
+        ++progressAdds;
+        // (message, source, level, replaceLast)
+        if (call.at(3).toBool())
+            ++progressReplacements;
+    }
+    QVERIFY2(progressAdds > 0, "the filter never reported progress, so nothing was tested");
+    // ...and every tick after the first overwrote the line instead of appending.
+    QCOMPARE(progressReplacements, progressAdds - 1);
+
+    // ...and the line was taken away at the end.
+    QVERIFY(removedSpy.count() >= 1);
+    for (const auto &entry : doc.logMessages()) {
+        const QString message = logText(entry.message);
+        QVERIFY2(
+            !message.contains(QStringLiteral("Progress "))
+                && !message.contains(QStringLiteral("% - ")),
+            qPrintable(QStringLiteral("progress line survived: %1").arg(message)));
+    }
 }
 
 void DocumentTests::loadMeshAddsLayerAndEmitsSignal()

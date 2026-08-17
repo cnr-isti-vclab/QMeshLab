@@ -34,15 +34,30 @@ class Document : public QObject
 {
     Q_OBJECT
 public:
+    // Who is speaking. Orthogonal to LogLevel: the source answers "where did this come
+    // from", the level answers "does the user want to hear it".
     enum class LogSource {
         Application,
-        VCG,
-        Error
+        VCG
+    };
+
+    // Severity, ordered from loudest to quietest so a verbosity threshold is a plain
+    // comparison: an entry is shown when level <= threshold.
+    //   Error   the operation failed and the user must know
+    //   Warning it went ahead, but degraded or partially
+    //   Info    the normal narration of what happened (the default)
+    //   Debug   timings, counters, mask dumps, cache and GPU bookkeeping
+    enum class LogLevel {
+        Error,
+        Warning,
+        Info,
+        Debug
     };
 
     struct LogEntry {
         QString message;
         LogSource source = LogSource::Application;
+        LogLevel level = LogLevel::Info;
     };
 
     struct MeshEntry {
@@ -248,7 +263,19 @@ public:
     SelectionDelta captureSelectionDelta(int meshIndex) const;
     void applySelectionDelta(const SelectionDelta &delta);
     void clearLog();
-    void writeLog(const QString &message, LogSource source = LogSource::Application, bool replaceLast = false);
+    void writeLog(
+        const QString &message,
+        LogSource source = LogSource::Application,
+        LogLevel level = LogLevel::Info,
+        bool replaceLast = false);
+
+    // Progress is written as a single transient entry that is always the last line,
+    // overwritten in place as the operation advances, and removed when it ends — a
+    // running operation should leave no trace in the log once it is done. Cleared
+    // automatically at both ends of a filter run and around a load; any ordinary
+    // writeLog also drops it first, so the transient line never gets stranded
+    // above a real message.
+    void clearProgressLog();
 
     int meshCount() const { return static_cast<int>(m_meshes.size()); }
     MeshEntry &mesh(int i) { return *m_meshes[i]; }
@@ -349,7 +376,14 @@ signals:
     void filterProgressUpdated(int percent, const QString &message);
     void filterProgressFinished(bool success, const QString &message);
     void logCleared();
-    void logMessageAdded(const QString &message, Document::LogSource source, bool replaceLast);
+    void logMessageAdded(
+        const QString &message,
+        Document::LogSource source,
+        Document::LogLevel level,
+        bool replaceLast);
+    // The last entry was removed; see clearProgressLog(). The index is passed so a view
+    // that filters entries out can tell whether it ever displayed the one being removed.
+    void logLastEntryRemoved(int index);
     void undoRedoStateChanged(
         bool canUndo,
         bool canRedo,
@@ -371,6 +405,8 @@ private:
     };
     vcg::CallBackPos *logCallback();
     bool handleLogCallback(int pos, const char *message);
+    void appendOrReplaceLog(const QString &message, LogSource source, LogLevel level, bool replaceLast);
+    void writeProgressLog(const QString &message);
     static bool dispatchLogCallback(int pos, const char *message);
     void purgeMeshGpuResources(std::uint64_t meshId);
 
@@ -391,7 +427,10 @@ private:
     int m_currentRasterIndex = -1;
     CurrentLayerKind m_currentLayerKind = CurrentLayerKind::None;
     std::vector<LogEntry> m_logMessages;
-    int m_lastCallbackBucket = -1;
+    // True while the transient progress line is present, with its index in
+    // m_logMessages so it is never confused with a real entry.
+    bool m_progressLogActive = false;
+    std::size_t m_progressLogIndex = 0;
     int m_lastProgressPos = -1;
     QElapsedTimer m_loadCallbackTimer;
     int m_loadCallbackCount = 0;

@@ -104,6 +104,7 @@ private:
     void applyFilterVisualizationHints(const MeshFilterRunResult &result);
     void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
     void refreshUndoHistoryPanel();
+    void rebuildLogPanel();
     void jumpToUndoNode(int nodeId, bool withCamera = true);
     QPixmap captureUndoHistoryThumbnail() const;
 
@@ -137,6 +138,9 @@ private:
     QAction *m_undoAction = nullptr;
     QAction *m_redoAction = nullptr;
     QListWidget *m_logListWidget = nullptr;
+    // Entries quieter than this are kept in the document but not shown; raising the
+    // preference repopulates the panel, so past detail can be recovered after the fact.
+    Document::LogLevel m_logVerbosity = Document::LogLevel::Info;
     UndoGraphWidget *m_undoHistoryLaneWidget = nullptr;
     QLabel *m_undoHistoryPreviewPopup = nullptr;
     QTimer *m_undoHistoryPreviewTimer = nullptr;
