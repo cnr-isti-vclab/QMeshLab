@@ -47,6 +47,12 @@ if (TARGET QMeshLabPluginIO3MF)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_IO_3MF_ENABLED=1)
 endif()
 
+add_subdirectory(io_trueform)
+if (TARGET QMeshLabPluginIOTrueForm)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginIOTrueForm)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_IO_TRUEFORM_ENABLED=1)
+endif()
+
 add_subdirectory(filter_basic)
 if (TARGET QMeshLabPluginFilterBasic)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterBasic)

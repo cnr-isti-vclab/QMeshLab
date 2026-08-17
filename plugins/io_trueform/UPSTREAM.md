@@ -1,0 +1,64 @@
+# TrueForm I/O integration
+
+This plugin is a second, independent reader and writer for OBJ and STL, built
+against the header-only TrueForm library in the pinned `external/trueform`
+submodule. Update it with:
+
+```sh
+git -C external/trueform fetch
+git -C external/trueform checkout <reviewed-commit>
+```
+
+## Licensing and permission
+
+TrueForm is dual-licensed under the PolyForm Noncommercial License 1.0.0 or a
+commercial agreement with XLAB, neither of which is GPL-compatible.
+
+**QMeshLab has explicit permission from the TrueForm owners (Polydera/XLAB) to
+include the library**, obtained for this project specifically. That permission is
+why `QMESH_PLUGIN_IO_TRUEFORM` defaults to `ON`.
+
+It does not travel with the source. Anyone redistributing a QMeshLab binary that
+contains the TrueForm components needs their own agreement with XLAB
+(`info@polydera.com`). See `external/README.md` for the summary and
+`external/trueform/LICENSE` and `COMMERCIAL.md` for the terms.
+
+## Why a third OBJ reader and a second STL reader
+
+`io_vcg` already handles OBJ and STL, and `io_obj_rapidobj` gives a second OBJ
+path. This is deliberate duplication, for two reasons:
+
+- **Fringe files.** OBJ and STL are loosely specified and the wild is full of
+  variants. Independent parsers fail on *different* malformed files, so a file
+  one reader rejects often opens in another. Having more reference importers is
+  the point, not an accident.
+- **Speed.** TrueForm parses in parallel via oneTBB.
+
+`MeshIOPluginManager::pluginFor()` already resolves the extension collision
+through the persisted per-extension preference — it had to, because `io_vcg` and
+`io_obj_rapidobj` already both claim `.obj`. No new selection machinery was
+needed.
+
+## Behavioural differences from the other readers
+
+- **STL import welds coincident vertices while loading.** STL is a triangle soup
+  with no shared vertices, so every other reader yields a mesh that needs
+  *Remove Duplicate Vertices* afterwards. `tf::read_stl` routes through
+  `tf::clean::polygon_soup`, so the mesh arrives welded.
+- **OBJ import recovers vertex positions and faces only** — no UVs, normals or
+  materials, by design in `tf::read_obj`. For a textured OBJ use `io_vcg` or
+  `io_obj_rapidobj`. This is a geometry-recovery reader.
+- **Export writes triangles only**, and no attributes. `tf::write_stl` requires
+  triangular polygons; n-gons are fan-triangulated on the way in and out.
+
+## Qt and oneTBB: the `emit` collision
+
+TrueForm pulls in oneTBB, whose `tbb::profiling::event` declares an `emit()`
+member. Qt defines `emit` as an empty macro, which turns that declaration into
+`void () {}` and fails to compile with a message that points into a TBB header
+rather than at the real cause.
+
+`trueformioplugin.cpp` therefore wraps the TrueForm include in
+`#pragma push_macro("emit")` / `#undef emit` / `#pragma pop_macro("emit")`. Any
+further TrueForm-based plugin in a translation unit that also sees Qt headers
+needs the same guard, or must include TrueForm before Qt.

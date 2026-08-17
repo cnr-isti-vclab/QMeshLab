@@ -50,6 +50,7 @@ private slots:
     void undoTreeBranchingPreservesAlternateFuture();
     void openDialogFilterContainsKnownFormats();
     void saveAndLoad3MFRoundTrip();
+    void trueFormRoundTripsObjAndStl();
     void saveAndLoadEmbeddedGLBTexture();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
     void savePolygonalFormatsHonorFauxEdgesAndTriangulationOption();
@@ -615,6 +616,77 @@ void DocumentTests::saveAndLoad3MFRoundTrip()
     QCOMPARE(result.vert[2].cP().Y(), 3.0f);
     QCOMPARE(result.face[0].cC(), vcg::Color4b(255, 0, 0, 255));
     QCOMPARE(result.face[1].cC(), vcg::Color4b(0, 0, 255, 128));
+}
+
+// TrueForm is a second, independent OBJ/STL reader-writer. It exists precisely so a file
+// one parser rejects can be opened by another, so the test forces it to be the reader for
+// both extensions rather than accepting whichever plugin happens to be registered first.
+//
+// It carries geometry only — no UVs, normals or materials — and STL import welds
+// coincident vertices while loading, which is what the vertex-count assertions check.
+void DocumentTests::trueFormRoundTripsObjAndStl()
+{
+    Document probe;
+    const QString trueFormId = QStringLiteral("qmeshlab.io.trueform");
+    if (!probe.openDialogFilter().contains(QStringLiteral("TrueForm")))
+        QSKIP("TrueForm I/O plugin is not available in this build.");
+
+    // A quad split into two triangles: 4 shared vertices, 2 faces.
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(2.0f, 0.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0.0f, 3.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(2.0f, 3.0f, 0.0f));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(1), size_t(3), size_t(2));
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX;
+
+    // setPreferredImportPluginForExtension persists to QSettings, so it is process-wide
+    // and outlives this test — it would otherwise redirect every later .obj/.stl load and
+    // save, here and in the user's own application. Capture and restore.
+    const QString previousObj = probe.preferredImportPluginForExtension(QStringLiteral("obj"));
+    const QString previousStl = probe.preferredImportPluginForExtension(QStringLiteral("stl"));
+    struct PreferenceRestorer {
+        Document *doc;
+        QString obj;
+        QString stl;
+        ~PreferenceRestorer()
+        {
+            doc->setPreferredImportPluginForExtension(QStringLiteral("obj"), obj);
+            doc->setPreferredImportPluginForExtension(QStringLiteral("stl"), stl);
+        }
+    } restorer{ &probe, previousObj, previousStl };
+
+    for (const QString &ext : { QStringLiteral("obj"), QStringLiteral("stl") }) {
+        Document source;
+        const int meshIndex = source.addMesh(mesh, QStringLiteral("quad"), options.mask);
+        QVERIFY(meshIndex >= 0);
+        source.setPreferredImportPluginForExtension(ext, trueFormId);
+
+        const QString path = dir.filePath(QStringLiteral("roundtrip.") + ext);
+        QCOMPARE(source.saveMesh(meshIndex, path, options), 0);
+        QVERIFY2(QFileInfo(path).size() > 0, qPrintable(ext));
+
+        Document loaded;
+        loaded.setPreferredImportPluginForExtension(ext, trueFormId);
+        QCOMPARE(loaded.loadMesh(path), 0);
+        QCOMPARE(loaded.meshCount(), 1);
+
+        const VCGMesh &result = loaded.mesh(0).mesh;
+        QCOMPARE(result.FN(), 2);
+        // STL stores an unshared triangle soup; TrueForm welds it back to 4 on import.
+        QVERIFY2(result.VN() == 4, qPrintable(QStringLiteral("%1: VN=%2").arg(ext).arg(result.VN())));
+
+        vcg::Box3f box;
+        for (const VCGVertex &v : result.vert)
+            box.Add(v.cP());
+        QVERIFY2(std::abs(box.DimX() - 2.0f) < 1e-3f, qPrintable(ext));
+        QVERIFY2(std::abs(box.DimY() - 3.0f) < 1e-3f, qPrintable(ext));
+    }
 }
 
 void DocumentTests::saveAndLoadEmbeddedGLBTexture()

@@ -60,3 +60,30 @@ Initialize it after cloning with:
 ```sh
 git submodule update --init --recursive external/quadwild-bimdf
 ```
+
+## TrueForm
+
+QMeshLab uses the header-only [TrueForm](https://github.com/polydera/trueform)
+geometry library from the pinned `external/trueform` submodule for a second,
+independent OBJ/STL reader-writer and for a set of geometry filters.
+
+**Licensing — read before redistributing.** TrueForm is dual-licensed: the
+PolyForm Noncommercial License 1.0.0, or a commercial agreement with XLAB
+(`external/trueform/LICENSE`, `COMMERCIAL.md`). Neither is GPL-compatible, so
+this is not an ordinary dependency.
+
+**QMeshLab has explicit permission from the TrueForm owners (Polydera/XLAB) to
+include the library.** That permission was obtained specifically for this
+project; it is not conveyed by the public licence and does not extend to
+third parties. Anyone redistributing a QMeshLab binary built with the TrueForm
+components needs their own agreement with XLAB — contact `info@polydera.com`.
+
+The build option `QMESH_PLUGIN_IO_TRUEFORM` is **ON** by default on the strength
+of that permission. Integration details are in
+[`plugins/io_trueform/UPSTREAM.md`](../plugins/io_trueform/UPSTREAM.md).
+
+Initialize it after cloning with:
+
+```sh
+git submodule update --init external/trueform
+```

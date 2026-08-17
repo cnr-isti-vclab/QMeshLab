@@ -15,3 +15,6 @@
 	path = external/quadwild-bimdf
 	url = ../../cgg-bern/quadwild-bimdf.git
 	branch = main
+[submodule "external/trueform"]
+	path = external/trueform
+	url = https://github.com/polydera/trueform.git

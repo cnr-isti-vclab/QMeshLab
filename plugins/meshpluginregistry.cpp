@@ -22,6 +22,10 @@
 #include "plugins/io_3mf/threemfplugin.h"
 #endif
 
+#if QMESH_PLUGIN_IO_TRUEFORM_ENABLED
+#include "plugins/io_trueform/trueformioplugin.h"
+#endif
+
 void registerBuiltinMeshPlugins(MeshIOPluginManager &pluginManager)
 {
 #if QMESH_PLUGIN_IO_RAPIDOBJ_ENABLED
@@ -38,5 +42,8 @@ void registerBuiltinMeshPlugins(MeshIOPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_IO_3MF_ENABLED
     register3MFPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_IO_TRUEFORM_ENABLED
+    registerTrueFormIOPlugin(pluginManager);
 #endif
 }
