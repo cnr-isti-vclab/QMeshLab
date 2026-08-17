@@ -23,6 +23,8 @@ namespace {
 // Change a value into a different, still-valid one of the same JSON type. Numbers
 // move by -1 rather than +1 because enum-valued keys sit at the top of their range
 // more often than the bottom, and an out-of-range enum would not survive the reader.
+QJsonValue perturb(const QJsonValue &v);
+
 QJsonValue perturb(const QJsonValue &v)
 {
     if (v.isBool())
@@ -33,6 +35,14 @@ QJsonValue perturb(const QJsonValue &v)
     }
     if (v.isString())
         return v.toString() + QStringLiteral("_x");
+    // The fill materials nest as sub-objects; recurse so their fields are covered too.
+    if (v.isObject()) {
+        const QJsonObject in = v.toObject();
+        QJsonObject out;
+        for (auto it = in.begin(); it != in.end(); ++it)
+            out.insert(it.key(), perturb(it.value()));
+        return out;
+    }
     if (v.isArray()) {
         // Colors: 4 components in 0..255, so move each towards the middle.
         QJsonArray out;
@@ -95,6 +105,31 @@ bool sameJsonValue(const QJsonValue &a, const QJsonValue &b)
     return a == b;
 }
 
+// operator== is generated from the same field list as the JSON conversions, and two
+// call sites use it to decide whether settings changed. A field missing from it makes
+// a real change compare equal and the update silently gets dropped. Perturb one key at
+// a time and require each to be observable.
+template <typename Settings, typename ToJson, typename Parse>
+void checkEveryFieldAffectsEquality(ToJson toJson, Parse parse, const char *label)
+{
+    const Settings defaults;
+    const QJsonObject baseline = toJson(defaults, nullptr);
+
+    for (auto it = baseline.begin(); it != baseline.end(); ++it) {
+        QJsonObject oneChanged = baseline;
+        oneChanged[it.key()] = perturb(it.value());
+
+        Settings mutated;
+        QString error;
+        QVERIFY2(parse(oneChanged, mutated, &error), qPrintable(error));
+
+        QVERIFY2(
+            !(mutated == defaults),
+            qPrintable(QStringLiteral("%1: changing '%2' is invisible to operator==")
+                           .arg(label, it.key())));
+    }
+}
+
 } // namespace
 
 class RenderSettingsJsonTests : public QObject
@@ -106,6 +141,8 @@ private slots:
     void globalSettingsRoundTrip();
     void perMeshSettingsRoundTrip();
     void defaultsAreOmittedWhenDefaultsGiven();
+    void everyFieldAffectsGlobalEquality();
+    void everyFieldAffectsPerMeshEquality();
 };
 
 // The count is the tie between the struct and the writer: add a field without adding
@@ -156,6 +193,30 @@ void RenderSettingsJsonTests::defaultsAreOmittedWhenDefaultsGiven()
 
     const PerMeshRenderSettings meshDefaults;
     QVERIFY(perMeshSettingsToJson(meshDefaults, &meshDefaults).isEmpty());
+}
+
+void RenderSettingsJsonTests::everyFieldAffectsGlobalEquality()
+{
+    checkEveryFieldAffectsEquality<GlobalRenderSettings>(
+        [](const GlobalRenderSettings &s, const GlobalRenderSettings *d) {
+            return globalSettingsToJson(s, d);
+        },
+        [](const QJsonObject &o, GlobalRenderSettings &s, QString *e) {
+            return parseGlobalSettings(o, s, e);
+        },
+        "GlobalRenderSettings");
+}
+
+void RenderSettingsJsonTests::everyFieldAffectsPerMeshEquality()
+{
+    checkEveryFieldAffectsEquality<PerMeshRenderSettings>(
+        [](const PerMeshRenderSettings &s, const PerMeshRenderSettings *d) {
+            return perMeshSettingsToJson(s, d);
+        },
+        [](const QJsonObject &o, PerMeshRenderSettings &s, QString *e) {
+            return parsePerMeshSettings(o, s, e);
+        },
+        "PerMeshRenderSettings");
 }
 
 QTEST_MAIN(RenderSettingsJsonTests)

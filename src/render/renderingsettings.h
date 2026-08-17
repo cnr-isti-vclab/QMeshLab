@@ -68,22 +68,9 @@ struct PbrFillParams {
     float                occlusionStrength = 1.0f;
     float                roughnessFactor   = 1.0f;
 
-    bool operator==(const PbrFillParams &o) const
-    {
-        return shading         == o.shading
-            && albedoSource    == o.albedoSource
-            && albedoIndex     == o.albedoIndex
-            && normalSource    == o.normalSource
-            && normalIndex     == o.normalIndex
-            && normalMapSpace  == o.normalMapSpace
-            && occlusionSource == o.occlusionSource
-            && occlusionIndex  == o.occlusionIndex
-            && roughnessSource == o.roughnessSource
-            && roughnessIndex  == o.roughnessIndex
-            && normalScale       == o.normalScale
-            && occlusionStrength == o.occlusionStrength
-            && roughnessFactor   == o.roughnessFactor;
-    }
+    // Defined in rendersettingsjson.cpp, generated from the same field list as the
+    // JSON conversions so the two cannot drift apart.
+    bool operator==(const PbrFillParams &o) const;
     bool operator!=(const PbrFillParams &o) const { return !(*this == o); }
 };
 
@@ -92,12 +79,9 @@ struct PlainFillParams {
     FillColorSource colorSource  = FillColorSource::Constant;
     int             textureIndex = -1;
 
-    bool operator==(const PlainFillParams &o) const
-    {
-        return shading      == o.shading
-            && colorSource  == o.colorSource
-            && textureIndex == o.textureIndex;
-    }
+    // Defined in rendersettingsjson.cpp, generated from the same field list as the
+    // JSON conversions so the two cannot drift apart.
+    bool operator==(const PlainFillParams &o) const;
     bool operator!=(const PlainFillParams &o) const { return !(*this == o); }
 };
 
@@ -107,13 +91,9 @@ struct RsFillParams {
     int   displayMode = 0;   // 0=Lambertian, 1=Colored Descriptor, 2=Grey Descriptor
     bool  invert      = false;
 
-    bool operator==(const RsFillParams &o) const
-    {
-        return shading     == o.shading
-            && enhancement == o.enhancement
-            && displayMode == o.displayMode
-            && invert      == o.invert;
-    }
+    // Defined in rendersettingsjson.cpp, generated from the same field list as the
+    // JSON conversions so the two cannot drift apart.
+    bool operator==(const RsFillParams &o) const;
     bool operator!=(const RsFillParams &o) const { return !(*this == o); }
 };
 
@@ -196,54 +176,9 @@ struct PerMeshRenderSettings {
     float wireSize = 1.5f;
     QColor fillColor = QColor(230, 230, 230);
 
-    bool operator==(const PerMeshRenderSettings &o) const
-    {
-        return showBoundingBox == o.showBoundingBox
-            && showPoints == o.showPoints
-            && showEdges == o.showEdges
-            && showWire == o.showWire
-            && showFill == o.showFill
-            && showSelection == o.showSelection
-            && showSelectionVertices == o.showSelectionVertices
-            && showSelectionFaces == o.showSelectionFaces
-            && decoratorNormals == o.decoratorNormals
-            && decoratorVertexNormals == o.decoratorVertexNormals
-            && decoratorFaceNormals == o.decoratorFaceNormals
-            && decoratorBoundaryEdges == o.decoratorBoundaryEdges
-            && decoratorTextureSeams == o.decoratorTextureSeams
-            && decoratorBoundary == o.decoratorBoundary
-            && decoratorNonManifoldEdges == o.decoratorNonManifoldEdges
-            && decoratorNonManifoldVertices == o.decoratorNonManifoldVertices
-            && decoratorCurvatureDir == o.decoratorCurvatureDir
-            && pointLighting == o.pointLighting
-            && wireLighting == o.wireLighting
-            && wireBackfaceCulling == o.wireBackfaceCulling
-            && wireRespectFaux == o.wireRespectFaux
-            && fillLighting == o.fillLighting
-            && fillBackfaceCulling == o.fillBackfaceCulling
-            && fillMaterial == o.fillMaterial
-            && fillPbr == o.fillPbr
-            && fillRs == o.fillRs
-            && fillPlain == o.fillPlain
-            && pointColorSource == o.pointColorSource
-            && decoratorVertexNormalColor == o.decoratorVertexNormalColor
-            && decoratorFaceNormalColor == o.decoratorFaceNormalColor
-            && decoratorBoundaryEdgeColor == o.decoratorBoundaryEdgeColor
-            && decoratorTextureSeamColor == o.decoratorTextureSeamColor
-            && decoratorNonManifoldEdgeColor == o.decoratorNonManifoldEdgeColor
-            && decoratorNonManifoldVertexColor == o.decoratorNonManifoldVertexColor
-            && decoratorCurvatureDirPD1Color == o.decoratorCurvatureDirPD1Color
-            && decoratorCurvatureDirPD2Color == o.decoratorCurvatureDirPD2Color
-            && decoratorBoundaryWidth == o.decoratorBoundaryWidth
-            && bboxWireColor == o.bboxWireColor
-            && pointColor == o.pointColor
-            && pointSize == o.pointSize
-            && edgeColor == o.edgeColor
-            && edgeSize == o.edgeSize
-            && wireColor == o.wireColor
-            && wireSize == o.wireSize
-            && fillColor == o.fillColor;
-    }
+    // Defined in rendersettingsjson.cpp, generated from the same field list as the
+    // JSON conversions so the two cannot drift apart.
+    bool operator==(const PerMeshRenderSettings &o) const;
     bool operator!=(const PerMeshRenderSettings &o) const { return !(*this == o); }
 };
 
@@ -286,41 +221,9 @@ struct GlobalRenderSettings {
     bool qualityIsolinesEnabled = false;
     int qualityIsolineCount = 10;
 
-    bool operator==(const GlobalRenderSettings &o) const
-    {
-        return highlightCurrentMesh == o.highlightCurrentMesh
-            && showViewCameras == o.showViewCameras
-            && fillTextureNearestSampling == o.fillTextureNearestSampling
-            && showTrackballGizmo == o.showTrackballGizmo
-            && showBoundingBoxCorners == o.showBoundingBoxCorners
-            && showBoundingBoxDimensions == o.showBoundingBoxDimensions
-            && currentMeshOutlineColor == o.currentMeshOutlineColor
-            && currentMeshOutlineWidth == o.currentMeshOutlineWidth
-            && currentMeshDilateRadius == o.currentMeshDilateRadius
-            && currentMeshErodeRadius == o.currentMeshErodeRadius
-            && currentMeshDebugView == o.currentMeshDebugView
-            && settingsPanelVisible == o.settingsPanelVisible
-            && currentPass == o.currentPass
-            && showQualityHistogram == o.showQualityHistogram
-            && showDecoratorInfo == o.showDecoratorInfo
-            && uvShowReferenceFrame == o.uvShowReferenceFrame
-            && uvShowFullTexture == o.uvShowFullTexture
-            && uvTextureChannel == o.uvTextureChannel
-            && uvTextureNearestSampling == o.uvTextureNearestSampling
-            && sceneBackgroundTopColor == o.sceneBackgroundTopColor
-            && sceneBackgroundBottomColor == o.sceneBackgroundBottomColor
-            && qualityHistogramBins == o.qualityHistogramBins
-            && qualityHistogramSource == o.qualityHistogramSource
-            && qualityHistogramFixedRange == o.qualityHistogramFixedRange
-            && qualityHistogramCenterOnZero == o.qualityHistogramCenterOnZero
-            && qualityHistogramPercentileCrop == o.qualityHistogramPercentileCrop
-            && qualityHistogramMin == o.qualityHistogramMin
-            && qualityHistogramMax == o.qualityHistogramMax
-            && qualityHistogramColorMapId == o.qualityHistogramColorMapId
-            && qualityHistogramInvertColorMap == o.qualityHistogramInvertColorMap
-            && qualityIsolinesEnabled == o.qualityIsolinesEnabled
-            && qualityIsolineCount == o.qualityIsolineCount;
-    }
+    // Defined in rendersettingsjson.cpp, generated from the same field list as the
+    // JSON conversions so the two cannot drift apart.
+    bool operator==(const GlobalRenderSettings &o) const;
     bool operator!=(const GlobalRenderSettings &o) const { return !(*this == o); }
 };
 
