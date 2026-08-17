@@ -414,6 +414,60 @@ actionable and return <code class="docutils literal notranslate"><span class="pr
 names should describe the observable result, not the algorithm.</p></li>
 </ul>
 </section>
+<section id="logging">
+<h2>Logging<a class="headerlink" href="#logging" title="Link to this heading">¶</a></h2>
+<p>Filters normally say nothing at all: return <code class="docutils literal notranslate"><span class="pre">infoMessages</span></code> and let the framework log
+them. Use <code class="docutils literal notranslate"><span class="pre">Document::writeLog</span></code> only for what does not fit that — progress narration of a
+long multi-stage run, or diagnostics.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">doc</span><span class="p">.</span><span class="n">writeLog</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span><span class="w">                                                    </span><span class="c1">// Info (default)</span>
+<span class="n">doc</span><span class="p">.</span><span class="n">writeLog</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="n">Document</span><span class="o">::</span><span class="n">LogSource</span><span class="o">::</span><span class="n">Application</span><span class="p">,</span><span class="w"> </span><span class="n">Document</span><span class="o">::</span><span class="n">LogLevel</span><span class="o">::</span><span class="n">Debug</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">LogSource</span></code> says <em>who spoke</em> (<code class="docutils literal notranslate"><span class="pre">Application</span></code>, <code class="docutils literal notranslate"><span class="pre">VCG</span></code>); <code class="docutils literal notranslate"><span class="pre">LogLevel</span></code> says <em>whether the user
+wants to hear it</em>, and is what the <code class="docutils literal notranslate"><span class="pre">log.verbosity</span></code> preference filters on:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Level</p></th>
+<th class="head"><p>Use for</p></th>
+<th class="head"><p>Examples</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Error</span></code></p></td>
+<td><p>the operation failed and the user must know</p></td>
+<td><p>“Cannot bake quality colors: no current mesh selected.”</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Warning</span></code></p></td>
+<td><p>it went ahead, but degraded or partially</p></td>
+<td><p>“Project mesh ‘%1’ has no filename and was skipped”</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Info</span></code></p></td>
+<td><p>the normal narration of what happened — the default</p></td>
+<td><p>“UV islands after defragmentation: %1”</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Debug</span></code></p></td>
+<td><p>timings, counters, mask dumps, cache and GPU bookkeeping</p></td>
+<td><p>“Load timing ‘%1’: import %2 ms, post %3 ms”</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Rules of thumb:</p>
+<ul class="simple">
+<li><p><strong>Anything with a millisecond count in it is <code class="docutils literal notranslate"><span class="pre">Debug</span></code>.</strong> So is anything a user could not
+act on: buffer sizes, revision numbers, callback statistics, <code class="docutils literal notranslate"><span class="pre">mask:</span> <span class="pre">0x…</span></code>.</p></li>
+<li><p><strong>One line per outcome, not per element.</strong> A per-face or per-vertex message is a bug;
+aggregate and report once.</p></li>
+<li><p><strong>Do not log progress.</strong> Call <code class="docutils literal notranslate"><span class="pre">doc.progressCallback()</span></code> (or the <code class="docutils literal notranslate"><span class="pre">vcg::CallBackPos</span></code> you
+were given) instead. The framework renders it as a single self-overwriting line that is
+removed when the run ends, so it never accumulates in the log.</p></li>
+<li><p><strong>Do not log the failure you are already returning.</strong> Set <code class="docutils literal notranslate"><span class="pre">errorMessage</span></code> and
+<code class="docutils literal notranslate"><span class="pre">success</span> <span class="pre">=</span> <span class="pre">false</span></code>; the caller logs it at <code class="docutils literal notranslate"><span class="pre">Error</span></code> once.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">qWarning</span></code>/<code class="docutils literal notranslate"><span class="pre">qDebug</span></code> do not reach the log panel</strong> — they go to the terminal only. Use
+them for developer-only tracing, never for anything a user is meant to read.</p></li>
+</ul>
+</section>
 </section>
 
         </article>
@@ -464,6 +518,7 @@ names should describe the observable result, not the algorithm.</p></li>
 </li>
 <li><a class="reference internal" href="#what-the-framework-does-for-you-don-t-do-it-yourself">What the framework does for you — don’t do it yourself</a></li>
 <li><a class="reference internal" href="#best-practices-what-s-expected">Best practices / what’s expected</a></li>
+<li><a class="reference internal" href="#logging">Logging</a></li>
 </ul>
 </li>
 </ul>
