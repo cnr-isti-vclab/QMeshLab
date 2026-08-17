@@ -9,14 +9,10 @@
 
 namespace {
 
-// Fallbacks; the live values come from Preferences (view.axisGizmoSize,
-// input.dragThreshold).
-constexpr int kGizmoSize = 84;
 constexpr qreal kHandleRadius = 9.5;
 constexpr qreal kStemWidth = 2.0;
 // Slack before a press becomes an orbit instead of a click, so a click with an
 // unsteady hand still snaps.
-constexpr int kDragThresholdPx = 4;
 
 const QColor kAxisColor[3] = {
     QColor(0xF7, 0x5C, 0x68),  // X

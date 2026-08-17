@@ -1,5 +1,6 @@
 #include "renderwidget.h"
 #include "document.h"
+#include "preferences.h"
 #include "renderoverlaypanel.h"
 #include "renderwidget_internal.h"
 #include <wrap/io_trimesh/io_mask.h>
@@ -130,9 +131,18 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         || defaultOcclusionTextureIndex >= 0
         || defaultRoughnessTextureIndex >= 0;
 
+    // Both thresholds are user preferences; see resources/preferences.json. They are
+    // read per mesh rather than cached so that changing one in the dialog takes effect
+    // for the next mesh loaded, without needing a restart.
+    const Preferences &preferences = Preferences::instance();
+    const int wireframeMaxFaces =
+        preferences.intValue(QStringLiteral("render.wireframeOnLoadMaxFaces"));
+    const int flatShadingMaxFaces =
+        preferences.intValue(QStringLiteral("render.flatShadingMaxFaces"));
+
     if (faceCount > 0) {
         mode.showFill = true;
-        mode.showWire = faceCount < kWireframeDefaultFaceThreshold;
+        mode.showWire = faceCount < wireframeMaxFaces;
         mode.showEdges = false;
         mode.showPoints = false;
         mode.fillPlain.colorSource = FillColorSource::Constant;
@@ -167,7 +177,7 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
             ? FillPbrTextureSource::Texture
             : FillPbrTextureSource::Constant;
         mode.fillPbr.roughnessIndex = defaultRoughnessTextureIndex >= 0 ? -1 : defaultRoughnessTextureIndex;
-        if (faceCount < kFlatShadingDefaultFaceThreshold) {
+        if (faceCount < flatShadingMaxFaces) {
             mode.fillPlain.shading = FillShading::Flat;
             mode.fillPbr.shading   = FillShading::Flat;
         }

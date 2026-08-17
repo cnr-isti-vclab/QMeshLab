@@ -57,6 +57,26 @@
       "max": 32
     },
     {
+      "id": "render.wireframeOnLoadMaxFaces",
+      "label": "Wireframe on load up to",
+      "help": "Newly loaded meshes show their wireframe when they have fewer faces than this. Above it the wireframe is off, since it degenerates into a grey smear and costs draw time. Faces.",
+      "group": "render",
+      "type": "int",
+      "default": 10000,
+      "min": 0,
+      "max": 100000000
+    },
+    {
+      "id": "render.flatShadingMaxFaces",
+      "label": "Flat shading up to",
+      "help": "Newly loaded meshes use flat shading when they have fewer faces than this, so the tessellation stays visible; above it they use smooth shading. Independent of the wireframe threshold. Faces.",
+      "group": "render",
+      "type": "int",
+      "default": 10000,
+      "min": 0,
+      "max": 100000000
+    },
+    {
       "id": "scalar.defaultColorMap",
       "label": "Default color map",
       "help": "Color map selected when a scalar field is first displayed.",

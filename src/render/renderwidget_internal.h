@@ -75,14 +75,6 @@ inline constexpr int kTrackballGizmoUbufSize = 96; // mat4 mvp + vec4(center.xyz
 inline constexpr int kTrackballGizmoSteps = 96;
 inline constexpr int kLightGizmoUbufSize = 96;  // mat4 mvp + vec4 lightDir + vec4 params
 inline constexpr int kLightGizmoSteps = 64;
-// Face-count thresholds used by defaultRenderModeForMesh when a mesh is first seen.
-// Two separate numbers on purpose: showing the wireframe is about visual clutter and
-// draw cost, while flat shading is about whether the tessellation should be visible.
-// Someone inspecting scan topology may want flat shading far past the point where the
-// wireframe becomes a grey smear, and vice versa. They start equal, so the split
-// changes no behaviour by itself.
-inline constexpr int kWireframeDefaultFaceThreshold = 10000;
-inline constexpr int kFlatShadingDefaultFaceThreshold = 10000;
 inline constexpr float kPi = 3.14159265358979323846f;
 inline constexpr float kImageViewMinZoom = 0.05f;
 inline constexpr float kImageViewMaxZoom = 5000.0f;
