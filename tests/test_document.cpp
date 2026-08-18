@@ -39,6 +39,7 @@ private slots:
     void logEntriesCarryASeverityLevel();
     void logEntriesCarryATimestampOutsideTheMessage();
     void everyFilterRunReportsItsDuration();
+    void undoRestoresDynamicFilterBounds();
     void progressLogIsTransientAndRemovedOnCompletion();
     void loadMeshAddsLayerAndEmitsSignal();
     void planarPolygonTessellationHandlesConcavity();
@@ -259,6 +260,62 @@ void DocumentTests::everyFilterRunReportsItsDuration()
             sawFailureDuration = true;
     }
     QVERIFY(sawFailureDuration);
+}
+
+// Dynamic parameter bounds (@faceCount and friends) are resolved from the current mesh.
+// An undo changes the mesh under them, but every refresh trigger in the UI bails out while
+// isRestoringUndoRedo() is true, so without undoRestoreCompleted() the bounds stay frozen
+// at the simplified mesh and a decimation dialog caps the target at the *old* face count.
+void DocumentTests::undoRestoresDynamicFilterBounds()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_40kv.ply")) == 0);
+    const int originalFaces = doc.mesh(0).mesh.FN();
+    QVERIFY(originalFaces > 100);
+
+    auto targetFaceBounds = [&doc]() {
+        for (const auto &info : doc.filterInfos()) {
+            if (info.descriptor.id != QStringLiteral("meshing_decimation_quadric_edge_collapse"))
+                continue;
+            for (const auto &p : info.descriptor.parameters) {
+                if (p.id == QStringLiteral("TargetFaceNum"))
+                    return std::pair<int, int>(p.defaultValue.toInt(), p.maxValue.toInt());
+            }
+        }
+        return std::pair<int, int>(-1, -1);
+    };
+
+    const auto beforeBounds = targetFaceBounds();
+    QCOMPARE(beforeBounds.second, originalFaces);
+    QCOMPARE(beforeBounds.first, std::max(1, originalFaces / 2));
+
+    QString decimationKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("meshing_decimation_quadric_edge_collapse")) {
+            decimationKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!decimationKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("TargetFaceNum"), originalFaces / 4);
+    QVERIFY2(doc.runFilter(decimationKey, params).success, "decimation did not run");
+    QVERIFY(doc.mesh(0).mesh.FN() < originalFaces);
+    QCOMPARE(targetFaceBounds().second, doc.mesh(0).mesh.FN());
+
+    // The restore-completed signal is the only notification that arrives with the
+    // restoring flag already cleared, so it is what a view can safely refresh from.
+    QSignalSpy restoredSpy(&doc, &Document::undoRestoreCompleted);
+    QVERIFY(doc.canUndo());
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.mesh(0).mesh.FN(), originalFaces);
+    QCOMPARE(restoredSpy.count(), 1);
+
+    // Re-resolved after the undo, the bounds match the restored mesh again.
+    const auto afterBounds = targetFaceBounds();
+    QCOMPARE(afterBounds.second, originalFaces);
+    QCOMPARE(afterBounds.first, beforeBounds.first);
 }
 
 // Progress occupies a single transient line that overwrites itself and is gone once

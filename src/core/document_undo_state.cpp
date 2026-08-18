@@ -289,4 +289,11 @@ void Document::restoreUndoState(const UndoState &state)
             .arg(sigMs + visMs + vsMs).arg(sigMs).arg(visMs).arg(vsMs),
             LogSource::Application, LogLevel::Debug);
     }
+
+    // The signals above are all emitted while the restoring flag is set, so every view
+    // that guards on isRestoringUndoRedo() skips them by design — that guard exists to
+    // avoid one rebuild per restored mesh. This is the batch they were promised: whatever
+    // is derived from mesh contents (dynamic filter bounds, filter applicability) is only
+    // correct again from here on.
+    emit undoRestoreCompleted();
 }

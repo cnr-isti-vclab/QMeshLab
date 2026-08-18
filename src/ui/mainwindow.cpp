@@ -750,6 +750,10 @@ MainWindow::MainWindow(QWidget *parent)
         [this](bool, bool, const QString &, const QString &) {
             refreshUndoHistoryPanel();
         });
+    // An undo changes mesh contents, and the dynamic parameter bounds resolved from them
+    // (a decimation target capped at the face count, a default derived from the bounding
+    // box) go stale with it. Every other refresh trigger deliberately bails out mid-restore.
+    connect(m_doc, &Document::undoRestoreCompleted, this, &MainWindow::refreshFilterUi);
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeActivated, this, [this](int nodeId, bool withCamera) {
         jumpToUndoNode(nodeId, withCamera);
     });

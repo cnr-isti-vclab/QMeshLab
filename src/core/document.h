@@ -392,6 +392,10 @@ signals:
     // The last entry was removed; see clearProgressLog(). The index is passed so a view
     // that filters entries out can tell whether it ever displayed the one being removed.
     void logLastEntryRemoved(int index);
+    // A restore (undo, redo, jump-to-node, or a rolled-back step) has finished. Views that
+    // suppress their per-mesh refreshes while isRestoringUndoRedo() is true — every signal
+    // the restore emits is emitted with that flag still set — rebuild once from here.
+    void undoRestoreCompleted();
     void undoRedoStateChanged(
         bool canUndo,
         bool canRedo,
