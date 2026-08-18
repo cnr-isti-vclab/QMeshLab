@@ -74,6 +74,7 @@ void UndoGraphWidget::rebuildRows()
         row.isCurrent       = info.isCurrent;
         row.isOnCurrentPath = info.isOnCurrentPath;
         row.label           = info.label.isEmpty() ? tr("Initial state") : info.label;
+        row.filterKey       = info.filterKey;
         m_rows.append(row);
         m_laneCount = std::max(m_laneCount, info.lane + 1);
     }
@@ -286,11 +287,27 @@ void UndoGraphWidget::contextMenuEvent(QContextMenuEvent *event)
     }
     const int nodeId = m_rows[ri].nodeId;
 
+    // Non-empty only for nodes a filter produced, and only meaningful when there is a
+    // parent state to stand in while varying it.
+    const auto rowFor = [this](int id) -> const Row * {
+        for (int i = 0; i < m_rows.size(); ++i)
+            if (m_rows[i].nodeId == id)
+                return &m_rows[i];
+        return nullptr;
+    };
+    const Row *row = rowFor(nodeId);
+    const bool canReopenFilter = row && !row->filterKey.isEmpty() && row->parentId >= 0;
+
     QMenu menu(this);
     QAction *restoreAct      = menu.addAction(tr("Restore state"));
     restoreAct->setToolTip(tr("Restore the document to this state (data only)"));
     QAction *restoreCamAct   = menu.addAction(tr("Restore state and camera"));
     restoreCamAct->setToolTip(tr("Restore the document to this state including the camera"));
+    QAction *reopenFilterAct = menu.addAction(tr("Undo this action and reopen its filter"));
+    reopenFilterAct->setToolTip(
+        tr("Return to the state this action started from and reopen its filter with the "
+           "same parameters, ready to try a variation."));
+    reopenFilterAct->setEnabled(canReopenFilter);
     menu.addSeparator();
     QAction *updateCamAct    = menu.addAction(tr("Update camera"));
     updateCamAct->setToolTip(tr("Store the current viewport camera into this history node"));
@@ -337,6 +354,8 @@ void UndoGraphWidget::contextMenuEvent(QContextMenuEvent *event)
         emit nodeActivated(nodeId, false);
     else if (chosen == restoreCamAct)
         emit nodeActivated(nodeId, true);
+    else if (chosen == reopenFilterAct)
+        emit nodeReopenFilterRequested(nodeId);
     else if (chosen == updateCamAct)
         emit nodeUpdateCameraRequested(nodeId);
     else if (chosen == makeRootAct)

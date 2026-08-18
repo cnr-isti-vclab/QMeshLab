@@ -43,6 +43,8 @@ public:
     int currentNodeId() const { return m_undoCurrentNode; }
     std::vector<UndoTreeNodeInfo> undoTreeInfo() const;
     std::vector<ScriptAction> nodeScriptActions(int nodeId) const;
+    // Just the state-changing action, without the informational calls around it.
+    std::optional<ScriptAction> nodeAction(int nodeId) const;
     void recordScriptAction(const ScriptAction &scriptAction);
 
     bool jumpToNode(int nodeId, bool restoreCamera = true);

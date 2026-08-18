@@ -353,6 +353,21 @@ void MeshFilterPanel::selectFilterByKey(const QString &filterKey, bool openParam
     }
 }
 
+void MeshFilterPanel::openFilterWithParameters(
+    const QString &filterKey,
+    const QVariantMap &parameters)
+{
+    selectFilterByKey(filterKey, true);
+    // Applied after the form is built rather than seeded into m_filterParameterCache:
+    // openFilterAtIndex() caches the outgoing filter's live values first, which would
+    // overwrite a seed whenever the filter being reopened is the one already showing.
+    if (m_currentFilterKey != filterKey)
+        return;
+    m_paramForm->setValues(parameters);
+    // Leaving the filter and coming back should not silently revert to the older values.
+    m_filterParameterCache.insert(filterKey, m_paramForm->values());
+}
+
 void MeshFilterPanel::onSearchTextChanged(const QString &)
 {
     showSearchResultsFromUi(false);

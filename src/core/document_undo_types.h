@@ -204,6 +204,10 @@ struct UndoTreeNodeInfo {
     bool isCurrent = false;
     bool isOnCurrentPath = false; // lies on the path root → current node
     QString label;   // label of the action that produced this node ("" for root)
+    // Set when a filter produced this node, so a view can offer to reopen that filter.
+    // Only the state-changing action counts here: the informational calls recorded in
+    // prefix/trailingActionRecords did not produce the state and are deliberately excluded.
+    QString filterKey;
 };
 
 struct UndoStepMemoryInfo {

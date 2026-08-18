@@ -44,6 +44,9 @@ signals:
     void nodeMakeRootRequested(int nodeId);
     // Emitted when the user requests to delete all descendants of a node.
     void nodePurgeBranchRequested(int nodeId);
+    // Emitted when the user wants to vary the action that produced a node: return to the
+    // state it was invoked from, with its filter reopened on the same parameters.
+    void nodeReopenFilterRequested(int nodeId);
     // Emitted when the user requests to keep only the path root→current, removing all branches.
     void linearizeHistoryRequested();
     void generatePythonScriptRequested();
@@ -67,6 +70,7 @@ private:
         bool isCurrent        = false;
         bool isOnCurrentPath  = false;
         QString label;
+        QString filterKey; // non-empty when a filter produced this node
 
         // For each active lane at this row: which lane carries a continuous line
         // from the row above to the row below.  Used to draw pass-through verticals.

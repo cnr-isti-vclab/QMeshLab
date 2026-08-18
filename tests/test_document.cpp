@@ -40,6 +40,7 @@ private slots:
     void logEntriesCarryATimestampOutsideTheMessage();
     void everyFilterRunReportsItsDuration();
     void undoRestoresDynamicFilterBounds();
+    void undoNodeActionIsTheOneThatProducedTheState();
     void progressLogIsTransientAndRemovedOnCompletion();
     void loadMeshAddsLayerAndEmitsSignal();
     void planarPolygonTessellationHandlesConcavity();
@@ -316,6 +317,78 @@ void DocumentTests::undoRestoresDynamicFilterBounds()
     const auto afterBounds = targetFaceBounds();
     QCOMPARE(afterBounds.second, originalFaces);
     QCOMPARE(afterBounds.first, beforeBounds.first);
+}
+
+// A node records the action that produced it, exactly one, on the node the action created.
+// Informational filters create no node: they are appended to the current node's trailing
+// list and migrate to the next node's prefix list, so undoNodeScriptActions() can return
+// several filter calls while only one of them made the state. Replaying the wrong one is
+// the trap this distinction exists to avoid.
+void DocumentTests::undoNodeActionIsTheOneThatProducedTheState()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_40kv.ply")) == 0);
+
+    auto keyFor = [&doc](const QString &filterId) {
+        for (const auto &info : doc.filterInfos()) {
+            if (info.descriptor.id == filterId)
+                return info.key;
+        }
+        return QString();
+    };
+    const QString decimationKey = keyFor(QStringLiteral("meshing_decimation_quadric_edge_collapse"));
+    const QString infoKey = keyFor(QStringLiteral("mesh_info"));
+    QVERIFY(!decimationKey.isEmpty());
+    QVERIFY(!infoKey.isEmpty());
+
+    const int targetFaces = doc.mesh(0).mesh.FN() / 4;
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("TargetFaceNum"), targetFaces);
+    QVERIFY2(doc.runFilter(decimationKey, params).success, "decimation did not run");
+
+    // An informational call afterwards must not become the node's action.
+    QVERIFY2(doc.runFilter(infoKey, {}).success, "mesh_info did not run");
+
+    int currentNode = -1;
+    QString label;
+    QString treeFilterKey;
+    for (const auto &info : doc.undoTreeInfo()) {
+        if (info.isCurrent) {
+            currentNode = info.nodeId;
+            label = info.label;
+            treeFilterKey = info.filterKey;
+            break;
+        }
+    }
+    QVERIFY(currentNode >= 0);
+
+    const std::optional<ScriptAction> action = doc.undoNodeAction(currentNode);
+    QVERIFY(action.has_value());
+    QCOMPARE(action->kind, QStringLiteral("filter"));
+    QCOMPARE(action->filterKey, decimationKey);
+    QCOMPARE(action->params.value(QStringLiteral("TargetFaceNum")).toInt(), targetFaces);
+
+    // The display info carries the same key, which is what gates the context-menu entry.
+    QCOMPARE(treeFilterKey, decimationKey);
+    QVERIFY(!label.isEmpty());
+
+    // The flattening accessor sees both calls; the single-action one does not.
+    const auto allActions = doc.undoNodeScriptActions(currentNode);
+    QVERIFY2(allActions.size() >= 2, qPrintable(QStringLiteral("got %1").arg(allActions.size())));
+    QVERIFY(std::any_of(allActions.cbegin(), allActions.cend(),
+        [&](const ScriptAction &a) { return a.filterKey == infoKey; }));
+
+    // The root was produced by nothing, so it offers no action to reopen.
+    int rootNode = -1;
+    for (const auto &info : doc.undoTreeInfo()) {
+        if (info.parentId < 0) {
+            rootNode = info.nodeId;
+            break;
+        }
+    }
+    QVERIFY(rootNode >= 0);
+    QVERIFY(!doc.undoNodeAction(rootNode).has_value());
+    QVERIFY(doc.undoNodeAction(9999) == std::nullopt);
 }
 
 // Progress occupies a single transient line that overwrites itself and is gone once

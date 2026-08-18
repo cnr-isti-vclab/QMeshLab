@@ -116,6 +116,7 @@ private:
     void rebuildLogPanel();
     void appendLogItem(const Document::LogEntry &entry, int entryIndex, bool replaceLast);
     void jumpToUndoNode(int nodeId, bool withCamera = true);
+    void reopenFilterFromUndoNode(int nodeId);
     QPixmap captureUndoHistoryThumbnail() const;
 
     Document *m_doc;

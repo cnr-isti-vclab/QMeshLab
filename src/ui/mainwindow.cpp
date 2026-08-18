@@ -800,6 +800,8 @@ MainWindow::MainWindow(QWidget *parent)
         refreshUndoHistoryPanel();
         statusBar()->showMessage(tr("History root updated"), 2000);
     });
+    connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodeReopenFilterRequested,
+        this, &MainWindow::reopenFilterFromUndoNode);
     connect(m_undoHistoryLaneWidget, &UndoGraphWidget::nodePurgeBranchRequested, this, [this](int nodeId) {
         if (!m_doc)
             return;
@@ -3182,6 +3184,49 @@ void MainWindow::jumpToUndoNode(int nodeId, bool withCamera)
             }
         }
     }
+}
+
+// Varying a recorded action means standing where it was invoked from, not where it landed:
+// we jump to the node's parent and reopen its filter on the same values, so Apply produces
+// a sibling branch rather than stacking on top of the original result.
+void MainWindow::reopenFilterFromUndoNode(int nodeId)
+{
+    if (!m_doc || !m_filterPanel)
+        return;
+
+    // undoNodeAction(), not undoNodeScriptActions(): the latter also returns the
+    // informational filter calls recorded around this state, which did not produce it.
+    const std::optional<ScriptAction> action = m_doc->undoNodeAction(nodeId);
+    if (!action || action->kind != QStringLiteral("filter") || action->filterKey.isEmpty())
+        return;
+
+    int parentId = -1;
+    QString actionLabel;
+    for (const auto &info : m_doc->undoTreeInfo()) {
+        if (info.nodeId == nodeId) {
+            parentId = info.parentId;
+            actionLabel = info.label;
+            break;
+        }
+    }
+    if (parentId < 0)
+        return;
+
+    // Data only: the point is to redo the work, so leave the user's viewpoint alone.
+    jumpToUndoNode(parentId, false);
+
+    if (m_filterDock) {
+        if (m_filterDock->isFloating())
+            m_filterDock->setFloating(false);
+        m_filterDock->show();
+        m_filterDock->raise();
+    }
+    // After the jump, so the restore's own filter-list refresh cannot overwrite the values.
+    m_filterPanel->openFilterWithParameters(action->filterKey, action->params);
+    statusBar()->showMessage(
+        tr("Reopened '%1' with its recorded parameters")
+            .arg(actionLabel.isEmpty() ? action->filterKey : actionLabel),
+        2500);
 }
 
 void MainWindow::refreshUndoHistoryPanel()

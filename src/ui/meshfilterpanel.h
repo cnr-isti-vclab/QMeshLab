@@ -33,6 +33,9 @@ public:
     void showSearchResults();
     void focusSearch();
     void selectFilterByKey(const QString &filterKey, bool openParameters = true);
+    // Opens a filter with a specific set of values rather than the remembered or default
+    // ones — used to replay a recorded invocation from the undo history.
+    void openFilterWithParameters(const QString &filterKey, const QVariantMap &parameters);
 
     // The editors live in ParameterFormBuilder now; the alias keeps existing
     // callers of setViewContextProvider() unchanged.

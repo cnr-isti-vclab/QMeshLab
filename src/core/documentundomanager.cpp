@@ -207,6 +207,10 @@ std::vector<UndoTreeNodeInfo> DocumentUndoManager::undoTreeInfo() const
         info.isOnCurrentPath = onPath.count(id) > 0;
         info.lane = node.lane;
         info.label = node.label;
+        if (node.actionRecord.has_value()
+            && node.actionRecord->kind == QStringLiteral("filter")) {
+            info.filterKey = node.actionRecord->filterKey;
+        }
         result.push_back(std::move(info));
         for (int i = static_cast<int>(node.children.size()) - 1; i >= 0; --i)
             stack.push_back({ node.children[static_cast<size_t>(i)], depth + 1 });
@@ -740,6 +744,18 @@ void DocumentUndoManager::pushDeltaStep(
 
     pruneTreeToLimit();
     emitStateChanged();
+}
+
+// Only the action that produced this state, unlike nodeScriptActions() which also returns
+// the informational calls ordered around it. Reopening a filter must use this one.
+std::optional<ScriptAction> DocumentUndoManager::nodeAction(int nodeId) const
+{
+    if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
+        return std::nullopt;
+    const UndoNode &node = m_undoNodes[static_cast<size_t>(nodeId)];
+    if (!node.actionRecord.has_value())
+        return std::nullopt;
+    return node.actionRecord->toScriptAction();
 }
 
 std::vector<ScriptAction> DocumentUndoManager::nodeScriptActions(int nodeId) const

@@ -206,6 +206,10 @@ public:
     int undoCursorPosition() const;
     std::vector<UndoTreeNodeInfo> undoTreeInfo() const;
     std::vector<ScriptAction> undoNodeScriptActions(int nodeId) const;
+    // The single action that produced a node's state, if it had one. Distinct from
+    // undoNodeScriptActions(), which also returns the informational filter calls recorded
+    // around it — those did not produce the state and must not be replayed as if they had.
+    std::optional<ScriptAction> undoNodeAction(int nodeId) const;
     void recordScriptAction(const ScriptAction &scriptAction);
     int undoCurrentNodeId() const;
     bool jumpToUndoNode(int nodeId, bool restoreCamera = true);
