@@ -34,6 +34,15 @@ class MainWindow : public QMainWindow
 {
     Q_OBJECT
 public:
+    // How the log panel prefixes each row with a time. Elapsed is measured from
+    // application start, which reads more directly than a wall clock when the question is
+    // "how long did that take".
+    enum class LogTimestampMode {
+        None,
+        Elapsed,
+        Clock
+    };
+
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
@@ -105,6 +114,7 @@ private:
     void updateFrameTimeStats(float cpuMs, float gpuMs, bool gpuTimingSupported, bool gpuSampleValid);
     void refreshUndoHistoryPanel();
     void rebuildLogPanel();
+    void appendLogItem(const Document::LogEntry &entry, int entryIndex, bool replaceLast);
     void jumpToUndoNode(int nodeId, bool withCamera = true);
     QPixmap captureUndoHistoryThumbnail() const;
 
@@ -141,6 +151,7 @@ private:
     // Entries quieter than this are kept in the document but not shown; raising the
     // preference repopulates the panel, so past detail can be recovered after the fact.
     Document::LogLevel m_logVerbosity = Document::LogLevel::Info;
+    LogTimestampMode m_logTimestampMode = LogTimestampMode::Elapsed;
     UndoGraphWidget *m_undoHistoryLaneWidget = nullptr;
     QLabel *m_undoHistoryPreviewPopup = nullptr;
     QTimer *m_undoHistoryPreviewTimer = nullptr;

@@ -58,6 +58,9 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QDateTime>
+
+#include "colormap.h"
 #include "preferences.h"
 #include "preferencesdialog.h"
 
@@ -285,30 +288,22 @@ QString logEntryTag(Document::LogSource source, Document::LogLevel level)
 // even when quieter entries between them were filtered out.
 constexpr int kLogEntryIndexRole = Qt::UserRole + 1;
 
-void appendLogItem(
-    QListWidget *logWidget,
-    const QString &message,
-    Document::LogSource source,
-    Document::LogLevel level,
-    int entryIndex,
-    bool replaceLast)
+QString formatLogTimestamp(MainWindow::LogTimestampMode mode, qint64 epochMs)
 {
-    QListWidgetItem *item = nullptr;
-    // Reuse the last row only when it really renders the entry being replaced: at a low
-    // verbosity the document's previous entry may have been filtered out, and overwriting
-    // whatever happens to be at the bottom would corrupt an unrelated line.
-    if (replaceLast && logWidget->count() > 0
-        && logWidget->item(logWidget->count() - 1)->data(kLogEntryIndexRole).toInt() == entryIndex) {
-        item = logWidget->item(logWidget->count() - 1);
-    } else {
-        item = new QListWidgetItem(logWidget);
-    }
+    if (mode == MainWindow::LogTimestampMode::None || epochMs <= 0)
+        return {};
+    if (mode == MainWindow::LogTimestampMode::Clock)
+        return QDateTime::fromMSecsSinceEpoch(epochMs).toString(QStringLiteral("HH:mm:ss.zzz"));
 
-    item->setText(QStringLiteral("[%1] %2").arg(logEntryTag(source, level), message));
-    item->setForeground(QBrush(logLevelColor(level)));
-    item->setData(kLogEntryIndexRole, entryIndex);
-
-    logWidget->scrollToBottom();
+    // Elapsed since startup. Formatted by hand rather than through QTime so a session
+    // longer than a day keeps counting instead of wrapping around midnight.
+    const qint64 ms = std::max<qint64>(0, epochMs - Document::applicationStartMSecsSinceEpoch());
+    const qint64 seconds = ms / 1000;
+    return QStringLiteral("%1:%2:%3.%4")
+        .arg(seconds / 3600, 2, 10, QLatin1Char('0'))
+        .arg((seconds / 60) % 60, 2, 10, QLatin1Char('0'))
+        .arg(seconds % 60, 2, 10, QLatin1Char('0'))
+        .arg(ms % 1000, 3, 10, QLatin1Char('0'));
 }
 
 Document::LogLevel logVerbosityPreference()
@@ -322,6 +317,41 @@ Document::LogLevel logVerbosityPreference()
         return Document::LogLevel::Debug;
     return Document::LogLevel::Info;
 }
+
+MainWindow::LogTimestampMode logTimestampPreference()
+{
+    const QString id = Preferences::instance().stringValue(QStringLiteral("log.timestamp"));
+    if (id == QStringLiteral("none"))
+        return MainWindow::LogTimestampMode::None;
+    if (id == QStringLiteral("clock"))
+        return MainWindow::LogTimestampMode::Clock;
+    return MainWindow::LogTimestampMode::Elapsed;
+}
+}
+
+void MainWindow::appendLogItem(const Document::LogEntry &entry, int entryIndex, bool replaceLast)
+{
+    QListWidget *logWidget = m_logListWidget;
+    QListWidgetItem *item = nullptr;
+    // Reuse the last row only when it really renders the entry being replaced: at a low
+    // verbosity the document's previous entry may have been filtered out, and overwriting
+    // whatever happens to be at the bottom would corrupt an unrelated line.
+    if (replaceLast && logWidget->count() > 0
+        && logWidget->item(logWidget->count() - 1)->data(kLogEntryIndexRole).toInt() == entryIndex) {
+        item = logWidget->item(logWidget->count() - 1);
+    } else {
+        item = new QListWidgetItem(logWidget);
+    }
+
+    const QString stamp = formatLogTimestamp(m_logTimestampMode, entry.epochMs);
+    const QString tag = logEntryTag(entry.source, entry.level);
+    item->setText(stamp.isEmpty()
+        ? QStringLiteral("[%1] %2").arg(tag, entry.message)
+        : QStringLiteral("%1 [%2] %3").arg(stamp, tag, entry.message));
+    item->setForeground(QBrush(logLevelColor(entry.level)));
+    item->setData(kLogEntryIndexRole, entryIndex);
+
+    logWidget->scrollToBottom();
 }
 
 void MainWindow::rebuildLogPanel()
@@ -333,13 +363,7 @@ void MainWindow::rebuildLogPanel()
     for (std::size_t i = 0; i < entries.size(); ++i) {
         if (entries[i].level > m_logVerbosity)
             continue;
-        appendLogItem(
-            m_logListWidget,
-            entries[i].message,
-            entries[i].source,
-            entries[i].level,
-            static_cast<int>(i),
-            false);
+        appendLogItem(entries[i], static_cast<int>(i), false);
     }
 }
 
@@ -675,20 +699,18 @@ MainWindow::MainWindow(QWidget *parent)
 #endif
 
     m_logVerbosity = logVerbosityPreference();
+    m_logTimestampMode = logTimestampPreference();
     rebuildLogPanel();
 
     connect(m_doc, &Document::logCleared, m_logListWidget, &QListWidget::clear);
     connect(m_doc, &Document::logMessageAdded, m_logListWidget,
-        [this](const QString &message, Document::LogSource source, Document::LogLevel level, bool replaceLast) {
+        [this](const QString &, Document::LogSource, Document::LogLevel level, bool replaceLast) {
             if (!m_logListWidget || level > m_logVerbosity)
                 return;
-            appendLogItem(
-                m_logListWidget,
-                message,
-                source,
-                level,
-                static_cast<int>(m_doc->logMessages().size()) - 1,
-                replaceLast);
+            // Read the entry back rather than rebuilding it from the payload: it carries
+            // the timestamp, and it is the row's single source of truth.
+            const int index = static_cast<int>(m_doc->logMessages().size()) - 1;
+            appendLogItem(m_doc->logMessages()[std::size_t(index)], index, replaceLast);
     });
     // The transient progress line is removed when its operation ends; see
     // Document::clearProgressLog(). Match on the entry index rather than assuming the
@@ -703,11 +725,22 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(&Preferences::instance(), &Preferences::changed, this,
         [this](const QString &id, const QVariant &) {
-            if (id != QStringLiteral("log.verbosity"))
+            if (id != QStringLiteral("log.verbosity") && id != QStringLiteral("log.timestamp"))
                 return;
             m_logVerbosity = logVerbosityPreference();
+            m_logTimestampMode = logTimestampPreference();
             rebuildLogPanel();
     });
+
+    // Color maps load in a Core singleton that has no Document to write to, so their
+    // failures are queued until here. Without this a color map the user dropped in the
+    // folder themselves is ignored with no feedback anywhere in the UI.
+    for (const ColorMapLoadIssue &issue : ColorMapRegistry::instance().takeLoadIssues()) {
+        m_doc->writeLog(
+            issue.message,
+            Document::LogSource::Application,
+            issue.bundled ? Document::LogLevel::Error : Document::LogLevel::Warning);
+    }
 
     refreshUndoHistoryPanel();
     connect(
@@ -2027,11 +2060,8 @@ void MainWindow::executeFilter(
         label = tr("Filter");
 
     m_doc->beginFilterProgress(label);
-    QElapsedTimer timer;
-    timer.start();
+    // Document::runFilter logs the run's duration for every entry point; no timing here.
     const MeshFilterRunResult result = m_doc->runFilter(filterKey, parameters);
-    const double elapsedMs = double(timer.nsecsElapsed()) / 1e6;
-    const QString elapsedText = QString::number(elapsedMs, 'f', 2);
 
     if (!result.success) {
         const QString errorText = result.errorMessage.trimmed().isEmpty()
@@ -2042,10 +2072,6 @@ void MainWindow::executeFilter(
             : tr("Filter failed: %1").arg(errorText);
         m_doc->finishFilterProgress(false, msg);
         m_doc->writeLog(msg, Document::LogSource::Application, Document::LogLevel::Error);
-        m_doc->writeLog(
-            tr("Filter '%1' runtime: %2 ms (failed)")
-                .arg(label, elapsedText),
-            Document::LogSource::Application, Document::LogLevel::Debug);
         return;
     }
 
@@ -2055,9 +2081,6 @@ void MainWindow::executeFilter(
     if (!result.infoMessages.isEmpty())
         status = result.infoMessages.back();
     m_doc->finishFilterProgress(true, status);
-    m_doc->writeLog(
-        tr("Filter '%1' runtime: %2 ms").arg(label, elapsedText),
-        Document::LogSource::Application, Document::LogLevel::Debug);
 }
 
 void MainWindow::applyFilterVisualizationHints(const MeshFilterRunResult &result)

@@ -1,5 +1,4 @@
 #include <QtTest/QtTest>
-#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QFile>
 #include <QFileInfo>
@@ -38,6 +37,8 @@ private slots:
     void cameraShotRenderMatricesMatchProjection();
     void logReplaceLastEntryOnCarriageReturn();
     void logEntriesCarryASeverityLevel();
+    void logEntriesCarryATimestampOutsideTheMessage();
+    void everyFilterRunReportsItsDuration();
     void progressLogIsTransientAndRemovedOnCompletion();
     void loadMeshAddsLayerAndEmitsSignal();
     void planarPolygonTessellationHandlesConcavity();
@@ -154,18 +155,6 @@ void DocumentTests::cameraShotRenderMatricesMatchProjection()
     }
 }
 
-namespace {
-// Every entry carries a "[t=<ms>] " wall-clock prefix; strip it so assertions can
-// compare the message itself.
-QString logText(const QString &entry)
-{
-    static const QRegularExpression prefix(QStringLiteral("^\\[t=\\d+\\] "));
-    QString out = entry;
-    out.remove(prefix);
-    return out;
-}
-} // namespace
-
 void DocumentTests::logReplaceLastEntryOnCarriageReturn()
 {
     Document doc;
@@ -175,7 +164,7 @@ void DocumentTests::logReplaceLastEntryOnCarriageReturn()
 
     const auto &log = doc.logMessages();
     QCOMPARE(log.size(), size_t(1));
-    QCOMPARE(logText(log.back().message), QStringLiteral("progress"));
+    QCOMPARE(log.back().message, QStringLiteral("progress"));
     QCOMPARE(log.back().source, Document::LogSource::Application);
 }
 
@@ -207,6 +196,71 @@ void DocumentTests::logEntriesCarryASeverityLevel()
     QVERIFY(Document::LogLevel::Info < Document::LogLevel::Debug);
 }
 
+// The stamp lives on the entry, not inside the text: the panel formats it (or omits it)
+// according to log.timestamp, and searching or asserting on a message sees the message.
+void DocumentTests::logEntriesCarryATimestampOutsideTheMessage()
+{
+    const qint64 before = QDateTime::currentMSecsSinceEpoch();
+    Document doc;
+    doc.writeLog(QStringLiteral("hello"));
+    const qint64 after = QDateTime::currentMSecsSinceEpoch();
+
+    const Document::LogEntry &entry = doc.logMessages().back();
+    QCOMPARE(entry.message, QStringLiteral("hello"));
+    QVERIFY(entry.epochMs >= before);
+    QVERIFY(entry.epochMs <= after);
+    // Startup precedes any message, so an elapsed offset is never negative.
+    QVERIFY(Document::applicationStartMSecsSinceEpoch() > 0);
+    QVERIFY(entry.epochMs >= Document::applicationStartMSecsSinceEpoch());
+}
+
+// The duration is logged by Document::runFilter itself, so it is reported no matter which
+// entry point invoked the filter — the menu, the panel's Apply, Python or a tool — and at
+// Info, so it is visible without turning on debug logging.
+void DocumentTests::everyFilterRunReportsItsDuration()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/data/simple.off")) == 0);
+
+    QString filterKey;
+    for (const auto &info : doc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("mesh_info")) {
+            filterKey = info.key;
+            break;
+        }
+    }
+    QVERIFY(!filterKey.isEmpty());
+
+    doc.clearLog();
+    QVERIFY2(doc.runFilter(filterKey, {}).success, "mesh_info filter did not run");
+
+    const Document::LogEntry *durationEntry = nullptr;
+    for (const auto &entry : doc.logMessages()) {
+        if (entry.message.contains(QStringLiteral("completed in")))
+            durationEntry = &entry;
+    }
+    QVERIFY2(durationEntry, "no completion line was logged for the filter run");
+    QCOMPARE(durationEntry->level, Document::LogLevel::Info);
+    // Named by its display name, and carrying a millisecond figure.
+    QVERIFY2(
+        durationEntry->message.contains(QStringLiteral(" ms")),
+        qPrintable(durationEntry->message));
+    static const QRegularExpression msFigure(QStringLiteral("completed in \\d+\\.\\d\\d ms$"));
+    QVERIFY2(msFigure.match(durationEntry->message).hasMatch(), qPrintable(durationEntry->message));
+
+    // A failed run is timed too, so a filter that dies still says how long it took.
+    doc.clearLog();
+    MeshFilterParameterValues bad;
+    bad.insert(QStringLiteral("nonexistentParameter"), 1.0);
+    doc.runFilter(filterKey, bad);
+    bool sawFailureDuration = false;
+    for (const auto &entry : doc.logMessages()) {
+        if (entry.message.contains(QStringLiteral("failed after")))
+            sawFailureDuration = true;
+    }
+    QVERIFY(sawFailureDuration);
+}
+
 // Progress occupies a single transient line that overwrites itself and is gone once
 // the operation ends, so a finished filter leaves no progress trace in the log.
 void DocumentTests::progressLogIsTransientAndRemovedOnCompletion()
@@ -236,7 +290,7 @@ void DocumentTests::progressLogIsTransientAndRemovedOnCompletion()
     int progressAdds = 0;
     int progressReplacements = 0;
     for (const QList<QVariant> &call : addedSpy) {
-        const QString message = logText(call.at(0).toString());
+        const QString message = call.at(0).toString();
         if (!message.contains(QStringLiteral("Progress ")) && !message.contains(QStringLiteral("% - ")))
             continue;
         ++progressAdds;
@@ -251,7 +305,7 @@ void DocumentTests::progressLogIsTransientAndRemovedOnCompletion()
     // ...and the line was taken away at the end.
     QVERIFY(removedSpy.count() >= 1);
     for (const auto &entry : doc.logMessages()) {
-        const QString message = logText(entry.message);
+        const QString message = entry.message;
         QVERIFY2(
             !message.contains(QStringLiteral("Progress "))
                 && !message.contains(QStringLiteral("% - ")),

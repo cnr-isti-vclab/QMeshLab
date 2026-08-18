@@ -103,6 +103,19 @@
       "max": 256
     },
     {
+      "id": "log.timestamp",
+      "label": "Log timestamps",
+      "help": "Whether each log line is prefixed with a time. Elapsed counts from application start, which makes the gap between two lines easy to read directly; time of day is the wall clock. Format is hh:mm:ss.mmm.",
+      "group": "log",
+      "type": "enum",
+      "default": "elapsed",
+      "enumOptions": [
+        { "id": "none", "label": "None" },
+        { "id": "elapsed", "label": "Elapsed since start" },
+        { "id": "clock", "label": "Time of day" }
+      ]
+    },
+    {
       "id": "log.verbosity",
       "label": "Log verbosity",
       "help": "How much of the log panel is shown. Quieter entries are still recorded, so raising this reveals detail from operations that already ran. Debug adds timings, counters and internal bookkeeping.",

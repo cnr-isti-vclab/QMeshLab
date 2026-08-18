@@ -47,6 +47,7 @@ private slots:
     void externalMapIsLoadedFromEnvOverride();
     void externalMapCanOverrideBundledMap();
     void invalidExternalMapIsIgnored();
+    void invalidExternalMapIsReported();
     void qualityRangeUsesPercentileCrop();
     void qualityNormalizationClampsToRange();
 };
@@ -149,6 +150,35 @@ void ColorMapRegistryTests::invalidExternalMapIsIgnored()
 
     QVERIFY(!registry.hasMap(QStringLiteral("broken")));
     QVERIFY(registry.hasMap(registry.fallbackMapId()));
+}
+
+// Ignoring a bad map silently was the bug: the user drops their own colormap in the
+// folder, mistypes it, and nothing anywhere says so. The issue is queued for whoever
+// owns a log.
+void ColorMapRegistryTests::invalidExternalMapIsReported()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    const QString path = QDir(tmp.path()).filePath(QStringLiteral("broken.json"));
+    QVERIFY(writeTextFile(
+        path,
+        makeTestColormapJson(
+            QStringLiteral("broken"),
+            QStringLiteral("Broken"),
+            QStringLiteral("[{\"x\":0.0,\"rgb\":[0,0,0]}]"))));
+
+    QVERIFY(qputenv(kEnvColorMapDirs, tmp.path().toUtf8()));
+    ColorMapRegistry &registry = ColorMapRegistry::instance();
+    registry.reload();
+
+    const QVector<ColorMapLoadIssue> issues = registry.takeLoadIssues();
+    QCOMPARE(issues.size(), 1);
+    QVERIFY(!issues.front().bundled);
+    QVERIFY2(issues.front().message.contains(path), qPrintable(issues.front().message));
+
+    // Drained, so a second reader does not report the same problem again.
+    QVERIFY(registry.takeLoadIssues().isEmpty());
 }
 
 void ColorMapRegistryTests::qualityRangeUsesPercentileCrop()

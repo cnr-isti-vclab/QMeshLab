@@ -59,6 +59,11 @@ MeshFilterRunResult Document::runFilter(
         };
     }
 
+    // Resolved before the run: a filter may add, remove or rename meshes, and the
+    // completion line should carry the filter's display name rather than its internal key.
+    const auto info = m_filterPluginManager->filterInfo(filterKey, *this);
+    const QString filterName = info ? info->descriptor.name : filterKey;
+
     // Bracket the whole run: most filters call doc.progressCallback() without ever
     // calling beginFilterProgress, so without this their callback mode would stay
     // None and their progress would not be reported at all. Done without emitting the
@@ -69,13 +74,27 @@ MeshFilterRunResult Document::runFilter(
     g_callbackDocument = this;
     m_callbackMode = CallbackMode::Filter;
 
+    QElapsedTimer timer;
+    timer.start();
     MeshFilterRunResult result = m_filterPluginManager->runFilter(filterKey, parameters, *this);
+    const double elapsedMs = double(timer.nsecsElapsed()) / 1e6;
 
     m_callbackMode = previousCallbackMode;
     g_callbackDocument = previousCallbackDocument;
     // The transient progress line must never outlive its run, including for filters
     // that never called finishFilterProgress.
     clearProgressLog();
+
+    // Reported here rather than in the callers so that every entry point gets it — the
+    // filters menu, the filter panel's Apply, the Python API and the interactive tools all
+    // funnel through this one call. Info, not Debug: how long a filter took is something
+    // the user always wants, and the run is over so it costs one line.
+    const QString elapsedText = QString::number(elapsedMs, 'f', 2);
+    writeLog(
+        result.success
+            ? tr("Filter '%1' completed in %2 ms").arg(filterName, elapsedText)
+            : tr("Filter '%1' failed after %2 ms").arg(filterName, elapsedText),
+        LogSource::Application);
     return result;
 }
 

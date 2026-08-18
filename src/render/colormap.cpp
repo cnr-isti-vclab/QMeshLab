@@ -1,6 +1,7 @@
 #include "colormap.h"
 
 #include <QCoreApplication>
+#include <QObject>
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -11,6 +12,7 @@
 #include <QStandardPaths>
 
 #include <algorithm>
+#include <utility>
 #include <cmath>
 
 namespace {
@@ -172,12 +174,27 @@ void ColorMapRegistry::loadInternal()
     m_maps.clear();
     m_order.clear();
     m_fallbackMapId.clear();
+    m_loadIssues.clear();
 
     loadBundledResourceMaps();
     loadExternalFolderMaps();
     ensureFallbackMap();
 
     m_loaded = true;
+}
+
+QVector<ColorMapLoadIssue> ColorMapRegistry::takeLoadIssues()
+{
+    ensureLoaded();
+    return std::exchange(m_loadIssues, {});
+}
+
+// Still goes to the terminal: a headless run (tests, --generate-docs) has no log panel,
+// and that is exactly where a broken color map is easiest to overlook.
+void ColorMapRegistry::recordIssue(bool bundled, const QString &message)
+{
+    qWarning("ColorMapRegistry: %s", qPrintable(message));
+    m_loadIssues.push_back(ColorMapLoadIssue{ message, bundled });
 }
 
 void ColorMapRegistry::loadBundledResourceMaps()
@@ -189,23 +206,21 @@ void ColorMapRegistry::loadBundledResourceMaps()
         const QString path = stopPathJoin(QStringLiteral(":/colormaps"), fileName);
         QFile file(path);
         if (!file.open(QIODevice::ReadOnly)) {
-            qWarning("ColorMapRegistry: failed to open bundled colormap '%s'",
-                     qPrintable(path));
+            recordIssue(true, QObject::tr("Built-in color map '%1' could not be opened.")
+                                  .arg(fileName));
             continue;
         }
         const QByteArray bytes = file.readAll();
         ColorMapDefinition map;
         QString error;
         if (!parseMapFile(path, bytes, map, error)) {
-            qWarning("ColorMapRegistry: invalid bundled colormap '%s': %s",
-                     qPrintable(path),
-                     qPrintable(error));
+            recordIssue(true, QObject::tr("Built-in color map '%1' is not valid: %2")
+                                  .arg(fileName, error));
             continue;
         }
         if (!registerMap(std::move(map), false, error)) {
-            qWarning("ColorMapRegistry: failed to register bundled colormap '%s': %s",
-                     qPrintable(path),
-                     qPrintable(error));
+            recordIssue(true, QObject::tr("Built-in color map '%1' could not be registered: %2")
+                                  .arg(fileName, error));
         }
     }
 }
@@ -250,23 +265,21 @@ void ColorMapRegistry::loadExternalFolderMaps()
             const QString path = dir.absoluteFilePath(fileName);
             QFile file(path);
             if (!file.open(QIODevice::ReadOnly)) {
-                qWarning("ColorMapRegistry: failed to open external colormap '%s'",
-                         qPrintable(path));
+                recordIssue(false, QObject::tr("Color map '%1' could not be opened and was ignored.")
+                                       .arg(path));
                 continue;
             }
             const QByteArray bytes = file.readAll();
             ColorMapDefinition map;
             QString error;
             if (!parseMapFile(path, bytes, map, error)) {
-                qWarning("ColorMapRegistry: invalid external colormap '%s': %s",
-                         qPrintable(path),
-                         qPrintable(error));
+                recordIssue(false, QObject::tr("Color map '%1' is not valid and was ignored: %2")
+                                       .arg(path, error));
                 continue;
             }
             if (!registerMap(std::move(map), true, error)) {
-                qWarning("ColorMapRegistry: failed to register external colormap '%s': %s",
-                         qPrintable(path),
-                         qPrintable(error));
+                recordIssue(false, QObject::tr("Color map '%1' could not be registered and was ignored: %2")
+                                       .arg(path, error));
             }
         }
     }

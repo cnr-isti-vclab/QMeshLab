@@ -58,6 +58,10 @@ public:
         QString message;
         LogSource source = LogSource::Application;
         LogLevel level = LogLevel::Info;
+        // Wall-clock stamp of when the entry was written. Kept out of the message text so
+        // the view decides whether and how to render it; see
+        // applicationStartMSecsSinceEpoch() for showing it as an offset from startup.
+        qint64 epochMs = 0;
     };
 
     struct MeshEntry {
@@ -262,6 +266,10 @@ public:
     void markMeshSelectionChanged(int index, const QString &contextMessage = {});
     SelectionDelta captureSelectionDelta(int meshIndex) const;
     void applySelectionDelta(const SelectionDelta &delta);
+    // Wall-clock stamp taken when QMeshLabCore loaded, so a view can render an entry's
+    // time as an elapsed offset from application start instead of a bare clock reading.
+    static qint64 applicationStartMSecsSinceEpoch();
+
     void clearLog();
     void writeLog(
         const QString &message,

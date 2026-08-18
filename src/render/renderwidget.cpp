@@ -2592,11 +2592,8 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
         QStringLiteral("qmeshlab.filter.colorproc::compute_color_from_scalar_per_vertex");
     const QString label = tr("Bake Quality to Vertex Color");
     m_doc->beginFilterProgress(label);
-    QElapsedTimer timer;
-    timer.start();
+    // Document::runFilter logs the run's duration for every entry point; no timing here.
     const MeshFilterRunResult result = m_doc->runFilter(filterKey, params);
-    const double elapsedMs = double(timer.nsecsElapsed()) / 1e6;
-    const QString elapsedText = QString::number(elapsedMs, 'f', 2);
 
     if (!result.success) {
         const QString errorText = result.errorMessage.trimmed().isEmpty()
@@ -2605,9 +2602,6 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
         const QString msg = tr("Filter failed: %1").arg(errorText);
         m_doc->finishFilterProgress(false, msg);
         m_doc->writeLog(msg, Document::LogSource::Application, Document::LogLevel::Error);
-        m_doc->writeLog(
-            tr("Filter '%1' runtime: %2 ms (failed)").arg(label, elapsedText),
-            Document::LogSource::Application, Document::LogLevel::Debug);
         return;
     }
 
@@ -2629,9 +2623,6 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
     if (!result.infoMessages.isEmpty())
         status = result.infoMessages.back();
     m_doc->finishFilterProgress(true, status);
-    m_doc->writeLog(
-        tr("Filter '%1' runtime: %2 ms").arg(label, elapsedText),
-        Document::LogSource::Application, Document::LogLevel::Debug);
     update();
 }
 

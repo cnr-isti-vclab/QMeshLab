@@ -1,8 +1,19 @@
 #include "document_internal.h"
 
-#include <QTime>
+#include <QDateTime>
 
 using namespace DocumentInternal;
+
+namespace {
+// Latched during static initialisation rather than on the first log call, so an elapsed
+// timestamp really is measured from process start.
+const qint64 g_applicationStartEpochMs = QDateTime::currentMSecsSinceEpoch();
+} // namespace
+
+qint64 Document::applicationStartMSecsSinceEpoch()
+{
+    return g_applicationStartEpochMs;
+}
 
 void Document::clearLog()
 {
@@ -42,16 +53,13 @@ void Document::appendOrReplaceLog(const QString &message, LogSource source, LogL
     if (normalizedMessage.isEmpty())
         return;
 
-    // Prefix every entry with the wall-clock time (ms since midnight) so gaps
-    // between consecutive log lines reveal where real time is actually spent.
-    normalizedMessage = QStringLiteral("[t=%1] %2")
-                            .arg(QTime::currentTime().msecsSinceStartOfDay())
-                            .arg(normalizedMessage);
-
+    // Timestamped but not prefixed: the stamp travels alongside the text so the view can
+    // format or omit it, and so assertions and searches see the message itself.
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     if (replaceLast && !m_logMessages.empty()) {
-        m_logMessages.back() = LogEntry{normalizedMessage, source, level};
+        m_logMessages.back() = LogEntry{normalizedMessage, source, level, nowMs};
     } else {
-        m_logMessages.push_back(LogEntry{normalizedMessage, source, level});
+        m_logMessages.push_back(LogEntry{normalizedMessage, source, level, nowMs});
     }
 
     emit logMessageAdded(normalizedMessage, source, level, replaceLast);
