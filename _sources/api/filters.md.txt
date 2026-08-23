@@ -2827,7 +2827,7 @@ Original MeshLab plugin contribution: Lex van der Sluijs, PTC.
 
 (filter-generate-boolean-difference)=
 
-## Mesh Difference
+## Mesh Difference (libigl)
 
 **Plugin:** qmeshlab.filter.igl
 
@@ -2850,9 +2850,30 @@ Executes an exact boolean difference between two mesh layers and creates the res
 
 ---
 
+(filter-generate-boolean-difference-trueform)=
+
+## Mesh Difference (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Exact boolean difference of two layers.
+
+```{py:function} ms.generate_boolean_difference_trueform(**params)
+:module: _qmeshlab
+
+The first solid with the second removed from it. Order matters: swap the two layers to get the opposite difference.\n\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.
+
+**Parameters:**
+
+- **firstMesh** (*mesh*, default: `@currentMeshIndex`) — The first operand.
+- **secondMesh** (*mesh*, default: `@otherMeshIndex`) — The second operand.
+```
+
+---
+
 (filter-generate-boolean-intersection)=
 
-## Mesh Intersection
+## Mesh Intersection (libigl)
 
 **Plugin:** qmeshlab.filter.igl
 
@@ -2875,9 +2896,30 @@ Executes an exact boolean intersection between two mesh layers and creates the r
 
 ---
 
+(filter-generate-boolean-intersection-trueform)=
+
+## Mesh Intersection (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Exact boolean intersection of two layers.
+
+```{py:function} ms.generate_boolean_intersection_trueform(**params)
+:module: _qmeshlab
+
+The intersection of two closed solids: only what lies inside both.\n\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.
+
+**Parameters:**
+
+- **firstMesh** (*mesh*, default: `@currentMeshIndex`) — The first operand.
+- **secondMesh** (*mesh*, default: `@otherMeshIndex`) — The second operand.
+```
+
+---
+
 (filter-generate-boolean-union)=
 
-## Mesh Union
+## Mesh Union (libigl)
 
 **Plugin:** qmeshlab.filter.igl
 
@@ -2900,9 +2942,30 @@ Executes an exact boolean union between two mesh layers and creates the result a
 
 ---
 
+(filter-generate-boolean-union-trueform)=
+
+## Mesh Union (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Exact boolean union of two layers.
+
+```{py:function} ms.generate_boolean_union_trueform(**params)
+:module: _qmeshlab
+
+The union of two closed solids: everything inside either one.\n\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.
+
+**Parameters:**
+
+- **firstMesh** (*mesh*, default: `@currentMeshIndex`) — The first operand.
+- **secondMesh** (*mesh*, default: `@otherMeshIndex`) — The second operand.
+```
+
+---
+
 (filter-generate-boolean-xor)=
 
-## Mesh Symmetric Difference
+## Mesh Symmetric Difference (libigl)
 
 **Plugin:** qmeshlab.filter.igl
 
@@ -2921,6 +2984,47 @@ Executes an exact boolean symmetric difference between two mesh layers and creat
 - **transfer_face_quality** (*bool*, default: `False`) — Copy the birth face quality to the result faces when available.
 - **transfer_vert_color** (*bool*, default: `False`) — Copy birth vertex colors where possible and average neighboring source colors for newly created vertices.
 - **transfer_vert_quality** (*bool*, default: `False`) — Copy birth vertex qualities where possible and average neighboring source qualities for newly created vertices.
+```
+
+---
+
+(filter-generate-boolean-xor-trueform)=
+
+## Mesh Symmetric Difference (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Exact boolean symmetric difference of two layers.
+
+```{py:function} ms.generate_boolean_xor_trueform(**params)
+:module: _qmeshlab
+
+Everything inside exactly one of the two solids, and nothing inside both.\n\nTrueForm's boolean primitive offers union, intersection and difference but not this one, so it is evaluated through the CSG evaluator as `(A - B) | (B - A)`. The result is the same; only the route differs.\n\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.
+
+**Parameters:**
+
+- **firstMesh** (*mesh*, default: `@currentMeshIndex`) — The first operand.
+- **secondMesh** (*mesh*, default: `@otherMeshIndex`) — The second operand.
+```
+
+---
+
+(filter-generate-csg-expression)=
+
+## Mesh CSG Expression
+
+**Plugin:** qmeshlab.filter.trueform
+
+Evaluate a boolean expression over any number of layers in one exact pass.
+
+```{py:function} ms.generate_csg_expression(**params)
+:module: _qmeshlab
+
+Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\n\n**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:\n\n| Operator | Meaning |\n|---|---|\n| `\\|` | union |\n| `-` | difference |\n| `&` | intersection |\n| `~` | complement |\n\n`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.\n\nExamples:\n\n- `0 | 1 | 2` — the union of three layers\n- `(0 | 1) - 2` — two layers joined, then a third drilled out of them\n- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference\n\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.
+
+**Parameters:**
+
+- **expression** (*string*, default: `0 | 1`) — A boolean expression over layer numbers, e.g. (0 | 1) - 2. Operators: | union, - difference, & intersection, ~ complement.
 ```
 
 ---
@@ -3034,6 +3138,26 @@ Generates a scalar field over a cubic grid and extracts an isosurface using marc
 **Parameters:**
 
 - **resolution** (*int*, default: `64`) — Resolution of the side of the cubic grid used for volume creation.
+```
+
+---
+
+(filter-generate-outer-shell)=
+
+## Extract Outer Shell
+
+**Plugin:** qmeshlab.filter.trueform
+
+Keep only the outermost surface of a layer, discarding internal shells.
+
+```{py:function} ms.generate_outer_shell(**params)
+:module: _qmeshlab
+
+Resolves the layer's self-intersections and keeps only the **outermost** boundary, dropping every internal shell and any surface enclosed by another.\n\nThis is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.\n\nThe input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer to extract the outer shell from.
 ```
 
 ---

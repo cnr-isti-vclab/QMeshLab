@@ -2505,8 +2505,8 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="mesh-difference">
-<span id="filter-generate-boolean-difference"></span><h2>Mesh Difference<a class="headerlink" href="#mesh-difference" title="Link to this heading">¶</a></h2>
+<section id="mesh-difference-libigl">
+<span id="filter-generate-boolean-difference"></span><h2>Mesh Difference (libigl)<a class="headerlink" href="#mesh-difference-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Create the exact difference of two mesh layers using libigl and CGAL.</p>
 <dl class="py function">
@@ -2526,8 +2526,25 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="mesh-intersection">
-<span id="filter-generate-boolean-intersection"></span><h2>Mesh Intersection<a class="headerlink" href="#mesh-intersection" title="Link to this heading">¶</a></h2>
+<section id="mesh-difference-trueform">
+<span id="filter-generate-boolean-difference-trueform"></span><h2>Mesh Difference (TrueForm)<a class="headerlink" href="#mesh-difference-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Exact boolean difference of two layers.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_difference_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_boolean_difference_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_boolean_difference_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>The first solid with the second removed from it. Order matters: swap the two layers to get the opposite difference.\n\nTrueForm evaluates booleans with <strong>exact predicates</strong>, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in <strong>world space</strong>, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The first operand.</p></li>
+<li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The second operand.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="mesh-intersection-libigl">
+<span id="filter-generate-boolean-intersection"></span><h2>Mesh Intersection (libigl)<a class="headerlink" href="#mesh-intersection-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Create the exact intersection of two mesh layers using libigl and CGAL.</p>
 <dl class="py function">
@@ -2547,8 +2564,25 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="mesh-union">
-<span id="filter-generate-boolean-union"></span><h2>Mesh Union<a class="headerlink" href="#mesh-union" title="Link to this heading">¶</a></h2>
+<section id="mesh-intersection-trueform">
+<span id="filter-generate-boolean-intersection-trueform"></span><h2>Mesh Intersection (TrueForm)<a class="headerlink" href="#mesh-intersection-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Exact boolean intersection of two layers.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_intersection_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_boolean_intersection_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_boolean_intersection_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>The intersection of two closed solids: only what lies inside both.\n\nTrueForm evaluates booleans with <strong>exact predicates</strong>, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in <strong>world space</strong>, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The first operand.</p></li>
+<li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The second operand.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="mesh-union-libigl">
+<span id="filter-generate-boolean-union"></span><h2>Mesh Union (libigl)<a class="headerlink" href="#mesh-union-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Create the exact union of two mesh layers using libigl and CGAL.</p>
 <dl class="py function">
@@ -2568,8 +2602,25 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 
 <hr class="docutils" />
 </section>
-<section id="mesh-symmetric-difference">
-<span id="filter-generate-boolean-xor"></span><h2>Mesh Symmetric Difference<a class="headerlink" href="#mesh-symmetric-difference" title="Link to this heading">¶</a></h2>
+<section id="mesh-union-trueform">
+<span id="filter-generate-boolean-union-trueform"></span><h2>Mesh Union (TrueForm)<a class="headerlink" href="#mesh-union-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Exact boolean union of two layers.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_union_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_boolean_union_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_boolean_union_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>The union of two closed solids: everything inside either one.\n\nTrueForm evaluates booleans with <strong>exact predicates</strong>, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in <strong>world space</strong>, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The first operand.</p></li>
+<li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The second operand.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="mesh-symmetric-difference-libigl">
+<span id="filter-generate-boolean-xor"></span><h2>Mesh Symmetric Difference (libigl)<a class="headerlink" href="#mesh-symmetric-difference-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Create the exact symmetric difference of two mesh layers using libigl and CGAL.</p>
 <dl class="py function">
@@ -2584,6 +2635,39 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 <li><p><strong>transfer_face_quality</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy the birth face quality to the result faces when available.</p></li>
 <li><p><strong>transfer_vert_color</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy birth vertex colors where possible and average neighboring source colors for newly created vertices.</p></li>
 <li><p><strong>transfer_vert_quality</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Copy birth vertex qualities where possible and average neighboring source qualities for newly created vertices.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="mesh-symmetric-difference-trueform">
+<span id="filter-generate-boolean-xor-trueform"></span><h2>Mesh Symmetric Difference (TrueForm)<a class="headerlink" href="#mesh-symmetric-difference-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Exact boolean symmetric difference of two layers.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_xor_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_boolean_xor_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_boolean_xor_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Everything inside exactly one of the two solids, and nothing inside both.\n\nTrueForm’s boolean primitive offers union, intersection and difference but not this one, so it is evaluated through the CSG evaluator as <code class="docutils literal notranslate"><span class="pre">(A</span> <span class="pre">-</span> <span class="pre">B)</span> <span class="pre">|</span> <span class="pre">(B</span> <span class="pre">-</span> <span class="pre">A)</span></code>. The result is the same; only the route differs.\n\nTrueForm evaluates booleans with <strong>exact predicates</strong>, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in <strong>world space</strong>, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\n\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The first operand.</p></li>
+<li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The second operand.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="mesh-csg-expression">
+<span id="filter-generate-csg-expression"></span><h2>Mesh CSG Expression<a class="headerlink" href="#mesh-csg-expression" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Evaluate a boolean expression over any number of layers in one exact pass.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_csg_expression">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_csg_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_csg_expression" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluates an arbitrary constructive-solid-geometry expression over the document’s layers, in a <strong>single arrangement</strong> rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\n\n<strong>Operands are layer numbers</strong>, as shown in the layer panel. Operators, loosest-binding first:\n\n| Operator | Meaning |\n|—|—|\n| <code class="docutils literal notranslate"><span class="pre">\\|</span></code> | union |\n| <code class="docutils literal notranslate"><span class="pre">-</span></code> | difference |\n| <code class="docutils literal notranslate"><span class="pre">&amp;</span></code> | intersection |\n| <code class="docutils literal notranslate"><span class="pre">~</span></code> | complement |\n\n<code class="docutils literal notranslate"><span class="pre">|</span></code> and <code class="docutils literal notranslate"><span class="pre">-</span></code> share the lowest precedence and associate to the left; <code class="docutils literal notranslate"><span class="pre">&amp;</span></code> binds tighter; <code class="docutils literal notranslate"><span class="pre">~</span></code> binds tightest. Parentheses group.\n\nExamples:\n\n- <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">|</span> <span class="pre">1</span> <span class="pre">|</span> <span class="pre">2</span></code> — the union of three layers\n- <code class="docutils literal notranslate"><span class="pre">(0</span> <span class="pre">|</span> <span class="pre">1)</span> <span class="pre">-</span> <span class="pre">2</span></code> — two layers joined, then a third drilled out of them\n- <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&amp;</span> <span class="pre">~1</span></code> — the part of layer 0 outside layer 1, i.e. the difference\n\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>expression</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">|</span> <span class="pre">1</span></code>) — A boolean expression over layer numbers, e.g. (0 | 1) - 2. Operators: | union, - difference, &amp; intersection, ~ complement.</p></li>
 </ul>
 </dd></dl>
 
@@ -2676,6 +2760,22 @@ Sven Oesau, Florent Lafarge, <strong>Kinetic Shape Reconstruction</strong>, ACM 
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>resolution</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Resolution of the side of the cubic grid used for volume creation.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="extract-outer-shell">
+<span id="filter-generate-outer-shell"></span><h2>Extract Outer Shell<a class="headerlink" href="#extract-outer-shell" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Keep only the outermost surface of a layer, discarding internal shells.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_outer_shell">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_outer_shell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_outer_shell" title="Link to this definition">¶</a></dt>
+<dd><p>Resolves the layer’s self-intersections and keeps only the <strong>outermost</strong> boundary, dropping every internal shell and any surface enclosed by another.\n\nThis is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.\n\nThe input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to extract the outer shell from.</p></li>
 </ul>
 </dd></dl>
 
@@ -6358,20 +6458,40 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.generate_alpha_wrap"><code class="docutils literal notranslate"><span class="pre">ms.generate_alpha_wrap()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mesh-difference">Mesh Difference</a><ul>
+<li><a class="reference internal" href="#mesh-difference-libigl">Mesh Difference (libigl)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_difference"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_difference()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mesh-intersection">Mesh Intersection</a><ul>
+<li><a class="reference internal" href="#mesh-difference-trueform">Mesh Difference (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_difference_trueform"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_difference_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mesh-intersection-libigl">Mesh Intersection (libigl)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_intersection"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_intersection()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mesh-union">Mesh Union</a><ul>
+<li><a class="reference internal" href="#mesh-intersection-trueform">Mesh Intersection (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_intersection_trueform"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_intersection_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mesh-union-libigl">Mesh Union (libigl)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_union"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_union()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mesh-symmetric-difference">Mesh Symmetric Difference</a><ul>
+<li><a class="reference internal" href="#mesh-union-trueform">Mesh Union (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_union_trueform"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_union_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mesh-symmetric-difference-libigl">Mesh Symmetric Difference (libigl)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_xor"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_xor()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mesh-symmetric-difference-trueform">Mesh Symmetric Difference (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_xor_trueform"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_xor_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mesh-csg-expression">Mesh CSG Expression</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_csg_expression"><code class="docutils literal notranslate"><span class="pre">ms.generate_csg_expression()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#reconstruct-surface-by-kinetic-partition">Reconstruct Surface by Kinetic Partition</a><ul>
@@ -6388,6 +6508,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#create-isosurface-from-perlin-noise">Create Isosurface from Perlin Noise</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_noisy_isosurface"><code class="docutils literal notranslate"><span class="pre">ms.generate_noisy_isosurface()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#extract-outer-shell">Extract Outer Shell</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_outer_shell"><code class="docutils literal notranslate"><span class="pre">ms.generate_outer_shell()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#reconstruct-surface-by-poisson-cgal">Reconstruct Surface by Poisson (CGAL)</a><ul>
