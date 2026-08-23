@@ -925,6 +925,36 @@ Store in the vertex quality field the approximated geodesic distance, computed v
 
 ---
 
+(filter-compute-matrix-by-corresponding-points)=
+
+## Align to Corresponding Points
+
+**Plugin:** qmeshlab.filter.trueform
+
+Align two layers whose vertices already correspond one to one, optionally solving for scale.
+
+```{py:function} ms.compute_matrix_by_corresponding_points(**params)
+:module: _qmeshlab
+
+Computes the transformation that best maps the source layer's vertices onto the reference's, assuming the two are already in **one-to-one correspondence**: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.
+
+Use it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use *Align by ICP* instead, which searches for it.
+
+**Allow Uniform Scale** is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.
+
+The result is written to the source layer's **matrix**; vertex coordinates are not touched.
+
+Implemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer that is moved.
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that stays put.
+- **allowScale** (*bool*, default: `False`) — Also solve for a single scale factor. Only possible because the correspondences are given rather than searched for.
+```
+
+---
+
 (filter-compute-matrix-by-icp-between-meshes)=
 
 ## ICP Between Meshes
@@ -955,6 +985,48 @@ Perform Iterative Closest Point alignment between a fixed reference layer and a 
 - **MinPointNum** (*int*, default: `30`) — Minimum number of accepted point pairs required for an ICP iteration to be valid.
 - **SaveLastIteration** (*bool*, default: `False`) — Create two diagnostic point layers containing the last accepted source samples and their reference correspondences.
 - **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of the moving mesh exactly reproducible.
+```
+
+---
+
+(filter-compute-matrix-by-icp-trueform)=
+
+## Align by ICP (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Align one layer to another with iterative closest point, point-to-point or point-to-plane.
+
+```{py:function} ms.compute_matrix_by_icp_trueform(**params)
+:module: _qmeshlab
+
+Refines the alignment of the source layer onto the reference by **iterative closest point**.
+
+**Metric** chooses the error being minimised:
+
+- *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.
+- *Point to plane* — measures each correspondence along the reference's surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.
+
+ICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align by Bounding Box* first, which is usually enough to land in the right basin.
+
+**Samples** subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.
+
+The reported **Chamfer residual** is the mean one-way distance after alignment — useful for comparing runs.
+
+The result is written to the source layer's **matrix**; vertex coordinates are not touched.
+
+Implemented with TrueForm's `fit_icp_alignment`.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer that is moved.
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that stays put.
+- **metric** (*enum*, default: `point_to_plane`) — Point to plane converges faster on smooth surfaces; point to point is safer when the reference normals are unreliable.
+- **coarseInit** (*bool*, default: `True`) — Run a bounding-box alignment first. Leave on unless the layers are already roughly registered.
+- **maxIterations** (*int*, default: `50`) — Upper bound on ICP iterations.
+- **samples** (*int*, default: `1000`) — Source points sampled per iteration. 0 uses all of them, which is slower but deterministic.
+- **minImprovement** (*double*, default: `0.001`) — Stop once the error improves by less than this fraction between iterations.
+- **outlierProportion** (*double*, default: `0.0`) — Fraction of the worst correspondences rejected each iteration. Raise it when the two layers only partly overlap.
 ```
 
 ---
@@ -991,6 +1063,33 @@ Build an overlap graph among the selected document layers, run ICP on sufficient
 - **MaxAngleDeg** (*double*, default: `45.0`) — Maximum accepted normal angle in degrees.
 - **MinPointNum** (*int*, default: `30`) — Minimum number of matched point pairs required for a valid pairwise ICP arc.
 - **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of each aligned pair exactly reproducible.
+```
+
+---
+
+(filter-compute-matrix-by-obb-alignment)=
+
+## Align by Bounding Box
+
+**Plugin:** qmeshlab.filter.trueform
+
+Coarsely align one layer to another by matching their oriented bounding boxes.
+
+```{py:function} ms.compute_matrix_by_obb_alignment(**params)
+:module: _qmeshlab
+
+Aligns the source layer to the reference by fitting their **oriented bounding boxes**. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — *Align by ICP* can run it for you.
+
+An oriented bounding box is only defined up to 180-degree flips about its axes, so the fit is ambiguous in principle. TrueForm resolves this by testing the candidate orientations against a spatial index of the reference and keeping the best.
+
+The result is written to the source layer's **matrix**; vertex coordinates are not touched.
+
+Implemented with TrueForm's `fit_obb_alignment`.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer that is moved.
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer that stays put.
 ```
 
 ---

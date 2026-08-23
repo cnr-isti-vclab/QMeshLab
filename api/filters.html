@@ -1006,6 +1006,28 @@
 
 <hr class="docutils" />
 </section>
+<section id="align-to-corresponding-points">
+<span id="filter-compute-matrix-by-corresponding-points"></span><h2>Align to Corresponding Points<a class="headerlink" href="#align-to-corresponding-points" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Align two layers whose vertices already correspond one to one, optionally solving for scale.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_matrix_by_corresponding_points">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_matrix_by_corresponding_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_matrix_by_corresponding_points" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the transformation that best maps the source layer’s vertices onto the reference’s, assuming the two are already in <strong>one-to-one correspondence</strong>: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.</p>
+<p>Use it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use <em>Align by ICP</em> instead, which searches for it.</p>
+<p><strong>Allow Uniform Scale</strong> is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.</p>
+<p>The result is written to the source layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
+<p>Implemented with TrueForm’s <code class="docutils literal notranslate"><span class="pre">fit_rigid_alignment</span></code> and <code class="docutils literal notranslate"><span class="pre">fit_similarity_alignment</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer that is moved.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that stays put.</p></li>
+<li><p><strong>allowScale</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Also solve for a single scale factor. Only possible because the correspondences are given rather than searched for.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="icp-between-meshes">
 <span id="filter-compute-matrix-by-icp-between-meshes"></span><h2>ICP Between Meshes<a class="headerlink" href="#icp-between-meshes" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.icp</p>
@@ -1031,6 +1053,39 @@
 <li><p><strong>MinPointNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Minimum number of accepted point pairs required for an ICP iteration to be valid.</p></li>
 <li><p><strong>SaveLastIteration</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Create two diagnostic point layers containing the last accepted source samples and their reference correspondences.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of the moving mesh exactly reproducible.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="align-by-icp-trueform">
+<span id="filter-compute-matrix-by-icp-trueform"></span><h2>Align by ICP (TrueForm)<a class="headerlink" href="#align-by-icp-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Align one layer to another with iterative closest point, point-to-point or point-to-plane.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_matrix_by_icp_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_matrix_by_icp_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_matrix_by_icp_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Refines the alignment of the source layer onto the reference by <strong>iterative closest point</strong>.</p>
+<p><strong>Metric</strong> chooses the error being minimised:</p>
+<ul class="simple">
+<li><p><em>Point to point</em> — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.</p></li>
+<li><p><em>Point to plane</em> — measures each correspondence along the reference’s surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.</p></li>
+</ul>
+<p>ICP only refines <strong>locally</strong>: from a poor starting position it converges confidently to the wrong answer rather than failing. <strong>Coarse Initialization</strong> therefore runs <em>Align by Bounding Box</em> first, which is usually enough to land in the right basin.</p>
+<p><strong>Samples</strong> subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. <strong>Outlier Proportion</strong> discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.</p>
+<p>The reported <strong>Chamfer residual</strong> is the mean one-way distance after alignment — useful for comparing runs.</p>
+<p>The result is written to the source layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
+<p>Implemented with TrueForm’s <code class="docutils literal notranslate"><span class="pre">fit_icp_alignment</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer that is moved.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that stays put.</p></li>
+<li><p><strong>metric</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">point_to_plane</span></code>) — Point to plane converges faster on smooth surfaces; point to point is safer when the reference normals are unreliable.</p></li>
+<li><p><strong>coarseInit</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Run a bounding-box alignment first. Leave on unless the layers are already roughly registered.</p></li>
+<li><p><strong>maxIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">50</span></code>) — Upper bound on ICP iterations.</p></li>
+<li><p><strong>samples</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — Source points sampled per iteration. 0 uses all of them, which is slower but deterministic.</p></li>
+<li><p><strong>minImprovement</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.001</span></code>) — Stop once the error improves by less than this fraction between iterations.</p></li>
+<li><p><strong>outlierProportion</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of the worst correspondences rejected each iteration. Raise it when the two layers only partly overlap.</p></li>
 </ul>
 </dd></dl>
 
@@ -1063,6 +1118,26 @@
 <li><p><strong>MaxAngleDeg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">45.0</span></code>) — Maximum accepted normal angle in degrees.</p></li>
 <li><p><strong>MinPointNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Minimum number of matched point pairs required for a valid pairwise ICP arc.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the sub-sampling of each aligned pair exactly reproducible.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="align-by-bounding-box">
+<span id="filter-compute-matrix-by-obb-alignment"></span><h2>Align by Bounding Box<a class="headerlink" href="#align-by-bounding-box" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Coarsely align one layer to another by matching their oriented bounding boxes.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_matrix_by_obb_alignment">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_matrix_by_obb_alignment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_matrix_by_obb_alignment" title="Link to this definition">¶</a></dt>
+<dd><p>Aligns the source layer to the reference by fitting their <strong>oriented bounding boxes</strong>. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — <em>Align by ICP</em> can run it for you.</p>
+<p>An oriented bounding box is only defined up to 180-degree flips about its axes, so the fit is ambiguous in principle. TrueForm resolves this by testing the candidate orientations against a spatial index of the reference and keeping the best.</p>
+<p>The result is written to the source layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
+<p>Implemented with TrueForm’s <code class="docutils literal notranslate"><span class="pre">fit_obb_alignment</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer that is moved.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer that stays put.</p></li>
 </ul>
 </dd></dl>
 
@@ -5959,12 +6034,24 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_heat_geodesic_distance"><code class="docutils literal notranslate"><span class="pre">ms.compute_heat_geodesic_distance()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#align-to-corresponding-points">Align to Corresponding Points</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_corresponding_points"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_corresponding_points()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#icp-between-meshes">ICP Between Meshes</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_icp_between_meshes"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_icp_between_meshes()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#align-by-icp-trueform">Align by ICP (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_icp_trueform"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_icp_trueform()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#global-align-meshes">Global Align Meshes</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_mesh_global_alignment"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_mesh_global_alignment()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#align-by-bounding-box">Align by Bounding Box</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_obb_alignment"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_obb_alignment()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#orient-vertex-normals-by-cameras">Orient Vertex Normals by Cameras</a><ul>
