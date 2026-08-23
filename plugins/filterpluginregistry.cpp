@@ -11,6 +11,9 @@
 #if QMESH_PLUGIN_FILTER_EMBREE_ENABLED
 #include "plugins/filter_embree/embreefilterplugin.h"
 #endif
+#if QMESH_PLUGIN_FILTER_TRUEFORM_ENABLED
+#include "plugins/filter_trueform/trueformfilterplugin.h"
+#endif
 #if QMESH_PLUGIN_FILTER_SELECT_ENABLED
 #include "plugins/filter_select/selectfilterplugin.h"
 #endif
@@ -109,6 +112,9 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #endif
 #if QMESH_PLUGIN_FILTER_EMBREE_ENABLED
     registerEmbreeFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_TRUEFORM_ENABLED
+    registerTrueFormFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_SELECT_ENABLED
     registerSelectFilterPlugin(pluginManager);

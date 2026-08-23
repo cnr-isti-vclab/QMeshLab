@@ -1,0 +1,211 @@
+{
+  "pluginId": "qmeshlab.filter.trueform",
+  "filters": [
+    {
+      "id": "compute_matrix_by_obb_alignment",
+      "categories": [
+        "Geometry/Alignment"
+      ],
+      "name": "Align by Bounding Box",
+      "pythonName": "compute_matrix_by_obb_alignment",
+      "shortDescription": "Coarsely align one layer to another by matching their oriented bounding boxes.",
+      "longDescriptionMarkdown": "Aligns the source layer to the reference by fitting their **oriented bounding boxes**. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — *Align by ICP* can run it for you.\n\nAn oriented bounding box is only defined up to 180-degree flips about its axes, so the fit is ambiguous in principle. TrueForm resolves this by testing the candidate orientations against a spatial index of the reference and keeping the best.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_obb_alignment`.",
+      "tags": [
+        "trueform",
+        "alignment",
+        "registration",
+        "bounding box",
+        "coarse"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Source Layer",
+          "help": "The layer that is moved.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "referenceMesh",
+          "label": "Reference Layer",
+          "help": "The layer that stays put.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        }
+      ],
+      "outputModifies": [
+        "TM"
+      ]
+    },
+    {
+      "id": "compute_matrix_by_icp_trueform",
+      "categories": [
+        "Geometry/Alignment"
+      ],
+      "name": "Align by ICP (TrueForm)",
+      "pythonName": "compute_matrix_by_icp_trueform",
+      "shortDescription": "Align one layer to another with iterative closest point, point-to-point or point-to-plane.",
+      "longDescriptionMarkdown": "Refines the alignment of the source layer onto the reference by **iterative closest point**.\n\n**Metric** chooses the error being minimised:\n\n- *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.\n- *Point to plane* — measures each correspondence along the reference's surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.\n\nICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align by Bounding Box* first, which is usually enough to land in the right basin.\n\n**Samples** subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.\n\nThe reported **Chamfer residual** is the mean one-way distance after alignment — useful for comparing runs.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_icp_alignment`.",
+      "tags": [
+        "trueform",
+        "alignment",
+        "registration",
+        "icp",
+        "point to plane"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Source Layer",
+          "help": "The layer that is moved.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "referenceMesh",
+          "label": "Reference Layer",
+          "help": "The layer that stays put.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "metric",
+          "label": "Metric",
+          "help": "Point to plane converges faster on smooth surfaces; point to point is safer when the reference normals are unreliable.",
+          "group": "main",
+          "type": "enum",
+          "default": "point_to_plane",
+          "enumOptions": [
+            {
+              "id": "point_to_plane",
+              "label": "Point to Plane"
+            },
+            {
+              "id": "point_to_point",
+              "label": "Point to Point"
+            }
+          ]
+        },
+        {
+          "id": "coarseInit",
+          "label": "Coarse Initialization",
+          "help": "Run a bounding-box alignment first. Leave on unless the layers are already roughly registered.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "maxIterations",
+          "label": "Max Iterations",
+          "help": "Upper bound on ICP iterations.",
+          "group": "main",
+          "type": "int",
+          "default": 50,
+          "min": 1,
+          "max": 10000
+        },
+        {
+          "id": "samples",
+          "label": "Samples",
+          "help": "Source points sampled per iteration. 0 uses all of them, which is slower but deterministic.",
+          "group": "advanced",
+          "type": "int",
+          "default": 1000,
+          "min": 0,
+          "max": 10000000
+        },
+        {
+          "id": "minImprovement",
+          "label": "Min Relative Improvement",
+          "help": "Stop once the error improves by less than this fraction between iterations.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.001,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 6
+        },
+        {
+          "id": "outlierProportion",
+          "label": "Outlier Proportion",
+          "help": "Fraction of the worst correspondences rejected each iteration. Raise it when the two layers only partly overlap.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 0.9,
+          "decimals": 3
+        }
+      ],
+      "outputModifies": [
+        "TM"
+      ]
+    },
+    {
+      "id": "compute_matrix_by_corresponding_points",
+      "categories": [
+        "Geometry/Alignment"
+      ],
+      "name": "Align to Corresponding Points",
+      "pythonName": "compute_matrix_by_corresponding_points",
+      "shortDescription": "Align two layers whose vertices already correspond one to one, optionally solving for scale.",
+      "longDescriptionMarkdown": "Computes the transformation that best maps the source layer's vertices onto the reference's, assuming the two are already in **one-to-one correspondence**: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.\n\nUse it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use *Align by ICP* instead, which searches for it.\n\n**Allow Uniform Scale** is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`.",
+      "tags": [
+        "trueform",
+        "alignment",
+        "registration",
+        "procrustes",
+        "kabsch",
+        "scale"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Source Layer",
+          "help": "The layer that is moved.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "referenceMesh",
+          "label": "Reference Layer",
+          "help": "The layer that stays put.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "allowScale",
+          "label": "Allow Uniform Scale",
+          "help": "Also solve for a single scale factor. Only possible because the correspondences are given rather than searched for.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": [
+        "TM"
+      ]
+    }
+  ]
+}

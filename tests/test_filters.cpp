@@ -192,6 +192,7 @@ private slots:
     void orientNormalsFlipsInvertedNormals();
     void cgalPoissonReconstructsASphere();
     void kineticReconstructsABox();
+    void trueFormAlignmentRecoversAKnownTransform();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -1627,6 +1628,105 @@ void FilterTests::kineticReconstructsABox()
     tolerant.Offset(sourceBox.Diag() * 0.5f);
     for (const VCGVertex &v : surface.vert)
         QVERIFY2(tolerant.IsIn(v.cP()), "kinetic vertex far outside the input bbox");
+}
+
+// Alignment filters must recover a transform we applied ourselves. A sphere is displaced
+// and rotated, then each filter is asked to put it back; success is measured by how close
+// the realigned world-space points land on the original, relative to the model size.
+void FilterTests::trueFormAlignmentRecoversAKnownTransform()
+{
+    Document doc;
+
+    QString sphereKey, obbKey, icpKey, correspondingKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
+        else if (id == QStringLiteral("compute_matrix_by_obb_alignment")) obbKey = info.key;
+        else if (id == QStringLiteral("compute_matrix_by_icp_trueform")) icpKey = info.key;
+        else if (id == QStringLiteral("compute_matrix_by_corresponding_points")) correspondingKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    if (icpKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+    QVERIFY(!obbKey.isEmpty());
+    QVERIFY(!correspondingKey.isEmpty());
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int referenceIndex = doc.currentMeshIndex();
+    const VCGMesh &reference = doc.mesh(referenceIndex).mesh;
+    const float diagonal = reference.bbox.Diag();
+    QVERIFY(diagonal > 0.0f);
+
+    // A second copy of the same sphere, displaced. Vertex order is identical, which is
+    // what makes the corresponding-points filter applicable too.
+    const int sourceIndex = doc.addMesh(reference, QStringLiteral("moved"));
+    QVERIFY(sourceIndex >= 0);
+    QMatrix4x4 applied;
+    applied.translate(0.35f * diagonal, -0.2f * diagonal, 0.1f * diagonal);
+    applied.rotate(25.0f, 0.3f, 1.0f, 0.2f);
+    doc.setMeshTransform(sourceIndex, applied);
+
+    // Largest world-space gap between correspondingly-indexed vertices.
+    const auto maxDeviation = [&doc, sourceIndex, referenceIndex]() {
+        const auto &src = doc.mesh(sourceIndex);
+        const auto &ref = doc.mesh(referenceIndex);
+        float worst = 0.0f;
+        const int n = std::min(src.mesh.VN(), ref.mesh.VN());
+        for (int i = 0; i < n; ++i) {
+            const vcg::Point3f &a = src.mesh.vert[i].cP();
+            const vcg::Point3f &b = ref.mesh.vert[i].cP();
+            const QVector3D pa = src.transform.map(QVector3D(a.X(), a.Y(), a.Z()));
+            const QVector3D pb = ref.transform.map(QVector3D(b.X(), b.Y(), b.Z()));
+            worst = std::max(worst, (pa - pb).length());
+        }
+        return worst;
+    };
+    QVERIFY2(maxDeviation() > 0.1f * diagonal, "the displacement should start far off");
+
+    MeshFilterParameterValues shared;
+    shared.insert(QStringLiteral("sourceMesh"), sourceIndex);
+    shared.insert(QStringLiteral("referenceMesh"), referenceIndex);
+
+    // Exact correspondences: this must land essentially on top of the original.
+    MeshFilterParameterValues corresponding = shared;
+    corresponding.insert(QStringLiteral("allowScale"), false);
+    QVERIFY2(doc.runFilter(correspondingKey, corresponding).success, "corresponding-points failed");
+    QVERIFY2(maxDeviation() < 1e-3f * diagonal,
+             qPrintable(QStringLiteral("corresponding points left %1").arg(maxDeviation())));
+
+    // Uniform scale is the capability ICP cannot offer; on identical shapes it must
+    // resolve to a scale of 1 and stay put.
+    corresponding.insert(QStringLiteral("allowScale"), true);
+    QVERIFY2(doc.runFilter(correspondingKey, corresponding).success, "similarity fit failed");
+    QVERIFY2(maxDeviation() < 1e-3f * diagonal,
+             qPrintable(QStringLiteral("similarity left %1").arg(maxDeviation())));
+
+    // Displace again and let ICP find its own correspondences.
+    doc.setMeshTransform(sourceIndex, applied);
+    QVERIFY(maxDeviation() > 0.1f * diagonal);
+    MeshFilterParameterValues icp = shared;
+    icp.insert(QStringLiteral("metric"), QStringLiteral("point_to_point"));
+    icp.insert(QStringLiteral("coarseInit"), true);
+    icp.insert(QStringLiteral("maxIterations"), 60);
+    icp.insert(QStringLiteral("samples"), 0);
+    QVERIFY2(doc.runFilter(icpKey, icp).success, "icp failed");
+    // A sphere is rotationally symmetric, so ICP can only be asked to recover position.
+    const auto centreGap = [&doc, sourceIndex, referenceIndex]() {
+        const auto &src = doc.mesh(sourceIndex);
+        const auto &ref = doc.mesh(referenceIndex);
+        const vcg::Point3f a = src.mesh.bbox.Center();
+        const vcg::Point3f b = ref.mesh.bbox.Center();
+        return (src.transform.map(QVector3D(a.X(), a.Y(), a.Z()))
+                - ref.transform.map(QVector3D(b.X(), b.Y(), b.Z()))).length();
+    };
+    QVERIFY2(centreGap() < 0.05f * diagonal,
+             qPrintable(QStringLiteral("icp left the centres %1 apart").arg(centreGap())));
+
+    // The coarse filter on its own should also bring the centres together.
+    doc.setMeshTransform(sourceIndex, applied);
+    QVERIFY2(doc.runFilter(obbKey, shared).success, "obb alignment failed");
+    QVERIFY2(centreGap() < 0.05f * diagonal,
+             qPrintable(QStringLiteral("obb left the centres %1 apart").arg(centreGap())));
 }
 
 void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()

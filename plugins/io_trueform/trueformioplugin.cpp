@@ -15,12 +15,19 @@
 #include <string>
 #include <vector>
 
-// TrueForm pulls in oneTBB, whose tbb::profiling::event has an emit() member. Qt defines
-// `emit` as an empty macro, which turns that declaration into `void () {}`. Hide the
-// macro for the duration of the include and put it back afterwards.
+// Qt's keyword macros collide with ordinary identifiers inside TrueForm and oneTBB:
+// `emit` hits tbb::profiling::event::emit(), and `slots` hits local variables named
+// slots. Both expand to nothing, so the declarations become syntactically invalid far
+// from the real cause. Hide all three keyword macros across the include.
 #pragma push_macro("emit")
+#pragma push_macro("slots")
+#pragma push_macro("signals")
 #undef emit
+#undef slots
+#undef signals
 #include <trueform/io.hpp>
+#pragma pop_macro("signals")
+#pragma pop_macro("slots")
 #pragma pop_macro("emit")
 
 namespace {
