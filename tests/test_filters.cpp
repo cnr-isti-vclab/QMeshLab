@@ -1,6 +1,8 @@
 #include <QtTest/QtTest>
 
 #include "document.h"
+
+#include <vcg/complex/algorithms/stat.h>
 #include "textureassociationutils.h"
 
 #include <wrap/io_trimesh/io_mask.h>
@@ -193,6 +195,8 @@ private slots:
     void cgalPoissonReconstructsASphere();
     void kineticReconstructsABox();
     void trueFormAlignmentRecoversAKnownTransform();
+    void trueFormBooleansAgreeWithVolume();
+    void trueFormCsgExpressionMatchesPairwiseBooleans();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -1727,6 +1731,142 @@ void FilterTests::trueFormAlignmentRecoversAKnownTransform()
     QVERIFY2(doc.runFilter(obbKey, shared).success, "obb alignment failed");
     QVERIFY2(centreGap() < 0.05f * diagonal,
              qPrintable(QStringLiteral("obb left the centres %1 apart").arg(centreGap())));
+}
+
+// Two unit boxes overlapping in half their extent. The boolean results have volumes we
+// can state exactly, which checks the operations themselves rather than merely that they
+// produced some geometry.
+void FilterTests::trueFormBooleansAgreeWithVolume()
+{
+    Document doc;
+
+    QString boxKey, unionKey, interKey, diffKey, xorKey, shellKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        else if (id == QStringLiteral("generate_boolean_union_trueform")) unionKey = info.key;
+        else if (id == QStringLiteral("generate_boolean_intersection_trueform")) interKey = info.key;
+        else if (id == QStringLiteral("generate_boolean_difference_trueform")) diffKey = info.key;
+        else if (id == QStringLiteral("generate_boolean_xor_trueform")) xorKey = info.key;
+        else if (id == QStringLiteral("generate_outer_shell")) shellKey = info.key;
+    }
+    QVERIFY(!boxKey.isEmpty());
+    if (unionKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    const int a = doc.currentMeshIndex();
+    const float side = doc.mesh(a).mesh.bbox.DimX();
+    QVERIFY(side > 0.0f);
+    const double unit = double(side) * double(side) * double(side);
+
+    // Second box, displaced half a side along X: overlap is exactly half of each.
+    const int b = doc.addMesh(doc.mesh(a).mesh, QStringLiteral("shifted"));
+    QVERIFY(b >= 0);
+    QMatrix4x4 shift;
+    shift.translate(side * 0.5f, 0.0f, 0.0f);
+    doc.setMeshTransform(b, shift);
+
+    const auto volumeOf = [&doc](int index) {
+        return double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(doc.mesh(index).mesh)));
+    };
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("firstMesh"), a);
+    p.insert(QStringLiteral("secondMesh"), b);
+
+    struct Case { const QString *key; double expected; const char *name; };
+    const Case cases[] = {
+        { &unionKey,  1.5 * unit, "union" },
+        { &interKey,  0.5 * unit, "intersection" },
+        { &diffKey,   0.5 * unit, "difference" },
+        { &xorKey,    1.0 * unit, "symmetric difference" },
+    };
+    for (const Case &c : cases) {
+        const MeshFilterRunResult r = doc.runFilter(*c.key, p);
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(c.name, r.errorMessage)));
+        QCOMPARE(r.newMeshIndices.size(), 1);
+        const double got = volumeOf(r.newMeshIndices.front());
+        QVERIFY2(std::abs(got - c.expected) < 0.02 * unit,
+                 qPrintable(QStringLiteral("%1: volume %2, expected %3")
+                                .arg(c.name).arg(got).arg(c.expected)));
+    }
+
+    // The outer shell of a single box is the box itself.
+    MeshFilterParameterValues shellParams;
+    shellParams.insert(QStringLiteral("sourceMesh"), a);
+    const MeshFilterRunResult shell = doc.runFilter(shellKey, shellParams);
+    QVERIFY2(shell.success, qPrintable(shell.errorMessage));
+    QVERIFY(std::abs(volumeOf(shell.newMeshIndices.front()) - unit) < 0.02 * unit);
+}
+
+// The CSG evaluator and the pairwise booleans must agree where they overlap, and the
+// expression must also handle a three-operand case that no single boolean can express.
+void FilterTests::trueFormCsgExpressionMatchesPairwiseBooleans()
+{
+    Document doc;
+
+    QString boxKey, csgKey, unionKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        else if (id == QStringLiteral("generate_csg_expression")) csgKey = info.key;
+        else if (id == QStringLiteral("generate_boolean_union_trueform")) unionKey = info.key;
+    }
+    QVERIFY(!boxKey.isEmpty());
+    if (csgKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    const int a = doc.currentMeshIndex();
+    const float side = doc.mesh(a).mesh.bbox.DimX();
+    const double unit = double(side) * double(side) * double(side);
+
+    const int b = doc.addMesh(doc.mesh(a).mesh, QStringLiteral("b"));
+    QMatrix4x4 shiftB;
+    shiftB.translate(side * 0.5f, 0.0f, 0.0f);
+    doc.setMeshTransform(b, shiftB);
+
+    const auto volumeOf = [&doc](int index) {
+        return double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(doc.mesh(index).mesh)));
+    };
+
+    // "0 | 1" must reproduce the pairwise union exactly.
+    MeshFilterParameterValues pairwise;
+    pairwise.insert(QStringLiteral("firstMesh"), a);
+    pairwise.insert(QStringLiteral("secondMesh"), b);
+    const MeshFilterRunResult viaBoolean = doc.runFilter(unionKey, pairwise);
+    QVERIFY2(viaBoolean.success, qPrintable(viaBoolean.errorMessage));
+
+    MeshFilterParameterValues expr;
+    expr.insert(QStringLiteral("expression"), QStringLiteral("%1 | %2").arg(a).arg(b));
+    const MeshFilterRunResult viaCsg = doc.runFilter(csgKey, expr);
+    QVERIFY2(viaCsg.success, qPrintable(viaCsg.errorMessage));
+    QVERIFY2(std::abs(volumeOf(viaBoolean.newMeshIndices.front())
+                      - volumeOf(viaCsg.newMeshIndices.front())) < 0.02 * unit,
+             "CSG union disagrees with the pairwise union");
+
+    // Three operands in one arrangement: (0 | 1) - 2, which no single boolean expresses.
+    const int c = doc.addMesh(doc.mesh(a).mesh, QStringLiteral("c"));
+    QMatrix4x4 shiftC;
+    shiftC.translate(side * 1.25f, 0.0f, 0.0f);
+    doc.setMeshTransform(c, shiftC);
+
+    MeshFilterParameterValues three;
+    three.insert(QStringLiteral("expression"), QStringLiteral("(%1 | %2) - %3").arg(a).arg(b).arg(c));
+    const MeshFilterRunResult combined = doc.runFilter(csgKey, three);
+    QVERIFY2(combined.success, qPrintable(combined.errorMessage));
+    // union is 1.5 units; c removes the quarter-unit it overlaps with b's far end.
+    const double got = volumeOf(combined.newMeshIndices.front());
+    QVERIFY2(std::abs(got - 1.25 * unit) < 0.05 * unit,
+             qPrintable(QStringLiteral("(A|B)-C volume %1, expected %2").arg(got).arg(1.25 * unit)));
+
+    // A malformed expression must be reported, not silently ignored.
+    MeshFilterParameterValues bad;
+    bad.insert(QStringLiteral("expression"), QStringLiteral("0 | "));
+    QVERIFY(!doc.runFilter(csgKey, bad).success);
+    bad.insert(QStringLiteral("expression"), QStringLiteral("0 | 999"));
+    QVERIFY(!doc.runFilter(csgKey, bad).success);
 }
 
 void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()

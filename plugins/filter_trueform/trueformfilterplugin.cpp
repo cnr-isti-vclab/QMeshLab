@@ -8,13 +8,21 @@
 #include <QMatrix3x3>
 #include <QMatrix4x4>
 #include <QObject>
+#include <QList>
 #include <QStringList>
 #include <QVector3D>
 
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <optional>
+#include <utility>
 #include <vector>
+
+#include <vcg/complex/algorithms/update/bounding.h>
+#include <vcg/complex/algorithms/update/normal.h>
+#include <vcg/complex/allocate.h>
+#include <wrap/io_trimesh/io_mask.h>
 
 // Qt's keyword macros collide with ordinary identifiers inside TrueForm and oneTBB:
 // `emit` hits tbb::profiling::event::emit(), and `slots` hits local variables named
@@ -36,7 +44,14 @@ namespace {
 constexpr QLatin1StringView kFilterAlignObb("compute_matrix_by_obb_alignment");
 constexpr QLatin1StringView kFilterAlignIcp("compute_matrix_by_icp_trueform");
 constexpr QLatin1StringView kFilterAlignCorresponding("compute_matrix_by_corresponding_points");
+constexpr QLatin1StringView kFilterUnion("generate_boolean_union_trueform");
+constexpr QLatin1StringView kFilterIntersection("generate_boolean_intersection_trueform");
+constexpr QLatin1StringView kFilterDifference("generate_boolean_difference_trueform");
+constexpr QLatin1StringView kFilterSymmetricDifference("generate_boolean_xor_trueform");
+constexpr QLatin1StringView kFilterCsg("generate_csg_expression");
+constexpr QLatin1StringView kFilterOuterShell("generate_outer_shell");
 
+using Mask = vcg::tri::io::Mask;
 using TfPoints = tf::points_buffer<float, 3>;
 using TfTree = tf::aabb_tree<int, float, 3>;
 
@@ -357,6 +372,438 @@ MeshFilterRunResult runAlignCorresponding(const FilterParams &params, Document &
               : QObject::tr("Rigid fit: rotation and translation only.") });
 }
 
+// ---------------------------------------------------------------------------
+// Mesh conversion shared by the boolean/CSG filters
+// ---------------------------------------------------------------------------
+
+using TfMesh = tf::polygons_buffer<int, float, 3, 3>;
+
+// A layer's triangles in world space. Booleans across layers are only meaningful once
+// each layer's matrix has been applied.
+TfMesh tfMeshFromLayer(const Document::MeshEntry &entry)
+{
+    TfMesh out;
+    const VCGMesh &mesh = entry.mesh;
+    const QMatrix4x4 &m = entry.transform;
+
+    std::vector<int> remap(mesh.vert.size(), -1);
+    auto &points = out.points_buffer();
+    int next = 0;
+    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+        if (mesh.vert[i].IsD())
+            continue;
+        const vcg::Point3f &p = mesh.vert[i].cP();
+        const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
+        points.emplace_back(w.x(), w.y(), w.z());
+        remap[i] = next++;
+    }
+
+    const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
+    auto &faces = out.faces_buffer();
+    for (const VCGFace &f : mesh.face) {
+        if (f.IsD() || !base)
+            continue;
+        int corner[3];
+        bool ok = true;
+        for (int k = 0; k < 3; ++k) {
+            const ptrdiff_t raw = f.cV(k) - base;
+            if (raw < 0 || std::size_t(raw) >= remap.size() || remap[std::size_t(raw)] < 0) {
+                ok = false;
+                break;
+            }
+            corner[k] = remap[std::size_t(raw)];
+        }
+        if (ok && corner[0] != corner[1] && corner[1] != corner[2] && corner[0] != corner[2])
+            faces.emplace_back(corner[0], corner[1], corner[2]);
+    }
+    return out;
+}
+
+// Copy a TrueForm result into a fresh document layer. The result is already in world
+// space, so the new layer keeps an identity matrix.
+template <typename Buffer>
+MeshFilterRunResult addResultLayer(
+    Document &doc, const Buffer &buffer, const QString &layerName,
+    const QString &emptyMessage, QStringList info)
+{
+    VCGMesh output;
+    const auto points = buffer.points();
+    const std::size_t pointCount = std::size_t(points.size());
+    if (pointCount > 0) {
+        vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
+        std::size_t vi = 0;
+        for (const auto &p : points) {
+            output.vert[vi].P() = vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
+            ++vi;
+        }
+        for (const auto &face : buffer.faces()) {
+            const std::size_t n = std::size_t(face.size());
+            for (std::size_t k = 2; k < n; ++k) {
+                const int a = int(face[0]), b = int(face[k - 1]), c = int(face[k]);
+                if (a < 0 || b < 0 || c < 0)
+                    continue;
+                if (std::size_t(a) >= pointCount || std::size_t(b) >= pointCount
+                    || std::size_t(c) >= pointCount)
+                    continue;
+                if (a == b || b == c || a == c)
+                    continue;
+                vcg::tri::Allocator<VCGMesh>::AddFace(output, a, b, c);
+            }
+        }
+    }
+
+    if (output.FN() <= 0) {
+        doc.finishFilterProgress(false, emptyMessage);
+        return fail(emptyMessage);
+    }
+
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(output);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
+
+    const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    const int newIndex = doc.addMesh(output, layerName, ioMask);
+    if (newIndex < 0) {
+        const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+    doc.finishFilterProgress(true, QObject::tr("Created %1.").arg(layerName));
+
+    info.prepend(QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name));
+    info << QObject::tr("Output: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages = info;
+    result.newMeshIndices.push_back(newIndex);
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Booleans
+// ---------------------------------------------------------------------------
+
+// The two-layer preamble every boolean shares.
+bool resolveBooleanPair(const FilterParams &params, Document &doc, int &a, int &b, QString &error)
+{
+    a = params.getMesh(QStringLiteral("firstMesh"), doc.currentMeshIndex());
+    b = params.getMesh(QStringLiteral("secondMesh"), -1);
+    const auto valid = [&doc](int i) { return i >= 0 && i < doc.meshCount(); };
+    if (!valid(a) || !valid(b)) {
+        error = QObject::tr("Two layers must be selected.");
+        return false;
+    }
+    if (a == b) {
+        error = QObject::tr("The two layers must be different.");
+        return false;
+    }
+    if (doc.mesh(a).mesh.FN() <= 0 || doc.mesh(b).mesh.FN() <= 0) {
+        error = QObject::tr("Both layers need faces.");
+        return false;
+    }
+    return true;
+}
+
+MeshFilterRunResult runBoolean(const QString &filterId, const FilterParams &params, Document &doc)
+{
+    int aIndex = -1, bIndex = -1;
+    QString error;
+    if (!resolveBooleanPair(params, doc, aIndex, bIndex, error))
+        return fail(error);
+
+    tf::boolean_op op = tf::boolean_op::merge;
+    QString label;
+    if (filterId == QString::fromLatin1(kFilterUnion)) {
+        op = tf::boolean_op::merge;
+        label = QObject::tr("Union");
+    } else if (filterId == QString::fromLatin1(kFilterIntersection)) {
+        op = tf::boolean_op::intersection;
+        label = QObject::tr("Intersection");
+    } else {
+        op = tf::boolean_op::left_difference;
+        label = QObject::tr("Difference");
+    }
+
+    doc.beginFilterProgress(QObject::tr("Mesh %1 (TrueForm)").arg(label));
+    try {
+        const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
+        const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
+        auto result = tf::make_boolean(a.polygons(), b.polygons(), op);
+        return addResultLayer(
+            doc, std::get<0>(result), label,
+            QObject::tr("The %1 is empty.").arg(label),
+            { QObject::tr("'%1' and '%2'.").arg(doc.mesh(aIndex).name, doc.mesh(bIndex).name) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm boolean failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CSG over many layers
+// ---------------------------------------------------------------------------
+
+// A small recursive-descent parser over layer indices and the four CSG operators.
+//
+//   expression := term (('|' | '-') term)*
+//   term       := factor ('&' factor)*
+//   factor     := '~' factor | number | '(' expression ')'
+//
+// Union and difference share the lowest precedence and associate left, intersection
+// binds tighter, and complement binds tightest — the usual reading of "A | B - C".
+class CsgExpressionParser
+{
+public:
+    CsgExpressionParser(const QString &text, int meshCount)
+        : m_text(text), m_meshCount(meshCount) {}
+
+    bool parse(std::optional<tf::csg::expr> &out, QString &error)
+    {
+        m_pos = 0;
+        m_error.clear();
+        m_operands.clear();
+        if (!parseExpression(out) || !out.has_value()) {
+            error = m_error.isEmpty() ? QObject::tr("Could not parse the expression.") : m_error;
+            return false;
+        }
+        skipSpace();
+        if (m_pos != m_text.size()) {
+            error = QObject::tr("Unexpected '%1' at position %2.")
+                        .arg(m_text.mid(m_pos, 1)).arg(m_pos);
+            return false;
+        }
+        if (m_operands.isEmpty()) {
+            error = QObject::tr("The expression refers to no layers.");
+            return false;
+        }
+        return true;
+    }
+
+    // Layer indices used, in first-seen order; this is the operand order of the graph.
+    QList<int> operands() const { return m_operands; }
+
+private:
+    void skipSpace()
+    {
+        while (m_pos < m_text.size() && m_text.at(m_pos).isSpace())
+            ++m_pos;
+    }
+
+    bool peek(QChar c)
+    {
+        skipSpace();
+        return m_pos < m_text.size() && m_text.at(m_pos) == c;
+    }
+
+    bool parseExpression(std::optional<tf::csg::expr> &out)
+    {
+        if (!parseTerm(out) || !out.has_value())
+            return false;
+        while (true) {
+            const bool isUnion = peek(QLatin1Char('|'));
+            if (!isUnion && !peek(QLatin1Char('-')))
+                return true;
+            ++m_pos;
+            std::optional<tf::csg::expr> rhs;
+            if (!parseTerm(rhs) || !rhs.has_value())
+                return false;
+            out = isUnion ? (*out | *rhs) : (*out - *rhs);
+        }
+    }
+
+    bool parseTerm(std::optional<tf::csg::expr> &out)
+    {
+        if (!parseFactor(out) || !out.has_value())
+            return false;
+        while (peek(QLatin1Char('&'))) {
+            ++m_pos;
+            std::optional<tf::csg::expr> rhs;
+            if (!parseFactor(rhs) || !rhs.has_value())
+                return false;
+            out = *out & *rhs;
+        }
+        return true;
+    }
+
+    bool parseFactor(std::optional<tf::csg::expr> &out)
+    {
+        skipSpace();
+        if (m_pos >= m_text.size()) {
+            m_error = QObject::tr("The expression ends unexpectedly.");
+            return false;
+        }
+        if (peek(QLatin1Char('~'))) {
+            ++m_pos;
+            std::optional<tf::csg::expr> inner;
+            if (!parseFactor(inner) || !inner.has_value())
+                return false;
+            out = ~(*inner);
+            return true;
+        }
+        if (peek(QLatin1Char('('))) {
+            ++m_pos;
+            if (!parseExpression(out))
+                return false;
+            if (!peek(QLatin1Char(')'))) {
+                m_error = QObject::tr("Missing ')'.");
+                return false;
+            }
+            ++m_pos;
+            return true;
+        }
+        skipSpace();
+        const int start = m_pos;
+        while (m_pos < m_text.size() && m_text.at(m_pos).isDigit())
+            ++m_pos;
+        if (m_pos == start) {
+            m_error = QObject::tr("Expected a layer number at position %1, found '%2'.")
+                          .arg(start).arg(m_text.mid(start, 1));
+            return false;
+        }
+        const int layer = m_text.mid(start, m_pos - start).toInt();
+        if (layer < 0 || layer >= m_meshCount) {
+            m_error = QObject::tr("Layer %1 does not exist; the document has %2.")
+                          .arg(layer).arg(m_meshCount);
+            return false;
+        }
+        // The graph is built from the operands in first-seen order, so an expression
+        // referring to a layer twice must reuse the same operand id.
+        int operandId = int(m_operands.indexOf(layer));
+        if (operandId < 0) {
+            operandId = int(m_operands.size());
+            m_operands.append(layer);
+        }
+        out.emplace(operandId);
+        return true;
+    }
+
+    QString m_text;
+    int m_meshCount = 0;
+    int m_pos = 0;
+    QString m_error;
+    QList<int> m_operands;
+};
+
+MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
+{
+    const QString text = params.getString(QStringLiteral("expression")).trimmed();
+    if (text.isEmpty())
+        return fail(QObject::tr("The expression is empty."));
+
+    CsgExpressionParser parser(text, doc.meshCount());
+    std::optional<tf::csg::expr> expression;
+    QString error;
+    if (!parser.parse(expression, error))
+        return fail(error);
+
+    const QList<int> operands = parser.operands();
+    for (int layer : operands) {
+        if (doc.mesh(layer).mesh.FN() <= 0) {
+            return fail(QObject::tr("Layer %1 ('%2') has no faces.")
+                            .arg(layer).arg(doc.mesh(layer).name));
+        }
+    }
+
+    doc.beginFilterProgress(QObject::tr("Mesh CSG Expression"));
+    try {
+        std::vector<TfMesh> meshes;
+        meshes.reserve(std::size_t(operands.size()));
+        for (int layer : operands)
+            meshes.push_back(tfMeshFromLayer(doc.mesh(layer)));
+
+        using FormView = decltype(std::declval<const TfMesh &>().polygons());
+        std::vector<FormView> forms;
+        forms.reserve(meshes.size());
+        for (const TfMesh &m : meshes)
+            forms.emplace_back(m.polygons());
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(30, "Building the arrangement...");
+        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()));
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(70, "Evaluating the expression...");
+        auto result = tf::make_csg_mesh(graph, *expression);
+
+        QStringList used;
+        for (int layer : operands)
+            used << QObject::tr("%1 = '%2'").arg(layer).arg(doc.mesh(layer).name);
+        return addResultLayer(
+            doc, result, QObject::tr("CSG"),
+            QObject::tr("The expression evaluates to an empty solid."),
+            { QObject::tr("Expression: %1").arg(text), used.join(QStringLiteral(", ")) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm CSG failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Symmetric difference is not one of TrueForm's boolean_op values, so it goes through
+// the CSG evaluator as (A - B) | (B - A).
+MeshFilterRunResult runSymmetricDifference(const FilterParams &params, Document &doc)
+{
+    int aIndex = -1, bIndex = -1;
+    QString error;
+    if (!resolveBooleanPair(params, doc, aIndex, bIndex, error))
+        return fail(error);
+
+    doc.beginFilterProgress(QObject::tr("Mesh Symmetric Difference (TrueForm)"));
+    try {
+        const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
+        const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
+        using FormView = decltype(std::declval<const TfMesh &>().polygons());
+        std::vector<FormView> forms;
+        forms.emplace_back(a.polygons());
+        forms.emplace_back(b.polygons());
+        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()));
+
+        const tf::csg::expr lhs(0);
+        const tf::csg::expr rhs(1);
+        auto result = tf::make_csg_mesh(graph, (lhs - rhs) | (rhs - lhs));
+        return addResultLayer(
+            doc, result, QObject::tr("Symmetric Difference"),
+            QObject::tr("The symmetric difference is empty; the two layers may coincide."),
+            { QObject::tr("'%1' and '%2'.").arg(doc.mesh(aIndex).name, doc.mesh(bIndex).name) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm symmetric difference failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// The outermost boundary of a single layer, discarding internal shells and resolving
+// self-intersections along the way. Useful before 3D printing, and as a repair step on
+// geometry assembled from overlapping parts.
+MeshFilterRunResult runOuterShell(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    doc.beginFilterProgress(QObject::tr("Extract Outer Shell"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        auto result = tf::make_outer_shell(source.polygons());
+        return addResultLayer(
+            doc, result, QObject::tr("Outer Shell"),
+            QObject::tr("No outer shell was found. The layer may be open rather than solid."),
+            { QObject::tr("From '%1'.").arg(doc.mesh(index).name) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm outer shell failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
 } // namespace
 
 QString TrueFormFilterPlugin::pluginId() const
@@ -380,6 +827,16 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runAlignIcp(params, doc);
     if (filterId == QString::fromLatin1(kFilterAlignCorresponding))
         return runAlignCorresponding(params, doc);
+    if (filterId == QString::fromLatin1(kFilterUnion)
+        || filterId == QString::fromLatin1(kFilterIntersection)
+        || filterId == QString::fromLatin1(kFilterDifference))
+        return runBoolean(filterId, params, doc);
+    if (filterId == QString::fromLatin1(kFilterSymmetricDifference))
+        return runSymmetricDifference(params, doc);
+    if (filterId == QString::fromLatin1(kFilterCsg))
+        return runCsgExpression(params, doc);
+    if (filterId == QString::fromLatin1(kFilterOuterShell))
+        return runOuterShell(params, doc);
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 }
 

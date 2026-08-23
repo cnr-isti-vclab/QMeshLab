@@ -206,6 +206,262 @@
       "outputModifies": [
         "TM"
       ]
+    },
+    {
+      "categories": [
+        "Meshing/Boolean"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "tags": [
+        "trueform",
+        "boolean",
+        "csg",
+        "exact"
+      ],
+      "id": "generate_boolean_union_trueform",
+      "name": "Mesh Union (TrueForm)",
+      "pythonName": "generate_boolean_union_trueform",
+      "shortDescription": "Exact boolean union of two layers.",
+      "longDescriptionMarkdown": "The union of two closed solids: everything inside either one.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
+      "parameters": [
+        {
+          "id": "firstMesh",
+          "label": "First Layer",
+          "help": "The first operand.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "secondMesh",
+          "label": "Second Layer",
+          "help": "The second operand.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        }
+      ]
+    },
+    {
+      "categories": [
+        "Meshing/Boolean"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "tags": [
+        "trueform",
+        "boolean",
+        "csg",
+        "exact"
+      ],
+      "id": "generate_boolean_intersection_trueform",
+      "name": "Mesh Intersection (TrueForm)",
+      "pythonName": "generate_boolean_intersection_trueform",
+      "shortDescription": "Exact boolean intersection of two layers.",
+      "longDescriptionMarkdown": "The intersection of two closed solids: only what lies inside both.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
+      "parameters": [
+        {
+          "id": "firstMesh",
+          "label": "First Layer",
+          "help": "The first operand.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "secondMesh",
+          "label": "Second Layer",
+          "help": "The second operand.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        }
+      ]
+    },
+    {
+      "categories": [
+        "Meshing/Boolean"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "tags": [
+        "trueform",
+        "boolean",
+        "csg",
+        "exact"
+      ],
+      "id": "generate_boolean_difference_trueform",
+      "name": "Mesh Difference (TrueForm)",
+      "pythonName": "generate_boolean_difference_trueform",
+      "shortDescription": "Exact boolean difference of two layers.",
+      "longDescriptionMarkdown": "The first solid with the second removed from it. Order matters: swap the two layers to get the opposite difference.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
+      "parameters": [
+        {
+          "id": "firstMesh",
+          "label": "Layer to Cut",
+          "help": "The first operand.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "secondMesh",
+          "label": "Layer to Subtract",
+          "help": "The second operand.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        }
+      ]
+    },
+    {
+      "categories": [
+        "Meshing/Boolean"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "tags": [
+        "trueform",
+        "boolean",
+        "csg",
+        "exact"
+      ],
+      "id": "generate_boolean_xor_trueform",
+      "name": "Mesh Symmetric Difference (TrueForm)",
+      "pythonName": "generate_boolean_xor_trueform",
+      "shortDescription": "Exact boolean symmetric difference of two layers.",
+      "longDescriptionMarkdown": "Everything inside exactly one of the two solids, and nothing inside both.\\n\\nTrueForm's boolean primitive offers union, intersection and difference but not this one, so it is evaluated through the CSG evaluator as `(A - B) | (B - A)`. The result is the same; only the route differs.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
+      "parameters": [
+        {
+          "id": "firstMesh",
+          "label": "First Layer",
+          "help": "The first operand.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "secondMesh",
+          "label": "Second Layer",
+          "help": "The second operand.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        }
+      ]
+    },
+    {
+      "categories": [
+        "Meshing/Boolean"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "tags": [
+        "trueform",
+        "boolean",
+        "csg",
+        "expression",
+        "exact"
+      ],
+      "id": "generate_csg_expression",
+      "name": "Mesh CSG Expression",
+      "pythonName": "generate_csg_expression",
+      "shortDescription": "Evaluate a boolean expression over any number of layers in one exact pass.",
+      "longDescriptionMarkdown": "Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\\n\\n**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:\\n\\n| Operator | Meaning |\\n|---|---|\\n| `\\\\|` | union |\\n| `-` | difference |\\n| `&` | intersection |\\n| `~` | complement |\\n\\n`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.\\n\\nExamples:\\n\\n- `0 | 1 | 2` — the union of three layers\\n- `(0 | 1) - 2` — two layers joined, then a third drilled out of them\\n- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference\\n\\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.",
+      "parameters": [
+        {
+          "id": "expression",
+          "label": "Expression",
+          "help": "A boolean expression over layer numbers, e.g. (0 | 1) - 2. Operators: | union, - difference, & intersection, ~ complement.",
+          "group": "main",
+          "type": "string",
+          "default": "0 | 1"
+        }
+      ]
+    },
+    {
+      "categories": [
+        "Repair/Topology"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "tags": [
+        "trueform",
+        "repair",
+        "shell",
+        "self-intersection",
+        "3d printing"
+      ],
+      "id": "generate_outer_shell",
+      "name": "Extract Outer Shell",
+      "pythonName": "generate_outer_shell",
+      "shortDescription": "Keep only the outermost surface of a layer, discarding internal shells.",
+      "longDescriptionMarkdown": "Resolves the layer's self-intersections and keeps only the **outermost** boundary, dropping every internal shell and any surface enclosed by another.\\n\\nThis is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.\\n\\nThe input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.",
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Layer",
+          "help": "The layer to extract the outer shell from.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        }
+      ]
     }
   ]
 }
