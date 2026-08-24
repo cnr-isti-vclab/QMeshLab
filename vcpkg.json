@@ -3,7 +3,7 @@
   "version-string": "0.1.0",
   "description": "Qt6-based mesh viewer and editor prototype",
   "license": "GPL-2.0-or-later",
-  "builtin-baseline": "c3867e714dd3a51c272826eea77267876517ed99",
+  "builtin-baseline": "37bb045f3c7a747d3e5d1c13b6fe6a0aec4b5d00",
   "dependencies": [
     "draco",
     "nanobind",
