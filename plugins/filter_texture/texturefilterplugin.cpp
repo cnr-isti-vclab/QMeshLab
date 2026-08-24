@@ -498,6 +498,18 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (paraMesh.FN() > 0)
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(paraMesh);
 
+        if (paraMesh.FN() <= 0) {
+            // Every Voronoi region failed to unwrap. On a coarse mesh a region can cover
+            // the whole closed surface, which is not homeomorphic to a disk and so cannot
+            // be flattened; subdividing first gives the partition something to work with.
+            const QString message = QObject::tr(
+                "No region could be unwrapped, so the atlas is empty. This usually means the "
+                "mesh is too coarse for the requested number of regions: subdivide it, or ask "
+                "for fewer regions.");
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+
         const int ioMask =
             Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL | Mask::IOM_VERTCOLOR;
         const int newIndex = doc.addMesh(paraMesh, QStringLiteral("VoroAtlas"), ioMask);

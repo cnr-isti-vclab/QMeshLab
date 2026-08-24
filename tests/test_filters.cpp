@@ -1,5 +1,6 @@
 #include <QtTest/QtTest>
 
+#include <QElapsedTimer>
 #include <QSet>
 
 #include <map>
@@ -209,6 +210,7 @@ private slots:
     void trueFormOrientationAndEdgeSelection();
     void trueFormRepairAndIsobands();
     void trueFormImproveTriangulationRaisesQuality();
+    void voronoiAtlasHandlesCoarseMeshes();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -2018,12 +2020,10 @@ void FilterTests::newMeshFiltersReportTheirLayers()
         // Two explicit exclusions, both with reasons rather than convenience:
         //  - quadwild shells out to an external binary that may not be installed, and is
         //    far too slow for a contract sweep;
-        //  - generate_voronoi_atlas_parametrization *aborts* (vcglib rect_packer.h
-        //    assertion) rather than returning an error when its parametrization
-        //    degenerates on simple synthetic input, which would take the whole suite
-        //    down with SIGABRT. That is a separate bug in filter_texture.
-        if (info.descriptor.id.contains(QStringLiteral("quadwild"))
-            || info.descriptor.id == QStringLiteral("generate_voronoi_atlas_parametrization"))
+        // (generate_voronoi_atlas_parametrization used to be excluded here because it
+        // hung or aborted on synthetic input; both vcglib defects are fixed and it is
+        // covered by voronoiAtlasHandlesCoarseMeshes, so it takes part again.)
+        if (info.descriptor.id.contains(QStringLiteral("quadwild")))
             continue;
 
         // Four filters whose default parameters are sized for real meshes rather than
@@ -2683,6 +2683,67 @@ void FilterTests::trueFormImproveTriangulationRaisesQuality()
     QVERIFY2(worstAngle(after) > before,
              qPrintable(QStringLiteral("worst angle %1 -> %2, no improvement")
                             .arg(before).arg(worstAngle(after))));
+}
+
+// Voronoi Atlas used to hang or abort on coarse meshes rather than failing. Two vcglib
+// defects were behind it:
+//
+//  - SeedToVertexConversion dropped every seed whose nearest vertex was farther than
+//    bbox.Diag()/10. That bound measures the object, not its triangulation: on a unit box
+//    it is 0.17 while a face centre is 0.71 from the nearest vertex. With no seeds,
+//    FaceAssociateRegion's do/while had no progress guard and spun for ever.
+//  - With no region homeomorphic to a disk, uvBorders stayed empty and the rect packer
+//    asserted on n > 0 instead of tolerating an empty atlas.
+//
+// The bound now falls back per seed, the loop stops when it stops progressing, and an
+// empty atlas is reported. This test pins all of that: coarse input must fail cleanly and
+// promptly, and well-tessellated input must still succeed.
+void FilterTests::voronoiAtlasHandlesCoarseMeshes()
+{
+    struct Case { const char *primitive; int regions; bool expectSuccess; };
+    const Case cases[] = {
+        { "create_box", 2, false },          // 12 faces: too coarse to partition
+        { "create_box", 10, false },
+        { "create_tetrahedron", 2, false },  // 4 faces: coarser still
+        { "create_sphere", 2, true },
+        { "create_sphere", 10, true },
+        { "create_annulus", 10, true },      // bound/circumradius ~1.08: used to be marginal
+    };
+
+    for (const Case &c : cases) {
+        Document doc;
+        QString primKey, atlasKey;
+        for (const auto &info : doc.filterInfos()) {
+            if (info.descriptor.id == QLatin1String(c.primitive)) primKey = info.key;
+            else if (info.descriptor.id == QStringLiteral("generate_voronoi_atlas_parametrization"))
+                atlasKey = info.key;
+        }
+        QVERIFY(!primKey.isEmpty());
+        QVERIFY(!atlasKey.isEmpty());
+        QVERIFY2(doc.runFilter(primKey, {}).success, c.primitive);
+
+        QElapsedTimer timer;
+        timer.start();
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("regionNum"), c.regions);
+        p.insert(QStringLiteral("randomSeed"), 1);
+        const MeshFilterRunResult r = doc.runFilter(atlasKey, p);
+        const qint64 elapsed = timer.elapsed();
+
+        const QString what = QStringLiteral("%1/%2").arg(c.primitive).arg(c.regions);
+        // The hang was unbounded; anything of this order means it is back.
+        QVERIFY2(elapsed < 30000, qPrintable(QStringLiteral("%1 took %2 ms").arg(what).arg(elapsed)));
+        QVERIFY2(r.success == c.expectSuccess,
+                 qPrintable(QStringLiteral("%1: success=%2, expected %3, msg '%4'")
+                                .arg(what).arg(r.success).arg(c.expectSuccess).arg(r.errorMessage)));
+        if (c.expectSuccess) {
+            QCOMPARE(r.newMeshIndices.size(), 1);
+            QVERIFY2(doc.mesh(r.newMeshIndices.front()).mesh.FN() > 0, qPrintable(what));
+        } else {
+            // Failing is fine; failing without saying why is not.
+            QVERIFY2(!r.errorMessage.isEmpty(), qPrintable(what));
+        }
+    }
 }
 
 void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()
