@@ -1094,6 +1094,215 @@
           ]
         }
       ]
+    },
+    {
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN"
+      ],
+      "id": "remeshing_isotropic_trueform",
+      "name": "Remesh Isotropically (TrueForm)",
+      "pythonName": "remeshing_isotropic_trueform",
+      "categories": [
+        "Meshing/Remeshing"
+      ],
+      "shortDescription": "Rebuild the tessellation with triangles of a uniform target edge length.",
+      "longDescriptionMarkdown": "Rebuilds the tessellation so triangles approach a uniform size and shape, by splitting long edges, collapsing short ones, flipping to improve valence and relaxing vertices along the surface.\\n\\n**Target Edge Length** is the size aimed for. **Iterations** is how many split/collapse/flip/relax rounds run; **Relaxation Iterations** the tangential smoothing passes inside each round.\\n\\n**Feature Angle** protects sharp edges: any dihedral angle above it is treated as a crease and preserved rather than smoothed away. It is off by default (negative), which is right for organic surfaces and wrong for anything with intended hard edges.\\n\\nCompeting implementation: *Remesh Isotropically* does the same with vcglib. TrueForm's is parallelised and has the explicit feature and boundary contracts above.",
+      "tags": [
+        "trueform",
+        "remeshing",
+        "isotropic",
+        "uniform"
+      ],
+      "parameters": [
+        {
+          "id": "targetLength",
+          "label": "Target Edge Length",
+          "help": "The edge length the remesher aims for.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "iterations",
+          "label": "Iterations",
+          "help": "How many remeshing rounds to run.",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 1,
+          "max": 100
+        },
+        {
+          "id": "relaxationIterations",
+          "label": "Relaxation Iterations",
+          "help": "Tangential smoothing passes within each round.",
+          "group": "advanced",
+          "type": "int",
+          "default": 3,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "id": "preserveBoundary",
+          "label": "Preserve Boundary",
+          "help": "Hold boundary edges fixed. Turn off only if the border is allowed to move.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "featureAngle",
+          "label": "Feature Angle (degrees)",
+          "help": "Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.",
+          "group": "advanced",
+          "type": "double",
+          "default": -1.0,
+          "min": -1.0,
+          "max": 180.0,
+          "decimals": 2
+        }
+      ]
+    },
+    {
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN"
+      ],
+      "id": "simplification_by_error_trueform",
+      "name": "Simplify by Error Bound (TrueForm)",
+      "pythonName": "simplification_by_error_trueform",
+      "categories": [
+        "Meshing/Simplification"
+      ],
+      "shortDescription": "Reduce triangle count as far as a relative geometric error bound allows.",
+      "longDescriptionMarkdown": "Collapses edges for as long as the surface stays within a **relative error bound**, rather than towards a face count. That is the useful difference from the other simplifiers here: you state the fidelity you will accept and get however few triangles that permits, instead of stating a triangle count and discovering the error afterwards.\\n\\n**Relative Error** is expressed as a fraction of the model size, so the same value means the same thing across models of different scales. The default of 0.002 is conservative.\\n\\nUse *Simplify by Decimation (TrueForm)* when you need a specific face count instead.\\n\\nCompeting implementation: see also the three quadric edge collapse filters under *Meshing/Simplification*.",
+      "tags": [
+        "trueform",
+        "simplification",
+        "error bound",
+        "decimation"
+      ],
+      "parameters": [
+        {
+          "id": "errorRelative",
+          "label": "Relative Error",
+          "help": "Largest geometric deviation allowed, as a fraction of the model size.",
+          "group": "main",
+          "type": "double",
+          "default": 0.002,
+          "min": 1e-07,
+          "max": 1.0,
+          "decimals": 7
+        },
+        {
+          "id": "iterations",
+          "label": "Iterations",
+          "help": "How many simplification passes to run.",
+          "group": "advanced",
+          "type": "int",
+          "default": 1,
+          "min": 1,
+          "max": 50
+        },
+        {
+          "id": "preserveBoundary",
+          "label": "Preserve Boundary",
+          "help": "Hold boundary edges fixed. Turn off only if the border is allowed to move.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "featureAngle",
+          "label": "Feature Angle (degrees)",
+          "help": "Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.",
+          "group": "advanced",
+          "type": "double",
+          "default": -1.0,
+          "min": -1.0,
+          "max": 180.0,
+          "decimals": 2
+        }
+      ]
+    },
+    {
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN"
+      ],
+      "id": "simplification_by_decimation_trueform",
+      "name": "Simplify by Decimation (TrueForm)",
+      "pythonName": "simplification_by_decimation_trueform",
+      "categories": [
+        "Meshing/Simplification"
+      ],
+      "shortDescription": "Reduce the triangle count to a target fraction of the original.",
+      "longDescriptionMarkdown": "Collapses edges until the face count reaches the requested **fraction of the original**, choosing collapses by geometric error so detail is given up where it costs least.\\n\\nA proportion rather than an absolute count, so the filter behaves the same on any input and can be applied repeatedly: 0.5 halves the mesh each time.\\n\\nUse *Simplify by Error Bound (TrueForm)* when fidelity matters more than the resulting size.\\n\\nCompeting implementation: see also the quadric edge collapse filters under *Meshing/Simplification*.",
+      "tags": [
+        "trueform",
+        "simplification",
+        "decimation"
+      ],
+      "parameters": [
+        {
+          "id": "targetProportion",
+          "label": "Target Proportion",
+          "help": "Fraction of the original face count to keep. 0.5 halves the mesh.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.001,
+          "max": 0.999,
+          "decimals": 4
+        },
+        {
+          "id": "preserveBoundary",
+          "label": "Preserve Boundary",
+          "help": "Hold boundary edges fixed. Turn off only if the border is allowed to move.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "featureAngle",
+          "label": "Feature Angle (degrees)",
+          "help": "Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.",
+          "group": "advanced",
+          "type": "double",
+          "default": -1.0,
+          "min": -1.0,
+          "max": 180.0,
+          "decimals": 2
+        }
+      ]
     }
   ]
 }

@@ -24,6 +24,7 @@
 
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
+#include <vcg/complex/append.h>
 #include <vcg/complex/allocate.h>
 #include <wrap/io_trimesh/io_mask.h>
 
@@ -64,6 +65,9 @@ constexpr QLatin1StringView kFilterLaplacian("apply_laplacian_smoothing_trueform
 constexpr QLatin1StringView kFilterTaubin("apply_taubin_smoothing_trueform");
 constexpr QLatin1StringView kFilterCurvature("compute_scalar_by_curvature_trueform");
 constexpr QLatin1StringView kFilterNormals("compute_normals_trueform");
+constexpr QLatin1StringView kFilterIsotropic("remeshing_isotropic_trueform");
+constexpr QLatin1StringView kFilterSimplify("simplification_by_error_trueform");
+constexpr QLatin1StringView kFilterDecimate("simplification_by_decimation_trueform");
 
 using Mask = vcg::tri::io::Mask;
 using TfPoints = tf::points_buffer<float, 3>;
@@ -1674,6 +1678,150 @@ MeshFilterRunResult runNormals(const FilterParams &params, Document &doc)
     }
 }
 
+// ---------------------------------------------------------------------------
+// Remeshing
+// ---------------------------------------------------------------------------
+
+// Replace a layer's geometry with a TrueForm result, keeping the layer and its matrix.
+// The result arrives in world space, so it is mapped back through the inverse matrix.
+MeshFilterRunResult replaceLayerGeometry(
+    Document &doc, int index, const TfMesh &result, const QString &context, QStringList info)
+{
+    Document::MeshEntry &entry = doc.mesh(index);
+    bool invertible = false;
+    const QMatrix4x4 inverse = entry.transform.inverted(&invertible);
+    if (!invertible) {
+        const QString message = QObject::tr("The layer matrix is not invertible.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    VCGMesh output;
+    const auto points = result.points();
+    const std::size_t pointCount = std::size_t(points.size());
+    if (pointCount > 0) {
+        vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
+        std::size_t vi = 0;
+        for (const auto &p : points) {
+            const QVector3D local = inverse.map(QVector3D(float(p[0]), float(p[1]), float(p[2])));
+            output.vert[vi].P() = vcg::Point3f(local.x(), local.y(), local.z());
+            ++vi;
+        }
+        for (const auto &face : result.faces()) {
+            const std::size_t n = std::size_t(face.size());
+            for (std::size_t k = 2; k < n; ++k) {
+                const int a = int(face[0]), b = int(face[k - 1]), c = int(face[k]);
+                if (a < 0 || b < 0 || c < 0)
+                    continue;
+                if (std::size_t(a) >= pointCount || std::size_t(b) >= pointCount
+                    || std::size_t(c) >= pointCount)
+                    continue;
+                if (a == b || b == c || a == c)
+                    continue;
+                vcg::tri::Allocator<VCGMesh>::AddFace(output, a, b, c);
+            }
+        }
+    }
+
+    if (output.FN() <= 0) {
+        const QString message = QObject::tr("The operation produced no faces.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    const int beforeV = entry.mesh.VN();
+    const int beforeF = entry.mesh.FN();
+
+    entry.mesh.Clear();
+    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopy(entry.mesh, output);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(entry.mesh);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(entry.mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry.mesh);
+    entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+
+    doc.markMeshGeometryChanged(index, context);
+    doc.finishFilterProgress(true, context);
+
+    MeshFilterRunResult r;
+    r.success = true;
+    r.documentModified = true;
+    info << QObject::tr("%1 vertices, %2 faces -> %3 vertices, %4 faces.")
+                .arg(beforeV).arg(beforeF).arg(entry.mesh.VN()).arg(entry.mesh.FN());
+    r.infoMessages = info;
+    return r;
+}
+
+MeshFilterRunResult runRemesh(const QString &filterId, const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const bool preserveBoundary = params.getBool(QStringLiteral("preserveBoundary"), true);
+    const double featureAngle = params.getDouble(QStringLiteral("featureAngle"), -1.0);
+    // A negative feature angle disables feature detection, which is TrueForm's own
+    // convention; exposing it as "0 means off" would be a needless second convention.
+    const auto featureRad = tf::rad<float>(
+        featureAngle > 0.0 ? float(featureAngle * M_PI / 180.0) : -1.0f);
+
+    doc.beginFilterProgress(QObject::tr("Remeshing (TrueForm)"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+
+        if (filterId == QString::fromLatin1(kFilterIsotropic)) {
+            const double target = params.getDouble(QStringLiteral("targetLength"), 0.0);
+            if (!std::isfinite(target) || target <= 0.0)
+                return fail(QObject::tr("The target edge length must be larger than zero."));
+            tf::isotropic_remesh_config<float> config{ float(target) };
+            config.iterations = std::max(1, params.getInt(QStringLiteral("iterations"), 3));
+            config.relaxation_iters =
+                std::max(0, params.getInt(QStringLiteral("relaxationIterations"), 3));
+            config.preserve_boundary = preserveBoundary;
+            config.feature_angle = featureRad;
+            auto [mesh, he] = tf::isotropic_remeshed(source.polygons(), config);
+            (void) he;
+            return replaceLayerGeometry(
+                doc, index, mesh,
+                QObject::tr("Remeshed '%1' isotropically").arg(doc.mesh(index).name),
+                { QObject::tr("Target edge length: %1").arg(QString::number(target, 'g', 6)) });
+        }
+
+        if (filterId == QString::fromLatin1(kFilterSimplify)) {
+            tf::simplify_config<float> config;
+            config.error_rel = float(std::max(1e-9, params.getDouble(QStringLiteral("errorRelative"), 0.002)));
+            config.iterations = std::max(1, params.getInt(QStringLiteral("iterations"), 1));
+            config.preserve_boundary = preserveBoundary;
+            config.feature_angle = featureRad;
+            auto [mesh, he] = tf::simplified(source.polygons(), config);
+            (void) he;
+            return replaceLayerGeometry(
+                doc, index, mesh,
+                QObject::tr("Simplified '%1'").arg(doc.mesh(index).name),
+                { QObject::tr("Relative error bound: %1").arg(config.error_rel) });
+        }
+
+        // Decimation to a target proportion of the original face count.
+        const double proportion =
+            std::clamp(params.getDouble(QStringLiteral("targetProportion"), 0.5), 0.001, 0.999);
+        tf::decimate_config<float> config;
+        config.preserve_boundary = preserveBoundary;
+        config.feature_angle = featureRad;
+        auto [mesh, he] = tf::decimated(source.polygons(), float(proportion), config);
+        (void) he;
+        return replaceLayerGeometry(
+            doc, index, mesh,
+            QObject::tr("Decimated '%1'").arg(doc.mesh(index).name),
+            { QObject::tr("Target proportion: %1").arg(proportion) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm remeshing failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
 } // namespace
 
 QString TrueFormFilterPlugin::pluginId() const
@@ -1728,6 +1876,10 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runCurvature(params, doc);
     if (filterId == QString::fromLatin1(kFilterNormals))
         return runNormals(params, doc);
+    if (filterId == QString::fromLatin1(kFilterIsotropic)
+        || filterId == QString::fromLatin1(kFilterSimplify)
+        || filterId == QString::fromLatin1(kFilterDecimate))
+        return runRemesh(filterId, params, doc);
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 }
 

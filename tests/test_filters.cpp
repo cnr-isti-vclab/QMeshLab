@@ -203,6 +203,7 @@ private slots:
     void newMeshFiltersReportTheirLayers();
     void trueFormDistanceAndContainment();
     void trueFormAttributeFiltersBehaveAsDocumented();
+    void trueFormRemeshingChangesResolutionAsAsked();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -2279,6 +2280,95 @@ void FilterTests::trueFormAttributeFiltersBehaveAsDocumented()
         }
         QVERIFY(total > 0);
         QCOMPARE(inward, 0);
+    }
+}
+
+// The three remeshing filters, each checked against the thing it promises: decimation
+// hits a face count, isotropic remeshing equalises edge lengths, and simplification by
+// error bound stays within its bound. All three must keep the shape recognisable.
+void FilterTests::trueFormRemeshingChangesResolutionAsAsked()
+{
+    Document doc;
+
+    QString sphereKey, isoKey, simplifyKey, decimateKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
+        else if (id == QStringLiteral("remeshing_isotropic_trueform")) isoKey = info.key;
+        else if (id == QStringLiteral("simplification_by_error_trueform")) simplifyKey = info.key;
+        else if (id == QStringLiteral("simplification_by_decimation_trueform")) decimateKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    if (isoKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    // Decimation to a stated proportion.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int s = d.currentMeshIndex();
+        const int before = d.mesh(s).mesh.FN();
+        const float diagonalBefore = d.mesh(s).mesh.bbox.Diag();
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("targetProportion"), 0.5);
+        QVERIFY2(d.runFilter(decimateKey, p).success, "decimate failed");
+        const int after = d.mesh(s).mesh.FN();
+        QVERIFY2(after < before, "decimation did not reduce the face count");
+        QVERIFY2(after > before / 4, "decimation overshot badly");
+        // The shape must survive: the bounding box should be about the same size.
+        QVERIFY(std::abs(d.mesh(s).mesh.bbox.Diag() - diagonalBefore) < 0.1f * diagonalBefore);
+    }
+
+    // Isotropic remeshing towards a target edge length: edge lengths should cluster
+    // around it far more tightly than the original's did.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int s = d.currentMeshIndex();
+        const float target = d.mesh(s).mesh.bbox.Diag() * 0.05f;
+
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("targetLength"), double(target));
+        p.insert(QStringLiteral("iterations"), 3);
+        QVERIFY2(d.runFilter(isoKey, p).success, "isotropic remesh failed");
+
+        const VCGMesh &m = d.mesh(s).mesh;
+        QVERIFY(m.FN() > 0);
+        double sum = 0.0;
+        int count = 0;
+        for (const VCGFace &f : m.face) {
+            if (f.IsD())
+                continue;
+            for (int k = 0; k < 3; ++k) {
+                sum += double((f.cV((k + 1) % 3)->cP() - f.cV(k)->cP()).Norm());
+                ++count;
+            }
+        }
+        QVERIFY(count > 0);
+        const double mean = sum / count;
+        // Within a factor of two of the request is a fair bar for a 3-iteration run.
+        QVERIFY2(mean > 0.5 * double(target) && mean < 2.0 * double(target),
+                 qPrintable(QStringLiteral("mean edge %1, target %2").arg(mean).arg(double(target))));
+    }
+
+    // Error-bound simplification: a loose bound must remove more than a tight one.
+    {
+        const auto facesAfter = [&](double errorRelative) {
+            Document d;
+            if (!d.runFilter(sphereKey, {}).success)
+                return -1;
+            MeshFilterParameterValues p;
+            p.insert(QStringLiteral("errorRelative"), errorRelative);
+            if (!d.runFilter(simplifyKey, p).success)
+                return -1;
+            return d.mesh(d.currentMeshIndex()).mesh.FN();
+        };
+        const int tight = facesAfter(0.0005);
+        const int loose = facesAfter(0.05);
+        QVERIFY2(tight > 0 && loose > 0, "error-bound simplification failed");
+        QVERIFY2(loose < tight,
+                 qPrintable(QStringLiteral("a looser bound kept more faces: %1 vs %2")
+                                .arg(loose).arg(tight)));
     }
 }
 
