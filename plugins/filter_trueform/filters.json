@@ -1323,7 +1323,7 @@
         "FN"
       ],
       "shortDescription": "Make neighbouring faces wind the same way.",
-      "longDescriptionMarkdown": "Propagates a consistent winding across each connected component, so neighbouring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\\n\\nThis makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.\\n\\nCompeting implementation: *Re-Orient all faces coherently* does the same with vcglib.\n\n**Implementation note.** A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.",
+      "longDescriptionMarkdown": "Propagates a consistent winding across each connected component, so neighbouring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\\n\\nThis makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.\\n\\nCompeting implementation: *Re-Orient all faces coherently* does the same with vcglib.\n\n**Implementation note.** A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.\n\nFor diagnosis prefer the vcglib *Re-Orient all faces coherently*: it detects and reports a **non-orientable** surface, which this routine cannot distinguish from an incomplete repair.",
       "tags": [
         "trueform",
         "repair",
@@ -1439,6 +1439,235 @@
           "label": "Replace Selection",
           "help": "Clear the existing edge selection first instead of adding to it.",
           "group": "main",
+          "type": "bool",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "repair_self_intersections",
+      "name": "Repair Self-Intersections",
+      "pythonName": "repair_self_intersections",
+      "categories": [
+        "Repair/Topology"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "shortDescription": "Resolve a mesh's self-intersections into real edges and split faces.",
+      "longDescriptionMarkdown": "Computes the **arrangement** of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\\n\\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and *Extract Outer Shell* can keep the outermost one.\\n\\nUse *Create Polyline from Self-Intersections* first to see where the problem is, and *Select Self Intersecting Faces* to see how much is affected.\\n\\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.",
+      "tags": [
+        "trueform",
+        "repair",
+        "self-intersection",
+        "arrangement",
+        "exact"
+      ],
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Layer",
+          "help": "The layer to resolve.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        }
+      ]
+    },
+    {
+      "id": "cut_along_scalar_isocontour",
+      "name": "Cut Along Scalar Isocontour",
+      "pythonName": "cut_along_scalar_isocontour",
+      "categories": [
+        "Meshing/Remeshing"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN"
+      ],
+      "shortDescription": "Split the surface along contours of the vertex scalar field.",
+      "longDescriptionMarkdown": "Cuts the surface along evenly spaced contours of the **per-vertex scalar field**, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\\n\\nWhere *Create Polyline from Scalar Isocontour* draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\\n\\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\\n\\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.",
+      "tags": [
+        "trueform",
+        "isoband",
+        "scalar",
+        "cut",
+        "contour"
+      ],
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Layer",
+          "help": "The layer whose scalar field is cut along.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "contourCount",
+          "label": "Contours",
+          "help": "How many evenly spaced contours to cut at. N contours give N+1 bands.",
+          "group": "main",
+          "type": "int",
+          "default": 5,
+          "min": 1,
+          "max": 1000
+        }
+      ]
+    },
+    {
+      "id": "remove_duplicate_vertices_trueform",
+      "name": "Remove Duplicate Vertices (TrueForm)",
+      "pythonName": "remove_duplicate_vertices_trueform",
+      "categories": [
+        "Repair/Duplicates"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN"
+      ],
+      "shortDescription": "Weld coincident vertices and drop the degeneracies that welding exposes.",
+      "longDescriptionMarkdown": "Welds vertices at the same position into one and removes the degenerate faces that welding leaves behind.\\n\\nThis is the first thing to run on a triangle soup — an STL, or anything exported face by face — because until the vertices are shared the mesh has no connectivity at all: no edges, no adjacency, and so no boundary, no components and no topology for any other filter to work with.\\n\\n**Tolerance** of zero welds only exactly coincident vertices, which is the safe choice. A positive tolerance also merges vertices within that distance, which closes cracks left by finite precision but will collapse genuinely small features if set too large.\\n\\nNote that QMeshLab's own STL reader (*TrueForm OBJ/STL*) already welds on import, so this is mainly for geometry that arrived unwelded by another route.\\n\\nCompeting implementation: *Remove Duplicate Vertices* and *Merge Close Vertices* do the same with vcglib.",
+      "tags": [
+        "trueform",
+        "repair",
+        "duplicates",
+        "weld",
+        "cleanup"
+      ],
+      "parameters": [
+        {
+          "id": "tolerance",
+          "label": "Tolerance",
+          "help": "Weld vertices within this distance. Zero welds only exactly coincident ones.",
+          "group": "main",
+          "type": "absperc",
+          "default": 0.0,
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 8
+        }
+      ]
+    },
+    {
+      "id": "improve_triangulation_trueform",
+      "name": "Improve Triangulation (TrueForm)",
+      "pythonName": "improve_triangulation_trueform",
+      "categories": [
+        "Meshing/Remeshing"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "FV",
+        "VN",
+        "FN"
+      ],
+      "shortDescription": "Improve triangle shape by flipping edges and relaxing vertices, without changing the vertex count.",
+      "longDescriptionMarkdown": "Alternates rounds of **edge flipping** and **tangential relaxation** to improve triangle quality. Connectivity and vertex positions both change, but no vertex is added or removed — so this refines a tessellation you want to keep the size of, where *Remesh Isotropically* would rebuild it.\\n\\nThe two steps depend on each other, which is why they interleave: a flip creates room for a vertex to move somewhere useful, and a moved vertex makes a different flip worthwhile.\\n\\n**Objective** decides which flips are taken:\\n\\n| Objective | Effect |\\n|---|---|\\n| Valence | evens out how many edges meet at each vertex, giving a regular-looking mesh |\\n| Minimum angle | maximises the smallest angle, attacking slivers directly |\\n\\nUse *Valence* for a tidy mesh, *Minimum angle* when thin triangles are causing numerical trouble.\\n\\n**Relaxation** moves each vertex along the surface towards its neighbours' centroid; **Lambda** is how far. Set **Max Deviation** above zero to bound how far the surface may drift from its starting shape — worth doing when the geometry matters more than the triangles.\\n\\n**Check Normals** rejects any flip or move that would fold a triangle over. Leave it on unless you know the mesh is well behaved.\\n\\nCompeting implementations: *Flip Edges by Curvature* and *Flip Edges by Planarity* do the flipping half with vcglib, driven by different objectives; the vcglib *Smooth* filters do the relaxation half. This does both together.",
+      "tags": [
+        "trueform",
+        "remeshing",
+        "quality",
+        "flip",
+        "relaxation",
+        "valence"
+      ],
+      "parameters": [
+        {
+          "id": "objective",
+          "label": "Objective",
+          "help": "What the edge flips optimise for.",
+          "group": "main",
+          "type": "enum",
+          "default": "valence",
+          "enumOptions": [
+            {
+              "id": "valence",
+              "label": "Valence"
+            },
+            {
+              "id": "min_angle",
+              "label": "Minimum Angle"
+            }
+          ]
+        },
+        {
+          "id": "iterations",
+          "label": "Iterations",
+          "help": "How many flip-then-relax rounds to run.",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 1,
+          "max": 100
+        },
+        {
+          "id": "relaxationIterations",
+          "label": "Relaxation Iterations",
+          "help": "Relaxation passes inside each round. Zero flips without moving anything.",
+          "group": "main",
+          "type": "int",
+          "default": 3,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "id": "lambda",
+          "label": "Lambda",
+          "help": "How far relaxation moves a vertex towards its neighbours, 0 to 1.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 4
+        },
+        {
+          "id": "maxDeviation",
+          "label": "Max Deviation",
+          "help": "Largest distance the surface may drift from its starting shape. Zero leaves relaxation unbounded.",
+          "group": "advanced",
+          "type": "absperc",
+          "default": 0.0,
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "checkNormals",
+          "label": "Check Normals",
+          "help": "Reject flips and moves that would fold a triangle over.",
+          "group": "advanced",
           "type": "bool",
           "default": true
         }

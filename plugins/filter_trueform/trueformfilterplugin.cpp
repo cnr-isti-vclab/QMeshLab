@@ -73,6 +73,10 @@ constexpr QLatin1StringView kFilterOrientCoherent("orient_faces_coherently_truef
 constexpr QLatin1StringView kFilterOrientOutward("orient_faces_outward_trueform");
 constexpr QLatin1StringView kFilterSelectCrease("select_crease_edges_trueform");
 constexpr QLatin1StringView kFilterSelectNonManifold("select_non_manifold_edges_trueform");
+constexpr QLatin1StringView kFilterRepairSelfIntersections("repair_self_intersections");
+constexpr QLatin1StringView kFilterCutIsocontour("cut_along_scalar_isocontour");
+constexpr QLatin1StringView kFilterClean("remove_duplicate_vertices_trueform");
+constexpr QLatin1StringView kFilterImprove("improve_triangulation_trueform");
 
 using Mask = vcg::tri::io::Mask;
 using TfPoints = tf::points_buffer<float, 3>;
@@ -2040,6 +2044,193 @@ MeshFilterRunResult runSelectEdges(const QString &filterId, const FilterParams &
     return result;
 }
 
+// ---------------------------------------------------------------------------
+// Arrangement repair, isobands and cleaning
+// ---------------------------------------------------------------------------
+
+// Resolve a mesh against itself. Every self-crossing becomes a real edge and every
+// crossed face is split along it, so the result has a well-defined inside and outside
+// where the original had neither.
+MeshFilterRunResult runRepairSelfIntersections(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    doc.beginFilterProgress(QObject::tr("Repair Self-Intersections"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        using FormView = decltype(std::declval<const TfMesh &>().polygons());
+        std::vector<FormView> forms;
+        forms.emplace_back(source.polygons());
+        auto arrangement = tf::make_mesh_arrangements(tf::make_range(forms.data(), forms.size()));
+
+        return addResultLayer(
+            doc, std::get<0>(arrangement), QObject::tr("Resolved"),
+            QObject::tr("The arrangement is empty."),
+            { QObject::tr("Resolved self-intersections of '%1'.").arg(doc.mesh(index).name) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm arrangement failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Split the surface along contours of the vertex scalar, so each band between successive
+// contour values becomes its own set of faces.
+MeshFilterRunResult runCutAlongIsocontour(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    const VCGMesh &mesh = doc.mesh(index).mesh;
+    if (mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const int count = std::max(1, params.getInt(QStringLiteral("contourCount"), 5));
+
+    std::vector<float> scalars;
+    float lo = std::numeric_limits<float>::max();
+    float hi = std::numeric_limits<float>::lowest();
+    for (const VCGVertex &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        const float q = v.cQ();
+        scalars.push_back(q);
+        if (std::isfinite(q)) {
+            lo = std::min(lo, q);
+            hi = std::max(hi, q);
+        }
+    }
+    if (scalars.empty())
+        return fail(QObject::tr("The layer has no live vertices."));
+    if (!(hi > lo)) {
+        return fail(QObject::tr(
+            "The scalar field is constant, so there is nothing to cut along. Compute a "
+            "per-vertex scalar first."));
+    }
+
+    std::vector<float> cutValues;
+    for (int i = 0; i < count; ++i) {
+        const double t = (double(i) + 1.0) / (double(count) + 1.0);
+        cutValues.push_back(float(double(lo) + t * (double(hi) - double(lo))));
+    }
+    // N cut values partition the range into N+1 bands; keep all of them, so the result is
+    // the whole surface, cut rather than filtered.
+    std::vector<int> bands(std::size_t(count) + 1);
+    for (std::size_t i = 0; i < bands.size(); ++i)
+        bands[i] = int(i);
+
+    doc.beginFilterProgress(QObject::tr("Cut Along Scalar Isocontour"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        auto banded = tf::make_isobands(
+            source.polygons(),
+            tf::make_range(scalars.data(), scalars.size()),
+            tf::make_range(cutValues.data(), cutValues.size()),
+            tf::make_range(bands.data(), bands.size()));
+        return addResultLayer(
+            doc, std::get<0>(banded), QObject::tr("Isobands"),
+            QObject::tr("Cutting produced no faces."),
+            { QObject::tr("From '%1'.").arg(doc.mesh(index).name),
+              QObject::tr("%1 contour(s), %2 band(s), between %3 and %4.")
+                  .arg(count).arg(bands.size())
+                  .arg(QString::number(double(lo), 'g', 6))
+                  .arg(QString::number(double(hi), 'g', 6)) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm isobands failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Weld coincident vertices and drop the degeneracies that welding exposes.
+MeshFilterRunResult runCleanMesh(const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const double tolerance = params.getDouble(QStringLiteral("tolerance"), 0.0);
+
+    doc.beginFilterProgress(QObject::tr("Remove Duplicate Vertices (TrueForm)"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        const int beforeV = doc.mesh(index).mesh.VN();
+        const int beforeF = doc.mesh(index).mesh.FN();
+
+        auto cleaned = (tolerance > 0.0)
+            ? tf::cleaned(source.polygons(), float(tolerance))
+            : tf::cleaned(source.polygons());
+
+        return replaceLayerGeometry(
+            doc, index, cleaned,
+            QObject::tr("Cleaned '%1'").arg(doc.mesh(index).name),
+            { tolerance > 0.0
+                  ? QObject::tr("Welded vertices closer than %1.")
+                        .arg(QString::number(tolerance, 'g', 6))
+                  : QObject::tr("Welded exactly coincident vertices."),
+              QObject::tr("Was %1 vertices, %2 faces.").arg(beforeV).arg(beforeF) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm cleaning failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Improve triangle quality without changing the vertex count: interleaved rounds of edge
+// flips and tangential relaxation. Connectivity and positions both change, but no vertex
+// is added or removed, so it refines an existing tessellation rather than rebuilding it.
+MeshFilterRunResult runImproveTriangulation(const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    tf::improve_config<float> config;
+    config.iterations = std::max(1, params.getInt(QStringLiteral("iterations"), 3));
+    config.relaxation_iters = std::max(0, params.getInt(QStringLiteral("relaxationIterations"), 3));
+    config.lambda = float(std::clamp(params.getDouble(QStringLiteral("lambda"), 0.5), 0.0, 1.0));
+    config.check_normals = params.getBool(QStringLiteral("checkNormals"), true);
+    config.flip = (params.getEnum(QStringLiteral("objective")) == QStringLiteral("min_angle"))
+        ? tf::flip_objective::min_angle
+        : tf::flip_objective::valence;
+    // Zero lets relaxation move vertices freely along the surface; a positive bound caps
+    // how far the surface may drift from where it started.
+    config.max_deviation = float(std::max(0.0, params.getDouble(QStringLiteral("maxDeviation"), 0.0)));
+
+    doc.beginFilterProgress(QObject::tr("Improve Triangulation (TrueForm)"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        // No convenience wrapper for this one: extract the half-edge structure, operate on
+        // it, and rebuild, which is what isotropic_remeshed() does internally.
+        auto [he, points] = tf::remesh::extract_he_points(source.polygons());
+        tf::improve_triangulation(he, tf::make_points(points), config);
+        auto improved = tf::remesh::make_mesh(he, std::move(points));
+
+        return replaceLayerGeometry(
+            doc, index, improved,
+            QObject::tr("Improved the triangulation of '%1'").arg(doc.mesh(index).name),
+            { config.flip == tf::flip_objective::min_angle
+                  ? QObject::tr("Flips chosen to maximise the smallest angle.")
+                  : QObject::tr("Flips chosen to even out vertex valence.") });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm triangulation improvement failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
 } // namespace
 
 QString TrueFormFilterPlugin::pluginId() const
@@ -2104,6 +2295,14 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterSelectCrease)
         || filterId == QString::fromLatin1(kFilterSelectNonManifold))
         return runSelectEdges(filterId, params, doc);
+    if (filterId == QString::fromLatin1(kFilterRepairSelfIntersections))
+        return runRepairSelfIntersections(params, doc);
+    if (filterId == QString::fromLatin1(kFilterCutIsocontour))
+        return runCutAlongIsocontour(params, doc);
+    if (filterId == QString::fromLatin1(kFilterClean))
+        return runCleanMesh(params, doc);
+    if (filterId == QString::fromLatin1(kFilterImprove))
+        return runImproveTriangulation(params, doc);
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 }
 

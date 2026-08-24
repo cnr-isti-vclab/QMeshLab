@@ -207,6 +207,8 @@ private slots:
     void trueFormAttributeFiltersBehaveAsDocumented();
     void trueFormRemeshingChangesResolutionAsAsked();
     void trueFormOrientationAndEdgeSelection();
+    void trueFormRepairAndIsobands();
+    void trueFormImproveTriangulationRaisesQuality();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -2503,6 +2505,184 @@ void FilterTests::trueFormOrientationAndEdgeSelection()
         QVERIFY2(d.runFilter(nonManifoldKey, {}).success, "non-manifold selection failed");
         QCOMPARE(countSelectedEdges(d.mesh(s).mesh), 0);
     }
+}
+
+// The last three: welding a soup restores connectivity, resolving self-intersections
+// splits the crossing faces, and cutting along contours adds geometry without changing
+// the surface's extent.
+void FilterTests::trueFormRepairAndIsobands()
+{
+    Document doc;
+
+    QString boxKey, sphereKey, cleanKey, resolveKey, cutKey, borderKey, unweldKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
+        else if (id == QStringLiteral("remove_duplicate_vertices_trueform")) cleanKey = info.key;
+        else if (id == QStringLiteral("repair_self_intersections")) resolveKey = info.key;
+        else if (id == QStringLiteral("cut_along_scalar_isocontour")) cutKey = info.key;
+        else if (id == QStringLiteral("compute_scalar_by_border_distance_per_vertex")) borderKey = info.key;
+        else if (id == QStringLiteral("meshing_vertex_unreferenced_split")) unweldKey = info.key;
+    }
+    QVERIFY(!boxKey.isEmpty());
+    if (cleanKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    // Welding: split every face into its own vertices, then weld them back.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        const int s = d.currentMeshIndex();
+        const int weldedV = d.mesh(s).mesh.VN();
+
+        // Unweld by hand: give each face its own copy of its three vertices.
+        {
+            VCGMesh soup;
+            for (const VCGFace &f : d.mesh(s).mesh.face) {
+                if (f.IsD())
+                    continue;
+                const int base = soup.VN();
+                vcg::tri::Allocator<VCGMesh>::AddVertices(soup, 3);
+                for (int k = 0; k < 3; ++k)
+                    soup.vert[std::size_t(base + k)].P() = f.cV(k)->cP();
+                vcg::tri::Allocator<VCGMesh>::AddFace(soup, base, base + 1, base + 2);
+            }
+            vcg::tri::UpdateBounding<VCGMesh>::Box(soup);
+            const int soupIndex = d.addMesh(soup, QStringLiteral("soup"));
+            QVERIFY(soupIndex >= 0);
+            d.setCurrentMeshIndex(soupIndex);
+            QVERIFY2(d.mesh(soupIndex).mesh.VN() > weldedV, "the soup should have more vertices");
+
+            QVERIFY2(d.runFilter(cleanKey, {}).success, "clean failed");
+            QCOMPARE(d.mesh(soupIndex).mesh.VN(), weldedV);
+            QCOMPARE(d.mesh(soupIndex).mesh.FN(), 12);
+        }
+    }
+
+    // Resolving self-intersections: two boxes merged into one layer cross each other, so
+    // the arrangement must split faces and produce more of them than it started with.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        const int a = d.currentMeshIndex();
+        const float side = d.mesh(a).mesh.bbox.DimX();
+
+        VCGMesh crossing;
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopy(crossing, d.mesh(a).mesh);
+        const int base = crossing.VN();
+        vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(crossing, d.mesh(a).mesh);
+        for (int i = base; i < crossing.VN(); ++i)
+            crossing.vert[std::size_t(i)].P().X() += side * 0.5f;
+        vcg::tri::UpdateBounding<VCGMesh>::Box(crossing);
+        const int crossIndex = d.addMesh(crossing, QStringLiteral("crossing"));
+        QVERIFY(crossIndex >= 0);
+        const int before = d.mesh(crossIndex).mesh.FN();
+
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), crossIndex);
+        const MeshFilterRunResult r = d.runFilter(resolveKey, p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(r.newMeshIndices.size(), 1);
+        QVERIFY2(d.mesh(r.newMeshIndices.front()).mesh.FN() > before,
+                 "resolving should have split the crossing faces");
+    }
+
+    // Cutting along contours adds geometry but must not move the surface.
+    if (!sphereKey.isEmpty() && !borderKey.isEmpty()) {
+        Document d;
+        QVERIFY2(d.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int s = d.currentMeshIndex();
+        // Give it a non-constant scalar: height along Y.
+        const vcg::Point3f centre = d.mesh(s).mesh.bbox.Center();
+        for (VCGVertex &v : d.mesh(s).mesh.vert)
+            v.Q() = v.cP().Y() - centre.Y();
+        const vcg::Box3f before = d.mesh(s).mesh.bbox;
+        const int beforeF = d.mesh(s).mesh.FN();
+
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), s);
+        p.insert(QStringLiteral("contourCount"), 4);
+        const MeshFilterRunResult r = d.runFilter(cutKey, p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const VCGMesh &cut = d.mesh(r.newMeshIndices.front()).mesh;
+        QVERIFY2(cut.FN() > beforeF, "cutting should have added faces");
+        // Same surface, so the same extent.
+        QVERIFY(std::abs(cut.bbox.DimX() - before.DimX()) < 0.02f * before.DimX());
+        QVERIFY(std::abs(cut.bbox.DimY() - before.DimY()) < 0.02f * before.DimY());
+    }
+}
+
+// Improving a triangulation must raise triangle quality while keeping the vertex count
+// and the surface. A sphere whose vertices have been jittered gives it something to fix.
+void FilterTests::trueFormImproveTriangulationRaisesQuality()
+{
+    Document doc;
+
+    QString sphereKey, improveKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
+        else if (id == QStringLiteral("improve_triangulation_trueform")) improveKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    if (improveKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int s = doc.currentMeshIndex();
+
+    // Smallest angle over the whole mesh, in radians: the quantity the min-angle
+    // objective is supposed to raise.
+    const auto worstAngle = [](const VCGMesh &m) {
+        double worst = 3.15;
+        for (const VCGFace &f : m.face) {
+            if (f.IsD())
+                continue;
+            for (int k = 0; k < 3; ++k) {
+                const vcg::Point3f a = f.cV((k + 1) % 3)->cP() - f.cV(k)->cP();
+                const vcg::Point3f b = f.cV((k + 2) % 3)->cP() - f.cV(k)->cP();
+                const double na = double(a.Norm());
+                const double nb = double(b.Norm());
+                if (na < 1e-12 || nb < 1e-12)
+                    return 0.0;
+                const double cosine = std::clamp(double(a.dot(b)) / (na * nb), -1.0, 1.0);
+                worst = std::min(worst, std::acos(cosine));
+            }
+        }
+        return worst;
+    };
+
+    // Jitter the vertices tangentially so the triangulation degrades but the shape does not.
+    const vcg::Point3f centre = doc.mesh(s).mesh.bbox.Center();
+    const float radius = doc.mesh(s).mesh.bbox.Diag() * 0.5f;
+    int i = 0;
+    for (VCGVertex &v : doc.mesh(s).mesh.vert) {
+        if (v.IsD())
+            continue;
+        const float wobble = 0.12f * radius * ((i % 3) - 1);
+        v.P() = v.cP() + vcg::Point3f(wobble, -wobble, wobble * 0.5f);
+        ++i;
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(doc.mesh(s).mesh);
+
+    const int beforeV = doc.mesh(s).mesh.VN();
+    const int beforeF = doc.mesh(s).mesh.FN();
+    const double before = worstAngle(doc.mesh(s).mesh);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("objective"), QStringLiteral("min_angle"));
+    p.insert(QStringLiteral("iterations"), 5);
+    p.insert(QStringLiteral("relaxationIterations"), 3);
+    QVERIFY2(doc.runFilter(improveKey, p).success, "improve failed");
+
+    const VCGMesh &after = doc.mesh(s).mesh;
+    // Refines rather than rebuilds: the counts must not change.
+    QCOMPARE(after.VN(), beforeV);
+    QCOMPARE(after.FN(), beforeF);
+    QVERIFY2(worstAngle(after) > before,
+             qPrintable(QStringLiteral("worst angle %1 -> %2, no improvement")
+                            .arg(before).arg(worstAngle(after))));
 }
 
 void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()
