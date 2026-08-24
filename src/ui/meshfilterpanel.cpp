@@ -407,20 +407,10 @@ void MeshFilterPanel::onApplyClicked()
     const MeshFilterParameterValues parameters = m_paramForm->values();
 
     if (m_applyToAllVisible && m_applyToAllVisible->isChecked()) {
-        const int prevCurrent = m_doc->currentMeshIndex();
-        for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
-            if (!m_doc->mesh(mi).visible) continue;
-            {
-                const QSignalBlocker blocker(m_doc);
-                m_doc->setCurrentMeshIndex(mi);
-            }
-            QString err;
-            if (!m_doc->validateFilterInvocation(m_currentFilterKey, parameters, err))
-                continue;
-            m_filterParameterCache.insert(m_currentFilterKey, parameters);
-            m_doc->runFilter(m_currentFilterKey, parameters);
-        }
-        m_doc->setCurrentMeshIndex(prevCurrent);
+        // The sweep, its single undo step and its reporting of skipped layers all live in
+        // Document, so that the Python API and the tests get the same behaviour.
+        m_filterParameterCache.insert(m_currentFilterKey, parameters);
+        m_doc->runFilterOnVisibleMeshes(m_currentFilterKey, parameters);
         return;
     }
 

@@ -727,10 +727,17 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     // output conditionally, nested Document operations then collapse into this
     // single filter step. A non-mutating result discards the snapshot below but
     // retains its ScriptAction separately for Python history generation.
-    if (selectionOnlyUndo && originalCurrentMeshIndex >= 0)
-        doc.beginUndoStep(targetDescriptor->name, scriptAction, originalCurrentMeshIndex);
-    else
-        doc.beginUndoStep(targetDescriptor->name, scriptAction);
+    //
+    // Unless a step is already running: a caller applying this filter to several layers
+    // brackets the whole sweep so that it lands as one undo entry. The same
+    // own-the-step idiom guards the nested Document operations in document_layers.cpp.
+    const bool ownUndoStep = !doc.isRestoringUndoRedo() && !doc.undoStepActive();
+    if (ownUndoStep) {
+        if (selectionOnlyUndo && originalCurrentMeshIndex >= 0)
+            doc.beginUndoStep(targetDescriptor->name, scriptAction, originalCurrentMeshIndex);
+        else
+            doc.beginUndoStep(targetDescriptor->name, scriptAction);
+    }
 
     const FilterParams typedParams(normalizedParameters);
     const CleanupApplicationResult preCleanup =
@@ -765,7 +772,10 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
         const MultiMeshPreparationScope prepScope = prepareMeshesForFilter(*targetDescriptor, typedParams, doc);
         result = targetPlugin->runFilter(filterId, typedParams, doc);
         if (!result.success) {
-            doc.endUndoStep(false, true);
+            // Only roll back a step we opened ourselves: inside an outer transaction
+            // this would discard the caller's entire step, not just this one run.
+            if (ownUndoStep)
+                doc.endUndoStep(false, true);
             return result;
         }
 
@@ -811,8 +821,12 @@ MeshFilterRunResult MeshFilterPluginManager::runFilter(
     // document meshes with deleted elements in storage.
     finalizeMeshesAfterSuccessfulFilter(*targetDescriptor, result, doc, originalCurrentMeshIndex);
 
-    doc.endUndoStep(result.documentModified);
-    if (!result.documentModified)
+    if (ownUndoStep)
+        doc.endUndoStep(result.documentModified);
+    // A run nested in someone else's step contributes no undo entry of its own, so its
+    // call is kept as an informational record instead: the script history still lists
+    // every individual invocation together with the layer it ran on.
+    if (!ownUndoStep || !result.documentModified)
         doc.recordScriptAction(scriptAction);
 
     for (const QString &line : result.infoMessages) {

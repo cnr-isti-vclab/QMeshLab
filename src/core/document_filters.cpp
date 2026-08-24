@@ -98,6 +98,115 @@ MeshFilterRunResult Document::runFilter(
     return result;
 }
 
+Document::MultiMeshFilterResult Document::runFilterOnVisibleMeshes(
+    const QString &filterKey,
+    const MeshFilterParameterValues &parameters)
+{
+    MultiMeshFilterResult out;
+
+    if (!m_filterPluginManager) {
+        out.errorMessage = tr("No filter plugin manager is available.");
+        return out;
+    }
+
+    const auto info = m_filterPluginManager->filterInfo(filterKey, *this);
+    const QString filterName = info ? info->descriptor.name : filterKey;
+
+    auto indexOfMeshId = [this](std::uint64_t id) {
+        for (int i = 0; i < meshCount(); ++i)
+            if (mesh(i).meshId == id)
+                return i;
+        return -1;
+    };
+
+    // The sweep covers the layers visible when it starts, identified by mesh id rather
+    // than by index. A filter may add or remove layers underneath us -- 55 of them take a
+    // single mesh and emit new ones -- so a live meshCount() bound would feed the sweep
+    // its own output, and "Duplicate Current layer" would never terminate.
+    std::vector<std::uint64_t> targetIds;
+    for (int mi = 0; mi < meshCount(); ++mi) {
+        if (mesh(mi).visible)
+            targetIds.push_back(mesh(mi).meshId);
+    }
+    out.targetCount = int(targetIds.size());
+    if (targetIds.empty()) {
+        out.errorMessage = tr("There is no visible layer to apply '%1' to.").arg(filterName);
+        return out;
+    }
+
+    const int previousCurrent = m_currentMeshIndex;
+    const std::uint64_t previousCurrentId =
+        (previousCurrent >= 0 && previousCurrent < meshCount()) ? mesh(previousCurrent).meshId : 0;
+
+    // One undo entry for the whole sweep. The nested runFilter() calls below see this
+    // step and decline to open their own (MeshFilterPluginManager::runFilter).
+    const bool ownUndoStep = !isRestoringUndoRedo() && !undoStepActive();
+    if (ownUndoStep)
+        beginUndoStep(tr("%1 (all visible layers)").arg(filterName));
+
+    for (const std::uint64_t meshId : targetIds) {
+        const int mi = indexOfMeshId(meshId);
+        if (mi < 0)
+            continue; // the layer was removed by an earlier iteration of this sweep
+        const QString layerName = mesh(mi).name;
+        {
+            // Narrowly scoped: only the layer switch is silenced. The filters themselves
+            // must still emit, or no view would learn what they changed.
+            const QSignalBlocker blocker(this);
+            setCurrentMeshIndex(mi);
+        }
+
+        QString reason;
+        if (!validateFilterInvocation(filterKey, parameters, reason)) {
+            out.skipped.push_back({mi, layerName, reason});
+            continue;
+        }
+
+        const MeshFilterRunResult result = runFilter(filterKey, parameters);
+        if (!result.success) {
+            out.skipped.push_back({mi, layerName, result.errorMessage});
+            continue;
+        }
+
+        ++out.appliedCount;
+        out.documentModified = out.documentModified || result.documentModified;
+        for (const int newIndex : result.newMeshIndices)
+            out.newMeshIndices.push_back(newIndex);
+    }
+
+    // Put the user back on the layer they had selected, before the step is committed so
+    // that the recorded "after" state carries their selection rather than whichever
+    // layer happened to come last.
+    const int restored = previousCurrentId ? indexOfMeshId(previousCurrentId) : -1;
+    setCurrentMeshIndex(restored >= 0 ? restored : (meshCount() > 0 ? 0 : -1));
+
+    if (ownUndoStep)
+        endUndoStep(out.documentModified);
+
+    out.success = out.appliedCount > 0;
+    if (!out.success)
+        out.errorMessage = tr("'%1' could not be applied to any visible layer.").arg(filterName);
+
+    // A skipped layer used to vanish without a word, which made a partial sweep look
+    // exactly like a complete one.
+    if (!out.skipped.isEmpty()) {
+        writeLog(
+            tr("Filter '%1' applied to %2 of %3 visible layers")
+                .arg(filterName)
+                .arg(out.appliedCount)
+                .arg(out.targetCount),
+            LogSource::Application,
+            LogLevel::Warning);
+        for (const MultiMeshFilterResult::SkippedLayer &skip : out.skipped) {
+            writeLog(
+                tr("Skipped layer '%1': %2").arg(skip.layerName, skip.reason),
+                LogSource::Application,
+                LogLevel::Warning);
+        }
+    }
+    return out;
+}
+
 vcg::CallBackPos *Document::progressCallback()
 {
     return logCallback();

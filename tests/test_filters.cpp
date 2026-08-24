@@ -217,6 +217,9 @@ private slots:
     void voronoiSolidWireframeRunsOnLoadedMesh();
     void icpBetweenPointCloudsUpdatesSourceTransform();
     void translateFilterMovesOnlyCurrentMesh();
+    void applyToAllVisibleLayersIsASingleUndoStep();
+    void applyToAllVisibleLayersDoesNotConsumeItsOwnOutput();
+    void applyToAllVisibleLayersReportsSkippedLayers();
     void packTextureImagesCreatesGutteredAtlas();
     void faceQualityFiltersAreSplit();
     void libiglParametrizationFiltersRunWhenAvailable();
@@ -2986,7 +2989,6 @@ void FilterTests::translateFilterMovesOnlyCurrentMesh()
     params.insert(QStringLiteral("traslMethod"), QStringLiteral("xyz"));
     params.insert(QStringLiteral("axis"), QVector3D(1.0f, 0.0f, 0.0f));
     params.insert(QStringLiteral("Freeze"), false);
-    params.insert(QStringLiteral("allLayers"), false);
 
     const MeshFilterRunResult result = doc.runFilter(translateKey, params);
     QVERIFY2(result.success, qPrintable(result.errorMessage));
@@ -3000,6 +3002,135 @@ void FilterTests::translateFilterMovesOnlyCurrentMesh()
     expected.setToIdentity();
     expected.translate(1.0f, 0.0f, 0.0f);
     QVERIFY(matrixNear(doc.mesh(1).transform, expected));
+}
+
+namespace {
+
+// Three cubes, all visible unless the caller hides one.
+int addCubeLayer(Document &doc, const QString &name)
+{
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    return doc.addMesh(
+        cube,
+        name,
+        vcg::tri::io::Mask::IOM_VERTCOORD
+            | vcg::tri::io::Mask::IOM_VERTNORMAL
+            | vcg::tri::io::Mask::IOM_FACENORMAL);
+}
+
+MeshFilterParameterValues translateAlongXParams()
+{
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("traslMethod"), QStringLiteral("xyz"));
+    params.insert(QStringLiteral("axis"), QVector3D(1.0f, 0.0f, 0.0f));
+    params.insert(QStringLiteral("Freeze"), false);
+    return params;
+}
+
+} // namespace
+
+// Applying a filter to every visible layer is one user gesture, so it must cost exactly
+// one undo entry -- not one per layer, which would leave the intermediate half-applied
+// states, which nobody asked for, sitting in the history.
+void FilterTests::applyToAllVisibleLayersIsASingleUndoStep()
+{
+    Document doc;
+    QCOMPARE(addCubeLayer(doc, QStringLiteral("Cube A")), 0);
+    QCOMPARE(addCubeLayer(doc, QStringLiteral("Cube B")), 1);
+    QCOMPARE(addCubeLayer(doc, QStringLiteral("Cube C")), 2);
+    doc.setMeshVisible(1, false);
+    doc.setCurrentMeshIndex(0);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("compute_matrix_from_translation"));
+    QVERIFY(!key.isEmpty());
+
+    const int undoDepthBefore = doc.undoCursorPosition();
+    const Document::MultiMeshFilterResult result =
+        doc.runFilterOnVisibleMeshes(key, translateAlongXParams());
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.targetCount, 2);
+    QCOMPARE(result.appliedCount, 2);
+    QVERIFY(result.skipped.isEmpty());
+    QVERIFY(result.documentModified);
+
+    QMatrix4x4 identity;
+    identity.setToIdentity();
+    QMatrix4x4 moved;
+    moved.setToIdentity();
+    moved.translate(1.0f, 0.0f, 0.0f);
+    QVERIFY(matrixNear(doc.mesh(0).transform, moved));
+    QVERIFY(matrixNear(doc.mesh(1).transform, identity)); // hidden layer left alone
+    QVERIFY(matrixNear(doc.mesh(2).transform, moved));
+
+    // The sweep hands the user back the layer they were on.
+    QCOMPARE(doc.currentMeshIndex(), 0);
+
+    // The whole point: one entry, and one undo takes every layer back.
+    QCOMPARE(doc.undoCursorPosition(), undoDepthBefore + 1);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.undoCursorPosition(), undoDepthBefore);
+    QVERIFY(matrixNear(doc.mesh(0).transform, identity));
+    QVERIFY(matrixNear(doc.mesh(2).transform, identity));
+}
+
+// A filter that emits new layers must not have its own output swept back into the same
+// run. The sweep therefore fixes its targets up front, by mesh id: with a live
+// meshCount() bound, duplicating every visible layer never terminates.
+void FilterTests::applyToAllVisibleLayersDoesNotConsumeItsOwnOutput()
+{
+    Document doc;
+    QCOMPARE(addCubeLayer(doc, QStringLiteral("Cube A")), 0);
+    QCOMPARE(addCubeLayer(doc, QStringLiteral("Cube B")), 1);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("generate_copy_of_current_mesh"));
+    QVERIFY(!key.isEmpty());
+
+    const int undoDepthBefore = doc.undoCursorPosition();
+    const Document::MultiMeshFilterResult result = doc.runFilterOnVisibleMeshes(key, {});
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.targetCount, 2);
+    QCOMPARE(result.appliedCount, 2);
+    QCOMPARE(result.newMeshIndices.size(), 2);
+    QCOMPARE(doc.meshCount(), 4); // exactly one duplicate per original
+
+    // Layers created across the sweep also belong to its single undo entry.
+    QCOMPARE(doc.undoCursorPosition(), undoDepthBefore + 1);
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.meshCount(), 2);
+}
+
+// A layer the filter cannot be applied to used to be dropped in silence, which made a
+// partial sweep indistinguishable from a complete one.
+void FilterTests::applyToAllVisibleLayersReportsSkippedLayers()
+{
+    Document doc;
+    QCOMPARE(addCubeLayer(doc, QStringLiteral("Cube A")), 0);
+
+    VCGMesh cloud;
+    makeIcpPointCloud(cloud);
+    QCOMPARE(
+        doc.addMesh(cloud, QStringLiteral("Cloud"), vcg::tri::io::Mask::IOM_VERTCOORD),
+        1);
+    QCOMPARE(addCubeLayer(doc, QStringLiteral("Cube B")), 2);
+    doc.setCurrentMeshIndex(0);
+
+    // Compute Face Normals declares requireFaces, so the point-cloud layer fails
+    // validation while both cubes go through.
+    const QString key = filterKeyForId(doc, QStringLiteral("compute_normal_per_face"));
+    QVERIFY(!key.isEmpty());
+
+    const Document::MultiMeshFilterResult result = doc.runFilterOnVisibleMeshes(key, {});
+
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.targetCount, 3);
+    QCOMPARE(result.appliedCount, 2);
+    QCOMPARE(result.skipped.size(), 1);
+    QCOMPARE(result.skipped[0].meshIndex, 1);
+    QCOMPARE(result.skipped[0].layerName, QStringLiteral("Cloud"));
+    QVERIFY(result.skipped[0].reason.contains(QStringLiteral("faces"), Qt::CaseInsensitive));
 }
 
 void FilterTests::packTextureImagesCreatesGutteredAtlas()

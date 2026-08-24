@@ -5,7 +5,11 @@ using namespace DocumentInternal;
 
 void Document::beginUndoStep(const QString &label)
 {
-    beginUndoStep(label, {});
+    // Named type, not {}: against these overloads a braced-init-list converts to int
+    // ahead of ScriptAction, so `{}` silently selected the selection-delta overload and
+    // turned every plain step -- Add Mesh, Rename, Open Meshes -- into a delta on mesh 0
+    // that carries no snapshot to restore from.
+    beginUndoStep(label, ScriptAction{});
 }
 
 void Document::beginUndoStep(
@@ -43,6 +47,11 @@ bool Document::canUndo() const
 bool Document::isRestoringUndoRedo() const
 {
     return m_undoManager->isRestoring();
+}
+
+bool Document::undoStepActive() const
+{
+    return m_undoManager->isStepActive();
 }
 
 void Document::setViewStateFunctions(

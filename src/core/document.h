@@ -201,6 +201,10 @@ public:
     QString undoText() const;
     QString redoText() const;
     bool isRestoringUndoRedo() const;
+    // True while an undo step opened by an outer operation is still running. Nested
+    // operations test this (with isRestoringUndoRedo()) to decide whether they own the
+    // step, so that a caller bracketing several of them collapses into one undo entry.
+    bool undoStepActive() const;
     QStringList undoHistoryLabels() const;
     QStringList undoStackLabels() const;
     int undoCursorPosition() const;
@@ -319,6 +323,30 @@ public:
         const MeshFilterParameterValues &parameters,
         QString &errorMessage) const;
     MeshFilterRunResult runFilter(
+        const QString &filterKey,
+        const MeshFilterParameterValues &parameters = {});
+    // Outcome of applying one filter to every visible layer in turn.
+    struct MultiMeshFilterResult
+    {
+        struct SkippedLayer
+        {
+            int meshIndex = -1;
+            QString layerName;
+            QString reason;
+        };
+        bool success = false;          // at least one layer was applied
+        bool documentModified = false;
+        int appliedCount = 0;
+        int targetCount = 0;           // visible layers the sweep set out to cover
+        QVector<int> newMeshIndices;
+        QVector<SkippedLayer> skipped;
+        QString errorMessage;          // set only when the sweep could not start at all
+    };
+    // Applies filterKey to every currently visible mesh. The whole sweep is one undo
+    // step: the user performed a single action, so a single undo takes it back, and a
+    // layer the filter fails on cannot be stranded in a half-modified state that only
+    // its own neighbours can be undone around.
+    MultiMeshFilterResult runFilterOnVisibleMeshes(
         const QString &filterKey,
         const MeshFilterParameterValues &parameters = {});
     vcg::CallBackPos *progressCallback();
