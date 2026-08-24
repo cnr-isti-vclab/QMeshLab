@@ -924,7 +924,7 @@
 <li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of lighting directions tested at each face barycenter.</p></li>
 <li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
 <li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
-<li><p><strong>cone_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
+<li><p><strong>cone_half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
 </ul>
 </dd></dl>
 
@@ -1317,7 +1317,7 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 <li><p><strong>rays</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Number of visibility directions tested at each point.</p></li>
 <li><p><strong>directional_bias</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of ray directions sampled inside the lighting cone: 0 is uniform ambient light, 1 uses only the cone.</p></li>
 <li><p><strong>cone_direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Axis of the directionally biased lighting cone.</p></li>
-<li><p><strong>cone_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
+<li><p><strong>cone_half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Half-angle in degrees of the directionally biased lighting cone.</p></li>
 </ul>
 </dd></dl>
 
@@ -1893,7 +1893,7 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <ul class="simple">
 <li><p><strong>point_num</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">100</span></code>) — Exact number of points to generate.</p></li>
 <li><p><strong>direction</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0]</span></code>) — Direction from the sphere centre to the centre of the cap.</p></li>
-<li><p><strong>angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Angular radius of the cap in degrees; 180 covers the complete sphere.</p></li>
+<li><p><strong>half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Polar angle in degrees from the cap axis to its boundary; 90 is a hemisphere and 180 covers the complete sphere.</p></li>
 <li><p><strong>technique</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">fibonacci</span></code>) — Random Monte Carlo sampling or deterministic Fibonacci sampling.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run; any other value makes Monte Carlo sampling exactly reproducible.</p></li>
 </ul>
@@ -1957,10 +1957,10 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 <dt class="sig sig-object py" id="qmeshlab.ms.create_sphere_cap">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_sphere_cap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.create_sphere_cap" title="Link to this definition">¶</a></dt>
 <dd><p>Creates a unit-radius spherical cap above the XY plane, with its circular boundary in the plane and its axis along +Z. The cap starts as a six-triangle disk; each subdivision splits every triangle into four, redistributes the interior vertices by Laplacian smoothing, and then lifts all vertices onto the sphere. This construction gives a regular, compact triangulation for shallow caps, but it is not a general-purpose spherical mesher. Triangle distortion grows toward the boundary for wide caps, becoming severe as the cap approaches a hemisphere.</p>
-<p><strong>Cap Angular Diameter</strong> is the full angular extent from one side of the cap to the opposite side, measured through the sphere center. Its polar half-angle is therefore half this value: a 60° diameter reaches 30° from the +Z axis, while a hemisphere has a 180° diameter. The filter stops at 179° because this disk-based parameterization degenerates at the hemisphere limit. For a well-shaped hemisphere or a wider spherical patch, start from a complete sphere and extract the required region instead.</p>
+<p><strong>Cap Half-Angle</strong> is the polar angle from the +Z axis out to the cap boundary, so it is half the cap’s full angular diameter: 30° spans a 60° cap, and a hemisphere would be 90°. The filter stops at 89.5° because this disk-based parameterization degenerates at the hemisphere limit. For a well-shaped hemisphere or a wider spherical patch, start from a complete sphere and extract the required region instead.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">60.0</span></code>) — Full angular extent of the cap in degrees (twice its polar half-angle). A hemisphere would be 180°, where this construction degenerates.</p></li>
+<li><p><strong>half_angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">30.0</span></code>) — Polar angle in degrees from the cap axis to its boundary, i.e. half the full angular diameter. A hemisphere would be 90°, where this construction degenerates.</p></li>
 <li><p><strong>subdiv</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of recursive refinements of the initial six triangles. Level n creates 6 × 4^n faces.</p></li>
 </ul>
 </dd></dl>

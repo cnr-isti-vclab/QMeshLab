@@ -352,6 +352,13 @@ MathJax; links and ordinary formatting should remain Markdown rather than HTML.<
 for the angle from an axis to a cone boundary, and <strong>Angular Diameter</strong> (or
 <strong>Full Aperture</strong>) for the angle between opposite boundary directions. Avoid the
 ambiguous label <strong>Cone Angle</strong>.</p>
+<p>Prefer the half-angle: every cone and cap parameter QMeshLab exposes is one, so
+a new filter that adopts a full aperture makes two sibling filters disagree
+about what the same number means. Name the parameter for the convention as well
+as labelling it – <code class="docutils literal notranslate"><span class="pre">half_angle</span></code>, <code class="docutils literal notranslate"><span class="pre">cone_half_angle</span></code> – because a label protects
+the GUI user while the Python caller sees only the id. When a vcglib entry point
+takes the full aperture, as <code class="docutils literal notranslate"><span class="pre">vcg::tri::SphericalCap</span></code> does, convert at the call
+site rather than changing the shared signature.</p>
 </section>
 <section id="the-plugin-class">
 <h3>2. The plugin class<a class="headerlink" href="#the-plugin-class" title="Link to this heading">¶</a></h3>
