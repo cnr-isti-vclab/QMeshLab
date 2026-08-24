@@ -151,12 +151,12 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterCreateSphereCap)) {
-        const float angleDeg = float(params.getDouble(QStringLiteral("angle")));
-        const int subdiv     = params.getInt(QStringLiteral("subdiv"));
+        const float angularDiameterDeg = float(params.getDouble(QStringLiteral("angle")));
+        const int subdiv               = params.getInt(QStringLiteral("subdiv"));
         VCGMesh m;
         m.face.EnableFFAdjacency();
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
-        vcg::tri::SphericalCap(m, vcg::math::ToRad(angleDeg), subdiv);
+        vcg::tri::SphericalCap(m, vcg::math::ToRad(angularDiameterDeg), subdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
         const int idx = doc.addMesh(m, QStringLiteral("Sphere Cap"), vcg::tri::io::Mask::IOM_VERTNORMAL);

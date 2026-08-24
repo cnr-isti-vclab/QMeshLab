@@ -119,6 +119,11 @@ Because this is JSON, every LaTeX backslash must be escaped as `\\`. Keep
 formulas to standard LaTeX math commands supported by both JKQTMathText and
 MathJax; links and ordinary formatting should remain Markdown rather than HTML.
 
+Angular parameters must state their convention explicitly. Use **Half-Angle**
+for the angle from an axis to a cone boundary, and **Angular Diameter** (or
+**Full Aperture**) for the angle between opposite boundary directions. Avoid the
+ambiguous label **Cone Angle**.
+
 ### 2. The plugin class
 
 ```cpp
