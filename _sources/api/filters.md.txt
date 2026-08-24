@@ -608,6 +608,29 @@ This filter has no parameters.
 
 ---
 
+(filter-compute-chamfer-distance)=
+
+## Measure Chamfer Distance
+
+**Plugin:** qmeshlab.filter.trueform
+
+Report the mean nearest-point distance between two layers.
+
+```{py:function} ms.compute_chamfer_distance(**params)
+:module: _qmeshlab
+
+Reports the **mean** distance from each vertex of one layer to the nearest vertex of the other.\n\nWhere the *Hausdorff Distance* reports the single worst correspondence — and so is dominated by one stray vertex — the chamfer distance averages over all of them. That makes it the more useful number for scoring an overall fit: comparing simplification settings, judging whether a registration improved, or tracking a reconstruction against ground truth. Use Hausdorff when the worst case is what matters, and this when the typical case is.\n\nThe measure is **not symmetric**: the mean distance from A to B differs from B to A, and a subset of a surface can sit very close to it while the surface as a whole sits far from the subset. **Symmetric** measures both directions and also reports the larger, which is the honest single number.\n\n**Outlier Proportion** discards that fraction of the worst correspondences before averaging, for partial overlaps.\n\nThis measures vertex to vertex, so it is sensitive to how densely each layer is sampled.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer being measured.
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The layer measured against.
+- **symmetric** (*bool*, default: `True`) — Measure both directions and report the larger.
+- **outlierProportion** (*double*, default: `0.0`) — Fraction of the worst correspondences discarded before averaging.
+```
+
+---
+
 (filter-compute-color-and-texture-from-active-rasters-projection)=
 
 ## Project Active Rasters Color to Current Mesh Texture
@@ -1278,6 +1301,28 @@ Compute curvature values on the vertices of a mesh or point set and store them i
 - **MaxRefittingIters** (*int*, default: `3`) — Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).
 - **ProjectionAccuracy** (*double*, default: `0.0001`) — Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.
 - **MaxProjectionIters** (*int*, default: `15`) — Max number of iterations for the projection.
+```
+
+---
+
+(filter-compute-scalar-by-signed-distance-per-vertex)=
+
+## Compute Signed Distance to Mesh
+
+**Plugin:** qmeshlab.filter.trueform
+
+Store each vertex's signed distance to another layer's surface in vertex scalar.
+
+```{py:function} ms.compute_scalar_by_signed_distance_per_vertex(**params)
+:module: _qmeshlab
+
+Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable **Unsigned** for absolute distance, which is what you want when only proximity matters.\n\nCompare with *Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance*, which reports a mean.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose vertices are measured.
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The closed surface distances are measured to.
+- **unsigned** (*bool*, default: `False`) — Store absolute distance, discarding inside/outside.
 ```
 
 ---
@@ -3200,6 +3245,71 @@ Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, **Poisson Surface Reconstruction
 
 ---
 
+(filter-generate-polyline-from-mesh-intersection)=
+
+## Create Polyline from Mesh Intersection
+
+**Plugin:** qmeshlab.filter.trueform
+
+Extract the curve where two layers cross, as a polyline layer.
+
+```{py:function} ms.generate_polyline_from_mesh_intersection(**params)
+:module: _qmeshlab
+
+Extracts the exact curve along which two layers intersect, as a new polyline layer. Both are taken in world space, so their layer matrices are applied first.\n\nThe curve is computed with the same exact arrangement the booleans use, so it is the true intersection rather than a sampled approximation, and it is usable as a construction line — a seam to cut along, a profile to sweep, or a measurement.\n\nLayers that do not touch produce nothing.
+
+**Parameters:**
+
+- **firstMesh** (*mesh*, default: `@currentMeshIndex`) — The first layer.
+- **secondMesh** (*mesh*, default: `@otherMeshIndex`) — The second layer.
+```
+
+---
+
+(filter-generate-polyline-from-scalar-isocontour)=
+
+## Create Polyline from Scalar Isocontour
+
+**Plugin:** qmeshlab.filter.trueform
+
+Extract contour lines of the per-vertex scalar field as polylines on the surface.
+
+```{py:function} ms.generate_polyline_from_scalar_isocontour(**params)
+:module: _qmeshlab
+
+Extracts level sets of the **per-vertex scalar field** as polylines lying exactly on the surface.\n\nThis turns every scalar QMeshLab can compute into something with extractable contours: geodesic distance from a point or a border, curvature, ambient occlusion, shape diameter, raster coverage, or anything written by *Compute Vertex Scalar by Expression*. Contours of a geodesic distance are isodistance rings; of a height field, topographic contour lines.\n\n**Contours** sets how many levels are extracted. They are spaced evenly and placed strictly *inside* the range, never at its extremes, where a contour is either empty or the whole boundary.\n\nBy default the range is the field's own minimum and maximum. Enable **Use Custom Range** to contour a chosen band instead — useful when a few outliers would otherwise compress every contour into a corner of the model.\n\nA constant field has no contours, and the filter says so rather than returning an empty layer.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose scalar field is contoured.
+- **contourCount** (*int*, default: `10`) — How many evenly spaced contour levels to extract.
+- **useCustomRange** (*bool*, default: `False`) — Contour a chosen value band instead of the field's full min-max range.
+- **minValue** (*double*, default: `@qualityVMin`) — Lower end of the contoured range. Ignored unless Use Custom Range is on.
+- **maxValue** (*double*, default: `@qualityVMax`) — Upper end of the contoured range. Ignored unless Use Custom Range is on.
+```
+
+---
+
+(filter-generate-polyline-from-self-intersections)=
+
+## Create Polyline from Self-Intersections
+
+**Plugin:** qmeshlab.filter.trueform
+
+Extract the curve where a mesh passes through itself, as a polyline layer.
+
+```{py:function} ms.generate_polyline_from_self_intersections(**params)
+:module: _qmeshlab
+
+Extracts the exact curve along which the layer intersects **itself**, as a new polyline layer.\n\n*Select Self Intersecting Faces* marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.\n\nA clean mesh produces nothing, and the filter says so.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer to examine.
+```
+
+---
+
 (filter-generate-sampling-volumetric)=
 
 ## Sample Volume
@@ -3471,6 +3581,28 @@ Surface reconstruction algorithm using volumetric distance fields and Marching C
 - **mergeColor** (*bool*, default: `False`) — Splat vertices into the grid instead of rasterizing faces. Requires at least one sample per voxel.
 - **simplification** (*bool*, default: `False`) — Automatically simplify the mesh after reconstruction.
 - **normalSmooth** (*int*, default: `3`) — Face normal Laplacian iterations before voxelization. Helps with noisy borders.
+```
+
+---
+
+(filter-generate-tube-from-polyline)=
+
+## Create Tube from Polyline
+
+**Plugin:** qmeshlab.filter.trueform
+
+Sweep a circular profile along a polyline to make a solid tube.
+
+```{py:function} ms.generate_tube_from_polyline(**params)
+:module: _qmeshlab
+
+Sweeps a circular profile along each path of a polyline layer, producing a solid tube.\n\nThe *Create Polyline* filters produce edge meshes, which render as hairlines and cannot be shaded, exported to a solid format, or printed. This turns one into geometry — so a measured cross-section, an intersection seam, or a set of isocontours becomes something you can look at properly or fabricate.\n\n**Radius** is the tube radius and **Sides** the number of segments around it; 8 is smooth enough for most uses, more for close-ups.\n\nEdges are chained into paths first. A vertex where three or more edges meet cannot be swept unambiguously, so the polyline is **split** there rather than branched, and the count of such junctions is reported.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — An edge-mesh layer, such as one made by the Create Polyline filters.
+- **radius** (*absperc*, default: `@bboxDiag001`) — Radius of the swept profile.
+- **segments** (*int*, default: `8`) — Number of segments around the tube. Higher is smoother and heavier.
 ```
 
 ---
@@ -5427,6 +5559,29 @@ Select vertices from selected faces.
 **Parameters:**
 
 - **Inclusive** (*bool*, default: `True`) — If true only vertices with all incident faces selected are selected. Otherwise any vertex with at least one incident selected face is selected.
+```
+
+---
+
+(filter-select-vertices-inside-mesh)=
+
+## Select Vertices Inside Mesh
+
+**Plugin:** qmeshlab.filter.trueform
+
+Select the vertices enclosed by another layer.
+
+```{py:function} ms.select_vertices_inside_mesh(**params)
+:module: _qmeshlab
+
+Selects every vertex that falls **inside** the enclosing layer's volume.\n\nThis is the spatial counterpart to selecting by an attribute: crop a scan to a region of interest by modelling a rough box or sphere around it, isolate the part of an assembly within a clearance envelope, or find geometry that has ended up inside a shell it should be outside of.\n\nContainment is decided by the **sign of the distance** to the enclosing surface rather than by counting ray crossings, so a vertex lying exactly on the surface is resolved consistently instead of depending on the direction a ray happens to be cast.\n\nThe enclosing layer must be **closed** for inside to be meaningful. Enable **Select Outside** to invert the test.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose vertices are selected.
+- **referenceMesh** (*mesh*, default: `@otherMeshIndex`) — The closed layer that defines inside.
+- **selectOutside** (*bool*, default: `False`) — Select the vertices outside the enclosing layer instead.
+- **mode** (*enum*, default: `replace`) — Replace the current selection, or add to and subtract from it.
 ```
 
 ---

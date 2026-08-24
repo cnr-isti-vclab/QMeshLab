@@ -748,6 +748,25 @@
 
 <hr class="docutils" />
 </section>
+<section id="measure-chamfer-distance">
+<span id="filter-compute-chamfer-distance"></span><h2>Measure Chamfer Distance<a class="headerlink" href="#measure-chamfer-distance" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Report the mean nearest-point distance between two layers.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_chamfer_distance">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_chamfer_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_chamfer_distance" title="Link to this definition">¶</a></dt>
+<dd><p>Reports the <strong>mean</strong> distance from each vertex of one layer to the nearest vertex of the other.\n\nWhere the <em>Hausdorff Distance</em> reports the single worst correspondence — and so is dominated by one stray vertex — the chamfer distance averages over all of them. That makes it the more useful number for scoring an overall fit: comparing simplification settings, judging whether a registration improved, or tracking a reconstruction against ground truth. Use Hausdorff when the worst case is what matters, and this when the typical case is.\n\nThe measure is <strong>not symmetric</strong>: the mean distance from A to B differs from B to A, and a subset of a surface can sit very close to it while the surface as a whole sits far from the subset. <strong>Symmetric</strong> measures both directions and also reports the larger, which is the honest single number.\n\n<strong>Outlier Proportion</strong> discards that fraction of the worst correspondences before averaging, for partial overlaps.\n\nThis measures vertex to vertex, so it is sensitive to how densely each layer is sampled.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer being measured.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The layer measured against.</p></li>
+<li><p><strong>symmetric</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Measure both directions and report the larger.</p></li>
+<li><p><strong>outlierProportion</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Fraction of the worst correspondences discarded before averaging.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="project-active-rasters-color-to-current-mesh-texture">
 <span id="filter-compute-color-and-texture-from-active-rasters-projection"></span><h2>Project Active Rasters Color to Current Mesh Texture<a class="headerlink" href="#project-active-rasters-color-to-current-mesh-texture" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.color_projection</p>
@@ -1287,6 +1306,24 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 <li><p><strong>MaxRefittingIters</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).</p></li>
 <li><p><strong>ProjectionAccuracy</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0001</span></code>) — Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.</p></li>
 <li><p><strong>MaxProjectionIters</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">15</span></code>) — Max number of iterations for the projection.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-signed-distance-to-mesh">
+<span id="filter-compute-scalar-by-signed-distance-per-vertex"></span><h2>Compute Signed Distance to Mesh<a class="headerlink" href="#compute-signed-distance-to-mesh" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Store each vertex’s signed distance to another layer’s surface in vertex scalar.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_scalar_by_signed_distance_per_vertex">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_scalar_by_signed_distance_per_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_scalar_by_signed_distance_per_vertex" title="Link to this definition">¶</a></dt>
+<dd><p>Writes, for every vertex, its distance to the nearest point of the reference layer’s surface — <strong>negative inside, positive outside</strong>.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with <em>Create Polyline from Scalar Isocontour</em> (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a <strong>closed surface</strong> for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable <strong>Unsigned</strong> for absolute distance, which is what you want when only proximity matters.\n\nCompare with <em>Hausdorff Distance</em>, which reports a single worst-case number, and <em>Measure Chamfer Distance</em>, which reports a mean.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose vertices are measured.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The closed surface distances are measured to.</p></li>
+<li><p><strong>unsigned</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Store absolute distance, discarding inside/outside.</p></li>
 </ul>
 </dd></dl>
 
@@ -2811,6 +2848,59 @@ Michael Kazhdan, Matthew Bolitho, Hugues Hoppe, <strong>Poisson Surface Reconstr
 
 <hr class="docutils" />
 </section>
+<section id="create-polyline-from-mesh-intersection">
+<span id="filter-generate-polyline-from-mesh-intersection"></span><h2>Create Polyline from Mesh Intersection<a class="headerlink" href="#create-polyline-from-mesh-intersection" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Extract the curve where two layers cross, as a polyline layer.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_polyline_from_mesh_intersection">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_polyline_from_mesh_intersection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_polyline_from_mesh_intersection" title="Link to this definition">¶</a></dt>
+<dd><p>Extracts the exact curve along which two layers intersect, as a new polyline layer. Both are taken in world space, so their layer matrices are applied first.\n\nThe curve is computed with the same exact arrangement the booleans use, so it is the true intersection rather than a sampled approximation, and it is usable as a construction line — a seam to cut along, a profile to sweep, or a measurement.\n\nLayers that do not touch produce nothing.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The first layer.</p></li>
+<li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The second layer.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-polyline-from-scalar-isocontour">
+<span id="filter-generate-polyline-from-scalar-isocontour"></span><h2>Create Polyline from Scalar Isocontour<a class="headerlink" href="#create-polyline-from-scalar-isocontour" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Extract contour lines of the per-vertex scalar field as polylines on the surface.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_polyline_from_scalar_isocontour">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_polyline_from_scalar_isocontour</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_polyline_from_scalar_isocontour" title="Link to this definition">¶</a></dt>
+<dd><p>Extracts level sets of the <strong>per-vertex scalar field</strong> as polylines lying exactly on the surface.\n\nThis turns every scalar QMeshLab can compute into something with extractable contours: geodesic distance from a point or a border, curvature, ambient occlusion, shape diameter, raster coverage, or anything written by <em>Compute Vertex Scalar by Expression</em>. Contours of a geodesic distance are isodistance rings; of a height field, topographic contour lines.\n\n<strong>Contours</strong> sets how many levels are extracted. They are spaced evenly and placed strictly <em>inside</em> the range, never at its extremes, where a contour is either empty or the whole boundary.\n\nBy default the range is the field’s own minimum and maximum. Enable <strong>Use Custom Range</strong> to contour a chosen band instead — useful when a few outliers would otherwise compress every contour into a corner of the model.\n\nA constant field has no contours, and the filter says so rather than returning an empty layer.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose scalar field is contoured.</p></li>
+<li><p><strong>contourCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — How many evenly spaced contour levels to extract.</p></li>
+<li><p><strong>useCustomRange</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Contour a chosen value band instead of the field’s full min-max range.</p></li>
+<li><p><strong>minValue</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;qualityVMin</span></code>) — Lower end of the contoured range. Ignored unless Use Custom Range is on.</p></li>
+<li><p><strong>maxValue</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;qualityVMax</span></code>) — Upper end of the contoured range. Ignored unless Use Custom Range is on.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-polyline-from-self-intersections">
+<span id="filter-generate-polyline-from-self-intersections"></span><h2>Create Polyline from Self-Intersections<a class="headerlink" href="#create-polyline-from-self-intersections" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Extract the curve where a mesh passes through itself, as a polyline layer.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_polyline_from_self_intersections">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_polyline_from_self_intersections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_polyline_from_self_intersections" title="Link to this definition">¶</a></dt>
+<dd><p>Extracts the exact curve along which the layer intersects <strong>itself</strong>, as a new polyline layer.\n\n<em>Select Self Intersecting Faces</em> marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.\n\nA clean mesh produces nothing, and the filter says so.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to examine.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="sample-volume">
 <span id="filter-generate-sampling-volumetric"></span><h2>Sample Volume<a class="headerlink" href="#sample-volume" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.voronoi</p>
@@ -3039,6 +3129,24 @@ Thijs van Lankveld, Marc van Kreveld, Remco Veltkamp, <strong>Watertight Scenes 
 <li><p><strong>mergeColor</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Splat vertices into the grid instead of rasterizing faces. Requires at least one sample per voxel.</p></li>
 <li><p><strong>simplification</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Automatically simplify the mesh after reconstruction.</p></li>
 <li><p><strong>normalSmooth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Face normal Laplacian iterations before voxelization. Helps with noisy borders.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-tube-from-polyline">
+<span id="filter-generate-tube-from-polyline"></span><h2>Create Tube from Polyline<a class="headerlink" href="#create-tube-from-polyline" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Sweep a circular profile along a polyline to make a solid tube.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.generate_tube_from_polyline">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_tube_from_polyline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_tube_from_polyline" title="Link to this definition">¶</a></dt>
+<dd><p>Sweeps a circular profile along each path of a polyline layer, producing a solid tube.\n\nThe <em>Create Polyline</em> filters produce edge meshes, which render as hairlines and cannot be shaded, exported to a solid format, or printed. This turns one into geometry — so a measured cross-section, an intersection seam, or a set of isocontours becomes something you can look at properly or fabricate.\n\n<strong>Radius</strong> is the tube radius and <strong>Sides</strong> the number of segments around it; 8 is smooth enough for most uses, more for close-ups.\n\nEdges are chained into paths first. A vertex where three or more edges meet cannot be swept unambiguously, so the polyline is <strong>split</strong> there rather than branched, and the count of such junctions is reported.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — An edge-mesh layer, such as one made by the Create Polyline filters.</p></li>
+<li><p><strong>radius</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag001</span></code>) — Radius of the swept profile.</p></li>
+<li><p><strong>segments</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">8</span></code>) — Number of segments around the tube. Higher is smoother and heavier.</p></li>
 </ul>
 </dd></dl>
 
@@ -4636,6 +4744,25 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
+<section id="select-vertices-inside-mesh">
+<span id="filter-select-vertices-inside-mesh"></span><h2>Select Vertices Inside Mesh<a class="headerlink" href="#select-vertices-inside-mesh" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Select the vertices enclosed by another layer.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.select_vertices_inside_mesh">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_vertices_inside_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.select_vertices_inside_mesh" title="Link to this definition">¶</a></dt>
+<dd><p>Selects every vertex that falls <strong>inside</strong> the enclosing layer’s volume.\n\nThis is the spatial counterpart to selecting by an attribute: crop a scan to a region of interest by modelling a rough box or sphere around it, isolate the part of an assembly within a clearance envelope, or find geometry that has ended up inside a shell it should be outside of.\n\nContainment is decided by the <strong>sign of the distance</strong> to the enclosing surface rather than by counting ray crossings, so a vertex lying exactly on the surface is resolved consistently instead of depending on the direction a ray happens to be cast.\n\nThe enclosing layer must be <strong>closed</strong> for inside to be meaningful. Enable <strong>Select Outside</strong> to invert the test.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose vertices are selected.</p></li>
+<li><p><strong>referenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The closed layer that defines inside.</p></li>
+<li><p><strong>selectOutside</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Select the vertices outside the enclosing layer instead.</p></li>
+<li><p><strong>mode</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">replace</span></code>) — Replace the current selection, or add to and subtract from it.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="select-visible-faces">
 <span id="filter-select-visible-faces"></span><h2>Select Visible Faces<a class="headerlink" href="#select-visible-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.embree</p>
@@ -6078,6 +6205,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_border_distance_quality"><code class="docutils literal notranslate"><span class="pre">ms.compute_border_distance_quality()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#measure-chamfer-distance">Measure Chamfer Distance</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_chamfer_distance"><code class="docutils literal notranslate"><span class="pre">ms.compute_chamfer_distance()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#project-active-rasters-color-to-current-mesh-texture">Project Active Rasters Color to Current Mesh Texture</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_color_and_texture_from_active_rasters_projection"><code class="docutils literal notranslate"><span class="pre">ms.compute_color_and_texture_from_active_rasters_projection()</span></code></a></li>
 </ul>
@@ -6184,6 +6315,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#compute-curvature-rimls">Compute Curvature (RIMLS)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_rimls_curvature"><code class="docutils literal notranslate"><span class="pre">ms.compute_rimls_curvature()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-signed-distance-to-mesh">Compute Signed Distance to Mesh</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_scalar_by_signed_distance_per_vertex"><code class="docutils literal notranslate"><span class="pre">ms.compute_scalar_by_signed_distance_per_vertex()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-vertex-scalar-from-camera">Compute Vertex Scalar from Camera</a><ul>
@@ -6518,6 +6653,18 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.generate_poisson_reconstruction_cgal"><code class="docutils literal notranslate"><span class="pre">ms.generate_poisson_reconstruction_cgal()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#create-polyline-from-mesh-intersection">Create Polyline from Mesh Intersection</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_polyline_from_mesh_intersection"><code class="docutils literal notranslate"><span class="pre">ms.generate_polyline_from_mesh_intersection()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-polyline-from-scalar-isocontour">Create Polyline from Scalar Isocontour</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_polyline_from_scalar_isocontour"><code class="docutils literal notranslate"><span class="pre">ms.generate_polyline_from_scalar_isocontour()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-polyline-from-self-intersections">Create Polyline from Self-Intersections</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_polyline_from_self_intersections"><code class="docutils literal notranslate"><span class="pre">ms.generate_polyline_from_self_intersections()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#sample-volume">Sample Volume</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_sampling_volumetric"><code class="docutils literal notranslate"><span class="pre">ms.generate_sampling_volumetric()</span></code></a></li>
 </ul>
@@ -6552,6 +6699,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#reconstruct-surface-by-volumetric-merging">Reconstruct Surface by Volumetric Merging</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_surface_reconstruction_vcg"><code class="docutils literal notranslate"><span class="pre">ms.generate_surface_reconstruction_vcg()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-tube-from-polyline">Create Tube from Polyline</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.generate_tube_from_polyline"><code class="docutils literal notranslate"><span class="pre">ms.generate_tube_from_polyline()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#reconstruct-surface-by-voronoi-filtering">Reconstruct Surface by Voronoi Filtering</a><ul>
@@ -6892,6 +7043,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#select-vertices-from-faces">Select Vertices from Faces</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_vertices_from_faces"><code class="docutils literal notranslate"><span class="pre">ms.select_vertices_from_faces()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#select-vertices-inside-mesh">Select Vertices Inside Mesh</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.select_vertices_inside_mesh"><code class="docutils literal notranslate"><span class="pre">ms.select_vertices_inside_mesh()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#select-visible-faces">Select Visible Faces</a><ul>

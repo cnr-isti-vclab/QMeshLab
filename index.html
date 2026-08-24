@@ -290,6 +290,7 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#colorize-vertices-by-scalar">Colorize Vertices by Scalar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-curvature-apss">Compute Curvature (APSS)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-geodesic-distance-from-border">Compute Geodesic Distance from Border</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#measure-chamfer-distance">Measure Chamfer Distance</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#project-active-rasters-color-to-current-mesh-texture">Project Active Rasters Color to Current Mesh Texture</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#project-active-rasters-color-to-current-mesh">Project Active Rasters Color to Current Mesh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#project-current-raster-color-to-current-mesh">Project Current Raster Color to Current Mesh</a></li>
@@ -317,6 +318,7 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-point-cloud-ambient-occlusion">Compute Point Cloud Ambient Occlusion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-point-cloud-normals">Compute Point Cloud Normals</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-curvature-rimls">Compute Curvature (RIMLS)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-signed-distance-to-mesh">Compute Signed Distance to Mesh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-scalar-from-camera">Compute Vertex Scalar from Camera</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-face-scalar-from-raster-coverage">Compute Face Scalar from Raster Coverage</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-vertex-scalar-from-raster-coverage">Compute Vertex Scalar from Raster Coverage</a></li>
@@ -400,6 +402,9 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-isosurface-from-perlin-noise">Create Isosurface from Perlin Noise</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#extract-outer-shell">Extract Outer Shell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-poisson-cgal">Reconstruct Surface by Poisson (CGAL)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-mesh-intersection">Create Polyline from Mesh Intersection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-scalar-isocontour">Create Polyline from Scalar Isocontour</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-polyline-from-self-intersections">Create Polyline from Self-Intersections</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-volume">Sample Volume</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#sample-surface-by-voronoi-relaxation">Sample Surface by Voronoi Relaxation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#compute-harmonic-scalar-field">Compute Harmonic Scalar Field</a></li>
@@ -409,6 +414,7 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-smooth-signed-distance">Reconstruct Surface by Smooth Signed Distance</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-ball-pivoting">Reconstruct Surface by Ball Pivoting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-volumetric-merging">Reconstruct Surface by Volumetric Merging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-tube-from-polyline">Create Tube from Polyline</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#reconstruct-surface-by-voronoi-filtering">Reconstruct Surface by Voronoi Filtering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#create-voronoi-scaffolding">Create Voronoi Scaffolding</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#geometric-cylindrical-unwrapping">Geometric Cylindrical Unwrapping</a></li>
@@ -494,6 +500,7 @@ the <code class="docutils literal notranslate"><span class="pre">mlgui</span></c
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertex-texture-seams">Select Vertex Texture Seams</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#conditional-vertex-selection">Conditional Vertex Selection</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertices-from-faces">Select Vertices from Faces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-vertices-inside-mesh">Select Vertices Inside Mesh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-visible-faces">Select Visible Faces</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#select-visible-vertices">Select Visible Vertices</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api/filters.html#generate-camera-from-direction">Generate Camera from Direction</a></li>
