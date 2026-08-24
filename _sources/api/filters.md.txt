@@ -814,7 +814,7 @@ Computes cosine-weighted ambient visibility on a surface mesh.
 ```{py:function} ms.compute_face_ambient_occlusion(**params)
 :module: _qmeshlab
 
-Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored in face quality and interpolated to vertex quality; a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to face-quality visualization after completion.
+Computes self-occlusion on a surface mesh by tracing rays with Intel Embree. Rays start at each face barycenter and only directions in the outward hemisphere contribute, weighted by the cosine of their angle to the face normal. The resulting ambient-visibility scalar is stored in face quality and interpolated to vertex quality; a larger value means that more ambient light reaches the surface. The average unoccluded direction is also stored in the per-face custom attribute `BentNormal`. By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform ambient illumination and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to face-quality visualization after completion.
 
 **Parameters:**
 
@@ -1307,7 +1307,7 @@ Computes point-cloud visibility against a surface occluder.
 ```{py:function} ms.compute_point_cloud_ambient_occlusion(**params)
 :module: _qmeshlab
 
-Traces rays from every point of the current point-cloud layer against a separate **Occluder Mesh**, using Intel Embree. The result is stored in vertex quality; a larger value means that the point is more exposed. Layer transforms are respected, and the average direction of escaping rays is stored in the per-vertex custom attribute `BentNormal`. **Normal Source** selects the meaning of the measurement:<ul><li><b>Point cloud normals</b> computes classical cosine-weighted hemisphere visibility around each existing point normal. Every point must have a valid normal.</li><li><b>Closest occluder surface</b> uses the geometric normal of the nearest occluder triangle. This is useful when point normals are absent or noisy and the points sample that surface; it assumes that the occluder orientation is meaningful.</li><li><b>No normal (spherical occlusion)</b> tests all sampled directions with equal weight. With <b>Directional Bias</b> set to <code>0</code>, this is orientation-independent full-sphere accessibility: enclosed points have low values and exposed points have high values. It is not classical hemisphere ambient occlusion. A non-zero directional bias instead measures accessibility under the selected directional distribution.</li></ul>By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Angle**: `0` is fully uniform and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to vertex-quality visualization after completion.
+Traces rays from every point of the current point-cloud layer against a separate **Occluder Mesh**, using Intel Embree. The result is stored in vertex quality; a larger value means that the point is more exposed. Layer transforms are respected, and the average direction of escaping rays is stored in the per-vertex custom attribute `BentNormal`. **Normal Source** selects the meaning of the measurement:<ul><li><b>Point cloud normals</b> computes classical cosine-weighted hemisphere visibility around each existing point normal. Every point must have a valid normal.</li><li><b>Closest occluder surface</b> uses the geometric normal of the nearest occluder triangle. This is useful when point normals are absent or noisy and the points sample that surface; it assumes that the occluder orientation is meaningful.</li><li><b>No normal (spherical occlusion)</b> tests all sampled directions with equal weight. With <b>Directional Bias</b> set to <code>0</code>, this is orientation-independent full-sphere accessibility: enclosed points have low values and exposed points have high values. It is not classical hemisphere ambient occlusion. A non-zero directional bias instead measures accessibility under the selected directional distribution.</li></ul>By default directions cover the sphere uniformly. **Directional Bias** replaces a fraction of them with directions inside the cone defined by **Lighting Direction** and **Cone Half-Angle**: `0` is fully uniform and `1` uses only the cone. More rays improve angular sampling at greater cost. The filter does not bake colors; QMeshLab switches to vertex-quality visualization after completion.
 
 **Parameters:**
 
@@ -2119,17 +2119,19 @@ Create a Sphere, whose topology is obtained as regular subdivision of an icosahe
 
 **Plugin:** qmeshlab.filter.create
 
-Creates a spherical dome subtended by a cone of given angle.
+Creates a triangulated unit-radius spherical cap from a refined hexagonal disk.
 
 ```{py:function} ms.create_sphere_cap(**params)
 :module: _qmeshlab
 
-Create a Sphere Cap, or spherical dome, subtended by a cone of given angle
+Creates a unit-radius spherical cap above the XY plane, with its circular boundary in the plane and its axis along +Z. The cap starts as a six-triangle disk; each subdivision splits every triangle into four, redistributes the interior vertices by Laplacian smoothing, and then lifts all vertices onto the sphere. This construction gives a regular, compact triangulation for shallow caps, but it is not a general-purpose spherical mesher. Triangle distortion grows toward the boundary for wide caps, becoming severe as the cap approaches a hemisphere.
+
+**Cap Angular Diameter** is the full angular extent from one side of the cap to the opposite side, measured through the sphere center. Its polar half-angle is therefore half this value: a 60° diameter reaches 30° from the +Z axis, while a hemisphere has a 180° diameter. The filter stops at 179° because this disk-based parameterization degenerates at the hemisphere limit. For a well-shaped hemisphere or a wider spherical patch, start from a complete sphere and extract the required region instead.
 
 **Parameters:**
 
-- **angle** (*double*, default: `60.0`) — Angle of the cone subtending the cap. Must be less than 180.
-- **subdiv** (*int*, default: `3`) — Number of recursive subdivisions.
+- **angle** (*double*, default: `60.0`) — Full angular extent of the cap in degrees (twice its polar half-angle). A hemisphere would be 180°, where this construction degenerates.
+- **subdiv** (*int*, default: `3`) — Number of recursive refinements of the initial six triangles. Level n creates 6 × 4^n faces.
 ```
 
 ---
