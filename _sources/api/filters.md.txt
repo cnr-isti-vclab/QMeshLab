@@ -4206,6 +4206,44 @@ This filter has no parameters.
 
 ---
 
+(filter-orient-faces-coherently-trueform)=
+
+## Orient Faces Coherently (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Make neighbouring faces wind the same way.
+
+```{py:function} ms.orient_faces_coherently_trueform(**params)
+:module: _qmeshlab
+
+Propagates a consistent winding across each connected component, so neighbouring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\n\nThis makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.\n\nCompeting implementation: *Re-Orient all faces coherently* does the same with vcglib.
+
+**Implementation note.** A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.
+
+This filter has no parameters.
+```
+
+---
+
+(filter-orient-faces-outward-trueform)=
+
+## Orient Faces Outward (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Make the winding consistent and pointing out of the solid.
+
+```{py:function} ms.orient_faces_outward_trueform(**params)
+:module: _qmeshlab
+
+First makes the winding consistent, then checks the **signed volume** and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.\n\nThat second step is what distinguishes this from *Orient Faces Coherently*: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.\n\nThe input must therefore be **closed** for the answer to mean anything: an open sheet encloses no volume, so there is no outward.
+
+This filter has no parameters.
+```
+
+---
+
 (filter-pack-texture-per-mesh)=
 
 ## Pack Texture Images
@@ -4621,6 +4659,30 @@ Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge f
 - **SwapFlag** (*bool*, default: `True`) — Include edge-swap step.
 - **SmoothFlag** (*bool*, default: `True`) — Include smoothing step.
 - **ReprojectFlag** (*bool*, default: `True`) — Include projection step.
+```
+
+---
+
+(filter-remeshing-isotropic-trueform)=
+
+## Remesh Isotropically (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Rebuild the tessellation with triangles of a uniform target edge length.
+
+```{py:function} ms.remeshing_isotropic_trueform(**params)
+:module: _qmeshlab
+
+Rebuilds the tessellation so triangles approach a uniform size and shape, by splitting long edges, collapsing short ones, flipping to improve valence and relaxing vertices along the surface.\n\n**Target Edge Length** is the size aimed for. **Iterations** is how many split/collapse/flip/relax rounds run; **Relaxation Iterations** the tangential smoothing passes inside each round.\n\n**Feature Angle** protects sharp edges: any dihedral angle above it is treated as a crease and preserved rather than smoothed away. It is off by default (negative), which is right for organic surfaces and wrong for anything with intended hard edges.\n\nCompeting implementation: *Remesh Isotropically* does the same with vcglib. TrueForm's is parallelised and has the explicit feature and boundary contracts above.
+
+**Parameters:**
+
+- **targetLength** (*absperc*, default: `@bboxDiag01`) — The edge length the remesher aims for.
+- **iterations** (*int*, default: `3`) — How many remeshing rounds to run.
+- **relaxationIterations** (*int*, default: `3`) — Tangential smoothing passes within each round.
+- **preserveBoundary** (*bool*, default: `True`) — Hold boundary edges fixed. Turn off only if the border is allowed to move.
+- **featureAngle** (*double*, default: `-1.0`) — Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.
 ```
 
 ---
@@ -5346,6 +5408,27 @@ It select the crease edges of a mesh according to edge dihedral angle.<br>Angle 
 
 ---
 
+(filter-select-crease-edges-trueform)=
+
+## Select Crease Edges (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Select edges whose dihedral angle exceeds a threshold.
+
+```{py:function} ms.select_crease_edges_trueform(**params)
+:module: _qmeshlab
+
+Marks every edge where the two incident faces meet at more than the given angle — the sharp features of the model.\n\nThe selection lands on the **per-face edge flags**, which is the same place the other crease filters write, so the result feeds straight into *Create Polyline from Selected Edges*, *Cut Along Crease Edges*, or a feature-preserving remesh.\n\nCompeting implementation: *Select Crease Edges* does the same with vcglib, with separate thresholds for convex and concave angles; this one uses a single unsigned threshold.
+
+**Parameters:**
+
+- **angle** (*double*, default: `60.0`) — Dihedral angle above which an edge counts as a crease.
+- **replaceSelection** (*bool*, default: `True`) — Clear the existing edge selection first instead of adding to it.
+```
+
+---
+
 (filter-select-faces-by-color)=
 
 ## Select Faces by Color
@@ -5468,6 +5551,26 @@ Select faces and vertices incident on non manifold edges.
 Select the faces and the vertices incident on non manifold edges (e.g. edges where more than two faces are incident); note that this function select the components that
 
 This filter has no parameters.
+```
+
+---
+
+(filter-select-non-manifold-edges-trueform)=
+
+## Select Non-Manifold Edges (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Select edges shared by more than two faces.
+
+```{py:function} ms.select_non_manifold_edges_trueform(**params)
+:module: _qmeshlab
+
+Marks every edge with more than two incident faces. Such edges have no well-defined surface either side, which is why they break booleans, offsetting, orientation and most reconstruction — so finding them is usually the first step in diagnosing a mesh that misbehaves for no visible reason.\n\nThe selection lands on the per-face edge flags, so it can be turned into a polyline with *Create Polyline from Selected Edges* to see exactly where the trouble is.\n\nCompeting implementation: *Select non Manifold Edges* does the same with vcglib.
+
+**Parameters:**
+
+- **replaceSelection** (*bool*, default: `True`) — Clear the existing edge selection first instead of adding to it.
 ```
 
 ---
@@ -5872,6 +5975,51 @@ Associates one texture with the current mesh UV parametrization, replacing its e
 - **dummy_img_size** (*int*, default: `512`) — Size in pixel of the square dummy texture.
 - **dummy_check_size** (*int*, default: `64`) — Size in pixel of the checkerboard or grid cell of the dummy texture.
 - **dummy_type** (*enum*, default: `checkerboard`) — Choose between a checkerboard and a line grid.
+```
+
+---
+
+(filter-simplification-by-decimation-trueform)=
+
+## Simplify by Decimation (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Reduce the triangle count to a target fraction of the original.
+
+```{py:function} ms.simplification_by_decimation_trueform(**params)
+:module: _qmeshlab
+
+Collapses edges until the face count reaches the requested **fraction of the original**, choosing collapses by geometric error so detail is given up where it costs least.\n\nA proportion rather than an absolute count, so the filter behaves the same on any input and can be applied repeatedly: 0.5 halves the mesh each time.\n\nUse *Simplify by Error Bound (TrueForm)* when fidelity matters more than the resulting size.\n\nCompeting implementation: see also the quadric edge collapse filters under *Meshing/Simplification*.
+
+**Parameters:**
+
+- **targetProportion** (*double*, default: `0.5`) — Fraction of the original face count to keep. 0.5 halves the mesh.
+- **preserveBoundary** (*bool*, default: `True`) — Hold boundary edges fixed. Turn off only if the border is allowed to move.
+- **featureAngle** (*double*, default: `-1.0`) — Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.
+```
+
+---
+
+(filter-simplification-by-error-trueform)=
+
+## Simplify by Error Bound (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Reduce triangle count as far as a relative geometric error bound allows.
+
+```{py:function} ms.simplification_by_error_trueform(**params)
+:module: _qmeshlab
+
+Collapses edges for as long as the surface stays within a **relative error bound**, rather than towards a face count. That is the useful difference from the other simplifiers here: you state the fidelity you will accept and get however few triangles that permits, instead of stating a triangle count and discovering the error afterwards.\n\n**Relative Error** is expressed as a fraction of the model size, so the same value means the same thing across models of different scales. The default of 0.002 is conservative.\n\nUse *Simplify by Decimation (TrueForm)* when you need a specific face count instead.\n\nCompeting implementation: see also the three quadric edge collapse filters under *Meshing/Simplification*.
+
+**Parameters:**
+
+- **errorRelative** (*double*, default: `0.002`) — Largest geometric deviation allowed, as a fraction of the model size.
+- **iterations** (*int*, default: `1`) — How many simplification passes to run.
+- **preserveBoundary** (*bool*, default: `True`) — Hold boundary edges fixed. Turn off only if the border is allowed to move.
+- **featureAngle** (*double*, default: `-1.0`) — Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.
 ```
 
 ---

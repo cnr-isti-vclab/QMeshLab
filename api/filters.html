@@ -3635,6 +3635,33 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="orient-faces-coherently-trueform">
+<span id="filter-orient-faces-coherently-trueform"></span><h2>Orient Faces Coherently (TrueForm)<a class="headerlink" href="#orient-faces-coherently-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Make neighbouring faces wind the same way.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.orient_faces_coherently_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">orient_faces_coherently_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.orient_faces_coherently_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Propagates a consistent winding across each connected component, so neighbouring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\n\nThis makes the winding <em>consistent</em>; it does not decide which way is out. Use <em>Orient Faces Outward (TrueForm)</em> for that.\n\nCompeting implementation: <em>Re-Orient all faces coherently</em> does the same with vcglib.</p>
+<p><strong>Implementation note.</strong> A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="orient-faces-outward-trueform">
+<span id="filter-orient-faces-outward-trueform"></span><h2>Orient Faces Outward (TrueForm)<a class="headerlink" href="#orient-faces-outward-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Make the winding consistent and pointing out of the solid.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.orient_faces_outward_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">orient_faces_outward_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.orient_faces_outward_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>First makes the winding consistent, then checks the <strong>signed volume</strong> and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.\n\nThat second step is what distinguishes this from <em>Orient Faces Coherently</em>: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.\n\nThe input must therefore be <strong>closed</strong> for the answer to mean anything: an open sheet encloses no volume, so there is no outward.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="pack-texture-images">
 <span id="filter-pack-texture-per-mesh"></span><h2>Pack Texture Images<a class="headerlink" href="#pack-texture-images" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
@@ -3989,6 +4016,26 @@ Leave 0 for automatic calculation.</p></li>
 <li><p><strong>SwapFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Include edge-swap step.</p></li>
 <li><p><strong>SmoothFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Include smoothing step.</p></li>
 <li><p><strong>ReprojectFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Include projection step.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="remesh-isotropically-trueform">
+<span id="filter-remeshing-isotropic-trueform"></span><h2>Remesh Isotropically (TrueForm)<a class="headerlink" href="#remesh-isotropically-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Rebuild the tessellation with triangles of a uniform target edge length.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.remeshing_isotropic_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remeshing_isotropic_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remeshing_isotropic_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Rebuilds the tessellation so triangles approach a uniform size and shape, by splitting long edges, collapsing short ones, flipping to improve valence and relaxing vertices along the surface.\n\n<strong>Target Edge Length</strong> is the size aimed for. <strong>Iterations</strong> is how many split/collapse/flip/relax rounds run; <strong>Relaxation Iterations</strong> the tangential smoothing passes inside each round.\n\n<strong>Feature Angle</strong> protects sharp edges: any dihedral angle above it is treated as a crease and preserved rather than smoothed away. It is off by default (negative), which is right for organic surfaces and wrong for anything with intended hard edges.\n\nCompeting implementation: <em>Remesh Isotropically</em> does the same with vcglib. TrueForm’s is parallelised and has the explicit feature and boundary contracts above.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>targetLength</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — The edge length the remesher aims for.</p></li>
+<li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — How many remeshing rounds to run.</p></li>
+<li><p><strong>relaxationIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Tangential smoothing passes within each round.</p></li>
+<li><p><strong>preserveBoundary</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Hold boundary edges fixed. Turn off only if the border is allowed to move.</p></li>
+<li><p><strong>featureAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">-1.0</span></code>) — Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.</p></li>
 </ul>
 </dd></dl>
 
@@ -4572,6 +4619,23 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
+<section id="select-crease-edges-trueform">
+<span id="filter-select-crease-edges-trueform"></span><h2>Select Crease Edges (TrueForm)<a class="headerlink" href="#select-crease-edges-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Select edges whose dihedral angle exceeds a threshold.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.select_crease_edges_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_crease_edges_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.select_crease_edges_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Marks every edge where the two incident faces meet at more than the given angle — the sharp features of the model.\n\nThe selection lands on the <strong>per-face edge flags</strong>, which is the same place the other crease filters write, so the result feeds straight into <em>Create Polyline from Selected Edges</em>, <em>Cut Along Crease Edges</em>, or a feature-preserving remesh.\n\nCompeting implementation: <em>Select Crease Edges</em> does the same with vcglib, with separate thresholds for convex and concave angles; this one uses a single unsigned threshold.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>angle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">60.0</span></code>) — Dihedral angle above which an edge counts as a crease.</p></li>
+<li><p><strong>replaceSelection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Clear the existing edge selection first instead of adding to it.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="select-faces-by-color">
 <span id="filter-select-faces-by-color"></span><h2>Select Faces by Color<a class="headerlink" href="#select-faces-by-color" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
@@ -4669,6 +4733,22 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_non_manifold_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.select_non_manifold_edges" title="Link to this definition">¶</a></dt>
 <dd><p>Select the faces and the vertices incident on non manifold edges (e.g. edges where more than two faces are incident); note that this function select the components that</p>
 <p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="select-non-manifold-edges-trueform">
+<span id="filter-select-non-manifold-edges-trueform"></span><h2>Select Non-Manifold Edges (TrueForm)<a class="headerlink" href="#select-non-manifold-edges-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Select edges shared by more than two faces.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.select_non_manifold_edges_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_non_manifold_edges_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.select_non_manifold_edges_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Marks every edge with more than two incident faces. Such edges have no well-defined surface either side, which is why they break booleans, offsetting, orientation and most reconstruction — so finding them is usually the first step in diagnosing a mesh that misbehaves for no visible reason.\n\nThe selection lands on the per-face edge flags, so it can be turned into a polyline with <em>Create Polyline from Selected Edges</em> to see exactly where the trouble is.\n\nCompeting implementation: <em>Select non Manifold Edges</em> does the same with vcglib.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>replaceSelection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Clear the existing edge selection first instead of adding to it.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
@@ -4993,6 +5073,43 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><p><strong>dummy_img_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">512</span></code>) — Size in pixel of the square dummy texture.</p></li>
 <li><p><strong>dummy_check_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">64</span></code>) — Size in pixel of the checkerboard or grid cell of the dummy texture.</p></li>
 <li><p><strong>dummy_type</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">checkerboard</span></code>) — Choose between a checkerboard and a line grid.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="simplify-by-decimation-trueform">
+<span id="filter-simplification-by-decimation-trueform"></span><h2>Simplify by Decimation (TrueForm)<a class="headerlink" href="#simplify-by-decimation-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Reduce the triangle count to a target fraction of the original.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.simplification_by_decimation_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">simplification_by_decimation_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.simplification_by_decimation_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Collapses edges until the face count reaches the requested <strong>fraction of the original</strong>, choosing collapses by geometric error so detail is given up where it costs least.\n\nA proportion rather than an absolute count, so the filter behaves the same on any input and can be applied repeatedly: 0.5 halves the mesh each time.\n\nUse <em>Simplify by Error Bound (TrueForm)</em> when fidelity matters more than the resulting size.\n\nCompeting implementation: see also the quadric edge collapse filters under <em>Meshing/Simplification</em>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>targetProportion</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Fraction of the original face count to keep. 0.5 halves the mesh.</p></li>
+<li><p><strong>preserveBoundary</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Hold boundary edges fixed. Turn off only if the border is allowed to move.</p></li>
+<li><p><strong>featureAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">-1.0</span></code>) — Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="simplify-by-error-bound-trueform">
+<span id="filter-simplification-by-error-trueform"></span><h2>Simplify by Error Bound (TrueForm)<a class="headerlink" href="#simplify-by-error-bound-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Reduce triangle count as far as a relative geometric error bound allows.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.simplification_by_error_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">simplification_by_error_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.simplification_by_error_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Collapses edges for as long as the surface stays within a <strong>relative error bound</strong>, rather than towards a face count. That is the useful difference from the other simplifiers here: you state the fidelity you will accept and get however few triangles that permits, instead of stating a triangle count and discovering the error afterwards.\n\n<strong>Relative Error</strong> is expressed as a fraction of the model size, so the same value means the same thing across models of different scales. The default of 0.002 is conservative.\n\nUse <em>Simplify by Decimation (TrueForm)</em> when you need a specific face count instead.\n\nCompeting implementation: see also the three quadric edge collapse filters under <em>Meshing/Simplification</em>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>errorRelative</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.002</span></code>) — Largest geometric deviation allowed, as a fraction of the model size.</p></li>
+<li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — How many simplification passes to run.</p></li>
+<li><p><strong>preserveBoundary</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Hold boundary edges fixed. Turn off only if the border is allowed to move.</p></li>
+<li><p><strong>featureAngle</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">-1.0</span></code>) — Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.</p></li>
 </ul>
 </dd></dl>
 
@@ -6883,6 +7000,14 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.normalize_vertex_normals"><code class="docutils literal notranslate"><span class="pre">ms.normalize_vertex_normals()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#orient-faces-coherently-trueform">Orient Faces Coherently (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.orient_faces_coherently_trueform"><code class="docutils literal notranslate"><span class="pre">ms.orient_faces_coherently_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#orient-faces-outward-trueform">Orient Faces Outward (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.orient_faces_outward_trueform"><code class="docutils literal notranslate"><span class="pre">ms.orient_faces_outward_trueform()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#pack-texture-images">Pack Texture Images</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.pack_texture_per_mesh"><code class="docutils literal notranslate"><span class="pre">ms.pack_texture_per_mesh()</span></code></a></li>
 </ul>
@@ -6937,6 +7062,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#remesh-isotropically">Remesh Isotropically</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remeshing_isotropic"><code class="docutils literal notranslate"><span class="pre">ms.remeshing_isotropic()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#remesh-isotropically-trueform">Remesh Isotropically (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.remeshing_isotropic_trueform"><code class="docutils literal notranslate"><span class="pre">ms.remeshing_isotropic_trueform()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#remove-duplicate-faces">Remove Duplicate Faces</a><ul>
@@ -7071,6 +7200,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.select_crease_edges"><code class="docutils literal notranslate"><span class="pre">ms.select_crease_edges()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#select-crease-edges-trueform">Select Crease Edges (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.select_crease_edges_trueform"><code class="docutils literal notranslate"><span class="pre">ms.select_crease_edges_trueform()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#select-faces-by-color">Select Faces by Color</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_faces_by_color"><code class="docutils literal notranslate"><span class="pre">ms.select_faces_by_color()</span></code></a></li>
 </ul>
@@ -7093,6 +7226,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#select-non-manifold-edges">Select non Manifold Edges</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_non_manifold_edges"><code class="docutils literal notranslate"><span class="pre">ms.select_non_manifold_edges()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#select-non-manifold-edges-trueform">Select Non-Manifold Edges (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.select_non_manifold_edges_trueform"><code class="docutils literal notranslate"><span class="pre">ms.select_non_manifold_edges_trueform()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#select-non-manifold-vertices">Select non Manifold Vertices</a><ul>
@@ -7169,6 +7306,14 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#set-texture">Set Texture</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.set_texture"><code class="docutils literal notranslate"><span class="pre">ms.set_texture()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#simplify-by-decimation-trueform">Simplify by Decimation (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.simplification_by_decimation_trueform"><code class="docutils literal notranslate"><span class="pre">ms.simplification_by_decimation_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#simplify-by-error-bound-trueform">Simplify by Error Bound (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.simplification_by_error_trueform"><code class="docutils literal notranslate"><span class="pre">ms.simplification_by_error_trueform()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#simplify-by-vertex-clustering">Simplify by Vertex Clustering</a><ul>
