@@ -142,12 +142,16 @@ jobs:
       - name: Install vcpkg dependencies
         shell: pwsh
         run: |
+          $installLog = Join-Path $env:GITHUB_WORKSPACE "vcpkg-install.log"
           & "$env:VCPKG_ROOT\vcpkg.exe" install `
             --triplet "$env:VCPKG_TARGET_TRIPLET" `
             --overlay-triplets="$env:VCPKG_OVERLAY_TRIPLETS" `
             --x-manifest-root="$env:GITHUB_WORKSPACE" `
             --x-install-root="$env:GITHUB_WORKSPACE\$env:BUILD_DIR\vcpkg_installed" `
-            --clean-after-build
+            --clean-after-build 2>&1 | Tee-Object -FilePath $installLog
+          if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg install failed with exit code $LASTEXITCODE"
+          }
 
       - name: Show vcpkg failure diagnostics
         if: failure()
@@ -157,6 +161,13 @@ jobs:
           if (!(Test-Path $buildtrees)) {
             Write-Warning "No vcpkg buildtrees directory was produced"
             exit 0
+          }
+
+          $installLog = Join-Path $env:GITHUB_WORKSPACE "vcpkg-install.log"
+          if (Test-Path $installLog) {
+            Write-Host "::group::$installLog"
+            Get-Content $installLog -Tail 500
+            Write-Host "::endgroup::"
           }
 
           $logs = Get-ChildItem $buildtrees -Recurse -File |
@@ -176,6 +187,7 @@ jobs:
         with:
           name: qmeshlab-windows-vcpkg-logs
           path: |
+            ${{ github.workspace }}\vcpkg-install.log
             ${{ env.VCPKG_ROOT_WORKSPACE }}\buildtrees\**\*.log
             ${{ env.VCPKG_ROOT_WORKSPACE }}\buildtrees\**\*.txt
           if-no-files-found: warn
