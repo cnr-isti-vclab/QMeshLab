@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -56,7 +56,7 @@ jobs:
           echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"
 
       - name: Cache vcpkg artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/Library/Caches/vcpkg/archives
@@ -101,7 +101,7 @@ jobs:
           ./scripts/package-macos-dmg.sh --no-build --build-dir "$BUILD_DIR"
 
       - name: Upload DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: qmeshlab-macos-dmg
           path: ${{ github.workspace }}/build-release/*.dmg
