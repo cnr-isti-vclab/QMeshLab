@@ -201,6 +201,28 @@ Quality function using muparser to generate new Quality for every face<br>Insert
 
 ---
 
+(filter-apply-laplacian-smoothing-trueform)=
+
+## Smooth Vertices by Laplacian (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Move each vertex towards the average of its neighbours.
+
+```{py:function} ms.apply_laplacian_smoothing_trueform(**params)
+:module: _qmeshlab
+
+Moves each vertex towards the average position of its linked neighbours, repeatedly.\n\n**Lambda** is how far towards that average each step travels: 1.0 goes all the way, smaller values creep. **Iterations** is how many steps.\n\nLaplacian smoothing **shrinks**: every step pulls the surface towards its own average, so a closed shape loses volume and sharp features round off. That is the price of its simplicity, and the reason for its Taubin sibling, which alternates a shrinking step with an expanding one to compensate.\n\nEnable **Selected Only** to restrict movement to the current vertex selection.\n\nCompeting implementation: QMeshLab already has vcglib smoothing under *Geometry/Smoothing*. TrueForm's is parallelised through oneTBB, which shows on large meshes. Results should agree closely; where they differ the difference is in the boundary handling.
+
+**Parameters:**
+
+- **iterations** (*int*, default: `10`) — How many smoothing steps to take.
+- **lambda** (*double*, default: `0.5`) — How far each step moves towards the neighbour average, 0 to 1.
+- **selectedOnly** (*bool*, default: `False`) — Move only the selected vertices.
+```
+
+---
+
 (filter-apply-mls-apss)=
 
 ## MLS projection (APSS)
@@ -255,6 +277,29 @@ Project a mesh (or a point set) onto the MLS surface defined by itself or anothe
 - **ThAngleInDegree** (*double*, default: `2.0`) — Threshold angle between two faces controlling the refinement.
 - **ProjectionAccuracy** (*double*, default: `0.0001`) — Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.
 - **MaxProjectionIters** (*int*, default: `15`) — Max number of iterations for the projection.
+```
+
+---
+
+(filter-apply-taubin-smoothing-trueform)=
+
+## Smooth Vertices by Taubin (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Smooth without the shrinkage that Laplacian smoothing causes.
+
+```{py:function} ms.apply_taubin_smoothing_trueform(**params)
+:module: _qmeshlab
+
+Alternates a Laplacian shrinking step with a slightly larger expanding one, so noise is removed while the overall volume is preserved. This is the smoothing to reach for by default; plain Laplacian is the one to reach for when you *want* the shape to contract.\n\n**Lambda** is the shrinking step and **Kpb** sets the expanding one — larger Kpb pushes back harder against shrinkage. The defaults are the values from Taubin's paper and are a reasonable starting point.\n\nEnable **Selected Only** to restrict movement to the current vertex selection.\n\nCompeting implementation: QMeshLab already has vcglib smoothing under *Geometry/Smoothing*. TrueForm's is parallelised through oneTBB, which shows on large meshes. Results should agree closely; where they differ the difference is in the boundary handling.
+
+**Parameters:**
+
+- **iterations** (*int*, default: `10`) — How many smoothing steps to take.
+- **lambda** (*double*, default: `0.5`) — The shrinking step size, 0 to 1.
+- **kpb** (*double*, default: `0.1`) — Controls the compensating expansion. Larger values resist shrinkage more.
+- **selectedOnly** (*bool*, default: `False`) — Move only the selected vertices.
 ```
 
 ---
@@ -1167,6 +1212,26 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, **Surfac
 
 ---
 
+(filter-compute-normals-trueform)=
+
+## Compute Normals (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Recompute per-vertex or per-face normals from the geometry.
+
+```{py:function} ms.compute_normals_trueform(**params)
+:module: _qmeshlab
+
+Recomputes normals from the current geometry, either one per face or one per vertex (area-weighted from the incident faces).\n\nNormals are computed in world space and mapped back through the layer matrix, so a layer carrying a non-uniform scale gets correct normals rather than merely rotated ones.\n\nCompeting implementation: *Compute Vertex Normals* and *Compute Face Normals* do the same with vcglib. This one is parallelised.
+
+**Parameters:**
+
+- **target** (*enum*, default: `vertex`) — Whether to write per-vertex or per-face normals.
+```
+
+---
+
 (filter-compute-obscurance)=
 
 ## Compute Obscurance
@@ -1301,6 +1366,27 @@ Compute curvature values on the vertices of a mesh or point set and store them i
 - **MaxRefittingIters** (*int*, default: `3`) — Max number of fitting iterations. (0 or 1 is equivalent to the standard IMLS).
 - **ProjectionAccuracy** (*double*, default: `0.0001`) — Threshold value used to stop the projections. This value is scaled by the mean point spacing to get the actual threshold.
 - **MaxProjectionIters** (*int*, default: `15`) — Max number of iterations for the projection.
+```
+
+---
+
+(filter-compute-scalar-by-curvature-trueform)=
+
+## Compute Curvature (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Estimate principal curvatures by local fitting and store one measure in vertex scalar.
+
+```{py:function} ms.compute_scalar_by_curvature_trueform(**params)
+:module: _qmeshlab
+
+Fits a local surface around each vertex over its k-ring neighbourhood and derives the two principal curvatures, then stores the chosen measure in **vertex scalar**.\n\n**Measure** selects what is written:\n\n| Measure | Meaning |\n|---|---|\n| Mean | (k1 + k2) / 2 |\n| Gaussian | k1 * k2 — positive on domes and bowls, negative on saddles |\n| Minimum / Maximum | the individual principal curvatures |\n| Shape index | scale-free descriptor of local shape, from cup through saddle to cap |\n\n**Ring** is the neighbourhood radius in rings of adjacent vertices. Larger values smooth the estimate and cost more; it is the knob to turn when noise dominates the result.\n\nThe shape index is worth knowing about: unlike the curvature values it is **independent of scale**, so it describes the *kind* of shape at a point rather than how strongly curved it is, which makes it comparable across models of different sizes.\n\nCompeting implementation: see also *Compute Curvature (Discrete)*, *(APSS)* and *(RIMLS)*.
+
+**Parameters:**
+
+- **measure** (*enum*, default: `mean`) — Which curvature measure to store in vertex scalar.
+- **ring** (*int*, default: `2`) — Neighbourhood radius in vertex rings. Larger is smoother and slower.
 ```
 
 ---
