@@ -70,14 +70,14 @@ jobs:
 
       - name: Bootstrap vcpkg
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          git clone https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
           VCPKG_BASELINE="$(python3 - <<'PY'
           import json
           with open("vcpkg.json", "r", encoding="utf-8") as f:
               print(json.load(f)["builtin-baseline"])
           PY
           )"
-          git -C "$VCPKG_ROOT" fetch --depth 1 origin "$VCPKG_BASELINE"
+          git -C "$VCPKG_ROOT" checkout --detach "$VCPKG_BASELINE"
           "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: Configure
