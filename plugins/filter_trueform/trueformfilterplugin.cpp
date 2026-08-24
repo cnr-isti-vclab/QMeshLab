@@ -60,6 +60,10 @@ constexpr QLatin1StringView kFilterTube("generate_tube_from_polyline");
 constexpr QLatin1StringView kFilterSignedDistance("compute_scalar_by_signed_distance_per_vertex");
 constexpr QLatin1StringView kFilterSelectInside("select_vertices_inside_mesh");
 constexpr QLatin1StringView kFilterChamfer("compute_chamfer_distance");
+constexpr QLatin1StringView kFilterLaplacian("apply_laplacian_smoothing_trueform");
+constexpr QLatin1StringView kFilterTaubin("apply_taubin_smoothing_trueform");
+constexpr QLatin1StringView kFilterCurvature("compute_scalar_by_curvature_trueform");
+constexpr QLatin1StringView kFilterNormals("compute_normals_trueform");
 
 using Mask = vcg::tri::io::Mask;
 using TfPoints = tf::points_buffer<float, 3>;
@@ -1426,6 +1430,250 @@ MeshFilterRunResult runChamferDistance(const FilterParams &params, Document &doc
     return result;
 }
 
+// ---------------------------------------------------------------------------
+// Smoothing, curvature and normals
+// ---------------------------------------------------------------------------
+
+// tfMeshFromLayer() skips deleted vertices, so the nth TrueForm point is the nth *live*
+// VCG vertex. Results have to be written back through that mapping, not by raw index.
+std::vector<std::size_t> liveVertexIndices(const VCGMesh &mesh)
+{
+    std::vector<std::size_t> live;
+    live.reserve(std::size_t(std::max(0, mesh.VN())));
+    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+        if (!mesh.vert[i].IsD())
+            live.push_back(i);
+    }
+    return live;
+}
+
+// Connectivity shared by the per-vertex operators. Built once per run; the tags below
+// reference these, so they must outlive the call that uses them.
+struct VertexConnectivity
+{
+    explicit VertexConnectivity(const TfMesh &mesh)
+        : membership(mesh.polygons())
+    {
+        link.build(mesh.polygons(), membership);
+    }
+
+    tf::face_membership<int> membership;
+    tf::vertex_link<int> link;
+};
+
+MeshFilterRunResult runSmooth(const QString &filterId, const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces: smoothing follows the vertex link."));
+
+    const bool taubin = (filterId == QString::fromLatin1(kFilterTaubin));
+    const int iterations = std::max(1, params.getInt(QStringLiteral("iterations"), 10));
+    const double lambda = std::clamp(params.getDouble(QStringLiteral("lambda"), 0.5), 0.0, 1.0);
+    const double kpb = params.getDouble(QStringLiteral("kpb"), 0.1);
+    const bool selectedOnly = params.getBool(QStringLiteral("selectedOnly"), false);
+
+    doc.beginFilterProgress(taubin ? QObject::tr("Smooth Vertices by Taubin (TrueForm)")
+                                   : QObject::tr("Smooth Vertices by Laplacian (TrueForm)"));
+    try {
+        Document::MeshEntry &entry = doc.mesh(index);
+        const TfMesh source = tfMeshFromLayer(entry);
+        VertexConnectivity conn(source);
+        auto tagged = source.points() | tf::tag(conn.link);
+
+        auto smoothed = taubin
+            ? tf::taubin_smoothed(tagged, std::size_t(iterations), float(lambda), float(kpb))
+            : tf::laplacian_smoothed(tagged, std::size_t(iterations), float(lambda));
+
+        // The source was taken in world space, so the result comes back there too and
+        // has to be mapped through the inverse layer matrix before it is stored.
+        bool invertible = false;
+        const QMatrix4x4 inverse = entry.transform.inverted(&invertible);
+        if (!invertible)
+            return fail(QObject::tr("The layer matrix is not invertible."));
+
+        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
+        const auto points = smoothed.points();
+        if (std::size_t(points.size()) != live.size())
+            return fail(QObject::tr("Smoothing returned an unexpected number of points."));
+
+        int moved = 0;
+        for (std::size_t i = 0; i < live.size(); ++i) {
+            VCGVertex &v = entry.mesh.vert[live[i]];
+            if (selectedOnly && !v.IsS())
+                continue;
+            const auto &p = points[i];
+            const QVector3D local = inverse.map(QVector3D(float(p[0]), float(p[1]), float(p[2])));
+            v.P() = vcg::Point3f(local.x(), local.y(), local.z());
+            ++moved;
+        }
+
+        vcg::tri::UpdateBounding<VCGMesh>::Box(entry.mesh);
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry.mesh);
+        doc.markMeshGeometryChanged(
+            index, QObject::tr("Smoothed '%1'").arg(entry.name));
+        doc.finishFilterProgress(true, QObject::tr("Smoothed the layer."));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages
+            << QObject::tr("Moved %1 vertex(es) over %2 iteration(s).").arg(moved).arg(iterations);
+        return result;
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm smoothing failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+MeshFilterRunResult runCurvature(const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const QString measure = params.getEnum(QStringLiteral("measure"));
+    const int ring = std::max(1, params.getInt(QStringLiteral("ring"), 2));
+
+    doc.beginFilterProgress(QObject::tr("Compute Curvature (TrueForm)"));
+    try {
+        Document::MeshEntry &entry = doc.mesh(index);
+        const TfMesh source = tfMeshFromLayer(entry);
+        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
+
+        std::vector<float> values;
+        if (measure == QStringLiteral("shape_index")) {
+            auto shape = tf::make_shape_index(source.polygons(), std::size_t(ring));
+            values.assign(shape.begin(), shape.end());
+        } else {
+            auto [k0, k1] = tf::make_principal_curvatures(source.polygons(), std::size_t(ring));
+            const std::size_t n = std::min(std::size_t(k0.size()), std::size_t(k1.size()));
+            values.reserve(n);
+            for (std::size_t i = 0; i < n; ++i) {
+                const double a = double(k0[i]);
+                const double b = double(k1[i]);
+                double value = 0.0;
+                if (measure == QStringLiteral("gaussian")) value = a * b;
+                else if (measure == QStringLiteral("min")) value = std::min(a, b);
+                else if (measure == QStringLiteral("max")) value = std::max(a, b);
+                else value = 0.5 * (a + b); // mean
+                values.push_back(float(value));
+            }
+        }
+
+        if (values.size() != live.size())
+            return fail(QObject::tr("Curvature returned an unexpected number of values."));
+        for (std::size_t i = 0; i < live.size(); ++i)
+            entry.mesh.vert[live[i]].Q() = values[i];
+        entry.ioMask |= Mask::IOM_VERTQUALITY;
+
+        doc.markMeshGeometryChanged(
+            index, QObject::tr("Computed curvature on '%1'").arg(entry.name));
+        doc.finishFilterProgress(true, QObject::tr("Computed curvature."));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages << QObject::tr("Wrote %1 per-vertex value(s).").arg(values.size());
+        result.visualizationHints.push_back(
+            { index, MeshFilterVisualizationAttribute::VertexQuality });
+        return result;
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm curvature failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+MeshFilterRunResult runNormals(const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const bool perFace = params.getEnum(QStringLiteral("target")) == QStringLiteral("face");
+
+    doc.beginFilterProgress(QObject::tr("Compute Normals (TrueForm)"));
+    try {
+        Document::MeshEntry &entry = doc.mesh(index);
+        const TfMesh source = tfMeshFromLayer(entry);
+
+        // Normals are computed in world space, so they come back rotated by the layer
+        // matrix and must be brought back into layer space before being stored.
+        bool invertible = false;
+        const QMatrix4x4 inverse = entry.transform.inverted(&invertible);
+        if (!invertible)
+            return fail(QObject::tr("The layer matrix is not invertible."));
+        const QMatrix3x3 backToLayer = inverse.normalMatrix();
+
+        const auto toLayer = [&backToLayer](float x, float y, float z) {
+            QVector3D t(backToLayer(0, 0) * x + backToLayer(0, 1) * y + backToLayer(0, 2) * z,
+                        backToLayer(1, 0) * x + backToLayer(1, 1) * y + backToLayer(1, 2) * z,
+                        backToLayer(2, 0) * x + backToLayer(2, 1) * y + backToLayer(2, 2) * z);
+            if (t.lengthSquared() > 1e-20f)
+                t.normalize();
+            return t;
+        };
+
+        std::size_t written = 0;
+        if (perFace) {
+            auto normals = tf::compute_normals(source.polygons());
+            const auto vectors = normals.unit_vectors();
+            std::size_t k = 0;
+            for (VCGFace &f : entry.mesh.face) {
+                if (f.IsD())
+                    continue;
+                if (k >= std::size_t(vectors.size()))
+                    break;
+                const auto &n = vectors[k++];
+                const QVector3D t = toLayer(float(n[0]), float(n[1]), float(n[2]));
+                f.N() = vcg::Point3f(t.x(), t.y(), t.z());
+                ++written;
+            }
+            entry.ioMask |= Mask::IOM_FACENORMAL;
+        } else {
+            VertexConnectivity conn(source);
+            auto normals = tf::compute_point_normals(source.polygons() | tf::tag(conn.membership));
+            const auto vectors = normals.unit_vectors();
+            const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
+            if (std::size_t(vectors.size()) != live.size())
+                return fail(QObject::tr("Normal computation returned an unexpected count."));
+            for (std::size_t i = 0; i < live.size(); ++i) {
+                const auto &n = vectors[i];
+                const QVector3D t = toLayer(float(n[0]), float(n[1]), float(n[2]));
+                entry.mesh.vert[live[i]].N() = vcg::Point3f(t.x(), t.y(), t.z());
+                ++written;
+            }
+            entry.ioMask |= Mask::IOM_VERTNORMAL;
+        }
+
+        doc.markMeshGeometryChanged(
+            index, QObject::tr("Computed normals on '%1'").arg(entry.name));
+        doc.finishFilterProgress(true, QObject::tr("Computed normals."));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages << (perFace ? QObject::tr("Wrote %1 face normal(s).").arg(written)
+                                        : QObject::tr("Wrote %1 vertex normal(s).").arg(written));
+        return result;
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm normal computation failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
 } // namespace
 
 QString TrueFormFilterPlugin::pluginId() const
@@ -1473,6 +1721,13 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runSelectInsideMesh(params, doc);
     if (filterId == QString::fromLatin1(kFilterChamfer))
         return runChamferDistance(params, doc);
+    if (filterId == QString::fromLatin1(kFilterLaplacian)
+        || filterId == QString::fromLatin1(kFilterTaubin))
+        return runSmooth(filterId, params, doc);
+    if (filterId == QString::fromLatin1(kFilterCurvature))
+        return runCurvature(params, doc);
+    if (filterId == QString::fromLatin1(kFilterNormals))
+        return runNormals(params, doc);
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 }
 

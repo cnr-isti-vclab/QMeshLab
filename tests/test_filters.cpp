@@ -202,6 +202,7 @@ private slots:
     void trueFormCurveFamilyProducesPolylines();
     void newMeshFiltersReportTheirLayers();
     void trueFormDistanceAndContainment();
+    void trueFormAttributeFiltersBehaveAsDocumented();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -2172,6 +2173,113 @@ void FilterTests::trueFormDistanceAndContainment()
     QVERIFY2(chamfer.success, qPrintable(chamfer.errorMessage));
     QVERIFY(!chamfer.documentModified); // a measurement must not alter the document
     QVERIFY(chamfer.infoMessages.size() >= 3);
+}
+
+// The competing per-vertex operators. Each is checked against a property that follows
+// from what it claims to do, rather than merely that it ran: Laplacian smoothing shrinks
+// a sphere, Taubin does not, Gaussian curvature of a sphere is positive everywhere, and
+// recomputed normals on a sphere point outward.
+void FilterTests::trueFormAttributeFiltersBehaveAsDocumented()
+{
+    Document doc;
+
+    QString sphereKey, laplacianKey, taubinKey, curvatureKey, normalsKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
+        else if (id == QStringLiteral("apply_laplacian_smoothing_trueform")) laplacianKey = info.key;
+        else if (id == QStringLiteral("apply_taubin_smoothing_trueform")) taubinKey = info.key;
+        else if (id == QStringLiteral("compute_scalar_by_curvature_trueform")) curvatureKey = info.key;
+        else if (id == QStringLiteral("compute_normals_trueform")) normalsKey = info.key;
+    }
+    QVERIFY(!sphereKey.isEmpty());
+    if (laplacianKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    const auto meshVolume = [](const VCGMesh &m) {
+        return double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(m)));
+    };
+
+    // Laplacian smoothing shrinks a closed surface; that is its documented drawback.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int s = d.currentMeshIndex();
+        const double before = meshVolume(d.mesh(s).mesh);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("iterations"), 20);
+        p.insert(QStringLiteral("lambda"), 0.5);
+        QVERIFY2(d.runFilter(laplacianKey, p).success, "laplacian failed");
+        const double after = meshVolume(d.mesh(s).mesh);
+        QVERIFY2(after < before * 0.99,
+                 qPrintable(QStringLiteral("laplacian did not shrink: %1 -> %2").arg(before).arg(after)));
+    }
+
+    // Taubin is the volume-preserving one: same iterations, far less loss.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int s = d.currentMeshIndex();
+        const double before = meshVolume(d.mesh(s).mesh);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("iterations"), 20);
+        p.insert(QStringLiteral("lambda"), 0.5);
+        p.insert(QStringLiteral("kpb"), 0.1);
+        QVERIFY2(d.runFilter(taubinKey, p).success, "taubin failed");
+        const double after = meshVolume(d.mesh(s).mesh);
+        QVERIFY2(after > before * 0.9,
+                 qPrintable(QStringLiteral("taubin lost too much volume: %1 -> %2").arg(before).arg(after)));
+    }
+
+    // Gaussian curvature of a convex closed surface is positive everywhere.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int s = d.currentMeshIndex();
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("measure"), QStringLiteral("gaussian"));
+        p.insert(QStringLiteral("ring"), 2);
+        QVERIFY2(d.runFilter(curvatureKey, p).success, "curvature failed");
+        int nonPositive = 0;
+        int total = 0;
+        for (const VCGVertex &v : d.mesh(s).mesh.vert) {
+            if (v.IsD())
+                continue;
+            ++total;
+            if (!(v.cQ() > 0.0f))
+                ++nonPositive;
+        }
+        QVERIFY(total > 0);
+        // Allow a few boundary-ish estimates to misbehave, but not the bulk.
+        QVERIFY2(nonPositive < total / 10,
+                 qPrintable(QStringLiteral("%1 of %2 gaussian curvatures were not positive")
+                                .arg(nonPositive).arg(total)));
+    }
+
+    // Recomputed vertex normals on a sphere point away from the centre.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int s = d.currentMeshIndex();
+        for (VCGVertex &v : d.mesh(s).mesh.vert)
+            v.N() = vcg::Point3f(0.0f, 0.0f, 0.0f); // clear so the filter must do the work
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("target"), QStringLiteral("vertex"));
+        QVERIFY2(d.runFilter(normalsKey, p).success, "normals failed");
+        const VCGMesh &m = d.mesh(s).mesh;
+        const vcg::Point3f centre = m.bbox.Center();
+        int inward = 0;
+        int total = 0;
+        for (const VCGVertex &v : m.vert) {
+            if (v.IsD())
+                continue;
+            ++total;
+            if ((v.cP() - centre).Normalize().dot(v.cN()) <= 0.0f)
+                ++inward;
+        }
+        QVERIFY(total > 0);
+        QCOMPARE(inward, 0);
+    }
 }
 
 void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()
