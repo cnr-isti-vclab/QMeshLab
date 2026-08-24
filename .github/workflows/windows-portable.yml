@@ -128,8 +128,9 @@ jobs:
           git -C $env:VCPKG_ROOT checkout --detach $vcpkgBaseline
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
-      - name: Cache vcpkg artifacts
-        uses: actions/cache@v6
+      - name: Restore vcpkg artifacts
+        id: restore-vcpkg-cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ env.LOCALAPPDATA }}\vcpkg\archives
@@ -152,6 +153,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "vcpkg install failed with exit code $LASTEXITCODE"
           }
+
+      # Save now rather than in a post-job hook, so a later compile/package
+      # failure does not discard an otherwise successful dependency build.
+      - name: Save vcpkg artifacts
+        if: steps.restore-vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.LOCALAPPDATA }}\vcpkg\archives
+            ${{ env.VCPKG_ROOT_WORKSPACE }}\downloads
+            ${{ github.workspace }}\build-win-release\vcpkg_installed
+          key: windows-portable-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}
 
       - name: Show vcpkg failure diagnostics
         if: failure()

@@ -36,6 +36,11 @@ target_link_libraries(QMeshLabInstantMeshesCore PUBLIC Eigen3::Eigen TBB::tbb)
 target_include_directories(QMeshLabInstantMeshesCore BEFORE PUBLIC
     ${CMAKE_SOURCE_DIR}/vcglib/eigenlib)
 target_compile_features(QMeshLabInstantMeshesCore PUBLIC cxx_std_17)
+if (MSVC)
+    # MSVC hides the non-standard M_PI constant used by the upstream sources
+    # unless this is defined before any of the C/C++ math headers are included.
+    target_compile_definitions(QMeshLabInstantMeshesCore PRIVATE _USE_MATH_DEFINES)
+endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
     target_compile_options(QMeshLabInstantMeshesCore PRIVATE
         -Wno-deprecated-declarations
