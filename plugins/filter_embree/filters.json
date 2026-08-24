@@ -95,7 +95,7 @@
           "default": [0.0, 1.0, 0.0]
         },
         {
-          "id": "cone_angle",
+          "id": "cone_half_angle",
           "label": "Cone Half-Angle",
           "help": "Half-angle in degrees of the directionally biased lighting cone.",
           "group": "directions",
@@ -195,7 +195,7 @@
           "default": [0.0, 1.0, 0.0]
         },
         {
-          "id": "cone_angle",
+          "id": "cone_half_angle",
           "label": "Cone Half-Angle",
           "help": "Half-angle in degrees of the directionally biased lighting cone.",
           "group": "directions",

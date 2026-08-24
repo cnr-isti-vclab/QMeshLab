@@ -1,5 +1,6 @@
 #include <QtTest/QtTest>
 #include <QSignalSpy>
+#include <QDataStream>
 #include <QFile>
 #include <QFileInfo>
 #include <QScopeGuard>
@@ -57,6 +58,7 @@ private slots:
     void openDialogFilterContainsKnownFormats();
     void saveAndLoad3MFRoundTrip();
     void trueFormRoundTripsObjAndStl();
+    void plyWithLongPerVertexListLoads();
     void saveAndLoadEmbeddedGLBTexture();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
     void savePolygonalFormatsHonorFauxEdgesAndTriangulationOption();
@@ -903,6 +905,70 @@ void DocumentTests::saveAndLoad3MFRoundTrip()
 //
 // It carries geometry only — no UVs, normals or materials — and STL import welds
 // coincident vertices while loading, which is what the vertex-count assertions check.
+// A PLY may hang a variable-length list property off the vertex element. vcglib does
+// not store such a property, so it skips it -- and the skip used to read the whole list
+// into a 512 byte stack buffer in one go. A uchar count reaches 255, so a uint32 list
+// longer than 128 entries smashed the stack: a valid file, straight from a scanner,
+// aborting the application. Only vertices past that threshold trigger it, so a file can
+// be millions of points long and fail on exactly one of them.
+void DocumentTests::plyWithLongPerVertexListLoads()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("listprop.ply"));
+
+    constexpr int kVertices = 4;
+    // 200 > 512/4, so the old one-shot skip overran by 288 bytes.
+    constexpr int kListLength = 200;
+
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        const QByteArray header =
+            "ply\n"
+            "format binary_little_endian 1.0\n"
+            "element vertex 4\n"
+            "property float32 x\n"
+            "property float32 y\n"
+            "property float32 z\n"
+            "property uint8 red\n"
+            "property uint8 green\n"
+            "property uint8 blue\n"
+            "property list uint8 uint32 view_indices\n"
+            "end_header\n";
+        file.write(header);
+
+        QByteArray body;
+        QDataStream out(&body, QIODevice::WriteOnly);
+        out.setByteOrder(QDataStream::LittleEndian);
+        out.setFloatingPointPrecision(QDataStream::SinglePrecision);
+        for (int i = 0; i < kVertices; ++i) {
+            out << float(i) << float(2 * i) << float(3 * i);
+            out << quint8(10 * i) << quint8(20 * i) << quint8(30 * i);
+            out << quint8(kListLength);
+            for (int k = 0; k < kListLength; ++k)
+                out << quint32(k);
+        }
+        file.write(body);
+        file.close();
+    }
+
+    Document doc;
+    const int index = doc.loadMesh(path);
+    QVERIFY2(index >= 0, "PLY with a long per-vertex list property failed to load");
+    QCOMPARE(doc.meshCount(), 1);
+
+    // Positions must survive intact: a mis-sized skip desynchronizes the stream and
+    // every later vertex decodes from the wrong offset.
+    const VCGMesh &mesh = doc.mesh(index).mesh;
+    QCOMPARE(mesh.VN(), kVertices);
+    for (int i = 0; i < kVertices; ++i) {
+        QCOMPARE(mesh.vert[i].cP().X(), float(i));
+        QCOMPARE(mesh.vert[i].cP().Y(), float(2 * i));
+        QCOMPARE(mesh.vert[i].cP().Z(), float(3 * i));
+    }
+}
+
 void DocumentTests::trueFormRoundTripsObjAndStl()
 {
     Document probe;

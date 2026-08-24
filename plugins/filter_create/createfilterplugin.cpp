@@ -151,12 +151,15 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
     }
 
     if (filterId == QString::fromLatin1(kFilterCreateSphereCap)) {
-        const float angularDiameterDeg = float(params.getDouble(QStringLiteral("angle")));
-        const int subdiv               = params.getInt(QStringLiteral("subdiv"));
+        const float halfAngleDeg = float(params.getDouble(QStringLiteral("half_angle")));
+        const int subdiv         = params.getInt(QStringLiteral("subdiv"));
         VCGMesh m;
         m.face.EnableFFAdjacency();
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
-        vcg::tri::SphericalCap(m, vcg::math::ToRad(angularDiameterDeg), subdiv);
+        // vcg::tri::SphericalCap takes the cap's *full* angular diameter, while every
+        // other cone and cap parameter in QMeshLab is a half-angle. Convert here rather
+        // than changing the vcglib signature, which MeshLab also compiles against.
+        vcg::tri::SphericalCap(m, vcg::math::ToRad(2.0f * halfAngleDeg), subdiv);
         vcg::tri::UpdateBounding<VCGMesh>::Box(m);
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
         const int idx = doc.addMesh(m, QStringLiteral("Sphere Cap"), vcg::tri::io::Mask::IOM_VERTNORMAL);
@@ -178,7 +181,7 @@ MeshFilterRunResult CreateFilterPlugin::runFilter(
             capDirection = vcg::Point3f(d.x(), d.y(), d.z());
             if (capDirection.SquaredNorm() <= 1e-20f)
                 return { false, false, QObject::tr("Cap direction must be non-zero.") };
-            capAngle = vcg::math::ToRad(float(params.getDouble(QStringLiteral("angle"))));
+            capAngle = vcg::math::ToRad(float(params.getDouble(QStringLiteral("half_angle"))));
         }
 
         if (randomized) {

@@ -204,7 +204,7 @@
       "name": "Create Sphere Cap",
       "pythonName": "create_sphere_cap",
       "shortDescription": "Creates a triangulated unit-radius spherical cap from a refined hexagonal disk.",
-      "longDescriptionMarkdown": "Creates a unit-radius spherical cap above the XY plane, with its circular boundary in the plane and its axis along +Z. The cap starts as a six-triangle disk; each subdivision splits every triangle into four, redistributes the interior vertices by Laplacian smoothing, and then lifts all vertices onto the sphere. This construction gives a regular, compact triangulation for shallow caps, but it is not a general-purpose spherical mesher. Triangle distortion grows toward the boundary for wide caps, becoming severe as the cap approaches a hemisphere.\n\n**Cap Angular Diameter** is the full angular extent from one side of the cap to the opposite side, measured through the sphere center. Its polar half-angle is therefore half this value: a 60° diameter reaches 30° from the +Z axis, while a hemisphere has a 180° diameter. The filter stops at 179° because this disk-based parameterization degenerates at the hemisphere limit. For a well-shaped hemisphere or a wider spherical patch, start from a complete sphere and extract the required region instead.",
+      "longDescriptionMarkdown": "Creates a unit-radius spherical cap above the XY plane, with its circular boundary in the plane and its axis along +Z. The cap starts as a six-triangle disk; each subdivision splits every triangle into four, redistributes the interior vertices by Laplacian smoothing, and then lifts all vertices onto the sphere. This construction gives a regular, compact triangulation for shallow caps, but it is not a general-purpose spherical mesher. Triangle distortion grows toward the boundary for wide caps, becoming severe as the cap approaches a hemisphere.\n\n**Cap Half-Angle** is the polar angle from the +Z axis out to the cap boundary, so it is half the cap's full angular diameter: 30° spans a 60° cap, and a hemisphere would be 90°. The filter stops at 89.5° because this disk-based parameterization degenerates at the hemisphere limit. For a well-shaped hemisphere or a wider spherical patch, start from a complete sphere and extract the required region instead.",
       "tags": [
         "create",
         "sphere",
@@ -215,14 +215,14 @@
       "inputRequirements": {},
       "parameters": [
         {
-          "id": "angle",
-          "label": "Cap Angular Diameter",
-          "help": "Full angular extent of the cap in degrees (twice its polar half-angle). A hemisphere would be 180°, where this construction degenerates.",
+          "id": "half_angle",
+          "label": "Cap Half-Angle",
+          "help": "Polar angle in degrees from the cap axis to its boundary, i.e. half the full angular diameter. A hemisphere would be 90°, where this construction degenerates.",
           "group": "main",
           "type": "double",
-          "default": 60.0,
-          "min": 1.0,
-          "max": 179.0,
+          "default": 30.0,
+          "min": 0.5,
+          "max": 89.5,
           "decimals": 2
         },
         {
@@ -340,9 +340,9 @@
           "default": [0.0, 1.0, 0.0]
         },
         {
-          "id": "angle",
+          "id": "half_angle",
           "label": "Cap Half-Angle",
-          "help": "Angular radius of the cap in degrees; 180 covers the complete sphere.",
+          "help": "Polar angle in degrees from the cap axis to its boundary; 90 is a hemisphere and 180 covers the complete sphere.",
           "group": "main",
           "type": "double",
           "default": 30.0,

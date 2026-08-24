@@ -124,6 +124,14 @@ for the angle from an axis to a cone boundary, and **Angular Diameter** (or
 **Full Aperture**) for the angle between opposite boundary directions. Avoid the
 ambiguous label **Cone Angle**.
 
+Prefer the half-angle: every cone and cap parameter QMeshLab exposes is one, so
+a new filter that adopts a full aperture makes two sibling filters disagree
+about what the same number means. Name the parameter for the convention as well
+as labelling it -- `half_angle`, `cone_half_angle` -- because a label protects
+the GUI user while the Python caller sees only the id. When a vcglib entry point
+takes the full aperture, as `vcg::tri::SphericalCap` does, convert at the call
+site rather than changing the shared signature.
+
 ### 2. The plugin class
 
 ```cpp

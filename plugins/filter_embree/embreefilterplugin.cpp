@@ -132,7 +132,7 @@ MeshFilterRunResult EmbreeFilterPlugin::runFilter(
         if (bias > 0.0f && coneDirection.SquaredNorm() <= 1e-20f)
             return { false, false, QObject::tr("Lighting direction must be non-zero.") };
         const float coneAngle = std::clamp(
-            float(params.getDouble(QStringLiteral("cone_angle"))), 0.0f, 180.0f);
+            float(params.getDouble(QStringLiteral("cone_half_angle"))), 0.0f, 180.0f);
         const std::vector<vcg::Point3f> directions =
             ambientDirections(rays, bias, coneDirection, coneAngle);
 

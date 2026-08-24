@@ -230,6 +230,7 @@ private slots:
     void randomSeedZeroVariesBetweenRuns();
     void randomSeedControlsExpressionRnd();
     void randomizedFiltersDeclareARandomSeed();
+    void capFiltersAgreeOnTheHalfAngleConvention();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -931,7 +932,7 @@ void FilterTests::sphericalCapPointCreationIsAreaUniform()
         MeshFilterParameterValues params;
         params.insert(QStringLiteral("point_num"), 1000);
         params.insert(QStringLiteral("direction"), QVector3D(1.0f, 2.0f, 3.0f));
-        params.insert(QStringLiteral("angle"), 35.0);
+        params.insert(QStringLiteral("half_angle"), 35.0);
         params.insert(QStringLiteral("technique"), technique);
         params.insert(QStringLiteral("randomSeed"), 12345);
         const MeshFilterRunResult result = doc.runFilter(filterKey, params);
@@ -3491,7 +3492,7 @@ void FilterTests::ambientOcclusionSupportsPointCloudsAndDirectionalLighting()
     params.insert(QStringLiteral("normal_source"), QStringLiteral("point_normals"));
     params.insert(QStringLiteral("rays"), 64);
     params.insert(QStringLiteral("directional_bias"), 1.0);
-    params.insert(QStringLiteral("cone_angle"), 5.0);
+    params.insert(QStringLiteral("cone_half_angle"), 5.0);
     params.insert(QStringLiteral("cone_direction"), QVector3D(0.0f, 0.0f, 1.0f));
     MeshFilterRunResult result = doc.runFilter(aoKey, params);
     QVERIFY2(result.success, qPrintable(result.errorMessage));
@@ -3690,6 +3691,73 @@ void FilterTests::randomizedFiltersDeclareARandomSeed()
         }
         QVERIFY2(found, qPrintable(filterId + QStringLiteral(" is not registered")));
     }
+}
+
+// Both cap filters take a polar half-angle under the same parameter id, so the same
+// number must describe the same cap. Nothing pinned the actual angular extent before,
+// which is how the two ends up disagreeing by a factor of two in the first place.
+void FilterTests::capFiltersAgreeOnTheHalfAngleConvention()
+{
+    const double halfAngleDeg = 30.0;
+    const float expectedZ = std::cos(float(halfAngleDeg) * float(M_PI) / 180.0f);
+
+    Document doc;
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("half_angle"), halfAngleDeg);
+    params.insert(QStringLiteral("subdiv"), 3);
+
+    const QString capKey = filterKeyForId(doc, QStringLiteral("create_sphere_cap"));
+    QVERIFY(!capKey.isEmpty());
+    const MeshFilterRunResult capResult = doc.runFilter(capKey, params);
+    QVERIFY2(capResult.success, qPrintable(capResult.errorMessage));
+    QCOMPARE(capResult.newMeshIndices.size(), 1);
+
+    // The cap is built with its boundary in the XY plane and lifted along +Z, so the
+    // widest ring sits at radius sin(halfAngle) from the axis. Measuring the boundary
+    // radius is what actually distinguishes a 30 degree cap from a 60 degree one.
+    const VCGMesh &cap = doc.mesh(capResult.newMeshIndices.front()).mesh;
+    QVERIFY(cap.VN() > 0);
+    float maxRadius = 0.0f;
+    for (const VCGVertex &v : cap.vert) {
+        if (v.IsD())
+            continue;
+        const vcg::Point3f &p = v.cP();
+        maxRadius = std::max(maxRadius, std::sqrt(p.X() * p.X() + p.Y() * p.Y()));
+    }
+    const float expectedRadius = std::sin(float(halfAngleDeg) * float(M_PI) / 180.0f);
+    QVERIFY2(
+        std::abs(maxRadius - expectedRadius) < 1e-2f,
+        qPrintable(QStringLiteral("boundary radius %1, expected %2 for a %3 deg half-angle")
+                       .arg(maxRadius).arg(expectedRadius).arg(halfAngleDeg)));
+
+    // The point sampler spans the same cap: every sample must lie inside the same
+    // polar half-angle about its axis.
+    MeshFilterParameterValues pointParams;
+    pointParams.insert(QStringLiteral("half_angle"), halfAngleDeg);
+    pointParams.insert(QStringLiteral("point_num"), 500);
+    pointParams.insert(QStringLiteral("direction"), QVector3D(0.0f, 0.0f, 1.0f));
+    pointParams.insert(QStringLiteral("technique"), QStringLiteral("fibonacci"));
+
+    const QString pointKey =
+        filterKeyForId(doc, QStringLiteral("create_points_on_a_spherical_cap"));
+    QVERIFY(!pointKey.isEmpty());
+    const MeshFilterRunResult pointResult = doc.runFilter(pointKey, pointParams);
+    QVERIFY2(pointResult.success, qPrintable(pointResult.errorMessage));
+    QCOMPARE(pointResult.newMeshIndices.size(), 1);
+
+    const VCGMesh &cloud = doc.mesh(pointResult.newMeshIndices.front()).mesh;
+    QVERIFY(cloud.VN() > 0);
+    float minZ = 1.0f;
+    for (const VCGVertex &v : cloud.vert) {
+        if (v.IsD())
+            continue;
+        minZ = std::min(minZ, v.cP().Z());
+    }
+    // A 60 degree half-angle would reach z = 0.5; the 30 degree cap stops at ~0.866.
+    QVERIFY2(
+        minZ > expectedZ - 1e-2f,
+        qPrintable(QStringLiteral("lowest sample z %1, expected no lower than %2")
+                       .arg(minZ).arg(expectedZ)));
 }
 
 QTEST_MAIN(FilterTests)
