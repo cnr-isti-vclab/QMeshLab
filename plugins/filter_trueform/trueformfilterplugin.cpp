@@ -18,6 +18,7 @@
 #include <limits>
 #include <exception>
 #include <optional>
+#include <set>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -68,6 +69,10 @@ constexpr QLatin1StringView kFilterNormals("compute_normals_trueform");
 constexpr QLatin1StringView kFilterIsotropic("remeshing_isotropic_trueform");
 constexpr QLatin1StringView kFilterSimplify("simplification_by_error_trueform");
 constexpr QLatin1StringView kFilterDecimate("simplification_by_decimation_trueform");
+constexpr QLatin1StringView kFilterOrientCoherent("orient_faces_coherently_trueform");
+constexpr QLatin1StringView kFilterOrientOutward("orient_faces_outward_trueform");
+constexpr QLatin1StringView kFilterSelectCrease("select_crease_edges_trueform");
+constexpr QLatin1StringView kFilterSelectNonManifold("select_non_manifold_edges_trueform");
 
 using Mask = vcg::tri::io::Mask;
 using TfPoints = tf::points_buffer<float, 3>;
@@ -1822,6 +1827,219 @@ MeshFilterRunResult runRemesh(const QString &filterId, const FilterParams &param
     }
 }
 
+// ---------------------------------------------------------------------------
+// Orientation and edge selection
+// ---------------------------------------------------------------------------
+
+MeshFilterRunResult runOrient(const QString &filterId, const FilterParams &params, Document &doc)
+{
+    (void) params;
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const bool outward = (filterId == QString::fromLatin1(kFilterOrientOutward));
+
+    doc.beginFilterProgress(outward ? QObject::tr("Orient Faces Outward (TrueForm)")
+                                    : QObject::tr("Orient Faces Coherently (TrueForm)"));
+    int flipped = 0;
+    int passes = 0;
+    int remainingInconsistent = 0;
+    try {
+        Document::MeshEntry &entry = doc.mesh(index);
+        TfMesh source = tfMeshFromLayer(entry);
+
+        // One call to tf::orient_faces_consistently only partly repairs a badly mixed
+        // winding: it reverses faces in place while indexing an edge link built from the
+        // pre-flip winding, and reversing an n-gon permutes its edge slots (for a
+        // triangle, slots 0 and 1 swap), so later lookups pair the wrong edge with the
+        // wrong peer. Each call rebuilds the link from the current state, so iterating
+        // converges — on a box with alternate faces flipped, 14 inconsistencies go
+        // 8 -> 3 -> 0. Iterate to a fixed point rather than making the user click twice.
+        const auto inconsistentCount = [](const TfMesh &mesh) {
+            std::map<std::pair<int, int>, int> directed;
+            for (const auto &f : mesh.polygons().faces()) {
+                const std::size_t n = std::size_t(f.size());
+                for (std::size_t k = 0; k < n; ++k)
+                    ++directed[{ int(f[k]), int(f[(k + 1) % n]) }];
+            }
+            int bad = 0;
+            for (const auto &entryPair : directed) {
+                if (entryPair.second > 1)
+                    bad += entryPair.second - 1;
+            }
+            return bad;
+        };
+
+        constexpr int kMaxPasses = 8;
+        int previous = inconsistentCount(source);
+        for (int pass = 0; pass < kMaxPasses && previous > 0; ++pass) {
+            auto polys = source.polygons();
+            tf::orient_faces_consistently(polys);
+            const int current = inconsistentCount(source);
+            passes = pass + 1;
+            if (current == 0 || current >= previous)
+                break; // converged, or no longer improving
+            previous = current;
+        }
+        remainingInconsistent = inconsistentCount(source);
+
+        if (outward) {
+            auto polys = source.polygons();
+            tf::ensure_positive_orientation(polys, /*is_consistent=*/true);
+        }
+
+        // Only the winding changed, so the faces are rewritten in place; positions and
+        // the vertex numbering are untouched.
+        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
+        std::size_t faceIndex = 0;
+        const auto faces = source.faces();
+        for (VCGFace &f : entry.mesh.face) {
+            if (f.IsD())
+                continue;
+            if (faceIndex >= std::size_t(faces.size()))
+                break;
+            const auto &face = faces[faceIndex++];
+            bool usable = true;
+            std::size_t corner[3];
+            for (int k = 0; k < 3; ++k) {
+                const std::size_t id = std::size_t(face[std::size_t(k)]);
+                if (id >= live.size()) {
+                    usable = false;
+                    break;
+                }
+                corner[k] = live[id];
+            }
+            if (!usable)
+                continue;
+            const bool changed = (f.cV(0) != &entry.mesh.vert[corner[0]])
+                || (f.cV(1) != &entry.mesh.vert[corner[1]])
+                || (f.cV(2) != &entry.mesh.vert[corner[2]]);
+            if (!changed)
+                continue;
+            for (int k = 0; k < 3; ++k)
+                f.V(k) = &entry.mesh.vert[corner[std::size_t(k)]];
+            ++flipped;
+        }
+
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(entry.mesh);
+        entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm orientation failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    doc.markMeshGeometryChanged(
+        index, QObject::tr("Oriented faces of '%1'").arg(doc.mesh(index).name));
+    doc.finishFilterProgress(true, QObject::tr("Oriented faces."));
+
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages << QObject::tr("Reoriented %1 face(s) over %2 pass(es).")
+                               .arg(flipped).arg(passes);
+    if (remainingInconsistent > 0) {
+        result.infoMessages << QObject::tr(
+            "%1 edge(s) remain inconsistently wound; the mesh may be non-orientable.")
+                                   .arg(remainingInconsistent);
+    }
+    return result;
+}
+
+// Mark the edges reported by TrueForm on the VCG mesh's per-face edge selection, which is
+// where QMeshLab keeps edge selections. The reported pairs are point indices, so they are
+// mapped back through the live-vertex table and matched against each face's three edges.
+int selectFaceEdges(
+    VCGMesh &mesh,
+    const std::vector<std::size_t> &live,
+    const std::vector<std::pair<int, int>> &edges,
+    bool clearFirst)
+{
+    std::set<std::pair<std::size_t, std::size_t>> wanted;
+    for (const auto &e : edges) {
+        if (e.first < 0 || e.second < 0)
+            continue;
+        if (std::size_t(e.first) >= live.size() || std::size_t(e.second) >= live.size())
+            continue;
+        auto a = live[std::size_t(e.first)];
+        auto b = live[std::size_t(e.second)];
+        wanted.insert(a < b ? std::make_pair(a, b) : std::make_pair(b, a));
+    }
+
+    const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
+    int marked = 0;
+    for (VCGFace &f : mesh.face) {
+        if (f.IsD() || !base)
+            continue;
+        for (int k = 0; k < 3; ++k) {
+            if (clearFirst)
+                f.ClearFaceEdgeS(k);
+            const auto a = std::size_t(f.cV(k) - base);
+            const auto b = std::size_t(f.cV((k + 1) % 3) - base);
+            const auto key = a < b ? std::make_pair(a, b) : std::make_pair(b, a);
+            if (wanted.count(key)) {
+                f.SetFaceEdgeS(k);
+                ++marked;
+            }
+        }
+    }
+    return marked;
+}
+
+MeshFilterRunResult runSelectEdges(const QString &filterId, const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No current mesh selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const bool crease = (filterId == QString::fromLatin1(kFilterSelectCrease));
+    const double angle = params.getDouble(QStringLiteral("angle"), 60.0);
+    const bool clearFirst = params.getBool(QStringLiteral("replaceSelection"), true);
+
+    doc.beginFilterProgress(crease ? QObject::tr("Select Crease Edges (TrueForm)")
+                                   : QObject::tr("Select Non-Manifold Edges (TrueForm)"));
+    int marked = 0;
+    try {
+        Document::MeshEntry &entry = doc.mesh(index);
+        const TfMesh source = tfMeshFromLayer(entry);
+
+        std::vector<std::pair<int, int>> pairs;
+        if (crease) {
+            auto sharp = tf::make_sharp_edges(source.polygons(), tf::deg<float>(float(angle)));
+            for (const auto &e : sharp)
+                pairs.emplace_back(int(e[0]), int(e[1]));
+        } else {
+            auto nm = tf::make_non_manifold_edges(source.polygons());
+            for (const auto &e : nm)
+                pairs.emplace_back(int(e[0]), int(e[1]));
+        }
+
+        marked = selectFaceEdges(entry.mesh, liveVertexIndices(entry.mesh), pairs, clearFirst);
+        entry.ioMask |= Mask::IOM_FACEFLAGS;
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm edge selection failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    doc.markMeshSelectionChanged(
+        index, QObject::tr("Selected edges on '%1'").arg(doc.mesh(index).name));
+    doc.finishFilterProgress(true, QObject::tr("Updated edge selection."));
+
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages << QObject::tr("Marked %1 face-edge(s).").arg(marked);
+    return result;
+}
+
 } // namespace
 
 QString TrueFormFilterPlugin::pluginId() const
@@ -1880,6 +2098,12 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         || filterId == QString::fromLatin1(kFilterSimplify)
         || filterId == QString::fromLatin1(kFilterDecimate))
         return runRemesh(filterId, params, doc);
+    if (filterId == QString::fromLatin1(kFilterOrientCoherent)
+        || filterId == QString::fromLatin1(kFilterOrientOutward))
+        return runOrient(filterId, params, doc);
+    if (filterId == QString::fromLatin1(kFilterSelectCrease)
+        || filterId == QString::fromLatin1(kFilterSelectNonManifold))
+        return runSelectEdges(filterId, params, doc);
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 }
 

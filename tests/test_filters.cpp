@@ -2,6 +2,8 @@
 
 #include <QSet>
 
+#include <map>
+
 #include "document.h"
 
 #include <vcg/complex/algorithms/stat.h>
@@ -204,6 +206,7 @@ private slots:
     void trueFormDistanceAndContainment();
     void trueFormAttributeFiltersBehaveAsDocumented();
     void trueFormRemeshingChangesResolutionAsAsked();
+    void trueFormOrientationAndEdgeSelection();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -2369,6 +2372,136 @@ void FilterTests::trueFormRemeshingChangesResolutionAsAsked()
         QVERIFY2(loose < tight,
                  qPrintable(QStringLiteral("a looser bound kept more faces: %1 vs %2")
                                 .arg(loose).arg(tight)));
+    }
+}
+
+// Orientation and edge selection, each against a property that must hold afterwards:
+// an inside-out box comes back with positive volume, a box has exactly twelve creases at
+// ninety degrees and none at a threshold above that, and a clean mesh has no non-manifold
+// edges.
+void FilterTests::trueFormOrientationAndEdgeSelection()
+{
+    Document doc;
+
+    QString boxKey, sphereKey, coherentKey, outwardKey, creaseKey, nonManifoldKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
+        else if (id == QStringLiteral("orient_faces_coherently_trueform")) coherentKey = info.key;
+        else if (id == QStringLiteral("orient_faces_outward_trueform")) outwardKey = info.key;
+        else if (id == QStringLiteral("select_crease_edges_trueform")) creaseKey = info.key;
+        else if (id == QStringLiteral("select_non_manifold_edges_trueform")) nonManifoldKey = info.key;
+    }
+    QVERIFY(!boxKey.isEmpty());
+    if (outwardKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    const auto signedVolume = [](const VCGMesh &m) {
+        return double(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(m));
+    };
+    const auto countSelectedEdges = [](const VCGMesh &m) {
+        int n = 0;
+        for (const VCGFace &f : m.face) {
+            if (f.IsD())
+                continue;
+            for (int k = 0; k < 3; ++k)
+                if (f.IsFaceEdgeS(k))
+                    ++n;
+        }
+        return n;
+    };
+
+    // An inside-out box must come back with positive volume.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        const int s = d.currentMeshIndex();
+        // Invert every face so the solid is wound inwards.
+        for (VCGFace &f : d.mesh(s).mesh.face) {
+            if (!f.IsD())
+                std::swap(f.V(1), f.V(2));
+        }
+        QVERIFY2(signedVolume(d.mesh(s).mesh) < 0.0, "the box should start inside out");
+        QVERIFY2(d.runFilter(outwardKey, {}).success, "orient outward failed");
+        QVERIFY2(signedVolume(d.mesh(s).mesh) > 0.0,
+                 "orienting outward left the box inside out");
+    }
+
+    // Coherent orientation: measured as winding consistency itself rather than through
+    // the volume. A consistently wound surface traverses every interior edge once in each
+    // direction, so a directed edge seen twice the same way is an inconsistency.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        const int s = d.currentMeshIndex();
+
+        const auto inconsistentEdges = [](const VCGMesh &m) {
+            const VCGVertex *base = m.vert.empty() ? nullptr : &m.vert.front();
+            std::map<std::pair<std::size_t, std::size_t>, int> directed;
+            for (const VCGFace &f : m.face) {
+                if (f.IsD() || !base)
+                    continue;
+                for (int k = 0; k < 3; ++k) {
+                    const auto a = std::size_t(f.cV(k) - base);
+                    const auto b = std::size_t(f.cV((k + 1) % 3) - base);
+                    ++directed[{ a, b }];
+                }
+            }
+            int bad = 0;
+            for (const auto &[edge, count] : directed) {
+                if (count > 1)
+                    bad += count - 1; // the same direction traversed more than once
+            }
+            return bad;
+        };
+
+        QCOMPARE(inconsistentEdges(d.mesh(s).mesh), 0); // the box starts clean
+        int i = 0;
+        for (VCGFace &f : d.mesh(s).mesh.face) {
+            if (!f.IsD() && (i++ % 2 == 0))
+                std::swap(f.V(1), f.V(2)); // scramble half the windings
+        }
+        const int before = inconsistentEdges(d.mesh(s).mesh);
+        QVERIFY2(before > 0, "scrambling should have produced inconsistencies");
+
+        QVERIFY2(d.runFilter(coherentKey, {}).success, "orient coherently failed");
+        const int after = inconsistentEdges(d.mesh(s).mesh);
+
+        // Zero, because the filter iterates to a fixed point: a single call to
+        // tf::orient_faces_consistently only partly repairs a badly mixed winding (it
+        // indexes an edge link built from the pre-flip winding while reversing faces in
+        // place), but each call rebuilds that link, so repeating converges. On this box
+        // the sequence is 14 -> 8 -> 3 -> 0.
+        QVERIFY2(after == 0,
+                 qPrintable(QStringLiteral("%1 inconsistent edge(s) remain, from %2")
+                                .arg(after).arg(before)));
+    }
+
+    // A box has twelve ninety-degree creases, and none above ninety.
+    {
+        Document d;
+        QVERIFY2(d.runFilter(boxKey, {}).success, "create_box failed");
+        const int s = d.currentMeshIndex();
+
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("angle"), 60.0);
+        QVERIFY2(d.runFilter(creaseKey, p).success, "crease selection failed");
+        // Each of the 12 box edges is shared by two faces, so 24 face-edge marks.
+        QCOMPARE(countSelectedEdges(d.mesh(s).mesh), 24);
+
+        p.insert(QStringLiteral("angle"), 120.0);
+        QVERIFY2(d.runFilter(creaseKey, p).success, "crease selection failed");
+        QCOMPARE(countSelectedEdges(d.mesh(s).mesh), 0);
+    }
+
+    // A clean sphere has no non-manifold edges.
+    if (!sphereKey.isEmpty()) {
+        Document d;
+        QVERIFY2(d.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int s = d.currentMeshIndex();
+        QVERIFY2(d.runFilter(nonManifoldKey, {}).success, "non-manifold selection failed");
+        QCOMPARE(countSelectedEdges(d.mesh(s).mesh), 0);
     }
 }
 
