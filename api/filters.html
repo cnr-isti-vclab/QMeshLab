@@ -1998,6 +1998,23 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 
 <hr class="docutils" />
 </section>
+<section id="cut-along-scalar-isocontour">
+<span id="filter-cut-along-scalar-isocontour"></span><h2>Cut Along Scalar Isocontour<a class="headerlink" href="#cut-along-scalar-isocontour" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Split the surface along contours of the vertex scalar field.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.cut_along_scalar_isocontour">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">cut_along_scalar_isocontour</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.cut_along_scalar_isocontour" title="Link to this definition">¶</a></dt>
+<dd><p>Cuts the surface along evenly spaced contours of the <strong>per-vertex scalar field</strong>, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\n\nWhere <em>Create Polyline from Scalar Isocontour</em> draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\n\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\n\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose scalar field is cut along.</p></li>
+<li><p><strong>contourCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — How many evenly spaced contours to cut at. N contours give N+1 bands.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="cut-along-crease-edges">
 <span id="filter-cut-mesh-along-crease-edges"></span><h2>Cut Along Crease Edges<a class="headerlink" href="#cut-along-crease-edges" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
@@ -3323,6 +3340,27 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="improve-triangulation-trueform">
+<span id="filter-improve-triangulation-trueform"></span><h2>Improve Triangulation (TrueForm)<a class="headerlink" href="#improve-triangulation-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Improve triangle shape by flipping edges and relaxing vertices, without changing the vertex count.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.improve_triangulation_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">improve_triangulation_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.improve_triangulation_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Alternates rounds of <strong>edge flipping</strong> and <strong>tangential relaxation</strong> to improve triangle quality. Connectivity and vertex positions both change, but no vertex is added or removed — so this refines a tessellation you want to keep the size of, where <em>Remesh Isotropically</em> would rebuild it.\n\nThe two steps depend on each other, which is why they interleave: a flip creates room for a vertex to move somewhere useful, and a moved vertex makes a different flip worthwhile.\n\n<strong>Objective</strong> decides which flips are taken:\n\n| Objective | Effect |\n|—|—|\n| Valence | evens out how many edges meet at each vertex, giving a regular-looking mesh |\n| Minimum angle | maximises the smallest angle, attacking slivers directly |\n\nUse <em>Valence</em> for a tidy mesh, <em>Minimum angle</em> when thin triangles are causing numerical trouble.\n\n<strong>Relaxation</strong> moves each vertex along the surface towards its neighbours’ centroid; <strong>Lambda</strong> is how far. Set <strong>Max Deviation</strong> above zero to bound how far the surface may drift from its starting shape — worth doing when the geometry matters more than the triangles.\n\n<strong>Check Normals</strong> rejects any flip or move that would fold a triangle over. Leave it on unless you know the mesh is well behaved.\n\nCompeting implementations: <em>Flip Edges by Curvature</em> and <em>Flip Edges by Planarity</em> do the flipping half with vcglib, driven by different objectives; the vcglib <em>Smooth</em> filters do the relaxation half. This does both together.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>objective</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">valence</span></code>) — What the edge flips optimise for.</p></li>
+<li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — How many flip-then-relax rounds to run.</p></li>
+<li><p><strong>relaxationIterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Relaxation passes inside each round. Zero flips without moving anything.</p></li>
+<li><p><strong>lambda</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — How far relaxation moves a vertex towards its neighbours, 0 to 1.</p></li>
+<li><p><strong>maxDeviation</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Largest distance the surface may drift from its starting shape. Zero leaves relaxation unbounded.</p></li>
+<li><p><strong>checkNormals</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Reject flips and moves that would fold a triangle over.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="invert-faces-orientation">
 <span id="filter-invert-faces-orientation"></span><h2>Invert Faces Orientation<a class="headerlink" href="#invert-faces-orientation" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
@@ -3644,6 +3682,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">orient_faces_coherently_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.orient_faces_coherently_trueform" title="Link to this definition">¶</a></dt>
 <dd><p>Propagates a consistent winding across each connected component, so neighbouring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\n\nThis makes the winding <em>consistent</em>; it does not decide which way is out. Use <em>Orient Faces Outward (TrueForm)</em> for that.\n\nCompeting implementation: <em>Re-Orient all faces coherently</em> does the same with vcglib.</p>
 <p><strong>Implementation note.</strong> A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.</p>
+<p>For diagnosis prefer the vcglib <em>Re-Orient all faces coherently</em>: it detects and reports a <strong>non-orientable</strong> surface, which this routine cannot distinguish from an incomplete repair.</p>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -4067,6 +4106,22 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
+<section id="remove-duplicate-vertices-trueform">
+<span id="filter-remove-duplicate-vertices-trueform"></span><h2>Remove Duplicate Vertices (TrueForm)<a class="headerlink" href="#remove-duplicate-vertices-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Weld coincident vertices and drop the degeneracies that welding exposes.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.remove_duplicate_vertices_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_duplicate_vertices_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remove_duplicate_vertices_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Welds vertices at the same position into one and removes the degenerate faces that welding leaves behind.\n\nThis is the first thing to run on a triangle soup — an STL, or anything exported face by face — because until the vertices are shared the mesh has no connectivity at all: no edges, no adjacency, and so no boundary, no components and no topology for any other filter to work with.\n\n<strong>Tolerance</strong> of zero welds only exactly coincident vertices, which is the safe choice. A positive tolerance also merges vertices within that distance, which closes cracks left by finite precision but will collapse genuinely small features if set too large.\n\nNote that QMeshLab’s own STL reader (<em>TrueForm OBJ/STL</em>) already welds on import, so this is mainly for geometry that arrived unwelded by another route.\n\nCompeting implementation: <em>Remove Duplicate Vertices</em> and <em>Merge Close Vertices</em> do the same with vcglib.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>tolerance</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Weld vertices within this distance. Zero welds only exactly coincident ones.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="remove-isolated-folded-faces-by-edge-flip">
 <span id="filter-remove-isolated-folded-faces"></span><h2>Remove Isolated Folded Faces by Edge Flip<a class="headerlink" href="#remove-isolated-folded-faces-by-edge-flip" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
@@ -4273,6 +4328,22 @@ Leave 0 for automatic calculation.</p></li>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>vert_disp_ratio</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — This parameter denotes the displacement ratio α. When a vertex is split, it is moved towards the barycenter of the FF-connected faces sharing it by (v-barycenter)*α. Reasonable values are in [0..0.1].</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="repair-self-intersections">
+<span id="filter-repair-self-intersections"></span><h2>Repair Self-Intersections<a class="headerlink" href="#repair-self-intersections" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Resolve a mesh’s self-intersections into real edges and split faces.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.repair_self_intersections">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">repair_self_intersections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.repair_self_intersections" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the <strong>arrangement</strong> of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\n\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and <em>Extract Outer Shell</em> can keep the outermost one.\n\nUse <em>Create Polyline from Self-Intersections</em> first to see where the problem is, and <em>Select Self Intersecting Faces</em> to see how much is affected.\n\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to resolve.</p></li>
 </ul>
 </dd></dl>
 
@@ -6668,6 +6739,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.create_torus"><code class="docutils literal notranslate"><span class="pre">ms.create_torus()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#cut-along-scalar-isocontour">Cut Along Scalar Isocontour</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.cut_along_scalar_isocontour"><code class="docutils literal notranslate"><span class="pre">ms.cut_along_scalar_isocontour()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#cut-along-crease-edges">Cut Along Crease Edges</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.cut_mesh_along_crease_edges"><code class="docutils literal notranslate"><span class="pre">ms.cut_mesh_along_crease_edges()</span></code></a></li>
 </ul>
@@ -6928,6 +7003,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.get_overlapping_meshes_graph"><code class="docutils literal notranslate"><span class="pre">ms.get_overlapping_meshes_graph()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#improve-triangulation-trueform">Improve Triangulation (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.improve_triangulation_trueform"><code class="docutils literal notranslate"><span class="pre">ms.improve_triangulation_trueform()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#invert-faces-orientation">Invert Faces Orientation</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.invert_faces_orientation"><code class="docutils literal notranslate"><span class="pre">ms.invert_faces_orientation()</span></code></a></li>
 </ul>
@@ -7076,6 +7155,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.remove_duplicate_vertices"><code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#remove-duplicate-vertices-trueform">Remove Duplicate Vertices (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.remove_duplicate_vertices_trueform"><code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices_trueform()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#remove-isolated-folded-faces-by-edge-flip">Remove Isolated Folded Faces by Edge Flip</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remove_isolated_folded_faces"><code class="docutils literal notranslate"><span class="pre">ms.remove_isolated_folded_faces()</span></code></a></li>
 </ul>
@@ -7126,6 +7209,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#repair-non-manifold-vertices-by-splitting">Repair non Manifold Vertices by Splitting</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.repair_non_manifold_vertices"><code class="docutils literal notranslate"><span class="pre">ms.repair_non_manifold_vertices()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#repair-self-intersections">Repair Self-Intersections</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.repair_self_intersections"><code class="docutils literal notranslate"><span class="pre">ms.repair_self_intersections()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#repair-watertight-mesh-meshfix">Repair Watertight Mesh (MeshFix)</a><ul>

@@ -2175,6 +2175,27 @@ Create a Torus
 
 ---
 
+(filter-cut-along-scalar-isocontour)=
+
+## Cut Along Scalar Isocontour
+
+**Plugin:** qmeshlab.filter.trueform
+
+Split the surface along contours of the vertex scalar field.
+
+```{py:function} ms.cut_along_scalar_isocontour(**params)
+:module: _qmeshlab
+
+Cuts the surface along evenly spaced contours of the **per-vertex scalar field**, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\n\nWhere *Create Polyline from Scalar Isocontour* draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\n\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\n\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer whose scalar field is cut along.
+- **contourCount** (*int*, default: `5`) — How many evenly spaced contours to cut at. N contours give N+1 bands.
+```
+
+---
+
 (filter-cut-mesh-along-crease-edges)=
 
 ## Cut Along Crease Edges
@@ -3819,6 +3840,31 @@ Voxelize all mesh layers into an occupancy grid and report the pairs that occupy
 
 ---
 
+(filter-improve-triangulation-trueform)=
+
+## Improve Triangulation (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Improve triangle shape by flipping edges and relaxing vertices, without changing the vertex count.
+
+```{py:function} ms.improve_triangulation_trueform(**params)
+:module: _qmeshlab
+
+Alternates rounds of **edge flipping** and **tangential relaxation** to improve triangle quality. Connectivity and vertex positions both change, but no vertex is added or removed — so this refines a tessellation you want to keep the size of, where *Remesh Isotropically* would rebuild it.\n\nThe two steps depend on each other, which is why they interleave: a flip creates room for a vertex to move somewhere useful, and a moved vertex makes a different flip worthwhile.\n\n**Objective** decides which flips are taken:\n\n| Objective | Effect |\n|---|---|\n| Valence | evens out how many edges meet at each vertex, giving a regular-looking mesh |\n| Minimum angle | maximises the smallest angle, attacking slivers directly |\n\nUse *Valence* for a tidy mesh, *Minimum angle* when thin triangles are causing numerical trouble.\n\n**Relaxation** moves each vertex along the surface towards its neighbours' centroid; **Lambda** is how far. Set **Max Deviation** above zero to bound how far the surface may drift from its starting shape — worth doing when the geometry matters more than the triangles.\n\n**Check Normals** rejects any flip or move that would fold a triangle over. Leave it on unless you know the mesh is well behaved.\n\nCompeting implementations: *Flip Edges by Curvature* and *Flip Edges by Planarity* do the flipping half with vcglib, driven by different objectives; the vcglib *Smooth* filters do the relaxation half. This does both together.
+
+**Parameters:**
+
+- **objective** (*enum*, default: `valence`) — What the edge flips optimise for.
+- **iterations** (*int*, default: `3`) — How many flip-then-relax rounds to run.
+- **relaxationIterations** (*int*, default: `3`) — Relaxation passes inside each round. Zero flips without moving anything.
+- **lambda** (*double*, default: `0.5`) — How far relaxation moves a vertex towards its neighbours, 0 to 1.
+- **maxDeviation** (*absperc*, default: `0.0`) — Largest distance the surface may drift from its starting shape. Zero leaves relaxation unbounded.
+- **checkNormals** (*bool*, default: `True`) — Reject flips and moves that would fold a triangle over.
+```
+
+---
+
 (filter-invert-faces-orientation)=
 
 ## Invert Faces Orientation
@@ -4220,6 +4266,8 @@ Make neighbouring faces wind the same way.
 Propagates a consistent winding across each connected component, so neighbouring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\n\nThis makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.\n\nCompeting implementation: *Re-Orient all faces coherently* does the same with vcglib.
 
 **Implementation note.** A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.
+
+For diagnosis prefer the vcglib *Re-Orient all faces coherently*: it detects and reports a **non-orientable** surface, which this routine cannot distinguish from an incomplete repair.
 
 This filter has no parameters.
 ```
@@ -4723,6 +4771,26 @@ This filter has no parameters.
 
 ---
 
+(filter-remove-duplicate-vertices-trueform)=
+
+## Remove Duplicate Vertices (TrueForm)
+
+**Plugin:** qmeshlab.filter.trueform
+
+Weld coincident vertices and drop the degeneracies that welding exposes.
+
+```{py:function} ms.remove_duplicate_vertices_trueform(**params)
+:module: _qmeshlab
+
+Welds vertices at the same position into one and removes the degenerate faces that welding leaves behind.\n\nThis is the first thing to run on a triangle soup — an STL, or anything exported face by face — because until the vertices are shared the mesh has no connectivity at all: no edges, no adjacency, and so no boundary, no components and no topology for any other filter to work with.\n\n**Tolerance** of zero welds only exactly coincident vertices, which is the safe choice. A positive tolerance also merges vertices within that distance, which closes cracks left by finite precision but will collapse genuinely small features if set too large.\n\nNote that QMeshLab's own STL reader (*TrueForm OBJ/STL*) already welds on import, so this is mainly for geometry that arrived unwelded by another route.\n\nCompeting implementation: *Remove Duplicate Vertices* and *Merge Close Vertices* do the same with vcglib.
+
+**Parameters:**
+
+- **tolerance** (*absperc*, default: `0.0`) — Weld vertices within this distance. Zero welds only exactly coincident ones.
+```
+
+---
+
 (filter-remove-isolated-folded-faces)=
 
 ## Remove Isolated Folded Faces by Edge Flip
@@ -4986,6 +5054,26 @@ Split non Manifold vertices until it becomes 2-Manifold.
 **Parameters:**
 
 - **vert_disp_ratio** (*double*, default: `0.0`) — This parameter denotes the displacement ratio α. When a vertex is split, it is moved towards the barycenter of the FF-connected faces sharing it by (v-barycenter)*α. Reasonable values are in [0..0.1].
+```
+
+---
+
+(filter-repair-self-intersections)=
+
+## Repair Self-Intersections
+
+**Plugin:** qmeshlab.filter.trueform
+
+Resolve a mesh's self-intersections into real edges and split faces.
+
+```{py:function} ms.repair_self_intersections(**params)
+:module: _qmeshlab
+
+Computes the **arrangement** of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\n\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and *Extract Outer Shell* can keep the outermost one.\n\nUse *Create Polyline from Self-Intersections* first to see where the problem is, and *Select Self Intersecting Faces* to see how much is affected.\n\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer to resolve.
 ```
 
 ---
