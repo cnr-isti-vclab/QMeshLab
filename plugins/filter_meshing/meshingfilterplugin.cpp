@@ -1413,6 +1413,11 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
         if (filterId == QString::fromLatin1(kIdFauxExtract)) {
             VCGMesh edgeMesh;
             vcg::tri::BuildFromFaceEdgeSel(mesh, edgeMesh);
+            // With no edge selection this yields an empty mesh. Say so rather than
+            // adding an empty layer and reporting success, which is what the sibling
+            // perimeter filter already does for an empty face selection.
+            if (edgeMesh.EN() == 0)
+                return fail(QObject::tr("No selected edges to build a polyline from."));
             vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(edgeMesh);
             vcg::tri::UpdateBounding<VCGMesh>::Box(edgeMesh);
             const int idx = doc.addMesh(edgeMesh, QObject::tr("EdgeMesh"), Mask::IOM_EDGEINDEX);

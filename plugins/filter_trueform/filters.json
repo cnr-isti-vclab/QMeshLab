@@ -462,6 +462,401 @@
           "default": "@currentMeshIndex"
         }
       ]
+    },
+    {
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "categories": [
+        "Creation/Primitives"
+      ],
+      "outputModifies": [
+        "VG"
+      ],
+      "id": "generate_polyline_from_self_intersections",
+      "name": "Create Polyline from Self-Intersections",
+      "pythonName": "generate_polyline_from_self_intersections",
+      "shortDescription": "Extract the curve where a mesh passes through itself, as a polyline layer.",
+      "longDescriptionMarkdown": "Extracts the exact curve along which the layer intersects **itself**, as a new polyline layer.\\n\\n*Select Self Intersecting Faces* marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.\\n\\nA clean mesh produces nothing, and the filter says so.",
+      "tags": [
+        "trueform",
+        "self-intersection",
+        "curve",
+        "polyline",
+        "diagnostic"
+      ],
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Layer",
+          "help": "The layer to examine.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        }
+      ]
+    },
+    {
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "categories": [
+        "Creation/Primitives"
+      ],
+      "outputModifies": [
+        "VG"
+      ],
+      "id": "generate_polyline_from_mesh_intersection",
+      "name": "Create Polyline from Mesh Intersection",
+      "pythonName": "generate_polyline_from_mesh_intersection",
+      "shortDescription": "Extract the curve where two layers cross, as a polyline layer.",
+      "longDescriptionMarkdown": "Extracts the exact curve along which two layers intersect, as a new polyline layer. Both are taken in world space, so their layer matrices are applied first.\\n\\nThe curve is computed with the same exact arrangement the booleans use, so it is the true intersection rather than a sampled approximation, and it is usable as a construction line — a seam to cut along, a profile to sweep, or a measurement.\\n\\nLayers that do not touch produce nothing.",
+      "tags": [
+        "trueform",
+        "intersection",
+        "curve",
+        "polyline",
+        "exact"
+      ],
+      "parameters": [
+        {
+          "id": "firstMesh",
+          "label": "First Layer",
+          "help": "The first layer.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "secondMesh",
+          "label": "Second Layer",
+          "help": "The second layer.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        }
+      ]
+    },
+    {
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "categories": [
+        "Creation/Primitives"
+      ],
+      "outputModifies": [
+        "VG"
+      ],
+      "id": "generate_polyline_from_scalar_isocontour",
+      "name": "Create Polyline from Scalar Isocontour",
+      "pythonName": "generate_polyline_from_scalar_isocontour",
+      "shortDescription": "Extract contour lines of the per-vertex scalar field as polylines on the surface.",
+      "longDescriptionMarkdown": "Extracts level sets of the **per-vertex scalar field** as polylines lying exactly on the surface.\\n\\nThis turns every scalar QMeshLab can compute into something with extractable contours: geodesic distance from a point or a border, curvature, ambient occlusion, shape diameter, raster coverage, or anything written by *Compute Vertex Scalar by Expression*. Contours of a geodesic distance are isodistance rings; of a height field, topographic contour lines.\\n\\n**Contours** sets how many levels are extracted. They are spaced evenly and placed strictly *inside* the range, never at its extremes, where a contour is either empty or the whole boundary.\\n\\nBy default the range is the field's own minimum and maximum. Enable **Use Custom Range** to contour a chosen band instead — useful when a few outliers would otherwise compress every contour into a corner of the model.\\n\\nA constant field has no contours, and the filter says so rather than returning an empty layer.",
+      "tags": [
+        "trueform",
+        "isocontour",
+        "scalar",
+        "curve",
+        "polyline",
+        "level set"
+      ],
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Layer",
+          "help": "The layer whose scalar field is contoured.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "contourCount",
+          "label": "Contours",
+          "help": "How many evenly spaced contour levels to extract.",
+          "group": "main",
+          "type": "int",
+          "default": 10,
+          "min": 1,
+          "max": 1000
+        },
+        {
+          "id": "useCustomRange",
+          "label": "Use Custom Range",
+          "help": "Contour a chosen value band instead of the field's full min-max range.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "minValue",
+          "label": "Min",
+          "help": "Lower end of the contoured range. Ignored unless Use Custom Range is on.",
+          "group": "advanced",
+          "type": "double",
+          "default": "@qualityVMin",
+          "decimals": 6
+        },
+        {
+          "id": "maxValue",
+          "label": "Max",
+          "help": "Upper end of the contoured range. Ignored unless Use Custom Range is on.",
+          "group": "advanced",
+          "type": "double",
+          "default": "@qualityVMax",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "id": "generate_tube_from_polyline",
+      "name": "Create Tube from Polyline",
+      "pythonName": "generate_tube_from_polyline",
+      "categories": [
+        "Creation/Primitives"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireEdges": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "shortDescription": "Sweep a circular profile along a polyline to make a solid tube.",
+      "longDescriptionMarkdown": "Sweeps a circular profile along each path of a polyline layer, producing a solid tube.\\n\\nThe *Create Polyline* filters produce edge meshes, which render as hairlines and cannot be shaded, exported to a solid format, or printed. This turns one into geometry — so a measured cross-section, an intersection seam, or a set of isocontours becomes something you can look at properly or fabricate.\\n\\n**Radius** is the tube radius and **Sides** the number of segments around it; 8 is smooth enough for most uses, more for close-ups.\\n\\nEdges are chained into paths first. A vertex where three or more edges meet cannot be swept unambiguously, so the polyline is **split** there rather than branched, and the count of such junctions is reported.",
+      "tags": [
+        "trueform",
+        "tube",
+        "sweep",
+        "polyline",
+        "curve"
+      ],
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Polyline Layer",
+          "help": "An edge-mesh layer, such as one made by the Create Polyline filters.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "radius",
+          "label": "Radius",
+          "help": "Radius of the swept profile.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag001",
+          "min": 0.0,
+          "max": "@bboxDiag",
+          "decimals": 6
+        },
+        {
+          "id": "segments",
+          "label": "Sides",
+          "help": "Number of segments around the tube. Higher is smoother and heavier.",
+          "group": "main",
+          "type": "int",
+          "default": 8,
+          "min": 3,
+          "max": 256
+        }
+      ]
+    },
+    {
+      "id": "compute_scalar_by_signed_distance_per_vertex",
+      "name": "Compute Signed Distance to Mesh",
+      "pythonName": "compute_scalar_by_signed_distance_per_vertex",
+      "categories": [
+        "Attribute/Scalar"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "outputModifies": [
+        "VQ"
+      ],
+      "shortDescription": "Store each vertex's signed distance to another layer's surface in vertex scalar.",
+      "longDescriptionMarkdown": "Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.\\n\\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\\n\\nBoth layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\\n\\nEnable **Unsigned** for absolute distance, which is what you want when only proximity matters.\\n\\nCompare with *Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance*, which reports a mean.",
+      "tags": [
+        "trueform",
+        "distance",
+        "signed",
+        "scalar",
+        "field"
+      ],
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Layer",
+          "help": "The layer whose vertices are measured.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "referenceMesh",
+          "label": "Reference Surface",
+          "help": "The closed surface distances are measured to.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "unsigned",
+          "label": "Unsigned",
+          "help": "Store absolute distance, discarding inside/outside.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ]
+    },
+    {
+      "id": "select_vertices_inside_mesh",
+      "name": "Select Vertices Inside Mesh",
+      "pythonName": "select_vertices_inside_mesh",
+      "categories": [
+        "Selection/by Attribute"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "outputModifies": [
+        "VS"
+      ],
+      "shortDescription": "Select the vertices enclosed by another layer.",
+      "longDescriptionMarkdown": "Selects every vertex that falls **inside** the enclosing layer's volume.\\n\\nThis is the spatial counterpart to selecting by an attribute: crop a scan to a region of interest by modelling a rough box or sphere around it, isolate the part of an assembly within a clearance envelope, or find geometry that has ended up inside a shell it should be outside of.\\n\\nContainment is decided by the **sign of the distance** to the enclosing surface rather than by counting ray crossings, so a vertex lying exactly on the surface is resolved consistently instead of depending on the direction a ray happens to be cast.\\n\\nThe enclosing layer must be **closed** for inside to be meaningful. Enable **Select Outside** to invert the test.",
+      "tags": [
+        "trueform",
+        "selection",
+        "containment",
+        "inside",
+        "crop"
+      ],
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Layer",
+          "help": "The layer whose vertices are selected.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "referenceMesh",
+          "label": "Enclosing Layer",
+          "help": "The closed layer that defines inside.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "selectOutside",
+          "label": "Select Outside",
+          "help": "Select the vertices outside the enclosing layer instead.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "id": "mode",
+          "label": "Mode",
+          "help": "Replace the current selection, or add to and subtract from it.",
+          "group": "main",
+          "type": "enum",
+          "default": "replace",
+          "enumOptions": [
+            {
+              "id": "replace",
+              "label": "Replace"
+            },
+            {
+              "id": "add",
+              "label": "Add"
+            },
+            {
+              "id": "subtract",
+              "label": "Subtract"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compute_chamfer_distance",
+      "name": "Measure Chamfer Distance",
+      "pythonName": "compute_chamfer_distance",
+      "categories": [
+        "Measurement/Geometric"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "Information",
+      "inputRequirements": {
+        "requireVertices": true
+      },
+      "shortDescription": "Report the mean nearest-point distance between two layers.",
+      "longDescriptionMarkdown": "Reports the **mean** distance from each vertex of one layer to the nearest vertex of the other.\\n\\nWhere the *Hausdorff Distance* reports the single worst correspondence — and so is dominated by one stray vertex — the chamfer distance averages over all of them. That makes it the more useful number for scoring an overall fit: comparing simplification settings, judging whether a registration improved, or tracking a reconstruction against ground truth. Use Hausdorff when the worst case is what matters, and this when the typical case is.\\n\\nThe measure is **not symmetric**: the mean distance from A to B differs from B to A, and a subset of a surface can sit very close to it while the surface as a whole sits far from the subset. **Symmetric** measures both directions and also reports the larger, which is the honest single number.\\n\\n**Outlier Proportion** discards that fraction of the worst correspondences before averaging, for partial overlaps.\\n\\nThis measures vertex to vertex, so it is sensitive to how densely each layer is sampled.",
+      "tags": [
+        "trueform",
+        "measure",
+        "distance",
+        "chamfer",
+        "comparison"
+      ],
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Layer",
+          "help": "The layer being measured.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "referenceMesh",
+          "label": "Reference Layer",
+          "help": "The layer measured against.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex"
+        },
+        {
+          "id": "symmetric",
+          "label": "Symmetric",
+          "help": "Measure both directions and report the larger.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "outlierProportion",
+          "label": "Outlier Proportion",
+          "help": "Fraction of the worst correspondences discarded before averaging.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 0.9,
+          "decimals": 3
+        }
+      ]
     }
   ]
 }

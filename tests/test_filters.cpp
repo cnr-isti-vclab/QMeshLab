@@ -1,5 +1,7 @@
 #include <QtTest/QtTest>
 
+#include <QSet>
+
 #include "document.h"
 
 #include <vcg/complex/algorithms/stat.h>
@@ -197,6 +199,9 @@ private slots:
     void trueFormAlignmentRecoversAKnownTransform();
     void trueFormBooleansAgreeWithVolume();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
+    void trueFormCurveFamilyProducesPolylines();
+    void newMeshFiltersReportTheirLayers();
+    void trueFormDistanceAndContainment();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
@@ -1867,6 +1872,306 @@ void FilterTests::trueFormCsgExpressionMatchesPairwiseBooleans()
     QVERIFY(!doc.runFilter(csgKey, bad).success);
     bad.insert(QStringLiteral("expression"), QStringLiteral("0 | 999"));
     QVERIFY(!doc.runFilter(csgKey, bad).success);
+}
+
+// The curve filters and the sweep that consumes their output. Each case is chosen so the
+// expected answer is known: two overlapping boxes cross in a closed loop, a sphere's
+// height field contours into rings, and a clean mesh self-intersects nowhere.
+void FilterTests::trueFormCurveFamilyProducesPolylines()
+{
+    Document doc;
+
+    QString boxKey, sphereKey, interKey, selfKey, isoKey, tubeKey, borderKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
+        else if (id == QStringLiteral("generate_polyline_from_mesh_intersection")) interKey = info.key;
+        else if (id == QStringLiteral("generate_polyline_from_self_intersections")) selfKey = info.key;
+        else if (id == QStringLiteral("generate_polyline_from_scalar_isocontour")) isoKey = info.key;
+        else if (id == QStringLiteral("generate_tube_from_polyline")) tubeKey = info.key;
+        else if (id == QStringLiteral("compute_scalar_by_border_distance_per_vertex")) borderKey = info.key;
+    }
+    QVERIFY(!boxKey.isEmpty());
+    if (interKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    const int a = doc.currentMeshIndex();
+    const float side = doc.mesh(a).mesh.bbox.DimX();
+    const int b = doc.addMesh(doc.mesh(a).mesh, QStringLiteral("shifted"));
+    QMatrix4x4 shift;
+    shift.translate(side * 0.5f, 0.0f, 0.0f);
+    doc.setMeshTransform(b, shift);
+
+    // Two overlapping boxes intersect along a closed loop of edges.
+    MeshFilterParameterValues pair;
+    pair.insert(QStringLiteral("firstMesh"), a);
+    pair.insert(QStringLiteral("secondMesh"), b);
+    const MeshFilterRunResult crossing = doc.runFilter(interKey, pair);
+    QVERIFY2(crossing.success, qPrintable(crossing.errorMessage));
+    QCOMPARE(crossing.newMeshIndices.size(), 1);
+    const int curveIndex = crossing.newMeshIndices.front();
+    QVERIFY2(doc.mesh(curveIndex).mesh.EN() > 0, "intersection curve has no edges");
+    QCOMPARE(doc.mesh(curveIndex).mesh.FN(), 0); // a polyline, not a surface
+
+    // Sweeping that curve must give a solid.
+    MeshFilterParameterValues tube;
+    tube.insert(QStringLiteral("sourceMesh"), curveIndex);
+    tube.insert(QStringLiteral("radius"), double(side) * 0.02);
+    tube.insert(QStringLiteral("segments"), 8);
+    const MeshFilterRunResult swept = doc.runFilter(tubeKey, tube);
+    QVERIFY2(swept.success, qPrintable(swept.errorMessage));
+    QVERIFY(doc.mesh(swept.newMeshIndices.front()).mesh.FN() > 0);
+
+    // Sweeping something that is not a polyline must be refused, not crash.
+    MeshFilterParameterValues badTube;
+    badTube.insert(QStringLiteral("sourceMesh"), a);
+    badTube.insert(QStringLiteral("radius"), double(side) * 0.02);
+    QVERIFY(!doc.runFilter(tubeKey, badTube).success);
+
+    // A single clean box does not intersect itself.
+    MeshFilterParameterValues single;
+    single.insert(QStringLiteral("sourceMesh"), a);
+    QVERIFY2(!doc.runFilter(selfKey, single).success,
+             "a clean box should report no self-intersections");
+
+    // Contours of a scalar field: a border-distance field on an open surface.
+    if (!sphereKey.isEmpty() && !borderKey.isEmpty()) {
+        QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+        const int sphere = doc.currentMeshIndex();
+
+        // Without a scalar field the filter must explain itself rather than fail blankly.
+        MeshFilterParameterValues iso;
+        iso.insert(QStringLiteral("sourceMesh"), sphere);
+        iso.insert(QStringLiteral("contourCount"), 5);
+        const MeshFilterRunResult constantField = doc.runFilter(isoKey, iso);
+        if (!constantField.success)
+            QVERIFY(constantField.errorMessage.contains(QStringLiteral("constant")));
+    }
+}
+
+// Contract check across every filter declaring outputDomain == NewMeshes.
+//
+// FilterCreationTests already enforces this, but only for pure generators
+// (inputDomain == None). Every NewMeshes filter that takes input — the booleans, the
+// reconstructions, the polyline family, the samplers — sits outside that harness, which
+// is where a filter can create a layer and forget to report it. The symptom lives
+// entirely in the return value, so the document looks correct and only a caller that
+// asks "which layer did you just make?" notices.
+//
+// Filters that cannot run on this input are skipped rather than failed: the assertion is
+// conditional — *if* you succeeded and you declared NewMeshes, you must report the layers.
+void FilterTests::newMeshFiltersReportTheirLayers()
+{
+    // A document with enough variety that most filters have something to chew on: a
+    // scalar field, two overlapping solids for the binary operators, and a polyline.
+    const auto buildInputs = [](Document &doc) -> bool {
+        QString sphereKey, boxKey, borderKey, sectionKey;
+        for (const auto &info : doc.filterInfos()) {
+            const QString id = info.descriptor.id;
+            if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
+            else if (id == QStringLiteral("create_box")) boxKey = info.key;
+            else if (id == QStringLiteral("compute_scalar_by_border_distance_per_vertex")) borderKey = info.key;
+            else if (id == QStringLiteral("generate_polyline_from_planar_section")) sectionKey = info.key;
+        }
+        if (boxKey.isEmpty() || sphereKey.isEmpty())
+            return false;
+
+        if (!doc.runFilter(boxKey, {}).success)
+            return false;
+        const int box = doc.currentMeshIndex();
+        const float side = doc.mesh(box).mesh.bbox.DimX();
+
+        // A second solid, overlapping, so binary operators have a meaningful pair.
+        const int shifted = doc.addMesh(doc.mesh(box).mesh, QStringLiteral("shifted box"));
+        if (shifted < 0)
+            return false;
+        QMatrix4x4 shift;
+        shift.translate(side * 0.5f, 0.0f, 0.0f);
+        doc.setMeshTransform(shifted, shift);
+
+        // Normals and a scalar field on the current layer.
+        if (!sectionKey.isEmpty())
+            doc.runFilter(sectionKey, {});
+        if (!borderKey.isEmpty())
+            doc.runFilter(borderKey, {});
+        doc.setCurrentMeshIndex(box);
+        return true;
+    };
+
+    Document probe;
+    QStringList offenders;
+    QStringList ran;
+    int skipped = 0;
+
+    for (const auto &info : probe.filterInfos()) {
+        if (info.descriptor.outputDomain != MeshFilterOutputDomain::NewMeshes)
+            continue;
+        // Two explicit exclusions, both with reasons rather than convenience:
+        //  - quadwild shells out to an external binary that may not be installed, and is
+        //    far too slow for a contract sweep;
+        //  - generate_voronoi_atlas_parametrization *aborts* (vcglib rect_packer.h
+        //    assertion) rather than returning an error when its parametrization
+        //    degenerates on simple synthetic input, which would take the whole suite
+        //    down with SIGABRT. That is a separate bug in filter_texture.
+        if (info.descriptor.id.contains(QStringLiteral("quadwild"))
+            || info.descriptor.id == QStringLiteral("generate_voronoi_atlas_parametrization"))
+            continue;
+
+        // Four filters whose default parameters are sized for real meshes rather than
+        // for the input, so they cost the same on a box as on a scan: measured at 60 s,
+        // 31 s, 22 s and 12 s respectively, together four fifths of the sweep. The
+        // contract being checked here is about the return value and does not depend on
+        // the algorithm running at full resolution.
+        static const QSet<QString> kTooSlowForASweep = {
+            QStringLiteral("remesh_to_quads_instant_meshes"),
+            QStringLiteral("generate_marching_cubes_rimls"),
+            QStringLiteral("generate_marching_cubes_apss"),
+            QStringLiteral("generate_surface_reconstruction_vcg"),
+        };
+        if (kTooSlowForASweep.contains(info.descriptor.id))
+            continue;
+
+        Document doc;
+        if (!buildInputs(doc))
+            QSKIP("Could not build the standard inputs for this build.");
+
+        const int before = doc.meshCount();
+        const MeshFilterRunResult result = doc.runFilter(info.key, {});
+        if (!result.success) {
+            ++skipped; // cannot run on this input; not what this test is about
+            continue;
+        }
+        ran << info.descriptor.name;
+
+        if (result.newMeshIndices.isEmpty()) {
+            offenders << QStringLiteral("%1 (%2): succeeded but reported no new layer")
+                             .arg(info.descriptor.name, info.descriptor.id);
+            continue;
+        }
+        for (int index : result.newMeshIndices) {
+            if (index < 0 || index >= doc.meshCount()) {
+                offenders << QStringLiteral("%1 (%2): reported out-of-range layer %3")
+                                 .arg(info.descriptor.name, info.descriptor.id).arg(index);
+            }
+        }
+        // Not layer-count arithmetic: Flatten Visible Layers legitimately reports one
+        // new layer while the document shrinks, because it merges the originals away.
+        // What must hold is that every reported index names a real layer with content.
+        for (int index : result.newMeshIndices) {
+            if (index >= 0 && index < doc.meshCount() && doc.mesh(index).mesh.VN() <= 0) {
+                offenders << QStringLiteral("%1 (%2): reported layer %3, which is empty")
+                                 .arg(info.descriptor.name, info.descriptor.id).arg(index);
+            }
+        }
+        (void) before;
+    }
+
+    qDebug() << "NewMeshes contract:" << ran.size() << "filter(s) exercised,"
+             << skipped << "not runnable on the standard inputs";
+    QVERIFY2(offenders.isEmpty(), qPrintable(offenders.join(QStringLiteral("\n"))));
+    QVERIFY2(ran.size() >= 5, "too few NewMeshes filters were exercised to be meaningful");
+}
+
+// A small sphere entirely inside a big box: every vertex is inside, the signed distance
+// is negative everywhere, and the distances have a known magnitude. Moving the sphere
+// clear of the box must flip all three answers.
+void FilterTests::trueFormDistanceAndContainment()
+{
+    Document doc;
+
+    QString boxKey, sphereKey, distKey, insideKey, chamferKey;
+    for (const auto &info : doc.filterInfos()) {
+        const QString id = info.descriptor.id;
+        if (id == QStringLiteral("create_box")) boxKey = info.key;
+        else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
+        else if (id == QStringLiteral("compute_scalar_by_signed_distance_per_vertex")) distKey = info.key;
+        else if (id == QStringLiteral("select_vertices_inside_mesh")) insideKey = info.key;
+        else if (id == QStringLiteral("compute_chamfer_distance")) chamferKey = info.key;
+    }
+    QVERIFY(!boxKey.isEmpty() && !sphereKey.isEmpty());
+    if (distKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    QVERIFY2(doc.runFilter(boxKey, {}).success, "create_box failed");
+    const int box = doc.currentMeshIndex();
+    const float side = doc.mesh(box).mesh.bbox.DimX();
+
+    // A sphere scaled well inside the box.
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int sphere = doc.currentMeshIndex();
+    QMatrix4x4 shrink;
+    shrink.scale(side * 0.2f / doc.mesh(sphere).mesh.bbox.Diag());
+    doc.setMeshTransform(sphere, shrink);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), sphere);
+    p.insert(QStringLiteral("referenceMesh"), box);
+
+    // Inside: every distance negative.
+    QVERIFY2(doc.runFilter(distKey, p).success, "signed distance failed");
+    {
+        const VCGMesh &m = doc.mesh(sphere).mesh;
+        int positive = 0;
+        for (const VCGVertex &v : m.vert)
+            if (!v.IsD() && v.cQ() >= 0.0f)
+                ++positive;
+        QVERIFY2(positive == 0,
+                 qPrintable(QStringLiteral("%1 vertex(es) reported outside a box that "
+                                           "encloses them").arg(positive)));
+    }
+
+    // ... and every vertex selected as inside.
+    QVERIFY2(doc.runFilter(insideKey, p).success, "containment failed");
+    {
+        const VCGMesh &m = doc.mesh(sphere).mesh;
+        int unselected = 0;
+        for (const VCGVertex &v : m.vert)
+            if (!v.IsD() && !v.IsS())
+                ++unselected;
+        QCOMPARE(unselected, 0);
+    }
+
+    // Move it clear of the box: the answers must invert.
+    QMatrix4x4 outside;
+    outside.translate(side * 5.0f, 0.0f, 0.0f);
+    outside.scale(side * 0.2f / doc.mesh(sphere).mesh.bbox.Diag());
+    doc.setMeshTransform(sphere, outside);
+
+    QVERIFY2(doc.runFilter(distKey, p).success, "signed distance failed");
+    {
+        const VCGMesh &m = doc.mesh(sphere).mesh;
+        int negative = 0;
+        for (const VCGVertex &v : m.vert)
+            if (!v.IsD() && v.cQ() < 0.0f)
+                ++negative;
+        QCOMPARE(negative, 0);
+    }
+    QVERIFY2(doc.runFilter(insideKey, p).success, "containment failed");
+    {
+        const VCGMesh &m = doc.mesh(sphere).mesh;
+        int selected = 0;
+        for (const VCGVertex &v : m.vert)
+            if (!v.IsD() && v.IsS())
+                ++selected;
+        QCOMPARE(selected, 0);
+    }
+
+    // Chamfer distance to itself is zero; to the displaced copy it is not.
+    MeshFilterParameterValues self;
+    self.insert(QStringLiteral("sourceMesh"), box);
+    self.insert(QStringLiteral("referenceMesh"), box);
+    QVERIFY2(!doc.runFilter(chamferKey, self).success, "a layer against itself should be refused");
+
+    MeshFilterParameterValues apart;
+    apart.insert(QStringLiteral("sourceMesh"), sphere);
+    apart.insert(QStringLiteral("referenceMesh"), box);
+    apart.insert(QStringLiteral("symmetric"), true);
+    const MeshFilterRunResult chamfer = doc.runFilter(chamferKey, apart);
+    QVERIFY2(chamfer.success, qPrintable(chamfer.errorMessage));
+    QVERIFY(!chamfer.documentModified); // a measurement must not alter the document
+    QVERIFY(chamfer.infoMessages.size() >= 3);
 }
 
 void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()

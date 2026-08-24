@@ -13,9 +13,12 @@
 #include <QVector3D>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <limits>
 #include <exception>
 #include <optional>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -50,6 +53,13 @@ constexpr QLatin1StringView kFilterDifference("generate_boolean_difference_truef
 constexpr QLatin1StringView kFilterSymmetricDifference("generate_boolean_xor_trueform");
 constexpr QLatin1StringView kFilterCsg("generate_csg_expression");
 constexpr QLatin1StringView kFilterOuterShell("generate_outer_shell");
+constexpr QLatin1StringView kFilterSelfIntersectionCurves("generate_polyline_from_self_intersections");
+constexpr QLatin1StringView kFilterIntersectionCurves("generate_polyline_from_mesh_intersection");
+constexpr QLatin1StringView kFilterIsocurves("generate_polyline_from_scalar_isocontour");
+constexpr QLatin1StringView kFilterTube("generate_tube_from_polyline");
+constexpr QLatin1StringView kFilterSignedDistance("compute_scalar_by_signed_distance_per_vertex");
+constexpr QLatin1StringView kFilterSelectInside("select_vertices_inside_mesh");
+constexpr QLatin1StringView kFilterChamfer("compute_chamfer_distance");
 
 using Mask = vcg::tri::io::Mask;
 using TfPoints = tf::points_buffer<float, 3>;
@@ -480,6 +490,37 @@ MeshFilterRunResult addResultLayer(
     return result;
 }
 
+// Append a TrueForm triangle mesh to a VCG mesh, offsetting the indices. Used where one
+// filter emits several pieces — sweeping each path of a polyline, for instance.
+template <typename Buffer>
+void appendTfMeshTo(const Buffer &buffer, VCGMesh &target)
+{
+    const auto points = buffer.points();
+    const std::size_t pointCount = std::size_t(points.size());
+    if (pointCount == 0)
+        return;
+
+    const int offset = target.VN();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(target, int(pointCount));
+    std::size_t vi = 0;
+    for (const auto &p : points) {
+        target.vert[std::size_t(offset) + vi].P() =
+            vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
+        ++vi;
+    }
+    for (const auto &face : buffer.faces()) {
+        const std::size_t n = std::size_t(face.size());
+        for (std::size_t k = 2; k < n; ++k) {
+            const int a = offset + int(face[0]);
+            const int b = offset + int(face[k - 1]);
+            const int c = offset + int(face[k]);
+            if (a == b || b == c || a == c)
+                continue;
+            vcg::tri::Allocator<VCGMesh>::AddFace(target, a, b, c);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Booleans
 // ---------------------------------------------------------------------------
@@ -804,6 +845,587 @@ MeshFilterRunResult runOuterShell(const FilterParams &params, Document &doc)
     }
 }
 
+// ---------------------------------------------------------------------------
+// Curves
+// ---------------------------------------------------------------------------
+
+// The return_curves overloads hand back a tuple whose trailing element is the curves;
+// the leading elements are the cut mesh and per-face provenance, which vary in number by
+// overload and are not surfaced yet.
+template <typename Tuple>
+const auto &curvesOf(const Tuple &result)
+{
+    return std::get<std::tuple_size_v<std::decay_t<Tuple>> - 1>(result);
+}
+
+// Turn a TrueForm curves_buffer into a QMeshLab polyline layer: an edge mesh, which is
+// what the Create Polyline family already produces.
+template <typename Curves>
+MeshFilterRunResult addPolylineLayer(
+    Document &doc, const Curves &curves, const QString &layerName,
+    const QString &emptyMessage, QStringList info)
+{
+    VCGMesh output;
+    const auto points = curves.points();
+    const std::size_t pointCount = std::size_t(points.size());
+
+    std::size_t segmentCount = 0;
+    if (pointCount > 0) {
+        vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
+        std::size_t vi = 0;
+        for (const auto &p : points) {
+            output.vert[vi].P() = vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
+            ++vi;
+        }
+        for (const auto &path : curves.paths()) {
+            const std::size_t n = std::size_t(path.size());
+            for (std::size_t k = 1; k < n; ++k) {
+                const int a = int(path[k - 1]);
+                const int b = int(path[k]);
+                if (a == b || a < 0 || b < 0)
+                    continue;
+                if (std::size_t(a) >= pointCount || std::size_t(b) >= pointCount)
+                    continue;
+                auto e = vcg::tri::Allocator<VCGMesh>::AddEdges(output, 1);
+                e->V(0) = &output.vert[std::size_t(a)];
+                e->V(1) = &output.vert[std::size_t(b)];
+                ++segmentCount;
+            }
+        }
+    }
+
+    if (segmentCount == 0) {
+        doc.finishFilterProgress(false, emptyMessage);
+        return fail(emptyMessage);
+    }
+
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(output);
+
+    const int newIndex = doc.addMesh(output, layerName, Mask::IOM_EDGEINDEX);
+    if (newIndex < 0) {
+        const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+    doc.finishFilterProgress(true, QObject::tr("Created %1.").arg(layerName));
+
+    info.prepend(QObject::tr("Created polyline '%1'.").arg(doc.mesh(newIndex).name));
+    info << QObject::tr("%1 path(s), %2 segment(s).")
+                .arg(curves.paths().size()).arg(segmentCount);
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages = info;
+    result.newMeshIndices.push_back(newIndex);
+    return result;
+}
+
+// Where a mesh passes through itself. Unlike Select Self Intersecting Faces, which marks
+// the faces involved, this extracts the intersection curve itself.
+MeshFilterRunResult runSelfIntersectionCurves(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    doc.beginFilterProgress(QObject::tr("Create Polyline from Self-Intersections"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        auto curves = tf::embedded_self_intersection_curves(source.polygons(), tf::return_curves);
+        return addPolylineLayer(
+            doc, curvesOf(curves), QObject::tr("Self-Intersections"),
+            QObject::tr("No self-intersections were found."),
+            { QObject::tr("From '%1'.").arg(doc.mesh(index).name) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm self-intersection curves failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Where two layers cross. The curve is exact, so it is usable as a construction line
+// rather than only as a diagnostic.
+MeshFilterRunResult runIntersectionCurves(const FilterParams &params, Document &doc)
+{
+    int aIndex = -1, bIndex = -1;
+    QString error;
+    if (!resolveBooleanPair(params, doc, aIndex, bIndex, error))
+        return fail(error);
+
+    doc.beginFilterProgress(QObject::tr("Create Polyline from Mesh Intersection"));
+    try {
+        const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
+        const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
+        auto curves = tf::make_boolean(
+            a.polygons(), b.polygons(), tf::boolean_op::intersection, tf::return_curves);
+        return addPolylineLayer(
+            doc, curvesOf(curves), QObject::tr("Intersection Curve"),
+            QObject::tr("The two layers do not intersect."),
+            { QObject::tr("'%1' against '%2'.")
+                  .arg(doc.mesh(aIndex).name, doc.mesh(bIndex).name) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm intersection curves failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Contours of the per-vertex scalar field, as polylines lying on the surface. This is
+// what makes every scalar QMeshLab computes — geodesic distance, curvature, ambient
+// occlusion, raster coverage — into something with extractable level sets.
+MeshFilterRunResult runIsocurves(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    const VCGMesh &mesh = doc.mesh(index).mesh;
+    if (mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const int count = std::max(1, params.getInt(QStringLiteral("contourCount"), 10));
+    const bool useRange = params.getBool(QStringLiteral("useCustomRange"), false);
+    double minValue = params.getDouble(QStringLiteral("minValue"), 0.0);
+    double maxValue = params.getDouble(QStringLiteral("maxValue"), 0.0);
+
+    // Gather the scalars in the same order tfMeshFromLayer emits points.
+    std::vector<float> scalars;
+    scalars.reserve(std::size_t(std::max(0, mesh.VN())));
+    float observedMin = std::numeric_limits<float>::max();
+    float observedMax = std::numeric_limits<float>::lowest();
+    for (const VCGVertex &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        const float q = v.cQ();
+        scalars.push_back(q);
+        if (std::isfinite(q)) {
+            observedMin = std::min(observedMin, q);
+            observedMax = std::max(observedMax, q);
+        }
+    }
+    if (scalars.empty())
+        return fail(QObject::tr("The layer has no live vertices."));
+    if (!(observedMax > observedMin)) {
+        return fail(QObject::tr(
+            "The scalar field is constant, so it has no contours. Compute a per-vertex "
+            "scalar first — a geodesic distance or a curvature, for instance."));
+    }
+    if (!useRange) {
+        minValue = double(observedMin);
+        maxValue = double(observedMax);
+    }
+    if (!(maxValue > minValue))
+        return fail(QObject::tr("The maximum must be larger than the minimum."));
+
+    // Contours strictly inside the range: a contour exactly at the extreme is either
+    // empty or the whole boundary, neither of which is useful.
+    std::vector<float> cutValues;
+    cutValues.reserve(std::size_t(count));
+    for (int i = 0; i < count; ++i) {
+        const double t = (double(i) + 1.0) / (double(count) + 1.0);
+        cutValues.push_back(float(minValue + t * (maxValue - minValue)));
+    }
+
+    doc.beginFilterProgress(QObject::tr("Create Polyline from Scalar Isocontour"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        auto curves = tf::embedded_isocurves(
+            source.polygons(),
+            tf::make_range(scalars.data(), scalars.size()),
+            tf::make_range(cutValues.data(), cutValues.size()),
+            tf::return_curves);
+        return addPolylineLayer(
+            doc, curvesOf(curves), QObject::tr("Isocontours"),
+            QObject::tr("No contours were produced at the requested values."),
+            { QObject::tr("From '%1'.").arg(doc.mesh(index).name),
+              QObject::tr("%1 contour(s) between %2 and %3.")
+                  .arg(count)
+                  .arg(QString::number(minValue, 'g', 6))
+                  .arg(QString::number(maxValue, 'g', 6)) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm isocurves failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Sweep a circular profile along a polyline. The Create Polyline family produces edge
+// meshes that render as hairlines; this turns one into geometry that can be shaded,
+// exported or printed.
+MeshFilterRunResult runTubeFromPolyline(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+
+    const Document::MeshEntry &entry = doc.mesh(index);
+    const VCGMesh &mesh = entry.mesh;
+    if (mesh.EN() <= 0) {
+        return fail(QObject::tr(
+            "'%1' has no edges. This filter sweeps a polyline layer, such as one made by "
+            "the Create Polyline filters.").arg(entry.name));
+    }
+
+    const double radius = params.getDouble(QStringLiteral("radius"), 0.0);
+    const int segments = std::clamp(params.getInt(QStringLiteral("segments"), 8), 3, 256);
+    if (!std::isfinite(radius) || radius <= 0.0)
+        return fail(QObject::tr("The radius must be a finite value larger than zero."));
+
+    // Chain the edges into paths. TrueForm sweeps a curve, so a soup of unordered
+    // segments has to be walked into runs first; each vertex may join at most two edges
+    // for the chain to be unambiguous.
+    const std::size_t vertexCount = mesh.vert.size();
+    std::vector<std::array<int, 2>> incident(vertexCount, { -1, -1 });
+    std::vector<std::array<int, 2>> edges;
+    edges.reserve(std::size_t(std::max(0, mesh.EN())));
+    const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
+    int branching = 0;
+    for (const auto &e : mesh.edge) {
+        if (e.IsD() || !base)
+            continue;
+        const ptrdiff_t v0 = e.cV(0) - base;
+        const ptrdiff_t v1 = e.cV(1) - base;
+        if (v0 < 0 || v1 < 0 || std::size_t(v0) >= vertexCount || std::size_t(v1) >= vertexCount)
+            continue;
+        const int id = int(edges.size());
+        edges.push_back({ int(v0), int(v1) });
+        for (int v : { int(v0), int(v1) }) {
+            if (incident[std::size_t(v)][0] < 0)
+                incident[std::size_t(v)][0] = id;
+            else if (incident[std::size_t(v)][1] < 0)
+                incident[std::size_t(v)][1] = id;
+            else
+                ++branching;
+        }
+    }
+    if (edges.empty())
+        return fail(QObject::tr("The layer has no usable edges."));
+
+    doc.beginFilterProgress(QObject::tr("Create Tube from Polyline"));
+
+    VCGMesh output;
+    std::size_t tubeCount = 0;
+    try {
+        const QMatrix4x4 &m = entry.transform;
+        std::vector<char> visited(edges.size(), 0);
+
+        // Walk from every endpoint first so open runs come out whole, then mop up loops.
+        const auto walk = [&](int startVertex, int startEdge) {
+            std::vector<int> path{ startVertex };
+            int current = startVertex;
+            int edgeId = startEdge;
+            while (edgeId >= 0 && !visited[std::size_t(edgeId)]) {
+                visited[std::size_t(edgeId)] = 1;
+                const auto &e = edges[std::size_t(edgeId)];
+                const int next = (e[0] == current) ? e[1] : e[0];
+                path.push_back(next);
+                current = next;
+                const auto &inc = incident[std::size_t(current)];
+                edgeId = (inc[0] != -1 && inc[0] != edgeId) ? inc[0]
+                       : (inc[1] != -1 && inc[1] != edgeId) ? inc[1]
+                                                            : -1;
+                if (current == startVertex)
+                    break; // closed loop
+            }
+            return path;
+        };
+
+        std::vector<std::vector<int>> paths;
+        for (std::size_t v = 0; v < vertexCount; ++v) {
+            const auto &inc = incident[v];
+            const bool endpoint = (inc[0] >= 0) != (inc[1] >= 0);
+            if (endpoint && !visited[std::size_t(inc[0] >= 0 ? inc[0] : inc[1])])
+                paths.push_back(walk(int(v), inc[0] >= 0 ? inc[0] : inc[1]));
+        }
+        for (std::size_t e = 0; e < edges.size(); ++e) {
+            if (!visited[e])
+                paths.push_back(walk(edges[e][0], int(e)));
+        }
+
+        for (const std::vector<int> &path : paths) {
+            if (path.size() < 2)
+                continue;
+            tf::points_buffer<float, 3> pts;
+            for (int v : path) {
+                const vcg::Point3f &p = mesh.vert[std::size_t(v)].cP();
+                const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
+                pts.emplace_back(w.x(), w.y(), w.z());
+            }
+            tf::curves_buffer<int, float, 3> cb;
+            cb.points_buffer() = pts;
+            std::vector<int> indices(path.size());
+            for (std::size_t i = 0; i < path.size(); ++i)
+                indices[i] = int(i);
+            cb.paths_buffer().push_back(tf::make_range(indices.data(), indices.size()));
+
+            auto tube = tf::make_tube_mesh(cb.curves()[0], float(radius), segments);
+            appendTfMeshTo(tube, output);
+            ++tubeCount;
+        }
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm tube generation failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    if (output.FN() <= 0) {
+        const QString message = QObject::tr("The sweep produced no geometry.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(output);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
+
+    const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+    const int newIndex = doc.addMesh(output, QObject::tr("Tube"), ioMask);
+    if (newIndex < 0) {
+        const QString message = QObject::tr("Failed to add the tube layer.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+    doc.finishFilterProgress(true, QObject::tr("Created tube."));
+
+    QStringList info;
+    info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
+         << QObject::tr("Swept %1 path(s) from '%2'.").arg(tubeCount).arg(entry.name)
+         << QObject::tr("Output: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
+    if (branching > 0) {
+        info << QObject::tr(
+            "%1 vertex junction(s) joined more than two edges; the polyline was split "
+            "there rather than branched.").arg(branching);
+    }
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages = info;
+    result.newMeshIndices.push_back(newIndex);
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Distance and containment
+// ---------------------------------------------------------------------------
+
+// signed_distance() needs the polygons tagged with a spatial index, face membership and
+// the manifold edge link: the tree finds candidates, and the other two let it decide
+// which side of the surface a point falls on near an edge or a vertex, where the closest
+// face alone is ambiguous. The tags reference these objects, so they must outlive use.
+struct SignedDistanceContext
+{
+    explicit SignedDistanceContext(const TfMesh &mesh)
+        : membership(mesh.polygons())
+        , edgeLink(mesh.polygons().faces(), membership)
+        , tree(mesh.polygons(), tf::config_tree(4, 4))
+    {}
+
+    tf::face_membership<int> membership;
+    tf::manifold_edge_link<int, 3> edgeLink;
+    tf::aabb_tree<int, float, 3> tree;
+};
+
+// Signed distance from every vertex of one layer to the surface of another. Negative
+// inside, positive outside — which is what makes it a field rather than a proximity
+// readout, and what lets the containment filter share the same machinery.
+MeshFilterRunResult runSignedDistance(const FilterParams &params, Document &doc)
+{
+    const int targetIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int referenceIndex = params.getMesh(QStringLiteral("referenceMesh"), -1);
+    const auto valid = [&doc](int i) { return i >= 0 && i < doc.meshCount(); };
+    if (!valid(targetIndex) || !valid(referenceIndex))
+        return fail(QObject::tr("A layer and a reference layer must be selected."));
+    if (targetIndex == referenceIndex)
+        return fail(QObject::tr("The two layers must be different."));
+    if (doc.mesh(referenceIndex).mesh.FN() <= 0)
+        return fail(QObject::tr("The reference layer needs faces."));
+    if (doc.mesh(targetIndex).mesh.VN() <= 0)
+        return fail(QObject::tr("The layer needs vertices."));
+
+    const bool absolute = params.getBool(QStringLiteral("unsigned"), false);
+
+    doc.beginFilterProgress(QObject::tr("Compute Signed Distance to Mesh"));
+    double minDistance = std::numeric_limits<double>::max();
+    double maxDistance = std::numeric_limits<double>::lowest();
+    int insideCount = 0;
+    try {
+        const TfMesh reference = tfMeshFromLayer(doc.mesh(referenceIndex));
+        SignedDistanceContext ctx(reference);
+        auto tagged = reference.polygons() | tf::tag(ctx.tree) | tf::tag(ctx.membership)
+            | tf::tag(ctx.edgeLink);
+
+        Document::MeshEntry &entry = doc.mesh(targetIndex);
+        const QMatrix4x4 &m = entry.transform;
+        for (VCGVertex &v : entry.mesh.vert) {
+            if (v.IsD())
+                continue;
+            const vcg::Point3f &p = v.cP();
+            const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
+            double d = tf::signed_distance(tagged, tf::make_point(w.x(), w.y(), w.z()));
+            if (d < 0.0)
+                ++insideCount;
+            if (absolute)
+                d = std::abs(d);
+            v.Q() = float(d);
+            minDistance = std::min(minDistance, d);
+            maxDistance = std::max(maxDistance, d);
+        }
+        entry.ioMask |= Mask::IOM_VERTQUALITY;
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm signed distance failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    doc.markMeshGeometryChanged(
+        targetIndex,
+        QObject::tr("Computed distance from '%1' to '%2'")
+            .arg(doc.mesh(targetIndex).name, doc.mesh(referenceIndex).name));
+    doc.finishFilterProgress(true, QObject::tr("Computed signed distance."));
+
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages
+        << QObject::tr("Range: %1 to %2")
+               .arg(QString::number(minDistance, 'g', 6))
+               .arg(QString::number(maxDistance, 'g', 6))
+        << QObject::tr("%1 vertex(es) lie inside '%2'.")
+               .arg(insideCount).arg(doc.mesh(referenceIndex).name);
+    result.visualizationHints.push_back(
+        { targetIndex, MeshFilterVisualizationAttribute::VertexQuality });
+    return result;
+}
+
+// Select the vertices enclosed by another layer. Uses the sign of the distance rather
+// than a ray-parity test, so a point exactly on the surface is decided consistently.
+MeshFilterRunResult runSelectInsideMesh(const FilterParams &params, Document &doc)
+{
+    const int targetIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int referenceIndex = params.getMesh(QStringLiteral("referenceMesh"), -1);
+    const auto valid = [&doc](int i) { return i >= 0 && i < doc.meshCount(); };
+    if (!valid(targetIndex) || !valid(referenceIndex))
+        return fail(QObject::tr("A layer and an enclosing layer must be selected."));
+    if (targetIndex == referenceIndex)
+        return fail(QObject::tr("The two layers must be different."));
+    if (doc.mesh(referenceIndex).mesh.FN() <= 0)
+        return fail(QObject::tr("The enclosing layer needs faces."));
+
+    const bool invert = params.getBool(QStringLiteral("selectOutside"), false);
+    const QString mode = params.getEnum(QStringLiteral("mode"));
+
+    doc.beginFilterProgress(QObject::tr("Select Vertices Inside Mesh"));
+    int selected = 0;
+    try {
+        const TfMesh reference = tfMeshFromLayer(doc.mesh(referenceIndex));
+        SignedDistanceContext ctx(reference);
+        auto tagged = reference.polygons() | tf::tag(ctx.tree) | tf::tag(ctx.membership)
+            | tf::tag(ctx.edgeLink);
+
+        Document::MeshEntry &entry = doc.mesh(targetIndex);
+        const QMatrix4x4 &m = entry.transform;
+        const bool replace = (mode != QStringLiteral("add") && mode != QStringLiteral("subtract"));
+        for (VCGVertex &v : entry.mesh.vert) {
+            if (v.IsD())
+                continue;
+            const vcg::Point3f &p = v.cP();
+            const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
+            const double d = tf::signed_distance(tagged, tf::make_point(w.x(), w.y(), w.z()));
+            const bool hit = invert ? (d > 0.0) : (d < 0.0);
+            if (replace)
+                hit ? v.SetS() : v.ClearS();
+            else if (mode == QStringLiteral("add") && hit)
+                v.SetS();
+            else if (mode == QStringLiteral("subtract") && hit)
+                v.ClearS();
+            if (v.IsS())
+                ++selected;
+        }
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm containment test failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    doc.markMeshSelectionChanged(
+        targetIndex,
+        QObject::tr("Selected vertices of '%1' inside '%2'")
+            .arg(doc.mesh(targetIndex).name, doc.mesh(referenceIndex).name));
+    doc.finishFilterProgress(true, QObject::tr("Updated selection."));
+
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages << QObject::tr("%1 vertex(es) selected.").arg(selected);
+    return result;
+}
+
+// Mean distance from one layer's vertices to the nearest point of another's. Unlike the
+// Hausdorff distance, which reports the single worst correspondence, this averages — so
+// it is stable against a lone outlier and useful as a fit score.
+MeshFilterRunResult runChamferDistance(const FilterParams &params, Document &doc)
+{
+    const int aIndex = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    const int bIndex = params.getMesh(QStringLiteral("referenceMesh"), -1);
+    const auto valid = [&doc](int i) { return i >= 0 && i < doc.meshCount(); };
+    if (!valid(aIndex) || !valid(bIndex))
+        return fail(QObject::tr("Two layers must be selected."));
+    if (aIndex == bIndex)
+        return fail(QObject::tr("The two layers must be different."));
+    if (doc.mesh(aIndex).mesh.VN() <= 0 || doc.mesh(bIndex).mesh.VN() <= 0)
+        return fail(QObject::tr("Both layers need vertices."));
+
+    const bool symmetric = params.getBool(QStringLiteral("symmetric"), true);
+    const double outlier =
+        std::clamp(params.getDouble(QStringLiteral("outlierProportion"), 0.0), 0.0, 0.9);
+
+    doc.beginFilterProgress(QObject::tr("Measure Chamfer Distance"));
+    double forward = 0.0;
+    double backward = 0.0;
+    try {
+        const TfPoints a = worldPoints(doc.mesh(aIndex));
+        const TfPoints b = worldPoints(doc.mesh(bIndex));
+        auto pa = tf::make_points(a);
+        auto pb = tf::make_points(b);
+
+        TfTree treeB(pb, tf::config_tree(4, 4));
+        forward = double(tf::chamfer_error(pa, pb | tf::tag(treeB), float(outlier)));
+        if (symmetric) {
+            TfTree treeA(pa, tf::config_tree(4, 4));
+            backward = double(tf::chamfer_error(pb, pa | tf::tag(treeA), float(outlier)));
+        }
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm chamfer distance failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+    doc.finishFilterProgress(true, QObject::tr("Measured chamfer distance."));
+
+    const QString aName = doc.mesh(aIndex).name;
+    const QString bName = doc.mesh(bIndex).name;
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = false;
+    result.infoMessages
+        << QObject::tr("'%1' to '%2': %3").arg(aName, bName, QString::number(forward, 'g', 6));
+    if (symmetric) {
+        result.infoMessages
+            << QObject::tr("'%1' to '%2': %3").arg(bName, aName, QString::number(backward, 'g', 6))
+            << QObject::tr("Symmetric (max): %1")
+                   .arg(QString::number(std::max(forward, backward), 'g', 6));
+    }
+    return result;
+}
+
 } // namespace
 
 QString TrueFormFilterPlugin::pluginId() const
@@ -837,6 +1459,20 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runCsgExpression(params, doc);
     if (filterId == QString::fromLatin1(kFilterOuterShell))
         return runOuterShell(params, doc);
+    if (filterId == QString::fromLatin1(kFilterSelfIntersectionCurves))
+        return runSelfIntersectionCurves(params, doc);
+    if (filterId == QString::fromLatin1(kFilterIntersectionCurves))
+        return runIntersectionCurves(params, doc);
+    if (filterId == QString::fromLatin1(kFilterIsocurves))
+        return runIsocurves(params, doc);
+    if (filterId == QString::fromLatin1(kFilterTube))
+        return runTubeFromPolyline(params, doc);
+    if (filterId == QString::fromLatin1(kFilterSignedDistance))
+        return runSignedDistance(params, doc);
+    if (filterId == QString::fromLatin1(kFilterSelectInside))
+        return runSelectInsideMesh(params, doc);
+    if (filterId == QString::fromLatin1(kFilterChamfer))
+        return runChamferDistance(params, doc);
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 }
 
