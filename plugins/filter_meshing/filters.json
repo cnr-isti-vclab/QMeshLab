@@ -2594,7 +2594,7 @@
         {
           "id": "createSectionSurface",
           "label": "Create also section surface",
-          "help": "Create triangulated sections from closed, non-nested contours. Sections containing holes are not supported.",
+          "help": "Create triangulated sections from closed contours, including holes and disconnected regions.",
           "group": "advanced",
           "type": "bool",
           "default": false

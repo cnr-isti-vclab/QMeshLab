@@ -46,32 +46,6 @@
 
 namespace {
 
-vcg::Point2d projectSectionPoint(const vcg::Point3f &point, int droppedAxis)
-{
-    if (droppedAxis == 0)
-        return { double(point.Y()), double(point.Z()) };
-    if (droppedAxis == 1)
-        return { double(point.X()), double(point.Z()) };
-    return { double(point.X()), double(point.Y()) };
-}
-
-bool pointInsideSectionContour(
-    const vcg::Point2d &point,
-    const std::vector<vcg::Point3f> &contour,
-    int droppedAxis)
-{
-    bool inside = false;
-    for (size_t i = 0, j = contour.size() - 1; i < contour.size(); j = i++) {
-        const vcg::Point2d a = projectSectionPoint(contour[i], droppedAxis);
-        const vcg::Point2d b = projectSectionPoint(contour[j], droppedAxis);
-        if ((a.Y() > point.Y()) != (b.Y() > point.Y())
-            && point.X() < (b.X() - a.X()) * (point.Y() - a.Y())
-                    / (b.Y() - a.Y()) + a.X())
-            inside = !inside;
-    }
-    return inside;
-}
-
 QString buildSectionCap(
     const VCGMesh &section,
     const vcg::Point3f &normal,
@@ -134,34 +108,13 @@ QString buildSectionCap(
     if (contours.empty())
         return QObject::tr("The planar section contains no closed contour to triangulate.");
 
-    const vcg::Point3f absoluteNormal(
-        std::abs(normal.X()), std::abs(normal.Y()), std::abs(normal.Z()));
-    const int droppedAxis = absoluteNormal.X() >= absoluteNormal.Y()
-            && absoluteNormal.X() >= absoluteNormal.Z()
-        ? 0
-        : (absoluteNormal.Y() >= absoluteNormal.Z() ? 1 : 2);
+    std::vector<int> triangles;
+    if (!vcg::TessellatePlanarContours3(contours, triangles))
+        return QObject::tr("The planar section contours could not be triangulated.");
 
-    // TessellatePlanarPolygon3 deliberately handles one simple loop. Detect
-    // nesting so a section containing holes is rejected rather than filled
-    // incorrectly by triangulating its contours independently.
-    for (size_t i = 0; i < contours.size(); ++i) {
-        const vcg::Point2d probe = projectSectionPoint(contours[i].front(), droppedAxis);
-        for (size_t j = 0; j < contours.size(); ++j) {
-            if (i != j && pointInsideSectionContour(probe, contours[j], droppedAxis))
-                return QObject::tr(
-                    "Nested section contours (surfaces with holes) are not supported by the CPU triangulator.");
-        }
-    }
-
-    std::vector<std::vector<int>> contourTriangles(contours.size());
     size_t vertexCount = 0;
-    size_t faceCount = 0;
-    for (size_t i = 0; i < contours.size(); ++i) {
-        if (!vcg::TessellatePlanarPolygon3(contours[i], contourTriangles[i]))
-            return QObject::tr("A planar section contour could not be triangulated.");
-        vertexCount += contours[i].size();
-        faceCount += contourTriangles[i].size() / 3;
-    }
+    for (const Contour &contour : contours)
+        vertexCount += contour.size();
 
     cap.Clear();
     vcg::tri::Allocator<VCGMesh>::AddVertices(cap, vertexCount);
@@ -172,24 +125,18 @@ QString buildSectionCap(
         vertexOffset += contour.size();
     }
 
-    vcg::tri::Allocator<VCGMesh>::AddFaces(cap, faceCount);
-    size_t faceIndex = 0;
-    vertexOffset = 0;
-    for (size_t contourIndex = 0; contourIndex < contours.size(); ++contourIndex) {
-        const std::vector<int> &triangles = contourTriangles[contourIndex];
-        for (size_t i = 0; i < triangles.size(); i += 3) {
-            int a = int(vertexOffset) + triangles[i];
-            int b = int(vertexOffset) + triangles[i + 1];
-            int c = int(vertexOffset) + triangles[i + 2];
-            if (((cap.vert[size_t(b)].cP() - cap.vert[size_t(a)].cP())
-                    ^ (cap.vert[size_t(c)].cP() - cap.vert[size_t(a)].cP())) * normal < 0)
-                std::swap(b, c);
-            VCGFace &face = cap.face[faceIndex++];
-            face.V(0) = &cap.vert[size_t(a)];
-            face.V(1) = &cap.vert[size_t(b)];
-            face.V(2) = &cap.vert[size_t(c)];
-        }
-        vertexOffset += contours[contourIndex].size();
+    vcg::tri::Allocator<VCGMesh>::AddFaces(cap, triangles.size() / 3);
+    for (size_t i = 0; i < triangles.size(); i += 3) {
+        int a = triangles[i];
+        int b = triangles[i + 1];
+        int c = triangles[i + 2];
+        if (((cap.vert[size_t(b)].cP() - cap.vert[size_t(a)].cP())
+                ^ (cap.vert[size_t(c)].cP() - cap.vert[size_t(a)].cP())) * normal < 0)
+            std::swap(b, c);
+        VCGFace &face = cap.face[i / 3];
+        face.V(0) = &cap.vert[size_t(a)];
+        face.V(1) = &cap.vert[size_t(b)];
+        face.V(2) = &cap.vert[size_t(c)];
     }
     return {};
 }

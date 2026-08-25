@@ -476,9 +476,8 @@ void FilterTests::planarSectionSurfaceUsesCpuTessellator()
             QVERIFY(face.cN().X() > 0.99f);
     }
 
-    // The CPU tessellator accepts one simple loop at a time. A smaller closed
-    // shell produces a nested contour; verify that it is reported instead of
-    // silently filling the intended hole.
+    // A smaller closed shell produces a nested contour. Its section must remain
+    // a hole rather than being filled as an independent polygon.
     Document nestedDoc;
     VCGMesh outer;
     VCGMesh inner;
@@ -493,9 +492,23 @@ void FilterTests::planarSectionSurfaceUsesCpuTessellator()
     const QString nestedSectionKey = filterKeyForId(
         nestedDoc, QStringLiteral("generate_polyline_from_planar_section"));
     const MeshFilterRunResult nestedResult = nestedDoc.runFilter(nestedSectionKey, params);
-    QVERIFY(!nestedResult.success);
-    QVERIFY(nestedResult.errorMessage.contains(QStringLiteral("Nested")));
-    QCOMPARE(nestedDoc.meshCount(), 1);
+    QVERIFY2(nestedResult.success, qPrintable(nestedResult.errorMessage));
+    QCOMPARE(nestedResult.newMeshIndices.size(), 2);
+    const VCGMesh &nestedCap = nestedDoc.mesh(nestedResult.newMeshIndices[1]).mesh;
+    // Intersections with the triangulated cube faces retain collinear points
+    // along each square boundary (eight vertices per contour).
+    QCOMPARE(nestedCap.VN(), 16);
+    QCOMPARE(nestedCap.FN(), 16);
+    double nestedArea = 0;
+    for (const VCGFace &face : nestedCap.face) {
+        if (face.IsD())
+            continue;
+        nestedArea += vcg::DoubleArea(face) * 0.5;
+        const vcg::Point3f centroid = vcg::Barycenter(face);
+        QVERIFY(!(centroid.Y() > 0.25f && centroid.Y() < 0.75f
+            && centroid.Z() > 0.25f && centroid.Z() < 0.75f));
+    }
+    QVERIFY(std::abs(nestedArea - 0.75) < 1e-6);
 }
 
 void FilterTests::basicFiltersRunOnLoadedMesh()

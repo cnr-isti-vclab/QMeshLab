@@ -527,6 +527,58 @@ void DocumentTests::planarPolygonTessellationHandlesConcavity()
         selfIntersecting, fallbackTriangles, &usedFallback));
     QVERIFY(usedFallback);
     QCOMPARE(fallbackTriangles.size(), size_t(6));
+
+    // Multiple contours use even-odd filling, independent of order and winding:
+    // a hole, an island inside that hole, and a disconnected component.
+    const std::vector<std::vector<vcg::Point2d>> contours = {
+        { { 2, 2 }, { 2, 8 }, { 8, 8 }, { 8, 2 } },
+        { { 12, 0 }, { 14, 0 }, { 14, 2 }, { 12, 2 } },
+        { { 4, 4 }, { 6, 4 }, { 6, 6 }, { 4, 6 } },
+        { { 0, 0 }, { 10, 0 }, { 10, 10 }, { 0, 10 } }
+    };
+    std::vector<int> contourTriangles;
+    QVERIFY(vcg::TessellatePlanarContours2(contours, contourTriangles));
+    QCOMPARE(contourTriangles.size(), size_t(36));
+    std::vector<vcg::Point2d> flattened;
+    for (const auto &contour : contours)
+        flattened.insert(flattened.end(), contour.begin(), contour.end());
+    double contourTriangleDoubleArea = 0;
+    for (size_t i = 0; i < contourTriangles.size(); i += 3) {
+        const vcg::Point2d &a = flattened[size_t(contourTriangles[i])];
+        const vcg::Point2d &b = flattened[size_t(contourTriangles[i + 1])];
+        const vcg::Point2d &c = flattened[size_t(contourTriangles[i + 2])];
+        const double area = (b - a) ^ (c - a);
+        QVERIFY(area > 0);
+        contourTriangleDoubleArea += area;
+    }
+    QVERIFY(std::abs(contourTriangleDoubleArea - 144.0) < 1e-9); // 2 * 72
+
+    const std::vector<std::vector<vcg::Point2d>> twoHoles = {
+        { { 0, 0 }, { 20, 0 }, { 20, 10 }, { 0, 10 } },
+        { { 2, 2 }, { 2, 4 }, { 4, 4 }, { 4, 2 } },
+        { { 8, 2 }, { 8, 8 }, { 12, 8 }, { 12, 2 } }
+    };
+    contourTriangles.clear();
+    QVERIFY(vcg::TessellatePlanarContours2(twoHoles, contourTriangles));
+    QCOMPARE(contourTriangles.size(), size_t(42));
+
+    std::vector<std::vector<vcg::Point3d>> verticalContours;
+    for (const auto &contour : contours) {
+        verticalContours.emplace_back();
+        for (const vcg::Point2d &point : contour)
+            verticalContours.back().push_back({ 3, point.X(), point.Y() });
+    }
+    contourTriangles.clear();
+    QVERIFY(vcg::TessellatePlanarContours3(verticalContours, contourTriangles));
+    QCOMPARE(contourTriangles.size(), size_t(36));
+
+    const std::vector<std::vector<vcg::Point2d>> touchingContours = {
+        { { 0, 0 }, { 4, 0 }, { 4, 4 }, { 0, 4 } },
+        { { 0, 1 }, { 2, 1 }, { 2, 2 }, { 0, 2 } }
+    };
+    contourTriangles = { 17 };
+    QVERIFY(!vcg::TessellatePlanarContours2(touchingContours, contourTriangles));
+    QCOMPARE(contourTriangles, std::vector<int>({ 17 }));
 }
 
 void DocumentTests::loadConcavePolygonFormatsPreserveFauxEdges()
