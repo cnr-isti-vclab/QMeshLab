@@ -3,16 +3,7 @@
 #include "document.h"
 #include "meshfilterpluginmanager.h"
 #include <QVector3D>
-#if defined(__APPLE__)
-#include <OpenGL/gl.h>
-#else
-#ifdef _WIN32
-#include <windows.h>
-#endif
-#include <GL/gl.h>
-#endif
 #include <wrap/io_trimesh/io_mask.h>
-#include <wrap/gl/glu_tessellator_cap.h>
 #include <vcg/container/simple_temporary_data.h>
 #include <vcg/complex/allocate.h>
 #include <vcg/complex/append.h>
@@ -45,6 +36,7 @@
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/math/base.h>
 #include <vcg/space/fitting3.h>
+#include <vcg/space/planar_polygon_tessellation.h>
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
@@ -53,6 +45,155 @@
 #include <vector>
 
 namespace {
+
+vcg::Point2d projectSectionPoint(const vcg::Point3f &point, int droppedAxis)
+{
+    if (droppedAxis == 0)
+        return { double(point.Y()), double(point.Z()) };
+    if (droppedAxis == 1)
+        return { double(point.X()), double(point.Z()) };
+    return { double(point.X()), double(point.Y()) };
+}
+
+bool pointInsideSectionContour(
+    const vcg::Point2d &point,
+    const std::vector<vcg::Point3f> &contour,
+    int droppedAxis)
+{
+    bool inside = false;
+    for (size_t i = 0, j = contour.size() - 1; i < contour.size(); j = i++) {
+        const vcg::Point2d a = projectSectionPoint(contour[i], droppedAxis);
+        const vcg::Point2d b = projectSectionPoint(contour[j], droppedAxis);
+        if ((a.Y() > point.Y()) != (b.Y() > point.Y())
+            && point.X() < (b.X() - a.X()) * (point.Y() - a.Y())
+                    / (b.Y() - a.Y()) + a.X())
+            inside = !inside;
+    }
+    return inside;
+}
+
+QString buildSectionCap(
+    const VCGMesh &section,
+    const vcg::Point3f &normal,
+    VCGMesh &cap)
+{
+    using Contour = std::vector<vcg::Point3f>;
+
+    std::vector<std::vector<size_t>> incidentEdges(section.vert.size());
+    for (size_t edgeIndex = 0; edgeIndex < section.edge.size(); ++edgeIndex) {
+        const VCGEdge &edge = section.edge[edgeIndex];
+        if (edge.IsD())
+            continue;
+        const int first = vcg::tri::Index(section, edge.cV(0));
+        const int second = vcg::tri::Index(section, edge.cV(1));
+        if (first < 0 || second < 0 || first == second)
+            return QObject::tr("The planar section contains an invalid edge.");
+        incidentEdges[size_t(first)].push_back(edgeIndex);
+        incidentEdges[size_t(second)].push_back(edgeIndex);
+    }
+
+    for (const auto &incident : incidentEdges) {
+        if (!incident.empty() && incident.size() != 2)
+            return QObject::tr("A section surface requires closed, non-branching contours.");
+    }
+
+    std::vector<Contour> contours;
+    std::vector<bool> visited(section.edge.size(), false);
+    for (size_t firstEdge = 0; firstEdge < section.edge.size(); ++firstEdge) {
+        if (section.edge[firstEdge].IsD() || visited[firstEdge])
+            continue;
+
+        const int startVertex = vcg::tri::Index(section, section.edge[firstEdge].cV(0));
+        int currentVertex = startVertex;
+        size_t currentEdge = firstEdge;
+        Contour contour;
+        for (size_t step = 0; step <= section.edge.size(); ++step) {
+            if (visited[currentEdge])
+                return QObject::tr("The planar section contains an invalid contour cycle.");
+            visited[currentEdge] = true;
+            contour.push_back(section.vert[size_t(currentVertex)].cP());
+
+            const VCGEdge &edge = section.edge[currentEdge];
+            const int first = vcg::tri::Index(section, edge.cV(0));
+            const int second = vcg::tri::Index(section, edge.cV(1));
+            const int nextVertex = first == currentVertex ? second : first;
+            if (nextVertex == startVertex)
+                break;
+
+            const auto &nextIncident = incidentEdges[size_t(nextVertex)];
+            currentEdge = nextIncident[0] == currentEdge
+                ? nextIncident[1]
+                : nextIncident[0];
+            currentVertex = nextVertex;
+        }
+        if (contour.size() < 3)
+            return QObject::tr("The planar section contains a degenerate contour.");
+        contours.push_back(std::move(contour));
+    }
+
+    if (contours.empty())
+        return QObject::tr("The planar section contains no closed contour to triangulate.");
+
+    const vcg::Point3f absoluteNormal(
+        std::abs(normal.X()), std::abs(normal.Y()), std::abs(normal.Z()));
+    const int droppedAxis = absoluteNormal.X() >= absoluteNormal.Y()
+            && absoluteNormal.X() >= absoluteNormal.Z()
+        ? 0
+        : (absoluteNormal.Y() >= absoluteNormal.Z() ? 1 : 2);
+
+    // TessellatePlanarPolygon3 deliberately handles one simple loop. Detect
+    // nesting so a section containing holes is rejected rather than filled
+    // incorrectly by triangulating its contours independently.
+    for (size_t i = 0; i < contours.size(); ++i) {
+        const vcg::Point2d probe = projectSectionPoint(contours[i].front(), droppedAxis);
+        for (size_t j = 0; j < contours.size(); ++j) {
+            if (i != j && pointInsideSectionContour(probe, contours[j], droppedAxis))
+                return QObject::tr(
+                    "Nested section contours (surfaces with holes) are not supported by the CPU triangulator.");
+        }
+    }
+
+    std::vector<std::vector<int>> contourTriangles(contours.size());
+    size_t vertexCount = 0;
+    size_t faceCount = 0;
+    for (size_t i = 0; i < contours.size(); ++i) {
+        if (!vcg::TessellatePlanarPolygon3(contours[i], contourTriangles[i]))
+            return QObject::tr("A planar section contour could not be triangulated.");
+        vertexCount += contours[i].size();
+        faceCount += contourTriangles[i].size() / 3;
+    }
+
+    cap.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(cap, vertexCount);
+    size_t vertexOffset = 0;
+    for (const Contour &contour : contours) {
+        for (size_t i = 0; i < contour.size(); ++i)
+            cap.vert[vertexOffset + i].P() = contour[i];
+        vertexOffset += contour.size();
+    }
+
+    vcg::tri::Allocator<VCGMesh>::AddFaces(cap, faceCount);
+    size_t faceIndex = 0;
+    vertexOffset = 0;
+    for (size_t contourIndex = 0; contourIndex < contours.size(); ++contourIndex) {
+        const std::vector<int> &triangles = contourTriangles[contourIndex];
+        for (size_t i = 0; i < triangles.size(); i += 3) {
+            int a = int(vertexOffset) + triangles[i];
+            int b = int(vertexOffset) + triangles[i + 1];
+            int c = int(vertexOffset) + triangles[i + 2];
+            if (((cap.vert[size_t(b)].cP() - cap.vert[size_t(a)].cP())
+                    ^ (cap.vert[size_t(c)].cP() - cap.vert[size_t(a)].cP())) * normal < 0)
+                std::swap(b, c);
+            VCGFace &face = cap.face[faceIndex++];
+            face.V(0) = &cap.vert[size_t(a)];
+            face.V(1) = &cap.vert[size_t(b)];
+            face.V(2) = &cap.vert[size_t(c)];
+        }
+        vertexOffset += contours[contourIndex].size();
+    }
+    return {};
+}
+
 // Polygonal mesh used by Doo-Sabin/Catmull-Clark refinement.
 class PEdge;
 class PFace;
@@ -1540,16 +1681,23 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::IntersectionPlaneMesh<VCGMesh, VCGMesh, VCGMesh::ScalarType>(mesh, slicingPlane, section);
             vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(section);
             vcg::tri::UpdateBounding<VCGMesh>::Box(section);
+
+            VCGMesh cap;
+            const bool createSectionSurface = params.getBool(QStringLiteral("createSectionSurface"));
+            if (createSectionSurface) {
+                const QString capError = buildSectionCap(section, axis, cap);
+                if (!capError.isEmpty())
+                    return fail(capError);
+                vcg::tri::UpdateBounding<VCGMesh>::Box(cap);
+                vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(cap);
+            }
+
             QVector<int> created;
             const int secIdx = doc.addMesh(section, QObject::tr("%1_sect").arg(entry.name), Mask::IOM_EDGEINDEX);
             if (secIdx >= 0)
                 created.push_back(secIdx);
 
-            if (params.getBool(QStringLiteral("createSectionSurface"))) {
-                VCGMesh cap;
-                vcg::tri::CapEdgeMesh(section, cap);
-                vcg::tri::UpdateBounding<VCGMesh>::Box(cap);
-                vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(cap);
+            if (createSectionSurface) {
                 const int capIdx = doc.addMesh(cap, QObject::tr("%1_sect_filled").arg(entry.name), Mask::IOM_FACENORMAL | Mask::IOM_VERTNORMAL);
                 if (capIdx >= 0)
                     created.push_back(capIdx);

@@ -3,7 +3,7 @@
 #include "document.h"
 #include "meshfilterpluginmanager.h"
 #include "meshioplugin.h"
-#include "pushpull.h"
+#include "src/core/pushpull.h"
 #include "rastering.h"
 #include "textureassociationutils.h"
 #include "texture_packer.hpp"

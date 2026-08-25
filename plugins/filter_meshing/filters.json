@@ -2594,7 +2594,7 @@
         {
           "id": "createSectionSurface",
           "label": "Create also section surface",
-          "help": "Create triangulated section if polyline is closed.",
+          "help": "Create triangulated sections from closed, non-nested contours. Sections containing holes are not supported.",
           "group": "advanced",
           "type": "bool",
           "default": false

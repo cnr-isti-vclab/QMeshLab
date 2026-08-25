@@ -9,7 +9,6 @@ add_library(QMeshLabPluginFilterTexture STATIC
     texturefilterplugin.h
     texturefilterplugin.cpp
     rastering.h
-    pushpull.h
     texture_packer.hpp
     texture_packer.cpp
 )

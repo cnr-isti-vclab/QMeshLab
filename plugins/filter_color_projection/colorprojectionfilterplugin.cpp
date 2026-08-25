@@ -8,7 +8,7 @@
 #include "vcgmesh.h"
 
 #include "floatbuffer.h"
-#include "pushpull.h"
+#include "src/core/pushpull.h"
 #include "softdepthbuffer.h"
 
 #include <vcg/complex/algorithms/point_sampling.h>

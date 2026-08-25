@@ -11,6 +11,7 @@
 #include "textureassociationutils.h"
 
 #include <wrap/io_trimesh/io_mask.h>
+#include <vcg/complex/append.h>
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
@@ -174,6 +175,7 @@ private slots:
     void filterRegistryExposesBuiltins();
     void filterApplicabilityReflectsDocumentState();
     void basicFiltersRunOnLoadedMesh();
+    void planarSectionSurfaceUsesCpuTessellator();
     void filterParameterValidation();
     void meshFixRepairsOpenCube();
     void qslimSimplifiesCube();
@@ -433,6 +435,67 @@ void FilterTests::filterApplicabilityReflectsDocumentState()
     QVERIFY(hasMeshInfoApplicable);
     QVERIFY(hasNormalizeApplicable);
     QVERIFY(hasDuplicateApplicable);
+}
+
+void FilterTests::planarSectionSurfaceUsesCpuTessellator()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    VCGMesh secondCube;
+    makeCubeMesh(secondCube, 0.0f, 2.0f, 0.0f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(cube, secondCube);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cube);
+    QVERIFY(doc.addMesh(cube, QStringLiteral("disconnected cubes")) >= 0);
+
+    const QString sectionKey = filterKeyForId(
+        doc, QStringLiteral("generate_polyline_from_planar_section"));
+    QVERIFY(!sectionKey.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("planeAxis"), QStringLiteral("x"));
+    params.insert(QStringLiteral("relativeTo"), QStringLiteral("center"));
+    params.insert(QStringLiteral("planeOffset"), 0.0);
+    params.insert(QStringLiteral("createSectionSurface"), true);
+
+    const MeshFilterRunResult result = doc.runFilter(sectionKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 2);
+
+    const VCGMesh &section = doc.mesh(result.newMeshIndices[0]).mesh;
+    const VCGMesh &cap = doc.mesh(result.newMeshIndices[1]).mesh;
+    QVERIFY(section.EN() >= 8);
+    QVERIFY(cap.VN() >= 8);
+    QVERIFY(cap.FN() >= 4);
+    for (const VCGVertex &vertex : cap.vert) {
+        if (!vertex.IsD())
+            QVERIFY(std::abs(vertex.cP().X() - 0.5f) < 1e-5f);
+    }
+    for (const VCGFace &face : cap.face) {
+        if (!face.IsD())
+            QVERIFY(face.cN().X() > 0.99f);
+    }
+
+    // The CPU tessellator accepts one simple loop at a time. A smaller closed
+    // shell produces a nested contour; verify that it is reported instead of
+    // silently filling the intended hole.
+    Document nestedDoc;
+    VCGMesh outer;
+    VCGMesh inner;
+    makeCubeMesh(outer, 0.0f, 0.0f, 0.0f);
+    makeCubeMesh(inner, 0.0f, 0.0f, 0.0f);
+    for (VCGVertex &vertex : inner.vert)
+        vertex.P() = vertex.cP() * 0.5f + vcg::Point3f(0.25f, 0.25f, 0.25f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(outer, inner);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(outer);
+    QVERIFY(nestedDoc.addMesh(outer, QStringLiteral("nested cubes")) >= 0);
+
+    const QString nestedSectionKey = filterKeyForId(
+        nestedDoc, QStringLiteral("generate_polyline_from_planar_section"));
+    const MeshFilterRunResult nestedResult = nestedDoc.runFilter(nestedSectionKey, params);
+    QVERIFY(!nestedResult.success);
+    QVERIFY(nestedResult.errorMessage.contains(QStringLiteral("Nested")));
+    QCOMPARE(nestedDoc.meshCount(), 1);
 }
 
 void FilterTests::basicFiltersRunOnLoadedMesh()
