@@ -20,6 +20,7 @@ jobs:
       QT_VERSION: 6.11.*
       QT_ARCH: clang_64
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_TARGET_TRIPLET: arm64-osx
 
     steps:
       - name: Checkout
@@ -63,19 +64,6 @@ jobs:
           echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR;$(brew --prefix libomp)" >> "$GITHUB_ENV"
           echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"
 
-      - name: Cache vcpkg artifacts
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/Library/Caches/vcpkg/archives
-            ${{ github.workspace }}/build-release/vcpkg_installed
-          # runner.arch is part of the key: runner.os is "macOS" for both Intel
-          # and Apple Silicon, so without it the x64 cache is restored onto an
-          # arm64 runner, where none of it is usable.
-          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt', 'plugins/**/CMakeLists.txt') }}
-          restore-keys: |
-            macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-
-
       - name: Bootstrap vcpkg
         run: |
           git clone https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
@@ -88,6 +76,52 @@ jobs:
           git -C "$VCPKG_ROOT" checkout --detach "$VCPKG_BASELINE"
           "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
+      - name: Restore vcpkg artifacts
+        id: restore-vcpkg-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/Library/Caches/vcpkg/archives
+            ${{ env.VCPKG_ROOT }}/downloads
+            ${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed
+          # runner.arch is part of the key: runner.os is "macOS" for both Intel
+          # and Apple Silicon, so an x64 cache must not reach an arm64 runner.
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install vcpkg dependencies
+        run: |
+          set -o pipefail
+          "$VCPKG_ROOT/vcpkg" install \
+            --triplet "$VCPKG_TARGET_TRIPLET" \
+            --x-manifest-root="$GITHUB_WORKSPACE" \
+            --x-install-root="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
+            --clean-after-build 2>&1 | tee "$GITHUB_WORKSPACE/vcpkg-install.log"
+
+      # Save now rather than in a post-job hook, so a later compile/package
+      # failure does not discard an otherwise successful dependency build.
+      - name: Save vcpkg artifacts
+        if: steps.restore-vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/Library/Caches/vcpkg/archives
+            ${{ env.VCPKG_ROOT }}/downloads
+            ${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+
+      - name: Upload vcpkg failure logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: qmeshlab-macos-vcpkg-logs
+          path: |
+            ${{ github.workspace }}/vcpkg-install.log
+            ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
+            ${{ env.VCPKG_ROOT }}/buildtrees/**/*.txt
+          if-no-files-found: warn
+
       - name: Configure
         run: |
           cmake --preset vcpkg-manifest \
@@ -98,6 +132,9 @@ jobs:
             -DOpenMP_CXX_INCLUDE_DIR="$OpenMP_ROOT/include" \
             -DOpenMP_CXX_LIB_NAMES=omp \
             -DOpenMP_omp_LIBRARY="$OpenMP_ROOT/lib/libomp.dylib" \
+            -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET" \
+            -DVCPKG_INSTALLED_DIR="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
+            -DVCPKG_MANIFEST_INSTALL=OFF \
             -DCMAKE_MAKE_PROGRAM="$(brew --prefix ninja)/bin/ninja"
 
       - name: Build

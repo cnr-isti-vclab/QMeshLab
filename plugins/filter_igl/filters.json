@@ -1,5 +1,86 @@
 {
   "pluginId": "qmeshlab.filter.igl",
+  "provenance": {
+    "project": "libigl",
+    "repository": "https://github.com/libigl/libigl",
+    "license": "MPL-2.0",
+    "integration": "vcpkg:libigl"
+  },
+  "references": [
+    {
+      "id": "libigl",
+      "type": "software",
+      "title": "libigl: A Simple C++ Geometry Processing Library",
+      "author": [
+        { "family": "Jacobson", "given": "Alec" },
+        { "family": "Panozzo", "given": "Daniele" }
+      ],
+      "issued": { "date-parts": [[2017]] },
+      "URL": "https://libigl.github.io/"
+    },
+    {
+      "id": "meyer2003discrete",
+      "type": "chapter",
+      "title": "Discrete Differential-Geometry Operators for Triangulated 2-Manifolds",
+      "author": [
+        { "family": "Meyer", "given": "Mark" },
+        { "family": "Desbrun", "given": "Mathieu" },
+        { "family": "Schröder", "given": "Peter" },
+        { "family": "Barr", "given": "Alan H." }
+      ],
+      "container-title": "Visualization and Mathematics III",
+      "publisher": "Springer Berlin Heidelberg",
+      "page": "35-57",
+      "issued": { "date-parts": [[2003]] },
+      "DOI": "10.1007/978-3-662-05105-4_2"
+    },
+    {
+      "id": "panozzo2010curvature",
+      "type": "paper-conference",
+      "title": "Efficient Multi-scale Curvature and Crease Estimation",
+      "author": [
+        { "family": "Panozzo", "given": "Daniele" },
+        { "family": "Puppo", "given": "Enrico" },
+        { "family": "Rocca", "given": "Luigi" }
+      ],
+      "container-title": "Proceedings of the 4th International Conference on Computer Graphics, Computer Vision and Mathematics (GraVisMa 2010)",
+      "page": "9-16",
+      "issued": { "date-parts": [[2010]] }
+    },
+    {
+      "id": "mitchell1987geodesic",
+      "type": "article-journal",
+      "title": "The Discrete Geodesic Problem",
+      "author": [
+        { "family": "Mitchell", "given": "Joseph S. B." },
+        { "family": "Mount", "given": "David M." },
+        { "family": "Papadimitriou", "given": "Christos H." }
+      ],
+      "container-title": "SIAM Journal on Computing",
+      "volume": "16",
+      "issue": "4",
+      "page": "647-668",
+      "issued": { "date-parts": [[1987]] },
+      "DOI": "10.1137/0216045"
+    },
+    {
+      "id": "crane2013heat",
+      "type": "article-journal",
+      "title": "Geodesics in Heat: A New Approach to Computing Distance Based on Heat Flow",
+      "author": [
+        { "family": "Crane", "given": "Keenan" },
+        { "family": "Weischedel", "given": "Clarisse" },
+        { "family": "Wardetzky", "given": "Max" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "32",
+      "issue": "5",
+      "page": "152:1-152:11",
+      "issued": { "date-parts": [[2013]] },
+      "DOI": "10.1145/2516971.2516977",
+      "URL": "https://www.cs.cmu.edu/~kmcrane/Projects/HeatMethod/paperCACM.pdf"
+    }
+  ],
   "filters": [
     {
       "id": "generate_boolean_intersection",
@@ -8,6 +89,7 @@
       ],
       "name": "Mesh Intersection (libigl)",
       "pythonName": "generate_boolean_intersection",
+      "referenceIds": ["libigl"],
       "shortDescription": "Create the exact intersection of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean intersection between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
       "tags": [
@@ -95,6 +177,7 @@
       ],
       "name": "Mesh Union (libigl)",
       "pythonName": "generate_boolean_union",
+      "referenceIds": ["libigl"],
       "shortDescription": "Create the exact union of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean union between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
       "tags": [
@@ -182,6 +265,7 @@
       ],
       "name": "Mesh Difference (libigl)",
       "pythonName": "generate_boolean_difference",
+      "referenceIds": ["libigl"],
       "shortDescription": "Create the exact difference of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. The result is `First Mesh - Second Mesh`. Both operands should be watertight and consistently oriented.",
       "tags": [
@@ -269,6 +353,7 @@
       ],
       "name": "Mesh Symmetric Difference (libigl)",
       "pythonName": "generate_boolean_xor",
+      "referenceIds": ["libigl"],
       "shortDescription": "Create the exact symmetric difference of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean symmetric difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
       "tags": [
@@ -357,6 +442,7 @@
       ],
       "name": "Harmonic Parametrization",
       "pythonName": "compute_texcoord_parametrization_harmonic",
+      "referenceIds": ["libigl"],
       "shortDescription": "Compute a single-patch fixed-boundary harmonic UV parametrization using libigl.",
       "longDescriptionMarkdown": "Computes a single-patch fixed-boundary harmonic parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.",
       "tags": [
@@ -399,6 +485,7 @@
       ],
       "name": "Least Squares Conformal Maps Parametrization",
       "pythonName": "compute_texcoord_parametrization_least_squares_conformal_maps",
+      "referenceIds": ["libigl"],
       "shortDescription": "Compute a Least Squares Conformal Maps UV parametrization using libigl.",
       "longDescriptionMarkdown": "Computes a Least Squares Conformal Maps parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.",
       "tags": [
