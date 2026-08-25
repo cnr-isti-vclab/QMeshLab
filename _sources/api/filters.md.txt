@@ -1290,7 +1290,7 @@ Compute the polyline representing a planar section (a slice) of a mesh; if the r
 - **customAxis** (*point3f*, default: `[0.0, 1.0, 0.0]`) — Custom slicing plane normal direction.
 - **planeOffset** (*double*, default: `0.0`) — Offset from reference point.
 - **relativeTo** (*enum*, default: `origin`) — Reference frame for plane offset.
-- **createSectionSurface** (*bool*, default: `False`) — Create triangulated section if polyline is closed.
+- **createSectionSurface** (*bool*, default: `False`) — Create triangulated sections from closed, non-nested contours. Sections containing holes are not supported.
 - **splitSurfaceWithSection** (*bool*, default: `False`) — Create under/over split layers (requires manifold mesh).
 ```
 
