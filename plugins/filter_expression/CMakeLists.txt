@@ -52,6 +52,13 @@ target_link_libraries(QMeshLabPluginFilterExpression
         Qt6::Core
 )
 
+if (MSVC)
+    # Qt exports _UNICODE on Windows, but the vcpkg muParser port is built with
+    # ENABLE_WIDE_CHAR=OFF. Keep the consuming headers on the library's narrow
+    # string ABI as well.
+    target_compile_options(QMeshLabPluginFilterExpression PRIVATE /U_UNICODE)
+endif()
+
 if (_muparser_target)
     target_link_libraries(QMeshLabPluginFilterExpression PUBLIC ${_muparser_target})
 else()

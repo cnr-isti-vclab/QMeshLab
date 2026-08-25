@@ -45,6 +45,11 @@ target_link_libraries(QMeshLabPluginFilterTrueForm
 )
 
 target_compile_features(QMeshLabPluginFilterTrueForm PUBLIC cxx_std_17)
+if (MSVC)
+    # This template-heavy translation unit exceeds the section count supported
+    # by MSVC's default object-file format.
+    target_compile_options(QMeshLabPluginFilterTrueForm PRIVATE /bigobj)
+endif()
 
 qt_add_resources(QMeshLabPluginFilterTrueForm "filter_trueform_descriptors"
     PREFIX "/filters/qmeshlab.filter.trueform"
