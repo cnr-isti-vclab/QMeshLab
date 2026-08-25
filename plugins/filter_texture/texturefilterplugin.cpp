@@ -1532,15 +1532,14 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
 
         progress(100, "Packing complete.");
         doc.finishFilterProgress(true, QObject::tr("Pack Texture Images completed."));
-        MeshFilterRunResult result = {
-            .success = true,
-            .documentModified = true,
-            .infoMessages = {
-                QObject::tr("Packed %1 source images into %2 textures with a %3 px gutter.")
-                    .arg(srcTextures.size()).arg(packedTextures.size()).arg(gutter)
-            },
-            .newMeshIndices = { outputIndex }
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = {
+            QObject::tr("Packed %1 source images into %2 textures with a %3 px gutter.")
+                .arg(srcTextures.size()).arg(packedTextures.size()).arg(gutter)
         };
+        result.newMeshIndices = { outputIndex };
         return result;
     }
 
