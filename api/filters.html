@@ -1543,6 +1543,12 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_texcoord_parametrization_harmonic">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_texcoord_parametrization_harmonic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_texcoord_parametrization_harmonic" title="Link to this definition">¶</a></dt>
 <dd><p>Computes a single-patch fixed-boundary harmonic parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>harm_function</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Order of the harmonic function. <code class="docutils literal notranslate"><span class="pre">1</span></code> is harmonic, <code class="docutils literal notranslate"><span class="pre">2</span></code> is biharmonic, <code class="docutils literal notranslate"><span class="pre">3</span></code> is triharmonic, and so on.</p></li>
@@ -1559,6 +1565,12 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_texcoord_parametrization_least_squares_conformal_maps">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_texcoord_parametrization_least_squares_conformal_maps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_texcoord_parametrization_least_squares_conformal_maps" title="Link to this definition">¶</a></dt>
 <dd><p>Computes a Least Squares Conformal Maps parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+</ul>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -2638,6 +2650,12 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_difference">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_boolean_difference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_boolean_difference" title="Link to this definition">¶</a></dt>
 <dd><p>Executes an exact boolean difference between two mesh layers and creates the result as a new layer. The computation uses libigl’s CGAL-backed mesh boolean implementation. The result is <code class="docutils literal notranslate"><span class="pre">First</span> <span class="pre">Mesh</span> <span class="pre">-</span> <span class="pre">Second</span> <span class="pre">Mesh</span></code>. Both operands should be watertight and consistently oriented.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>first_mesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — First operand of the boolean operation.</p></li>
@@ -2676,6 +2694,12 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_intersection">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_boolean_intersection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_boolean_intersection" title="Link to this definition">¶</a></dt>
 <dd><p>Executes an exact boolean intersection between two mesh layers and creates the result as a new layer. The computation uses libigl’s CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>first_mesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — First operand of the boolean operation.</p></li>
@@ -2714,6 +2738,12 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_union">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_boolean_union</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_boolean_union" title="Link to this definition">¶</a></dt>
 <dd><p>Executes an exact boolean union between two mesh layers and creates the result as a new layer. The computation uses libigl’s CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>first_mesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — First operand of the boolean operation.</p></li>
@@ -2752,6 +2782,12 @@ Cédric Portaneri, Mael Rouxel-Labbé, Michael Hemmer, David Cohen-Steiner, Pier
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_boolean_xor">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_boolean_xor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_boolean_xor" title="Link to this definition">¶</a></dt>
 <dd><p>Executes an exact boolean symmetric difference between two mesh layers and creates the result as a new layer. The computation uses libigl’s CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>first_mesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — First operand of the boolean operation.</p></li>

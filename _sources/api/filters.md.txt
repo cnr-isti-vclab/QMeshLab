@@ -1593,6 +1593,14 @@ Compute a single-patch fixed-boundary harmonic UV parametrization using libigl.
 
 Computes a single-patch fixed-boundary harmonic parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.
 
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
+
 **Parameters:**
 
 - **harm_function** (*int*, default: `1`) — Order of the harmonic function. `1` is harmonic, `2` is biharmonic, `3` is triharmonic, and so on.
@@ -1612,6 +1620,14 @@ Compute a Least Squares Conformal Maps UV parametrization using libigl.
 :module: _qmeshlab
 
 Computes a Least Squares Conformal Maps parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.
+
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
 
 This filter has no parameters.
 ```
@@ -2992,6 +3008,14 @@ Create the exact difference of two mesh layers using libigl and CGAL.
 
 Executes an exact boolean difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. The result is `First Mesh - Second Mesh`. Both operands should be watertight and consistently oriented.
 
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
+
 **Parameters:**
 
 - **first_mesh** (*mesh*, default: `@currentMeshIndex`) — First operand of the boolean operation.
@@ -3037,6 +3061,14 @@ Create the exact intersection of two mesh layers using libigl and CGAL.
 :module: _qmeshlab
 
 Executes an exact boolean intersection between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.
+
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
 
 **Parameters:**
 
@@ -3084,6 +3116,14 @@ Create the exact union of two mesh layers using libigl and CGAL.
 
 Executes an exact boolean union between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.
 
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
+
 **Parameters:**
 
 - **first_mesh** (*mesh*, default: `@currentMeshIndex`) — First operand of the boolean operation.
@@ -3129,6 +3169,14 @@ Create the exact symmetric difference of two mesh layers using libigl and CGAL.
 :module: _qmeshlab
 
 Executes an exact boolean symmetric difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.
+
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
 
 **Parameters:**
 
