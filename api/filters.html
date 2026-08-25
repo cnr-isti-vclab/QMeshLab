@@ -479,6 +479,35 @@
 
 <hr class="docutils" />
 </section>
+<section id="apply-natural-boundary-hessian-scalar-smoothing-libigl">
+<span id="filter-apply-scalar-hessian-smoothing-per-vertex-libigl"></span><h2>Apply Natural-Boundary Hessian Scalar Smoothing (libigl)<a class="headerlink" href="#apply-natural-boundary-hessian-scalar-smoothing-libigl" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
+<p>Smooth vertex scalar values with Hessian energy and natural boundary conditions.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.apply_scalar_hessian_smoothing_per_vertex_libigl">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">apply_scalar_hessian_smoothing_per_vertex_libigl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.apply_scalar_hessian_smoothing_per_vertex_libigl" title="Link to this definition">¶</a></dt>
+<dd><p>Smooths the current <strong>vertex scalar</strong> field by minimizing</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\alpha\,u^T H u + (1-\alpha)(u-f)^T M(u-f),\]</div>
+</div>
+<p>where <span class="math notranslate nohighlight">\(f\)</span> is the input scalar field, <span class="math notranslate nohighlight">\(H\)</span> is libigl’s mixed finite-element Hessian-energy matrix, and <span class="math notranslate nohighlight">\(M\)</span> is the Voronoi mass matrix. Unlike a squared-Laplacian construction, Hessian energy supplies natural high-order boundary conditions, so the geometric shape of an open boundary does not impose the usual low-order boundary bias.</p>
+<p><strong>Smoothing Weight</strong> is <span class="math notranslate nohighlight">\(\alpha\)</span>: zero preserves the input and values near one favor an affine field. Its effect depends on mesh scale because the two energy terms have different physical dimensions. The filter changes scalar values only, not geometry or colors.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+<li><p>Oded Stein, Eitan Grinspun, Max Wardetzky, Alec Jacobson. <strong>Natural Boundary Conditions for Smoothing in Geometry Processing</strong>. <em>ACM Transactions on Graphics</em> (2018). <a class="reference external" href="https://doi.org/10.1145/3186564">DOI</a> <a class="reference external" href="https://arxiv.org/abs/1707.04348">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>smoothing_weight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.01</span></code>) — Tradeoff alpha between Hessian smoothness and fidelity to the input scalar values.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="smooth-vertices-by-taubin-trueform">
 <span id="filter-apply-taubin-smoothing-trueform"></span><h2>Smooth Vertices by Taubin (TrueForm)<a class="headerlink" href="#smooth-vertices-by-taubin-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
@@ -1047,6 +1076,32 @@
 
 <hr class="docutils" />
 </section>
+<section id="compute-generalized-winding-number-libigl">
+<span id="filter-compute-generalized-winding-number-per-vertex-libigl"></span><h2>Compute Generalized Winding Number (libigl)<a class="headerlink" href="#compute-generalized-winding-number-libigl" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
+<p>Evaluate another layer’s generalized winding-number field at every current-layer vertex.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_generalized_winding_number_per_vertex_libigl">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_generalized_winding_number_per_vertex_libigl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_generalized_winding_number_per_vertex_libigl" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluates the oriented <strong>Surface Mesh</strong> winding-number field at every vertex of the current mesh or point cloud and stores it in <strong>vertex scalar</strong>. Layer transforms are applied before evaluation. For a consistently oriented closed surface, values are approximately <span class="math notranslate nohighlight">\(1\)</span> inside and <span class="math notranslate nohighlight">\(0\)</span> outside; reversing its orientation reverses the sign. On open, self-intersecting, or non-manifold triangle soups the field remains continuous and useful, but the value <span class="math notranslate nohighlight">\(0.5\)</span> is only a conventional classification threshold.</p>
+<p><strong>Fast Approximation</strong> builds libigl’s second-order hierarchy and is the practical default for large inputs. <strong>Exact</strong> directly accumulates triangle solid angles and can be prohibitively expensive because its work grows with both surface triangles and query vertices.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+<li><p>Alec Jacobson, Ladislav Kavan, Olga Sorkine-Hornung. <strong>Robust Inside-Outside Segmentation using Generalized Winding Numbers</strong>. <em>ACM Transactions on Graphics</em> (2013). <a class="reference external" href="https://doi.org/10.1145/2461912.2461916">DOI</a></p></li>
+<li><p>Gavin Barill, Neil G. Dickson, Ryan Schmidt, David I. W. Levin, Alec Jacobson. <strong>Fast Winding Numbers for Soups and Clouds</strong>. <em>ACM Transactions on Graphics</em> (2018). <a class="reference external" href="https://doi.org/10.1145/3197517.3201337">DOI</a> <a class="reference external" href="https://www.dgp.toronto.edu/projects/fast-winding-numbers/">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>surface_mesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — Oriented triangle surface whose winding-number field is evaluated.</p></li>
+<li><p><strong>method</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">fast</span></code>) — Use the hierarchical approximation for speed or direct solid-angle accumulation for exact values.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="compute-geodesic-distance-from-point">
 <span id="filter-compute-geodesic-distance-from-point"></span><h2>Compute Geodesic Distance from Point<a class="headerlink" href="#compute-geodesic-distance-from-point" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.geodesic</p>
@@ -1608,6 +1663,30 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 
 <hr class="docutils" />
 </section>
+<section id="compute-as-rigid-as-possible-parametrization-libigl">
+<span id="filter-compute-texcoord-parametrization-as-rigid-as-possible-libigl"></span><h2>Compute As-Rigid-As-Possible Parametrization (libigl)<a class="headerlink" href="#compute-as-rigid-as-possible-parametrization-libigl" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
+<p>Optimize a harmonic UV map with libigl’s ARAP local-global solver.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_texcoord_parametrization_as_rigid_as_possible_libigl">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_texcoord_parametrization_as_rigid_as_possible_libigl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_texcoord_parametrization_as_rigid_as_possible_libigl" title="Link to this definition">¶</a></dt>
+<dd><p>Computes an <strong>as-rigid-as-possible (ARAP)</strong> UV parametrization. A harmonic map with a circular boundary supplies the initial guess; libigl’s local-global solver then reduces local metric distortion without fixing the boundary. The input must be a connected disk-like triangle surface with at least one interior vertex.</p>
+<p><strong>Iterations</strong> limits the nonlinear optimization. More iterations generally improve convergence at additional cost. ARAP strongly favors locally rigid maps but does not guarantee a globally injective result; use SLIM when preventing flipped triangles is the primary goal. The result is stored as per-vertex texture coordinates and synchronized to existing per-wedge coordinates.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+<li><p>Olga Sorkine, Marc Alexa. <strong>As-Rigid-As-Possible Surface Modeling</strong>. <em>Geometry Processing</em> (2007). <a class="reference external" href="https://doi.org/10.2312/SGP/SGP07/109-116">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">50</span></code>) — Maximum number of ARAP local-global iterations.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="parameterization-from-registered-rasters">
 <span id="filter-compute-texcoord-parametrization-from-registered-rasters"></span><h2>Parameterization from registered rasters<a class="headerlink" href="#parameterization-from-registered-rasters" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.img_patch_param</p>
@@ -1669,6 +1748,31 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 <li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
 </ul>
 <p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-locally-injective-parametrization-slim">
+<span id="filter-compute-texcoord-parametrization-slim-libigl"></span><h2>Compute Locally Injective Parametrization (SLIM)<a class="headerlink" href="#compute-locally-injective-parametrization-slim" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
+<p>Optimize a flip-preventing UV map with libigl’s SLIM solver.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_texcoord_parametrization_slim_libigl">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_texcoord_parametrization_slim_libigl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_texcoord_parametrization_slim_libigl" title="Link to this definition">¶</a></dt>
+<dd><p>Computes a UV parametrization with <strong>Scalable Locally Injective Mappings (SLIM)</strong>. The filter starts from a circular-boundary harmonic map and minimizes the selected distortion energy through SLIM’s flip-preventing local-global iterations. If the cotangent harmonic initializer contains flips, a uniform-weight harmonic map is tried instead. The input must be a connected disk-like triangle surface with at least one interior vertex.</p>
+<p><strong>Symmetric Dirichlet</strong> balances angle and area distortion and is the recommended default. <strong>ARAP</strong> emphasizes local rigidity; <strong>Conformal</strong> emphasizes angle preservation. SLIM preserves injectivity when supplied with an injective initial map, but cannot repair an initializer that remains folded. The result is stored as per-vertex texture coordinates and synchronized to existing per-wedge coordinates.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+<li><p>Michael Rabinovich, Roi Poranne, Daniele Panozzo, Olga Sorkine-Hornung. <strong>Scalable Locally Injective Mappings</strong>. <em>ACM Transactions on Graphics</em> (2017). <a class="reference external" href="https://doi.org/10.1145/3072959.2983621">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>energy</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">symmetric_dirichlet</span></code>) — Distortion energy minimized by SLIM.</p></li>
+<li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — Number of SLIM optimization iterations.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
@@ -6541,6 +6645,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.apply_mls_rimls"><code class="docutils literal notranslate"><span class="pre">ms.apply_mls_rimls()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#apply-natural-boundary-hessian-scalar-smoothing-libigl">Apply Natural-Boundary Hessian Scalar Smoothing (libigl)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.apply_scalar_hessian_smoothing_per_vertex_libigl"><code class="docutils literal notranslate"><span class="pre">ms.apply_scalar_hessian_smoothing_per_vertex_libigl()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#smooth-vertices-by-taubin-trueform">Smooth Vertices by Taubin (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.apply_taubin_smoothing_trueform"><code class="docutils literal notranslate"><span class="pre">ms.apply_taubin_smoothing_trueform()</span></code></a></li>
 </ul>
@@ -6657,6 +6765,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_gaussian_curvature_per_vertex_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_gaussian_curvature_per_vertex_libigl()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#compute-generalized-winding-number-libigl">Compute Generalized Winding Number (libigl)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_generalized_winding_number_per_vertex_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_generalized_winding_number_per_vertex_libigl()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#compute-geodesic-distance-from-point">Compute Geodesic Distance from Point</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_geodesic_distance_from_point"><code class="docutils literal notranslate"><span class="pre">ms.compute_geodesic_distance_from_point()</span></code></a></li>
 </ul>
@@ -6769,6 +6881,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_and_texture_from_registered_rasters"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_and_texture_from_registered_rasters()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#compute-as-rigid-as-possible-parametrization-libigl">Compute As-Rigid-As-Possible Parametrization (libigl)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_as_rigid_as_possible_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_as_rigid_as_possible_libigl()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#parameterization-from-registered-rasters">Parameterization from registered rasters</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_from_registered_rasters"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_from_registered_rasters()</span></code></a></li>
 </ul>
@@ -6779,6 +6895,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#least-squares-conformal-maps-parametrization">Least Squares Conformal Maps Parametrization</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_least_squares_conformal_maps"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_least_squares_conformal_maps()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-locally-injective-parametrization-slim">Compute Locally Injective Parametrization (SLIM)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_slim_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_slim_libigl()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-topological-measures">Compute Topological Measures</a><ul>

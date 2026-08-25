@@ -281,6 +281,41 @@ Project a mesh (or a point set) onto the MLS surface defined by itself or anothe
 
 ---
 
+(filter-apply-scalar-hessian-smoothing-per-vertex-libigl)=
+
+## Apply Natural-Boundary Hessian Scalar Smoothing (libigl)
+
+**Plugin:** qmeshlab.filter.igl
+
+Smooth vertex scalar values with Hessian energy and natural boundary conditions.
+
+```{py:function} ms.apply_scalar_hessian_smoothing_per_vertex_libigl(**params)
+:module: _qmeshlab
+
+Smooths the current **vertex scalar** field by minimizing
+
+$$\alpha\,u^T H u + (1-\alpha)(u-f)^T M(u-f),$$
+
+where $f$ is the input scalar field, $H$ is libigl's mixed finite-element Hessian-energy matrix, and $M$ is the Voronoi mass matrix. Unlike a squared-Laplacian construction, Hessian energy supplies natural high-order boundary conditions, so the geometric shape of an open boundary does not impose the usual low-order boundary bias.
+
+**Smoothing Weight** is $\alpha$: zero preserves the input and values near one favor an affine field. Its effect depends on mesh scale because the two energy terms have different physical dimensions. The filter changes scalar values only, not geometry or colors.
+
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
+- Oded Stein, Eitan Grinspun, Max Wardetzky, Alec Jacobson. **Natural Boundary Conditions for Smoothing in Geometry Processing**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3186564) [Web](https://arxiv.org/abs/1707.04348)
+
+**Parameters:**
+
+- **smoothing_weight** (*double*, default: `0.01`) — Tradeoff alpha between Hessian smoothness and fidelity to the input scalar values.
+```
+
+---
+
 (filter-apply-taubin-smoothing-trueform)=
 
 ## Smooth Vertices by Taubin (TrueForm)
@@ -974,6 +1009,39 @@ This is integrated Gaussian curvature, not curvature divided by a vertex area. O
 - Mark Meyer, Mathieu Desbrun, Peter Schröder, Alan H. Barr. **Discrete Differential-Geometry Operators for Triangulated 2-Manifolds**. *Visualization and Mathematics III* (2003). [DOI](https://doi.org/10.1007/978-3-662-05105-4_2)
 
 This filter has no parameters.
+```
+
+---
+
+(filter-compute-generalized-winding-number-per-vertex-libigl)=
+
+## Compute Generalized Winding Number (libigl)
+
+**Plugin:** qmeshlab.filter.igl
+
+Evaluate another layer's generalized winding-number field at every current-layer vertex.
+
+```{py:function} ms.compute_generalized_winding_number_per_vertex_libigl(**params)
+:module: _qmeshlab
+
+Evaluates the oriented **Surface Mesh** winding-number field at every vertex of the current mesh or point cloud and stores it in **vertex scalar**. Layer transforms are applied before evaluation. For a consistently oriented closed surface, values are approximately $1$ inside and $0$ outside; reversing its orientation reverses the sign. On open, self-intersecting, or non-manifold triangle soups the field remains continuous and useful, but the value $0.5$ is only a conventional classification threshold.
+
+**Fast Approximation** builds libigl's second-order hierarchy and is the practical default for large inputs. **Exact** directly accumulates triangle solid angles and can be prohibitively expensive because its work grows with both surface triangles and query vertices.
+
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
+- Alec Jacobson, Ladislav Kavan, Olga Sorkine-Hornung. **Robust Inside-Outside Segmentation using Generalized Winding Numbers**. *ACM Transactions on Graphics* (2013). [DOI](https://doi.org/10.1145/2461912.2461916)
+- Gavin Barill, Neil G. Dickson, Ryan Schmidt, David I. W. Levin, Alec Jacobson. **Fast Winding Numbers for Soups and Clouds**. *ACM Transactions on Graphics* (2018). [DOI](https://doi.org/10.1145/3197517.3201337) [Web](https://www.dgp.toronto.edu/projects/fast-winding-numbers/)
+
+**Parameters:**
+
+- **surface_mesh** (*mesh*, default: `@otherMeshIndex`) — Oriented triangle surface whose winding-number field is evaluated.
+- **method** (*enum*, default: `fast`) — Use the hierarchical approximation for speed or direct solid-angle accumulation for exact values.
 ```
 
 ---
@@ -1676,6 +1744,37 @@ Requires at least one visible raster with a valid camera and a 2-manifold mesh.
 
 ---
 
+(filter-compute-texcoord-parametrization-as-rigid-as-possible-libigl)=
+
+## Compute As-Rigid-As-Possible Parametrization (libigl)
+
+**Plugin:** qmeshlab.filter.igl
+
+Optimize a harmonic UV map with libigl's ARAP local-global solver.
+
+```{py:function} ms.compute_texcoord_parametrization_as_rigid_as_possible_libigl(**params)
+:module: _qmeshlab
+
+Computes an **as-rigid-as-possible (ARAP)** UV parametrization. A harmonic map with a circular boundary supplies the initial guess; libigl's local-global solver then reduces local metric distortion without fixing the boundary. The input must be a connected disk-like triangle surface with at least one interior vertex.
+
+**Iterations** limits the nonlinear optimization. More iterations generally improve convergence at additional cost. ARAP strongly favors locally rigid maps but does not guarantee a globally injective result; use SLIM when preventing flipped triangles is the primary goal. The result is stored as per-vertex texture coordinates and synchronized to existing per-wedge coordinates.
+
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
+- Olga Sorkine, Marc Alexa. **As-Rigid-As-Possible Surface Modeling**. *Geometry Processing* (2007). [DOI](https://doi.org/10.2312/SGP/SGP07/109-116)
+
+**Parameters:**
+
+- **iterations** (*int*, default: `50`) — Maximum number of ARAP local-global iterations.
+```
+
+---
+
 (filter-compute-texcoord-parametrization-from-registered-rasters)=
 
 ## Parameterization from registered rasters
@@ -1755,6 +1854,38 @@ Computes a Least Squares Conformal Maps parametrization of the current mesh and 
 - Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
 
 This filter has no parameters.
+```
+
+---
+
+(filter-compute-texcoord-parametrization-slim-libigl)=
+
+## Compute Locally Injective Parametrization (SLIM)
+
+**Plugin:** qmeshlab.filter.igl
+
+Optimize a flip-preventing UV map with libigl's SLIM solver.
+
+```{py:function} ms.compute_texcoord_parametrization_slim_libigl(**params)
+:module: _qmeshlab
+
+Computes a UV parametrization with **Scalable Locally Injective Mappings (SLIM)**. The filter starts from a circular-boundary harmonic map and minimizes the selected distortion energy through SLIM's flip-preventing local-global iterations. If the cotangent harmonic initializer contains flips, a uniform-weight harmonic map is tried instead. The input must be a connected disk-like triangle surface with at least one interior vertex.
+
+**Symmetric Dirichlet** balances angle and area distortion and is the recommended default. **ARAP** emphasizes local rigidity; **Conformal** emphasizes angle preservation. SLIM preserves injectivity when supplied with an injective initial map, but cannot repair an initializer that remains folded. The result is stored as per-vertex texture coordinates and synchronized to existing per-wedge coordinates.
+
+**Upstream:** [libigl](https://github.com/libigl/libigl)
+
+**License:** MPL-2.0
+
+**References:**
+
+- Alec Jacobson, Daniele Panozzo. **libigl: A Simple C++ Geometry Processing Library** (2017). [Web](https://libigl.github.io/)
+- Michael Rabinovich, Roi Poranne, Daniele Panozzo, Olga Sorkine-Hornung. **Scalable Locally Injective Mappings**. *ACM Transactions on Graphics* (2017). [DOI](https://doi.org/10.1145/3072959.2983621)
+
+**Parameters:**
+
+- **energy** (*enum*, default: `symmetric_dirichlet`) — Distortion energy minimized by SLIM.
+- **iterations** (*int*, default: `10`) — Number of SLIM optimization iterations.
 ```
 
 ---
