@@ -4653,12 +4653,13 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.sample_mesh_elements">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">sample_mesh_elements</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.sample_mesh_elements" title="Link to this definition">¶</a></dt>
-<dd><p>Create a new layer populated with a point sampling of the current mesh; at most one sample for each element of the mesh is created. Samples are taking in a uniform way, one for each element (vertex/edge/face); all the elements have the same probability of being chosen.</p>
+<dd><p>Create a new layer holding one sample per mesh element. <strong>Number of samples</strong> elements are drawn uniformly at random – every element of the chosen kind is equally likely – and one point is emitted for each: a <strong>Vertex</strong> contributes its own position, an <strong>Edge</strong> its midpoint, a <strong>Face</strong> its barycenter. Asking for at least as many samples as there are elements simply returns them all.</p>
+<p>Edge sampling ignores <em>faux</em> edges, the diagonals that triangulate a polygonal face, since those are not edges of the polygonal mesh and the wireframe does not draw them. Note that midpoints and barycenters lie slightly inside a curved surface, which is inherent to taking a single sample per element. To place several samples along each edge instead, in proportion to its length, use <em>Sample Surface by Stratified Triangles</em> with the <strong>Sample Edges</strong> strategy.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>Sampling</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">vertex</span></code>) — Choose which mesh elements are sampled.</p></li>
-<li><p><strong>SampleNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — Desired number of sampled elements.</p></li>
-<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the chosen subset of vertices exactly reproducible.</p></li>
+<li><p><strong>SampleNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1000</span></code>) — How many elements to draw. Reaching or exceeding the element count returns every element.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the chosen subset of elements exactly reproducible. It has no effect when the requested number reaches the element count, since then every element is taken.</p></li>
 </ul>
 </dd></dl>
 

@@ -5470,13 +5470,15 @@ Create a point set by subsampling mesh vertices, edges, or faces.
 ```{py:function} ms.sample_mesh_elements(**params)
 :module: _qmeshlab
 
-Create a new layer populated with a point sampling of the current mesh; at most one sample for each element of the mesh is created. Samples are taking in a uniform way, one for each element (vertex/edge/face); all the elements have the same probability of being chosen.
+Create a new layer holding one sample per mesh element. **Number of samples** elements are drawn uniformly at random -- every element of the chosen kind is equally likely -- and one point is emitted for each: a **Vertex** contributes its own position, an **Edge** its midpoint, a **Face** its barycenter. Asking for at least as many samples as there are elements simply returns them all.
+
+Edge sampling ignores *faux* edges, the diagonals that triangulate a polygonal face, since those are not edges of the polygonal mesh and the wireframe does not draw them. Note that midpoints and barycenters lie slightly inside a curved surface, which is inherent to taking a single sample per element. To place several samples along each edge instead, in proportion to its length, use *Sample Surface by Stratified Triangles* with the **Sample Edges** strategy.
 
 **Parameters:**
 
 - **Sampling** (*enum*, default: `vertex`) — Choose which mesh elements are sampled.
-- **SampleNum** (*int*, default: `1000`) — Desired number of sampled elements.
-- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the chosen subset of vertices exactly reproducible.
+- **SampleNum** (*int*, default: `1000`) — How many elements to draw. Reaching or exceeding the element count returns every element.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the chosen subset of elements exactly reproducible. It has no effect when the requested number reaches the element count, since then every element is taken.
 ```
 
 ---
