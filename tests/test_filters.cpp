@@ -235,6 +235,7 @@ private slots:
     void randomSeedControlsExpressionRnd();
     void randomizedFiltersDeclareARandomSeed();
     void capFiltersAgreeOnTheHalfAngleConvention();
+    void elementSamplingEmitsOneSamplePerElement();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -3974,6 +3975,100 @@ void FilterTests::capFiltersAgreeOnTheHalfAngleConvention()
         minZ > expectedZ - 1e-2f,
         qPrintable(QStringLiteral("lowest sample z %1, expected no lower than %2")
                        .arg(minZ).arg(expectedZ)));
+}
+
+// Sample Mesh Elements draws N elements and emits one sample each. All three modes must
+// agree on that: the face mode used to hand vcglib a world-space centroid where
+// barycentric weights were expected, scattering samples between 0.10 and 1.72 of the
+// unit radius, and it ignored the requested count entirely.
+void FilterTests::elementSamplingEmitsOneSamplePerElement()
+{
+    Document probe;
+    const QString key = filterKeyForId(probe, QStringLiteral("generate_sampling_element"));
+    QVERIFY(!key.isEmpty());
+
+    const QString sphereKey = filterKeyForId(probe, QStringLiteral("create_sphere"));
+    QVERIFY(!sphereKey.isEmpty());
+
+    // QTest macros expand to `return;`, so these helpers report failure through their
+    // value and the assertions stay in the test body.
+    auto sphereDocument = [&](Document &doc) -> bool {
+        return doc.runFilter(sphereKey, {}).success;
+    };
+
+    auto sample = [&](Document &doc, const QString &mode, int count, int seedValue) -> int {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("Sampling"), mode);
+        params.insert(QStringLiteral("SampleNum"), count);
+        params.insert(QStringLiteral("randomSeed"), seedValue);
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        if (!r.success || r.newMeshIndices.size() != 1)
+            return -1;
+        return r.newMeshIndices.front();
+    };
+
+    // Radius spread of the samples: on a unit sphere every mode must stay on or just
+    // inside the surface. A barycentric mix-up shows up here immediately.
+    auto radiusRange = [](const VCGMesh &m) {
+        float lo = 1e9f, hi = -1e9f;
+        for (const VCGVertex &v : m.vert) {
+            if (v.IsD())
+                continue;
+            const float r = v.cP().Norm();
+            lo = std::min(lo, r);
+            hi = std::max(hi, r);
+        }
+        return std::make_pair(lo, hi);
+    };
+
+    Document doc;
+    QVERIFY(sphereDocument(doc));
+    const int sphereIndex = doc.currentMeshIndex();
+    const int vertexCount = doc.mesh(sphereIndex).mesh.VN();
+    const int faceCount = doc.mesh(sphereIndex).mesh.FN();
+    QVERIFY(vertexCount > 0 && faceCount > 0);
+
+    for (const QString &mode :
+         { QStringLiteral("vertex"), QStringLiteral("edge"), QStringLiteral("face") }) {
+        doc.setCurrentMeshIndex(sphereIndex);
+        const int out = sample(doc, mode, 200, 4242);
+        QVERIFY2(out >= 0, qPrintable(QStringLiteral("%1 sampling failed").arg(mode)));
+        const VCGMesh &samples = doc.mesh(out).mesh;
+
+        // The requested count is honoured, not the element count.
+        QCOMPARE(samples.VN(), 200);
+        QCOMPARE(samples.FN(), 0);
+
+        const auto range = radiusRange(samples);
+        QVERIFY2(
+            range.first > 0.9f && range.second <= 1.0001f,
+            qPrintable(QStringLiteral("%1 samples span radius %2..%3, expected ~1")
+                           .arg(mode).arg(range.first).arg(range.second)));
+    }
+
+    // Asking for more than exists yields every element exactly once.
+    doc.setCurrentMeshIndex(sphereIndex);
+    const int allVerts = sample(doc, QStringLiteral("vertex"), 10 * vertexCount, 1);
+    QVERIFY(allVerts >= 0);
+    QCOMPARE(doc.mesh(allVerts).mesh.VN(), vertexCount);
+    doc.setCurrentMeshIndex(sphereIndex);
+    const int allFaces = sample(doc, QStringLiteral("face"), 10 * faceCount, 1);
+    QVERIFY(allFaces >= 0);
+    QCOMPARE(doc.mesh(allFaces).mesh.VN(), faceCount);
+
+    // The declared seed has to actually steer the subset -- vcglib's own shuffles seed
+    // from the container size, which makes the choice a function of the mesh alone.
+    auto firstSampleWithSeed = [&](int seedValue) -> vcg::Point3f {
+        Document d;
+        if (!sphereDocument(d))
+            return vcg::Point3f(0, 0, 0);
+        const int out = sample(d, QStringLiteral("face"), 50, seedValue);
+        if (out < 0)
+            return vcg::Point3f(0, 0, 0);
+        return d.mesh(out).mesh.vert[0].cP();
+    };
+    QVERIFY(firstSampleWithSeed(1) != firstSampleWithSeed(2));
+    QCOMPARE(firstSampleWithSeed(7), firstSampleWithSeed(7));
 }
 
 QTEST_MAIN(FilterTests)

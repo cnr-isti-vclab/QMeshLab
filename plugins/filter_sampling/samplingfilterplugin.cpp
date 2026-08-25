@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <numeric>
 
 namespace {
 constexpr QLatin1StringView kFilterElementSampling("generate_sampling_element");
@@ -475,6 +476,25 @@ std::unique_ptr<VCGMesh> makePreparedSurfaceMesh(const VCGMesh &source)
     return prepared;
 }
 
+// Choose up to sampleNum distinct element indices out of count. Done here rather than
+// through vcglib's VertexUniform/FaceUniform because those shuffle with a generator
+// seeded from the container size -- the subset is then a function of the mesh alone and
+// the filter's declared randomSeed has no effect whatsoever.
+std::vector<int> chooseElementSubset(int count, int sampleNum, vcg::math::RandomGenerator &rng)
+{
+    std::vector<int> chosen(std::size_t(std::max(count, 0)));
+    std::iota(chosen.begin(), chosen.end(), 0);
+    if (sampleNum >= count)
+        return chosen;
+    // Partial Fisher-Yates: only the first sampleNum slots have to be settled.
+    for (int i = 0; i < sampleNum; ++i) {
+        const int j = i + int(rng.generate(unsigned(count - i)));
+        std::swap(chosen[std::size_t(i)], chosen[std::size_t(j)]);
+    }
+    chosen.resize(std::size_t(sampleNum));
+    return chosen;
+}
+
 bool hasSelection(const VCGMesh &mesh)
 {
     return vcg::tri::UpdateSelection<VCGMesh>::VertexCount(mesh) > 0
@@ -622,19 +642,50 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         std::unique_ptr<VCGMesh> prepared = makePreparedSurfaceMesh(entry.mesh);
         VCGMesh output;
         BaseSampler sampler(&output, sourceHasColor, sourceHasQuality);
-        // Only the vertex strategy is randomized (it shuffles the vertex vector),
-        // and only when fewer samples than vertices are asked for; the edge and
-        // face strategies are deterministic scans.
-        const bool randomized = sampling == QLatin1StringView("vertex");
         const RandomSeed seed = params.getRandomSeed();
-        if (randomized)
-            SurfaceSampler::SamplingRandomGenerator().initialize(seed.value);
-        if (sampling == QLatin1StringView("vertex"))
-            SurfaceSampler::VertexUniform(*prepared, sampler, sampleNum);
-        else if (sampling == QLatin1StringView("edge"))
-            SurfaceSampler::EdgeUniform(*prepared, sampler, sampleNum, true);
-        else
-            SurfaceSampler::AllFace(*prepared, sampler);
+        vcg::math::RandomGenerator &rng = SurfaceSampler::SamplingRandomGenerator();
+        rng.initialize(seed.value);
+
+        // All three modes are the same operation on a different element type: choose
+        // sampleNum elements uniformly at random and emit one sample per chosen element.
+        int elementCount = 0;
+        if (sampling == QLatin1StringView("vertex")) {
+            std::vector<VCGVertex *> elements;
+            elements.reserve(prepared->vert.size());
+            for (VCGVertex &v : prepared->vert)
+                if (!v.IsD())
+                    elements.push_back(&v);
+            elementCount = int(elements.size());
+            for (const int i : chooseElementSubset(elementCount, sampleNum, rng))
+                sampler.AddVert(*elements[std::size_t(i)]);
+        }
+        else if (sampling == QLatin1StringView("edge")) {
+            // Faux edges are the diagonals that triangulate a polygonal face. The
+            // wireframe hides them, so sampling them would drop points onto edges the
+            // user cannot see and that the polygonal mesh does not really have.
+            using PEdge = vcg::tri::UpdateTopology<VCGMesh>::PEdge;
+            std::vector<PEdge> elements;
+            vcg::tri::UpdateTopology<VCGMesh>::FillUniqueEdgeVector(*prepared, elements, false);
+            elementCount = int(elements.size());
+            for (const int i : chooseElementSubset(elementCount, sampleNum, rng)) {
+                const PEdge &e = elements[std::size_t(i)];
+                sampler.AddFace(*e.f, e.EdgeBarycentricToFaceBarycentric(0.5f));
+            }
+        }
+        else {
+            std::vector<VCGFace *> elements;
+            elements.reserve(prepared->face.size());
+            for (VCGFace &f : prepared->face)
+                if (!f.IsD())
+                    elements.push_back(&f);
+            elementCount = int(elements.size());
+            const VCGMesh::CoordType centroid(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f);
+            for (const int i : chooseElementSubset(elementCount, sampleNum, rng))
+                sampler.AddFace(*elements[std::size_t(i)], centroid);
+        }
+
+        if (elementCount <= 0)
+            return failResult(QObject::tr("The current mesh has no element of that kind to sample."));
 
         vcg::tri::UpdateBounding<VCGMesh>::Box(output);
         const int newIndex = addDerivedMesh(
@@ -647,8 +698,13 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
                 sampling != QLatin1StringView("vertex"),
                 sourceHasColor,
                 sourceHasQuality));
-        QStringList messages{ QObject::tr("Generated %1 element samples.").arg(output.VN()) };
-        if (randomized)
+        QStringList messages{
+            QObject::tr("Generated %1 samples from %2 mesh elements.")
+                .arg(output.VN())
+                .arg(elementCount)
+        };
+        // Only a strict subset involves a random choice; taking every element does not.
+        if (sampleNum < elementCount)
             messages << seed.message();
         return successResult(messages, { newIndex });
     }
