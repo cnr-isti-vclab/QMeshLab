@@ -892,6 +892,32 @@
 
 <hr class="docutils" />
 </section>
+<section id="compute-principal-curvature-directions-libigl">
+<span id="filter-compute-curvature-principal-directions-per-vertex-libigl"></span><h2>Compute Principal Curvature Directions (libigl)<a class="headerlink" href="#compute-principal-curvature-directions-libigl" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
+<p>Estimate principal curvature values and directions with libigl’s multi-scale fitting method.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_curvature_principal_directions_per_vertex_libigl">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_curvature_principal_directions_per_vertex_libigl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_curvature_principal_directions_per_vertex_libigl" title="Link to this definition">¶</a></dt>
+<dd><p>Estimates the two principal curvatures and their tangent directions using libigl’s multi-scale local fitting implementation. The maximal and minimal values are stored in the mesh curvature component as <span class="math notranslate nohighlight">\(k_1\)</span> and <span class="math notranslate nohighlight">\(k_2\)</span>, with their corresponding directions. <strong>Quality Mapping</strong> also stores one derived value in <strong>vertex scalar</strong> for immediate visualization.</p>
+<p><strong>Neighborhood Radius</strong> is measured in vertex rings when <strong>Use K-ring Neighborhood</strong> is enabled. Otherwise libigl interprets it relative to average edge length. Larger neighborhoods suppress noise but also smooth small features. Vertices for which libigl cannot form a valid fit are reported and assigned zero curvature and zero directions. Faux-edge polygon groups are processed through their stored triangle representation.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+<li><p>Daniele Panozzo, Enrico Puppo, Luigi Rocca. <strong>Efficient Multi-scale Curvature and Crease Estimation</strong>. <em>Proceedings of the 4th International Conference on Computer Graphics, Computer Vision and Mathematics (GraVisMa 2010)</em> (2010).</p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>neighborhood_radius</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Neighborhood size passed to libigl. With K-ring mode it is the number of adjacent vertex rings; otherwise it is relative to average edge length.</p></li>
+<li><p><strong>use_k_ring</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Use a topological K-ring neighborhood. Disable it to use libigl’s metric ball neighborhood.</p></li>
+<li><p><strong>quality_mapping</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">mean</span></code>) — Choose the curvature value also stored in vertex scalar and shown after completion.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="distance-from-reference-mesh">
 <span id="filter-compute-distance-from-reference"></span><h2>Distance from Reference Mesh<a class="headerlink" href="#distance-from-reference-mesh" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.sampling</p>
@@ -907,6 +933,27 @@
 <li><p><strong>SignedDist</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled, compute a signed distance instead of the absolute value.</p></li>
 <li><p><strong>MaxDist</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>) — Search is interrupted when nothing is found within this range.</p></li>
 </ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-exact-geodesic-distance-from-selection-libigl">
+<span id="filter-compute-exact-geodesic-distance-from-selection-per-vertex-libigl"></span><h2>Compute Exact Geodesic Distance from Selection (libigl)<a class="headerlink" href="#compute-exact-geodesic-distance-from-selection-libigl" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
+<p>Compute exact surface distance from selected vertices with libigl.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_exact_geodesic_distance_from_selection_per_vertex_libigl">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_exact_geodesic_distance_from_selection_per_vertex_libigl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_exact_geodesic_distance_from_selection_per_vertex_libigl" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the exact polyhedral geodesic distance from the nearest selected, face-referenced vertex to every face-referenced vertex and stores it in <strong>vertex scalar</strong>. Distances follow the piecewise-linear triangle surface, not only mesh edges. Faux edges therefore remain ordinary edges of the stored surface triangulation.</p>
+<p>This implementation is substantially more expensive than graph or heat-method approximations and is intended when exact distances are required. At least one face-referenced vertex must be selected. No colors are baked into the mesh; QMeshLab switches to vertex-scalar visualization after completion.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+<li><p>Joseph S. B. Mitchell, David M. Mount, Christos H. Papadimitriou. <strong>The Discrete Geodesic Problem</strong>. <em>SIAM Journal on Computing</em> (1987). <a class="reference external" href="https://doi.org/10.1137/0216045">DOI</a></p></li>
+</ul>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -970,6 +1017,31 @@
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_face_quality_stat">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_face_quality_stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_face_quality_stat" title="Link to this definition">¶</a></dt>
 <dd><p>Compute some aggregate statistics over the per face quality, like Min, Max, Average, StdDev and Variance.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-gaussian-curvature-libigl">
+<span id="filter-compute-gaussian-curvature-per-vertex-libigl"></span><h2>Compute Gaussian Curvature (libigl)<a class="headerlink" href="#compute-gaussian-curvature-libigl" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
+<p>Compute the integrated Gaussian curvature at each vertex with libigl.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_gaussian_curvature_per_vertex_libigl">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_gaussian_curvature_per_vertex_libigl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_gaussian_curvature_per_vertex_libigl" title="Link to this definition">¶</a></dt>
+<dd><p>Computes libigl’s discrete <strong>angle deficit</strong> at every face-referenced vertex and stores it in <strong>vertex scalar</strong>:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[K_i = 2\pi - \sum_{f \ni} \theta_{if}.\]</div>
+</div>
+<p>This is integrated Gaussian curvature, not curvature divided by a vertex area. On a closed manifold mesh its sum is governed by Gauss-Bonnet. At boundary vertices the expression is not an intrinsic Gaussian-curvature estimate; the reported value still uses <span class="math notranslate nohighlight">\(2\pi\)</span>, so interpret boundary values with care. Faux-edge polygon groups are processed through their stored triangle representation. No colors are baked into the mesh; QMeshLab switches to vertex-scalar visualization after completion.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+<li><p>Mark Meyer, Mathieu Desbrun, Peter Schröder, Alan H. Barr. <strong>Discrete Differential-Geometry Operators for Triangulated 2-Manifolds</strong>. <em>Visualization and Mathematics III</em> (2003). <a class="reference external" href="https://doi.org/10.1007/978-3-662-05105-4_2">DOI</a></p></li>
+</ul>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -1057,6 +1129,31 @@
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>m</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Multiplier applied to the squared average edge length to compute the backward-Euler timestep. Larger values give smoother but less accurate results.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="compute-heat-geodesic-distance-from-selection-libigl">
+<span id="filter-compute-heat-geodesic-distance-from-selection-per-vertex-libigl"></span><h2>Compute Heat Geodesic Distance from Selection (libigl)<a class="headerlink" href="#compute-heat-geodesic-distance-from-selection-libigl" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
+<p>Approximate surface distance from selected vertices with libigl’s heat method.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.compute_heat_geodesic_distance_from_selection_per_vertex_libigl">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_heat_geodesic_distance_from_selection_per_vertex_libigl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_heat_geodesic_distance_from_selection_per_vertex_libigl" title="Link to this definition">¶</a></dt>
+<dd><p>Approximates geodesic distance from the nearest selected, face-referenced vertex with the heat method and stores it in <strong>vertex scalar</strong>. The method diffuses heat for a short time, normalizes its gradient, and solves a Poisson equation. It is generally much faster than the exact method for large source-to-all queries.</p>
+<p>The timestep is <span class="math notranslate nohighlight">\(t = m h^2\)</span>, where <span class="math notranslate nohighlight">\(h\)</span> is average edge length and <strong>Time Step Multiplier</strong> is <span class="math notranslate nohighlight">\(m\)</span>. Smaller values preserve finer detail but may be less stable. <strong>Intrinsic Delaunay Operators</strong> uses libigl’s intrinsic Delaunay cotangent, mass, and gradient operators, reducing sensitivity to poor input triangulations without changing connectivity. At least one face-referenced vertex must be selected. Faux-edge polygon groups are processed through their stored triangle representation.</p>
+<p><strong>Upstream:</strong> <a class="reference external" href="https://github.com/libigl/libigl">libigl</a></p>
+<p><strong>License:</strong> MPL-2.0</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alec Jacobson, Daniele Panozzo. <strong>libigl: A Simple C++ Geometry Processing Library</strong> (2017). <a class="reference external" href="https://libigl.github.io/">Web</a></p></li>
+<li><p>Keenan Crane, Clarisse Weischedel, Max Wardetzky. <strong>Geodesics in Heat: A New Approach to Computing Distance Based on Heat Flow</strong>. <em>ACM Transactions on Graphics</em> (2013). <a class="reference external" href="https://doi.org/10.1145/2516971.2516977">DOI</a> <a class="reference external" href="https://www.cs.cmu.edu/~kmcrane/Projects/HeatMethod/paperCACM.pdf">Web</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>time_step_multiplier</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Multiplier m in t = m h², where h is average edge length. Smaller values are more local but can be less stable.</p></li>
+<li><p><strong>use_intrinsic_delaunay</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Build the heat-method operators from libigl’s intrinsic Delaunay triangulation. This often improves robustness on poorly shaped triangles.</p></li>
 </ul>
 </dd></dl>
 
@@ -6528,8 +6625,16 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_curvature_principal_directions"><code class="docutils literal notranslate"><span class="pre">ms.compute_curvature_principal_directions()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#compute-principal-curvature-directions-libigl">Compute Principal Curvature Directions (libigl)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_curvature_principal_directions_per_vertex_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_curvature_principal_directions_per_vertex_libigl()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#distance-from-reference-mesh">Distance from Reference Mesh</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_distance_from_reference"><code class="docutils literal notranslate"><span class="pre">ms.compute_distance_from_reference()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-exact-geodesic-distance-from-selection-libigl">Compute Exact Geodesic Distance from Selection (libigl)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_exact_geodesic_distance_from_selection_per_vertex_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_exact_geodesic_distance_from_selection_per_vertex_libigl()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-face-ambient-occlusion">Compute Face Ambient Occlusion</a><ul>
@@ -6546,6 +6651,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#per-face-quality-stat">Per Face Quality Stat</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_face_quality_stat"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_quality_stat()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-gaussian-curvature-libigl">Compute Gaussian Curvature (libigl)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_gaussian_curvature_per_vertex_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_gaussian_curvature_per_vertex_libigl()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#compute-geodesic-distance-from-point">Compute Geodesic Distance from Point</a><ul>
@@ -6566,6 +6675,10 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </li>
 <li><a class="reference internal" href="#compute-geodesic-distance-from-selection-heat-method">Compute Geodesic Distance from Selection (Heat Method)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_heat_geodesic_distance"><code class="docutils literal notranslate"><span class="pre">ms.compute_heat_geodesic_distance()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compute-heat-geodesic-distance-from-selection-libigl">Compute Heat Geodesic Distance from Selection (libigl)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.compute_heat_geodesic_distance_from_selection_per_vertex_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_heat_geodesic_distance_from_selection_per_vertex_libigl()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#align-to-corresponding-points">Align to Corresponding Points</a><ul>
