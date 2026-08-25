@@ -29,7 +29,15 @@ jobs:
 
       - name: Install macOS build dependencies
         run: |
-          brew install ninja libomp
+          # GMP is built from source by vcpkg on macOS and its autoreconf step
+          # needs the complete GNU autotools toolchain.
+          brew install \
+            ninja \
+            libomp \
+            autoconf \
+            autoconf-archive \
+            automake \
+            libtool
 
       - name: Expose build tools
         run: |
