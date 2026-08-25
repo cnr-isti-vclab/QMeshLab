@@ -32,12 +32,12 @@ remain easy to review:
 
 ## Vendored files modified locally
 
-At the moment, only one file inside `Src` differs from the reference
-clone:
+At the moment, two files inside `Src` differ from the reference clone:
 
 - `plugins/filter_screened_poisson/Src/MultiThreading.h`
+- `plugins/filter_screened_poisson/Src/FEMTree.h`
 
-### Local patch summary
+### Thread-count setter (`MultiThreading.h`)
 
 Purpose: expose a small setter for the PoissonRecon thread-count static so QMeshLab
 can control the solver thread pool from the filter parameter/UI.
@@ -54,6 +54,28 @@ Rationale:
 - Keeping this as a one-line vendored patch is simpler and easier to reapply than
   moving thread-pool control into a larger fork.
 
+### MSVC template-parser compatibility (`FEMTree.h`)
+
+Purpose: allow the vendored source to compile with the conforming MSVC mode
+propagated by Qt (`/permissive-`).
+
+Current local change: parenthesize the four recursive SFINAE conditions that use
+`D<Dim`, for example:
+
+```diff
+- typename std::enable_if< D< Dim >::type
++ typename std::enable_if< (D<Dim) >::type
+```
+
+Rationale:
+
+- MSVC 14.44 otherwise reports `C2988`/`C2059` while parsing these member-template
+  overloads.
+- This is a syntax-only disambiguation; it does not alter the recursion or runtime
+  behavior.
+- The form matches existing parenthesized conditions elsewhere in the same upstream
+  file and keeps QMeshLab's normal conforming compiler mode enabled.
+
 ## How to verify current local differences
 
 From the QMeshLab repo root:
@@ -62,11 +84,13 @@ From the QMeshLab repo root:
 diff -rq .reference/PoissonRecon/Src plugins/filter_screened_poisson/Src
 ```
 
-For a full patch:
+For full patches of the locally modified vendored files:
 
 ```bash
 diff -u .reference/PoissonRecon/Src/MultiThreading.h \
   plugins/filter_screened_poisson/Src/MultiThreading.h
+diff -u .reference/PoissonRecon/Src/FEMTree.h \
+  plugins/filter_screened_poisson/Src/FEMTree.h
 ```
 
 Or use the helper script:
@@ -94,7 +118,8 @@ plugins/filter_screened_poisson/check_upstream_status.sh
 
 3. Refresh the vendored subtree from the new reference copy.
    - Prefer copying `Src` cleanly from `.reference/PoissonRecon/Src`
-   - Reapply the minimal local vendored patch in `Src/MultiThreading.h`
+   - Reapply the minimal local vendored patches in `Src/MultiThreading.h` and
+     `Src/FEMTree.h`
 
 4. Rebuild QMeshLab and retest:
 

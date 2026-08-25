@@ -1215,9 +1215,9 @@ namespace PoissonRecon
 			std::tuple< typename BSplineEvaluationData< TSignatures >::UpSampleEvaluator ... > _upSamplers;
 
 			template< unsigned int D=0 > typename std::enable_if< D==Dim >::type _init( int highDepth ){ }
-			template< unsigned int D=0 > typename std::enable_if< D< Dim >::type _init( int highDepth ){ std::get< D >( _upSamplers ).set( highDepth-1 ) ; _init< D+1 >( highDepth ); }
+			template< unsigned int D=0 > typename std::enable_if< (D<Dim) >::type _init( int highDepth ){ std::get< D >( _upSamplers ).set( highDepth-1 ) ; _init< D+1 >( highDepth ); }
 			template< unsigned int D=0 > typename std::enable_if< D==Dim , double >::type _coefficient( const int pOff[] , const int cOff[] ) const { return 1.; }
-			template< unsigned int D=0 > typename std::enable_if< D< Dim , double >::type _coefficient( const int pOff[] , const int cOff[] ) const { return _coefficient< D+1 >( pOff , cOff ) * std::get< D >( _upSamplers ).value( pOff[D] , cOff[D] ); }
+			template< unsigned int D=0 > typename std::enable_if< (D<Dim) , double >::type _coefficient( const int pOff[] , const int cOff[] ) const { return _coefficient< D+1 >( pOff , cOff ) * std::get< D >( _upSamplers ).value( pOff[D] , cOff[D] ); }
 		};
 
 		template< unsigned int ... TSignatures , unsigned int ... TDerivatives , unsigned int ... CSignatures , unsigned int ... CDerivatives , unsigned int CDim >
@@ -1288,7 +1288,7 @@ namespace PoissonRecon
 			template< unsigned int D=0 >
 			typename std::enable_if< D==Dim >::type _init( int depth ){ ; }
 			template< unsigned int D=0 >
-			typename std::enable_if< D< Dim >::type _init( int depth )
+			typename std::enable_if< (D<Dim) >::type _init( int depth )
 			{
 				std::get< D >( _integrators ).ccIntegrator.set( depth );
 				if( depth ) std::get< D >( _integrators ).pcIntegrator.set( depth-1 ) , std::get< D >( _integrators ).cpIntegrator.set( depth-1 );
@@ -1297,7 +1297,7 @@ namespace PoissonRecon
 			template< unsigned int D=0 >
 			typename std::enable_if< D==Dim , double >::type _integral( IntegrationType iType , const int off1[] , const int off2[] , const unsigned int d1[] , const unsigned int d2[] ) const { return 1.; }
 			template< unsigned int D=0 >
-			typename std::enable_if< D< Dim , double >::type _integral( IntegrationType iType , const int off1[] , const int off2[] , const unsigned int d1[] , const unsigned int d2[] ) const
+			typename std::enable_if< (D<Dim) , double >::type _integral( IntegrationType iType , const int off1[] , const int off2[] , const unsigned int d1[] , const unsigned int d2[] ) const
 			{
 				double remainingIntegral = _integral< D+1 >( iType , off1 , off2 , d1 , d2 );
 				switch( iType )

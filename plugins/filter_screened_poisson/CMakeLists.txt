@@ -67,13 +67,8 @@ target_compile_definitions(QMeshLabPluginFilterScreenedPoisson
 )
 
 if(MSVC)
-    # The bundled upstream PoissonRecon templates rely on MSVC's compatibility
-    # parser and generate very large object files. Qt otherwise propagates the
-    # stricter /permissive- option to this target.
-    target_compile_options(QMeshLabPluginFilterScreenedPoisson PRIVATE
-        /permissive
-        /bigobj
-    )
+    # The bundled upstream PoissonRecon templates generate very large objects.
+    target_compile_options(QMeshLabPluginFilterScreenedPoisson PRIVATE /bigobj)
 endif()
 
 if (OpenMP_CXX_FOUND)
