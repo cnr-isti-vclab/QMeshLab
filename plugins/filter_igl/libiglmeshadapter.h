@@ -33,4 +33,27 @@ bool eigenToMesh(
     VCGMesh &out,
     QString &error);
 
+// Attribute transfer uses EigenMesh's compact-row -> source-vector mapping, so
+// every libigl filter handles deleted and unreferenced vertices identically.
+bool selectedVertexRows(
+    const VCGMesh &mesh,
+    const EigenMesh &source,
+    Eigen::VectorXi &rows,
+    QString &error);
+
+bool writeVertexScalars(
+    VCGMesh &mesh,
+    const EigenMesh &source,
+    const Eigen::VectorXd &values,
+    QString &error);
+
+bool writeVertexCurvature(
+    VCGMesh &mesh,
+    const EigenMesh &source,
+    const Eigen::MatrixXd &maximumDirections,
+    const Eigen::MatrixXd &minimumDirections,
+    const Eigen::VectorXd &maximumValues,
+    const Eigen::VectorXd &minimumValues,
+    QString &error);
+
 } // namespace qmeshlab::libigl

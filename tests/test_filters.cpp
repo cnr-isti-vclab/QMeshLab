@@ -13,6 +13,7 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/append.h>
 #include <vcg/complex/algorithms/clean.h>
+#include <vcg/complex/algorithms/create/platonic.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/topology.h>
@@ -225,6 +226,7 @@ private slots:
     void packTextureImagesCreatesGutteredAtlas();
     void faceQualityFiltersAreSplit();
     void libiglParametrizationFiltersRunWhenAvailable();
+    void libiglQuantityFiltersRunWhenAvailable();
     void meshBooleanFiltersRunWhenAvailable();
     void ambientOcclusionIsScaleInvariant();
     void ambientOcclusionSupportsPointCloudsAndDirectionalLighting();
@@ -3393,6 +3395,83 @@ void FilterTests::libiglParametrizationFiltersRunWhenAvailable()
         QVERIFY(result.documentModified);
         QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0);
     }
+}
+
+void FilterTests::libiglQuantityFiltersRunWhenAvailable()
+{
+    Document sphereDoc;
+    VCGMesh sphere;
+    vcg::tri::Sphere<VCGMesh>(sphere, 2);
+    const int mask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_VERTNORMAL
+        | vcg::tri::io::Mask::IOM_FACENORMAL;
+    QCOMPARE(sphereDoc.addMesh(sphere, QStringLiteral("Sphere"), mask), 0);
+
+    QString gaussianKey, principalKey, exactKey, heatKey;
+    for (const auto &info : sphereDoc.filterInfos()) {
+        if (info.descriptor.id == QStringLiteral("compute_gaussian_curvature_per_vertex_libigl")) {
+            gaussianKey = info.key;
+            QCOMPARE(info.descriptor.provenance.project, QStringLiteral("libigl"));
+            QCOMPARE(info.descriptor.references.size(), size_t(2));
+            QCOMPARE(info.descriptor.references.back().doi,
+                     QStringLiteral("10.1007/978-3-662-05105-4_2"));
+        } else if (info.descriptor.id
+                   == QStringLiteral("compute_curvature_principal_directions_per_vertex_libigl")) {
+            principalKey = info.key;
+        } else if (info.descriptor.id
+                   == QStringLiteral("compute_exact_geodesic_distance_from_selection_per_vertex_libigl")) {
+            exactKey = info.key;
+        } else if (info.descriptor.id
+                   == QStringLiteral("compute_heat_geodesic_distance_from_selection_per_vertex_libigl")) {
+            heatKey = info.key;
+        }
+    }
+    if (gaussianKey.isEmpty())
+        QSKIP("libigl quantity filters are not available in this build.");
+    QVERIFY(!principalKey.isEmpty());
+    QVERIFY(!exactKey.isEmpty());
+    QVERIFY(!heatKey.isEmpty());
+
+    const MeshFilterRunResult gaussian = sphereDoc.runFilter(gaussianKey, {});
+    QVERIFY2(gaussian.success, qPrintable(gaussian.errorMessage));
+    double totalCurvature = 0.0;
+    for (const VCGVertex &vertex : sphereDoc.mesh(0).mesh.vert)
+        if (!vertex.IsD())
+            totalCurvature += vertex.cQ();
+    QVERIFY(std::abs(totalCurvature - 4.0 * M_PI) < 1e-4);
+
+    const MeshFilterRunResult principal = sphereDoc.runFilter(principalKey, {});
+    QVERIFY2(principal.success, qPrintable(principal.errorMessage));
+    QVERIFY(sphereDoc.mesh(0).mesh.vert.IsCurvatureDirEnabled());
+    for (const VCGVertex &vertex : sphereDoc.mesh(0).mesh.vert) {
+        if (vertex.IsD())
+            continue;
+        QVERIFY(std::isfinite(vertex.cK1()));
+        QVERIFY(std::isfinite(vertex.cK2()));
+        QVERIFY(std::isfinite(vertex.cQ()));
+    }
+
+    sphereDoc.mesh(0).mesh.vert[0].SetS();
+    const MeshFilterRunResult heat = sphereDoc.runFilter(heatKey, {});
+    QVERIFY2(heat.success, qPrintable(heat.errorMessage));
+    QVERIFY(std::abs(sphereDoc.mesh(0).mesh.vert[0].cQ()) < 1e-5f);
+    for (const VCGVertex &vertex : sphereDoc.mesh(0).mesh.vert)
+        if (!vertex.IsD())
+            QVERIFY(std::isfinite(vertex.cQ()));
+
+    Document diskDoc;
+    VCGMesh disk;
+    makeOpenDiskMesh(disk);
+    QCOMPARE(diskDoc.addMesh(disk, QStringLiteral("Disk"), mask), 0);
+    QVERIFY(!diskDoc.runFilter(exactKey, {}).success);
+    diskDoc.mesh(0).mesh.vert[4].SetS();
+
+    const MeshFilterRunResult exact = diskDoc.runFilter(exactKey, {});
+    QVERIFY2(exact.success, qPrintable(exact.errorMessage));
+    QCOMPARE(diskDoc.mesh(0).mesh.vert[4].cQ(), 0.0f);
+    const float cornerDistance = std::sqrt(0.5f);
+    for (int i = 0; i < 4; ++i)
+        QVERIFY(std::abs(diskDoc.mesh(0).mesh.vert[size_t(i)].cQ() - cornerDistance) < 1e-5f);
 }
 
 void FilterTests::meshBooleanFiltersRunWhenAvailable()

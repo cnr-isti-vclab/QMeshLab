@@ -509,6 +509,132 @@
         "VT",
         "WT"
       ]
+    },
+    {
+      "id": "compute_gaussian_curvature_per_vertex_libigl",
+      "categories": ["Attribute/Curvature", "Attribute/Scalar"],
+      "name": "Compute Gaussian Curvature (libigl)",
+      "pythonName": "compute_gaussian_curvature_per_vertex_libigl",
+      "referenceIds": ["libigl", "meyer2003discrete"],
+      "shortDescription": "Compute the integrated Gaussian curvature at each vertex with libigl.",
+      "longDescriptionMarkdown": "Computes libigl's discrete **angle deficit** at every face-referenced vertex and stores it in **vertex scalar**:\n\n$$K_i = 2\\pi - \\sum_{f \\ni} \\theta_{if}.$$\n\nThis is integrated Gaussian curvature, not curvature divided by a vertex area. On a closed manifold mesh its sum is governed by Gauss-Bonnet. At boundary vertices the expression is not an intrinsic Gaussian-curvature estimate; the reported value still uses $2\\pi$, so interpret boundary values with care. Faux-edge polygon groups are processed through their stored triangle representation. No colors are baked into the mesh; QMeshLab switches to vertex-scalar visualization after completion.",
+      "tags": ["curvature", "gaussian", "angle deficit", "libigl"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [],
+      "outputModifies": ["VQ"]
+    },
+    {
+      "id": "compute_curvature_principal_directions_per_vertex_libigl",
+      "categories": ["Attribute/Curvature", "Attribute/Scalar"],
+      "name": "Compute Principal Curvature Directions (libigl)",
+      "pythonName": "compute_curvature_principal_directions_per_vertex_libigl",
+      "referenceIds": ["libigl", "panozzo2010curvature"],
+      "shortDescription": "Estimate principal curvature values and directions with libigl's multi-scale fitting method.",
+      "longDescriptionMarkdown": "Estimates the two principal curvatures and their tangent directions using libigl's multi-scale local fitting implementation. The maximal and minimal values are stored in the mesh curvature component as $k_1$ and $k_2$, with their corresponding directions. **Quality Mapping** also stores one derived value in **vertex scalar** for immediate visualization.\n\n**Neighborhood Radius** is measured in vertex rings when **Use K-ring Neighborhood** is enabled. Otherwise libigl interprets it relative to average edge length. Larger neighborhoods suppress noise but also smooth small features. Vertices for which libigl cannot form a valid fit are reported and assigned zero curvature and zero directions. Faux-edge polygon groups are processed through their stored triangle representation.",
+      "tags": ["curvature", "principal directions", "multi-scale", "libigl"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": ["CurvDir"],
+      "parameters": [
+        {
+          "id": "neighborhood_radius",
+          "label": "Neighborhood Radius",
+          "help": "Neighborhood size passed to libigl. With K-ring mode it is the number of adjacent vertex rings; otherwise it is relative to average edge length.",
+          "group": "main",
+          "type": "int",
+          "default": 5,
+          "min": 1,
+          "max": 50
+        },
+        {
+          "id": "use_k_ring",
+          "label": "Use K-ring Neighborhood",
+          "help": "Use a topological K-ring neighborhood. Disable it to use libigl's metric ball neighborhood.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "quality_mapping",
+          "label": "Quality Mapping",
+          "help": "Choose the curvature value also stored in vertex scalar and shown after completion.",
+          "group": "main",
+          "type": "enum",
+          "default": "mean",
+          "enumOptions": [
+            { "id": "mean", "label": "Mean Curvature" },
+            { "id": "gaussian", "label": "Gaussian Curvature" },
+            { "id": "min", "label": "Minimum Curvature" },
+            { "id": "max", "label": "Maximum Curvature" }
+          ]
+        }
+      ],
+      "outputModifies": ["VA", "VQ"]
+    },
+    {
+      "id": "compute_exact_geodesic_distance_from_selection_per_vertex_libigl",
+      "categories": ["Attribute/Scalar"],
+      "name": "Compute Exact Geodesic Distance from Selection (libigl)",
+      "pythonName": "compute_exact_geodesic_distance_from_selection_per_vertex_libigl",
+      "referenceIds": ["libigl", "mitchell1987geodesic"],
+      "shortDescription": "Compute exact surface distance from selected vertices with libigl.",
+      "longDescriptionMarkdown": "Computes the exact polyhedral geodesic distance from the nearest selected, face-referenced vertex to every face-referenced vertex and stores it in **vertex scalar**. Distances follow the piecewise-linear triangle surface, not only mesh edges. Faux edges therefore remain ordinary edges of the stored surface triangulation.\n\nThis implementation is substantially more expensive than graph or heat-method approximations and is intended when exact distances are required. At least one face-referenced vertex must be selected. No colors are baked into the mesh; QMeshLab switches to vertex-scalar visualization after completion.",
+      "tags": ["geodesic", "distance", "exact", "selection", "libigl"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [],
+      "outputModifies": ["VQ"]
+    },
+    {
+      "id": "compute_heat_geodesic_distance_from_selection_per_vertex_libigl",
+      "categories": ["Attribute/Scalar"],
+      "name": "Compute Heat Geodesic Distance from Selection (libigl)",
+      "pythonName": "compute_heat_geodesic_distance_from_selection_per_vertex_libigl",
+      "referenceIds": ["libigl", "crane2013heat"],
+      "shortDescription": "Approximate surface distance from selected vertices with libigl's heat method.",
+      "longDescriptionMarkdown": "Approximates geodesic distance from the nearest selected, face-referenced vertex with the heat method and stores it in **vertex scalar**. The method diffuses heat for a short time, normalizes its gradient, and solves a Poisson equation. It is generally much faster than the exact method for large source-to-all queries.\n\nThe timestep is $t = m h^2$, where $h$ is average edge length and **Time Step Multiplier** is $m$. Smaller values preserve finer detail but may be less stable. **Intrinsic Delaunay Operators** uses libigl's intrinsic Delaunay cotangent, mass, and gradient operators, reducing sensitivity to poor input triangulations without changing connectivity. At least one face-referenced vertex must be selected. Faux-edge polygon groups are processed through their stored triangle representation.",
+      "tags": ["geodesic", "distance", "heat method", "selection", "libigl"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "time_step_multiplier",
+          "label": "Time Step Multiplier",
+          "help": "Multiplier m in t = m h², where h is average edge length. Smaller values are more local but can be less stable.",
+          "group": "main",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.001,
+          "max": 100.0,
+          "decimals": 3
+        },
+        {
+          "id": "use_intrinsic_delaunay",
+          "label": "Intrinsic Delaunay Operators",
+          "help": "Build the heat-method operators from libigl's intrinsic Delaunay triangulation. This often improves robustness on poorly shaped triangles.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        }
+      ],
+      "outputModifies": ["VQ"]
     }
   ]
 }

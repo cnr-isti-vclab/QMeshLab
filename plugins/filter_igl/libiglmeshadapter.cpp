@@ -176,4 +176,96 @@ bool eigenToMesh(
     return true;
 }
 
+bool selectedVertexRows(
+    const VCGMesh &mesh,
+    const EigenMesh &source,
+    Eigen::VectorXi &rows,
+    QString &error)
+{
+    std::vector<int> selected;
+    selected.reserve(source.vertexToSourceIndex.size());
+    for (size_t row = 0; row < source.vertexToSourceIndex.size(); ++row) {
+        const int sourceIndex = source.vertexToSourceIndex[row];
+        if (sourceIndex >= 0 && size_t(sourceIndex) < mesh.vert.size()
+            && mesh.vert[size_t(sourceIndex)].IsS()) {
+            selected.push_back(int(row));
+        }
+    }
+    if (selected.empty()) {
+        error = QObject::tr("Select at least one face-referenced vertex.");
+        return false;
+    }
+
+    rows.resize(Eigen::Index(selected.size()));
+    for (Eigen::Index i = 0; i < rows.size(); ++i)
+        rows(i) = selected[size_t(i)];
+    return true;
+}
+
+bool writeVertexScalars(
+    VCGMesh &mesh,
+    const EigenMesh &source,
+    const Eigen::VectorXd &values,
+    QString &error)
+{
+    if (values.size() != source.vertices.rows() || !values.allFinite()) {
+        error = QObject::tr("libigl returned invalid vertex scalar values.");
+        return false;
+    }
+
+    for (VCGVertex &vertex : mesh.vert)
+        if (!vertex.IsD())
+            vertex.Q() = 0.0f;
+    for (Eigen::Index row = 0; row < values.size(); ++row) {
+        const int sourceIndex = source.vertexToSourceIndex[size_t(row)];
+        if (sourceIndex >= 0 && size_t(sourceIndex) < mesh.vert.size())
+            mesh.vert[size_t(sourceIndex)].Q() = float(values(row));
+    }
+    return true;
+}
+
+bool writeVertexCurvature(
+    VCGMesh &mesh,
+    const EigenMesh &source,
+    const Eigen::MatrixXd &maximumDirections,
+    const Eigen::MatrixXd &minimumDirections,
+    const Eigen::VectorXd &maximumValues,
+    const Eigen::VectorXd &minimumValues,
+    QString &error)
+{
+    const Eigen::Index count = source.vertices.rows();
+    if (maximumDirections.rows() != count || minimumDirections.rows() != count
+        || maximumDirections.cols() != 3 || minimumDirections.cols() != 3
+        || maximumValues.size() != count || minimumValues.size() != count
+        || !maximumDirections.allFinite() || !minimumDirections.allFinite()
+        || !maximumValues.allFinite() || !minimumValues.allFinite()) {
+        error = QObject::tr("libigl returned invalid principal curvature data.");
+        return false;
+    }
+
+    mesh.vert.EnableCurvatureDir();
+    for (VCGVertex &vertex : mesh.vert) {
+        if (vertex.IsD())
+            continue;
+        vertex.PD1().SetZero();
+        vertex.PD2().SetZero();
+        vertex.K1() = vertex.K2() = 0.0f;
+    }
+    for (Eigen::Index row = 0; row < count; ++row) {
+        const int sourceIndex = source.vertexToSourceIndex[size_t(row)];
+        if (sourceIndex < 0 || size_t(sourceIndex) >= mesh.vert.size())
+            continue;
+        VCGVertex &vertex = mesh.vert[size_t(sourceIndex)];
+        vertex.PD1() = vcg::Point3f(float(maximumDirections(row, 0)),
+                                    float(maximumDirections(row, 1)),
+                                    float(maximumDirections(row, 2)));
+        vertex.PD2() = vcg::Point3f(float(minimumDirections(row, 0)),
+                                    float(minimumDirections(row, 1)),
+                                    float(minimumDirections(row, 2)));
+        vertex.K1() = float(maximumValues(row));
+        vertex.K2() = float(minimumValues(row));
+    }
+    return true;
+}
+
 } // namespace qmeshlab::libigl
