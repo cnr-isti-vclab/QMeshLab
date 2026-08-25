@@ -130,6 +130,12 @@ target_link_libraries(QMeshLabCore PUBLIC
     Qt6::Widgets
 )
 
+if(WIN32)
+    # Prevent the Windows SDK's min/max macros from rewriting std::min and
+    # std::max in vcglib, CGAL, and plugins that consume the core target.
+    target_compile_definitions(QMeshLabCore PUBLIC NOMINMAX)
+endif()
+
 # Embree occlusion backend (no-op interface target when embree is unavailable).
 target_link_libraries(QMeshLabCore PRIVATE QMeshLabEmbree)
 
