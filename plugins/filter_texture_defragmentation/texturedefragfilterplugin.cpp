@@ -23,7 +23,6 @@
 #include <QObject>
 #include <QRegularExpression>
 #include <QStringList>
-#include <unistd.h>
 #include <vector>
 #include <vcg/complex/append.h>
 #include <vcg/complex/algorithms/clean.h>
