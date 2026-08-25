@@ -8,7 +8,10 @@
 #include <igl/exact_geodesic.h>
 #include <igl/gaussian_curvature.h>
 #include <igl/heat_geodesics.h>
+#include <igl/hessian_energy.h>
+#include <igl/massmatrix.h>
 #include <igl/principal_curvature.h>
+#include <Eigen/SparseCholesky>
 #include <wrap/io_trimesh/io_mask.h>
 #include <QObject>
 #include <algorithm>
@@ -22,6 +25,7 @@ constexpr QLatin1StringView kGaussian("compute_gaussian_curvature_per_vertex_lib
 constexpr QLatin1StringView kPrincipal("compute_curvature_principal_directions_per_vertex_libigl");
 constexpr QLatin1StringView kExactGeodesic("compute_exact_geodesic_distance_from_selection_per_vertex_libigl");
 constexpr QLatin1StringView kHeatGeodesic("compute_heat_geodesic_distance_from_selection_per_vertex_libigl");
+constexpr QLatin1StringView kHessianSmooth("apply_scalar_hessian_smoothing_per_vertex_libigl");
 namespace IglAdapter = qmeshlab::libigl;
 using Mask = vcg::tri::io::Mask;
 
@@ -64,7 +68,8 @@ bool isIglQuantityFilter(const QString &filterId)
     return filterId == QString::fromLatin1(kGaussian)
         || filterId == QString::fromLatin1(kPrincipal)
         || filterId == QString::fromLatin1(kExactGeodesic)
-        || filterId == QString::fromLatin1(kHeatGeodesic);
+        || filterId == QString::fromLatin1(kHeatGeodesic)
+        || filterId == QString::fromLatin1(kHessianSmooth);
 }
 
 MeshFilterRunResult runIglQuantityFilter(
@@ -94,7 +99,9 @@ MeshFilterRunResult runIglQuantityFilter(
             ? QObject::tr("Principal Curvature Directions (libigl)")
             : filterId == QString::fromLatin1(kExactGeodesic)
                 ? QObject::tr("Exact Geodesic Distance (libigl)")
-                : QObject::tr("Heat Geodesic Distance (libigl)");
+                : filterId == QString::fromLatin1(kHeatGeodesic)
+                    ? QObject::tr("Heat Geodesic Distance (libigl)")
+                    : QObject::tr("Natural-Boundary Hessian Scalar Smoothing (libigl)");
     doc.beginFilterProgress(label);
     if (vcg::CallBackPos *cb = doc.progressCallback())
         (*cb)(10, "Converting mesh to libigl matrices...");
@@ -208,6 +215,32 @@ MeshFilterRunResult runIglQuantityFilter(
             if (vcg::CallBackPos *cb = doc.progressCallback())
                 (*cb)(75, "Solving heat distance...");
             igl::heat_geodesics_solve(data, selected, values);
+        } else if (filterId == QString::fromLatin1(kHessianSmooth)) {
+            if (vcg::CallBackPos *cb = doc.progressCallback())
+                (*cb)(30, "Building Hessian and mass matrices...");
+            const double weight = std::clamp(
+                params.getDouble(QStringLiteral("smoothing_weight")), 0.0, 0.999999);
+            Eigen::VectorXd input(source.vertices.rows());
+            for (Eigen::Index row = 0; row < input.size(); ++row)
+                input(row) = entry.mesh.vert[size_t(source.vertexToSourceIndex[size_t(row)])].cQ();
+
+            Eigen::SparseMatrix<double> hessian, mass;
+            igl::hessian_energy(source.vertices, source.faces, hessian);
+            igl::massmatrix(
+                source.vertices, source.faces, igl::MASSMATRIX_TYPE_VORONOI, mass);
+            const Eigen::SparseMatrix<double> system = weight * hessian + (1.0 - weight) * mass;
+            Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver(system);
+            if (solver.info() != Eigen::Success) {
+                error = QObject::tr("Could not factorize the Hessian smoothing system.");
+                doc.finishFilterProgress(false, error);
+                return fail(error);
+            }
+            values = solver.solve((1.0 - weight) * mass * input);
+            if (solver.info() != Eigen::Success) {
+                error = QObject::tr("Could not solve the Hessian smoothing system.");
+                doc.finishFilterProgress(false, error);
+                return fail(error);
+            }
         } else {
             return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
         }

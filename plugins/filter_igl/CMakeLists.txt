@@ -35,6 +35,7 @@ add_library(QMeshLabPluginFilterIgl STATIC
     iglfilterplugin.h iglfilterplugin.cpp
     iglbooleans.h iglbooleans.cpp
     iglparametrization.h iglparametrization.cpp
+    iglqueries.h iglqueries.cpp
     iglquantities.h iglquantities.cpp
     libiglmeshadapter.h libiglmeshadapter.cpp
 )

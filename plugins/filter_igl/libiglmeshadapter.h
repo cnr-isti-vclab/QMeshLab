@@ -27,6 +27,13 @@ bool meshToEigen(
     QString &error,
     const QMatrix4x4 *transform = nullptr);
 
+bool meshVerticesToEigen(
+    const VCGMesh &mesh,
+    VertexMatrix &vertices,
+    std::vector<int> &vertexToSourceIndex,
+    QString &error,
+    const QMatrix4x4 *transform = nullptr);
+
 bool eigenToMesh(
     const VertexMatrix &vertices,
     const FaceMatrix &faces,
@@ -44,6 +51,12 @@ bool selectedVertexRows(
 bool writeVertexScalars(
     VCGMesh &mesh,
     const EigenMesh &source,
+    const Eigen::VectorXd &values,
+    QString &error);
+
+bool writeVertexScalars(
+    VCGMesh &mesh,
+    const std::vector<int> &vertexToSourceIndex,
     const Eigen::VectorXd &values,
     QString &error);
 

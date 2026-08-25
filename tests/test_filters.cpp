@@ -3370,15 +3370,23 @@ void FilterTests::libiglParametrizationFiltersRunWhenAvailable()
 
     QString harmonicKey;
     QString lscmKey;
+    QString arapKey;
+    QString slimKey;
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_harmonic"))
             harmonicKey = info.key;
         else if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_least_squares_conformal_maps"))
             lscmKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_as_rigid_as_possible_libigl"))
+            arapKey = info.key;
+        else if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_slim_libigl"))
+            slimKey = info.key;
     }
 
     if (harmonicKey.isEmpty() || lscmKey.isEmpty())
         QSKIP("libigl parametrization plugin is not available in this build.");
+    QVERIFY(!arapKey.isEmpty());
+    QVERIFY(!slimKey.isEmpty());
 
     {
         MeshFilterParameterValues params;
@@ -3395,6 +3403,17 @@ void FilterTests::libiglParametrizationFiltersRunWhenAvailable()
         QVERIFY(result.documentModified);
         QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD) != 0);
     }
+
+    for (const QString &filterKey : { arapKey, slimKey }) {
+        const MeshFilterRunResult result = doc.runFilter(filterKey, {});
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        for (const VCGVertex &vertex : doc.mesh(0).mesh.vert) {
+            if (!vertex.IsD()) {
+                QVERIFY(std::isfinite(vertex.cT().U()));
+                QVERIFY(std::isfinite(vertex.cT().V()));
+            }
+        }
+    }
 }
 
 void FilterTests::libiglQuantityFiltersRunWhenAvailable()
@@ -3407,7 +3426,7 @@ void FilterTests::libiglQuantityFiltersRunWhenAvailable()
         | vcg::tri::io::Mask::IOM_FACENORMAL;
     QCOMPARE(sphereDoc.addMesh(sphere, QStringLiteral("Sphere"), mask), 0);
 
-    QString gaussianKey, principalKey, exactKey, heatKey;
+    QString gaussianKey, principalKey, exactKey, heatKey, hessianKey, windingKey;
     for (const auto &info : sphereDoc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("compute_gaussian_curvature_per_vertex_libigl")) {
             gaussianKey = info.key;
@@ -3424,6 +3443,12 @@ void FilterTests::libiglQuantityFiltersRunWhenAvailable()
         } else if (info.descriptor.id
                    == QStringLiteral("compute_heat_geodesic_distance_from_selection_per_vertex_libigl")) {
             heatKey = info.key;
+        } else if (info.descriptor.id
+                   == QStringLiteral("apply_scalar_hessian_smoothing_per_vertex_libigl")) {
+            hessianKey = info.key;
+        } else if (info.descriptor.id
+                   == QStringLiteral("compute_generalized_winding_number_per_vertex_libigl")) {
+            windingKey = info.key;
         }
     }
     if (gaussianKey.isEmpty())
@@ -3431,6 +3456,8 @@ void FilterTests::libiglQuantityFiltersRunWhenAvailable()
     QVERIFY(!principalKey.isEmpty());
     QVERIFY(!exactKey.isEmpty());
     QVERIFY(!heatKey.isEmpty());
+    QVERIFY(!hessianKey.isEmpty());
+    QVERIFY(!windingKey.isEmpty());
 
     const MeshFilterRunResult gaussian = sphereDoc.runFilter(gaussianKey, {});
     QVERIFY2(gaussian.success, qPrintable(gaussian.errorMessage));
@@ -3472,6 +3499,40 @@ void FilterTests::libiglQuantityFiltersRunWhenAvailable()
     const float cornerDistance = std::sqrt(0.5f);
     for (int i = 0; i < 4; ++i)
         QVERIFY(std::abs(diskDoc.mesh(0).mesh.vert[size_t(i)].cQ() - cornerDistance) < 1e-5f);
+
+    for (VCGVertex &vertex : diskDoc.mesh(0).mesh.vert)
+        vertex.Q() = 0.0f;
+    diskDoc.mesh(0).mesh.vert[4].Q() = 1.0f;
+    MeshFilterParameterValues smoothingParams;
+    smoothingParams.insert(QStringLiteral("smoothing_weight"), 0.1);
+    const MeshFilterRunResult smooth = diskDoc.runFilter(hessianKey, smoothingParams);
+    QVERIFY2(smooth.success, qPrintable(smooth.errorMessage));
+    QVERIFY(diskDoc.mesh(0).mesh.vert[4].cQ() < 1.0f);
+    for (const VCGVertex &vertex : diskDoc.mesh(0).mesh.vert)
+        QVERIFY(std::isfinite(vertex.cQ()));
+
+    Document windingDoc;
+    VCGMesh cube, queries;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddVertices(queries, 2);
+    queries.vert[0].P() = vcg::Point3f(0.5f, 0.5f, 0.5f);
+    queries.vert[1].P() = vcg::Point3f(2.0f, 2.0f, 2.0f);
+    QCOMPARE(windingDoc.addMesh(cube, QStringLiteral("Surface"), mask), 0);
+    QCOMPARE(windingDoc.addMesh(
+                 queries,
+                 QStringLiteral("Queries"),
+                 vcg::tri::io::Mask::IOM_VERTCOORD),
+             1);
+    for (const QString &method : { QStringLiteral("exact"), QStringLiteral("fast") }) {
+        MeshFilterParameterValues windingParams;
+        windingParams.insert(QStringLiteral("surface_mesh"), 0);
+        windingParams.insert(QStringLiteral("method"), method);
+        const MeshFilterRunResult winding = windingDoc.runFilter(windingKey, windingParams);
+        QVERIFY2(winding.success, qPrintable(winding.errorMessage));
+        const float tolerance = method == QStringLiteral("exact") ? 1e-4f : 0.05f;
+        QVERIFY(std::abs(std::abs(windingDoc.mesh(1).mesh.vert[0].cQ()) - 1.0f) < tolerance);
+        QVERIFY(std::abs(windingDoc.mesh(1).mesh.vert[1].cQ()) < tolerance);
+    }
 }
 
 void FilterTests::meshBooleanFiltersRunWhenAvailable()

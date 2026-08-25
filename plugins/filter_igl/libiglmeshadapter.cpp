@@ -126,6 +126,32 @@ bool meshToEigen(
     return true;
 }
 
+bool meshVerticesToEigen(
+    const VCGMesh &mesh,
+    VertexMatrix &vertices,
+    std::vector<int> &vertexToSourceIndex,
+    QString &error,
+    const QMatrix4x4 *transform)
+{
+    vertexToSourceIndex.clear();
+    vertexToSourceIndex.reserve(size_t(std::max(0, mesh.VN())));
+    for (size_t i = 0; i < mesh.vert.size(); ++i)
+        if (!mesh.vert[i].IsD())
+            vertexToSourceIndex.push_back(int(i));
+    if (vertexToSourceIndex.empty()) {
+        error = QObject::tr("The mesh has no vertices.");
+        return false;
+    }
+
+    vertices.resize(Eigen::Index(vertexToSourceIndex.size()), 3);
+    for (Eigen::Index row = 0; row < vertices.rows(); ++row) {
+        const vcg::Point3f p = transformedPoint(
+            mesh.vert[size_t(vertexToSourceIndex[size_t(row)])].cP(), transform);
+        vertices.row(row) << double(p.X()), double(p.Y()), double(p.Z());
+    }
+    return true;
+}
+
 bool eigenToMesh(
     const VertexMatrix &vertices,
     const FaceMatrix &faces,
@@ -208,7 +234,16 @@ bool writeVertexScalars(
     const Eigen::VectorXd &values,
     QString &error)
 {
-    if (values.size() != source.vertices.rows() || !values.allFinite()) {
+    return writeVertexScalars(mesh, source.vertexToSourceIndex, values, error);
+}
+
+bool writeVertexScalars(
+    VCGMesh &mesh,
+    const std::vector<int> &vertexToSourceIndex,
+    const Eigen::VectorXd &values,
+    QString &error)
+{
+    if (values.size() != Eigen::Index(vertexToSourceIndex.size()) || !values.allFinite()) {
         error = QObject::tr("libigl returned invalid vertex scalar values.");
         return false;
     }
@@ -217,7 +252,7 @@ bool writeVertexScalars(
         if (!vertex.IsD())
             vertex.Q() = 0.0f;
     for (Eigen::Index row = 0; row < values.size(); ++row) {
-        const int sourceIndex = source.vertexToSourceIndex[size_t(row)];
+        const int sourceIndex = vertexToSourceIndex[size_t(row)];
         if (sourceIndex >= 0 && size_t(sourceIndex) < mesh.vert.size())
             mesh.vert[size_t(sourceIndex)].Q() = float(values(row));
     }

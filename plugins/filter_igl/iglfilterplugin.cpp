@@ -2,6 +2,7 @@
 
 #include "iglbooleans.h"
 #include "iglparametrization.h"
+#include "iglqueries.h"
 #include "iglquantities.h"
 #include "meshfilterpluginmanager.h"
 
@@ -28,6 +29,8 @@ MeshFilterRunResult IglFilterPlugin::runFilter(
         return runIglParametrizationFilter(filterId, params, doc);
     if (isIglQuantityFilter(filterId))
         return runIglQuantityFilter(filterId, params, doc);
+    if (isIglQueryFilter(filterId))
+        return runIglQueryFilter(filterId, params, doc);
 
     MeshFilterRunResult result;
     result.success = false;

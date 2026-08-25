@@ -79,6 +79,88 @@
       "issued": { "date-parts": [[2013]] },
       "DOI": "10.1145/2516971.2516977",
       "URL": "https://www.cs.cmu.edu/~kmcrane/Projects/HeatMethod/paperCACM.pdf"
+    },
+    {
+      "id": "sorkine2007arap",
+      "type": "paper-conference",
+      "title": "As-Rigid-As-Possible Surface Modeling",
+      "author": [
+        { "family": "Sorkine", "given": "Olga" },
+        { "family": "Alexa", "given": "Marc" }
+      ],
+      "container-title": "Geometry Processing",
+      "publisher": "The Eurographics Association",
+      "page": "109-116",
+      "issued": { "date-parts": [[2007]] },
+      "DOI": "10.2312/SGP/SGP07/109-116"
+    },
+    {
+      "id": "rabinovich2017slim",
+      "type": "article-journal",
+      "title": "Scalable Locally Injective Mappings",
+      "author": [
+        { "family": "Rabinovich", "given": "Michael" },
+        { "family": "Poranne", "given": "Roi" },
+        { "family": "Panozzo", "given": "Daniele" },
+        { "family": "Sorkine-Hornung", "given": "Olga" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "36",
+      "issue": "4",
+      "issued": { "date-parts": [[2017]] },
+      "DOI": "10.1145/3072959.2983621"
+    },
+    {
+      "id": "jacobson2013winding",
+      "type": "article-journal",
+      "title": "Robust Inside-Outside Segmentation using Generalized Winding Numbers",
+      "author": [
+        { "family": "Jacobson", "given": "Alec" },
+        { "family": "Kavan", "given": "Ladislav" },
+        { "family": "Sorkine-Hornung", "given": "Olga" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "32",
+      "issue": "4",
+      "page": "33:1-33:12",
+      "issued": { "date-parts": [[2013]] },
+      "DOI": "10.1145/2461912.2461916"
+    },
+    {
+      "id": "barill2018fastwinding",
+      "type": "article-journal",
+      "title": "Fast Winding Numbers for Soups and Clouds",
+      "author": [
+        { "family": "Barill", "given": "Gavin" },
+        { "family": "Dickson", "given": "Neil G." },
+        { "family": "Schmidt", "given": "Ryan" },
+        { "family": "Levin", "given": "David I. W." },
+        { "family": "Jacobson", "given": "Alec" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "37",
+      "issue": "4",
+      "issued": { "date-parts": [[2018]] },
+      "DOI": "10.1145/3197517.3201337",
+      "URL": "https://www.dgp.toronto.edu/projects/fast-winding-numbers/"
+    },
+    {
+      "id": "stein2018natural",
+      "type": "article-journal",
+      "title": "Natural Boundary Conditions for Smoothing in Geometry Processing",
+      "author": [
+        { "family": "Stein", "given": "Oded" },
+        { "family": "Grinspun", "given": "Eitan" },
+        { "family": "Wardetzky", "given": "Max" },
+        { "family": "Jacobson", "given": "Alec" }
+      ],
+      "container-title": "ACM Transactions on Graphics",
+      "volume": "37",
+      "issue": "2",
+      "page": "23",
+      "issued": { "date-parts": [[2018]] },
+      "DOI": "10.1145/3186564",
+      "URL": "https://arxiv.org/abs/1707.04348"
     }
   ],
   "filters": [
@@ -632,6 +714,141 @@
           "group": "main",
           "type": "bool",
           "default": false
+        }
+      ],
+      "outputModifies": ["VQ"]
+    },
+    {
+      "id": "compute_texcoord_parametrization_as_rigid_as_possible_libigl",
+      "categories": ["Parametrization/UV Creation"],
+      "name": "Compute As-Rigid-As-Possible Parametrization (libigl)",
+      "pythonName": "compute_texcoord_parametrization_as_rigid_as_possible_libigl",
+      "referenceIds": ["libigl", "sorkine2007arap"],
+      "shortDescription": "Optimize a harmonic UV map with libigl's ARAP local-global solver.",
+      "longDescriptionMarkdown": "Computes an **as-rigid-as-possible (ARAP)** UV parametrization. A harmonic map with a circular boundary supplies the initial guess; libigl's local-global solver then reduces local metric distortion without fixing the boundary. The input must be a connected disk-like triangle surface with at least one interior vertex.\n\n**Iterations** limits the nonlinear optimization. More iterations generally improve convergence at additional cost. ARAP strongly favors locally rigid maps but does not guarantee a globally injective result; use SLIM when preventing flipped triangles is the primary goal. The result is stored as per-vertex texture coordinates and synchronized to existing per-wedge coordinates.",
+      "tags": ["texture", "uv", "parametrization", "arap", "libigl"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireFaces": true },
+      "inputPrepare": ["VTex"],
+      "parameters": [
+        {
+          "id": "iterations",
+          "label": "Iterations",
+          "help": "Maximum number of ARAP local-global iterations.",
+          "group": "main",
+          "type": "int",
+          "default": 50,
+          "min": 1,
+          "max": 1000
+        }
+      ],
+      "outputModifies": ["VT", "WT"]
+    },
+    {
+      "id": "compute_texcoord_parametrization_slim_libigl",
+      "categories": ["Parametrization/UV Creation"],
+      "name": "Compute Locally Injective Parametrization (SLIM)",
+      "pythonName": "compute_texcoord_parametrization_slim_libigl",
+      "referenceIds": ["libigl", "rabinovich2017slim"],
+      "shortDescription": "Optimize a flip-preventing UV map with libigl's SLIM solver.",
+      "longDescriptionMarkdown": "Computes a UV parametrization with **Scalable Locally Injective Mappings (SLIM)**. The filter starts from a circular-boundary harmonic map and minimizes the selected distortion energy through SLIM's flip-preventing local-global iterations. If the cotangent harmonic initializer contains flips, a uniform-weight harmonic map is tried instead. The input must be a connected disk-like triangle surface with at least one interior vertex.\n\n**Symmetric Dirichlet** balances angle and area distortion and is the recommended default. **ARAP** emphasizes local rigidity; **Conformal** emphasizes angle preservation. SLIM preserves injectivity when supplied with an injective initial map, but cannot repair an initializer that remains folded. The result is stored as per-vertex texture coordinates and synchronized to existing per-wedge coordinates.",
+      "tags": ["texture", "uv", "parametrization", "slim", "injective", "libigl"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true, "requireFaces": true },
+      "inputPrepare": ["VTex"],
+      "parameters": [
+        {
+          "id": "energy",
+          "label": "Distortion Energy",
+          "help": "Distortion energy minimized by SLIM.",
+          "group": "main",
+          "type": "enum",
+          "default": "symmetric_dirichlet",
+          "enumOptions": [
+            { "id": "symmetric_dirichlet", "label": "Symmetric Dirichlet" },
+            { "id": "arap", "label": "ARAP" },
+            { "id": "conformal", "label": "Conformal" }
+          ]
+        },
+        {
+          "id": "iterations",
+          "label": "Iterations",
+          "help": "Number of SLIM optimization iterations.",
+          "group": "main",
+          "type": "int",
+          "default": 10,
+          "min": 1,
+          "max": 1000
+        }
+      ],
+      "outputModifies": ["VT", "WT"]
+    },
+    {
+      "id": "compute_generalized_winding_number_per_vertex_libigl",
+      "categories": ["Attribute/Scalar"],
+      "name": "Compute Generalized Winding Number (libigl)",
+      "pythonName": "compute_generalized_winding_number_per_vertex_libigl",
+      "referenceIds": ["libigl", "jacobson2013winding", "barill2018fastwinding"],
+      "shortDescription": "Evaluate another layer's generalized winding-number field at every current-layer vertex.",
+      "longDescriptionMarkdown": "Evaluates the oriented **Surface Mesh** winding-number field at every vertex of the current mesh or point cloud and stores it in **vertex scalar**. Layer transforms are applied before evaluation. For a consistently oriented closed surface, values are approximately $1$ inside and $0$ outside; reversing its orientation reverses the sign. On open, self-intersecting, or non-manifold triangle soups the field remains continuous and useful, but the value $0.5$ is only a conventional classification threshold.\n\n**Fast Approximation** builds libigl's second-order hierarchy and is the practical default for large inputs. **Exact** directly accumulates triangle solid angles and can be prohibitively expensive because its work grows with both surface triangles and query vertices.",
+      "tags": ["winding number", "inside outside", "classification", "triangle soup", "libigl"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireVertices": true },
+      "parameters": [
+        {
+          "id": "surface_mesh",
+          "label": "Surface Mesh",
+          "help": "Oriented triangle surface whose winding-number field is evaluated.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@otherMeshIndex",
+          "meshRequirements": { "requireVertices": true, "requireFaces": true }
+        },
+        {
+          "id": "method",
+          "label": "Method",
+          "help": "Use the hierarchical approximation for speed or direct solid-angle accumulation for exact values.",
+          "group": "main",
+          "type": "enum",
+          "default": "fast",
+          "enumOptions": [
+            { "id": "fast", "label": "Fast Approximation" },
+            { "id": "exact", "label": "Exact" }
+          ]
+        }
+      ],
+      "outputModifies": ["VQ"]
+    },
+    {
+      "id": "apply_scalar_hessian_smoothing_per_vertex_libigl",
+      "categories": ["Attribute/Scalar"],
+      "name": "Apply Natural-Boundary Hessian Scalar Smoothing (libigl)",
+      "pythonName": "apply_scalar_hessian_smoothing_per_vertex_libigl",
+      "referenceIds": ["libigl", "stein2018natural"],
+      "shortDescription": "Smooth vertex scalar values with Hessian energy and natural boundary conditions.",
+      "longDescriptionMarkdown": "Smooths the current **vertex scalar** field by minimizing\n\n$$\\alpha\\,u^T H u + (1-\\alpha)(u-f)^T M(u-f),$$\n\nwhere $f$ is the input scalar field, $H$ is libigl's mixed finite-element Hessian-energy matrix, and $M$ is the Voronoi mass matrix. Unlike a squared-Laplacian construction, Hessian energy supplies natural high-order boundary conditions, so the geometric shape of an open boundary does not impose the usual low-order boundary bias.\n\n**Smoothing Weight** is $\\alpha$: zero preserves the input and values near one favor an affine field. Its effect depends on mesh scale because the two energy terms have different physical dimensions. The filter changes scalar values only, not geometry or colors.",
+      "tags": ["scalar", "smoothing", "hessian", "natural boundary", "libigl"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requireVertexQuality": true
+      },
+      "parameters": [
+        {
+          "id": "smoothing_weight",
+          "label": "Smoothing Weight",
+          "help": "Tradeoff alpha between Hessian smoothness and fidelity to the input scalar values.",
+          "group": "main",
+          "type": "double",
+          "default": 0.01,
+          "min": 0.0,
+          "max": 0.999,
+          "decimals": 4
         }
       ],
       "outputModifies": ["VQ"]

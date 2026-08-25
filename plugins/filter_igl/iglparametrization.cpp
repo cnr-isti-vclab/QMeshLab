@@ -5,10 +5,13 @@
 #include "libiglmeshadapter.h"
 #include "meshfilterpluginmanager.h"
 
+#include <igl/arap.h>
 #include <igl/boundary_loop.h>
+#include <igl/flipped_triangles.h>
 #include <igl/harmonic.h>
 #include <igl/lscm.h>
 #include <igl/map_vertices_to_circle.h>
+#include <igl/slim.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <QObject>
 #include <algorithm>
@@ -19,6 +22,8 @@ namespace {
 
 constexpr QLatin1StringView kHarmonic("compute_texcoord_parametrization_harmonic");
 constexpr QLatin1StringView kLscm("compute_texcoord_parametrization_least_squares_conformal_maps");
+constexpr QLatin1StringView kArap("compute_texcoord_parametrization_as_rigid_as_possible_libigl");
+constexpr QLatin1StringView kSlim("compute_texcoord_parametrization_slim_libigl");
 using Mask = vcg::tri::io::Mask;
 namespace IglAdapter = qmeshlab::libigl;
 
@@ -34,6 +39,32 @@ MeshFilterRunResult success(const QStringList &info)
     result.documentModified = true;
     result.infoMessages = info;
     return result;
+}
+
+bool harmonicMap(
+    const IglAdapter::EigenMesh &mesh,
+    int order,
+    Eigen::VectorXi &boundary,
+    Eigen::MatrixXd &uv,
+    QString &error)
+{
+    igl::boundary_loop(mesh.faces, boundary);
+    if (boundary.size() == 0) {
+        error = QObject::tr("Parametrization requires a mesh with a boundary.");
+        return false;
+    }
+    if (boundary.size() >= mesh.vertices.rows()) {
+        error = QObject::tr("Parametrization requires at least one non-boundary vertex.");
+        return false;
+    }
+
+    Eigen::MatrixXd boundaryUv;
+    igl::map_vertices_to_circle(mesh.vertices, boundary, boundaryUv);
+    if (!igl::harmonic(mesh.vertices, mesh.faces, boundary, boundaryUv, order, uv)) {
+        error = QObject::tr("Harmonic initialization failed.");
+        return false;
+    }
+    return true;
 }
 
 bool writeVertexTexcoords(
@@ -112,34 +143,9 @@ MeshFilterRunResult runIglParametrizationFilter(
             if (vcg::CallBackPos *cb = doc.progressCallback())
                 (*cb)(10, "Finding boundary loop...");
 
-            igl::boundary_loop(eigenMesh.faces, boundary);
-            if (boundary.size() == 0) {
-                error = QObject::tr("Harmonic Parametrization can be applied only to meshes that have a boundary.");
-                doc.finishFilterProgress(false, error);
-                return fail(error);
-            }
-            if (boundary.size() >= eigenMesh.vertices.rows()) {
-                error = QObject::tr(
-                    "Harmonic Parametrization requires at least one non-boundary vertex.");
-                doc.finishFilterProgress(false, error);
-                return fail(error);
-            }
-
-            Eigen::MatrixXd boundaryUv;
-            if (vcg::CallBackPos *cb = doc.progressCallback())
-                (*cb)(30, "Mapping boundary to circle...");
-            igl::map_vertices_to_circle(eigenMesh.vertices, boundary, boundaryUv);
-
             if (vcg::CallBackPos *cb = doc.progressCallback())
                 (*cb)(55, "Solving harmonic map...");
-            if (!igl::harmonic(
-                    eigenMesh.vertices,
-                    eigenMesh.faces,
-                    boundary,
-                    boundaryUv,
-                    harmonicOrder,
-                    uv)) {
-                error = QObject::tr("Harmonic Parametrization failed.");
+            if (!harmonicMap(eigenMesh, harmonicOrder, boundary, uv, error)) {
                 doc.finishFilterProgress(false, error);
                 return fail(error);
             }
@@ -176,6 +182,76 @@ MeshFilterRunResult runIglParametrizationFilter(
                 error = QObject::tr("Least Squares Conformal Maps Parametrization failed.");
                 doc.finishFilterProgress(false, error);
                 return fail(error);
+            }
+        } else if (filterId == QString::fromLatin1(kArap)
+                   || filterId == QString::fromLatin1(kSlim)) {
+            const bool arap = filterId == QString::fromLatin1(kArap);
+            label = arap
+                ? QObject::tr("As-Rigid-As-Possible Parametrization (libigl)")
+                : QObject::tr("Scalable Locally Injective Parametrization (libigl)");
+            doc.beginFilterProgress(label);
+            if (vcg::CallBackPos *cb = doc.progressCallback())
+                (*cb)(20, "Computing harmonic initialization...");
+            if (!harmonicMap(eigenMesh, 1, boundary, uv, error)) {
+                doc.finishFilterProgress(false, error);
+                return fail(error);
+            }
+
+            const int iterations = std::max(1, params.getInt(QStringLiteral("iterations")));
+            if (vcg::CallBackPos *cb = doc.progressCallback())
+                (*cb)(55, arap ? "Optimizing ARAP map..." : "Optimizing SLIM map...");
+            if (arap) {
+                igl::ARAPData data;
+                data.with_dynamics = true;
+                data.max_iter = iterations;
+                const Eigen::VectorXi fixed;
+                const Eigen::MatrixXd fixedUv;
+                if (!igl::arap_precomputation(
+                        eigenMesh.vertices, eigenMesh.faces, 2, fixed, data)
+                    || !igl::arap_solve(fixedUv, data, uv)) {
+                    error = QObject::tr("libigl ARAP optimization failed.");
+                    doc.finishFilterProgress(false, error);
+                    return fail(error);
+                }
+            } else {
+                // SLIM requires an injective initial map. Cotangent harmonic maps
+                // can flip on poor triangles, so retry with uniform weights.
+                if (igl::flipped_triangles(uv, eigenMesh.faces).size() > 0) {
+                    Eigen::MatrixXd boundaryUv;
+                    igl::map_vertices_to_circle(eigenMesh.vertices, boundary, boundaryUv);
+                    if (!igl::harmonic(eigenMesh.faces, boundary, boundaryUv, 1, uv)) {
+                        error = QObject::tr("Could not build an injective SLIM initialization.");
+                        doc.finishFilterProgress(false, error);
+                        return fail(error);
+                    }
+                }
+                if (igl::flipped_triangles(uv, eigenMesh.faces).size() > 0) {
+                    error = QObject::tr(
+                        "SLIM requires an injective initial map, but both harmonic initializations contain flipped triangles.");
+                    doc.finishFilterProgress(false, error);
+                    return fail(error);
+                }
+
+                igl::MappingEnergyType energy = igl::SYMMETRIC_DIRICHLET;
+                const QString energyId = params.getEnum(QStringLiteral("energy"));
+                if (energyId == QStringLiteral("arap"))
+                    energy = igl::ARAP;
+                else if (energyId == QStringLiteral("conformal"))
+                    energy = igl::CONFORMAL;
+
+                igl::SLIMData data;
+                const Eigen::VectorXi fixed;
+                const Eigen::MatrixXd fixedUv;
+                igl::slim_precompute(
+                    eigenMesh.vertices,
+                    eigenMesh.faces,
+                    uv,
+                    data,
+                    energy,
+                    fixed,
+                    fixedUv,
+                    0.0);
+                uv = igl::slim_solve(data, iterations);
             }
         } else {
             return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
@@ -216,5 +292,7 @@ MeshFilterRunResult runIglParametrizationFilter(
 bool isIglParametrizationFilter(const QString &filterId)
 {
     return filterId == QString::fromLatin1(kHarmonic)
-        || filterId == QString::fromLatin1(kLscm);
+        || filterId == QString::fromLatin1(kLscm)
+        || filterId == QString::fromLatin1(kArap)
+        || filterId == QString::fromLatin1(kSlim);
 }
