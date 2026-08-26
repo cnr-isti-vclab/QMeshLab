@@ -4,7 +4,7 @@
     {
       "id": "compute_matrix_by_icp_between_meshes",
       "categories": ["Geometry/Alignment"],
-      "name": "ICP Between Meshes",
+      "name": "Align by ICP",
       "pythonName": "compute_matrix_by_icp_between_meshes",
       "shortDescription": "Compute an ICP transform that aligns one mesh layer to another.",
       "longDescriptionMarkdown": "Perform Iterative Closest Point alignment between a fixed reference layer and a moving source layer. The source layer transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.",
@@ -165,7 +165,7 @@
     {
       "id": "compute_matrix_by_mesh_global_alignment",
       "categories": ["Geometry/Alignment"],
-      "name": "Global Align Meshes",
+      "name": "Align Meshes Globally",
       "pythonName": "compute_matrix_by_mesh_global_alignment",
       "shortDescription": "Globally align overlapping mesh layers using pairwise ICP arcs.",
       "longDescriptionMarkdown": "Build an overlap graph among the selected document layers, run ICP on sufficiently overlapping layer pairs, then solve a global alignment. The chosen base mesh remains fixed and the other layer transforms are updated without baking coordinates.",

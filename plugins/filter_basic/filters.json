@@ -30,49 +30,6 @@
       ]
     },
     {
-      "id": "normalize_unit_box",
-      "categories": ["Geometry/Transform"],
-      "name": "Normalize To Unit Box",
-      "pythonName": "normalize_to_unit_box",
-      "shortDescription": "Uniformly scales the current mesh to a target box size.",
-      "longDescriptionMarkdown": "Computes current mesh bounding box and applies uniform scale, with optional recentering.",
-      "tags": [
-        "geometry",
-        "normalize",
-        "transform"
-      ],
-      "inputDomain": "SingleMesh",
-      "outputDomain": "ModifyCurrentMesh",
-      "inputRequirements": {
-        "requireVertices": true
-      },
-      "parameters": [
-        {
-          "id": "target_size",
-          "label": "Target Size",
-          "help": "Largest box dimension after normalization.",
-          "group": "main",
-          "type": "double",
-          "default": 1.0,
-          "min": 1e-08,
-          "max": 1000000.0,
-          "decimals": 6
-        },
-        {
-          "id": "recenter",
-          "label": "Recenter",
-          "help": "Recenters mesh to origin before scaling.",
-          "group": "main",
-          "type": "bool",
-          "default": true
-        }
-      ],
-      "outputModifies": [
-        "VG",
-        "VN"
-      ]
-    },
-    {
       "id": "create_noisy_isosurface",
       "categories": ["Creation/Primitives"],
       "name": "Create Isosurface from Perlin Noise",

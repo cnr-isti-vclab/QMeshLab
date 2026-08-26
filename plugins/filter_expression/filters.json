@@ -88,7 +88,7 @@
     {
       "id": "per_vertex_geometric_function",
       "categories": ["Geometry/Deformation"],
-      "name": "Per Vertex Geometric Function",
+      "name": "Compute Vertex Coordinates by Expression",
       "pythonName": "apply_vertex_geometric_function",
       "shortDescription": "Computes new per-vertex coordinates from expressions.",
       "longDescriptionMarkdown": "Geometric function using muparser lib to generate new Coord<br>You can change x,y,z for every vertex according to the function specified.<br>",

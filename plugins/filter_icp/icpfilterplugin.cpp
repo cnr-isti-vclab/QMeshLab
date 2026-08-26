@@ -321,7 +321,7 @@ MeshFilterRunResult runTwoMeshIcp(const FilterParams &params, Document &doc)
     if (!referenceInvertible)
         return fail(QObject::tr("Reference mesh transform is not invertible."));
 
-    doc.beginFilterProgress(QObject::tr("ICP Between Meshes"));
+    doc.beginFilterProgress(QObject::tr("Align by ICP"));
     if (vcg::CallBackPos *cb = doc.progressCallback())
         (*cb)(5, "Preparing ICP alignment...");
 
@@ -470,7 +470,7 @@ MeshFilterRunResult runGlobalIcp(const FilterParams &params, Document &doc)
     const vcg::AlignPair::Param alignParams = alignParamsFromFilter(params);
     const RandomSeed seed = params.getRandomSeed();
 
-    doc.beginFilterProgress(QObject::tr("Global Align Meshes"));
+    doc.beginFilterProgress(QObject::tr("Align Meshes Globally"));
     vcg::CallBackPos *cb = doc.progressCallback();
     if (cb)
         (*cb)(5, "Computing overlap graph...");

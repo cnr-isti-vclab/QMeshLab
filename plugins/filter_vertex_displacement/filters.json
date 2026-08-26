@@ -68,7 +68,7 @@
     {
       "id": "displace_by_fractal_brownian_motion",
       "categories": ["Geometry/Deformation"],
-      "name": "Displace by Fractal Brownian Motion",
+      "name": "Displace Vertices by Fractal Brownian Motion",
       "pythonName": "displace_by_fractal_brownian_motion",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices along their normals using fractal Brownian motion.",
@@ -91,7 +91,7 @@
     {
       "id": "displace_by_standard_multifractal_noise",
       "categories": ["Geometry/Deformation"],
-      "name": "Displace by Standard Multifractal Noise",
+      "name": "Displace Vertices by Standard Multifractal Noise",
       "pythonName": "displace_by_standard_multifractal_noise",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices using multiplicative standard multifractal noise.",
@@ -115,7 +115,7 @@
     {
       "id": "displace_by_heterogeneous_multifractal_noise",
       "categories": ["Geometry/Deformation"],
-      "name": "Displace by Heterogeneous Multifractal Noise",
+      "name": "Displace Vertices by Heterogeneous Multifractal Noise",
       "pythonName": "displace_by_heterogeneous_multifractal_noise",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices using elevation-dependent heterogeneous multifractal noise.",
@@ -139,7 +139,7 @@
     {
       "id": "displace_by_hybrid_multifractal_noise",
       "categories": ["Geometry/Deformation"],
-      "name": "Displace by Hybrid Multifractal Noise",
+      "name": "Displace Vertices by Hybrid Multifractal Noise",
       "pythonName": "displace_by_hybrid_multifractal_noise",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices using signal-weighted hybrid multifractal noise.",
@@ -163,7 +163,7 @@
     {
       "id": "displace_by_ridged_multifractal_noise",
       "categories": ["Geometry/Deformation"],
-      "name": "Displace by Ridged Multifractal Noise",
+      "name": "Displace Vertices by Ridged Multifractal Noise",
       "pythonName": "displace_by_ridged_multifractal_noise",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices using ridged multifractal noise.",

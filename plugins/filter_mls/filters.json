@@ -4,7 +4,7 @@
     {
       "id": "compute_mls_projection_apss",
       "categories": ["Geometry/Smoothing"],
-      "name": "MLS projection (APSS)",
+      "name": "Project Vertices onto MLS Surface (APSS)",
       "pythonName": "apply_mls_apss",
       "shortDescription": "Project a mesh or point set onto an Algebraic Point Set Surface.",
       "longDescriptionMarkdown": "Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.",
@@ -132,7 +132,7 @@
     {
       "id": "compute_mls_projection_rimls",
       "categories": ["Geometry/Smoothing"],
-      "name": "MLS projection (RIMLS)",
+      "name": "Project Vertices onto MLS Surface (RIMLS)",
       "pythonName": "apply_mls_rimls",
       "shortDescription": "Project a mesh or point set onto a Robust Implicit MLS surface.",
       "longDescriptionMarkdown": "Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.",

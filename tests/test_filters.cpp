@@ -236,6 +236,8 @@ private slots:
     void randomizedFiltersDeclareARandomSeed();
     void capFiltersAgreeOnTheHalfAngleConvention();
     void elementSamplingEmitsOneSamplePerElement();
+    void normalizeReferenceFrameIsOrientationInvariant();
+    void normalizeReferenceFrameControlsAreIndependent();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -270,7 +272,7 @@ void FilterTests::filterRegistryExposesBuiltins()
     bool hasOverlapGraph = false;
     for (const auto &info : infos) {
         hasMeshInfo = hasMeshInfo || (info.descriptor.id == QStringLiteral("mesh_info"));
-        hasNormalize = hasNormalize || (info.descriptor.id == QStringLiteral("normalize_unit_box"));
+        hasNormalize = hasNormalize || (info.descriptor.id == QStringLiteral("compute_matrix_by_reference_frame_normalization"));
         hasDuplicate = hasDuplicate || (info.descriptor.id == QStringLiteral("generate_copy_of_current_mesh"));
         hasCreateIso = hasCreateIso || (info.descriptor.id == QStringLiteral("create_noisy_isosurface"));
         hasCleanUnref =
@@ -429,7 +431,7 @@ void FilterTests::filterApplicabilityReflectsDocumentState()
         for (const auto &info : infos) {
             if (info.descriptor.id == QStringLiteral("mesh_info"))
                 hasMeshInfoApplicable = info.applicable;
-            else if (info.descriptor.id == QStringLiteral("normalize_unit_box"))
+            else if (info.descriptor.id == QStringLiteral("compute_matrix_by_reference_frame_normalization"))
                 hasNormalizeApplicable = info.applicable;
             else if (info.descriptor.id == QStringLiteral("generate_copy_of_current_mesh"))
                 hasDuplicateApplicable = info.applicable;
@@ -528,7 +530,7 @@ void FilterTests::basicFiltersRunOnLoadedMesh()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("mesh_info"))
             meshInfoKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("normalize_unit_box"))
+        else if (info.descriptor.id == QStringLiteral("compute_matrix_by_reference_frame_normalization"))
             normalizeKey = info.key;
         else if (info.descriptor.id == QStringLiteral("generate_copy_of_current_mesh"))
             duplicateKey = info.key;
@@ -554,8 +556,10 @@ void FilterTests::basicFiltersRunOnLoadedMesh()
     const std::uint64_t geomRevBefore = doc.mesh(currentBeforeNormalize).geometryRevision;
     {
         MeshFilterParameterValues params;
-        params.insert(QStringLiteral("target_size"), 1.0);
-        params.insert(QStringLiteral("recenter"), true);
+        params.insert(QStringLiteral("position"), QStringLiteral("bbox_center"));
+        params.insert(QStringLiteral("rotation"), QStringLiteral("unchanged"));
+        params.insert(QStringLiteral("scale"), QStringLiteral("unit_longest_side"));
+        params.insert(QStringLiteral("Freeze"), true);
         const MeshFilterRunResult result = doc.runFilter(normalizeKey, params);
         QVERIFY(result.success);
         QVERIFY(result.documentModified);
@@ -600,7 +604,7 @@ void FilterTests::filterParameterValidation()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("mesh_info"))
             meshInfoKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("normalize_unit_box"))
+        else if (info.descriptor.id == QStringLiteral("compute_matrix_by_reference_frame_normalization"))
             normalizeKey = info.key;
         else if (info.descriptor.id == QStringLiteral("create_noisy_isosurface"))
             createIsoKey = info.key;
@@ -637,7 +641,7 @@ void FilterTests::filterParameterValidation()
     }
     {
         MeshFilterParameterValues params;
-        params.insert(QStringLiteral("target_size"), 0.0);
+        params.insert(QStringLiteral("minAxisSeparation"), -1.0);
         const MeshFilterRunResult result = doc.runFilter(normalizeKey, params);
         QVERIFY(!result.success);
         QVERIFY(result.errorMessage.contains(QStringLiteral("minimum")));
@@ -4069,6 +4073,195 @@ void FilterTests::elementSamplingEmitsOneSamplePerElement()
     };
     QVERIFY(firstSampleWithSeed(1) != firstSampleWithSeed(2));
     QCOMPARE(firstSampleWithSeed(7), firstSampleWithSeed(7));
+}
+
+namespace {
+
+// A deliberately asymmetric box: distinct extents so the principal axes are well
+// separated, and a bump on +X so the third moment can fix the axis signs.
+void makeAsymmetricBlock(VCGMesh &mesh)
+{
+    mesh.Clear();
+    vcg::tri::Box(mesh, vcg::Box3f(vcg::Point3f(-4, -2, -1), vcg::Point3f(4, 2, 1)));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, vcg::Point3f(7.0f, 0.0f, 0.0f));
+    const int tip = mesh.VN() - 1;
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, tip, 0, 1);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+}
+
+// Several unrelated orientations. One is not enough: whether the eigen solver happens to
+// return sign-equivariant axes depends on the particular rotation, so a single case can
+// pass even with the sign disambiguation switched off.
+std::vector<QMatrix4x4> probeRotations()
+{
+    const float spec[][4] = {
+        { 37.0f, 0.3f, 0.8f, 0.5f },
+        { 90.0f, 0.0f, 0.0f, 1.0f },
+        { 180.0f, 1.0f, 0.0f, 0.0f },
+        { 145.0f, 0.6f, -0.2f, 0.77f },
+        { 61.0f, -0.5f, 0.5f, -0.7f },
+    };
+    std::vector<QMatrix4x4> out;
+    for (const auto &s : spec) {
+        QMatrix4x4 m;
+        m.setToIdentity();
+        m.rotate(s[0], s[1], s[2], s[3]);
+        out.push_back(m);
+    }
+    return out;
+}
+
+} // namespace
+
+// A canonical frame is only canonical if the same shape reaches it from any starting
+// orientation. Principal axes come out of the solver up to sign, so without fixing the
+// signs by third moment the same block lands in one of four different frames.
+void FilterTests::normalizeReferenceFrameIsOrientationInvariant()
+{
+    Document probe;
+    const QString key =
+        filterKeyForId(probe, QStringLiteral("compute_matrix_by_reference_frame_normalization"));
+    QVERIFY(!key.isEmpty());
+
+    auto canonicalize = [&](const QString &rotationMode, const QMatrix4x4 *pre) {
+        Document doc;
+        VCGMesh block;
+        makeAsymmetricBlock(block);
+        const int idx = doc.addMesh(block, QStringLiteral("Block"),
+                                    vcg::tri::io::Mask::IOM_VERTCOORD);
+        if (pre) {
+            for (VCGVertex &v : doc.mesh(idx).mesh.vert) {
+                const QVector3D p = pre->map(QVector3D(v.P().X(), v.P().Y(), v.P().Z()));
+                v.P() = vcg::Point3f(p.x(), p.y(), p.z());
+            }
+            vcg::tri::UpdateBounding<VCGMesh>::Box(doc.mesh(idx).mesh);
+        }
+        doc.setCurrentMeshIndex(idx);
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("position"), QStringLiteral("shell_barycenter"));
+        params.insert(QStringLiteral("rotation"), rotationMode);
+        params.insert(QStringLiteral("scale"), QStringLiteral("unit_longest_side"));
+        params.insert(QStringLiteral("minAxisSeparation"), 0.0);
+        params.insert(QStringLiteral("Freeze"), true);
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        std::vector<vcg::Point3f> out;
+        if (r.success)
+            for (const VCGVertex &v : doc.mesh(idx).mesh.vert)
+                out.push_back(v.cP());
+        return out;
+    };
+
+    for (const QString &mode :
+         { QStringLiteral("pca_vertices"), QStringLiteral("pca_area_weighted") }) {
+        const std::vector<vcg::Point3f> reference = canonicalize(mode, nullptr);
+        QVERIFY(!reference.empty());
+
+        int caseIndex = 0;
+        for (const QMatrix4x4 &pre : probeRotations()) {
+            const std::vector<vcg::Point3f> got = canonicalize(mode, &pre);
+            QCOMPARE(got.size(), reference.size());
+            float worst = 0.0f;
+            for (std::size_t i = 0; i < reference.size(); ++i)
+                worst = std::max(worst, (reference[i] - got[i]).Norm());
+            QVERIFY2(worst < 1e-3f,
+                     qPrintable(QStringLiteral("%1, rotation %2: canonical frames differ by up to "
+                                               "%3 -- the principal axis signs are not being "
+                                               "disambiguated").arg(mode).arg(caseIndex).arg(worst)));
+            ++caseIndex;
+        }
+
+        // Canonical means unit scale, centred on the origin.
+        vcg::Box3f box;
+        for (const vcg::Point3f &p : reference)
+            box.Add(p);
+        const float longest = std::max({ box.DimX(), box.DimY(), box.DimZ() });
+        QVERIFY(std::abs(longest - 1.0f) < 1e-3f);
+        QVERIFY(box.Center().Norm() < 0.5f);
+    }
+}
+
+// The three controls pivot about the same centre, so each one does exactly its own job.
+void FilterTests::normalizeReferenceFrameControlsAreIndependent()
+{
+    Document probe;
+    const QString key =
+        filterKeyForId(probe, QStringLiteral("compute_matrix_by_reference_frame_normalization"));
+    QVERIFY(!key.isEmpty());
+
+    auto run = [&](const QString &position, const QString &rotation, const QString &scale,
+                   double separation) {
+        Document doc;
+        VCGMesh block;
+        makeAsymmetricBlock(block);
+        const int idx = doc.addMesh(block, QStringLiteral("Block"),
+                                    vcg::tri::io::Mask::IOM_VERTCOORD);
+        doc.setCurrentMeshIndex(idx);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("position"), position);
+        p.insert(QStringLiteral("rotation"), rotation);
+        p.insert(QStringLiteral("scale"), scale);
+        p.insert(QStringLiteral("minAxisSeparation"), separation);
+        p.insert(QStringLiteral("Freeze"), true);
+        const MeshFilterRunResult r = doc.runFilter(key, p);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(doc.mesh(idx).mesh);
+        return std::make_pair(r.success, doc.mesh(idx).mesh.bbox);
+    };
+
+    VCGMesh reference;
+    makeAsymmetricBlock(reference);
+    const vcg::Box3f before = reference.bbox;
+
+    // Scale alone must not move the mesh: its centre stays put, its size changes.
+    const auto scaleOnly = run(QStringLiteral("unchanged"), QStringLiteral("unchanged"),
+                               QStringLiteral("unit_longest_side"), 0.0);
+    QVERIFY(scaleOnly.first);
+    QVERIFY((scaleOnly.second.Center() - before.Center()).Norm() < 1e-3f);
+    const float longest = std::max({ scaleOnly.second.DimX(), scaleOnly.second.DimY(),
+                                     scaleOnly.second.DimZ() });
+    QVERIFY(std::abs(longest - 1.0f) < 1e-3f);
+
+    // Position alone must not resize it.
+    const auto positionOnly = run(QStringLiteral("bbox_center"), QStringLiteral("unchanged"),
+                                  QStringLiteral("unchanged"), 0.0);
+    QVERIFY(positionOnly.first);
+    QVERIFY(positionOnly.second.Center().Norm() < 1e-3f);
+    QVERIFY(std::abs(positionOnly.second.DimX() - before.DimX()) < 1e-3f);
+
+    // A sphere has three equal eigenvalues, so its principal axes are arbitrary and the
+    // guard must decline to rotate.
+    Document sphereDoc;
+    const QString sphereKey = filterKeyForId(sphereDoc, QStringLiteral("create_sphere"));
+    QVERIFY(!sphereKey.isEmpty());
+    QVERIFY(sphereDoc.runFilter(sphereKey, {}).success);
+    MeshFilterParameterValues guarded;
+    guarded.insert(QStringLiteral("position"), QStringLiteral("unchanged"));
+    guarded.insert(QStringLiteral("rotation"), QStringLiteral("pca_area_weighted"));
+    guarded.insert(QStringLiteral("scale"), QStringLiteral("unchanged"));
+    guarded.insert(QStringLiteral("minAxisSeparation"), 0.1);
+    guarded.insert(QStringLiteral("Freeze"), true);
+    const MeshFilterRunResult guardedRun = sphereDoc.runFilter(key, guarded);
+    QVERIFY2(guardedRun.success, qPrintable(guardedRun.errorMessage));
+    bool warned = false;
+    for (const QString &m : guardedRun.infoMessages)
+        warned = warned || m.contains(QStringLiteral("too close"), Qt::CaseInsensitive);
+    QVERIFY2(warned, "the ambiguity guard did not report skipping the rotation on a sphere");
+
+    // Mesh barycenter refuses an open mesh rather than returning a meaningless centre.
+    Document openDoc;
+    VCGMesh disk;
+    makeOpenDiskMesh(disk);
+    const int openIdx = openDoc.addMesh(disk, QStringLiteral("Disk"),
+                                        vcg::tri::io::Mask::IOM_VERTCOORD);
+    openDoc.setCurrentMeshIndex(openIdx);
+    MeshFilterParameterValues solid;
+    solid.insert(QStringLiteral("position"), QStringLiteral("mesh_barycenter"));
+    solid.insert(QStringLiteral("rotation"), QStringLiteral("unchanged"));
+    solid.insert(QStringLiteral("scale"), QStringLiteral("unchanged"));
+    solid.insert(QStringLiteral("minAxisSeparation"), 0.0);
+    solid.insert(QStringLiteral("Freeze"), true);
+    const MeshFilterRunResult openRun = openDoc.runFilter(key, solid);
+    QVERIFY(!openRun.success);
+    QVERIFY(openRun.errorMessage.contains(QStringLiteral("watertight"), Qt::CaseInsensitive));
 }
 
 QTEST_MAIN(FilterTests)

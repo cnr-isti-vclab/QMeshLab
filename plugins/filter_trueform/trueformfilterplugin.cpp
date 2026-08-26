@@ -2208,7 +2208,7 @@ MeshFilterRunResult runImproveTriangulation(const FilterParams &params, Document
     // how far the surface may drift from where it started.
     config.max_deviation = float(std::max(0.0, params.getDouble(QStringLiteral("maxDeviation"), 0.0)));
 
-    doc.beginFilterProgress(QObject::tr("Improve Triangulation (TrueForm)"));
+    doc.beginFilterProgress(QObject::tr("Remesh by Edge Flipping (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
         // No convenience wrapper for this one: extract the half-edge structure, operate on

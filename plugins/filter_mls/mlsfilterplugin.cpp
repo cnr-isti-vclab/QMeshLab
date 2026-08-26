@@ -218,7 +218,7 @@ void computeProjection(
         const int totalVerts = std::max(1, int(mesh.vert.size()));
         for (int i = 0; i < int(mesh.vert.size()); ++i) {
             if (cb)
-                cb(1 + 98 * i / totalVerts, "MLS projection...");
+                cb(1 + 98 * i / totalVerts, "Projecting onto the MLS surface...");
             if ((!selectionOnly) || mesh.vert[size_t(i)].IsS())
                 mesh.vert[size_t(i)].P() = mls.project(mesh.vert[size_t(i)].P(), &mesh.vert[size_t(i)].N());
         }
@@ -287,7 +287,7 @@ int computeMarchingCubes(
     const int totalVerts = std::max(1, int(mesh.vert.size()));
     for (int i = 0; i < int(mesh.vert.size()); ++i) {
         if (cb)
-            cb(1 + 98 * i / totalVerts, "MLS projection...");
+            cb(1 + 98 * i / totalVerts, "Projecting onto the MLS surface...");
         mesh.vert[size_t(i)].P() = mls.project(mesh.vert[size_t(i)].P(), &mesh.vert[size_t(i)].N());
     }
 

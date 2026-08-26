@@ -832,7 +832,7 @@
     {
       "id": "apply_matrix_flip_or_swap_axis",
       "categories": ["Geometry/Transform"],
-      "name": "Transform: Flip and/or swap axis",
+      "name": "Mirror or Swap Axes",
       "pythonName": "transform_flip_axis",
       "shortDescription": "Flip or swap axes.",
       "longDescriptionMarkdown": "Generate a matrix transformation that flips each one of the axis or swaps a couple of axis. The listed transformations are applied in that order. This kind of transformation cannot be applied to set of Raster!",
@@ -909,7 +909,7 @@
     {
       "id": "compute_matrix_from_rotation",
       "categories": ["Geometry/Transform"],
-      "name": "Transform: Rotate",
+      "name": "Rotate",
       "pythonName": "transform_rotate",
       "shortDescription": "Rotate mesh.",
       "longDescriptionMarkdown": "Generate a matrix transformation that rotates the mesh. The mesh can be rotated around one of the axis or a given axis and w.r.t. to the origin or the baricenter, or a given point.",
@@ -1042,7 +1042,7 @@
     {
       "id": "compute_matrix_by_fitting_to_plane",
       "categories": ["Geometry/Transform"],
-      "name": "Transform: Rotate to Fit to a plane",
+      "name": "Rotate to Fitted Plane",
       "pythonName": "transform_rotate_to_fit_plane",
       "shortDescription": "Rotate selection to fit a reference plane.",
       "longDescriptionMarkdown": "Generate a matrix transformation that rotates the mesh so that the selection fits one of the main planes XY YZ ZX. May also translate such that the selection centroid rest on the origin. It reports on the log the average error of the fitting (in mesh units).",
@@ -1128,14 +1128,20 @@
       ]
     },
     {
-      "id": "compute_matrix_by_principal_axis",
-      "categories": ["Geometry/Transform"],
-      "name": "Transform: Align to Principal Axis",
-      "pythonName": "transform_align_to_principal_axis",
-      "shortDescription": "Align mesh to principal axis.",
-      "longDescriptionMarkdown": "Generate a matrix transformation that rotates the mesh aligning it to its principal axis of inertia.If the mesh is watertight the Itertia tensor is computed assuming the interior of the mesh has a uniform density.",
+      "id": "compute_matrix_by_reference_frame_normalization",
+      "categories": [
+        "Geometry/Transform"
+      ],
+      "name": "Normalize Reference Frame",
+      "pythonName": "normalize_reference_frame",
+      "shortDescription": "Bring the mesh into a canonical position, orientation and scale.",
+      "longDescriptionMarkdown": "Places the mesh in a canonical reference frame, so that two copies of the same shape end up superimposed however they were positioned, oriented or scaled beforehand. Each of the three controls can be left at **Unchanged**, so a partial canonicalization is fine.\n\nThe three are independent by construction. A centre $C$ is derived from **Position**, the rotation and the scale are both taken about that centre, and the result is composed in a fixed order:\n\n$$M = T_{\\mathrm{target}}\\cdot S\\cdot R\\cdot T_{-C}.$$\n\nWhen **Position** is *Unchanged*, $C$ is still used as the pivot and the object is put back where it started, so changing **Scale** or **Rotation** never moves it.\n\n**Position** picks the point that lands on the origin. *Bounding Box Center* is cheap but follows the extremes, so a single stray vertex moves it. *Vertex Average* is biased by tessellation density. *Shell Barycenter* weights by triangle area and is the robust choice for a surface. *Mesh Barycenter* is the centre of mass of the enclosed solid and needs a watertight mesh.\n\n**Rotation** aligns the principal axes with X, Y and Z, most spread first. *On Vertices* is biased wherever the tessellation is dense; *Area Weighted* integrates over the surface and is usually what you want. Principal axes are only defined up to sign, so the axis directions are fixed by the sign of the third moment along each one, and the third axis is set to the cross product of the first two. Without that step the same shape canonicalizes to any of four different frames depending on how it happened to be oriented on input.\n\n**Minimum Axis Separation** guards the ill-conditioned cases. A sphere has three equal eigenvalues and a cylinder two, so their principal axes are arbitrary; when the relative gap between consecutive eigenvalues falls below this value the rotation is skipped and the reason is logged. Zero always rotates.\n\n**Scale** is always uniform, and is measured *after* rotation, in the canonical frame.\n\nNote that applying this to several layers at once gives each layer its own frame, which will pull apart layers that were registered to each other.",
       "tags": [
-        "meshing"
+        "transform",
+        "canonical",
+        "normalize",
+        "pca",
+        "barycenter"
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
@@ -1144,12 +1150,57 @@
       },
       "parameters": [
         {
-          "id": "pointsFlag",
-          "label": "Use vertex",
-          "help": "Use vertices only (suitable for point clouds/open meshes).",
+          "id": "position",
+          "label": "Position",
+          "help": "Which point of the mesh is moved onto the origin.",
           "group": "main",
-          "type": "bool",
-          "default": true
+          "type": "enum",
+          "default": "bbox_center",
+          "enumOptions": [
+            { "id": "unchanged", "label": "Unchanged" },
+            { "id": "bbox_center", "label": "Bounding Box Center" },
+            { "id": "vertex_average", "label": "Vertex Average" },
+            { "id": "shell_barycenter", "label": "Shell Barycenter (area weighted)" },
+            { "id": "mesh_barycenter", "label": "Mesh Barycenter (watertight only)" }
+          ]
+        },
+        {
+          "id": "rotation",
+          "label": "Rotation",
+          "help": "Align the principal axes to X, Y and Z, widest spread first.",
+          "group": "main",
+          "type": "enum",
+          "default": "pca_area_weighted",
+          "enumOptions": [
+            { "id": "unchanged", "label": "Unchanged" },
+            { "id": "pca_vertices", "label": "Principal Axes on Vertices" },
+            { "id": "pca_area_weighted", "label": "Principal Axes, Area Weighted" }
+          ]
+        },
+        {
+          "id": "scale",
+          "label": "Scale",
+          "help": "Uniform scale, measured after rotation.",
+          "group": "main",
+          "type": "enum",
+          "default": "unit_longest_side",
+          "enumOptions": [
+            { "id": "unchanged", "label": "Unchanged" },
+            { "id": "unit_longest_side", "label": "Unit Bounding Box (longest side)" },
+            { "id": "unit_diagonal", "label": "Unit Bounding Box Diagonal" },
+            { "id": "unit_radius", "label": "Unit Radius" }
+          ]
+        },
+        {
+          "id": "minAxisSeparation",
+          "label": "Minimum Axis Separation",
+          "help": "Skip the rotation when consecutive principal eigenvalues are closer than this relative gap, as they are for a sphere or a cylinder. Zero always rotates.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
         },
         {
           "id": "Freeze",
@@ -1170,7 +1221,7 @@
     {
       "id": "compute_matrix_from_scaling_or_normalization",
       "categories": ["Geometry/Transform"],
-      "name": "Transform: Scale, Normalize",
+      "name": "Scale",
       "pythonName": "transform_scale",
       "shortDescription": "Scale mesh.",
       "longDescriptionMarkdown": "Generate a matrix transformation that scale the mesh. The mesh can be also automatically scaled to a unit side box.",
@@ -1257,14 +1308,6 @@
           ]
         },
         {
-          "id": "unitFlag",
-          "label": "Scale to Unit bbox",
-          "help": "Scale object to unit bounding box.",
-          "group": "main",
-          "type": "bool",
-          "default": false
-        },
-        {
           "id": "Freeze",
           "label": "Freeze Matrix",
           "help": "Transformation is explicitly applied to vertices.",
@@ -1283,7 +1326,7 @@
     {
       "id": "compute_matrix_from_translation",
       "categories": ["Geometry/Transform"],
-      "name": "Transform: Translate, Center, set Origin",
+      "name": "Translate",
       "pythonName": "transform_translate",
       "shortDescription": "Translate mesh.",
       "longDescriptionMarkdown": "Generate a matrix transformation that translate the mesh. The mesh can be translated around one of the axis or a given axis and w.r.t. to the origin or the baricenter, or a given point.",
@@ -1308,10 +1351,6 @@
             {
               "id": "scene_bbox",
               "label": "Center on Scene BBox"
-            },
-            {
-              "id": "layer_bbox",
-              "label": "Center on Layer BBox"
             },
             {
               "id": "new_origin",
@@ -1364,7 +1403,7 @@
     {
       "id": "set_matrix_identity",
       "categories": ["Geometry/Transform"],
-      "name": "Matrix: Reset Current Matrix",
+      "name": "Set Matrix to Identity",
       "pythonName": "matrix_reset",
       "shortDescription": "Reset transform matrix to identity.",
       "longDescriptionMarkdown": "Set the current transformation matrix to the Identity.",
@@ -1381,7 +1420,7 @@
     {
       "id": "apply_matrix_freeze",
       "categories": ["Geometry/Transform"],
-      "name": "Matrix: Freeze Current Matrix",
+      "name": "Freeze Matrix",
       "pythonName": "matrix_freeze",
       "shortDescription": "Apply current matrix to geometry.",
       "longDescriptionMarkdown": "Freeze the current transformation matrix into the coordinates of the vertices of the mesh (and set this matrix to the identity). In other words it applies in a definetive way the current matrix to the vertex coordinates.",
@@ -1401,7 +1440,7 @@
     {
       "id": "apply_matrix_inverse",
       "categories": ["Geometry/Transform"],
-      "name": "Matrix: Invert Current Matrix",
+      "name": "Invert Matrix",
       "pythonName": "matrix_invert",
       "shortDescription": "Invert current transformation matrix.",
       "longDescriptionMarkdown": "Invert the current transformation matrix. The current transformation is reversed, becoming its opposite.",
@@ -1430,7 +1469,7 @@
     {
       "id": "compute_matrix_from_translation_rotation_scale",
       "categories": ["Geometry/Transform"],
-      "name": "Matrix: Set from translation/rotation/scale",
+      "name": "Set Matrix from Translation/Rotation/Scale",
       "pythonName": "matrix_set_from_trs",
       "shortDescription": "Build transformation from T/R/S parameters.",
       "longDescriptionMarkdown": "Set the current transformation matrix starting from parameters: [XYZ] translation, [XYZ] Euler angles rotation and [XYZ] scaling.",
@@ -1566,7 +1605,7 @@
     {
       "id": "set_matrix",
       "categories": ["Geometry/Transform"],
-      "name": "Matrix: Set/Copy Transformation",
+      "name": "Set Matrix from Values or Layer",
       "pythonName": "matrix_set_copy",
       "shortDescription": "Set transformation matrix values.",
       "longDescriptionMarkdown": "Set the current transformation matrix by filling it, or copying from another layer.",

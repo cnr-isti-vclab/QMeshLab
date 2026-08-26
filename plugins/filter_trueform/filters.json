@@ -1575,7 +1575,7 @@
     },
     {
       "id": "improve_triangulation_trueform",
-      "name": "Improve Triangulation (TrueForm)",
+      "name": "Remesh by Edge Flipping (TrueForm)",
       "pythonName": "improve_triangulation_trueform",
       "categories": [
         "Meshing/Remeshing"

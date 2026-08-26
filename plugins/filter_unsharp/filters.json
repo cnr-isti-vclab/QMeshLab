@@ -45,7 +45,7 @@
     {
       "id": "apply_coord_laplacian_smoothing",
       "categories": ["Geometry/Smoothing"],
-      "name": "Laplacian Smooth",
+      "name": "Smooth Vertices by Laplacian",
       "pythonName": "smooth_laplacian",
       "shortDescription": "Average vertex positions with their neighbors.",
       "longDescriptionMarkdown": "Laplacian smooth. Average each vertex position with weighted positions of neighbour vertices.<br><b>Laplacian Mesh Processing</b> by <i>Olga Sorkine</i>. EUROGRAPHICS 2005<br><a href='http://dx.doi.org/10.2312/egst.20051044'>doi:10.2312/egst.20051044</a>",
@@ -105,7 +105,7 @@
     {
       "id": "apply_coord_hc_laplacian_smoothing",
       "categories": ["Geometry/Smoothing"],
-      "name": "HC Laplacian Smooth",
+      "name": "Smooth Vertices by HC Laplacian",
       "pythonName": "smooth_hc_laplacian",
       "shortDescription": "Improved Laplacian smoothing with better shape preservation.",
       "longDescriptionMarkdown": "HC Laplacian Smoothing. Extended version of Laplacian Smoothing based on the article: <br><b>Improved Laplacian Smoothing of Noisy Surface Meshes</b> by <i>Vollmer, Mencl and Müller</i>. EUROGRAPHICS Volume 18 (1999), Number 3, 131-138.<br><a href='https://doi.org/10.1111/1467-8659.00334'>doi:10.1111/1467-8659.00334</a>",
@@ -129,7 +129,7 @@
     {
       "id": "apply_coord_laplacian_smoothing_scale_dependent",
       "categories": ["Geometry/Smoothing"],
-      "name": "ScaleDependent Laplacian Smooth",
+      "name": "Smooth Vertices by Scale-Dependent Laplacian",
       "pythonName": "smooth_scale_dependent_laplacian",
       "shortDescription": "Fujiwara-style scale-dependent Laplacian smoothing.",
       "longDescriptionMarkdown": "Scale Dependent Laplacian Smoothing, extended version of Laplacian Smoothing based on the Fujiwara extended umbrella operator.<br><b>Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow</b> by <i>Desbrun, Meyer, Schroeder and Barr</i>. SIGGRAPH 1999<br><a href='https://doi.org/10.1145/311535.311576'>doi:10.1145/311535.311576</a>",
@@ -184,7 +184,7 @@
     {
       "id": "apply_coord_two_steps_smoothing",
       "categories": ["Geometry/Smoothing"],
-      "name": "TwoStep Smooth",
+      "name": "Smooth Vertices by Two-Step Normal Fitting",
       "pythonName": "smooth_two_step",
       "shortDescription": "Feature-preserving smoothing through normal smoothing and vertex fitting.",
       "longDescriptionMarkdown": "Two Steps Smoothing, a feature preserving/enhancing fairing filter based on two stages:<ol><li>Normal Smoothing, where similar normals are averaged together.<li>Vertex reposition, where vertices are moved to fit on the new normals.</ol><b>A Comparison of Mesh Smoothing Methods</b> by <i>A. Belyaev and Y. Ohtake</i>. Proc. Israel-Korea Bi-National Conf. Geometric Modeling and Computer Graphics, pp. 83-87, 2003.<br><a href='https://www.researchgate.net/publication/47861030_A_comparison_of_mesh_smoothing_methods'>publication</a>",
@@ -262,7 +262,7 @@
     {
       "id": "apply_coord_taubin_smoothing",
       "categories": ["Geometry/Smoothing"],
-      "name": "Taubin Smooth",
+      "name": "Smooth Vertices by Taubin",
       "pythonName": "smooth_taubin",
       "shortDescription": "Lambda-mu smoothing with reduced shrinkage.",
       "longDescriptionMarkdown": "The &lambda;-&mu; Taubin smoothing, combines two steps of low-pass filtering for each iteration. Based on the article:<br><b>A signal processing approach to fair surface design</b> by <i>Gabriel Taubin</i>, SIGGRAPH 1995<br><a href='https://doi.org/10.1145/218380.218473'>doi:10.1145/218380.218473</a>",
@@ -328,7 +328,7 @@
     {
       "id": "apply_coord_depth_smoothing",
       "categories": ["Geometry/Smoothing"],
-      "name": "Depth Smooth",
+      "name": "Smooth Vertices along One Direction",
       "pythonName": "smooth_depth",
       "shortDescription": "Smooth vertices only along a given depth direction.",
       "longDescriptionMarkdown": "A laplacian smooth that is constrained to move vertices only in one given direction (usually the viewer direction).",
@@ -365,7 +365,8 @@
             0.0,
             0.0
           ],
-          "point3fRole": "point"
+          "point3fRole": "point",
+          "point3fDefaultPreset": "cameraEye"
         },
         {
           "id": "delta",
@@ -396,10 +397,10 @@
     {
       "id": "apply_coord_directional_preservation",
       "categories": ["Geometry/Smoothing"],
-      "name": "Directional Geometry Preservation",
+      "name": "Project Vertices onto the Line of Sight",
       "pythonName": "smooth_directional",
-      "shortDescription": "Project smoothed geometry back along a line of sight.",
-      "longDescriptionMarkdown": "Blend through a given direction the geometry previously stored in a per vertex custom point attribute with the current geometry. This is useful to limit the influence of any smoothing algorithm along the viewing direction. This is useful to cope with the biased distribution of measuring error in many scanning devices, because TOF scanners usually have very good <i>x,y</i> accuracy but suffer of greater depth errors.",
+      "shortDescription": "Snap vertices back onto the sight line through their stored position.",
+      "longDescriptionMarkdown": "Projects every vertex back onto the line joining **Viewpoint** to the position stored for it in a per-vertex custom point attribute, keeping only the part of its displacement that lies along that line and discarding the part across it.\n\nWriting $o$ for the stored position, $p$ for the current one and $d$ for the unit vector from the viewpoint to $o$:\n\n$$p_{\\mathrm{new}} = o + d\\,\\big((p-o)\\cdot d\\big).$$\n\nRun it after a smoothing filter to confine that filter's effect to depth. Time-of-flight scanners resolve *x,y* well but carry much larger depth error, so smoothing is worth trusting along the line of sight and worth undoing across it. Store the original coordinates first, in the custom attribute named here.\n\nNote that this is a projection, not a blend: there is no mixing factor, and every vertex moves.",
       "tags": [
         "smoothing",
         "geometry",
@@ -422,7 +423,7 @@
         {
           "id": "viewPoint",
           "label": "Viewpoint",
-          "help": "Position of the viewpoint used for the directional projection.",
+          "help": "Position of the viewpoint whose sight lines the vertices are projected onto.",
           "group": "main",
           "type": "point3f",
           "default": [
@@ -430,7 +431,8 @@
             0.0,
             0.0
           ],
-          "point3fRole": "point"
+          "point3fRole": "point",
+          "point3fDefaultPreset": "cameraEye"
         }
       ],
       "outputModifies": [
@@ -549,7 +551,7 @@
     {
       "id": "apply_coord_unsharp_mask",
       "categories": ["Geometry/Smoothing"],
-      "name": "UnSharp Mask Geometry",
+      "name": "Sharpen Vertices by Unsharp Mask",
       "pythonName": "unsharp_mask_geometry",
       "shortDescription": "Enhance geometric ridges and valleys with an unsharp mask.",
       "longDescriptionMarkdown": "Apply Unsharp filter to geometric shape, putting in more evidence ridges and valleys variations.<br><a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a>",
@@ -855,7 +857,7 @@
     {
       "id": "compute_coord_linear_morphing",
       "categories": ["Geometry/Deformation"],
-      "name": "Vertex Linear Morphing",
+      "name": "Displace Vertices toward Target Mesh",
       "pythonName": "vertex_linear_morphing",
       "shortDescription": "Linearly morph the current mesh toward another mesh.",
       "longDescriptionMarkdown": "Morphs the current mesh towards a target mesh with the same number of vertices and the same vertex ordering. Each source vertex is linearly interpolated towards the corresponding target vertex:\n\n$$p_i^{\\mathrm{result}}=(1-\\lambda)p_i^{\\mathrm{source}}+\\lambda p_i^{\\mathrm{target}}.$$\n\nSee **Three-dimensional metamorphosis: a survey**, F. Lazarus and A. Verroust, *The Visual Computer*, 1998 ([doi:10.1007/s003710050149](https://doi.org/10.1007/s003710050149)).",

@@ -15,7 +15,6 @@
 
 namespace {
 constexpr QLatin1StringView kFilterMeshInfo("mesh_info");
-constexpr QLatin1StringView kFilterNormalizeUnit("normalize_unit_box");
 constexpr QLatin1StringView kFilterCreateNoisyIso("create_noisy_isosurface");
 
 }
@@ -65,47 +64,6 @@ MeshFilterRunResult BasicFilterPlugin::runFilter(
         result.success = true;
         result.documentModified = false;
         result.infoMessages = info;
-        return result;
-    }
-
-    if (filterId == QString::fromLatin1(kFilterNormalizeUnit)) {
-        const int meshIndex = doc.currentMeshIndex();
-        if (meshIndex < 0 || meshIndex >= doc.meshCount()) {
-            return { false, false, QObject::tr("No current mesh selected.") };
-        }
-
-        const double targetSize = params.getDouble(QStringLiteral("target_size"));
-        if (!std::isfinite(targetSize) || targetSize <= 0.0) {
-            return { false, false, QObject::tr("Target size must be greater than zero.") };
-        }
-        const bool recenter = params.getBool(QStringLiteral("recenter"));
-
-        Document::MeshEntry &entry = doc.mesh(meshIndex);
-        if (entry.mesh.VN() <= 0) {
-            return { false, false, QObject::tr("Current mesh has no vertices.") };
-        }
-
-        vcg::tri::UpdateBounding<VCGMesh>::Box(entry.mesh);
-        const vcg::Box3f bbox = entry.mesh.bbox;
-        const float maxDim = std::max({ bbox.DimX(), bbox.DimY(), bbox.DimZ() });
-        if (maxDim <= 1e-12f) {
-            return { false, false, QObject::tr("Cannot normalize a degenerate mesh bounding box.") };
-        }
-
-        const float scale = float(targetSize) / maxDim;
-        const vcg::Point3f pivot = recenter ? bbox.Center() : bbox.min;
-        for (VCGVertex &v : entry.mesh.vert) {
-            v.P() = (v.cP() - pivot) * scale;
-        }
-        vcg::tri::UpdateBounding<VCGMesh>::Box(entry.mesh);
-        doc.markMeshGeometryChanged(meshIndex, QObject::tr("Normalized mesh '%1'").arg(entry.name));
-
-        MeshFilterRunResult result;
-        result.success = true;
-        result.documentModified = true;
-        result.infoMessages = {
-            QObject::tr("Applied scale factor %1").arg(QString::number(scale, 'f', 6))
-        };
         return result;
     }
 

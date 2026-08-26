@@ -24,6 +24,7 @@
 #include <vcg/complex/algorithms/refine_catmullclark.h>
 #include <vcg/complex/algorithms/refine_doosabin.h>
 #include <vcg/complex/algorithms/refine_loop.h>
+#include <vcg/complex/algorithms/inertia.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/curvature.h>
@@ -247,7 +248,7 @@ constexpr QLatin1StringView kIdRotate("compute_matrix_from_rotation");
 constexpr QLatin1StringView kIdRotateFit("compute_matrix_by_fitting_to_plane");
 constexpr QLatin1StringView kIdScale("compute_matrix_from_scaling_or_normalization");
 constexpr QLatin1StringView kIdCenter("compute_matrix_from_translation");
-constexpr QLatin1StringView kIdPrincipalAxis("compute_matrix_by_principal_axis");
+constexpr QLatin1StringView kIdNormalizeFrame("compute_matrix_by_reference_frame_normalization");
 constexpr QLatin1StringView kIdInvertFaces("meshing_invert_face_orientation");
 constexpr QLatin1StringView kIdFreeze("apply_matrix_freeze");
 constexpr QLatin1StringView kIdReset("set_matrix_identity");
@@ -1012,43 +1013,218 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Rotate to fit"));
         }
 
-        if (filterId == QString::fromLatin1(kIdPrincipalAxis)) {
-            const bool pointsFlag = params.getBool(QStringLiteral("pointsFlag"));
-            (void) pointsFlag;
-
-            std::vector<vcg::Point3f> pts;
-            pts.reserve(static_cast<size_t>(mesh.VN()));
-            vcg::Point3f bp(0, 0, 0);
-            for (const VCGVertex &v : mesh.vert) {
-                pts.push_back(v.cP());
-                bp += v.cP();
-            }
-            if (pts.empty())
+        if (filterId == QString::fromLatin1(kIdNormalizeFrame)) {
+            if (mesh.VN() <= 0)
                 return fail(QObject::tr("Current mesh has no vertices."));
-            bp /= float(pts.size());
+            vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
 
-            Eigen::Matrix3d cov = Eigen::Matrix3d::Zero();
-            for (const vcg::Point3f &p : pts) {
-                const Eigen::Vector3d d(double(p.X() - bp.X()), double(p.Y() - bp.Y()), double(p.Z() - bp.Z()));
-                cov += d * d.transpose();
+            const QString positionMode = params.getEnum(QStringLiteral("position"));
+            const QString rotationMode = params.getEnum(QStringLiteral("rotation"));
+            const QString scaleMode    = params.getEnum(QStringLiteral("scale"));
+            const double  minSeparation = params.getDouble(QStringLiteral("minAxisSeparation"));
+            QStringList notes;
+
+            // ---- the centre everything else pivots about -------------------------------
+            vcg::Point3f centre = mesh.bbox.Center();
+            if (positionMode == QLatin1StringView("vertex_average")) {
+                vcg::Point3f sum(0, 0, 0);
+                int n = 0;
+                for (const VCGVertex &v : mesh.vert) {
+                    if (v.IsD())
+                        continue;
+                    sum += v.cP();
+                    ++n;
+                }
+                if (n == 0)
+                    return fail(QObject::tr("Current mesh has no vertices."));
+                centre = sum / float(n);
             }
-            cov /= double(std::max<size_t>(1, pts.size()));
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(cov);
-            if (eig.info() != Eigen::Success)
-                return fail(QObject::tr("Failed to compute principal-axis eigen decomposition."));
+            else if (positionMode == QLatin1StringView("shell_barycenter")) {
+                if (mesh.FN() <= 0)
+                    return fail(QObject::tr("The shell barycenter needs faces; use the vertex average for a point cloud."));
+                centre = vcg::tri::Stat<VCGMesh>::ComputeShellBarycenter(mesh);
+            }
+            else if (positionMode == QLatin1StringView("mesh_barycenter")) {
+                if (mesh.FN() <= 0 || !vcg::tri::Clean<VCGMesh>::IsWaterTight(mesh)) {
+                    return fail(QObject::tr(
+                        "The mesh barycenter is the centre of mass of the enclosed solid, so it needs a "
+                        "watertight mesh. Use the shell barycenter instead."));
+                }
+                vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
+                const vcg::tri::Inertia<VCGMesh> inertia(mesh);
+                centre = inertia.CenterOfMass();
+            }
 
-            Eigen::Matrix3d ev = eig.eigenvectors();
-            vcg::Matrix44f tr;
-            tr.SetIdentity();
+            // ---- rotation -------------------------------------------------------------
+            vcg::Matrix33f rot;
+            rot.SetIdentity();
+            if (rotationMode != QLatin1StringView("unchanged")) {
+                const bool areaWeighted = rotationMode == QLatin1StringView("pca_area_weighted");
+                if (areaWeighted && mesh.FN() <= 0)
+                    return fail(QObject::tr("Area weighted principal axes need faces; use the vertex variant for a point cloud."));
+
+                Eigen::Matrix3d cov = Eigen::Matrix3d::Zero();
+                double weightSum = 0.0;
+                auto outer = [](const vcg::Point3f &d) {
+                    const Eigen::Vector3d e(double(d.X()), double(d.Y()), double(d.Z()));
+                    return Eigen::Matrix3d(e * e.transpose());
+                };
+                if (areaWeighted) {
+                    // Exact second moment of a triangle about `centre`, by the parallel axis
+                    // theorem: (A/12)*sum_i (v_i-g)(v_i-g)^T + A*(g-centre)(g-centre)^T.
+                    for (const VCGFace &f : mesh.face) {
+                        if (f.IsD())
+                            continue;
+                        const double area = double(vcg::DoubleArea(f)) * 0.5;
+                        if (area <= 0.0)
+                            continue;
+                        const vcg::Point3f g = vcg::Barycenter(f);
+                        Eigen::Matrix3d local = Eigen::Matrix3d::Zero();
+                        for (int k = 0; k < 3; ++k)
+                            local += outer(f.cP(k) - g);
+                        cov += local * (area / 12.0) + outer(g - centre) * area;
+                        weightSum += area;
+                    }
+                } else {
+                    for (const VCGVertex &v : mesh.vert) {
+                        if (v.IsD())
+                            continue;
+                        cov += outer(v.cP() - centre);
+                        weightSum += 1.0;
+                    }
+                }
+                if (weightSum <= 0.0)
+                    return fail(QObject::tr("Cannot derive principal axes from an empty mesh."));
+                cov /= weightSum;
+
+                Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(cov);
+                if (eig.info() != Eigen::Success)
+                    return fail(QObject::tr("Failed to compute the principal-axis eigen decomposition."));
+
+                // SelfAdjointEigenSolver returns ascending eigenvalues; we want the widest
+                // spread on X.
+                int order[3] = { 2, 1, 0 };
+                const Eigen::Vector3d lambda = eig.eigenvalues();
+                vcg::Point3f axis[3];
+                for (int k = 0; k < 3; ++k) {
+                    const Eigen::Vector3d c = eig.eigenvectors().col(order[k]);
+                    axis[k] = vcg::Point3f(float(c[0]), float(c[1]), float(c[2]));
+                    axis[k].Normalize();
+                }
+
+                const double l0 = lambda[order[0]], l1 = lambda[order[1]], l2 = lambda[order[2]];
+                bool skipRotation = l0 <= 0.0;
+                if (!skipRotation && minSeparation > 0.0) {
+                    const double sep0 = (l0 - l1) / l0;
+                    const double sep1 = (l1 > 0.0) ? (l1 - l2) / l1 : 0.0;
+                    skipRotation = std::min(sep0, sep1) < minSeparation;
+                }
+
+                if (skipRotation) {
+                    notes << QObject::tr(
+                        "Principal axes are too close to being equal, so the rotation was skipped. "
+                        "Lower the minimum axis separation to rotate anyway.");
+                } else {
+                    // Principal axes are only defined up to sign. Fix the first two by the sign
+                    // of the third moment along them -- a shape with any asymmetry then lands
+                    // the same way whatever its input orientation -- and take the third as the
+                    // cross product, which makes the frame right handed by construction.
+                    for (int k = 0; k < 2; ++k) {
+                        double m3 = 0.0;
+                        if (areaWeighted) {
+                            for (const VCGFace &f : mesh.face) {
+                                if (f.IsD())
+                                    continue;
+                                const double area = double(vcg::DoubleArea(f)) * 0.5;
+                                const double t = double((vcg::Barycenter(f) - centre) * axis[k]);
+                                m3 += area * t * t * t;
+                            }
+                        } else {
+                            for (const VCGVertex &v : mesh.vert) {
+                                if (v.IsD())
+                                    continue;
+                                const double t = double((v.cP() - centre) * axis[k]);
+                                m3 += t * t * t;
+                            }
+                        }
+                        if (m3 < 0.0) {
+                            axis[k] = -axis[k];
+                        } else if (std::abs(m3) <= 1e-12) {
+                            // Symmetric along this axis, so the third moment cannot choose.
+                            // Fall back on something deterministic: make the dominant
+                            // component positive.
+                            int dom = 0;
+                            for (int c = 1; c < 3; ++c)
+                                if (std::abs(axis[k][c]) > std::abs(axis[k][dom]))
+                                    dom = c;
+                            if (axis[k][dom] < 0.0f)
+                                axis[k] = -axis[k];
+                        }
+                    }
+                    axis[2] = axis[0] ^ axis[1];
+                    for (int r = 0; r < 3; ++r)
+                        for (int c = 0; c < 3; ++c)
+                            rot[r][c] = axis[r][c];
+                }
+            }
+
+            // ---- scale, measured in the rotated frame ---------------------------------
+            float scaleFactor = 1.0f;
+            if (scaleMode != QLatin1StringView("unchanged")) {
+                vcg::Point3f lo(std::numeric_limits<float>::max(),
+                                std::numeric_limits<float>::max(),
+                                std::numeric_limits<float>::max());
+                vcg::Point3f hi = -lo;
+                float maxRadius = 0.0f;
+                for (const VCGVertex &v : mesh.vert) {
+                    if (v.IsD())
+                        continue;
+                    const vcg::Point3f q = rot * (v.cP() - centre);
+                    for (int c = 0; c < 3; ++c) {
+                        lo[c] = std::min(lo[c], q[c]);
+                        hi[c] = std::max(hi[c], q[c]);
+                    }
+                    maxRadius = std::max(maxRadius, q.Norm());
+                }
+                const vcg::Point3f extent = hi - lo;
+                float reference = 0.0f;
+                if (scaleMode == QLatin1StringView("unit_longest_side"))
+                    reference = std::max({ extent.X(), extent.Y(), extent.Z() });
+                else if (scaleMode == QLatin1StringView("unit_diagonal"))
+                    reference = extent.Norm();
+                else
+                    reference = maxRadius;
+                if (!(reference > 1e-12f))
+                    return fail(QObject::tr("Cannot normalize the scale of a degenerate mesh."));
+                scaleFactor = 1.0f / reference;
+            }
+
+            // ---- compose: M = T(target) * S * R * T(-centre) ---------------------------
+            const bool keepPosition = positionMode == QLatin1StringView("unchanged");
+            vcg::Matrix44f toOrigin;
+            toOrigin.SetTranslate(-centre);
+            vcg::Matrix44f rot4;
+            rot4.SetIdentity();
             for (int r = 0; r < 3; ++r)
                 for (int c = 0; c < 3; ++c)
-                    tr[r][c] = float(ev(c, r));
-            tr.transposeInPlace();
-            if (tr.Determinant() < 0)
-                for (int i = 0; i < 3; ++i)
-                    tr[2][i] = -tr[2][i];
+                    rot4[r][c] = rot[r][c];
+            vcg::Matrix44f scale4;
+            scale4.SetIdentity();
+            scale4[0][0] = scale4[1][1] = scale4[2][2] = scaleFactor;
+            vcg::Matrix44f back;
+            back.SetTranslate(keepPosition ? centre : vcg::Point3f(0, 0, 0));
 
-            return applyTransformAndMark(tr, makeTransformOptions(), QObject::tr("Align to principal axis"));
+            const vcg::Matrix44f tr = back * scale4 * rot4 * toOrigin;
+
+            QVector<int> touched;
+            applyTransform(doc, tr, makeTransformOptions(), touched);
+            const TransformOptions opt = makeTransformOptions();
+            for (int idx : touched) {
+                if (opt.freeze)
+                    markGeometry(idx, QObject::tr("Normalized the reference frame of '%1'").arg(doc.mesh(idx).name));
+            }
+            notes << QObject::tr("Affected layers: %1").arg(touched.size());
+            return success(!touched.isEmpty(), notes);
         }
 
         if (filterId == QString::fromLatin1(kIdCenter)) {
@@ -1058,8 +1234,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             const QString method = params.getEnum(QStringLiteral("traslMethod"));
             if (method == QStringLiteral("scene_bbox"))
                 translation = -sceneBBox(doc, true).Center();
-            else if (method == QStringLiteral("layer_bbox"))
-                translation = -mesh.bbox.Center();
             else if (method == QStringLiteral("new_origin")) {
                 const QVector3D nov = params.getPoint3f(QStringLiteral("newOrigin"));
                 translation = -vcg::Point3f(float(nov.x()), float(nov.y()), float(nov.z()));
@@ -1078,12 +1252,6 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             float sz = float(params.getDouble(QStringLiteral("axisZ")));
             if (params.getBool(QStringLiteral("uniformFlag")))
                 sy = sz = sx;
-            if (params.getBool(QStringLiteral("unitFlag"))) {
-                const float maxSide = std::max(sb.DimX(), std::max(sb.DimY(), sb.DimZ()));
-                if (maxSide > 1e-20f)
-                    sx = sy = sz = 1.0f / maxSide;
-            }
-
             vcg::Point3f c(0, 0, 0);
             const QString centerMode = params.getEnum(QStringLiteral("scaleCenter"));
             if (centerMode == QStringLiteral("barycenter"))
