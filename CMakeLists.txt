@@ -202,6 +202,7 @@ qt_add_executable(QMeshLab
     src/render/tools/selectlayertool.h src/render/tools/selectlayertool.cpp
     src/render/tools/rubberbandselecttool.h src/render/tools/rubberbandselecttool.cpp
     src/render/tools/measuretool.h src/render/tools/measuretool.cpp
+    src/render/tools/transformtool.h src/render/tools/transformtool.cpp
     src/ui/layerwidget.h src/ui/layerwidget.cpp
     src/ui/undographwidget.h src/ui/undographwidget.cpp
 )

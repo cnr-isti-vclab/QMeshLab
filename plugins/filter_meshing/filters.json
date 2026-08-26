@@ -958,8 +958,8 @@
               "label": "origin"
             },
             {
-              "id": "barycenter",
-              "label": "barycenter"
+              "id": "bbox_center",
+              "label": "Bounding Box Center"
             },
             {
               "id": "custom",
@@ -1285,8 +1285,8 @@
               "label": "origin"
             },
             {
-              "id": "barycenter",
-              "label": "barycenter"
+              "id": "bbox_center",
+              "label": "Bounding Box Center"
             },
             {
               "id": "custom",

@@ -93,6 +93,10 @@ public:
     // undo/redo). Per the lifecycle contract the tool discards any uncommitted
     // in-progress gesture but stays engaged. No-op for tools without one.
     virtual void cancelGesture() {}
+    // True while a modal gesture is running. The view gives such a tool first
+    // refusal on Esc and Tab, so that Esc cancels the gesture rather than
+    // exiting the tool outright.
+    virtual bool gestureInFlight() const { return false; }
 
 protected:
     RenderWidget *m_view = nullptr;

@@ -2748,6 +2748,19 @@ void RenderWidget::invalidateToolPick()
 void RenderWidget::keyPressEvent(QKeyEvent *e)
 {
     if (e && toolAllowedInCurrentMode() && m_activeTool) {
+        // A tool running a modal gesture owns Esc and Tab: Esc must cancel the
+        // gesture, not tear the whole tool down, and Tab must not hand the mouse
+        // to the camera mid-drag. A second Esc, with no gesture left in flight,
+        // falls through to the exit below.
+        if (m_activeTool->gestureInFlight()
+            && (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Tab)) {
+            if (m_activeTool->keyPress(e)) {
+                updateToolBadge();
+                update();
+                e->accept();
+                return;
+            }
+        }
         // Esc exits the tool entirely; MainWindow syncs the toolbar/menu state.
         if (e->key() == Qt::Key_Escape) {
             emit toolExitRequested();

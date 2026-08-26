@@ -918,7 +918,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             vcg::Point3f center(0, 0, 0);
             const QString centerMode = params.getEnum(QStringLiteral("rotCenter"));
-            if (centerMode == QStringLiteral("barycenter"))
+            if (centerMode == QStringLiteral("bbox_center"))
                 center = mesh.bbox.Center();
             else if (centerMode == QStringLiteral("custom")) {
                 const QVector3D cv = params.getPoint3f(QStringLiteral("customCenter"));
@@ -1254,7 +1254,7 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 sy = sz = sx;
             vcg::Point3f c(0, 0, 0);
             const QString centerMode = params.getEnum(QStringLiteral("scaleCenter"));
-            if (centerMode == QStringLiteral("barycenter"))
+            if (centerMode == QStringLiteral("bbox_center"))
                 c = sb.Center();
             else if (centerMode == QStringLiteral("custom")) {
                 const QVector3D cv = params.getPoint3f(QStringLiteral("customCenter"));
