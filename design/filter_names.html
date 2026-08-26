@@ -249,10 +249,16 @@
 </pre></div>
 </div>
 <p><strong>Status: display names APPLIED for <code class="docutils literal notranslate"><span class="pre">Meshing</span></code></strong> (30, 2026-07-30), <strong><code class="docutils literal notranslate"><span class="pre">Attribute</span></code></strong>
-(64, 2026-08-04) <strong>and <code class="docutils literal notranslate"><span class="pre">Creation</span></code></strong> (38, 2026-08-05) — 132 of 277 filters done.
-Remaining roots, largest first: <code class="docutils literal notranslate"><span class="pre">Geometry</span></code> (33), <code class="docutils literal notranslate"><span class="pre">Selection</span></code> (26), <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22),
-<code class="docutils literal notranslate"><span class="pre">Repair</span></code> (19), <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (15), <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (13), <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13),
-<code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3).</p>
+(64, 2026-08-04), <strong><code class="docutils literal notranslate"><span class="pre">Creation</span></code></strong> (38, 2026-08-05) <strong>and <code class="docutils literal notranslate"><span class="pre">Geometry</span></code></strong> (38, 2026-08-26).
+Counts are as of each round; the archive has grown to 328 filters since, so a root’s
+current size exceeds what its round covered.</p>
+<p>Remaining roots, largest first: <code class="docutils literal notranslate"><span class="pre">Selection</span></code> (30), <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (24), <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22),
+<code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (17), <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (14), <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13), <code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3 plus 7 filters
+sitting at the bare <code class="docutils literal notranslate"><span class="pre">Texture</span></code> root, which needs a subcategory decision first).</p>
+<p>Filters added to a root <em>after</em> its round are not automatically conformant. A sweep on
+2026-08-26 found exactly one such drift (<code class="docutils literal notranslate"><span class="pre">Improve</span> <span class="pre">Triangulation</span> <span class="pre">(TrueForm)</span></code>, fixed in
+round 4); eleven others flag only because they are dual-categorised into a root whose
+round has not run yet, and will be renamed there.</p>
 <p>Python names are shown too (<code class="docutils literal notranslate"><span class="pre">verb_object[_backend]</span></code>) because they should change in the
 same breath, but they are <strong>pass 2</strong> — they are the scripting contract, so they land
 separately from the display names.</p>
@@ -1603,6 +1609,297 @@ already exists, so a port needs no new external dependency.</p>
 </section>
 </section>
 </section>
+<hr class="docutils" />
+<section class="tex2jax_ignore mathjax_ignore" id="round-4-geometry-38-filters">
+<h1>Round 4 — <code class="docutils literal notranslate"><span class="pre">Geometry</span></code> (38 filters)<a class="headerlink" href="#round-4-geometry-38-filters" title="Link to this heading">¶</a></h1>
+<p><strong>Applied 2026-08-26.</strong> 33 renamed, 5 already conformant. Python names are recorded for
+pass 2 and were <strong>not</strong> applied.</p>
+<section id="geometry-transform-12">
+<h2>Geometry/Transform (12)<a class="headerlink" href="#geometry-transform-12" title="Link to this heading">¶</a></h2>
+<p>Ten of the twelve led with a colon prefix that restated the category.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Matrix: Freeze Current Matrix</p></td>
+<td><p><strong>Freeze Matrix</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">freeze_matrix</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Matrix: Invert Current Matrix</p></td>
+<td><p><strong>Invert Matrix</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">invert_matrix</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Matrix: Reset Current Matrix</p></td>
+<td><p><strong>Set Matrix to Identity</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_matrix_to_identity</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Matrix: Set from translation/rotation/scale</p></td>
+<td><p><strong>Set Matrix from Translation/Rotation/Scale</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_matrix_from_trs</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Matrix: Set/Copy Transformation</p></td>
+<td><p><strong>Set Matrix from Values or Layer</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">set_matrix_from_values_or_layer</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transform: Align to Principal Axis</p></td>
+<td><p><strong>Align to Principal Axes</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_to_principal_axes</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transform: Flip and/or swap axis</p></td>
+<td><p><strong>Mirror or Swap Axes</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mirror_or_swap_axes</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transform: Rotate</p></td>
+<td><p><strong>Rotate</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rotate</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transform: Rotate to Fit to a plane</p></td>
+<td><p><strong>Rotate to Fitted Plane</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rotate_to_fitted_plane</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transform: Scale, Normalize</p></td>
+<td><p><strong>Scale</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scale</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transform: Translate, Center, set Origin</p></td>
+<td><p><strong>Translate</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">translate</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Normalize To Unit Box</p></td>
+<td><p><strong>Normalize to Unit Box</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalize_to_unit_box</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="geometry-smoothing-13">
+<h2>Geometry/Smoothing (13)<a class="headerlink" href="#geometry-smoothing-13" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Laplacian Smooth</p></td>
+<td><p><strong>Smooth Vertices by Laplacian</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_laplacian</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Laplacian Smooth (surface preserving)</p></td>
+<td><p><strong>Smooth Vertices by Laplacian (Surface Preserving)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_laplacian_surface_preserving</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>HC Laplacian Smooth</p></td>
+<td><p><strong>Smooth Vertices by HC Laplacian</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_hc_laplacian</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>ScaleDependent Laplacian Smooth</p></td>
+<td><p><strong>Smooth Vertices by Scale-Dependent Laplacian</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_scale_dependent_laplacian</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Taubin Smooth</p></td>
+<td><p><strong>Smooth Vertices by Taubin</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_taubin</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>TwoStep Smooth</p></td>
+<td><p><strong>Smooth Vertices by Two-Step Normal Fitting</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_by_two_step_normal_fitting</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Depth Smooth</p></td>
+<td><p><strong>Smooth Vertices along One Direction</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">smooth_vertices_along_one_direction</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Directional Geometry Preservation</p></td>
+<td><p><strong>Project Vertices onto the Line of Sight</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">project_vertices_onto_line_of_sight</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>UnSharp Mask Geometry</p></td>
+<td><p><strong>Sharpen Vertices by Unsharp Mask</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sharpen_vertices_by_unsharp_mask</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>MLS projection (APSS)</p></td>
+<td><p><strong>Project Vertices onto MLS Surface (APSS)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">project_vertices_onto_mls_surface_apss</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>MLS projection (RIMLS)</p></td>
+<td><p><strong>Project Vertices onto MLS Surface (RIMLS)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">project_vertices_onto_mls_surface_rimls</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Smooth Vertices by Laplacian (TrueForm)</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Smooth Vertices by Taubin (TrueForm)</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Renaming the two vcg smoothers completes two competing sets whose TrueForm halves were
+already in final form, under the convention the archive has settled into: <strong>the incumbent
+stays unsuffixed, the challenger carries the backend</strong> (<code class="docutils literal notranslate"><span class="pre">Remove</span> <span class="pre">Duplicate</span> <span class="pre">Vertices</span></code> +
+<code class="docutils literal notranslate"><span class="pre">…</span> <span class="pre">(TrueForm)</span></code>, <code class="docutils literal notranslate"><span class="pre">Simplify</span> <span class="pre">by</span> <span class="pre">Quadric</span> <span class="pre">Edge</span> <span class="pre">Collapse</span></code> + <code class="docutils literal notranslate"><span class="pre">…</span> <span class="pre">(QSlim)</span></code>).</p>
+</section>
+<section id="geometry-deformation-8">
+<h2>Geometry/Deformation (8)<a class="headerlink" href="#geometry-deformation-8" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Displace Vertices Randomly</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Displace by Fractal Brownian Motion</p></td>
+<td><p><strong>Displace Vertices by Fractal Brownian Motion</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_fractal_brownian_motion</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Displace by Heterogeneous Multifractal Noise</p></td>
+<td><p><strong>Displace Vertices by Heterogeneous Multifractal Noise</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_heterogeneous_multifractal_noise</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Displace by Hybrid Multifractal Noise</p></td>
+<td><p><strong>Displace Vertices by Hybrid Multifractal Noise</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_hybrid_multifractal_noise</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Displace by Ridged Multifractal Noise</p></td>
+<td><p><strong>Displace Vertices by Ridged Multifractal Noise</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_ridged_multifractal_noise</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Displace by Standard Multifractal Noise</p></td>
+<td><p><strong>Displace Vertices by Standard Multifractal Noise</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_by_standard_multifractal_noise</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Per Vertex Geometric Function</p></td>
+<td><p><strong>Compute Vertex Coordinates by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_vertex_coordinates_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Vertex Linear Morphing</p></td>
+<td><p><strong>Displace Vertices toward Target Mesh</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">displace_vertices_toward_target_mesh</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">…</span> <span class="pre">by</span> <span class="pre">Expression</span></code> matches the six names ratified in round 2.</p>
+</section>
+<section id="geometry-alignment-5">
+<h2>Geometry/Alignment (5)<a class="headerlink" href="#geometry-alignment-5" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Align by Bounding Box</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Align to Corresponding Points</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Align by ICP (TrueForm)</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>ICP Between Meshes</p></td>
+<td><p><strong>Align by ICP</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_by_icp</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Global Align Meshes</p></td>
+<td><p><strong>Align Meshes Globally</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">align_meshes_globally</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id5">
+<h2>Verbs added to the lexicon<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Verb</p></th>
+<th class="head"><p>Means</p></th>
+<th class="head"><p>Why the existing lexicon was not enough</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Mirror</span></code></p></td>
+<td><p>Negate one or more axes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Flip</span></code> was given a single meaning in round 1 — reconnect by flipping edges, vertices do not move — which is the opposite of this</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Project</span></code></p></td>
+<td><p>Move vertices onto existing geometry, or onto a line</p></td>
+<td><p>Admitted <strong>narrowly</strong>, for geometric projection only. It remains a rejected synonym for <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> wherever attributes move between domains</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Swap</span></code> is used as an ordinary word inside <em>Mirror or Swap Axes</em>, not as a lexicon verb.</p>
+</section>
+<section id="id6">
+<h2>Rulings<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h2>
+<p>All settled (2026-08-26).</p>
+<ol class="arabic simple">
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Flip</span></code> for axis mirroring?~~ <strong>No</strong> — <code class="docutils literal notranslate"><span class="pre">Mirror</span></code> and <code class="docutils literal notranslate"><span class="pre">Swap</span></code> are better and leave
+<code class="docutils literal notranslate"><span class="pre">Flip</span></code> to edges.</p></li>
+<li><p>~~How much of a variant list belongs in a name?~~ <strong>Trim to the bare verb.</strong> The
+<code class="docutils literal notranslate"><span class="pre">Transform</span></code>/<code class="docutils literal notranslate"><span class="pre">Matrix</span></code> group is expected to be split later into pure <code class="docutils literal notranslate"><span class="pre">Translate</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Rotate</span></code> and <code class="docutils literal notranslate"><span class="pre">Scale</span></code> plus a targeted canonicalizing filter, and the bare verbs are the
+foundation that split needs.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Normalize</span> <span class="pre">To</span> <span class="pre">Unit</span> <span class="pre">Box</span></code> overlaps <code class="docutils literal notranslate"><span class="pre">Scale</span></code>’s <code class="docutils literal notranslate"><span class="pre">unitFlag</span></code>.~~ <strong>Both kept</strong>, case fixed.
+It already centres and uniformly scales, so it is the seed of the future
+“normalize / make canonical” filter; the split moves <code class="docutils literal notranslate"><span class="pre">unitFlag</span></code> out of <code class="docutils literal notranslate"><span class="pre">Scale</span></code> into it.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Directional</span> <span class="pre">Geometry</span> <span class="pre">Preservation</span></code> — what is it?~~ Reading the implementation
+settled it: with <code class="docutils literal notranslate"><span class="pre">o</span></code> the stored position, <code class="docutils literal notranslate"><span class="pre">p</span></code> the current one and <code class="docutils literal notranslate"><span class="pre">d</span></code> the unit vector
+from the viewpoint to <code class="docutils literal notranslate"><span class="pre">o</span></code>, it computes <code class="docutils literal notranslate"><span class="pre">o</span> <span class="pre">+</span> <span class="pre">d·((p−o)·d)</span></code>. That is an orthogonal
+projection of the vertex onto its own sight line, keeping the along-view part of a
+previous smoothing and discarding the lateral part. <strong>Project Vertices onto the Line of
+Sight.</strong> The old description was wrong twice over — it said “blend” (there is no mixing
+factor) and “preservation” (every vertex moves); it has been rewritten.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Project</span></code> or route around it?~~ <strong>Admitted</strong>, narrowly — see the lexicon table.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Morph</span></code> as a verb?~~ <strong>No.</strong> <code class="docutils literal notranslate"><span class="pre">Displace</span></code> covers it, and “morphing” stays in the
+description so search still finds it.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Meshes</span></code> or <code class="docutils literal notranslate"><span class="pre">Layers</span></code>?~~ <strong>Meshes</strong>.</p></li>
+<li><p>~~Drift: <code class="docutils literal notranslate"><span class="pre">Improve</span> <span class="pre">Triangulation</span> <span class="pre">(TrueForm)</span></code>?~~ <strong>Remesh by Edge Flipping (TrueForm)</strong>,
+folded into this round. It was the only filter added after its own round that broke
+rule 1.</p></li>
+</ol>
+</section>
+<section id="fixes-made-on-the-way">
+<h2>Fixes made on the way<a class="headerlink" href="#fixes-made-on-the-way" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Project</span> <span class="pre">Vertices</span> <span class="pre">onto</span> <span class="pre">the</span> <span class="pre">Line</span> <span class="pre">of</span> <span class="pre">Sight</span></code> — description rewritten (see ruling 4).</p></li>
+<li><p>Both <code class="docutils literal notranslate"><span class="pre">viewPoint</span></code> parameters in <code class="docutils literal notranslate"><span class="pre">filter_unsharp</span></code> gained
+<code class="docutils literal notranslate"><span class="pre">&quot;point3fDefaultPreset&quot;:</span> <span class="pre">&quot;cameraEye&quot;</span></code>. Both filters are defined by the viewer’s
+position and neither offered the preset.</p></li>
+<li><p>Progress labels in <code class="docutils literal notranslate"><span class="pre">filter_icp</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code> followed their
+filters’ new names; they are user-visible.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">docs/design/filter_classification.md</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_organization.md</span></code> still carry the old
+names. Both are dated snapshots of an audit, like the “Current” column above, and are left
+alone on purpose. <code class="docutils literal notranslate"><span class="pre">docs/api/filters.md</span></code> is generated and gitignored.</p>
+</section>
+</section>
 
         </article>
       </div>
@@ -1678,6 +1975,16 @@ already exists, so a port needs no new external dependency.</p>
 <li><a class="reference internal" href="#filters-meshlab-has-here-and-qmeshlab-does-not">Filters MeshLab has here and QMeshLab does not</a></li>
 </ul>
 </li>
+</ul>
+</li>
+<li><a class="reference internal" href="#round-4-geometry-38-filters">Round 4 — <code class="docutils literal notranslate"><span class="pre">Geometry</span></code> (38 filters)</a><ul>
+<li><a class="reference internal" href="#geometry-transform-12">Geometry/Transform (12)</a></li>
+<li><a class="reference internal" href="#geometry-smoothing-13">Geometry/Smoothing (13)</a></li>
+<li><a class="reference internal" href="#geometry-deformation-8">Geometry/Deformation (8)</a></li>
+<li><a class="reference internal" href="#geometry-alignment-5">Geometry/Alignment (5)</a></li>
+<li><a class="reference internal" href="#id5">Verbs added to the lexicon</a></li>
+<li><a class="reference internal" href="#id6">Rulings</a></li>
+<li><a class="reference internal" href="#fixes-made-on-the-way">Fixes made on the way</a></li>
 </ul>
 </li>
 </ul>

@@ -7,10 +7,18 @@ Verb Object [(Backend)]
 ```
 
 **Status: display names APPLIED for `Meshing`** (30, 2026-07-30), **`Attribute`**
-(64, 2026-08-04) **and `Creation`** (38, 2026-08-05) — 132 of 277 filters done.
-Remaining roots, largest first: `Geometry` (33), `Selection` (26), `Document` (22),
-`Repair` (19), `Parametrization` (15), `Measurement` (13), `Transfer` (13),
-`Texture` (3).
+(64, 2026-08-04), **`Creation`** (38, 2026-08-05) **and `Geometry`** (38, 2026-08-26).
+Counts are as of each round; the archive has grown to 328 filters since, so a root's
+current size exceeds what its round covered.
+
+Remaining roots, largest first: `Selection` (30), `Repair` (24), `Document` (22),
+`Parametrization` (17), `Measurement` (14), `Transfer` (13), `Texture` (3 plus 7 filters
+sitting at the bare `Texture` root, which needs a subcategory decision first).
+
+Filters added to a root *after* its round are not automatically conformant. A sweep on
+2026-08-26 found exactly one such drift (`Improve Triangulation (TrueForm)`, fixed in
+round 4); eleven others flag only because they are dual-categorised into a root whose
+round has not run yet, and will be renamed there.
 
 Python names are shown too (`verb_object[_backend]`) because they should change in the
 same breath, but they are **pass 2** — they are the scripting contract, so they land
@@ -689,3 +697,127 @@ whose absence is noted above; the fourth is a viewpoint-visibility filter and be
 
 MeshLab computes the hull with **Qhull**, but `vcglib/vcg/complex/algorithms/convex_hull.h`
 already exists, so a port needs no new external dependency.
+
+---
+
+# Round 4 — `Geometry` (38 filters)
+
+**Applied 2026-08-26.** 33 renamed, 5 already conformant. Python names are recorded for
+pass 2 and were **not** applied.
+
+## Geometry/Transform (12)
+
+Ten of the twelve led with a colon prefix that restated the category.
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Matrix: Freeze Current Matrix | **Freeze Matrix** | `freeze_matrix` |
+| Matrix: Invert Current Matrix | **Invert Matrix** | `invert_matrix` |
+| Matrix: Reset Current Matrix | **Set Matrix to Identity** | `set_matrix_to_identity` |
+| Matrix: Set from translation/rotation/scale | **Set Matrix from Translation/Rotation/Scale** | `set_matrix_from_trs` |
+| Matrix: Set/Copy Transformation | **Set Matrix from Values or Layer** | `set_matrix_from_values_or_layer` |
+| Transform: Align to Principal Axis | **Align to Principal Axes** | `align_to_principal_axes` |
+| Transform: Flip and/or swap axis | **Mirror or Swap Axes** | `mirror_or_swap_axes` |
+| Transform: Rotate | **Rotate** | `rotate` |
+| Transform: Rotate to Fit to a plane | **Rotate to Fitted Plane** | `rotate_to_fitted_plane` |
+| Transform: Scale, Normalize | **Scale** | `scale` |
+| Transform: Translate, Center, set Origin | **Translate** | `translate` |
+| Normalize To Unit Box | **Normalize to Unit Box** | `normalize_to_unit_box` |
+
+## Geometry/Smoothing (13)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Laplacian Smooth | **Smooth Vertices by Laplacian** | `smooth_vertices_by_laplacian` |
+| Laplacian Smooth (surface preserving) | **Smooth Vertices by Laplacian (Surface Preserving)** | `smooth_vertices_by_laplacian_surface_preserving` |
+| HC Laplacian Smooth | **Smooth Vertices by HC Laplacian** | `smooth_vertices_by_hc_laplacian` |
+| ScaleDependent Laplacian Smooth | **Smooth Vertices by Scale-Dependent Laplacian** | `smooth_vertices_by_scale_dependent_laplacian` |
+| Taubin Smooth | **Smooth Vertices by Taubin** | `smooth_vertices_by_taubin` |
+| TwoStep Smooth | **Smooth Vertices by Two-Step Normal Fitting** | `smooth_vertices_by_two_step_normal_fitting` |
+| Depth Smooth | **Smooth Vertices along One Direction** | `smooth_vertices_along_one_direction` |
+| Directional Geometry Preservation | **Project Vertices onto the Line of Sight** | `project_vertices_onto_line_of_sight` |
+| UnSharp Mask Geometry | **Sharpen Vertices by Unsharp Mask** | `sharpen_vertices_by_unsharp_mask` |
+| MLS projection (APSS) | **Project Vertices onto MLS Surface (APSS)** | `project_vertices_onto_mls_surface_apss` |
+| MLS projection (RIMLS) | **Project Vertices onto MLS Surface (RIMLS)** | `project_vertices_onto_mls_surface_rimls` |
+| Smooth Vertices by Laplacian (TrueForm) | *unchanged* | |
+| Smooth Vertices by Taubin (TrueForm) | *unchanged* | |
+
+Renaming the two vcg smoothers completes two competing sets whose TrueForm halves were
+already in final form, under the convention the archive has settled into: **the incumbent
+stays unsuffixed, the challenger carries the backend** (`Remove Duplicate Vertices` +
+`… (TrueForm)`, `Simplify by Quadric Edge Collapse` + `… (QSlim)`).
+
+## Geometry/Deformation (8)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Displace Vertices Randomly | *unchanged* | |
+| Displace by Fractal Brownian Motion | **Displace Vertices by Fractal Brownian Motion** | `displace_vertices_by_fractal_brownian_motion` |
+| Displace by Heterogeneous Multifractal Noise | **Displace Vertices by Heterogeneous Multifractal Noise** | `displace_vertices_by_heterogeneous_multifractal_noise` |
+| Displace by Hybrid Multifractal Noise | **Displace Vertices by Hybrid Multifractal Noise** | `displace_vertices_by_hybrid_multifractal_noise` |
+| Displace by Ridged Multifractal Noise | **Displace Vertices by Ridged Multifractal Noise** | `displace_vertices_by_ridged_multifractal_noise` |
+| Displace by Standard Multifractal Noise | **Displace Vertices by Standard Multifractal Noise** | `displace_vertices_by_standard_multifractal_noise` |
+| Per Vertex Geometric Function | **Compute Vertex Coordinates by Expression** | `compute_vertex_coordinates_by_expression` |
+| Vertex Linear Morphing | **Displace Vertices toward Target Mesh** | `displace_vertices_toward_target_mesh` |
+
+`Compute … by Expression` matches the six names ratified in round 2.
+
+## Geometry/Alignment (5)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Align by Bounding Box | *unchanged* | |
+| Align to Corresponding Points | *unchanged* | |
+| Align by ICP (TrueForm) | *unchanged* | |
+| ICP Between Meshes | **Align by ICP** | `align_by_icp` |
+| Global Align Meshes | **Align Meshes Globally** | `align_meshes_globally` |
+
+## Verbs added to the lexicon
+
+| Verb | Means | Why the existing lexicon was not enough |
+|---|---|---|
+| `Mirror` | Negate one or more axes | `Flip` was given a single meaning in round 1 — reconnect by flipping edges, vertices do not move — which is the opposite of this |
+| `Project` | Move vertices onto existing geometry, or onto a line | Admitted **narrowly**, for geometric projection only. It remains a rejected synonym for `Transfer` wherever attributes move between domains |
+
+`Swap` is used as an ordinary word inside *Mirror or Swap Axes*, not as a lexicon verb.
+
+## Rulings
+
+All settled (2026-08-26).
+
+1. ~~`Flip` for axis mirroring?~~ **No** — `Mirror` and `Swap` are better and leave
+   `Flip` to edges.
+2. ~~How much of a variant list belongs in a name?~~ **Trim to the bare verb.** The
+   `Transform`/`Matrix` group is expected to be split later into pure `Translate`,
+   `Rotate` and `Scale` plus a targeted canonicalizing filter, and the bare verbs are the
+   foundation that split needs.
+3. ~~`Normalize To Unit Box` overlaps `Scale`'s `unitFlag`.~~ **Both kept**, case fixed.
+   It already centres and uniformly scales, so it is the seed of the future
+   "normalize / make canonical" filter; the split moves `unitFlag` out of `Scale` into it.
+4. ~~`Directional Geometry Preservation` — what is it?~~ Reading the implementation
+   settled it: with `o` the stored position, `p` the current one and `d` the unit vector
+   from the viewpoint to `o`, it computes `o + d·((p−o)·d)`. That is an orthogonal
+   projection of the vertex onto its own sight line, keeping the along-view part of a
+   previous smoothing and discarding the lateral part. **Project Vertices onto the Line of
+   Sight.** The old description was wrong twice over — it said "blend" (there is no mixing
+   factor) and "preservation" (every vertex moves); it has been rewritten.
+5. ~~`Project` or route around it?~~ **Admitted**, narrowly — see the lexicon table.
+6. ~~`Morph` as a verb?~~ **No.** `Displace` covers it, and "morphing" stays in the
+   description so search still finds it.
+7. ~~`Meshes` or `Layers`?~~ **Meshes**.
+8. ~~Drift: `Improve Triangulation (TrueForm)`?~~ **Remesh by Edge Flipping (TrueForm)**,
+   folded into this round. It was the only filter added after its own round that broke
+   rule 1.
+
+## Fixes made on the way
+
+- `Project Vertices onto the Line of Sight` — description rewritten (see ruling 4).
+- Both `viewPoint` parameters in `filter_unsharp` gained
+  `"point3fDefaultPreset": "cameraEye"`. Both filters are defined by the viewer's
+  position and neither offered the preset.
+- Progress labels in `filter_icp`, `filter_mls` and `filter_trueform` followed their
+  filters' new names; they are user-visible.
+
+`docs/design/filter_classification.md` and `filter_organization.md` still carry the old
+names. Both are dated snapshots of an audit, like the "Current" column above, and are left
+alone on purpose. `docs/api/filters.md` is generated and gitignored.

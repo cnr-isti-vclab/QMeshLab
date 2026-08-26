@@ -332,8 +332,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="laplacian-smooth-surface-preserving">
-<span id="filter-apply-coord-laplacian-smoothing-surface-preserving"></span><h2>Laplacian Smooth (surface preserving)<a class="headerlink" href="#laplacian-smooth-surface-preserving" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-by-laplacian-surface-preserving">
+<span id="filter-apply-coord-laplacian-smoothing-surface-preserving"></span><h2>Smooth Vertices by Laplacian (Surface Preserving)<a class="headerlink" href="#smooth-vertices-by-laplacian-surface-preserving" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.trioptimize</p>
 <p>Laplacian smooth while limiting normal deviation from the original surface.</p>
 <dl class="py function">
@@ -429,8 +429,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="mls-projection-apss">
-<span id="filter-apply-mls-apss"></span><h2>MLS projection (APSS)<a class="headerlink" href="#mls-projection-apss" title="Link to this heading">¶</a></h2>
+<section id="project-vertices-onto-mls-surface-apss">
+<span id="filter-apply-mls-apss"></span><h2>Project Vertices onto MLS Surface (APSS)<a class="headerlink" href="#project-vertices-onto-mls-surface-apss" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.mls</p>
 <p>Project a mesh or point set onto an Algebraic Point Set Surface.</p>
 <dl class="py function">
@@ -454,8 +454,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="mls-projection-rimls">
-<span id="filter-apply-mls-rimls"></span><h2>MLS projection (RIMLS)<a class="headerlink" href="#mls-projection-rimls" title="Link to this heading">¶</a></h2>
+<section id="project-vertices-onto-mls-surface-rimls">
+<span id="filter-apply-mls-rimls"></span><h2>Project Vertices onto MLS Surface (RIMLS)<a class="headerlink" href="#project-vertices-onto-mls-surface-rimls" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.mls</p>
 <p>Project a mesh or point set onto a Robust Implicit MLS surface.</p>
 <dl class="py function">
@@ -548,8 +548,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="per-vertex-geometric-function">
-<span id="filter-apply-vertex-geometric-function"></span><h2>Per Vertex Geometric Function<a class="headerlink" href="#per-vertex-geometric-function" title="Link to this heading">¶</a></h2>
+<section id="compute-vertex-coordinates-by-expression">
+<span id="filter-apply-vertex-geometric-function"></span><h2>Compute Vertex Coordinates by Expression<a class="headerlink" href="#compute-vertex-coordinates-by-expression" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes new per-vertex coordinates from expressions.</p>
 <dl class="py function">
@@ -1236,8 +1236,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="icp-between-meshes">
-<span id="filter-compute-matrix-by-icp-between-meshes"></span><h2>ICP Between Meshes<a class="headerlink" href="#icp-between-meshes" title="Link to this heading">¶</a></h2>
+<section id="align-by-icp">
+<span id="filter-compute-matrix-by-icp-between-meshes"></span><h2>Align by ICP<a class="headerlink" href="#align-by-icp" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.icp</p>
 <p>Compute an ICP transform that aligns one mesh layer to another.</p>
 <dl class="py function">
@@ -1299,8 +1299,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="global-align-meshes">
-<span id="filter-compute-matrix-by-mesh-global-alignment"></span><h2>Global Align Meshes<a class="headerlink" href="#global-align-meshes" title="Link to this heading">¶</a></h2>
+<section id="align-meshes-globally">
+<span id="filter-compute-matrix-by-mesh-global-alignment"></span><h2>Align Meshes Globally<a class="headerlink" href="#align-meshes-globally" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.icp</p>
 <p>Globally align overlapping mesh layers using pairwise ICP arcs.</p>
 <dl class="py function">
@@ -2503,8 +2503,8 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 
 <hr class="docutils" />
 </section>
-<section id="displace-by-fractal-brownian-motion">
-<span id="filter-displace-by-fractal-brownian-motion"></span><h2>Displace by Fractal Brownian Motion<a class="headerlink" href="#displace-by-fractal-brownian-motion" title="Link to this heading">¶</a></h2>
+<section id="displace-vertices-by-fractal-brownian-motion">
+<span id="filter-displace-by-fractal-brownian-motion"></span><h2>Displace Vertices by Fractal Brownian Motion<a class="headerlink" href="#displace-vertices-by-fractal-brownian-motion" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
 <p>Displace vertices along their normals using fractal Brownian motion.</p>
 <dl class="py function">
@@ -2531,8 +2531,8 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 
 <hr class="docutils" />
 </section>
-<section id="displace-by-heterogeneous-multifractal-noise">
-<span id="filter-displace-by-heterogeneous-multifractal-noise"></span><h2>Displace by Heterogeneous Multifractal Noise<a class="headerlink" href="#displace-by-heterogeneous-multifractal-noise" title="Link to this heading">¶</a></h2>
+<section id="displace-vertices-by-heterogeneous-multifractal-noise">
+<span id="filter-displace-by-heterogeneous-multifractal-noise"></span><h2>Displace Vertices by Heterogeneous Multifractal Noise<a class="headerlink" href="#displace-vertices-by-heterogeneous-multifractal-noise" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
 <p>Displace vertices using elevation-dependent heterogeneous multifractal noise.</p>
 <dl class="py function">
@@ -2560,8 +2560,8 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 
 <hr class="docutils" />
 </section>
-<section id="displace-by-hybrid-multifractal-noise">
-<span id="filter-displace-by-hybrid-multifractal-noise"></span><h2>Displace by Hybrid Multifractal Noise<a class="headerlink" href="#displace-by-hybrid-multifractal-noise" title="Link to this heading">¶</a></h2>
+<section id="displace-vertices-by-hybrid-multifractal-noise">
+<span id="filter-displace-by-hybrid-multifractal-noise"></span><h2>Displace Vertices by Hybrid Multifractal Noise<a class="headerlink" href="#displace-vertices-by-hybrid-multifractal-noise" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
 <p>Displace vertices using signal-weighted hybrid multifractal noise.</p>
 <dl class="py function">
@@ -2589,8 +2589,8 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 
 <hr class="docutils" />
 </section>
-<section id="displace-by-ridged-multifractal-noise">
-<span id="filter-displace-by-ridged-multifractal-noise"></span><h2>Displace by Ridged Multifractal Noise<a class="headerlink" href="#displace-by-ridged-multifractal-noise" title="Link to this heading">¶</a></h2>
+<section id="displace-vertices-by-ridged-multifractal-noise">
+<span id="filter-displace-by-ridged-multifractal-noise"></span><h2>Displace Vertices by Ridged Multifractal Noise<a class="headerlink" href="#displace-vertices-by-ridged-multifractal-noise" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
 <p>Displace vertices using ridged multifractal noise.</p>
 <dl class="py function">
@@ -2619,8 +2619,8 @@ C. Bradford Barber, David P. Dobkin, Hannu Huhdanpaa, <strong>The Quickhull Algo
 
 <hr class="docutils" />
 </section>
-<section id="displace-by-standard-multifractal-noise">
-<span id="filter-displace-by-standard-multifractal-noise"></span><h2>Displace by Standard Multifractal Noise<a class="headerlink" href="#displace-by-standard-multifractal-noise" title="Link to this heading">¶</a></h2>
+<section id="displace-vertices-by-standard-multifractal-noise">
+<span id="filter-displace-by-standard-multifractal-noise"></span><h2>Displace Vertices by Standard Multifractal Noise<a class="headerlink" href="#displace-vertices-by-standard-multifractal-noise" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.vertex_displacement</p>
 <p>Displace vertices using multiplicative standard multifractal noise.</p>
 <dl class="py function">
@@ -3578,8 +3578,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="improve-triangulation-trueform">
-<span id="filter-improve-triangulation-trueform"></span><h2>Improve Triangulation (TrueForm)<a class="headerlink" href="#improve-triangulation-trueform" title="Link to this heading">¶</a></h2>
+<section id="remesh-by-edge-flipping-trueform">
+<span id="filter-improve-triangulation-trueform"></span><h2>Remesh by Edge Flipping (TrueForm)<a class="headerlink" href="#remesh-by-edge-flipping-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Improve triangle shape by flipping edges and relaxing vertices, without changing the vertex count.</p>
 <dl class="py function">
@@ -3648,8 +3648,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="matrix-freeze-current-matrix">
-<span id="filter-matrix-freeze"></span><h2>Matrix: Freeze Current Matrix<a class="headerlink" href="#matrix-freeze-current-matrix" title="Link to this heading">¶</a></h2>
+<section id="freeze-matrix">
+<span id="filter-matrix-freeze"></span><h2>Freeze Matrix<a class="headerlink" href="#freeze-matrix" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Apply current matrix to geometry.</p>
 <dl class="py function">
@@ -3661,8 +3661,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="matrix-invert-current-matrix">
-<span id="filter-matrix-invert"></span><h2>Matrix: Invert Current Matrix<a class="headerlink" href="#matrix-invert-current-matrix" title="Link to this heading">¶</a></h2>
+<section id="invert-matrix">
+<span id="filter-matrix-invert"></span><h2>Invert Matrix<a class="headerlink" href="#invert-matrix" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Invert current transformation matrix.</p>
 <dl class="py function">
@@ -3677,8 +3677,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="matrix-reset-current-matrix">
-<span id="filter-matrix-reset"></span><h2>Matrix: Reset Current Matrix<a class="headerlink" href="#matrix-reset-current-matrix" title="Link to this heading">¶</a></h2>
+<section id="set-matrix-to-identity">
+<span id="filter-matrix-reset"></span><h2>Set Matrix to Identity<a class="headerlink" href="#set-matrix-to-identity" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Reset transform matrix to identity.</p>
 <dl class="py function">
@@ -3690,8 +3690,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="matrix-set-copy-transformation">
-<span id="filter-matrix-set-copy"></span><h2>Matrix: Set/Copy Transformation<a class="headerlink" href="#matrix-set-copy-transformation" title="Link to this heading">¶</a></h2>
+<section id="set-matrix-from-values-or-layer">
+<span id="filter-matrix-set-copy"></span><h2>Set Matrix from Values or Layer<a class="headerlink" href="#set-matrix-from-values-or-layer" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Set transformation matrix values.</p>
 <dl class="py function">
@@ -3723,8 +3723,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="matrix-set-from-translation-rotation-scale">
-<span id="filter-matrix-set-from-trs"></span><h2>Matrix: Set from translation/rotation/scale<a class="headerlink" href="#matrix-set-from-translation-rotation-scale" title="Link to this heading">¶</a></h2>
+<section id="set-matrix-from-translation-rotation-scale">
+<span id="filter-matrix-set-from-trs"></span><h2>Set Matrix from Translation/Rotation/Scale<a class="headerlink" href="#set-matrix-from-translation-rotation-scale" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Build transformation from T/R/S parameters.</p>
 <dl class="py function">
@@ -3881,18 +3881,32 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="normalize-to-unit-box">
-<span id="filter-normalize-to-unit-box"></span><h2>Normalize To Unit Box<a class="headerlink" href="#normalize-to-unit-box" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.basic</p>
-<p>Uniformly scales the current mesh to a target box size.</p>
+<section id="normalize-reference-frame">
+<span id="filter-normalize-reference-frame"></span><h2>Normalize Reference Frame<a class="headerlink" href="#normalize-reference-frame" title="Link to this heading">¶</a></h2>
+<p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
+<p>Bring the mesh into a canonical position, orientation and scale.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.normalize_to_unit_box">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">normalize_to_unit_box</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.normalize_to_unit_box" title="Link to this definition">¶</a></dt>
-<dd><p>Computes current mesh bounding box and applies uniform scale, with optional recentering.</p>
+<dt class="sig sig-object py" id="qmeshlab.ms.normalize_reference_frame">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">normalize_reference_frame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.normalize_reference_frame" title="Link to this definition">¶</a></dt>
+<dd><p>Places the mesh in a canonical reference frame, so that two copies of the same shape end up superimposed however they were positioned, oriented or scaled beforehand. Each of the three controls can be left at <strong>Unchanged</strong>, so a partial canonicalization is fine.</p>
+<p>The three are independent by construction. A centre <span class="math notranslate nohighlight">\(C\)</span> is derived from <strong>Position</strong>, the rotation and the scale are both taken about that centre, and the result is composed in a fixed order:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[M = T_{\mathrm{target}}\cdot S\cdot R\cdot T_{-C}.\]</div>
+</div>
+<p>When <strong>Position</strong> is <em>Unchanged</em>, <span class="math notranslate nohighlight">\(C\)</span> is still used as the pivot and the object is put back where it started, so changing <strong>Scale</strong> or <strong>Rotation</strong> never moves it.</p>
+<p><strong>Position</strong> picks the point that lands on the origin. <em>Bounding Box Center</em> is cheap but follows the extremes, so a single stray vertex moves it. <em>Vertex Average</em> is biased by tessellation density. <em>Shell Barycenter</em> weights by triangle area and is the robust choice for a surface. <em>Mesh Barycenter</em> is the centre of mass of the enclosed solid and needs a watertight mesh.</p>
+<p><strong>Rotation</strong> aligns the principal axes with X, Y and Z, most spread first. <em>On Vertices</em> is biased wherever the tessellation is dense; <em>Area Weighted</em> integrates over the surface and is usually what you want. Principal axes are only defined up to sign, so the axis directions are fixed by the sign of the third moment along each one, and the third axis is set to the cross product of the first two. Without that step the same shape canonicalizes to any of four different frames depending on how it happened to be oriented on input.</p>
+<p><strong>Minimum Axis Separation</strong> guards the ill-conditioned cases. A sphere has three equal eigenvalues and a cylinder two, so their principal axes are arbitrary; when the relative gap between consecutive eigenvalues falls below this value the rotation is skipped and the reason is logged. Zero always rotates.</p>
+<p><strong>Scale</strong> is always uniform, and is measured <em>after</em> rotation, in the canonical frame.</p>
+<p>Note that applying this to several layers at once gives each layer its own frame, which will pull apart layers that were registered to each other.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><strong>target_size</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Largest box dimension after normalization.</p></li>
-<li><p><strong>recenter</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Recenters mesh to origin before scaling.</p></li>
+<li><p><strong>position</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">bbox_center</span></code>) — Which point of the mesh is moved onto the origin.</p></li>
+<li><p><strong>rotation</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">pca_area_weighted</span></code>) — Align the principal axes to X, Y and Z, widest spread first.</p></li>
+<li><p><strong>scale</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">unit_longest_side</span></code>) — Uniform scale, measured after rotation.</p></li>
+<li><p><strong>minAxisSeparation</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Skip the rotation when consecutive principal eigenvalues are closer than this relative gap, as they are for a sphere or a cylinder. Zero always rotates.</p></li>
+<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
@@ -5582,8 +5596,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="depth-smooth">
-<span id="filter-smooth-depth"></span><h2>Depth Smooth<a class="headerlink" href="#depth-smooth" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-along-one-direction">
+<span id="filter-smooth-depth"></span><h2>Smooth Vertices along One Direction<a class="headerlink" href="#smooth-vertices-along-one-direction" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Smooth vertices only along a given depth direction.</p>
 <dl class="py function">
@@ -5601,18 +5615,25 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="directional-geometry-preservation">
-<span id="filter-smooth-directional"></span><h2>Directional Geometry Preservation<a class="headerlink" href="#directional-geometry-preservation" title="Link to this heading">¶</a></h2>
+<section id="project-vertices-onto-the-line-of-sight">
+<span id="filter-smooth-directional"></span><h2>Project Vertices onto the Line of Sight<a class="headerlink" href="#project-vertices-onto-the-line-of-sight" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
-<p>Project smoothed geometry back along a line of sight.</p>
+<p>Snap vertices back onto the sight line through their stored position.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.smooth_directional">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_directional</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.smooth_directional" title="Link to this definition">¶</a></dt>
-<dd><p>Blend through a given direction the geometry previously stored in a per vertex custom point attribute with the current geometry. This is useful to limit the influence of any smoothing algorithm along the viewing direction. This is useful to cope with the biased distribution of measuring error in many scanning devices, because TOF scanners usually have very good <i>x,y</i> accuracy but suffer of greater depth errors.</p>
+<dd><p>Projects every vertex back onto the line joining <strong>Viewpoint</strong> to the position stored for it in a per-vertex custom point attribute, keeping only the part of its displacement that lies along that line and discarding the part across it.</p>
+<p>Writing <span class="math notranslate nohighlight">\(o\)</span> for the stored position, <span class="math notranslate nohighlight">\(p\)</span> for the current one and <span class="math notranslate nohighlight">\(d\)</span> for the unit vector from the viewpoint to <span class="math notranslate nohighlight">\(o\)</span>:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[p_{\mathrm{new}} = o + d\,\big((p-o)\cdot d\big).\]</div>
+</div>
+<p>Run it after a smoothing filter to confine that filter’s effect to depth. Time-of-flight scanners resolve <em>x,y</em> well but carry much larger depth error, so smoothing is worth trusting along the line of sight and worth undoing across it. Store the original coordinates first, in the custom attribute named here.</p>
+<p>Note that this is a projection, not a blend: there is no mixing factor, and every vertex moves.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>attr_name</strong> (<em>string</em>, default: ``) — Name of the per-vertex custom point attribute containing the original geometry.</p></li>
-<li><p><strong>viewPoint</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Position of the viewpoint used for the directional projection.</p></li>
+<li><p><strong>viewPoint</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Position of the viewpoint whose sight lines the vertices are projected onto.</p></li>
 </ul>
 </dd></dl>
 
@@ -5631,8 +5652,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="hc-laplacian-smooth">
-<span id="filter-smooth-hc-laplacian"></span><h2>HC Laplacian Smooth<a class="headerlink" href="#hc-laplacian-smooth" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-by-hc-laplacian">
+<span id="filter-smooth-hc-laplacian"></span><h2>Smooth Vertices by HC Laplacian<a class="headerlink" href="#smooth-vertices-by-hc-laplacian" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Improved Laplacian smoothing with better shape preservation.</p>
 <dl class="py function">
@@ -5644,8 +5665,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="laplacian-smooth">
-<span id="filter-smooth-laplacian"></span><h2>Laplacian Smooth<a class="headerlink" href="#laplacian-smooth" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-by-laplacian">
+<span id="filter-smooth-laplacian"></span><h2>Smooth Vertices by Laplacian<a class="headerlink" href="#smooth-vertices-by-laplacian" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Average vertex positions with their neighbors.</p>
 <dl class="py function">
@@ -5712,8 +5733,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="scaledependent-laplacian-smooth">
-<span id="filter-smooth-scale-dependent-laplacian"></span><h2>ScaleDependent Laplacian Smooth<a class="headerlink" href="#scaledependent-laplacian-smooth" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-by-scale-dependent-laplacian">
+<span id="filter-smooth-scale-dependent-laplacian"></span><h2>Smooth Vertices by Scale-Dependent Laplacian<a class="headerlink" href="#smooth-vertices-by-scale-dependent-laplacian" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Fujiwara-style scale-dependent Laplacian smoothing.</p>
 <dl class="py function">
@@ -5730,8 +5751,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="taubin-smooth">
-<span id="filter-smooth-taubin"></span><h2>Taubin Smooth<a class="headerlink" href="#taubin-smooth" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-by-taubin">
+<span id="filter-smooth-taubin"></span><h2>Smooth Vertices by Taubin<a class="headerlink" href="#smooth-vertices-by-taubin" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Lambda-mu smoothing with reduced shrinkage.</p>
 <dl class="py function">
@@ -5749,8 +5770,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="twostep-smooth">
-<span id="filter-smooth-two-step"></span><h2>TwoStep Smooth<a class="headerlink" href="#twostep-smooth" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-by-two-step-normal-fitting">
+<span id="filter-smooth-two-step"></span><h2>Smooth Vertices by Two-Step Normal Fitting<a class="headerlink" href="#smooth-vertices-by-two-step-normal-fitting" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Feature-preserving smoothing through normal smoothing and vertex fitting.</p>
 <dl class="py function">
@@ -6096,25 +6117,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="transform-align-to-principal-axis">
-<span id="filter-transform-align-to-principal-axis"></span><h2>Transform: Align to Principal Axis<a class="headerlink" href="#transform-align-to-principal-axis" title="Link to this heading">¶</a></h2>
-<p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
-<p>Align mesh to principal axis.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.transform_align_to_principal_axis">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transform_align_to_principal_axis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transform_align_to_principal_axis" title="Link to this definition">¶</a></dt>
-<dd><p>Generate a matrix transformation that rotates the mesh aligning it to its principal axis of inertia.If the mesh is watertight the Itertia tensor is computed assuming the interior of the mesh has a uniform density.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>pointsFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Use vertices only (suitable for point clouds/open meshes).</p></li>
-<li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="transform-flip-and-or-swap-axis">
-<span id="filter-transform-flip-axis"></span><h2>Transform: Flip and/or swap axis<a class="headerlink" href="#transform-flip-and-or-swap-axis" title="Link to this heading">¶</a></h2>
+<section id="mirror-or-swap-axes">
+<span id="filter-transform-flip-axis"></span><h2>Mirror or Swap Axes<a class="headerlink" href="#mirror-or-swap-axes" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Flip or swap axes.</p>
 <dl class="py function">
@@ -6135,8 +6139,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="transform-rotate">
-<span id="filter-transform-rotate"></span><h2>Transform: Rotate<a class="headerlink" href="#transform-rotate" title="Link to this heading">¶</a></h2>
+<section id="rotate">
+<span id="filter-transform-rotate"></span><h2>Rotate<a class="headerlink" href="#rotate" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Rotate mesh.</p>
 <dl class="py function">
@@ -6158,8 +6162,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="transform-rotate-to-fit-to-a-plane">
-<span id="filter-transform-rotate-to-fit-plane"></span><h2>Transform: Rotate to Fit to a plane<a class="headerlink" href="#transform-rotate-to-fit-to-a-plane" title="Link to this heading">¶</a></h2>
+<section id="rotate-to-fitted-plane">
+<span id="filter-transform-rotate-to-fit-plane"></span><h2>Rotate to Fitted Plane<a class="headerlink" href="#rotate-to-fitted-plane" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Rotate selection to fit a reference plane.</p>
 <dl class="py function">
@@ -6177,8 +6181,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="transform-scale-normalize">
-<span id="filter-transform-scale"></span><h2>Transform: Scale, Normalize<a class="headerlink" href="#transform-scale-normalize" title="Link to this heading">¶</a></h2>
+<section id="scale">
+<span id="filter-transform-scale"></span><h2>Scale<a class="headerlink" href="#scale" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Scale mesh.</p>
 <dl class="py function">
@@ -6193,15 +6197,14 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><p><strong>uniformFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Use same scale for all axes (axisX value).</p></li>
 <li><p><strong>scaleCenter</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">origin</span></code>) — Scaling center.</p></li>
 <li><p><strong>customCenter</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — Custom scaling center point.</p></li>
-<li><p><strong>unitFlag</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Scale object to unit bounding box.</p></li>
 <li><p><strong>Freeze</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Transformation is explicitly applied to vertices.</p></li>
 </ul>
 </dd></dl>
 
 <hr class="docutils" />
 </section>
-<section id="transform-translate-center-set-origin">
-<span id="filter-transform-translate"></span><h2>Transform: Translate, Center, set Origin<a class="headerlink" href="#transform-translate-center-set-origin" title="Link to this heading">¶</a></h2>
+<section id="translate">
+<span id="filter-transform-translate"></span><h2>Translate<a class="headerlink" href="#translate" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Translate mesh.</p>
 <dl class="py function">
@@ -6283,8 +6286,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="unsharp-mask-geometry">
-<span id="filter-unsharp-mask-geometry"></span><h2>UnSharp Mask Geometry<a class="headerlink" href="#unsharp-mask-geometry" title="Link to this heading">¶</a></h2>
+<section id="sharpen-vertices-by-unsharp-mask">
+<span id="filter-unsharp-mask-geometry"></span><h2>Sharpen Vertices by Unsharp Mask<a class="headerlink" href="#sharpen-vertices-by-unsharp-mask" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Enhance geometric ridges and valleys with an unsharp mask.</p>
 <dl class="py function">
@@ -6505,8 +6508,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="vertex-linear-morphing">
-<span id="filter-vertex-linear-morphing"></span><h2>Vertex Linear Morphing<a class="headerlink" href="#vertex-linear-morphing" title="Link to this heading">¶</a></h2>
+<section id="displace-vertices-toward-target-mesh">
+<span id="filter-vertex-linear-morphing"></span><h2>Displace Vertices toward Target Mesh<a class="headerlink" href="#displace-vertices-toward-target-mesh" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Linearly morph the current mesh toward another mesh.</p>
 <dl class="py function">
@@ -6618,7 +6621,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.apply_cameras_translation"><code class="docutils literal notranslate"><span class="pre">ms.apply_cameras_translation()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#laplacian-smooth-surface-preserving">Laplacian Smooth (surface preserving)</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-by-laplacian-surface-preserving">Smooth Vertices by Laplacian (Surface Preserving)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.apply_coord_laplacian_smoothing_surface_preserving"><code class="docutils literal notranslate"><span class="pre">ms.apply_coord_laplacian_smoothing_surface_preserving()</span></code></a></li>
 </ul>
 </li>
@@ -6638,11 +6641,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.apply_laplacian_smoothing_trueform"><code class="docutils literal notranslate"><span class="pre">ms.apply_laplacian_smoothing_trueform()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mls-projection-apss">MLS projection (APSS)</a><ul>
+<li><a class="reference internal" href="#project-vertices-onto-mls-surface-apss">Project Vertices onto MLS Surface (APSS)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.apply_mls_apss"><code class="docutils literal notranslate"><span class="pre">ms.apply_mls_apss()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mls-projection-rimls">MLS projection (RIMLS)</a><ul>
+<li><a class="reference internal" href="#project-vertices-onto-mls-surface-rimls">Project Vertices onto MLS Surface (RIMLS)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.apply_mls_rimls"><code class="docutils literal notranslate"><span class="pre">ms.apply_mls_rimls()</span></code></a></li>
 </ul>
 </li>
@@ -6658,7 +6661,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.apply_vertex_color_function"><code class="docutils literal notranslate"><span class="pre">ms.apply_vertex_color_function()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#per-vertex-geometric-function">Per Vertex Geometric Function</a><ul>
+<li><a class="reference internal" href="#compute-vertex-coordinates-by-expression">Compute Vertex Coordinates by Expression</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.apply_vertex_geometric_function"><code class="docutils literal notranslate"><span class="pre">ms.apply_vertex_geometric_function()</span></code></a></li>
 </ul>
 </li>
@@ -6798,7 +6801,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_corresponding_points"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_corresponding_points()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#icp-between-meshes">ICP Between Meshes</a><ul>
+<li><a class="reference internal" href="#align-by-icp">Align by ICP</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_icp_between_meshes"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_icp_between_meshes()</span></code></a></li>
 </ul>
 </li>
@@ -6806,7 +6809,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_icp_trueform"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_icp_trueform()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#global-align-meshes">Global Align Meshes</a><ul>
+<li><a class="reference internal" href="#align-meshes-globally">Align Meshes Globally</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_mesh_global_alignment"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_mesh_global_alignment()</span></code></a></li>
 </ul>
 </li>
@@ -7082,23 +7085,23 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.disk_vertex_coloring"><code class="docutils literal notranslate"><span class="pre">ms.disk_vertex_coloring()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#displace-by-fractal-brownian-motion">Displace by Fractal Brownian Motion</a><ul>
+<li><a class="reference internal" href="#displace-vertices-by-fractal-brownian-motion">Displace Vertices by Fractal Brownian Motion</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.displace_by_fractal_brownian_motion"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_fractal_brownian_motion()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#displace-by-heterogeneous-multifractal-noise">Displace by Heterogeneous Multifractal Noise</a><ul>
+<li><a class="reference internal" href="#displace-vertices-by-heterogeneous-multifractal-noise">Displace Vertices by Heterogeneous Multifractal Noise</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.displace_by_heterogeneous_multifractal_noise"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_heterogeneous_multifractal_noise()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#displace-by-hybrid-multifractal-noise">Displace by Hybrid Multifractal Noise</a><ul>
+<li><a class="reference internal" href="#displace-vertices-by-hybrid-multifractal-noise">Displace Vertices by Hybrid Multifractal Noise</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.displace_by_hybrid_multifractal_noise"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_hybrid_multifractal_noise()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#displace-by-ridged-multifractal-noise">Displace by Ridged Multifractal Noise</a><ul>
+<li><a class="reference internal" href="#displace-vertices-by-ridged-multifractal-noise">Displace Vertices by Ridged Multifractal Noise</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.displace_by_ridged_multifractal_noise"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_ridged_multifractal_noise()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#displace-by-standard-multifractal-noise">Displace by Standard Multifractal Noise</a><ul>
+<li><a class="reference internal" href="#displace-vertices-by-standard-multifractal-noise">Displace Vertices by Standard Multifractal Noise</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.displace_by_standard_multifractal_noise"><code class="docutils literal notranslate"><span class="pre">ms.displace_by_standard_multifractal_noise()</span></code></a></li>
 </ul>
 </li>
@@ -7274,7 +7277,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.get_overlapping_meshes_graph"><code class="docutils literal notranslate"><span class="pre">ms.get_overlapping_meshes_graph()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#improve-triangulation-trueform">Improve Triangulation (TrueForm)</a><ul>
+<li><a class="reference internal" href="#remesh-by-edge-flipping-trueform">Remesh by Edge Flipping (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.improve_triangulation_trueform"><code class="docutils literal notranslate"><span class="pre">ms.improve_triangulation_trueform()</span></code></a></li>
 </ul>
 </li>
@@ -7290,23 +7293,23 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.load_active_raster_cameras"><code class="docutils literal notranslate"><span class="pre">ms.load_active_raster_cameras()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#matrix-freeze-current-matrix">Matrix: Freeze Current Matrix</a><ul>
+<li><a class="reference internal" href="#freeze-matrix">Freeze Matrix</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.matrix_freeze"><code class="docutils literal notranslate"><span class="pre">ms.matrix_freeze()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#matrix-invert-current-matrix">Matrix: Invert Current Matrix</a><ul>
+<li><a class="reference internal" href="#invert-matrix">Invert Matrix</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.matrix_invert"><code class="docutils literal notranslate"><span class="pre">ms.matrix_invert()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#matrix-reset-current-matrix">Matrix: Reset Current Matrix</a><ul>
+<li><a class="reference internal" href="#set-matrix-to-identity">Set Matrix to Identity</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.matrix_reset"><code class="docutils literal notranslate"><span class="pre">ms.matrix_reset()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#matrix-set-copy-transformation">Matrix: Set/Copy Transformation</a><ul>
+<li><a class="reference internal" href="#set-matrix-from-values-or-layer">Set Matrix from Values or Layer</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.matrix_set_copy"><code class="docutils literal notranslate"><span class="pre">ms.matrix_set_copy()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#matrix-set-from-translation-rotation-scale">Matrix: Set from translation/rotation/scale</a><ul>
+<li><a class="reference internal" href="#set-matrix-from-translation-rotation-scale">Set Matrix from Translation/Rotation/Scale</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.matrix_set_from_trs"><code class="docutils literal notranslate"><span class="pre">ms.matrix_set_from_trs()</span></code></a></li>
 </ul>
 </li>
@@ -7342,8 +7345,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.normalize_face_normals"><code class="docutils literal notranslate"><span class="pre">ms.normalize_face_normals()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#normalize-to-unit-box">Normalize To Unit Box</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.normalize_to_unit_box"><code class="docutils literal notranslate"><span class="pre">ms.normalize_to_unit_box()</span></code></a></li>
+<li><a class="reference internal" href="#normalize-reference-frame">Normalize Reference Frame</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.normalize_reference_frame"><code class="docutils literal notranslate"><span class="pre">ms.normalize_reference_frame()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#normalize-vertex-normals">Normalize Vertex Normals</a><ul>
@@ -7698,11 +7701,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.small_islands_remover"><code class="docutils literal notranslate"><span class="pre">ms.small_islands_remover()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#depth-smooth">Depth Smooth</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-along-one-direction">Smooth Vertices along One Direction</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_depth"><code class="docutils literal notranslate"><span class="pre">ms.smooth_depth()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#directional-geometry-preservation">Directional Geometry Preservation</a><ul>
+<li><a class="reference internal" href="#project-vertices-onto-the-line-of-sight">Project Vertices onto the Line of Sight</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_directional"><code class="docutils literal notranslate"><span class="pre">ms.smooth_directional()</span></code></a></li>
 </ul>
 </li>
@@ -7710,11 +7713,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_face_normals"><code class="docutils literal notranslate"><span class="pre">ms.smooth_face_normals()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#hc-laplacian-smooth">HC Laplacian Smooth</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-by-hc-laplacian">Smooth Vertices by HC Laplacian</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_hc_laplacian"><code class="docutils literal notranslate"><span class="pre">ms.smooth_hc_laplacian()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#laplacian-smooth">Laplacian Smooth</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-by-laplacian">Smooth Vertices by Laplacian</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_laplacian"><code class="docutils literal notranslate"><span class="pre">ms.smooth_laplacian()</span></code></a></li>
 </ul>
 </li>
@@ -7730,15 +7733,15 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_point_cloud_normals"><code class="docutils literal notranslate"><span class="pre">ms.smooth_point_cloud_normals()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#scaledependent-laplacian-smooth">ScaleDependent Laplacian Smooth</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-by-scale-dependent-laplacian">Smooth Vertices by Scale-Dependent Laplacian</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_scale_dependent_laplacian"><code class="docutils literal notranslate"><span class="pre">ms.smooth_scale_dependent_laplacian()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#taubin-smooth">Taubin Smooth</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-by-taubin">Smooth Vertices by Taubin</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_taubin"><code class="docutils literal notranslate"><span class="pre">ms.smooth_taubin()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#twostep-smooth">TwoStep Smooth</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-by-two-step-normal-fitting">Smooth Vertices by Two-Step Normal Fitting</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_two_step"><code class="docutils literal notranslate"><span class="pre">ms.smooth_two_step()</span></code></a></li>
 </ul>
 </li>
@@ -7818,27 +7821,23 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.transfer_vertex_color_to_texture"><code class="docutils literal notranslate"><span class="pre">ms.transfer_vertex_color_to_texture()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#transform-align-to-principal-axis">Transform: Align to Principal Axis</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.transform_align_to_principal_axis"><code class="docutils literal notranslate"><span class="pre">ms.transform_align_to_principal_axis()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#transform-flip-and-or-swap-axis">Transform: Flip and/or swap axis</a><ul>
+<li><a class="reference internal" href="#mirror-or-swap-axes">Mirror or Swap Axes</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.transform_flip_axis"><code class="docutils literal notranslate"><span class="pre">ms.transform_flip_axis()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#transform-rotate">Transform: Rotate</a><ul>
+<li><a class="reference internal" href="#rotate">Rotate</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.transform_rotate"><code class="docutils literal notranslate"><span class="pre">ms.transform_rotate()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#transform-rotate-to-fit-to-a-plane">Transform: Rotate to Fit to a plane</a><ul>
+<li><a class="reference internal" href="#rotate-to-fitted-plane">Rotate to Fitted Plane</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.transform_rotate_to_fit_plane"><code class="docutils literal notranslate"><span class="pre">ms.transform_rotate_to_fit_plane()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#transform-scale-normalize">Transform: Scale, Normalize</a><ul>
+<li><a class="reference internal" href="#scale">Scale</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.transform_scale"><code class="docutils literal notranslate"><span class="pre">ms.transform_scale()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#transform-translate-center-set-origin">Transform: Translate, Center, set Origin</a><ul>
+<li><a class="reference internal" href="#translate">Translate</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.transform_translate"><code class="docutils literal notranslate"><span class="pre">ms.transform_translate()</span></code></a></li>
 </ul>
 </li>
@@ -7858,7 +7857,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.unsharp_mask_color"><code class="docutils literal notranslate"><span class="pre">ms.unsharp_mask_color()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#unsharp-mask-geometry">UnSharp Mask Geometry</a><ul>
+<li><a class="reference internal" href="#sharpen-vertices-by-unsharp-mask">Sharpen Vertices by Unsharp Mask</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.unsharp_mask_geometry"><code class="docutils literal notranslate"><span class="pre">ms.unsharp_mask_geometry()</span></code></a></li>
 </ul>
 </li>
@@ -7906,7 +7905,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.vertex_color_white_balance"><code class="docutils literal notranslate"><span class="pre">ms.vertex_color_white_balance()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#vertex-linear-morphing">Vertex Linear Morphing</a><ul>
+<li><a class="reference internal" href="#displace-vertices-toward-target-mesh">Displace Vertices toward Target Mesh</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.vertex_linear_morphing"><code class="docutils literal notranslate"><span class="pre">ms.vertex_linear_morphing()</span></code></a></li>
 </ul>
 </li>

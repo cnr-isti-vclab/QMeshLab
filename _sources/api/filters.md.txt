@@ -108,7 +108,7 @@ Translate the camera, or all the cameras of the project.
 
 (filter-apply-coord-laplacian-smoothing-surface-preserving)=
 
-## Laplacian Smooth (surface preserving)
+## Smooth Vertices by Laplacian (Surface Preserving)
 
 **Plugin:** qmeshlab.filter.trioptimize
 
@@ -225,7 +225,7 @@ Moves each vertex towards the average position of its linked neighbours, repeate
 
 (filter-apply-mls-apss)=
 
-## MLS projection (APSS)
+## Project Vertices onto MLS Surface (APSS)
 
 **Plugin:** qmeshlab.filter.mls
 
@@ -254,7 +254,7 @@ Project a mesh (or a point set) onto the MLS surface defined by itself or anothe
 
 (filter-apply-mls-rimls)=
 
-## MLS projection (RIMLS)
+## Project Vertices onto MLS Surface (RIMLS)
 
 **Plugin:** qmeshlab.filter.mls
 
@@ -366,7 +366,7 @@ Color function using muparser lib to generate new RGBA color for every vertex<br
 
 (filter-apply-vertex-geometric-function)=
 
-## Per Vertex Geometric Function
+## Compute Vertex Coordinates by Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -1218,7 +1218,7 @@ Implemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`
 
 (filter-compute-matrix-by-icp-between-meshes)=
 
-## ICP Between Meshes
+## Align by ICP
 
 **Plugin:** qmeshlab.filter.icp
 
@@ -1294,7 +1294,7 @@ Implemented with TrueForm's `fit_icp_alignment`.
 
 (filter-compute-matrix-by-mesh-global-alignment)=
 
-## Global Align Meshes
+## Align Meshes Globally
 
 **Plugin:** qmeshlab.filter.icp
 
@@ -2825,7 +2825,7 @@ Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of
 
 (filter-displace-by-fractal-brownian-motion)=
 
-## Displace by Fractal Brownian Motion
+## Displace Vertices by Fractal Brownian Motion
 
 **Plugin:** qmeshlab.filter.vertex_displacement
 
@@ -2859,7 +2859,7 @@ Evaluates fractal Brownian motion (fBM) in normalized object space and displaces
 
 (filter-displace-by-heterogeneous-multifractal-noise)=
 
-## Displace by Heterogeneous Multifractal Noise
+## Displace Vertices by Heterogeneous Multifractal Noise
 
 **Plugin:** qmeshlab.filter.vertex_displacement
 
@@ -2894,7 +2894,7 @@ Evaluates a heterogeneous multifractal whose successive increments are modulated
 
 (filter-displace-by-hybrid-multifractal-noise)=
 
-## Displace by Hybrid Multifractal Noise
+## Displace Vertices by Hybrid Multifractal Noise
 
 **Plugin:** qmeshlab.filter.vertex_displacement
 
@@ -2929,7 +2929,7 @@ Evaluates hybrid multifractal noise, where each octave controls how strongly the
 
 (filter-displace-by-ridged-multifractal-noise)=
 
-## Displace by Ridged Multifractal Noise
+## Displace Vertices by Ridged Multifractal Noise
 
 **Plugin:** qmeshlab.filter.vertex_displacement
 
@@ -2965,7 +2965,7 @@ Evaluates ridged multifractal noise by folding each Perlin signal around zero, s
 
 (filter-displace-by-standard-multifractal-noise)=
 
-## Displace by Standard Multifractal Noise
+## Displace Vertices by Standard Multifractal Noise
 
 **Plugin:** qmeshlab.filter.vertex_displacement
 
@@ -4148,7 +4148,7 @@ Voxelize all mesh layers into an occupancy grid and report the pairs that occupy
 
 (filter-improve-triangulation-trueform)=
 
-## Improve Triangulation (TrueForm)
+## Remesh by Edge Flipping (TrueForm)
 
 **Plugin:** qmeshlab.filter.trueform
 
@@ -4233,7 +4233,7 @@ Imports MeshLab-compatible VCGCamera XML entries and assigns them, in file order
 
 (filter-matrix-freeze)=
 
-## Matrix: Freeze Current Matrix
+## Freeze Matrix
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -4251,7 +4251,7 @@ This filter has no parameters.
 
 (filter-matrix-invert)=
 
-## Matrix: Invert Current Matrix
+## Invert Matrix
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -4271,7 +4271,7 @@ Invert the current transformation matrix. The current transformation is reversed
 
 (filter-matrix-reset)=
 
-## Matrix: Reset Current Matrix
+## Set Matrix to Identity
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -4289,7 +4289,7 @@ This filter has no parameters.
 
 (filter-matrix-set-copy)=
 
-## Matrix: Set/Copy Transformation
+## Set Matrix from Values or Layer
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -4326,7 +4326,7 @@ Set the current transformation matrix by filling it, or copying from another lay
 
 (filter-matrix-set-from-trs)=
 
-## Matrix: Set from translation/rotation/scale
+## Set Matrix from Translation/Rotation/Scale
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -4519,23 +4519,42 @@ This filter has no parameters.
 
 ---
 
-(filter-normalize-to-unit-box)=
+(filter-normalize-reference-frame)=
 
-## Normalize To Unit Box
+## Normalize Reference Frame
 
-**Plugin:** qmeshlab.filter.basic
+**Plugin:** qmeshlab.filter.meshing
 
-Uniformly scales the current mesh to a target box size.
+Bring the mesh into a canonical position, orientation and scale.
 
-```{py:function} ms.normalize_to_unit_box(**params)
+```{py:function} ms.normalize_reference_frame(**params)
 :module: _qmeshlab
 
-Computes current mesh bounding box and applies uniform scale, with optional recentering.
+Places the mesh in a canonical reference frame, so that two copies of the same shape end up superimposed however they were positioned, oriented or scaled beforehand. Each of the three controls can be left at **Unchanged**, so a partial canonicalization is fine.
+
+The three are independent by construction. A centre $C$ is derived from **Position**, the rotation and the scale are both taken about that centre, and the result is composed in a fixed order:
+
+$$M = T_{\mathrm{target}}\cdot S\cdot R\cdot T_{-C}.$$
+
+When **Position** is *Unchanged*, $C$ is still used as the pivot and the object is put back where it started, so changing **Scale** or **Rotation** never moves it.
+
+**Position** picks the point that lands on the origin. *Bounding Box Center* is cheap but follows the extremes, so a single stray vertex moves it. *Vertex Average* is biased by tessellation density. *Shell Barycenter* weights by triangle area and is the robust choice for a surface. *Mesh Barycenter* is the centre of mass of the enclosed solid and needs a watertight mesh.
+
+**Rotation** aligns the principal axes with X, Y and Z, most spread first. *On Vertices* is biased wherever the tessellation is dense; *Area Weighted* integrates over the surface and is usually what you want. Principal axes are only defined up to sign, so the axis directions are fixed by the sign of the third moment along each one, and the third axis is set to the cross product of the first two. Without that step the same shape canonicalizes to any of four different frames depending on how it happened to be oriented on input.
+
+**Minimum Axis Separation** guards the ill-conditioned cases. A sphere has three equal eigenvalues and a cylinder two, so their principal axes are arbitrary; when the relative gap between consecutive eigenvalues falls below this value the rotation is skipped and the reason is logged. Zero always rotates.
+
+**Scale** is always uniform, and is measured *after* rotation, in the canonical frame.
+
+Note that applying this to several layers at once gives each layer its own frame, which will pull apart layers that were registered to each other.
 
 **Parameters:**
 
-- **target_size** (*double*, default: `1.0`) — Largest box dimension after normalization.
-- **recenter** (*bool*, default: `True`) — Recenters mesh to origin before scaling.
+- **position** (*enum*, default: `bbox_center`) — Which point of the mesh is moved onto the origin.
+- **rotation** (*enum*, default: `pca_area_weighted`) — Align the principal axes to X, Y and Z, widest spread first.
+- **scale** (*enum*, default: `unit_longest_side`) — Uniform scale, measured after rotation.
+- **minAxisSeparation** (*double*, default: `0.0`) — Skip the rotation when consecutive principal eigenvalues are closer than this relative gap, as they are for a sphere or a cylinder. Zero always rotates.
+- **Freeze** (*bool*, default: `True`) — Transformation is explicitly applied to vertices.
 ```
 
 ---
@@ -6607,7 +6626,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 (filter-smooth-depth)=
 
-## Depth Smooth
+## Smooth Vertices along One Direction
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -6630,21 +6649,29 @@ A laplacian smooth that is constrained to move vertices only in one given direct
 
 (filter-smooth-directional)=
 
-## Directional Geometry Preservation
+## Project Vertices onto the Line of Sight
 
 **Plugin:** qmeshlab.filter.unsharp
 
-Project smoothed geometry back along a line of sight.
+Snap vertices back onto the sight line through their stored position.
 
 ```{py:function} ms.smooth_directional(**params)
 :module: _qmeshlab
 
-Blend through a given direction the geometry previously stored in a per vertex custom point attribute with the current geometry. This is useful to limit the influence of any smoothing algorithm along the viewing direction. This is useful to cope with the biased distribution of measuring error in many scanning devices, because TOF scanners usually have very good <i>x,y</i> accuracy but suffer of greater depth errors.
+Projects every vertex back onto the line joining **Viewpoint** to the position stored for it in a per-vertex custom point attribute, keeping only the part of its displacement that lies along that line and discarding the part across it.
+
+Writing $o$ for the stored position, $p$ for the current one and $d$ for the unit vector from the viewpoint to $o$:
+
+$$p_{\mathrm{new}} = o + d\,\big((p-o)\cdot d\big).$$
+
+Run it after a smoothing filter to confine that filter's effect to depth. Time-of-flight scanners resolve *x,y* well but carry much larger depth error, so smoothing is worth trusting along the line of sight and worth undoing across it. Store the original coordinates first, in the custom attribute named here.
+
+Note that this is a projection, not a blend: there is no mixing factor, and every vertex moves.
 
 **Parameters:**
 
 - **attr_name** (*string*, default: ``) — Name of the per-vertex custom point attribute containing the original geometry.
-- **viewPoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Position of the viewpoint used for the directional projection.
+- **viewPoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Position of the viewpoint whose sight lines the vertices are projected onto.
 ```
 
 ---
@@ -6669,7 +6696,7 @@ This filter has no parameters.
 
 (filter-smooth-hc-laplacian)=
 
-## HC Laplacian Smooth
+## Smooth Vertices by HC Laplacian
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -6687,7 +6714,7 @@ This filter has no parameters.
 
 (filter-smooth-laplacian)=
 
-## Laplacian Smooth
+## Smooth Vertices by Laplacian
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -6771,7 +6798,7 @@ Smooth the normals of the vertices of a mesh without exploiting the triangle con
 
 (filter-smooth-scale-dependent-laplacian)=
 
-## ScaleDependent Laplacian Smooth
+## Smooth Vertices by Scale-Dependent Laplacian
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -6793,7 +6820,7 @@ Scale Dependent Laplacian Smoothing, extended version of Laplacian Smoothing bas
 
 (filter-smooth-taubin)=
 
-## Taubin Smooth
+## Smooth Vertices by Taubin
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -6816,7 +6843,7 @@ The &lambda;-&mu; Taubin smoothing, combines two steps of low-pass filtering for
 
 (filter-smooth-two-step)=
 
-## TwoStep Smooth
+## Smooth Vertices by Two-Step Normal Fitting
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -7246,30 +7273,9 @@ Fills the specified texture using per-vertex color data of the mesh.
 
 ---
 
-(filter-transform-align-to-principal-axis)=
-
-## Transform: Align to Principal Axis
-
-**Plugin:** qmeshlab.filter.meshing
-
-Align mesh to principal axis.
-
-```{py:function} ms.transform_align_to_principal_axis(**params)
-:module: _qmeshlab
-
-Generate a matrix transformation that rotates the mesh aligning it to its principal axis of inertia.If the mesh is watertight the Itertia tensor is computed assuming the interior of the mesh has a uniform density.
-
-**Parameters:**
-
-- **pointsFlag** (*bool*, default: `True`) — Use vertices only (suitable for point clouds/open meshes).
-- **Freeze** (*bool*, default: `True`) — Transformation is explicitly applied to vertices.
-```
-
----
-
 (filter-transform-flip-axis)=
 
-## Transform: Flip and/or swap axis
+## Mirror or Swap Axes
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -7295,7 +7301,7 @@ Generate a matrix transformation that flips each one of the axis or swaps a coup
 
 (filter-transform-rotate)=
 
-## Transform: Rotate
+## Rotate
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -7322,7 +7328,7 @@ Generate a matrix transformation that rotates the mesh. The mesh can be rotated 
 
 (filter-transform-rotate-to-fit-plane)=
 
-## Transform: Rotate to Fit to a plane
+## Rotate to Fitted Plane
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -7345,7 +7351,7 @@ Generate a matrix transformation that rotates the mesh so that the selection fit
 
 (filter-transform-scale)=
 
-## Transform: Scale, Normalize
+## Scale
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -7364,7 +7370,6 @@ Generate a matrix transformation that scale the mesh. The mesh can be also autom
 - **uniformFlag** (*bool*, default: `True`) — Use same scale for all axes (axisX value).
 - **scaleCenter** (*enum*, default: `origin`) — Scaling center.
 - **customCenter** (*point3f*, default: `[0.0, 0.0, 0.0]`) — Custom scaling center point.
-- **unitFlag** (*bool*, default: `False`) — Scale object to unit bounding box.
 - **Freeze** (*bool*, default: `True`) — Transformation is explicitly applied to vertices.
 ```
 
@@ -7372,7 +7377,7 @@ Generate a matrix transformation that scale the mesh. The mesh can be also autom
 
 (filter-transform-translate)=
 
-## Transform: Translate, Center, set Origin
+## Translate
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -7478,7 +7483,7 @@ Apply Unsharp filter to the vertex color, putting in more evidence color variati
 
 (filter-unsharp-mask-geometry)=
 
-## UnSharp Mask Geometry
+## Sharpen Vertices by Unsharp Mask
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -7748,7 +7753,7 @@ The filter provides a standard white balance transformation. It is done correcti
 
 (filter-vertex-linear-morphing)=
 
-## Vertex Linear Morphing
+## Displace Vertices toward Target Mesh
 
 **Plugin:** qmeshlab.filter.unsharp
 
