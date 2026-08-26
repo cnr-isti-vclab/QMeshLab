@@ -238,6 +238,7 @@ private slots:
     void elementSamplingEmitsOneSamplePerElement();
     void normalizeReferenceFrameIsOrientationInvariant();
     void normalizeReferenceFrameControlsAreIndependent();
+    void bboxCentrePivotIsWorldSpace();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -4262,6 +4263,80 @@ void FilterTests::normalizeReferenceFrameControlsAreIndependent()
     const MeshFilterRunResult openRun = openDoc.runFilter(key, solid);
     QVERIFY(!openRun.success);
     QVERIFY(openRun.errorMessage.contains(QStringLiteral("watertight"), Qt::CaseInsensitive));
+}
+
+// Rotating or scaling about "Bounding Box Center" must leave that centre where it is.
+// The filters read mesh.bbox, which is the untransformed local box, but their matrix is
+// composed on the left of the layer transform and so acts in world space -- so on a
+// layer that has been moved, the pivot used to be the local centre interpreted as a
+// world point, and the mesh swung around a point nowhere near itself.
+void FilterTests::bboxCentrePivotIsWorldSpace()
+{
+    Document probe;
+    const QString rotateKey = filterKeyForId(probe, QStringLiteral("compute_matrix_from_rotation"));
+    const QString scaleKey =
+        filterKeyForId(probe, QStringLiteral("compute_matrix_from_scaling_or_normalization"));
+    QVERIFY(!rotateKey.isEmpty());
+    QVERIFY(!scaleKey.isEmpty());
+
+    auto worldCentre = [](const Document &doc, int idx) {
+        const Document::MeshEntry &e = doc.mesh(idx);
+        const vcg::Point3f c = e.mesh.bbox.Center();
+        return e.transform.map(QVector3D(c.X(), c.Y(), c.Z()));
+    };
+
+    auto movedCube = [](Document &doc) {
+        VCGMesh cube;
+        makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+        const int idx = doc.addMesh(cube, QStringLiteral("Moved"),
+                                    vcg::tri::io::Mask::IOM_VERTCOORD);
+        // A layer that has been dragged well away from the origin and turned.
+        QMatrix4x4 t;
+        t.setToIdentity();
+        t.translate(10.0f, -4.0f, 2.5f);
+        t.rotate(25.0f, 0.2f, 0.9f, 0.3f);
+        doc.setMeshTransform(idx, t);
+        doc.setCurrentMeshIndex(idx);
+        return idx;
+    };
+
+    {
+        Document doc;
+        const int idx = movedCube(doc);
+        const QVector3D before = worldCentre(doc, idx);
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("rotAxis"), QStringLiteral("z"));
+        params.insert(QStringLiteral("angle"), 90.0);
+        params.insert(QStringLiteral("rotCenter"), QStringLiteral("bbox_center"));
+        params.insert(QStringLiteral("Freeze"), false);
+        const MeshFilterRunResult r = doc.runFilter(rotateKey, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+        const QVector3D after = worldCentre(doc, idx);
+        QVERIFY2((after - before).length() < 1e-3f,
+                 qPrintable(QStringLiteral("rotation about the bbox centre moved it by %1")
+                                .arg((after - before).length())));
+    }
+
+    {
+        Document doc;
+        const int idx = movedCube(doc);
+        const QVector3D before = worldCentre(doc, idx);
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("axisX"), 3.0);
+        params.insert(QStringLiteral("uniformFlag"), true);
+        params.insert(QStringLiteral("scaleCenter"), QStringLiteral("bbox_center"));
+        params.insert(QStringLiteral("Freeze"), false);
+        const MeshFilterRunResult r = doc.runFilter(scaleKey, params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+        const QVector3D after = worldCentre(doc, idx);
+        QVERIFY2((after - before).length() < 1e-3f,
+                 qPrintable(QStringLiteral("scaling about the bbox centre moved it by %1")
+                                .arg((after - before).length())));
+    }
 }
 
 QTEST_MAIN(FilterTests)

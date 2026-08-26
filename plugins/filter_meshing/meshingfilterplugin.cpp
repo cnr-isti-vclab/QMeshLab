@@ -918,8 +918,13 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
 
             vcg::Point3f center(0, 0, 0);
             const QString centerMode = params.getEnum(QStringLiteral("rotCenter"));
-            if (centerMode == QStringLiteral("bbox_center"))
-                center = mesh.bbox.Center();
+            if (centerMode == QStringLiteral("bbox_center")) {
+                // mesh.bbox is the *untransformed* local box, while applyTransform()
+                // composes this matrix on the left of the layer transform and therefore
+                // applies it in world space. Using the local centre directly pivots
+                // around the wrong point on any layer that has been moved.
+                center = qtToVcg(entry.transform) * mesh.bbox.Center();
+            }
             else if (centerMode == QStringLiteral("custom")) {
                 const QVector3D cv = params.getPoint3f(QStringLiteral("customCenter"));
                 center = { float(cv.x()), float(cv.y()), float(cv.z()) };
@@ -1254,8 +1259,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
                 sy = sz = sx;
             vcg::Point3f c(0, 0, 0);
             const QString centerMode = params.getEnum(QStringLiteral("scaleCenter"));
-            if (centerMode == QStringLiteral("bbox_center"))
-                c = sb.Center();
+            if (centerMode == QStringLiteral("bbox_center")) {
+                // World space, for the same reason as the rotation centre above.
+                c = qtToVcg(entry.transform) * sb.Center();
+            }
             else if (centerMode == QStringLiteral("custom")) {
                 const QVector3D cv = params.getPoint3f(QStringLiteral("customCenter"));
                 c = { float(cv.x()), float(cv.y()), float(cv.z()) };
