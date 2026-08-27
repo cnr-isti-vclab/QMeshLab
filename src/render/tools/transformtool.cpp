@@ -275,12 +275,24 @@ void TransformTool::commitGesture()
         return;
     }
 
+    // Everything the commit needs, read before the gesture state is torn down.
     const Gesture gesture = m_gesture;
+    const int meshIndex = m_meshIndex;
     const QMatrix4x4 delta = gestureMatrix();
+    const QVector3D pivot = m_pivot;
+    const int axis = m_axis;
+    const double degrees = rotationDegrees();
 
     // The preview must be gone before runFilter captures its "before" snapshot,
     // or the undo step would restore a state that already includes the change.
-    doc->mesh(m_meshIndex).transform = m_originalTransform;
+    doc->mesh(meshIndex).transform = m_originalTransform;
+
+    // End the gesture *now*, not after the filter runs. The filter commits through
+    // setMeshTransform, which emits meshDataChanged, which the view turns into
+    // cancelGesture() on the active tool -- and that would restore the original
+    // matrix straight over the change being committed. Clearing first means there is
+    // no gesture left for that callback to cancel.
+    clearGesture();
 
     MeshFilterParameterValues params;
     QString key;
@@ -293,17 +305,17 @@ void TransformTool::commitGesture()
         break;
     }
     case Gesture::Rotate: {
-        const QVector3D a = (m_axis >= 0) ? axisVector(m_axis) : viewForward();
+        const QVector3D a = (axis >= 0) ? axisVector(axis) : viewForward();
         key = QString::fromLatin1(kRotateKey);
         params[QStringLiteral("rotAxis")] = QStringLiteral("custom");
         params[QStringLiteral("customAxis")] = a;
-        params[QStringLiteral("angle")] = rotationDegrees();
+        params[QStringLiteral("angle")] = degrees;
         // Explicit world-space centre rather than rotCenter=bbox_center: the filter
         // reads mesh.bbox, which is the *untransformed* local box, yet composes its
         // matrix in world space -- so the two only agree while the layer transform is
         // identity, and the preview would drift from the commit on a moved layer.
         params[QStringLiteral("rotCenter")] = QStringLiteral("custom");
-        params[QStringLiteral("customCenter")] = m_pivot;
+        params[QStringLiteral("customCenter")] = pivot;
         break;
     }
     case Gesture::Scale: {
@@ -314,27 +326,25 @@ void TransformTool::commitGesture()
         params[QStringLiteral("axisZ")] = double(s.z());
         params[QStringLiteral("uniformFlag")] = false;
         params[QStringLiteral("scaleCenter")] = QStringLiteral("custom");
-        params[QStringLiteral("customCenter")] = m_pivot;
+        params[QStringLiteral("customCenter")] = pivot;
         break;
     }
     case Gesture::None:
-        clearGesture();
         return;
     }
     // Keep it a layer matrix: baking every gesture would deep-copy the mesh.
     params[QStringLiteral("Freeze")] = false;
 
     const int previousCurrent = doc->currentMeshIndex();
-    doc->setCurrentMeshIndex(m_meshIndex);
+    doc->setCurrentMeshIndex(meshIndex);
     const MeshFilterRunResult result = doc->runFilter(key, params);
-    if (previousCurrent != m_meshIndex)
+    if (previousCurrent != meshIndex)
         doc->setCurrentMeshIndex(previousCurrent);
 
     if (!result.success) {
         doc->writeLog(QObject::tr("Transform failed: %1").arg(result.errorMessage),
                       Document::LogSource::Application, Document::LogLevel::Error);
     }
-    clearGesture();
 }
 
 void TransformTool::abortGesture()

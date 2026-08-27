@@ -239,6 +239,7 @@ private slots:
     void normalizeReferenceFrameIsOrientationInvariant();
     void normalizeReferenceFrameControlsAreIndependent();
     void bboxCentrePivotIsWorldSpace();
+    void unfrozenTransformFilterKeepsTheMatrix();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -4337,6 +4338,51 @@ void FilterTests::bboxCentrePivotIsWorldSpace()
                  qPrintable(QStringLiteral("scaling about the bbox centre moved it by %1")
                                 .arg((after - before).length())));
     }
+}
+
+// What the interactive transform tool does on commit: run the transform filter with
+// Freeze off, on one of several layers, and keep the resulting layer matrix.
+void FilterTests::unfrozenTransformFilterKeepsTheMatrix()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    QCOMPARE(doc.addMesh(cube, QStringLiteral("A"), vcg::tri::io::Mask::IOM_VERTCOORD), 0);
+    QCOMPARE(doc.addMesh(cube, QStringLiteral("B"), vcg::tri::io::Mask::IOM_VERTCOORD), 1);
+    doc.setCurrentMeshIndex(1);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("compute_matrix_from_translation"));
+    QVERIFY(!key.isEmpty());
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("traslMethod"), QStringLiteral("xyz"));
+    params.insert(QStringLiteral("axis"), QVector3D(2.0f, 0.0f, 0.0f));
+    params.insert(QStringLiteral("Freeze"), false);
+
+    const MeshFilterRunResult r = doc.runFilter(key, params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY2(r.documentModified, "an unfrozen transform reported no document change");
+
+    QMatrix4x4 expected;
+    expected.setToIdentity();
+    expected.translate(2.0f, 0.0f, 0.0f);
+    QVERIFY2(matrixNear(doc.mesh(1).transform, expected),
+             qPrintable(QStringLiteral("layer matrix is %1 %2 %3, expected 2 0 0")
+                            .arg(doc.mesh(1).transform(0, 3))
+                            .arg(doc.mesh(1).transform(1, 3))
+                            .arg(doc.mesh(1).transform(2, 3))));
+
+    QMatrix4x4 identity;
+    identity.setToIdentity();
+    QVERIFY(matrixNear(doc.mesh(0).transform, identity));
+
+    // And a second gesture must compose onto the first, not replace it.
+    const MeshFilterRunResult r2 = doc.runFilter(key, params);
+    QVERIFY2(r2.success, qPrintable(r2.errorMessage));
+    QMatrix4x4 twice;
+    twice.setToIdentity();
+    twice.translate(4.0f, 0.0f, 0.0f);
+    QVERIFY(matrixNear(doc.mesh(1).transform, twice));
 }
 
 QTEST_MAIN(FilterTests)
