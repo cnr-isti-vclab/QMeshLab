@@ -164,11 +164,12 @@ LaTeX rendering in filter help can likewise be disabled with
 ## GitHub Actions: macOS DMG
 
 The repository includes a manual GitHub Actions workflow at
-`.github/workflows/macos-dmg.yml` that builds an unsigned macOS `.dmg`.
+`.github/workflows/macos-dmg.yml` that builds, signs, and notarizes an Apple
+Silicon macOS `.dmg`.
 
 What it does:
 - checks out the repo with submodules
-- installs `ninja` and `libomp` with Homebrew
+- installs the build tools, `libomp`, and the GNU autotools needed by vcpkg
 - installs Qt 6.11 with `install-qt-action`
 - reuses the action cache for Qt downloads/install files when available
 - bootstraps local `vcpkg`
@@ -176,8 +177,26 @@ What it does:
 - generates a proper macOS `.icns` from the MeshLab app icon and embeds it in the app bundle
 - bundles `libomp.dylib` into the app when OpenMP-linked plugins are present
 - applies the same icon to the mounted DMG volume when the runner provides `SetFile`
-- runs `macdeployqt -dmg`
-- uploads the generated `.dmg` as a workflow artifact
+- signs the app, frameworks, and plugins with a Developer ID Application certificate
+- enables hardened runtime and secure timestamps
+- submits the DMG to Apple's notary service, staples the ticket, and verifies it
+- uploads the signed and notarized `.dmg` as a workflow artifact
+
+Required repository secrets:
+- `MACOS_CERTIFICATE_P12`: the base64-encoded `.p12` containing the Developer ID
+  Application certificate and its private key
+- `MACOS_CERTIFICATE_PASSWORD`: the password used when exporting that `.p12`
+- `APPLE_API_KEY_ID`: the App Store Connect API key ID
+- `APPLE_API_ISSUER_ID`: the App Store Connect API issuer ID
+- `APPLE_API_PRIVATE_KEY`: the complete `.p8` private key, including its
+  `BEGIN PRIVATE KEY` and `END PRIVATE KEY` lines
+
+Create a **Developer ID Application** certificate in the Apple Developer portal,
+install it in Keychain Access, and export the certificate together with its private
+key as a password-protected `.p12`. On macOS, its secret value can be prepared with
+`base64 -i DeveloperID.p12 | pbcopy`. Create the notarization API key under App
+Store Connect's **Users and Access > Integrations** section. The `.p8` file can be
+downloaded only once, so keep the original in a secure location.
 
 How to use it:
 1. Open the `Actions` tab on GitHub
@@ -185,10 +204,9 @@ How to use it:
 3. Click `Run workflow`
 4. Download the `qmeshlab-macos-dmg` artifact from the completed run
 
-Current status:
-- packaging is unsigned/ad-hoc only
-- the workflow currently runs on `macos-15-intel`, so the produced app is `x86_64`
-- Developer ID signing and notarization can be added later using repository secrets
+The workflow runs on `macos-15`, producing an `arm64` application. The packaging
+script still produces an ad-hoc signed DMG when used locally without
+`--sign-identity`; notarization is performed only by the GitHub Actions workflow.
 
 ## GitHub Actions: Windows Portable ZIP
 

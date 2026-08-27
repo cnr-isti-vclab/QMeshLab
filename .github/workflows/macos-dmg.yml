@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   build-dmg:
-    name: Build Unsigned DMG
+    name: Build Signed and Notarized DMG
     # Apple Silicon only: macOS 26 is Apple's last Intel release. Pinned rather
     # than macos-latest because, with no explicit CMAKE_OSX_DEPLOYMENT_TARGET,
     # the runner's OS version becomes the dmg's minimum supported macOS.
@@ -27,6 +27,23 @@ jobs:
         uses: actions/checkout@v7
         with:
           submodules: recursive
+
+      - name: Validate signing secrets
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          for name in \
+            MACOS_CERTIFICATE_P12 \
+            MACOS_CERTIFICATE_PASSWORD \
+            APPLE_API_KEY_ID \
+            APPLE_API_ISSUER_ID \
+            APPLE_API_PRIVATE_KEY; do
+            [ -n "${!name}" ] || { echo "Missing repository secret: $name" >&2; exit 1; }
+          done
 
       - name: Install macOS build dependencies
         run: |
@@ -141,13 +158,77 @@ jobs:
         run: |
           cmake --build "$BUILD_DIR" -j"$(sysctl -n hw.ncpu)"
 
-      - name: Package unsigned DMG
+      - name: Import Developer ID certificate
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
-          ./scripts/package-macos-dmg.sh --no-build --build-dir "$BUILD_DIR"
+          CERTIFICATE_PATH="$RUNNER_TEMP/qmeshlab-developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/qmeshlab-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          printf '%s' "$MACOS_CERTIFICATE_P12" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          SIGNING_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" |
+            awk -F\" '/Developer ID Application/ {print $2; exit}')"
+          [ -n "$SIGNING_IDENTITY" ] || {
+            echo "The certificate does not contain a Developer ID Application identity" >&2
+            exit 1
+          }
+          echo "MACOS_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "SIGNING_CERTIFICATE_PATH=$CERTIFICATE_PATH" >> "$GITHUB_ENV"
+
+      - name: Package signed DMG
+        run: |
+          ./scripts/package-macos-dmg.sh \
+            --no-build \
+            --build-dir "$BUILD_DIR" \
+            --sign-identity "$MACOS_SIGNING_IDENTITY"
+          DMG_PATH="$GITHUB_WORKSPACE/$BUILD_DIR/$APP_NAME-macos-$(uname -m).dmg"
+          [ -f "$DMG_PATH" ] || { echo "Signed DMG was not produced" >&2; exit 1; }
+          echo "DMG_PATH=$DMG_PATH" >> "$GITHUB_ENV"
+
+      - name: Notarize and staple DMG
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          API_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_PRIVATE_KEY" > "$API_KEY_PATH"
+          echo "NOTARY_API_KEY_PATH=$API_KEY_PATH" >> "$GITHUB_ENV"
+
+          xcrun notarytool submit "$DMG_PATH" \
+            --key "$API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER_ID" \
+            --wait \
+            --timeout 60m
+          xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
+          spctl --assess --type open --context context:primary-signature \
+            --verbose=2 "$DMG_PATH"
+
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          [ -z "${SIGNING_KEYCHAIN:-}" ] || security delete-keychain "$SIGNING_KEYCHAIN" || true
+          [ -z "${SIGNING_CERTIFICATE_PATH:-}" ] || rm -f "$SIGNING_CERTIFICATE_PATH"
+          [ -z "${NOTARY_API_KEY_PATH:-}" ] || rm -f "$NOTARY_API_KEY_PATH"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v7
         with:
-          name: qmeshlab-macos-dmg
+          name: qmeshlab-macos-signed-notarized-dmg
           path: ${{ github.workspace }}/build-release/*.dmg
           if-no-files-found: error

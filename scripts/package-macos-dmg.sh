@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Build an unsigned QMeshLab .dmg locally, mirroring .github/workflows/macos-dmg.yml.
+# Build a QMeshLab .dmg locally, mirroring .github/workflows/macos-dmg.yml.
 #
 #   scripts/package-macos-dmg.sh [--build-dir DIR] [--no-build] [--jobs N]
+#       [--sign-identity "Developer ID Application: ..."]
 #
 # Unlike the CI job this stages a copy of the bundle, so the build tree is never
 # mutated by macdeployqt and repeated runs stay reproducible.
@@ -13,13 +14,15 @@ APP_NAME=QMeshLab
 BUILD_DIR=build-release
 DO_BUILD=1
 JOBS=""
+SIGN_IDENTITY="${MACOS_SIGNING_IDENTITY:-}"
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--build-dir) BUILD_DIR="$2"; shift 2 ;;
 		--no-build)  DO_BUILD=0; shift ;;
 		--jobs)      JOBS="$2"; shift 2 ;;
-		-h|--help)   sed -n '2,9p' "$0"; exit 0 ;;
+		--sign-identity) SIGN_IDENTITY="$2"; shift 2 ;;
+		-h|--help)   sed -n '2,10p' "$0"; exit 0 ;;
 		*) echo "unknown option: $1" >&2; exit 2 ;;
 	esac
 done
@@ -67,7 +70,7 @@ echo "==> macdeployqt ($MACDEPLOYQT)"
 # qtbase are not on the main binary's rpath; point macdeployqt at the umbrella
 # lib dir so it can resolve them.
 QT_LIBDIR="$(cd "$QT_DIR/../.." && pwd)"
-"$MACDEPLOYQT" "$APP" -always-overwrite -libpath="$QT_LIBDIR"
+"$MACDEPLOYQT" "$APP" -always-overwrite -libpath="$QT_LIBDIR" -no-codesign
 
 # Bundle libomp: it is a Homebrew dylib outside the .app, so an absolute link
 # path would break on any machine that does not have it installed.
@@ -84,14 +87,17 @@ if [ -n "$OMP_LINK_PATH" ]; then
 		"@executable_path/../Frameworks/libomp.dylib" "$APP_BIN"
 fi
 
-# install_name_tool invalidates the linker's ad-hoc signature; on Apple Silicon
-# an unsigned binary is killed on launch, so re-sign before packaging.
-echo "==> ad-hoc signing"
-codesign --force --deep --sign - "$APP"
-codesign --verify --deep "$APP"
-
 echo "==> building dmg"
-"$MACDEPLOYQT" "$APP" -always-overwrite -dmg
+if [ -n "$SIGN_IDENTITY" ]; then
+	echo "==> Developer ID signing with hardened runtime"
+	"$MACDEPLOYQT" "$APP" -always-overwrite -libpath="$QT_LIBDIR" \
+		"-sign-for-notarization=$SIGN_IDENTITY" -dmg
+else
+	echo "==> ad-hoc signing"
+	"$MACDEPLOYQT" "$APP" -always-overwrite -libpath="$QT_LIBDIR" \
+		-codesign=- -dmg
+fi
+codesign --verify --deep --strict --verbose=2 "$APP"
 GENERATED_DMG="$STAGE/$APP_NAME.dmg"
 [ -f "$GENERATED_DMG" ] || { echo "macdeployqt did not produce $GENERATED_DMG" >&2; exit 1; }
 
@@ -122,9 +128,18 @@ if [ -n "$APP_ICON" ] && xcrun -f SetFile >/dev/null 2>&1; then
 	rmdir "$MOUNT_POINT" 2>/dev/null || true
 fi
 
-DMG="$BUILD_DIR/$APP_NAME-macos-$(uname -m)-unsigned.dmg"
+if [ -n "$SIGN_IDENTITY" ]; then
+	DMG="$BUILD_DIR/$APP_NAME-macos-$(uname -m).dmg"
+else
+	DMG="$BUILD_DIR/$APP_NAME-macos-$(uname -m)-unsigned.dmg"
+fi
 rm -f "$DMG"
 mv "$GENERATED_DMG" "$DMG"
+if [ -n "$SIGN_IDENTITY" ]; then
+	echo "==> signing dmg"
+	codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
+	codesign --verify --verbose=2 "$DMG"
+fi
 echo
 echo "==> $DMG"
 ls -lah "$DMG"
