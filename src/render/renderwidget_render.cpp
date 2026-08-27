@@ -65,11 +65,13 @@ void RenderWidget::prepareToolDepthCuedLines(
     for (int pass = 0; pass < 2; ++pass) {
         if (!m_toolLineUbufs[pass])
             continue;
+        const QColor lineColor =
+            m_activeTool ? m_activeTool->toolLineColor() : QColor(170, 255, 255);
         float data[kToolLineUbufSize / sizeof(float)] = {};
         memcpy(data, mvp.constData(), 16 * sizeof(float));
-        data[16] = 170.0f / 255.0f; // color.r
-        data[17] = 1.0f;            // color.g
-        data[18] = 1.0f;            // color.b
+        data[16] = float(lineColor.redF());   // color.r
+        data[17] = float(lineColor.greenF()); // color.g
+        data[18] = float(lineColor.blueF());  // color.b
         data[19] = 1.0f;            // color.a: dashes provide the occlusion cue
         data[20] = 3.5f; // params.x: same width; dashes alone indicate occlusion
         data[21] = 1.0f / float(qMax(1, pixelSize.width()));  // params.y: 1 / viewport width

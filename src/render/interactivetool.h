@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QCursor>
 #include <QString>
 #include <QVector3D>
@@ -84,6 +85,9 @@ public:
     // World-space segments drawn with the standard depth cue: dotted where
     // occluded by scene geometry and solid where visible.
     virtual std::vector<ToolLineSegment> depthCuedLines() const { return {}; }
+    // Colour for this tool's depth-cued lines. Lets a tool encode meaning in the
+    // line itself -- the transform tool colours a constraint axis red/green/blue.
+    virtual QColor toolLineColor() const { return QColor(170, 255, 255); }
 
     // Delivered (asynchronously) after a RenderWidget::requestSurfacePick issued
     // by this tool completes. result.hit is false when the click missed all meshes.

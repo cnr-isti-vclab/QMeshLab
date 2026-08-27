@@ -44,6 +44,9 @@ public:
                       const QMatrix4x4 &worldToClip,
                       const QSize &viewportSize) override;
 
+    std::vector<ToolLineSegment> depthCuedLines() const override;
+    QColor toolLineColor() const override;
+
     bool gestureInFlight() const override { return m_gesture != Gesture::None; }
     void cancelGesture() override;
 
@@ -65,6 +68,7 @@ private:
     double rotationDegrees() const;
     float worldUnitsPerPixel() const;
     QVector3D viewForward() const;
+    float axisDrawLength() const;
 
     Gesture m_gesture = Gesture::None;
     int m_meshIndex = -1;

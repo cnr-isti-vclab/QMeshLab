@@ -509,6 +509,61 @@ QString TransformTool::readout() const
     return verb + constraint + value;
 }
 
+// How far the constraint axis should reach: past the layer it is acting on, so it
+// reads as an axis through the object rather than a short stick near the pivot.
+float TransformTool::axisDrawLength() const
+{
+    if (!m_view || !m_view->document())
+        return 1.0f;
+    Document *doc = m_view->document();
+    if (m_meshIndex < 0 || m_meshIndex >= doc->meshCount())
+        return 1.0f;
+    const vcg::Box3f &box = doc->mesh(m_meshIndex).mesh.bbox;
+    if (box.IsNull())
+        return 1.0f;
+    // The layer transform may scale, so measure the diagonal in world space.
+    const vcg::Point3f lo = box.min;
+    const vcg::Point3f hi = box.max;
+    const QVector3D a = m_originalTransform * QVector3D(lo.X(), lo.Y(), lo.Z());
+    const QVector3D b = m_originalTransform * QVector3D(hi.X(), hi.Y(), hi.Z());
+    const float diagonal = (b - a).length();
+    return (diagonal > 1e-6f) ? diagonal * 1.5f : 1.0f;
+}
+
+std::vector<ToolLineSegment> TransformTool::depthCuedLines() const
+{
+    std::vector<ToolLineSegment> lines;
+    if (m_gesture == Gesture::None || m_axis < 0)
+        return lines;
+
+    const float len = axisDrawLength();
+    if (m_planeConstraint) {
+        // Constrained to the plane normal to m_axis: draw the two axes that span it.
+        for (int a = 0; a < 3; ++a) {
+            if (a == m_axis)
+                continue;
+            const QVector3D d = axisVector(a) * len;
+            lines.push_back({ m_pivot - d, m_pivot + d });
+        }
+    } else {
+        const QVector3D d = axisVector(m_axis) * len;
+        lines.push_back({ m_pivot - d, m_pivot + d });
+    }
+    return lines;
+}
+
+QColor TransformTool::toolLineColor() const
+{
+    // The usual X/Y/Z colour code. A plane constraint is drawn in the colour of the
+    // axis it excludes, matching how the readout names it.
+    switch (m_axis) {
+    case 0: return { 232, 70, 70 };
+    case 1: return { 90, 200, 70 };
+    case 2: return { 70, 130, 240 };
+    default: return { 170, 255, 255 };
+    }
+}
+
 void TransformTool::paintOverlay(QPainter &painter,
                                  const QMatrix4x4 &worldToClip,
                                  const QSize &viewportSize)
