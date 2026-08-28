@@ -312,7 +312,7 @@ MeshFilterRunResult runAlignCorresponding(const FilterParams &params, Document &
         return fail(QObject::tr(
             "This filter needs one-to-one correspondences: both layers must have the same "
             "number of live vertices, in matching order ('%1' has %2, '%3' has %4). Use "
-            "'Align by ICP' when the correspondence is unknown.")
+            "an 'Align by ICP' filter when the correspondence is unknown.")
                         .arg(doc.mesh(in.sourceIndex).name)
                         .arg(source.size())
                         .arg(doc.mesh(in.referenceIndex).name)
@@ -938,7 +938,7 @@ MeshFilterRunResult addPolylineLayer(
     return result;
 }
 
-// Where a mesh passes through itself. Unlike Select Self Intersecting Faces, which marks
+// Where a mesh passes through itself. Unlike Select Self-Intersecting Faces, which marks
 // the faces involved, this extracts the intersection curve itself.
 MeshFilterRunResult runSelfIntersectionCurves(const FilterParams &params, Document &doc)
 {
@@ -1338,7 +1338,7 @@ MeshFilterRunResult runSelectInsideMesh(const FilterParams &params, Document &do
     const bool invert = params.getBool(QStringLiteral("selectOutside"), false);
     const QString mode = params.getEnum(QStringLiteral("mode"));
 
-    doc.beginFilterProgress(QObject::tr("Select Vertices Inside Mesh"));
+    doc.beginFilterProgress(QObject::tr("Select Vertices Inside Mesh (TrueForm)"));
     int selected = 0;
     try {
         const TfMesh reference = tfMeshFromLayer(doc.mesh(referenceIndex));

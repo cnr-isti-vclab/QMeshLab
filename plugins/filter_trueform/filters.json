@@ -728,7 +728,7 @@
     },
     {
       "id": "select_vertices_inside_mesh",
-      "name": "Select Vertices Inside Mesh",
+      "name": "Select Vertices Inside Mesh (TrueForm)",
       "pythonName": "select_vertices_inside_mesh",
       "categories": [
         "Selection/by Attribute"

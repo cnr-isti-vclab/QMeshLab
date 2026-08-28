@@ -7,11 +7,12 @@ Verb Object [(Backend)]
 ```
 
 **Status: display names APPLIED for `Meshing`** (30, 2026-07-30), **`Attribute`**
-(64, 2026-08-04), **`Creation`** (38, 2026-08-05) **and `Geometry`** (38, 2026-08-26).
+(64, 2026-08-04), **`Creation`** (38, 2026-08-05), **`Geometry`** (38, 2026-08-26)
+**and `Selection`** (30, 2026-08-27).
 Counts are as of each round; the archive has grown to 328 filters since, so a root's
 current size exceeds what its round covered.
 
-Remaining roots, largest first: `Selection` (30), `Repair` (24), `Document` (22),
+Remaining roots, largest first: `Repair` (24), `Document` (22),
 `Parametrization` (17), `Measurement` (14), `Transfer` (13), `Texture` (3 plus 7 filters
 sitting at the bare `Texture` root, which needs a subcategory decision first).
 
@@ -821,3 +822,80 @@ All settled (2026-08-26).
 `docs/design/filter_classification.md` and `filter_organization.md` still carry the old
 names. Both are dated snapshots of an audit, like the "Current" column above, and are left
 alone on purpose. `docs/api/filters.md` is generated and gitignored.
+
+---
+
+# Round 5 — `Selection` (30 filters)
+
+**Applied 2026-08-27.** 12 renamed, 18 already conformant.
+
+## Selection/Set Operations (5)
+
+All five kept. `Dilate Selection`, `Erode Selection` and `Invert Selection` were already
+right; the round's work here was admitting the two verbs (below) so the guard accepts
+them.
+
+## Selection/by Attribute (9)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Conditional Face Selection | **Select Faces by Expression** | `select_faces_by_expression` |
+| Conditional Vertex Selection | **Select Vertices by Expression** | `select_vertices_by_expression` |
+| Select Faces with Edges Longer Than... | **Select Faces by Edge Length** | `select_faces_by_edge_length` |
+| Select by Face Quality | **Select Faces by Scalar** | `select_faces_by_scalar` |
+| Select by Vertex Quality | **Select Vertices by Scalar** | `select_vertices_by_scalar` |
+| Select Vertices Inside Mesh | **Select Vertices Inside Mesh (TrueForm)** | `select_vertices_inside_mesh_trueform` |
+| Select Faces by Color · by View Angle · Select Outliers | *unchanged* | |
+
+`by Expression` matches the six `Compute … by Expression` names ratified in round 2 —
+the same muparser machinery, and the descriptor ids already said
+`select_faces_by_condition`. The trailing `...` was a MeshLab dialog marker.
+
+## Selection/by Topology (13)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Select non Manifold Edges | **Select Non-Manifold Edges (vcglib)** | `select_non_manifold_edges_vcglib` |
+| Select non Manifold Vertices | **Select Non-Manifold Vertices** | `select_non_manifold_vertices` |
+| Select Self Intersecting Faces | **Select Self-Intersecting Faces** | `select_self_intersecting_faces` |
+| Select small disconnected component | **Select Small Disconnected Components** | `select_small_disconnected_components` |
+| Select 'Problematic' Faces | **Select Ill-Shaped Faces** | `select_ill_shaped_faces` |
+| the other 8 | *unchanged* | |
+
+`Select non Manifold Edges` was the last bare incumbent in the archive — it escaped the
+`(vcglib)` sweep only because its casing differed from its `(TrueForm)` counterpart.
+
+## Selection/by Visibility (3)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Select by Rectangle (Screen) | **Select by Screen Rectangle** | `select_by_screen_rectangle` |
+| Select Visible Faces · Select Visible Vertices | *unchanged* | |
+
+`(Screen)` is neither a backend nor an algorithm, so under rule 3 it does not belong in
+parentheses: it says what the filter *is*, and belongs in the name.
+
+## Verbs added to the lexicon
+
+| Verb | Means | Why the existing lexicon was not enough |
+|---|---|---|
+| `Dilate`, `Erode` | Grow or shrink the selection by one ring of adjacent elements | The standard morphological pair. `Select` names the act of selecting, not these two operations on a selection that already exists |
+
+## Rulings
+
+All settled (2026-08-27).
+
+1. ~~Admit `Dilate`/`Erode`, or rename to `Expand`/`Shrink Selection`?~~ **Admit both.**
+   The three existing names were already good; renaming them to avoid two lexicon rows
+   would have been the wrong trade.
+2. ~~`Select Vertices Inside Mesh` carried no backend suffix, alone among the TrueForm
+   filters.~~ **Suffix added.**
+3. ~~`Select 'Problematic' Faces`~~ → **Select Ill-Shaped Faces**. The scare quotes were
+   doing the work of a definition; the filter selects elongated, flipped or folded faces.
+   *Select Degenerate Faces* was rejected as confusable with the `Repair/Degenerate`
+   subcategory, which means zero-area.
+
+## Enforcement
+
+`Selection` was added to `appliedRoots` in `displayNamesLeadWithALexiconVerb`, so the
+round is now checked on every build.

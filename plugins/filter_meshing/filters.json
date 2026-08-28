@@ -353,7 +353,7 @@
     {
       "id": "meshing_decimation_quadric_edge_collapse",
       "categories": ["Meshing/Simplification"],
-      "name": "Simplify by Quadric Edge Collapse",
+      "name": "Simplify by Quadric Edge Collapse (vcglib)",
       "pythonName": "simplification_quadric_edge_collapse",
       "referenceIds": [
         "garland1997qem"
@@ -501,7 +501,7 @@
     {
       "id": "meshing_decimation_quadric_edge_collapse_with_texture",
       "categories": ["Meshing/Simplification", "Texture"],
-      "name": "Simplify by Quadric Edge Collapse with Texture",
+      "name": "Simplify by Quadric Edge Collapse with Texture (vcglib)",
       "pythonName": "simplification_quadric_edge_collapse_with_texture",
       "referenceIds": [
         "garland1998texture"
@@ -628,7 +628,7 @@
     {
       "id": "meshing_isotropic_explicit_remeshing",
       "categories": ["Meshing/Remeshing"],
-      "name": "Remesh Isotropically",
+      "name": "Remesh Isotropically (vcglib)",
       "pythonName": "remeshing_isotropic",
       "shortDescription": "Explicit isotropic remeshing by local operations.",
       "longDescriptionMarkdown": "Perform a explicit remeshing of a triangular mesh, by repeatedly applying edge flip, collapse, relax and refine operations to regularize size and aspect ration of the triangular meshing. Loosely inspired to:<br>Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, and Werner Stuetzle.<br>Mesh optimization<br>(SIGGRAPH '93). ACM, New York, NY, USA, 19\u201326. <a href='https://doi.org/10.1145/166117.166119'>DOI</a>",
@@ -1422,7 +1422,7 @@
       "categories": ["Geometry/Transform"],
       "name": "Freeze Matrix",
       "pythonName": "matrix_freeze",
-      "shortDescription": "Apply current matrix to geometry.",
+      "shortDescription": "Bake the layer matrix into the vertex coordinates.",
       "longDescriptionMarkdown": "Freeze the current transformation matrix into the coordinates of the vertices of the mesh (and set this matrix to the identity). In other words it applies in a definetive way the current matrix to the vertex coordinates.",
       "tags": [
         "meshing"
@@ -1919,7 +1919,7 @@
     {
       "id": "compute_curvature_principal_directions_per_vertex",
       "categories": ["Attribute/Curvature"],
-      "name": "Compute Principal Curvature Directions",
+      "name": "Compute Principal Curvature Directions (vcglib)",
       "pythonName": "compute_curvature_principal_directions",
       "shortDescription": "Compute principal curvature directions.",
       "longDescriptionMarkdown": "Compute the principal directions of curvature with different algorithms. The selected curvature scalar is stored in vertex quality; the filter does not bake colors, and QMeshLab switches the view to vertex-quality color visualization after it runs.",
@@ -2367,7 +2367,7 @@
     {
       "id": "compute_selection_crease_per_edge",
       "categories": ["Selection/by Topology"],
-      "name": "Select Crease Edges",
+      "name": "Select Crease Edges (vcglib)",
       "pythonName": "select_crease_edges",
       "shortDescription": "Select crease edges from dihedral angles.",
       "longDescriptionMarkdown": "It select the crease edges of a mesh according to edge dihedral angle.<br>Angle between face normal is considered signed according to convexity/concavity.Convex angles are positive and concave are negative.",

@@ -135,7 +135,7 @@
     {
       "id": "select_problematic_faces",
       "categories": ["Selection/by Topology"],
-      "name": "Select 'Problematic' Faces",
+      "name": "Select Ill-Shaped Faces",
       "pythonName": "select_problematic_faces",
       "shortDescription": "Select problematic faces: elongated, flipped, or folded.",
       "longDescriptionMarkdown": "Select faces with 'problems', like normal inverted w.r.t the surrounding areas, extremely elongated or folded.",
@@ -498,7 +498,7 @@
     {
       "id": "select_by_face_quality",
       "categories": ["Selection/by Attribute"],
-      "name": "Select by Face Quality",
+      "name": "Select Faces by Scalar",
       "pythonName": "select_by_face_quality",
       "shortDescription": "Select elements using per-face quality range.",
       "longDescriptionMarkdown": "Select all the faces/vertices with within the specified face quality range.",
@@ -553,7 +553,7 @@
     {
       "id": "select_by_vertex_quality",
       "categories": ["Selection/by Attribute"],
-      "name": "Select by Vertex Quality",
+      "name": "Select Vertices by Scalar",
       "pythonName": "select_by_vertex_quality",
       "shortDescription": "Select elements using per-vertex quality range.",
       "longDescriptionMarkdown": "Select all the faces/vertices within the specified vertex quality range.",
@@ -701,7 +701,7 @@
     {
       "id": "select_self_intersecting_faces",
       "categories": ["Selection/by Topology"],
-      "name": "Select Self Intersecting Faces",
+      "name": "Select Self-Intersecting Faces",
       "pythonName": "select_self_intersecting_faces",
       "shortDescription": "Select only self intersecting faces.",
       "longDescriptionMarkdown": "Select only self intersecting faces.",
@@ -751,7 +751,7 @@
     {
       "id": "select_non_manifold_edges",
       "categories": ["Selection/by Topology"],
-      "name": "Select non Manifold Edges",
+      "name": "Select Non-Manifold Edges (vcglib)",
       "pythonName": "select_non_manifold_edges",
       "shortDescription": "Select faces and vertices incident on non manifold edges.",
       "longDescriptionMarkdown": "Select the faces and the vertices incident on non manifold edges (e.g. edges where more than two faces are incident); note that this function select the components that",
@@ -777,7 +777,7 @@
     {
       "id": "select_non_manifold_vertices",
       "categories": ["Selection/by Topology"],
-      "name": "Select non Manifold Vertices",
+      "name": "Select Non-Manifold Vertices",
       "pythonName": "select_non_manifold_vertices",
       "shortDescription": "Select non manifold vertices.",
       "longDescriptionMarkdown": "Select the non manifold vertices that do not belong to non manifold edges. For example two cones connected by their apex. Vertices incident on non manifold edges are ignored.",
@@ -803,7 +803,7 @@
     {
       "id": "select_faces_by_edge_length",
       "categories": ["Selection/by Attribute"],
-      "name": "Select Faces with Edges Longer Than...",
+      "name": "Select Faces by Edge Length",
       "pythonName": "select_faces_with_edges_longer_than",
       "shortDescription": "Select all triangles having an edge longer than threshold.",
       "longDescriptionMarkdown": "Select all triangles having an edge with length greater or equal than a given threshold.",
@@ -883,7 +883,7 @@
     {
       "id": "select_by_rectangle",
       "categories": ["Selection/by Visibility"],
-      "name": "Select by Rectangle (Screen)",
+      "name": "Select by Screen Rectangle",
       "pythonName": "select_by_rectangle",
       "shortDescription": "Select vertices or faces whose screen projection falls inside a rectangle.",
       "longDescriptionMarkdown": "Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside the rectangle. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.",

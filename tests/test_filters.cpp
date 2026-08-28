@@ -1,6 +1,8 @@
 #include <QtTest/QtTest>
 
 #include <QElapsedTimer>
+#include <QFile>
+#include <QRegularExpression>
 #include <QSet>
 
 #include <map>
@@ -240,6 +242,7 @@ private slots:
     void normalizeReferenceFrameControlsAreIndependent();
     void bboxCentrePivotIsWorldSpace();
     void unfrozenTransformFilterKeepsTheMatrix();
+    void displayNamesLeadWithALexiconVerb();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -4383,6 +4386,108 @@ void FilterTests::unfrozenTransformFilterKeepsTheMatrix()
     twice.setToIdentity();
     twice.translate(4.0f, 0.0f, 0.0f);
     QVERIFY(matrixNear(doc.mesh(1).transform, twice));
+}
+
+// The verb lexicon in docs/design/vocabulary.md declares itself normative: "If a term is
+// not here, it is not approved". This makes that true rather than aspirational -- the
+// table is parsed out of the document and every shipped display name is checked against
+// it. Without this the rule is only enforced by whoever happens to audit; that is how
+// "Improve Triangulation (TrueForm)" survived for weeks after its round.
+//
+// Adding a verb means adding a row to that table, which is exactly the intended cost.
+void FilterTests::displayNamesLeadWithALexiconVerb()
+{
+    QFile doc(QStringLiteral(TEST_SOURCE_DIR "/docs/design/vocabulary.md"));
+    QVERIFY2(doc.open(QIODevice::ReadOnly | QIODevice::Text),
+             "cannot open docs/design/vocabulary.md");
+    const QString text = QString::fromUtf8(doc.readAll());
+    doc.close();
+
+    // Section 3 only: other sections have tables of their own.
+    const int start = text.indexOf(QStringLiteral("## 3. Verb lexicon"));
+    QVERIFY2(start >= 0, "vocabulary.md has no '## 3. Verb lexicon' section");
+    int end = text.indexOf(QStringLiteral("\n## "), start + 1);
+    if (end < 0)
+        end = text.size();
+    const QString section = text.mid(start, end - start);
+
+    QSet<QString> verbs;
+    // Rows look like:  | `Create` | ... |   and one row carries three verbs at once.
+    static const QRegularExpression rowRe(QStringLiteral("^\\|\\s*((?:`[A-Za-z]+`(?:,\\s*)?)+)\\s*\\|"));
+    static const QRegularExpression tickRe(QStringLiteral("`([A-Za-z]+)`"));
+    const QStringList lines = section.split(QLatin1Char('\n'));
+    for (const QString &line : lines) {
+        const QRegularExpressionMatch m = rowRe.match(line);
+        if (!m.hasMatch())
+            continue;
+        auto it = tickRe.globalMatch(m.captured(1));
+        while (it.hasNext())
+            verbs.insert(it.next().captured(1));
+    }
+    // The closed group of attribute-editing verbs is admitted as prose, not as rows.
+    const int groupAt = section.indexOf(QStringLiteral("**Attribute-editing verbs**"));
+    if (groupAt >= 0) {
+        const int groupEnd = section.indexOf(QStringLiteral("\n\n"), groupAt);
+        auto it = tickRe.globalMatch(section.mid(groupAt, groupEnd - groupAt));
+        while (it.hasNext())
+            verbs.insert(it.next().captured(1));
+    }
+    QVERIFY2(verbs.size() > 25,
+             qPrintable(QStringLiteral("parsed only %1 verbs from the lexicon; the table "
+                                       "format probably changed").arg(verbs.size())));
+    QVERIFY(verbs.contains(QStringLiteral("Compute")));
+    QVERIFY(verbs.contains(QStringLiteral("Sharpen")));   // ratified in round 2
+    QVERIFY(verbs.contains(QStringLiteral("Mirror")));    // ratified in round 4
+
+    // The named-result exception in section 6: a filter whose output *is* a
+    // conventionally named object may be a noun phrase.
+    const QStringList namedResults{
+        QStringLiteral("Mesh Union"), QStringLiteral("Mesh Intersection"),
+        QStringLiteral("Mesh Difference"), QStringLiteral("Mesh Symmetric Difference"),
+        QStringLiteral("Mesh CSG Expression")
+    };
+
+    // Roots whose renaming round has been applied. Extend as each round lands; the
+    // pending ones are known not to conform yet and would only add noise here.
+    const QSet<QString> appliedRoots{
+        QStringLiteral("Meshing"), QStringLiteral("Attribute"),
+        QStringLiteral("Creation"), QStringLiteral("Geometry"),
+        QStringLiteral("Selection")
+    };
+
+    Document probe;
+    QStringList offenders;
+    for (const auto &info : probe.filterInfos()) {
+        const QString name = info.descriptor.name.trimmed();
+        if (name.isEmpty())
+            continue;
+        // The *primary* category decides which round owns a filter. Several filters
+        // carry a second category in an already-applied root while belonging to a
+        // pending one -- the Transfer filters are also tagged Attribute/Color -- and
+        // they get renamed when their own round runs.
+        if (info.descriptor.categories.isEmpty())
+            continue;
+        const QString root = info.descriptor.categories.front().section(QLatin1Char('/'), 0, 0);
+        if (!appliedRoots.contains(root))
+            continue;
+        bool exempt = false;
+        for (const QString &nr : namedResults)
+            exempt = exempt || name.startsWith(nr);
+        if (exempt)
+            continue;
+        if (name.contains(QLatin1Char(':'))) {
+            offenders << QStringLiteral("%1  (repeats the category with a colon)").arg(name);
+            continue;
+        }
+        const QString first = name.section(QLatin1Char(' '), 0, 0);
+        if (!verbs.contains(first))
+            offenders << QStringLiteral("%1  (leading word '%2' is not in the lexicon)")
+                             .arg(name, first);
+    }
+    QVERIFY2(offenders.isEmpty(),
+             qPrintable(QStringLiteral("%1 display name(s) break the naming grammar:\n  %2")
+                            .arg(QString::number(offenders.size()),
+                                 offenders.join(QStringLiteral("\n  ")))));
 }
 
 QTEST_MAIN(FilterTests)

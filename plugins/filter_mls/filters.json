@@ -688,7 +688,7 @@
     {
       "id": "compute_selection_by_small_disconnected_components_per_face",
       "categories": ["Selection/by Topology"],
-      "name": "Select small disconnected component",
+      "name": "Select Small Disconnected Components",
       "pythonName": "select_small_disconnected_component",
       "shortDescription": "Select the small disconnected components of a mesh.",
       "longDescriptionMarkdown": "Select the small disconnected components of a mesh.",

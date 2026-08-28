@@ -321,7 +321,7 @@ MeshFilterRunResult runTwoMeshIcp(const FilterParams &params, Document &doc)
     if (!referenceInvertible)
         return fail(QObject::tr("Reference mesh transform is not invertible."));
 
-    doc.beginFilterProgress(QObject::tr("Align by ICP"));
+    doc.beginFilterProgress(QObject::tr("Align by ICP (vcglib)"));
     if (vcg::CallBackPos *cb = doc.progressCallback())
         (*cb)(5, "Preparing ICP alignment...");
 

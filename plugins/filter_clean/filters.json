@@ -568,7 +568,7 @@
     {
       "id": "remove_duplicated_vertices",
       "categories": ["Repair/Duplicates"],
-      "name": "Remove Duplicate Vertices",
+      "name": "Remove Duplicate Vertices (vcglib)",
       "pythonName": "remove_duplicate_vertices",
       "shortDescription": "Merge vertices that have exactly the same coordinates.",
       "longDescriptionMarkdown": "Check for every vertex on the mesh: if there are two vertices with same coordinates they are merged into a single one.",

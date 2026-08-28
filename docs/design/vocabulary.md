@@ -12,10 +12,10 @@ applied to plugins and menus), [Adding a Filter](adding_a_filter.md).
 
 ## Why this exists
 
-Measured across the current 272 filters:
+When this document was written, across the 272 filters of the time:
 
-- **165 of 272 display names (61 %) do not lead with a verb**, so the reader cannot
-  tell what will change.
+- **165 of 272 display names (61 %) did not lead with a verb**, so the reader could not
+  tell what would change.
 - Live synonym pairs, both spellings in active use: `remove` (10) / `delete` (8) ·
   `create` (16) / `generate` (19) · `apply` (16) / `set` (16) · `transfer` (11) /
   `project` (5) · `simplification` (6) / `decimation` (4) · `quality` (29) /
@@ -24,6 +24,24 @@ Measured across the current 272 filters:
   `Color` alongside British `Colourisation`.
 - 32 distinct free-text `menuPath` values across 32 plugins, including one-offs like
   `Remeshing, Smoothing and Resampling` and backend leakage like `Normals/Embree`.
+
+**Where it stands now** (327 filters, five renaming rounds applied — `Meshing`,
+`Attribute`, `Creation`, `Geometry`, `Selection`):
+
+- **57 of 327 (17 %)** do not lead with a verb, and every one of them sits in a root
+  whose round has not run yet.
+- The same is true of every surviving rejected synonym: `delete` and `generate` in
+  `Document`, `quality` in `Repair`/`Transfer`/`Measurement`/`Selection`,
+  `parameterization` in `Parametrization`. The completed rounds left no synonym debt,
+  so no separate sweep is needed — each round retires its own.
+- Free-text `menuPath` is gone from the descriptors in favour of the `categories`
+  array; the loader still reads a single `menuPath` string as a legacy fallback.
+- British spellings are gone (`colour` 0 / `color` 34).
+
+Remaining rounds, largest first: `Repair` (24), `Document` (22),
+`Parametrization` (17), `Measurement` (14), `Transfer` (13), `Texture` (3, plus 7
+filters still at the bare root awaiting a subcategory decision). Then pass 2: the
+Python names and parameter ids.
 
 ## 1. Filter categories (closed set)
 
@@ -367,13 +385,11 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Compute` | Calculate and store an attribute | `Estimate`\*, `Calculate`, `Re-Compute`, `Recompute` |
 | `Measure` | Report values without modifying | `Inspect`, `Report`, `Analyze`, `Info` |
 | `Colorize` | Write color derived from other data | `Color` (as a verb), `Paint`, `Colourise` |
-| `Bake` | Convert a current mapping/view into persistent data | `Freeze` (for color/texture), `Flatten` |
-| `Transfer` | Move data between domains/layers/rasters | **`Project`**, `Copy`, `Map`, `Push`, `Pull` |
+| `Transfer` | Move data between domains/layers/rasters, including baking an attribute into a texture | **`Project`**, `Copy`, `Map`, `Push`, `Pull`, `Bake`, `Flatten` |
 | `Transform` | Apply an affine change to positions | `Move` (use `Translate`), `Deform` |
 | `Translate`, `Rotate`, `Scale` | The specific affine operations | `Shift`, `Turn`, `Resize` |
 | `Displace` | Move vertices by a computed scalar or vector field while preserving connectivity | `Perturb`, `Deform` |
-| `Apply` | Apply an **existing stored** transform to geometry | *(never as a generic verb)* |
-| `Freeze` | Bake the layer matrix into vertex coordinates | `Collapse matrix`, `Commit` |
+| `Freeze` | Write the layer matrix into the vertex coordinates and reset it to the identity | `Apply` (to a stored transform), `Bake` (of a matrix), `Collapse matrix`, `Commit` |
 | `Align` | Derive a registration transform between layers | `Register`, `Fit` |
 | `Simplify` | Reduce element count | `Decimate`, `Reduce` |
 | `Subdivide` | Increase element count by splitting | `Refine`\* |
@@ -386,18 +402,51 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Set` | Assign a value or state | *(prefer over `Define`, `Assign`)* |
 | `Convert` | Change representation, same information | `Translate`, `Cast` |
 | `Duplicate`, `Split`, `Extract` | Layer-structure operations | `Clone`, `Separate`, `Detach` |
+| `Orient` | Make normals point consistently, or toward a reference | `Re-Orient`, `Reorient` — the values are flipped, not recalculated, so not `Compute` |
+| `Sharpen` | Enhance local variation in an attribute | *(the unsharp-mask filters had no verb at all)* |
+| `Trim` | Cut a surface along an isovalue of a scalar field and discard one side | *(neither `Remove`, which deletes whole elements, nor `Cut`, which keeps both sides)* |
+| `Mirror` | Negate one or more axes | **`Flip`** — reserved above for edge flipping, which is its opposite: connectivity changes and vertices do not |
+| `Project` | Move vertices onto existing geometry, or onto a line | Admitted **narrowly**, for geometric projection. Still a rejected synonym for `Transfer` wherever attributes move between domains |
+| `Define` | Declare a new named custom attribute | Admitted **narrowly**, for that alone; otherwise still a rejected synonym for `Set` |
+| `Refine` | Subdivide adaptively, where which elements split depends on the data | Admitted **narrowly**; plain uniform splitting is `Subdivide` |
+| `Add` | Add a quantity to an existing attribute (*Add Noise to Vertex Color*) | Admitted **narrowly**; still rejected for producing a layer, where `Create` wins |
+| `Dilate`, `Erode` | Grow or shrink the selection by one ring of adjacent elements | The standard morphological pair; `Select` names the act of selecting, not these two operations on an existing selection |
+
+**Attribute-editing verbs**, admitted as a closed group of standard image and signal
+operations, each keeping its ordinary meaning: `Normalize`, `Adjust`, `Clamp`, `Invert`,
+`Equalize`, `Desaturate`, `Threshold`, `Tint`. None may be used where `Compute` (derive
+from geometry) or `Set` (assign a constant) is accurate.
 
 \* `Estimate` is permitted **only** when the result is explicitly statistical or
 approximate and that matters to the user (e.g. *Estimate Radius from Density*).
-`Refine` is permitted only for adaptive, non-uniform subdivision.
 
-Two rulings worth stating outright, since both terms are currently in heavy use:
+**`Apply` and `Bake` were removed as verbs** (2026-08-27). `Apply` was defined as
+"apply an existing stored transform to geometry" and `Freeze` as "bake the layer matrix
+into vertex coordinates" — the same operation twice, and the two entries defined each
+other in a circle. `Apply`'s only user was a *smoothing* filter, using it as exactly the
+generic verb its own entry forbade. `Bake` had no users at all: baking an attribute into
+a texture is already `Transfer`, which won on the domain-to-domain framing.
 
-- **`Remove`, not `Delete`.** Today `Remove` (10) and `Delete` (8) are used
-  interchangeably. One verb; the object says what goes (`Remove Selected Faces`).
+Both words stay in the **descriptions** of the filters they belonged to, so searching for
+*freeze* or *bake* still finds them — the same reason *morphing* survives in the text of
+`Displace Vertices toward Target Mesh`. A word being rejected as a verb does not mean it
+should stop being findable.
+
+Two rulings worth stating outright, because both rejected terms were in heavy use
+before the renaming rounds began:
+
+- **`Remove`, not `Delete`.** One verb; the object says what goes
+  (`Remove Selected Faces`).
 - **`Transfer`, not `Project`.** `Project` described only the raster sub-case;
   `Transfer` covers all domain-to-domain movement, and the raster appears in the
-  object (`Transfer Raster Color to Vertex Color`).
+  object (`Transfer Raster Color to Vertex Color`). `Project` was later admitted for
+  the unrelated geometric sense — moving vertices onto a surface — and that is the
+  only sense it may carry.
+
+Every verb above the `Estimate` footnote is ratified. The rounds that introduced the
+later ones are recorded in [Filter Names](filter_names.md), which is the history; this
+table is the authority. `tests/test_filters.cpp` parses it and fails if any shipped
+display name leads with a word that is not here.
 
 ## 4. Element and data nouns
 
@@ -459,13 +508,56 @@ Display name:
 Verb Object [(Backend)]
 ```
 
-- Lead with a canonical verb — this is the fix for the 61 % that do not.
+- Lead with a canonical verb (§3).
 - The category is **not** repeated in the name: the menu already carries it. So under
-  `Meshing/Simplification`, the name is *Simplify Quadric Edge Collapse*, not
+  `Meshing/Simplification`, the name is *Simplify by Quadric Edge Collapse*, not
   *Simplification: Quadric Edge Collapse*.
-- Add the backend in parentheses **only** when competing implementations coexist,
-  which the algorithm-archive model makes routine (decision 4): *Simplify Quadric
-  Edge Collapse (QSlim)*.
+- Add the backend or algorithm in parentheses whenever it tells the reader **which
+  implementation they are getting** and that could reasonably matter: *Simplify by
+  Quadric Edge Collapse (QSlim)*.
+
+  This does **not** require two filters sharing a base name. What competes is the set of
+  routes to a result, not the set of identical labels. Gaussian curvature is reachable
+  through *Compute Curvature (Discrete)*, *(APSS)*, *(RIMLS)*, *(TrueForm)* and
+  *Compute Gaussian Curvature (libigl)* — five routes, no two of which share a base
+  name, and the suffix is the only thing separating them. Requiring a name collision
+  before allowing a suffix would strip exactly the information a user needs to choose.
+
+  It is still not decoration. Omit it where the filter is the only meaningful route to
+  its result, and never add it merely to record which plugin the code happens to live
+  in — that belongs in the description and the structured references.
+
+**Connectors.** The object often needs a preposition, and three are in regular use —
+`by` for the method (*Smooth Vertices by Laplacian*, *Compute Vertex Scalar by
+Expression*), `from` for the source (*Compute Geodesic Distance from Border*), `to` for
+the destination (*Convert to Pure Triangles*). Prefer `by` for "how", and keep the
+phrase readable rather than mechanically short.
+
+**The incumbent stays unsuffixed.** When a second implementation of an existing filter
+arrives, the newcomer carries the backend and the existing name does not change:
+*Remove Duplicate Vertices* alongside *Remove Duplicate Vertices (TrueForm)*. This keeps
+the archive from churning names every time a competitor is added, and it means the
+unsuffixed name is always the long-standing one.
+
+The two rules answer different questions and do not conflict: the paragraph above says
+**when a suffix is allowed at all**, this one says **whose name changes** once a direct
+competitor turns up. A filter may perfectly well carry a suffix from birth without any
+same-named sibling ever existing.
+
+**Superseded 2026-08-27.** Leaving the incumbent bare turned out to hide exactly what
+the reader needs: faced with *Remove Duplicate Vertices* and *Remove Duplicate Vertices
+(TrueForm)*, nothing tells you the first one is vcglib. Every implementation in a
+competing family now names itself, the original vcglib ones included — so
+**Simplify by Quadric Edge Collapse (vcglib)** beside **(QSlim)**. The churn this rule was
+protecting against is a one-off cost, paid once per family, and worth it.
+
+**Algorithm in the name, library in the suffix.** When a family holds two
+implementations from the *same* library they cannot both be `(vcglib)`, and the answer is
+already in the archive: the distinguishing algorithm belongs in the name.
+*Compute Heat Geodesic Distance from Selection (vcglib)* beside
+*Compute Geodesic Distance from Selection (vcglib)*; *Smooth Vertices by
+Surface-Preserving Laplacian (vcglib)* beside *Smooth Vertices by Laplacian (vcglib)* — the
+same shape as *Smooth Vertices by HC Laplacian* and the libigl geodesic pair.
 
 **Exception — a well-known named result may be a noun phrase.** Where a filter's output
 *is* a conventionally named object, naming the result reads better than naming the
@@ -513,9 +605,8 @@ safe, not merely an improvement.
 Ranking is unaffected: sorting uses `titleMatchesAllTerms`, which is name-only, so name
 matches still sort above category-only matches.
 
-Follow-up: the implementation reads `descriptor.menuPath`, the field as it exists today.
-When pass 1 replaces it with the `categories` array (§1), this becomes a loop over the
-entries.
+The implementation loops over the `categories` array; a single legacy `menuPath` string
+is still accepted by the loader for descriptors that predate it.
 
 Worth noting `provenance.project` was *already* searched, which is exactly what the
 algorithm-archive model needs — typing *qslim* finds the QSlim implementations.

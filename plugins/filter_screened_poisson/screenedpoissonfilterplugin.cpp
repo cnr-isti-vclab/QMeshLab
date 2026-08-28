@@ -42,7 +42,7 @@ QString invalidNormalsMessage()
         "Try enabling the Pre-Clean option and retry.\n\n"
         "To permanently remove this problem:\n"
         "- on triangulated meshes, use Remove Unreferenced Vertices\n"
-        "- on point clouds, use Conditional Vertex Selection with\n"
+        "- on point clouds, use Select Vertices by Expression with\n"
         "  (nx==0.0) && (ny==0.0) && (nz==0.0)\n"
         "  and then delete the selected vertices.");
 }

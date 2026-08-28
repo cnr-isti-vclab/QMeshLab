@@ -825,7 +825,7 @@
     {
       "id": "apply_scalar_hessian_smoothing_per_vertex_libigl",
       "categories": ["Attribute/Scalar"],
-      "name": "Apply Natural-Boundary Hessian Scalar Smoothing (libigl)",
+      "name": "Smooth Vertex Scalar by Hessian Energy (libigl)",
       "pythonName": "apply_scalar_hessian_smoothing_per_vertex_libigl",
       "referenceIds": ["libigl", "stein2018natural"],
       "shortDescription": "Smooth vertex scalar values with Hessian energy and natural boundary conditions.",

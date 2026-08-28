@@ -45,7 +45,7 @@
     {
       "id": "apply_coord_laplacian_smoothing",
       "categories": ["Geometry/Smoothing"],
-      "name": "Smooth Vertices by Laplacian",
+      "name": "Smooth Vertices by Laplacian (vcglib)",
       "pythonName": "smooth_laplacian",
       "shortDescription": "Average vertex positions with their neighbors.",
       "longDescriptionMarkdown": "Laplacian smooth. Average each vertex position with weighted positions of neighbour vertices.<br><b>Laplacian Mesh Processing</b> by <i>Olga Sorkine</i>. EUROGRAPHICS 2005<br><a href='http://dx.doi.org/10.2312/egst.20051044'>doi:10.2312/egst.20051044</a>",
@@ -262,7 +262,7 @@
     {
       "id": "apply_coord_taubin_smoothing",
       "categories": ["Geometry/Smoothing"],
-      "name": "Smooth Vertices by Taubin",
+      "name": "Smooth Vertices by Taubin (vcglib)",
       "pythonName": "smooth_taubin",
       "shortDescription": "Lambda-mu smoothing with reduced shrinkage.",
       "longDescriptionMarkdown": "The &lambda;-&mu; Taubin smoothing, combines two steps of low-pass filtering for each iteration. Based on the article:<br><b>A signal processing approach to fair surface design</b> by <i>Gabriel Taubin</i>, SIGGRAPH 1995<br><a href='https://doi.org/10.1145/218380.218473'>doi:10.1145/218380.218473</a>",

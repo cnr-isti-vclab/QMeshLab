@@ -50,7 +50,7 @@ std::string pyUnicodeToStdString(PyObject *obj)
 // ---------------------------------------------------------------------------
 // Python name computation — mirrors MeshLab's python_utils.cpp logic:
 //   toLower + replace ' ', '/', '-' with '_' + drop "().,'\":+"
-// Example: "Remove Duplicate Vertices" -> "remove_duplicate_vertices"
+// Example: "Remove Unreferenced Vertices" -> "remove_unreferenced_vertices"
 // ---------------------------------------------------------------------------
 static std::string computePythonName(const std::string &displayName)
 {
@@ -353,7 +353,7 @@ QString MeshSetCore::resolveFilterKey(const QString &filterNameOrKey) const
 
     const auto infos = m_document->filterInfos();
 
-    // First pass: match by filter id (e.g. "Remove Duplicate Vertices")
+    // First pass: match by filter id (e.g. "Remove Unreferenced Vertices")
     QString resolved;
     for (const auto &info : infos) {
         if (info.descriptor.id != filterNameOrKey)

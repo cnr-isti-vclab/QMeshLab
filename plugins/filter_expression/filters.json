@@ -4,7 +4,7 @@
     {
       "id": "conditional_vertex_selection",
       "categories": ["Selection/by Attribute"],
-      "name": "Conditional Vertex Selection",
+      "name": "Select Vertices by Expression",
       "pythonName": "select_vertices_by_condition",
       "shortDescription": "Selects vertices for which a boolean expression evaluates true.",
       "longDescriptionMarkdown": "Boolean function using muparser lib to perform vertex selection over current mesh.<br>",
@@ -46,7 +46,7 @@
     {
       "id": "conditional_face_selection",
       "categories": ["Selection/by Attribute"],
-      "name": "Conditional Face Selection",
+      "name": "Select Faces by Expression",
       "pythonName": "select_faces_by_condition",
       "shortDescription": "Selects faces for which a boolean expression evaluates true.",
       "longDescriptionMarkdown": "Boolean function using muparser lib to perform faces selection over current mesh.<br>",

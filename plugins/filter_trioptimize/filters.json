@@ -181,7 +181,7 @@
     {
       "id": "apply_coord_laplacian_smoothing_surface_preserving",
       "categories": ["Geometry/Smoothing"],
-      "name": "Smooth Vertices by Laplacian (Surface Preserving)",
+      "name": "Smooth Vertices by Surface-Preserving Laplacian (vcglib)",
       "pythonName": "apply_coord_laplacian_smoothing_surface_preserving",
       "shortDescription": "Laplacian smooth while limiting normal deviation from the original surface.",
       "longDescriptionMarkdown": "Laplacian smooth with limited surface modification: each vertex moves toward the average position of neighboring vertices only when the new position still almost lies on the original surface.",
