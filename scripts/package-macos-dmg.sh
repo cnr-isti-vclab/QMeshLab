@@ -87,6 +87,22 @@ if [ -n "$OMP_LINK_PATH" ]; then
 		"@executable_path/../Frameworks/libomp.dylib" "$APP_BIN"
 fi
 
+# macdeployqt signs the main executable, frameworks, and Qt plug-ins, but it
+# does not discover project-specific Mach-O executables stored in Helpers.
+# Sign those nested components before macdeployqt seals the enclosing app.
+if [ -n "$SIGN_IDENTITY" ] && [ -d "$APP/Contents/Helpers" ]; then
+	echo "==> signing custom helper executables"
+	find "$APP/Contents/Helpers" -type f -print0 | while IFS= read -r -d '' helper; do
+		if file "$helper" | grep -q 'Mach-O'; then
+			echo "    $(basename "$helper")"
+			chmod u+w "$helper"
+			codesign --force --options runtime --timestamp \
+				--sign "$SIGN_IDENTITY" "$helper"
+			codesign --verify --strict --verbose=2 "$helper"
+		fi
+	done
+fi
+
 echo "==> building dmg"
 if [ -n "$SIGN_IDENTITY" ]; then
 	echo "==> Developer ID signing with hardened runtime"

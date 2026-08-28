@@ -216,15 +216,42 @@ jobs:
           APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
         run: |
           API_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          NOTARY_SUBMIT_JSON="$RUNNER_TEMP/notarytool-submit.json"
+          NOTARY_LOG_PATH="$RUNNER_TEMP/notarytool-log.json"
           printf '%s' "$APPLE_API_PRIVATE_KEY" > "$API_KEY_PATH"
           echo "NOTARY_API_KEY_PATH=$API_KEY_PATH" >> "$GITHUB_ENV"
+          echo "NOTARY_LOG_PATH=$NOTARY_LOG_PATH" >> "$GITHUB_ENV"
 
+          set +e
           xcrun notarytool submit "$DMG_PATH" \
             --key "$API_KEY_PATH" \
             --key-id "$APPLE_API_KEY_ID" \
             --issuer "$APPLE_API_ISSUER_ID" \
             --wait \
-            --timeout 60m
+            --timeout 60m \
+            --output-format json | tee "$NOTARY_SUBMIT_JSON"
+          NOTARY_EXIT_CODE="${PIPESTATUS[0]}"
+          set -e
+
+          NOTARY_SUBMISSION_ID="$(plutil -extract id raw -o - \
+            "$NOTARY_SUBMIT_JSON" 2>/dev/null || true)"
+          NOTARY_STATUS="$(plutil -extract status raw -o - \
+            "$NOTARY_SUBMIT_JSON" 2>/dev/null || true)"
+
+          if [ -n "$NOTARY_SUBMISSION_ID" ]; then
+            xcrun notarytool log \
+              --key "$API_KEY_PATH" \
+              --key-id "$APPLE_API_KEY_ID" \
+              --issuer "$APPLE_API_ISSUER_ID" \
+              "$NOTARY_SUBMISSION_ID" "$NOTARY_LOG_PATH" || true
+            [ ! -f "$NOTARY_LOG_PATH" ] || cat "$NOTARY_LOG_PATH"
+          fi
+
+          if [ "$NOTARY_EXIT_CODE" -ne 0 ] || [ "$NOTARY_STATUS" != "Accepted" ]; then
+            echo "Notarization failed with status: ${NOTARY_STATUS:-unknown}" >&2
+            exit 1
+          fi
+
           xcrun stapler staple "$DMG_PATH"
           xcrun stapler validate "$DMG_PATH"
           spctl --assess --type open --context context:primary-signature \
@@ -236,6 +263,14 @@ jobs:
           [ -z "${SIGNING_KEYCHAIN:-}" ] || security delete-keychain "$SIGNING_KEYCHAIN" || true
           [ -z "${SIGNING_CERTIFICATE_PATH:-}" ] || rm -f "$SIGNING_CERTIFICATE_PATH"
           [ -z "${NOTARY_API_KEY_PATH:-}" ] || rm -f "$NOTARY_API_KEY_PATH"
+
+      - name: Upload notarization log
+        if: ${{ always() && env.NOTARY_LOG_PATH != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.release-metadata.outputs.artifact_stem }}-notarization-log
+          path: ${{ env.NOTARY_LOG_PATH }}
+          if-no-files-found: ignore
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v7
