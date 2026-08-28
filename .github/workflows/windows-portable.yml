@@ -215,8 +215,19 @@ jobs:
         run: |
           cmake --build $env:BUILD_DIR --parallel 4
 
+      - name: Define release artifact name
+        id: release-metadata
+        shell: pwsh
+        run: |
+          $releaseDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
+          $shortSha = $env:GITHUB_SHA.Substring(0, 8)
+          $artifactStem = "QMeshLab-$releaseDate-$shortSha-windows-x86_64"
+          "artifact_stem=$artifactStem" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
       - name: Create portable package
         shell: pwsh
+        env:
+          RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
         run: |
           $exePath = Join-Path $env:GITHUB_WORKSPACE "$env:BUILD_DIR\QMeshLab.exe"
           if (!(Test-Path $exePath)) {
@@ -246,7 +257,7 @@ jobs:
             Copy-Item (Join-Path $vcpkgBin "*.dll") $portableDir -Force -ErrorAction SilentlyContinue
           }
 
-          $zipPath = Join-Path $distRoot "QMeshLab-portable-win64.zip"
+          $zipPath = Join-Path $distRoot "$env:RELEASE_ARTIFACT_STEM.zip"
           Remove-Item -Force $zipPath -ErrorAction SilentlyContinue
           Compress-Archive -Path $portableDir -DestinationPath $zipPath
           Get-ChildItem $distRoot
@@ -254,6 +265,6 @@ jobs:
       - name: Upload portable ZIP artifact
         uses: actions/upload-artifact@v7
         with:
-          name: qmeshlab-windows-portable
-          path: ${{ github.workspace }}/dist/QMeshLab-portable-win64.zip
+          name: ${{ steps.release-metadata.outputs.artifact_stem }}
+          path: ${{ github.workspace }}/dist/${{ steps.release-metadata.outputs.artifact_stem }}.zip
           if-no-files-found: error
