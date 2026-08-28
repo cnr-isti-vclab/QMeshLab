@@ -300,6 +300,11 @@ carried instead on the <em>derived</em> implementation facet (see <a class="refe
 <p>Well-known <strong>algorithm</strong> names stay in the filter’s own display name — <em>Screened
 Poisson</em>, <em>Quadric Edge Collapse</em>, <em>xatlas</em> — because users search for them. The
 library is credited in the description and structured references, not the tree.</p>
+<p>A parenthesised backend or algorithm on a <em>filter name</em> is a different matter and is
+encouraged wherever it identifies which implementation the user gets — see
+<a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> §6. It does not depend on another filter sharing the base
+name: several distinct filters can be routes to the same quantity, and then the suffix
+is what tells them apart.</p>
 </section>
 <section id="qmeshlab-is-an-algorithm-archive-competing-implementations-are-a-feature">
 <h3>4. QMeshLab is an algorithm archive — competing implementations are a feature<a class="headerlink" href="#qmeshlab-is-an-algorithm-archive-competing-implementations-are-a-feature" title="Link to this heading">¶</a></h3>
@@ -438,9 +443,9 @@ verb and noun lexicons there.</p>
 <p>Note this <strong>supersedes</strong> the <code class="docutils literal notranslate"><span class="pre">Verb:</span> <span class="pre">Object</span> <span class="pre">/</span> <span class="pre">Method</span></code> and
 <code class="docutils literal notranslate"><span class="pre">family_object_method</span></code> patterns previously drafted here. The category prefix is no
 longer repeated in the name — the category already carries it, and repeating it reads
-redundantly under a <code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code> branch. So <em>Simplify Quadric Edge
-Collapse</em>, not <em>Simplification: Quadric Edge Collapse</em>; <code class="docutils literal notranslate"><span class="pre">simplify_quadric_edge_collapse</span></code>,
-not <code class="docutils literal notranslate"><span class="pre">simplification_quadric_edge_collapse</span></code>.</p>
+redundantly under a <code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code> branch. So <em>Simplify by Quadric Edge
+Collapse</em>, not <em>Simplification: Quadric Edge Collapse</em>;
+<code class="docutils literal notranslate"><span class="pre">simplify_by_quadric_edge_collapse</span></code>, not <code class="docutils literal notranslate"><span class="pre">simplification_quadric_edge_collapse</span></code>.</p>
 <p>Still to avoid:</p>
 <ul class="simple">
 <li><p>implementation-only names when a user-facing action is clearer</p></li>
@@ -450,7 +455,9 @@ not <code class="docutils literal notranslate"><span class="pre">simplification_
 </ul>
 <p>Policy on renaming (unchanged): choose the canonical name from the vocabulary, not
 from MeshLab legacy; rename when materially clearer; never keep two canonical names
-for one operation; add aliases only for a concrete release-management need.</p>
+for one operation. <strong>No aliases</strong> — QMeshLab has no legacy callers to protect, so a
+renamed filter or parameter is renamed outright and a stale call fails loudly with
+<em>Unknown parameter</em> rather than silently doing something else.</p>
 </section>
 <section id="descriptor-ids">
 <h3>Descriptor IDs<a class="headerlink" href="#descriptor-ids" title="Link to this heading">¶</a></h3>

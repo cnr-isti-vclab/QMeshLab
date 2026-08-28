@@ -108,7 +108,7 @@ Translate the camera, or all the cameras of the project.
 
 (filter-apply-coord-laplacian-smoothing-surface-preserving)=
 
-## Smooth Vertices by Laplacian (Surface Preserving)
+## Smooth Vertices by Surface-Preserving Laplacian (vcglib)
 
 **Plugin:** qmeshlab.filter.trioptimize
 
@@ -283,7 +283,7 @@ Project a mesh (or a point set) onto the MLS surface defined by itself or anothe
 
 (filter-apply-scalar-hessian-smoothing-per-vertex-libigl)=
 
-## Apply Natural-Boundary Hessian Scalar Smoothing (libigl)
+## Smooth Vertex Scalar by Hessian Energy (libigl)
 
 **Plugin:** qmeshlab.filter.igl
 
@@ -793,7 +793,7 @@ Projects color information from the current raster onto the mesh vertices using 
 
 (filter-compute-curvature-principal-directions)=
 
-## Compute Principal Curvature Directions
+## Compute Principal Curvature Directions (vcglib)
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -1069,7 +1069,7 @@ Store in the vertex quality field the geodesic distance from a given point on th
 
 (filter-compute-geodesic-distance-from-selection)=
 
-## Compute Geodesic Distance from Selection
+## Compute Geodesic Distance from Selection (vcglib)
 
 **Plugin:** qmeshlab.filter.geodesic
 
@@ -1136,7 +1136,7 @@ Compute the Hausdorff Distance between two layers, sampling one of the two and f
 
 (filter-compute-heat-geodesic-distance)=
 
-## Compute Geodesic Distance from Selection (Heat Method)
+## Compute Heat Geodesic Distance from Selection (vcglib)
 
 **Plugin:** qmeshlab.filter.geodesic
 
@@ -1218,7 +1218,7 @@ Implemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`
 
 (filter-compute-matrix-by-icp-between-meshes)=
 
-## Align by ICP
+## Align by ICP (vcglib)
 
 **Plugin:** qmeshlab.filter.icp
 
@@ -4237,7 +4237,7 @@ Imports MeshLab-compatible VCGCamera XML entries and assigns them, in file order
 
 **Plugin:** qmeshlab.filter.meshing
 
-Apply current matrix to geometry.
+Bake the layer matrix into the vertex coordinates.
 
 ```{py:function} ms.matrix_freeze(**params)
 :module: _qmeshlab
@@ -5006,7 +5006,7 @@ QMeshLab invokes the two unmodified upstream helper executables in an isolated t
 
 (filter-remeshing-isotropic)=
 
-## Remesh Isotropically
+## Remesh Isotropically (vcglib)
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5080,7 +5080,7 @@ This filter has no parameters.
 
 (filter-remove-duplicate-vertices)=
 
-## Remove Duplicate Vertices
+## Remove Duplicate Vertices (vcglib)
 
 **Plugin:** qmeshlab.filter.clean
 
@@ -5710,7 +5710,7 @@ This filter has no parameters.
 
 (filter-select-by-face-quality)=
 
-## Select by Face Quality
+## Select Faces by Scalar
 
 **Plugin:** qmeshlab.filter.select
 
@@ -5732,7 +5732,7 @@ Select all the faces/vertices with within the specified face quality range.
 
 (filter-select-by-rectangle)=
 
-## Select by Rectangle (Screen)
+## Select by Screen Rectangle
 
 **Plugin:** qmeshlab.filter.select
 
@@ -5764,7 +5764,7 @@ Screen-space rubber-band selection. Given a camera and a rectangle in normalized
 
 (filter-select-by-vertex-quality)=
 
-## Select by Vertex Quality
+## Select Vertices by Scalar
 
 **Plugin:** qmeshlab.filter.select
 
@@ -5804,7 +5804,7 @@ This filter has no parameters.
 
 (filter-select-crease-edges)=
 
-## Select Crease Edges
+## Select Crease Edges (vcglib)
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -5871,7 +5871,7 @@ Select part of the mesh based on its color.
 
 (filter-select-faces-by-condition)=
 
-## Conditional Face Selection
+## Select Faces by Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -5934,7 +5934,7 @@ Select faces from selected vertices.
 
 (filter-select-faces-with-edges-longer-than)=
 
-## Select Faces with Edges Longer Than...
+## Select Faces by Edge Length
 
 **Plugin:** qmeshlab.filter.select
 
@@ -5954,7 +5954,7 @@ Select all triangles having an edge with length greater or equal than a given th
 
 (filter-select-non-manifold-edges)=
 
-## Select non Manifold Edges
+## Select Non-Manifold Edges (vcglib)
 
 **Plugin:** qmeshlab.filter.select
 
@@ -5992,7 +5992,7 @@ Marks every edge with more than two incident faces. Such edges have no well-defi
 
 (filter-select-non-manifold-vertices)=
 
-## Select non Manifold Vertices
+## Select Non-Manifold Vertices
 
 **Plugin:** qmeshlab.filter.select
 
@@ -6050,7 +6050,7 @@ Select the vertex classified as outlier using Local Outlier Propabilty measure d
 
 (filter-select-problematic-faces)=
 
-## Select 'Problematic' Faces
+## Select Ill-Shaped Faces
 
 **Plugin:** qmeshlab.filter.select
 
@@ -6075,7 +6075,7 @@ Select faces with 'problems', like normal inverted w.r.t the surrounding areas, 
 
 (filter-select-self-intersecting-faces)=
 
-## Select Self Intersecting Faces
+## Select Self-Intersecting Faces
 
 **Plugin:** qmeshlab.filter.select
 
@@ -6091,7 +6091,7 @@ This filter has no parameters.
 
 (filter-select-small-disconnected-component)=
 
-## Select small disconnected component
+## Select Small Disconnected Components
 
 **Plugin:** qmeshlab.filter.mls
 
@@ -6128,7 +6128,7 @@ This filter has no parameters.
 
 (filter-select-vertices-by-condition)=
 
-## Conditional Vertex Selection
+## Select Vertices by Expression
 
 **Plugin:** qmeshlab.filter.expression
 
@@ -6169,7 +6169,7 @@ Select vertices from selected faces.
 
 (filter-select-vertices-inside-mesh)=
 
-## Select Vertices Inside Mesh
+## Select Vertices Inside Mesh (TrueForm)
 
 **Plugin:** qmeshlab.filter.trueform
 
@@ -6461,7 +6461,7 @@ Simplify the mesh by clustering vertices; by using a uniform grid over the mesh,
 
 (filter-simplification-quadric-edge-collapse)=
 
-## Simplify by Quadric Edge Collapse
+## Simplify by Quadric Edge Collapse (vcglib)
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -6534,7 +6534,7 @@ QSlim's placement and weighting policies, boundary constraint weight, compactnes
 
 (filter-simplification-quadric-edge-collapse-with-texture)=
 
-## Simplify by Quadric Edge Collapse with Texture
+## Simplify by Quadric Edge Collapse with Texture (vcglib)
 
 **Plugin:** qmeshlab.filter.meshing
 
@@ -6714,7 +6714,7 @@ This filter has no parameters.
 
 (filter-smooth-laplacian)=
 
-## Smooth Vertices by Laplacian
+## Smooth Vertices by Laplacian (vcglib)
 
 **Plugin:** qmeshlab.filter.unsharp
 
@@ -6820,7 +6820,7 @@ Scale Dependent Laplacian Smoothing, extended version of Laplacian Smoothing bas
 
 (filter-smooth-taubin)=
 
-## Smooth Vertices by Taubin
+## Smooth Vertices by Taubin (vcglib)
 
 **Plugin:** qmeshlab.filter.unsharp
 

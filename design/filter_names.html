@@ -249,10 +249,11 @@
 </pre></div>
 </div>
 <p><strong>Status: display names APPLIED for <code class="docutils literal notranslate"><span class="pre">Meshing</span></code></strong> (30, 2026-07-30), <strong><code class="docutils literal notranslate"><span class="pre">Attribute</span></code></strong>
-(64, 2026-08-04), <strong><code class="docutils literal notranslate"><span class="pre">Creation</span></code></strong> (38, 2026-08-05) <strong>and <code class="docutils literal notranslate"><span class="pre">Geometry</span></code></strong> (38, 2026-08-26).
+(64, 2026-08-04), <strong><code class="docutils literal notranslate"><span class="pre">Creation</span></code></strong> (38, 2026-08-05), <strong><code class="docutils literal notranslate"><span class="pre">Geometry</span></code></strong> (38, 2026-08-26)
+<strong>and <code class="docutils literal notranslate"><span class="pre">Selection</span></code></strong> (30, 2026-08-27).
 Counts are as of each round; the archive has grown to 328 filters since, so a root’s
 current size exceeds what its round covered.</p>
-<p>Remaining roots, largest first: <code class="docutils literal notranslate"><span class="pre">Selection</span></code> (30), <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (24), <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22),
+<p>Remaining roots, largest first: <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (24), <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22),
 <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (17), <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (14), <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13), <code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3 plus 7 filters
 sitting at the bare <code class="docutils literal notranslate"><span class="pre">Texture</span></code> root, which needs a subcategory decision first).</p>
 <p>Filters added to a root <em>after</em> its round are not automatically conformant. A sweep on
@@ -1900,6 +1901,168 @@ names. Both are dated snapshots of an audit, like the “Current” column above
 alone on purpose. <code class="docutils literal notranslate"><span class="pre">docs/api/filters.md</span></code> is generated and gitignored.</p>
 </section>
 </section>
+<hr class="docutils" />
+<section class="tex2jax_ignore mathjax_ignore" id="round-5-selection-30-filters">
+<h1>Round 5 — <code class="docutils literal notranslate"><span class="pre">Selection</span></code> (30 filters)<a class="headerlink" href="#round-5-selection-30-filters" title="Link to this heading">¶</a></h1>
+<p><strong>Applied 2026-08-27.</strong> 12 renamed, 18 already conformant.</p>
+<section id="selection-set-operations-5">
+<h2>Selection/Set Operations (5)<a class="headerlink" href="#selection-set-operations-5" title="Link to this heading">¶</a></h2>
+<p>All five kept. <code class="docutils literal notranslate"><span class="pre">Dilate</span> <span class="pre">Selection</span></code>, <code class="docutils literal notranslate"><span class="pre">Erode</span> <span class="pre">Selection</span></code> and <code class="docutils literal notranslate"><span class="pre">Invert</span> <span class="pre">Selection</span></code> were already
+right; the round’s work here was admitting the two verbs (below) so the guard accepts
+them.</p>
+</section>
+<section id="selection-by-attribute-9">
+<h2>Selection/by Attribute (9)<a class="headerlink" href="#selection-by-attribute-9" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Conditional Face Selection</p></td>
+<td><p><strong>Select Faces by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_expression</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Conditional Vertex Selection</p></td>
+<td><p><strong>Select Vertices by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Faces with Edges Longer Than…</p></td>
+<td><p><strong>Select Faces by Edge Length</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_edge_length</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select by Face Quality</p></td>
+<td><p><strong>Select Faces by Scalar</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_faces_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select by Vertex Quality</p></td>
+<td><p><strong>Select Vertices by Scalar</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Vertices Inside Mesh</p></td>
+<td><p><strong>Select Vertices Inside Mesh (TrueForm)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_vertices_inside_mesh_trueform</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Faces by Color · by View Angle · Select Outliers</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Expression</span></code> matches the six <code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">…</span> <span class="pre">by</span> <span class="pre">Expression</span></code> names ratified in round 2 —
+the same muparser machinery, and the descriptor ids already said
+<code class="docutils literal notranslate"><span class="pre">select_faces_by_condition</span></code>. The trailing <code class="docutils literal notranslate"><span class="pre">...</span></code> was a MeshLab dialog marker.</p>
+</section>
+<section id="selection-by-topology-13">
+<h2>Selection/by Topology (13)<a class="headerlink" href="#selection-by-topology-13" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Select non Manifold Edges</p></td>
+<td><p><strong>Select Non-Manifold Edges (vcglib)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges_vcglib</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select non Manifold Vertices</p></td>
+<td><p><strong>Select Non-Manifold Vertices</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_non_manifold_vertices</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select Self Intersecting Faces</p></td>
+<td><p><strong>Select Self-Intersecting Faces</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_self_intersecting_faces</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select small disconnected component</p></td>
+<td><p><strong>Select Small Disconnected Components</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_small_disconnected_components</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Select ‘Problematic’ Faces</p></td>
+<td><p><strong>Select Ill-Shaped Faces</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_ill_shaped_faces</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>the other 8</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Select</span> <span class="pre">non</span> <span class="pre">Manifold</span> <span class="pre">Edges</span></code> was the last bare incumbent in the archive — it escaped the
+<code class="docutils literal notranslate"><span class="pre">(vcglib)</span></code> sweep only because its casing differed from its <code class="docutils literal notranslate"><span class="pre">(TrueForm)</span></code> counterpart.</p>
+</section>
+<section id="selection-by-visibility-3">
+<h2>Selection/by Visibility (3)<a class="headerlink" href="#selection-by-visibility-3" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Select by Rectangle (Screen)</p></td>
+<td><p><strong>Select by Screen Rectangle</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">select_by_screen_rectangle</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Select Visible Faces · Select Visible Vertices</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">(Screen)</span></code> is neither a backend nor an algorithm, so under rule 3 it does not belong in
+parentheses: it says what the filter <em>is</em>, and belongs in the name.</p>
+</section>
+<section id="id7">
+<h2>Verbs added to the lexicon<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Verb</p></th>
+<th class="head"><p>Means</p></th>
+<th class="head"><p>Why the existing lexicon was not enough</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dilate</span></code>, <code class="docutils literal notranslate"><span class="pre">Erode</span></code></p></td>
+<td><p>Grow or shrink the selection by one ring of adjacent elements</p></td>
+<td><p>The standard morphological pair. <code class="docutils literal notranslate"><span class="pre">Select</span></code> names the act of selecting, not these two operations on a selection that already exists</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h2>Rulings<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h2>
+<p>All settled (2026-08-27).</p>
+<ol class="arabic simple">
+<li><p>~~Admit <code class="docutils literal notranslate"><span class="pre">Dilate</span></code>/<code class="docutils literal notranslate"><span class="pre">Erode</span></code>, or rename to <code class="docutils literal notranslate"><span class="pre">Expand</span></code>/<code class="docutils literal notranslate"><span class="pre">Shrink</span> <span class="pre">Selection</span></code>?~~ <strong>Admit both.</strong>
+The three existing names were already good; renaming them to avoid two lexicon rows
+would have been the wrong trade.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Select</span> <span class="pre">Vertices</span> <span class="pre">Inside</span> <span class="pre">Mesh</span></code> carried no backend suffix, alone among the TrueForm
+filters.~~ <strong>Suffix added.</strong></p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Select</span> <span class="pre">'Problematic'</span> <span class="pre">Faces</span></code>~~ → <strong>Select Ill-Shaped Faces</strong>. The scare quotes were
+doing the work of a definition; the filter selects elongated, flipped or folded faces.
+<em>Select Degenerate Faces</em> was rejected as confusable with the <code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code>
+subcategory, which means zero-area.</p></li>
+</ol>
+</section>
+<section id="enforcement">
+<h2>Enforcement<a class="headerlink" href="#enforcement" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Selection</span></code> was added to <code class="docutils literal notranslate"><span class="pre">appliedRoots</span></code> in <code class="docutils literal notranslate"><span class="pre">displayNamesLeadWithALexiconVerb</span></code>, so the
+round is now checked on every build.</p>
+</section>
+</section>
 
         </article>
       </div>
@@ -1985,6 +2148,16 @@ alone on purpose. <code class="docutils literal notranslate"><span class="pre">d
 <li><a class="reference internal" href="#id5">Verbs added to the lexicon</a></li>
 <li><a class="reference internal" href="#id6">Rulings</a></li>
 <li><a class="reference internal" href="#fixes-made-on-the-way">Fixes made on the way</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#round-5-selection-30-filters">Round 5 — <code class="docutils literal notranslate"><span class="pre">Selection</span></code> (30 filters)</a><ul>
+<li><a class="reference internal" href="#selection-set-operations-5">Selection/Set Operations (5)</a></li>
+<li><a class="reference internal" href="#selection-by-attribute-9">Selection/by Attribute (9)</a></li>
+<li><a class="reference internal" href="#selection-by-topology-13">Selection/by Topology (13)</a></li>
+<li><a class="reference internal" href="#selection-by-visibility-3">Selection/by Visibility (3)</a></li>
+<li><a class="reference internal" href="#id7">Verbs added to the lexicon</a></li>
+<li><a class="reference internal" href="#id8">Rulings</a></li>
+<li><a class="reference internal" href="#enforcement">Enforcement</a></li>
 </ul>
 </li>
 </ul>

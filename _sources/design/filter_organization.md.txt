@@ -62,6 +62,12 @@ Well-known **algorithm** names stay in the filter's own display name — *Screen
 Poisson*, *Quadric Edge Collapse*, *xatlas* — because users search for them. The
 library is credited in the description and structured references, not the tree.
 
+A parenthesised backend or algorithm on a *filter name* is a different matter and is
+encouraged wherever it identifies which implementation the user gets — see
+[Vocabulary](vocabulary.md) §6. It does not depend on another filter sharing the base
+name: several distinct filters can be routes to the same quantity, and then the suffix
+is what tells them apart.
+
 ### 4. QMeshLab is an algorithm archive — competing implementations are a feature
 
 Hosting several implementations of the same or a similar algorithm is an explicit
@@ -179,9 +185,9 @@ verb and noun lexicons there.
 Note this **supersedes** the `Verb: Object / Method` and
 `family_object_method` patterns previously drafted here. The category prefix is no
 longer repeated in the name — the category already carries it, and repeating it reads
-redundantly under a `Meshing/Simplification` branch. So *Simplify Quadric Edge
-Collapse*, not *Simplification: Quadric Edge Collapse*; `simplify_quadric_edge_collapse`,
-not `simplification_quadric_edge_collapse`.
+redundantly under a `Meshing/Simplification` branch. So *Simplify by Quadric Edge
+Collapse*, not *Simplification: Quadric Edge Collapse*;
+`simplify_by_quadric_edge_collapse`, not `simplification_quadric_edge_collapse`.
 
 Still to avoid:
 
@@ -192,7 +198,9 @@ Still to avoid:
 
 Policy on renaming (unchanged): choose the canonical name from the vocabulary, not
 from MeshLab legacy; rename when materially clearer; never keep two canonical names
-for one operation; add aliases only for a concrete release-management need.
+for one operation. **No aliases** — QMeshLab has no legacy callers to protect, so a
+renamed filter or parameter is renamed outright and a stale call fails loudly with
+*Unknown parameter* rather than silently doing something else.
 
 ### Descriptor IDs
 

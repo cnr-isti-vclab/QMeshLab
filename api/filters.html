@@ -332,8 +332,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="smooth-vertices-by-laplacian-surface-preserving">
-<span id="filter-apply-coord-laplacian-smoothing-surface-preserving"></span><h2>Smooth Vertices by Laplacian (Surface Preserving)<a class="headerlink" href="#smooth-vertices-by-laplacian-surface-preserving" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-by-surface-preserving-laplacian-vcglib">
+<span id="filter-apply-coord-laplacian-smoothing-surface-preserving"></span><h2>Smooth Vertices by Surface-Preserving Laplacian (vcglib)<a class="headerlink" href="#smooth-vertices-by-surface-preserving-laplacian-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.trioptimize</p>
 <p>Laplacian smooth while limiting normal deviation from the original surface.</p>
 <dl class="py function">
@@ -479,8 +479,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="apply-natural-boundary-hessian-scalar-smoothing-libigl">
-<span id="filter-apply-scalar-hessian-smoothing-per-vertex-libigl"></span><h2>Apply Natural-Boundary Hessian Scalar Smoothing (libigl)<a class="headerlink" href="#apply-natural-boundary-hessian-scalar-smoothing-libigl" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertex-scalar-by-hessian-energy-libigl">
+<span id="filter-apply-scalar-hessian-smoothing-per-vertex-libigl"></span><h2>Smooth Vertex Scalar by Hessian Energy (libigl)<a class="headerlink" href="#smooth-vertex-scalar-by-hessian-energy-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Smooth vertex scalar values with Hessian energy and natural boundary conditions.</p>
 <dl class="py function">
@@ -901,8 +901,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="compute-principal-curvature-directions">
-<span id="filter-compute-curvature-principal-directions"></span><h2>Compute Principal Curvature Directions<a class="headerlink" href="#compute-principal-curvature-directions" title="Link to this heading">¶</a></h2>
+<section id="compute-principal-curvature-directions-vcglib">
+<span id="filter-compute-curvature-principal-directions"></span><h2>Compute Principal Curvature Directions (vcglib)<a class="headerlink" href="#compute-principal-curvature-directions-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Compute principal curvature directions.</p>
 <dl class="py function">
@@ -1119,8 +1119,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="compute-geodesic-distance-from-selection">
-<span id="filter-compute-geodesic-distance-from-selection"></span><h2>Compute Geodesic Distance from Selection<a class="headerlink" href="#compute-geodesic-distance-from-selection" title="Link to this heading">¶</a></h2>
+<section id="compute-geodesic-distance-from-selection-vcglib">
+<span id="filter-compute-geodesic-distance-from-selection"></span><h2>Compute Geodesic Distance from Selection (vcglib)<a class="headerlink" href="#compute-geodesic-distance-from-selection-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.geodesic</p>
 <p>Compute geodesic distance from selected vertices into vertex quality.</p>
 <dl class="py function">
@@ -1173,8 +1173,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="compute-geodesic-distance-from-selection-heat-method">
-<span id="filter-compute-heat-geodesic-distance"></span><h2>Compute Geodesic Distance from Selection (Heat Method)<a class="headerlink" href="#compute-geodesic-distance-from-selection-heat-method" title="Link to this heading">¶</a></h2>
+<section id="compute-heat-geodesic-distance-from-selection-vcglib">
+<span id="filter-compute-heat-geodesic-distance"></span><h2>Compute Heat Geodesic Distance from Selection (vcglib)<a class="headerlink" href="#compute-heat-geodesic-distance-from-selection-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.geodesic</p>
 <p>Approximate geodesic distance via the heat method into vertex quality.</p>
 <dl class="py function">
@@ -1236,8 +1236,8 @@
 
 <hr class="docutils" />
 </section>
-<section id="align-by-icp">
-<span id="filter-compute-matrix-by-icp-between-meshes"></span><h2>Align by ICP<a class="headerlink" href="#align-by-icp" title="Link to this heading">¶</a></h2>
+<section id="align-by-icp-vcglib">
+<span id="filter-compute-matrix-by-icp-between-meshes"></span><h2>Align by ICP (vcglib)<a class="headerlink" href="#align-by-icp-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.icp</p>
 <p>Compute an ICP transform that aligns one mesh layer to another.</p>
 <dl class="py function">
@@ -3651,7 +3651,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <section id="freeze-matrix">
 <span id="filter-matrix-freeze"></span><h2>Freeze Matrix<a class="headerlink" href="#freeze-matrix" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
-<p>Apply current matrix to geometry.</p>
+<p>Bake the layer matrix into the vertex coordinates.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.matrix_freeze">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">matrix_freeze</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.matrix_freeze" title="Link to this definition">¶</a></dt>
@@ -4284,8 +4284,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="remesh-isotropically">
-<span id="filter-remeshing-isotropic"></span><h2>Remesh Isotropically<a class="headerlink" href="#remesh-isotropically" title="Link to this heading">¶</a></h2>
+<section id="remesh-isotropically-vcglib">
+<span id="filter-remeshing-isotropic"></span><h2>Remesh Isotropically (vcglib)<a class="headerlink" href="#remesh-isotropically-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Explicit isotropic remeshing by local operations.</p>
 <dl class="py function">
@@ -4345,8 +4345,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="remove-duplicate-vertices">
-<span id="filter-remove-duplicate-vertices"></span><h2>Remove Duplicate Vertices<a class="headerlink" href="#remove-duplicate-vertices" title="Link to this heading">¶</a></h2>
+<section id="remove-duplicate-vertices-vcglib">
+<span id="filter-remove-duplicate-vertices"></span><h2>Remove Duplicate Vertices (vcglib)<a class="headerlink" href="#remove-duplicate-vertices-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
 <p>Merge vertices that have exactly the same coordinates.</p>
 <dl class="py function">
@@ -4849,8 +4849,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="select-by-face-quality">
-<span id="filter-select-by-face-quality"></span><h2>Select by Face Quality<a class="headerlink" href="#select-by-face-quality" title="Link to this heading">¶</a></h2>
+<section id="select-faces-by-scalar">
+<span id="filter-select-by-face-quality"></span><h2>Select Faces by Scalar<a class="headerlink" href="#select-faces-by-scalar" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Select elements using per-face quality range.</p>
 <dl class="py function">
@@ -4867,8 +4867,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="select-by-rectangle-screen">
-<span id="filter-select-by-rectangle"></span><h2>Select by Rectangle (Screen)<a class="headerlink" href="#select-by-rectangle-screen" title="Link to this heading">¶</a></h2>
+<section id="select-by-screen-rectangle">
+<span id="filter-select-by-rectangle"></span><h2>Select by Screen Rectangle<a class="headerlink" href="#select-by-screen-rectangle" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Select vertices or faces whose screen projection falls inside a rectangle.</p>
 <dl class="py function">
@@ -4895,8 +4895,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="select-by-vertex-quality">
-<span id="filter-select-by-vertex-quality"></span><h2>Select by Vertex Quality<a class="headerlink" href="#select-by-vertex-quality" title="Link to this heading">¶</a></h2>
+<section id="select-vertices-by-scalar">
+<span id="filter-select-by-vertex-quality"></span><h2>Select Vertices by Scalar<a class="headerlink" href="#select-vertices-by-scalar" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Select elements using per-vertex quality range.</p>
 <dl class="py function">
@@ -4926,8 +4926,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="select-crease-edges">
-<span id="filter-select-crease-edges"></span><h2>Select Crease Edges<a class="headerlink" href="#select-crease-edges" title="Link to this heading">¶</a></h2>
+<section id="select-crease-edges-vcglib">
+<span id="filter-select-crease-edges"></span><h2>Select Crease Edges (vcglib)<a class="headerlink" href="#select-crease-edges-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Select crease edges from dihedral angles.</p>
 <dl class="py function">
@@ -4981,8 +4981,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="conditional-face-selection">
-<span id="filter-select-faces-by-condition"></span><h2>Conditional Face Selection<a class="headerlink" href="#conditional-face-selection" title="Link to this heading">¶</a></h2>
+<section id="select-faces-by-expression">
+<span id="filter-select-faces-by-condition"></span><h2>Select Faces by Expression<a class="headerlink" href="#select-faces-by-expression" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Selects faces for which a boolean expression evaluates true.</p>
 <dl class="py function">
@@ -5032,8 +5032,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="select-faces-with-edges-longer-than">
-<span id="filter-select-faces-with-edges-longer-than"></span><h2>Select Faces with Edges Longer Than…<a class="headerlink" href="#select-faces-with-edges-longer-than" title="Link to this heading">¶</a></h2>
+<section id="select-faces-by-edge-length">
+<span id="filter-select-faces-with-edges-longer-than"></span><h2>Select Faces by Edge Length<a class="headerlink" href="#select-faces-by-edge-length" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Select all triangles having an edge longer than threshold.</p>
 <dl class="py function">
@@ -5048,8 +5048,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="select-non-manifold-edges">
-<span id="filter-select-non-manifold-edges"></span><h2>Select non Manifold Edges<a class="headerlink" href="#select-non-manifold-edges" title="Link to this heading">¶</a></h2>
+<section id="select-non-manifold-edges-vcglib">
+<span id="filter-select-non-manifold-edges"></span><h2>Select Non-Manifold Edges (vcglib)<a class="headerlink" href="#select-non-manifold-edges-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Select faces and vertices incident on non manifold edges.</p>
 <dl class="py function">
@@ -5078,7 +5078,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <hr class="docutils" />
 </section>
 <section id="select-non-manifold-vertices">
-<span id="filter-select-non-manifold-vertices"></span><h2>Select non Manifold Vertices<a class="headerlink" href="#select-non-manifold-vertices" title="Link to this heading">¶</a></h2>
+<span id="filter-select-non-manifold-vertices"></span><h2>Select Non-Manifold Vertices<a class="headerlink" href="#select-non-manifold-vertices" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Select non manifold vertices.</p>
 <dl class="py function">
@@ -5123,8 +5123,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="select-problematic-faces">
-<span id="filter-select-problematic-faces"></span><h2>Select ‘Problematic’ Faces<a class="headerlink" href="#select-problematic-faces" title="Link to this heading">¶</a></h2>
+<section id="select-ill-shaped-faces">
+<span id="filter-select-problematic-faces"></span><h2>Select Ill-Shaped Faces<a class="headerlink" href="#select-ill-shaped-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Select problematic faces: elongated, flipped, or folded.</p>
 <dl class="py function">
@@ -5145,7 +5145,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <hr class="docutils" />
 </section>
 <section id="select-self-intersecting-faces">
-<span id="filter-select-self-intersecting-faces"></span><h2>Select Self Intersecting Faces<a class="headerlink" href="#select-self-intersecting-faces" title="Link to this heading">¶</a></h2>
+<span id="filter-select-self-intersecting-faces"></span><h2>Select Self-Intersecting Faces<a class="headerlink" href="#select-self-intersecting-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.select</p>
 <p>Select only self intersecting faces.</p>
 <dl class="py function">
@@ -5156,8 +5156,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="select-small-disconnected-component">
-<span id="filter-select-small-disconnected-component"></span><h2>Select small disconnected component<a class="headerlink" href="#select-small-disconnected-component" title="Link to this heading">¶</a></h2>
+<section id="select-small-disconnected-components">
+<span id="filter-select-small-disconnected-component"></span><h2>Select Small Disconnected Components<a class="headerlink" href="#select-small-disconnected-components" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.mls</p>
 <p>Select the small disconnected components of a mesh.</p>
 <dl class="py function">
@@ -5185,8 +5185,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="conditional-vertex-selection">
-<span id="filter-select-vertices-by-condition"></span><h2>Conditional Vertex Selection<a class="headerlink" href="#conditional-vertex-selection" title="Link to this heading">¶</a></h2>
+<section id="select-vertices-by-expression">
+<span id="filter-select-vertices-by-condition"></span><h2>Select Vertices by Expression<a class="headerlink" href="#select-vertices-by-expression" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Selects vertices for which a boolean expression evaluates true.</p>
 <dl class="py function">
@@ -5218,8 +5218,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="select-vertices-inside-mesh">
-<span id="filter-select-vertices-inside-mesh"></span><h2>Select Vertices Inside Mesh<a class="headerlink" href="#select-vertices-inside-mesh" title="Link to this heading">¶</a></h2>
+<section id="select-vertices-inside-mesh-trueform">
+<span id="filter-select-vertices-inside-mesh"></span><h2>Select Vertices Inside Mesh (TrueForm)<a class="headerlink" href="#select-vertices-inside-mesh-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Select the vertices enclosed by another layer.</p>
 <dl class="py function">
@@ -5455,8 +5455,8 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
-<section id="simplify-by-quadric-edge-collapse">
-<span id="filter-simplification-quadric-edge-collapse"></span><h2>Simplify by Quadric Edge Collapse<a class="headerlink" href="#simplify-by-quadric-edge-collapse" title="Link to this heading">¶</a></h2>
+<section id="simplify-by-quadric-edge-collapse-vcglib">
+<span id="filter-simplification-quadric-edge-collapse"></span><h2>Simplify by Quadric Edge Collapse (vcglib)<a class="headerlink" href="#simplify-by-quadric-edge-collapse-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Simplify using quadric-based edge-collapse.</p>
 <dl class="py function">
@@ -5516,8 +5516,8 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
-<section id="simplify-by-quadric-edge-collapse-with-texture">
-<span id="filter-simplification-quadric-edge-collapse-with-texture"></span><h2>Simplify by Quadric Edge Collapse with Texture<a class="headerlink" href="#simplify-by-quadric-edge-collapse-with-texture" title="Link to this heading">¶</a></h2>
+<section id="simplify-by-quadric-edge-collapse-with-texture-vcglib">
+<span id="filter-simplification-quadric-edge-collapse-with-texture"></span><h2>Simplify by Quadric Edge Collapse with Texture (vcglib)<a class="headerlink" href="#simplify-by-quadric-edge-collapse-with-texture-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Simplify textured meshes preserving UVs.</p>
 <dl class="py function">
@@ -5665,8 +5665,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="smooth-vertices-by-laplacian">
-<span id="filter-smooth-laplacian"></span><h2>Smooth Vertices by Laplacian<a class="headerlink" href="#smooth-vertices-by-laplacian" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-by-laplacian-vcglib">
+<span id="filter-smooth-laplacian"></span><h2>Smooth Vertices by Laplacian (vcglib)<a class="headerlink" href="#smooth-vertices-by-laplacian-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Average vertex positions with their neighbors.</p>
 <dl class="py function">
@@ -5751,8 +5751,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="smooth-vertices-by-taubin">
-<span id="filter-smooth-taubin"></span><h2>Smooth Vertices by Taubin<a class="headerlink" href="#smooth-vertices-by-taubin" title="Link to this heading">¶</a></h2>
+<section id="smooth-vertices-by-taubin-vcglib">
+<span id="filter-smooth-taubin"></span><h2>Smooth Vertices by Taubin (vcglib)<a class="headerlink" href="#smooth-vertices-by-taubin-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Plugin:</strong> qmeshlab.filter.unsharp</p>
 <p>Lambda-mu smoothing with reduced shrinkage.</p>
 <dl class="py function">
@@ -6621,7 +6621,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.apply_cameras_translation"><code class="docutils literal notranslate"><span class="pre">ms.apply_cameras_translation()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#smooth-vertices-by-laplacian-surface-preserving">Smooth Vertices by Laplacian (Surface Preserving)</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-by-surface-preserving-laplacian-vcglib">Smooth Vertices by Surface-Preserving Laplacian (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.apply_coord_laplacian_smoothing_surface_preserving"><code class="docutils literal notranslate"><span class="pre">ms.apply_coord_laplacian_smoothing_surface_preserving()</span></code></a></li>
 </ul>
 </li>
@@ -6649,7 +6649,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.apply_mls_rimls"><code class="docutils literal notranslate"><span class="pre">ms.apply_mls_rimls()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#apply-natural-boundary-hessian-scalar-smoothing-libigl">Apply Natural-Boundary Hessian Scalar Smoothing (libigl)</a><ul>
+<li><a class="reference internal" href="#smooth-vertex-scalar-by-hessian-energy-libigl">Smooth Vertex Scalar by Hessian Energy (libigl)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.apply_scalar_hessian_smoothing_per_vertex_libigl"><code class="docutils literal notranslate"><span class="pre">ms.apply_scalar_hessian_smoothing_per_vertex_libigl()</span></code></a></li>
 </ul>
 </li>
@@ -6733,7 +6733,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_color_from_current_raster_projection"><code class="docutils literal notranslate"><span class="pre">ms.compute_color_from_current_raster_projection()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-principal-curvature-directions">Compute Principal Curvature Directions</a><ul>
+<li><a class="reference internal" href="#compute-principal-curvature-directions-vcglib">Compute Principal Curvature Directions (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_curvature_principal_directions"><code class="docutils literal notranslate"><span class="pre">ms.compute_curvature_principal_directions()</span></code></a></li>
 </ul>
 </li>
@@ -6777,7 +6777,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_geodesic_distance_from_point"><code class="docutils literal notranslate"><span class="pre">ms.compute_geodesic_distance_from_point()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-geodesic-distance-from-selection">Compute Geodesic Distance from Selection</a><ul>
+<li><a class="reference internal" href="#compute-geodesic-distance-from-selection-vcglib">Compute Geodesic Distance from Selection (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_geodesic_distance_from_selection"><code class="docutils literal notranslate"><span class="pre">ms.compute_geodesic_distance_from_selection()</span></code></a></li>
 </ul>
 </li>
@@ -6789,7 +6789,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_hausdorff_distance"><code class="docutils literal notranslate"><span class="pre">ms.compute_hausdorff_distance()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-geodesic-distance-from-selection-heat-method">Compute Geodesic Distance from Selection (Heat Method)</a><ul>
+<li><a class="reference internal" href="#compute-heat-geodesic-distance-from-selection-vcglib">Compute Heat Geodesic Distance from Selection (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_heat_geodesic_distance"><code class="docutils literal notranslate"><span class="pre">ms.compute_heat_geodesic_distance()</span></code></a></li>
 </ul>
 </li>
@@ -6801,7 +6801,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_corresponding_points"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_corresponding_points()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#align-by-icp">Align by ICP</a><ul>
+<li><a class="reference internal" href="#align-by-icp-vcglib">Align by ICP (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_icp_between_meshes"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_icp_between_meshes()</span></code></a></li>
 </ul>
 </li>
@@ -7413,7 +7413,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.remesh_to_quads_quadwild_bimdf"><code class="docutils literal notranslate"><span class="pre">ms.remesh_to_quads_quadwild_bimdf()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#remesh-isotropically">Remesh Isotropically</a><ul>
+<li><a class="reference internal" href="#remesh-isotropically-vcglib">Remesh Isotropically (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remeshing_isotropic"><code class="docutils literal notranslate"><span class="pre">ms.remeshing_isotropic()</span></code></a></li>
 </ul>
 </li>
@@ -7425,7 +7425,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.remove_duplicate_faces"><code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_faces()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#remove-duplicate-vertices">Remove Duplicate Vertices</a><ul>
+<li><a class="reference internal" href="#remove-duplicate-vertices-vcglib">Remove Duplicate Vertices (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remove_duplicate_vertices"><code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices()</span></code></a></li>
 </ul>
 </li>
@@ -7541,15 +7541,15 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.select_border"><code class="docutils literal notranslate"><span class="pre">ms.select_border()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-by-face-quality">Select by Face Quality</a><ul>
+<li><a class="reference internal" href="#select-faces-by-scalar">Select Faces by Scalar</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_by_face_quality"><code class="docutils literal notranslate"><span class="pre">ms.select_by_face_quality()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-by-rectangle-screen">Select by Rectangle (Screen)</a><ul>
+<li><a class="reference internal" href="#select-by-screen-rectangle">Select by Screen Rectangle</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_by_rectangle"><code class="docutils literal notranslate"><span class="pre">ms.select_by_rectangle()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-by-vertex-quality">Select by Vertex Quality</a><ul>
+<li><a class="reference internal" href="#select-vertices-by-scalar">Select Vertices by Scalar</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_by_vertex_quality"><code class="docutils literal notranslate"><span class="pre">ms.select_by_vertex_quality()</span></code></a></li>
 </ul>
 </li>
@@ -7557,7 +7557,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.select_connected_faces"><code class="docutils literal notranslate"><span class="pre">ms.select_connected_faces()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-crease-edges">Select Crease Edges</a><ul>
+<li><a class="reference internal" href="#select-crease-edges-vcglib">Select Crease Edges (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_crease_edges"><code class="docutils literal notranslate"><span class="pre">ms.select_crease_edges()</span></code></a></li>
 </ul>
 </li>
@@ -7569,7 +7569,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.select_faces_by_color"><code class="docutils literal notranslate"><span class="pre">ms.select_faces_by_color()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#conditional-face-selection">Conditional Face Selection</a><ul>
+<li><a class="reference internal" href="#select-faces-by-expression">Select Faces by Expression</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_faces_by_condition"><code class="docutils literal notranslate"><span class="pre">ms.select_faces_by_condition()</span></code></a></li>
 </ul>
 </li>
@@ -7581,11 +7581,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.select_faces_from_vertices"><code class="docutils literal notranslate"><span class="pre">ms.select_faces_from_vertices()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-faces-with-edges-longer-than">Select Faces with Edges Longer Than…</a><ul>
+<li><a class="reference internal" href="#select-faces-by-edge-length">Select Faces by Edge Length</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_faces_with_edges_longer_than"><code class="docutils literal notranslate"><span class="pre">ms.select_faces_with_edges_longer_than()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-non-manifold-edges">Select non Manifold Edges</a><ul>
+<li><a class="reference internal" href="#select-non-manifold-edges-vcglib">Select Non-Manifold Edges (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_non_manifold_edges"><code class="docutils literal notranslate"><span class="pre">ms.select_non_manifold_edges()</span></code></a></li>
 </ul>
 </li>
@@ -7593,7 +7593,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.select_non_manifold_edges_trueform"><code class="docutils literal notranslate"><span class="pre">ms.select_non_manifold_edges_trueform()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-non-manifold-vertices">Select non Manifold Vertices</a><ul>
+<li><a class="reference internal" href="#select-non-manifold-vertices">Select Non-Manifold Vertices</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_non_manifold_vertices"><code class="docutils literal notranslate"><span class="pre">ms.select_non_manifold_vertices()</span></code></a></li>
 </ul>
 </li>
@@ -7605,15 +7605,15 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.select_outliers"><code class="docutils literal notranslate"><span class="pre">ms.select_outliers()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-problematic-faces">Select ‘Problematic’ Faces</a><ul>
+<li><a class="reference internal" href="#select-ill-shaped-faces">Select Ill-Shaped Faces</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_problematic_faces"><code class="docutils literal notranslate"><span class="pre">ms.select_problematic_faces()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-self-intersecting-faces">Select Self Intersecting Faces</a><ul>
+<li><a class="reference internal" href="#select-self-intersecting-faces">Select Self-Intersecting Faces</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_self_intersecting_faces"><code class="docutils literal notranslate"><span class="pre">ms.select_self_intersecting_faces()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-small-disconnected-component">Select small disconnected component</a><ul>
+<li><a class="reference internal" href="#select-small-disconnected-components">Select Small Disconnected Components</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_small_disconnected_component"><code class="docutils literal notranslate"><span class="pre">ms.select_small_disconnected_component()</span></code></a></li>
 </ul>
 </li>
@@ -7621,7 +7621,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.select_vertex_texture_seams"><code class="docutils literal notranslate"><span class="pre">ms.select_vertex_texture_seams()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#conditional-vertex-selection">Conditional Vertex Selection</a><ul>
+<li><a class="reference internal" href="#select-vertices-by-expression">Select Vertices by Expression</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_vertices_by_condition"><code class="docutils literal notranslate"><span class="pre">ms.select_vertices_by_condition()</span></code></a></li>
 </ul>
 </li>
@@ -7629,7 +7629,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.select_vertices_from_faces"><code class="docutils literal notranslate"><span class="pre">ms.select_vertices_from_faces()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#select-vertices-inside-mesh">Select Vertices Inside Mesh</a><ul>
+<li><a class="reference internal" href="#select-vertices-inside-mesh-trueform">Select Vertices Inside Mesh (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.select_vertices_inside_mesh"><code class="docutils literal notranslate"><span class="pre">ms.select_vertices_inside_mesh()</span></code></a></li>
 </ul>
 </li>
@@ -7681,7 +7681,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.simplification_clustering"><code class="docutils literal notranslate"><span class="pre">ms.simplification_clustering()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#simplify-by-quadric-edge-collapse">Simplify by Quadric Edge Collapse</a><ul>
+<li><a class="reference internal" href="#simplify-by-quadric-edge-collapse-vcglib">Simplify by Quadric Edge Collapse (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.simplification_quadric_edge_collapse"><code class="docutils literal notranslate"><span class="pre">ms.simplification_quadric_edge_collapse()</span></code></a></li>
 </ul>
 </li>
@@ -7689,7 +7689,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.simplification_quadric_edge_collapse_qslim"><code class="docutils literal notranslate"><span class="pre">ms.simplification_quadric_edge_collapse_qslim()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#simplify-by-quadric-edge-collapse-with-texture">Simplify by Quadric Edge Collapse with Texture</a><ul>
+<li><a class="reference internal" href="#simplify-by-quadric-edge-collapse-with-texture-vcglib">Simplify by Quadric Edge Collapse with Texture (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.simplification_quadric_edge_collapse_with_texture"><code class="docutils literal notranslate"><span class="pre">ms.simplification_quadric_edge_collapse_with_texture()</span></code></a></li>
 </ul>
 </li>
@@ -7717,7 +7717,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_hc_laplacian"><code class="docutils literal notranslate"><span class="pre">ms.smooth_hc_laplacian()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#smooth-vertices-by-laplacian">Smooth Vertices by Laplacian</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-by-laplacian-vcglib">Smooth Vertices by Laplacian (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_laplacian"><code class="docutils literal notranslate"><span class="pre">ms.smooth_laplacian()</span></code></a></li>
 </ul>
 </li>
@@ -7737,7 +7737,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_scale_dependent_laplacian"><code class="docutils literal notranslate"><span class="pre">ms.smooth_scale_dependent_laplacian()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#smooth-vertices-by-taubin">Smooth Vertices by Taubin</a><ul>
+<li><a class="reference internal" href="#smooth-vertices-by-taubin-vcglib">Smooth Vertices by Taubin (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.smooth_taubin"><code class="docutils literal notranslate"><span class="pre">ms.smooth_taubin()</span></code></a></li>
 </ul>
 </li>

@@ -253,10 +253,10 @@ this document rather than inventing a synonym locally.</p>
 applied to plugins and menus), <a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>.</p>
 <section id="why-this-exists">
 <h2>Why this exists<a class="headerlink" href="#why-this-exists" title="Link to this heading">¶</a></h2>
-<p>Measured across the current 272 filters:</p>
+<p>When this document was written, across the 272 filters of the time:</p>
 <ul class="simple">
-<li><p><strong>165 of 272 display names (61 %) do not lead with a verb</strong>, so the reader cannot
-tell what will change.</p></li>
+<li><p><strong>165 of 272 display names (61 %) did not lead with a verb</strong>, so the reader could not
+tell what would change.</p></li>
 <li><p>Live synonym pairs, both spellings in active use: <code class="docutils literal notranslate"><span class="pre">remove</span></code> (10) / <code class="docutils literal notranslate"><span class="pre">delete</span></code> (8) ·
 <code class="docutils literal notranslate"><span class="pre">create</span></code> (16) / <code class="docutils literal notranslate"><span class="pre">generate</span></code> (19) · <code class="docutils literal notranslate"><span class="pre">apply</span></code> (16) / <code class="docutils literal notranslate"><span class="pre">set</span></code> (16) · <code class="docutils literal notranslate"><span class="pre">transfer</span></code> (11) /
 <code class="docutils literal notranslate"><span class="pre">project</span></code> (5) · <code class="docutils literal notranslate"><span class="pre">simplification</span></code> (6) / <code class="docutils literal notranslate"><span class="pre">decimation</span></code> (4) · <code class="docutils literal notranslate"><span class="pre">quality</span></code> (29) /
@@ -266,6 +266,23 @@ tell what will change.</p></li>
 <li><p>32 distinct free-text <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> values across 32 plugins, including one-offs like
 <code class="docutils literal notranslate"><span class="pre">Remeshing,</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Resampling</span></code> and backend leakage like <code class="docutils literal notranslate"><span class="pre">Normals/Embree</span></code>.</p></li>
 </ul>
+<p><strong>Where it stands now</strong> (327 filters, five renaming rounds applied — <code class="docutils literal notranslate"><span class="pre">Meshing</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Attribute</span></code>, <code class="docutils literal notranslate"><span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Geometry</span></code>, <code class="docutils literal notranslate"><span class="pre">Selection</span></code>):</p>
+<ul class="simple">
+<li><p><strong>57 of 327 (17 %)</strong> do not lead with a verb, and every one of them sits in a root
+whose round has not run yet.</p></li>
+<li><p>The same is true of every surviving rejected synonym: <code class="docutils literal notranslate"><span class="pre">delete</span></code> and <code class="docutils literal notranslate"><span class="pre">generate</span></code> in
+<code class="docutils literal notranslate"><span class="pre">Document</span></code>, <code class="docutils literal notranslate"><span class="pre">quality</span></code> in <code class="docutils literal notranslate"><span class="pre">Repair</span></code>/<code class="docutils literal notranslate"><span class="pre">Transfer</span></code>/<code class="docutils literal notranslate"><span class="pre">Measurement</span></code>/<code class="docutils literal notranslate"><span class="pre">Selection</span></code>,
+<code class="docutils literal notranslate"><span class="pre">parameterization</span></code> in <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>. The completed rounds left no synonym debt,
+so no separate sweep is needed — each round retires its own.</p></li>
+<li><p>Free-text <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> is gone from the descriptors in favour of the <code class="docutils literal notranslate"><span class="pre">categories</span></code>
+array; the loader still reads a single <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string as a legacy fallback.</p></li>
+<li><p>British spellings are gone (<code class="docutils literal notranslate"><span class="pre">colour</span></code> 0 / <code class="docutils literal notranslate"><span class="pre">color</span></code> 34).</p></li>
+</ul>
+<p>Remaining rounds, largest first: <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (24), <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22),
+<code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (17), <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (14), <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13), <code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3, plus 7
+filters still at the bare root awaiting a subcategory decision). Then pass 2: the
+Python names and parameter ids.</p>
 </section>
 <section id="filter-categories-closed-set">
 <h2>1. Filter categories (closed set)<a class="headerlink" href="#filter-categories-closed-set" title="Link to this heading">¶</a></h2>
@@ -855,33 +872,25 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p>Write color derived from other data</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Color</span></code> (as a verb), <code class="docutils literal notranslate"><span class="pre">Paint</span></code>, <code class="docutils literal notranslate"><span class="pre">Colourise</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Bake</span></code></p></td>
-<td><p>Convert a current mapping/view into persistent data</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Freeze</span></code> (for color/texture), <code class="docutils literal notranslate"><span class="pre">Flatten</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer</span></code></p></td>
+<td><p>Move data between domains/layers/rasters, including baking an attribute into a texture</p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">Project</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">Copy</span></code>, <code class="docutils literal notranslate"><span class="pre">Map</span></code>, <code class="docutils literal notranslate"><span class="pre">Push</span></code>, <code class="docutils literal notranslate"><span class="pre">Pull</span></code>, <code class="docutils literal notranslate"><span class="pre">Bake</span></code>, <code class="docutils literal notranslate"><span class="pre">Flatten</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer</span></code></p></td>
-<td><p>Move data between domains/layers/rasters</p></td>
-<td><p><strong><code class="docutils literal notranslate"><span class="pre">Project</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">Copy</span></code>, <code class="docutils literal notranslate"><span class="pre">Map</span></code>, <code class="docutils literal notranslate"><span class="pre">Push</span></code>, <code class="docutils literal notranslate"><span class="pre">Pull</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Transform</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Transform</span></code></p></td>
 <td><p>Apply an affine change to positions</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Move</span></code> (use <code class="docutils literal notranslate"><span class="pre">Translate</span></code>), <code class="docutils literal notranslate"><span class="pre">Deform</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Translate</span></code>, <code class="docutils literal notranslate"><span class="pre">Rotate</span></code>, <code class="docutils literal notranslate"><span class="pre">Scale</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Translate</span></code>, <code class="docutils literal notranslate"><span class="pre">Rotate</span></code>, <code class="docutils literal notranslate"><span class="pre">Scale</span></code></p></td>
 <td><p>The specific affine operations</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Shift</span></code>, <code class="docutils literal notranslate"><span class="pre">Turn</span></code>, <code class="docutils literal notranslate"><span class="pre">Resize</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Displace</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Displace</span></code></p></td>
 <td><p>Move vertices by a computed scalar or vector field while preserving connectivity</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Perturb</span></code>, <code class="docutils literal notranslate"><span class="pre">Deform</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Apply</span></code></p></td>
-<td><p>Apply an <strong>existing stored</strong> transform to geometry</p></td>
-<td><p><em>(never as a generic verb)</em></p></td>
-</tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Freeze</span></code></p></td>
-<td><p>Bake the layer matrix into vertex coordinates</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Collapse</span> <span class="pre">matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">Commit</span></code></p></td>
+<td><p>Write the layer matrix into the vertex coordinates and reset it to the identity</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Apply</span></code> (to a stored transform), <code class="docutils literal notranslate"><span class="pre">Bake</span></code> (of a matrix), <code class="docutils literal notranslate"><span class="pre">Collapse</span> <span class="pre">matrix</span></code>, <code class="docutils literal notranslate"><span class="pre">Commit</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Align</span></code></p></td>
 <td><p>Derive a registration transform between layers</p></td>
@@ -931,20 +940,76 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p>Layer-structure operations</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Clone</span></code>, <code class="docutils literal notranslate"><span class="pre">Separate</span></code>, <code class="docutils literal notranslate"><span class="pre">Detach</span></code></p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Orient</span></code></p></td>
+<td><p>Make normals point consistently, or toward a reference</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Re-Orient</span></code>, <code class="docutils literal notranslate"><span class="pre">Reorient</span></code> — the values are flipped, not recalculated, so not <code class="docutils literal notranslate"><span class="pre">Compute</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Sharpen</span></code></p></td>
+<td><p>Enhance local variation in an attribute</p></td>
+<td><p><em>(the unsharp-mask filters had no verb at all)</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Trim</span></code></p></td>
+<td><p>Cut a surface along an isovalue of a scalar field and discard one side</p></td>
+<td><p><em>(neither <code class="docutils literal notranslate"><span class="pre">Remove</span></code>, which deletes whole elements, nor <code class="docutils literal notranslate"><span class="pre">Cut</span></code>, which keeps both sides)</em></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Mirror</span></code></p></td>
+<td><p>Negate one or more axes</p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">Flip</span></code></strong> — reserved above for edge flipping, which is its opposite: connectivity changes and vertices do not</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Project</span></code></p></td>
+<td><p>Move vertices onto existing geometry, or onto a line</p></td>
+<td><p>Admitted <strong>narrowly</strong>, for geometric projection. Still a rejected synonym for <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> wherever attributes move between domains</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Define</span></code></p></td>
+<td><p>Declare a new named custom attribute</p></td>
+<td><p>Admitted <strong>narrowly</strong>, for that alone; otherwise still a rejected synonym for <code class="docutils literal notranslate"><span class="pre">Set</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Refine</span></code></p></td>
+<td><p>Subdivide adaptively, where which elements split depends on the data</p></td>
+<td><p>Admitted <strong>narrowly</strong>; plain uniform splitting is <code class="docutils literal notranslate"><span class="pre">Subdivide</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Add</span></code></p></td>
+<td><p>Add a quantity to an existing attribute (<em>Add Noise to Vertex Color</em>)</p></td>
+<td><p>Admitted <strong>narrowly</strong>; still rejected for producing a layer, where <code class="docutils literal notranslate"><span class="pre">Create</span></code> wins</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dilate</span></code>, <code class="docutils literal notranslate"><span class="pre">Erode</span></code></p></td>
+<td><p>Grow or shrink the selection by one ring of adjacent elements</p></td>
+<td><p>The standard morphological pair; <code class="docutils literal notranslate"><span class="pre">Select</span></code> names the act of selecting, not these two operations on an existing selection</p></td>
+</tr>
 </tbody>
 </table>
 </div>
+<p><strong>Attribute-editing verbs</strong>, admitted as a closed group of standard image and signal
+operations, each keeping its ordinary meaning: <code class="docutils literal notranslate"><span class="pre">Normalize</span></code>, <code class="docutils literal notranslate"><span class="pre">Adjust</span></code>, <code class="docutils literal notranslate"><span class="pre">Clamp</span></code>, <code class="docutils literal notranslate"><span class="pre">Invert</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Equalize</span></code>, <code class="docutils literal notranslate"><span class="pre">Desaturate</span></code>, <code class="docutils literal notranslate"><span class="pre">Threshold</span></code>, <code class="docutils literal notranslate"><span class="pre">Tint</span></code>. None may be used where <code class="docutils literal notranslate"><span class="pre">Compute</span></code> (derive
+from geometry) or <code class="docutils literal notranslate"><span class="pre">Set</span></code> (assign a constant) is accurate.</p>
 <p>* <code class="docutils literal notranslate"><span class="pre">Estimate</span></code> is permitted <strong>only</strong> when the result is explicitly statistical or
-approximate and that matters to the user (e.g. <em>Estimate Radius from Density</em>).
-<code class="docutils literal notranslate"><span class="pre">Refine</span></code> is permitted only for adaptive, non-uniform subdivision.</p>
-<p>Two rulings worth stating outright, since both terms are currently in heavy use:</p>
+approximate and that matters to the user (e.g. <em>Estimate Radius from Density</em>).</p>
+<p><strong><code class="docutils literal notranslate"><span class="pre">Apply</span></code> and <code class="docutils literal notranslate"><span class="pre">Bake</span></code> were removed as verbs</strong> (2026-08-27). <code class="docutils literal notranslate"><span class="pre">Apply</span></code> was defined as
+“apply an existing stored transform to geometry” and <code class="docutils literal notranslate"><span class="pre">Freeze</span></code> as “bake the layer matrix
+into vertex coordinates” — the same operation twice, and the two entries defined each
+other in a circle. <code class="docutils literal notranslate"><span class="pre">Apply</span></code>’s only user was a <em>smoothing</em> filter, using it as exactly the
+generic verb its own entry forbade. <code class="docutils literal notranslate"><span class="pre">Bake</span></code> had no users at all: baking an attribute into
+a texture is already <code class="docutils literal notranslate"><span class="pre">Transfer</span></code>, which won on the domain-to-domain framing.</p>
+<p>Both words stay in the <strong>descriptions</strong> of the filters they belonged to, so searching for
+<em>freeze</em> or <em>bake</em> still finds them — the same reason <em>morphing</em> survives in the text of
+<code class="docutils literal notranslate"><span class="pre">Displace</span> <span class="pre">Vertices</span> <span class="pre">toward</span> <span class="pre">Target</span> <span class="pre">Mesh</span></code>. A word being rejected as a verb does not mean it
+should stop being findable.</p>
+<p>Two rulings worth stating outright, because both rejected terms were in heavy use
+before the renaming rounds began:</p>
 <ul class="simple">
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">Remove</span></code>, not <code class="docutils literal notranslate"><span class="pre">Delete</span></code>.</strong> Today <code class="docutils literal notranslate"><span class="pre">Remove</span></code> (10) and <code class="docutils literal notranslate"><span class="pre">Delete</span></code> (8) are used
-interchangeably. One verb; the object says what goes (<code class="docutils literal notranslate"><span class="pre">Remove</span> <span class="pre">Selected</span> <span class="pre">Faces</span></code>).</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Remove</span></code>, not <code class="docutils literal notranslate"><span class="pre">Delete</span></code>.</strong> One verb; the object says what goes
+(<code class="docutils literal notranslate"><span class="pre">Remove</span> <span class="pre">Selected</span> <span class="pre">Faces</span></code>).</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">Transfer</span></code>, not <code class="docutils literal notranslate"><span class="pre">Project</span></code>.</strong> <code class="docutils literal notranslate"><span class="pre">Project</span></code> described only the raster sub-case;
 <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> covers all domain-to-domain movement, and the raster appears in the
-object (<code class="docutils literal notranslate"><span class="pre">Transfer</span> <span class="pre">Raster</span> <span class="pre">Color</span> <span class="pre">to</span> <span class="pre">Vertex</span> <span class="pre">Color</span></code>).</p></li>
+object (<code class="docutils literal notranslate"><span class="pre">Transfer</span> <span class="pre">Raster</span> <span class="pre">Color</span> <span class="pre">to</span> <span class="pre">Vertex</span> <span class="pre">Color</span></code>). <code class="docutils literal notranslate"><span class="pre">Project</span></code> was later admitted for
+the unrelated geometric sense — moving vertices onto a surface — and that is the
+only sense it may carry.</p></li>
 </ul>
+<p>Every verb above the <code class="docutils literal notranslate"><span class="pre">Estimate</span></code> footnote is ratified. The rounds that introduced the
+later ones are recorded in <a class="reference internal" href="filter_names.html"><span class="std std-doc">Filter Names</span></a>, which is the history; this
+table is the authority. <code class="docutils literal notranslate"><span class="pre">tests/test_filters.cpp</span></code> parses it and fails if any shipped
+display name leads with a word that is not here.</p>
 </section>
 <section id="element-and-data-nouns">
 <h2>4. Element and data nouns<a class="headerlink" href="#element-and-data-nouns" title="Link to this heading">¶</a></h2>
@@ -1052,15 +1117,52 @@ pass so the two stay consistent. Until then, expect <code class="docutils litera
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Verb Object [(Backend)]
 </pre></div>
 </div>
-<ul class="simple">
-<li><p>Lead with a canonical verb — this is the fix for the 61 % that do not.</p></li>
+<ul>
+<li><p>Lead with a canonical verb (§3).</p></li>
 <li><p>The category is <strong>not</strong> repeated in the name: the menu already carries it. So under
-<code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code>, the name is <em>Simplify Quadric Edge Collapse</em>, not
+<code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code>, the name is <em>Simplify by Quadric Edge Collapse</em>, not
 <em>Simplification: Quadric Edge Collapse</em>.</p></li>
-<li><p>Add the backend in parentheses <strong>only</strong> when competing implementations coexist,
-which the algorithm-archive model makes routine (decision 4): <em>Simplify Quadric
-Edge Collapse (QSlim)</em>.</p></li>
+<li><p>Add the backend or algorithm in parentheses whenever it tells the reader <strong>which
+implementation they are getting</strong> and that could reasonably matter: <em>Simplify by
+Quadric Edge Collapse (QSlim)</em>.</p>
+<p>This does <strong>not</strong> require two filters sharing a base name. What competes is the set of
+routes to a result, not the set of identical labels. Gaussian curvature is reachable
+through <em>Compute Curvature (Discrete)</em>, <em>(APSS)</em>, <em>(RIMLS)</em>, <em>(TrueForm)</em> and
+<em>Compute Gaussian Curvature (libigl)</em> — five routes, no two of which share a base
+name, and the suffix is the only thing separating them. Requiring a name collision
+before allowing a suffix would strip exactly the information a user needs to choose.</p>
+<p>It is still not decoration. Omit it where the filter is the only meaningful route to
+its result, and never add it merely to record which plugin the code happens to live
+in — that belongs in the description and the structured references.</p>
+</li>
 </ul>
+<p><strong>Connectors.</strong> The object often needs a preposition, and three are in regular use —
+<code class="docutils literal notranslate"><span class="pre">by</span></code> for the method (<em>Smooth Vertices by Laplacian</em>, <em>Compute Vertex Scalar by
+Expression</em>), <code class="docutils literal notranslate"><span class="pre">from</span></code> for the source (<em>Compute Geodesic Distance from Border</em>), <code class="docutils literal notranslate"><span class="pre">to</span></code> for
+the destination (<em>Convert to Pure Triangles</em>). Prefer <code class="docutils literal notranslate"><span class="pre">by</span></code> for “how”, and keep the
+phrase readable rather than mechanically short.</p>
+<p><strong>The incumbent stays unsuffixed.</strong> When a second implementation of an existing filter
+arrives, the newcomer carries the backend and the existing name does not change:
+<em>Remove Duplicate Vertices</em> alongside <em>Remove Duplicate Vertices (TrueForm)</em>. This keeps
+the archive from churning names every time a competitor is added, and it means the
+unsuffixed name is always the long-standing one.</p>
+<p>The two rules answer different questions and do not conflict: the paragraph above says
+<strong>when a suffix is allowed at all</strong>, this one says <strong>whose name changes</strong> once a direct
+competitor turns up. A filter may perfectly well carry a suffix from birth without any
+same-named sibling ever existing.</p>
+<p><strong>Superseded 2026-08-27.</strong> Leaving the incumbent bare turned out to hide exactly what
+the reader needs: faced with <em>Remove Duplicate Vertices</em> and <em>Remove Duplicate Vertices
+(TrueForm)</em>, nothing tells you the first one is vcglib. Every implementation in a
+competing family now names itself, the original vcglib ones included — so
+<strong>Simplify by Quadric Edge Collapse (vcglib)</strong> beside <strong>(QSlim)</strong>. The churn this rule was
+protecting against is a one-off cost, paid once per family, and worth it.</p>
+<p><strong>Algorithm in the name, library in the suffix.</strong> When a family holds two
+implementations from the <em>same</em> library they cannot both be <code class="docutils literal notranslate"><span class="pre">(vcglib)</span></code>, and the answer is
+already in the archive: the distinguishing algorithm belongs in the name.
+<em>Compute Heat Geodesic Distance from Selection (vcglib)</em> beside
+<em>Compute Geodesic Distance from Selection (vcglib)</em>; <em>Smooth Vertices by
+Surface-Preserving Laplacian (vcglib)</em> beside <em>Smooth Vertices by Laplacian (vcglib)</em> — the
+same shape as <em>Smooth Vertices by HC Laplacian</em> and the libigl geodesic pair.</p>
 <p><strong>Exception — a well-known named result may be a noun phrase.</strong> Where a filter’s output
 <em>is</em> a conventionally named object, naming the result reads better than naming the
 action: the boolean filters are <strong><code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">Union</span></code></strong>, <code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">Intersection</span></code>,
@@ -1119,9 +1221,8 @@ their matches without this fix — so this is the prerequisite that makes the ne
 safe, not merely an improvement.</p>
 <p>Ranking is unaffected: sorting uses <code class="docutils literal notranslate"><span class="pre">titleMatchesAllTerms</span></code>, which is name-only, so name
 matches still sort above category-only matches.</p>
-<p>Follow-up: the implementation reads <code class="docutils literal notranslate"><span class="pre">descriptor.menuPath</span></code>, the field as it exists today.
-When pass 1 replaces it with the <code class="docutils literal notranslate"><span class="pre">categories</span></code> array (§1), this becomes a loop over the
-entries.</p>
+<p>The implementation loops over the <code class="docutils literal notranslate"><span class="pre">categories</span></code> array; a single legacy <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string
+is still accepted by the loader for descriptors that predate it.</p>
 <p>Worth noting <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code> was <em>already</em> searched, which is exactly what the
 algorithm-archive model needs — typing <em>qslim</em> finds the QSlim implementations.</p>
 </section>
