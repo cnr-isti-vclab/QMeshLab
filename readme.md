@@ -180,7 +180,8 @@ What it does:
 - signs the app, frameworks, and plugins with a Developer ID Application certificate
 - enables hardened runtime and secure timestamps
 - submits the DMG to Apple's notary service, staples the ticket, and verifies it
-- uploads the signed and notarized `.dmg` as a workflow artifact
+- uploads the signed and notarized DMG as
+  `QMeshLab-YYYY-MM-DD-<short-sha>-macos-arm64.dmg`
 
 Required repository secrets:
 - `MACOS_CERTIFICATE_P12`: the base64-encoded `.p12` containing the Developer ID
@@ -202,7 +203,7 @@ How to use it:
 1. Open the `Actions` tab on GitHub
 2. Select `macOS DMG`
 3. Click `Run workflow`
-4. Download the `qmeshlab-macos-dmg` artifact from the completed run
+4. Download the `QMeshLab-YYYY-MM-DD-<short-sha>-macos-arm64` artifact from the completed run
 
 The workflow runs on `macos-15`, producing an `arm64` application. The packaging
 script still produces an ad-hoc signed DMG when used locally without
@@ -223,14 +224,15 @@ What it does:
 - configures and builds a release build with the `vcpkg-manifest` preset
 - runs `windeployqt` on `QMeshLab.exe`
 - copies additional runtime `.dll` files from the release-only manifest `vcpkg_installed/<triplet>/bin`
-- archives the deploy directory as `QMeshLab-portable-win64.zip`
+- archives the deploy directory as
+  `QMeshLab-YYYY-MM-DD-<short-sha>-windows-x86_64.zip`
 - uploads the generated `.zip` as a workflow artifact
 
 How to use it:
 1. Open the `Actions` tab on GitHub
 2. Select `Windows Portable`
 3. Click `Run workflow`
-4. Download the `qmeshlab-windows-portable` artifact from the completed run
+4. Download the `QMeshLab-YYYY-MM-DD-<short-sha>-windows-x86_64` artifact from the completed run
 
 Current status:
 - packaging is portable `.zip`, not an installer

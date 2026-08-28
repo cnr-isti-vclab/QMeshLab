@@ -158,6 +158,13 @@ jobs:
         run: |
           cmake --build "$BUILD_DIR" -j"$(sysctl -n hw.ncpu)"
 
+      - name: Define release artifact name
+        id: release-metadata
+        run: |
+          RELEASE_DATE="$(date -u +%Y-%m-%d)"
+          SHORT_SHA="${GITHUB_SHA:0:8}"
+          echo "artifact_stem=$APP_NAME-$RELEASE_DATE-$SHORT_SHA-macos-arm64" >> "$GITHUB_OUTPUT"
+
       - name: Import Developer ID certificate
         env:
           MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
@@ -189,13 +196,17 @@ jobs:
           echo "SIGNING_CERTIFICATE_PATH=$CERTIFICATE_PATH" >> "$GITHUB_ENV"
 
       - name: Package signed DMG
+        env:
+          RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
         run: |
           ./scripts/package-macos-dmg.sh \
             --no-build \
             --build-dir "$BUILD_DIR" \
             --sign-identity "$MACOS_SIGNING_IDENTITY"
-          DMG_PATH="$GITHUB_WORKSPACE/$BUILD_DIR/$APP_NAME-macos-$(uname -m).dmg"
-          [ -f "$DMG_PATH" ] || { echo "Signed DMG was not produced" >&2; exit 1; }
+          PACKAGED_DMG="$GITHUB_WORKSPACE/$BUILD_DIR/$APP_NAME-macos-$(uname -m).dmg"
+          [ -f "$PACKAGED_DMG" ] || { echo "Signed DMG was not produced" >&2; exit 1; }
+          DMG_PATH="$GITHUB_WORKSPACE/$BUILD_DIR/$RELEASE_ARTIFACT_STEM.dmg"
+          mv "$PACKAGED_DMG" "$DMG_PATH"
           echo "DMG_PATH=$DMG_PATH" >> "$GITHUB_ENV"
 
       - name: Notarize and staple DMG
@@ -229,6 +240,6 @@ jobs:
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v7
         with:
-          name: qmeshlab-macos-signed-notarized-dmg
-          path: ${{ github.workspace }}/build-release/*.dmg
+          name: ${{ steps.release-metadata.outputs.artifact_stem }}
+          path: ${{ github.workspace }}/build-release/${{ steps.release-metadata.outputs.artifact_stem }}.dmg
           if-no-files-found: error
