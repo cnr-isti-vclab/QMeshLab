@@ -234,7 +234,12 @@ Project a mesh or point set onto an Algebraic Point Set Surface.
 ```{py:function} ms.apply_mls_apss(**params)
 :module: _qmeshlab
 
-Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.
+Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\n\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.
+
+**References:**
+
+- Gaël Guennebaud, Markus Gross. **Algebraic point set surfaces**. *ACM Transactions on Graphics (SIGGRAPH 2007)* (2007). [DOI](https://doi.org/10.1145/1276377.1276406)
+- Gaël Guennebaud, Marcel Germann, Markus Gross. **Dynamic Sampling and Rendering of Algebraic Point Set Surfaces**. *Computer Graphics Forum (Eurographics 2008)* (2008). [DOI](https://doi.org/10.1111/j.1467-8659.2008.01163.x)
 
 **Parameters:**
 
@@ -263,7 +268,11 @@ Project a mesh or point set onto a Robust Implicit MLS surface.
 ```{py:function} ms.apply_mls_rimls(**params)
 :module: _qmeshlab
 
-Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.
+Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\n\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.
+
+**References:**
+
+- A. Cengiz Öztireli, Gaël Guennebaud, Markus Gross. **Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression**. *Computer Graphics Forum (Eurographics 2009)* (2009). [DOI](https://doi.org/10.1111/j.1467-8659.2009.01388.x)
 
 **Parameters:**
 
@@ -328,6 +337,10 @@ Smooth without the shrinkage that Laplacian smoothing causes.
 :module: _qmeshlab
 
 Alternates a Laplacian shrinking step with a slightly larger expanding one, so noise is removed while the overall volume is preserved. This is the smoothing to reach for by default; plain Laplacian is the one to reach for when you *want* the shape to contract.\n\n**Lambda** is the shrinking step and **Kpb** sets the expanding one — larger Kpb pushes back harder against shrinkage. The defaults are the values from Taubin's paper and are a reasonable starting point.\n\nEnable **Selected Only** to restrict movement to the current vertex selection.\n\nCompeting implementation: QMeshLab already has vcglib smoothing under *Geometry/Smoothing*. TrueForm's is parallelised through oneTBB, which shows on large meshes. Results should agree closely; where they differ the difference is in the boundary handling.
+
+**References:**
+
+- Gabriel Taubin. **A signal processing approach to fair surface design**. *Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '95)* (1995). [DOI](https://doi.org/10.1145/218380.218473)
 
 **Parameters:**
 
@@ -656,7 +669,12 @@ Compute APSS curvature estimates and store them in vertex quality.
 ```{py:function} ms.compute_apss_curvature(**params)
 :module: _qmeshlab
 
-Compute curvature values on the vertices of a mesh or point set and store them in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.
+Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\n\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.
+
+**References:**
+
+- Gaël Guennebaud, Markus Gross. **Algebraic point set surfaces**. *ACM Transactions on Graphics (SIGGRAPH 2007)* (2007). [DOI](https://doi.org/10.1145/1276377.1276406)
+- Gaël Guennebaud, Marcel Germann, Markus Gross. **Dynamic Sampling and Rendering of Algebraic Point Set Surfaces**. *Computer Graphics Forum (Eurographics 2008)* (2008). [DOI](https://doi.org/10.1111/j.1467-8659.2008.01163.x)
 
 **Parameters:**
 
@@ -1229,6 +1247,10 @@ Compute an ICP transform that aligns one mesh layer to another.
 
 Perform Iterative Closest Point alignment between a fixed reference layer and a moving source layer. The source layer transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.
 
+**References:**
+
+- Paul J. Besl, Neil D. McKay. **A Method for Registration of 3-D Shapes**. *IEEE Transactions on Pattern Analysis and Machine Intelligence* (1992). [DOI](https://doi.org/10.1109/34.121791)
+
 **Parameters:**
 
 - **ReferenceMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh kept fixed during ICP.
@@ -1304,6 +1326,10 @@ Globally align overlapping mesh layers using pairwise ICP arcs.
 :module: _qmeshlab
 
 Build an overlap graph among the selected document layers, run ICP on sufficiently overlapping layer pairs, then solve a global alignment. The chosen base mesh remains fixed and the other layer transforms are updated without baking coordinates.
+
+**References:**
+
+- Kari Pulli. **Multiview Registration for Large Data Sets**. *Proceedings of the 2nd International Conference on 3-D Digital Imaging and Modeling (3DIM)* (1999). [Web](https://graphics.stanford.edu/papers/pulli-3dim99/3dim99.pdf)
 
 **Parameters:**
 
@@ -1548,7 +1574,11 @@ Compute RIMLS curvature estimates and store them in vertex quality.
 ```{py:function} ms.compute_rimls_curvature(**params)
 :module: _qmeshlab
 
-Compute curvature values on the vertices of a mesh or point set and store them in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.
+Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\n\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.
+
+**References:**
+
+- A. Cengiz Öztireli, Gaël Guennebaud, Markus Gross. **Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression**. *Computer Graphics Forum (Eurographics 2009)* (2009). [DOI](https://doi.org/10.1111/j.1467-8659.2009.01388.x)
 
 **Parameters:**
 
@@ -3541,7 +3571,12 @@ Extract an APSS iso-surface as a new mesh with marching cubes.
 ```{py:function} ms.generate_marching_cubes_apss(**params)
 :module: _qmeshlab
 
-Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.
+Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\n\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.
+
+**References:**
+
+- Gaël Guennebaud, Markus Gross. **Algebraic point set surfaces**. *ACM Transactions on Graphics (SIGGRAPH 2007)* (2007). [DOI](https://doi.org/10.1145/1276377.1276406)
+- Gaël Guennebaud, Marcel Germann, Markus Gross. **Dynamic Sampling and Rendering of Algebraic Point Set Surfaces**. *Computer Graphics Forum (Eurographics 2008)* (2008). [DOI](https://doi.org/10.1111/j.1467-8659.2008.01163.x)
 
 **Parameters:**
 
@@ -3566,7 +3601,11 @@ Extract a Robust Implicit MLS iso-surface as a new mesh with marching cubes.
 ```{py:function} ms.generate_marching_cubes_rimls(**params)
 :module: _qmeshlab
 
-Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.
+Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\n\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.
+
+**References:**
+
+- A. Cengiz Öztireli, Gaël Guennebaud, Markus Gross. **Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression**. *Computer Graphics Forum (Eurographics 2009)* (2009). [DOI](https://doi.org/10.1111/j.1467-8659.2009.01388.x)
 
 **Parameters:**
 
@@ -6705,7 +6744,11 @@ Improved Laplacian smoothing with better shape preservation.
 ```{py:function} ms.smooth_hc_laplacian(**params)
 :module: _qmeshlab
 
-HC Laplacian Smoothing. Extended version of Laplacian Smoothing based on the article: <br><b>Improved Laplacian Smoothing of Noisy Surface Meshes</b> by <i>Vollmer, Mencl and Müller</i>. EUROGRAPHICS Volume 18 (1999), Number 3, 131-138.<br><a href='https://doi.org/10.1111/1467-8659.00334'>doi:10.1111/1467-8659.00334</a>
+HC Laplacian smoothing: an extended Laplacian smoothing that pushes each vertex back toward its original position after every averaging step, which removes most of the shrinkage plain Laplacian smoothing causes.
+
+**References:**
+
+- J. Vollmer, R. Mencl, H. Müller. **Improved Laplacian Smoothing of Noisy Surface Meshes**. *Computer Graphics Forum* (1999). [DOI](https://doi.org/10.1111/1467-8659.00334) [Web](https://onlinelibrary.wiley.com/doi/abs/10.1111/1467-8659.00334)
 
 This filter has no parameters.
 ```
@@ -6723,7 +6766,7 @@ Average vertex positions with their neighbors.
 ```{py:function} ms.smooth_laplacian(**params)
 :module: _qmeshlab
 
-Laplacian smooth. Average each vertex position with weighted positions of neighbour vertices.<br><b>Laplacian Mesh Processing</b> by <i>Olga Sorkine</i>. EUROGRAPHICS 2005<br><a href='http://dx.doi.org/10.2312/egst.20051044'>doi:10.2312/egst.20051044</a>
+Laplacian smoothing: each vertex moves toward the average position of its neighbours. The simplest and fastest of the smoothing filters, and the one that shrinks the mesh most -- repeated passes pull the surface inward. Use Taubin or HC Laplacian where that matters.
 
 **Parameters:**
 
@@ -6807,7 +6850,11 @@ Fujiwara-style scale-dependent Laplacian smoothing.
 ```{py:function} ms.smooth_scale_dependent_laplacian(**params)
 :module: _qmeshlab
 
-Scale Dependent Laplacian Smoothing, extended version of Laplacian Smoothing based on the Fujiwara extended umbrella operator.<br><b>Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow</b> by <i>Desbrun, Meyer, Schroeder and Barr</i>. SIGGRAPH 1999<br><a href='https://doi.org/10.1145/311535.311576'>doi:10.1145/311535.311576</a>
+Scale-dependent Laplacian smoothing, using the Fujiwara extended umbrella operator. Weighting each neighbour by the inverse of its edge length makes the smoothing step independent of how unevenly the mesh is tessellated, so dense and sparse regions are faired at the same rate rather than the dense ones collapsing first.
+
+**References:**
+
+- Mathieu Desbrun, Mark Meyer, Peter Schröder, Alan H. Barr. **Implicit fairing of irregular meshes using diffusion and curvature flow**. *Proceedings of the 26th Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '99)* (1999). [DOI](https://doi.org/10.1145/311535.311576)
 
 **Parameters:**
 
@@ -6829,7 +6876,11 @@ Lambda-mu smoothing with reduced shrinkage.
 ```{py:function} ms.smooth_taubin(**params)
 :module: _qmeshlab
 
-The &lambda;-&mu; Taubin smoothing, combines two steps of low-pass filtering for each iteration. Based on the article:<br><b>A signal processing approach to fair surface design</b> by <i>Gabriel Taubin</i>, SIGGRAPH 1995<br><a href='https://doi.org/10.1145/218380.218473'>doi:10.1145/218380.218473</a>
+The $\lambda$-$\mu$ Taubin smoothing. Each iteration combines two low-pass filtering steps -- a positive $\lambda$ pass followed by a negative $\mu$ pass -- so that noise is attenuated without the volume loss of repeated Laplacian smoothing.
+
+**References:**
+
+- Gabriel Taubin. **A signal processing approach to fair surface design**. *Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '95)* (1995). [DOI](https://doi.org/10.1145/218380.218473)
 
 **Parameters:**
 
@@ -6852,7 +6903,11 @@ Feature-preserving smoothing through normal smoothing and vertex fitting.
 ```{py:function} ms.smooth_two_step(**params)
 :module: _qmeshlab
 
-Two Steps Smoothing, a feature preserving/enhancing fairing filter based on two stages:<ol><li>Normal Smoothing, where similar normals are averaged together.<li>Vertex reposition, where vertices are moved to fit on the new normals.</ol><b>A Comparison of Mesh Smoothing Methods</b> by <i>A. Belyaev and Y. Ohtake</i>. Proc. Israel-Korea Bi-National Conf. Geometric Modeling and Computer Graphics, pp. 83-87, 2003.<br><a href='https://www.researchgate.net/publication/47861030_A_comparison_of_mesh_smoothing_methods'>publication</a>
+A feature-preserving fairing filter that runs in two stages:\n\n1. **Normal smoothing** -- face normals that already point in similar directions are averaged together, while normals that differ sharply are left alone, so creases survive.\n2. **Vertex repositioning** -- vertices are then moved to fit the smoothed normals.\n\nSmoothing the normals first and the positions second is what separates this from plain Laplacian smoothing: noise is removed without rounding off the edges that carry the shape.
+
+**References:**
+
+- Alexander Belyaev, Yutaka Ohtake. **A comparison of mesh smoothing methods**. *Israel-Korea Bi-National Conference on Geometric Modeling and Computer Graphics* (2003). [Web](https://www.researchgate.net/publication/47861030_A_comparison_of_mesh_smoothing_methods)
 
 **Parameters:**
 
@@ -7470,7 +7525,11 @@ Enhance per-vertex color variation with an unsharp mask.
 ```{py:function} ms.unsharp_mask_color(**params)
 :module: _qmeshlab
 
-Apply Unsharp filter to the vertex color, putting in more evidence color variations.<br>See <a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a>
+Sharpens the **per-vertex color**, pulling out variation that is hard to see in a low-contrast or noisy color field.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n
+
+**References:**
+
+- Paolo Cignoni, Roberto Scopigno, Marco Tarini. **A simple normal enhancement technique for interactive non-photorealistic renderings**. *Computers & Graphics* (2005). [DOI](https://doi.org/10.1016/j.cag.2004.11.012) [Web](https://www.sciencedirect.com/science/article/pii/S0097849304001980)
 
 **Parameters:**
 
@@ -7492,7 +7551,11 @@ Enhance geometric ridges and valleys with an unsharp mask.
 ```{py:function} ms.unsharp_mask_geometry(**params)
 :module: _qmeshlab
 
-Apply Unsharp filter to geometric shape, putting in more evidence ridges and valleys variations.<br><a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a>
+Sharpens the **vertex positions**, deepening ridges and valleys in the surface itself. Unlike the normal variant this really moves geometry, so the effect survives export.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n
+
+**References:**
+
+- Paolo Cignoni, Roberto Scopigno, Marco Tarini. **A simple normal enhancement technique for interactive non-photorealistic renderings**. *Computers & Graphics* (2005). [DOI](https://doi.org/10.1016/j.cag.2004.11.012) [Web](https://www.sciencedirect.com/science/article/pii/S0097849304001980)
 
 **Parameters:**
 
@@ -7514,7 +7577,11 @@ Enhance face normal variation using an unsharp mask.
 ```{py:function} ms.unsharp_mask_normals(**params)
 :module: _qmeshlab
 
-Unsharp mask filtering of the normals per face, putting in more evidence normal variations.<br><b>A simple normal enhancement technique for interactive non-photorealistic renderings</b> by <i>Cignoni, Scopigno and Tarini</i>, Comput Graph, 29 (1) (2005)<br><a href='https://doi.org/10.1016/j.cag.2004.11.012'>doi:10.1016/j.cag.2004.11.012</a>
+Sharpens the **per-face normals**, so that shading brings out variations in orientation that a flat rendering hides. The geometry is untouched -- only the normals change -- which makes it a rendering aid rather than a modelling operation.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n
+
+**References:**
+
+- Paolo Cignoni, Roberto Scopigno, Marco Tarini. **A simple normal enhancement technique for interactive non-photorealistic renderings**. *Computers & Graphics* (2005). [DOI](https://doi.org/10.1016/j.cag.2004.11.012) [Web](https://www.sciencedirect.com/science/article/pii/S0097849304001980)
 
 **Parameters:**
 
@@ -7537,7 +7604,11 @@ Enhance per-vertex quality variations with an unsharp mask.
 ```{py:function} ms.unsharp_mask_quality(**params)
 :module: _qmeshlab
 
-Apply Unsharp filter to values of <a href='https://stackoverflow.com/questions/58610746'>quality per vertex</a>.<br>See <a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a>
+Sharpens the **per-vertex scalar field**, so that gentle gradients in the values become steeper and easier to read once the field is mapped to color.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \lambda\,(s - \mathrm{smooth}(s)).$$ **Weight** is $\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n
+
+**References:**
+
+- Paolo Cignoni, Roberto Scopigno, Marco Tarini. **A simple normal enhancement technique for interactive non-photorealistic renderings**. *Computers & Graphics* (2005). [DOI](https://doi.org/10.1016/j.cag.2004.11.012) [Web](https://www.sciencedirect.com/science/article/pii/S0097849304001980)
 
 **Parameters:**
 
@@ -7762,11 +7833,7 @@ Linearly morph the current mesh toward another mesh.
 ```{py:function} ms.vertex_linear_morphing(**params)
 :module: _qmeshlab
 
-Morphs the current mesh towards a target mesh with the same number of vertices and the same vertex ordering. Each source vertex is linearly interpolated towards the corresponding target vertex:
-
-$$p_i^{\mathrm{result}}=(1-\lambda)p_i^{\mathrm{source}}+\lambda p_i^{\mathrm{target}}.$$
-
-See **Three-dimensional metamorphosis: a survey**, F. Lazarus and A. Verroust, *The Visual Computer*, 1998 ([doi:10.1007/s003710050149](https://doi.org/10.1007/s003710050149)).
+Morphs the current mesh toward a target mesh that has the same number of vertices in the same order. Each source vertex moves along the straight line to its counterpart:\n\n$$p_i^{\mathrm{result}}=(1-\lambda)\,p_i^{\mathrm{source}}+\lambda\,p_i^{\mathrm{target}}.$$\n\n**Weight** is $\lambda$: 0 leaves the mesh alone, 1 lands exactly on the target, and values in between interpolate. Values outside $[0,1]$ extrapolate past either end.
 
 **Parameters:**
 

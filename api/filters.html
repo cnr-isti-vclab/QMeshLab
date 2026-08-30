@@ -436,7 +436,12 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_mls_apss">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">apply_mls_apss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.apply_mls_apss" title="Link to this definition">¶</a></dt>
-<dd><p>Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.</p>
+<dd><p>Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\n\nThis is the <strong>algebraic point set surfaces</strong> (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Gaël Guennebaud, Markus Gross. <strong>Algebraic point set surfaces</strong>. <em>ACM Transactions on Graphics (SIGGRAPH 2007)</em> (2007). <a class="reference external" href="https://doi.org/10.1145/1276377.1276406">DOI</a></p></li>
+<li><p>Gaël Guennebaud, Marcel Germann, Markus Gross. <strong>Dynamic Sampling and Rendering of Algebraic Point Set Surfaces</strong>. <em>Computer Graphics Forum (Eurographics 2008)</em> (2008). <a class="reference external" href="https://doi.org/10.1111/j.1467-8659.2008.01163.x">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>ControlMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The point set (or mesh) which defines the MLS surface.</p></li>
@@ -461,7 +466,11 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_mls_rimls">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">apply_mls_rimls</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.apply_mls_rimls" title="Link to this definition">¶</a></dt>
-<dd><p>Project a mesh (or a point set) onto the MLS surface defined by itself or another point set.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.</p>
+<dd><p>Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\n\nThis is the <strong>robust implicit MLS</strong> (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>A. Cengiz Öztireli, Gaël Guennebaud, Markus Gross. <strong>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</strong>. <em>Computer Graphics Forum (Eurographics 2009)</em> (2009). <a class="reference external" href="https://doi.org/10.1111/j.1467-8659.2009.01388.x">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>ControlMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The point set (or mesh) which defines the MLS surface.</p></li>
@@ -516,6 +525,10 @@
 <dt class="sig sig-object py" id="qmeshlab.ms.apply_taubin_smoothing_trueform">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">apply_taubin_smoothing_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.apply_taubin_smoothing_trueform" title="Link to this definition">¶</a></dt>
 <dd><p>Alternates a Laplacian shrinking step with a slightly larger expanding one, so noise is removed while the overall volume is preserved. This is the smoothing to reach for by default; plain Laplacian is the one to reach for when you <em>want</em> the shape to contract.\n\n<strong>Lambda</strong> is the shrinking step and <strong>Kpb</strong> sets the expanding one — larger Kpb pushes back harder against shrinkage. The defaults are the values from Taubin’s paper and are a reasonable starting point.\n\nEnable <strong>Selected Only</strong> to restrict movement to the current vertex selection.\n\nCompeting implementation: QMeshLab already has vcglib smoothing under <em>Geometry/Smoothing</em>. TrueForm’s is parallelised through oneTBB, which shows on large meshes. Results should agree closely; where they differ the difference is in the boundary handling.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Gabriel Taubin. <strong>A signal processing approach to fair surface design</strong>. <em>Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH ‘95)</em> (1995). <a class="reference external" href="https://doi.org/10.1145/218380.218473">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — How many smoothing steps to take.</p></li>
@@ -787,7 +800,12 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_apss_curvature">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_apss_curvature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_apss_curvature" title="Link to this definition">¶</a></dt>
-<dd><p>Compute curvature values on the vertices of a mesh or point set and store them in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.</p>
+<dd><p>Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\n\nThis is the <strong>algebraic point set surfaces</strong> (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Gaël Guennebaud, Markus Gross. <strong>Algebraic point set surfaces</strong>. <em>ACM Transactions on Graphics (SIGGRAPH 2007)</em> (2007). <a class="reference external" href="https://doi.org/10.1145/1276377.1276406">DOI</a></p></li>
+<li><p>Gaël Guennebaud, Marcel Germann, Markus Gross. <strong>Dynamic Sampling and Rendering of Algebraic Point Set Surfaces</strong>. <em>Computer Graphics Forum (Eurographics 2008)</em> (2008). <a class="reference external" href="https://doi.org/10.1111/j.1467-8659.2008.01163.x">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>SelectionOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only selected vertices will be projected.</p></li>
@@ -1244,6 +1262,10 @@
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_matrix_by_icp_between_meshes">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_matrix_by_icp_between_meshes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_matrix_by_icp_between_meshes" title="Link to this definition">¶</a></dt>
 <dd><p>Perform Iterative Closest Point alignment between a fixed reference layer and a moving source layer. The source layer transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Paul J. Besl, Neil D. McKay. <strong>A Method for Registration of 3-D Shapes</strong>. <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em> (1992). <a class="reference external" href="https://doi.org/10.1109/34.121791">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>ReferenceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh kept fixed during ICP.</p></li>
@@ -1307,6 +1329,10 @@
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_matrix_by_mesh_global_alignment">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_matrix_by_mesh_global_alignment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_matrix_by_mesh_global_alignment" title="Link to this definition">¶</a></dt>
 <dd><p>Build an overlap graph among the selected document layers, run ICP on sufficiently overlapping layer pairs, then solve a global alignment. The chosen base mesh remains fixed and the other layer transforms are updated without baking coordinates.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Kari Pulli. <strong>Multiview Registration for Large Data Sets</strong>. <em>Proceedings of the 2nd International Conference on 3-D Digital Imaging and Modeling (3DIM)</em> (1999). <a class="reference external" href="https://graphics.stanford.edu/papers/pulli-3dim99/3dim99.pdf">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>BaseMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer that remains fixed while the other aligned layers are moved.</p></li>
@@ -1501,7 +1527,11 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_rimls_curvature">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_rimls_curvature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_rimls_curvature" title="Link to this definition">¶</a></dt>
-<dd><p>Compute curvature values on the vertices of a mesh or point set and store them in vertex quality. The filter does not bake colors; after it runs QMeshLab switches the view to vertex-quality color visualization.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.</p>
+<dd><p>Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\n\nThis is the <strong>robust implicit MLS</strong> (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>A. Cengiz Öztireli, Gaël Guennebaud, Markus Gross. <strong>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</strong>. <em>Computer Graphics Forum (Eurographics 2009)</em> (2009). <a class="reference external" href="https://doi.org/10.1111/j.1467-8659.2009.01388.x">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>SelectionOnly</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If checked, only selected vertices will be projected.</p></li>
@@ -3076,7 +3106,12 @@ Sven Oesau, Florent Lafarge, <strong>Kinetic Shape Reconstruction</strong>, ACM 
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_marching_cubes_apss">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_marching_cubes_apss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_marching_cubes_apss" title="Link to this definition">¶</a></dt>
-<dd><p>Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the <i>algebraic point set surfaces</i> (APSS) variant which is based on the local fitting of algebraic spheres. It requires points equipped with oriented normals.<br>For all the details about APSS see:<br><b>Guennebaud and Gross</b>, <i>Algebraic Point Set Surfaces</i>, SIGGRAPH 2007;<br><b>Guennebaud et al.</b>, <i>Dynamic Sampling and Rendering of APSS</i>, Eurographics 2008.</p>
+<dd><p>Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\n\nThis is the <strong>algebraic point set surfaces</strong> (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Gaël Guennebaud, Markus Gross. <strong>Algebraic point set surfaces</strong>. <em>ACM Transactions on Graphics (SIGGRAPH 2007)</em> (2007). <a class="reference external" href="https://doi.org/10.1145/1276377.1276406">DOI</a></p></li>
+<li><p>Gaël Guennebaud, Marcel Germann, Markus Gross. <strong>Dynamic Sampling and Rendering of Algebraic Point Set Surfaces</strong>. <em>Computer Graphics Forum (Eurographics 2008)</em> (2008). <a class="reference external" href="https://doi.org/10.1111/j.1467-8659.2008.01163.x">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>FilterScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.</p></li>
@@ -3097,7 +3132,11 @@ Sven Oesau, Florent Lafarge, <strong>Kinetic Shape Reconstruction</strong>, ACM 
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.generate_marching_cubes_rimls">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">generate_marching_cubes_rimls</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.generate_marching_cubes_rimls" title="Link to this definition">¶</a></dt>
-<dd><p>Extract the iso-surface (as a mesh) of a MLS surface defined by the current point set (or mesh) using the marching cubes algorithm. The coarse extraction is followed by an accurate projection step onto the MLS, and an extra zero removal procedure.<br><br>This is the Robust Implicit MLS (RIMLS) variant which is an extension of Implicit MLS preserving sharp features using non linear regression. For more details see:<br><b>Oztireli, Guennebaud and Gross</b>, <i>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</i>, Eurographics 2009.</p>
+<dd><p>Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\n\nThis is the <strong>robust implicit MLS</strong> (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>A. Cengiz Öztireli, Gaël Guennebaud, Markus Gross. <strong>Feature Preserving Point Set Surfaces based on Non-Linear Kernel Regression</strong>. <em>Computer Graphics Forum (Eurographics 2009)</em> (2009). <a class="reference external" href="https://doi.org/10.1111/j.1467-8659.2009.01388.x">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>FilterScale</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">2.0</span></code>) — Scale of the spatial low pass filter. It is relative to the radius (local point spacing) of the vertices.</p></li>
@@ -5659,7 +5698,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.smooth_hc_laplacian">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_hc_laplacian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.smooth_hc_laplacian" title="Link to this definition">¶</a></dt>
-<dd><p>HC Laplacian Smoothing. Extended version of Laplacian Smoothing based on the article: <br><b>Improved Laplacian Smoothing of Noisy Surface Meshes</b> by <i>Vollmer, Mencl and Müller</i>. EUROGRAPHICS Volume 18 (1999), Number 3, 131-138.<br><a href='https://doi.org/10.1111/1467-8659.00334'>doi:10.1111/1467-8659.00334</a></p>
+<dd><p>HC Laplacian smoothing: an extended Laplacian smoothing that pushes each vertex back toward its original position after every averaging step, which removes most of the shrinkage plain Laplacian smoothing causes.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>J. Vollmer, R. Mencl, H. Müller. <strong>Improved Laplacian Smoothing of Noisy Surface Meshes</strong>. <em>Computer Graphics Forum</em> (1999). <a class="reference external" href="https://doi.org/10.1111/1467-8659.00334">DOI</a> <a class="reference external" href="https://onlinelibrary.wiley.com/doi/abs/10.1111/1467-8659.00334">Web</a></p></li>
+</ul>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -5672,7 +5715,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.smooth_laplacian">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_laplacian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.smooth_laplacian" title="Link to this definition">¶</a></dt>
-<dd><p>Laplacian smooth. Average each vertex position with weighted positions of neighbour vertices.<br><b>Laplacian Mesh Processing</b> by <i>Olga Sorkine</i>. EUROGRAPHICS 2005<br><a href='http://dx.doi.org/10.2312/egst.20051044'>doi:10.2312/egst.20051044</a></p>
+<dd><p>Laplacian smoothing: each vertex moves toward the average position of its neighbours. The simplest and fastest of the smoothing filters, and the one that shrinks the mesh most – repeated passes pull the surface inward. Use Taubin or HC Laplacian where that matters.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>stepSmoothNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of smoothing iterations.</p></li>
@@ -5740,7 +5783,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.smooth_scale_dependent_laplacian">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_scale_dependent_laplacian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.smooth_scale_dependent_laplacian" title="Link to this definition">¶</a></dt>
-<dd><p>Scale Dependent Laplacian Smoothing, extended version of Laplacian Smoothing based on the Fujiwara extended umbrella operator.<br><b>Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow</b> by <i>Desbrun, Meyer, Schroeder and Barr</i>. SIGGRAPH 1999<br><a href='https://doi.org/10.1145/311535.311576'>doi:10.1145/311535.311576</a></p>
+<dd><p>Scale-dependent Laplacian smoothing, using the Fujiwara extended umbrella operator. Weighting each neighbour by the inverse of its edge length makes the smoothing step independent of how unevenly the mesh is tessellated, so dense and sparse regions are faired at the same rate rather than the dense ones collapsing first.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Mathieu Desbrun, Mark Meyer, Peter Schröder, Alan H. Barr. <strong>Implicit fairing of irregular meshes using diffusion and curvature flow</strong>. <em>Proceedings of the 26th Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH ‘99)</em> (1999). <a class="reference external" href="https://doi.org/10.1145/311535.311576">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>stepSmoothNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of smoothing iterations.</p></li>
@@ -5758,7 +5805,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.smooth_taubin">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_taubin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.smooth_taubin" title="Link to this definition">¶</a></dt>
-<dd><p>The λ-μ Taubin smoothing, combines two steps of low-pass filtering for each iteration. Based on the article:<br><b>A signal processing approach to fair surface design</b> by <i>Gabriel Taubin</i>, SIGGRAPH 1995<br><a href='https://doi.org/10.1145/218380.218473'>doi:10.1145/218380.218473</a></p>
+<dd><p>The <span class="math notranslate nohighlight">\(\lambda\)</span>-<span class="math notranslate nohighlight">\(\mu\)</span> Taubin smoothing. Each iteration combines two low-pass filtering steps – a positive <span class="math notranslate nohighlight">\(\lambda\)</span> pass followed by a negative <span class="math notranslate nohighlight">\(\mu\)</span> pass – so that noise is attenuated without the volume loss of repeated Laplacian smoothing.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Gabriel Taubin. <strong>A signal processing approach to fair surface design</strong>. <em>Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH ‘95)</em> (1995). <a class="reference external" href="https://doi.org/10.1145/218380.218473">DOI</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>lambda</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — Lambda parameter of Taubin smoothing.</p></li>
@@ -5777,7 +5828,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.smooth_two_step">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_two_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.smooth_two_step" title="Link to this definition">¶</a></dt>
-<dd><p>Two Steps Smoothing, a feature preserving/enhancing fairing filter based on two stages:<ol><li>Normal Smoothing, where similar normals are averaged together.<li>Vertex reposition, where vertices are moved to fit on the new normals.</ol><b>A Comparison of Mesh Smoothing Methods</b> by <i>A. Belyaev and Y. Ohtake</i>. Proc. Israel-Korea Bi-National Conf. Geometric Modeling and Computer Graphics, pp. 83-87, 2003.<br><a href='https://www.researchgate.net/publication/47861030_A_comparison_of_mesh_smoothing_methods'>publication</a></p>
+<dd><p>A feature-preserving fairing filter that runs in two stages:\n\n1. <strong>Normal smoothing</strong> – face normals that already point in similar directions are averaged together, while normals that differ sharply are left alone, so creases survive.\n2. <strong>Vertex repositioning</strong> – vertices are then moved to fit the smoothed normals.\n\nSmoothing the normals first and the positions second is what separates this from plain Laplacian smoothing: noise is removed without rounding off the edges that carry the shape.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Alexander Belyaev, Yutaka Ohtake. <strong>A comparison of mesh smoothing methods</strong>. <em>Israel-Korea Bi-National Conference on Geometric Modeling and Computer Graphics</em> (2003). <a class="reference external" href="https://www.researchgate.net/publication/47861030_A_comparison_of_mesh_smoothing_methods">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>stepSmoothNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">3</span></code>) — Number of full algorithm iterations.</p></li>
@@ -6275,7 +6330,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.unsharp_mask_color">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">unsharp_mask_color</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.unsharp_mask_color" title="Link to this definition">¶</a></dt>
-<dd><p>Apply Unsharp filter to the vertex color, putting in more evidence color variations.<br>See <a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a></p>
+<dd><p>Sharpens the <strong>per-vertex color</strong>, pulling out variation that is hard to see in a low-contrast or noisy color field.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $<span class="math notranslate nohighlight">\(s' = s + \lambda\,(s - \mathrm{smooth}(s)).\)</span><span class="math notranslate nohighlight">\( **Weight** is \)</span>\lambda$; larger values sharpen harder and amplify noise along with the features. <strong>Smoothing steps</strong> sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Paolo Cignoni, Roberto Scopigno, Marco Tarini. <strong>A simple normal enhancement technique for interactive non-photorealistic renderings</strong>. <em>Computers &amp; Graphics</em> (2005). <a class="reference external" href="https://doi.org/10.1016/j.cag.2004.11.012">DOI</a> <a class="reference external" href="https://www.sciencedirect.com/science/article/pii/S0097849304001980">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>weight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Unsharp weight applied to the high-frequency color component.</p></li>
@@ -6293,7 +6352,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.unsharp_mask_geometry">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">unsharp_mask_geometry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.unsharp_mask_geometry" title="Link to this definition">¶</a></dt>
-<dd><p>Apply Unsharp filter to geometric shape, putting in more evidence ridges and valleys variations.<br><a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a></p>
+<dd><p>Sharpens the <strong>vertex positions</strong>, deepening ridges and valleys in the surface itself. Unlike the normal variant this really moves geometry, so the effect survives export.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $<span class="math notranslate nohighlight">\(s' = s + \lambda\,(s - \mathrm{smooth}(s)).\)</span><span class="math notranslate nohighlight">\( **Weight** is \)</span>\lambda$; larger values sharpen harder and amplify noise along with the features. <strong>Smoothing steps</strong> sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Paolo Cignoni, Roberto Scopigno, Marco Tarini. <strong>A simple normal enhancement technique for interactive non-photorealistic renderings</strong>. <em>Computers &amp; Graphics</em> (2005). <a class="reference external" href="https://doi.org/10.1016/j.cag.2004.11.012">DOI</a> <a class="reference external" href="https://www.sciencedirect.com/science/article/pii/S0097849304001980">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>weight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Unsharp weight applied to the high-frequency geometric component.</p></li>
@@ -6311,7 +6374,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.unsharp_mask_normals">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">unsharp_mask_normals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.unsharp_mask_normals" title="Link to this definition">¶</a></dt>
-<dd><p>Unsharp mask filtering of the normals per face, putting in more evidence normal variations.<br><b>A simple normal enhancement technique for interactive non-photorealistic renderings</b> by <i>Cignoni, Scopigno and Tarini</i>, Comput Graph, 29 (1) (2005)<br><a href='https://doi.org/10.1016/j.cag.2004.11.012'>doi:10.1016/j.cag.2004.11.012</a></p>
+<dd><p>Sharpens the <strong>per-face normals</strong>, so that shading brings out variations in orientation that a flat rendering hides. The geometry is untouched – only the normals change – which makes it a rendering aid rather than a modelling operation.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $<span class="math notranslate nohighlight">\(s' = s + \lambda\,(s - \mathrm{smooth}(s)).\)</span><span class="math notranslate nohighlight">\( **Weight** is \)</span>\lambda$; larger values sharpen harder and amplify noise along with the features. <strong>Smoothing steps</strong> sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Paolo Cignoni, Roberto Scopigno, Marco Tarini. <strong>A simple normal enhancement technique for interactive non-photorealistic renderings</strong>. <em>Computers &amp; Graphics</em> (2005). <a class="reference external" href="https://doi.org/10.1016/j.cag.2004.11.012">DOI</a> <a class="reference external" href="https://www.sciencedirect.com/science/article/pii/S0097849304001980">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>recalc</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Recompute face normals from geometry before applying the unsharp mask.</p></li>
@@ -6330,7 +6397,11 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.unsharp_mask_quality">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">unsharp_mask_quality</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.unsharp_mask_quality" title="Link to this definition">¶</a></dt>
-<dd><p>Apply Unsharp filter to values of <a href='https://stackoverflow.com/questions/58610746'>quality per vertex</a>.<br>See <a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a></p>
+<dd><p>Sharpens the <strong>per-vertex scalar field</strong>, so that gentle gradients in the values become steeper and easier to read once the field is mapped to color.\n\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $<span class="math notranslate nohighlight">\(s' = s + \lambda\,(s - \mathrm{smooth}(s)).\)</span><span class="math notranslate nohighlight">\( **Weight** is \)</span>\lambda$; larger values sharpen harder and amplify noise along with the features. <strong>Smoothing steps</strong> sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\n\n</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Paolo Cignoni, Roberto Scopigno, Marco Tarini. <strong>A simple normal enhancement technique for interactive non-photorealistic renderings</strong>. <em>Computers &amp; Graphics</em> (2005). <a class="reference external" href="https://doi.org/10.1016/j.cag.2004.11.012">DOI</a> <a class="reference external" href="https://www.sciencedirect.com/science/article/pii/S0097849304001980">Web</a></p></li>
+</ul>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>weight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Unsharp weight applied to the high-frequency quality component.</p></li>
@@ -6515,12 +6586,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.vertex_linear_morphing">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">vertex_linear_morphing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.vertex_linear_morphing" title="Link to this definition">¶</a></dt>
-<dd><p>Morphs the current mesh towards a target mesh with the same number of vertices and the same vertex ordering. Each source vertex is linearly interpolated towards the corresponding target vertex:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[p_i^{\mathrm{result}}=(1-\lambda)p_i^{\mathrm{source}}+\lambda p_i^{\mathrm{target}}.\]</div>
-</div>
-<p>See <strong>Three-dimensional metamorphosis: a survey</strong>, F. Lazarus and A. Verroust, <em>The Visual Computer</em>, 1998 (<a class="reference external" href="https://doi.org/10.1007/s003710050149">doi:10.1007/s003710050149</a>).</p>
+<dd><p>Morphs the current mesh toward a target mesh that has the same number of vertices in the same order. Each source vertex moves along the straight line to its counterpart:\n\n$<span class="math notranslate nohighlight">\(p_i^{\mathrm{result}}=(1-\lambda)\,p_i^{\mathrm{source}}+\lambda\,p_i^{\mathrm{target}}.\)</span><span class="math notranslate nohighlight">\(\n\n**Weight** is \)</span>\lambda<span class="math notranslate nohighlight">\(: 0 leaves the mesh alone, 1 lands exactly on the target, and values in between interpolate. Values outside \)</span>[0,1]$ extrapolate past either end.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>TargetMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — Mesh that acts as the morph target.</p></li>
