@@ -2,6 +2,8 @@
 
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
+#include <QDirIterator>
 #include <QRegularExpression>
 #include <QSet>
 
@@ -244,6 +246,7 @@ private slots:
     void unfrozenTransformFilterKeepsTheMatrix();
     void displayNamesLeadWithALexiconVerb();
     void structuredReferencesRenderCitations();
+    void toolIconsResolveFromResources();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -4623,6 +4626,61 @@ void FilterTests::structuredReferencesRenderCitations()
             QVERIFY2(r.bibTeX().startsWith(QStringLiteral("@book{")), qPrintable(r.bibTeX()));
         }
     }
+}
+
+// An icon referenced as ":/img/x.png" but missing from the icons resource block in
+// CMakeLists.txt resolves to nothing, and Qt silently falls back to showing the action's
+// text instead. That is how the transform tool ended up labelled "Transform Layer": the
+// file existed on disk, so nothing looked wrong until you saw the toolbar.
+//
+// The icons resource is attached to the app target only, so this cannot be checked
+// through QFile(":/img/..."); it compares the source references against the build file.
+void FilterTests::toolIconsResolveFromResources()
+{
+    QFile cmake(QStringLiteral(TEST_SOURCE_DIR "/CMakeLists.txt"));
+    QVERIFY2(cmake.open(QIODevice::ReadOnly | QIODevice::Text), "cannot open CMakeLists.txt");
+    const QString build = QString::fromUtf8(cmake.readAll());
+    cmake.close();
+
+    const int at = build.indexOf(QStringLiteral("qt_add_resources(QMeshLab \"icons\""));
+    QVERIFY2(at >= 0, "the icons resource block moved or was renamed");
+    const int close = build.indexOf(QStringLiteral("\n)"), at);
+    QVERIFY(close > at);
+    const QString block = build.mid(at, close - at);
+
+    QSet<QString> registered;
+    static const QRegularExpression fileRe(QStringLiteral("(img/[A-Za-z0-9_.-]+)"));
+    auto it = fileRe.globalMatch(block);
+    while (it.hasNext())
+        registered.insert(it.next().captured(1));
+    QVERIFY2(registered.size() > 20,
+             qPrintable(QStringLiteral("parsed only %1 icons; the block format changed")
+                            .arg(registered.size())));
+
+    // Every ":/img/..." literal anywhere in the sources must be registered.
+    QStringList missing;
+    QDirIterator walk(QStringLiteral(TEST_SOURCE_DIR "/src"),
+                      { QStringLiteral("*.cpp"), QStringLiteral("*.h") },
+                      QDir::Files, QDirIterator::Subdirectories);
+    static const QRegularExpression refRe(QStringLiteral("\":/(img/[A-Za-z0-9_.-]+)\""));
+    while (walk.hasNext()) {
+        const QString path = walk.next();
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        const QString text = QString::fromUtf8(f.readAll());
+        auto refs = refRe.globalMatch(text);
+        while (refs.hasNext()) {
+            const QString icon = refs.next().captured(1);
+            if (!registered.contains(icon)) {
+                missing << QStringLiteral("%1 (referenced in %2)")
+                               .arg(icon, QFileInfo(path).fileName());
+            }
+        }
+    }
+    QVERIFY2(missing.isEmpty(),
+             qPrintable(QStringLiteral("icon(s) referenced but not in the resource block:\n  %1")
+                            .arg(missing.join(QStringLiteral("\n  ")))));
 }
 
 QTEST_MAIN(FilterTests)

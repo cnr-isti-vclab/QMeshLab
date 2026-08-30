@@ -30,6 +30,7 @@ public:
     QString name() const override;
     QString statusHint() const override;
     QString badgeDetail() const override;
+    QString iconPath() const override;
     QCursor cursor() const override;
 
     void activate(RenderWidget &view) override;

@@ -361,6 +361,7 @@ qt_add_resources(QMeshLab "icons"
         img/tool_select_layer.png
         img/tool_select_rect.png
         img/icon_measure.png
+        img/axis.png
         img/cur_pick.png
         img/cur_measure.png
         img/cur_trackball.png

@@ -55,6 +55,11 @@ QString TransformTool::badgeDetail() const
     return readout();
 }
 
+QString TransformTool::iconPath() const
+{
+    return QStringLiteral(":/img/axis.png");
+}
+
 QCursor TransformTool::cursor() const
 {
     return QCursor(Qt::SizeAllCursor);
