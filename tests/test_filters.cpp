@@ -243,6 +243,7 @@ private slots:
     void bboxCentrePivotIsWorldSpace();
     void unfrozenTransformFilterKeepsTheMatrix();
     void displayNamesLeadWithALexiconVerb();
+    void structuredReferencesRenderCitations();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -4488,6 +4489,140 @@ void FilterTests::displayNamesLeadWithALexiconVerb()
              qPrintable(QStringLiteral("%1 display name(s) break the naming grammar:\n  %2")
                             .arg(QString::number(offenders.size()),
                                  offenders.join(QStringLiteral("\n  ")))));
+}
+
+// The reference machinery (markdownCitation / bibTeX / doiUrl) has existed since the
+// descriptor format was written and had no users at all: every citation lived as inline
+// HTML in the long description, so the BibTeX bibliography the generated docs advertise
+// came out empty. This pins the first structured entries and the rendering they drive.
+void FilterTests::structuredReferencesRenderCitations()
+{
+    Document doc;
+    int checked = 0;
+    for (const auto &info : doc.filterInfos()) {
+        static const QStringList kCited{
+            QStringLiteral("apply_coord_taubin_smoothing"),
+            QStringLiteral("apply_coord_hc_laplacian_smoothing"),
+            QStringLiteral("apply_coord_laplacian_smoothing_scale_dependent"),
+            QStringLiteral("apply_normal_unsharp_mask_per_vertex"),
+            QStringLiteral("apply_coord_unsharp_mask"),
+            QStringLiteral("apply_scalar_unsharp_mask_per_vertex"),
+            QStringLiteral("apply_color_unsharp_mask_per_vertex"),
+            QStringLiteral("apply_coord_two_steps_smoothing"),
+            QStringLiteral("compute_mls_projection_apss"),
+            QStringLiteral("compute_mls_projection_rimls"),
+            QStringLiteral("generate_marching_cubes_apss"),
+            QStringLiteral("generate_marching_cubes_rimls"),
+            QStringLiteral("compute_curvature_and_color_apss_per_vertex"),
+            QStringLiteral("compute_curvature_and_color_rimls_per_vertex"),
+            QStringLiteral("compute_matrix_by_icp_between_meshes"),
+            QStringLiteral("compute_matrix_by_mesh_global_alignment"),
+            QStringLiteral("displace_by_fractal_brownian_motion"),
+            QStringLiteral("apply_taubin_smoothing_trueform"),
+        };
+        if (!kCited.contains(info.descriptor.id))
+            continue;
+        ++checked;
+        const auto &refs = info.descriptor.references;
+        QVERIFY2(!refs.empty(),
+                 qPrintable(QStringLiteral("%1 carries no reference").arg(info.descriptor.name)));
+        for (const MeshFilterReference &r : refs) {
+        QVERIFY(!r.title.isEmpty());
+        QVERIFY(!r.authors.empty());
+        QVERIFY(r.year > 1900);
+        // A DOI is not universal -- older conference proceedings often have none, and a
+        // book never does -- but a reference must be identifiable somehow.
+        QVERIFY2(!r.doi.isEmpty() || !r.url.isEmpty() || !r.isbn.isEmpty(),
+                 qPrintable(QStringLiteral("%1 has no DOI, URL or ISBN").arg(r.id)));
+        if (!r.doi.isEmpty())
+            QVERIFY(r.doiUrl().startsWith(QStringLiteral("https://doi.org/")));
+
+        const QString cite = r.markdownCitation();
+        QVERIFY2(cite.contains(r.title), qPrintable(cite));
+        QVERIFY2(cite.contains(QString::number(r.year)), qPrintable(cite));
+
+        const QString bib = r.bibTeX();
+        QVERIFY2(bib.startsWith(QLatin1Char('@')), qPrintable(bib));
+        QVERIFY2(bib.contains(r.id), qPrintable(bib));
+        if (!r.doi.isEmpty())
+            QVERIFY2(bib.contains(r.doi), qPrintable(bib));
+
+        // The paper must no longer be duplicated as prose in the description.
+        }
+        QVERIFY2(!info.descriptor.longDescriptionMarkdown.contains(QStringLiteral("<b>")),
+                 "the inline HTML citation is still in the long description");
+    }
+    QCOMPARE(checked, 18);
+
+    // One paper, four filters: the unsharp-mask family shares a single reference id, so
+    // the bibliography can merge them instead of repeating the entry four times.
+    int sharedCignoni = 0;
+    for (const auto &info : doc.filterInfos()) {
+        for (const MeshFilterReference &r : info.descriptor.references) {
+            if (r.id == QStringLiteral("cignoni2005"))
+                ++sharedCignoni;
+        }
+    }
+    QCOMPARE(sharedCignoni, 4);
+
+    // Same for the MLS pair: one paper per variant, three filters each.
+    int apss = 0, rimls = 0;
+    for (const auto &info : doc.filterInfos()) {
+        for (const MeshFilterReference &r : info.descriptor.references) {
+            if (r.id == QStringLiteral("guennebaud2007")) ++apss;
+            if (r.id == QStringLiteral("oztireli2009")) ++rimls;
+        }
+    }
+    QCOMPARE(apss, 3);
+    QCOMPARE(rimls, 3);
+
+    // The APSS filters are the only ones citing two papers; the second covers the
+    // dynamic sampling work the implementation also rests on.
+    int apss2008 = 0;
+    for (const auto &info : doc.filterInfos()) {
+        for (const MeshFilterReference &r : info.descriptor.references) {
+            if (r.id == QStringLiteral("guennebaud2008"))
+                ++apss2008;
+        }
+    }
+    QCOMPARE(apss2008, 3);
+
+    // References are declared per descriptor file, so a paper shared across plugins is
+    // duplicated in JSON. The id is what ties the copies together, and they must agree --
+    // otherwise a merged bibliography would silently pick one of two conflicting entries.
+    std::vector<MeshFilterReference> taubinCopies;
+    for (const auto &info : doc.filterInfos()) {
+        for (const MeshFilterReference &r : info.descriptor.references) {
+            if (r.id == QStringLiteral("taubin1995"))
+                taubinCopies.push_back(r);
+        }
+    }
+    QCOMPARE(int(taubinCopies.size()), 2);   // vcglib and TrueForm
+    for (const MeshFilterReference &r : taubinCopies) {
+        QCOMPARE(r.title, taubinCopies.front().title);
+        QCOMPARE(r.doi, taubinCopies.front().doi);
+        QCOMPARE(r.year, taubinCopies.front().year);
+        QCOMPARE(r.bibTeX(), taubinCopies.front().bibTeX());
+    }
+
+    // A book carries an ISBN and an edition instead of a DOI, and both must survive into
+    // the rendered citation and the BibTeX.
+    for (const auto &info : doc.filterInfos()) {
+        for (const MeshFilterReference &r : info.descriptor.references) {
+            if (r.id != QStringLiteral("ebert2002procedural"))
+                continue;
+            QVERIFY(r.doi.isEmpty());
+            QCOMPARE(r.isbn, QStringLiteral("978-1558608481"));
+            QCOMPARE(r.edition, QStringLiteral("3"));
+            QVERIFY2(r.markdownCitation().contains(QStringLiteral("ISBN 978-1558608481")),
+                     qPrintable(r.markdownCitation()));
+            QVERIFY2(r.markdownCitation().contains(QStringLiteral("3 ed.")),
+                     qPrintable(r.markdownCitation()));
+            QVERIFY2(r.bibTeX().contains(QStringLiteral("isbn = {978-1558608481}")),
+                     qPrintable(r.bibTeX()));
+            QVERIFY2(r.bibTeX().startsWith(QStringLiteral("@book{")), qPrintable(r.bibTeX()));
+        }
+    }
 }
 
 QTEST_MAIN(FilterTests)

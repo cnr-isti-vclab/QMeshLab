@@ -1,5 +1,21 @@
 {
   "pluginId": "qmeshlab.filter.trueform",
+  "references": [
+    {
+      "id": "taubin1995",
+      "type": "paper-conference",
+      "title": "A signal processing approach to fair surface design",
+      "author": [
+        { "family": "Taubin", "given": "Gabriel" }
+      ],
+      "container-title": "Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '95)",
+      "publisher": "Association for Computing Machinery",
+      "page": "351-358",
+      "issued": { "date-parts": [[1995]] },
+      "DOI": "10.1145/218380.218473",
+      "URL": "https://doi.org/10.1145/218380.218473"
+    }
+  ],
   "filters": [
     {
       "id": "compute_matrix_by_obb_alignment",
@@ -935,6 +951,7 @@
       ],
       "shortDescription": "Smooth without the shrinkage that Laplacian smoothing causes.",
       "longDescriptionMarkdown": "Alternates a Laplacian shrinking step with a slightly larger expanding one, so noise is removed while the overall volume is preserved. This is the smoothing to reach for by default; plain Laplacian is the one to reach for when you *want* the shape to contract.\\n\\n**Lambda** is the shrinking step and **Kpb** sets the expanding one — larger Kpb pushes back harder against shrinkage. The defaults are the values from Taubin's paper and are a reasonable starting point.\\n\\nEnable **Selected Only** to restrict movement to the current vertex selection.\\n\\nCompeting implementation: QMeshLab already has vcglib smoothing under *Geometry/Smoothing*. TrueForm's is parallelised through oneTBB, which shows on large meshes. Results should agree closely; where they differ the difference is in the boundary handling.",
+      "referenceIds": ["taubin1995"],
       "tags": [
         "trueform",
         "smoothing",

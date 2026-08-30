@@ -177,6 +177,10 @@ struct MeshFilterReference
     int year = 0;
     QString doi;
     QString url;
+    // A book has no DOI; the ISBN is its identifier. Edition matters for books whose
+    // content differs between printings.
+    QString isbn;
+    QString edition;
 
     QString label() const;
     QString doiUrl() const;

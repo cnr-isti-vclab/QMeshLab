@@ -1,5 +1,86 @@
 {
   "pluginId": "qmeshlab.filter.unsharp",
+  "references": [
+    {
+      "id": "vollmer1999",
+      "type": "article-journal",
+      "title": "Improved Laplacian Smoothing of Noisy Surface Meshes",
+      "author": [
+        { "family": "Vollmer", "given": "J." },
+        { "family": "Mencl", "given": "R." },
+        { "family": "M\u00fcller", "given": "H." }
+      ],
+      "container-title": "Computer Graphics Forum",
+      "volume": "18",
+      "issue": "3",
+      "page": "131-138",
+      "issued": { "date-parts": [[1999]] },
+      "DOI": "10.1111/1467-8659.00334",
+      "URL": "https://onlinelibrary.wiley.com/doi/abs/10.1111/1467-8659.00334"
+    },
+    {
+      "id": "belyaev2003",
+      "type": "paper-conference",
+      "title": "A comparison of mesh smoothing methods",
+      "author": [
+        { "family": "Belyaev", "given": "Alexander" },
+        { "family": "Ohtake", "given": "Yutaka" }
+      ],
+      "container-title": "Israel-Korea Bi-National Conference on Geometric Modeling and Computer Graphics",
+      "publisher": "Tel Aviv University",
+      "page": "83-87",
+      "issued": { "date-parts": [[2003]] },
+      "URL": "https://www.researchgate.net/publication/47861030_A_comparison_of_mesh_smoothing_methods"
+    },
+    {
+      "id": "cignoni2005",
+      "type": "article-journal",
+      "title": "A simple normal enhancement technique for interactive non-photorealistic renderings",
+      "author": [
+        { "family": "Cignoni", "given": "Paolo" },
+        { "family": "Scopigno", "given": "Roberto" },
+        { "family": "Tarini", "given": "Marco" }
+      ],
+      "container-title": "Computers & Graphics",
+      "volume": "29",
+      "issue": "1",
+      "page": "125-133",
+      "issued": { "date-parts": [[2005]] },
+      "DOI": "10.1016/j.cag.2004.11.012",
+      "URL": "https://www.sciencedirect.com/science/article/pii/S0097849304001980"
+    },
+    {
+      "id": "desbrun1999",
+      "type": "paper-conference",
+      "title": "Implicit fairing of irregular meshes using diffusion and curvature flow",
+      "author": [
+        { "family": "Desbrun", "given": "Mathieu" },
+        { "family": "Meyer", "given": "Mark" },
+        { "family": "Schr\u00f6der", "given": "Peter" },
+        { "family": "Barr", "given": "Alan H." }
+      ],
+      "container-title": "Proceedings of the 26th Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '99)",
+      "publisher": "ACM Press/Addison-Wesley Publishing Co.",
+      "page": "317-324",
+      "issued": { "date-parts": [[1999]] },
+      "DOI": "10.1145/311535.311576",
+      "URL": "https://doi.org/10.1145/311535.311576"
+    },
+    {
+      "id": "taubin1995",
+      "type": "paper-conference",
+      "title": "A signal processing approach to fair surface design",
+      "author": [
+        { "family": "Taubin", "given": "Gabriel" }
+      ],
+      "container-title": "Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques (SIGGRAPH '95)",
+      "publisher": "Association for Computing Machinery",
+      "page": "351-358",
+      "issued": { "date-parts": [[1995]] },
+      "DOI": "10.1145/218380.218473",
+      "URL": "https://doi.org/10.1145/218380.218473"
+    }
+  ],
   "filters": [
     {
       "id": "meshing_cut_along_crease_edges",
@@ -48,7 +129,7 @@
       "name": "Smooth Vertices by Laplacian (vcglib)",
       "pythonName": "smooth_laplacian",
       "shortDescription": "Average vertex positions with their neighbors.",
-      "longDescriptionMarkdown": "Laplacian smooth. Average each vertex position with weighted positions of neighbour vertices.<br><b>Laplacian Mesh Processing</b> by <i>Olga Sorkine</i>. EUROGRAPHICS 2005<br><a href='http://dx.doi.org/10.2312/egst.20051044'>doi:10.2312/egst.20051044</a>",
+      "longDescriptionMarkdown": "Laplacian smoothing: each vertex moves toward the average position of its neighbours. The simplest and fastest of the smoothing filters, and the one that shrinks the mesh most -- repeated passes pull the surface inward. Use Taubin or HC Laplacian where that matters.",
       "tags": [
         "smoothing",
         "laplacian",
@@ -108,7 +189,8 @@
       "name": "Smooth Vertices by HC Laplacian",
       "pythonName": "smooth_hc_laplacian",
       "shortDescription": "Improved Laplacian smoothing with better shape preservation.",
-      "longDescriptionMarkdown": "HC Laplacian Smoothing. Extended version of Laplacian Smoothing based on the article: <br><b>Improved Laplacian Smoothing of Noisy Surface Meshes</b> by <i>Vollmer, Mencl and Müller</i>. EUROGRAPHICS Volume 18 (1999), Number 3, 131-138.<br><a href='https://doi.org/10.1111/1467-8659.00334'>doi:10.1111/1467-8659.00334</a>",
+      "longDescriptionMarkdown": "HC Laplacian smoothing: an extended Laplacian smoothing that pushes each vertex back toward its original position after every averaging step, which removes most of the shrinkage plain Laplacian smoothing causes.",
+      "referenceIds": ["vollmer1999"],
       "tags": [
         "smoothing",
         "laplacian",
@@ -132,7 +214,8 @@
       "name": "Smooth Vertices by Scale-Dependent Laplacian",
       "pythonName": "smooth_scale_dependent_laplacian",
       "shortDescription": "Fujiwara-style scale-dependent Laplacian smoothing.",
-      "longDescriptionMarkdown": "Scale Dependent Laplacian Smoothing, extended version of Laplacian Smoothing based on the Fujiwara extended umbrella operator.<br><b>Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow</b> by <i>Desbrun, Meyer, Schroeder and Barr</i>. SIGGRAPH 1999<br><a href='https://doi.org/10.1145/311535.311576'>doi:10.1145/311535.311576</a>",
+      "longDescriptionMarkdown": "Scale-dependent Laplacian smoothing, using the Fujiwara extended umbrella operator. Weighting each neighbour by the inverse of its edge length makes the smoothing step independent of how unevenly the mesh is tessellated, so dense and sparse regions are faired at the same rate rather than the dense ones collapsing first.",
+      "referenceIds": ["desbrun1999"],
       "tags": [
         "smoothing",
         "laplacian",
@@ -187,7 +270,8 @@
       "name": "Smooth Vertices by Two-Step Normal Fitting",
       "pythonName": "smooth_two_step",
       "shortDescription": "Feature-preserving smoothing through normal smoothing and vertex fitting.",
-      "longDescriptionMarkdown": "Two Steps Smoothing, a feature preserving/enhancing fairing filter based on two stages:<ol><li>Normal Smoothing, where similar normals are averaged together.<li>Vertex reposition, where vertices are moved to fit on the new normals.</ol><b>A Comparison of Mesh Smoothing Methods</b> by <i>A. Belyaev and Y. Ohtake</i>. Proc. Israel-Korea Bi-National Conf. Geometric Modeling and Computer Graphics, pp. 83-87, 2003.<br><a href='https://www.researchgate.net/publication/47861030_A_comparison_of_mesh_smoothing_methods'>publication</a>",
+      "longDescriptionMarkdown": "A feature-preserving fairing filter that runs in two stages:\\n\\n1. **Normal smoothing** -- face normals that already point in similar directions are averaged together, while normals that differ sharply are left alone, so creases survive.\\n2. **Vertex repositioning** -- vertices are then moved to fit the smoothed normals.\\n\\nSmoothing the normals first and the positions second is what separates this from plain Laplacian smoothing: noise is removed without rounding off the edges that carry the shape.",
+      "referenceIds": ["belyaev2003"],
       "tags": [
         "smoothing",
         "features",
@@ -265,7 +349,8 @@
       "name": "Smooth Vertices by Taubin (vcglib)",
       "pythonName": "smooth_taubin",
       "shortDescription": "Lambda-mu smoothing with reduced shrinkage.",
-      "longDescriptionMarkdown": "The &lambda;-&mu; Taubin smoothing, combines two steps of low-pass filtering for each iteration. Based on the article:<br><b>A signal processing approach to fair surface design</b> by <i>Gabriel Taubin</i>, SIGGRAPH 1995<br><a href='https://doi.org/10.1145/218380.218473'>doi:10.1145/218380.218473</a>",
+      "longDescriptionMarkdown": "The $\\lambda$-$\\mu$ Taubin smoothing. Each iteration combines two low-pass filtering steps -- a positive $\\lambda$ pass followed by a negative $\\mu$ pass -- so that noise is attenuated without the volume loss of repeated Laplacian smoothing.",
+      "referenceIds": ["taubin1995"],
       "tags": [
         "smoothing",
         "taubin",
@@ -491,7 +576,8 @@
       "name": "Sharpen Face Normals by Unsharp Mask",
       "pythonName": "unsharp_mask_normals",
       "shortDescription": "Enhance face normal variation using an unsharp mask.",
-      "longDescriptionMarkdown": "Unsharp mask filtering of the normals per face, putting in more evidence normal variations.<br><b>A simple normal enhancement technique for interactive non-photorealistic renderings</b> by <i>Cignoni, Scopigno and Tarini</i>, Comput Graph, 29 (1) (2005)<br><a href='https://doi.org/10.1016/j.cag.2004.11.012'>doi:10.1016/j.cag.2004.11.012</a>",
+      "longDescriptionMarkdown": "Sharpens the **per-face normals**, so that shading brings out variations in orientation that a flat rendering hides. The geometry is untouched -- only the normals change -- which makes it a rendering aid rather than a modelling operation.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
+      "referenceIds": ["cignoni2005"],
       "tags": [
         "normals",
         "unsharp",
@@ -554,7 +640,8 @@
       "name": "Sharpen Vertices by Unsharp Mask",
       "pythonName": "unsharp_mask_geometry",
       "shortDescription": "Enhance geometric ridges and valleys with an unsharp mask.",
-      "longDescriptionMarkdown": "Apply Unsharp filter to geometric shape, putting in more evidence ridges and valleys variations.<br><a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a>",
+      "longDescriptionMarkdown": "Sharpens the **vertex positions**, deepening ridges and valleys in the surface itself. Unlike the normal variant this really moves geometry, so the effect survives export.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
+      "referenceIds": ["cignoni2005"],
       "tags": [
         "smoothing",
         "unsharp",
@@ -612,7 +699,8 @@
       "name": "Sharpen Vertex Scalar by Unsharp Mask",
       "pythonName": "unsharp_mask_quality",
       "shortDescription": "Enhance per-vertex quality variations with an unsharp mask.",
-      "longDescriptionMarkdown": "Apply Unsharp filter to values of <a href='https://stackoverflow.com/questions/58610746'>quality per vertex</a>.<br>See <a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a>",
+      "longDescriptionMarkdown": "Sharpens the **per-vertex scalar field**, so that gentle gradients in the values become steeper and easier to read once the field is mapped to color.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
+      "referenceIds": ["cignoni2005"],
       "tags": [
         "smoothing",
         "unsharp",
@@ -669,7 +757,8 @@
       "name": "Sharpen Vertex Color by Unsharp Mask",
       "pythonName": "unsharp_mask_color",
       "shortDescription": "Enhance per-vertex color variation with an unsharp mask.",
-      "longDescriptionMarkdown": "Apply Unsharp filter to the vertex color, putting in more evidence color variations.<br>See <a href='https://en.wikipedia.org/wiki/Unsharp_masking'>Unsharp Masking</a>",
+      "longDescriptionMarkdown": "Sharpens the **per-vertex color**, pulling out variation that is hard to see in a low-contrast or noisy color field.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
+      "referenceIds": ["cignoni2005"],
       "tags": [
         "smoothing",
         "unsharp",
@@ -860,7 +949,7 @@
       "name": "Displace Vertices toward Target Mesh",
       "pythonName": "vertex_linear_morphing",
       "shortDescription": "Linearly morph the current mesh toward another mesh.",
-      "longDescriptionMarkdown": "Morphs the current mesh towards a target mesh with the same number of vertices and the same vertex ordering. Each source vertex is linearly interpolated towards the corresponding target vertex:\n\n$$p_i^{\\mathrm{result}}=(1-\\lambda)p_i^{\\mathrm{source}}+\\lambda p_i^{\\mathrm{target}}.$$\n\nSee **Three-dimensional metamorphosis: a survey**, F. Lazarus and A. Verroust, *The Visual Computer*, 1998 ([doi:10.1007/s003710050149](https://doi.org/10.1007/s003710050149)).",
+      "longDescriptionMarkdown": "Morphs the current mesh toward a target mesh that has the same number of vertices in the same order. Each source vertex moves along the straight line to its counterpart:\\n\\n$$p_i^{\\mathrm{result}}=(1-\\lambda)\\,p_i^{\\mathrm{source}}+\\lambda\\,p_i^{\\mathrm{target}}.$$\\n\\n**Weight** is $\\lambda$: 0 leaves the mesh alone, 1 lands exactly on the target, and values in between interpolate. Values outside $[0,1]$ extrapolate past either end.",
       "tags": [
         "smoothing",
         "morphing",

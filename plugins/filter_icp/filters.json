@@ -1,5 +1,35 @@
 {
   "pluginId": "qmeshlab.filter.icp",
+  "references": [
+    {
+      "id": "besl1992",
+      "type": "article-journal",
+      "title": "A Method for Registration of 3-D Shapes",
+      "author": [
+        { "family": "Besl", "given": "Paul J." },
+        { "family": "McKay", "given": "Neil D." }
+      ],
+      "container-title": "IEEE Transactions on Pattern Analysis and Machine Intelligence",
+      "volume": "14",
+      "issue": "2",
+      "page": "239-256",
+      "issued": { "date-parts": [[1992]] },
+      "DOI": "10.1109/34.121791",
+      "URL": "https://doi.org/10.1109/34.121791"
+    },
+    {
+      "id": "pulli1999",
+      "type": "paper-conference",
+      "title": "Multiview Registration for Large Data Sets",
+      "author": [
+        { "family": "Pulli", "given": "Kari" }
+      ],
+      "container-title": "Proceedings of the 2nd International Conference on 3-D Digital Imaging and Modeling (3DIM)",
+      "page": "160-168",
+      "issued": { "date-parts": [[1999]] },
+      "URL": "https://graphics.stanford.edu/papers/pulli-3dim99/3dim99.pdf"
+    }
+  ],
   "filters": [
     {
       "id": "compute_matrix_by_icp_between_meshes",
@@ -8,6 +38,7 @@
       "pythonName": "compute_matrix_by_icp_between_meshes",
       "shortDescription": "Compute an ICP transform that aligns one mesh layer to another.",
       "longDescriptionMarkdown": "Perform Iterative Closest Point alignment between a fixed reference layer and a moving source layer. The source layer transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.",
+      "referenceIds": ["besl1992"],
       "tags": ["icp", "alignment", "transform", "registration"],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",
@@ -169,6 +200,7 @@
       "pythonName": "compute_matrix_by_mesh_global_alignment",
       "shortDescription": "Globally align overlapping mesh layers using pairwise ICP arcs.",
       "longDescriptionMarkdown": "Build an overlap graph among the selected document layers, run ICP on sufficiently overlapping layer pairs, then solve a global alignment. The chosen base mesh remains fixed and the other layer transforms are updated without baking coordinates.",
+      "referenceIds": ["pulli1999"],
       "tags": ["icp", "alignment", "global", "registration"],
       "inputDomain": "WholeDocument",
       "outputDomain": "ModifyCurrentMesh",

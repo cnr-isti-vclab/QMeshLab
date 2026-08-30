@@ -65,6 +65,8 @@ QString buildCitation(const MeshFilterReference &r, const CitationStyle &style)
         locator += (locator.isEmpty() ? QString() : QStringLiteral(":")) + style.plain(r.page);
     if (!locator.isEmpty())
         out += QStringLiteral(", %1").arg(locator);
+    if (!r.edition.trimmed().isEmpty())
+        out += QObject::tr(", %1 ed.").arg(style.plain(r.edition));
     if (!r.publisher.trimmed().isEmpty())
         out += QStringLiteral(". %1").arg(style.plain(r.publisher));
     if (r.year > 0)
@@ -78,6 +80,9 @@ QString buildCitation(const MeshFilterReference &r, const CitationStyle &style)
     // webUrl() already suppresses a URL that merely repeats the DOI.
     if (!r.webUrl().isEmpty())
         links << style.link(QObject::tr("web"), r.webUrl());
+    // A book has no DOI, so the ISBN is the identifier worth showing.
+    if (!r.isbn.trimmed().isEmpty())
+        links << style.plain(QStringLiteral("ISBN %1").arg(r.isbn));
     if (!links.isEmpty())
         out += QStringLiteral(" %1").arg(links.join(QStringLiteral(" · ")));
     return out;
@@ -176,7 +181,9 @@ QString MeshFilterReference::bibTeX() const
     bibPages.replace(u'-', QStringLiteral("--"));
     add(QStringLiteral("pages"), bibPages);
     add(QStringLiteral("publisher"), publisher);
+    add(QStringLiteral("edition"), edition);
     add(QStringLiteral("doi"), doi);
+    add(QStringLiteral("isbn"), isbn);
     add(QStringLiteral("url"), url);
     return QStringLiteral("@%1{%2,\n%3\n}")
         .arg(entryType, id, fields.join(QStringLiteral(",\n")));

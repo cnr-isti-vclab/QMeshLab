@@ -18,6 +18,8 @@
         {"family": "Worley", "given": "Steven"}
       ],
       "publisher": "Morgan Kaufmann",
+      "edition": "3",
+      "ISBN": "978-1558608481",
       "issued": {"date-parts": [[2002]]}
     }
   ],

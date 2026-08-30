@@ -90,6 +90,8 @@ MeshFilterReference parseReference(const QJsonObject &obj)
     reference.page = obj.value(QStringLiteral("page")).toString();
     reference.doi = obj.value(QStringLiteral("DOI")).toString();
     reference.url = obj.value(QStringLiteral("URL")).toString();
+    reference.isbn = obj.value(QStringLiteral("ISBN")).toString();
+    reference.edition = obj.value(QStringLiteral("edition")).toVariant().toString();
 
     const QJsonArray authors = obj.value(QStringLiteral("author")).toArray();
     for (const QJsonValue &value : authors) {
