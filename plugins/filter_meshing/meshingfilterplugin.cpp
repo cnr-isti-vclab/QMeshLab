@@ -1635,9 +1635,10 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             // Choose the pairings by quad quality first. Without this the mesh reaches
             // MakePureByFlip with no pairing at all, and that routine is purely
             // topological: it takes the first unpaired triangle in array order, finds a
-            // partner by breadth-first edge distance and flips its way across. On a
-            // triangulated quad mesh whose diagonals are not all aligned, that recovers
-            // quads of mean quality 0.48 where the quality pass reaches 0.82.
+            // partner by breadth-first edge distance and flips its way across. On a grid
+            // of squares split by random diagonals -- an input whose original quads are
+            // exactly recoverable -- that scores a mean quad quality of 0.54, where the
+            // quality pass recovers every square at 1.00.
             vcg::tri::BitQuadCreation<VCGMesh>::MakeDominant(mesh, 2);
             vcg::tri::BitQuadCreation<VCGMesh>::MakeTriEvenBySplit(mesh);
             // Whatever the pairing pass could not match is resolved by flipping; it is a

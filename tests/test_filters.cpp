@@ -4735,9 +4735,16 @@ void FilterTests::quadPairingChoosesGoodDiagonals()
     const MeshFilterRunResult r = doc.runFilter(key, {});
     QVERIFY2(r.success, qPrintable(r.errorMessage));
 
-    // Mean quad quality: 1 is a perfect square. On this input the old pipeline scored
-    // about 0.48; choosing pairs by quality reaches about 0.82.
+    // Mean quad quality: 1 is a perfect square. Every quad of this input is exactly
+    // recoverable, so the quality-driven pairing scores 1.00 on it; dropping that pass
+    // and letting MakePureByFlip do the pairing scores 0.54.
     VCGMesh &out = doc.mesh(index).mesh;
+    // quadQuality() reads across the diagonal through FFp, and the filter framework
+    // disables FF adjacency again once a filter declaring inputPrepare "FF" returns.
+    // Measuring without re-enabling it indexes an empty OCF vector.
+    VCGMeshFFAdjScope ffAdj(out);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(out);
+
     double total = 0.0;
     int quads = 0, unpaired = 0;
     for (VCGFace &f : out.face) {
@@ -4757,7 +4764,7 @@ void FilterTests::quadPairingChoosesGoodDiagonals()
     }
     QVERIFY2(quads > 0, "no quads were formed at all");
     const double mean = total / quads;
-    QVERIFY2(mean > 0.70,
+    QVERIFY2(mean > 0.95,
              qPrintable(QStringLiteral("mean quad quality %1; the quality-driven pairing "
                                        "is not being applied").arg(mean)));
     QCOMPARE(unpaired, 0);

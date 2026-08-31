@@ -70,6 +70,7 @@ private slots:
     void openDialogFilterContainsKnownFormats();
     void saveAndLoad3MFRoundTrip();
     void trueFormRoundTripsObjAndStl();
+    void polygonalOffExportKeepsEveryWellFormedQuad();
     void plyWithLongPerVertexListLoads();
     void polygonalOffExportSurvivesMalformedFaces();
     void saveAndLoadEmbeddedGLBTexture();
@@ -1256,6 +1257,54 @@ void DocumentTests::polygonalOffExportSurvivesMalformedFaces()
              "the exported OFF could not be read back");
     QVERIFY(reloaded.mesh(0).mesh.VN() > 0);
     QVERIFY(reloaded.mesh(0).mesh.FN() > 0);
+}
+
+// The companion to the test above: the malformed-face guards must cost a clean mesh
+// nothing. A quad grid has a boundary and plenty of interior diagonals, which is where
+// the walk does its work.
+void DocumentTests::polygonalOffExportKeepsEveryWellFormedQuad()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString objPath = dir.filePath(QStringLiteral("grid.obj"));
+
+    constexpr int kSide = 12;
+    constexpr int kQuads = (kSide - 1) * (kSide - 1);
+    {
+        QFile obj(objPath);
+        QVERIFY(obj.open(QIODevice::WriteOnly | QIODevice::Text));
+        QTextStream out(&obj);
+        for (int y = 0; y < kSide; ++y)
+            for (int x = 0; x < kSide; ++x)
+                out << "v " << x << " " << y << " 0\n";
+        for (int y = 0; y < kSide - 1; ++y) {
+            for (int x = 0; x < kSide - 1; ++x) {
+                const int a = y * kSide + x + 1;
+                out << "f " << a << " " << a + 1 << " " << a + kSide + 1 << " "
+                    << a + kSide << "\n";
+            }
+        }
+    }
+
+    Document doc;
+    const int index = doc.loadMesh(objPath);
+    QVERIFY(index >= 0);
+    QCOMPARE(doc.mesh(index).polygonFaceCount, kQuads);
+
+    const QString offPath = dir.filePath(QStringLiteral("grid.off"));
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+    QCOMPARE(doc.saveMesh(index, offPath, options), 0);
+
+    // Every quad survives as a quad: a guard that gave up early would emit the seed
+    // triangle instead, and both counts would drop.
+    Document reloaded;
+    QVERIFY(reloaded.loadMesh(offPath) >= 0);
+    QCOMPARE(reloaded.mesh(0).polygonFaceCount, kQuads);
+    QCOMPARE(reloaded.mesh(0).mesh.FN(), kQuads * 2);
+    QCOMPARE(reloaded.mesh(0).mesh.VN(), kSide * kSide);
 }
 
 void DocumentTests::plyWithLongPerVertexListLoads()
