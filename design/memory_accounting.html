@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Preferences - QMeshLab 0.1 documentation</title>
+        <title>Memory Accounting - QMeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -224,7 +224,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/design/preferences.md.txt" title="View this page">
+  <a class="muted-link" href="../_sources/design/memory_accounting.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -242,94 +242,93 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="preferences">
-<h1>Preferences<a class="headerlink" href="#preferences" title="Link to this heading">¶</a></h1>
-<p>Application-wide settings reuse the filter-parameter machinery end to end: they are
-<strong>declared</strong> with the same JSON schema, <strong>rendered</strong> by the same widget builder, and
-<strong>read</strong> through one registry.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>resources/preferences.json   declaration (same schema as any filters.json "parameters")
-        │
-        ├─ FilterDescriptorLoader::loadParameters()  →  MeshFilterParameterDescriptor
-        │
-        ├─ Preferences (src/core)      values + QSettings persistence + changed() signal
-        │
-        └─ ParameterFormBuilder (src/ui)   descriptors → editors, shared with the filter panel
-                    │
-                    └─ PreferencesDialog     ~60 lines; owns no widget knowledge
+          <section class="tex2jax_ignore mathjax_ignore" id="memory-accounting">
+<h1>Memory Accounting<a class="headerlink" href="#memory-accounting" title="Link to this heading">¶</a></h1>
+<p>See also: <a class="reference internal" href="architecture.html"><span class="std std-doc">Architecture</span></a> · <a class="reference internal" href="data_model.html"><span class="std std-doc">Data Model</span></a> · <a class="reference internal" href="rendering.html"><span class="std std-doc">Rendering</span></a> · <a class="reference internal" href="preferences.html"><span class="std std-doc">Preferences</span></a></p>
+<section id="why-there-are-separate-numbers">
+<h2>Why There Are Separate Numbers<a class="headerlink" href="#why-there-are-separate-numbers" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Help</span> <span class="pre">&gt;</span> <span class="pre">Memory</span> <span class="pre">Info</span></code> reports three metrics with different meanings. They must not be
+added together or expected to match one another exactly:</p>
+<ul class="simple">
+<li><p><strong>OS process memory</strong> is queried from the operating system. On macOS the primary
+value is the kernel’s physical-footprint ledger, the same accounting family used by
+Activity Monitor. Linux reports resident and private mappings from <code class="docutils literal notranslate"><span class="pre">/proc</span></code>; Windows
+reports working-set and private bytes.</p></li>
+<li><p><strong>Tracked CPU allocations</strong> are a lower-bound ownership estimate for data structures
+QMeshLab can inspect directly.</p></li>
+<li><p><strong>Logical mesh GPU cache</strong> sums QRhi buffer sizes and known RGBA8 texture payloads in
+<code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span></code>. It does not include per-view render targets, driver allocation
+granularity, command/staging resources, or all graphics memory charged to the process.</p></li>
+</ul>
+<p>The dialog uses binary units (<code class="docutils literal notranslate"><span class="pre">KiB</span></code>, <code class="docutils literal notranslate"><span class="pre">MiB</span></code>, <code class="docutils literal notranslate"><span class="pre">GiB</span></code>) and provides exact bytes in tooltips.
+<code class="docutils literal notranslate"><span class="pre">Copy</span> <span class="pre">JSON</span></code> exports the same snapshot as <code class="docutils literal notranslate"><span class="pre">org.qmeshlab.memory-report.v1</span></code>, including the
+process id, timestamp, and the separate CPU/GPU subtotals.</p>
+</section>
+<section id="tracked-cpu-data">
+<h2>Tracked CPU Data<a class="headerlink" href="#tracked-cpu-data" title="Link to this heading">¶</a></h2>
+<p>Live mesh accounting uses vector <strong>capacity</strong>, not size, for vertices, edges, faces, and
+VCG optional-component vectors. It also estimates named VCG custom-attribute backing
+storage from attribute element size and the owning container capacity.</p>
+<p>Live <code class="docutils literal notranslate"><span class="pre">QImage</span></code> storage is counted for mesh texture assets, material texture assets, and
+raster planes. QImage copies are implicit shares, so backing pointers are de-duplicated
+before summing.</p>
+<p>The tracked subtotal intentionally excludes Qt/plugin/Python object heaps, allocator
+metadata and retained pages, thread stacks, libraries, temporary filter/import buffers,
+per-view rendering allocations, and backend/driver overhead. This is why the OS physical
+footprint remains the authoritative whole-process comparison value.</p>
+</section>
+<section id="undo-memory">
+<h2>Undo Memory<a class="headerlink" href="#undo-memory" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">DocumentUndoManager::memoryStats()</span></code> reports reclaimable history ownership rather than
+adding every node’s logical state:</p>
+<ul class="simple">
+<li><p>immutable geometry snapshots are de-duplicated by shared <code class="docutils literal notranslate"><span class="pre">VCGMesh</span></code> pointer;</p></li>
+<li><p>packed before/after selection-delta vector capacities are included;</p></li>
+<li><p>raster and texture images are de-duplicated, and image storage still shared with the
+live document is excluded because clearing history cannot release it;</p></li>
+<li><p>resources unique to a currently open undo operation are reported as pending memory.</p></li>
+</ul>
+<p>Current-path rows in the dialog are explicitly marked <strong>not additive</strong>. Full states can
+reference geometry shared with many other nodes, while selection-delta rows own their
+small packed vectors directly.</p>
+</section>
+<section id="automatic-pruning">
+<h2>Automatic Pruning<a class="headerlink" href="#automatic-pruning" title="Link to this heading">¶</a></h2>
+<p>Two preferences control automatic history release:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">document.undoMemoryLimitMiB</span></code>: tracked undo-memory ceiling. <code class="docutils literal notranslate"><span class="pre">0</span></code> disables the byte
+budget, which is the default. Crossing a non-zero ceiling prunes toward 80% of it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">document.purgeUndoOnMemoryPressure</span></code>: opts into OS pressure handling. Warning pressure
+prunes only relative to the configured budget; critical pressure may clear all history.</p></li>
+</ul>
+<p>Pruning first removes alternate branches, then advances the root through the oldest full
+snapshots while preserving at least one transition when possible. Selection-delta nodes
+never become roots because they do not contain a complete document state. If the newest
+complete checkpoint alone exceeds an explicitly enabled budget, the history is cleared
+rather than claiming that the limit was enforced. Pressure received during a filter or
+other undo transaction is deferred until that operation closes. Every automatic purge is
+written to the application log.</p>
+</section>
+<section id="external-macos-probe">
+<h2>External macOS Probe<a class="headerlink" href="#external-macos-probe" title="Link to this heading">¶</a></h2>
+<p>For repeatable comparison against system tools, start QMeshLab and run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tools/memory_probe_macos.sh<span class="w"> </span>QMeshLab
 </pre></div>
 </div>
-<p>Adding a preference means adding a JSON entry and reading it back. There is no UI code
-to write.</p>
-<p>Current implementation status: <code class="docutils literal notranslate"><span class="pre">resources/preferences.json</span></code> declares 14 preferences
-across <code class="docutils literal notranslate"><span class="pre">view</span></code>, <code class="docutils literal notranslate"><span class="pre">input</span></code>, <code class="docutils literal notranslate"><span class="pre">render</span></code>, <code class="docutils literal notranslate"><span class="pre">scalar</span></code>, <code class="docutils literal notranslate"><span class="pre">log</span></code>, <code class="docutils literal notranslate"><span class="pre">document</span></code>, and <code class="docutils literal notranslate"><span class="pre">advanced</span></code>.</p>
-<p>The two memory-related document preferences are intentionally conservative:
-<code class="docutils literal notranslate"><span class="pre">document.undoMemoryLimitMiB</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">0</span></code> (disabled), and
-<code class="docutils literal notranslate"><span class="pre">document.purgeUndoOnMemoryPressure</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">false</span></code>. See
-<a class="reference internal" href="memory_accounting.html"><span class="std std-doc">Memory Accounting</span></a> for their pruning semantics.</p>
-<section id="declaring-one">
-<h2>Declaring one<a class="headerlink" href="#declaring-one" title="Link to this heading">¶</a></h2>
-<p>Entries in <code class="docutils literal notranslate"><span class="pre">resources/preferences.json</span></code> use exactly the parameter schema documented in
-<a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a> — <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">help</span></code>, <code class="docutils literal notranslate"><span class="pre">group</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>,
-<code class="docutils literal notranslate"><span class="pre">default</span></code>, <code class="docutils literal notranslate"><span class="pre">min</span></code>/<code class="docutils literal notranslate"><span class="pre">max</span></code>, <code class="docutils literal notranslate"><span class="pre">enumOptions</span></code>. Ids are dotted and namespaced by group
-(<code class="docutils literal notranslate"><span class="pre">view.fieldOfView</span></code>), because the id doubles as the QSettings key.</p>
-</section>
-<section id="reading-one">
-<h2>Reading one<a class="headerlink" href="#reading-one" title="Link to this heading">¶</a></h2>
-<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"preferences.h"</span>
-
-<span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">chunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Preferences</span><span class="o">::</span><span class="n">instance</span><span class="p">().</span><span class="n">intValue</span><span class="p">(</span><span class="n">QStringLiteral</span><span class="p">(</span><span class="s">"advanced.rayCallbackChunks"</span><span class="p">));</span>
-</pre></div>
-</div>
-<p>A read falls back to the declared default when the value has never been set, so a call
-site reads as a drop-in replacement for the constant it replaces. <code class="docutils literal notranslate"><span class="pre">Preferences::changed</span></code>
-fires after a new value is stored, for consumers that need to react live.</p>
-<p>Values are written to QSettings the moment they change — there is no OK/Cancel — and
-stored values are only adopted for ids that are still declared, so deleting an entry
-from the JSON leaves no stale key behind.</p>
-</section>
-<section id="what-belongs-here">
-<h2>What belongs here<a class="headerlink" href="#what-belongs-here" title="Link to this heading">¶</a></h2>
-<p>This is the part that matters, because most constants in the codebase should <strong>not</strong>
-become preferences. Four categories, three of which have a different fix:</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Kind</p></th>
-<th class="head"><p>Example</p></th>
-<th class="head"><p>Where it belongs</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>Structural invariant</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">kUbufSize</span></code>, vertex strides, UBO offsets</p></td>
-<td><p>stays a constant — exposing it only lets a user corrupt the renderer</p></td>
-</tr>
-<tr class="row-odd"><td><p>Should be <em>derived</em></p></td>
-<td><p>the Embree ray epsilon</p></td>
-<td><p>compute it from the data; see <a class="reference download internal" download="" href="../_downloads/8c7203aeb09f7b82672790d73bc94a05/EmbreeAdaptor.h"><span class="xref download myst">embree ray epsilon</span></a>. Exposing it as a knob would have shipped a bug with a dial on it</p></td>
-</tr>
-<tr class="row-even"><td><p>Per-invocation algorithm knob</p></td>
-<td><p>xatlas placement attempts, texture-defrag permutation limit</p></td>
-<td><p>the owning filter’s <code class="docutils literal notranslate"><span class="pre">filters.json</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>Genuine user preference</p></td>
-<td><p>field of view, gizmo size, default color map</p></td>
-<td><p><strong>here</strong></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>If a value must be right rather than chosen, it is not a preference.</p>
-</section>
-<section id="related">
-<h2>Related<a class="headerlink" href="#related" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">ParameterFormBuilder</span></code> is the shared piece and is independently testable
-(<code class="docutils literal notranslate"><span class="pre">tests/test_parameterform.cpp</span></code>) precisely because it depends on nothing but
-<code class="docutils literal notranslate"><span class="pre">Document</span></code> and Qt Widgets. Its <code class="docutils literal notranslate"><span class="pre">Context</span></code> is optional: a caller with no document — this
-dialog — gets a working form, and the document-coupled parameter types (mesh, texture,
-camera/render state) are skipped rather than built half-working.</p>
-<p>The obvious next step is migrating <code class="docutils literal notranslate"><span class="pre">RenderOverlayPanel</span></code>’s hand-rolled controls onto the
-same builder; that is where the remaining duplication lives.</p>
+<p>At each phase, open <code class="docutils literal notranslate"><span class="pre">Help</span> <span class="pre">&gt;</span> <span class="pre">Memory</span> <span class="pre">Info</span></code>, click <code class="docutils literal notranslate"><span class="pre">Copy</span> <span class="pre">JSON</span></code>, and enter a checkpoint label
+in the probe. A useful sequence is <code class="docutils literal notranslate"><span class="pre">baseline</span></code>, <code class="docutils literal notranslate"><span class="pre">one-mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">two-mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">after-edit</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">undo-cleared</span></code>. The output directory stores the internal JSON beside:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">footprint</span></code> text and JSON, including <code class="docutils literal notranslate"><span class="pre">phys_footprint</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vmmap</span> <span class="pre">-summary</span></code>, including mapped/dirty/fragmentation summaries;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">heap</span> <span class="pre">-s</span> <span class="pre">-H</span></code>, when process inspection permission allows it;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ps</span></code> RSS/virtual-size context.</p></li>
+</ul>
+<p>Compare <strong>deltas between stable checkpoints</strong>, not only absolute values. Allow rendering
+uploads to settle before capture and repeat a run when establishing a tolerance. External
+footprint tests are diagnostic rather than strict CI assertions because allocator state,
+graphics backend, and operating-system accounting vary. Exact unit tests cover QMeshLab’s
+deterministic ownership counters and pruning behavior in <code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code>.</p>
 </section>
 </section>
 
@@ -370,11 +369,12 @@ same builder; that is where the remaining duplication lives.</p>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Preferences</a><ul>
-<li><a class="reference internal" href="#declaring-one">Declaring one</a></li>
-<li><a class="reference internal" href="#reading-one">Reading one</a></li>
-<li><a class="reference internal" href="#what-belongs-here">What belongs here</a></li>
-<li><a class="reference internal" href="#related">Related</a></li>
+<li><a class="reference internal" href="#">Memory Accounting</a><ul>
+<li><a class="reference internal" href="#why-there-are-separate-numbers">Why There Are Separate Numbers</a></li>
+<li><a class="reference internal" href="#tracked-cpu-data">Tracked CPU Data</a></li>
+<li><a class="reference internal" href="#undo-memory">Undo Memory</a></li>
+<li><a class="reference internal" href="#automatic-pruning">Automatic Pruning</a></li>
+<li><a class="reference internal" href="#external-macos-probe">External macOS Probe</a></li>
 </ul>
 </li>
 </ul>

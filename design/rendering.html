@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="rendering">
 <h1>Rendering<a class="headerlink" href="#rendering" title="Link to this heading">¶</a></h1>
-<p>See also: <a class="reference internal" href="architecture.html"><span class="std std-doc">Architecture</span></a> · <a class="reference internal" href="data_model.html"><span class="std std-doc">Data Model</span></a></p>
+<p>See also: <a class="reference internal" href="architecture.html"><span class="std std-doc">Architecture</span></a> · <a class="reference internal" href="data_model.html"><span class="std std-doc">Data Model</span></a> · <a class="reference internal" href="memory_accounting.html"><span class="std std-doc">Memory Accounting</span></a></p>
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code> (<code class="docutils literal notranslate"><span class="pre">QRhiWidget</span></code>) runs in three modes:</p>
@@ -314,6 +314,12 @@
 <li><p><strong>selection</strong>: selected-face triangles, selected-vertex points, keyed on <code class="docutils literal notranslate"><span class="pre">selectionRevision</span></code> so selection overlays rebuild without invalidating fill/wire/point resources.</p></li>
 <li><p><strong>decorators</strong>: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line), non-manifold edges (line + fat-line), non-manifold vertices, and curvature principal-direction lines.</p></li>
 </ul>
+<p><code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache::gpuMemoryStats()</span></code> sums the QRhi buffer sizes and known RGBA8
+texture payloads for all cache variants and RHIs, including non-manifold decorator
+buffers. This is a <strong>logical mesh-cache size</strong>, not total GPU or process memory: per-view
+UV/raster/offscreen resources, backend alignment, staging/command storage, and driver
+allocations are outside it. The Memory Info dialog therefore presents it separately from
+tracked CPU allocations and OS physical footprint.</p>
 <p>Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders. Changing colormap, inversion, or isoline settings updates only the per-view LUT texture; changing fixed range, center-on-zero, or percentile crop changes normalization and rebuilds the affected quality buffers.</p>
 <p>Boundary extraction: topological edge incidence (<code class="docutils literal notranslate"><span class="pre">incidentCount</span> <span class="pre">==</span> <span class="pre">1</span></code>). Non-manifold edge extraction: topological edge incidence above two. Seam extraction: per-topological-edge UV sample comparison (texture-index changes, missing/invalid UV).</p>
 </section>

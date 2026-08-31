@@ -12,7 +12,7 @@ See also: [Preferences](preferences.md) · [Architecture](architecture.md) ·
 ## 1. Why collect anything
 
 QMeshLab ships **327 filters across 33 filter plugins, exposing 1131 parameters**,
-plus 6 I/O plugins, 4 interactive tools and 12 preferences. Nobody knows which parts
+plus 6 I/O plugins, 4 interactive tools and 14 preferences. Nobody knows which parts
 of that surface are load-bearing. Every maintenance decision — what to deprecate,
 what to test, what to optimize, what to document first — is currently made on
 intuition and on the loudest issue reports.
@@ -255,7 +255,7 @@ already funnels everything interesting through single call sites:
 | session lifecycle, unclean exit | `MainWindow` ctor/dtor, `src/app/main.cpp` | one flag file written at start, removed on clean quit |
 | document shape | `Document` layer add/remove | peak counts and memory |
 | feature discovery | `RenderWidget` mode changes, `InteractiveTool` activation | 4 tools, render modes |
-| wrong defaults | `Preferences::changed` — `src/core/preferences.h` | 12 preferences |
+| wrong defaults | `Preferences::changed` — `src/core/preferences.h` | 14 preferences |
 
 ```
 Document::runFilter ──┐

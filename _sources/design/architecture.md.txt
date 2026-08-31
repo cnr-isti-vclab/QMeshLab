@@ -6,7 +6,7 @@ QMeshLab follows a **single-document, multi-view** architecture:
 - UI widgets observe it through Qt signals
 - rendering ownership is split between shared mesh GPU data and per-view pipelines/state
 
-See also: [Data Model](data_model.md) · [Rendering](rendering.md) · [Filter Organization](filter_organization.md)
+See also: [Data Model](data_model.md) · [Rendering](rendering.md) · [Memory Accounting](memory_accounting.md) · [Filter Organization](filter_organization.md)
 
 ## Architectural Layers
 
@@ -22,7 +22,7 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md) · [Filter Or
 
 ### `Document`
 
-Owns the ordered mesh list (`MeshEntry`), ordered raster list (`RasterEntry`), current mesh/raster indices, explicit active-layer kind, per-document log, the `DocumentUndoManager`, I/O and filter plugin managers, the shared GPU cache, render-state snapshot callback, and memory accounting APIs. Does not own live per-widget pipelines/camera state; those remain in `RenderWidget`. Undo nodes include serialized mesh/raster state or compact selection deltas, optional script-action metadata, and one `ViewState` snapshot captured/restored through callbacks (with camera restoration optionally skipped during history jumps).
+Owns the ordered mesh list (`MeshEntry`), ordered raster list (`RasterEntry`), current mesh/raster indices, explicit active-layer kind, per-document log, the `DocumentUndoManager`, I/O and filter plugin managers, the shared GPU cache, render-state snapshot callback, and tracked mesh/image/undo/GPU memory APIs. Does not own live per-widget pipelines/camera state; those remain in `RenderWidget`. Undo nodes include serialized mesh/raster state or compact selection deltas, optional script-action metadata, and one `ViewState` snapshot captured/restored through callbacks (with camera restoration optionally skipped during history jumps). The undo manager can enforce an opt-in byte budget and defer OS-pressure purges until an active transaction closes.
 
 Each `MeshEntry` stores: identity/revision keys (`meshId`, `geometryRevision`, `materialRevision`, `selectionRevision`), render placement (`transform`), source metadata (`name`, `sourcePath`, `ioMask`), texture metadata (`textureFileNames`, `textureFilePaths`, `textureAssets`), material set, `visible` and `modified` flags, and the `VCGMesh`.
 
@@ -86,7 +86,7 @@ Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, o
 
 ### `MainWindow`
 
-Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log/Python docks, status bar (progress bars, frame-time stats), undo graph panel, tool toolbar/menu, and menus (file, edit, filters, view, help). Manages mesh/project/raster file open/save/drop flows, split/close, active-view highlight border, optional camera synchronization across 3D views, camera-state copy/paste, center-on-selection, document visibility proxy synchronization from the current view, view PNG snapshots, snapshot-to-raster creation, render-state snapshot callbacks for filters, undo-node thumbnails/snapshots, action-history Python script generation into the script editor, and embedded Python console visibility when enabled.
+Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log/Python docks, status bar (progress bars, frame-time stats), undo graph panel, tool toolbar/menu, and menus (file, edit, filters, view, help). Manages mesh/project/raster file open/save/drop flows, split/close, active-view highlight border, optional camera synchronization across 3D views, camera-state copy/paste, center-on-selection, document visibility proxy synchronization from the current view, view PNG snapshots, snapshot-to-raster creation, render-state snapshot callbacks for filters, undo-node thumbnails/snapshots, action-history Python script generation into the script editor, and embedded Python console visibility when enabled. It also presents the separated OS/CPU/GPU memory report and connects the platform `MemoryPressureMonitor` to opt-in undo purging.
 
 ### `PythonHost` and `_qmeshlab`
 

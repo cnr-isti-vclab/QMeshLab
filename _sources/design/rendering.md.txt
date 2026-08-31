@@ -1,6 +1,6 @@
 # Rendering
 
-See also: [Architecture](architecture.md) · [Data Model](data_model.md)
+See also: [Architecture](architecture.md) · [Data Model](data_model.md) · [Memory Accounting](memory_accounting.md)
 
 ## Overview
 
@@ -74,6 +74,13 @@ Cached outputs:
 - **bbox**: line buffer.
 - **selection**: selected-face triangles, selected-vertex points, keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
 - **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line), non-manifold edges (line + fat-line), non-manifold vertices, and curvature principal-direction lines.
+
+`MeshGpuResourceCache::gpuMemoryStats()` sums the QRhi buffer sizes and known RGBA8
+texture payloads for all cache variants and RHIs, including non-manifold decorator
+buffers. This is a **logical mesh-cache size**, not total GPU or process memory: per-view
+UV/raster/offscreen resources, backend alignment, staging/command storage, and driver
+allocations are outside it. The Memory Info dialog therefore presents it separately from
+tracked CPU allocations and OS physical footprint.
 
 Fill uses an indexed path (shared vertices) or an expanded-triangle path for per-face colors or texture batching. For quality variants, normalized quality is stored in the buffer and resolved via LUT sampling in shaders. Changing colormap, inversion, or isoline settings updates only the per-view LUT texture; changing fixed range, center-on-zero, or percentile crop changes normalization and rebuilds the affected quality buffers.
 
