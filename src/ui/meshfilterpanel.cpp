@@ -150,6 +150,11 @@ void MeshFilterPanel::buildUi()
     titleFont.setBold(true);
     m_filterTitleLabel->setFont(titleFont);
     m_filterTitleLabel->setWordWrap(true);
+    // Selectable so the name can be copied out -- handy for scripting and bug reports.
+    // Mouse only: keyboard selection would put the label in the tab order ahead of the
+    // parameter widgets.
+    m_filterTitleLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    m_filterTitleLabel->setCursor(Qt::IBeamCursor);
     headerLayout->addWidget(m_filterTitleLabel, 1);
 
     m_longDescriptionToggle = new QToolButton(m_parametersPage);
