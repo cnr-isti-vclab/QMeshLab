@@ -6034,16 +6034,16 @@ Collapses edges until the face count reaches the requested **fraction of the ori
 
 **Plugin:** qmeshlab.filter.trueform
 
-Reduce triangle count as far as a relative geometric error bound allows.
+Reduce triangle count as far as a geometric error bound allows.
 
 ```{py:function} ms.simplification_by_error_trueform(**params)
 :module: _qmeshlab
 
-Collapses edges for as long as the surface stays within a **relative error bound**, rather than towards a face count. That is the useful difference from the other simplifiers here: you state the fidelity you will accept and get however few triangles that permits, instead of stating a triangle count and discovering the error afterwards.\n\n**Relative Error** is expressed as a fraction of the model size, so the same value means the same thing across models of different scales. The default of 0.002 is conservative.\n\nUse *Simplify by Decimation (TrueForm)* when you need a specific face count instead.\n\nCompeting implementation: see also the three quadric edge collapse filters under *Meshing/Simplification*.
+Collapses edges for as long as the surface stays within an **error bound**, rather than towards a face count. That is the useful difference from the other simplifiers here: you state the fidelity you will accept and get however few triangles that permits, instead of stating a triangle count and discovering the error afterwards.\n\n**Error Bound** is a distance. Type it directly in model units when you know the tolerance you have to hold -- a measurement accuracy, a printing tolerance -- or switch the field to a percentage of the bounding-box diagonal when you want the same value to mean the same thing across models of different scales. The default is 0.1% of the diagonal, which is conservative.\n\nUse *Simplify by Decimation (TrueForm)* when you need a specific face count instead.
 
 **Parameters:**
 
-- **errorRelative** (*double*, default: `0.002`) — Largest geometric deviation allowed, as a fraction of the model size.
+- **errorBound** (*absperc*, default: `@bboxDiag001`) — Largest geometric deviation allowed. Enter it directly in model units, or as a percentage of the bounding-box diagonal.
 - **iterations** (*int*, default: `1`) — How many simplification passes to run.
 - **preserveBoundary** (*bool*, default: `True`) — Hold boundary edges fixed. Turn off only if the border is allowed to move.
 - **featureAngle** (*double*, default: `-1.0`) — Dihedral angle above which an edge counts as a sharp feature and is protected. Negative disables feature detection.
