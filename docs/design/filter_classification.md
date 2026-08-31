@@ -1,15 +1,21 @@
 # Filter Classification — pass 1 record
 
-Applied `categories` for the **272-filter migration baseline**. Generated (once,
-by rules) from the pre-migration descriptors and the ontology in
+> **Current registry (2026-08-31): 327 filters across 33 filter plugins.** Every
+> 272-filter total and table below is a dated record of the 2026-07-29 migration,
+> not a current implementation count.
+
+This document records the `categories` applied to the **272-filter migration
+baseline**. It was generated once, by rules, from the pre-migration descriptors and
+the ontology in
 [Vocabulary](vocabulary.md) §1; see [Filter Organization](filter_organization.md)
 for the plugin-side mapping.
 
-**Status: APPLIED** (pass 1, 2026-07-29). All 272 filters now carry a `categories`
-array; the loader validates every entry against the ontology and reports no offenders.
+**Status: APPLIED** (pass 1, 2026-07-29). All 272 filters present on that date received
+a `categories` array. The loader now validates every entry against the ontology and
+reports no offenders in the current registry.
 The tables below are the record of what was applied — the `Note` column flags each row
 that moved somewhere other than a mechanical translation of the old `menuPath`.
-The current implementation has grown to 327 filters across 33 filter plugins; newly
+The implementation has since grown to 327 filters across 33 filter plugins; newly
 added filters are categorized in their `filters.json` descriptors, but this document
 intentionally remains the pass-1 migration record rather than a regenerated live
 catalog.
@@ -43,8 +49,8 @@ positions only.** Smoothing an *attribute* is classified by the attribute —
 
 ## Resulting shape
 
-Historical pass-1 shape: 272 filters → 43 distinct categories; 24 filters carry more
-than one.
+Historical pass-1 shape on 2026-07-29: 272 filters → 43 distinct categories; 24
+filters carried more than one.
 
 | Category | Primary | Total (incl. cross-listed) |
 |---|---|---|
@@ -93,10 +99,11 @@ than one.
 | `Transfer/Mesh to Mesh` | 7 | 7 |
 | `Transfer/Raster to Mesh` | 0 | 4 |
 
-**47 filters are currently mis-filed** — they move to a different root
-than their present `menuPath` implies. That is the main finding of this pass.
+**In the pre-migration descriptors, 47 filters were mis-filed**: their applied
+category moved them to a different root from the one implied by their old `menuPath`.
+That was the main finding of this pass.
 
-## Proposed classification, by current bucket
+## Applied classification, by pre-migration bucket
 
 ### `Camera` (10)
 

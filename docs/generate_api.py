@@ -92,7 +92,7 @@ def _read_all_filters(source_dir):
     """Walk *source_dir* (the repository root) for filters.json files.
 
     Returns list of dicts with keys:
-      plugin_id, name, python_name, description, long_description,
+      plugin_id, name, python_name, description, long_description, categories,
       parameters (list of dicts with name, type, default, description)
     """
     filters = []
@@ -156,14 +156,17 @@ def _read_all_filters(source_dir):
                     'description': (entry.get('shortDescription', '') or '').strip(),
                     'long_description':
                         (entry.get('longDescriptionMarkdown', '') or '').strip(),
-                    'menu': entry.get('menuPath', ''),
+                    'categories': entry.get(
+                        'categories',
+                        [entry['menuPath']] if entry.get('menuPath') else []),
                     'provenance': provenance if isinstance(provenance, dict) else {},
                     'references': [
                         references[ref_id] for ref_id in reference_ids
                     ],
                     'parameters': params,
                 })
-    filters.sort(key=lambda f: (f['menu'], f['python_name']))
+    filters.sort(key=lambda f: (
+        f['categories'][0] if f['categories'] else '', f['python_name']))
     return filters
 
 
@@ -235,11 +238,12 @@ def _write_filter_markdown(fh, filter_list):
     """Write the filter reference as MyST Markdown."""
     fh.write('(filters)=\n\n')
     fh.write('# Filters\n\n')
-    fh.write('All filters available in QMeshLab are listed below. Each filter can '
+    fh.write(f'This reference contains all {len(filter_list)} filters found in the '
+             'descriptor registry when it was generated. Each filter can '
              'be called as a method on a `MeshSet` object, for example '
-             '`ms.apply_filter("meshing_remove_duplicate_vertices", ...)`, or '
+             '`ms.apply_filter("remove_duplicate_vertices", ...)`, or '
              'using the dynamically-bound snake_case name: '
-             '`ms.meshing_remove_duplicate_vertices(...)`.\n\n')
+             '`ms.remove_duplicate_vertices(...)`.\n\n')
     fh.write('A combined bibliography for cited algorithms is available as '
              '{download}`BibTeX <references.bib>`.\n\n')
 
@@ -249,8 +253,9 @@ def _write_filter_markdown(fh, filter_list):
         anchor = f['python_name'].replace('_', '-')
         fh.write(f'(filter-{anchor})=\n\n')
         fh.write(f'## {f["name"]}\n\n')
-        if f['menu']:
-            fh.write(f'**Menu:** {f["menu"]}\n\n')
+        if f['categories']:
+            categories = ', '.join(f'`{category}`' for category in f['categories'])
+            fh.write(f'**Categories:** {categories}\n\n')
         if f['plugin_id']:
             fh.write(f'**Plugin:** {f["plugin_id"]}\n\n')
         if f['description']:

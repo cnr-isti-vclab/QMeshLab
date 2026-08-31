@@ -407,8 +407,9 @@ the name is unclear · **FOLD** = fails both tests, merge into family plugin(s) 
 | `filter_parametrization` | 2 | libigl — gated on `QMeshLabPluginFilterIglCommon`, includes `igl/lscm.h`, `igl/harmonic.h` | MERGE | `filter_igl` |
 | `filter_func` | 18 | `find_package(muparser)` | RENAME | `filter_expression` — dep is real, but "func" says nothing |
 
-**One dependency → one plugin.** The two libigl plugins merge into a single
-`filter_igl` (6 filters today), and `filter_igl_common`'s adapter code becomes its
+**One dependency → one plugin.** In the historical proposal, the two libigl plugins
+merge into a single `filter_igl` containing the 6 baseline filters, and
+`filter_igl_common`'s adapter code becomes its
 internal implementation rather than a separate gate target. This is the shape that
 scales as many more libigl filters arrive: one `find_package`, one build gate, one
 provenance story.
@@ -576,10 +577,10 @@ historical 272-filter baseline):
 | `filter_reconstruct` | 2 | | | |
 
 17 family plugins (226 filters) + 9 dependency/vendored plugins + 1 algorithm suite
-(46 filters) = **27 filter plugins, from 32**. Totals verified against the current
-historical 272-filter baseline.
+(46 filters) = **27 filter plugins, from 32**. These proposal totals were verified
+against the historical 272-filter baseline, not the current 327-filter registry.
 
-Dependency/vendored group: `filter_igl` (6, growing), `filter_embree` (5),
+Historical dependency/vendored group: `filter_igl` (6), `filter_embree` (5),
 `filter_expression` (18), `filter_cgal` (1), `filter_screened_poisson` (3),
 `filter_texture_defragmentation` (2), `filter_xatlas` (1), `filter_qslim` (1),
 `filter_meshfix` (1); plus the `filter_mls` suite (8).
