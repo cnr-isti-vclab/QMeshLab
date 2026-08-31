@@ -8,6 +8,8 @@
 #include <QSet>
 
 #include <map>
+#include <vcg/complex/algorithms/bitquad_support.h>
+#include <random>
 
 #include "document.h"
 
@@ -247,6 +249,7 @@ private slots:
     void displayNamesLeadWithALexiconVerb();
     void structuredReferencesRenderCitations();
     void toolIconsResolveFromResources();
+    void quadPairingChoosesGoodDiagonals();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -4681,6 +4684,81 @@ void FilterTests::toolIconsResolveFromResources()
     QVERIFY2(missing.isEmpty(),
              qPrintable(QStringLiteral("icon(s) referenced but not in the resource block:\n  %1")
                             .arg(missing.join(QStringLiteral("\n  ")))));
+}
+
+// Convert to Quads by Triangle Pairing used to run only MakeTriEvenBySplit and
+// MakePureByFlip. The latter is purely topological -- first unpaired triangle in array
+// order, partner found by breadth-first edge distance, flip across to it -- so on a
+// triangulated quad mesh whose diagonals are not all aligned it produced pairings that
+// looked arbitrary. The quality pass (MakeDominant) was never invoked.
+void FilterTests::quadPairingChoosesGoodDiagonals()
+{
+    // A grid whose quads are each split by a randomly chosen diagonal: the shape a real
+    // triangulated quad mesh has, and the case the old pipeline handled worst.
+    constexpr int kSide = 21;
+    VCGMesh mesh;
+    // Indices, not pointers: adding vertices reallocates the vector.
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, kSide * kSide);
+    for (int j = 0; j < kSide; ++j)
+        for (int i = 0; i < kSide; ++i)
+            mesh.vert[std::size_t(j * kSide + i)].P() =
+                vcg::Point3f(float(i), float(j), 0.0f);
+
+    std::mt19937 rng(11);
+    for (int j = 0; j < kSide - 1; ++j) {
+        for (int i = 0; i < kSide - 1; ++i) {
+            const int a = j * kSide + i;
+            const int b = a + 1;
+            const int c = (j + 1) * kSide + i + 1;
+            const int d = (j + 1) * kSide + i;
+            if (rng() & 1u) {
+                vcg::tri::Allocator<VCGMesh>::AddFace(mesh, a, b, c);
+                vcg::tri::Allocator<VCGMesh>::AddFace(mesh, a, c, d);
+            } else {
+                vcg::tri::Allocator<VCGMesh>::AddFace(mesh, a, b, d);
+                vcg::tri::Allocator<VCGMesh>::AddFace(mesh, b, c, d);
+            }
+        }
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+
+    Document doc;
+    const int index = doc.addMesh(mesh, QStringLiteral("Grid"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(index);
+
+    const QString key = filterKeyForId(
+        doc, QStringLiteral("meshing_tri_to_quad_by_smart_triangle_pairing"));
+    QVERIFY(!key.isEmpty());
+    const MeshFilterRunResult r = doc.runFilter(key, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    // Mean quad quality: 1 is a perfect square. On this input the old pipeline scored
+    // about 0.48; choosing pairs by quality reaches about 0.82.
+    VCGMesh &out = doc.mesh(index).mesh;
+    double total = 0.0;
+    int quads = 0, unpaired = 0;
+    for (VCGFace &f : out.face) {
+        if (f.IsD())
+            continue;
+        bool paired = false;
+        for (int k = 0; k < 3; ++k) {
+            if (!f.IsF(k))
+                continue;
+            total += double(vcg::tri::BitQuad<VCGMesh>::quadQuality(&f, k));
+            ++quads;
+            paired = true;
+            break;
+        }
+        if (!paired)
+            ++unpaired;
+    }
+    QVERIFY2(quads > 0, "no quads were formed at all");
+    const double mean = total / quads;
+    QVERIFY2(mean > 0.70,
+             qPrintable(QStringLiteral("mean quad quality %1; the quality-driven pairing "
+                                       "is not being applied").arg(mean)));
+    QCOMPARE(unpaired, 0);
 }
 
 QTEST_MAIN(FilterTests)

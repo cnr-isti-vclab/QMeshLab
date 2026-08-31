@@ -2347,7 +2347,7 @@
       "name": "Convert to Quads by Triangle Pairing",
       "pythonName": "tri_to_quad_by_pairing",
       "shortDescription": "Pair triangles into quads.",
-      "longDescriptionMarkdown": "Convert a tri-mesh into a quad mesh by pairing triangles.",
+      "longDescriptionMarkdown": "Converts a triangle mesh into a quad mesh by merging pairs of adjacent triangles.\n\nPairs are chosen by **quad quality** -- how close to a square the merged pair would be -- so the diagonals that were introduced when a quad mesh was triangulated are the ones removed again. Triangles that no good partner leaves over are then resolved by edge flipping, which can reach a pure quad mesh at the cost of some quality; if any remain unpaired the result is quad dominant and the filter says so.\n\nAn odd triangle count cannot become pure quads, so one triangle is split first to make the count even.",
       "tags": [
         "meshing"
       ],
