@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <set>
 
 namespace {
@@ -898,6 +899,7 @@ void ParameterFormBuilder::setContext(Context context)
 void ParameterFormBuilder::clear()
 {
     m_bindings.clear();
+    m_groupHeadings.clear();
     m_hasAdvanced = false;
     if (!m_layout)
         return;
@@ -912,30 +914,35 @@ void ParameterFormBuilder::build(
     if (!m_layout || !m_parentWidget)
         return;
 
-    std::set<QString> uniqueGroups;
+    // Collect the parameters by group, keeping the order in which the groups first
+    // appear. Walking the descriptor order directly would emit a heading every time the
+    // group changed, so a descriptor listing main/advanced/main/advanced produced four
+    // headings for two groups.
+    std::vector<QString> groupOrder;
+    std::map<QString, std::vector<const MeshFilterParameterDescriptor *>> byGroup;
     for (const auto &param : parameters) {
         if (param.id.trimmed().isEmpty())
             continue;
-        uniqueGroups.insert(param.group);
+        if (byGroup.find(param.group) == byGroup.end())
+            groupOrder.push_back(param.group);
+        byGroup[param.group].push_back(&param);
     }
     // A single group needs no header — the whole form is that group.
-    const bool showGroupHeaders = uniqueGroups.size() > 1;
+    const bool showGroupHeaders = groupOrder.size() > 1;
 
-    QString currentGroup;
-    for (const auto &param : parameters) {
-        if (param.id.trimmed().isEmpty())
-            continue;
-        if (showGroupHeaders && currentGroup != param.group) {
-            currentGroup = param.group;
-            auto *groupLabel = new QLabel(groupDisplayName(currentGroup), m_parentWidget);
-            QFont f = groupLabel->font();
-            f.setBold(true);
-            groupLabel->setFont(f);
-            groupLabel->setStyleSheet(QStringLiteral("color: palette(mid); padding-top: 6px;"));
-            m_layout->addRow(groupLabel);
-        } else {
-            currentGroup = param.group;
-        }
+    for (const QString &group : groupOrder) {
+    if (showGroupHeaders) {
+        auto *groupLabel = new QLabel(groupDisplayName(group), m_parentWidget);
+        QFont f = groupLabel->font();
+        f.setBold(true);
+        groupLabel->setFont(f);
+        groupLabel->setStyleSheet(QStringLiteral("color: palette(mid); padding-top: 6px;"));
+        m_layout->addRow(groupLabel);
+        m_groupHeadings.push_back(
+            { groupLabel, group.startsWith(QStringLiteral("advanced"), Qt::CaseInsensitive) });
+    }
+    for (const MeshFilterParameterDescriptor *paramPtr : byGroup[group]) {
+        const MeshFilterParameterDescriptor &param = *paramPtr;
 
         QWidget *editor = createEditor(param);
         if (!editor)
@@ -970,8 +977,12 @@ void ParameterFormBuilder::build(
         connectEditorSignals(binding);
         m_bindings.push_back(std::move(binding));
     }
+    }
     refreshDependentEditors();
     refreshEnabledState();
+    // Headings follow their parameters: with the advanced set hidden the "Advanced"
+    // heading would otherwise sit above nothing.
+    setAdvancedVisible(m_advancedVisible);
 }
 
 QWidget *ParameterFormBuilder::createEditor(const MeshFilterParameterDescriptor &param)
@@ -1329,6 +1340,22 @@ void ParameterFormBuilder::setAdvancedVisible(bool visible)
             binding.formLabel->setVisible(visible);
         if (binding.editor)
             binding.editor->setVisible(visible);
+    }
+
+    // Count the groups that still have something in them. Hiding the advanced
+    // parameters can leave a single visible group, and then its heading says nothing
+    // the form does not already say -- the same reason a one-group form has no heading
+    // at all.
+    int visibleGroups = 0;
+    for (const GroupHeading &heading : m_groupHeadings)
+        if (visible || !heading.advanced)
+            ++visibleGroups;
+
+    for (const GroupHeading &heading : m_groupHeadings) {
+        if (!heading.label)
+            continue;
+        const bool wanted = (visible || !heading.advanced) && visibleGroups > 1;
+        heading.label->setVisible(wanted);
     }
 }
 

@@ -405,7 +405,7 @@
           "id": "PreserveBoundary",
           "label": "Preserve Boundary",
           "help": "Try to preserve mesh boundaries.",
-          "group": "advanced",
+          "group": "main",
           "type": "bool",
           "default": false
         },
@@ -565,7 +565,7 @@
           "id": "PreserveBoundary",
           "label": "Preserve Boundary",
           "help": "Try to preserve mesh boundaries.",
-          "group": "advanced",
+          "group": "main",
           "type": "bool",
           "default": false
         },

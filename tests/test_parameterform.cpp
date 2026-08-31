@@ -70,6 +70,7 @@ private slots:
     void reportsEditedValues();
     void emitsValueChangedOnEdit();
     void advancedVisibilityFollowsGroup();
+    void groupHeadingsAppearOncePerGroup();
     void resetRestoresDefaults();
     void skipsDocumentTypesWithoutADocument();
     void enabledWhenGatesOnABool();
@@ -169,6 +170,62 @@ void ParameterFormTests::advancedVisibilityFollowsGroup()
     builder.setAdvancedVisible(false);
     QVERIFY(advanced->editor->isHidden());
     QVERIFY(!plain->editor->isHidden());
+}
+
+// Headings used to be emitted whenever the group changed while walking the descriptor
+// order, so a filter declaring main/advanced/main/advanced showed four headings for two
+// groups -- and the "Advanced" ones stayed on screen above nothing while the advanced
+// parameters were hidden.
+void ParameterFormTests::groupHeadingsAppearOncePerGroup()
+{
+    auto param = [](const QString &id, const QString &group) {
+        MeshFilterParameterDescriptor p;
+        p.id = id;
+        p.label = id;
+        p.group = group;
+        p.type = MeshFilterParameterType::Bool;
+        p.defaultValue = false;
+        return p;
+    };
+    // Interleaved on purpose: this is the ordering that produced the duplicates.
+    const std::vector<MeshFilterParameterDescriptor> params{
+        param(QStringLiteral("a"), QStringLiteral("main")),
+        param(QStringLiteral("b"), QStringLiteral("advanced")),
+        param(QStringLiteral("c"), QStringLiteral("main")),
+        param(QStringLiteral("d"), QStringLiteral("advanced")),
+    };
+
+    QWidget host;
+    auto *layout = new QFormLayout(&host);
+    ParameterFormBuilder builder(layout, &host);
+    builder.build(params);
+    host.show();
+
+    const auto headings = [&]() {
+        QStringList out;
+        for (int row = 0; row < layout->rowCount(); ++row) {
+            QLayoutItem *spanning = layout->itemAt(row, QFormLayout::SpanningRole);
+            if (!spanning || !spanning->widget())
+                continue;
+            auto *label = qobject_cast<QLabel *>(spanning->widget());
+            if (label && !label->isHidden())
+                out << label->text();
+        }
+        return out;
+    };
+
+    builder.setAdvancedVisible(true);
+    QCOMPARE(headings(), (QStringList{ QStringLiteral("Main"), QStringLiteral("Advanced") }));
+
+    // With the advanced parameters hidden only one group is left, and a lone heading
+    // says nothing the form does not already say.
+    builder.setAdvancedVisible(false);
+    QCOMPARE(headings(), QStringList{});
+
+    // The parameters themselves keep their declared order inside each group.
+    QVERIFY(builder.bindingById(QStringLiteral("a")) != nullptr);
+    QVERIFY(builder.bindingById(QStringLiteral("c")) != nullptr);
+    QVERIFY(builder.bindingById(QStringLiteral("b"))->advanced);
 }
 
 void ParameterFormTests::resetRestoresDefaults()

@@ -38,6 +38,13 @@ public:
         std::function<QString()> renderStateProvider;
     };
 
+    // A group heading and whether it belongs to the advanced set, so that hiding the
+    // advanced parameters hides their heading too.
+    struct GroupHeading {
+        QWidget *label = nullptr;
+        bool advanced = false;
+    };
+
     struct Binding {
         MeshFilterParameterDescriptor descriptor;
         QWidget *editor = nullptr;
@@ -98,6 +105,7 @@ private:
     QWidget *m_parentWidget = nullptr;
     Context m_context;
     std::vector<Binding> m_bindings;
+    std::vector<GroupHeading> m_groupHeadings;
     bool m_hasAdvanced = false;
     bool m_advancedVisible = false;
 };

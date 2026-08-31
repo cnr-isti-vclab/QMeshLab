@@ -1799,7 +1799,12 @@ MeshFilterRunResult runRemesh(const QString &filterId, const FilterParams &param
 
         if (filterId == QString::fromLatin1(kFilterSimplify)) {
             tf::simplify_config<float> config;
-            config.error_rel = float(std::max(1e-9, params.getDouble(QStringLiteral("errorRelative"), 0.002)));
+            // The parameter is an absolute distance; TrueForm wants it as a fraction of
+            // the bounding-box diagonal (simplify_config::error_rel).
+            const double diagonal = double(doc.mesh(index).mesh.bbox.Diag());
+            const double bound = params.getDouble(QStringLiteral("errorBound"), 0.0);
+            config.error_rel = float(std::max(
+                1e-9, diagonal > 0.0 ? bound / diagonal : 0.002));
             config.iterations = std::max(1, params.getInt(QStringLiteral("iterations"), 1));
             config.preserve_boundary = preserveBoundary;
             config.feature_angle = featureRad;
@@ -1808,7 +1813,9 @@ MeshFilterRunResult runRemesh(const QString &filterId, const FilterParams &param
             return replaceLayerGeometry(
                 doc, index, mesh,
                 QObject::tr("Simplified '%1'").arg(doc.mesh(index).name),
-                { QObject::tr("Relative error bound: %1").arg(config.error_rel) });
+                { QObject::tr("Error bound: %1 (%2 of the bounding-box diagonal)")
+                      .arg(QString::number(bound, 'g', 6),
+                           QString::number(100.0 * config.error_rel, 'g', 4) + QStringLiteral("%")) });
         }
 
         // Decimation to a target proportion of the original face count.

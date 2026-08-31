@@ -2457,18 +2457,20 @@ void FilterTests::trueFormRemeshingChangesResolutionAsAsked()
 
     // Error-bound simplification: a loose bound must remove more than a tight one.
     {
-        const auto facesAfter = [&](double errorRelative) {
+        // The bound is now an absolute distance; the unit sphere's bounding-box
+        // diagonal is about 3.46, so these stand in for the old 0.05% and 5%.
+        const auto facesAfter = [&](double errorBound) {
             Document d;
             if (!d.runFilter(sphereKey, {}).success)
                 return -1;
             MeshFilterParameterValues p;
-            p.insert(QStringLiteral("errorRelative"), errorRelative);
+            p.insert(QStringLiteral("errorBound"), errorBound);
             if (!d.runFilter(simplifyKey, p).success)
                 return -1;
             return d.mesh(d.currentMeshIndex()).mesh.FN();
         };
-        const int tight = facesAfter(0.0005);
-        const int loose = facesAfter(0.05);
+        const int tight = facesAfter(0.0017);
+        const int loose = facesAfter(0.17);
         QVERIFY2(tight > 0 && loose > 0, "error-bound simplification failed");
         QVERIFY2(loose < tight,
                  qPrintable(QStringLiteral("a looser bound kept more faces: %1 vs %2")
