@@ -2,6 +2,8 @@
 #include <QSignalSpy>
 #include <QDataStream>
 #include <QFile>
+#include <QTextStream>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QScopeGuard>
 #include <QTemporaryDir>
@@ -59,6 +61,7 @@ private slots:
     void saveAndLoad3MFRoundTrip();
     void trueFormRoundTripsObjAndStl();
     void plyWithLongPerVertexListLoads();
+    void polygonalOffExportSurvivesMalformedFaces();
     void saveAndLoadEmbeddedGLBTexture();
     void savePlyPreservesWedgeTexcoordsWhenVertexTexcoordsExist();
     void savePolygonalFormatsHonorFauxEdgesAndTriangulationOption();
@@ -963,6 +966,66 @@ void DocumentTests::saveAndLoad3MFRoundTrip()
 // longer than 128 entries smashed the stack: a valid file, straight from a scanner,
 // aborting the application. Only vertices past that threshold trigger it, so a file can
 // be millions of points long and fail on exactly one of them.
+// Exporting a polygonal mesh walks the faux-edge chain around each polygon to rebuild it
+// (PolygonSupport::ExtractPolygon). The walk stops when it returns to where it started --
+// which never happens if the chain does not close, and an OBJ face that lists the same
+// vertex several times produces exactly that. With asserts compiled out, as in a release
+// build, the walk then appends to its output vector forever: the reported symptom was the
+// application wedged with a 40 GB footprint, not a crash.
+void DocumentTests::polygonalOffExportSurvivesMalformedFaces()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString objPath = dir.filePath(QStringLiteral("malformed.obj"));
+
+    {
+        QFile obj(objPath);
+        QVERIFY(obj.open(QIODevice::WriteOnly | QIODevice::Text));
+        QTextStream out(&obj);
+        // A small patch of clean quads for the walk to wander into...
+        for (int y = 0; y < 3; ++y)
+            for (int x = 0; x < 3; ++x)
+                out << "v " << x << " " << y << " 0\n";
+        // ...plus one more vertex so the bad face has somewhere else to point.
+        out << "v 0.5 0.5 1\n";
+        out << "f 1 2 5 4\n";
+        out << "f 2 3 6 5\n";
+        out << "f 4 5 8 7\n";
+        out << "f 5 6 9 8\n";
+        // Twelve corners, five distinct vertices, each repeated -- the shape of the
+        // faces that triggered this, straight out of a real scanner export.
+        out << "f 1 2 3 5 10 2 1 5 3 2 10 5\n";
+        obj.close();
+    }
+
+    Document doc;
+    const int index = doc.loadMesh(objPath);
+    QVERIFY2(index >= 0, "the malformed OBJ did not load at all");
+
+    const QString offPath = dir.filePath(QStringLiteral("out.off"));
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD
+        | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+
+    // Before the fix this never returned.
+    QElapsedTimer timer;
+    timer.start();
+    const int saveErr = doc.saveMesh(index, offPath, options);
+    QCOMPARE(saveErr, 0);
+    QVERIFY2(timer.elapsed() < 10000,
+             qPrintable(QStringLiteral("polygonal OFF export took %1 ms").arg(timer.elapsed())));
+
+    // The polygon count in the header is computed before the walk, so a walk that gives
+    // up must still emit a polygon -- otherwise the file is inconsistent and will not
+    // load back.
+    Document reloaded;
+    QVERIFY2(reloaded.loadMesh(offPath) >= 0,
+             "the exported OFF could not be read back");
+    QVERIFY(reloaded.mesh(0).mesh.VN() > 0);
+    QVERIFY(reloaded.mesh(0).mesh.FN() > 0);
+}
+
 void DocumentTests::plyWithLongPerVertexListLoads()
 {
     QTemporaryDir dir;
