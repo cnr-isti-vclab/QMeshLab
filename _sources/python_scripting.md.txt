@@ -7,8 +7,9 @@ load/save meshes and rasters, and capture view snapshots.
 
 The shared API is the `pymeshlab2.MeshSet` interface, and QMeshLab reuses that
 same model inside the desktop application. Generated API reference files live
-under `docs/api/` when regenerated from the current filter descriptors. The
-desktop-only additions are the predefined live `ms` object and the `mlgui`
+under `docs/api/` when regenerated from the current filter descriptors; the
+checked-in generated snapshot can lag until the app is run with `--generate-docs`.
+The desktop-only additions are the predefined live `ms` object and the `mlgui`
 helper.
 
 ## Predefined Names
@@ -165,9 +166,9 @@ There are two equivalent styles.
 Call `apply_filter()` with the filter Python name:
 
 ```python
-result = ms.apply_filter("meshing_decimation_quadric_edge_collapse", {
-    "targetfacenum": 10000,
-    "preserveboundary": True,
+result = ms.apply_filter("simplification_quadric_edge_collapse", {
+    "TargetFaceNum": 10000,
+    "PreserveBoundary": True,
 })
 print(result.success, result.error_message)
 ```
@@ -175,9 +176,9 @@ print(result.success, result.error_message)
 Or call the dynamically generated convenience method:
 
 ```python
-result = ms.meshing_decimation_quadric_edge_collapse(
-    targetfacenum=10000,
-    preserveboundary=True,
+result = ms.simplification_quadric_edge_collapse(
+    TargetFaceNum=10000,
+    PreserveBoundary=True,
 )
 print(result.success)
 ```

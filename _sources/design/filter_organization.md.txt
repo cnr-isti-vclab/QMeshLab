@@ -1,15 +1,30 @@
 # Filter Organization and Naming
 
 This document covers making QMeshLab filters easier to browse, name, document,
-script, and maintain. The **principles in "Agreed Decisions" below are settled**;
-the taxonomy and per-filter classification that follow are still a working
-proposal and should be edited as we learn which names feel natural in daily use.
+script, and maintain. The **principles in "Agreed Decisions" below are settled**.
+The category ontology is implemented and validated; the large plugin-fold tables
+later in this document are retained as historical design notes, not as a live
+description of the current source tree.
 
 See also: **[Vocabulary](vocabulary.md)** — the normative category ontology, verb and
 noun lexicons this document applies; **[Filter Name Proposal](filter_names.md)** —
 per-filter display/Python name proposals derived from that grammar; [Adding a Filter](adding_a_filter.md)
 (practical how-to), [Architecture](architecture.md) and
 [Data Model](data_model.md).
+
+## Current Implementation Snapshot
+
+As of 2026-08-31, QMeshLab ships **327 filters across 33 filter plugins** with
+**1131 declared parameters**. Each in-tree descriptor uses the ordered
+`categories` array, the loader validates entries against [Vocabulary](vocabulary.md),
+and the UI lists a filter under every category it declares. Filter search also
+matches categories and `provenance.project`, so backend/library provenance remains
+discoverable without appearing in menu categories.
+
+The current plugin tree is intentionally still a dependency/build layout rather
+than the proposed post-fold family layout below. Recent current plugins that were
+not part of the original 272-filter baseline include `filter_instant_meshes`,
+`filter_quadwild`, and `filter_trueform`.
 
 ## Agreed Decisions
 
@@ -41,13 +56,13 @@ and the confusing `filter_sample` / `filter_sampling` pair.
 
 Classification is defined by the two-level geometry-processing ontology in
 **[Vocabulary](vocabulary.md)** (11 noun roots, each with subcategories), and the
-descriptor loader **rejects or warns on an unknown category**. Today 32 distinct
-free-text `menuPath` values exist across 32 plugins; enforcement is what stops
+descriptor loader **warns on an unknown category**. Before pass 1, 32 distinct
+free-text `menuPath` values existed across 32 plugins; enforcement is what stops
 `Parameterization` vs `Parametrization`, and one-off paths such as
 `Remeshing, Smoothing and Resampling`, from coming back.
 
-A filter carries a **set** of categories, ordered, first entry primary — the single
-`menuPath` string becomes a `categories` array. See Vocabulary §1 for the model and
+A filter carries a **set** of categories, ordered, first entry primary — the old
+single `menuPath` string has been replaced by a `categories` array. See Vocabulary §1 for the model and
 for why the data-touched and backend facets are *derived* rather than hand-tagged.
 
 ### 3. Backends never appear in menus; algorithm names may appear in filter names
@@ -89,9 +104,9 @@ Consequences:
 
 ### 5. First pass = plugins + categories only
 
-The initial coordinated change renames plugin directories/ids, replaces the single
-`menuPath` string with a validated `categories` array, and reclassifies every filter
-into the ontology. The 272 `pythonName`s, descriptor ids, and
+The initial coordinated change renamed plugin directories/ids where needed, replaced
+the single `menuPath` string with a validated `categories` array, and reclassified
+the 272-filter baseline into the ontology. The baseline `pythonName`s, descriptor ids, and
 MeshLab-style parameter ids (`TargetFaceNum`, `QualityThr`, …) are deliberately
 **deferred to a second pass**. Rationale: the first pass then breaks no scripts,
 so it can land quickly and be judged on the tree alone.
@@ -109,7 +124,7 @@ This supersedes the single-pass approach in *Migration Strategy* step 4 below.
 - Separate framework concerns from filter-specific algorithms.
 - Prefer a clean, coherent taxonomy over preserving legacy script names.
 
-## Current Issues
+## Remaining Issues
 
 The current filter set is partly inherited from MeshLab naming and partly shaped
 by incremental QMeshLab ports. That gives us working coverage, but not always a
@@ -355,12 +370,14 @@ Open question:
    release-management benefit is worth the extra complexity.
 7. Remove stale names from user-facing docs once the new taxonomy is in place.
 
-## Plugin Mapping Table (pass 1)
+## Plugin Mapping Table (historical pass-1 proposal)
 
-> **Status (2026-07-29): partially executed.** Done — all display names normalized;
-> `filter_func` → `filter_expression`; empty `filter_intrinsic_simplification` deleted;
-> `filter_mesh_booleans` + `filter_parametrization` + `filter_igl_common` merged into
-> **`filter_igl`**. Result: 33 → **30** directories.
+> **Status (2026-08-31): historical design record.** Applied pieces include the
+> category migration, `filter_func` → `filter_expression`, removal of the empty
+> `filter_intrinsic_simplification`, and the libigl merge into **`filter_igl`**.
+> Since then the implementation has grown again to **33 filter plugin directories**
+> with new dependency/algorithm archives such as `filter_instant_meshes`,
+> `filter_quadwild`, and `filter_trueform`.
 >
 > **Deferred — the splits and family folds** (`filter_meshing` 37 filters → 10 targets,
 > `filter_colorproc`, `filter_unsharp`, `filter_sampling`, and the folds that would create
@@ -370,8 +387,8 @@ Open question:
 > implementation between 1500-line files with no automated behaviour check. The rows
 > below therefore describe the *intended* end state, not the current tree.
 
-Every existing plugin classified against decision 1. **Nothing is moved until this
-table is approved.** Evidence columns are measured from each plugin's
+Every pre-baseline plugin classified against decision 1. Evidence columns were
+measured from each plugin's
 `CMakeLists.txt`, `.gitmodules`, and directory contents — not inferred from names.
 The uniform `option(QMESH_PLUGIN_FILTER_*)` present in every plugin is build
 plumbing, not a dependency gate, and does not justify a separate plugin.
@@ -419,6 +436,10 @@ for (see open ruling 5).
 | `filter_xatlas` | 1 | `upstream/` + `UPSTREAM_PROVENANCE.md` | KEEP | `filter_xatlas` |
 | `filter_texture_defragmentation` | 2 | `upstream/` | KEEP | `filter_texture_defragmentation` |
 | `filter_screened_poisson` | 3 | vendored source tree + OpenMP | KEEP | `filter_screened_poisson` |
+
+Current dependency/vendored additions outside the original table include
+`filter_instant_meshes`, `filter_quadwild`, and `filter_trueform`; each remains a
+separate plugin because its external algorithm code is the build/provenance unit.
 
 ### Folds into family plugins
 
@@ -537,10 +558,10 @@ New family plugins need display names too: `Compute Filters`,
 `Transform Filters`, `Subdivision Filters`, `Simplification Filters`,
 `Reconstruction Filters`, `Parametrization Filters`, `Smoothing Filters`.
 
-### Resulting plugin set
+### Proposed post-fold plugin set, not the current tree
 
 Family plugins and their post-fold populations (totals verified against the
-current 272 filters):
+historical 272-filter baseline):
 
 | Plugin | N | | Plugin | N |
 |---|---|---|---|---|
@@ -556,7 +577,7 @@ current 272 filters):
 
 17 family plugins (226 filters) + 9 dependency/vendored plugins + 1 algorithm suite
 (46 filters) = **27 filter plugins, from 32**. Totals verified against the current
-272 filters.
+historical 272-filter baseline.
 
 Dependency/vendored group: `filter_igl` (6, growing), `filter_embree` (5),
 `filter_expression` (18), `filter_cgal` (1), `filter_screened_poisson` (3),

@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Filter Classification — pass 1 proposal - QMeshLab 0.1 documentation</title>
+        <title>Filter Classification — pass 1 record - QMeshLab 0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -242,35 +242,39 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="filter-classification-pass-1-proposal">
-<h1>Filter Classification — pass 1 proposal<a class="headerlink" href="#filter-classification-pass-1-proposal" title="Link to this heading">¶</a></h1>
-<p>Proposed <code class="docutils literal notranslate"><span class="pre">categories</span></code> for <strong>all 272 filters</strong>, for review before any code moves.
-Generated (once, by rules) from the pre-migration descriptors and the ontology in
+          <section class="tex2jax_ignore mathjax_ignore" id="filter-classification-pass-1-record">
+<h1>Filter Classification — pass 1 record<a class="headerlink" href="#filter-classification-pass-1-record" title="Link to this heading">¶</a></h1>
+<p>Applied <code class="docutils literal notranslate"><span class="pre">categories</span></code> for the <strong>272-filter migration baseline</strong>. Generated (once,
+by rules) from the pre-migration descriptors and the ontology in
 <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> §1; see <a class="reference internal" href="filter_organization.html"><span class="std std-doc">Filter Organization</span></a>
 for the plugin-side mapping.</p>
 <p><strong>Status: APPLIED</strong> (pass 1, 2026-07-29). All 272 filters now carry a <code class="docutils literal notranslate"><span class="pre">categories</span></code>
 array; the loader validates every entry against the ontology and reports no offenders.
 The tables below are the record of what was applied — the <code class="docutils literal notranslate"><span class="pre">Note</span></code> column flags each row
-that moved somewhere other than a mechanical translation of the old <code class="docutils literal notranslate"><span class="pre">menuPath</span></code>.</p>
+that moved somewhere other than a mechanical translation of the old <code class="docutils literal notranslate"><span class="pre">menuPath</span></code>.
+The current implementation has grown to 327 filters across 33 filter plugins; newly
+added filters are categorized in their <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> descriptors, but this document
+intentionally remains the pass-1 migration record rather than a regenerated live
+catalog.</p>
 <p>Representation (§2) is deliberately <strong>out of scope</strong> for this pass.</p>
-<section id="how-to-review">
-<h2>How to review<a class="headerlink" href="#how-to-review" title="Link to this heading">¶</a></h2>
+<section id="how-to-read-this-record">
+<h2>How to read this record<a class="headerlink" href="#how-to-read-this-record" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
-<li><p>Settle the four proposed new subcategories in the next section — they change
-the ontology itself, so nothing else can be finalised first.</p></li>
-<li><p>Then walk the buckets. Rows with a <strong>bold</strong> note are the ones that move
-somewhere other than where a naive <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> translation would put them.</p></li>
+<li><p>The four ontology additions in the next section were the rulings that made
+the pass possible.</p></li>
+<li><p>Rows with a <strong>bold</strong> note are the ones that moved somewhere other than where
+a naive <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> translation would have put them.</p></li>
 <li><p>Categories are <strong>ordered</strong>: the first is primary (canonical home); the rest
 are cross-listings.</p></li>
 </ol>
 </section>
-<section id="proposed-additions-to-the-ontology">
-<h2>Proposed additions to the ontology<a class="headerlink" href="#proposed-additions-to-the-ontology" title="Link to this heading">¶</a></h2>
-<p>Classifying the real filters exposed four gaps. Each needs a ruling:</p>
+<section id="ontology-additions-applied-in-this-pass">
+<h2>Ontology additions applied in this pass<a class="headerlink" href="#ontology-additions-applied-in-this-pass" title="Link to this heading">¶</a></h2>
+<p>Classifying the real filters exposed four gaps. These rulings are now implemented:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
-<tr class="row-odd"><th class="head"><p>Proposed</p></th>
+<tr class="row-odd"><th class="head"><p>Applied ontology addition</p></th>
 <th class="head"><p>Filters</p></th>
 <th class="head"><p>Why</p></th>
 </tr>
@@ -302,7 +306,8 @@ positions only.</strong> Smoothing an <em>attribute</em> is classified by the at
 </section>
 <section id="resulting-shape">
 <h2>Resulting shape<a class="headerlink" href="#resulting-shape" title="Link to this heading">¶</a></h2>
-<p>272 filters → 43 distinct categories; 24 filters carry more than one.</p>
+<p>Historical pass-1 shape: 272 filters → 43 distinct categories; 24 filters carry more
+than one.</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -503,7 +508,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -569,7 +574,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -660,7 +665,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -791,7 +796,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -827,7 +832,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -853,7 +858,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -874,7 +879,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -935,7 +940,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -961,7 +966,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -987,7 +992,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1088,7 +1093,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1109,7 +1114,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1130,7 +1135,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1216,7 +1221,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1252,7 +1257,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1308,7 +1313,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1349,7 +1354,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1385,7 +1390,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1591,7 +1596,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1612,7 +1617,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1638,7 +1643,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1689,7 +1694,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1720,7 +1725,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1756,7 +1761,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1797,7 +1802,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1853,7 +1858,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1879,7 +1884,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -1910,7 +1915,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -2011,7 +2016,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -2162,7 +2167,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -2183,7 +2188,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -2279,7 +2284,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <thead>
 <tr class="row-odd"><th class="head"><p>Filter</p></th>
 <th class="head"><p>Plugin</p></th>
-<th class="head"><p>Proposed categories</p></th>
+<th class="head"><p>Applied categories</p></th>
 <th class="head"><p>Note</p></th>
 </tr>
 </thead>
@@ -2408,9 +2413,9 @@ than their present <code class="docutils literal notranslate"><span class="pre">
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Filter Classification — pass 1 proposal</a><ul>
-<li><a class="reference internal" href="#how-to-review">How to review</a></li>
-<li><a class="reference internal" href="#proposed-additions-to-the-ontology">Proposed additions to the ontology</a></li>
+<li><a class="reference internal" href="#">Filter Classification — pass 1 record</a><ul>
+<li><a class="reference internal" href="#how-to-read-this-record">How to read this record</a></li>
+<li><a class="reference internal" href="#ontology-additions-applied-in-this-pass">Ontology additions applied in this pass</a></li>
 <li><a class="reference internal" href="#resulting-shape">Resulting shape</a></li>
 <li><a class="reference internal" href="#proposed-classification-by-current-bucket">Proposed classification, by current bucket</a><ul>
 <li><a class="reference internal" href="#camera-10"><code class="docutils literal notranslate"><span class="pre">Camera</span></code> (10)</a></li>

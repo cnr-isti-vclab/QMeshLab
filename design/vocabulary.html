@@ -293,9 +293,9 @@ intended:</p>
 <ul class="simple">
 <li><p><strong>A plugin may contain filters in any number of categories.</strong> This is structural,
 not a convention: in <code class="docutils literal notranslate"><span class="pre">filters.json</span></code>, <code class="docutils literal notranslate"><span class="pre">pluginId</span></code> is a <strong>file-level</strong> key while
-<code class="docutils literal notranslate"><span class="pre">menuPath</span></code> is a <strong>per-filter</strong> key. <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code> spans four categories,
-<code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> spans two and will span more, and the retired <code class="docutils literal notranslate"><span class="pre">filter_basic</span></code> spanned
-three. Plugins are dependency/build units; categories are the user-facing
+<code class="docutils literal notranslate"><span class="pre">categories</span></code> is a <strong>per-filter</strong> key. <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code> spans four categories,
+<code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> spans several, and <code class="docutils literal notranslate"><span class="pre">filter_basic</span></code> still spans multiple categories.
+Plugins are dependency/build units; categories are the user-facing
 classification. See <a class="reference internal" href="filter_organization.html"><span class="std std-doc">Filter Organization</span></a>, decisions 1–3.</p></li>
 <li><p><strong>A filter may carry several categories.</strong> Classification is a <em>set</em> of paths drawn
 from the ontology, not a single value — because real filters carry genuinely
@@ -317,22 +317,22 @@ and prose grouping — menus are just one consumer.</p></li>
 <li><p><em>filter class</em> collides with C++ <code class="docutils literal notranslate"><span class="pre">class</span></code> in a C++ codebase, and inherits confusion
 from MeshLab’s own <code class="docutils literal notranslate"><span class="pre">FilterClass</span></code> enum.</p></li>
 </ul>
-<p><strong>Descriptor field.</strong> The field is currently the single string <code class="docutils literal notranslate"><span class="pre">menuPath</span></code>, which has
-the same presentation bias and cannot express a set. It becomes an array named
+<p><strong>Descriptor field.</strong> The authored descriptor field is the ordered array
 <code class="docutils literal notranslate"><span class="pre">categories</span></code>:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">"categories"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Meshing/Simplification"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Texture"</span><span class="p">]</span>
 </pre></div>
 </div>
-<p>Each entry must be a valid ontology path, validated by the loader. This is a
-descriptor-schema change across all 32 <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> files plus the loader — the
-scope pass 1 already has.</p>
+<p>Each entry must be a valid ontology path, validated by the loader. A legacy single
+<code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string is still accepted only as a fallback for old or out-of-tree
+descriptors; in-tree descriptors should use <code class="docutils literal notranslate"><span class="pre">categories</span></code>.</p>
 </section>
 <section id="the-ontology">
 <h3>The ontology<a class="headerlink" href="#the-ontology" title="Link to this heading">¶</a></h3>
 <p>A geometry-processing ontology: <strong>11 roots, two levels</strong>. Roots are <strong>nouns</strong>
 (concepts); the verbs live in filter names. Both levels are validated by the loader —
 a category must be either a root or a declared <code class="docutils literal notranslate"><span class="pre">Root/Subcategory</span></code> pair.</p>
-<p>Two levels was chosen for growth. Eleven roots over today’s 272 filters is ~25 each; a
+<p>Two levels was chosen for growth. Eleven roots over the original 272-filter
+migration corpus was ~25 each; with today’s 327 filters it remains small enough that a
 flat list becomes unbrowsable as the archive grows toward several hundred more
 implementations, whereas the second level absorbs that.</p>
 <p>The authoritative copy is <code class="docutils literal notranslate"><span class="pre">src/plugins/filtercategories.h</span></code>/<code class="docutils literal notranslate"><span class="pre">.cpp</span></code>, which the loader
@@ -685,9 +685,9 @@ what happened to <code class="docutils literal notranslate"><span class="pre">ta
 </div>
 <p>So <code class="docutils literal notranslate"><span class="pre">tags</span></code> should become <strong>generated</strong> (categories + derived facets, flattened for
 search) rather than authored. That kills the drift structurally and cancels the
-manual retagging of 272 filters.</p>
-<p>For reference, the measured state of the hand-written tags — all 272 filters carry
-1–6 each — shows the three failure modes this avoids:</p>
+manual retagging of the original 272-filter migration baseline.</p>
+<p>For reference, the historical measured state of the hand-written tags — all 272
+filters in that baseline carried 1–6 each — shows the three failure modes this avoids:</p>
 <ul class="simple">
 <li><p><strong>Category echoes</strong> — <code class="docutils literal notranslate"><span class="pre">meshing</span></code> (38), <code class="docutils literal notranslate"><span class="pre">selection</span></code> (36), <code class="docutils literal notranslate"><span class="pre">smoothing</span></code> (19),
 <code class="docutils literal notranslate"><span class="pre">sampling</span></code> (18), <code class="docutils literal notranslate"><span class="pre">cleaning</span></code> (16), <code class="docutils literal notranslate"><span class="pre">create</span></code> (16). Redundant, and <code class="docutils literal notranslate"><span class="pre">meshing</span></code> names a
@@ -1182,7 +1182,7 @@ filter by its category. It could not: <code class="docutils literal notranslate"
 <code class="docutils literal notranslate"><span class="pre">shortDescription</span></code>, <code class="docutils literal notranslate"><span class="pre">longDescriptionMarkdown</span></code> and <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code>, but <strong>not</strong> the
 category.</p>
 <p><strong>Implemented</strong> in <code class="docutils literal notranslate"><span class="pre">src/ui/meshfilterpanel.cpp</span></code> — <code class="docutils literal notranslate"><span class="pre">matchesSearch</span></code> now also matches the
-category. Measured against the current 272 descriptors:</p>
+category. Measured against the 272 descriptors in the initial category migration:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>

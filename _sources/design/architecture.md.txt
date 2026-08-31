@@ -14,7 +14,7 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md) · [Filter Or
 2. Data model (`src/core/Document`, `VCGMesh`, `DocumentUndoManager`, logs, progress/cancel state)
 3. Plugin interfaces/managers (`src/plugins`) and built-in plugin registration (`plugins/`)
 4. Shared mesh GPU cache (`src/render/MeshGpuResourceCache`)
-5. Per-view rendering and interaction (`RenderWidget`, `ViewTrackball`, `RenderOverlayPanel`, `InteractiveTool`)
+5. Per-view rendering and interaction (`RenderWidget`, `ViewTrackball`, `ViewAxisGizmo`, `RenderOverlayPanel`, `InteractiveTool`)
 6. Optional embedded Python layer (`src/python`, `_qmeshlab`, `PythonHost`)
 7. Auxiliary views (`LayerWidget` tree/table layer dock, `MeshFilterPanel`, log dock, undo graph, Python console, status-bar stats/progress)
 
@@ -42,7 +42,7 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 
 ### `RenderWidget`
 
-`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV` / `RasterImage`), `ViewTrackball`, headlight rotation/gizmo state, UV pan/zoom/cache, raster pan/zoom/opacity plus GPU image resources, per-mesh render modes, per-view visibility vector, active/suspended interactive-tool state, camera/render-state JSON capture/apply helpers, help/interaction overlays, decorator info overlay, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes,raster}.cpp` plus the tool files under `src/render/tools/`.
+`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), Radiance Scaling pre-pass resources, view mode (`Scene3D` / `ParametrizationUV` / `RasterImage`), `ViewTrackball`, headlight rotation/gizmo state, view-axis gizmo state, depth-cued tool-line resources, UV pan/zoom/cache, raster pan/zoom/opacity plus GPU image resources, per-mesh render modes, per-view visibility vector, active/suspended interactive-tool state, camera/render-state JSON capture/apply helpers, help/interaction overlays, tool overlays, decorator info overlay, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes,raster}.cpp` plus the tool files under `src/render/tools/`.
 
 Scene3D rendering is now organized around two internal data boundaries:
 
@@ -57,7 +57,7 @@ Lightweight snapshot type (`src/render/viewstate.h`) for one `RenderWidget`: `Vi
 
 ### `ViewTrackball`
 
-Scene navigation: arcball/hyperbola rotation, pan, dolly, `Shift+Wheel` vertigo (FOV + compensating dolly), reset/reframe, animated recenter.
+Scene navigation: arcball/hyperbola rotation, pan, dolly, `Shift+Wheel` vertigo (FOV + compensating dolly), reset/reframe, animated recenter. The companion `ViewAxisGizmo` draws the corner orientation widget, uses the `view.axisGizmoSize` preference, and lets axis clicks snap the current 3D view.
 
 ### `InteractiveTool`
 
@@ -67,6 +67,8 @@ Built-in tools are registered by `createBuiltinInteractiveTools()`:
 
 - `SelectLayerTool`: uses asynchronous surface picking to make the clicked mesh layer current.
 - `RubberBandSelectTool`: runs the `select_by_rectangle` filter in Scene3D or UV space, with replace/add/subtract modes and face/vertex selection.
+- `MeasureTool`: uses asynchronous surface picks to place/edit endpoints, draws 2D labels plus depth-cued segments, can print/save measurements, and can export them as an edge-only document layer.
+- `TransformTool`: provides Blender-style `G`/`R`/`S` layer transforms with axis/plane constraints, numeric entry, a toolbar icon, depth-cued constraint guides, and one filter-backed commit per gesture.
 
 `MainWindow` owns the tool instances and toolbar/menu actions. A tool is pinned to its owner view; `Tab` temporarily suspends the tool so camera navigation can use the same gestures, and `Esc` exits the tool.
 
@@ -131,12 +133,12 @@ Defined in `renderingsettings.h`:
 
 **I/O plugins** (`MeshIOPlugin`): `canLoad`/`load`, `canSave`/`save`, dialog filter strings, mask capability. MeshLab project (`.mlp`) loading and saving are handled directly by `Document` so project files can combine plugin-loaded/saved mesh files with transforms, generated mesh paths, raster planes, and raster camera shots.
 
-**Filter plugins** (`MeshFilterPlugin`): plugin id/name, `filters(const Document&)` returning descriptors (domain/codomain, requirements, tags, parameters, `pythonName`), `runFilter(id, params, Document&)`.
+**Filter plugins** (`MeshFilterPlugin`): plugin id/name, `filters(const Document&)` returning descriptors (domain/codomain, validated ordered categories, requirements, tags, structured provenance/references, parameters, `pythonName`), `runFilter(id, params, Document&)`.
 
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 
-Built-in I/O (when enabled at build time): `io_vcg`, `io_obj_rapidobj`, `io_gltf`, `io_e57`.  
-Built-in filter plugins (when enabled at build time): `filter_basic`, `filter_camera`, `filter_cgal`, `filter_clean`, `filter_color_projection`, `filter_colorproc`, `filter_create`, `filter_embree`, `filter_expression`, `filter_geodesic`, `filter_icp`, `filter_igl`, `filter_img_patch_param`, `filter_layer`, `filter_measure`, `filter_meshfix`, `filter_meshing`, `filter_mls`, `filter_plymc`, `filter_qslim`, `filter_sampling`, `filter_screened_poisson`, `filter_select`, `filter_texture`, `filter_texture_defragmentation`, `filter_trioptimize`, `filter_unsharp`, `filter_vertex_displacement`, `filter_voronoi`, `filter_xatlas`.
+Built-in I/O (when enabled at build time): `io_vcg`, `io_obj_rapidobj`, `io_3mf`, `io_gltf`, `io_e57`, `io_trueform`.
+Built-in filter plugins (when enabled at build time): `filter_basic`, `filter_camera`, `filter_cgal`, `filter_clean`, `filter_color_projection`, `filter_colorproc`, `filter_create`, `filter_embree`, `filter_expression`, `filter_geodesic`, `filter_icp`, `filter_igl`, `filter_img_patch_param`, `filter_instant_meshes`, `filter_layer`, `filter_measure`, `filter_meshfix`, `filter_meshing`, `filter_mls`, `filter_plymc`, `filter_quadwild`, `filter_qslim`, `filter_sampling`, `filter_screened_poisson`, `filter_select`, `filter_texture`, `filter_texture_defragmentation`, `filter_trioptimize`, `filter_trueform`, `filter_unsharp`, `filter_vertex_displacement`, `filter_voronoi`, `filter_xatlas`.
 
 ## State Ownership
 
@@ -145,7 +147,7 @@ Built-in filter plugins (when enabled at build time): `filter_basic`, `filter_ca
 | mesh geometry, material, and selection data | per-mesh render modes/styles |
 | mesh transforms | per-view visibility vector |
 | mesh/raster lists, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster pan/zoom/opacity |
-| document visibility proxy | overlay settings, histogram cache, active/suspended tool state |
+| document visibility proxy | overlay settings, histogram cache, active/suspended tool state and transient tool feedback |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
 | undo tree, labels, lanes, full snapshots, selection deltas, script-action records | UV-local GPU cache, raster GPU image cache |
 | shared mesh GPU cache | |

@@ -11,8 +11,8 @@ See also: [Preferences](preferences.md) · [Architecture](architecture.md) ·
 
 ## 1. Why collect anything
 
-QMeshLab ships **292 filters across 33 filter plugins, exposing 1053 parameters**,
-plus 6 I/O plugins, 3 interactive tools and 12 preferences. Nobody knows which parts
+QMeshLab ships **327 filters across 33 filter plugins, exposing 1131 parameters**,
+plus 6 I/O plugins, 4 interactive tools and 12 preferences. Nobody knows which parts
 of that surface are load-bearing. Every maintenance decision — what to deprecate,
 what to test, what to optimize, what to document first — is currently made on
 intuition and on the loudest issue reports.
@@ -26,7 +26,7 @@ review. This register is the contract:
 |---|---|
 | Which filters can be deprecated or merged? | invocation counts per filter, per version, over months |
 | Which filters are broken in the field? | failure counts + stable error codes per filter |
-| Which of the 1053 parameters are dead UI? | count of runs where a parameter differed from its default |
+| Which of the 1131 parameters are dead UI? | count of runs where a parameter differed from its default |
 | Where does time go for real users? | runtime histograms bucketed by mesh size |
 | Did release N regress performance? | same histograms, sliced by app version |
 | Which file formats deserve engineering? | I/O counts and failure rates per format and direction |
@@ -254,7 +254,7 @@ already funnels everything interesting through single call sites:
 | I/O counts, formats, failures | `Document::loadMesh` / `Document::saveMesh` — `src/core/document_io.cpp:106`, `:539` | every import and export |
 | session lifecycle, unclean exit | `MainWindow` ctor/dtor, `src/app/main.cpp` | one flag file written at start, removed on clean quit |
 | document shape | `Document` layer add/remove | peak counts and memory |
-| feature discovery | `RenderWidget` mode changes, `InteractiveTool` activation | 3 tools, render modes |
+| feature discovery | `RenderWidget` mode changes, `InteractiveTool` activation | 4 tools, render modes |
 | wrong defaults | `Preferences::changed` — `src/core/preferences.h` | 12 preferences |
 
 ```
@@ -317,7 +317,7 @@ nginx (TLS, no access log, rate limit, 64 KB body cap)
 
 No database server, no dashboard service, no queue, no container orchestration. The
 rollup tables are small enough to be embarrassing: filter × version × day is
-292 × ~8 × 365 ≈ **850 k rows per year**, which DuckDB queries in milliseconds and
+327 × ~8 × 365 ≈ **955 k rows per year**, which DuckDB queries in milliseconds and
 which fits in a file you can email.
 
 ### 7.2 Traffic model

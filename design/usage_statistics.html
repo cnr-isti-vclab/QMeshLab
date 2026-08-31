@@ -253,8 +253,8 @@ include <code class="docutils literal notranslate"><span class="pre">Network</sp
 <a class="reference internal" href="filter_organization.html"><span class="std std-doc">Filter Organization</span></a></p>
 <section id="why-collect-anything">
 <h2>1. Why collect anything<a class="headerlink" href="#why-collect-anything" title="Link to this heading">¶</a></h2>
-<p>QMeshLab ships <strong>292 filters across 33 filter plugins, exposing 1053 parameters</strong>,
-plus 6 I/O plugins, 3 interactive tools and 12 preferences. Nobody knows which parts
+<p>QMeshLab ships <strong>327 filters across 33 filter plugins, exposing 1131 parameters</strong>,
+plus 6 I/O plugins, 4 interactive tools and 12 preferences. Nobody knows which parts
 of that surface are load-bearing. Every maintenance decision — what to deprecate,
 what to test, what to optimize, what to document first — is currently made on
 intuition and on the loudest issue reports.</p>
@@ -276,7 +276,7 @@ review. This register is the contract:</p>
 <tr class="row-odd"><td><p>Which filters are broken in the field?</p></td>
 <td><p>failure counts + stable error codes per filter</p></td>
 </tr>
-<tr class="row-even"><td><p>Which of the 1053 parameters are dead UI?</p></td>
+<tr class="row-even"><td><p>Which of the 1131 parameters are dead UI?</p></td>
 <td><p>count of runs where a parameter differed from its default</p></td>
 </tr>
 <tr class="row-odd"><td><p>Where does time go for real users?</p></td>
@@ -581,7 +581,7 @@ already funnels everything interesting through single call sites:</p>
 </tr>
 <tr class="row-even"><td><p>feature discovery</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code> mode changes, <code class="docutils literal notranslate"><span class="pre">InteractiveTool</span></code> activation</p></td>
-<td><p>3 tools, render modes</p></td>
+<td><p>4 tools, render modes</p></td>
 </tr>
 <tr class="row-odd"><td><p>wrong defaults</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Preferences::changed</span></code> — <code class="docutils literal notranslate"><span class="pre">src/core/preferences.h</span></code></p></td>
@@ -676,7 +676,7 @@ research lab is the real constraint:</p>
 </div>
 <p>No database server, no dashboard service, no queue, no container orchestration. The
 rollup tables are small enough to be embarrassing: filter × version × day is
-292 × ~8 × 365 ≈ <strong>850 k rows per year</strong>, which DuckDB queries in milliseconds and
+327 × ~8 × 365 ≈ <strong>955 k rows per year</strong>, which DuckDB queries in milliseconds and
 which fits in a file you can email.</p>
 </section>
 <section id="traffic-model">

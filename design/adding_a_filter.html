@@ -262,7 +262,7 @@ one filter, so the two compose.</p>
 <section id="anatomy-of-a-plugin">
 <h2>Anatomy of a plugin<a class="headerlink" href="#anatomy-of-a-plugin" title="Link to this heading">¶</a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">plugins</span><span class="o">/</span><span class="n">filter_foo</span><span class="o">/</span>
-  <span class="n">filters</span><span class="o">.</span><span class="n">json</span>          <span class="c1"># declares the filters (ids, menu, params, I/O domains)</span>
+  <span class="n">filters</span><span class="o">.</span><span class="n">json</span>          <span class="c1"># declares the filters (ids, categories, params, I/O domains)</span>
   <span class="n">foofilterplugin</span><span class="o">.</span><span class="n">h</span>     <span class="c1"># class FooFilterPlugin : public MeshFilterPlugin</span>
   <span class="n">foofilterplugin</span><span class="o">.</span><span class="n">cpp</span>   <span class="c1"># runFilter() — the actual algorithms</span>
   <span class="n">CMakeLists</span><span class="o">.</span><span class="n">txt</span>        <span class="c1"># build target + embeds filters.json as a resource</span>
@@ -281,7 +281,7 @@ one filter, so the two compose.</p>
 <span class="w">  </span><span class="nt">"filters"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"do_something"</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">"menuPath"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Geometry/Cleaning"</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"categories"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Repair/Topology"</span><span class="p">],</span>
 <span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Do Something"</span><span class="p">,</span>
 <span class="w">      </span><span class="nt">"pythonName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"do_something"</span><span class="p">,</span>
 <span class="w">      </span><span class="nt">"shortDescription"</span><span class="p">:</span><span class="w"> </span><span class="s2">"One line shown in the browser."</span><span class="p">,</span>
@@ -299,7 +299,12 @@ one filter, so the two compose.</p>
 </div>
 <p>The default <code class="docutils literal notranslate"><span class="pre">MeshFilterPlugin::filters()</span></code> loads this from the Qt resource
 <code class="docutils literal notranslate"><span class="pre">:/filters/&lt;pluginId&gt;/filters.json</span></code>, so the <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> PREFIX must match
-<code class="docutils literal notranslate"><span class="pre">pluginId</span></code>. Parameter types: <code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">int</span> <span class="pre">double</span> <span class="pre">absPerc</span> <span class="pre">enum</span> <span class="pre">color</span> <span class="pre">point3f</span> <span class="pre">string</span> <span class="pre">fileOpen</span> <span class="pre">fileSave</span> <span class="pre">mesh</span> <span class="pre">cameraState</span> <span class="pre">renderState</span> <span class="pre">textureRef</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">pluginId</span></code>. Parameter types: <code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">int</span> <span class="pre">double</span> <span class="pre">absPerc</span> <span class="pre">enum</span> <span class="pre">color</span> <span class="pre">point3f</span> <span class="pre">string</span> <span class="pre">fileOpen</span> <span class="pre">fileSave</span> <span class="pre">mesh</span> <span class="pre">cameraState</span> <span class="pre">renderState</span> <span class="pre">textureRef</span> <span class="pre">textureOutputRef</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">categories</span></code> is required for in-tree descriptors and is validated against the
+closed ontology in <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a>. The first category is the
+canonical home; later entries are cross-listings. The loader still accepts a
+single legacy <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string when <code class="docutils literal notranslate"><span class="pre">categories</span></code> is absent, but new descriptors
+should not use it.</p>
 <p>A parameter that only matters when another is set should say so structurally rather
 than only in its help text:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"viewpoint"</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"point3f"</span><span class="p">,</span><span class="w"> </span><span class="nt">"enabledWhen"</span><span class="p">:</span><span class="w"> </span><span class="s2">"!usecamera"</span><span class="w"> </span><span class="p">}</span>

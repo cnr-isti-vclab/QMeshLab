@@ -245,14 +245,28 @@
           <section class="tex2jax_ignore mathjax_ignore" id="filter-organization-and-naming">
 <h1>Filter Organization and Naming<a class="headerlink" href="#filter-organization-and-naming" title="Link to this heading">¶</a></h1>
 <p>This document covers making QMeshLab filters easier to browse, name, document,
-script, and maintain. The <strong>principles in “Agreed Decisions” below are settled</strong>;
-the taxonomy and per-filter classification that follow are still a working
-proposal and should be edited as we learn which names feel natural in daily use.</p>
+script, and maintain. The <strong>principles in “Agreed Decisions” below are settled</strong>.
+The category ontology is implemented and validated; the large plugin-fold tables
+later in this document are retained as historical design notes, not as a live
+description of the current source tree.</p>
 <p>See also: <strong><a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a></strong> — the normative category ontology, verb and
 noun lexicons this document applies; <strong><a class="reference internal" href="filter_names.html"><span class="std std-doc">Filter Name Proposal</span></a></strong> —
 per-filter display/Python name proposals derived from that grammar; <a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>
 (practical how-to), <a class="reference internal" href="architecture.html"><span class="std std-doc">Architecture</span></a> and
 <a class="reference internal" href="data_model.html"><span class="std std-doc">Data Model</span></a>.</p>
+<section id="current-implementation-snapshot">
+<h2>Current Implementation Snapshot<a class="headerlink" href="#current-implementation-snapshot" title="Link to this heading">¶</a></h2>
+<p>As of 2026-08-31, QMeshLab ships <strong>327 filters across 33 filter plugins</strong> with
+<strong>1131 declared parameters</strong>. Each in-tree descriptor uses the ordered
+<code class="docutils literal notranslate"><span class="pre">categories</span></code> array, the loader validates entries against <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
+and the UI lists a filter under every category it declares. Filter search also
+matches categories and <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code>, so backend/library provenance remains
+discoverable without appearing in menu categories.</p>
+<p>The current plugin tree is intentionally still a dependency/build layout rather
+than the proposed post-fold family layout below. Recent current plugins that were
+not part of the original 272-filter baseline include <code class="docutils literal notranslate"><span class="pre">filter_instant_meshes</span></code>,
+<code class="docutils literal notranslate"><span class="pre">filter_quadwild</span></code>, and <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>.</p>
+</section>
 <section id="agreed-decisions">
 <h2>Agreed Decisions<a class="headerlink" href="#agreed-decisions" title="Link to this heading">¶</a></h2>
 <p>Settled before starting the reorganization. Everything further down is subject to
@@ -282,12 +296,12 @@ and the confusing <code class="docutils literal notranslate"><span class="pre">f
 <h3>2. Filter categories are a closed, validated ontology<a class="headerlink" href="#filter-categories-are-a-closed-validated-ontology" title="Link to this heading">¶</a></h3>
 <p>Classification is defined by the two-level geometry-processing ontology in
 <strong><a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a></strong> (11 noun roots, each with subcategories), and the
-descriptor loader <strong>rejects or warns on an unknown category</strong>. Today 32 distinct
-free-text <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> values exist across 32 plugins; enforcement is what stops
+descriptor loader <strong>warns on an unknown category</strong>. Before pass 1, 32 distinct
+free-text <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> values existed across 32 plugins; enforcement is what stops
 <code class="docutils literal notranslate"><span class="pre">Parameterization</span></code> vs <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>, and one-off paths such as
 <code class="docutils literal notranslate"><span class="pre">Remeshing,</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Resampling</span></code>, from coming back.</p>
-<p>A filter carries a <strong>set</strong> of categories, ordered, first entry primary — the single
-<code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string becomes a <code class="docutils literal notranslate"><span class="pre">categories</span></code> array. See Vocabulary §1 for the model and
+<p>A filter carries a <strong>set</strong> of categories, ordered, first entry primary — the old
+single <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string has been replaced by a <code class="docutils literal notranslate"><span class="pre">categories</span></code> array. See Vocabulary §1 for the model and
 for why the data-touched and backend facets are <em>derived</em> rather than hand-tagged.</p>
 </section>
 <section id="backends-never-appear-in-menus-algorithm-names-may-appear-in-filter-names">
@@ -327,9 +341,9 @@ scales to that: one optional dependency → one plugin.</p></li>
 </section>
 <section id="first-pass-plugins-categories-only">
 <h3>5. First pass = plugins + categories only<a class="headerlink" href="#first-pass-plugins-categories-only" title="Link to this heading">¶</a></h3>
-<p>The initial coordinated change renames plugin directories/ids, replaces the single
-<code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string with a validated <code class="docutils literal notranslate"><span class="pre">categories</span></code> array, and reclassifies every filter
-into the ontology. The 272 <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s, descriptor ids, and
+<p>The initial coordinated change renamed plugin directories/ids where needed, replaced
+the single <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string with a validated <code class="docutils literal notranslate"><span class="pre">categories</span></code> array, and reclassified
+the 272-filter baseline into the ontology. The baseline <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s, descriptor ids, and
 MeshLab-style parameter ids (<code class="docutils literal notranslate"><span class="pre">TargetFaceNum</span></code>, <code class="docutils literal notranslate"><span class="pre">QualityThr</span></code>, …) are deliberately
 <strong>deferred to a second pass</strong>. Rationale: the first pass then breaks no scripts,
 so it can land quickly and be judged on the tree alone.</p>
@@ -349,8 +363,8 @@ visualization changes.</p></li>
 <li><p>Prefer a clean, coherent taxonomy over preserving legacy script names.</p></li>
 </ul>
 </section>
-<section id="current-issues">
-<h2>Current Issues<a class="headerlink" href="#current-issues" title="Link to this heading">¶</a></h2>
+<section id="remaining-issues">
+<h2>Remaining Issues<a class="headerlink" href="#remaining-issues" title="Link to this heading">¶</a></h2>
 <p>The current filter set is partly inherited from MeshLab naming and partly shaped
 by incremental QMeshLab ports. That gives us working coverage, but not always a
 coherent vocabulary.</p>
@@ -652,13 +666,15 @@ release-management benefit is worth the extra complexity.</p></li>
 <li><p>Remove stale names from user-facing docs once the new taxonomy is in place.</p></li>
 </ol>
 </section>
-<section id="plugin-mapping-table-pass-1">
-<h2>Plugin Mapping Table (pass 1)<a class="headerlink" href="#plugin-mapping-table-pass-1" title="Link to this heading">¶</a></h2>
+<section id="plugin-mapping-table-historical-pass-1-proposal">
+<h2>Plugin Mapping Table (historical pass-1 proposal)<a class="headerlink" href="#plugin-mapping-table-historical-pass-1-proposal" title="Link to this heading">¶</a></h2>
 <blockquote>
-<div><p><strong>Status (2026-07-29): partially executed.</strong> Done — all display names normalized;
-<code class="docutils literal notranslate"><span class="pre">filter_func</span></code> → <code class="docutils literal notranslate"><span class="pre">filter_expression</span></code>; empty <code class="docutils literal notranslate"><span class="pre">filter_intrinsic_simplification</span></code> deleted;
-<code class="docutils literal notranslate"><span class="pre">filter_mesh_booleans</span></code> + <code class="docutils literal notranslate"><span class="pre">filter_parametrization</span></code> + <code class="docutils literal notranslate"><span class="pre">filter_igl_common</span></code> merged into
-<strong><code class="docutils literal notranslate"><span class="pre">filter_igl</span></code></strong>. Result: 33 → <strong>30</strong> directories.</p>
+<div><p><strong>Status (2026-08-31): historical design record.</strong> Applied pieces include the
+category migration, <code class="docutils literal notranslate"><span class="pre">filter_func</span></code> → <code class="docutils literal notranslate"><span class="pre">filter_expression</span></code>, removal of the empty
+<code class="docutils literal notranslate"><span class="pre">filter_intrinsic_simplification</span></code>, and the libigl merge into <strong><code class="docutils literal notranslate"><span class="pre">filter_igl</span></code></strong>.
+Since then the implementation has grown again to <strong>33 filter plugin directories</strong>
+with new dependency/algorithm archives such as <code class="docutils literal notranslate"><span class="pre">filter_instant_meshes</span></code>,
+<code class="docutils literal notranslate"><span class="pre">filter_quadwild</span></code>, and <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>.</p>
 <p><strong>Deferred — the splits and family folds</strong> (<code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> 37 filters → 10 targets,
 <code class="docutils literal notranslate"><span class="pre">filter_colorproc</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_unsharp</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_sampling</span></code>, and the folds that would create
 <code class="docutils literal notranslate"><span class="pre">filter_compute</span></code> / <code class="docutils literal notranslate"><span class="pre">filter_color</span></code> / <code class="docutils literal notranslate"><span class="pre">filter_smooth</span></code>). They were designed <em>before</em>
@@ -667,8 +683,8 @@ organization at the plugin level, while moving hundreds of lines of filter
 implementation between 1500-line files with no automated behaviour check. The rows
 below therefore describe the <em>intended</em> end state, not the current tree.</p>
 </div></blockquote>
-<p>Every existing plugin classified against decision 1. <strong>Nothing is moved until this
-table is approved.</strong> Evidence columns are measured from each plugin’s
+<p>Every pre-baseline plugin classified against decision 1. Evidence columns were
+measured from each plugin’s
 <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>, <code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code>, and directory contents — not inferred from names.
 The uniform <code class="docutils literal notranslate"><span class="pre">option(QMESH_PLUGIN_FILTER_*)</span></code> present in every plugin is build
 plumbing, not a dependency gate, and does not justify a separate plugin.</p>
@@ -785,6 +801,9 @@ for (see open ruling 5).</p>
 </tbody>
 </table>
 </div>
+<p>Current dependency/vendored additions outside the original table include
+<code class="docutils literal notranslate"><span class="pre">filter_instant_meshes</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_quadwild</span></code>, and <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>; each remains a
+separate plugin because its external algorithm code is the build/provenance unit.</p>
 </section>
 <section id="folds-into-family-plugins">
 <h3>Folds into family plugins<a class="headerlink" href="#folds-into-family-plugins" title="Link to this heading">¶</a></h3>
@@ -1128,10 +1147,10 @@ plugin that exists <em>because</em> of that backend.)</p></li>
 <code class="docutils literal notranslate"><span class="pre">Transform</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">Subdivision</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">Simplification</span> <span class="pre">Filters</span></code>,
 <code class="docutils literal notranslate"><span class="pre">Reconstruction</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">Parametrization</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">Smoothing</span> <span class="pre">Filters</span></code>.</p>
 </section>
-<section id="resulting-plugin-set">
-<h3>Resulting plugin set<a class="headerlink" href="#resulting-plugin-set" title="Link to this heading">¶</a></h3>
+<section id="proposed-post-fold-plugin-set-not-the-current-tree">
+<h3>Proposed post-fold plugin set, not the current tree<a class="headerlink" href="#proposed-post-fold-plugin-set-not-the-current-tree" title="Link to this heading">¶</a></h3>
 <p>Family plugins and their post-fold populations (totals verified against the
-current 272 filters):</p>
+historical 272-filter baseline):</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -1202,7 +1221,7 @@ current 272 filters):</p>
 </div>
 <p>17 family plugins (226 filters) + 9 dependency/vendored plugins + 1 algorithm suite
 (46 filters) = <strong>27 filter plugins, from 32</strong>. Totals verified against the current
-272 filters.</p>
+historical 272-filter baseline.</p>
 <p>Dependency/vendored group: <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> (6, growing), <code class="docutils literal notranslate"><span class="pre">filter_embree</span></code> (5),
 <code class="docutils literal notranslate"><span class="pre">filter_expression</span></code> (18), <code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code> (1), <code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code> (3),
 <code class="docutils literal notranslate"><span class="pre">filter_texture_defragmentation</span></code> (2), <code class="docutils literal notranslate"><span class="pre">filter_xatlas</span></code> (1), <code class="docutils literal notranslate"><span class="pre">filter_qslim</span></code> (1),
@@ -1323,6 +1342,7 @@ specific release-management reason?</p></li>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Filter Organization and Naming</a><ul>
+<li><a class="reference internal" href="#current-implementation-snapshot">Current Implementation Snapshot</a></li>
 <li><a class="reference internal" href="#agreed-decisions">Agreed Decisions</a><ul>
 <li><a class="reference internal" href="#enabling-fact-plugin-names-are-not-a-scripting-contract">Enabling fact: plugin names are not a scripting contract</a></li>
 <li><a class="reference internal" href="#plugin-boundaries-follow-the-user-facing-family-split-only-for-dependencies">1. Plugin boundaries follow the user-facing family, split only for dependencies</a></li>
@@ -1333,7 +1353,7 @@ specific release-management reason?</p></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#goals">Goals</a></li>
-<li><a class="reference internal" href="#current-issues">Current Issues</a></li>
+<li><a class="reference internal" href="#remaining-issues">Remaining Issues</a></li>
 <li><a class="reference internal" href="#guiding-principle">Guiding Principle</a></li>
 <li><a class="reference internal" href="#rule-a-compute-filter-never-bakes-color">Rule: a Compute filter never bakes color</a></li>
 <li><a class="reference internal" href="#deferred-document-dependent-defaults">Deferred: document-dependent defaults</a></li>
@@ -1351,7 +1371,7 @@ specific release-management reason?</p></li>
 <li><a class="reference internal" href="#defaults-and-script-generation">Defaults and Script Generation</a></li>
 <li><a class="reference internal" href="#filter-side-effects">Filter Side Effects</a></li>
 <li><a class="reference internal" href="#migration-strategy">Migration Strategy</a></li>
-<li><a class="reference internal" href="#plugin-mapping-table-pass-1">Plugin Mapping Table (pass 1)</a><ul>
+<li><a class="reference internal" href="#plugin-mapping-table-historical-pass-1-proposal">Plugin Mapping Table (historical pass-1 proposal)</a><ul>
 <li><a class="reference internal" href="#stays-separate-real-external-dependency">Stays separate — real external dependency</a></li>
 <li><a class="reference internal" href="#stays-separate-vendored-third-party-code">Stays separate — vendored third-party code</a></li>
 <li><a class="reference internal" href="#folds-into-family-plugins">Folds into family plugins</a></li>
@@ -1359,7 +1379,7 @@ specific release-management reason?</p></li>
 <li><a class="reference internal" href="#judgment-call">Judgment call</a></li>
 <li><a class="reference internal" href="#not-filter-plugins">Not filter plugins</a></li>
 <li><a class="reference internal" href="#third-axis-plugin-display-names">Third axis: plugin display names</a></li>
-<li><a class="reference internal" href="#resulting-plugin-set">Resulting plugin set</a></li>
+<li><a class="reference internal" href="#proposed-post-fold-plugin-set-not-the-current-tree">Proposed post-fold plugin set, not the current tree</a></li>
 <li><a class="reference internal" href="#rulings">Rulings</a></li>
 </ul>
 </li>

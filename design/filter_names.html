@@ -251,7 +251,7 @@
 <p><strong>Status: display names APPLIED for <code class="docutils literal notranslate"><span class="pre">Meshing</span></code></strong> (30, 2026-07-30), <strong><code class="docutils literal notranslate"><span class="pre">Attribute</span></code></strong>
 (64, 2026-08-04), <strong><code class="docutils literal notranslate"><span class="pre">Creation</span></code></strong> (38, 2026-08-05), <strong><code class="docutils literal notranslate"><span class="pre">Geometry</span></code></strong> (38, 2026-08-26)
 <strong>and <code class="docutils literal notranslate"><span class="pre">Selection</span></code></strong> (30, 2026-08-27).
-Counts are as of each round; the archive has grown to 328 filters since, so a root’s
+Counts are as of each round; the archive has grown to 327 filters since, so a root’s
 current size exceeds what its round covered.</p>
 <p>Remaining roots, largest first: <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (24), <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22),
 <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (17), <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (14), <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13), <code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3 plus 7 filters
@@ -550,9 +550,9 @@ named-result exception so they are not “corrected” back to verb-first.</p></
 </ol>
 <p>Applied: all 30 display names. Verified — no old name survives as a filter name, no
 duplicate display names across the 272, JSON intact, build and tests clean.</p>
-<p>Note for whoever regenerates the docs: <code class="docutils literal notranslate"><span class="pre">docs/api/filters.rst</span></code> still contains the old
-names, but it is a <strong>stale artifact</strong> — <code class="docutils literal notranslate"><span class="pre">generate_api.py</span></code> deletes it, so it disappears on
-the next <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code> run rather than needing a hand edit.</p>
+<p>Note for whoever regenerates the docs: <code class="docutils literal notranslate"><span class="pre">docs/api/filters.md</span></code> is generated from the
+descriptors; fix stale filter entries by running <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code>, not by hand-editing
+individual generated sections.</p>
 </section>
 </section>
 <hr class="docutils" />
@@ -1898,7 +1898,7 @@ filters’ new names; they are user-visible.</p></li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">docs/design/filter_classification.md</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_organization.md</span></code> still carry the old
 names. Both are dated snapshots of an audit, like the “Current” column above, and are left
-alone on purpose. <code class="docutils literal notranslate"><span class="pre">docs/api/filters.md</span></code> is generated and gitignored.</p>
+alone on purpose. <code class="docutils literal notranslate"><span class="pre">docs/api/filters.md</span></code> is generated from the descriptors.</p>
 </section>
 </section>
 <hr class="docutils" />

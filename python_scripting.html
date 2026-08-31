@@ -250,8 +250,9 @@ application document, so scripts can inspect the current scene, run filters,
 load/save meshes and rasters, and capture view snapshots.</p>
 <p>The shared API is the <code class="docutils literal notranslate"><span class="pre">pymeshlab2.MeshSet</span></code> interface, and QMeshLab reuses that
 same model inside the desktop application. Generated API reference files live
-under <code class="docutils literal notranslate"><span class="pre">docs/api/</span></code> when regenerated from the current filter descriptors. The
-desktop-only additions are the predefined live <code class="docutils literal notranslate"><span class="pre">ms</span></code> object and the <code class="docutils literal notranslate"><span class="pre">mlgui</span></code>
+under <code class="docutils literal notranslate"><span class="pre">docs/api/</span></code> when regenerated from the current filter descriptors; the
+checked-in generated snapshot can lag until the app is run with <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code>.
+The desktop-only additions are the predefined live <code class="docutils literal notranslate"><span class="pre">ms</span></code> object and the <code class="docutils literal notranslate"><span class="pre">mlgui</span></code>
 helper.</p>
 <section id="predefined-names">
 <h2>Predefined Names<a class="headerlink" href="#predefined-names" title="Link to this heading">¶</a></h2>
@@ -392,17 +393,17 @@ defaults at the time each action was recorded.</p>
 <h2>Running Filters<a class="headerlink" href="#running-filters" title="Link to this heading">¶</a></h2>
 <p>There are two equivalent styles.</p>
 <p>Call <code class="docutils literal notranslate"><span class="pre">apply_filter()</span></code> with the filter Python name:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"meshing_decimation_quadric_edge_collapse"</span><span class="p">,</span> <span class="p">{</span>
-    <span class="s2">"targetfacenum"</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
-    <span class="s2">"preserveboundary"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">apply_filter</span><span class="p">(</span><span class="s2">"simplification_quadric_edge_collapse"</span><span class="p">,</span> <span class="p">{</span>
+    <span class="s2">"TargetFaceNum"</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+    <span class="s2">"PreserveBoundary"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">})</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">error_message</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Or call the dynamically generated convenience method:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">meshing_decimation_quadric_edge_collapse</span><span class="p">(</span>
-    <span class="n">targetfacenum</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
-    <span class="n">preserveboundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">simplification_quadric_edge_collapse</span><span class="p">(</span>
+    <span class="n">TargetFaceNum</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
+    <span class="n">PreserveBoundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">)</span>
 </pre></div>
