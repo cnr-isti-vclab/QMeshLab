@@ -641,13 +641,40 @@ qint64 vcgFaceOcfBytes(const VCGMesh &mesh)
          + vectorStorageBytes(mesh.face.AF);
 }
 
+namespace {
+
+template <typename AttributeSet>
+qint64 attributeStorageBytes(const AttributeSet &attributes, std::size_t elementCapacity)
+{
+    qint64 total = 0;
+    for (const auto &attribute : attributes) {
+        if (attribute._handle)
+            total += qint64(elementCapacity) * qint64(attribute._handle->SizeOf());
+    }
+    return total;
+}
+
+} // namespace
+
+qint64 vcgCustomAttributeBytes(const VCGMesh &mesh)
+{
+    // SimpleTempData exposes its element size but not its vector capacity. It
+    // reserves against the owning container when created, so container capacity
+    // is the closest observable allocation estimate.
+    return attributeStorageBytes(mesh.vert_attr, mesh.vert.capacity())
+         + attributeStorageBytes(mesh.edge_attr, mesh.edge.capacity())
+         + attributeStorageBytes(mesh.face_attr, mesh.face.capacity())
+         + attributeStorageBytes(mesh.mesh_attr, std::size_t(1));
+}
+
 qint64 vcgMeshCpuBytes(const VCGMesh &mesh)
 {
     return qint64(mesh.vert.capacity()) * sizeof(VCGVertex)
          + vcgVertexOcfBytes(mesh)
          + qint64(mesh.edge.capacity()) * sizeof(VCGEdge)
          + qint64(mesh.face.capacity()) * sizeof(VCGFace)
-         + vcgFaceOcfBytes(mesh);
+         + vcgFaceOcfBytes(mesh)
+         + vcgCustomAttributeBytes(mesh);
 }
 
 } // namespace DocumentInternal

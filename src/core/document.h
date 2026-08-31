@@ -147,10 +147,20 @@ public:
         qint64 edgeBytes = 0;
         qint64 faceBytes = 0;
         qint64 faceOcfBytes = 0;
+        qint64 customAttributeBytes = 0;
         qint64 totalBytes() const
         {
-            return vertexBytes + vertexOcfBytes + edgeBytes + faceBytes + faceOcfBytes;
+            return vertexBytes + vertexOcfBytes + edgeBytes + faceBytes + faceOcfBytes
+                + customAttributeBytes;
         }
+    };
+
+    struct CpuImageMemoryStats {
+        int uniqueMeshTextureImages = 0;
+        int uniqueRasterImages = 0;
+        qint64 meshTextureBytes = 0;
+        qint64 rasterImageBytes = 0;
+        qint64 totalBytes() const { return meshTextureBytes + rasterImageBytes; }
     };
 
     using FillGpuVariant = MeshGpuResourceCache::FillVariant;
@@ -227,6 +237,10 @@ public:
     void clearAllLayers();
     int undoLimit() const;
     void setUndoLimit(int limit);
+    qint64 undoMemoryLimitBytes() const;
+    void setUndoMemoryLimitBytes(qint64 bytes);
+    UndoPruneResult pruneUndoToMemoryBudget(qint64 maximumBytes);
+    void handleUndoMemoryPressure(bool critical);
     void setSuppressUndo(bool s);
     int addMesh(const VCGMesh &mesh, const QString &name = {}, int ioMask = 0);
     void removeMesh(int index);
@@ -389,6 +403,7 @@ public:
     void clearAllGpuResources();
 
     std::vector<CpuMeshMemoryStats> cpuMeshMemoryStats() const;
+    CpuImageMemoryStats cpuImageMemoryStats() const;
     UndoMemoryStats undoMemoryStats() const;
     std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> gpuMemoryStats() const;
 

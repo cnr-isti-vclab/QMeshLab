@@ -94,12 +94,15 @@ add_library(QMeshLabCore STATIC
     src/core/document_undo.cpp
     src/core/document_undo_state.cpp
     src/core/headlessrendercontext.h src/core/headlessrendercontext.cpp
+    src/core/helperprocess.h src/core/helperprocess.cpp
+    src/core/memorypressuremonitor.h src/core/memorypressuremonitor.cpp
     src/core/filterparam.h src/core/filterparam.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
     src/core/viewpointoccluder.h src/core/viewpointoccluder.cpp
     src/core/vcgmesh.h
     src/plugins/filtercategories.h src/plugins/filtercategories.cpp
     src/core/preferences.h src/core/preferences.cpp
+    src/core/processmemoryinfo.h src/core/processmemoryinfo.cpp
     src/plugins/filterdescriptorloader.h src/plugins/filterdescriptorloader.cpp
     src/plugins/meshfilterplugin.h src/plugins/meshfilterplugin.cpp
     src/plugins/meshfilterpluginmanager.h src/plugins/meshfilterpluginmanager.cpp
@@ -134,6 +137,7 @@ if(WIN32)
     # Prevent the Windows SDK's min/max macros from rewriting std::min and
     # std::max in vcglib, CGAL, and plugins that consume the core target.
     target_compile_definitions(QMeshLabCore PUBLIC NOMINMAX)
+    target_link_libraries(QMeshLabCore PRIVATE Psapi)
 endif()
 
 # Embree occlusion backend (no-op interface target when embree is unavailable).

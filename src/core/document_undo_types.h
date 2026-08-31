@@ -212,12 +212,42 @@ struct UndoTreeNodeInfo {
 
 struct UndoStepMemoryInfo {
     QString label;
-    qint64 beforeBytes = 0;
-    qint64 afterBytes = 0;
-    qint64 totalBytes() const { return beforeBytes + afterBytes; }
+    bool selectionDelta = false;
+    qint64 referencedGeometryBytes = 0;
+    qint64 selectionBytes = 0;
 };
 
 struct UndoMemoryStats {
     std::vector<UndoStepMemoryInfo> steps;
-    qint64 totalBytes = 0;
+    int nodeCount = 0;
+    int uniqueGeometryCount = 0;
+    int uniqueHistoryImageCount = 0;
+    qint64 geometryBytes = 0;
+    qint64 selectionBytes = 0;
+    qint64 historyImageBytes = 0;
+    qint64 pendingGeometryBytes = 0;
+    qint64 pendingSelectionBytes = 0;
+    qint64 pendingImageBytes = 0;
+
+    qint64 pendingBytes() const
+    {
+        return pendingGeometryBytes + pendingSelectionBytes + pendingImageBytes;
+    }
+
+    qint64 totalBytes() const
+    {
+        return geometryBytes + selectionBytes + historyImageBytes + pendingBytes();
+    }
+};
+
+struct UndoPruneResult {
+    qint64 beforeBytes = 0;
+    qint64 afterBytes = 0;
+    int removedNodes = 0;
+    bool cleared = false;
+
+    bool changed() const
+    {
+        return removedNodes > 0 || afterBytes < beforeBytes;
+    }
 };

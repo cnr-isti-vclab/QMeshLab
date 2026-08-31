@@ -4,11 +4,13 @@
 #include "filterpluginsinfodialog.h"
 #include "filterparam.h"
 #include "document.h"
+#include "helperprocess.h"
 #include "meshfilterpanel.h"
 #include "meshsaveoptionsdialog.h"
 #include "renderwidget.h"
 #include "interactivetool.h"
 #include "layerwidget.h"
+#include "memorypressuremonitor.h"
 #include "undographwidget.h"
 #ifdef QMESHLAB_PYTHON_CONSOLE
 #include "pythonconsole.h"
@@ -17,6 +19,7 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <QButtonGroup>
 #include <QClipboard>
+#include <QCloseEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
@@ -25,6 +28,7 @@
 #include <QImageReader>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QImageWriter>
 #include <QGuiApplication>
 #include <QMenu>
@@ -63,6 +67,7 @@
 #include "colormap.h"
 #include "preferences.h"
 #include "preferencesdialog.h"
+#include "processmemoryinfo.h"
 
 #include <QSettings>
 #include <QSet>
@@ -382,6 +387,27 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     m_doc = new Document(this);
+    m_doc->setUndoMemoryLimitBytes(
+        qint64(Preferences::instance().intValue(QStringLiteral("document.undoMemoryLimitMiB")))
+        * 1024LL * 1024LL);
+    m_purgeUndoOnMemoryPressure = Preferences::instance().boolValue(
+        QStringLiteral("document.purgeUndoOnMemoryPressure"));
+    m_memoryPressureMonitor = new MemoryPressureMonitor(this);
+    connect(
+        m_memoryPressureMonitor,
+        &MemoryPressureMonitor::memoryPressure,
+        this,
+        [this](MemoryPressureLevel level) {
+            if (!m_purgeUndoOnMemoryPressure || !m_doc)
+                return;
+            const qint64 beforeBytes = m_doc->undoMemoryStats().totalBytes();
+            m_doc->handleUndoMemoryPressure(level == MemoryPressureLevel::Critical);
+            const qint64 afterBytes = m_doc->undoMemoryStats().totalBytes();
+            if (afterBytes < beforeBytes) {
+                statusBar()->showMessage(
+                    tr("Undo history reduced under system memory pressure"), 5000);
+            }
+        });
 
     m_viewSplitter = new QSplitter(Qt::Horizontal, this);
     m_viewSplitter->setChildrenCollapsible(false);
@@ -725,6 +751,15 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(&Preferences::instance(), &Preferences::changed, this,
         [this](const QString &id, const QVariant &) {
+            if (id == QStringLiteral("document.undoMemoryLimitMiB")) {
+                m_doc->setUndoMemoryLimitBytes(
+                    qint64(Preferences::instance().intValue(id)) * 1024LL * 1024LL);
+                return;
+            }
+            if (id == QStringLiteral("document.purgeUndoOnMemoryPressure")) {
+                m_purgeUndoOnMemoryPressure = Preferences::instance().boolValue(id);
+                return;
+            }
             if (id != QStringLiteral("log.verbosity") && id != QStringLiteral("log.timestamp"))
                 return;
             m_logVerbosity = logVerbosityPreference();
@@ -1100,6 +1135,12 @@ MainWindow::MainWindow(QWidget *parent)
             m_filterProgressBar->setVisible(false);
         if (m_filterCancelButton)
             m_filterCancelButton->setVisible(false);
+        if (m_closeWhenFilterStops) {
+            // Queued, so the close runs from the main event loop rather than from
+            // whatever nested pump delivered this.
+            m_closeWhenFilterStops = false;
+            QTimer::singleShot(0, this, [this] { close(); });
+        }
         statusBar()->showMessage(
             message.isEmpty() ? (success ? tr("Filter completed") : tr("Filter failed")) : message,
             success ? 2500 : 4000);
@@ -2463,17 +2504,42 @@ void MainWindow::showMemoryInfo()
         if (bytes < 1024LL)
             return QStringLiteral("%1 B").arg(bytes);
         if (bytes < 1024LL * 1024)
-            return QStringLiteral("%1 KB").arg(bytes / 1024.0, 0, 'f', 1);
+            return QStringLiteral("%1 KiB").arg(bytes / 1024.0, 0, 'f', 1);
         if (bytes < 1024LL * 1024 * 1024)
-            return QStringLiteral("%1 MB").arg(bytes / (1024.0 * 1024.0), 0, 'f', 2);
-        return QStringLiteral("%1 GB").arg(bytes / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
+            return QStringLiteral("%1 MiB").arg(bytes / (1024.0 * 1024.0), 0, 'f', 2);
+        return QStringLiteral("%1 GiB").arg(bytes / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
     };
+
+    const ProcessMemoryInfo processMemory = queryCurrentProcessMemoryInfo();
+    const auto cpuStats = m_doc->cpuMeshMemoryStats();
+    const auto imageStats = m_doc->cpuImageMemoryStats();
+    const auto undoStats = m_doc->undoMemoryStats();
+    const auto gpuStats = m_doc->gpuMemoryStats();
+
+    qint64 cpuMeshTotal = 0;
+    for (const auto &stats : cpuStats)
+        cpuMeshTotal += stats.totalBytes();
+    const qint64 trackedCpuTotal =
+        cpuMeshTotal + imageStats.totalBytes() + undoStats.totalBytes();
+
+    qint64 gpuTotal = 0;
+    for (const auto &stats : gpuStats)
+        gpuTotal += stats.totalBytes();
 
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Memory Info"));
-    dialog.resize(640, 520);
+    dialog.resize(760, 620);
 
     auto *layout = new QVBoxLayout(&dialog);
+
+    auto *explanation = new QLabel(
+        tr("OS process memory is the comparison value for Activity Monitor. "
+           "Tracked CPU allocations are a lower-bound ownership estimate. "
+           "Logical GPU resources use backend resource sizes and are not added to the CPU subtotal."),
+        &dialog);
+    explanation->setWordWrap(true);
+    explanation->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    layout->addWidget(explanation);
 
     auto *tree = new QTreeWidget(&dialog);
     tree->setColumnCount(2);
@@ -2505,24 +2571,29 @@ void MainWindow::showMemoryInfo()
         auto formatB = [](qint64 b) -> QString {
             if (b < 0) return QStringLiteral("?");
             if (b < 1024LL) return QStringLiteral("%1 B").arg(b);
-            if (b < 1024LL * 1024) return QStringLiteral("%1 KB").arg(b / 1024.0, 0, 'f', 1);
-            if (b < 1024LL * 1024 * 1024) return QStringLiteral("%1 MB").arg(b / (1024.0 * 1024.0), 0, 'f', 2);
-            return QStringLiteral("%1 GB").arg(b / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
+            if (b < 1024LL * 1024) return QStringLiteral("%1 KiB").arg(b / 1024.0, 0, 'f', 1);
+            if (b < 1024LL * 1024 * 1024) return QStringLiteral("%1 MiB").arg(b / (1024.0 * 1024.0), 0, 'f', 2);
+            return QStringLiteral("%1 GiB").arg(b / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
         };
         item->setText(1, formatB(bytes));
+        if (bytes >= 0)
+            item->setToolTip(1, QStringLiteral("%1 bytes").arg(bytes));
     };
 
-    qint64 grandTotal = 0;
+    // --- OS process memory ---
+    auto *processSection = makeCategory(tr("OS Process Memory"), processMemory.preferredBytes());
+    if (processMemory.physicalFootprintBytes >= 0)
+        addRow(processSection, tr("Physical footprint"), processMemory.physicalFootprintBytes,
+               tr("Activity Monitor-compatible on macOS"));
+    if (processMemory.privateBytes >= 0)
+        addRow(processSection, tr("Private bytes"), processMemory.privateBytes);
+    if (processMemory.residentBytes >= 0)
+        addRow(processSection, tr("Resident set"), processMemory.residentBytes,
+               tr("includes clean and reclaimable pages"));
 
     // --- CPU mesh data ---
-    const auto cpuStats = m_doc->cpuMeshMemoryStats();
-    qint64 cpuMeshTotal = 0;
-    for (const auto &s : cpuStats)
-        cpuMeshTotal += s.totalBytes();
-    grandTotal += cpuMeshTotal;
-
     auto *cpuSection = makeCategory(
-        tr("CPU Mesh Data  (%1 mesh%2)")
+        tr("Tracked CPU Mesh Data  (%1 mesh%2)")
             .arg(cpuStats.size())
             .arg(cpuStats.size() == 1 ? "" : "es"),
         cpuMeshTotal);
@@ -2546,35 +2617,66 @@ void MainWindow::showMemoryInfo()
         if (s.faceOcfBytes > 0)
             addRow(meshItem, tr("Face OCF side data"), s.faceOcfBytes,
                    tr("optional-component vectors"));
+        if (s.customAttributeBytes > 0)
+            addRow(meshItem, tr("Custom attributes"), s.customAttributeBytes,
+                   tr("estimated from owning container capacities"));
     }
+
+    // --- CPU image storage ---
+    auto *imageSection = makeCategory(tr("Tracked CPU Images"), imageStats.totalBytes());
+    addRow(imageSection, tr("Mesh texture images"), imageStats.meshTextureBytes,
+           tr("%1 unique backing store(s)").arg(imageStats.uniqueMeshTextureImages));
+    addRow(imageSection, tr("Raster images"), imageStats.rasterImageBytes,
+           tr("%1 unique backing store(s)").arg(imageStats.uniqueRasterImages));
 
     // --- CPU undo history ---
-    const auto undoStats = m_doc->undoMemoryStats();
-    grandTotal += undoStats.totalBytes;
-
     auto *undoSection = makeCategory(
-        tr("CPU Undo History  (%1 step%2)")
+        tr("Tracked CPU Undo History  (%1 step%2, %3 node%4)")
             .arg(undoStats.steps.size())
-            .arg(undoStats.steps.size() == 1 ? "" : "s"),
-        undoStats.totalBytes);
+            .arg(undoStats.steps.size() == 1 ? "" : "s")
+            .arg(undoStats.nodeCount)
+            .arg(undoStats.nodeCount == 1 ? "" : "s"),
+        undoStats.totalBytes());
 
-    for (const auto &step : undoStats.steps) {
-        auto *stepItem = new QTreeWidgetItem(undoSection);
-        stepItem->setText(0, step.label);
-        stepItem->setText(1, formatBytes(step.totalBytes()));
-        addRow(stepItem, tr("Before state"), step.beforeBytes);
-        addRow(stepItem, tr("After state"),  step.afterBytes);
+    addRow(undoSection, tr("Unique geometry snapshots"), undoStats.geometryBytes,
+           tr("%1 allocation(s), shared snapshots counted once")
+               .arg(undoStats.uniqueGeometryCount));
+    addRow(undoSection, tr("Selection deltas"), undoStats.selectionBytes);
+    addRow(undoSection, tr("History-only images"), undoStats.historyImageBytes,
+           tr("%1 unique backing store(s); live images excluded")
+               .arg(undoStats.uniqueHistoryImageCount));
+    if (undoStats.pendingBytes() > 0) {
+        auto *pendingItem = new QTreeWidgetItem(undoSection);
+        pendingItem->setText(0, tr("Pending undo operation"));
+        pendingItem->setText(1, formatBytes(undoStats.pendingBytes()));
+        pendingItem->setExpanded(true);
+        if (undoStats.pendingGeometryBytes > 0)
+            addRow(pendingItem, tr("Unique geometry"), undoStats.pendingGeometryBytes);
+        if (undoStats.pendingSelectionBytes > 0)
+            addRow(pendingItem, tr("Selection delta"), undoStats.pendingSelectionBytes);
+        if (undoStats.pendingImageBytes > 0)
+            addRow(pendingItem, tr("History-only images"), undoStats.pendingImageBytes);
     }
 
-    // --- GPU buffers & textures ---
-    const auto gpuStats = m_doc->gpuMemoryStats();
-    qint64 gpuTotal = 0;
-    for (const auto &s : gpuStats)
-        gpuTotal += s.totalBytes();
-    grandTotal += gpuTotal;
+    if (!undoStats.steps.empty()) {
+        auto *pathItem = new QTreeWidgetItem(undoSection);
+        pathItem->setText(0, tr("Current path references (not additive)"));
+        pathItem->setText(1, QStringLiteral("-"));
+        for (const auto &step : undoStats.steps) {
+            const qint64 bytes = step.selectionDelta
+                ? step.selectionBytes
+                : step.referencedGeometryBytes;
+            addRow(pathItem, step.label, bytes,
+                   step.selectionDelta ? tr("owned selection storage")
+                                       : tr("shared geometry referenced by state"));
+        }
+    }
 
+    makeCategory(tr("TRACKED CPU SUBTOTAL (LOWER BOUND)"), trackedCpuTotal);
+
+    // --- GPU buffers & textures ---
     auto *gpuSection = makeCategory(
-        tr("GPU Buffers & Textures  (%1 mesh%2 in cache)")
+        tr("Logical Mesh GPU Cache  (%1 mesh%2)")
             .arg(gpuStats.size())
             .arg(gpuStats.size() == 1 ? "" : "es"),
         gpuTotal);
@@ -2612,13 +2714,71 @@ void MainWindow::showMemoryInfo()
             addRow(meshItem, tr("Decorator buffers"),   s.decoratorBufferBytes);
     }
 
-    // --- Grand total ---
-    makeCategory(tr("TOTAL"), grandTotal);
-
     tree->resizeColumnToContents(1);
     layout->addWidget(tree);
 
     auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    auto *copyJsonButton = buttonBox->addButton(tr("Copy JSON"), QDialogButtonBox::ActionRole);
+
+    QJsonObject processJson;
+    processJson.insert(QStringLiteral("physicalFootprintBytes"),
+                       double(processMemory.physicalFootprintBytes));
+    processJson.insert(QStringLiteral("privateBytes"), double(processMemory.privateBytes));
+    processJson.insert(QStringLiteral("residentBytes"), double(processMemory.residentBytes));
+
+    QJsonArray meshesJson;
+    for (const auto &stats : cpuStats) {
+        QJsonObject meshJson;
+        meshJson.insert(QStringLiteral("meshId"), QString::number(stats.meshId));
+        meshJson.insert(QStringLiteral("name"), stats.name);
+        meshJson.insert(QStringLiteral("vertexBytes"), double(stats.vertexBytes));
+        meshJson.insert(QStringLiteral("vertexOcfBytes"), double(stats.vertexOcfBytes));
+        meshJson.insert(QStringLiteral("edgeBytes"), double(stats.edgeBytes));
+        meshJson.insert(QStringLiteral("faceBytes"), double(stats.faceBytes));
+        meshJson.insert(QStringLiteral("faceOcfBytes"), double(stats.faceOcfBytes));
+        meshJson.insert(QStringLiteral("customAttributeBytes"), double(stats.customAttributeBytes));
+        meshJson.insert(QStringLiteral("totalBytes"), double(stats.totalBytes()));
+        meshesJson.append(meshJson);
+    }
+
+    QJsonObject imagesJson;
+    imagesJson.insert(QStringLiteral("meshTextureBytes"), double(imageStats.meshTextureBytes));
+    imagesJson.insert(QStringLiteral("rasterImageBytes"), double(imageStats.rasterImageBytes));
+    imagesJson.insert(QStringLiteral("totalBytes"), double(imageStats.totalBytes()));
+
+    QJsonObject undoJson;
+    undoJson.insert(QStringLiteral("nodeCount"), undoStats.nodeCount);
+    undoJson.insert(QStringLiteral("geometryBytes"), double(undoStats.geometryBytes));
+    undoJson.insert(QStringLiteral("selectionBytes"), double(undoStats.selectionBytes));
+    undoJson.insert(QStringLiteral("historyImageBytes"), double(undoStats.historyImageBytes));
+    undoJson.insert(QStringLiteral("pendingBytes"), double(undoStats.pendingBytes()));
+    undoJson.insert(QStringLiteral("totalBytes"), double(undoStats.totalBytes()));
+
+    QJsonObject cpuJson;
+    cpuJson.insert(QStringLiteral("meshes"), meshesJson);
+    cpuJson.insert(QStringLiteral("meshTotalBytes"), double(cpuMeshTotal));
+    cpuJson.insert(QStringLiteral("images"), imagesJson);
+    cpuJson.insert(QStringLiteral("undo"), undoJson);
+    cpuJson.insert(QStringLiteral("totalBytes"), double(trackedCpuTotal));
+
+    QJsonObject gpuJson;
+    gpuJson.insert(QStringLiteral("meshCacheTotalBytes"), double(gpuTotal));
+
+    QJsonObject report;
+    report.insert(QStringLiteral("schema"), QStringLiteral("org.qmeshlab.memory-report.v1"));
+    report.insert(QStringLiteral("timestampUtc"),
+                  QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+    report.insert(QStringLiteral("pid"), double(QCoreApplication::applicationPid()));
+    report.insert(QStringLiteral("process"), processJson);
+    report.insert(QStringLiteral("trackedCpu"), cpuJson);
+    report.insert(QStringLiteral("logicalGpu"), gpuJson);
+
+    connect(copyJsonButton, &QPushButton::clicked, &dialog, [report]() {
+        if (QClipboard *clipboard = QGuiApplication::clipboard()) {
+            clipboard->setText(
+                QString::fromUtf8(QJsonDocument(report).toJson(QJsonDocument::Indented)));
+        }
+    });
     connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::accept);
     layout->addWidget(buttonBox);
 
@@ -3313,6 +3473,26 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
         }
     }
     return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    // A filter that shells out to a helper pumps events while it waits, so this close
+    // arrives with that filter still on the stack: the window cannot go away underneath
+    // it, and a helper that never finishes would keep the application alive with no
+    // window to close. Stop the helpers instead and retry the close once the filter has
+    // returned -- filterProgressFinished, wired in the constructor, does that.
+    if (HelperProcess::anyRunning()) {
+        const QString stopping = HelperProcess::runningLabels().join(QStringLiteral(", "));
+        m_closeWhenFilterStops = true;
+        if (m_doc)
+            m_doc->requestOperationCancel();
+        HelperProcess::terminateAll();
+        statusBar()->showMessage(tr("Stopping %1...").arg(stopping));
+        event->ignore();
+        return;
+    }
+    QMainWindow::closeEvent(event);
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)

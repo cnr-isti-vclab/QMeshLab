@@ -10,6 +10,8 @@
 #include <cmath>
 
 #include "document.h"
+#include "helperprocess.h"
+#include "processmemoryinfo.h"
 #include <vcg/complex/allocate.h>
 #include <vcg/space/planar_polygon_tessellation.h>
 #include <wrap/io_trimesh/export_obj.h>
@@ -45,6 +47,9 @@ private slots:
     void undoRestoresDynamicFilterBounds();
     void undoNodeActionIsTheOneThatProducedTheState();
     void progressLogIsTransientAndRemovedOnCompletion();
+    void helperProcessLoopEndsWhenTheEventPumpReapsTheChild();
+    void helperProcessEchoesHelperOutputAndItsPid();
+    void helperProcessCancelKillsTheWholeProcessGroup();
     void loadMeshAddsLayerAndEmitsSignal();
     void planarPolygonTessellationHandlesConcavity();
     void loadConcavePolygonFormatsPreserveFauxEdges();
@@ -57,6 +62,11 @@ private slots:
     void rasterCameraUndoRedoRestoresShot();
     void undoRedoRestoresMeshList();
     void undoTreeBranchingPreservesAlternateFuture();
+    void memoryStatsCountCustomAttributes();
+    void memoryStatsDeduplicateImagesAndTrackUndoOwnership();
+    void memoryStatsIncludeSelectionAndPendingSnapshots();
+    void undoMemoryBudgetAndPressurePurgeSafely();
+    void processMemoryInfoReportsCurrentProcess();
     void openDialogFilterContainsKnownFormats();
     void saveAndLoad3MFRoundTrip();
     void trueFormRoundTripsObjAndStl();
@@ -398,6 +408,98 @@ void DocumentTests::undoNodeActionIsTheOneThatProducedTheState()
 
 // Progress occupies a single transient line that overwrites itself and is gone once
 // the operation ends, so a finished filter leaves no progress trace in the log.
+namespace {
+
+HelperProcess::Request shellRequest(const QString &script, const QString &label)
+{
+    HelperProcess::Request request;
+    request.program = QStringLiteral("/bin/sh");
+    request.arguments = {QStringLiteral("-c"), script};
+    request.label = label;
+    return request;
+}
+
+}
+
+void DocumentTests::helperProcessLoopEndsWhenTheEventPumpReapsTheChild()
+{
+    Document doc;
+    // A zero-interval timer keeps the event queue non-empty, so processEvents() inside
+    // HelperProcess::run() really spins -- which is what lets it, rather than
+    // waitForFinished(), observe the child's exit. That ordering used to hang QMeshLab:
+    // waitForFinished() reports false for a process that has already been reaped, so a
+    // loop testing its result never ends. The timer stops when it goes out of scope.
+    QTimer busy;
+    busy.setInterval(0);
+    QObject::connect(&busy, &QTimer::timeout, [] {});
+    busy.start();
+
+    // A watchdog, so a regression fails this test instead of wedging the whole suite:
+    // the old loop spun forever, and only the cancel check could still break it out.
+    QTimer::singleShot(4000, [&doc] { doc.requestOperationCancel(); });
+
+    QString error;
+    QElapsedTimer timer;
+    timer.start();
+    const bool ok = HelperProcess::run(shellRequest(QStringLiteral("sleep 0.2"), QStringLiteral("t")), doc, error);
+
+    QVERIFY2(ok, qPrintable(error));
+    QVERIFY2(timer.elapsed() < 3000, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
+    QVERIFY(!HelperProcess::anyRunning());
+}
+
+void DocumentTests::helperProcessEchoesHelperOutputAndItsPid()
+{
+    Document doc;
+    doc.clearLog();
+
+    QString error;
+    QVERIFY2(
+        HelperProcess::run(
+            shellRequest(QStringLiteral("echo first; echo second; exit 0"), QStringLiteral("chatty")),
+            doc,
+            error),
+        qPrintable(error));
+
+    QStringList lines;
+    for (const Document::LogEntry &entry : doc.logMessages())
+        lines << entry.message;
+    const QString text = lines.join(QLatin1Char('\n'));
+
+    // What is running, and what it is saying while it runs.
+    QVERIFY2(text.contains(QStringLiteral("started as pid")), qPrintable(text));
+    QVERIFY2(lines.contains(QStringLiteral("[chatty] first")), qPrintable(text));
+    QVERIFY2(lines.contains(QStringLiteral("[chatty] second")), qPrintable(text));
+    QVERIFY2(text.contains(QStringLiteral("exit 0")), qPrintable(text));
+}
+
+void DocumentTests::helperProcessCancelKillsTheWholeProcessGroup()
+{
+    QTemporaryDir scratch;
+    QVERIFY(scratch.isValid());
+    // The marker is touched by a *grandchild*: signalling only the process we started
+    // would leave it running, and the file would appear after the filter had given up.
+    const QString marker = QDir(scratch.path()).filePath(QStringLiteral("survivor"));
+    const QString script =
+        QStringLiteral("( sleep 0.6; touch '%1' ) & wait").arg(marker);
+
+    Document doc;
+    QTimer::singleShot(100, [&doc] { doc.requestOperationCancel(); });
+
+    QString error;
+    QElapsedTimer timer;
+    timer.start();
+    const bool ok = HelperProcess::run(shellRequest(script, QStringLiteral("stubborn")), doc, error);
+
+    QVERIFY(!ok);
+    QVERIFY2(error.contains(QStringLiteral("interrupted")), qPrintable(error));
+    QVERIFY2(timer.elapsed() < 3000, qPrintable(QStringLiteral("took %1 ms").arg(timer.elapsed())));
+    QVERIFY(!HelperProcess::anyRunning());
+
+    QTest::qWait(1200);
+    QVERIFY2(!QFileInfo::exists(marker), "a descendant of the cancelled helper outlived it");
+}
+
 void DocumentTests::progressLogIsTransientAndRemovedOnCompletion()
 {
     Document doc;
@@ -898,6 +1000,136 @@ void DocumentTests::undoTreeBranchingPreservesAlternateFuture()
     QVERIFY(doc.jumpToUndoNode(nodeBId));
     QCOMPARE(doc.meshCount(), 2);
     QVERIFY(doc.undoCurrentNodeId() == nodeBId);
+}
+
+void DocumentTests::memoryStatsCountCustomAttributes()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 12);
+    doc.setSuppressUndo(true);
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Attributes")), 0);
+    doc.setSuppressUndo(false);
+    doc.clearUndoHistory();
+
+    const auto before = doc.cpuMeshMemoryStats();
+    QCOMPARE(before.size(), size_t(1));
+    QCOMPARE(before.front().customAttributeBytes, 0);
+
+    vcg::tri::Allocator<VCGMesh>::AddPerVertexAttribute<float>(
+        doc.mesh(0).mesh,
+        std::string("memory-test"));
+    const auto after = doc.cpuMeshMemoryStats();
+    const qint64 expected =
+        qint64(doc.mesh(0).mesh.vert.capacity()) * qint64(sizeof(float));
+    QCOMPARE(after.front().customAttributeBytes, expected);
+    QCOMPARE(after.front().totalBytes() - before.front().totalBytes(), expected);
+}
+
+void DocumentTests::memoryStatsDeduplicateImagesAndTrackUndoOwnership()
+{
+    Document doc;
+    QImage image(16, 8, QImage::Format_RGBA8888);
+    image.fill(Qt::red);
+
+    RasterPlane plane;
+    plane.name = QStringLiteral("Shared");
+    plane.image = image;
+    Document::RasterEntry raster;
+    raster.name = QStringLiteral("Raster");
+    raster.planes = { plane, plane };
+    raster.currentPlaneIndex = 0;
+    QCOMPARE(doc.addRaster(raster), 0);
+
+    const Document::CpuImageMemoryStats liveStats = doc.cpuImageMemoryStats();
+    QCOMPARE(liveStats.uniqueRasterImages, 1);
+    QCOMPARE(liveStats.rasterImageBytes, qint64(image.sizeInBytes()));
+
+    // The checkpoint images share their backing store with the live raster, so
+    // clearing history cannot reclaim them and they are excluded from undo bytes.
+    QCOMPARE(doc.undoMemoryStats().historyImageBytes, 0);
+    QVERIFY(doc.undo());
+
+    // Once the raster is absent from the live document, its redo checkpoint is
+    // the document history's only owner and the backing store is counted once.
+    const UndoMemoryStats undoStats = doc.undoMemoryStats();
+    QCOMPARE(undoStats.uniqueHistoryImageCount, 1);
+    QCOMPARE(undoStats.historyImageBytes, qint64(image.sizeInBytes()));
+}
+
+void DocumentTests::memoryStatsIncludeSelectionAndPendingSnapshots()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 65);
+    doc.setSuppressUndo(true);
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Selection")), 0);
+    doc.setSuppressUndo(false);
+    doc.clearUndoHistory();
+
+    doc.beginUndoStep(QStringLiteral("Select one"), 0);
+    doc.mesh(0).mesh.vert[0].SetS();
+    doc.markMeshSelectionChanged(0);
+    doc.endUndoStep(true);
+
+    const UndoMemoryStats selectionStats = doc.undoMemoryStats();
+    QVERIFY(selectionStats.selectionBytes > 0);
+    QCOMPARE(selectionStats.steps.size(), size_t(1));
+    QVERIFY(selectionStats.steps.front().selectionDelta);
+    QCOMPARE(selectionStats.steps.front().selectionBytes, selectionStats.selectionBytes);
+
+    doc.clearUndoHistory();
+    doc.beginUndoStep(QStringLiteral("Pending geometry"));
+    const UndoMemoryStats pendingStats = doc.undoMemoryStats();
+    QVERIFY(pendingStats.pendingGeometryBytes > 0);
+    QVERIFY(pendingStats.totalBytes() >= pendingStats.pendingGeometryBytes);
+    doc.endUndoStep(false);
+    QCOMPARE(doc.undoMemoryStats().pendingBytes(), 0);
+}
+
+void DocumentTests::undoMemoryBudgetAndPressurePurgeSafely()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 32);
+    doc.setSuppressUndo(true);
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Budget")), 0);
+    doc.setSuppressUndo(false);
+    doc.clearUndoHistory();
+
+    doc.beginUndoStep(QStringLiteral("Move vertex"));
+    doc.mesh(0).mesh.vert[0].P().X() += 1.0f;
+    doc.markMeshGeometryChanged(0);
+    doc.endUndoStep(true);
+    QVERIFY(doc.canUndo());
+    QVERIFY(doc.undoMemoryStats().totalBytes() > 1);
+
+    doc.setUndoMemoryLimitBytes(1);
+    QCOMPARE(doc.undoMemoryLimitBytes(), 1);
+    QVERIFY(!doc.canUndo());
+    QCOMPARE(doc.undoMemoryStats().totalBytes(), 0);
+
+    // A critical event received during an operation is remembered, not applied
+    // to data structures being captured. It is applied immediately after close.
+    doc.setUndoMemoryLimitBytes(0);
+    doc.beginUndoStep(QStringLiteral("Deferred pressure"));
+    doc.mesh(0).mesh.vert[0].P().Y() += 1.0f;
+    doc.markMeshGeometryChanged(0);
+    doc.handleUndoMemoryPressure(true);
+    QVERIFY(doc.undoStepActive());
+    QVERIFY(doc.undoMemoryStats().pendingGeometryBytes > 0);
+    doc.endUndoStep(true);
+    QVERIFY(!doc.canUndo());
+    QCOMPARE(doc.undoMemoryStats().totalBytes(), 0);
+}
+
+void DocumentTests::processMemoryInfoReportsCurrentProcess()
+{
+    const ProcessMemoryInfo info = queryCurrentProcessMemoryInfo();
+    QVERIFY(info.preferredBytes() > 0);
+#if defined(Q_OS_DARWIN)
+    QVERIFY(info.physicalFootprintBytes > 0);
+#endif
 }
 
 void DocumentTests::openDialogFilterContainsKnownFormats()

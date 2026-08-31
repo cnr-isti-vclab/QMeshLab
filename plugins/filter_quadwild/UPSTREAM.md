@@ -12,7 +12,14 @@ global settings and dependencies, and the command-line programs contain
 assertions and process-level exits. `ExternalProject` builds only `quadwild` and
 `quad_from_patches`; QMeshLab runs them as helper processes and exchanges OBJ
 files through a temporary directory. Upstream failures therefore cannot crash
-the application, at the cost of temporary disk I/O and no fine-grained progress.
+the application, at the cost of temporary disk I/O.
+
+Both are launched through `HelperProcess` (`src/core/helperprocess.h`), which
+owns everything the process boundary costs us: it logs the command and its pid,
+echoes the helper's own output as it arrives, maps the banners `quadwild` prints
+between phases onto the progress bar, and keeps a registry of what is still
+running so Cancel and a window close stop the helper -- and everything it
+spawned -- rather than leaving it to outlive the application.
 
 GMM 5.4.2 is the only dependency not recorded as a QuadWild submodule. Upstream
 pins its archive by SHA-224 but names an HTTP mirror. QMeshLab fetches that exact

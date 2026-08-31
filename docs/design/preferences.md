@@ -19,8 +19,13 @@ resources/preferences.json   declaration (same schema as any filters.json "param
 Adding a preference means adding a JSON entry and reading it back. There is no UI code
 to write.
 
-Current implementation status: `resources/preferences.json` declares 12 preferences
+Current implementation status: `resources/preferences.json` declares 14 preferences
 across `view`, `input`, `render`, `scalar`, `log`, `document`, and `advanced`.
+
+The two memory-related document preferences are intentionally conservative:
+`document.undoMemoryLimitMiB` defaults to `0` (disabled), and
+`document.purgeUndoOnMemoryPressure` defaults to `false`. See
+[Memory Accounting](memory_accounting.md) for their pruning semantics.
 
 ## Declaring one
 

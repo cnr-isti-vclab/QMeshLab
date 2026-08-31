@@ -36,6 +36,10 @@ public:
     void setSuppressUndo(bool suppress) { m_suppressUndo = suppress; }
     int undoLimit() const { return m_undoLimit; }
     void setUndoLimit(int limit);
+    qint64 undoMemoryLimitBytes() const { return m_undoMemoryLimitBytes; }
+    void setUndoMemoryLimitBytes(qint64 bytes);
+    UndoPruneResult pruneToMemoryBudget(qint64 maximumBytes);
+    void handleMemoryPressure(bool critical);
 
     QStringList undoHistoryLabels() const;
     QStringList undoStackLabels() const;
@@ -86,12 +90,21 @@ private:
         SelectionDelta &&after,
         std::optional<ScriptAction> scriptAction = {});
     void pruneTreeToLimit();
+    UndoPruneResult pruneToMemoryBudgetInternal(
+        qint64 triggerBytes,
+        qint64 targetBytes,
+        bool allowClear);
+    UndoPruneResult enforceConfiguredMemoryLimit();
+    void applyDeferredMemoryPressure();
+    void logAutomaticPrune(const UndoPruneResult &result, const QString &reason);
 
     Document &m_doc;
     std::map<std::tuple<std::uint64_t, std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>> m_undoGeometryCache;
     std::vector<UndoNode> m_undoNodes;
     int m_undoCurrentNode = -1;
     int m_undoLimit = 20;
+    qint64 m_undoMemoryLimitBytes = 0;
+    int m_pendingMemoryPressure = 0; // 0 none, 1 warning, 2 critical
     bool m_undoStepActive = false;
     QString m_undoStepLabel;
     std::optional<ScriptAction> m_pendingScriptAction;

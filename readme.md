@@ -1,6 +1,14 @@
 # QMeshLab
 
-Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-based filters, and optional embedded Python/nanobind bindings.
+A ground-up rewrite of [MeshLab](https://github.com/cnr-isti-vclab/meshlab), the open
+source system for processing and editing large 3D triangular meshes and point clouds.
+QMeshLab is a single-document, multi-view Qt 6 application built on QRhi (Metal, Vulkan,
+Direct3D 12), vcglib, and a plugin architecture for I/O and filters, with optional
+embedded Python bindings through nanobind.
+
+**Status:** in active development, before the first tagged release. The user interface and
+the Python API are still moving. Signed macOS and portable Windows builds are produced by
+CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
 
 ## Documentation Index
 - [Python Scripting](docs/python_scripting.md)
@@ -13,6 +21,7 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 - [Filter Classification](docs/design/filter_classification.md)
 - [Filter Names](docs/design/filter_names.md)
 - [Preferences](docs/design/preferences.md)
+- [Memory Accounting](docs/design/memory_accounting.md)
 - [Usage Statistics](docs/design/usage_statistics.md)
 
 ## Current Features
@@ -34,8 +43,8 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 - Raster projection filters can transfer current/all visible raster colors to vertex colors or bake visible rasters into a mesh texture atlas using existing wedge UVs
 - Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
 - Embedded Python bindings when `QMESHLAB_PYTHON_CONSOLE=ON`; the in-app Python dock exposes the live document as `ms`, the live view helper as `mlgui`, and the public standalone facade as `pymeshlab2`
-- Tree-shaped undo/redo integrated with mesh operations, filter runs, selection-delta storage, camera/render-style snapshots, script-action history, branch pruning, and linearization
-- Structured logging for app/VCG/error messages, load/filter progress, memory estimates, and GPU buffer rebuild timing
+- Tree-shaped undo/redo integrated with mesh operations, filter runs, selection-delta storage, camera/render-style snapshots, script-action history, branch pruning/linearization, and opt-in byte-budget/system-pressure purging
+- Structured logging for app/VCG/error messages, load/filter progress, GPU buffer rebuild timing, and automatic undo-prune events; `Help > Memory Info` separates OS footprint, tracked CPU ownership, and logical GPU-cache sizes and can copy exact JSON for external profiling
 - PNG snapshot export from the active view (custom resolution + embedded camera/trackball JSON metadata), plus snapshot-to-raster workflows
 
 Built-in I/O plugin families (dependency-gated at build time):
@@ -216,7 +225,9 @@ How to use it:
 3. Click `Run workflow`
 4. Download the `QMeshLab-YYYY-MM-DD-<short-sha>-macos-arm64` artifact from the completed run
 
-The workflow runs on `macos-15`, producing an `arm64` application. The packaging
+The workflow runs on `macos-15`, producing an `arm64` application. The resulting DMG
+therefore requires an Apple Silicon Mac: Rosetta does not help here, so Intel Macs are
+not covered by a prebuilt package and have to build from source. The packaging
 script still produces an ad-hoc signed DMG when used locally without
 `--sign-identity`; notarization is performed only by the GitHub Actions workflow.
 

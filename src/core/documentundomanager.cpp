@@ -5,6 +5,7 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QElapsedTimer>
+#include <QImage>
 #include <QObject>
 #include <QVector>
 
@@ -12,6 +13,82 @@
 #include <set>
 
 using namespace DocumentInternal;
+
+namespace {
+
+qint64 selectionDeltaBytes(const SelectionDelta &delta)
+{
+    return qint64(delta.vertexBits.capacity() + delta.faceBits.capacity())
+         * qint64(sizeof(std::uint32_t));
+}
+
+qint64 referencedGeometryBytes(const UndoState &state)
+{
+    qint64 bytes = 0;
+    for (const MeshSnapshot &snapshot : state.meshes) {
+        if (snapshot.geometry)
+            bytes += vcgMeshCpuBytes(*snapshot.geometry);
+    }
+    return bytes;
+}
+
+void accountGeometry(
+    const UndoState &state,
+    std::set<const VCGMesh *> &seen,
+    qint64 &bytes,
+    int *count = nullptr)
+{
+    for (const MeshSnapshot &snapshot : state.meshes) {
+        const VCGMesh *geometry = snapshot.geometry.get();
+        if (!geometry || !seen.insert(geometry).second)
+            continue;
+        bytes += vcgMeshCpuBytes(*geometry);
+        if (count)
+            ++*count;
+    }
+}
+
+void accountImage(
+    const QImage &image,
+    std::set<const uchar *> &seen,
+    qint64 &bytes,
+    int *count = nullptr)
+{
+    const uchar *storage = image.isNull() ? nullptr : image.constBits();
+    if (!storage || !seen.insert(storage).second)
+        return;
+    bytes += qint64(image.sizeInBytes());
+    if (count)
+        ++*count;
+}
+
+void accountTextureAssets(
+    const std::vector<MeshIOTextureAsset> &assets,
+    std::set<const uchar *> &seen,
+    qint64 &bytes,
+    int *count = nullptr)
+{
+    for (const MeshIOTextureAsset &asset : assets)
+        accountImage(asset.image, seen, bytes, count);
+}
+
+void accountStateImages(
+    const UndoState &state,
+    std::set<const uchar *> &seen,
+    qint64 &bytes,
+    int *count = nullptr)
+{
+    for (const MeshSnapshot &mesh : state.meshes) {
+        accountTextureAssets(mesh.textureAssets, seen, bytes, count);
+        accountTextureAssets(mesh.materialSet.textureAssets, seen, bytes, count);
+    }
+    for (const RasterSnapshot &raster : state.rasters) {
+        for (const RasterPlane &plane : raster.planes)
+            accountImage(plane.image, seen, bytes, count);
+    }
+}
+
+} // namespace
 
 DocumentUndoManager::DocumentUndoManager(Document &doc)
     : m_doc(doc)
@@ -49,6 +126,7 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
             m_pendingScriptAction.reset();
             m_undoStepActive = false;
             m_undoStepLabel.clear();
+            applyDeferredMemoryPressure();
             return;
         }
         endDeltaStep();
@@ -63,8 +141,10 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
     m_undoStepActive = false;
     m_undoStepLabel.clear();
 
-    if (!before.has_value())
+    if (!before.has_value()) {
+        applyDeferredMemoryPressure();
         return;
+    }
 
     if (!commit) {
         if (restoreOnCancel) {
@@ -72,6 +152,7 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
             m_doc.restoreUndoState(*before);
             m_restoringUndoRedo = false;
         }
+        applyDeferredMemoryPressure();
         return;
     }
 
@@ -111,6 +192,7 @@ void DocumentUndoManager::endDeltaStep()
 
     SelectionDelta after = m_doc.captureSelectionDelta(meshIndex);
     pushDeltaStep(label, std::move(before), std::move(after), std::move(scriptAction));
+    applyDeferredMemoryPressure();
 }
 
 bool DocumentUndoManager::canUndo() const
@@ -425,6 +507,7 @@ void DocumentUndoManager::clear()
     m_pendingUndoBefore.reset();
     m_pendingDeltaBefore.reset();
     m_pendingDeltaMeshIndex.reset();
+    m_pendingMemoryPressure = 0;
     emitStateChanged();
 }
 
@@ -618,6 +701,170 @@ void DocumentUndoManager::setUndoLimit(int limit)
     pruneTreeToLimit();
 }
 
+void DocumentUndoManager::setUndoMemoryLimitBytes(qint64 bytes)
+{
+    m_undoMemoryLimitBytes = std::max<qint64>(0, bytes);
+    if (m_undoStepActive || m_undoMemoryLimitBytes == 0)
+        return;
+
+    const UndoPruneResult result = enforceConfiguredMemoryLimit();
+    if (result.changed())
+        emitStateChanged();
+}
+
+UndoPruneResult DocumentUndoManager::pruneToMemoryBudget(qint64 maximumBytes)
+{
+    if (m_undoStepActive || maximumBytes <= 0)
+        return {};
+    const UndoPruneResult result = pruneToMemoryBudgetInternal(
+        maximumBytes,
+        maximumBytes * 4 / 5,
+        true);
+    if (result.changed()) {
+        logAutomaticPrune(result, QObject::tr("manual memory budget"));
+        emitStateChanged();
+    }
+    return result;
+}
+
+UndoPruneResult DocumentUndoManager::pruneToMemoryBudgetInternal(
+    qint64 triggerBytes,
+    qint64 targetBytes,
+    bool allowClear)
+{
+    UndoPruneResult result;
+    result.beforeBytes = memoryStats().totalBytes();
+    result.afterBytes = result.beforeBytes;
+    if (triggerBytes <= 0 || result.beforeBytes <= triggerBytes || m_undoNodes.empty())
+        return result;
+
+    targetBytes = std::max<qint64>(0, std::min(targetBytes, triggerBytes));
+    const int oldNodeCount = static_cast<int>(m_undoNodes.size());
+    const bool previousSignalSuppression = m_suppressUndoRedoSignals;
+    m_suppressUndoRedoSignals = true;
+
+    // Alternate futures are least valuable under pressure and can retain whole
+    // geometry revisions, so discard them before shortening the current path.
+    linearizeHistory();
+
+    qint64 currentBytes = memoryStats().totalBytes();
+    while (currentBytes > targetBytes && canUndo()) {
+        std::vector<int> path;
+        int id = m_undoCurrentNode;
+        while (id >= 0) {
+            path.push_back(id);
+            id = m_undoNodes[static_cast<size_t>(id)].parentId;
+        }
+        std::reverse(path.begin(), path.end());
+
+        // A delta node cannot become a root because it has no complete document
+        // state. Keep at least one transition and root only at a full snapshot.
+        int newRoot = -1;
+        for (int i = 1; i + 1 < static_cast<int>(path.size()); ++i) {
+            if (m_undoNodes[static_cast<size_t>(path[i])].storageKind
+                == UndoStorageKind::FullSnapshot) {
+                newRoot = path[i];
+                break;
+            }
+        }
+        if (newRoot < 0 || !makeRoot(newRoot))
+            break;
+
+        // Shared geometry can make one root advance reclaim zero bytes while a
+        // later advance releases an old revision. The path is strictly shorter,
+        // so continuing is finite even when this individual step has no effect.
+        currentBytes = memoryStats().totalBytes();
+    }
+
+    // The newest complete checkpoint may itself exceed the budget. Because the
+    // user explicitly enabled a byte cap, clearing is preferable to pretending
+    // the cap is enforced while retaining an unreclaimable baseline snapshot.
+    if (allowClear && currentBytes > triggerBytes) {
+        clear();
+        result.cleared = true;
+        currentBytes = 0;
+    }
+
+    m_suppressUndoRedoSignals = previousSignalSuppression;
+    result.afterBytes = currentBytes;
+    result.removedNodes = oldNodeCount - static_cast<int>(m_undoNodes.size());
+    return result;
+}
+
+UndoPruneResult DocumentUndoManager::enforceConfiguredMemoryLimit()
+{
+    if (m_undoMemoryLimitBytes <= 0 || m_undoStepActive)
+        return {};
+    const UndoPruneResult result = pruneToMemoryBudgetInternal(
+        m_undoMemoryLimitBytes,
+        m_undoMemoryLimitBytes * 4 / 5,
+        true);
+    if (result.changed())
+        logAutomaticPrune(result, QObject::tr("configured memory budget"));
+    return result;
+}
+
+void DocumentUndoManager::handleMemoryPressure(bool critical)
+{
+    if (m_undoStepActive) {
+        m_pendingMemoryPressure = std::max(m_pendingMemoryPressure, critical ? 2 : 1);
+        return;
+    }
+
+    UndoPruneResult result;
+    if (critical) {
+        result.beforeBytes = memoryStats().totalBytes();
+        const int oldNodeCount = static_cast<int>(m_undoNodes.size());
+        if (oldNodeCount > 0) {
+            const bool previousSignalSuppression = m_suppressUndoRedoSignals;
+            m_suppressUndoRedoSignals = true;
+            clear();
+            m_suppressUndoRedoSignals = previousSignalSuppression;
+            result.cleared = true;
+            result.removedNodes = oldNodeCount;
+        }
+        result.afterBytes = 0;
+    } else if (m_undoMemoryLimitBytes > 0) {
+        result = pruneToMemoryBudgetInternal(
+            m_undoMemoryLimitBytes * 3 / 4,
+            m_undoMemoryLimitBytes / 2,
+            true);
+    }
+
+    if (result.changed()) {
+        logAutomaticPrune(
+            result,
+            critical ? QObject::tr("critical system memory pressure")
+                     : QObject::tr("system memory pressure"));
+        emitStateChanged();
+    }
+}
+
+void DocumentUndoManager::applyDeferredMemoryPressure()
+{
+    if (m_undoStepActive || m_pendingMemoryPressure == 0)
+        return;
+    const int pending = std::exchange(m_pendingMemoryPressure, 0);
+    handleMemoryPressure(pending >= 2);
+}
+
+void DocumentUndoManager::logAutomaticPrune(
+    const UndoPruneResult &result,
+    const QString &reason)
+{
+    if (!result.changed())
+        return;
+    m_doc.writeLog(
+        QObject::tr("Undo history pruned for %1: %2 MiB -> %3 MiB (%4 node(s) removed)%5")
+            .arg(reason)
+            .arg(result.beforeBytes / (1024.0 * 1024.0), 0, 'f', 1)
+            .arg(result.afterBytes / (1024.0 * 1024.0), 0, 'f', 1)
+            .arg(result.removedNodes)
+            .arg(result.cleared ? QObject::tr("; history cleared") : QString()),
+        Document::LogSource::Application,
+        Document::LogLevel::Warning);
+}
+
 
 void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, UndoState &&after,
                             std::optional<ScriptAction> scriptAction)
@@ -682,7 +929,9 @@ void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, Und
     }
 
     pruneTreeToLimit();
+    enforceConfiguredMemoryLimit();
     emitStateChanged();
+    applyDeferredMemoryPressure();
 }
 
 void DocumentUndoManager::pushDeltaStep(
@@ -743,6 +992,7 @@ void DocumentUndoManager::pushDeltaStep(
     }
 
     pruneTreeToLimit();
+    enforceConfiguredMemoryLimit();
     emitStateChanged();
 }
 
@@ -864,6 +1114,7 @@ void DocumentUndoManager::emitStateChanged()
 UndoMemoryStats DocumentUndoManager::memoryStats() const
 {
     UndoMemoryStats stats;
+    stats.nodeCount = static_cast<int>(m_undoNodes.size());
     std::vector<int> path;
     {
         int id = m_undoCurrentNode;
@@ -876,20 +1127,62 @@ UndoMemoryStats DocumentUndoManager::memoryStats() const
 
     for (int pi = 1; pi < static_cast<int>(path.size()); ++pi) {
         UndoStepMemoryInfo info;
-        info.label = m_undoNodes[static_cast<size_t>(path[pi])].label;
-        for (const auto &snap : m_undoNodes[static_cast<size_t>(path[pi - 1])].state.meshes)
-            info.beforeBytes += vcgMeshCpuBytes(*snap.geometry);
-        for (const auto &snap : m_undoNodes[static_cast<size_t>(path[pi])].state.meshes)
-            info.afterBytes += vcgMeshCpuBytes(*snap.geometry);
+        const UndoNode &node = m_undoNodes[static_cast<size_t>(path[pi])];
+        info.label = node.label;
+        info.selectionDelta = node.storageKind == UndoStorageKind::Delta;
+        if (info.selectionDelta) {
+            if (node.beforeSelection)
+                info.selectionBytes += selectionDeltaBytes(*node.beforeSelection);
+            if (node.afterSelection)
+                info.selectionBytes += selectionDeltaBytes(*node.afterSelection);
+        } else {
+            info.referencedGeometryBytes = referencedGeometryBytes(node.state);
+        }
         stats.steps.push_back(info);
     }
 
-    std::set<const VCGMesh *> seen;
+    std::set<const VCGMesh *> seenGeometry;
     for (const auto &node : m_undoNodes) {
-        for (const auto &snap : node.state.meshes) {
-            if (seen.insert(snap.geometry.get()).second)
-                stats.totalBytes += vcgMeshCpuBytes(*snap.geometry);
-        }
+        accountGeometry(node.state, seenGeometry, stats.geometryBytes, &stats.uniqueGeometryCount);
+        if (node.beforeSelection)
+            stats.selectionBytes += selectionDeltaBytes(*node.beforeSelection);
+        if (node.afterSelection)
+            stats.selectionBytes += selectionDeltaBytes(*node.afterSelection);
     }
+
+    // QImage copies in snapshots are implicit shares. Seed the set with live
+    // document images so the undo total reflects buffers that purging can
+    // actually release, rather than counting references to live storage.
+    std::set<const uchar *> seenImages;
+    qint64 ignoredLiveImageBytes = 0;
+    for (int i = 0; i < m_doc.meshCount(); ++i) {
+        const Document::MeshEntry &entry = m_doc.mesh(i);
+        accountTextureAssets(entry.textureAssets, seenImages, ignoredLiveImageBytes);
+        accountTextureAssets(entry.materialSet.textureAssets, seenImages, ignoredLiveImageBytes);
+    }
+    for (int i = 0; i < m_doc.rasterCount(); ++i) {
+        for (const RasterPlane &plane : m_doc.raster(i).planes)
+            accountImage(plane.image, seenImages, ignoredLiveImageBytes);
+    }
+    for (const UndoNode &node : m_undoNodes) {
+        accountStateImages(
+            node.state,
+            seenImages,
+            stats.historyImageBytes,
+            &stats.uniqueHistoryImageCount);
+    }
+
+    if (m_pendingUndoBefore) {
+        accountGeometry(
+            *m_pendingUndoBefore,
+            seenGeometry,
+            stats.pendingGeometryBytes);
+        accountStateImages(
+            *m_pendingUndoBefore,
+            seenImages,
+            stats.pendingImageBytes);
+    }
+    if (m_pendingDeltaBefore)
+        stats.pendingSelectionBytes = selectionDeltaBytes(*m_pendingDeltaBefore);
     return stats;
 }

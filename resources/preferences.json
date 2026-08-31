@@ -140,6 +140,24 @@
       "max": 40
     },
     {
+      "id": "document.undoMemoryLimitMiB",
+      "label": "Undo memory limit",
+      "help": "Maximum tracked memory retained by undo history, in MiB. When crossed, alternate branches and then the oldest checkpoints are discarded down to a lower watermark. A value of 0 disables automatic byte-budget pruning.",
+      "group": "document",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 131072
+    },
+    {
+      "id": "document.purgeUndoOnMemoryPressure",
+      "label": "Purge undo under memory pressure",
+      "help": "Allow the operating system's memory-pressure signal to prune undo history. Warning pressure uses the configured undo budget; critical pressure may clear all history. Purging is deferred until the active operation finishes.",
+      "group": "document",
+      "type": "bool",
+      "default": false
+    },
+    {
       "id": "advanced.rayCallbackChunks",
       "label": "Ray-tracing progress chunks",
       "help": "How many chunks the face array is split into when ray-tracing filters report progress. Higher values update the progress bar and respond to Cancel more often, at a small synchronisation cost.",

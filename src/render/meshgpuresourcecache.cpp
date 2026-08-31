@@ -2162,7 +2162,10 @@ std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> MeshGpuResourceCache::gpuM
                     bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesVbuf)
                     + bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesFatVbuf)
                     + bufBytes(meshGpu.decoratorBoundaries.textureSeamsVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.textureSeamsFatVbuf);
+                    + bufBytes(meshGpu.decoratorBoundaries.textureSeamsFatVbuf)
+                    + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesVbuf)
+                    + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesFatVbuf)
+                    + bufBytes(meshGpu.decoratorBoundaries.nonManifoldVerticesVbuf);
         }
     }
 

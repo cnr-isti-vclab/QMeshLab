@@ -193,6 +193,26 @@ int Document::undoLimit() const
     return m_undoManager->undoLimit();
 }
 
+qint64 Document::undoMemoryLimitBytes() const
+{
+    return m_undoManager->undoMemoryLimitBytes();
+}
+
+void Document::setUndoMemoryLimitBytes(qint64 bytes)
+{
+    m_undoManager->setUndoMemoryLimitBytes(bytes);
+}
+
+UndoPruneResult Document::pruneUndoToMemoryBudget(qint64 maximumBytes)
+{
+    return m_undoManager->pruneToMemoryBudget(maximumBytes);
+}
+
+void Document::handleUndoMemoryPressure(bool critical)
+{
+    m_undoManager->handleMemoryPressure(critical);
+}
+
 void Document::setSuppressUndo(bool s)
 {
     m_undoManager->setSuppressUndo(s);

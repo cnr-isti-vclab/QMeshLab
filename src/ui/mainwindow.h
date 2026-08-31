@@ -29,6 +29,7 @@ class QToolButton;
 class QListWidget;
 class QTimer;
 class UndoGraphWidget;
+class MemoryPressureMonitor;
 
 class MainWindow : public QMainWindow
 {
@@ -48,6 +49,7 @@ public:
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
@@ -120,12 +122,17 @@ private:
     QPixmap captureUndoHistoryThumbnail() const;
 
     Document *m_doc;
+    MemoryPressureMonitor *m_memoryPressureMonitor = nullptr;
+    bool m_purgeUndoOnMemoryPressure = false;
     QSplitter *m_viewSplitter = nullptr;
     QList<RenderWidget *> m_renderWidgets;
     RenderWidget *m_currentRenderWidget = nullptr;
     bool m_cameraSyncEnabled = false;
     bool m_syncingCameraViews = false;
     bool m_syncingVisibilityProxy = false;
+    // Set when a close arrived while a helper process was still running; the close is
+    // retried once the filter that owns it has unwound. See closeEvent().
+    bool m_closeWhenFilterStops = false;
     LayerWidget *m_layerWidget;
     MeshFilterPanel *m_filterPanel = nullptr;
     QDockWidget *m_layerDock = nullptr;

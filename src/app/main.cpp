@@ -9,6 +9,7 @@ extern "C" PyObject *PyInit__qmeshlab();
 #include "document.h"
 #endif
 
+#include "helperprocess.h"
 #include "mainwindow.h"
 #include <QApplication>
 #include <QIcon>
@@ -72,6 +73,9 @@ int main(int argc, char *argv[])
 #endif
 
     QApplication app(argc, argv);
+    // Last resort: whatever route the application takes out, no helper it started is
+    // left behind holding a temporary directory and a CPU.
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &HelperProcess::terminateAll);
     // Allow loading very large textures (e.g. high-res atlas images in glb/gltf).
     // Qt defaults to 256 MB decoded-image cap, which can reject valid assets.
     QImageReader::setAllocationLimit(0);

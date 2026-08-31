@@ -104,6 +104,7 @@ qint64 vectorStorageBytes(const Vector &v)
 }
 qint64 vcgVertexOcfBytes(const VCGMesh &mesh);
 qint64 vcgFaceOcfBytes(const VCGMesh &mesh);
+qint64 vcgCustomAttributeBytes(const VCGMesh &mesh);
 qint64 vcgMeshCpuBytes(const VCGMesh &mesh);
 
 } // namespace DocumentInternal

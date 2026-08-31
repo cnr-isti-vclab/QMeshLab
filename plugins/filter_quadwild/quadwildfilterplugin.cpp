@@ -1,6 +1,7 @@
 #include "quadwildfilterplugin.h"
 
 #include "document.h"
+#include "helperprocess.h"
 #include "meshfilterpluginmanager.h"
 #include "vcgmesh.h"
 
@@ -12,11 +13,8 @@
 
 #include <QCoreApplication>
 #include <QDir>
-#include <QElapsedTimer>
-#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
-#include <QProcess>
 #include <QRegularExpression>
 #include <QTemporaryDir>
 
@@ -25,7 +23,6 @@
 namespace {
 
 constexpr QLatin1StringView kQuadWildFilter("remesh_to_quads_quadwild_bimdf");
-constexpr qsizetype kHelperOutputLimit = 64 * 1024;
 using Mask = vcg::tri::io::Mask;
 
 MeshFilterRunResult fail(const QString &message)
@@ -67,68 +64,6 @@ QString executableName(QString baseName)
     baseName += QStringLiteral(".exe");
 #endif
     return baseName;
-}
-
-void appendOutputTail(QByteArray &tail, const QByteArray &chunk)
-{
-    tail += chunk;
-    if (tail.size() > kHelperOutputLimit)
-        tail.remove(0, tail.size() - kHelperOutputLimit);
-}
-
-bool runHelper(
-    const QString &program,
-    const QStringList &arguments,
-    const QString &workingDirectory,
-    Document &doc,
-    QString &error)
-{
-    QProcess process;
-    process.setWorkingDirectory(workingDirectory);
-    process.setProcessChannelMode(QProcess::MergedChannels);
-    process.start(program, arguments);
-    if (!process.waitForStarted()) {
-        error = QObject::tr("Could not start bundled helper '%1': %2")
-                    .arg(QFileInfo(program).fileName(), process.errorString());
-        return false;
-    }
-
-    QElapsedTimer timer;
-    timer.start();
-    QByteArray outputTail;
-    while (!process.waitForFinished(100)) {
-        appendOutputTail(outputTail, process.readAll());
-        // The helpers have no callback API, so keep the synchronous filter UI and
-        // its Cancel button responsive while their process is running.
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-        if (doc.isOperationCancelRequested()) {
-            process.terminate();
-            if (!process.waitForFinished(1000)) {
-                process.kill();
-                process.waitForFinished();
-            }
-            error = QObject::tr("QuadWild-BiMDF was interrupted.");
-            return false;
-        }
-    }
-    appendOutputTail(outputTail, process.readAll());
-
-    const QString helper = QFileInfo(program).fileName();
-    doc.writeLog(
-        QObject::tr("QuadWild-BiMDF helper '%1' finished in %2 ms (exit %3).")
-            .arg(helper)
-            .arg(timer.elapsed())
-            .arg(process.exitCode()),
-        Document::LogSource::Application);
-
-    if (process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0)
-        return true;
-
-    QString details = QString::fromLocal8Bit(outputTail).trimmed();
-    if (details.isEmpty())
-        details = process.errorString();
-    error = QObject::tr("Bundled helper '%1' failed: %2").arg(helper, details);
-    return false;
 }
 
 bool writeScaledConfig(
@@ -245,14 +180,22 @@ MeshFilterRunResult QuadWildFilterPlugin::runFilter(
     }
 
     progress(doc, 5, "Computing field and patch layout with QuadWild...");
-    if (!runHelper(
-            quadwild,
-            {inputPath, QStringLiteral("2"), prepConfig},
-            runtime.resources,
-            doc,
-            error)) {
+    HelperProcess::Request fieldAndPatches;
+    fieldAndPatches.program = quadwild;
+    fieldAndPatches.arguments = {inputPath, QStringLiteral("2"), prepConfig};
+    fieldAndPatches.workingDirectory = runtime.resources;
+    fieldAndPatches.label = QStringLiteral("quadwild");
+    // The banners this helper prints, verified against a real run. Its third phase,
+    // quadrangulation, is not one of them: the "2" argument above stops it after
+    // tracing, and quad_from_patches takes over from there.
+    fieldAndPatches.stageMarkers = {
+        QStringLiteral("1 - Remesh and field"),
+        QStringLiteral("2 - Tracing")
+    };
+    fieldAndPatches.progressBegin = 5;
+    fieldAndPatches.progressEnd = 55;
+    if (!HelperProcess::run(fieldAndPatches, doc, error))
         return fail(error);
-    }
 
     const QString patchMesh =
         QDir(temporary.path()).filePath(QStringLiteral("input_rem_p0.obj"));
@@ -260,14 +203,15 @@ MeshFilterRunResult QuadWildFilterPlugin::runFilter(
         return fail(QObject::tr("QuadWild did not produce the expected patch layout."));
 
     progress(doc, 55, "Quantizing and tessellating QuadWild patches...");
-    if (!runHelper(
-            quadFromPatches,
-            {patchMesh, QStringLiteral("0"), mainConfig},
-            runtime.resources,
-            doc,
-            error)) {
+    // No stage markers: this helper narrates its work but not in phases, so the bar
+    // holds while its output streams to the log.
+    HelperProcess::Request quantize;
+    quantize.program = quadFromPatches;
+    quantize.arguments = {patchMesh, QStringLiteral("0"), mainConfig};
+    quantize.workingDirectory = runtime.resources;
+    quantize.label = QStringLiteral("quad_from_patches");
+    if (!HelperProcess::run(quantize, doc, error))
         return fail(error);
-    }
 
     const bool smooth = params.getBool(QStringLiteral("smoothOutput"));
     const QString outputPath = QDir(temporary.path()).filePath(
