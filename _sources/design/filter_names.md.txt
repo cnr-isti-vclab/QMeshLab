@@ -11,6 +11,8 @@ Verb Object [(Backend)]
 **and `Selection`** (30, 2026-08-27).
 Counts are as of each round; the archive has grown to 327 filters since, so a root's
 current size exceeds what its round covered.
+Any total below other than 327 names the dated registry audited during that round;
+it is not a current implementation count.
 
 Remaining roots, largest first: `Repair` (24), `Document` (22),
 `Parametrization` (17), `Measurement` (14), `Transfer` (13), `Texture` (3 plus 7 filters
@@ -152,8 +154,9 @@ Two, both now recorded in [Vocabulary](vocabulary.md) §3:
    `Mesh Difference`, `Mesh Symmetric Difference`. Recorded in the vocabulary as the
    named-result exception so they are not "corrected" back to verb-first.
 
-Applied: all 30 display names. Verified — no old name survives as a filter name, no
-duplicate display names across the 272, JSON intact, build and tests clean.
+Applied: all 30 display names. Verified against the 272-filter registry present on
+2026-07-30: no old name survived as a filter name, no display names were duplicated,
+JSON remained intact, and the build and tests were clean.
 
 Note for whoever regenerates the docs: `docs/api/filters.md` is generated from the
 descriptors; fix stale filter entries by running `--generate-docs`, not by hand-editing
@@ -164,9 +167,10 @@ individual generated sections.
 # Round 2 — `Attribute` (65 filters → 64)
 
 **Status: APPLIED** (2026-08-04). 56 names changed, 8 already conformed, 1 filter
-removed as a duplicate. Verified mechanically: JSON valid across all 31 descriptor
-files, no old name survives as a filter name, no duplicate display name among the 277,
-every proposed name present, build clean, test results unchanged from the pre-change
+removed as a duplicate. Verified mechanically against the 277-filter registry present
+on 2026-08-04: JSON valid across all 31 descriptor files, no old name survived as a
+filter name, no display name was duplicated, every proposed name was present, the
+build was clean, and test results were unchanged from the pre-change
 baseline (`FilterTests` 22/1, `FilterCreationTests` 19/0, `DocumentTests` 15/6 — the
 failures are pre-existing and were confirmed identical with the changes stashed).
 
@@ -363,7 +367,7 @@ nothing else. It is otherwise still a rejected synonym for `Set`.
 ## Duplicate sweep (2026-08-04)
 
 Run before applying round 2, prompted by finding that *Quality Mapper applier* was a
-clone. Five independent tests over all 277 filters:
+clone. Five independent tests covered the 277 filters present on 2026-08-04:
 
 | Test | What it looks for | Hits | True positives |
 |---|---|---|---|
@@ -449,8 +453,9 @@ All settled (2026-08-04).
 # Round 3 — `Creation` (38 filters)
 
 **Status: APPLIED** (2026-08-05). 37 names changed, 1 already conformed. Verified
-mechanically: JSON valid across all descriptor files, no old name survives, no duplicate
-display name among the 277, every proposed name present, build clean, tests unchanged
+mechanically against the 277-filter registry present on that date: JSON valid across
+all descriptor files, no old name survived, no display name was duplicated, every
+proposed name was present, the build was clean, and tests were unchanged
 from baseline (`FilterTests` 22/1, `FilterCreationTests` 19/0, `DocumentTests` 15/6 —
 all pre-existing).
 
@@ -556,8 +561,9 @@ All settled (2026-08-05).
 1. ~~Does every primitive need the word `Create`?~~ **Yes.** Fourteen filters were bare
    nouns, and rule 2 (*never repeat the category*) plus the named-result exception both
    argued for leaving them. `Create` wins because it carries an invariant — *a new layer
-   appears in the layer list* — that holds across all 277 filters and that was the
-   deciding argument in round 2 ruling 2, where `Create` was **refused** to the
+   appears in the layer list* — that held across the 277-filter registry audited on
+   2026-08-05 and was the deciding argument in round 2 ruling 2, where `Create` was
+   **refused** to the
    custom-attribute filters precisely to protect it. Dropping the verb from the filters
    that actually create layers would make the invariant invisible where it matters most.
    Two supporting reasons: the subcategory is not uniformly noun-able (7 of 21 are not

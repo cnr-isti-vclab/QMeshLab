@@ -12,7 +12,7 @@ applied to plugins and menus), [Adding a Filter](adding_a_filter.md).
 
 ## Why this exists
 
-When this document was written, across the 272 filters of the time:
+The initial audit covered the 272-filter registry present on 2026-07-29:
 
 - **165 of 272 display names (61 %) did not lead with a verb**, so the reader could not
   tell what would change.
@@ -25,8 +25,8 @@ When this document was written, across the 272 filters of the time:
 - 32 distinct free-text `menuPath` values across 32 plugins, including one-offs like
   `Remeshing, Smoothing and Resampling` and backend leakage like `Normals/Embree`.
 
-**Where it stands now** (327 filters, five renaming rounds applied — `Meshing`,
-`Attribute`, `Creation`, `Geometry`, `Selection`):
+**Current registry (2026-08-31): 327 filters**, with five renaming rounds applied —
+`Meshing`, `Attribute`, `Creation`, `Geometry`, and `Selection`:
 
 - **57 of 327 (17 %)** do not lead with a verb, and every one of them sits in a root
   whose round has not run yet.
@@ -94,8 +94,8 @@ A geometry-processing ontology: **11 roots, two levels**. Roots are **nouns**
 (concepts); the verbs live in filter names. Both levels are validated by the loader —
 a category must be either a root or a declared `Root/Subcategory` pair.
 
-Two levels was chosen for growth. Eleven roots over the original 272-filter
-migration corpus was ~25 each; with today's 327 filters it remains small enough that a
+Two levels was chosen for growth. Eleven roots over the 272-filter migration corpus
+of 2026-07-29 was ~25 each; with the current 327 filters it remains small enough that a
 flat list becomes unbrowsable as the archive grows toward several hundred more
 implementations, whereas the second level absorbs that.
 
@@ -279,8 +279,8 @@ So `tags` should become **generated** (categories + derived facets, flattened fo
 search) rather than authored. That kills the drift structurally and cancels the
 manual retagging of the original 272-filter migration baseline.
 
-For reference, the historical measured state of the hand-written tags — all 272
-filters in that baseline carried 1–6 each — shows the three failure modes this avoids:
+For reference, the hand-written tags measured on 2026-07-29 — all 272 filters in that
+baseline carried 1–6 each — show the three failure modes this avoids:
 
 - **Category echoes** — `meshing` (38), `selection` (36), `smoothing` (19),
   `sampling` (18), `cleaning` (16), `create` (16). Redundant, and `meshing` names a
@@ -583,7 +583,8 @@ filter by its category. It could not: `MeshFilterPanel::matchesSearch` matched `
 category.
 
 **Implemented** in `src/ui/meshfilterpanel.cpp` — `matchesSearch` now also matches the
-category. Measured against the 272 descriptors in the initial category migration:
+category. The historical before/after benchmark below used the 272 descriptors in the
+2026-07-29 category migration:
 
 | Query | Matches before | After |
 |---|---|---|

@@ -252,7 +252,9 @@
 (64, 2026-08-04), <strong><code class="docutils literal notranslate"><span class="pre">Creation</span></code></strong> (38, 2026-08-05), <strong><code class="docutils literal notranslate"><span class="pre">Geometry</span></code></strong> (38, 2026-08-26)
 <strong>and <code class="docutils literal notranslate"><span class="pre">Selection</span></code></strong> (30, 2026-08-27).
 Counts are as of each round; the archive has grown to 327 filters since, so a root’s
-current size exceeds what its round covered.</p>
+current size exceeds what its round covered.
+Any total below other than 327 names the dated registry audited during that round;
+it is not a current implementation count.</p>
 <p>Remaining roots, largest first: <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (24), <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22),
 <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (17), <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (14), <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13), <code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3 plus 7 filters
 sitting at the bare <code class="docutils literal notranslate"><span class="pre">Texture</span></code> root, which needs a subcategory decision first).</p>
@@ -548,8 +550,9 @@ is expected to grow.</p></li>
 <code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">Difference</span></code>, <code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">Symmetric</span> <span class="pre">Difference</span></code>. Recorded in the vocabulary as the
 named-result exception so they are not “corrected” back to verb-first.</p></li>
 </ol>
-<p>Applied: all 30 display names. Verified — no old name survives as a filter name, no
-duplicate display names across the 272, JSON intact, build and tests clean.</p>
+<p>Applied: all 30 display names. Verified against the 272-filter registry present on
+2026-07-30: no old name survived as a filter name, no display names were duplicated,
+JSON remained intact, and the build and tests were clean.</p>
 <p>Note for whoever regenerates the docs: <code class="docutils literal notranslate"><span class="pre">docs/api/filters.md</span></code> is generated from the
 descriptors; fix stale filter entries by running <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code>, not by hand-editing
 individual generated sections.</p>
@@ -559,9 +562,10 @@ individual generated sections.</p>
 <section class="tex2jax_ignore mathjax_ignore" id="round-2-attribute-65-filters-64">
 <h1>Round 2 — <code class="docutils literal notranslate"><span class="pre">Attribute</span></code> (65 filters → 64)<a class="headerlink" href="#round-2-attribute-65-filters-64" title="Link to this heading">¶</a></h1>
 <p><strong>Status: APPLIED</strong> (2026-08-04). 56 names changed, 8 already conformed, 1 filter
-removed as a duplicate. Verified mechanically: JSON valid across all 31 descriptor
-files, no old name survives as a filter name, no duplicate display name among the 277,
-every proposed name present, build clean, test results unchanged from the pre-change
+removed as a duplicate. Verified mechanically against the 277-filter registry present
+on 2026-08-04: JSON valid across all 31 descriptor files, no old name survived as a
+filter name, no display name was duplicated, every proposed name was present, the
+build was clean, and test results were unchanged from the pre-change
 baseline (<code class="docutils literal notranslate"><span class="pre">FilterTests</span></code> 22/1, <code class="docutils literal notranslate"><span class="pre">FilterCreationTests</span></code> 19/0, <code class="docutils literal notranslate"><span class="pre">DocumentTests</span></code> 15/6 — the
 failures are pre-existing and were confirmed identical with the changes stashed).</p>
 <p>The largest root and the least regular: 61 of the 65 names do not lead with a verb, and
@@ -1032,7 +1036,7 @@ nothing else. It is otherwise still a rejected synonym for <code class="docutils
 <section id="duplicate-sweep-2026-08-04">
 <h2>Duplicate sweep (2026-08-04)<a class="headerlink" href="#duplicate-sweep-2026-08-04" title="Link to this heading">¶</a></h2>
 <p>Run before applying round 2, prompted by finding that <em>Quality Mapper applier</em> was a
-clone. Five independent tests over all 277 filters:</p>
+clone. Five independent tests covered the 277 filters present on 2026-08-04:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -1185,8 +1189,9 @@ here because it removes a prerequisite that pass 2 would otherwise have needed.<
 <section class="tex2jax_ignore mathjax_ignore" id="round-3-creation-38-filters">
 <h1>Round 3 — <code class="docutils literal notranslate"><span class="pre">Creation</span></code> (38 filters)<a class="headerlink" href="#round-3-creation-38-filters" title="Link to this heading">¶</a></h1>
 <p><strong>Status: APPLIED</strong> (2026-08-05). 37 names changed, 1 already conformed. Verified
-mechanically: JSON valid across all descriptor files, no old name survives, no duplicate
-display name among the 277, every proposed name present, build clean, tests unchanged
+mechanically against the 277-filter registry present on that date: JSON valid across
+all descriptor files, no old name survived, no display name was duplicated, every
+proposed name was present, the build was clean, and tests were unchanged
 from baseline (<code class="docutils literal notranslate"><span class="pre">FilterTests</span></code> 22/1, <code class="docutils literal notranslate"><span class="pre">FilterCreationTests</span></code> 19/0, <code class="docutils literal notranslate"><span class="pre">DocumentTests</span></code> 15/6 —
 all pre-existing).</p>
 <p>Structurally the easiest root — three subcategories, each with an obvious canonical verb
@@ -1440,8 +1445,9 @@ after <code class="docutils literal notranslate"><span class="pre">Sample</span>
 <li><p>~~Does every primitive need the word <code class="docutils literal notranslate"><span class="pre">Create</span></code>?~~ <strong>Yes.</strong> Fourteen filters were bare
 nouns, and rule 2 (<em>never repeat the category</em>) plus the named-result exception both
 argued for leaving them. <code class="docutils literal notranslate"><span class="pre">Create</span></code> wins because it carries an invariant — <em>a new layer
-appears in the layer list</em> — that holds across all 277 filters and that was the
-deciding argument in round 2 ruling 2, where <code class="docutils literal notranslate"><span class="pre">Create</span></code> was <strong>refused</strong> to the
+appears in the layer list</em> — that held across the 277-filter registry audited on
+2026-08-05 and was the deciding argument in round 2 ruling 2, where <code class="docutils literal notranslate"><span class="pre">Create</span></code> was
+<strong>refused</strong> to the
 custom-attribute filters precisely to protect it. Dropping the verb from the filters
 that actually create layers would make the invariant invisible where it matters most.
 Two supporting reasons: the subcategory is not uniformly noun-able (7 of 21 are not

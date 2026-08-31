@@ -8,7 +8,7 @@ load/save meshes and rasters, and capture view snapshots.
 The shared API is the `pymeshlab2.MeshSet` interface, and QMeshLab reuses that
 same model inside the desktop application. Generated API reference files live
 under `docs/api/` when regenerated from the current filter descriptors; the
-checked-in generated snapshot can lag until the app is run with `--generate-docs`.
+local generated snapshot can lag until the app is run with `--generate-docs`.
 The desktop-only additions are the predefined live `ms` object and the `mlgui`
 helper.
 

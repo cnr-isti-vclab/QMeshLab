@@ -253,7 +253,7 @@ this document rather than inventing a synonym locally.</p>
 applied to plugins and menus), <a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>.</p>
 <section id="why-this-exists">
 <h2>Why this exists<a class="headerlink" href="#why-this-exists" title="Link to this heading">¶</a></h2>
-<p>When this document was written, across the 272 filters of the time:</p>
+<p>The initial audit covered the 272-filter registry present on 2026-07-29:</p>
 <ul class="simple">
 <li><p><strong>165 of 272 display names (61 %) did not lead with a verb</strong>, so the reader could not
 tell what would change.</p></li>
@@ -266,8 +266,8 @@ tell what would change.</p></li>
 <li><p>32 distinct free-text <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> values across 32 plugins, including one-offs like
 <code class="docutils literal notranslate"><span class="pre">Remeshing,</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Resampling</span></code> and backend leakage like <code class="docutils literal notranslate"><span class="pre">Normals/Embree</span></code>.</p></li>
 </ul>
-<p><strong>Where it stands now</strong> (327 filters, five renaming rounds applied — <code class="docutils literal notranslate"><span class="pre">Meshing</span></code>,
-<code class="docutils literal notranslate"><span class="pre">Attribute</span></code>, <code class="docutils literal notranslate"><span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Geometry</span></code>, <code class="docutils literal notranslate"><span class="pre">Selection</span></code>):</p>
+<p><strong>Current registry (2026-08-31): 327 filters</strong>, with five renaming rounds applied —
+<code class="docutils literal notranslate"><span class="pre">Meshing</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute</span></code>, <code class="docutils literal notranslate"><span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Geometry</span></code>, and <code class="docutils literal notranslate"><span class="pre">Selection</span></code>:</p>
 <ul class="simple">
 <li><p><strong>57 of 327 (17 %)</strong> do not lead with a verb, and every one of them sits in a root
 whose round has not run yet.</p></li>
@@ -331,8 +331,8 @@ descriptors; in-tree descriptors should use <code class="docutils literal notran
 <p>A geometry-processing ontology: <strong>11 roots, two levels</strong>. Roots are <strong>nouns</strong>
 (concepts); the verbs live in filter names. Both levels are validated by the loader —
 a category must be either a root or a declared <code class="docutils literal notranslate"><span class="pre">Root/Subcategory</span></code> pair.</p>
-<p>Two levels was chosen for growth. Eleven roots over the original 272-filter
-migration corpus was ~25 each; with today’s 327 filters it remains small enough that a
+<p>Two levels was chosen for growth. Eleven roots over the 272-filter migration corpus
+of 2026-07-29 was ~25 each; with the current 327 filters it remains small enough that a
 flat list becomes unbrowsable as the archive grows toward several hundred more
 implementations, whereas the second level absorbs that.</p>
 <p>The authoritative copy is <code class="docutils literal notranslate"><span class="pre">src/plugins/filtercategories.h</span></code>/<code class="docutils literal notranslate"><span class="pre">.cpp</span></code>, which the loader
@@ -686,8 +686,8 @@ what happened to <code class="docutils literal notranslate"><span class="pre">ta
 <p>So <code class="docutils literal notranslate"><span class="pre">tags</span></code> should become <strong>generated</strong> (categories + derived facets, flattened for
 search) rather than authored. That kills the drift structurally and cancels the
 manual retagging of the original 272-filter migration baseline.</p>
-<p>For reference, the historical measured state of the hand-written tags — all 272
-filters in that baseline carried 1–6 each — shows the three failure modes this avoids:</p>
+<p>For reference, the hand-written tags measured on 2026-07-29 — all 272 filters in that
+baseline carried 1–6 each — show the three failure modes this avoids:</p>
 <ul class="simple">
 <li><p><strong>Category echoes</strong> — <code class="docutils literal notranslate"><span class="pre">meshing</span></code> (38), <code class="docutils literal notranslate"><span class="pre">selection</span></code> (36), <code class="docutils literal notranslate"><span class="pre">smoothing</span></code> (19),
 <code class="docutils literal notranslate"><span class="pre">sampling</span></code> (18), <code class="docutils literal notranslate"><span class="pre">cleaning</span></code> (16), <code class="docutils literal notranslate"><span class="pre">create</span></code> (16). Redundant, and <code class="docutils literal notranslate"><span class="pre">meshing</span></code> names a
@@ -1182,7 +1182,8 @@ filter by its category. It could not: <code class="docutils literal notranslate"
 <code class="docutils literal notranslate"><span class="pre">shortDescription</span></code>, <code class="docutils literal notranslate"><span class="pre">longDescriptionMarkdown</span></code> and <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code>, but <strong>not</strong> the
 category.</p>
 <p><strong>Implemented</strong> in <code class="docutils literal notranslate"><span class="pre">src/ui/meshfilterpanel.cpp</span></code> — <code class="docutils literal notranslate"><span class="pre">matchesSearch</span></code> now also matches the
-category. Measured against the 272 descriptors in the initial category migration:</p>
+category. The historical before/after benchmark below used the 272 descriptors in the
+2026-07-29 category migration:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>

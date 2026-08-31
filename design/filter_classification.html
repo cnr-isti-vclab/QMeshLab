@@ -244,15 +244,22 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filter-classification-pass-1-record">
 <h1>Filter Classification — pass 1 record<a class="headerlink" href="#filter-classification-pass-1-record" title="Link to this heading">¶</a></h1>
-<p>Applied <code class="docutils literal notranslate"><span class="pre">categories</span></code> for the <strong>272-filter migration baseline</strong>. Generated (once,
-by rules) from the pre-migration descriptors and the ontology in
+<blockquote>
+<div><p><strong>Current registry (2026-08-31): 327 filters across 33 filter plugins.</strong> Every
+272-filter total and table below is a dated record of the 2026-07-29 migration,
+not a current implementation count.</p>
+</div></blockquote>
+<p>This document records the <code class="docutils literal notranslate"><span class="pre">categories</span></code> applied to the <strong>272-filter migration
+baseline</strong>. It was generated once, by rules, from the pre-migration descriptors and
+the ontology in
 <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> §1; see <a class="reference internal" href="filter_organization.html"><span class="std std-doc">Filter Organization</span></a>
 for the plugin-side mapping.</p>
-<p><strong>Status: APPLIED</strong> (pass 1, 2026-07-29). All 272 filters now carry a <code class="docutils literal notranslate"><span class="pre">categories</span></code>
-array; the loader validates every entry against the ontology and reports no offenders.
+<p><strong>Status: APPLIED</strong> (pass 1, 2026-07-29). All 272 filters present on that date received
+a <code class="docutils literal notranslate"><span class="pre">categories</span></code> array. The loader now validates every entry against the ontology and
+reports no offenders in the current registry.
 The tables below are the record of what was applied — the <code class="docutils literal notranslate"><span class="pre">Note</span></code> column flags each row
 that moved somewhere other than a mechanical translation of the old <code class="docutils literal notranslate"><span class="pre">menuPath</span></code>.
-The current implementation has grown to 327 filters across 33 filter plugins; newly
+The implementation has since grown to 327 filters across 33 filter plugins; newly
 added filters are categorized in their <code class="docutils literal notranslate"><span class="pre">filters.json</span></code> descriptors, but this document
 intentionally remains the pass-1 migration record rather than a regenerated live
 catalog.</p>
@@ -306,8 +313,8 @@ positions only.</strong> Smoothing an <em>attribute</em> is classified by the at
 </section>
 <section id="resulting-shape">
 <h2>Resulting shape<a class="headerlink" href="#resulting-shape" title="Link to this heading">¶</a></h2>
-<p>Historical pass-1 shape: 272 filters → 43 distinct categories; 24 filters carry more
-than one.</p>
+<p>Historical pass-1 shape on 2026-07-29: 272 filters → 43 distinct categories; 24
+filters carried more than one.</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -496,11 +503,12 @@ than one.</p>
 </tbody>
 </table>
 </div>
-<p><strong>47 filters are currently mis-filed</strong> — they move to a different root
-than their present <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> implies. That is the main finding of this pass.</p>
+<p><strong>In the pre-migration descriptors, 47 filters were mis-filed</strong>: their applied
+category moved them to a different root from the one implied by their old <code class="docutils literal notranslate"><span class="pre">menuPath</span></code>.
+That was the main finding of this pass.</p>
 </section>
-<section id="proposed-classification-by-current-bucket">
-<h2>Proposed classification, by current bucket<a class="headerlink" href="#proposed-classification-by-current-bucket" title="Link to this heading">¶</a></h2>
+<section id="applied-classification-by-pre-migration-bucket">
+<h2>Applied classification, by pre-migration bucket<a class="headerlink" href="#applied-classification-by-pre-migration-bucket" title="Link to this heading">¶</a></h2>
 <section id="camera-10">
 <h3><code class="docutils literal notranslate"><span class="pre">Camera</span></code> (10)<a class="headerlink" href="#camera-10" title="Link to this heading">¶</a></h3>
 <div class="table-wrapper colwidths-auto docutils container">
@@ -2417,7 +2425,7 @@ than their present <code class="docutils literal notranslate"><span class="pre">
 <li><a class="reference internal" href="#how-to-read-this-record">How to read this record</a></li>
 <li><a class="reference internal" href="#ontology-additions-applied-in-this-pass">Ontology additions applied in this pass</a></li>
 <li><a class="reference internal" href="#resulting-shape">Resulting shape</a></li>
-<li><a class="reference internal" href="#proposed-classification-by-current-bucket">Proposed classification, by current bucket</a><ul>
+<li><a class="reference internal" href="#applied-classification-by-pre-migration-bucket">Applied classification, by pre-migration bucket</a><ul>
 <li><a class="reference internal" href="#camera-10"><code class="docutils literal notranslate"><span class="pre">Camera</span></code> (10)</a></li>
 <li><a class="reference internal" href="#cleaning-15"><code class="docutils literal notranslate"><span class="pre">Cleaning</span></code> (15)</a></li>
 <li><a class="reference internal" href="#color-24"><code class="docutils literal notranslate"><span class="pre">Color</span></code> (24)</a></li>

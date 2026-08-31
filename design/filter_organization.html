@@ -737,8 +737,9 @@ the name is unclear · <strong>FOLD</strong> = fails both tests, merge into fami
 </tbody>
 </table>
 </div>
-<p><strong>One dependency → one plugin.</strong> The two libigl plugins merge into a single
-<code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> (6 filters today), and <code class="docutils literal notranslate"><span class="pre">filter_igl_common</span></code>’s adapter code becomes its
+<p><strong>One dependency → one plugin.</strong> In the historical proposal, the two libigl plugins
+merge into a single <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> containing the 6 baseline filters, and
+<code class="docutils literal notranslate"><span class="pre">filter_igl_common</span></code>’s adapter code becomes its
 internal implementation rather than a separate gate target. This is the shape that
 scales as many more libigl filters arrive: one <code class="docutils literal notranslate"><span class="pre">find_package</span></code>, one build gate, one
 provenance story.</p>
@@ -1220,9 +1221,9 @@ historical 272-filter baseline):</p>
 </table>
 </div>
 <p>17 family plugins (226 filters) + 9 dependency/vendored plugins + 1 algorithm suite
-(46 filters) = <strong>27 filter plugins, from 32</strong>. Totals verified against the current
-historical 272-filter baseline.</p>
-<p>Dependency/vendored group: <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> (6, growing), <code class="docutils literal notranslate"><span class="pre">filter_embree</span></code> (5),
+(46 filters) = <strong>27 filter plugins, from 32</strong>. These proposal totals were verified
+against the historical 272-filter baseline, not the current 327-filter registry.</p>
+<p>Historical dependency/vendored group: <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> (6), <code class="docutils literal notranslate"><span class="pre">filter_embree</span></code> (5),
 <code class="docutils literal notranslate"><span class="pre">filter_expression</span></code> (18), <code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code> (1), <code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code> (3),
 <code class="docutils literal notranslate"><span class="pre">filter_texture_defragmentation</span></code> (2), <code class="docutils literal notranslate"><span class="pre">filter_xatlas</span></code> (1), <code class="docutils literal notranslate"><span class="pre">filter_qslim</span></code> (1),
 <code class="docutils literal notranslate"><span class="pre">filter_meshfix</span></code> (1); plus the <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code> suite (8).</p>
