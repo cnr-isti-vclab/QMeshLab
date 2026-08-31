@@ -10,7 +10,7 @@ See also: [Architecture](architecture.md) · [Data Model](data_model.md)
 - **`ParametrizationUV`**: orthographic UV-space rendering for the current mesh (requires faces + UV coords).
 - **`RasterImage`**: active-raster image-domain rendering. Entering the mode requires a valid current raster. The active raster is drawn as a screen-space overlay reference; if it has a valid `CameraShot`, visible meshes are rendered by the normal Scene3D pass pipeline through that raster camera.
 
-Ownership: `Document` owns canonical mesh/raster data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, raster GPU image resources, headlight/gizmo state, overlays, active/suspended interactive-tool state, and per-mesh render modes.
+Ownership: `Document` owns canonical mesh/raster data; `MeshGpuResourceCache` (owned by `Document`) holds shared GPU mesh resources; `RenderWidget` owns per-view pipelines/SRBs/UBOs, offscreen targets, camera/UV state, raster GPU image resources, headlight/trackball/view-axis gizmo state, overlays, active/suspended interactive-tool state, depth-cued tool-line resources, and per-mesh render modes.
 
 Undo/redo integration: undo-tree nodes include one `ViewState` snapshot (active view camera + render settings + per-mesh style map) captured/restored via `Document::setViewStateFunctions(...)`. History jumps can restore render style while intentionally leaving the live camera untouched until the final target node.
 
@@ -102,7 +102,7 @@ Default fill color source preference: texture → per-vertex → per-face → pe
 8. Run Radiance Scaling gradient pre-pass (if any planned fill item uses `FillMaterial::RadianceScaling`).
 9. Run main onscreen pass.
 
-Main pass draw order: scene background · raster background in RasterImage mode only · fill · wire · edges · bbox · points · raster camera frustums · decorators · trackball gizmo · light gizmo · current-mesh outline/debug composite · selection overlay · 2D informational overlays.
+Main pass draw order: scene background · raster background in RasterImage mode only · fill · wire · edges · bbox · points · raster camera frustums · decorators · trackball gizmo · light gizmo · depth-cued tool guides · current-mesh outline/debug composite · selection overlay · 2D informational/tool overlays.
 
 ## `Scene3D` Pass Details
 
@@ -146,18 +146,20 @@ Double click schedules an offscreen depth-pick frame: depth encoded in RGB → o
 
 ## `Scene3D` Camera and Interaction
 
-`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. Gizmo is depth-aware and scale-stable across dolly/FOV changes. `MainWindow` can optionally synchronize camera state across 3D views and exposes a `Center on Selection` camera command; UV views keep independent pan/zoom.
+`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight and shows the light gizmo while dragging. Gizmos are depth-aware and scale-stable across dolly/FOV changes. The corner `ViewAxisGizmo` uses the `view.axisGizmoSize` preference and lets axis clicks snap the 3D camera orientation. `MainWindow` can optionally synchronize camera state across 3D views and exposes a `Center on Selection` camera command; UV views keep independent pan/zoom.
 
 ## Interactive Tools
 
-Interactive tools are thin view-owned interaction front-ends over filter/document operations. A tool is active in at most one `RenderWidget`; it owns mouse/keyboard input while active, shows a cursor/status hint, and commits persistent changes through `Document::runFilter(...)` so undo nodes and Python action history stay coherent. `Tab` suspends the tool and temporarily returns gestures to camera navigation; `Esc` exits the tool.
+Interactive tools are thin view-owned interaction front-ends over filter/document operations. A tool is active in at most one `RenderWidget`; it owns mouse/keyboard input while active, shows a cursor/status hint/badge/icon, can paint a 2D overlay, and can contribute depth-cued line segments to the scene pass. Durable edits commit through `Document::runFilter(...)` when possible so undo nodes and Python action history stay coherent. `Tab` suspends the tool and temporarily returns gestures to camera navigation; `Esc` exits the tool or cancels the active gesture.
 
 Current built-in tools:
 
 - `Select Layer`: click in Scene3D to schedule an asynchronous GPU surface pick; on hit, the picked mesh becomes the current mesh layer.
 - `Rubber-band Select`: drag a rectangle in Scene3D or UV mode, then run `qmeshlab.filter.select::select_by_rectangle`. `Shift` adds, `Ctrl` subtracts, and `F`/`V` switch between face and vertex selection. The tool passes either camera-state JSON or UV pan/zoom parameters depending on the active view mode.
+- `Measuring Tool`: click surface points in Scene3D to build/edit measurement segments. It uses asynchronous surface picking for placement and drag previews, draws labels and depth-cued segments, `C` clears, Backspace removes the last segment, `P` prints to the log, `S` saves a TSV, and `X` exports the measurements as an edge-only mesh layer.
+- `Transform Layer`: modal layer transform tool for the current mesh. `G`, `R`, and `S` start translate/rotate/scale gestures; `X`/`Y`/`Z` constrain to an axis, `Shift` plus an axis constrains to the perpendicular plane, typed numbers set exact values, and Enter/click commits. During preview it updates the layer matrix directly, then restores the original matrix and commits exactly one transform filter so undo/script history remain clean. The tool exposes the shared `:/img/axis.png` toolbar icon.
 
-Raster mode remains image-navigation oriented and does not currently host these tools.
+`Rubber-band Select` is the only tool that currently supports `ParametrizationUV`. The other built-ins are Scene3D-only, and Raster mode remains image-navigation oriented.
 
 ## Camera Models: `CameraShot` vs `ViewTrackball`
 

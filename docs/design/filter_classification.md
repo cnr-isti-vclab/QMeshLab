@@ -1,7 +1,7 @@
-# Filter Classification — pass 1 proposal
+# Filter Classification — pass 1 record
 
-Proposed `categories` for **all 272 filters**, for review before any code moves.
-Generated (once, by rules) from the pre-migration descriptors and the ontology in
+Applied `categories` for the **272-filter migration baseline**. Generated (once,
+by rules) from the pre-migration descriptors and the ontology in
 [Vocabulary](vocabulary.md) §1; see [Filter Organization](filter_organization.md)
 for the plugin-side mapping.
 
@@ -9,23 +9,27 @@ for the plugin-side mapping.
 array; the loader validates every entry against the ontology and reports no offenders.
 The tables below are the record of what was applied — the `Note` column flags each row
 that moved somewhere other than a mechanical translation of the old `menuPath`.
+The current implementation has grown to 327 filters across 33 filter plugins; newly
+added filters are categorized in their `filters.json` descriptors, but this document
+intentionally remains the pass-1 migration record rather than a regenerated live
+catalog.
 
 Representation (§2) is deliberately **out of scope** for this pass.
 
-## How to review
+## How to read this record
 
-1. Settle the four proposed new subcategories in the next section — they change
-   the ontology itself, so nothing else can be finalised first.
-2. Then walk the buckets. Rows with a **bold** note are the ones that move
-   somewhere other than where a naive `menuPath` translation would put them.
+1. The four ontology additions in the next section were the rulings that made
+   the pass possible.
+2. Rows with a **bold** note are the ones that moved somewhere other than where
+   a naive `menuPath` translation would have put them.
 3. Categories are **ordered**: the first is primary (canonical home); the rest
    are cross-listings.
 
-## Proposed additions to the ontology
+## Ontology additions applied in this pass
 
-Classifying the real filters exposed four gaps. Each needs a ruling:
+Classifying the real filters exposed four gaps. These rulings are now implemented:
 
-| Proposed | Filters | Why |
+| Applied ontology addition | Filters | Why |
 |---|---|---|
 | `Meshing/Deletion` | 4 | *Delete Selected Faces/Vertices*, *Delete ALL Faces*. These **delete geometry**, so by the "what changed?" rule they are not `Selection` at all, and nothing is broken so they are not `Repair`. |
 | `Selection/Set Operations` | 5 | *Select All/None*, *Invert*, *Erode*, *Dilate*. Selection algebra, not selection *by a criterion* — the other three subcategories all answer "selected how?". |
@@ -39,7 +43,8 @@ positions only.** Smoothing an *attribute* is classified by the attribute —
 
 ## Resulting shape
 
-272 filters → 43 distinct categories; 24 filters carry more than one.
+Historical pass-1 shape: 272 filters → 43 distinct categories; 24 filters carry more
+than one.
 
 | Category | Primary | Total (incl. cross-listed) |
 |---|---|---|
@@ -95,7 +100,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Camera` (10)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Generate Camera from Direction | `camera` | `Document/Camera` |  |
 | Generate Camera to View Selection | `camera` | `Document/Camera` |  |
@@ -110,7 +115,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Cleaning` (15)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Merge Close Vertices | `clean` | `Repair/Duplicates` |  |
 | Merge Wedge Texture Coord | `clean` | `Repair/Duplicates` | <sub>touches: uv</sub> |
@@ -130,7 +135,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Color` (24)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Clamp Vertex Scalar | `colorproc` | `Attribute/Scalar` | **scalar**, not color <sub>touches: scalar</sub> |
 | Add Noise to Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
@@ -158,7 +163,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Compute/Attributes` (4)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Define Custom Face Point Attribute | `func` | `Attribute/Custom` **(new)** |  |
 | Define Custom Face Scalar Attribute | `func` | `Attribute/Custom` **(new)** |  |
@@ -167,20 +172,20 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Compute/Color` (2)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Compute Face Color by Expression | `func` | `Attribute/Color` | <sub>touches: color</sub> |
 | Compute Vertex Color by Expression | `func` | `Attribute/Color` | <sub>touches: color</sub> |
 
 ### `Compute/Geometry` (1)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Per Vertex Geometric Function | `func` | `Geometry/Deformation` **(new)** | moves vertices by a formula |
 
 ### `Compute/Normals` (9)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Normalize Face Normals | `unsharp` | `Attribute/Normal` |  |
 | Normalize Vertex Normals | `unsharp` | `Attribute/Normal` |  |
@@ -194,21 +199,21 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Compute/Quality` (2)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Compute Face Scalar by Expression | `func` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
 | Compute Vertex Scalar by Expression | `func` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
 
 ### `Compute/Texture` (2)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Per Vertex Texture Function | `func` | `Parametrization/UV Creation` | **writes UVs**, not an image <sub>touches: uv</sub> |
 | Per Wedge Texture Function | `func` | `Parametrization/UV Creation` | **writes UVs**, not an image <sub>touches: uv</sub> |
 
 ### `Create` (16)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Create Annulus | `create` | `Creation/Primitives` | bucket default |
 | Create Box | `create` | `Creation/Primitives` | bucket default |
@@ -230,19 +235,19 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Geometry/Transform` (1)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Normalize To Unit Box | `basic` | `Geometry/Transform` |  |
 
 ### `Inspection` (1)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Current Mesh Info | `basic` | `Measurement/Topological` |  |
 
 ### `Layer` (14)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Delete Current Mesh | `layer` | `Document/Layer` | bucket default |
 | Delete Current Raster | `layer` | `Document/Layer` | bucket default |
@@ -261,7 +266,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Layer/Boolean` (4)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Mesh Boolean: Difference | `mesh_booleans` | `Meshing/Boolean` | was mis-filed under `Layer` <sub>touches: color, scalar</sub> |
 | Mesh Boolean: Intersection | `mesh_booleans` | `Meshing/Boolean` | was mis-filed under `Layer` <sub>touches: color, scalar</sub> |
@@ -270,7 +275,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `MLS` (8)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Compute Curvature (APSS) | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
 | Compute Curvature (RIMLS) | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
@@ -283,7 +288,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Measure` (5)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Compute Area/Perimeter of Selection | `measure` | `Measurement/Geometric` |  |
 | Compute Geometric Measures | `measure` | `Measurement/Geometric` |  |
@@ -293,7 +298,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Measure/Quality` (4)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Per Face Quality Histogram | `measure` | `Measurement/Statistics` |  |
 | Per Face Quality Stat | `measure` | `Measurement/Statistics` |  |
@@ -302,7 +307,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Meshing` (38)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Create Polyline from Selected Edges | `meshing` | `Creation/Primitives` | creates a new polyline layer |
 | Close Holes | `meshing` | `Repair/Holes and Borders` |  |
@@ -345,20 +350,20 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Normals/Embree` (1)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Orient Face Normals by Ray Casting | `embree` | `Attribute/Normal` |  |
 
 ### `Parameterization` (2)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Parameterization + texturing from registered rasters | `img_patch_param` | `Parametrization/UV Creation` · `Texture` · `Transfer/Raster to Mesh` | <sub>touches: texture, uv</sub> |
 | Parameterization from registered rasters | `img_patch_param` | `Parametrization/UV Creation` · `Transfer/Raster to Mesh` | <sub>touches: uv</sub> |
 
 ### `Quality` (7)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Compute Curvature (Discrete) | `colorproc` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
 | Compute Face Scalar from Geometry | `colorproc` | `Attribute/Scalar` | <sub>touches: scalar</sub> |
@@ -370,7 +375,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Quality/Embree` (3)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Compute Ambient Occlusion | `embree` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
 | Compute Obscurance | `embree` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
@@ -378,7 +383,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Quality/Geodesic` (4)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Compute Geodesic Distance from Border | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
 | Compute Geodesic Distance from Point | `geodesic` | `Attribute/Scalar` | backend dropped <sub>touches: scalar</sub> |
@@ -387,7 +392,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Raster` (5)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Project Active Rasters Color to Current Mesh | `color_projection` | `Transfer/Raster to Mesh` · `Attribute/Color` | <sub>touches: color</sub> |
 | Project Active Rasters Color to Current Mesh Texture | `color_projection` | `Transfer/Raster to Mesh` · `Texture` | <sub>touches: uv</sub> |
@@ -397,7 +402,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Remeshing` (8)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Reconstruct Surface by Alpha Wrapping | `cgal` | `Creation/Reconstruction` | **mis-filed** as Remeshing |
 | Create Solid Wireframe | `voronoi` | `Creation/Primitives` | builds a new structure |
@@ -410,14 +415,14 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Remeshing, Smoothing and Resampling` (2)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Simplification: Edge Collapse for Marching Cube meshes | `plymc` | `Meshing/Simplification` |  |
 | Reconstruct Surface by Volumetric Merging | `plymc` | `Creation/Reconstruction` |  |
 
 ### `Remeshing/Surface Reconstruction` (3)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Reconstruct Surface by Smooth Signed Distance | `screened_poisson` | `Creation/Reconstruction` |  |
 | Reconstruct Surface by Screened Poisson | `screened_poisson` | `Creation/Reconstruction` |  |
@@ -425,7 +430,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Sampling` (17)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Sample Vertices by Clustering | `sampling` | `Creation/Sampling` |  |
 | Colorize Vertices by Disk Distance | `sampling` | `Attribute/Color` | <sub>touches: scalar</sub> |
@@ -447,7 +452,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Selection` (27)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Conditional Face Selection | `func` | `Selection/by Attribute` | <sub>touches: selection</sub> |
 | Conditional Vertex Selection | `func` | `Selection/by Attribute` | <sub>touches: selection</sub> |
@@ -479,13 +484,13 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Selection/Embree` (1)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Select Visible Faces | `embree` | `Selection/by Visibility` | <sub>touches: selection</sub> |
 
 ### `Smoothing` (16)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Cut mesh along crease edges | `unsharp` | `Meshing/Remeshing` | **topology change**, not smoothing |
 | Depth Smooth | `unsharp` | `Geometry/Smoothing` |  |
@@ -506,7 +511,7 @@ than their present `menuPath` implies. That is the main finding of this pass.
 
 ### `Texture` (16)
 
-| Filter | Plugin | Proposed categories | Note |
+| Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Convert PerVertex UV into PerWedge UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |
 | Convert PerWedge UV into PerVertex UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |

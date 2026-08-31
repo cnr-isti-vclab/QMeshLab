@@ -21,7 +21,7 @@ one filter, so the two compose.
 
 ```
 plugins/filter_foo/
-  filters.json          # declares the filters (ids, menu, params, I/O domains)
+  filters.json          # declares the filters (ids, categories, params, I/O domains)
   foofilterplugin.h     # class FooFilterPlugin : public MeshFilterPlugin
   foofilterplugin.cpp   # runFilter() — the actual algorithms
   CMakeLists.txt        # build target + embeds filters.json as a resource
@@ -41,7 +41,7 @@ plugins/filter_foo/
   "filters": [
     {
       "id": "do_something",
-      "menuPath": "Geometry/Cleaning",
+      "categories": ["Repair/Topology"],
       "name": "Do Something",
       "pythonName": "do_something",
       "shortDescription": "One line shown in the browser.",
@@ -60,7 +60,13 @@ plugins/filter_foo/
 The default `MeshFilterPlugin::filters()` loads this from the Qt resource
 `:/filters/<pluginId>/filters.json`, so the `CMakeLists.txt` PREFIX must match
 `pluginId`. Parameter types: `bool int double absPerc enum color point3f string
-fileOpen fileSave mesh cameraState renderState textureRef`.
+fileOpen fileSave mesh cameraState renderState textureRef textureOutputRef`.
+
+`categories` is required for in-tree descriptors and is validated against the
+closed ontology in [Vocabulary](vocabulary.md). The first category is the
+canonical home; later entries are cross-listings. The loader still accepts a
+single legacy `menuPath` string when `categories` is absent, but new descriptors
+should not use it.
 
 A parameter that only matters when another is set should say so structurally rather
 than only in its help text:

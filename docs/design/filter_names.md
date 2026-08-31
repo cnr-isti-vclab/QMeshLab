@@ -9,7 +9,7 @@ Verb Object [(Backend)]
 **Status: display names APPLIED for `Meshing`** (30, 2026-07-30), **`Attribute`**
 (64, 2026-08-04), **`Creation`** (38, 2026-08-05), **`Geometry`** (38, 2026-08-26)
 **and `Selection`** (30, 2026-08-27).
-Counts are as of each round; the archive has grown to 328 filters since, so a root's
+Counts are as of each round; the archive has grown to 327 filters since, so a root's
 current size exceeds what its round covered.
 
 Remaining roots, largest first: `Repair` (24), `Document` (22),
@@ -155,9 +155,9 @@ Two, both now recorded in [Vocabulary](vocabulary.md) §3:
 Applied: all 30 display names. Verified — no old name survives as a filter name, no
 duplicate display names across the 272, JSON intact, build and tests clean.
 
-Note for whoever regenerates the docs: `docs/api/filters.rst` still contains the old
-names, but it is a **stale artifact** — `generate_api.py` deletes it, so it disappears on
-the next `--generate-docs` run rather than needing a hand edit.
+Note for whoever regenerates the docs: `docs/api/filters.md` is generated from the
+descriptors; fix stale filter entries by running `--generate-docs`, not by hand-editing
+individual generated sections.
 
 ---
 
@@ -821,7 +821,7 @@ All settled (2026-08-26).
 
 `docs/design/filter_classification.md` and `filter_organization.md` still carry the old
 names. Both are dated snapshots of an audit, like the "Current" column above, and are left
-alone on purpose. `docs/api/filters.md` is generated and gitignored.
+alone on purpose. `docs/api/filters.md` is generated from the descriptors.
 
 ---
 

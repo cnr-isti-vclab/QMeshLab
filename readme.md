@@ -7,14 +7,20 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 - [Architecture](docs/design/architecture.md)
 - [Data Model](docs/design/data_model.md)
 - [Rendering](docs/design/rendering.md)
+- [Adding a Filter](docs/design/adding_a_filter.md)
+- [Vocabulary](docs/design/vocabulary.md)
 - [Filter Organization](docs/design/filter_organization.md)
+- [Filter Classification](docs/design/filter_classification.md)
+- [Filter Names](docs/design/filter_names.md)
+- [Preferences](docs/design/preferences.md)
+- [Usage Statistics](docs/design/usage_statistics.md)
 
 ## Current Features
 - Single `Document` shared by one or more `RenderWidget` views
 - Split-view UI (horizontal/vertical), active-view indicator, dual tree/table layer dock, log/filter docks, undo graph, and optional Python console dock
 - Per-view mode switching between `3D Scene`, `Parametrization (UV)` (when the current mesh has UVs), and `Raster` (when the active layer is a raster)
-- Interactive tool framework with layer picking and rubber-band selection; tools are pinned to their owner view, can be suspended with `Tab` for camera navigation, and commit durable edits through filters for undo/script history
-- Scene overlays for selection, normals, boundaries, texture seams, non-manifold markers, curvature directions, current-mesh outline, trackball/light gizmos, quality histogram, and optional decorator info counts
+- Interactive tool framework with layer picking, rubber-band selection, surface measuring, and layer transforms; tools are pinned to their owner view, can be suspended with `Tab` for camera navigation, and commit durable edits through filters for undo/script history
+- Scene overlays for selection, normals, boundaries, texture seams, non-manifold markers, curvature directions, current-mesh outline, trackball/light/axis gizmos, tool guides, quality histogram, and optional decorator info counts
 - PBR fill with albedo/normal/occlusion/roughness maps, tangent-space or object-space normal-map interpretation, plus Radiance Scaling
 - Scene3D rendering organized as lightweight `RenderFrameRequest` pass requests -> GPU resource preparation -> concrete `RenderFramePlan` draw items -> pass executors
 - Fill rendering modes (`Plain`, `Pbr`, `RadianceScaling`) isolated behind material renderers with shared fill services and an RS pre-pass hook
@@ -23,7 +29,7 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 - Raster mode displays the current raster as the view reference with aspect-preserving fit, pan/zoom navigation, and opacity control; rasters with camera shots reuse the Scene3D mesh pass pipeline through the raster camera
 - Versioned camera/render-state JSON supports copy/paste, capture/apply, active-view snapshots, and headless offscreen snapshot workflows; concrete GPU `RenderFramePlan` objects remain internal and are not serialized
 - Plugin-based mesh import/export with per-extension preferred import plugin, plus direct MeshLab project (`.mlp`) loading and saving for mesh/raster layer sets
-- Plugin-based filter framework with searchable filter browser, generated parameter dialogs, `pythonName` metadata, markdown descriptions, default reset, and compact/full Python call generation
+- Plugin-based filter framework with searchable category tree, generated parameter dialogs, `pythonName` metadata, structured provenance/references, markdown descriptions, default reset, and compact/full Python call generation
 - Filter parameters include mesh, texture, point/vector, camera-state, and render-state values; parameter panels can reset to descriptor defaults and source state JSON from the active view
 - Raster projection filters can transfer current/all visible raster colors to vertex colors or bake visible rasters into a mesh texture atlas using existing wedge UVs
 - Remeshing filters include layer-aware mesh parameters such as an alternate reference surface for isotropic remeshing reprojection/distance checks
@@ -35,8 +41,10 @@ Qt 6 single-document mesh viewer/editor prototype using QRhi, vcglib, plugin-bas
 Built-in I/O plugin families (dependency-gated at build time):
 - `io_vcg` (`ply`, `obj`, `stl`, `off`, `vmi`)
 - `io_obj_rapidobj` (`obj`)
+- `io_3mf` (`3mf`)
 - `io_gltf` (`gltf`, `glb`)
 - `io_e57` (`e57`, optional)
+- `io_trueform` (`obj`, `stl`, optional)
 
 MeshLab project files (`.mlp`) are loaded and saved directly by `Document`, combining mesh plugin I/O, mesh transforms, raster planes, and raster camera shots.
 
@@ -56,12 +64,14 @@ filter *category* instead, see [Vocabulary](docs/design/vocabulary.md):
 - `filter_icp`
 - `filter_igl`
 - `filter_img_patch_param`
+- `filter_instant_meshes`
 - `filter_layer`
 - `filter_measure`
 - `filter_meshfix`
 - `filter_meshing`
 - `filter_mls`
 - `filter_plymc`
+- `filter_quadwild`
 - `filter_qslim`
 - `filter_sampling`
 - `filter_screened_poisson`
@@ -69,6 +79,7 @@ filter *category* instead, see [Vocabulary](docs/design/vocabulary.md):
 - `filter_texture`
 - `filter_texture_defragmentation`
 - `filter_trioptimize`
+- `filter_trueform`
 - `filter_unsharp`
 - `filter_vertex_displacement`
 - `filter_voronoi`

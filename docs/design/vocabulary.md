@@ -52,9 +52,9 @@ intended:
 
 - **A plugin may contain filters in any number of categories.** This is structural,
   not a convention: in `filters.json`, `pluginId` is a **file-level** key while
-  `menuPath` is a **per-filter** key. `filter_mls` spans four categories,
-  `filter_igl` spans two and will span more, and the retired `filter_basic` spanned
-  three. Plugins are dependency/build units; categories are the user-facing
+  `categories` is a **per-filter** key. `filter_mls` spans four categories,
+  `filter_igl` spans several, and `filter_basic` still spans multiple categories.
+  Plugins are dependency/build units; categories are the user-facing
   classification. See [Filter Organization](filter_organization.md), decisions 1–3.
 - **A filter may carry several categories.** Classification is a *set* of paths drawn
   from the ontology, not a single value — because real filters carry genuinely
@@ -77,17 +77,16 @@ The term is **"filter category"**, not "menu family" and not "filter class":
 - *filter class* collides with C++ `class` in a C++ codebase, and inherits confusion
   from MeshLab's own `FilterClass` enum.
 
-**Descriptor field.** The field is currently the single string `menuPath`, which has
-the same presentation bias and cannot express a set. It becomes an array named
+**Descriptor field.** The authored descriptor field is the ordered array
 `categories`:
 
 ```json
 "categories": ["Meshing/Simplification", "Texture"]
 ```
 
-Each entry must be a valid ontology path, validated by the loader. This is a
-descriptor-schema change across all 32 `filters.json` files plus the loader — the
-scope pass 1 already has.
+Each entry must be a valid ontology path, validated by the loader. A legacy single
+`menuPath` string is still accepted only as a fallback for old or out-of-tree
+descriptors; in-tree descriptors should use `categories`.
 
 ### The ontology
 
@@ -95,7 +94,8 @@ A geometry-processing ontology: **11 roots, two levels**. Roots are **nouns**
 (concepts); the verbs live in filter names. Both levels are validated by the loader —
 a category must be either a root or a declared `Root/Subcategory` pair.
 
-Two levels was chosen for growth. Eleven roots over today's 272 filters is ~25 each; a
+Two levels was chosen for growth. Eleven roots over the original 272-filter
+migration corpus was ~25 each; with today's 327 filters it remains small enough that a
 flat list becomes unbrowsable as the archive grows toward several hundred more
 implementations, whereas the second level absorbs that.
 
@@ -277,10 +277,10 @@ Two derivable facets, both already present in the descriptor in structured form:
 
 So `tags` should become **generated** (categories + derived facets, flattened for
 search) rather than authored. That kills the drift structurally and cancels the
-manual retagging of 272 filters.
+manual retagging of the original 272-filter migration baseline.
 
-For reference, the measured state of the hand-written tags — all 272 filters carry
-1–6 each — shows the three failure modes this avoids:
+For reference, the historical measured state of the hand-written tags — all 272
+filters in that baseline carried 1–6 each — shows the three failure modes this avoids:
 
 - **Category echoes** — `meshing` (38), `selection` (36), `smoothing` (19),
   `sampling` (18), `cleaning` (16), `create` (16). Redundant, and `meshing` names a
@@ -583,7 +583,7 @@ filter by its category. It could not: `MeshFilterPanel::matchesSearch` matched `
 category.
 
 **Implemented** in `src/ui/meshfilterpanel.cpp` — `matchesSearch` now also matches the
-category. Measured against the current 272 descriptors:
+category. Measured against the 272 descriptors in the initial category migration:
 
 | Query | Matches before | After |
 |---|---|---|

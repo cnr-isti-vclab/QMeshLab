@@ -62,7 +62,7 @@ Also exposes: `openDialogFilter()`, `saveDialogFilter()`, `saveMaskCapability()`
 
 ## Filter Model
 
-Metadata: `filterInfos()`, `loadedFilterPluginSummaries()`. Descriptors can be loaded declaratively from filter JSON resources via `FilterDescriptorLoader`, including requirements, input/parameter preparation codes (`FF`, `VF`, `VTex`/`VT`, `WTex`/`WT`, `BorderFF`, `BorderVF`, `CurvDir`, normals, bbox, marks), cleanup hooks, dynamic bounds/default tokens, texture input/output references, mesh parameters with their own requirements/preparation, point/vector parameters, camera/render-state parameters, incremental selection, `pythonName`, and output-modifies codes. Mesh parameters can point to non-current layers for operations such as isotropic remeshing against a separate reference surface. `MeshFilterDescriptor::effectivePythonName()` returns explicit `pythonName` when present and otherwise derives a snake-case name from the display name.
+Metadata: `filterInfos()`, `loadedFilterPluginSummaries()`. Descriptors can be loaded declaratively from filter JSON resources via `FilterDescriptorLoader`, including validated ordered `categories` (first entry primary, later entries cross-listings), structured `provenance`, CSL-style publication `references`, tags, requirements, input/parameter preparation codes (`FF`, `VF`, `VTex`/`VT`, `WTex`/`WT`, `BorderFF`, `BorderVF`, `CurvDir`, normals, bbox, marks), cleanup hooks, dynamic bounds/default tokens, texture input/output references, mesh parameters with their own requirements/preparation, point/vector parameters, camera/render-state parameters, incremental selection, `pythonName`, and output-modifies codes. `categories` is the authored field; a legacy single `menuPath` string is still accepted as a loader fallback for old/out-of-tree descriptors. Mesh parameters can point to non-current layers for operations such as isotropic remeshing against a separate reference surface. `MeshFilterDescriptor::effectivePythonName()` returns explicit `pythonName` when present and otherwise derives a snake-case name from the display name.
 
 Execution: `runFilter(filterKey, parameters)` with callback-based progress and cancel (`requestOperationCancel`, `isOperationCancelRequested`). The framework normalizes/validates parameters, exposes `validateFilterInvocation(...)` for preflight checks, prepares requested volatile VCG data, validates typed `CameraState`/`RenderState` JSON payloads when descriptors request them, runs pre/post cleanup hooks, compacts modified meshes, updates geometry/material/selection/transform revisions according to descriptor output codes, refreshes the cached logical polygon count after `FV`/`FP` changes, and can return visualization hints for quality-based rendering.
 
@@ -73,6 +73,10 @@ Render-state filters: `filter_layer` includes `render_from_render_state_json`, w
 Filters can consume document-level mesh, raster, camera, texture, and render-state data when their descriptors request those parameter/input domains. Mutations stay descriptor-driven: vertex color, wedge texture, material, geometry, selection, transform, and new-layer outputs are surfaced through the normal output-modifies codes and document revision paths rather than through filter-specific data-model branches.
 
 Python integration: `_qmeshlab.MeshSet` wraps a `Document` and exposes mesh/raster/project helpers, visibility/current-layer methods, `list_filters`, `apply_filter`, and `render_snapshot`. `apply_filter` resolves a fully qualified key, descriptor id, or Python name, converts supported Python kwargs to `MeshFilterParameterValues` (`bool`, integer, float, string, and 3-number point/vector sequences), and runs the same `Document::runFilter(...)` path used by the GUI. In the embedded console, `PythonHost` exposes the public `pymeshlab2` facade, injects the live document as `ms`, injects the live view helper as `mlgui`, and dynamically adds one method per filter to `MeshSet` using each descriptor's `effectivePythonName()`.
+
+## Preference Model
+
+Application preferences live in `resources/preferences.json`, using the same parameter-descriptor schema as filter parameters. `Preferences` is a process-wide `src/core` singleton backed by `QSettings`; it exposes declared descriptors, typed reads, immediate writes, reset-to-defaults, and a `changed` signal. `PreferencesDialog` renders those descriptors through the shared `ParameterFormBuilder`, so adding one of the current 12 preferences is a JSON/schema change plus a call-site read, not a custom-widget change.
 
 ## Undo/Redo Model
 
@@ -161,7 +165,7 @@ This split keeps user/render settings as stable input data, pass requests as an 
 | mesh/raster list, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster pan/zoom/opacity |
 | document visibility proxy (`MeshEntry::visible`) | overlay settings, histogram cache |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
-| undo tree, full snapshots, selection deltas, script-action records | UV-local GPU cache (`m_uvMeshGpu`), per-mesh active UV texture group, raster GPU image cache, active/suspended tool state |
+| undo tree, full snapshots, selection deltas, script-action records | UV-local GPU cache (`m_uvMeshGpu`), per-mesh active UV texture group, raster GPU image cache, active/suspended tool state, transient measure/transform feedback |
 | shared mesh GPU cache | |
 
 `MainWindow` synchronizes document visibility from the active view so the layer panel reflects it; each view keeps its own local visibility vector independently.
