@@ -592,7 +592,7 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Merge Wedge Texture Coord</p></td>
+<tr class="row-odd"><td><p>Merge Close Wedge UVs</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
@@ -612,12 +612,12 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Remove Isolated Pieces (wrt Diameter)</p></td>
+<tr class="row-odd"><td><p>Remove Isolated Components by Diameter</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Remove Isolated Pieces (wrt Face Num.)</p></td>
+<tr class="row-even"><td><p>Remove Isolated Components by Face Count</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p></td>
 <td><p></p></td>
@@ -632,12 +632,12 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Remove Vertices wrt Quality</p></td>
+<tr class="row-odd"><td><p>Remove Vertices by Scalar</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Remove Zero Area Faces</p></td>
+<tr class="row-even"><td><p>Remove Zero-Area Faces</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p></td>
 <td><p></p></td>
@@ -647,17 +647,17 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Repair non Manifold Edges</p></td>
+<tr class="row-even"><td><p>Repair Non-Manifold Edges</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Repair non Manifold Vertices by Splitting</p></td>
+<tr class="row-odd"><td><p>Repair Non-Manifold Vertices by Splitting</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Snap Mismatched Borders</p></td>
+<tr class="row-even"><td><p>Repair Mismatched Borders</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code></p></td>
 <td><p></p></td>
@@ -1438,7 +1438,7 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Invert Faces Orientation</p></td>
+<tr class="row-odd"><td><p>Invert Face Orientation</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
 <td><p>orientation is topological</p></td>
@@ -1468,7 +1468,7 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
 <td><p><sub>touches: texture</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Re-Orient all faces coherently</p></td>
+<tr class="row-odd"><td><p>Orient Faces Consistently (vcglib)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p></td>
 <td><p>orientation is topological</p></td>
@@ -1588,7 +1588,7 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Quad</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Vertex Attribute Seam</p></td>
+<tr class="row-odd"><td><p>Split Vertices by Attribute Seam</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p></td>
 <td><p>splits vertices on attribute discontinuity <sub>touches: uv, color</sub></p></td>

@@ -1623,7 +1623,7 @@ Traces rays from every point of the current point-cloud layer against a separate
 
 (filter-compute-scalar-by-signed-distance-per-vertex)=
 
-## Compute Signed Distance to Mesh
+## Compute Signed Distance to Mesh (TrueForm)
 
 **Categories:** `Attribute/Scalar`
 
@@ -1634,7 +1634,7 @@ Store each vertex's signed distance to another layer's surface in vertex scalar.
 ```{py:function} ms.compute_scalar_by_signed_distance_per_vertex(**params)
 :module: _qmeshlab
 
-Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable **Unsigned** for absolute distance, which is what you want when only proximity matters.\n\nCompare with *Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance*, which reports a mean.
+Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour (TrueForm)* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable **Unsigned** for absolute distance, which is what you want when only proximity matters.\n\nCompare with *Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance (TrueForm)*, which reports a mean.
 
 **Parameters:**
 
@@ -2390,7 +2390,7 @@ Generates a scalar field over a cubic grid and extracts an isosurface using marc
 
 (filter-generate-polyline-from-mesh-intersection)=
 
-## Create Polyline from Mesh Intersection
+## Create Polyline from Mesh Intersection (TrueForm)
 
 **Categories:** `Creation/Primitives`
 
@@ -2413,7 +2413,7 @@ Extracts the exact curve along which two layers intersect, as a new polyline lay
 
 (filter-generate-polyline-from-scalar-isocontour)=
 
-## Create Polyline from Scalar Isocontour
+## Create Polyline from Scalar Isocontour (TrueForm)
 
 **Categories:** `Creation/Primitives`
 
@@ -2439,7 +2439,7 @@ Extracts level sets of the **per-vertex scalar field** as polylines lying exactl
 
 (filter-generate-polyline-from-self-intersections)=
 
-## Create Polyline from Self-Intersections
+## Create Polyline from Self-Intersections (TrueForm)
 
 **Categories:** `Creation/Primitives`
 
@@ -2493,7 +2493,7 @@ Create a new solid wireframe layer by replacing edges with cylinders, vertices w
 
 (filter-generate-tube-from-polyline)=
 
-## Create Tube from Polyline
+## Create Tube from Polyline (TrueForm)
 
 **Categories:** `Creation/Primitives`
 
@@ -2632,7 +2632,7 @@ Only vertex positions are used, so a raw point cloud with no faces and no normal
 
 Each face carries its **circumradius in face scalar**, so the scalar histogram shows the alpha distribution and helps pick a better value.
 
-Facet orientation comes from the Delaunay triangulation and is not made globally coherent; run *Orient Faces Coherently* if you need it.
+Facet orientation comes from the Delaunay triangulation and is not made globally coherent; run *Orient Faces Consistently* if you need it.
 
 Implemented with CGAL's 3D Alpha Shapes.
 
@@ -3833,7 +3833,7 @@ Applies a render-state JSON payload to the active view, renders an offscreen sna
 
 (filter-compute-matrix-by-corresponding-points)=
 
-## Align to Corresponding Points
+## Align to Corresponding Points (TrueForm)
 
 **Categories:** `Geometry/Alignment`
 
@@ -3923,7 +3923,7 @@ Refines the alignment of the source layer onto the reference by **iterative clos
 - *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.
 - *Point to plane* — measures each correspondence along the reference's surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.
 
-ICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align by Bounding Box* first, which is usually enough to land in the right basin.
+ICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align by Bounding Box (TrueForm)* first, which is usually enough to land in the right basin.
 
 **Samples** subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.
 
@@ -3991,7 +3991,7 @@ Build an overlap graph among the selected document layers, run ICP on sufficient
 
 (filter-compute-matrix-by-obb-alignment)=
 
-## Align by Bounding Box
+## Align by Bounding Box (TrueForm)
 
 **Categories:** `Geometry/Alignment`
 
@@ -4961,7 +4961,7 @@ Generate a matrix transformation that translate the mesh. The mesh can be transl
 
 (filter-compute-chamfer-distance)=
 
-## Measure Chamfer Distance
+## Measure Chamfer Distance (TrueForm)
 
 **Categories:** `Measurement/Geometric`
 
@@ -5506,7 +5506,7 @@ Everything inside exactly one of the two solids, and nothing inside both.\n\nTru
 
 (filter-generate-csg-expression)=
 
-## Mesh CSG Expression
+## Mesh CSG Expression (TrueForm)
 
 **Categories:** `Meshing/Boolean`
 
@@ -5694,7 +5694,7 @@ This filter has no parameters.
 
 (filter-cut-along-scalar-isocontour)=
 
-## Cut Along Scalar Isocontour
+## Cut Along Scalar Isocontour (TrueForm)
 
 **Categories:** `Meshing/Remeshing`
 
@@ -5705,7 +5705,7 @@ Split the surface along contours of the vertex scalar field.
 ```{py:function} ms.cut_along_scalar_isocontour(**params)
 :module: _qmeshlab
 
-Cuts the surface along evenly spaced contours of the **per-vertex scalar field**, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\n\nWhere *Create Polyline from Scalar Isocontour* draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\n\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\n\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.
+Cuts the surface along evenly spaced contours of the **per-vertex scalar field**, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\n\nWhere *Create Polyline from Scalar Isocontour (TrueForm)* draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\n\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\n\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.
 
 **Parameters:**
 
@@ -6888,18 +6888,18 @@ Practical tuning notes:
 
 (filter-remove-isolated-pieces-by-diameter)=
 
-## Remove Isolated Pieces (wrt Diameter)
+## Remove Isolated Components by Diameter
 
 **Categories:** `Repair/Degenerate`
 
 **Plugin:** qmeshlab.filter.clean
 
-Delete isolated connected components whose diameter is below a threshold.
+Remove isolated connected components whose diameter is below a threshold.
 
 ```{py:function} ms.remove_isolated_pieces_by_diameter(**params)
 :module: _qmeshlab
 
-Delete isolated connected components whose diameter is smaller than the specified constant
+Remove isolated connected components whose diameter is smaller than the specified constant
 
 **Parameters:**
 
@@ -6911,18 +6911,18 @@ Delete isolated connected components whose diameter is smaller than the specifie
 
 (filter-remove-isolated-pieces-by-face-num)=
 
-## Remove Isolated Pieces (wrt Face Num.)
+## Remove Isolated Components by Face Count
 
 **Categories:** `Repair/Degenerate`
 
 **Plugin:** qmeshlab.filter.clean
 
-Delete isolated connected components composed by few triangles.
+Remove isolated connected components composed of few triangles.
 
 ```{py:function} ms.remove_isolated_pieces_by_face_num(**params)
 :module: _qmeshlab
 
-Delete isolated connected components composed by a limited number of triangles
+Remove isolated connected components composed of a limited number of triangles
 
 **Parameters:**
 
@@ -6934,18 +6934,18 @@ Delete isolated connected components composed by a limited number of triangles
 
 (filter-remove-vertices-wrt-quality)=
 
-## Remove Vertices wrt Quality
+## Remove Vertices by Scalar
 
 **Categories:** `Repair/Degenerate`
 
 **Plugin:** qmeshlab.filter.clean
 
-Delete all vertices with quality lower than a threshold.
+Remove all vertices whose scalar is lower than a threshold.
 
 ```{py:function} ms.remove_vertices_wrt_quality(**params)
 :module: _qmeshlab
 
-Delete all the vertices with a quality lower smaller than the specified constant
+Remove all the vertices whose scalar is smaller than the specified constant
 
 **Parameters:**
 
@@ -6956,7 +6956,7 @@ Delete all the vertices with a quality lower smaller than the specified constant
 
 (filter-remove-zero-area-faces)=
 
-## Remove Zero Area Faces
+## Remove Zero-Area Faces
 
 **Categories:** `Repair/Degenerate`
 
@@ -6998,18 +6998,18 @@ Merge together all the vertices that are nearer than the specified threshold. Li
 
 (filter-merge-wedge-texture-coords)=
 
-## Merge Wedge Texture Coord
+## Merge Close Wedge UVs
 
 **Categories:** `Repair/Duplicates`
 
 **Plugin:** qmeshlab.filter.clean
 
-Merge very close per-wedge texture coordinates.
+Merge per-wedge UVs that are very close.
 
 ```{py:function} ms.merge_wedge_texture_coords(**params)
 :module: _qmeshlab
 
-Merge together per-wedge texture coords that are very close. Used to correct apparent texture seams that can arise from numerical approximations when saving in ascii formats.
+Merge together per-wedge UVs that are very close. Used to correct apparent texture seams that can arise from numerical approximations when saving in ascii formats.
 
 **Parameters:**
 
@@ -7026,12 +7026,12 @@ Merge together per-wedge texture coords that are very close. Used to correct app
 
 **Plugin:** qmeshlab.filter.clean
 
-Delete all duplicate faces.
+Remove all duplicate faces.
 
 ```{py:function} ms.remove_duplicate_faces(**params)
 :module: _qmeshlab
 
-Delete all the duplicate faces. Two faces are considered equal if they are composed by the same set of vertices, regardless of the order of the vertices.
+Remove all the duplicate faces. Two faces are considered equal if they are composed by the same set of vertices, regardless of the order of the vertices.
 
 This filter has no parameters.
 ```
@@ -7102,7 +7102,7 @@ This filter has no parameters.
 
 (filter-vertex-attribute-seam)=
 
-## Vertex Attribute Seam
+## Split Vertices by Attribute Seam
 
 **Categories:** `Repair/Duplicates`
 
@@ -7137,7 +7137,7 @@ Close holes under a size threshold.
 ```{py:function} ms.close_holes(**params)
 :module: _qmeshlab
 
-Close holes whose boundary is composed by a number of edges smaller than a given trheshold
+Close holes whose boundary is composed by a number of edges smaller than a given threshold
 
 **Parameters:**
 
@@ -7153,7 +7153,7 @@ Close holes whose boundary is composed by a number of edges smaller than a given
 
 (filter-snap-mismatched-borders)=
 
-## Snap Mismatched Borders
+## Repair Mismatched Borders
 
 **Categories:** `Repair/Holes and Borders`
 
@@ -7176,7 +7176,7 @@ Try to snap together adjacent borders that are slightly mismatched.<br>This situ
 
 (filter-generate-outer-shell)=
 
-## Extract Outer Shell
+## Extract Outer Shell (TrueForm)
 
 **Categories:** `Repair/Topology`
 
@@ -7198,7 +7198,7 @@ Resolves the layer's self-intersections and keeps only the **outermost** boundar
 
 (filter-invert-faces-orientation)=
 
-## Invert Faces Orientation
+## Invert Face Orientation
 
 **Categories:** `Repair/Topology`
 
@@ -7221,22 +7221,22 @@ Invert faces orientation, flipping the normals of the mesh. <br>If requested, it
 
 (filter-orient-faces-coherently-trueform)=
 
-## Orient Faces Coherently (TrueForm)
+## Orient Faces Consistently (TrueForm)
 
 **Categories:** `Repair/Topology`
 
 **Plugin:** qmeshlab.filter.trueform
 
-Make neighbouring faces wind the same way.
+Make neighboring faces wind the same way.
 
 ```{py:function} ms.orient_faces_coherently_trueform(**params)
 :module: _qmeshlab
 
-Propagates a consistent winding across each connected component, so neighbouring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\n\nThis makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.\n\nCompeting implementation: *Re-Orient all faces coherently* does the same with vcglib.
+Propagates a consistent winding across each connected component, so neighboring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\n\nThis makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.\n\nCompeting implementation: *Orient Faces Consistently (vcglib)* does the same with vcglib.
 
 **Implementation note.** A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.
 
-For diagnosis prefer the vcglib *Re-Orient all faces coherently*: it detects and reports a **non-orientable** surface, which this routine cannot distinguish from an incomplete repair.
+For diagnosis prefer the vcglib *Orient Faces Consistently (vcglib)*: it detects and reports a **non-orientable** surface, which this routine cannot distinguish from an incomplete repair.
 
 This filter has no parameters.
 ```
@@ -7256,7 +7256,7 @@ Make the winding consistent and pointing out of the solid.
 ```{py:function} ms.orient_faces_outward_trueform(**params)
 :module: _qmeshlab
 
-First makes the winding consistent, then checks the **signed volume** and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.\n\nThat second step is what distinguishes this from *Orient Faces Coherently*: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.\n\nThe input must therefore be **closed** for the answer to mean anything: an open sheet encloses no volume, so there is no outward.
+First makes the winding consistent, then checks the **signed volume** and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.\n\nThat second step is what distinguishes this from *Orient Faces Consistently (TrueForm)*: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.\n\nThe input must therefore be **closed** for the answer to mean anything: an open sheet encloses no volume, so there is no outward.
 
 This filter has no parameters.
 ```
@@ -7278,7 +7278,7 @@ Repair isolated folded triangles by changing the local triangulation.
 
 Repair an isolated folded triangle whose normal is nearly opposite to all three adjacent faces. The filter flips one supporting edge only when the opposite vertex projects strictly inside the adjacent triangle and the flip reduces the number of near-opposite normal relations in the affected neighborhood. No vertices or faces are removed.
 
-The input must be a consistently oriented, 2-manifold triangle mesh. Polygonal faux-edge meshes and meshes with per-wedge texture coordinates are rejected because an edge flip cannot preserve their polygon boundaries or UV seams unambiguously.
+The input must be a consistently oriented, 2-manifold triangle mesh. Polygonal faux-edge meshes and meshes with per-wedge UVs are rejected because an edge flip cannot preserve their polygon boundaries or UV seams unambiguously.
 
 **Parameters:**
 
@@ -7300,7 +7300,7 @@ Remove T-vertices using edge collapse or edge flip.
 ```{py:function} ms.remove_t_vertices(**params)
 :module: _qmeshlab
 
-Delete t-vertices from the mesh by edge collapse (collapsing the shortest of the incident edges) or edge flip (flipping the opposite edge on the degenerate face if the triangulation quality improves).
+Remove t-vertices from the mesh by edge collapse (collapsing the shortest of the incident edges) or edge flip (flipping the opposite edge on the degenerate face if the triangulation quality improves).
 
 **Parameters:**
 
@@ -7313,7 +7313,7 @@ Delete t-vertices from the mesh by edge collapse (collapsing the shortest of the
 
 (filter-reorient-all-faces)=
 
-## Re-Orient all faces coherently
+## Orient Faces Consistently (vcglib)
 
 **Categories:** `Repair/Topology`
 
@@ -7333,7 +7333,7 @@ This filter has no parameters.
 
 (filter-repair-non-manifold-edges)=
 
-## Repair non Manifold Edges
+## Repair Non-Manifold Edges
 
 **Categories:** `Repair/Topology`
 
@@ -7344,7 +7344,7 @@ Repair non-manifold edges by removing faces or splitting vertices.
 ```{py:function} ms.repair_non_manifold_edges(**params)
 :module: _qmeshlab
 
-Remove non-manifold edges by removing faces (for each non Manifold edge it iteratively deletes the smallest area face until it becomes 2-Manifold) or by splitting vertices (each non manifold edges chain will become a border).
+Remove non-manifold edges by removing faces (for each non-manifold edge it iteratively removes the smallest area face until it becomes 2-Manifold) or by splitting vertices (each non manifold edges chain will become a border).
 
 **Parameters:**
 
@@ -7355,7 +7355,7 @@ Remove non-manifold edges by removing faces (for each non Manifold edge it itera
 
 (filter-repair-non-manifold-vertices)=
 
-## Repair non Manifold Vertices by Splitting
+## Repair Non-Manifold Vertices by Splitting
 
 **Categories:** `Repair/Topology`
 
@@ -7377,7 +7377,7 @@ Split non Manifold vertices until it becomes 2-Manifold.
 
 (filter-repair-self-intersections)=
 
-## Repair Self-Intersections
+## Repair Self-Intersections (TrueForm)
 
 **Categories:** `Repair/Topology`
 
@@ -7388,7 +7388,7 @@ Resolve a mesh's self-intersections into real edges and split faces.
 ```{py:function} ms.repair_self_intersections(**params)
 :module: _qmeshlab
 
-Computes the **arrangement** of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\n\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and *Extract Outer Shell* can keep the outermost one.\n\nUse *Create Polyline from Self-Intersections* first to see where the problem is, and *Select Self Intersecting Faces* to see how much is affected.\n\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.
+Computes the **arrangement** of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\n\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and *Extract Outer Shell (TrueForm)* can keep the outermost one.\n\nUse *Create Polyline from Self-Intersections (TrueForm)* first to see where the problem is, and *Select Self Intersecting Faces* to see how much is affected.\n\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.
 
 **Parameters:**
 

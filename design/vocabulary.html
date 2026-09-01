@@ -405,16 +405,16 @@ for, not a variety of meshing. Its subcategories, from the existing filters:</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Duplicates</span></code></p></td>
-<td><p>Remove/Merge Duplicate Vertices · Duplicate Faces · Close Vertices · Unreferenced Vertices · Wedge Texture Coords</p></td>
+<td><p>Remove/Merge Duplicate Vertices · Duplicate Faces · Close Vertices · Unreferenced Vertices · Wedge UVs</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Topology</span></code></p></td>
-<td><p>non-manifold edges and vertices · folded faces · T-vertices · watertight repair · face orientation (Reorient, Invert)</p></td>
+<td><p>non-manifold edges and vertices · folded faces · T-vertices · watertight repair · face orientation (Orient, Invert)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Degenerate</span></code></p></td>
-<td><p>zero-area faces · isolated pieces (by face count / diameter) · removal by scalar threshold</p></td>
+<td><p>zero-area faces · isolated components (by face count / diameter) · removal by scalar threshold</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code></p></td>
-<td><p>Close Holes · Snap Mismatched Borders</p></td>
+<td><p>Close Holes · Repair Mismatched Borders</p></td>
 </tr>
 </tbody>
 </table>
@@ -914,7 +914,7 @@ validate them: across current descriptors <code class="docutils literal notransl
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Cut</span></code></p></td>
 <td><p>Split a surface along a curve, introducing a boundary</p></td>
-<td><p><strong><code class="docutils literal notranslate"><span class="pre">Split</span></code></strong> (claimed by layer operations)</p></td>
+<td><p><strong><code class="docutils literal notranslate"><span class="pre">Split</span></code></strong> (claimed by layer and element operations)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Smooth</span></code></p></td>
 <td><p>Reduce noise in positions/normals</p></td>
@@ -937,7 +937,7 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p><code class="docutils literal notranslate"><span class="pre">Translate</span></code>, <code class="docutils literal notranslate"><span class="pre">Cast</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Duplicate</span></code>, <code class="docutils literal notranslate"><span class="pre">Split</span></code>, <code class="docutils literal notranslate"><span class="pre">Extract</span></code></p></td>
-<td><p>Layer-structure operations</p></td>
+<td><p>Layer-structure operations. <code class="docutils literal notranslate"><span class="pre">Split</span></code> additionally covers separating <em>mesh elements</em> that were sharing storage (<em>Split Vertices by Attribute Seam</em>)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Clone</span></code>, <code class="docutils literal notranslate"><span class="pre">Separate</span></code>, <code class="docutils literal notranslate"><span class="pre">Detach</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Orient</span></code></p></td>
@@ -976,6 +976,10 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p>Grow or shrink the selection by one ring of adjacent elements</p></td>
 <td><p>The standard morphological pair; <code class="docutils literal notranslate"><span class="pre">Select</span></code> names the act of selecting, not these two operations on an existing selection</p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Close</span></code></p></td>
+<td><p>Fill a boundary loop with new faces</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Fill</span></code>, <code class="docutils literal notranslate"><span class="pre">Patch</span></code>, <code class="docutils literal notranslate"><span class="pre">Cap</span></code> — <em>close a hole</em> is the established term of art, and <code class="docutils literal notranslate"><span class="pre">Repair</span></code> is too coarse to separate it from the other <code class="docutils literal notranslate"><span class="pre">Repair/*</span></code> filters</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1006,6 +1010,60 @@ object (<code class="docutils literal notranslate"><span class="pre">Transfer</s
 the unrelated geometric sense — moving vertices onto a surface — and that is the
 only sense it may carry.</p></li>
 </ul>
+<p><strong><code class="docutils literal notranslate"><span class="pre">Update</span></code> is not a verb here.</strong> It is the most common word in vcglib’s algorithm API —
+<code class="docutils literal notranslate"><span class="pre">UpdateNormal</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateTopology</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateColor</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateSelection</span></code> and
+eight more — so it is the first word a contributor arriving from that codebase reaches
+for. It is also the least informative: every one of those calls either derives a value,
+assigns one, moves something, or rebuilds a cache, and the lexicon already has a precise
+verb for each. No shipped display name or <code class="docutils literal notranslate"><span class="pre">pythonName</span></code> contains it, and none should. The
+mapping is recorded here so that looking for <em>update</em> lands somewhere useful:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>vcglib</p></th>
+<th class="head"><p>What it actually does</p></th>
+<th class="head"><p>Canonical verb</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateNormal</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateCurvature</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateCurvatureFitting</span></code></p></td>
+<td><p>Derive an attribute from geometry</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Compute</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateQuality</span></code></p></td>
+<td><p>Derive a per-element scalar, or assign one</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Compute</span></code>, or <code class="docutils literal notranslate"><span class="pre">Set</span></code> for a constant</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateColor</span></code></p></td>
+<td><p>Derive color, assign it, or edit it in place</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Colorize</span></code>, <code class="docutils literal notranslate"><span class="pre">Set</span></code>, or the attribute-editing group (<code class="docutils literal notranslate"><span class="pre">Normalize</span></code>, <code class="docutils literal notranslate"><span class="pre">Invert</span></code>, <code class="docutils literal notranslate"><span class="pre">Equalize</span></code>, …)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">UpdatePosition</span></code></p></td>
+<td><p>Move vertices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Translate</span></code>/<code class="docutils literal notranslate"><span class="pre">Rotate</span></code>/<code class="docutils literal notranslate"><span class="pre">Scale</span></code>, <code class="docutils literal notranslate"><span class="pre">Transform</span></code>, <code class="docutils literal notranslate"><span class="pre">Displace</span></code>, <code class="docutils literal notranslate"><span class="pre">Smooth</span></code>, <code class="docutils literal notranslate"><span class="pre">Freeze</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateSelection</span></code></p></td>
+<td><p>Change selection state</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Select</span></code>, <code class="docutils literal notranslate"><span class="pre">Dilate</span></code>, <code class="docutils literal notranslate"><span class="pre">Erode</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateTexture</span></code></p></td>
+<td><p>Create or edit UVs</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrize</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UpdateTopology</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateBounding</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateFlags</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateHalfEdges</span></code>, <code class="docutils literal notranslate"><span class="pre">UpdateComponentEP</span></code></p></td>
+<td><p>Rebuild a derived cache the next algorithm needs</p></td>
+<td><p><em>none</em> — see below</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>That last row is the important one: five of the thirteen <code class="docutils literal notranslate"><span class="pre">Update*</span></code> classes are
+bookkeeping the user never asks for. They are prerequisites, not operations, and QMeshLab
+declares them per filter as <code class="docutils literal notranslate"><span class="pre">inputPrepare</span></code> (<code class="docutils literal notranslate"><span class="pre">FF</span></code>, <code class="docutils literal notranslate"><span class="pre">VF</span></code>, <code class="docutils literal notranslate"><span class="pre">BorderFF</span></code>, <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>, <code class="docutils literal notranslate"><span class="pre">BBox</span></code>, …)
+for the plugin manager to run and tear down around the call. A filter named
+<em>Update Topology</em> would be exposing an implementation detail as a feature. Normals sit on
+both sides of this line — a prerequisite when a filter needs them, and a result the user
+asks for as <em>Compute Normals</em>.</p>
 <p>Every verb above the <code class="docutils literal notranslate"><span class="pre">Estimate</span></code> footnote is ratified. The rounds that introduced the
 later ones are recorded in <a class="reference internal" href="filter_names.html"><span class="std std-doc">Filter Names</span></a>, which is the history; this
 table is the authority. <code class="docutils literal notranslate"><span class="pre">tests/test_filters.cpp</span></code> parses it and fails if any shipped
@@ -1156,6 +1214,13 @@ the reader needs: faced with <em>Remove Duplicate Vertices</em> and <em>Remove D
 competing family now names itself, the original vcglib ones included — so
 <strong>Simplify by Quadric Edge Collapse (vcglib)</strong> beside <strong>(QSlim)</strong>. The churn this rule was
 protecting against is a one-off cost, paid once per family, and worth it.</p>
+<p><strong>A backend family names itself completely.</strong> “Omit it where the filter is the only
+meaningful route to its result” reads well per filter and fails across a set: with 19 of
+31 TrueForm filters suffixed and 12 bare, the suffix stopped meaning “this is TrueForm”
+and started meaning “this one happened to have a sibling”. Every TrueForm filter now
+carries <code class="docutils literal notranslate"><span class="pre">(TrueForm)</span></code>, including the ones nothing competes with, so its <em>absence</em> is
+information too (2026-09-01). The omission clause still governs a backend that is not a
+named family the user chooses between.</p>
 <p><strong>Algorithm in the name, library in the suffix.</strong> When a family holds two
 implementations from the <em>same</em> library they cannot both be <code class="docutils literal notranslate"><span class="pre">(vcglib)</span></code>, and the answer is
 already in the archive: the distinguishing algorithm belongs in the name.
@@ -1214,7 +1279,7 @@ category. The historical before/after benchmark below used the 272 descriptors i
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">cleaning</span></code> row shows how real the gap was: 15 of the 16 filters in that category
 were unfindable by its name, because they are called <em>Remove Duplicate Vertices</em>,
-<em>Repair non Manifold Edges</em> and so on — never “cleaning”.</p>
+<em>Repair Non-Manifold Edges</em> and so on — never “cleaning”.</p>
 <p>The unchanged rows matter just as much. <code class="docutils literal notranslate"><span class="pre">simplification</span></code> gained nothing <strong>because the
 category is currently repeated in those names</strong> (<em>Simplification: Quadric Edge
 Collapse</em>). Once the naming pass removes that redundancy, those queries would have lost

@@ -122,10 +122,10 @@ for, not a variety of meshing. Its subcategories, from the existing filters:
 
 | Subcategory | Covers |
 |---|---|
-| `Duplicates` | Remove/Merge Duplicate Vertices · Duplicate Faces · Close Vertices · Unreferenced Vertices · Wedge Texture Coords |
-| `Topology` | non-manifold edges and vertices · folded faces · T-vertices · watertight repair · face orientation (Reorient, Invert) |
-| `Degenerate` | zero-area faces · isolated pieces (by face count / diameter) · removal by scalar threshold |
-| `Holes and Borders` | Close Holes · Snap Mismatched Borders |
+| `Duplicates` | Remove/Merge Duplicate Vertices · Duplicate Faces · Close Vertices · Unreferenced Vertices · Wedge UVs |
+| `Topology` | non-manifold edges and vertices · folded faces · T-vertices · watertight repair · face orientation (Orient, Invert) |
+| `Degenerate` | zero-area faces · isolated components (by face count / diameter) · removal by scalar threshold |
+| `Holes and Borders` | Close Holes · Repair Mismatched Borders |
 
 `Boolean` stays under `Meshing` — a boolean rebuilds topology to produce a new valid
 mesh, which is meshing work, not a document-structure operation (it was previously
@@ -395,13 +395,13 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Subdivide` | Increase element count by splitting | `Refine`\* |
 | `Remesh` | Rebuild tessellation | `Retriangulate`, `Resample` (for surfaces) |
 | `Flip` | Reconnect by flipping edges; connectivity changes, vertices do not move | *(`Remesh` is too coarse for it)* |
-| `Cut` | Split a surface along a curve, introducing a boundary | **`Split`** (claimed by layer operations) |
+| `Cut` | Split a surface along a curve, introducing a boundary | **`Split`** (claimed by layer and element operations) |
 | `Smooth` | Reduce noise in positions/normals | `Denoise`, `Fair`, `Blur`, `Relax` |
 | `Parametrize` | Create or edit UVs | `Unwrap`, `Parameterize`, `Flatten` |
 | `Pack` | Arrange UV charts in an atlas | `Layout`, `Bin` |
 | `Set` | Assign a value or state | *(prefer over `Define`, `Assign`)* |
 | `Convert` | Change representation, same information | `Translate`, `Cast` |
-| `Duplicate`, `Split`, `Extract` | Layer-structure operations | `Clone`, `Separate`, `Detach` |
+| `Duplicate`, `Split`, `Extract` | Layer-structure operations. `Split` additionally covers separating *mesh elements* that were sharing storage (*Split Vertices by Attribute Seam*) | `Clone`, `Separate`, `Detach` |
 | `Orient` | Make normals point consistently, or toward a reference | `Re-Orient`, `Reorient` — the values are flipped, not recalculated, so not `Compute` |
 | `Sharpen` | Enhance local variation in an attribute | *(the unsharp-mask filters had no verb at all)* |
 | `Trim` | Cut a surface along an isovalue of a scalar field and discard one side | *(neither `Remove`, which deletes whole elements, nor `Cut`, which keeps both sides)* |
@@ -411,6 +411,7 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Refine` | Subdivide adaptively, where which elements split depends on the data | Admitted **narrowly**; plain uniform splitting is `Subdivide` |
 | `Add` | Add a quantity to an existing attribute (*Add Noise to Vertex Color*) | Admitted **narrowly**; still rejected for producing a layer, where `Create` wins |
 | `Dilate`, `Erode` | Grow or shrink the selection by one ring of adjacent elements | The standard morphological pair; `Select` names the act of selecting, not these two operations on an existing selection |
+| `Close` | Fill a boundary loop with new faces | `Fill`, `Patch`, `Cap` — *close a hole* is the established term of art, and `Repair` is too coarse to separate it from the other `Repair/*` filters |
 
 **Attribute-editing verbs**, admitted as a closed group of standard image and signal
 operations, each keeping its ordinary meaning: `Normalize`, `Adjust`, `Clamp`, `Invert`,
@@ -442,6 +443,32 @@ before the renaming rounds began:
   object (`Transfer Raster Color to Vertex Color`). `Project` was later admitted for
   the unrelated geometric sense — moving vertices onto a surface — and that is the
   only sense it may carry.
+
+**`Update` is not a verb here.** It is the most common word in vcglib's algorithm API —
+`UpdateNormal`, `UpdateTopology`, `UpdateQuality`, `UpdateColor`, `UpdateSelection` and
+eight more — so it is the first word a contributor arriving from that codebase reaches
+for. It is also the least informative: every one of those calls either derives a value,
+assigns one, moves something, or rebuilds a cache, and the lexicon already has a precise
+verb for each. No shipped display name or `pythonName` contains it, and none should. The
+mapping is recorded here so that looking for *update* lands somewhere useful:
+
+| vcglib | What it actually does | Canonical verb |
+|---|---|---|
+| `UpdateNormal`, `UpdateCurvature`, `UpdateCurvatureFitting` | Derive an attribute from geometry | `Compute` |
+| `UpdateQuality` | Derive a per-element scalar, or assign one | `Compute`, or `Set` for a constant |
+| `UpdateColor` | Derive color, assign it, or edit it in place | `Colorize`, `Set`, or the attribute-editing group (`Normalize`, `Invert`, `Equalize`, …) |
+| `UpdatePosition` | Move vertices | `Translate`/`Rotate`/`Scale`, `Transform`, `Displace`, `Smooth`, `Freeze` |
+| `UpdateSelection` | Change selection state | `Select`, `Dilate`, `Erode` |
+| `UpdateTexture` | Create or edit UVs | `Parametrize` |
+| `UpdateTopology`, `UpdateBounding`, `UpdateFlags`, `UpdateHalfEdges`, `UpdateComponentEP` | Rebuild a derived cache the next algorithm needs | *none* — see below |
+
+That last row is the important one: five of the thirteen `Update*` classes are
+bookkeeping the user never asks for. They are prerequisites, not operations, and QMeshLab
+declares them per filter as `inputPrepare` (`FF`, `VF`, `BorderFF`, `FNorm`, `BBox`, …)
+for the plugin manager to run and tear down around the call. A filter named
+*Update Topology* would be exposing an implementation detail as a feature. Normals sit on
+both sides of this line — a prerequisite when a filter needs them, and a result the user
+asks for as *Compute Normals*.
 
 Every verb above the `Estimate` footnote is ratified. The rounds that introduced the
 later ones are recorded in [Filter Names](filter_names.md), which is the history; this
@@ -551,6 +578,14 @@ competing family now names itself, the original vcglib ones included — so
 **Simplify by Quadric Edge Collapse (vcglib)** beside **(QSlim)**. The churn this rule was
 protecting against is a one-off cost, paid once per family, and worth it.
 
+**A backend family names itself completely.** "Omit it where the filter is the only
+meaningful route to its result" reads well per filter and fails across a set: with 19 of
+31 TrueForm filters suffixed and 12 bare, the suffix stopped meaning "this is TrueForm"
+and started meaning "this one happened to have a sibling". Every TrueForm filter now
+carries `(TrueForm)`, including the ones nothing competes with, so its *absence* is
+information too (2026-09-01). The omission clause still governs a backend that is not a
+named family the user chooses between.
+
 **Algorithm in the name, library in the suffix.** When a family holds two
 implementations from the *same* library they cannot both be `(vcglib)`, and the answer is
 already in the archive: the distinguishing algorithm belongs in the name.
@@ -595,7 +630,7 @@ category. The historical before/after benchmark below used the 272 descriptors i
 
 The `cleaning` row shows how real the gap was: 15 of the 16 filters in that category
 were unfindable by its name, because they are called *Remove Duplicate Vertices*,
-*Repair non Manifold Edges* and so on — never "cleaning".
+*Repair Non-Manifold Edges* and so on — never "cleaning".
 
 The unchanged rows matter just as much. `simplification` gained nothing **because the
 category is currently repeated in those names** (*Simplification: Quadric Edge

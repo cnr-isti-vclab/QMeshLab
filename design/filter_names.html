@@ -2069,6 +2069,222 @@ subcategory, which means zero-area.</p></li>
 round is now checked on every build.</p>
 </section>
 </section>
+<section class="tex2jax_ignore mathjax_ignore" id="round-6-repair-24-filters">
+<h1>Round 6 — <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (24 filters)<a class="headerlink" href="#round-6-repair-24-filters" title="Link to this heading">¶</a></h1>
+<p><strong>Applied 2026-09-01.</strong> 14 renamed, 10 already conformant. All 24 carry <code class="docutils literal notranslate"><span class="pre">Repair/*</span></code> as
+their <em>primary</em> category, so nothing here was owned by another round.</p>
+<section id="repair-degenerate-4">
+<h2>Repair/Degenerate (4)<a class="headerlink" href="#repair-degenerate-4" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Remove Isolated Pieces (wrt Diameter)</p></td>
+<td><p><strong>Remove Isolated Components by Diameter</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_components_by_diameter</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Isolated Pieces (wrt Face Num.)</p></td>
+<td><p><strong>Remove Isolated Components by Face Count</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_isolated_components_by_face_count</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remove Vertices wrt Quality</p></td>
+<td><p><strong>Remove Vertices by Scalar</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_vertices_by_scalar</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Remove Zero Area Faces</p></td>
+<td><p><strong>Remove Zero-Area Faces</strong></p></td>
+<td><p><em>unchanged</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">wrt</span></code> is an abbreviation the vocabulary does not carry, and rule 3 reserves parentheses
+for the backend, so both <code class="docutils literal notranslate"><span class="pre">(wrt</span> <span class="pre">…)</span></code> become <code class="docutils literal notranslate"><span class="pre">by</span></code> connectors. <code class="docutils literal notranslate"><span class="pre">Pieces</span></code> → <code class="docutils literal notranslate"><span class="pre">Components</span></code>
+follows round 5’s <em>Select Small Disconnected Components</em>; <code class="docutils literal notranslate"><span class="pre">Quality</span></code> → <code class="docutils literal notranslate"><span class="pre">Scalar</span></code> is §4;
+<code class="docutils literal notranslate"><span class="pre">Zero-Area</span></code> hyphenates as a compound adjective, like round 5’s <code class="docutils literal notranslate"><span class="pre">Non-Manifold</span></code>.</p>
+</section>
+<section id="repair-duplicates-7">
+<h2>Repair/Duplicates (7)<a class="headerlink" href="#repair-duplicates-7" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Merge Wedge Texture Coord</p></td>
+<td><p><strong>Merge Close Wedge UVs</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_close_wedge_uvs</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Vertex Attribute Seam</p></td>
+<td><p><strong>Split Vertices by Attribute Seam</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">split_vertices_by_attribute_seam</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>the other 5</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>§4 makes <code class="docutils literal notranslate"><span class="pre">UV</span></code> the user-facing term and <code class="docutils literal notranslate"><span class="pre">Coord</span></code> was a bare abbreviation; the description
+says “merge very close per-wedge texture coordinates”, so restoring <code class="docutils literal notranslate"><span class="pre">Close</span></code> also puts the
+name beside its sibling <em>Merge Close Vertices</em>.</p>
+</section>
+<section id="repair-holes-and-borders-2">
+<h2>Repair/Holes and Borders (2)<a class="headerlink" href="#repair-holes-and-borders-2" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Close Holes</p></td>
+<td><p><em>unchanged</em> — <code class="docutils literal notranslate"><span class="pre">Close</span></code> admitted to the lexicon</p></td>
+<td><p><em>unchanged</em></p></td>
+</tr>
+<tr class="row-odd"><td><p>Snap Mismatched Borders</p></td>
+<td><p><strong>Repair Mismatched Borders</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_mismatched_borders</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The snap filter splits faces so two borders coincide and only welds vertices when
+<code class="docutils literal notranslate"><span class="pre">unify_vertices</span></code> is set, so <code class="docutils literal notranslate"><span class="pre">Merge</span></code> would have over-promised. <em>Snap</em> stays in the
+description.</p>
+</section>
+<section id="repair-topology-11">
+<h2>Repair/Topology (11)<a class="headerlink" href="#repair-topology-11" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Extract Outer Shell</p></td>
+<td><p><strong>Extract Outer Shell (TrueForm)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">extract_outer_shell_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Invert Faces Orientation</p></td>
+<td><p><strong>Invert Face Orientation</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">invert_face_orientation</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Orient Faces Coherently (TrueForm)</p></td>
+<td><p><strong>Orient Faces Consistently (TrueForm)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_faces_consistently_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Re-Orient all faces coherently</p></td>
+<td><p><strong>Orient Faces Consistently (vcglib)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">orient_faces_consistently_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Repair Self-Intersections</p></td>
+<td><p><strong>Repair Self-Intersections (TrueForm)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_self_intersections_trueform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Repair non Manifold Edges</p></td>
+<td><p><strong>Repair Non-Manifold Edges</strong></p></td>
+<td><p><em>unchanged</em></p></td>
+</tr>
+<tr class="row-even"><td><p>Repair non Manifold Vertices by Splitting</p></td>
+<td><p><strong>Repair Non-Manifold Vertices by Splitting</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">repair_non_manifold_vertices_by_splitting</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>the other 4</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Re-Orient</span></code> is struck by §5 by name and listed as a rejected synonym in §3.
+<em>Coherently</em> → <em>Consistently</em> is §3’s own wording for <code class="docutils literal notranslate"><span class="pre">Orient</span></code>, and the vcglib filter’s
+<code class="docutils literal notranslate"><span class="pre">shortDescription</span></code> already said “Orient faces consistently” — only the display name
+lagged. Neither non-manifold repair takes a suffix: nothing competes with them.</p>
+</section>
+<section id="id9">
+<h2>Verbs added to the lexicon<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Verb</p></th>
+<th class="head"><p>Means</p></th>
+<th class="head"><p>Why the existing lexicon was not enough</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Close</span></code></p></td>
+<td><p>Fill a boundary loop with new faces</p></td>
+<td><p><em>Close a hole</em> is the term of art; <code class="docutils literal notranslate"><span class="pre">Repair</span></code> is too coarse to separate it from the four other <code class="docutils literal notranslate"><span class="pre">Repair/*</span></code> filters</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Split</span></code> was <strong>widened</strong>, not added: it was scoped to layer-structure operations, and
+<code class="docutils literal notranslate"><span class="pre">Cut</span></code>’s row claimed it outright for them. It now also covers separating mesh elements
+that were sharing storage, which is what <em>Split Vertices by Attribute Seam</em> does.</p>
+</section>
+<section id="id10">
+<h2>Rulings<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h2>
+<p>All settled (2026-09-01).</p>
+<ol class="arabic simple">
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Close</span> <span class="pre">Holes</span></code>: admit <code class="docutils literal notranslate"><span class="pre">Close</span></code>, or rename to <code class="docutils literal notranslate"><span class="pre">Repair</span> <span class="pre">Holes</span></code>?~~ <strong>Admit <code class="docutils literal notranslate"><span class="pre">Close</span></code>.</strong></p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Vertex</span> <span class="pre">Attribute</span> <span class="pre">Seam</span></code> leads with no verb at all.~~ <strong>Split Vertices by Attribute
+Seam</strong>, with <code class="docutils literal notranslate"><span class="pre">Split</span></code> widened as above. <em>Convert to Seam-Independent Vertices</em> would
+have needed no lexicon change but read worse.</p></li>
+<li><p>~~Do the two unsuffixed TrueForm filters here take <code class="docutils literal notranslate"><span class="pre">(TrueForm)</span></code>?~~ <strong>Every TrueForm
+filter takes it</strong> — see below.</p></li>
+</ol>
+</section>
+<section id="the-trueform-suffix-sweep">
+<h2>The TrueForm suffix sweep<a class="headerlink" href="#the-trueform-suffix-sweep" title="Link to this heading">¶</a></h2>
+<p>Ruling 3 came back wider than the round: 19 of 31 TrueForm filters were suffixed and 12
+were not, so the suffix had stopped meaning “this is TrueForm” and started meaning “this
+one happened to have a sibling”. The other 10 were renamed with this round, across
+already-applied roots (<code class="docutils literal notranslate"><span class="pre">Attribute</span></code>, <code class="docutils literal notranslate"><span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Geometry</span></code>, <code class="docutils literal notranslate"><span class="pre">Meshing</span></code>) and one pending
+one (<code class="docutils literal notranslate"><span class="pre">Measurement</span></code>, whose names are still open to its own round):</p>
+<p><em>Compute Signed Distance to Mesh</em> · <em>Create Polyline from Self-Intersections</em> ·
+<em>Create Polyline from Mesh Intersection</em> · <em>Create Polyline from Scalar Isocontour</em> ·
+<em>Create Tube from Polyline</em> · <em>Align by Bounding Box</em> · <em>Align to Corresponding Points</em> ·
+<em>Measure Chamfer Distance</em> · <em>Mesh CSG Expression</em> · <em>Cut Along Scalar Isocontour</em></p>
+<p>§6 records the amendment: the omission clause still governs a backend that is not a named
+family the user chooses between.</p>
+</section>
+<section id="id11">
+<h2>Fixes made on the way<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Two descriptions cross-referenced filters this round renamed (<em>Orient Faces Outward</em>
+pointed at <em>Orient Faces Coherently</em>, <em>Repair Self-Intersections</em> at <em>Extract Outer
+Shell</em>); both now name the current filter, suffix included.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">beginFilterProgress</span></code> labels in the TrueForm plugin repeat the display name verbatim,
+so all 12 were updated with it; likewise the undo label and failure message of
+<em>Split Vertices by Attribute Seam</em> in the meshing plugin.</p></li>
+<li><p>Description vocabulary: five <code class="docutils literal notranslate"><span class="pre">Delete</span> <span class="pre">…</span></code> openings → <code class="docutils literal notranslate"><span class="pre">Remove</span></code> (§3 rejects <code class="docutils literal notranslate"><span class="pre">Delete</span></code>
+outright), two <code class="docutils literal notranslate"><span class="pre">quality</span></code> → <code class="docutils literal notranslate"><span class="pre">scalar</span></code>, three <code class="docutils literal notranslate"><span class="pre">texture</span> <span class="pre">coord(inate)s</span></code> → <code class="docutils literal notranslate"><span class="pre">UVs</span></code>, two
+British <code class="docutils literal notranslate"><span class="pre">neighbouring</span></code> → <code class="docutils literal notranslate"><span class="pre">neighboring</span></code>, one <code class="docutils literal notranslate"><span class="pre">non</span> <span class="pre">Manifold</span></code> → <code class="docutils literal notranslate"><span class="pre">non-manifold</span></code>, and the
+typo <code class="docutils literal notranslate"><span class="pre">trheshold</span></code> in <em>Close Holes</em>.</p></li>
+</ul>
+</section>
+<section id="id12">
+<h2>Enforcement<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Repair</span></code> was added to <code class="docutils literal notranslate"><span class="pre">appliedRoots</span></code> in <code class="docutils literal notranslate"><span class="pre">displayNamesLeadWithALexiconVerb</span></code>. Verified to
+discriminate: restoring <em>Snap Mismatched Borders</em> fails the guard with
+<code class="docutils literal notranslate"><span class="pre">leading</span> <span class="pre">word</span> <span class="pre">'Snap'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">lexicon</span></code>.</p>
+</section>
+</section>
 
         </article>
       </div>
@@ -2164,6 +2380,18 @@ round is now checked on every build.</p>
 <li><a class="reference internal" href="#id7">Verbs added to the lexicon</a></li>
 <li><a class="reference internal" href="#id8">Rulings</a></li>
 <li><a class="reference internal" href="#enforcement">Enforcement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#round-6-repair-24-filters">Round 6 — <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (24 filters)</a><ul>
+<li><a class="reference internal" href="#repair-degenerate-4">Repair/Degenerate (4)</a></li>
+<li><a class="reference internal" href="#repair-duplicates-7">Repair/Duplicates (7)</a></li>
+<li><a class="reference internal" href="#repair-holes-and-borders-2">Repair/Holes and Borders (2)</a></li>
+<li><a class="reference internal" href="#repair-topology-11">Repair/Topology (11)</a></li>
+<li><a class="reference internal" href="#id9">Verbs added to the lexicon</a></li>
+<li><a class="reference internal" href="#id10">Rulings</a></li>
+<li><a class="reference internal" href="#the-trueform-suffix-sweep">The TrueForm suffix sweep</a></li>
+<li><a class="reference internal" href="#id11">Fixes made on the way</a></li>
+<li><a class="reference internal" href="#id12">Enforcement</a></li>
 </ul>
 </li>
 </ul>

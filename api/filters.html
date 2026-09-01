@@ -1510,15 +1510,15 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 
 <hr class="docutils" />
 </section>
-<section id="compute-signed-distance-to-mesh">
-<span id="filter-compute-scalar-by-signed-distance-per-vertex"></span><h2>Compute Signed Distance to Mesh<a class="headerlink" href="#compute-signed-distance-to-mesh" title="Link to this heading">¶</a></h2>
+<section id="compute-signed-distance-to-mesh-trueform">
+<span id="filter-compute-scalar-by-signed-distance-per-vertex"></span><h2>Compute Signed Distance to Mesh (TrueForm)<a class="headerlink" href="#compute-signed-distance-to-mesh-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Store each vertex’s signed distance to another layer’s surface in vertex scalar.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_scalar_by_signed_distance_per_vertex">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_scalar_by_signed_distance_per_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_scalar_by_signed_distance_per_vertex" title="Link to this definition">¶</a></dt>
-<dd><p>Writes, for every vertex, its distance to the nearest point of the reference layer’s surface — <strong>negative inside, positive outside</strong>.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with <em>Create Polyline from Scalar Isocontour</em> (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a <strong>closed surface</strong> for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable <strong>Unsigned</strong> for absolute distance, which is what you want when only proximity matters.\n\nCompare with <em>Hausdorff Distance</em>, which reports a single worst-case number, and <em>Measure Chamfer Distance</em>, which reports a mean.</p>
+<dd><p>Writes, for every vertex, its distance to the nearest point of the reference layer’s surface — <strong>negative inside, positive outside</strong>.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with <em>Create Polyline from Scalar Isocontour (TrueForm)</em> (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a <strong>closed surface</strong> for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable <strong>Unsigned</strong> for absolute distance, which is what you want when only proximity matters.\n\nCompare with <em>Hausdorff Distance</em>, which reports a single worst-case number, and <em>Measure Chamfer Distance (TrueForm)</em>, which reports a mean.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose vertices are measured.</p></li>
@@ -2122,8 +2122,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="create-polyline-from-mesh-intersection">
-<span id="filter-generate-polyline-from-mesh-intersection"></span><h2>Create Polyline from Mesh Intersection<a class="headerlink" href="#create-polyline-from-mesh-intersection" title="Link to this heading">¶</a></h2>
+<section id="create-polyline-from-mesh-intersection-trueform">
+<span id="filter-generate-polyline-from-mesh-intersection"></span><h2>Create Polyline from Mesh Intersection (TrueForm)<a class="headerlink" href="#create-polyline-from-mesh-intersection-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Extract the curve where two layers cross, as a polyline layer.</p>
@@ -2140,8 +2140,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="create-polyline-from-scalar-isocontour">
-<span id="filter-generate-polyline-from-scalar-isocontour"></span><h2>Create Polyline from Scalar Isocontour<a class="headerlink" href="#create-polyline-from-scalar-isocontour" title="Link to this heading">¶</a></h2>
+<section id="create-polyline-from-scalar-isocontour-trueform">
+<span id="filter-generate-polyline-from-scalar-isocontour"></span><h2>Create Polyline from Scalar Isocontour (TrueForm)<a class="headerlink" href="#create-polyline-from-scalar-isocontour-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Extract contour lines of the per-vertex scalar field as polylines on the surface.</p>
@@ -2161,8 +2161,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="create-polyline-from-self-intersections">
-<span id="filter-generate-polyline-from-self-intersections"></span><h2>Create Polyline from Self-Intersections<a class="headerlink" href="#create-polyline-from-self-intersections" title="Link to this heading">¶</a></h2>
+<section id="create-polyline-from-self-intersections-trueform">
+<span id="filter-generate-polyline-from-self-intersections"></span><h2>Create Polyline from Self-Intersections (TrueForm)<a class="headerlink" href="#create-polyline-from-self-intersections-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Extract the curve where a mesh passes through itself, as a polyline layer.</p>
@@ -2205,8 +2205,8 @@ The saturation is done in a conservative way (quality is always decreased and ne
 
 <hr class="docutils" />
 </section>
-<section id="create-tube-from-polyline">
-<span id="filter-generate-tube-from-polyline"></span><h2>Create Tube from Polyline<a class="headerlink" href="#create-tube-from-polyline" title="Link to this heading">¶</a></h2>
+<section id="create-tube-from-polyline-trueform">
+<span id="filter-generate-tube-from-polyline"></span><h2>Create Tube from Polyline (TrueForm)<a class="headerlink" href="#create-tube-from-polyline-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Sweep a circular profile along a polyline to make a solid tube.</p>
@@ -2308,7 +2308,7 @@ David Cohen-Steiner, Frank Da, <strong>A greedy Delaunay-based surface reconstru
 <li><p><em>Alpha Complex</em> — also keeps the <code class="docutils literal notranslate"><span class="pre">SINGULAR</span></code> facets, the lower-dimensional sheets that the boundary drops. Useful for seeing what the complex contains, not for a clean surface.</p></li>
 </ul>
 <p>Each face carries its <strong>circumradius in face scalar</strong>, so the scalar histogram shows the alpha distribution and helps pick a better value.</p>
-<p>Facet orientation comes from the Delaunay triangulation and is not made globally coherent; run <em>Orient Faces Coherently</em> if you need it.</p>
+<p>Facet orientation comes from the Delaunay triangulation and is not made globally coherent; run <em>Orient Faces Consistently</em> if you need it.</p>
 <p>Implemented with CGAL’s 3D Alpha Shapes.</p>
 <p>Reference:
 Herbert Edelsbrunner, Ernst P. Mucke, <strong>Three-Dimensional Alpha Shapes</strong>, ACM Transactions on Graphics 13(1), 1994.</p>
@@ -3262,8 +3262,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="align-to-corresponding-points">
-<span id="filter-compute-matrix-by-corresponding-points"></span><h2>Align to Corresponding Points<a class="headerlink" href="#align-to-corresponding-points" title="Link to this heading">¶</a></h2>
+<section id="align-to-corresponding-points-trueform">
+<span id="filter-compute-matrix-by-corresponding-points"></span><h2>Align to Corresponding Points (TrueForm)<a class="headerlink" href="#align-to-corresponding-points-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Align two layers whose vertices already correspond one to one, optionally solving for scale.</p>
@@ -3334,7 +3334,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><em>Point to point</em> — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.</p></li>
 <li><p><em>Point to plane</em> — measures each correspondence along the reference’s surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.</p></li>
 </ul>
-<p>ICP only refines <strong>locally</strong>: from a poor starting position it converges confidently to the wrong answer rather than failing. <strong>Coarse Initialization</strong> therefore runs <em>Align by Bounding Box</em> first, which is usually enough to land in the right basin.</p>
+<p>ICP only refines <strong>locally</strong>: from a poor starting position it converges confidently to the wrong answer rather than failing. <strong>Coarse Initialization</strong> therefore runs <em>Align by Bounding Box (TrueForm)</em> first, which is usually enough to land in the right basin.</p>
 <p><strong>Samples</strong> subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. <strong>Outlier Proportion</strong> discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.</p>
 <p>The reported <strong>Chamfer residual</strong> is the mean one-way distance after alignment — useful for comparing runs.</p>
 <p>The result is written to the source layer’s <strong>matrix</strong>; vertex coordinates are not touched.</p>
@@ -3391,8 +3391,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="align-by-bounding-box">
-<span id="filter-compute-matrix-by-obb-alignment"></span><h2>Align by Bounding Box<a class="headerlink" href="#align-by-bounding-box" title="Link to this heading">¶</a></h2>
+<section id="align-by-bounding-box-trueform">
+<span id="filter-compute-matrix-by-obb-alignment"></span><h2>Align by Bounding Box (TrueForm)<a class="headerlink" href="#align-by-bounding-box-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Alignment</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Coarsely align one layer to another by matching their oriented bounding boxes.</p>
@@ -4172,8 +4172,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="measure-chamfer-distance">
-<span id="filter-compute-chamfer-distance"></span><h2>Measure Chamfer Distance<a class="headerlink" href="#measure-chamfer-distance" title="Link to this heading">¶</a></h2>
+<section id="measure-chamfer-distance-trueform">
+<span id="filter-compute-chamfer-distance"></span><h2>Measure Chamfer Distance (TrueForm)<a class="headerlink" href="#measure-chamfer-distance-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Report the mean nearest-point distance between two layers.</p>
@@ -4595,8 +4595,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="mesh-csg-expression">
-<span id="filter-generate-csg-expression"></span><h2>Mesh CSG Expression<a class="headerlink" href="#mesh-csg-expression" title="Link to this heading">¶</a></h2>
+<section id="mesh-csg-expression-trueform">
+<span id="filter-generate-csg-expression"></span><h2>Mesh CSG Expression (TrueForm)<a class="headerlink" href="#mesh-csg-expression-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Evaluate a boolean expression over any number of layers in one exact pass.</p>
@@ -4729,15 +4729,15 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="cut-along-scalar-isocontour">
-<span id="filter-cut-along-scalar-isocontour"></span><h2>Cut Along Scalar Isocontour<a class="headerlink" href="#cut-along-scalar-isocontour" title="Link to this heading">¶</a></h2>
+<section id="cut-along-scalar-isocontour-trueform">
+<span id="filter-cut-along-scalar-isocontour"></span><h2>Cut Along Scalar Isocontour (TrueForm)<a class="headerlink" href="#cut-along-scalar-isocontour-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Split the surface along contours of the vertex scalar field.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.cut_along_scalar_isocontour">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">cut_along_scalar_isocontour</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.cut_along_scalar_isocontour" title="Link to this definition">¶</a></dt>
-<dd><p>Cuts the surface along evenly spaced contours of the <strong>per-vertex scalar field</strong>, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\n\nWhere <em>Create Polyline from Scalar Isocontour</em> draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\n\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\n\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.</p>
+<dd><p>Cuts the surface along evenly spaced contours of the <strong>per-vertex scalar field</strong>, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\n\nWhere <em>Create Polyline from Scalar Isocontour (TrueForm)</em> draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\n\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\n\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose scalar field is cut along.</p></li>
@@ -5685,15 +5685,15 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="remove-isolated-pieces-wrt-diameter">
-<span id="filter-remove-isolated-pieces-by-diameter"></span><h2>Remove Isolated Pieces (wrt Diameter)<a class="headerlink" href="#remove-isolated-pieces-wrt-diameter" title="Link to this heading">¶</a></h2>
+<section id="remove-isolated-components-by-diameter">
+<span id="filter-remove-isolated-pieces-by-diameter"></span><h2>Remove Isolated Components by Diameter<a class="headerlink" href="#remove-isolated-components-by-diameter" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
-<p>Delete isolated connected components whose diameter is below a threshold.</p>
+<p>Remove isolated connected components whose diameter is below a threshold.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.remove_isolated_pieces_by_diameter">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_isolated_pieces_by_diameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remove_isolated_pieces_by_diameter" title="Link to this definition">¶</a></dt>
-<dd><p>Delete isolated connected components whose diameter is smaller than the specified constant</p>
+<dd><p>Remove isolated connected components whose diameter is smaller than the specified constant</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>min_component_diag</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagTenth</span></code>) — Delete all connected components (floating pieces) with a diameter smaller than the specified one.</p></li>
@@ -5703,15 +5703,15 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="remove-isolated-pieces-wrt-face-num">
-<span id="filter-remove-isolated-pieces-by-face-num"></span><h2>Remove Isolated Pieces (wrt Face Num.)<a class="headerlink" href="#remove-isolated-pieces-wrt-face-num" title="Link to this heading">¶</a></h2>
+<section id="remove-isolated-components-by-face-count">
+<span id="filter-remove-isolated-pieces-by-face-num"></span><h2>Remove Isolated Components by Face Count<a class="headerlink" href="#remove-isolated-components-by-face-count" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
-<p>Delete isolated connected components composed by few triangles.</p>
+<p>Remove isolated connected components composed of few triangles.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.remove_isolated_pieces_by_face_num">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_isolated_pieces_by_face_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remove_isolated_pieces_by_face_num" title="Link to this definition">¶</a></dt>
-<dd><p>Delete isolated connected components composed by a limited number of triangles</p>
+<dd><p>Remove isolated connected components composed of a limited number of triangles</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>min_component_size</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">25</span></code>) — Delete all the connected components (floating pieces) composed by a number of triangles smaller than the specified one.</p></li>
@@ -5721,15 +5721,15 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="remove-vertices-wrt-quality">
-<span id="filter-remove-vertices-wrt-quality"></span><h2>Remove Vertices wrt Quality<a class="headerlink" href="#remove-vertices-wrt-quality" title="Link to this heading">¶</a></h2>
+<section id="remove-vertices-by-scalar">
+<span id="filter-remove-vertices-wrt-quality"></span><h2>Remove Vertices by Scalar<a class="headerlink" href="#remove-vertices-by-scalar" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
-<p>Delete all vertices with quality lower than a threshold.</p>
+<p>Remove all vertices whose scalar is lower than a threshold.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.remove_vertices_wrt_quality">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_vertices_wrt_quality</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remove_vertices_wrt_quality" title="Link to this definition">¶</a></dt>
-<dd><p>Delete all the vertices with a quality lower smaller than the specified constant</p>
+<dd><p>Remove all the vertices whose scalar is smaller than the specified constant</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>max_quality_thr</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;qualityVMax</span></code>) — Vertices with quality lower than this threshold are deleted.</p></li>
@@ -5739,7 +5739,7 @@ Leave 0 for automatic calculation.</p></li>
 <hr class="docutils" />
 </section>
 <section id="remove-zero-area-faces">
-<span id="filter-remove-zero-area-faces"></span><h2>Remove Zero Area Faces<a class="headerlink" href="#remove-zero-area-faces" title="Link to this heading">¶</a></h2>
+<span id="filter-remove-zero-area-faces"></span><h2>Remove Zero-Area Faces<a class="headerlink" href="#remove-zero-area-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Degenerate</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
 <p>Remove null faces with zero area.</p>
@@ -5769,15 +5769,15 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="merge-wedge-texture-coord">
-<span id="filter-merge-wedge-texture-coords"></span><h2>Merge Wedge Texture Coord<a class="headerlink" href="#merge-wedge-texture-coord" title="Link to this heading">¶</a></h2>
+<section id="merge-close-wedge-uvs">
+<span id="filter-merge-wedge-texture-coords"></span><h2>Merge Close Wedge UVs<a class="headerlink" href="#merge-close-wedge-uvs" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
-<p>Merge very close per-wedge texture coordinates.</p>
+<p>Merge per-wedge UVs that are very close.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.merge_wedge_texture_coords">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">merge_wedge_texture_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.merge_wedge_texture_coords" title="Link to this definition">¶</a></dt>
-<dd><p>Merge together per-wedge texture coords that are very close. Used to correct apparent texture seams that can arise from numerical approximations when saving in ascii formats.</p>
+<dd><p>Merge together per-wedge UVs that are very close. Used to correct apparent texture seams that can arise from numerical approximations when saving in ascii formats.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>merge_thr</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0001</span></code>) — All per-wedge texture coords that are on the same vertex and are distant less than the threshold are merged together. Distance is in texture space.</p></li>
@@ -5790,11 +5790,11 @@ Leave 0 for automatic calculation.</p></li>
 <span id="filter-remove-duplicate-faces"></span><h2>Remove Duplicate Faces<a class="headerlink" href="#remove-duplicate-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
-<p>Delete all duplicate faces.</p>
+<p>Remove all duplicate faces.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.remove_duplicate_faces">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_duplicate_faces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remove_duplicate_faces" title="Link to this definition">¶</a></dt>
-<dd><p>Delete all the duplicate faces. Two faces are considered equal if they are composed by the same set of vertices, regardless of the order of the vertices.</p>
+<dd><p>Remove all the duplicate faces. Two faces are considered equal if they are composed by the same set of vertices, regardless of the order of the vertices.</p>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -5845,8 +5845,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="vertex-attribute-seam">
-<span id="filter-vertex-attribute-seam"></span><h2>Vertex Attribute Seam<a class="headerlink" href="#vertex-attribute-seam" title="Link to this heading">¶</a></h2>
+<section id="split-vertices-by-attribute-seam">
+<span id="filter-vertex-attribute-seam"></span><h2>Split Vertices by Attribute Seam<a class="headerlink" href="#split-vertices-by-attribute-seam" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Split vertices to make attributes seam-independent.</p>
@@ -5872,7 +5872,7 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.close_holes">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">close_holes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.close_holes" title="Link to this definition">¶</a></dt>
-<dd><p>Close holes whose boundary is composed by a number of edges smaller than a given trheshold</p>
+<dd><p>Close holes whose boundary is composed by a number of edges smaller than a given threshold</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>MaxHoleSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Hole size threshold in boundary-edge count.</p></li>
@@ -5886,8 +5886,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="snap-mismatched-borders">
-<span id="filter-snap-mismatched-borders"></span><h2>Snap Mismatched Borders<a class="headerlink" href="#snap-mismatched-borders" title="Link to this heading">¶</a></h2>
+<section id="repair-mismatched-borders">
+<span id="filter-snap-mismatched-borders"></span><h2>Repair Mismatched Borders<a class="headerlink" href="#repair-mismatched-borders" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
 <p>Try to snap together slightly mismatched adjacent borders.</p>
@@ -5904,8 +5904,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="extract-outer-shell">
-<span id="filter-generate-outer-shell"></span><h2>Extract Outer Shell<a class="headerlink" href="#extract-outer-shell" title="Link to this heading">¶</a></h2>
+<section id="extract-outer-shell-trueform">
+<span id="filter-generate-outer-shell"></span><h2>Extract Outer Shell (TrueForm)<a class="headerlink" href="#extract-outer-shell-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Keep only the outermost surface of a layer, discarding internal shells.</p>
@@ -5921,8 +5921,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="invert-faces-orientation">
-<span id="filter-invert-faces-orientation"></span><h2>Invert Faces Orientation<a class="headerlink" href="#invert-faces-orientation" title="Link to this heading">¶</a></h2>
+<section id="invert-face-orientation">
+<span id="filter-invert-faces-orientation"></span><h2>Invert Face Orientation<a class="headerlink" href="#invert-face-orientation" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Flip mesh face orientation.</p>
@@ -5939,17 +5939,17 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="orient-faces-coherently-trueform">
-<span id="filter-orient-faces-coherently-trueform"></span><h2>Orient Faces Coherently (TrueForm)<a class="headerlink" href="#orient-faces-coherently-trueform" title="Link to this heading">¶</a></h2>
+<section id="orient-faces-consistently-trueform">
+<span id="filter-orient-faces-coherently-trueform"></span><h2>Orient Faces Consistently (TrueForm)<a class="headerlink" href="#orient-faces-consistently-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
-<p>Make neighbouring faces wind the same way.</p>
+<p>Make neighboring faces wind the same way.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.orient_faces_coherently_trueform">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">orient_faces_coherently_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.orient_faces_coherently_trueform" title="Link to this definition">¶</a></dt>
-<dd><p>Propagates a consistent winding across each connected component, so neighbouring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\n\nThis makes the winding <em>consistent</em>; it does not decide which way is out. Use <em>Orient Faces Outward (TrueForm)</em> for that.\n\nCompeting implementation: <em>Re-Orient all faces coherently</em> does the same with vcglib.</p>
+<dd><p>Propagates a consistent winding across each connected component, so neighboring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\n\nThis makes the winding <em>consistent</em>; it does not decide which way is out. Use <em>Orient Faces Outward (TrueForm)</em> for that.\n\nCompeting implementation: <em>Orient Faces Consistently (vcglib)</em> does the same with vcglib.</p>
 <p><strong>Implementation note.</strong> A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.</p>
-<p>For diagnosis prefer the vcglib <em>Re-Orient all faces coherently</em>: it detects and reports a <strong>non-orientable</strong> surface, which this routine cannot distinguish from an incomplete repair.</p>
+<p>For diagnosis prefer the vcglib <em>Orient Faces Consistently (vcglib)</em>: it detects and reports a <strong>non-orientable</strong> surface, which this routine cannot distinguish from an incomplete repair.</p>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -5963,7 +5963,7 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.orient_faces_outward_trueform">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">orient_faces_outward_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.orient_faces_outward_trueform" title="Link to this definition">¶</a></dt>
-<dd><p>First makes the winding consistent, then checks the <strong>signed volume</strong> and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.\n\nThat second step is what distinguishes this from <em>Orient Faces Coherently</em>: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.\n\nThe input must therefore be <strong>closed</strong> for the answer to mean anything: an open sheet encloses no volume, so there is no outward.</p>
+<dd><p>First makes the winding consistent, then checks the <strong>signed volume</strong> and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.\n\nThat second step is what distinguishes this from <em>Orient Faces Consistently (TrueForm)</em>: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.\n\nThe input must therefore be <strong>closed</strong> for the answer to mean anything: an open sheet encloses no volume, so there is no outward.</p>
 <p>This filter has no parameters.</p>
 </dd></dl>
 
@@ -5978,7 +5978,7 @@ Leave 0 for automatic calculation.</p></li>
 <dt class="sig sig-object py" id="qmeshlab.ms.remove_isolated_folded_faces">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_isolated_folded_faces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remove_isolated_folded_faces" title="Link to this definition">¶</a></dt>
 <dd><p>Repair an isolated folded triangle whose normal is nearly opposite to all three adjacent faces. The filter flips one supporting edge only when the opposite vertex projects strictly inside the adjacent triangle and the flip reduces the number of near-opposite normal relations in the affected neighborhood. No vertices or faces are removed.</p>
-<p>The input must be a consistently oriented, 2-manifold triangle mesh. Polygonal faux-edge meshes and meshes with per-wedge texture coordinates are rejected because an edge flip cannot preserve their polygon boundaries or UV seams unambiguously.</p>
+<p>The input must be a consistently oriented, 2-manifold triangle mesh. Polygonal faux-edge meshes and meshes with per-wedge UVs are rejected because an edge flip cannot preserve their polygon boundaries or UV seams unambiguously.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>normal_threshold_deg</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">175.0</span></code>) — Minimum angle, in degrees, between the candidate face normal and each adjacent face normal. Values near 180 detect only nearly reversed triangles.</p></li>
@@ -5995,7 +5995,7 @@ Leave 0 for automatic calculation.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.remove_t_vertices">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_t_vertices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remove_t_vertices" title="Link to this definition">¶</a></dt>
-<dd><p>Delete t-vertices from the mesh by edge collapse (collapsing the shortest of the incident edges) or edge flip (flipping the opposite edge on the degenerate face if the triangulation quality improves).</p>
+<dd><p>Remove t-vertices from the mesh by edge collapse (collapsing the shortest of the incident edges) or edge flip (flipping the opposite edge on the degenerate face if the triangulation quality improves).</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>method</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">edge_collapse</span></code>) — Selects whether to remove t-vertices by edge collapse or edge flip.</p></li>
@@ -6006,8 +6006,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="re-orient-all-faces-coherently">
-<span id="filter-reorient-all-faces"></span><h2>Re-Orient all faces coherently<a class="headerlink" href="#re-orient-all-faces-coherently" title="Link to this heading">¶</a></h2>
+<section id="orient-faces-consistently-vcglib">
+<span id="filter-reorient-all-faces"></span><h2>Orient Faces Consistently (vcglib)<a class="headerlink" href="#orient-faces-consistently-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Orient faces consistently.</p>
@@ -6021,14 +6021,14 @@ Leave 0 for automatic calculation.</p></li>
 <hr class="docutils" />
 </section>
 <section id="repair-non-manifold-edges">
-<span id="filter-repair-non-manifold-edges"></span><h2>Repair non Manifold Edges<a class="headerlink" href="#repair-non-manifold-edges" title="Link to this heading">¶</a></h2>
+<span id="filter-repair-non-manifold-edges"></span><h2>Repair Non-Manifold Edges<a class="headerlink" href="#repair-non-manifold-edges" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
 <p>Repair non-manifold edges by removing faces or splitting vertices.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.repair_non_manifold_edges">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">repair_non_manifold_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.repair_non_manifold_edges" title="Link to this definition">¶</a></dt>
-<dd><p>Remove non-manifold edges by removing faces (for each non Manifold edge it iteratively deletes the smallest area face until it becomes 2-Manifold) or by splitting vertices (each non manifold edges chain will become a border).</p>
+<dd><p>Remove non-manifold edges by removing faces (for each non-manifold edge it iteratively removes the smallest area face until it becomes 2-Manifold) or by splitting vertices (each non manifold edges chain will become a border).</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>method</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">remove_faces</span></code>) — Selects whether to repair non manifold edges by removing faces or by splitting vertices.</p></li>
@@ -6038,7 +6038,7 @@ Leave 0 for automatic calculation.</p></li>
 <hr class="docutils" />
 </section>
 <section id="repair-non-manifold-vertices-by-splitting">
-<span id="filter-repair-non-manifold-vertices"></span><h2>Repair non Manifold Vertices by Splitting<a class="headerlink" href="#repair-non-manifold-vertices-by-splitting" title="Link to this heading">¶</a></h2>
+<span id="filter-repair-non-manifold-vertices"></span><h2>Repair Non-Manifold Vertices by Splitting<a class="headerlink" href="#repair-non-manifold-vertices-by-splitting" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.clean</p>
 <p>Split non-manifold vertices until the mesh becomes 2-manifold.</p>
@@ -6054,15 +6054,15 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="repair-self-intersections">
-<span id="filter-repair-self-intersections"></span><h2>Repair Self-Intersections<a class="headerlink" href="#repair-self-intersections" title="Link to this heading">¶</a></h2>
+<section id="repair-self-intersections-trueform">
+<span id="filter-repair-self-intersections"></span><h2>Repair Self-Intersections (TrueForm)<a class="headerlink" href="#repair-self-intersections-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Topology</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
 <p>Resolve a mesh’s self-intersections into real edges and split faces.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.repair_self_intersections">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">repair_self_intersections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.repair_self_intersections" title="Link to this definition">¶</a></dt>
-<dd><p>Computes the <strong>arrangement</strong> of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\n\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and <em>Extract Outer Shell</em> can keep the outermost one.\n\nUse <em>Create Polyline from Self-Intersections</em> first to see where the problem is, and <em>Select Self Intersecting Faces</em> to see how much is affected.\n\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.</p>
+<dd><p>Computes the <strong>arrangement</strong> of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\n\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and <em>Extract Outer Shell (TrueForm)</em> can keep the outermost one.\n\nUse <em>Create Polyline from Self-Intersections (TrueForm)</em> first to see where the problem is, and <em>Select Self Intersecting Faces</em> to see how much is affected.\n\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to resolve.</p></li>
@@ -7256,7 +7256,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.compute_point_cloud_ambient_occlusion"><code class="docutils literal notranslate"><span class="pre">ms.compute_point_cloud_ambient_occlusion()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-signed-distance-to-mesh">Compute Signed Distance to Mesh</a><ul>
+<li><a class="reference internal" href="#compute-signed-distance-to-mesh-trueform">Compute Signed Distance to Mesh (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_scalar_by_signed_distance_per_vertex"><code class="docutils literal notranslate"><span class="pre">ms.compute_scalar_by_signed_distance_per_vertex()</span></code></a></li>
 </ul>
 </li>
@@ -7380,15 +7380,15 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.generate_noisy_isosurface"><code class="docutils literal notranslate"><span class="pre">ms.generate_noisy_isosurface()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#create-polyline-from-mesh-intersection">Create Polyline from Mesh Intersection</a><ul>
+<li><a class="reference internal" href="#create-polyline-from-mesh-intersection-trueform">Create Polyline from Mesh Intersection (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_polyline_from_mesh_intersection"><code class="docutils literal notranslate"><span class="pre">ms.generate_polyline_from_mesh_intersection()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#create-polyline-from-scalar-isocontour">Create Polyline from Scalar Isocontour</a><ul>
+<li><a class="reference internal" href="#create-polyline-from-scalar-isocontour-trueform">Create Polyline from Scalar Isocontour (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_polyline_from_scalar_isocontour"><code class="docutils literal notranslate"><span class="pre">ms.generate_polyline_from_scalar_isocontour()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#create-polyline-from-self-intersections">Create Polyline from Self-Intersections</a><ul>
+<li><a class="reference internal" href="#create-polyline-from-self-intersections-trueform">Create Polyline from Self-Intersections (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_polyline_from_self_intersections"><code class="docutils literal notranslate"><span class="pre">ms.generate_polyline_from_self_intersections()</span></code></a></li>
 </ul>
 </li>
@@ -7396,7 +7396,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.generate_solid_wireframe"><code class="docutils literal notranslate"><span class="pre">ms.generate_solid_wireframe()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#create-tube-from-polyline">Create Tube from Polyline</a><ul>
+<li><a class="reference internal" href="#create-tube-from-polyline-trueform">Create Tube from Polyline (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_tube_from_polyline"><code class="docutils literal notranslate"><span class="pre">ms.generate_tube_from_polyline()</span></code></a></li>
 </ul>
 </li>
@@ -7588,7 +7588,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.render_from_render_state_json"><code class="docutils literal notranslate"><span class="pre">ms.render_from_render_state_json()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#align-to-corresponding-points">Align to Corresponding Points</a><ul>
+<li><a class="reference internal" href="#align-to-corresponding-points-trueform">Align to Corresponding Points (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_corresponding_points"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_corresponding_points()</span></code></a></li>
 </ul>
 </li>
@@ -7604,7 +7604,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_mesh_global_alignment"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_mesh_global_alignment()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#align-by-bounding-box">Align by Bounding Box</a><ul>
+<li><a class="reference internal" href="#align-by-bounding-box-trueform">Align by Bounding Box (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_matrix_by_obb_alignment"><code class="docutils literal notranslate"><span class="pre">ms.compute_matrix_by_obb_alignment()</span></code></a></li>
 </ul>
 </li>
@@ -7736,7 +7736,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.transform_translate"><code class="docutils literal notranslate"><span class="pre">ms.transform_translate()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#measure-chamfer-distance">Measure Chamfer Distance</a><ul>
+<li><a class="reference internal" href="#measure-chamfer-distance-trueform">Measure Chamfer Distance (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_chamfer_distance"><code class="docutils literal notranslate"><span class="pre">ms.compute_chamfer_distance()</span></code></a></li>
 </ul>
 </li>
@@ -7824,7 +7824,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.generate_boolean_xor_trueform"><code class="docutils literal notranslate"><span class="pre">ms.generate_boolean_xor_trueform()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mesh-csg-expression">Mesh CSG Expression</a><ul>
+<li><a class="reference internal" href="#mesh-csg-expression-trueform">Mesh CSG Expression (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_csg_expression"><code class="docutils literal notranslate"><span class="pre">ms.generate_csg_expression()</span></code></a></li>
 </ul>
 </li>
@@ -7860,7 +7860,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.tri_to_quad_by_pairing"><code class="docutils literal notranslate"><span class="pre">ms.tri_to_quad_by_pairing()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#cut-along-scalar-isocontour">Cut Along Scalar Isocontour</a><ul>
+<li><a class="reference internal" href="#cut-along-scalar-isocontour-trueform">Cut Along Scalar Isocontour (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.cut_along_scalar_isocontour"><code class="docutils literal notranslate"><span class="pre">ms.cut_along_scalar_isocontour()</span></code></a></li>
 </ul>
 </li>
@@ -8028,19 +8028,19 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.parametrize_xatlas"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_xatlas()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#remove-isolated-pieces-wrt-diameter">Remove Isolated Pieces (wrt Diameter)</a><ul>
+<li><a class="reference internal" href="#remove-isolated-components-by-diameter">Remove Isolated Components by Diameter</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remove_isolated_pieces_by_diameter"><code class="docutils literal notranslate"><span class="pre">ms.remove_isolated_pieces_by_diameter()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#remove-isolated-pieces-wrt-face-num">Remove Isolated Pieces (wrt Face Num.)</a><ul>
+<li><a class="reference internal" href="#remove-isolated-components-by-face-count">Remove Isolated Components by Face Count</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remove_isolated_pieces_by_face_num"><code class="docutils literal notranslate"><span class="pre">ms.remove_isolated_pieces_by_face_num()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#remove-vertices-wrt-quality">Remove Vertices wrt Quality</a><ul>
+<li><a class="reference internal" href="#remove-vertices-by-scalar">Remove Vertices by Scalar</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remove_vertices_wrt_quality"><code class="docutils literal notranslate"><span class="pre">ms.remove_vertices_wrt_quality()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#remove-zero-area-faces">Remove Zero Area Faces</a><ul>
+<li><a class="reference internal" href="#remove-zero-area-faces">Remove Zero-Area Faces</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remove_zero_area_faces"><code class="docutils literal notranslate"><span class="pre">ms.remove_zero_area_faces()</span></code></a></li>
 </ul>
 </li>
@@ -8048,7 +8048,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.merge_close_vertices"><code class="docutils literal notranslate"><span class="pre">ms.merge_close_vertices()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#merge-wedge-texture-coord">Merge Wedge Texture Coord</a><ul>
+<li><a class="reference internal" href="#merge-close-wedge-uvs">Merge Close Wedge UVs</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.merge_wedge_texture_coords"><code class="docutils literal notranslate"><span class="pre">ms.merge_wedge_texture_coords()</span></code></a></li>
 </ul>
 </li>
@@ -8068,7 +8068,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.remove_unreferenced_vertices"><code class="docutils literal notranslate"><span class="pre">ms.remove_unreferenced_vertices()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#vertex-attribute-seam">Vertex Attribute Seam</a><ul>
+<li><a class="reference internal" href="#split-vertices-by-attribute-seam">Split Vertices by Attribute Seam</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.vertex_attribute_seam"><code class="docutils literal notranslate"><span class="pre">ms.vertex_attribute_seam()</span></code></a></li>
 </ul>
 </li>
@@ -8076,19 +8076,19 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.close_holes"><code class="docutils literal notranslate"><span class="pre">ms.close_holes()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#snap-mismatched-borders">Snap Mismatched Borders</a><ul>
+<li><a class="reference internal" href="#repair-mismatched-borders">Repair Mismatched Borders</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.snap_mismatched_borders"><code class="docutils literal notranslate"><span class="pre">ms.snap_mismatched_borders()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#extract-outer-shell">Extract Outer Shell</a><ul>
+<li><a class="reference internal" href="#extract-outer-shell-trueform">Extract Outer Shell (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.generate_outer_shell"><code class="docutils literal notranslate"><span class="pre">ms.generate_outer_shell()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#invert-faces-orientation">Invert Faces Orientation</a><ul>
+<li><a class="reference internal" href="#invert-face-orientation">Invert Face Orientation</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.invert_faces_orientation"><code class="docutils literal notranslate"><span class="pre">ms.invert_faces_orientation()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#orient-faces-coherently-trueform">Orient Faces Coherently (TrueForm)</a><ul>
+<li><a class="reference internal" href="#orient-faces-consistently-trueform">Orient Faces Consistently (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.orient_faces_coherently_trueform"><code class="docutils literal notranslate"><span class="pre">ms.orient_faces_coherently_trueform()</span></code></a></li>
 </ul>
 </li>
@@ -8104,19 +8104,19 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.remove_t_vertices"><code class="docutils literal notranslate"><span class="pre">ms.remove_t_vertices()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#re-orient-all-faces-coherently">Re-Orient all faces coherently</a><ul>
+<li><a class="reference internal" href="#orient-faces-consistently-vcglib">Orient Faces Consistently (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.reorient_all_faces"><code class="docutils literal notranslate"><span class="pre">ms.reorient_all_faces()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#repair-non-manifold-edges">Repair non Manifold Edges</a><ul>
+<li><a class="reference internal" href="#repair-non-manifold-edges">Repair Non-Manifold Edges</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.repair_non_manifold_edges"><code class="docutils literal notranslate"><span class="pre">ms.repair_non_manifold_edges()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#repair-non-manifold-vertices-by-splitting">Repair non Manifold Vertices by Splitting</a><ul>
+<li><a class="reference internal" href="#repair-non-manifold-vertices-by-splitting">Repair Non-Manifold Vertices by Splitting</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.repair_non_manifold_vertices"><code class="docutils literal notranslate"><span class="pre">ms.repair_non_manifold_vertices()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#repair-self-intersections">Repair Self-Intersections</a><ul>
+<li><a class="reference internal" href="#repair-self-intersections-trueform">Repair Self-Intersections (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.repair_self_intersections"><code class="docutils literal notranslate"><span class="pre">ms.repair_self_intersections()</span></code></a></li>
 </ul>
 </li>

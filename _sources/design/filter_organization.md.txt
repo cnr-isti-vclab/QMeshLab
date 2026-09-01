@@ -477,7 +477,7 @@ family rather than a one-filter stub.
 |---|---|---|
 | `filter_transform` | 11 | Flip/swap axis · Rotate · Rotate to Fit a plane · Align to Principal Axis · Scale, Normalize · Translate, Center, set Origin · Matrix: Reset / Freeze / Invert / Set from TRS / Set-Copy |
 | `filter_remesh` | 14 | *remeshing* — Isotropic Explicit · Tri to Quad (4-8) · Quad-Dominant · Pure-Triangular · Tri to Quad smart pairing · *subdivision* — Loop · Butterfly · Midpoint · LS3 Loop · Catmull-Clark · Doo Sabin · *simplification* — Clustering Decimation · Quadric Edge Collapse · QEC with texture |
-| `filter_clean` | 4 | Re-Orient faces coherently · Invert Faces Orientation · Close Holes · Vertex Attribute Seam |
+| `filter_clean` | 4 | Re-Orient faces coherently · Invert Face Orientation · Close Holes · Split Vertices by Attribute Seam |
 | `filter_create` | 3 | Create Polyline from Selected Edges · Create Polyline from Selection Perimeter · Create Polyline from Planar Section |
 | `filter_compute` | 2 | Compute Point Cloud Normals · Compute Principal Curvature Directions |
 | `filter_smooth` | 1 | Smooth Point Cloud Normals |
