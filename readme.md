@@ -23,6 +23,7 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
 - [Preferences](docs/design/preferences.md)
 - [Memory Accounting](docs/design/memory_accounting.md)
 - [Usage Statistics](docs/design/usage_statistics.md)
+- [LLM Integration](docs/design/llm_integration.md)
 
 ## Current Features
 - Single `Document` shared by one or more `RenderWidget` views
