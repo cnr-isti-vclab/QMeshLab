@@ -22,7 +22,7 @@
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align by Bounding Box",
+      "name": "Align by Bounding Box (TrueForm)",
       "pythonName": "compute_matrix_by_obb_alignment",
       "shortDescription": "Coarsely align one layer to another by matching their oriented bounding boxes.",
       "longDescriptionMarkdown": "Aligns the source layer to the reference by fitting their **oriented bounding boxes**. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — *Align by ICP* can run it for you.\n\nAn oriented bounding box is only defined up to 180-degree flips about its axes, so the fit is ambiguous in principle. TrueForm resolves this by testing the candidate orientations against a spatial index of the reference and keeping the best.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_obb_alignment`.",
@@ -68,7 +68,7 @@
       "name": "Align by ICP (TrueForm)",
       "pythonName": "compute_matrix_by_icp_trueform",
       "shortDescription": "Align one layer to another with iterative closest point, point-to-point or point-to-plane.",
-      "longDescriptionMarkdown": "Refines the alignment of the source layer onto the reference by **iterative closest point**.\n\n**Metric** chooses the error being minimised:\n\n- *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.\n- *Point to plane* — measures each correspondence along the reference's surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.\n\nICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align by Bounding Box* first, which is usually enough to land in the right basin.\n\n**Samples** subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.\n\nThe reported **Chamfer residual** is the mean one-way distance after alignment — useful for comparing runs.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_icp_alignment`.",
+      "longDescriptionMarkdown": "Refines the alignment of the source layer onto the reference by **iterative closest point**.\n\n**Metric** chooses the error being minimised:\n\n- *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.\n- *Point to plane* — measures each correspondence along the reference's surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.\n\nICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align by Bounding Box (TrueForm)* first, which is usually enough to land in the right basin.\n\n**Samples** subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.\n\nThe reported **Chamfer residual** is the mean one-way distance after alignment — useful for comparing runs.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_icp_alignment`.",
       "tags": [
         "trueform",
         "alignment",
@@ -176,7 +176,7 @@
       "categories": [
         "Geometry/Alignment"
       ],
-      "name": "Align to Corresponding Points",
+      "name": "Align to Corresponding Points (TrueForm)",
       "pythonName": "compute_matrix_by_corresponding_points",
       "shortDescription": "Align two layers whose vertices already correspond one to one, optionally solving for scale.",
       "longDescriptionMarkdown": "Computes the transformation that best maps the source layer's vertices onto the reference's, assuming the two are already in **one-to-one correspondence**: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.\n\nUse it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use *Align by ICP* instead, which searches for it.\n\n**Allow Uniform Scale** is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`.",
@@ -426,7 +426,7 @@
         "exact"
       ],
       "id": "generate_csg_expression",
-      "name": "Mesh CSG Expression",
+      "name": "Mesh CSG Expression (TrueForm)",
       "pythonName": "generate_csg_expression",
       "shortDescription": "Evaluate a boolean expression over any number of layers in one exact pass.",
       "longDescriptionMarkdown": "Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\\n\\n**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:\\n\\n| Operator | Meaning |\\n|---|---|\\n| `\\\\|` | union |\\n| `-` | difference |\\n| `&` | intersection |\\n| `~` | complement |\\n\\n`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.\\n\\nExamples:\\n\\n- `0 | 1 | 2` — the union of three layers\\n- `(0 | 1) - 2` — two layers joined, then a third drilled out of them\\n- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference\\n\\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.",
@@ -464,7 +464,7 @@
         "3d printing"
       ],
       "id": "generate_outer_shell",
-      "name": "Extract Outer Shell",
+      "name": "Extract Outer Shell (TrueForm)",
       "pythonName": "generate_outer_shell",
       "shortDescription": "Keep only the outermost surface of a layer, discarding internal shells.",
       "longDescriptionMarkdown": "Resolves the layer's self-intersections and keeps only the **outermost** boundary, dropping every internal shell and any surface enclosed by another.\\n\\nThis is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.\\n\\nThe input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.",
@@ -493,7 +493,7 @@
         "VG"
       ],
       "id": "generate_polyline_from_self_intersections",
-      "name": "Create Polyline from Self-Intersections",
+      "name": "Create Polyline from Self-Intersections (TrueForm)",
       "pythonName": "generate_polyline_from_self_intersections",
       "shortDescription": "Extract the curve where a mesh passes through itself, as a polyline layer.",
       "longDescriptionMarkdown": "Extracts the exact curve along which the layer intersects **itself**, as a new polyline layer.\\n\\n*Select Self Intersecting Faces* marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.\\n\\nA clean mesh produces nothing, and the filter says so.",
@@ -529,7 +529,7 @@
         "VG"
       ],
       "id": "generate_polyline_from_mesh_intersection",
-      "name": "Create Polyline from Mesh Intersection",
+      "name": "Create Polyline from Mesh Intersection (TrueForm)",
       "pythonName": "generate_polyline_from_mesh_intersection",
       "shortDescription": "Extract the curve where two layers cross, as a polyline layer.",
       "longDescriptionMarkdown": "Extracts the exact curve along which two layers intersect, as a new polyline layer. Both are taken in world space, so their layer matrices are applied first.\\n\\nThe curve is computed with the same exact arrangement the booleans use, so it is the true intersection rather than a sampled approximation, and it is usable as a construction line — a seam to cut along, a profile to sweep, or a measurement.\\n\\nLayers that do not touch produce nothing.",
@@ -573,7 +573,7 @@
         "VG"
       ],
       "id": "generate_polyline_from_scalar_isocontour",
-      "name": "Create Polyline from Scalar Isocontour",
+      "name": "Create Polyline from Scalar Isocontour (TrueForm)",
       "pythonName": "generate_polyline_from_scalar_isocontour",
       "shortDescription": "Extract contour lines of the per-vertex scalar field as polylines on the surface.",
       "longDescriptionMarkdown": "Extracts level sets of the **per-vertex scalar field** as polylines lying exactly on the surface.\\n\\nThis turns every scalar QMeshLab can compute into something with extractable contours: geodesic distance from a point or a border, curvature, ambient occlusion, shape diameter, raster coverage, or anything written by *Compute Vertex Scalar by Expression*. Contours of a geodesic distance are isodistance rings; of a height field, topographic contour lines.\\n\\n**Contours** sets how many levels are extracted. They are spaced evenly and placed strictly *inside* the range, never at its extremes, where a contour is either empty or the whole boundary.\\n\\nBy default the range is the field's own minimum and maximum. Enable **Use Custom Range** to contour a chosen band instead — useful when a few outliers would otherwise compress every contour into a corner of the model.\\n\\nA constant field has no contours, and the filter says so rather than returning an empty layer.",
@@ -634,7 +634,7 @@
     },
     {
       "id": "generate_tube_from_polyline",
-      "name": "Create Tube from Polyline",
+      "name": "Create Tube from Polyline (TrueForm)",
       "pythonName": "generate_tube_from_polyline",
       "categories": [
         "Creation/Primitives"
@@ -693,7 +693,7 @@
     },
     {
       "id": "compute_scalar_by_signed_distance_per_vertex",
-      "name": "Compute Signed Distance to Mesh",
+      "name": "Compute Signed Distance to Mesh (TrueForm)",
       "pythonName": "compute_scalar_by_signed_distance_per_vertex",
       "categories": [
         "Attribute/Scalar"
@@ -707,7 +707,7 @@
         "VQ"
       ],
       "shortDescription": "Store each vertex's signed distance to another layer's surface in vertex scalar.",
-      "longDescriptionMarkdown": "Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.\\n\\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\\n\\nBoth layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\\n\\nEnable **Unsigned** for absolute distance, which is what you want when only proximity matters.\\n\\nCompare with *Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance*, which reports a mean.",
+      "longDescriptionMarkdown": "Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.\\n\\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour (TrueForm)* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\\n\\nBoth layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\\n\\nEnable **Unsigned** for absolute distance, which is what you want when only proximity matters.\\n\\nCompare with *Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance (TrueForm)*, which reports a mean.",
       "tags": [
         "trueform",
         "distance",
@@ -817,7 +817,7 @@
     },
     {
       "id": "compute_chamfer_distance",
-      "name": "Measure Chamfer Distance",
+      "name": "Measure Chamfer Distance (TrueForm)",
       "pythonName": "compute_chamfer_distance",
       "categories": [
         "Measurement/Geometric"
@@ -1329,7 +1329,7 @@
         "requireFaces": true
       },
       "id": "orient_faces_coherently_trueform",
-      "name": "Orient Faces Coherently (TrueForm)",
+      "name": "Orient Faces Consistently (TrueForm)",
       "pythonName": "orient_faces_coherently_trueform",
       "categories": [
         "Repair/Topology"
@@ -1339,8 +1339,8 @@
         "VN",
         "FN"
       ],
-      "shortDescription": "Make neighbouring faces wind the same way.",
-      "longDescriptionMarkdown": "Propagates a consistent winding across each connected component, so neighbouring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\\n\\nThis makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.\\n\\nCompeting implementation: *Re-Orient all faces coherently* does the same with vcglib.\n\n**Implementation note.** A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.\n\nFor diagnosis prefer the vcglib *Re-Orient all faces coherently*: it detects and reports a **non-orientable** surface, which this routine cannot distinguish from an incomplete repair.",
+      "shortDescription": "Make neighboring faces wind the same way.",
+      "longDescriptionMarkdown": "Propagates a consistent winding across each connected component, so neighboring faces agree about which side is front. Meshes assembled from several sources, or exported by tools that do not care, commonly arrive with patches wound both ways — which makes backface culling, shading and every boolean unreliable.\\n\\nThis makes the winding *consistent*; it does not decide which way is out. Use *Orient Faces Outward (TrueForm)* for that.\\n\\nCompeting implementation: *Orient Faces Consistently (vcglib)* does the same with vcglib.\n\n**Implementation note.** A single pass of the underlying routine only partly repairs a badly mixed winding, so this filter repeats it until the winding stops improving and reports how many passes were needed. If edges remain inconsistent afterwards the surface is probably non-orientable — a Möbius-like configuration has no consistent winding to find.\n\nFor diagnosis prefer the vcglib *Orient Faces Consistently (vcglib)*: it detects and reports a **non-orientable** surface, which this routine cannot distinguish from an incomplete repair.",
       "tags": [
         "trueform",
         "repair",
@@ -1368,7 +1368,7 @@
         "FN"
       ],
       "shortDescription": "Make the winding consistent and pointing out of the solid.",
-      "longDescriptionMarkdown": "First makes the winding consistent, then checks the **signed volume** and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.\\n\\nThat second step is what distinguishes this from *Orient Faces Coherently*: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.\\n\\nThe input must therefore be **closed** for the answer to mean anything: an open sheet encloses no volume, so there is no outward.",
+      "longDescriptionMarkdown": "First makes the winding consistent, then checks the **signed volume** and flips the whole mesh if it came out negative — so normals point out of the solid rather than into it.\\n\\nThat second step is what distinguishes this from *Orient Faces Consistently (TrueForm)*: a consistently wound mesh can still be inside out, and nothing local can tell, because every face agrees with its neighbours either way. Only the sign of the enclosed volume settles it.\\n\\nThe input must therefore be **closed** for the answer to mean anything: an open sheet encloses no volume, so there is no outward.",
       "tags": [
         "trueform",
         "repair",
@@ -1463,7 +1463,7 @@
     },
     {
       "id": "repair_self_intersections",
-      "name": "Repair Self-Intersections",
+      "name": "Repair Self-Intersections (TrueForm)",
       "pythonName": "repair_self_intersections",
       "categories": [
         "Repair/Topology"
@@ -1480,7 +1480,7 @@
         "FN"
       ],
       "shortDescription": "Resolve a mesh's self-intersections into real edges and split faces.",
-      "longDescriptionMarkdown": "Computes the **arrangement** of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\\n\\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and *Extract Outer Shell* can keep the outermost one.\\n\\nUse *Create Polyline from Self-Intersections* first to see where the problem is, and *Select Self Intersecting Faces* to see how much is affected.\\n\\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.",
+      "longDescriptionMarkdown": "Computes the **arrangement** of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\\n\\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and *Extract Outer Shell (TrueForm)* can keep the outermost one.\\n\\nUse *Create Polyline from Self-Intersections (TrueForm)* first to see where the problem is, and *Select Self Intersecting Faces* to see how much is affected.\\n\\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.",
       "tags": [
         "trueform",
         "repair",
@@ -1501,7 +1501,7 @@
     },
     {
       "id": "cut_along_scalar_isocontour",
-      "name": "Cut Along Scalar Isocontour",
+      "name": "Cut Along Scalar Isocontour (TrueForm)",
       "pythonName": "cut_along_scalar_isocontour",
       "categories": [
         "Meshing/Remeshing"
@@ -1519,7 +1519,7 @@
         "FN"
       ],
       "shortDescription": "Split the surface along contours of the vertex scalar field.",
-      "longDescriptionMarkdown": "Cuts the surface along evenly spaced contours of the **per-vertex scalar field**, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\\n\\nWhere *Create Polyline from Scalar Isocontour* draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\\n\\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\\n\\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.",
+      "longDescriptionMarkdown": "Cuts the surface along evenly spaced contours of the **per-vertex scalar field**, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\\n\\nWhere *Create Polyline from Scalar Isocontour (TrueForm)* draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\\n\\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\\n\\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.",
       "tags": [
         "trueform",
         "isoband",

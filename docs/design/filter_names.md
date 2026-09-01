@@ -905,3 +905,119 @@ All settled (2026-08-27).
 
 `Selection` was added to `appliedRoots` in `displayNamesLeadWithALexiconVerb`, so the
 round is now checked on every build.
+
+# Round 6 — `Repair` (24 filters)
+
+**Applied 2026-09-01.** 14 renamed, 10 already conformant. All 24 carry `Repair/*` as
+their *primary* category, so nothing here was owned by another round.
+
+## Repair/Degenerate (4)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Remove Isolated Pieces (wrt Diameter) | **Remove Isolated Components by Diameter** | `remove_isolated_components_by_diameter` |
+| Remove Isolated Pieces (wrt Face Num.) | **Remove Isolated Components by Face Count** | `remove_isolated_components_by_face_count` |
+| Remove Vertices wrt Quality | **Remove Vertices by Scalar** | `remove_vertices_by_scalar` |
+| Remove Zero Area Faces | **Remove Zero-Area Faces** | *unchanged* |
+
+`wrt` is an abbreviation the vocabulary does not carry, and rule 3 reserves parentheses
+for the backend, so both `(wrt …)` become `by` connectors. `Pieces` → `Components`
+follows round 5's *Select Small Disconnected Components*; `Quality` → `Scalar` is §4;
+`Zero-Area` hyphenates as a compound adjective, like round 5's `Non-Manifold`.
+
+## Repair/Duplicates (7)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Merge Wedge Texture Coord | **Merge Close Wedge UVs** | `merge_close_wedge_uvs` |
+| Vertex Attribute Seam | **Split Vertices by Attribute Seam** | `split_vertices_by_attribute_seam` |
+| the other 5 | *unchanged* | |
+
+§4 makes `UV` the user-facing term and `Coord` was a bare abbreviation; the description
+says "merge very close per-wedge texture coordinates", so restoring `Close` also puts the
+name beside its sibling *Merge Close Vertices*.
+
+## Repair/Holes and Borders (2)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Close Holes | *unchanged* — `Close` admitted to the lexicon | *unchanged* |
+| Snap Mismatched Borders | **Repair Mismatched Borders** | `repair_mismatched_borders` |
+
+The snap filter splits faces so two borders coincide and only welds vertices when
+`unify_vertices` is set, so `Merge` would have over-promised. *Snap* stays in the
+description.
+
+## Repair/Topology (11)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Extract Outer Shell | **Extract Outer Shell (TrueForm)** | `extract_outer_shell_trueform` |
+| Invert Faces Orientation | **Invert Face Orientation** | `invert_face_orientation` |
+| Orient Faces Coherently (TrueForm) | **Orient Faces Consistently (TrueForm)** | `orient_faces_consistently_trueform` |
+| Re-Orient all faces coherently | **Orient Faces Consistently (vcglib)** | `orient_faces_consistently_vcglib` |
+| Repair Self-Intersections | **Repair Self-Intersections (TrueForm)** | `repair_self_intersections_trueform` |
+| Repair non Manifold Edges | **Repair Non-Manifold Edges** | *unchanged* |
+| Repair non Manifold Vertices by Splitting | **Repair Non-Manifold Vertices by Splitting** | `repair_non_manifold_vertices_by_splitting` |
+| the other 4 | *unchanged* | |
+
+`Re-Orient` is struck by §5 by name and listed as a rejected synonym in §3.
+*Coherently* → *Consistently* is §3's own wording for `Orient`, and the vcglib filter's
+`shortDescription` already said "Orient faces consistently" — only the display name
+lagged. Neither non-manifold repair takes a suffix: nothing competes with them.
+
+## Verbs added to the lexicon
+
+| Verb | Means | Why the existing lexicon was not enough |
+|---|---|---|
+| `Close` | Fill a boundary loop with new faces | *Close a hole* is the term of art; `Repair` is too coarse to separate it from the four other `Repair/*` filters |
+
+`Split` was **widened**, not added: it was scoped to layer-structure operations, and
+`Cut`'s row claimed it outright for them. It now also covers separating mesh elements
+that were sharing storage, which is what *Split Vertices by Attribute Seam* does.
+
+## Rulings
+
+All settled (2026-09-01).
+
+1. ~~`Close Holes`: admit `Close`, or rename to `Repair Holes`?~~ **Admit `Close`.**
+2. ~~`Vertex Attribute Seam` leads with no verb at all.~~ **Split Vertices by Attribute
+   Seam**, with `Split` widened as above. *Convert to Seam-Independent Vertices* would
+   have needed no lexicon change but read worse.
+3. ~~Do the two unsuffixed TrueForm filters here take `(TrueForm)`?~~ **Every TrueForm
+   filter takes it** — see below.
+
+## The TrueForm suffix sweep
+
+Ruling 3 came back wider than the round: 19 of 31 TrueForm filters were suffixed and 12
+were not, so the suffix had stopped meaning "this is TrueForm" and started meaning "this
+one happened to have a sibling". The other 10 were renamed with this round, across
+already-applied roots (`Attribute`, `Creation`, `Geometry`, `Meshing`) and one pending
+one (`Measurement`, whose names are still open to its own round):
+
+*Compute Signed Distance to Mesh* · *Create Polyline from Self-Intersections* ·
+*Create Polyline from Mesh Intersection* · *Create Polyline from Scalar Isocontour* ·
+*Create Tube from Polyline* · *Align by Bounding Box* · *Align to Corresponding Points* ·
+*Measure Chamfer Distance* · *Mesh CSG Expression* · *Cut Along Scalar Isocontour*
+
+§6 records the amendment: the omission clause still governs a backend that is not a named
+family the user chooses between.
+
+## Fixes made on the way
+
+- Two descriptions cross-referenced filters this round renamed (*Orient Faces Outward*
+  pointed at *Orient Faces Coherently*, *Repair Self-Intersections* at *Extract Outer
+  Shell*); both now name the current filter, suffix included.
+- `beginFilterProgress` labels in the TrueForm plugin repeat the display name verbatim,
+  so all 12 were updated with it; likewise the undo label and failure message of
+  *Split Vertices by Attribute Seam* in the meshing plugin.
+- Description vocabulary: five `Delete …` openings → `Remove` (§3 rejects `Delete`
+  outright), two `quality` → `scalar`, three `texture coord(inate)s` → `UVs`, two
+  British `neighbouring` → `neighboring`, one `non Manifold` → `non-manifold`, and the
+  typo `trheshold` in *Close Holes*.
+
+## Enforcement
+
+`Repair` was added to `appliedRoots` in `displayNamesLeadWithALexiconVerb`. Verified to
+discriminate: restoring *Snap Mismatched Borders* fails the guard with
+`leading word 'Snap' is not in the lexicon`.

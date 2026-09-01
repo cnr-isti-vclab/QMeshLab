@@ -4418,7 +4418,15 @@ void FilterTests::displayNamesLeadWithALexiconVerb()
     int end = text.indexOf(QStringLiteral("\n## "), start + 1);
     if (end < 0)
         end = text.size();
-    const QString section = text.mid(start, end - start);
+    QString section = text.mid(start, end - start);
+    // "Every verb above the `Estimate` footnote is ratified" -- the section says so
+    // itself, and below that line come the commentary blocks, which quote *rejected*
+    // words in backticked tables (the vcglib `Update*` mapping). Parsing the whole
+    // section would admit those as verbs, which is exactly backwards.
+    const int ratifiedEnd = section.indexOf(QStringLiteral("`Estimate` is permitted"));
+    QVERIFY2(ratifiedEnd > 0, "section 3 no longer carries the `Estimate` footnote that "
+                              "marks the end of the ratified lexicon");
+    section.truncate(ratifiedEnd);
 
     QSet<QString> verbs;
     // Rows look like:  | `Create` | ... |   and one row carries three verbs at once.
@@ -4447,6 +4455,11 @@ void FilterTests::displayNamesLeadWithALexiconVerb()
     QVERIFY(verbs.contains(QStringLiteral("Compute")));
     QVERIFY(verbs.contains(QStringLiteral("Sharpen")));   // ratified in round 2
     QVERIFY(verbs.contains(QStringLiteral("Mirror")));    // ratified in round 4
+    QVERIFY(verbs.contains(QStringLiteral("Close")));     // ratified in round 6
+    // Recorded in section 3 as the word vcglib reaches for and the lexicon never does.
+    QVERIFY2(!verbs.contains(QStringLiteral("Update")), "`Update` is documented as rejected");
+    QVERIFY2(!verbs.contains(QStringLiteral("UpdateNormal")),
+             "the vcglib `Update*` mapping table leaked into the verb set");
 
     // The named-result exception in section 6: a filter whose output *is* a
     // conventionally named object may be a noun phrase.
@@ -4461,7 +4474,7 @@ void FilterTests::displayNamesLeadWithALexiconVerb()
     const QSet<QString> appliedRoots{
         QStringLiteral("Meshing"), QStringLiteral("Attribute"),
         QStringLiteral("Creation"), QStringLiteral("Geometry"),
-        QStringLiteral("Selection")
+        QStringLiteral("Selection"), QStringLiteral("Repair")
     };
 
     Document probe;

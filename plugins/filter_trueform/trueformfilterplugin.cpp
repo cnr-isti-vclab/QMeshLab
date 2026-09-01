@@ -201,7 +201,7 @@ MeshFilterRunResult runAlignObb(const FilterParams &params, Document &doc)
     if (!resolveInputs(params, doc, in, error))
         return fail(error);
 
-    doc.beginFilterProgress(QObject::tr("Align by Bounding Box"));
+    doc.beginFilterProgress(QObject::tr("Align by Bounding Box (TrueForm)"));
     QMatrix4x4 delta;
     try {
         const TfPoints source = worldPoints(doc.mesh(in.sourceIndex));
@@ -319,7 +319,7 @@ MeshFilterRunResult runAlignCorresponding(const FilterParams &params, Document &
                         .arg(reference.size()));
     }
 
-    doc.beginFilterProgress(QObject::tr("Align to Corresponding Points"));
+    doc.beginFilterProgress(QObject::tr("Align to Corresponding Points (TrueForm)"));
     QMatrix4x4 delta;
     double fittedScale = 1.0;
     try {
@@ -765,7 +765,7 @@ MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
         }
     }
 
-    doc.beginFilterProgress(QObject::tr("Mesh CSG Expression"));
+    doc.beginFilterProgress(QObject::tr("Mesh CSG Expression (TrueForm)"));
     try {
         std::vector<TfMesh> meshes;
         meshes.reserve(std::size_t(operands.size()));
@@ -846,7 +846,7 @@ MeshFilterRunResult runOuterShell(const FilterParams &params, Document &doc)
     if (doc.mesh(index).mesh.FN() <= 0)
         return fail(QObject::tr("The layer needs faces."));
 
-    doc.beginFilterProgress(QObject::tr("Extract Outer Shell"));
+    doc.beginFilterProgress(QObject::tr("Extract Outer Shell (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
         auto result = tf::make_outer_shell(source.polygons());
@@ -948,7 +948,7 @@ MeshFilterRunResult runSelfIntersectionCurves(const FilterParams &params, Docume
     if (doc.mesh(index).mesh.FN() <= 0)
         return fail(QObject::tr("The layer needs faces."));
 
-    doc.beginFilterProgress(QObject::tr("Create Polyline from Self-Intersections"));
+    doc.beginFilterProgress(QObject::tr("Create Polyline from Self-Intersections (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
         auto curves = tf::embedded_self_intersection_curves(source.polygons(), tf::return_curves);
@@ -973,7 +973,7 @@ MeshFilterRunResult runIntersectionCurves(const FilterParams &params, Document &
     if (!resolveBooleanPair(params, doc, aIndex, bIndex, error))
         return fail(error);
 
-    doc.beginFilterProgress(QObject::tr("Create Polyline from Mesh Intersection"));
+    doc.beginFilterProgress(QObject::tr("Create Polyline from Mesh Intersection (TrueForm)"));
     try {
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
@@ -1047,7 +1047,7 @@ MeshFilterRunResult runIsocurves(const FilterParams &params, Document &doc)
         cutValues.push_back(float(minValue + t * (maxValue - minValue)));
     }
 
-    doc.beginFilterProgress(QObject::tr("Create Polyline from Scalar Isocontour"));
+    doc.beginFilterProgress(QObject::tr("Create Polyline from Scalar Isocontour (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
         auto curves = tf::embedded_isocurves(
@@ -1123,7 +1123,7 @@ MeshFilterRunResult runTubeFromPolyline(const FilterParams &params, Document &do
     if (edges.empty())
         return fail(QObject::tr("The layer has no usable edges."));
 
-    doc.beginFilterProgress(QObject::tr("Create Tube from Polyline"));
+    doc.beginFilterProgress(QObject::tr("Create Tube from Polyline (TrueForm)"));
 
     VCGMesh output;
     std::size_t tubeCount = 0;
@@ -1267,7 +1267,7 @@ MeshFilterRunResult runSignedDistance(const FilterParams &params, Document &doc)
 
     const bool absolute = params.getBool(QStringLiteral("unsigned"), false);
 
-    doc.beginFilterProgress(QObject::tr("Compute Signed Distance to Mesh"));
+    doc.beginFilterProgress(QObject::tr("Compute Signed Distance to Mesh (TrueForm)"));
     double minDistance = std::numeric_limits<double>::max();
     double maxDistance = std::numeric_limits<double>::lowest();
     int insideCount = 0;
@@ -1404,7 +1404,7 @@ MeshFilterRunResult runChamferDistance(const FilterParams &params, Document &doc
     const double outlier =
         std::clamp(params.getDouble(QStringLiteral("outlierProportion"), 0.0), 0.0, 0.9);
 
-    doc.beginFilterProgress(QObject::tr("Measure Chamfer Distance"));
+    doc.beginFilterProgress(QObject::tr("Measure Chamfer Distance (TrueForm)"));
     double forward = 0.0;
     double backward = 0.0;
     try {
@@ -1854,7 +1854,7 @@ MeshFilterRunResult runOrient(const QString &filterId, const FilterParams &param
     const bool outward = (filterId == QString::fromLatin1(kFilterOrientOutward));
 
     doc.beginFilterProgress(outward ? QObject::tr("Orient Faces Outward (TrueForm)")
-                                    : QObject::tr("Orient Faces Coherently (TrueForm)"));
+                                    : QObject::tr("Orient Faces Consistently (TrueForm)"));
     int flipped = 0;
     int passes = 0;
     int remainingInconsistent = 0;
@@ -2066,7 +2066,7 @@ MeshFilterRunResult runRepairSelfIntersections(const FilterParams &params, Docum
     if (doc.mesh(index).mesh.FN() <= 0)
         return fail(QObject::tr("The layer needs faces."));
 
-    doc.beginFilterProgress(QObject::tr("Repair Self-Intersections"));
+    doc.beginFilterProgress(QObject::tr("Repair Self-Intersections (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
         using FormView = decltype(std::declval<const TfMesh &>().polygons());
@@ -2131,7 +2131,7 @@ MeshFilterRunResult runCutAlongIsocontour(const FilterParams &params, Document &
     for (std::size_t i = 0; i < bands.size(); ++i)
         bands[i] = int(i);
 
-    doc.beginFilterProgress(QObject::tr("Cut Along Scalar Isocontour"));
+    doc.beginFilterProgress(QObject::tr("Cut Along Scalar Isocontour (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
         auto banded = tf::make_isobands(

@@ -769,7 +769,7 @@
     {
       "id": "meshing_re_orient_faces_coherently",
       "categories": ["Repair/Topology"],
-      "name": "Re-Orient all faces coherently",
+      "name": "Orient Faces Consistently (vcglib)",
       "pythonName": "reorient_all_faces",
       "shortDescription": "Orient faces consistently.",
       "longDescriptionMarkdown": "Re-orient in a consistent way all the faces of the mesh. <br>The filter visits a mesh face to face, reorienting any unvisited face so that it is coherent to the already visited faces. If the surface is orientable it will end with a consistent orientation of all the faces. If the surface is not orientable (e.g. it is non manifold or non orientable like a moebius",
@@ -794,7 +794,7 @@
     {
       "id": "meshing_invert_face_orientation",
       "categories": ["Repair/Topology"],
-      "name": "Invert Faces Orientation",
+      "name": "Invert Face Orientation",
       "pythonName": "invert_faces_orientation",
       "shortDescription": "Flip mesh face orientation.",
       "longDescriptionMarkdown": "Invert faces orientation, flipping the normals of the mesh. <br>If requested, it tries to guess the right orientation; mainly it decide to flip all the faces if the minimum/maximum vertices have not outward point normals for a few directions.<br>Works well for single component watertight objects.",
@@ -2050,7 +2050,7 @@
       "name": "Close Holes",
       "pythonName": "close_holes",
       "shortDescription": "Close holes under a size threshold.",
-      "longDescriptionMarkdown": "Close holes whose boundary is composed by a number of edges smaller than a given trheshold",
+      "longDescriptionMarkdown": "Close holes whose boundary is composed by a number of edges smaller than a given threshold",
       "tags": [
         "meshing"
       ],
@@ -2431,7 +2431,7 @@
     {
       "id": "meshing_vertex_attribute_seam",
       "categories": ["Repair/Duplicates"],
-      "name": "Vertex Attribute Seam",
+      "name": "Split Vertices by Attribute Seam",
       "pythonName": "vertex_attribute_seam",
       "shortDescription": "Split vertices to make attributes seam-independent.",
       "longDescriptionMarkdown": "Make all selected vertex attributes connectivity-independent:<br/>vertices are duplicated whenever two or more selected wedge or face attributes do not match.<br/>This is particularly useful for GPU-friendly mesh layout, where a single index must be used to access all required vertex attributes.",

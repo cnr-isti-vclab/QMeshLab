@@ -1742,12 +1742,12 @@ MeshFilterRunResult MeshingFilterPlugin::runFilter(
             vcg::tri::AttributeSeam::ASCompare<VCGMesh> vCompare(mask);
             const bool ok = vcg::tri::AttributeSeam::SplitVertex(mesh, vExtract, vCompare);
             if (!ok)
-                return fail(QObject::tr("Failed applying Vertex Attribute Seam."));
+                return fail(QObject::tr("Failed to split vertices by attribute seam."));
 
             vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
             vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
             entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_VERTCOLOR | Mask::IOM_VERTTEXCOORD;
-            markGeometry(ci, QObject::tr("Applied Vertex Attribute Seam on '%1'").arg(entry.name));
+            markGeometry(ci, QObject::tr("Split vertices by attribute seam on '%1'").arg(entry.name));
             return success(true);
         }
 

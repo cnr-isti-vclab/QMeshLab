@@ -125,20 +125,20 @@ That was the main finding of this pass.
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
 | Merge Close Vertices | `clean` | `Repair/Duplicates` |  |
-| Merge Wedge Texture Coord | `clean` | `Repair/Duplicates` | <sub>touches: uv</sub> |
+| Merge Close Wedge UVs | `clean` | `Repair/Duplicates` | <sub>touches: uv</sub> |
 | Remove Duplicate Faces | `clean` | `Repair/Duplicates` |  |
 | Remove Duplicate Vertices | `clean` | `Repair/Duplicates` |  |
 | Remove Isolated Folded Faces by Edge Flip | `clean` | `Repair/Topology` |  |
-| Remove Isolated Pieces (wrt Diameter) | `clean` | `Repair/Degenerate` |  |
-| Remove Isolated Pieces (wrt Face Num.) | `clean` | `Repair/Degenerate` |  |
+| Remove Isolated Components by Diameter | `clean` | `Repair/Degenerate` |  |
+| Remove Isolated Components by Face Count | `clean` | `Repair/Degenerate` |  |
 | Remove T-Vertices | `clean` | `Repair/Topology` |  |
 | Remove Unreferenced Vertices | `clean` | `Repair/Duplicates` |  |
-| Remove Vertices wrt Quality | `clean` | `Repair/Degenerate` |  |
-| Remove Zero Area Faces | `clean` | `Repair/Degenerate` |  |
+| Remove Vertices by Scalar | `clean` | `Repair/Degenerate` |  |
+| Remove Zero-Area Faces | `clean` | `Repair/Degenerate` |  |
 | Repair Watertight Mesh (MeshFix) | `meshfix` | `Repair/Topology` |  |
-| Repair non Manifold Edges | `clean` | `Repair/Topology` |  |
-| Repair non Manifold Vertices by Splitting | `clean` | `Repair/Topology` |  |
-| Snap Mismatched Borders | `clean` | `Repair/Holes and Borders` |  |
+| Repair Non-Manifold Edges | `clean` | `Repair/Topology` |  |
+| Repair Non-Manifold Vertices by Splitting | `clean` | `Repair/Topology` |  |
+| Repair Mismatched Borders | `clean` | `Repair/Holes and Borders` |  |
 
 ### `Color` (24)
 
@@ -323,13 +323,13 @@ That was the main finding of this pass.
 | Compute Point Cloud Normals | `meshing` | `Attribute/Normal` |  |
 | Create Polyline from Selection Perimeter | `meshing` | `Creation/Primitives` | creates a new polyline layer |
 | Geometric Cylindrical Unwrapping | `meshing` | `Parametrization/UV Creation` |  |
-| Invert Faces Orientation | `meshing` | `Repair/Topology` | orientation is topological |
+| Invert Face Orientation | `meshing` | `Repair/Topology` | orientation is topological |
 | Matrix: Freeze Current Matrix | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
 | Matrix: Invert Current Matrix | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
 | Matrix: Reset Current Matrix | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
 | Matrix: Set from translation/rotation/scale | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
 | Matrix: Set/Copy Transformation | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
-| Re-Orient all faces coherently | `meshing` | `Repair/Topology` | orientation is topological |
+| Orient Faces Consistently (vcglib) | `meshing` | `Repair/Topology` | orientation is topological |
 | Remeshing: Isotropic Explicit Remeshing | `meshing` | `Meshing/Remeshing` |  |
 | Select Crease Edges | `meshing` | `Selection/by Topology` |  |
 | Simplification: Clustering Decimation | `meshing` | `Meshing/Simplification` |  |
@@ -353,7 +353,7 @@ That was the main finding of this pass.
 | Tri to Quad by smart triangle pairing | `meshing` | `Meshing/Quad` |  |
 | Turn into Quad-Dominant mesh | `meshing` | `Meshing/Quad` |  |
 | Turn into a Pure-Triangular mesh | `meshing` | `Meshing/Quad` |  |
-| Vertex Attribute Seam | `meshing` | `Repair/Duplicates` | splits vertices on attribute discontinuity <sub>touches: uv, color</sub> |
+| Split Vertices by Attribute Seam | `meshing` | `Repair/Duplicates` | splits vertices on attribute discontinuity <sub>touches: uv, color</sub> |
 
 ### `Normals/Embree` (1)
 
