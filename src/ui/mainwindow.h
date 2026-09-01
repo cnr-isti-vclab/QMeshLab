@@ -7,6 +7,7 @@
 #include <QList>
 #include <QMap>
 #include <QPixmap>
+#include <QPointer>
 #include <QVector>
 #include <QVariantMap>
 #include <deque>
@@ -97,6 +98,7 @@ private:
     bool loadMeshFromPath(const QString &filePath);
     bool loadRasterFromPath(const QString &filePath);
     bool handleDragEnterOrMove(QDropEvent *event);
+    void setInteractionBlocked(bool blocked);
     void handleDroppedUrls(const QList<QUrl> &urls);
     void addRecentMesh(const QString &filePath);
     void sanitizeRecentMeshes();
@@ -133,6 +135,10 @@ private:
     // Set when a close arrived while a helper process was still running; the close is
     // retried once the filter that owns it has unwound. See closeEvent().
     bool m_closeWhenFilterStops = false;
+    bool m_interactionBlocked = false;
+    // Disabling a widget clears its focus and re-enabling does not give it back, so the
+    // render view would lose the keyboard after every interactive-tool commit.
+    QPointer<QWidget> m_focusBeforeBlock;
     LayerWidget *m_layerWidget;
     MeshFilterPanel *m_filterPanel = nullptr;
     QDockWidget *m_layerDock = nullptr;

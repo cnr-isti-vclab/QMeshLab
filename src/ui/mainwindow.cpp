@@ -19,6 +19,7 @@
 #include <wrap/io_trimesh/io_mask.h>
 #include <QButtonGroup>
 #include <QClipboard>
+#include <QApplication>
 #include <QCloseEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -1109,6 +1110,7 @@ MainWindow::MainWindow(QWidget *parent)
             success ? 2500 : 4000);
     });
     connect(m_doc, &Document::filterProgressStarted, this, [this](const QString &label) {
+        setInteractionBlocked(true);
         if (m_filterProgressBar) {
             m_filterProgressBar->setValue(0);
             m_filterProgressBar->setVisible(true);
@@ -1131,6 +1133,7 @@ MainWindow::MainWindow(QWidget *parent)
             statusBar()->showMessage(tr("Filter: %1%").arg(percent));
     });
     connect(m_doc, &Document::filterProgressFinished, this, [this](bool success, const QString &message) {
+        setInteractionBlocked(false);
         if (m_filterProgressBar)
             m_filterProgressBar->setVisible(false);
         if (m_filterCancelButton)
@@ -1842,6 +1845,13 @@ void MainWindow::openRasterImage()
 
 bool MainWindow::handleDragEnterOrMove(QDropEvent *event)
 {
+    // Disabling child widgets does not stop a drop: it is delivered to the window, which
+    // stays enabled so its title bar still works.
+    if (m_interactionBlocked) {
+        if (event)
+            event->ignore();
+        return false;
+    }
     if (!event || !event->mimeData() || !event->mimeData()->hasUrls()) {
         if (event)
             event->ignore();
@@ -3473,6 +3483,50 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
         }
     }
     return QMainWindow::eventFilter(watched, event);
+}
+
+// A running filter pumps the event loop so its Cancel button stays clickable, and it
+// pumps AllEvents -- so every other control stays clickable too, while the filter is
+// still on the stack holding a live MeshEntry reference. Most filters get away with it
+// because their pump is throttled to a progress change every 80 ms; one that shells out
+// to a helper pumps every 100 ms for minutes, and the application is plainly live. Either
+// way a second filter, or a layer deletion, can run underneath the first one.
+//
+// The status bar is deliberately left alone: it carries the progress bar and the Cancel
+// button, the one control that must keep working.
+void MainWindow::setInteractionBlocked(bool blocked)
+{
+    if (m_interactionBlocked == blocked)
+        return;
+    m_interactionBlocked = blocked;
+
+    if (blocked) {
+        m_focusBeforeBlock = QApplication::focusWidget();
+        // Greyed-out controls say "not now" only once the pointer is already over one.
+        // The cursor says it everywhere, including over the 3D view, which greys out
+        // less visibly than the panels do.
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+    }
+
+    // Disabling the containers rather than their contents: Qt leaves each child's own
+    // enabled flag untouched, so re-enabling restores whatever was greyed out on its
+    // own account.
+    if (QWidget *bar = menuBar())
+        bar->setEnabled(!blocked);
+    if (QWidget *central = centralWidget())
+        central->setEnabled(!blocked);
+    for (QDockWidget *dock : findChildren<QDockWidget *>())
+        dock->setEnabled(!blocked);
+    for (QToolBar *toolBar : findChildren<QToolBar *>())
+        toolBar->setEnabled(!blocked);
+
+    if (!blocked) {
+        QApplication::restoreOverrideCursor();
+        // Held as a QPointer: the filter may well have deleted whatever had focus.
+        if (m_focusBeforeBlock)
+            m_focusBeforeBlock->setFocus(Qt::OtherFocusReason);
+        m_focusBeforeBlock = nullptr;
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

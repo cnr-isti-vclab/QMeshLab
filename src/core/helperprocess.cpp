@@ -156,14 +156,19 @@ bool run(const Request &request, Document &doc, QString &error)
 
             if (stage >= request.stageMarkers.size() || request.progressBegin < 0)
                 continue;
-            if (!line.contains(request.stageMarkers.at(stage), Qt::CaseInsensitive))
+            const QString marker = request.stageMarkers.at(stage);
+            if (!line.contains(marker, Qt::CaseInsensitive))
                 continue;
             ++stage;
             if (vcg::CallBackPos *callback = doc.progressCallback()) {
                 const int span = request.progressEnd - request.progressBegin;
                 const int position = request.progressBegin
                     + (span * stage) / (request.stageMarkers.size() + 1);
-                (*callback)(position, line.toLocal8Bit().constData());
+                // The marker, not the line it was found in: helpers draw their phase
+                // banners in rules of dashes, which belong in the log and not in the
+                // status bar.
+                const QByteArray text = QStringLiteral("%1: %2").arg(label, marker).toLocal8Bit();
+                (*callback)(position, text.constData());
             }
         }
     };
