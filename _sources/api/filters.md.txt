@@ -3323,7 +3323,7 @@ Create a new layer with a point sampling of the current mesh, a sample for each 
 
 (filter-apply-cameras-extrinsics-transformation)=
 
-## Transform camera extrinsics
+## Transform Camera Extrinsics
 
 **Categories:** `Document/Camera`
 
@@ -3351,7 +3351,7 @@ Apply a similarity transformation to the camera extrinsics, or all the cameras o
 
 (filter-apply-cameras-rotation)=
 
-## Transform: Rotate Camera or set of cameras
+## Rotate Cameras
 
 **Categories:** `Document/Camera`
 
@@ -3380,7 +3380,7 @@ Rotate the camera, or all the cameras of the project. The selected raster is the
 
 (filter-apply-cameras-scaling)=
 
-## Transform: Scale Camera or set of cameras
+## Scale Cameras
 
 **Categories:** `Document/Camera`
 
@@ -3405,7 +3405,7 @@ Scale the camera, or all the cameras of the project.
 
 (filter-apply-cameras-translation)=
 
-## Transform: Translate Camera or set of cameras
+## Translate Cameras
 
 **Categories:** `Document/Camera`
 
@@ -3431,13 +3431,13 @@ Translate the camera, or all the cameras of the project.
 
 (filter-load-active-raster-cameras)=
 
-## Import cameras for active rasters from file
+## Import Cameras to Visible Rasters
 
 **Categories:** `Document/Camera`
 
 **Plugin:** qmeshlab.filter.layer
 
-Import cameras for visible raster layers.
+Import cameras from a file into the visible raster layers.
 
 ```{py:function} ms.load_active_raster_cameras(**params)
 :module: _qmeshlab
@@ -3453,13 +3453,13 @@ Imports MeshLab-compatible VCGCamera XML entries and assigns them, in file order
 
 (filter-save-active-raster-cameras)=
 
-## Export active rasters cameras to file
+## Export Cameras from Visible Rasters
 
 **Categories:** `Document/Camera`
 
 **Plugin:** qmeshlab.filter.layer
 
-Export cameras from visible raster layers.
+Export the cameras of the visible raster layers to a file.
 
 ```{py:function} ms.save_active_raster_cameras(**params)
 :module: _qmeshlab
@@ -3475,7 +3475,7 @@ Exports the cameras of all visible raster layers as MeshLab-compatible VCGCamera
 
 (filter-set-camera-from-direction)=
 
-## Generate Camera from Direction
+## Set Camera from Direction
 
 **Categories:** `Document/Camera`
 
@@ -3550,7 +3550,7 @@ Set camera parameters for the current raster. The viewport is automatically reca
 
 (filter-set-camera-to-view-selection)=
 
-## Generate Camera to View Selection
+## Set Camera to View Selection
 
 **Categories:** `Document/Camera`
 
@@ -3574,13 +3574,13 @@ Compute a camera that frames the current selection in the viewport. The camera i
 
 (filter-delete-current-mesh)=
 
-## Delete Current Mesh
+## Remove Current Mesh Layer
 
 **Categories:** `Document/Layer`
 
 **Plugin:** qmeshlab.filter.layer
 
-Delete the current mesh layer.
+Remove the current mesh layer.
 
 ```{py:function} ms.delete_current_mesh(**params)
 :module: _qmeshlab
@@ -3594,13 +3594,13 @@ This filter has no parameters.
 
 (filter-delete-current-raster)=
 
-## Delete Current Raster
+## Remove Current Raster
 
 **Categories:** `Document/Layer`
 
 **Plugin:** qmeshlab.filter.layer
 
-Delete the current raster layer.
+Remove the current raster layer.
 
 ```{py:function} ms.delete_current_raster(**params)
 :module: _qmeshlab
@@ -3614,13 +3614,13 @@ This filter has no parameters.
 
 (filter-delete-hidden-meshes)=
 
-## Delete all non visible Mesh Layers
+## Remove Hidden Mesh Layers
 
 **Categories:** `Document/Layer`
 
 **Plugin:** qmeshlab.filter.layer
 
-Delete all non-visible mesh layers in the document.
+Remove every mesh layer that is currently hidden.
 
 ```{py:function} ms.delete_hidden_meshes(**params)
 :module: _qmeshlab
@@ -3634,13 +3634,13 @@ This filter has no parameters.
 
 (filter-delete-non-active-rasters)=
 
-## Delete all Non Selected Rasters
+## Remove Hidden Rasters
 
 **Categories:** `Document/Layer`
 
 **Plugin:** qmeshlab.filter.layer
 
-Delete all non-active raster layers.
+Remove every raster layer that is currently hidden.
 
 ```{py:function} ms.delete_non_active_rasters(**params)
 :module: _qmeshlab
@@ -3654,7 +3654,7 @@ This filter has no parameters.
 
 (filter-duplicate-layer)=
 
-## Duplicate Current layer
+## Duplicate Current Layer
 
 **Categories:** `Document/Layer`
 
@@ -3672,18 +3672,18 @@ This filter has no parameters.
 
 (filter-flatten-visible-layers)=
 
-## Flatten Visible Layers
+## Merge Visible Layers
 
 **Categories:** `Document/Layer`
 
 **Plugin:** qmeshlab.filter.layer
 
-Flatten all or only the visible layers into a single new mesh.
+Merge all layers, or only the visible ones, into a single new mesh. Also known as flattening.
 
 ```{py:function} ms.flatten_visible_layers(**params)
 :module: _qmeshlab
 
-Flatten all or only the visible layers into a single new mesh.<br>Transformations are preserved. Existing layers can be optionally deleted.
+Merge all layers, or only the visible ones, into a single new mesh. Also known as flattening.<br>Transformations are preserved. Existing layers can be optionally deleted.
 
 **Parameters:**
 
@@ -3697,13 +3697,13 @@ Flatten all or only the visible layers into a single new mesh.<br>Transformation
 
 (filter-move-faces-to-layer)=
 
-## Move selected faces to another layer
+## Extract Selected Faces
 
 **Categories:** `Document/Layer`
 
 **Plugin:** qmeshlab.filter.layer
 
-Move or duplicate the selected faces into a new mesh layer.
+Extract the selected faces into a new mesh layer, moving or copying them.
 
 ```{py:function} ms.move_faces_to_layer(**params)
 :module: _qmeshlab
@@ -3719,13 +3719,13 @@ Selected faces are moved (or duplicated) in a new layer. Warning! per-vertex and
 
 (filter-move-vertices-to-layer)=
 
-## Move selected vertices to another layer
+## Extract Selected Vertices
 
 **Categories:** `Document/Layer`
 
 **Plugin:** qmeshlab.filter.layer
 
-Move or duplicate the selected vertices into a new mesh layer.
+Extract the selected vertices into a new mesh layer, moving or copying them.
 
 ```{py:function} ms.move_vertices_to_layer(**params)
 :module: _qmeshlab
@@ -3741,7 +3741,7 @@ Selected vertices are moved (or duplicated) in a new layer. Warning! per-vertex 
 
 (filter-rename-mesh)=
 
-## Rename Current Mesh
+## Rename Current Mesh Layer
 
 **Categories:** `Document/Layer`
 
@@ -3783,7 +3783,7 @@ Explicitly change the label shown for the current raster.
 
 (filter-split-in-connected-components)=
 
-## Split in Connected Components
+## Split into Connected Components
 
 **Categories:** `Document/Layer`
 

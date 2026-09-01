@@ -2285,6 +2285,197 @@ discriminate: restoring <em>Snap Mismatched Borders</em> fails the guard with
 <code class="docutils literal notranslate"><span class="pre">leading</span> <span class="pre">word</span> <span class="pre">'Snap'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">lexicon</span></code>.</p>
 </section>
 </section>
+<section class="tex2jax_ignore mathjax_ignore" id="round-7-document-22-filters">
+<h1>Round 7 — <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22 filters)<a class="headerlink" href="#round-7-document-22-filters" title="Link to this heading">¶</a></h1>
+<p><strong>Applied 2026-09-01.</strong> 18 renamed, 4 already conformant. All 22 carry <code class="docutils literal notranslate"><span class="pre">Document/*</span></code> as
+their primary category. 17 of the 22 led with a word outside the lexicon — by some margin
+the least conformant root, because none of it had been touched since the MeshLab import.</p>
+<section id="document-camera-10">
+<h2>Document/Camera (10)<a class="headerlink" href="#document-camera-10" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Export active rasters cameras to file</p></td>
+<td><p><strong>Export Cameras from Visible Rasters</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">export_cameras_from_visible_rasters</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Import cameras for active rasters from file</p></td>
+<td><p><strong>Import Cameras to Visible Rasters</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">import_cameras_to_visible_rasters</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Generate Camera from Direction</p></td>
+<td><p><strong>Set Camera from Direction</strong></p></td>
+<td><p><em>unchanged</em></p></td>
+</tr>
+<tr class="row-odd"><td><p>Generate Camera to View Selection</p></td>
+<td><p><strong>Set Camera to View Selection</strong></p></td>
+<td><p><em>unchanged</em></p></td>
+</tr>
+<tr class="row-even"><td><p>Transform camera extrinsics</p></td>
+<td><p><strong>Transform Camera Extrinsics</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transform_camera_extrinsics</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transform: Rotate Camera or set of cameras</p></td>
+<td><p><strong>Rotate Cameras</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rotate_cameras</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transform: Scale Camera or set of cameras</p></td>
+<td><p><strong>Scale Cameras</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scale_cameras</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transform: Translate Camera or set of cameras</p></td>
+<td><p><strong>Translate Cameras</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">translate_cameras</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Set Mesh Camera · Set Raster Camera</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Generate</span></code> is a rejected synonym for <code class="docutils literal notranslate"><span class="pre">Create</span></code>, but neither verb applied: these assign the
+current view rather than producing a layer, and the ids already said <code class="docutils literal notranslate"><span class="pre">set_camera_…</span></code>. The
+three <code class="docutils literal notranslate"><span class="pre">Transform:</span></code> names carried the colon form the guard rejects outright;
+<code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code> ships bare <code class="docutils literal notranslate"><span class="pre">Rotate</span></code>/<code class="docutils literal notranslate"><span class="pre">Scale</span></code>/<code class="docutils literal notranslate"><span class="pre">Translate</span></code>, so the camera set needs only
+the object its own category does not supply.</p>
+</section>
+<section id="document-layer-11">
+<h2>Document/Layer (11)<a class="headerlink" href="#document-layer-11" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Delete Current Mesh</p></td>
+<td><p><strong>Remove Current Mesh Layer</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_current_mesh_layer</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Delete Current Raster</p></td>
+<td><p><strong>Remove Current Raster</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_current_raster</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Delete all non visible Mesh Layers</p></td>
+<td><p><strong>Remove Hidden Mesh Layers</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_hidden_mesh_layers</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Delete all Non Selected Rasters</p></td>
+<td><p><strong>Remove Hidden Rasters</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">remove_hidden_rasters</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Duplicate Current layer</p></td>
+<td><p><strong>Duplicate Current Layer</strong></p></td>
+<td><p><em>unchanged</em></p></td>
+</tr>
+<tr class="row-odd"><td><p>Flatten Visible Layers</p></td>
+<td><p><strong>Merge Visible Layers</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_visible_layers</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Move selected faces to another layer</p></td>
+<td><p><strong>Extract Selected Faces</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">extract_selected_faces</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Move selected vertices to another layer</p></td>
+<td><p><strong>Extract Selected Vertices</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">extract_selected_vertices</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Rename Current Mesh</p></td>
+<td><p><strong>Rename Current Mesh Layer</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rename_mesh_layer</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Rename Current Raster</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>Split in Connected Components</p></td>
+<td><p><strong>Split into Connected Components</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">split_into_connected_components</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Delete</span></code> → <code class="docutils literal notranslate"><span class="pre">Remove</span></code> is settled by §3. “Mesh Layer” appears only where a raster
+counterpart exists, so each pair disambiguates itself; <code class="docutils literal notranslate"><span class="pre">Duplicate</span></code>, <code class="docutils literal notranslate"><span class="pre">Merge</span></code> and <code class="docutils literal notranslate"><span class="pre">Split</span></code>
+have no raster twin and stay plain “Layer”.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Flatten</span></code> is a rejected synonym (for <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> and <code class="docutils literal notranslate"><span class="pre">Parametrize</span></code>) and the operation is a
+merge. <code class="docutils literal notranslate"><span class="pre">MergeVisible</span></code> defaults to true, so <em>Merge Visible Layers</em> names the default
+honestly while the parameter widens it; <em>flatten</em> stays in the description.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Move</span></code> is rejected in favour of <code class="docutils literal notranslate"><span class="pre">Translate</span></code> and would read as moving geometry through
+space. These produce a new layer from part of an existing one, which is <code class="docutils literal notranslate"><span class="pre">Extract</span></code> — and
+because <code class="docutils literal notranslate"><span class="pre">Extract</span></code> implies the new layer, “to another layer” drops out entirely. The
+<code class="docutils literal notranslate"><span class="pre">DeleteOriginal</span></code> parameter still chooses move-versus-copy.</p>
+</section>
+<section id="document-render-1">
+<h2>Document/Render (1)<a class="headerlink" href="#document-render-1" title="Link to this heading">¶</a></h2>
+<p><em>Render from Render-State JSON</em> — unchanged; <code class="docutils literal notranslate"><span class="pre">Render</span></code> admitted below.</p>
+</section>
+<section id="id13">
+<h2>Verbs added to the lexicon<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Verb</p></th>
+<th class="head"><p>Means</p></th>
+<th class="head"><p>Why the existing lexicon was not enough</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Import</span></code>, <code class="docutils literal notranslate"><span class="pre">Export</span></code></p></td>
+<td><p>Read or write data in a file outside the document</p></td>
+<td><p>Nothing covered file I/O. <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> is defined over domains and layers; <code class="docutils literal notranslate"><span class="pre">Load</span></code>/<code class="docutils literal notranslate"><span class="pre">Save</span></code> are the File menu’s document-level operations, and a filter writing a camera rig — or a multiresolution build — beside the mesh is not saving the document</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Rename</span></code></p></td>
+<td><p>Change the label of a layer or raster</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Set</span> <span class="pre">Mesh</span> <span class="pre">Name</span></code> would have needed no new verb and matched the ids, but <em>rename</em> is the word a user searches for</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Render</span></code></p></td>
+<td><p>Produce an image from the scene</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Create</span></code> produces a layer, not an image; nothing else was close</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id14">
+<h2>Rulings<a class="headerlink" href="#id14" title="Link to this heading">¶</a></h2>
+<p>All settled (2026-09-01).</p>
+<ol class="arabic simple">
+<li><p>~~File I/O has no verb: <code class="docutils literal notranslate"><span class="pre">Export</span></code>/<code class="docutils literal notranslate"><span class="pre">Import</span></code>, or <code class="docutils literal notranslate"><span class="pre">Save</span></code>/<code class="docutils literal notranslate"><span class="pre">Load</span></code>?~~ <strong><code class="docutils literal notranslate"><span class="pre">Export</span></code>/<code class="docutils literal notranslate"><span class="pre">Import</span></code></strong>,
+which also covers the planned Nexus generation filters.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Rename</span></code>: admit it, or use <code class="docutils literal notranslate"><span class="pre">Set</span> <span class="pre">…</span> <span class="pre">Name</span></code>?~~ <strong>Admit <code class="docutils literal notranslate"><span class="pre">Rename</span></code>.</strong></p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Render</span></code>.~~ <strong>Admitted narrowly.</strong></p></li>
+</ol>
+</section>
+<section id="id15">
+<h2>Fixes made on the way<a class="headerlink" href="#id15" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><em>Delete all Non Selected Rasters</em> did not delete unselected rasters: it tests
+<code class="docutils literal notranslate"><span class="pre">!doc.raster(i).visible</span></code>, so it removes <strong>hidden</strong> ones. The name, the description and
+both of its runtime messages all repeated the same wrong claim; all four corrected.</p></li>
+<li><p>Nine descriptions still opened with <code class="docutils literal notranslate"><span class="pre">Delete</span> <span class="pre">…</span></code> or described the old verb (<em>move or
+duplicate</em>, <em>flatten</em>); rewritten to match the filters they document, keeping <em>flatten</em>
+as a searchable synonym.</p></li>
+<li><p>Two prose references in code — a comment in <code class="docutils literal notranslate"><span class="pre">Document::runFilterOnVisibleMeshes</span></code> and one
+in the layer-index invariant test — named filters this round renamed.</p></li>
+</ul>
+</section>
+<section id="id16">
+<h2>Enforcement<a class="headerlink" href="#id16" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Document</span></code> was added to <code class="docutils literal notranslate"><span class="pre">appliedRoots</span></code>. Verified to discriminate: restoring
+<em>Flatten Visible Layers</em> fails the guard with
+<code class="docutils literal notranslate"><span class="pre">leading</span> <span class="pre">word</span> <span class="pre">'Flatten'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">lexicon</span></code>.</p>
+</section>
+</section>
 
         </article>
       </div>
@@ -2392,6 +2583,16 @@ discriminate: restoring <em>Snap Mismatched Borders</em> fails the guard with
 <li><a class="reference internal" href="#the-trueform-suffix-sweep">The TrueForm suffix sweep</a></li>
 <li><a class="reference internal" href="#id11">Fixes made on the way</a></li>
 <li><a class="reference internal" href="#id12">Enforcement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#round-7-document-22-filters">Round 7 — <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22 filters)</a><ul>
+<li><a class="reference internal" href="#document-camera-10">Document/Camera (10)</a></li>
+<li><a class="reference internal" href="#document-layer-11">Document/Layer (11)</a></li>
+<li><a class="reference internal" href="#document-render-1">Document/Render (1)</a></li>
+<li><a class="reference internal" href="#id13">Verbs added to the lexicon</a></li>
+<li><a class="reference internal" href="#id14">Rulings</a></li>
+<li><a class="reference internal" href="#id15">Fixes made on the way</a></li>
+<li><a class="reference internal" href="#id16">Enforcement</a></li>
 </ul>
 </li>
 </ul>

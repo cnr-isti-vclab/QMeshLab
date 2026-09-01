@@ -521,12 +521,12 @@ That was the main finding of this pass.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Generate Camera from Direction</p></td>
+<tr class="row-even"><td><p>Set Camera from Direction</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Generate Camera to View Selection</p></td>
+<tr class="row-odd"><td><p>Set Camera to View Selection</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p></p></td>
@@ -546,22 +546,22 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Transform camera extrinsics</p></td>
+<tr class="row-odd"><td><p>Transform Camera Extrinsics</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p>transforms the <strong>camera</strong>, not the mesh</p></td>
 </tr>
-<tr class="row-even"><td><p>Transform: Rotate Camera or set of cameras</p></td>
+<tr class="row-even"><td><p>Rotate Cameras</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p>transforms the <strong>camera</strong>, not the mesh</p></td>
 </tr>
-<tr class="row-odd"><td><p>Transform: Scale Camera or set of cameras</p></td>
+<tr class="row-odd"><td><p>Scale Cameras</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p>transforms the <strong>camera</strong>, not the mesh</p></td>
 </tr>
-<tr class="row-even"><td><p>Transform: Translate Camera or set of cameras</p></td>
+<tr class="row-even"><td><p>Translate Cameras</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">camera</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p>transforms the <strong>camera</strong>, not the mesh</p></td>
@@ -1148,57 +1148,57 @@ That was the main finding of this pass.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Delete Current Mesh</p></td>
+<tr class="row-even"><td><p>Remove Current Mesh Layer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Delete Current Raster</p></td>
+<tr class="row-odd"><td><p>Remove Current Raster</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-even"><td><p>Delete all Non Selected Rasters</p></td>
+<tr class="row-even"><td><p>Remove Hidden Rasters</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Delete all non visible Mesh Layers</p></td>
+<tr class="row-odd"><td><p>Remove Hidden Mesh Layers</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-even"><td><p>Duplicate Current layer</p></td>
+<tr class="row-even"><td><p>Duplicate Current Layer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Export active rasters cameras to file</p></td>
+<tr class="row-odd"><td><p>Export Cameras from Visible Rasters</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Flatten Visible Layers</p></td>
+<tr class="row-even"><td><p>Merge Visible Layers</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default</p></td>
 </tr>
-<tr class="row-odd"><td><p>Import cameras for active rasters from file</p></td>
+<tr class="row-odd"><td><p>Import Cameras to Visible Rasters</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Move selected faces to another layer</p></td>
+<tr class="row-even"><td><p>Extract Selected Faces</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default <sub>touches: selection</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Move selected vertices to another layer</p></td>
+<tr class="row-odd"><td><p>Extract Selected Vertices</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default <sub>touches: selection</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Rename Current Mesh</p></td>
+<tr class="row-even"><td><p>Rename Current Mesh Layer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default</p></td>
@@ -1213,7 +1213,7 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Render</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Split in Connected Components</p></td>
+<tr class="row-odd"><td><p>Split into Connected Components</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">layer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
 <td><p>bucket default</p></td>

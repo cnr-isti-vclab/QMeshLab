@@ -1021,3 +1021,96 @@ family the user chooses between.
 `Repair` was added to `appliedRoots` in `displayNamesLeadWithALexiconVerb`. Verified to
 discriminate: restoring *Snap Mismatched Borders* fails the guard with
 `leading word 'Snap' is not in the lexicon`.
+
+# Round 7 — `Document` (22 filters)
+
+**Applied 2026-09-01.** 18 renamed, 4 already conformant. All 22 carry `Document/*` as
+their primary category. 17 of the 22 led with a word outside the lexicon — by some margin
+the least conformant root, because none of it had been touched since the MeshLab import.
+
+## Document/Camera (10)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Export active rasters cameras to file | **Export Cameras from Visible Rasters** | `export_cameras_from_visible_rasters` |
+| Import cameras for active rasters from file | **Import Cameras to Visible Rasters** | `import_cameras_to_visible_rasters` |
+| Generate Camera from Direction | **Set Camera from Direction** | *unchanged* |
+| Generate Camera to View Selection | **Set Camera to View Selection** | *unchanged* |
+| Transform camera extrinsics | **Transform Camera Extrinsics** | `transform_camera_extrinsics` |
+| Transform: Rotate Camera or set of cameras | **Rotate Cameras** | `rotate_cameras` |
+| Transform: Scale Camera or set of cameras | **Scale Cameras** | `scale_cameras` |
+| Transform: Translate Camera or set of cameras | **Translate Cameras** | `translate_cameras` |
+| Set Mesh Camera · Set Raster Camera | *unchanged* | |
+
+`Generate` is a rejected synonym for `Create`, but neither verb applied: these assign the
+current view rather than producing a layer, and the ids already said `set_camera_…`. The
+three `Transform:` names carried the colon form the guard rejects outright;
+`Geometry/Transform` ships bare `Rotate`/`Scale`/`Translate`, so the camera set needs only
+the object its own category does not supply.
+
+## Document/Layer (11)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Delete Current Mesh | **Remove Current Mesh Layer** | `remove_current_mesh_layer` |
+| Delete Current Raster | **Remove Current Raster** | `remove_current_raster` |
+| Delete all non visible Mesh Layers | **Remove Hidden Mesh Layers** | `remove_hidden_mesh_layers` |
+| Delete all Non Selected Rasters | **Remove Hidden Rasters** | `remove_hidden_rasters` |
+| Duplicate Current layer | **Duplicate Current Layer** | *unchanged* |
+| Flatten Visible Layers | **Merge Visible Layers** | `merge_visible_layers` |
+| Move selected faces to another layer | **Extract Selected Faces** | `extract_selected_faces` |
+| Move selected vertices to another layer | **Extract Selected Vertices** | `extract_selected_vertices` |
+| Rename Current Mesh | **Rename Current Mesh Layer** | `rename_mesh_layer` |
+| Rename Current Raster | *unchanged* | |
+| Split in Connected Components | **Split into Connected Components** | `split_into_connected_components` |
+
+`Delete` → `Remove` is settled by §3. "Mesh Layer" appears only where a raster
+counterpart exists, so each pair disambiguates itself; `Duplicate`, `Merge` and `Split`
+have no raster twin and stay plain "Layer".
+
+`Flatten` is a rejected synonym (for `Transfer` and `Parametrize`) and the operation is a
+merge. `MergeVisible` defaults to true, so *Merge Visible Layers* names the default
+honestly while the parameter widens it; *flatten* stays in the description.
+
+`Move` is rejected in favour of `Translate` and would read as moving geometry through
+space. These produce a new layer from part of an existing one, which is `Extract` — and
+because `Extract` implies the new layer, "to another layer" drops out entirely. The
+`DeleteOriginal` parameter still chooses move-versus-copy.
+
+## Document/Render (1)
+
+*Render from Render-State JSON* — unchanged; `Render` admitted below.
+
+## Verbs added to the lexicon
+
+| Verb | Means | Why the existing lexicon was not enough |
+|---|---|---|
+| `Import`, `Export` | Read or write data in a file outside the document | Nothing covered file I/O. `Transfer` is defined over domains and layers; `Load`/`Save` are the File menu's document-level operations, and a filter writing a camera rig — or a multiresolution build — beside the mesh is not saving the document |
+| `Rename` | Change the label of a layer or raster | `Set Mesh Name` would have needed no new verb and matched the ids, but *rename* is the word a user searches for |
+| `Render` | Produce an image from the scene | `Create` produces a layer, not an image; nothing else was close |
+
+## Rulings
+
+All settled (2026-09-01).
+
+1. ~~File I/O has no verb: `Export`/`Import`, or `Save`/`Load`?~~ **`Export`/`Import`**,
+   which also covers the planned Nexus generation filters.
+2. ~~`Rename`: admit it, or use `Set … Name`?~~ **Admit `Rename`.**
+3. ~~`Render`.~~ **Admitted narrowly.**
+
+## Fixes made on the way
+
+- *Delete all Non Selected Rasters* did not delete unselected rasters: it tests
+  `!doc.raster(i).visible`, so it removes **hidden** ones. The name, the description and
+  both of its runtime messages all repeated the same wrong claim; all four corrected.
+- Nine descriptions still opened with `Delete …` or described the old verb (*move or
+  duplicate*, *flatten*); rewritten to match the filters they document, keeping *flatten*
+  as a searchable synonym.
+- Two prose references in code — a comment in `Document::runFilterOnVisibleMeshes` and one
+  in the layer-index invariant test — named filters this round renamed.
+
+## Enforcement
+
+`Document` was added to `appliedRoots`. Verified to discriminate: restoring
+*Flatten Visible Layers* fails the guard with
+`leading word 'Flatten' is not in the lexicon`.
