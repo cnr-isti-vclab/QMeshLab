@@ -26,6 +26,9 @@
 #include <vector>
 #include <vcg/complex/append.h>
 #include <vcg/complex/algorithms/clean.h>
+#include <vcg/space/outline2_packer.h>
+#include <vcg/space/rasterized_outline2_packer.h>
+#include <wrap/qt/outline2_rasterizer.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/normal.h>
@@ -36,6 +39,7 @@ namespace {
 
 constexpr QLatin1StringView kFilterTextureDefrag("apply_texmap_defragmentation");
 constexpr QLatin1StringView kFilterSmallIslandsRemover("apply_small_islands_remover");
+constexpr QLatin1StringView kFilterPackCharts("pack_uv_charts");
 
 using Mask = vcg::tri::io::Mask;
 namespace Tex = TextureAssociationUtils;
@@ -74,7 +78,7 @@ bool buildDefragMesh(const VCGMesh &source, Mesh &defragMesh, QString &error)
 {
     defragMesh.Clear();
     if (!vcg::tri::HasPerWedgeTexCoord(source)) {
-        error = QObject::tr("Texture defragmentation requires per-wedge texture coordinates.");
+        error = QObject::tr("The mesh has no per-wedge texture coordinates.");
         return false;
     }
 
@@ -92,7 +96,7 @@ bool buildDefragMesh(const VCGMesh &source, Mesh &defragMesh, QString &error)
         for (int k = 0; k < 3; ++k) {
             const int vertexIndex = vcg::tri::Index(source, srcF.cV(k));
             if (vertexIndex < 0 || vertexIndex >= source.VN()) {
-                error = QObject::tr("Texture defragmentation found an invalid face vertex reference.");
+                error = QObject::tr("The mesh has an invalid face vertex reference.");
                 return false;
             }
             fi->V(k) = &defragMesh.vert[size_t(vertexIndex)];
@@ -130,6 +134,108 @@ QString textureAssetName(const QString &meshName, int index)
     return QStringLiteral("%1_optimized_texture_%2.png").arg(base).arg(index);
 }
 
+
+// Packs every chart into a single atlas of the requested size with whichever vcg packer
+// was asked for.
+//
+// Deliberately single-container, unlike the upstream Pack(): that one grows the container
+// and spills into further textures, which makes two algorithms incomparable because they
+// end up with different atlas counts. Three of the four scale the layout to fit, so a
+// fixed target is the fair comparison; the fourth reports what it could place.
+int packChartsWithAlgorithm(const std::vector<ChartHandle> &charts,
+                            const QString &algorithm,
+                            int textureSize,
+                            int gutterWidth,
+                            int rotationNum,
+                            bool permutations,
+                            unsigned int randomSeed,
+                            std::vector<TextureSize> &texszVec,
+                            std::vector<vcg::Similarity2f> &transforms,
+                            std::vector<int> &chartToContainer)
+{
+    typedef vcg::RasterizedOutline2Packer<float, QtOutline2Rasterizer> RasterPacker;
+
+    std::vector<Outline2f> outlines;
+    outlines.reserve(charts.size());
+    for (const ChartHandle &chart : charts)
+        outlines.push_back(ExtractOutline2f(*chart));
+
+    const vcg::Point2i container(textureSize, textureSize);
+    transforms.clear();
+    chartToContainer.assign(outlines.size(), -1);
+    int placed = 0;
+
+    if (algorithm == QLatin1String("rasterized_scaled")
+        || algorithm == QLatin1String("rasterized_best_effort")) {
+        RasterPacker::Parameters par;
+        par.costFunction = RasterPacker::Parameters::LowestHorizon;
+        par.doubleHorizon = false;
+        par.innerHorizon = true;
+        // Upstream hard-codes this as (chartCount < 50). It is the single biggest cost in
+        // the run -- it multiplies the packing work by five times the number of similarly
+        // sized charts -- so here it is the user's call.
+        par.permutations = permutations;
+        par.rotationNum = rotationNum;
+        par.gutterWidth = gutterWidth;
+        par.minmax = false;
+        par.randomSeed = randomSeed;
+
+        if (algorithm == QLatin1String("rasterized_scaled")) {
+            if (RasterPacker::Pack(outlines, {container}, transforms, chartToContainer, par)) {
+                placed = int(outlines.size());
+                std::fill(chartToContainer.begin(), chartToContainer.end(), 0);
+            }
+        } else {
+            placed = RasterPacker::PackBestEffort(outlines, {container}, transforms,
+                                                  chartToContainer, par);
+        }
+    } else {
+        typedef vcg::PolyPacker<float> RectPacker;
+        vcg::Point2f covered;
+        const bool ok = (algorithm == QLatin1String("axis_aligned_rect"))
+            ? RectPacker::PackAsAxisAlignedRect(outlines, container, transforms, covered)
+            : RectPacker::PackAsObjectOrientedRect(outlines, container, transforms, covered,
+                                                   float(gutterWidth));
+        if (ok) {
+            placed = int(outlines.size());
+            std::fill(chartToContainer.begin(), chartToContainer.end(), 0);
+        }
+    }
+
+    texszVec.clear();
+    if (placed > 0)
+        texszVec.push_back({textureSize, textureSize});
+    return placed;
+}
+
+// Rewrites each packed chart's UVs through its transform, normalized into the atlas.
+// Charts that were not placed are zeroed, matching what the upstream packer does.
+void applyPackingTransforms(const std::vector<ChartHandle> &charts,
+                            const std::vector<vcg::Similarity2f> &transforms,
+                            const std::vector<int> &chartToContainer,
+                            int textureSize)
+{
+    for (std::size_t i = 0; i < charts.size(); ++i) {
+        const bool placed = (i < chartToContainer.size() && chartToContainer[i] >= 0);
+        for (auto fptr : charts[i]->fpVec) {
+            for (int j = 0; j < fptr->VN(); ++j) {
+                if (!placed) {
+                    fptr->V(j)->T().P() = Point2d::Zero();
+                    fptr->V(j)->T().N() = 0;
+                } else {
+                    const Point2d uv = fptr->WT(j).P();
+                    vcg::Point2f p = transforms[i] * vcg::Point2f(float(uv[0]), float(uv[1]));
+                    fptr->V(j)->T().P() = Point2d(p.X() / double(textureSize),
+                                                  p.Y() / double(textureSize));
+                    fptr->V(j)->T().N() = 0;
+                }
+                fptr->WT(j).P() = fptr->V(j)->T().P();
+                fptr->WT(j).N() = fptr->V(j)->T().N();
+            }
+        }
+    }
+}
+
 } // namespace
 
 QString TextureDefragFilterPlugin::pluginId() const
@@ -152,9 +258,20 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     // 2 - ensure that a mesh was selected.
     // 3 - ensure that the mesh provided has faces, per-wedge texture coordinates and has at least one texture image.
     if (filterId != QString::fromLatin1(kFilterTextureDefrag) &&
-        filterId != QString::fromLatin1(kFilterSmallIslandsRemover)) {
+        filterId != QString::fromLatin1(kFilterSmallIslandsRemover) &&
+        filterId != QString::fromLatin1(kFilterPackCharts)) {
         return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
     }
+
+    // Both filters share this whole path, so every message it emits names the one that
+    // is actually running rather than the pipeline it happens to be built on.
+    const bool isDefrag = (filterId == QString::fromLatin1(kFilterTextureDefrag));
+    // Repack runs the same preparation and the same emit, and skips only the merge in
+    // between: no charts change, they are just laid out again.
+    const bool isRepack = (filterId == QString::fromLatin1(kFilterPackCharts));
+    const QString filterLabel = isDefrag  ? QObject::tr("Defragment Texture Atlas")
+                              : isRepack  ? QObject::tr("Pack UV Charts")
+                                          : QObject::tr("Merge Small Texture Islands");
 
     const int meshIndex = doc.currentMeshIndex();
     if (meshIndex < 0 || meshIndex >= doc.meshCount()) {
@@ -166,13 +283,23 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     const QMatrix4x4 sourceTransform = sourceEntry.transform;
     const VCGMesh &sourceMesh = sourceEntry.mesh;
     if (sourceMesh.VN() <= 0 || sourceMesh.FN() <= 0)
-        return fail(QObject::tr("Texture defragmentation requires a non-empty triangular mesh."));
+        return fail(QObject::tr("%1 requires a non-empty triangular mesh.").arg(filterLabel));
     if (!vcg::tri::HasPerWedgeTexCoord(sourceMesh))
-        return fail(QObject::tr("Texture defragmentation requires per-wedge texture coordinates."));
-    if (Document::meshTextureAssociationCount(sourceEntry) <= 0)
-        return fail(QObject::tr("Texture defragmentation requires at least one associated texture image."));
+        return fail(QObject::tr("%1 requires per-wedge texture coordinates.").arg(filterLabel));
+    const bool wantsResampling = params.getBool(QStringLiteral("resampleTextures"), true);
+    const int sourceTextureCount = Document::meshTextureAssociationCount(sourceEntry);
+    // Repack only reads the source images to learn their resolution, and only samples them
+    // when it is going to resample. With resampling off it is a pure UV operation, so a
+    // layer that has a parametrization but no texture yet is a legitimate input.
+    const bool packsWithoutTextures = (isRepack && !wantsResampling && sourceTextureCount <= 0);
+    if (sourceTextureCount <= 0 && !packsWithoutTextures) {
+        return fail(isRepack
+            ? QObject::tr("%1 has no texture to resample. Attach one, or turn off "
+                          "\"Resample textures\" to repack the UVs alone.").arg(filterLabel)
+            : QObject::tr("%1 requires at least one associated texture image.").arg(filterLabel));
+    }
 
-    doc.beginFilterProgress(QObject::tr("Defragment Texture Atlas"));
+    doc.beginFilterProgress(filterLabel);
     auto progress = [&](int pct, const char *label) {
         if (vcg::CallBackPos *cb = doc.progressCallback()) {
             (*cb)(pct, label);
@@ -206,7 +333,16 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     // coordinate conversion. It will be also used by the final resampling phase.
     QString textureError;
     TextureObjectHandle textureObject = std::make_shared<TextureObject>();
-    const int textureCount = Document::meshTextureAssociationCount(sourceEntry);
+    if (packsWithoutTextures) {
+        // A stand-in whose only job is to carry the resolution: the UVs are scaled into
+        // its texel space, which is what makes the gutter a pixel count rather than a
+        // fraction of the atlas. One bit per pixel, since nothing ever samples it.
+        const int atlasSize = params.getInt(QStringLiteral("textureSize"), 1024);
+        QImage placeholder(atlasSize, atlasSize, QImage::Format_Mono);
+        placeholder.fill(0);
+        textureObject->AddImage(placeholder);
+    }
+    const int textureCount = packsWithoutTextures ? 0 : sourceTextureCount;
     for (int textureIndex = 0; textureIndex < textureCount; ++textureIndex) {
         QImage image;
         if (!Tex::loadAssociatedTextureImage(sourceEntry, textureIndex, image, textureError)) {
@@ -307,6 +443,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     // Both filters end up in the same atlas packer, which tries randomized chart
     // permutations when the chart count is small.
     const RandomSeed seed = params.getRandomSeed();
+    const bool resampleTextures = params.getBool(QStringLiteral("resampleTextures"), true);
 
     AlgoParameters ap;
     if (filterId == QString::fromLatin1(kFilterTextureDefrag)) {
@@ -357,6 +494,15 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
         std::sort(borderLengths.begin(), borderLengths.end());
 
         const size_t n = borderLengths.size();
+        // No charts at all: the median below would index borderLengths[-1]. Reachable
+        // whenever the cleanup ahead of the graph empties the mesh -- every face
+        // zero-area, say -- so it has to be an error rather than a crash.
+        if (n == 0) {
+            const QString message =
+                QObject::tr("%1 found no texture islands in this layer.").arg(filterLabel);
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
         const double medianBorder = (n % 2 == 0) ?
             ( borderLengths [(n / 2) - 1] + borderLengths [n / 2] ) / 2.0 :
             borderLengths [ n / 2 ];
@@ -417,13 +563,16 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     //
     //	* `Finalize` prepares the now optimized input mesh to be returned, collapsing coincident duplicate
     //	  vertices, removing orphaned vertices and rebuilding topologies.
-    progress(20, "Defragmenting atlas...");
+    progress(20, isRepack ? "Collecting charts..." : "Defragmenting atlas...");
     vcg::tri::UpdateTopology<Mesh>::FaceFace(defragMesh);
 
-    AlgoStateHandle state = InitializeState(graph, ap);
-    GreedyOptimization(graph, state, ap);
     int duplicatedVertices = 0;
-    Finalize(graph, &duplicatedVertices);
+    AlgoStateHandle state;
+    if (!isRepack) {
+        state = InitializeState(graph, ap);
+        GreedyOptimization(graph, state, ap);
+        Finalize(graph, &duplicatedVertices);
+    }
 
 	unsigned long islandsAfterDefrag = graph->charts.size();
     doc.writeLog(Document::tr("UV islands after defragmentation: %1").arg(islandsAfterDefrag), Document::LogSource::VCG);
@@ -440,12 +589,14 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     //
     // Charts that can be anchored (i.e., pinned to a specific orientation) are recorded in `anchorMap`.
     // They will be used during the packing phase.
-    for (auto& entry : graph->charts) {
-        ChartHandle chart = entry.second;
-        double zeroResamplingChartArea = 0.0;
-        int anchor = RotateChartForResampling(chart, state->changeSet, flipped, colorize, &zeroResamplingChartArea);
-        if (anchor != -1)
-            anchorMap[chart] = anchor;
+    if (!isRepack) {
+        for (auto& entry : graph->charts) {
+            ChartHandle chart = entry.second;
+            double zeroResamplingChartArea = 0.0;
+            int anchor = RotateChartForResampling(chart, state->changeSet, flipped, colorize, &zeroResamplingChartArea);
+            if (anchor != -1)
+                anchorMap[chart] = anchor;
+        }
     }
 
     progress(70, "Packing atlas...");
@@ -492,28 +643,63 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     // rigid transformations must move by an integer number of pixels (otherwise
     // subpixel bleeding could occur). This property is enforced by `IntegerShift`.
     std::vector<TextureSize> texszVec;
-    const int packedCount = Pack(chartsToPack, textureObject, texszVec, seed.value);
+    int packedCount = 0;
+    if (isRepack) {
+        std::vector<vcg::Similarity2f> transforms;
+        std::vector<int> chartToContainer;
+        packedCount = packChartsWithAlgorithm(
+            chartsToPack,
+            params.getEnum(QStringLiteral("algorithm")),
+            params.getInt(QStringLiteral("textureSize"), 1024),
+            params.getInt(QStringLiteral("gutterWidth"), 4),
+            params.getInt(QStringLiteral("rotationNum"), 4),
+            params.getBool(QStringLiteral("permutations"), false),
+            seed.value,
+            texszVec, transforms, chartToContainer);
+        if (packedCount > 0) {
+            applyPackingTransforms(chartsToPack, transforms, chartToContainer,
+                                   params.getInt(QStringLiteral("textureSize"), 1024));
+        }
+    } else {
+        packedCount = Pack(chartsToPack, textureObject, texszVec, seed.value);
+    }
     if (packedCount < int(chartsToPack.size())) {
-        const QString message = QObject::tr("Texture defragmentation packing failed before all charts were packed.");
+        const QString message = QObject::tr("%1 packed %2 of %3 charts. Try a larger atlas, "
+                                            "a smaller gutter, or another algorithm.")
+                                    .arg(filterLabel)
+                                    .arg(packedCount)
+                                    .arg(chartsToPack.size());
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
-    TrimTexture(defragMesh, texszVec, false);
-    IntegerShift(defragMesh, chartsToPack, texszVec, anchorMap, flipped);
+    // Both belong to the resampling-alignment story, which repack skips: with no merge
+    // there is nothing to align, and trimming would undo the atlas size just requested.
+    if (!isRepack) {
+        TrimTexture(defragMesh, texszVec, false);
+        IntegerShift(defragMesh, chartsToPack, texszVec, anchorMap, flipped);
+    }
 
     // The new texture images are rendered by rastering the mesh with the original textures
-    // as input. The resampling of the original textures uses linear interpolation
-    progress(85, "Resampling textures...");
-    std::vector<std::shared_ptr<QImage>> renderedTextures =
-        RenderTexture(defragMesh, textureObject, texszVec, true, Linear);
-    if (renderedTextures.empty()) {
-        const QString message = QObject::tr("Texture defragmentation produced no output textures.");
-        doc.finishFilterProgress(false, message);
-        return fail(message);
+    // as input. The resampling of the original textures uses linear interpolation.
+    //
+    // Optional: with it off the filter is a parametrization operation only -- the layer
+    // gets the reorganized atlas layout and no texture images at all. The originals are
+    // deliberately not carried over, because the charts have moved and they would no
+    // longer line up with the UVs. It is not a speed optimization: the merge search
+    // dominates the run, and skipping the render measured 12204 ms against 12332 ms.
+    std::vector<std::shared_ptr<QImage>> renderedTextures;
+    if (resampleTextures) {
+        progress(85, "Resampling textures...");
+        renderedTextures = RenderTexture(defragMesh, textureObject, texszVec, true, Linear);
+        if (renderedTextures.empty()) {
+            const QString message = QObject::tr("%1 produced no output textures.").arg(filterLabel);
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
     }
 
     if (outputMesh.FN() != defragMesh.FN()) {
-        const QString message = QObject::tr("Texture defragmentation face count mismatch after optimization.");
+        const QString message = QObject::tr("%1 changed the face count during optimization.").arg(filterLabel);
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
@@ -533,7 +719,8 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     //
     // Note that if `targetTexCount` is set to zero, then the parameter is ignored, and
     // we entirely skip this step.
-    if (ap.filterType == FilterType::SmallIslandRemover &&
+    if (resampleTextures                                &&
+        ap.filterType == FilterType::SmallIslandRemover &&
         ap.targetTexCount > 0                           &&
         renderedTextures.size() > ap.targetTexCount) {
         std::vector<QImage> convertedTexs;
@@ -568,11 +755,12 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     for (int i = 0; i < int(renderedTextures.size()); ++i)
         outputMesh.textures.push_back(textureAssetName(sourceEntry.name, i).toStdString());
 
-    const QString newName = QObject::tr("texdefrag_%1").arg(sourceEntry.name);
+    const QString newName = (isDefrag ? QObject::tr("texdefrag_%1") : QObject::tr("texislands_%1"))
+                                .arg(sourceEntry.name);
     const int outputMask = (sourceEntry.ioMask | Mask::IOM_WEDGTEXCOORD) & ~Mask::IOM_VERTTEXCOORD;
     const int newIndex = doc.addMesh(outputMesh, newName, outputMask);
     if (newIndex < 0) {
-        const QString message = QObject::tr("Failed to add texture-defragmented mesh to the document.");
+        const QString message = QObject::tr("%1 could not add its result to the document.").arg(filterLabel);
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
@@ -587,14 +775,17 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
             textureAssetName(sourceEntry.name, i)));
     }
     Tex::replaceTextureAssociations(newEntry, outputAssets);
-    doc.markMeshMaterialChanged(newIndex, QObject::tr("Created texture-defragmented mesh '%1'.").arg(newEntry.name));
+    doc.markMeshMaterialChanged(newIndex, QObject::tr("Created '%1'.").arg(newEntry.name));
 
     progress(100, "Done.");
-    doc.finishFilterProgress(true, QObject::tr("Texture map defragmentation completed."));
+    doc.finishFilterProgress(true, QObject::tr("%1 completed.").arg(filterLabel));
 
     QStringList info;
-    info << QObject::tr("Created texture-defragmented mesh '%1'.").arg(newEntry.name)
-         << QObject::tr("Output textures: %1").arg(renderedTextures.size())
+    info << QObject::tr("Created '%1'.").arg(newEntry.name)
+         << (resampleTextures
+                 ? QObject::tr("Output textures: %1").arg(renderedTextures.size())
+                 : QObject::tr("Textures not resampled: the layer carries the new atlas "
+                               "layout and no texture images."))
          << QObject::tr("Charts packed: %1").arg(chartsToPack.size())
          << QObject::tr("Duplicated vertices introduced by seam processing: %1").arg(duplicatedVertices);
     if (removedZeroFaces > 0)

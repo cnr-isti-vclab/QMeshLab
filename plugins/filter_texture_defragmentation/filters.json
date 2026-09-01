@@ -153,6 +153,14 @@
           "default": 0,
           "min": 0,
           "max": 2147483647
+        },
+        {
+          "id": "resampleTextures",
+          "type": "bool",
+          "label": "Resample textures",
+          "default": true,
+          "description": "Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.",
+          "group": "main"
         }
       ]
     },
@@ -164,8 +172,8 @@
       "referenceIds": [
         "maggiordomo2021texture"
       ],
-      "shortDescription": "Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam.",
-      "longDescriptionMarkdown": "Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands.",
+      "shortDescription": "Merge texture islands below a size threshold into neighbors sharing a seam, then repack and resample the atlas.",
+      "longDescriptionMarkdown": "Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands. It shares the defragmentation pipeline, so it needs the texture images as well as the parametrization: UVs are scaled into pixel space before anything else runs, the surviving charts are repacked, and the new atlas is resampled from the originals. The layer therefore comes back with new texture images, not just moved UVs.",
       "tags": [
         "texture",
         "atlas",
@@ -231,12 +239,136 @@
           "max": 1000000
         },
         {
+          "id": "timelimit",
+          "label": "Time limit (seconds)",
+          "help": "Time limit for the chart merging stage. `0` means unlimited. Note that it does not bound the atlas packing that follows, which on a heavily fragmented layout can be the slower half.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1000000.0,
+          "decimals": 3
+        },
+        {
           "id": "quickRun",
           "label": "Quick execution",
           "help": "Speeds up the running time of the filter by never attempting again any rejected merge operation. <br> Although fast, it could lead to worst results.",
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        },
+        {
+          "id": "resampleTextures",
+          "type": "bool",
+          "label": "Resample textures",
+          "default": true,
+          "description": "Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.",
+          "group": "main"
+        }
+      ]
+    },
+    {
+      "id": "pack_uv_charts",
+      "pythonName": "pack_uv_charts",
+      "name": "Pack UV Charts",
+      "categories": [
+        "Parametrization/Atlas Packing",
+        "Texture"
+      ],
+      "shortDescription": "Lay the existing UV charts out again in a single atlas, using a choice of vcglib packing algorithms.",
+      "longDescriptionMarkdown": "Repacks the atlas without changing the charts themselves: no merging, no reparametrization, just a new layout for the islands the mesh already has.\n\nFour packers are offered, and they trade quality against time very differently:\n\n- **Rasterized, scaled to fit** rasterizes each chart outline and searches for the largest scale at which everything fits. The tightest packing, and the slowest.\n- **Rasterized, best effort** keeps the charts at their current scale and places as many as it can in the atlas you asked for.\n- **Axis-aligned rectangles** packs each chart's bounding box. Fast and loose.\n- **Object-oriented rectangles** packs each chart's minimum-area oriented box, rotating the chart to match. Usually tighter than axis-aligned for nothing like the cost of rasterizing.\n\nThe *Try chart permutations* option is worth knowing about. The rasterized packers can retry the layout with reshuffled chart orders, which costs five packing passes per similarly sized chart -- on an atlas whose islands are all much of a muchness that is five passes per chart, and it dominates the run. It is off here by default.",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true,
+        "requirePerWedgeTexCoords": true
+      },
+      "inputPrepare": [
+        "FF",
+        "FNorm",
+        "VNorm"
+      ],
+      "parameters": [
+        {
+          "id": "algorithm",
+          "label": "Packing algorithm",
+          "type": "enum",
+          "group": "main",
+          "default": "rasterized_scaled",
+          "enumOptions": [
+            {
+              "id": "rasterized_scaled",
+              "label": "Rasterized, scaled to fit"
+            },
+            {
+              "id": "rasterized_best_effort",
+              "label": "Rasterized, best effort"
+            },
+            {
+              "id": "axis_aligned_rect",
+              "label": "Axis-aligned rectangles"
+            },
+            {
+              "id": "object_oriented_rect",
+              "label": "Object-oriented rectangles"
+            }
+          ],
+          "help": "Which vcglib packer lays the charts out."
+        },
+        {
+          "id": "textureSize",
+          "label": "Atlas size (pixels)",
+          "type": "int",
+          "group": "main",
+          "default": 1024,
+          "min": 16,
+          "max": 16384,
+          "help": "Side of the square atlas the charts are packed into."
+        },
+        {
+          "id": "gutterWidth",
+          "label": "Gutter (pixels)",
+          "type": "int",
+          "group": "main",
+          "default": 4,
+          "min": 0,
+          "max": 256,
+          "help": "Padding kept around each chart, so bilinear filtering cannot bleed between neighbours."
+        },
+        {
+          "id": "rotationNum",
+          "label": "Rotations tried",
+          "type": "int",
+          "group": "advanced",
+          "default": 4,
+          "min": 1,
+          "max": 64,
+          "help": "How many orientations each chart is tried at. Rasterized packers only."
+        },
+        {
+          "id": "permutations",
+          "label": "Try chart permutations",
+          "type": "bool",
+          "group": "advanced",
+          "default": false,
+          "help": "Retry the layout with reshuffled chart orders. Costs five packing passes per similarly sized chart, so on a uniform atlas it is five per chart and it dominates the run. Rasterized packers only."
+        },
+        {
+          "id": "resampleTextures",
+          "type": "bool",
+          "label": "Resample textures",
+          "default": true,
+          "description": "Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.",
+          "group": "main"
         },
         {
           "id": "randomSeed",

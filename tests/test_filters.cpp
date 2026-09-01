@@ -251,6 +251,10 @@ private slots:
     void toolIconsResolveFromResources();
     void quadPairingChoosesGoodDiagonals();
     void voronoiAtlasKeepsSelectionAndColorAlone();
+    void textureIslandMergeCanSkipResampling();
+    void packUvChartsRunsEveryAlgorithm();
+    void packUvChartsWorksWithoutATexture();
+    void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -4712,6 +4716,251 @@ void FilterTests::toolIconsResolveFromResources()
 // working mesh one color per region -- both debugging aids that used to be appended
 // straight into the atlas, so it arrived fully selected and rainbow-coloured over
 // whatever color the layer actually had.
+// The island merge shares the defragmentation pipeline, which always resampled the atlas.
+// With resampleTextures off it is a parametrization-only operation: the new UV layout
+// arrives with no texture images rather than with the originals, which no longer line up.
+// Every packer must lay the same atlas out without dropping a chart or pushing UVs out
+// of the unit square. Also the harness for comparing them: the timings go to the log.
+// A layer can carry a parametrization and no texture at all -- straight out of a UV
+// filter, before anything is baked. Repacking is a UV operation, so that is a legitimate
+// input; only resampling actually needs the pixels.
+// A Document/Layer filter with no parameters is run straight from the layer context menu,
+// with no panel and no confirmation. Four of these five delete something, so the set is
+// worth pinning: give one of them a parameter and it quietly stops being immediate, and
+// take the last parameter off another -- Merge Visible Layers, whose DeleteLayer defaults
+// to true -- and it quietly becomes immediate.
+void FilterTests::layerFiltersRunFromTheContextMenuAreTheParameterlessOnes()
+{
+    Document doc;
+    QStringList immediate;
+    for (const auto &info : doc.filterInfos()) {
+        if (!info.descriptor.categories.contains(QStringLiteral("Document/Layer"),
+                                                 Qt::CaseInsensitive))
+            continue;
+        if (info.descriptor.parameters.empty())
+            immediate << info.descriptor.name;
+    }
+    immediate.sort();
+
+    QStringList expected{
+        QStringLiteral("Duplicate Current Layer"),
+        QStringLiteral("Remove Current Mesh Layer"),
+        QStringLiteral("Remove Current Raster"),
+        QStringLiteral("Remove Hidden Mesh Layers"),
+        QStringLiteral("Remove Hidden Rasters")
+    };
+    expected.sort();
+    QCOMPARE(immediate, expected);
+}
+
+void FilterTests::packUvChartsWorksWithoutATexture()
+{
+    const auto build = [](Document &doc) {
+        constexpr int kSide = 5;
+        VCGMesh grid;
+        vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
+        for (int j = 0; j < kSide; ++j)
+            for (int i = 0; i < kSide; ++i)
+                grid.vert[std::size_t(j * kSide + i)].P() =
+                    vcg::Point3f(float(i), float(j), 0.0f);
+        for (int j = 0; j < kSide - 1; ++j) {
+            for (int i = 0; i < kSide - 1; ++i) {
+                const int a = j * kSide + i;
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + 1, a + kSide + 1);
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + kSide + 1, a + kSide);
+            }
+        }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+        const int index = doc.addMesh(grid, QStringLiteral("Grid"),
+                                      vcg::tri::io::Mask::IOM_VERTCOORD);
+        doc.setCurrentMeshIndex(index);
+        MeshFilterParameterValues uvParams;
+        uvParams.insert(QStringLiteral("textdim"), 256);
+        return doc.runFilter(
+            filterKeyForId(doc,
+                QStringLiteral("compute_texcoord_parametrization_triangle_trivial_per_wedge")),
+            uvParams).success;
+    };
+
+    // No texture, no resampling: packs the UVs and returns a layer with no textures.
+    {
+        Document doc;
+        QVERIFY(build(doc));
+        QCOMPARE(Document::meshTextureAssociationCount(doc.mesh(0)), 0);
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("algorithm"), QStringLiteral("object_oriented_rect"));
+        params.insert(QStringLiteral("textureSize"), 512);
+        params.insert(QStringLiteral("resampleTextures"), false);
+        const MeshFilterRunResult r =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts")), params);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QVERIFY(!r.newMeshIndices.empty());
+        const Document::MeshEntry &out = doc.mesh(r.newMeshIndices.front());
+        QCOMPARE(Document::meshTextureAssociationCount(out), 0);
+        QVERIFY(vcg::tri::HasPerWedgeTexCoord(out.mesh));
+    }
+
+    // No texture but resampling asked for: there is nothing to resample, and the message
+    // has to say which switch fixes it.
+    {
+        Document doc;
+        QVERIFY(build(doc));
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("algorithm"), QStringLiteral("object_oriented_rect"));
+        params.insert(QStringLiteral("resampleTextures"), true);
+        const MeshFilterRunResult r =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts")), params);
+        QVERIFY(!r.success);
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("Resample textures")),
+                 qPrintable(r.errorMessage));
+    }
+}
+
+void FilterTests::packUvChartsRunsEveryAlgorithm()
+{
+    const QStringList algorithms{
+        QStringLiteral("rasterized_scaled"), QStringLiteral("rasterized_best_effort"),
+        QStringLiteral("axis_aligned_rect"), QStringLiteral("object_oriented_rect")
+    };
+
+    for (const QString &algorithm : algorithms) {
+        constexpr int kSide = 6;
+        VCGMesh grid;
+        vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
+        for (int j = 0; j < kSide; ++j)
+            for (int i = 0; i < kSide; ++i)
+                grid.vert[std::size_t(j * kSide + i)].P() =
+                    vcg::Point3f(float(i), float(j), 0.0f);
+        for (int j = 0; j < kSide - 1; ++j) {
+            for (int i = 0; i < kSide - 1; ++i) {
+                const int a = j * kSide + i;
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + 1, a + kSide + 1);
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + kSide + 1, a + kSide);
+            }
+        }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+
+        Document doc;
+        const int meshIndex = doc.addMesh(grid, QStringLiteral("Grid"),
+                                          vcg::tri::io::Mask::IOM_VERTCOORD);
+        doc.setCurrentMeshIndex(meshIndex);
+        MeshFilterParameterValues uvParams;
+        uvParams.insert(QStringLiteral("textdim"), 256);
+        const MeshFilterRunResult uv = doc.runFilter(
+            filterKeyForId(doc,
+                QStringLiteral("compute_texcoord_parametrization_triangle_trivial_per_wedge")),
+            uvParams);
+        QVERIFY2(uv.success, qPrintable(uv.errorMessage));
+
+        QImage texture(256, 256, QImage::Format_RGBA8888);
+        texture.fill(Qt::red);
+        TextureAssociationUtils::replaceTextureAssociations(
+            doc.mesh(meshIndex),
+            { TextureAssociationUtils::makeTextureAssetFromImage(
+                  texture, QStringLiteral("atlas.png")) });
+        doc.setCurrentMeshIndex(meshIndex);
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("algorithm"), algorithm);
+        params.insert(QStringLiteral("textureSize"), 512);
+        params.insert(QStringLiteral("resampleTextures"), false);
+        QElapsedTimer timer;
+        timer.start();
+        const MeshFilterRunResult r =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts")), params);
+        const qint64 elapsed = timer.elapsed();
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(algorithm, r.errorMessage)));
+        QVERIFY(!r.newMeshIndices.empty());
+
+        const VCGMesh &out = doc.mesh(r.newMeshIndices.front()).mesh;
+        int outside = 0;
+        for (const VCGFace &f : out.face) {
+            if (f.IsD()) continue;
+            for (int k = 0; k < 3; ++k) {
+                const auto uvp = f.cWT(k).P();
+                if (uvp.X() < -0.001 || uvp.X() > 1.001 || uvp.Y() < -0.001 || uvp.Y() > 1.001)
+                    ++outside;
+            }
+        }
+        qDebug("pack %-24s %5lld ms", qPrintable(algorithm), elapsed);
+        QVERIFY2(outside == 0,
+                 qPrintable(QStringLiteral("%1 put %2 UVs outside the atlas").arg(algorithm).arg(outside)));
+    }
+}
+
+void FilterTests::textureIslandMergeCanSkipResampling()
+{
+    const auto runWith = [](bool resample, int &outputTextures, QString &error) -> bool {
+        // A real parametrization, not hand-written UVs: the trivial per-triangle layout
+        // gives one island per face, which is exactly what this filter exists to merge.
+        constexpr int kSide = 8;
+        VCGMesh grid;
+        vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
+        for (int j = 0; j < kSide; ++j)
+            for (int i = 0; i < kSide; ++i)
+                grid.vert[std::size_t(j * kSide + i)].P() =
+                    vcg::Point3f(float(i), float(j), 0.0f);
+        for (int j = 0; j < kSide - 1; ++j) {
+            for (int i = 0; i < kSide - 1; ++i) {
+                const int a = j * kSide + i;
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + 1, a + kSide + 1);
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + kSide + 1, a + kSide);
+            }
+        }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+
+        Document doc;
+        const int meshIndex = doc.addMesh(grid, QStringLiteral("Islands"),
+                                          vcg::tri::io::Mask::IOM_VERTCOORD);
+        doc.setCurrentMeshIndex(meshIndex);
+
+        const QString uvKey = filterKeyForId(
+            doc, QStringLiteral("compute_texcoord_parametrization_triangle_trivial_per_wedge"));
+        if (uvKey.isEmpty()) { error = QStringLiteral("parametrization filter missing"); return false; }
+        MeshFilterParameterValues uvParams;
+        uvParams.insert(QStringLiteral("textdim"), 256);
+        const MeshFilterRunResult uv = doc.runFilter(uvKey, uvParams);
+        if (!uv.success) { error = uv.errorMessage; return false; }
+
+        QImage texture(256, 256, QImage::Format_RGBA8888);
+        texture.fill(Qt::red);
+        TextureAssociationUtils::replaceTextureAssociations(
+            doc.mesh(meshIndex),
+            { TextureAssociationUtils::makeTextureAssetFromImage(
+                  texture, QStringLiteral("atlas.png")) });
+        doc.setCurrentMeshIndex(meshIndex);
+
+        const QString key = filterKeyForId(doc, QStringLiteral("apply_small_islands_remover"));
+        if (key.isEmpty()) { error = QStringLiteral("filter not registered"); return false; }
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("resampleTextures"), resample);
+        // Without this the merge retries every rejected operation and a mesh this small
+        // can run for minutes; the option under test is unaffected either way.
+        params.insert(QStringLiteral("quickRun"), true);
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        if (!r.success) { error = r.errorMessage; return false; }
+        if (r.newMeshIndices.empty()) { error = QStringLiteral("no output layer"); return false; }
+
+        const Document::MeshEntry &out = doc.mesh(r.newMeshIndices.front());
+        outputTextures = Document::meshTextureAssociationCount(out);
+        // The point of the option is the UV layout, so it must survive either way.
+        if (!vcg::tri::HasPerWedgeTexCoord(out.mesh)) {
+            error = QStringLiteral("output lost its per-wedge UVs");
+            return false;
+        }
+        return true;
+    };
+
+    int withTextures = -1, withoutTextures = -1;
+    QString error;
+    QVERIFY2(runWith(true, withTextures, error), qPrintable(error));
+    QVERIFY2(runWith(false, withoutTextures, error), qPrintable(error));
+
+    QVERIFY2(withTextures > 0,
+             qPrintable(QStringLiteral("resampling on produced %1 textures").arg(withTextures)));
+    QCOMPARE(withoutTextures, 0);
+}
+
 void FilterTests::voronoiAtlasKeepsSelectionAndColorAlone()
 {
     constexpr int kSide = 24;

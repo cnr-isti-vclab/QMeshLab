@@ -150,6 +150,14 @@
       "max": 131072
     },
     {
+      "id": "document.runParameterlessFiltersImmediately",
+      "label": "Run parameterless filters immediately",
+      "help": "When a filter picked from the layer context menu has nothing to ask -- Duplicate Current Layer, Remove Hidden Mesh Layers -- run it there and then instead of opening the filter panel on an empty form. Turn this off to always open the panel, which is useful when you want to read a filter's description before running it.",
+      "group": "document",
+      "type": "bool",
+      "default": true
+    },
+    {
       "id": "document.purgeUndoOnMemoryPressure",
       "label": "Purge undo under memory pressure",
       "help": "Allow the operating system's memory-pressure signal to prune undo history. Warning pressure uses the configured undo budget; critical pressure may clear all history. Purging is deferred until the active operation finishes.",

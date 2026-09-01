@@ -99,6 +99,7 @@ private:
     bool loadRasterFromPath(const QString &filePath);
     bool handleDragEnterOrMove(QDropEvent *event);
     void setInteractionBlocked(bool blocked);
+    void openFilterOrRunIfParameterless(const QString &filterKey);
     void handleDroppedUrls(const QList<QUrl> &urls);
     void addRecentMesh(const QString &filePath);
     void sanitizeRecentMeshes();

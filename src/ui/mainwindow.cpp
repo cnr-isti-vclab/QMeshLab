@@ -547,15 +547,8 @@ MainWindow::MainWindow(QWidget *parent)
     statusBar()->addPermanentWidget(m_frameStatsLabel, 1);
 
     m_layerWidget = new LayerWidget(m_doc, this);
-    connect(m_layerWidget, &LayerWidget::filterActionRequested, this, [this](const QString &key) {
-        if (m_filterDock) {
-            if (m_filterDock->isFloating())
-                m_filterDock->setFloating(false);
-            m_filterDock->show();
-            m_filterDock->raise();
-        }
-        m_filterPanel->selectFilterByKey(key, true);
-    });
+    connect(m_layerWidget, &LayerWidget::filterActionRequested, this,
+            &MainWindow::openFilterOrRunIfParameterless);
     m_layerDock = new QDockWidget(tr("Layers"), this);
     m_layerDock->setWidget(m_layerWidget);
 
@@ -2083,6 +2076,40 @@ void MainWindow::openFilterBrowser()
     }
     m_filterPanel->showSearchResults();
     m_filterPanel->focusSearch();
+}
+
+// The layer context menu names one filter directly, so for a filter with nothing to ask
+// -- Duplicate Current Layer, Remove Hidden Mesh Layers -- opening the panel only shows an
+// empty form and an Apply button, and picking it from the menu already said Apply. The
+// preference exists because the panel is also where a filter's description lives, so
+// someone who wants to read before running can keep the old behaviour.
+void MainWindow::openFilterOrRunIfParameterless(const QString &filterKey)
+{
+    if (!m_doc || !m_filterPanel || filterKey.isEmpty())
+        return;
+
+    if (Preferences::instance().boolValue(
+            QStringLiteral("document.runParameterlessFiltersImmediately"))) {
+        for (const Document::FilterInfo &info : m_doc->filterInfos()) {
+            if (info.key != filterKey)
+                continue;
+            // Not applicable here: the menu greys those out, but the panel is the place
+            // that explains why, so fall through to it rather than failing silently.
+            if (info.applicable && info.descriptor.parameters.empty()) {
+                executeFilter(filterKey, info.descriptor.name, {});
+                return;
+            }
+            break;
+        }
+    }
+
+    if (m_filterDock) {
+        if (m_filterDock->isFloating())
+            m_filterDock->setFloating(false);
+        m_filterDock->show();
+        m_filterDock->raise();
+    }
+    m_filterPanel->selectFilterByKey(filterKey, true);
 }
 
 void MainWindow::runFilterAction()

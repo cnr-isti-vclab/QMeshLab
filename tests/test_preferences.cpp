@@ -14,6 +14,7 @@ private slots:
     void initTestCase();
     void init();
     void declaresParameters();
+    void parameterlessFiltersRunImmediatelyByDefault();
     void unsetValuesFallBackToDefaults();
     void setValuePersistsAndSignals();
     void settingTheSameValueIsNotAChange();
@@ -51,6 +52,17 @@ void PreferencesTests::declaresParameters()
         QVERIFY2(d.defaultValue.isValid(), qPrintable(QStringLiteral("%1 has no default").arg(d.id)));
         ids.insert(d.id);
     }
+}
+
+// Pinned because flipping it changes what a click in the layer context menu does, and
+// four of the five filters it governs are removals.
+void PreferencesTests::parameterlessFiltersRunImmediatelyByDefault()
+{
+    const QString id = QStringLiteral("document.runParameterlessFiltersImmediately");
+    const MeshFilterParameterDescriptor *d = Preferences::instance().descriptor(id);
+    QVERIFY2(d != nullptr, "the preference is not declared");
+    QCOMPARE(d->defaultValue.toBool(), true);
+    QCOMPARE(Preferences::instance().boolValue(id), true);
 }
 
 void PreferencesTests::unsetValuesFallBackToDefaults()
