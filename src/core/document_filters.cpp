@@ -122,7 +122,7 @@ Document::MultiMeshFilterResult Document::runFilterOnVisibleMeshes(
     // The sweep covers the layers visible when it starts, identified by mesh id rather
     // than by index. A filter may add or remove layers underneath us -- 55 of them take a
     // single mesh and emit new ones -- so a live meshCount() bound would feed the sweep
-    // its own output, and "Duplicate Current layer" would never terminate.
+    // its own output, and "Duplicate Current Layer" would never terminate.
     std::vector<std::uint64_t> targetIds;
     for (int mi = 0; mi < meshCount(); ++mi) {
         if (mesh(mi).visible)

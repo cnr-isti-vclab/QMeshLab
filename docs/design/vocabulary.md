@@ -412,6 +412,9 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Add` | Add a quantity to an existing attribute (*Add Noise to Vertex Color*) | Admitted **narrowly**; still rejected for producing a layer, where `Create` wins |
 | `Dilate`, `Erode` | Grow or shrink the selection by one ring of adjacent elements | The standard morphological pair; `Select` names the act of selecting, not these two operations on an existing selection |
 | `Close` | Fill a boundary loop with new faces | `Fill`, `Patch`, `Cap` — *close a hole* is the established term of art, and `Repair` is too coarse to separate it from the other `Repair/*` filters |
+| `Import`, `Export` | Read or write data in a file outside the document | `Load`, `Save` — those are the File menu's document-level operations, and a filter that writes a camera rig or a multiresolution build beside the mesh is not saving the document; also `Read`, `Write` |
+| `Rename` | Change the label of a layer or raster | `Relabel`. `Set` would have covered it and matches the ids, but *rename* is the word a user searches for |
+| `Render` | Produce an image from the scene | `Draw`, `Snapshot`, `Screenshot` — and not `Create`, which produces a layer |
 
 **Attribute-editing verbs**, admitted as a closed group of standard image and signal
 operations, each keeping its ordinary meaning: `Normalize`, `Adjust`, `Clamp`, `Invert`,

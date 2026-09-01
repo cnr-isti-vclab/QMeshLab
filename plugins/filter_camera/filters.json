@@ -169,7 +169,7 @@
     {
       "id": "apply_cameras_rotation",
       "categories": ["Document/Camera"],
-      "name": "Transform: Rotate Camera or set of cameras",
+      "name": "Rotate Cameras",
       "pythonName": "apply_cameras_rotation",
       "shortDescription": "Rotate the camera, or all the cameras of the project.",
       "longDescriptionMarkdown": "Rotate the camera, or all the cameras of the project. The selected raster is the reference if viewpoint rotation is selected.",
@@ -267,7 +267,7 @@
     {
       "id": "apply_cameras_scaling",
       "categories": ["Document/Camera"],
-      "name": "Transform: Scale Camera or set of cameras",
+      "name": "Scale Cameras",
       "pythonName": "apply_cameras_scaling",
       "shortDescription": "Scale the camera, or all the cameras of the project.",
       "longDescriptionMarkdown": "Scale the camera, or all the cameras of the project.",
@@ -342,7 +342,7 @@
     {
       "id": "apply_cameras_translation",
       "categories": ["Document/Camera"],
-      "name": "Transform: Translate Camera or set of cameras",
+      "name": "Translate Cameras",
       "pythonName": "apply_cameras_translation",
       "shortDescription": "Translate the camera, or all the cameras of the project.",
       "longDescriptionMarkdown": "Translate the camera, or all the cameras of the project.",
@@ -425,7 +425,7 @@
     {
       "id": "apply_cameras_extrinsics_transformation",
       "categories": ["Document/Camera"],
-      "name": "Transform camera extrinsics",
+      "name": "Transform Camera Extrinsics",
       "pythonName": "apply_cameras_extrinsics_transformation",
       "shortDescription": "Apply a similarity transformation to the camera extrinsics.",
       "longDescriptionMarkdown": "Apply a similarity transformation to the camera extrinsics, or all the cameras of the project.",
@@ -523,7 +523,7 @@
     {
       "id": "set_camera_to_view_selection",
       "categories": ["Document/Camera"],
-      "name": "Generate Camera to View Selection",
+      "name": "Set Camera to View Selection",
       "pythonName": "set_camera_to_view_selection",
       "shortDescription": "Position the camera to frame the current selection, looking along the average selected normal direction.",
       "longDescriptionMarkdown": "Compute a camera that frames the current selection in the viewport. The camera is positioned so that the selected faces/vertices fill the viewport, looking along the average face/vertex normal direction of the selection. The resulting camera state JSON is written to the log and applied to the current raster if one is active.",
@@ -566,7 +566,7 @@
     {
       "id": "set_camera_from_direction",
       "categories": ["Document/Camera"],
-      "name": "Generate Camera from Direction",
+      "name": "Set Camera from Direction",
       "pythonName": "set_camera_from_direction",
       "shortDescription": "Position the camera looking toward a target from an explicit direction.",
       "longDescriptionMarkdown": "Compute a camera that looks toward a target (mesh bounding box center or current raster) from an explicit world-space direction. The camera is positioned so that the target fills the viewport. The resulting camera state JSON is written to the log and applied to the current raster if one is active.",

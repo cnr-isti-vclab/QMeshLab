@@ -411,12 +411,12 @@ MeshFilterRunResult LayerFilterPlugin::runFilter(
                 toDelete.push_back(i);
         }
         if (toDelete.empty())
-            return successInfo(false, { QObject::tr("No non-active raster layers to delete.") });
+            return successInfo(false, { QObject::tr("No hidden raster layers to remove.") });
 
         std::sort(toDelete.rbegin(), toDelete.rend());
         for (int idx : toDelete)
             doc.removeRaster(idx);
-        return successInfo(true, { QObject::tr("Deleted %1 non-active raster layer(s).").arg(toDelete.size()) });
+        return successInfo(true, { QObject::tr("Removed %1 hidden raster layer(s).").arg(toDelete.size()) });
     }
 
     if (filterId == QString::fromLatin1(kRenameRaster)) {

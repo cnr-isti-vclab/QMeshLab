@@ -109,15 +109,15 @@ That was the main finding of this pass.
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Generate Camera from Direction | `camera` | `Document/Camera` |  |
-| Generate Camera to View Selection | `camera` | `Document/Camera` |  |
+| Set Camera from Direction | `camera` | `Document/Camera` |  |
+| Set Camera to View Selection | `camera` | `Document/Camera` |  |
 | Orient Vertex Normals by Cameras | `camera` | `Attribute/Normal` | **mis-filed** under `Camera` |
 | Set Mesh Camera | `camera` | `Document/Camera` |  |
 | Set Raster Camera | `camera` | `Document/Camera` |  |
-| Transform camera extrinsics | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
-| Transform: Rotate Camera or set of cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
-| Transform: Scale Camera or set of cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
-| Transform: Translate Camera or set of cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
+| Transform Camera Extrinsics | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
+| Rotate Cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
+| Scale Cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
+| Translate Cameras | `camera` | `Document/Camera` | transforms the **camera**, not the mesh |
 | Compute Vertex Scalar from Camera | `camera` | `Attribute/Scalar` | **mis-filed** under `Camera` <sub>touches: color, scalar</sub> |
 
 ### `Cleaning` (15)
@@ -256,20 +256,20 @@ That was the main finding of this pass.
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Delete Current Mesh | `layer` | `Document/Layer` | bucket default |
-| Delete Current Raster | `layer` | `Document/Layer` | bucket default |
-| Delete all Non Selected Rasters | `layer` | `Document/Layer` | bucket default |
-| Delete all non visible Mesh Layers | `layer` | `Document/Layer` | bucket default |
-| Duplicate Current layer | `layer` | `Document/Layer` | bucket default |
-| Export active rasters cameras to file | `layer` | `Document/Camera` |  |
-| Flatten Visible Layers | `layer` | `Document/Layer` | bucket default |
-| Import cameras for active rasters from file | `layer` | `Document/Camera` |  |
-| Move selected faces to another layer | `layer` | `Document/Layer` | bucket default <sub>touches: selection</sub> |
-| Move selected vertices to another layer | `layer` | `Document/Layer` | bucket default <sub>touches: selection</sub> |
-| Rename Current Mesh | `layer` | `Document/Layer` | bucket default |
+| Remove Current Mesh Layer | `layer` | `Document/Layer` | bucket default |
+| Remove Current Raster | `layer` | `Document/Layer` | bucket default |
+| Remove Hidden Rasters | `layer` | `Document/Layer` | bucket default |
+| Remove Hidden Mesh Layers | `layer` | `Document/Layer` | bucket default |
+| Duplicate Current Layer | `layer` | `Document/Layer` | bucket default |
+| Export Cameras from Visible Rasters | `layer` | `Document/Camera` |  |
+| Merge Visible Layers | `layer` | `Document/Layer` | bucket default |
+| Import Cameras to Visible Rasters | `layer` | `Document/Camera` |  |
+| Extract Selected Faces | `layer` | `Document/Layer` | bucket default <sub>touches: selection</sub> |
+| Extract Selected Vertices | `layer` | `Document/Layer` | bucket default <sub>touches: selection</sub> |
+| Rename Current Mesh Layer | `layer` | `Document/Layer` | bucket default |
 | Rename Current Raster | `layer` | `Document/Layer` | bucket default |
 | Render from Render-State JSON | `layer` | `Document/Render` |  |
-| Split in Connected Components | `layer` | `Document/Layer` | bucket default |
+| Split into Connected Components | `layer` | `Document/Layer` | bucket default |
 
 ### `Layer/Boolean` (4)
 

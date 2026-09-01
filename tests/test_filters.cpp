@@ -2162,7 +2162,7 @@ void FilterTests::newMeshFiltersReportTheirLayers()
                                  .arg(info.descriptor.name, info.descriptor.id).arg(index);
             }
         }
-        // Not layer-count arithmetic: Flatten Visible Layers legitimately reports one
+        // Not layer-count arithmetic: Merge Visible Layers legitimately reports one
         // new layer while the document shrinks, because it merges the originals away.
         // What must hold is that every reported index names a real layer with content.
         for (int index : result.newMeshIndices) {
@@ -4474,7 +4474,8 @@ void FilterTests::displayNamesLeadWithALexiconVerb()
     const QSet<QString> appliedRoots{
         QStringLiteral("Meshing"), QStringLiteral("Attribute"),
         QStringLiteral("Creation"), QStringLiteral("Geometry"),
-        QStringLiteral("Selection"), QStringLiteral("Repair")
+        QStringLiteral("Selection"), QStringLiteral("Repair"),
+        QStringLiteral("Document")
     };
 
     Document probe;
