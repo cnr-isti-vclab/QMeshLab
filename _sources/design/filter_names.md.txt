@@ -1114,3 +1114,104 @@ All settled (2026-09-01).
 `Document` was added to `appliedRoots`. Verified to discriminate: restoring
 *Flatten Visible Layers* fails the guard with
 `leading word 'Flatten' is not in the lexicon`.
+
+# Round 8 — `Parametrization` (17 filters)
+
+**Applied 2026-09-01.** All 17 renamed — the only round in which nothing was already
+conformant. Two further filters carry `Parametrization` as a *secondary* category
+(*Select Vertex Texture Seams*, *Pack Texture Images*) and belong to their own rounds.
+
+The round's shape is one decision: **`Parametrize` owns UV creation outright.** The verb
+had been in the lexicon since the ontology was written and had no users at all — thirteen
+filters produced UVs under five different leading words. All thirteen now lead with it.
+
+## Parametrization/UV Creation (13)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Compute As-Rigid-As-Possible Parametrization (libigl) | **Parametrize by As-Rigid-As-Possible (libigl)** | `parametrize_by_as_rigid_as_possible_libigl` |
+| Compute Locally Injective Parametrization (SLIM) | **Parametrize by SLIM (libigl)** | `parametrize_by_slim_libigl` |
+| Harmonic Parametrization | **Parametrize by Harmonic Map (libigl)** | `parametrize_by_harmonic_map_libigl` |
+| Least Squares Conformal Maps Parametrization | **Parametrize by Least Squares Conformal Maps (libigl)** | `parametrize_by_least_squares_conformal_maps_libigl` |
+| Geometric Cylindrical Unwrapping | **Parametrize by Cylindrical Projection** | `parametrize_by_cylindrical_projection` |
+| Parameterization from registered rasters | **Parametrize from Registered Rasters** | `parametrize_from_registered_rasters` |
+| Parameterization + texturing from registered rasters | **Parametrize from Registered Rasters with Texture** | `parametrize_from_registered_rasters_with_texture` |
+| Parametrization: Flat Plane | **Parametrize by Flat Plane** | `parametrize_by_flat_plane` |
+| Parametrization: Trivial Per-Triangle | **Parametrize by Trivial Per-Triangle Layout** | `parametrize_by_trivial_per_triangle_layout` |
+| Parametrization: Voronoi Atlas | **Parametrize by Voronoi Atlas (vcglib)** | `parametrize_by_voronoi_atlas_vcglib` |
+| Parametrization: xatlas | **Parametrize by Atlas (xatlas)** | `parametrize_by_atlas_xatlas` |
+| Per Vertex Texture Function | **Parametrize per Vertex by Expression** | `parametrize_per_vertex_by_expression` |
+| Per Wedge Texture Function | **Parametrize per Wedge by Expression** | `parametrize_per_wedge_by_expression` |
+
+Four `Parametrization:` colon names, one rejected `Unwrap`, two rejected `Parameterization`
+spellings (§4), two verbless noun phrases, and four leading with `Compute` — legal in
+itself, but not when a verb exists for exactly this attribute.
+
+`Voronoi Atlas` takes `(vcglib)`: it is `vcg/…/parametrization/voronoi_atlas.h`, and it
+competes with xatlas as a route to an atlas, which is when rule 3 says both name
+themselves.
+
+Method names follow the literature rather than a house style: *As-Rigid-As-Possible* and
+*Least Squares Conformal Maps* read naturally expanded, *SLIM* does not — nobody writes
+*Scalable Locally Injective Mappings* in full.
+
+## Parametrization/UV Conversion (2)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Convert PerVertex UV into PerWedge UV | **Convert Per-Vertex UV to Per-Wedge UV** | `convert_per_vertex_uv_to_per_wedge_uv` |
+| Convert PerWedge UV into PerVertex UV | **Convert Per-Wedge UV to Per-Vertex UV** | `convert_per_wedge_uv_to_per_vertex_uv` |
+
+`PerVertex` is the irregular internal capital §5 names by example; `per-vertex` is the §4
+qualifier. `into` → `to`, the ratified connector.
+
+## Parametrization/Defragmentation (2)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Small Islands Remover | **Merge Small Texture Islands** | `merge_small_texture_islands` |
+| Texture Map Defragmentation | **Defragment Texture Atlas** | `defragment_texture_atlas` |
+
+Both were verbless noun phrases. *Small Islands Remover* removes nothing: its own
+description says it merges small islands into neighbours that share a seam.
+
+## Verbs added to the lexicon
+
+| Verb | Means | Why the existing lexicon was not enough |
+|---|---|---|
+| `Defragment` | Reduce the fragmentation of a texture atlas by merging compatible charts and resampling | The term of the paper the filter implements (Maggiordomo et al. 2021, already cited in the descriptor). `Merge` covers only half of it — it also resamples — and `Pack` means arranging charts, not merging them |
+
+`Parametrize` was **not** added: it was already ratified and simply unused.
+
+## A connector added
+
+`with` joins `by`, `from` and `to`, for an *additional output* a filter also produces:
+*Parametrize from Registered Rasters with Texture* beside *Parametrize from Registered
+Rasters*. §6 records that it is not a fifth way of saying `by` — it is for the case where
+the alternative is a second verb.
+
+## Rulings
+
+All settled (2026-09-01).
+
+1. ~~Does `Parametrize` own UV creation, or may `Compute` keep the four libigl filters?~~
+   **`Parametrize` owns it outright**, the two expression filters included.
+2. ~~Admit `Defragment`?~~ **Yes.**
+3. ~~*Parametrize and Transfer Texture from Registered Rasters* or *… with Texture*?~~
+   **`with Texture`**, which is what promoted `with` to a connector.
+
+## Fixes made on the way
+
+- Two libigl messages had the display name substituted into them where the *method* name
+  was the correct noun ("Parametrize by Least Squares Conformal Maps (libigl) failed.");
+  reworded to name the method.
+- Progress labels in the libigl, texture, xatlas and defragmentation plugins repeat the
+  display name verbatim and were updated with it.
+- `plugins/filter_texture_defragmentation/upstream/` is a vendored third-party tree and
+  was deliberately left untouched, though it contains six occurrences of the old name.
+
+## Enforcement
+
+`Parametrization` was added to `appliedRoots`. Verified to discriminate: restoring
+*Small Islands Remover* fails the guard with
+`leading word 'Small' is not in the lexicon`.

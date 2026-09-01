@@ -979,12 +979,12 @@ That was the main finding of this pass.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Per Vertex Texture Function</p></td>
+<tr class="row-even"><td><p>Parametrize per Vertex by Expression</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p><strong>writes UVs</strong>, not an image <sub>touches: uv</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Per Wedge Texture Function</p></td>
+<tr class="row-odd"><td><p>Parametrize per Wedge by Expression</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">func</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p><strong>writes UVs</strong>, not an image <sub>touches: uv</sub></p></td>
@@ -1433,7 +1433,7 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
 <td><p>creates a new polyline layer</p></td>
 </tr>
-<tr class="row-even"><td><p>Geometric Cylindrical Unwrapping</p></td>
+<tr class="row-even"><td><p>Parametrize by Cylindrical Projection</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p></p></td>
@@ -1630,12 +1630,12 @@ That was the main finding of this pass.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Parameterization + texturing from registered rasters</p></td>
+<tr class="row-even"><td><p>Parametrize from Registered Rasters with Texture</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
 <td><p><sub>touches: texture, uv</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Parameterization from registered rasters</p></td>
+<tr class="row-odd"><td><p>Parametrize from Registered Rasters</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
@@ -2297,12 +2297,12 @@ That was the main finding of this pass.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Convert PerVertex UV into PerWedge UV</p></td>
+<tr class="row-even"><td><p>Convert Per-Vertex UV to Per-Wedge UV</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Convert PerWedge UV into PerVertex UV</p></td>
+<tr class="row-odd"><td><p>Convert Per-Wedge UV to Per-Vertex UV</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
@@ -2312,12 +2312,12 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Texture/Conversion</span></code></p></td>
 <td><p><sub>touches: texture</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Harmonic Parametrization</p></td>
+<tr class="row-odd"><td><p>Parametrize by Harmonic Map (libigl)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">parametrization</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Least Squares Conformal Maps Parametrization</p></td>
+<tr class="row-even"><td><p>Parametrize by Least Squares Conformal Maps (libigl)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">parametrization</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
@@ -2327,22 +2327,22 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Texture/Packing</span></code> · <code class="docutils literal notranslate"><span class="pre">Parametrization/Atlas</span> <span class="pre">Packing</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Parametrization: Flat Plane</p></td>
+<tr class="row-even"><td><p>Parametrize by Flat Plane</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Parametrization: Trivial Per-Triangle</p></td>
+<tr class="row-odd"><td><p>Parametrize by Trivial Per-Triangle Layout</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Parametrization: Voronoi Atlas</p></td>
+<tr class="row-even"><td><p>Parametrize by Voronoi Atlas (vcglib)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Parametrization: xatlas</p></td>
+<tr class="row-odd"><td><p>Parametrize by Atlas (xatlas)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">xatlas</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p></td>
 <td><p><sub>touches: texture, uv</sub></p></td>
@@ -2352,12 +2352,12 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p></td>
 <td><p><sub>touches: texture</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Small Islands Remover</p></td>
+<tr class="row-odd"><td><p>Merge Small Texture Islands</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture_defragmentation</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
 <td><p>chart surgery; image resample is a consequence</p></td>
 </tr>
-<tr class="row-even"><td><p>Texture Map Defragmentation</p></td>
+<tr class="row-even"><td><p>Defragment Texture Atlas</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture_defragmentation</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
 <td><p>chart surgery; image resample is a consequence</p></td>

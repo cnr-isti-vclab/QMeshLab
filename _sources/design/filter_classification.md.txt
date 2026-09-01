@@ -215,8 +215,8 @@ That was the main finding of this pass.
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Per Vertex Texture Function | `func` | `Parametrization/UV Creation` | **writes UVs**, not an image <sub>touches: uv</sub> |
-| Per Wedge Texture Function | `func` | `Parametrization/UV Creation` | **writes UVs**, not an image <sub>touches: uv</sub> |
+| Parametrize per Vertex by Expression | `func` | `Parametrization/UV Creation` | **writes UVs**, not an image <sub>touches: uv</sub> |
+| Parametrize per Wedge by Expression | `func` | `Parametrization/UV Creation` | **writes UVs**, not an image <sub>touches: uv</sub> |
 
 ### `Create` (16)
 
@@ -322,7 +322,7 @@ That was the main finding of this pass.
 | Compute Principal Curvature Directions | `meshing` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
 | Compute Point Cloud Normals | `meshing` | `Attribute/Normal` |  |
 | Create Polyline from Selection Perimeter | `meshing` | `Creation/Primitives` | creates a new polyline layer |
-| Geometric Cylindrical Unwrapping | `meshing` | `Parametrization/UV Creation` |  |
+| Parametrize by Cylindrical Projection | `meshing` | `Parametrization/UV Creation` |  |
 | Invert Face Orientation | `meshing` | `Repair/Topology` | orientation is topological |
 | Matrix: Freeze Current Matrix | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
 | Matrix: Invert Current Matrix | `meshing` | `Geometry/Transform` | <sub>touches: texture</sub> |
@@ -365,8 +365,8 @@ That was the main finding of this pass.
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Parameterization + texturing from registered rasters | `img_patch_param` | `Parametrization/UV Creation` · `Texture` · `Transfer/Raster to Mesh` | <sub>touches: texture, uv</sub> |
-| Parameterization from registered rasters | `img_patch_param` | `Parametrization/UV Creation` · `Transfer/Raster to Mesh` | <sub>touches: uv</sub> |
+| Parametrize from Registered Rasters with Texture | `img_patch_param` | `Parametrization/UV Creation` · `Texture` · `Transfer/Raster to Mesh` | <sub>touches: texture, uv</sub> |
+| Parametrize from Registered Rasters | `img_patch_param` | `Parametrization/UV Creation` · `Transfer/Raster to Mesh` | <sub>touches: uv</sub> |
 
 ### `Quality` (7)
 
@@ -520,19 +520,19 @@ That was the main finding of this pass.
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Convert PerVertex UV into PerWedge UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |
-| Convert PerWedge UV into PerVertex UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |
+| Convert Per-Vertex UV to Per-Wedge UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |
+| Convert Per-Wedge UV to Per-Vertex UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |
 | Convert: Object-Space Normal Map to Tangent-Space | `texture` | `Texture/Conversion` | <sub>touches: texture</sub> |
-| Harmonic Parametrization | `parametrization` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
-| Least Squares Conformal Maps Parametrization | `parametrization` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
+| Parametrize by Harmonic Map (libigl) | `parametrization` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
+| Parametrize by Least Squares Conformal Maps (libigl) | `parametrization` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
 | Pack Texture Images | `texture` | `Texture/Packing` · `Parametrization/Atlas Packing` |  |
-| Parametrization: Flat Plane | `texture` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
-| Parametrization: Trivial Per-Triangle | `texture` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
-| Parametrization: Voronoi Atlas | `texture` | `Parametrization/UV Creation` |  |
-| Parametrization: xatlas | `xatlas` | `Parametrization/UV Creation` | <sub>touches: texture, uv</sub> |
+| Parametrize by Flat Plane | `texture` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
+| Parametrize by Trivial Per-Triangle Layout | `texture` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
+| Parametrize by Voronoi Atlas (vcglib) | `texture` | `Parametrization/UV Creation` |  |
+| Parametrize by Atlas (xatlas) | `xatlas` | `Parametrization/UV Creation` | <sub>touches: texture, uv</sub> |
 | Set Texture | `texture` | `Texture/Assignment` | <sub>touches: texture</sub> |
-| Small Islands Remover | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
-| Texture Map Defragmentation | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
+| Merge Small Texture Islands | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
+| Defragment Texture Atlas | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
 | Transfer: Texture to Vertex Color | `texture` | `Transfer/Attribute to Texture` · `Attribute/Color` | <sub>touches: color</sub> |
 | Transfer: Vertex Attributes to Texture | `texture` | `Transfer/Attribute to Texture` · `Texture` | <sub>touches: texture</sub> |
 | Transfer: Vertex Color to Texture | `texture` | `Transfer/Attribute to Texture` · `Texture` | <sub>touches: texture</sub> |

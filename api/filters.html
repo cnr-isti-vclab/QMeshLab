@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 327 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 328 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="compute-face-color-by-expression">
 <span id="filter-apply-face-color-function"></span><h2>Compute Face Color by Expression<a class="headerlink" href="#compute-face-color-by-expression" title="Link to this heading">¶</a></h2>
@@ -5282,8 +5282,39 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="texture-map-defragmentation">
-<span id="filter-defragment-texture-map"></span><h2>Texture Map Defragmentation<a class="headerlink" href="#texture-map-defragmentation" title="Link to this heading">¶</a></h2>
+<section id="pack-uv-charts">
+<span id="filter-pack-uv-charts"></span><h2>Pack UV Charts<a class="headerlink" href="#pack-uv-charts" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/Atlas</span> <span class="pre">Packing</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.texture_defragmentation</p>
+<p>Lay the existing UV charts out again in a single atlas, using a choice of vcglib packing algorithms.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.pack_uv_charts">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">pack_uv_charts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.pack_uv_charts" title="Link to this definition">¶</a></dt>
+<dd><p>Repacks the atlas without changing the charts themselves: no merging, no reparametrization, just a new layout for the islands the mesh already has.</p>
+<p>Four packers are offered, and they trade quality against time very differently:</p>
+<ul class="simple">
+<li><p><strong>Rasterized, scaled to fit</strong> rasterizes each chart outline and searches for the largest scale at which everything fits. The tightest packing, and the slowest.</p></li>
+<li><p><strong>Rasterized, best effort</strong> keeps the charts at their current scale and places as many as it can in the atlas you asked for.</p></li>
+<li><p><strong>Axis-aligned rectangles</strong> packs each chart’s bounding box. Fast and loose.</p></li>
+<li><p><strong>Object-oriented rectangles</strong> packs each chart’s minimum-area oriented box, rotating the chart to match. Usually tighter than axis-aligned for nothing like the cost of rasterizing.</p></li>
+</ul>
+<p>The <em>Try chart permutations</em> option is worth knowing about. The rasterized packers can retry the layout with reshuffled chart orders, which costs five packing passes per similarly sized chart – on an atlas whose islands are all much of a muchness that is five passes per chart, and it dominates the run. It is off here by default.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>algorithm</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">rasterized_scaled</span></code>) — Which vcglib packer lays the charts out.</p></li>
+<li><p><strong>textureSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — Side of the square atlas the charts are packed into.</p></li>
+<li><p><strong>gutterWidth</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">4</span></code>) — Padding kept around each chart, so bilinear filtering cannot bleed between neighbours.</p></li>
+<li><p><strong>rotationNum</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">4</span></code>) — How many orientations each chart is tried at. Rasterized packers only.</p></li>
+<li><p><strong>permutations</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Retry the layout with reshuffled chart orders. Costs five packing passes per similarly sized chart, so on a uniform atlas it is five per chart and it dominates the run. Rasterized packers only.</p></li>
+<li><p><strong>resampleTextures</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way – the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="defragment-texture-atlas">
+<span id="filter-defragment-texture-map"></span><h2>Defragment Texture Atlas<a class="headerlink" href="#defragment-texture-atlas" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture_defragmentation</p>
 <p>Reduce texture atlas fragmentation by merging compatible charts and resampling the texture map.</p>
@@ -5307,20 +5338,21 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <li><p><strong>offsetFactor</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">5.0</span></code>) — Coefficient controlling the extension of the local UV optimization area. Larger values can make defragmentation more effective by giving the optimizer more room, but increase geometric optimization cost and runtime. MeshLab default: <code class="docutils literal notranslate"><span class="pre">5.0</span></code>.</p></li>
 <li><p><strong>timelimit</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Time limit for the defragmentation process. <code class="docutils literal notranslate"><span class="pre">0</span></code> means unlimited. This is useful for very large atlases where chart merging can be expensive. MeshLab default: <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.</p></li>
+<li><p><strong>resampleTextures</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way – the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.</p></li>
 </ul>
 </dd></dl>
 
 <hr class="docutils" />
 </section>
-<section id="small-islands-remover">
-<span id="filter-small-islands-remover"></span><h2>Small Islands Remover<a class="headerlink" href="#small-islands-remover" title="Link to this heading">¶</a></h2>
+<section id="merge-small-texture-islands">
+<span id="filter-small-islands-remover"></span><h2>Merge Small Texture Islands<a class="headerlink" href="#merge-small-texture-islands" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture_defragmentation</p>
-<p>Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam.</p>
+<p>Merge texture islands below a size threshold into neighbors sharing a seam, then repack and resample the atlas.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.small_islands_remover">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">small_islands_remover</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.small_islands_remover" title="Link to this definition">¶</a></dt>
-<dd><p>Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands.</p>
+<dd><p>Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands. It shares the defragmentation pipeline, so it needs the texture images as well as the parametrization: UVs are scaled into pixel space before anything else runs, the surviving charts are repacked, and the new atlas is resampled from the originals. The layer therefore comes back with new texture images, not just moved UVs.</p>
 <p><strong>References:</strong></p>
 <ul class="simple">
 <li><p>Andrea Maggiordomo, Paolo Cignoni, Marco Tarini. <strong>Texture Defragmentation for Photo-Reconstructed 3D Models</strong>. <em>Computer Graphics Forum</em> (2021). <a class="reference external" href="https://doi.org/10.1111/cgf.142615">DOI</a> <a class="reference external" href="https://diglib.eg.org/items/b3e092cd-5a96-4575-975d-af22795e870b">Web</a></p></li>
@@ -5335,15 +5367,17 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 Note that topologically incompatible merges are still skipped, as they cannot be parameterized.</p></li>
 <li><p><strong>targetTexCount</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Specifies the maximum number of output textures that can be generated by the filter.
 If set to zero the parameter is ignored and the algorithm employs the default packing strategy.</p></li>
+<li><p><strong>timelimit</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Time limit for the chart merging stage. <code class="docutils literal notranslate"><span class="pre">0</span></code> means unlimited. Note that it does not bound the atlas packing that follows, which on a heavily fragmented layout can be the slower half.</p></li>
 <li><p><strong>quickRun</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Speeds up the running time of the filter by never attempting again any rejected merge operation. <br> Although fast, it could lead to worst results.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.</p></li>
+<li><p><strong>resampleTextures</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way – the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.</p></li>
 </ul>
 </dd></dl>
 
 <hr class="docutils" />
 </section>
-<section id="convert-pervertex-uv-into-perwedge-uv">
-<span id="filter-convert-vertex-uv-to-wedge-uv"></span><h2>Convert PerVertex UV into PerWedge UV<a class="headerlink" href="#convert-pervertex-uv-into-perwedge-uv" title="Link to this heading">¶</a></h2>
+<section id="convert-per-vertex-uv-to-per-wedge-uv">
+<span id="filter-convert-vertex-uv-to-wedge-uv"></span><h2>Convert Per-Vertex UV to Per-Wedge UV<a class="headerlink" href="#convert-per-vertex-uv-to-per-wedge-uv" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
 <p>Convert per-vertex texture coordinates into per-wedge texture coordinates.</p>
@@ -5356,8 +5390,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="convert-perwedge-uv-into-pervertex-uv">
-<span id="filter-convert-wedge-uv-to-vertex-uv"></span><h2>Convert PerWedge UV into PerVertex UV<a class="headerlink" href="#convert-perwedge-uv-into-pervertex-uv" title="Link to this heading">¶</a></h2>
+<section id="convert-per-wedge-uv-to-per-vertex-uv">
+<span id="filter-convert-wedge-uv-to-vertex-uv"></span><h2>Convert Per-Wedge UV to Per-Vertex UV<a class="headerlink" href="#convert-per-wedge-uv-to-per-vertex-uv" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
 <p>Convert per-wedge texture coordinates into per-vertex texture coordinates, splitting vertices when needed.</p>
@@ -5370,8 +5404,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="per-vertex-texture-function">
-<span id="filter-apply-vertex-texture-function"></span><h2>Per Vertex Texture Function<a class="headerlink" href="#per-vertex-texture-function" title="Link to this heading">¶</a></h2>
+<section id="parametrize-per-vertex-by-expression">
+<span id="filter-apply-vertex-texture-function"></span><h2>Parametrize per Vertex by Expression<a class="headerlink" href="#parametrize-per-vertex-by-expression" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes per-vertex texture coordinates from expressions.</p>
@@ -5390,8 +5424,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="per-wedge-texture-function">
-<span id="filter-apply-wedge-texture-function"></span><h2>Per Wedge Texture Function<a class="headerlink" href="#per-wedge-texture-function" title="Link to this heading">¶</a></h2>
+<section id="parametrize-per-wedge-by-expression">
+<span id="filter-apply-wedge-texture-function"></span><h2>Parametrize per Wedge by Expression<a class="headerlink" href="#parametrize-per-wedge-by-expression" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.expression</p>
 <p>Computes per-wedge texture coordinates from expressions.</p>
@@ -5414,8 +5448,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="parameterization-texturing-from-registered-rasters">
-<span id="filter-compute-texcoord-parametrization-and-texture-from-registered-rasters"></span><h2>Parameterization + texturing from registered rasters<a class="headerlink" href="#parameterization-texturing-from-registered-rasters" title="Link to this heading">¶</a></h2>
+<section id="parametrize-from-registered-rasters-with-texture">
+<span id="filter-compute-texcoord-parametrization-and-texture-from-registered-rasters"></span><h2>Parametrize from Registered Rasters with Texture<a class="headerlink" href="#parametrize-from-registered-rasters-with-texture" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.img_patch_param</p>
 <p>The mesh is parameterized and textured by creating some patches that correspond to projection of portions of surfaces onto the set of registered rasters.</p>
@@ -5443,8 +5477,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="compute-as-rigid-as-possible-parametrization-libigl">
-<span id="filter-compute-texcoord-parametrization-as-rigid-as-possible-libigl"></span><h2>Compute As-Rigid-As-Possible Parametrization (libigl)<a class="headerlink" href="#compute-as-rigid-as-possible-parametrization-libigl" title="Link to this heading">¶</a></h2>
+<section id="parametrize-by-as-rigid-as-possible-libigl">
+<span id="filter-compute-texcoord-parametrization-as-rigid-as-possible-libigl"></span><h2>Parametrize by As-Rigid-As-Possible (libigl)<a class="headerlink" href="#parametrize-by-as-rigid-as-possible-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Optimize a harmonic UV map with libigl’s ARAP local-global solver.</p>
@@ -5468,8 +5502,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="parameterization-from-registered-rasters">
-<span id="filter-compute-texcoord-parametrization-from-registered-rasters"></span><h2>Parameterization from registered rasters<a class="headerlink" href="#parameterization-from-registered-rasters" title="Link to this heading">¶</a></h2>
+<section id="parametrize-from-registered-rasters">
+<span id="filter-compute-texcoord-parametrization-from-registered-rasters"></span><h2>Parametrize from Registered Rasters<a class="headerlink" href="#parametrize-from-registered-rasters" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.img_patch_param</p>
 <p>The mesh is parameterized by creating some patches that correspond to projection of portions of surfaces onto the set of registered rasters.</p>
@@ -5493,8 +5527,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="harmonic-parametrization">
-<span id="filter-compute-texcoord-parametrization-harmonic"></span><h2>Harmonic Parametrization<a class="headerlink" href="#harmonic-parametrization" title="Link to this heading">¶</a></h2>
+<section id="parametrize-by-harmonic-map-libigl">
+<span id="filter-compute-texcoord-parametrization-harmonic"></span><h2>Parametrize by Harmonic Map (libigl)<a class="headerlink" href="#parametrize-by-harmonic-map-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Compute a single-patch fixed-boundary harmonic UV parametrization using libigl.</p>
@@ -5516,8 +5550,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="least-squares-conformal-maps-parametrization">
-<span id="filter-compute-texcoord-parametrization-least-squares-conformal-maps"></span><h2>Least Squares Conformal Maps Parametrization<a class="headerlink" href="#least-squares-conformal-maps-parametrization" title="Link to this heading">¶</a></h2>
+<section id="parametrize-by-least-squares-conformal-maps-libigl">
+<span id="filter-compute-texcoord-parametrization-least-squares-conformal-maps"></span><h2>Parametrize by Least Squares Conformal Maps (libigl)<a class="headerlink" href="#parametrize-by-least-squares-conformal-maps-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Compute a Least Squares Conformal Maps UV parametrization using libigl.</p>
@@ -5536,8 +5570,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="compute-locally-injective-parametrization-slim">
-<span id="filter-compute-texcoord-parametrization-slim-libigl"></span><h2>Compute Locally Injective Parametrization (SLIM)<a class="headerlink" href="#compute-locally-injective-parametrization-slim" title="Link to this heading">¶</a></h2>
+<section id="parametrize-by-slim-libigl">
+<span id="filter-compute-texcoord-parametrization-slim-libigl"></span><h2>Parametrize by SLIM (libigl)<a class="headerlink" href="#parametrize-by-slim-libigl" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.igl</p>
 <p>Optimize a flip-preventing UV map with libigl’s SLIM solver.</p>
@@ -5562,8 +5596,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="geometric-cylindrical-unwrapping">
-<span id="filter-geometric-cylindrical-unwrapping"></span><h2>Geometric Cylindrical Unwrapping<a class="headerlink" href="#geometric-cylindrical-unwrapping" title="Link to this heading">¶</a></h2>
+<section id="parametrize-by-cylindrical-projection">
+<span id="filter-geometric-cylindrical-unwrapping"></span><h2>Parametrize by Cylindrical Projection<a class="headerlink" href="#parametrize-by-cylindrical-projection" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.meshing</p>
 <p>Unwrap geometry along cylindrical projection.</p>
@@ -5581,8 +5615,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="parametrization-flat-plane">
-<span id="filter-parametrize-flat-plane"></span><h2>Parametrization: Flat Plane<a class="headerlink" href="#parametrization-flat-plane" title="Link to this heading">¶</a></h2>
+<section id="parametrize-by-flat-plane">
+<span id="filter-parametrize-flat-plane"></span><h2>Parametrize by Flat Plane<a class="headerlink" href="#parametrize-by-flat-plane" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
 <p>Generate a trivial flat-plane parametrization.</p>
@@ -5600,8 +5634,8 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 
 <hr class="docutils" />
 </section>
-<section id="parametrization-trivial-per-triangle">
-<span id="filter-parametrize-trivial-per-triangle"></span><h2>Parametrization: Trivial Per-Triangle<a class="headerlink" href="#parametrization-trivial-per-triangle" title="Link to this heading">¶</a></h2>
+<section id="parametrize-by-trivial-per-triangle-layout">
+<span id="filter-parametrize-trivial-per-triangle"></span><h2>Parametrize by Trivial Per-Triangle Layout<a class="headerlink" href="#parametrize-by-trivial-per-triangle-layout" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
 <p>Generate a triangle-by-triangle parametrization using either equal-size or space-optimizing layout.</p>
@@ -5621,8 +5655,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="parametrization-voronoi-atlas">
-<span id="filter-parametrize-voronoi-atlas"></span><h2>Parametrization: Voronoi Atlas<a class="headerlink" href="#parametrization-voronoi-atlas" title="Link to this heading">¶</a></h2>
+<section id="parametrize-by-voronoi-atlas-vcglib">
+<span id="filter-parametrize-voronoi-atlas"></span><h2>Parametrize by Voronoi Atlas (vcglib)<a class="headerlink" href="#parametrize-by-voronoi-atlas-vcglib" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
 <p>Build an atlased parametrization using a geodesic Voronoi partition of the surface.</p>
@@ -5640,8 +5674,8 @@ Leave 0 for automatic calculation.</p></li>
 
 <hr class="docutils" />
 </section>
-<section id="parametrization-xatlas">
-<span id="filter-parametrize-xatlas"></span><h2>Parametrization: xatlas<a class="headerlink" href="#parametrization-xatlas" title="Link to this heading">¶</a></h2>
+<section id="parametrize-by-atlas-xatlas">
+<span id="filter-parametrize-xatlas"></span><h2>Parametrize by Atlas (xatlas)<a class="headerlink" href="#parametrize-by-atlas-xatlas" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.xatlas</p>
 <p>Generate a charted and packed UV atlas for the current triangular mesh using xatlas.</p>
@@ -6674,7 +6708,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <dt class="sig sig-object py" id="qmeshlab.ms.pack_texture_per_mesh">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">pack_texture_per_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.pack_texture_per_mesh" title="Link to this definition">¶</a></dt>
 <dd><p>Combines the complete texture images used by the current mesh into a smaller number of atlas images and creates a new mesh layer referencing the result. Each source image is kept intact, placed as a rectangular region in one output image, and copied without rescaling. The mesh’s per-wedge texture indices and UV coordinates are then remapped so every triangle continues to sample the same source pixels from their new atlas location. The original mesh and its textures are left unchanged.</p>
-<p>This operation packs whole images, not individual UV islands or charts. Use <strong>Texture Map Defragmentation</strong> when the goal is to rearrange or optimize the UV charts themselves. Output image dimensions are determined automatically from the source image sizes and their packed arrangement, so they are not necessarily square or powers of two.</p>
+<p>This operation packs whole images, not individual UV islands or charts. Use <strong>Defragment Texture Atlas</strong> when the goal is to rearrange or optimize the UV charts themselves. Output image dimensions are determined automatically from the source image sizes and their packed arrangement, so they are not necessarily square or powers of two.</p>
 <p><strong>Target textures</strong> specifies the desired number of output atlas images and must be smaller than the number of texture groups actually used by mesh faces. Source images are distributed between those outputs before rectangular packing.</p>
 <p><strong>Gutter</strong> reserves the requested number of pixels around every source image. Border pixels are extruded into this area, reducing color bleeding when the atlas is displayed with bilinear filtering.</p>
 <p>Every face must reference one valid texture consistently across its three wedges, and all UV coordinates must lie inside <code class="docutils literal notranslate"><span class="pre">[0,1]</span></code>. Repeated or tiled texture coordinates cannot be represented safely after whole-image atlas packing, so such meshes are rejected rather than producing altered texture mapping.</p>
@@ -7960,71 +7994,75 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.subdivision_midpoint"><code class="docutils literal notranslate"><span class="pre">ms.subdivision_midpoint()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#texture-map-defragmentation">Texture Map Defragmentation</a><ul>
+<li><a class="reference internal" href="#pack-uv-charts">Pack UV Charts</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.pack_uv_charts"><code class="docutils literal notranslate"><span class="pre">ms.pack_uv_charts()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#defragment-texture-atlas">Defragment Texture Atlas</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.defragment_texture_map"><code class="docutils literal notranslate"><span class="pre">ms.defragment_texture_map()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#small-islands-remover">Small Islands Remover</a><ul>
+<li><a class="reference internal" href="#merge-small-texture-islands">Merge Small Texture Islands</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.small_islands_remover"><code class="docutils literal notranslate"><span class="pre">ms.small_islands_remover()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#convert-pervertex-uv-into-perwedge-uv">Convert PerVertex UV into PerWedge UV</a><ul>
+<li><a class="reference internal" href="#convert-per-vertex-uv-to-per-wedge-uv">Convert Per-Vertex UV to Per-Wedge UV</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.convert_vertex_uv_to_wedge_uv"><code class="docutils literal notranslate"><span class="pre">ms.convert_vertex_uv_to_wedge_uv()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#convert-perwedge-uv-into-pervertex-uv">Convert PerWedge UV into PerVertex UV</a><ul>
+<li><a class="reference internal" href="#convert-per-wedge-uv-to-per-vertex-uv">Convert Per-Wedge UV to Per-Vertex UV</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.convert_wedge_uv_to_vertex_uv"><code class="docutils literal notranslate"><span class="pre">ms.convert_wedge_uv_to_vertex_uv()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#per-vertex-texture-function">Per Vertex Texture Function</a><ul>
+<li><a class="reference internal" href="#parametrize-per-vertex-by-expression">Parametrize per Vertex by Expression</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.apply_vertex_texture_function"><code class="docutils literal notranslate"><span class="pre">ms.apply_vertex_texture_function()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#per-wedge-texture-function">Per Wedge Texture Function</a><ul>
+<li><a class="reference internal" href="#parametrize-per-wedge-by-expression">Parametrize per Wedge by Expression</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.apply_wedge_texture_function"><code class="docutils literal notranslate"><span class="pre">ms.apply_wedge_texture_function()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#parameterization-texturing-from-registered-rasters">Parameterization + texturing from registered rasters</a><ul>
+<li><a class="reference internal" href="#parametrize-from-registered-rasters-with-texture">Parametrize from Registered Rasters with Texture</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_and_texture_from_registered_rasters"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_and_texture_from_registered_rasters()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-as-rigid-as-possible-parametrization-libigl">Compute As-Rigid-As-Possible Parametrization (libigl)</a><ul>
+<li><a class="reference internal" href="#parametrize-by-as-rigid-as-possible-libigl">Parametrize by As-Rigid-As-Possible (libigl)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_as_rigid_as_possible_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_as_rigid_as_possible_libigl()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#parameterization-from-registered-rasters">Parameterization from registered rasters</a><ul>
+<li><a class="reference internal" href="#parametrize-from-registered-rasters">Parametrize from Registered Rasters</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_from_registered_rasters"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_from_registered_rasters()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#harmonic-parametrization">Harmonic Parametrization</a><ul>
+<li><a class="reference internal" href="#parametrize-by-harmonic-map-libigl">Parametrize by Harmonic Map (libigl)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_harmonic"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_harmonic()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#least-squares-conformal-maps-parametrization">Least Squares Conformal Maps Parametrization</a><ul>
+<li><a class="reference internal" href="#parametrize-by-least-squares-conformal-maps-libigl">Parametrize by Least Squares Conformal Maps (libigl)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_least_squares_conformal_maps"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_least_squares_conformal_maps()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-locally-injective-parametrization-slim">Compute Locally Injective Parametrization (SLIM)</a><ul>
+<li><a class="reference internal" href="#parametrize-by-slim-libigl">Parametrize by SLIM (libigl)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_texcoord_parametrization_slim_libigl"><code class="docutils literal notranslate"><span class="pre">ms.compute_texcoord_parametrization_slim_libigl()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#geometric-cylindrical-unwrapping">Geometric Cylindrical Unwrapping</a><ul>
+<li><a class="reference internal" href="#parametrize-by-cylindrical-projection">Parametrize by Cylindrical Projection</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.geometric_cylindrical_unwrapping"><code class="docutils literal notranslate"><span class="pre">ms.geometric_cylindrical_unwrapping()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#parametrization-flat-plane">Parametrization: Flat Plane</a><ul>
+<li><a class="reference internal" href="#parametrize-by-flat-plane">Parametrize by Flat Plane</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.parametrize_flat_plane"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_flat_plane()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#parametrization-trivial-per-triangle">Parametrization: Trivial Per-Triangle</a><ul>
+<li><a class="reference internal" href="#parametrize-by-trivial-per-triangle-layout">Parametrize by Trivial Per-Triangle Layout</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.parametrize_trivial_per_triangle"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_trivial_per_triangle()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#parametrization-voronoi-atlas">Parametrization: Voronoi Atlas</a><ul>
+<li><a class="reference internal" href="#parametrize-by-voronoi-atlas-vcglib">Parametrize by Voronoi Atlas (vcglib)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.parametrize_voronoi_atlas"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_voronoi_atlas()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#parametrization-xatlas">Parametrization: xatlas</a><ul>
+<li><a class="reference internal" href="#parametrize-by-atlas-xatlas">Parametrize by Atlas (xatlas)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.parametrize_xatlas"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_xatlas()</span></code></a></li>
 </ul>
 </li>

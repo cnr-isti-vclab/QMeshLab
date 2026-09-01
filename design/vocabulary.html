@@ -478,7 +478,7 @@ a surface is inferred, or samples drawn from existing geometry.</p></li>
 both, primary first.</p>
 <p><strong>Defragmentation is <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>, not <code class="docutils literal notranslate"><span class="pre">Texture</span></code>.</strong> <em>Texture Map
 Defragmentation</em> is described as “reduce texture atlas fragmentation by <strong>merging
-compatible charts</strong> and resampling the texture map”, and <em>Small Islands Remover</em>
+compatible charts</strong> and resampling the texture map”, and <em>Merge Small Texture Islands</em>
 merges “islands … with neighbors sharing a common seam”. Charts, islands and seams are
 parametrization concepts: the operation is chart surgery, and resampling the image is
 a consequence. So both filters get <code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code> as primary and
@@ -992,6 +992,10 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p>Produce an image from the scene</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Draw</span></code>, <code class="docutils literal notranslate"><span class="pre">Snapshot</span></code>, <code class="docutils literal notranslate"><span class="pre">Screenshot</span></code> — and not <code class="docutils literal notranslate"><span class="pre">Create</span></code>, which produces a layer</p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Defragment</span></code></p></td>
+<td><p>Reduce the fragmentation of a texture atlas by merging compatible charts and resampling</p></td>
+<td><p>Admitted <strong>narrowly</strong>, for that alone. It is the term of the paper the filter implements (Maggiordomo et al. 2021); <code class="docutils literal notranslate"><span class="pre">Merge</span></code> describes only half of it, and <code class="docutils literal notranslate"><span class="pre">Pack</span></code> means arranging charts rather than merging them</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1211,6 +1215,10 @@ in — that belongs in the description and the structured references.</p>
 Expression</em>), <code class="docutils literal notranslate"><span class="pre">from</span></code> for the source (<em>Compute Geodesic Distance from Border</em>), <code class="docutils literal notranslate"><span class="pre">to</span></code> for
 the destination (<em>Convert to Pure Triangles</em>). Prefer <code class="docutils literal notranslate"><span class="pre">by</span></code> for “how”, and keep the
 phrase readable rather than mechanically short.</p>
+<p><code class="docutils literal notranslate"><span class="pre">with</span></code> is admitted as a fourth connector, for an <em>additional output</em> a filter also
+produces: <em>Parametrize from Registered Rasters with Texture</em> beside <em>Parametrize from
+Registered Rasters</em>. It is not a fifth way of saying <code class="docutils literal notranslate"><span class="pre">by</span></code> — reach for it only when the
+alternative is a second verb (2026-09-01).</p>
 <p><strong>The incumbent stays unsuffixed.</strong> When a second implementation of an existing filter
 arrives, the newcomer carries the backend and the existing name does not change:
 <em>Remove Duplicate Vertices</em> alongside <em>Remove Duplicate Vertices (TrueForm)</em>. This keeps

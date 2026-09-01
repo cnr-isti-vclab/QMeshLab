@@ -481,7 +481,7 @@ family rather than a one-filter stub.
 | `filter_create` | 3 | Create Polyline from Selected Edges · Create Polyline from Selection Perimeter · Create Polyline from Planar Section |
 | `filter_compute` | 2 | Compute Point Cloud Normals · Compute Principal Curvature Directions |
 | `filter_smooth` | 1 | Smooth Point Cloud Normals |
-| `filter_parametrize` | 1 | Geometric Cylindrical Unwrapping |
+| `filter_parametrize` | 1 | Parametrize by Cylindrical Projection |
 | `filter_select` | 1 | Select Crease Edges |
 
 ### Judgment call

@@ -2476,6 +2476,197 @@ in the layer-index invariant test — named filters this round renamed.</p></li>
 <code class="docutils literal notranslate"><span class="pre">leading</span> <span class="pre">word</span> <span class="pre">'Flatten'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">lexicon</span></code>.</p>
 </section>
 </section>
+<section class="tex2jax_ignore mathjax_ignore" id="round-8-parametrization-17-filters">
+<h1>Round 8 — <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (17 filters)<a class="headerlink" href="#round-8-parametrization-17-filters" title="Link to this heading">¶</a></h1>
+<p><strong>Applied 2026-09-01.</strong> All 17 renamed — the only round in which nothing was already
+conformant. Two further filters carry <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> as a <em>secondary</em> category
+(<em>Select Vertex Texture Seams</em>, <em>Pack Texture Images</em>) and belong to their own rounds.</p>
+<p>The round’s shape is one decision: <strong><code class="docutils literal notranslate"><span class="pre">Parametrize</span></code> owns UV creation outright.</strong> The verb
+had been in the lexicon since the ontology was written and had no users at all — thirteen
+filters produced UVs under five different leading words. All thirteen now lead with it.</p>
+<section id="parametrization-uv-creation-13">
+<h2>Parametrization/UV Creation (13)<a class="headerlink" href="#parametrization-uv-creation-13" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute As-Rigid-As-Possible Parametrization (libigl)</p></td>
+<td><p><strong>Parametrize by As-Rigid-As-Possible (libigl)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_as_rigid_as_possible_libigl</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Locally Injective Parametrization (SLIM)</p></td>
+<td><p><strong>Parametrize by SLIM (libigl)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_slim_libigl</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Harmonic Parametrization</p></td>
+<td><p><strong>Parametrize by Harmonic Map (libigl)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_harmonic_map_libigl</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Least Squares Conformal Maps Parametrization</p></td>
+<td><p><strong>Parametrize by Least Squares Conformal Maps (libigl)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_least_squares_conformal_maps_libigl</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Geometric Cylindrical Unwrapping</p></td>
+<td><p><strong>Parametrize by Cylindrical Projection</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_cylindrical_projection</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parameterization from registered rasters</p></td>
+<td><p><strong>Parametrize from Registered Rasters</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_from_registered_rasters</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Parameterization + texturing from registered rasters</p></td>
+<td><p><strong>Parametrize from Registered Rasters with Texture</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_from_registered_rasters_with_texture</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrization: Flat Plane</p></td>
+<td><p><strong>Parametrize by Flat Plane</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_flat_plane</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrization: Trivial Per-Triangle</p></td>
+<td><p><strong>Parametrize by Trivial Per-Triangle Layout</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_trivial_per_triangle_layout</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Parametrization: Voronoi Atlas</p></td>
+<td><p><strong>Parametrize by Voronoi Atlas (vcglib)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_voronoi_atlas_vcglib</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Parametrization: xatlas</p></td>
+<td><p><strong>Parametrize by Atlas (xatlas)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_by_atlas_xatlas</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Per Vertex Texture Function</p></td>
+<td><p><strong>Parametrize per Vertex by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_per_vertex_by_expression</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Per Wedge Texture Function</p></td>
+<td><p><strong>Parametrize per Wedge by Expression</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parametrize_per_wedge_by_expression</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Four <code class="docutils literal notranslate"><span class="pre">Parametrization:</span></code> colon names, one rejected <code class="docutils literal notranslate"><span class="pre">Unwrap</span></code>, two rejected <code class="docutils literal notranslate"><span class="pre">Parameterization</span></code>
+spellings (§4), two verbless noun phrases, and four leading with <code class="docutils literal notranslate"><span class="pre">Compute</span></code> — legal in
+itself, but not when a verb exists for exactly this attribute.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Voronoi</span> <span class="pre">Atlas</span></code> takes <code class="docutils literal notranslate"><span class="pre">(vcglib)</span></code>: it is <code class="docutils literal notranslate"><span class="pre">vcg/…/parametrization/voronoi_atlas.h</span></code>, and it
+competes with xatlas as a route to an atlas, which is when rule 3 says both name
+themselves.</p>
+<p>Method names follow the literature rather than a house style: <em>As-Rigid-As-Possible</em> and
+<em>Least Squares Conformal Maps</em> read naturally expanded, <em>SLIM</em> does not — nobody writes
+<em>Scalable Locally Injective Mappings</em> in full.</p>
+</section>
+<section id="parametrization-uv-conversion-2">
+<h2>Parametrization/UV Conversion (2)<a class="headerlink" href="#parametrization-uv-conversion-2" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Convert PerVertex UV into PerWedge UV</p></td>
+<td><p><strong>Convert Per-Vertex UV to Per-Wedge UV</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_per_vertex_uv_to_per_wedge_uv</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Convert PerWedge UV into PerVertex UV</p></td>
+<td><p><strong>Convert Per-Wedge UV to Per-Vertex UV</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_per_wedge_uv_to_per_vertex_uv</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">PerVertex</span></code> is the irregular internal capital §5 names by example; <code class="docutils literal notranslate"><span class="pre">per-vertex</span></code> is the §4
+qualifier. <code class="docutils literal notranslate"><span class="pre">into</span></code> → <code class="docutils literal notranslate"><span class="pre">to</span></code>, the ratified connector.</p>
+</section>
+<section id="parametrization-defragmentation-2">
+<h2>Parametrization/Defragmentation (2)<a class="headerlink" href="#parametrization-defragmentation-2" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Small Islands Remover</p></td>
+<td><p><strong>Merge Small Texture Islands</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">merge_small_texture_islands</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Texture Map Defragmentation</p></td>
+<td><p><strong>Defragment Texture Atlas</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">defragment_texture_atlas</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Both were verbless noun phrases. <em>Small Islands Remover</em> removes nothing: its own
+description says it merges small islands into neighbours that share a seam.</p>
+</section>
+<section id="id17">
+<h2>Verbs added to the lexicon<a class="headerlink" href="#id17" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Verb</p></th>
+<th class="head"><p>Means</p></th>
+<th class="head"><p>Why the existing lexicon was not enough</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Defragment</span></code></p></td>
+<td><p>Reduce the fragmentation of a texture atlas by merging compatible charts and resampling</p></td>
+<td><p>The term of the paper the filter implements (Maggiordomo et al. 2021, already cited in the descriptor). <code class="docutils literal notranslate"><span class="pre">Merge</span></code> covers only half of it — it also resamples — and <code class="docutils literal notranslate"><span class="pre">Pack</span></code> means arranging charts, not merging them</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Parametrize</span></code> was <strong>not</strong> added: it was already ratified and simply unused.</p>
+</section>
+<section id="a-connector-added">
+<h2>A connector added<a class="headerlink" href="#a-connector-added" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">with</span></code> joins <code class="docutils literal notranslate"><span class="pre">by</span></code>, <code class="docutils literal notranslate"><span class="pre">from</span></code> and <code class="docutils literal notranslate"><span class="pre">to</span></code>, for an <em>additional output</em> a filter also produces:
+<em>Parametrize from Registered Rasters with Texture</em> beside <em>Parametrize from Registered
+Rasters</em>. §6 records that it is not a fifth way of saying <code class="docutils literal notranslate"><span class="pre">by</span></code> — it is for the case where
+the alternative is a second verb.</p>
+</section>
+<section id="id18">
+<h2>Rulings<a class="headerlink" href="#id18" title="Link to this heading">¶</a></h2>
+<p>All settled (2026-09-01).</p>
+<ol class="arabic simple">
+<li><p>~~Does <code class="docutils literal notranslate"><span class="pre">Parametrize</span></code> own UV creation, or may <code class="docutils literal notranslate"><span class="pre">Compute</span></code> keep the four libigl filters?~~
+<strong><code class="docutils literal notranslate"><span class="pre">Parametrize</span></code> owns it outright</strong>, the two expression filters included.</p></li>
+<li><p>~~Admit <code class="docutils literal notranslate"><span class="pre">Defragment</span></code>?~~ <strong>Yes.</strong></p></li>
+<li><p>~~<em>Parametrize and Transfer Texture from Registered Rasters</em> or <em>… with Texture</em>?~~
+<strong><code class="docutils literal notranslate"><span class="pre">with</span> <span class="pre">Texture</span></code></strong>, which is what promoted <code class="docutils literal notranslate"><span class="pre">with</span></code> to a connector.</p></li>
+</ol>
+</section>
+<section id="id19">
+<h2>Fixes made on the way<a class="headerlink" href="#id19" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Two libigl messages had the display name substituted into them where the <em>method</em> name
+was the correct noun (“Parametrize by Least Squares Conformal Maps (libigl) failed.”);
+reworded to name the method.</p></li>
+<li><p>Progress labels in the libigl, texture, xatlas and defragmentation plugins repeat the
+display name verbatim and were updated with it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plugins/filter_texture_defragmentation/upstream/</span></code> is a vendored third-party tree and
+was deliberately left untouched, though it contains six occurrences of the old name.</p></li>
+</ul>
+</section>
+<section id="id20">
+<h2>Enforcement<a class="headerlink" href="#id20" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> was added to <code class="docutils literal notranslate"><span class="pre">appliedRoots</span></code>. Verified to discriminate: restoring
+<em>Small Islands Remover</em> fails the guard with
+<code class="docutils literal notranslate"><span class="pre">leading</span> <span class="pre">word</span> <span class="pre">'Small'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">lexicon</span></code>.</p>
+</section>
+</section>
 
         </article>
       </div>
@@ -2593,6 +2784,17 @@ in the layer-index invariant test — named filters this round renamed.</p></li>
 <li><a class="reference internal" href="#id14">Rulings</a></li>
 <li><a class="reference internal" href="#id15">Fixes made on the way</a></li>
 <li><a class="reference internal" href="#id16">Enforcement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#round-8-parametrization-17-filters">Round 8 — <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (17 filters)</a><ul>
+<li><a class="reference internal" href="#parametrization-uv-creation-13">Parametrization/UV Creation (13)</a></li>
+<li><a class="reference internal" href="#parametrization-uv-conversion-2">Parametrization/UV Conversion (2)</a></li>
+<li><a class="reference internal" href="#parametrization-defragmentation-2">Parametrization/Defragmentation (2)</a></li>
+<li><a class="reference internal" href="#id17">Verbs added to the lexicon</a></li>
+<li><a class="reference internal" href="#a-connector-added">A connector added</a></li>
+<li><a class="reference internal" href="#id18">Rulings</a></li>
+<li><a class="reference internal" href="#id19">Fixes made on the way</a></li>
+<li><a class="reference internal" href="#id20">Enforcement</a></li>
 </ul>
 </li>
 </ul>
