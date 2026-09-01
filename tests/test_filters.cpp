@@ -250,6 +250,7 @@ private slots:
     void structuredReferencesRenderCitations();
     void toolIconsResolveFromResources();
     void quadPairingChoosesGoodDiagonals();
+    void voronoiAtlasKeepsSelectionAndColorAlone();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -4475,7 +4476,7 @@ void FilterTests::displayNamesLeadWithALexiconVerb()
         QStringLiteral("Meshing"), QStringLiteral("Attribute"),
         QStringLiteral("Creation"), QStringLiteral("Geometry"),
         QStringLiteral("Selection"), QStringLiteral("Repair"),
-        QStringLiteral("Document")
+        QStringLiteral("Document"), QStringLiteral("Parametrization")
     };
 
     Document probe;
@@ -4707,6 +4708,64 @@ void FilterTests::toolIconsResolveFromResources()
 // order, partner found by breadth-first edge distance, flip across to it -- so on a
 // triangulated quad mesh whose diagonals are not all aligned it produced pairings that
 // looked arbitrary. The quality pass (MakeDominant) was never invoked.
+// The Voronoi partition is built by selecting each region's faces and painting the
+// working mesh one color per region -- both debugging aids that used to be appended
+// straight into the atlas, so it arrived fully selected and rainbow-coloured over
+// whatever color the layer actually had.
+void FilterTests::voronoiAtlasKeepsSelectionAndColorAlone()
+{
+    constexpr int kSide = 24;
+    const vcg::Color4b kInputColor(10, 200, 30, 255);
+
+    VCGMesh grid;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
+    for (int j = 0; j < kSide; ++j) {
+        for (int i = 0; i < kSide; ++i) {
+            VCGVertex &v = grid.vert[std::size_t(j * kSide + i)];
+            v.P() = vcg::Point3f(float(i), float(j), 0.0f);
+            v.C() = kInputColor;
+        }
+    }
+    for (int j = 0; j < kSide - 1; ++j) {
+        for (int i = 0; i < kSide - 1; ++i) {
+            const int a = j * kSide + i;
+            vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + 1, a + kSide + 1);
+            vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + kSide + 1, a + kSide);
+        }
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+
+    Document doc;
+    const int index = doc.addMesh(grid, QStringLiteral("Grid"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD
+                                      | vcg::tri::io::Mask::IOM_VERTCOLOR);
+    doc.setCurrentMeshIndex(index);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("generate_voronoi_atlas_parametrization"));
+    QVERIFY(!key.isEmpty());
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("regionNum"), 4);
+    const MeshFilterRunResult r = doc.runFilter(key, params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), std::size_t(1));
+
+    const Document::MeshEntry &atlas = doc.mesh(r.newMeshIndices.front());
+    QVERIFY(atlas.mesh.VN() > 0);
+
+    int selectedVertices = 0, selectedFaces = 0, recolored = 0;
+    for (const VCGVertex &v : atlas.mesh.vert) {
+        if (v.IsD()) continue;
+        if (v.IsS()) ++selectedVertices;
+        if (v.cC() != kInputColor) ++recolored;
+    }
+    for (const VCGFace &f : atlas.mesh.face) {
+        if (!f.IsD() && f.IsS()) ++selectedFaces;
+    }
+    QCOMPARE(selectedVertices, 0);
+    QCOMPARE(selectedFaces, 0);
+    QCOMPARE(recolored, 0);
+}
+
 void FilterTests::quadPairingChoosesGoodDiagonals()
 {
     // A grid whose quads are each split by a randomly chosen diagonal: the shape a real

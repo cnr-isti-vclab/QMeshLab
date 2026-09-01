@@ -568,7 +568,7 @@
     {
       "id": "per_vertex_texture_function",
       "categories": ["Parametrization/UV Creation"],
-      "name": "Per Vertex Texture Function",
+      "name": "Parametrize per Vertex by Expression",
       "pythonName": "apply_vertex_texture_function",
       "shortDescription": "Computes per-vertex texture coordinates from expressions.",
       "longDescriptionMarkdown": "Texture function using muparser to generate new texture coords for every vertex<br>",
@@ -628,7 +628,7 @@
     {
       "id": "per_wedge_texture_function",
       "categories": ["Parametrization/UV Creation"],
-      "name": "Per Wedge Texture Function",
+      "name": "Parametrize per Wedge by Expression",
       "pythonName": "apply_wedge_texture_function",
       "shortDescription": "Computes per-wedge texture coordinates from expressions.",
       "longDescriptionMarkdown": "Texture function using muparser to generate new per wedge tex coords for every face<br>Insert six functions each u v for each one of the three vertex of a face<br>",

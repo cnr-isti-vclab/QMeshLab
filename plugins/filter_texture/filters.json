@@ -4,7 +4,7 @@
     {
       "id": "generate_voronoi_atlas_parametrization",
       "categories": ["Parametrization/UV Creation"],
-      "name": "Parametrization: Voronoi Atlas",
+      "name": "Parametrize by Voronoi Atlas (vcglib)",
       "pythonName": "parametrize_voronoi_atlas",
       "shortDescription": "Build an atlased parametrization using a geodesic Voronoi partition of the surface.",
       "longDescriptionMarkdown": "Build an atlased parametrization based on a geodesic voronoi partitioning of the surface and parametrizing each region using Harmonic Mapping. For the parametrization of the disk like voronoi regions the used method is: <br><b>Ulrich Pinkall, Konrad Polthier</b><br><i>Computing Discrete Minimal Surfaces and Their Conjugates</i> <br>Experimental Mathematics, Vol 2 (1), 1993.",
@@ -54,7 +54,7 @@
     {
       "id": "compute_texcoord_transfer_wedge_to_vertex",
       "categories": ["Parametrization/UV Conversion"],
-      "name": "Convert PerWedge UV into PerVertex UV",
+      "name": "Convert Per-Wedge UV to Per-Vertex UV",
       "pythonName": "convert_wedge_uv_to_vertex_uv",
       "shortDescription": "Convert per-wedge texture coordinates into per-vertex texture coordinates, splitting vertices when needed.",
       "longDescriptionMarkdown": "Converts per Wedge Texture Coordinates to per Vertex Texture Coordinates splitting vertices with not coherent Wedge coordinates.",
@@ -84,7 +84,7 @@
     {
       "id": "compute_texcoord_transfer_vertex_to_wedge",
       "categories": ["Parametrization/UV Conversion"],
-      "name": "Convert PerVertex UV into PerWedge UV",
+      "name": "Convert Per-Vertex UV to Per-Wedge UV",
       "pythonName": "convert_vertex_uv_to_wedge_uv",
       "shortDescription": "Convert per-vertex texture coordinates into per-wedge texture coordinates.",
       "longDescriptionMarkdown": "Converts per Vertex Texture Coordinates to per Wedge Texture Coordinates. It does not merge superfluous vertices...",
@@ -111,7 +111,7 @@
     {
       "id": "compute_texcoord_parametrization_flat_plane_per_wedge",
       "categories": ["Parametrization/UV Creation"],
-      "name": "Parametrization: Flat Plane",
+      "name": "Parametrize by Flat Plane",
       "pythonName": "parametrize_flat_plane",
       "shortDescription": "Generate a trivial flat-plane parametrization.",
       "longDescriptionMarkdown": "Builds a trivial flat-plane parametrization.",
@@ -179,7 +179,7 @@
     {
       "id": "compute_texcoord_parametrization_triangle_trivial_per_wedge",
       "categories": ["Parametrization/UV Creation"],
-      "name": "Parametrization: Trivial Per-Triangle",
+      "name": "Parametrize by Trivial Per-Triangle Layout",
       "pythonName": "parametrize_trivial_per_triangle",
       "shortDescription": "Generate a triangle-by-triangle parametrization using either equal-size or space-optimizing layout.",
       "longDescriptionMarkdown": "Builds a trivial triangle-by-triangle parametrization. <br> Two methods are provided, the first maps all triangles into equal sized triangles, while the second one adapt the size of the triangles in texture space to their original size.",
@@ -733,7 +733,7 @@
       "name": "Pack Texture Images",
       "pythonName": "pack_texture_per_mesh",
       "shortDescription": "Combines complete texture images into fewer atlas images and remaps the mesh UVs.",
-      "longDescriptionMarkdown": "Combines the complete texture images used by the current mesh into a smaller number of atlas images and creates a new mesh layer referencing the result. Each source image is kept intact, placed as a rectangular region in one output image, and copied without rescaling. The mesh's per-wedge texture indices and UV coordinates are then remapped so every triangle continues to sample the same source pixels from their new atlas location. The original mesh and its textures are left unchanged.\n\nThis operation packs whole images, not individual UV islands or charts. Use **Texture Map Defragmentation** when the goal is to rearrange or optimize the UV charts themselves. Output image dimensions are determined automatically from the source image sizes and their packed arrangement, so they are not necessarily square or powers of two.\n\n**Target textures** specifies the desired number of output atlas images and must be smaller than the number of texture groups actually used by mesh faces. Source images are distributed between those outputs before rectangular packing.\n\n**Gutter** reserves the requested number of pixels around every source image. Border pixels are extruded into this area, reducing color bleeding when the atlas is displayed with bilinear filtering.\n\nEvery face must reference one valid texture consistently across its three wedges, and all UV coordinates must lie inside `[0,1]`. Repeated or tiled texture coordinates cannot be represented safely after whole-image atlas packing, so such meshes are rejected rather than producing altered texture mapping.",
+      "longDescriptionMarkdown": "Combines the complete texture images used by the current mesh into a smaller number of atlas images and creates a new mesh layer referencing the result. Each source image is kept intact, placed as a rectangular region in one output image, and copied without rescaling. The mesh's per-wedge texture indices and UV coordinates are then remapped so every triangle continues to sample the same source pixels from their new atlas location. The original mesh and its textures are left unchanged.\n\nThis operation packs whole images, not individual UV islands or charts. Use **Defragment Texture Atlas** when the goal is to rearrange or optimize the UV charts themselves. Output image dimensions are determined automatically from the source image sizes and their packed arrangement, so they are not necessarily square or powers of two.\n\n**Target textures** specifies the desired number of output atlas images and must be smaller than the number of texture groups actually used by mesh faces. Source images are distributed between those outputs before rectangular packing.\n\n**Gutter** reserves the requested number of pixels around every source image. Border pixels are extruded into this area, reducing color bleeding when the atlas is displayed with bilinear filtering.\n\nEvery face must reference one valid texture consistently across its three wedges, and all UV coordinates must lie inside `[0,1]`. Repeated or tiled texture coordinates cannot be represented safely after whole-image atlas packing, so such meshes are rejected rather than producing altered texture mapping.",
       "tags": [
         "texture",
         "uv",

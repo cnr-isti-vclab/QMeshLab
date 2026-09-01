@@ -2126,7 +2126,7 @@
     {
       "id": "generate_cylindrical_unwrapping",
       "categories": ["Parametrization/UV Creation"],
-      "name": "Geometric Cylindrical Unwrapping",
+      "name": "Parametrize by Cylindrical Projection",
       "pythonName": "geometric_cylindrical_unwrapping",
       "shortDescription": "Unwrap geometry along cylindrical projection.",
       "longDescriptionMarkdown": "Unwrap the geometry of current mesh along a clylindrical equatorial projection. The cylindrical projection axis is centered on the origin and directed along the vertical <b>Y</b> axis.",

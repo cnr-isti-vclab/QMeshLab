@@ -199,7 +199,7 @@ MeshFilterRunResult XAtlasFilterPlugin::runFilter(
     if (!atlas)
         return fail(QObject::tr("Failed to create xatlas atlas."));
 
-    doc.beginFilterProgress(QObject::tr("Parametrization: xatlas"));
+    doc.beginFilterProgress(QObject::tr("Parametrize by Atlas (xatlas)"));
     const auto destroyAtlas = qScopeGuard([&]() { xatlas::Destroy(atlas); });
     ProgressBridge progressBridge;
     progressBridge.callback = doc.progressCallback() ? doc.progressCallback() : vcg::DummyCallBackPos;

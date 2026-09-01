@@ -522,7 +522,7 @@
       "categories": [
         "Parametrization/UV Creation"
       ],
-      "name": "Harmonic Parametrization",
+      "name": "Parametrize by Harmonic Map (libigl)",
       "pythonName": "compute_texcoord_parametrization_harmonic",
       "referenceIds": ["libigl"],
       "shortDescription": "Compute a single-patch fixed-boundary harmonic UV parametrization using libigl.",
@@ -565,7 +565,7 @@
       "categories": [
         "Parametrization/UV Creation"
       ],
-      "name": "Least Squares Conformal Maps Parametrization",
+      "name": "Parametrize by Least Squares Conformal Maps (libigl)",
       "pythonName": "compute_texcoord_parametrization_least_squares_conformal_maps",
       "referenceIds": ["libigl"],
       "shortDescription": "Compute a Least Squares Conformal Maps UV parametrization using libigl.",
@@ -721,7 +721,7 @@
     {
       "id": "compute_texcoord_parametrization_as_rigid_as_possible_libigl",
       "categories": ["Parametrization/UV Creation"],
-      "name": "Compute As-Rigid-As-Possible Parametrization (libigl)",
+      "name": "Parametrize by As-Rigid-As-Possible (libigl)",
       "pythonName": "compute_texcoord_parametrization_as_rigid_as_possible_libigl",
       "referenceIds": ["libigl", "sorkine2007arap"],
       "shortDescription": "Optimize a harmonic UV map with libigl's ARAP local-global solver.",
@@ -748,7 +748,7 @@
     {
       "id": "compute_texcoord_parametrization_slim_libigl",
       "categories": ["Parametrization/UV Creation"],
-      "name": "Compute Locally Injective Parametrization (SLIM)",
+      "name": "Parametrize by SLIM (libigl)",
       "pythonName": "compute_texcoord_parametrization_slim_libigl",
       "referenceIds": ["libigl", "rabinovich2017slim"],
       "shortDescription": "Optimize a flip-preventing UV map with libigl's SLIM solver.",

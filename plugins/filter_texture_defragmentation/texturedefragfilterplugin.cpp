@@ -148,7 +148,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     Document &doc) const
 {
     // Core checks before starting the process.
-    // 1 - ensure that the requested filter was either Texture Defragmentation or Small Islands Remover.
+    // 1 - ensure that the requested filter was either Defragment Texture Atlas or Merge Small Texture Islands.
     // 2 - ensure that a mesh was selected.
     // 3 - ensure that the mesh provided has faces, per-wedge texture coordinates and has at least one texture image.
     if (filterId != QString::fromLatin1(kFilterTextureDefrag) &&
@@ -172,7 +172,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     if (Document::meshTextureAssociationCount(sourceEntry) <= 0)
         return fail(QObject::tr("Texture defragmentation requires at least one associated texture image."));
 
-    doc.beginFilterProgress(QObject::tr("Texture Map Defragmentation"));
+    doc.beginFilterProgress(QObject::tr("Defragment Texture Atlas"));
     auto progress = [&](int pct, const char *label) {
         if (vcg::CallBackPos *cb = doc.progressCallback()) {
             (*cb)(pct, label);
@@ -413,7 +413,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     //	  merge operation. After a merge it tries to run an As-Rigid-As-Possible (ARAP) optimization to fix
     //	  the introduced distortion. Note that if the merge introduces too much distortion or unfixable
     //	  overlaps, it is rejected and its operations are rolled back. Note that the distortion checks are
-    //	  skipped when execution Small Islands Remover with distortionMode set to LOOSE.
+    //	  skipped when running Merge Small Texture Islands with distortionMode set to LOOSE.
     //
     //	* `Finalize` prepares the now optimized input mesh to be returned, collapsing coincident duplicate
     //	  vertices, removing orphaned vertices and rebuilding topologies.

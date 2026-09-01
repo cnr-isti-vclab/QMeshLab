@@ -189,7 +189,7 @@ Discriminators for the borderline cases:
 
   **Defragmentation is `Parametrization`, not `Texture`.** *Texture Map
   Defragmentation* is described as "reduce texture atlas fragmentation by **merging
-  compatible charts** and resampling the texture map", and *Small Islands Remover*
+  compatible charts** and resampling the texture map", and *Merge Small Texture Islands*
   merges "islands … with neighbors sharing a common seam". Charts, islands and seams are
   parametrization concepts: the operation is chart surgery, and resampling the image is
   a consequence. So both filters get `Parametrization/Defragmentation` as primary and
@@ -415,6 +415,7 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Import`, `Export` | Read or write data in a file outside the document | `Load`, `Save` — those are the File menu's document-level operations, and a filter that writes a camera rig or a multiresolution build beside the mesh is not saving the document; also `Read`, `Write` |
 | `Rename` | Change the label of a layer or raster | `Relabel`. `Set` would have covered it and matches the ids, but *rename* is the word a user searches for |
 | `Render` | Produce an image from the scene | `Draw`, `Snapshot`, `Screenshot` — and not `Create`, which produces a layer |
+| `Defragment` | Reduce the fragmentation of a texture atlas by merging compatible charts and resampling | Admitted **narrowly**, for that alone. It is the term of the paper the filter implements (Maggiordomo et al. 2021); `Merge` describes only half of it, and `Pack` means arranging charts rather than merging them |
 
 **Attribute-editing verbs**, admitted as a closed group of standard image and signal
 operations, each keeping its ordinary meaning: `Normalize`, `Adjust`, `Clamp`, `Invert`,
@@ -562,6 +563,11 @@ Verb Object [(Backend)]
 Expression*), `from` for the source (*Compute Geodesic Distance from Border*), `to` for
 the destination (*Convert to Pure Triangles*). Prefer `by` for "how", and keep the
 phrase readable rather than mechanically short.
+
+`with` is admitted as a fourth connector, for an *additional output* a filter also
+produces: *Parametrize from Registered Rasters with Texture* beside *Parametrize from
+Registered Rasters*. It is not a fifth way of saying `by` — reach for it only when the
+alternative is a second verb (2026-09-01).
 
 **The incumbent stays unsuffixed.** When a second implementation of an existing filter
 arrives, the newcomer carries the backend and the existing name does not change:

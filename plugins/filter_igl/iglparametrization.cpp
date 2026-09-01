@@ -138,7 +138,7 @@ MeshFilterRunResult runIglParametrizationFilter(
     try {
         if (filterId == QString::fromLatin1(kHarmonic)) {
             const int harmonicOrder = std::max(1, params.getInt(QStringLiteral("harm_function")));
-            label = QObject::tr("Harmonic Parametrization");
+            label = QObject::tr("Parametrize by Harmonic Map (libigl)");
             doc.beginFilterProgress(label);
             if (vcg::CallBackPos *cb = doc.progressCallback())
                 (*cb)(10, "Finding boundary loop...");
@@ -150,7 +150,7 @@ MeshFilterRunResult runIglParametrizationFilter(
                 return fail(error);
             }
         } else if (filterId == QString::fromLatin1(kLscm)) {
-            label = QObject::tr("Least Squares Conformal Maps Parametrization");
+            label = QObject::tr("Parametrize by Least Squares Conformal Maps (libigl)");
             doc.beginFilterProgress(label);
             if (vcg::CallBackPos *cb = doc.progressCallback())
                 (*cb)(10, "Finding boundary loop...");
@@ -158,7 +158,7 @@ MeshFilterRunResult runIglParametrizationFilter(
             igl::boundary_loop(eigenMesh.faces, boundary);
             if (boundary.size() == 0) {
                 error = QObject::tr(
-                    "Least Squares Conformal Maps Parametrization can be applied only to meshes that have a boundary.");
+                    "Least Squares Conformal Maps can be applied only to meshes that have a boundary.");
                 doc.finishFilterProgress(false, error);
                 return fail(error);
             }
@@ -179,7 +179,7 @@ MeshFilterRunResult runIglParametrizationFilter(
                     boundaryPoints,
                     boundaryConditions,
                     uv)) {
-                error = QObject::tr("Least Squares Conformal Maps Parametrization failed.");
+                error = QObject::tr("Least Squares Conformal Maps parametrization failed.");
                 doc.finishFilterProgress(false, error);
                 return fail(error);
             }

@@ -15,6 +15,7 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/complex/algorithms/update/normal.h>
+#include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/complex/algorithms/update/texture.h>
 #include <wrap/io_trimesh/io_mask.h>
@@ -461,7 +462,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (regionNum <= 0)
             return fail(QObject::tr("Approx. Region Num must be positive."));
 
-        doc.beginFilterProgress(QObject::tr("Parametrization: Voronoi Atlas"));
+        doc.beginFilterProgress(QObject::tr("Parametrize by Voronoi Atlas (vcglib)"));
 
         VCGMesh baseMesh;
         vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(baseMesh, mesh);
@@ -487,9 +488,16 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         pp.overlap = overlap;
         const RandomSeed seed = params.getRandomSeed();
         pp.randomSeed = seed.value;
+        // The per-region coloring is a debugging aid: it is written onto the working mesh
+        // and then appended into the atlas, so it would replace whatever per-vertex color
+        // the layer arrived with.
+        pp.colorizeRegions = false;
         pp.cb = doc.progressCallback() ? doc.progressCallback() : vcg::DummyCallBackPos;
 
         vcg::tri::VoronoiAtlas<VCGMesh>::Build(baseMesh, paraMesh, pp);
+        // Build selects each region's faces in order to extract them, and Append carries
+        // the flags across, so the atlas arrives with everything selected.
+        vcg::tri::UpdateSelection<VCGMesh>::Clear(paraMesh);
         if (!overlap)
             vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(paraMesh);
         vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(paraMesh);
@@ -510,8 +518,10 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             return fail(message);
         }
 
-        const int ioMask =
-            Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL | Mask::IOM_VERTCOLOR;
+        // Vertex color is declared only when the source layer actually had some; the
+        // atlas now inherits it rather than inventing it.
+        const int ioMask = Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL
+            | (entry.ioMask & Mask::IOM_VERTCOLOR);
         const int newIndex = doc.addMesh(paraMesh, QStringLiteral("VoroAtlas"), ioMask);
         doc.finishFilterProgress(true, QObject::tr("Generated Voronoi atlas mesh."));
 

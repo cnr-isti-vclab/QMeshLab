@@ -39,7 +39,7 @@
     {
       "id": "apply_texmap_defragmentation",
       "categories": ["Parametrization/Defragmentation", "Texture"],
-      "name": "Texture Map Defragmentation",
+      "name": "Defragment Texture Atlas",
       "pythonName": "defragment_texture_map",
       "referenceIds": [
         "maggiordomo2021texture"
@@ -159,7 +159,7 @@
     {
       "id": "apply_small_islands_remover",
       "categories": ["Parametrization/Defragmentation", "Texture"],
-      "name": "Small Islands Remover",
+      "name": "Merge Small Texture Islands",
       "pythonName": "small_islands_remover",
       "referenceIds": [
         "maggiordomo2021texture"
