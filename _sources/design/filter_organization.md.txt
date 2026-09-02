@@ -446,7 +446,7 @@ separate plugin because its external algorithm code is the build/provenance unit
 
 | Current | Filters | Why it fails both tests | Target(s) |
 |---|---|---|---|
-| `filter_basic` | 3 | no dep; three unrelated filters | `filter_measure` (Current Mesh Info), `filter_transform` (Normalize To Unit Box), `filter_create` (Create Isosurface from Perlin Noise) |
+| `filter_basic` | 3 | no dep; three unrelated filters | `filter_measure` (Measure Mesh Summary), `filter_transform` (Normalize To Unit Box), `filter_create` (Create Isosurface from Perlin Noise) |
 | `filter_create` | 13 | already a family name | `filter_create` (unchanged) |
 | `filter_clean` | 15 | already a family name | `filter_clean` (14), `filter_reconstruct` (1 — its lone non-Cleaning filter is *Reconstruct Surface by Ball Pivoting*) |
 | `filter_select` | 25 | already a family name | `filter_select` (unchanged) |

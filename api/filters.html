@@ -1518,7 +1518,7 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_scalar_by_signed_distance_per_vertex">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_scalar_by_signed_distance_per_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_scalar_by_signed_distance_per_vertex" title="Link to this definition">¶</a></dt>
-<dd><p>Writes, for every vertex, its distance to the nearest point of the reference layer’s surface — <strong>negative inside, positive outside</strong>.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with <em>Create Polyline from Scalar Isocontour (TrueForm)</em> (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a <strong>closed surface</strong> for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable <strong>Unsigned</strong> for absolute distance, which is what you want when only proximity matters.\n\nCompare with <em>Hausdorff Distance</em>, which reports a single worst-case number, and <em>Measure Chamfer Distance (TrueForm)</em>, which reports a mean.</p>
+<dd><p>Writes, for every vertex, its distance to the nearest point of the reference layer’s surface — <strong>negative inside, positive outside</strong>.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with <em>Create Polyline from Scalar Isocontour (TrueForm)</em> (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a <strong>closed surface</strong> for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable <strong>Unsigned</strong> for absolute distance, which is what you want when only proximity matters.\n\nCompare with <em>Measure Hausdorff Distance</em>, which reports a single worst-case number, and <em>Measure Chamfer Distance (TrueForm)</em>, which reports a mean.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer whose vertices are measured.</p></li>
@@ -4180,7 +4180,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_chamfer_distance">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_chamfer_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_chamfer_distance" title="Link to this definition">¶</a></dt>
-<dd><p>Reports the <strong>mean</strong> distance from each vertex of one layer to the nearest vertex of the other.\n\nWhere the <em>Hausdorff Distance</em> reports the single worst correspondence — and so is dominated by one stray vertex — the chamfer distance averages over all of them. That makes it the more useful number for scoring an overall fit: comparing simplification settings, judging whether a registration improved, or tracking a reconstruction against ground truth. Use Hausdorff when the worst case is what matters, and this when the typical case is.\n\nThe measure is <strong>not symmetric</strong>: the mean distance from A to B differs from B to A, and a subset of a surface can sit very close to it while the surface as a whole sits far from the subset. <strong>Symmetric</strong> measures both directions and also reports the larger, which is the honest single number.\n\n<strong>Outlier Proportion</strong> discards that fraction of the worst correspondences before averaging, for partial overlaps.\n\nThis measures vertex to vertex, so it is sensitive to how densely each layer is sampled.</p>
+<dd><p>Reports the <strong>mean</strong> distance from each vertex of one layer to the nearest vertex of the other.\n\nWhere the <em>Measure Hausdorff Distance</em> reports the single worst correspondence — and so is dominated by one stray vertex — the chamfer distance averages over all of them. That makes it the more useful number for scoring an overall fit: comparing simplification settings, judging whether a registration improved, or tracking a reconstruction against ground truth. Use Hausdorff when the worst case is what matters, and this when the typical case is.\n\nThe measure is <strong>not symmetric</strong>: the mean distance from A to B differs from B to A, and a subset of a surface can sit very close to it while the surface as a whole sits far from the subset. <strong>Symmetric</strong> measures both directions and also reports the larger, which is the honest single number.\n\n<strong>Outlier Proportion</strong> discards that fraction of the worst correspondences before averaging, for partial overlaps.\n\nThis measures vertex to vertex, so it is sensitive to how densely each layer is sampled.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer being measured.</p></li>
@@ -4192,8 +4192,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="distance-from-reference-mesh">
-<span id="filter-compute-distance-from-reference"></span><h2>Distance from Reference Mesh<a class="headerlink" href="#distance-from-reference-mesh" title="Link to this heading">¶</a></h2>
+<section id="compute-distance-from-reference-mesh">
+<span id="filter-compute-distance-from-reference"></span><h2>Compute Distance from Reference Mesh<a class="headerlink" href="#compute-distance-from-reference-mesh" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.sampling</p>
 <p>Compute per-vertex distance from another mesh or point cloud.</p>
@@ -4212,8 +4212,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="compute-geometric-measures">
-<span id="filter-compute-geometric-measures"></span><h2>Compute Geometric Measures<a class="headerlink" href="#compute-geometric-measures" title="Link to this heading">¶</a></h2>
+<section id="measure-geometric-properties">
+<span id="filter-compute-geometric-measures"></span><h2>Measure Geometric Properties<a class="headerlink" href="#measure-geometric-properties" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.measure</p>
 <p>Compute a set of geometric measures of a mesh or point cloud.</p>
@@ -4226,15 +4226,15 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="hausdorff-distance">
-<span id="filter-compute-hausdorff-distance"></span><h2>Hausdorff Distance<a class="headerlink" href="#hausdorff-distance" title="Link to this heading">¶</a></h2>
+<section id="measure-hausdorff-distance">
+<span id="filter-compute-hausdorff-distance"></span><h2>Measure Hausdorff Distance<a class="headerlink" href="#measure-hausdorff-distance" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.sampling</p>
 <p>Compute directional Hausdorff distance statistics between two meshes.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="qmeshlab.ms.compute_hausdorff_distance">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_hausdorff_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.compute_hausdorff_distance" title="Link to this definition">¶</a></dt>
-<dd><p>Compute the Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. If sample layers are saved, distances are stored in vertex quality and QMeshLab switches those layers to vertex-quality color visualization without baking colors.</p>
+<dd><p>Compute the Measure Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. If sample layers are saved, distances are stored in vertex quality and QMeshLab switches those layers to vertex-quality color visualization without baking colors.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>SampledMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh whose surface is sampled.</p></li>
@@ -4252,8 +4252,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="compute-area-perimeter-of-selection">
-<span id="filter-compute-selection-area-perimeter"></span><h2>Compute Area/Perimeter of Selection<a class="headerlink" href="#compute-area-perimeter-of-selection" title="Link to this heading">¶</a></h2>
+<section id="measure-selection-area-and-perimeter">
+<span id="filter-compute-selection-area-perimeter"></span><h2>Measure Selection Area and Perimeter<a class="headerlink" href="#measure-selection-area-and-perimeter" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.measure</p>
 <p>Compute area and perimeter of the face selection.</p>
@@ -4266,8 +4266,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="overlapping-meshes">
-<span id="filter-get-overlapping-meshes-graph"></span><h2>Overlapping Meshes<a class="headerlink" href="#overlapping-meshes" title="Link to this heading">¶</a></h2>
+<section id="measure-layer-overlap">
+<span id="filter-get-overlapping-meshes-graph"></span><h2>Measure Layer Overlap<a class="headerlink" href="#measure-layer-overlap" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.icp</p>
 <p>Report which mesh layers overlap in an occupancy grid.</p>
@@ -4283,8 +4283,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="per-face-quality-histogram">
-<span id="filter-compute-face-quality-histogram"></span><h2>Per Face Quality Histogram<a class="headerlink" href="#per-face-quality-histogram" title="Link to this heading">¶</a></h2>
+<section id="measure-face-scalar-histogram">
+<span id="filter-compute-face-quality-histogram"></span><h2>Measure Face Scalar Histogram<a class="headerlink" href="#measure-face-scalar-histogram" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.measure</p>
 <p>Compute a histogram of per-face quality values.</p>
@@ -4303,8 +4303,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="per-face-quality-stat">
-<span id="filter-compute-face-quality-stat"></span><h2>Per Face Quality Stat<a class="headerlink" href="#per-face-quality-stat" title="Link to this heading">¶</a></h2>
+<section id="measure-face-scalar-statistics">
+<span id="filter-compute-face-quality-stat"></span><h2>Measure Face Scalar Statistics<a class="headerlink" href="#measure-face-scalar-statistics" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.measure</p>
 <p>Compute aggregate statistics over per-face quality.</p>
@@ -4317,8 +4317,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="per-vertex-quality-histogram">
-<span id="filter-compute-vertex-quality-histogram"></span><h2>Per Vertex Quality Histogram<a class="headerlink" href="#per-vertex-quality-histogram" title="Link to this heading">¶</a></h2>
+<section id="measure-vertex-scalar-histogram">
+<span id="filter-compute-vertex-quality-histogram"></span><h2>Measure Vertex Scalar Histogram<a class="headerlink" href="#measure-vertex-scalar-histogram" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.measure</p>
 <p>Compute a histogram of per-vertex quality values.</p>
@@ -4337,8 +4337,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="per-vertex-quality-stat">
-<span id="filter-compute-vertex-quality-stat"></span><h2>Per Vertex Quality Stat<a class="headerlink" href="#per-vertex-quality-stat" title="Link to this heading">¶</a></h2>
+<section id="measure-vertex-scalar-statistics">
+<span id="filter-compute-vertex-quality-stat"></span><h2>Measure Vertex Scalar Statistics<a class="headerlink" href="#measure-vertex-scalar-statistics" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.measure</p>
 <p>Compute aggregate statistics over per-vertex quality.</p>
@@ -4352,7 +4352,7 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <hr class="docutils" />
 </section>
 <section id="estimate-radius-from-density">
-<span id="filter-estimate-radius-from-density"></span><h2>Estimate radius from density<a class="headerlink" href="#estimate-radius-from-density" title="Link to this heading">¶</a></h2>
+<span id="filter-estimate-radius-from-density"></span><h2>Estimate Radius from Density<a class="headerlink" href="#estimate-radius-from-density" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.mls</p>
 <p>Estimate local point spacing for each vertex.</p>
@@ -4368,8 +4368,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="compute-topological-measures">
-<span id="filter-compute-topological-measures"></span><h2>Compute Topological Measures<a class="headerlink" href="#compute-topological-measures" title="Link to this heading">¶</a></h2>
+<section id="measure-topological-properties">
+<span id="filter-compute-topological-measures"></span><h2>Measure Topological Properties<a class="headerlink" href="#measure-topological-properties" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.measure</p>
 <p>Compute a set of topological measures over a mesh.</p>
@@ -4381,8 +4381,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="compute-topological-measures-for-quad-meshes">
-<span id="filter-compute-topological-measures-quad"></span><h2>Compute Topological Measures for Quad Meshes<a class="headerlink" href="#compute-topological-measures-for-quad-meshes" title="Link to this heading">¶</a></h2>
+<section id="measure-topological-properties-for-quad-mesh">
+<span id="filter-compute-topological-measures-quad"></span><h2>Measure Topological Properties for Quad Mesh<a class="headerlink" href="#measure-topological-properties-for-quad-mesh" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.measure</p>
 <p>Compute a set of topological measures over a quad mesh.</p>
@@ -4394,8 +4394,8 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="current-mesh-info">
-<span id="filter-get-info"></span><h2>Current Mesh Info<a class="headerlink" href="#current-mesh-info" title="Link to this heading">¶</a></h2>
+<section id="measure-mesh-summary">
+<span id="filter-get-info"></span><h2>Measure Mesh Summary<a class="headerlink" href="#measure-mesh-summary" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.basic</p>
 <p>Prints a compact summary for the current mesh.</p>
@@ -7774,55 +7774,55 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.compute_chamfer_distance"><code class="docutils literal notranslate"><span class="pre">ms.compute_chamfer_distance()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#distance-from-reference-mesh">Distance from Reference Mesh</a><ul>
+<li><a class="reference internal" href="#compute-distance-from-reference-mesh">Compute Distance from Reference Mesh</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_distance_from_reference"><code class="docutils literal notranslate"><span class="pre">ms.compute_distance_from_reference()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-geometric-measures">Compute Geometric Measures</a><ul>
+<li><a class="reference internal" href="#measure-geometric-properties">Measure Geometric Properties</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_geometric_measures"><code class="docutils literal notranslate"><span class="pre">ms.compute_geometric_measures()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#hausdorff-distance">Hausdorff Distance</a><ul>
+<li><a class="reference internal" href="#measure-hausdorff-distance">Measure Hausdorff Distance</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_hausdorff_distance"><code class="docutils literal notranslate"><span class="pre">ms.compute_hausdorff_distance()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-area-perimeter-of-selection">Compute Area/Perimeter of Selection</a><ul>
+<li><a class="reference internal" href="#measure-selection-area-and-perimeter">Measure Selection Area and Perimeter</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_selection_area_perimeter"><code class="docutils literal notranslate"><span class="pre">ms.compute_selection_area_perimeter()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#overlapping-meshes">Overlapping Meshes</a><ul>
+<li><a class="reference internal" href="#measure-layer-overlap">Measure Layer Overlap</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.get_overlapping_meshes_graph"><code class="docutils literal notranslate"><span class="pre">ms.get_overlapping_meshes_graph()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#per-face-quality-histogram">Per Face Quality Histogram</a><ul>
+<li><a class="reference internal" href="#measure-face-scalar-histogram">Measure Face Scalar Histogram</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_face_quality_histogram"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_quality_histogram()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#per-face-quality-stat">Per Face Quality Stat</a><ul>
+<li><a class="reference internal" href="#measure-face-scalar-statistics">Measure Face Scalar Statistics</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_face_quality_stat"><code class="docutils literal notranslate"><span class="pre">ms.compute_face_quality_stat()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#per-vertex-quality-histogram">Per Vertex Quality Histogram</a><ul>
+<li><a class="reference internal" href="#measure-vertex-scalar-histogram">Measure Vertex Scalar Histogram</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_vertex_quality_histogram"><code class="docutils literal notranslate"><span class="pre">ms.compute_vertex_quality_histogram()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#per-vertex-quality-stat">Per Vertex Quality Stat</a><ul>
+<li><a class="reference internal" href="#measure-vertex-scalar-statistics">Measure Vertex Scalar Statistics</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_vertex_quality_stat"><code class="docutils literal notranslate"><span class="pre">ms.compute_vertex_quality_stat()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#estimate-radius-from-density">Estimate radius from density</a><ul>
+<li><a class="reference internal" href="#estimate-radius-from-density">Estimate Radius from Density</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.estimate_radius_from_density"><code class="docutils literal notranslate"><span class="pre">ms.estimate_radius_from_density()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-topological-measures">Compute Topological Measures</a><ul>
+<li><a class="reference internal" href="#measure-topological-properties">Measure Topological Properties</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_topological_measures"><code class="docutils literal notranslate"><span class="pre">ms.compute_topological_measures()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#compute-topological-measures-for-quad-meshes">Compute Topological Measures for Quad Meshes</a><ul>
+<li><a class="reference internal" href="#measure-topological-properties-for-quad-mesh">Measure Topological Properties for Quad Mesh</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_topological_measures_quad"><code class="docutils literal notranslate"><span class="pre">ms.compute_topological_measures_quad()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#current-mesh-info">Current Mesh Info</a><ul>
+<li><a class="reference internal" href="#measure-mesh-summary">Measure Mesh Summary</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.get_info"><code class="docutils literal notranslate"><span class="pre">ms.get_info()</span></code></a></li>
 </ul>
 </li>

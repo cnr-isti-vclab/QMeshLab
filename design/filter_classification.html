@@ -1127,7 +1127,7 @@ That was the main finding of this pass.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Current Mesh Info</p></td>
+<tr class="row-even"><td><p>Measure Mesh Summary</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">basic</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p></td>
 <td><p></p></td>
@@ -1280,7 +1280,7 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Estimate radius from density</p></td>
+<tr class="row-even"><td><p>Estimate Radius from Density</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">mls</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
 <td><p></p></td>
@@ -1326,27 +1326,27 @@ That was the main finding of this pass.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Compute Area/Perimeter of Selection</p></td>
+<tr class="row-even"><td><p>Measure Selection Area and Perimeter</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Compute Geometric Measures</p></td>
+<tr class="row-odd"><td><p>Measure Geometric Properties</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Compute Topological Measures</p></td>
+<tr class="row-even"><td><p>Measure Topological Properties</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Compute Topological Measures for Quad Meshes</p></td>
+<tr class="row-odd"><td><p>Measure Topological Properties for Quad Mesh</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Overlapping Meshes</p></td>
+<tr class="row-even"><td><p>Measure Layer Overlap</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">icp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code></p></td>
 <td><p></p></td>
@@ -1367,22 +1367,22 @@ That was the main finding of this pass.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Per Face Quality Histogram</p></td>
+<tr class="row-even"><td><p>Measure Face Scalar Histogram</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Per Face Quality Stat</p></td>
+<tr class="row-odd"><td><p>Measure Face Scalar Statistics</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p>Per Vertex Quality Histogram</p></td>
+<tr class="row-even"><td><p>Measure Vertex Scalar Histogram</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p>Per Vertex Quality Stat</p></td>
+<tr class="row-odd"><td><p>Measure Vertex Scalar Statistics</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">measure</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
 <td><p></p></td>
@@ -1938,12 +1938,12 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Distance from Reference Mesh</p></td>
+<tr class="row-even"><td><p>Compute Distance from Reference Mesh</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it measures <sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Hausdorff Distance</p></td>
+<tr class="row-odd"><td><p>Measure Hausdorff Distance</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it measures</p></td>

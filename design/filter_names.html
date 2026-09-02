@@ -2667,6 +2667,160 @@ was deliberately left untouched, though it contains six occurrences of the old n
 <code class="docutils literal notranslate"><span class="pre">leading</span> <span class="pre">word</span> <span class="pre">'Small'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">lexicon</span></code>.</p>
 </section>
 </section>
+<section class="tex2jax_ignore mathjax_ignore" id="round-9-measurement-14-filters">
+<h1>Round 9 — <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (14 filters)<a class="headerlink" href="#round-9-measurement-14-filters" title="Link to this heading">¶</a></h1>
+<p><strong>Applied 2026-09-01.</strong> 13 renamed, 1 already conformant. One further filter carries
+<code class="docutils literal notranslate"><span class="pre">Measurement</span></code> as a <em>secondary</em> category (<em>Create Plane from Selection</em>) and belongs to
+its own round.</p>
+<p>The round turns on a distinction §3 already draws and nothing had enforced: <strong><code class="docutils literal notranslate"><span class="pre">Measure</span></code>
+reports values without modifying, <code class="docutils literal notranslate"><span class="pre">Compute</span></code> calculates and stores an attribute</strong>.
+<code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> settles it filter by filter, and exactly one of the fourteen stores
+anything.</p>
+<section id="measurement-geometric-6">
+<h2>Measurement/Geometric (6)<a class="headerlink" href="#measurement-geometric-6" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Area/Perimeter of Selection</p></td>
+<td><p><strong>Measure Selection Area and Perimeter</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_selection_area_and_perimeter</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Geometric Measures</p></td>
+<td><p><strong>Measure Geometric Properties</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_geometric_properties</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Hausdorff Distance</p></td>
+<td><p><strong>Measure Hausdorff Distance</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_hausdorff_distance</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Overlapping Meshes</p></td>
+<td><p><strong>Measure Layer Overlap</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_layer_overlap</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Distance from Reference Mesh</p></td>
+<td><p><strong>Compute Distance from Reference Mesh</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">compute_distance_from_reference_mesh</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measure Chamfer Distance (TrueForm)</p></td>
+<td><p><em>unchanged</em></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><em>Distance from Reference Mesh</em> is the one <code class="docutils literal notranslate"><span class="pre">Compute</span></code>: it declares <code class="docutils literal notranslate"><span class="pre">outputModifies:</span> <span class="pre">[&quot;VQ&quot;]</span></code>
+and writes the distance into vertex quality. <em>Hausdorff Distance</em> reports statistics and
+produces sample layers only as an optional by-product, so it stays <code class="docutils literal notranslate"><span class="pre">Measure</span></code>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">/</span></code> in <em>Area/Perimeter</em> was never a connector, and rewriting that name removed the
+last real use of <code class="docutils literal notranslate"><span class="pre">of</span></code> in any shipped name — the only other occurrence sits inside the
+fixed phrase <em>line of sight</em>. No new connector was needed for it.</p>
+</section>
+<section id="measurement-statistics-5">
+<h2>Measurement/Statistics (5)<a class="headerlink" href="#measurement-statistics-5" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Estimate radius from density</p></td>
+<td><p><strong>Estimate Radius from Density</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">estimate_radius_from_density</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Per Face Quality Histogram</p></td>
+<td><p><strong>Measure Face Scalar Histogram</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_face_scalar_histogram</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Per Face Quality Stat</p></td>
+<td><p><strong>Measure Face Scalar Statistics</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_face_scalar_statistics</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Per Vertex Quality Histogram</p></td>
+<td><p><strong>Measure Vertex Scalar Histogram</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_vertex_scalar_histogram</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Per Vertex Quality Stat</p></td>
+<td><p><strong>Measure Vertex Scalar Statistics</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_vertex_scalar_statistics</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Quality</span></code> → <code class="docutils literal notranslate"><span class="pre">Scalar</span></code> is §4; <code class="docutils literal notranslate"><span class="pre">Stat</span></code> is an abbreviation §5 does not carry.</p>
+</section>
+<section id="measurement-topological-3">
+<h2>Measurement/Topological (3)<a class="headerlink" href="#measurement-topological-3" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Compute Topological Measures</p></td>
+<td><p><strong>Measure Topological Properties</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute Topological Measures for Quad Meshes</p></td>
+<td><p><strong>Measure Topological Properties for Quad Mesh</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_topological_properties_for_quad_mesh</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Current Mesh Info</p></td>
+<td><p><strong>Measure Mesh Summary</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">measure_mesh_summary</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Info</span></code> is a rejected synonym of <code class="docutils literal notranslate"><span class="pre">Measure</span></code>. “Measures” could not survive beside the verb,
+so the pair became “Properties”; keeping the two parallel is what promoted <code class="docutils literal notranslate"><span class="pre">for</span></code> to a
+connector rather than splitting them into differently shaped names.</p>
+</section>
+<section id="a-defect-the-round-exposed">
+<h2>A defect the round exposed<a class="headerlink" href="#a-defect-the-round-exposed" title="Link to this heading">¶</a></h2>
+<p><strong>The vocabulary permitted <code class="docutils literal notranslate"><span class="pre">Estimate</span></code> and the guard rejected it.</strong> §3 admitted it in the
+footnote below the table — <em>“permitted only when the result is explicitly statistical or
+approximate”</em> — and that footnote’s own worked example is <em>Estimate Radius from Density</em>,
+this exact filter. But the ratified set is defined as everything <strong>above</strong> that footnote,
+which is where round 6’s guard truncates, so the parser saw 55 verbs and <code class="docutils literal notranslate"><span class="pre">Estimate</span></code> was
+not one of them.</p>
+<p>Doc and enforcement had disagreed since the truncation landed, and nothing caught it
+because no shipped filter led with <code class="docutils literal notranslate"><span class="pre">Estimate</span></code>. It now has a table row of its own, above
+the footnote; the footnote stays, because it is also the marker the guard truncates on.</p>
+</section>
+<section id="connector-added">
+<h2>Connector added<a class="headerlink" href="#connector-added" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">for</span></code> names the class of input a specialised variant is built for, distinguishing it from
+the general filter: <em>Measure Topological Properties for Quad Mesh</em> beside <em>Measure
+Topological Properties</em>. Like <code class="docutils literal notranslate"><span class="pre">with</span></code> in round 8, it arrived with exactly one user.</p>
+</section>
+<section id="id21">
+<h2>Rulings<a class="headerlink" href="#id21" title="Link to this heading">¶</a></h2>
+<p>All settled (2026-09-01).</p>
+<ol class="arabic simple">
+<li><p>~~”Properties” or “Geometry”/”Topology” as the object?~~ <strong>Properties.</strong></p></li>
+<li><p>~~The quad variant breaks the parallel with its sibling.~~ <strong><code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">Quad</span> <span class="pre">Mesh</span></code></strong>, which
+admitted <code class="docutils literal notranslate"><span class="pre">for</span></code>.</p></li>
+</ol>
+</section>
+<section id="id22">
+<h2>Enforcement<a class="headerlink" href="#id22" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Measurement</span></code> was added to <code class="docutils literal notranslate"><span class="pre">appliedRoots</span></code>. Verified to discriminate: restoring
+<em>Current Mesh Info</em> fails the guard with
+<code class="docutils literal notranslate"><span class="pre">leading</span> <span class="pre">word</span> <span class="pre">'Current'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">lexicon</span></code>.</p>
+</section>
+</section>
 
         </article>
       </div>
@@ -2795,6 +2949,16 @@ was deliberately left untouched, though it contains six occurrences of the old n
 <li><a class="reference internal" href="#id18">Rulings</a></li>
 <li><a class="reference internal" href="#id19">Fixes made on the way</a></li>
 <li><a class="reference internal" href="#id20">Enforcement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#round-9-measurement-14-filters">Round 9 — <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (14 filters)</a><ul>
+<li><a class="reference internal" href="#measurement-geometric-6">Measurement/Geometric (6)</a></li>
+<li><a class="reference internal" href="#measurement-statistics-5">Measurement/Statistics (5)</a></li>
+<li><a class="reference internal" href="#measurement-topological-3">Measurement/Topological (3)</a></li>
+<li><a class="reference internal" href="#a-defect-the-round-exposed">A defect the round exposed</a></li>
+<li><a class="reference internal" href="#connector-added">Connector added</a></li>
+<li><a class="reference internal" href="#id21">Rulings</a></li>
+<li><a class="reference internal" href="#id22">Enforcement</a></li>
 </ul>
 </li>
 </ul>

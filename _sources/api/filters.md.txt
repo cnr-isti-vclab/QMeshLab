@@ -1634,7 +1634,7 @@ Store each vertex's signed distance to another layer's surface in vertex scalar.
 ```{py:function} ms.compute_scalar_by_signed_distance_per_vertex(**params)
 :module: _qmeshlab
 
-Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour (TrueForm)* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable **Unsigned** for absolute distance, which is what you want when only proximity matters.\n\nCompare with *Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance (TrueForm)*, which reports a mean.
+Writes, for every vertex, its distance to the nearest point of the reference layer's surface — **negative inside, positive outside**.\n\nThe sign is what makes this a field rather than a proximity readout. It can be contoured with *Create Polyline from Scalar Isocontour (TrueForm)* (the zero contour is the intersection curve), thresholded to select a shell of given thickness, or used to measure how far a simplified or reconstructed model departs from its original and in which direction.\n\nBoth layers are taken in world space. The reference must be a **closed surface** for the sign to mean anything; on an open sheet the inside is undefined and the sign follows the surface orientation instead.\n\nEnable **Unsigned** for absolute distance, which is what you want when only proximity matters.\n\nCompare with *Measure Hausdorff Distance*, which reports a single worst-case number, and *Measure Chamfer Distance (TrueForm)*, which reports a mean.
 
 **Parameters:**
 
@@ -4972,7 +4972,7 @@ Report the mean nearest-point distance between two layers.
 ```{py:function} ms.compute_chamfer_distance(**params)
 :module: _qmeshlab
 
-Reports the **mean** distance from each vertex of one layer to the nearest vertex of the other.\n\nWhere the *Hausdorff Distance* reports the single worst correspondence — and so is dominated by one stray vertex — the chamfer distance averages over all of them. That makes it the more useful number for scoring an overall fit: comparing simplification settings, judging whether a registration improved, or tracking a reconstruction against ground truth. Use Hausdorff when the worst case is what matters, and this when the typical case is.\n\nThe measure is **not symmetric**: the mean distance from A to B differs from B to A, and a subset of a surface can sit very close to it while the surface as a whole sits far from the subset. **Symmetric** measures both directions and also reports the larger, which is the honest single number.\n\n**Outlier Proportion** discards that fraction of the worst correspondences before averaging, for partial overlaps.\n\nThis measures vertex to vertex, so it is sensitive to how densely each layer is sampled.
+Reports the **mean** distance from each vertex of one layer to the nearest vertex of the other.\n\nWhere the *Measure Hausdorff Distance* reports the single worst correspondence — and so is dominated by one stray vertex — the chamfer distance averages over all of them. That makes it the more useful number for scoring an overall fit: comparing simplification settings, judging whether a registration improved, or tracking a reconstruction against ground truth. Use Hausdorff when the worst case is what matters, and this when the typical case is.\n\nThe measure is **not symmetric**: the mean distance from A to B differs from B to A, and a subset of a surface can sit very close to it while the surface as a whole sits far from the subset. **Symmetric** measures both directions and also reports the larger, which is the honest single number.\n\n**Outlier Proportion** discards that fraction of the worst correspondences before averaging, for partial overlaps.\n\nThis measures vertex to vertex, so it is sensitive to how densely each layer is sampled.
 
 **Parameters:**
 
@@ -4986,7 +4986,7 @@ Reports the **mean** distance from each vertex of one layer to the nearest verte
 
 (filter-compute-distance-from-reference)=
 
-## Distance from Reference Mesh
+## Compute Distance from Reference Mesh
 
 **Categories:** `Measurement/Geometric`, `Attribute/Scalar`
 
@@ -5011,7 +5011,7 @@ Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and 
 
 (filter-compute-geometric-measures)=
 
-## Compute Geometric Measures
+## Measure Geometric Properties
 
 **Categories:** `Measurement/Geometric`
 
@@ -5031,7 +5031,7 @@ This filter has no parameters.
 
 (filter-compute-hausdorff-distance)=
 
-## Hausdorff Distance
+## Measure Hausdorff Distance
 
 **Categories:** `Measurement/Geometric`, `Attribute/Scalar`
 
@@ -5042,7 +5042,7 @@ Compute directional Hausdorff distance statistics between two meshes.
 ```{py:function} ms.compute_hausdorff_distance(**params)
 :module: _qmeshlab
 
-Compute the Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. If sample layers are saved, distances are stored in vertex quality and QMeshLab switches those layers to vertex-quality color visualization without baking colors.
+Compute the Measure Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. If sample layers are saved, distances are stored in vertex quality and QMeshLab switches those layers to vertex-quality color visualization without baking colors.
 
 **Parameters:**
 
@@ -5062,7 +5062,7 @@ Compute the Hausdorff Distance between two layers, sampling one of the two and f
 
 (filter-compute-selection-area-perimeter)=
 
-## Compute Area/Perimeter of Selection
+## Measure Selection Area and Perimeter
 
 **Categories:** `Measurement/Geometric`
 
@@ -5082,7 +5082,7 @@ This filter has no parameters.
 
 (filter-get-overlapping-meshes-graph)=
 
-## Overlapping Meshes
+## Measure Layer Overlap
 
 **Categories:** `Measurement/Geometric`
 
@@ -5104,7 +5104,7 @@ Voxelize all mesh layers into an occupancy grid and report the pairs that occupy
 
 (filter-compute-face-quality-histogram)=
 
-## Per Face Quality Histogram
+## Measure Face Scalar Histogram
 
 **Categories:** `Measurement/Statistics`
 
@@ -5129,7 +5129,7 @@ Compute an histogram of the values of the per-face quality.
 
 (filter-compute-face-quality-stat)=
 
-## Per Face Quality Stat
+## Measure Face Scalar Statistics
 
 **Categories:** `Measurement/Statistics`
 
@@ -5149,7 +5149,7 @@ This filter has no parameters.
 
 (filter-compute-vertex-quality-histogram)=
 
-## Per Vertex Quality Histogram
+## Measure Vertex Scalar Histogram
 
 **Categories:** `Measurement/Statistics`
 
@@ -5174,7 +5174,7 @@ Compute an histogram of the values of the per-vertex quality. It can be useful t
 
 (filter-compute-vertex-quality-stat)=
 
-## Per Vertex Quality Stat
+## Measure Vertex Scalar Statistics
 
 **Categories:** `Measurement/Statistics`
 
@@ -5194,7 +5194,7 @@ This filter has no parameters.
 
 (filter-estimate-radius-from-density)=
 
-## Estimate radius from density
+## Estimate Radius from Density
 
 **Categories:** `Measurement/Statistics`
 
@@ -5216,7 +5216,7 @@ Estimate the local point spacing (aka radius) around each vertex using a basic e
 
 (filter-compute-topological-measures)=
 
-## Compute Topological Measures
+## Measure Topological Properties
 
 **Categories:** `Measurement/Topological`
 
@@ -5234,7 +5234,7 @@ This filter has no parameters.
 
 (filter-compute-topological-measures-quad)=
 
-## Compute Topological Measures for Quad Meshes
+## Measure Topological Properties for Quad Mesh
 
 **Categories:** `Measurement/Topological`
 
@@ -5252,7 +5252,7 @@ This filter has no parameters.
 
 (filter-get-info)=
 
-## Current Mesh Info
+## Measure Mesh Summary
 
 **Categories:** `Measurement/Topological`
 
