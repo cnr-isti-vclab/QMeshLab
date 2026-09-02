@@ -325,61 +325,13 @@ MeshFilterRunResult runAlignCorresponding(const FilterParams &params, Document &
     try {
         auto sourcePts = tf::make_points(source);
         auto referencePts = tf::make_points(reference);
-        const auto rigid = tf::fit_rigid_alignment(sourcePts, referencePts);
-        if (!allowScale) {
-            delta = toQMatrix(rigid);
+        if (allowScale) {
+            delta = toQMatrix(tf::fit_similarity_alignment(sourcePts, referencePts));
+            // The fit stores s*R, so the uniform scale is the norm of any column.
+            fittedScale =
+                double(QVector3D(delta(0, 0), delta(1, 0), delta(2, 0)).length());
         } else {
-            // Deliberately not tf::fit_similarity_alignment: as of the pinned commit it
-            // returns a scale n times too small. cross_covariance_of() divides H by the
-            // point count, but the similarity fit divides trace(R^T H) by an
-            // unnormalised sum of squares, so the two disagree by a factor of n.
-            // fit_rigid_alignment is unaffected — rotation is scale-invariant, so the
-            // 1/n cancels through the SVD — so the rotation is taken from there and only
-            // scale and translation are recovered here. Revisit when upstream fixes it.
-            delta = toQMatrix(rigid); // rotation only; scale/translation replaced below
-            const std::size_t n = source.size();
-            double cx[3] = { 0, 0, 0 };
-            double cy[3] = { 0, 0, 0 };
-            for (std::size_t i = 0; i < n; ++i) {
-                for (int d = 0; d < 3; ++d) {
-                    cx[d] += double(source[i][std::size_t(d)]);
-                    cy[d] += double(reference[i][std::size_t(d)]);
-                }
-            }
-            for (int d = 0; d < 3; ++d) {
-                cx[d] /= double(n);
-                cy[d] /= double(n);
-            }
-
-            // s = sum((y - cy) . R (x - cx)) / sum(||x - cx||^2)
-            double numerator = 0.0;
-            double denominator = 0.0;
-            for (std::size_t i = 0; i < n; ++i) {
-                double dx[3];
-                double dy[3];
-                for (int d = 0; d < 3; ++d) {
-                    dx[d] = double(source[i][std::size_t(d)]) - cx[d];
-                    dy[d] = double(reference[i][std::size_t(d)]) - cy[d];
-                }
-                for (int r = 0; r < 3; ++r) {
-                    double rotated = 0.0;
-                    for (int c = 0; c < 3; ++c)
-                        rotated += double(delta(r, c)) * dx[c];
-                    numerator += dy[r] * rotated;
-                    denominator += dx[r] * dx[r];
-                }
-            }
-            const double scale = (denominator > 1e-20) ? (numerator / denominator) : 1.0;
-
-            for (int r = 0; r < 3; ++r) {
-                double rotatedCx = 0.0;
-                for (int c = 0; c < 3; ++c)
-                    rotatedCx += double(delta(r, c)) * cx[c];
-                for (int c = 0; c < 3; ++c)
-                    delta(r, c) = float(scale * double(delta(r, c)));
-                delta(r, 3) = float(cy[r] - scale * rotatedCx);
-            }
-            fittedScale = scale;
+            delta = toQMatrix(tf::fit_rigid_alignment(sourcePts, referencePts));
         }
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm alignment failed: %1")
