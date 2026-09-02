@@ -14,8 +14,11 @@ See `docs/design/architecture.md`, `docs/design/data_model.md`, `docs/design/ren
 
 ## Build
 
-- vcglib is a git submodule at `src/vcglib/`. **Always use vcglib for 3D computation.**
-- Include vcglib headers from `src/vcglib/`.
+- vcglib is a git submodule at `vcglib/`. **Always use vcglib for 3D computation**,
+  except in `plugins/io_trueform` and `plugins/filter_trueform`, where TrueForm
+  (`external/trueform`) is the computation layer — see
+  [TrueForm Plugin](../docs/design/trueform_plugin.md).
+- Include vcglib headers from `vcglib/`.
 - Build with cmake presets: `cmake --preset vcpkg-debug`, then
   `cmake --build build-debug --target QMeshLab -j8`.
 - Plugin registration: 4-line `add_subdirectory` block in `plugins/CMakeLists.txt`, plus
