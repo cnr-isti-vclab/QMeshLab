@@ -13,7 +13,6 @@
 #include <QVector3D>
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <limits>
 #include <exception>
@@ -457,37 +456,6 @@ MeshFilterRunResult addResultLayer(
     result.infoMessages = info;
     result.newMeshIndices.push_back(newIndex);
     return result;
-}
-
-// Append a TrueForm triangle mesh to a VCG mesh, offsetting the indices. Used where one
-// filter emits several pieces — sweeping each path of a polyline, for instance.
-template <typename Buffer>
-void appendTfMeshTo(const Buffer &buffer, VCGMesh &target)
-{
-    const auto points = buffer.points();
-    const std::size_t pointCount = std::size_t(points.size());
-    if (pointCount == 0)
-        return;
-
-    const int offset = target.VN();
-    vcg::tri::Allocator<VCGMesh>::AddVertices(target, int(pointCount));
-    std::size_t vi = 0;
-    for (const auto &p : points) {
-        target.vert[std::size_t(offset) + vi].P() =
-            vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
-        ++vi;
-    }
-    for (const auto &face : buffer.faces()) {
-        const std::size_t n = std::size_t(face.size());
-        for (std::size_t k = 2; k < n; ++k) {
-            const int a = offset + int(face[0]);
-            const int b = offset + int(face[k - 1]);
-            const int c = offset + int(face[k]);
-            if (a == b || b == c || a == c)
-                continue;
-            vcg::tri::Allocator<VCGMesh>::AddFace(target, a, b, c);
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1037,15 +1005,11 @@ MeshFilterRunResult runTubeFromPolyline(const FilterParams &params, Document &do
     if (!std::isfinite(radius) || radius <= 0.0)
         return fail(QObject::tr("The radius must be a finite value larger than zero."));
 
-    // Chain the edges into paths. TrueForm sweeps a curve, so a soup of unordered
-    // segments has to be walked into runs first; each vertex may join at most two edges
-    // for the chain to be unambiguous.
     const std::size_t vertexCount = mesh.vert.size();
-    std::vector<std::array<int, 2>> incident(vertexCount, { -1, -1 });
-    std::vector<std::array<int, 2>> edges;
-    edges.reserve(std::size_t(std::max(0, mesh.EN())));
+    tf::buffer<int> edgeIds;
+    edgeIds.reserve(std::size_t(std::max(0, mesh.EN())) * 2);
+    std::vector<int> valence(vertexCount, 0);
     const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
-    int branching = 0;
     for (const auto &e : mesh.edge) {
         if (e.IsD() || !base)
             continue;
@@ -1053,122 +1017,54 @@ MeshFilterRunResult runTubeFromPolyline(const FilterParams &params, Document &do
         const ptrdiff_t v1 = e.cV(1) - base;
         if (v0 < 0 || v1 < 0 || std::size_t(v0) >= vertexCount || std::size_t(v1) >= vertexCount)
             continue;
-        const int id = int(edges.size());
-        edges.push_back({ int(v0), int(v1) });
-        for (int v : { int(v0), int(v1) }) {
-            if (incident[std::size_t(v)][0] < 0)
-                incident[std::size_t(v)][0] = id;
-            else if (incident[std::size_t(v)][1] < 0)
-                incident[std::size_t(v)][1] = id;
-            else
-                ++branching;
-        }
+        edgeIds.push_back(int(v0));
+        edgeIds.push_back(int(v1));
+        ++valence[std::size_t(v0)];
+        ++valence[std::size_t(v1)];
     }
-    if (edges.empty())
+    if (edgeIds.size() == 0)
         return fail(QObject::tr("The layer has no usable edges."));
+
+    int branching = 0;
+    for (int n : valence) {
+        if (n > 2)
+            ++branching;
+    }
 
     doc.beginFilterProgress(QObject::tr("Create Tube from Polyline (TrueForm)"));
 
-    VCGMesh output;
-    std::size_t tubeCount = 0;
     try {
+        tf::curves_buffer<int, float, 3> polyline;
+        polyline.paths_buffer() = tf::connect_edges_to_paths(tf::make_edges(edgeIds));
+
         const QMatrix4x4 &m = entry.transform;
-        std::vector<char> visited(edges.size(), 0);
-
-        // Walk from every endpoint first so open runs come out whole, then mop up loops.
-        const auto walk = [&](int startVertex, int startEdge) {
-            std::vector<int> path{ startVertex };
-            int current = startVertex;
-            int edgeId = startEdge;
-            while (edgeId >= 0 && !visited[std::size_t(edgeId)]) {
-                visited[std::size_t(edgeId)] = 1;
-                const auto &e = edges[std::size_t(edgeId)];
-                const int next = (e[0] == current) ? e[1] : e[0];
-                path.push_back(next);
-                current = next;
-                const auto &inc = incident[std::size_t(current)];
-                edgeId = (inc[0] != -1 && inc[0] != edgeId) ? inc[0]
-                       : (inc[1] != -1 && inc[1] != edgeId) ? inc[1]
-                                                            : -1;
-                if (current == startVertex)
-                    break; // closed loop
-            }
-            return path;
-        };
-
-        std::vector<std::vector<int>> paths;
-        for (std::size_t v = 0; v < vertexCount; ++v) {
-            const auto &inc = incident[v];
-            const bool endpoint = (inc[0] >= 0) != (inc[1] >= 0);
-            if (endpoint && !visited[std::size_t(inc[0] >= 0 ? inc[0] : inc[1])])
-                paths.push_back(walk(int(v), inc[0] >= 0 ? inc[0] : inc[1]));
-        }
-        for (std::size_t e = 0; e < edges.size(); ++e) {
-            if (!visited[e])
-                paths.push_back(walk(edges[e][0], int(e)));
+        auto &points = polyline.points_buffer();
+        points.allocate(vertexCount);
+        for (std::size_t i = 0; i < vertexCount; ++i) {
+            const vcg::Point3f &p = mesh.vert[i].cP();
+            const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
+            points[i] = tf::make_point(w.x(), w.y(), w.z());
         }
 
-        for (const std::vector<int> &path : paths) {
-            if (path.size() < 2)
-                continue;
-            tf::points_buffer<float, 3> pts;
-            for (int v : path) {
-                const vcg::Point3f &p = mesh.vert[std::size_t(v)].cP();
-                const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
-                pts.emplace_back(w.x(), w.y(), w.z());
-            }
-            tf::curves_buffer<int, float, 3> cb;
-            cb.points_buffer() = pts;
-            std::vector<int> indices(path.size());
-            for (std::size_t i = 0; i < path.size(); ++i)
-                indices[i] = int(i);
-            cb.paths_buffer().push_back(tf::make_range(indices.data(), indices.size()));
+        auto tubes = tf::make_tube_mesh(polyline.curves(), float(radius), segments);
 
-            auto tube = tf::make_tube_mesh(cb.curves()[0], float(radius), segments);
-            appendTfMeshTo(tube, output);
-            ++tubeCount;
+        QStringList info;
+        info << QObject::tr("Swept %1 path(s) from '%2'.")
+                    .arg(polyline.paths_buffer().size()).arg(entry.name);
+        if (branching > 0) {
+            info << QObject::tr(
+                "%1 vertex junction(s) joined more than two edges; the polyline was split "
+                "there rather than branched.").arg(branching);
         }
+        return addResultLayer(
+            doc, tubes, QObject::tr("Tube"),
+            QObject::tr("The sweep produced no geometry."), info);
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm tube generation failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
-
-    if (output.FN() <= 0) {
-        const QString message = QObject::tr("The sweep produced no geometry.");
-        doc.finishFilterProgress(false, message);
-        return fail(message);
-    }
-
-    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
-    vcg::tri::UpdateBounding<VCGMesh>::Box(output);
-    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
-
-    const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
-    const int newIndex = doc.addMesh(output, QObject::tr("Tube"), ioMask);
-    if (newIndex < 0) {
-        const QString message = QObject::tr("Failed to add the tube layer.");
-        doc.finishFilterProgress(false, message);
-        return fail(message);
-    }
-    doc.finishFilterProgress(true, QObject::tr("Created tube."));
-
-    QStringList info;
-    info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
-         << QObject::tr("Swept %1 path(s) from '%2'.").arg(tubeCount).arg(entry.name)
-         << QObject::tr("Output: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
-    if (branching > 0) {
-        info << QObject::tr(
-            "%1 vertex junction(s) joined more than two edges; the polyline was split "
-            "there rather than branched.").arg(branching);
-    }
-    MeshFilterRunResult result;
-    result.success = true;
-    result.documentModified = true;
-    result.infoMessages = info;
-    result.newMeshIndices.push_back(newIndex);
-    return result;
 }
 
 // ---------------------------------------------------------------------------
