@@ -18,7 +18,6 @@
 #include <limits>
 #include <exception>
 #include <optional>
-#include <set>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -100,18 +99,35 @@ MeshFilterRunResult success(const QStringList &info)
     return result;
 }
 
+// tfMeshFromLayer() skips deleted vertices, so the nth TrueForm point is the nth *live*
+// VCG vertex. Results have to be written back through that mapping, not by raw index.
+std::vector<std::size_t> liveVertexIndices(const VCGMesh &mesh)
+{
+    std::vector<std::size_t> live;
+    live.reserve(std::size_t(std::max(0, mesh.VN())));
+    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+        if (!mesh.vert[i].IsD())
+            live.push_back(i);
+    }
+    return live;
+}
+
 // Collect a layer's live vertices in world space. Alignment is only meaningful across
 // layers, so the layer matrix has to be applied before anything is compared.
 TfPoints worldPoints(const Document::MeshEntry &entry)
 {
-    TfPoints points;
+    const VCGMesh &mesh = entry.mesh;
     const QMatrix4x4 &m = entry.transform;
-    for (const VCGVertex &v : entry.mesh.vert) {
-        if (v.IsD())
-            continue;
-        const QVector3D p = m.map(QVector3D(v.cP().X(), v.cP().Y(), v.cP().Z()));
-        points.emplace_back(p.x(), p.y(), p.z());
-    }
+    const std::vector<std::size_t> live = liveVertexIndices(mesh);
+
+    TfPoints points;
+    points.allocate(live.size());
+    tf::parallel_for_each(tf::enumerate(tf::make_range(live)), [&](auto pair) {
+        auto &&[at, vi] = pair;
+        const vcg::Point3f &p = mesh.vert[vi].cP();
+        const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
+        points[std::size_t(at)] = tf::make_point(w.x(), w.y(), w.z());
+    }, tf::checked);
     return points;
 }
 
@@ -325,61 +341,13 @@ MeshFilterRunResult runAlignCorresponding(const FilterParams &params, Document &
     try {
         auto sourcePts = tf::make_points(source);
         auto referencePts = tf::make_points(reference);
-        const auto rigid = tf::fit_rigid_alignment(sourcePts, referencePts);
-        if (!allowScale) {
-            delta = toQMatrix(rigid);
+        if (allowScale) {
+            delta = toQMatrix(tf::fit_similarity_alignment(sourcePts, referencePts));
+            // The fit stores s*R, so the uniform scale is the norm of any column.
+            fittedScale =
+                double(QVector3D(delta(0, 0), delta(1, 0), delta(2, 0)).length());
         } else {
-            // Deliberately not tf::fit_similarity_alignment: as of the pinned commit it
-            // returns a scale n times too small. cross_covariance_of() divides H by the
-            // point count, but the similarity fit divides trace(R^T H) by an
-            // unnormalised sum of squares, so the two disagree by a factor of n.
-            // fit_rigid_alignment is unaffected — rotation is scale-invariant, so the
-            // 1/n cancels through the SVD — so the rotation is taken from there and only
-            // scale and translation are recovered here. Revisit when upstream fixes it.
-            delta = toQMatrix(rigid); // rotation only; scale/translation replaced below
-            const std::size_t n = source.size();
-            double cx[3] = { 0, 0, 0 };
-            double cy[3] = { 0, 0, 0 };
-            for (std::size_t i = 0; i < n; ++i) {
-                for (int d = 0; d < 3; ++d) {
-                    cx[d] += double(source[i][std::size_t(d)]);
-                    cy[d] += double(reference[i][std::size_t(d)]);
-                }
-            }
-            for (int d = 0; d < 3; ++d) {
-                cx[d] /= double(n);
-                cy[d] /= double(n);
-            }
-
-            // s = sum((y - cy) . R (x - cx)) / sum(||x - cx||^2)
-            double numerator = 0.0;
-            double denominator = 0.0;
-            for (std::size_t i = 0; i < n; ++i) {
-                double dx[3];
-                double dy[3];
-                for (int d = 0; d < 3; ++d) {
-                    dx[d] = double(source[i][std::size_t(d)]) - cx[d];
-                    dy[d] = double(reference[i][std::size_t(d)]) - cy[d];
-                }
-                for (int r = 0; r < 3; ++r) {
-                    double rotated = 0.0;
-                    for (int c = 0; c < 3; ++c)
-                        rotated += double(delta(r, c)) * dx[c];
-                    numerator += dy[r] * rotated;
-                    denominator += dx[r] * dx[r];
-                }
-            }
-            const double scale = (denominator > 1e-20) ? (numerator / denominator) : 1.0;
-
-            for (int r = 0; r < 3; ++r) {
-                double rotatedCx = 0.0;
-                for (int c = 0; c < 3; ++c)
-                    rotatedCx += double(delta(r, c)) * cx[c];
-                for (int c = 0; c < 3; ++c)
-                    delta(r, c) = float(scale * double(delta(r, c)));
-                delta(r, 3) = float(cy[r] - scale * rotatedCx);
-            }
-            fittedScale = scale;
+            delta = toQMatrix(tf::fit_rigid_alignment(sourcePts, referencePts));
         }
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm alignment failed: %1")
@@ -413,36 +381,43 @@ TfMesh tfMeshFromLayer(const Document::MeshEntry &entry)
     const VCGMesh &mesh = entry.mesh;
     const QMatrix4x4 &m = entry.transform;
 
+    const std::vector<std::size_t> live = liveVertexIndices(mesh);
     std::vector<int> remap(mesh.vert.size(), -1);
     auto &points = out.points_buffer();
-    int next = 0;
-    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
-        if (mesh.vert[i].IsD())
-            continue;
-        const vcg::Point3f &p = mesh.vert[i].cP();
+    points.allocate(live.size());
+    tf::parallel_for_each(tf::enumerate(tf::make_range(live)), [&](auto pair) {
+        auto &&[at, vi] = pair;
+        remap[vi] = int(at);
+        const vcg::Point3f &p = mesh.vert[vi].cP();
         const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
-        points.emplace_back(w.x(), w.y(), w.z());
-        remap[i] = next++;
-    }
+        points[std::size_t(at)] = tf::make_point(w.x(), w.y(), w.z());
+    }, tf::checked);
 
     const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
-    auto &faces = out.faces_buffer();
-    for (const VCGFace &f : mesh.face) {
-        if (f.IsD() || !base)
-            continue;
-        int corner[3];
-        bool ok = true;
-        for (int k = 0; k < 3; ++k) {
-            const ptrdiff_t raw = f.cV(k) - base;
-            if (raw < 0 || std::size_t(raw) >= remap.size() || remap[std::size_t(raw)] < 0) {
-                ok = false;
-                break;
+    if (!base)
+        return out;
+
+    tf::sequenced_generate(
+        tf::make_sequence_range(mesh.face.size()), out.faces_buffer().data_buffer(),
+        [&](std::size_t fi, tf::buffer<int> &corners) {
+            const VCGFace &f = mesh.face[fi];
+            if (f.IsD())
+                return;
+            int corner[3];
+            for (int k = 0; k < 3; ++k) {
+                const ptrdiff_t raw = f.cV(k) - base;
+                if (raw < 0 || std::size_t(raw) >= remap.size()
+                    || remap[std::size_t(raw)] < 0)
+                    return;
+                corner[k] = remap[std::size_t(raw)];
             }
-            corner[k] = remap[std::size_t(raw)];
-        }
-        if (ok && corner[0] != corner[1] && corner[1] != corner[2] && corner[0] != corner[2])
-            faces.emplace_back(corner[0], corner[1], corner[2]);
-    }
+            if (corner[0] == corner[1] || corner[1] == corner[2] || corner[0] == corner[2])
+                return;
+            corners.push_back(corner[0]);
+            corners.push_back(corner[1]);
+            corners.push_back(corner[2]);
+        },
+        tf::checked);
     return out;
 }
 
@@ -458,11 +433,11 @@ MeshFilterRunResult addResultLayer(
     const std::size_t pointCount = std::size_t(points.size());
     if (pointCount > 0) {
         vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
-        std::size_t vi = 0;
-        for (const auto &p : points) {
-            output.vert[vi].P() = vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
-            ++vi;
-        }
+        tf::parallel_for_each(tf::enumerate(points), [&output](auto pair) {
+            auto &&[vi, p] = pair;
+            output.vert[std::size_t(vi)].P() =
+                vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
+        }, tf::checked);
         for (const auto &face : buffer.faces()) {
             const std::size_t n = std::size_t(face.size());
             for (std::size_t k = 2; k < n; ++k) {
@@ -505,37 +480,6 @@ MeshFilterRunResult addResultLayer(
     result.infoMessages = info;
     result.newMeshIndices.push_back(newIndex);
     return result;
-}
-
-// Append a TrueForm triangle mesh to a VCG mesh, offsetting the indices. Used where one
-// filter emits several pieces — sweeping each path of a polyline, for instance.
-template <typename Buffer>
-void appendTfMeshTo(const Buffer &buffer, VCGMesh &target)
-{
-    const auto points = buffer.points();
-    const std::size_t pointCount = std::size_t(points.size());
-    if (pointCount == 0)
-        return;
-
-    const int offset = target.VN();
-    vcg::tri::Allocator<VCGMesh>::AddVertices(target, int(pointCount));
-    std::size_t vi = 0;
-    for (const auto &p : points) {
-        target.vert[std::size_t(offset) + vi].P() =
-            vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
-        ++vi;
-    }
-    for (const auto &face : buffer.faces()) {
-        const std::size_t n = std::size_t(face.size());
-        for (std::size_t k = 2; k < n; ++k) {
-            const int a = offset + int(face[0]);
-            const int b = offset + int(face[k - 1]);
-            const int c = offset + int(face[k]);
-            if (a == b || b == c || a == c)
-                continue;
-            vcg::tri::Allocator<VCGMesh>::AddFace(target, a, b, c);
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -587,9 +531,10 @@ MeshFilterRunResult runBoolean(const QString &filterId, const FilterParams &para
     try {
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
-        auto result = tf::make_boolean(a.polygons(), b.polygons(), op);
+        auto [mesh, tagLabels, faceLabels] =
+            tf::make_boolean(a.polygons(), b.polygons(), op);
         return addResultLayer(
-            doc, std::get<0>(result), label,
+            doc, mesh, label,
             QObject::tr("The %1 is empty.").arg(label),
             { QObject::tr("'%1' and '%2'.").arg(doc.mesh(aIndex).name, doc.mesh(bIndex).name) });
     } catch (const std::exception &e) {
@@ -814,11 +759,7 @@ MeshFilterRunResult runSymmetricDifference(const FilterParams &params, Document 
     try {
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
-        using FormView = decltype(std::declval<const TfMesh &>().polygons());
-        std::vector<FormView> forms;
-        forms.emplace_back(a.polygons());
-        forms.emplace_back(b.polygons());
-        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()));
+        auto graph = tf::make_csg_graph(a.polygons(), b.polygons());
 
         const tf::csg::expr lhs(0);
         const tf::csg::expr rhs(1);
@@ -866,15 +807,6 @@ MeshFilterRunResult runOuterShell(const FilterParams &params, Document &doc)
 // Curves
 // ---------------------------------------------------------------------------
 
-// The return_curves overloads hand back a tuple whose trailing element is the curves;
-// the leading elements are the cut mesh and per-face provenance, which vary in number by
-// overload and are not surfaced yet.
-template <typename Tuple>
-const auto &curvesOf(const Tuple &result)
-{
-    return std::get<std::tuple_size_v<std::decay_t<Tuple>> - 1>(result);
-}
-
 // Turn a TrueForm curves_buffer into a QMeshLab polyline layer: an edge mesh, which is
 // what the Create Polyline family already produces.
 template <typename Curves>
@@ -889,11 +821,11 @@ MeshFilterRunResult addPolylineLayer(
     std::size_t segmentCount = 0;
     if (pointCount > 0) {
         vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
-        std::size_t vi = 0;
-        for (const auto &p : points) {
-            output.vert[vi].P() = vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
-            ++vi;
-        }
+        tf::parallel_for_each(tf::enumerate(points), [&output](auto pair) {
+            auto &&[vi, p] = pair;
+            output.vert[std::size_t(vi)].P() =
+                vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
+        }, tf::checked);
         for (const auto &path : curves.paths()) {
             const std::size_t n = std::size_t(path.size());
             for (std::size_t k = 1; k < n; ++k) {
@@ -952,8 +884,8 @@ MeshFilterRunResult runSelfIntersectionCurves(const FilterParams &params, Docume
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
         // v0.10.0 replaced embedded_self_intersection_curves with this, which returns the
-        // curves themselves rather than a tuple ending in them -- hence no curvesOf. The
-        // default config is the same primitives | resolve_contours the old entry point used.
+        // curves themselves rather than a tuple ending in them. The default config is the
+        // same primitives | resolve_contours the old entry point used.
         auto curves = tf::make_self_intersection_curves(source.polygons());
         return addPolylineLayer(
             doc, curves, QObject::tr("Self-Intersections"),
@@ -980,10 +912,9 @@ MeshFilterRunResult runIntersectionCurves(const FilterParams &params, Document &
     try {
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
-        auto curves = tf::make_boolean(
-            a.polygons(), b.polygons(), tf::boolean_op::intersection, tf::return_curves);
+        auto curves = tf::make_intersection_curves(a.polygons(), b.polygons());
         return addPolylineLayer(
-            doc, curvesOf(curves), QObject::tr("Intersection Curve"),
+            doc, curves, QObject::tr("Intersection Curve"),
             QObject::tr("The two layers do not intersect."),
             { QObject::tr("'%1' against '%2'.")
                   .arg(doc.mesh(aIndex).name, doc.mesh(bIndex).name) });
@@ -1053,13 +984,12 @@ MeshFilterRunResult runIsocurves(const FilterParams &params, Document &doc)
     doc.beginFilterProgress(QObject::tr("Create Polyline from Scalar Isocontour (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
-        auto curves = tf::embedded_isocurves(
+        auto curves = tf::make_isocontours(
             source.polygons(),
             tf::make_range(scalars.data(), scalars.size()),
-            tf::make_range(cutValues.data(), cutValues.size()),
-            tf::return_curves);
+            tf::make_range(cutValues.data(), cutValues.size()));
         return addPolylineLayer(
-            doc, curvesOf(curves), QObject::tr("Isocontours"),
+            doc, curves, QObject::tr("Isocontours"),
             QObject::tr("No contours were produced at the requested values."),
             { QObject::tr("From '%1'.").arg(doc.mesh(index).name),
               QObject::tr("%1 contour(s) between %2 and %3.")
@@ -1096,15 +1026,11 @@ MeshFilterRunResult runTubeFromPolyline(const FilterParams &params, Document &do
     if (!std::isfinite(radius) || radius <= 0.0)
         return fail(QObject::tr("The radius must be a finite value larger than zero."));
 
-    // Chain the edges into paths. TrueForm sweeps a curve, so a soup of unordered
-    // segments has to be walked into runs first; each vertex may join at most two edges
-    // for the chain to be unambiguous.
     const std::size_t vertexCount = mesh.vert.size();
-    std::vector<std::array<int, 2>> incident(vertexCount, { -1, -1 });
-    std::vector<std::array<int, 2>> edges;
-    edges.reserve(std::size_t(std::max(0, mesh.EN())));
+    tf::buffer<int> edgeIds;
+    edgeIds.reserve(std::size_t(std::max(0, mesh.EN())) * 2);
+    std::vector<int> valence(vertexCount, 0);
     const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
-    int branching = 0;
     for (const auto &e : mesh.edge) {
         if (e.IsD() || !base)
             continue;
@@ -1112,122 +1038,54 @@ MeshFilterRunResult runTubeFromPolyline(const FilterParams &params, Document &do
         const ptrdiff_t v1 = e.cV(1) - base;
         if (v0 < 0 || v1 < 0 || std::size_t(v0) >= vertexCount || std::size_t(v1) >= vertexCount)
             continue;
-        const int id = int(edges.size());
-        edges.push_back({ int(v0), int(v1) });
-        for (int v : { int(v0), int(v1) }) {
-            if (incident[std::size_t(v)][0] < 0)
-                incident[std::size_t(v)][0] = id;
-            else if (incident[std::size_t(v)][1] < 0)
-                incident[std::size_t(v)][1] = id;
-            else
-                ++branching;
-        }
+        edgeIds.push_back(int(v0));
+        edgeIds.push_back(int(v1));
+        ++valence[std::size_t(v0)];
+        ++valence[std::size_t(v1)];
     }
-    if (edges.empty())
+    if (edgeIds.size() == 0)
         return fail(QObject::tr("The layer has no usable edges."));
+
+    int branching = 0;
+    for (int n : valence) {
+        if (n > 2)
+            ++branching;
+    }
 
     doc.beginFilterProgress(QObject::tr("Create Tube from Polyline (TrueForm)"));
 
-    VCGMesh output;
-    std::size_t tubeCount = 0;
     try {
+        tf::curves_buffer<int, float, 3> polyline;
+        polyline.paths_buffer() = tf::connect_edges_to_paths(tf::make_edges(edgeIds));
+
         const QMatrix4x4 &m = entry.transform;
-        std::vector<char> visited(edges.size(), 0);
+        auto &points = polyline.points_buffer();
+        points.allocate(vertexCount);
+        tf::parallel_for_each(tf::make_sequence_range(vertexCount), [&](std::size_t i) {
+            const vcg::Point3f &p = mesh.vert[i].cP();
+            const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
+            points[i] = tf::make_point(w.x(), w.y(), w.z());
+        }, tf::checked);
 
-        // Walk from every endpoint first so open runs come out whole, then mop up loops.
-        const auto walk = [&](int startVertex, int startEdge) {
-            std::vector<int> path{ startVertex };
-            int current = startVertex;
-            int edgeId = startEdge;
-            while (edgeId >= 0 && !visited[std::size_t(edgeId)]) {
-                visited[std::size_t(edgeId)] = 1;
-                const auto &e = edges[std::size_t(edgeId)];
-                const int next = (e[0] == current) ? e[1] : e[0];
-                path.push_back(next);
-                current = next;
-                const auto &inc = incident[std::size_t(current)];
-                edgeId = (inc[0] != -1 && inc[0] != edgeId) ? inc[0]
-                       : (inc[1] != -1 && inc[1] != edgeId) ? inc[1]
-                                                            : -1;
-                if (current == startVertex)
-                    break; // closed loop
-            }
-            return path;
-        };
+        auto tubes = tf::make_tube_mesh(polyline.curves(), float(radius), segments);
 
-        std::vector<std::vector<int>> paths;
-        for (std::size_t v = 0; v < vertexCount; ++v) {
-            const auto &inc = incident[v];
-            const bool endpoint = (inc[0] >= 0) != (inc[1] >= 0);
-            if (endpoint && !visited[std::size_t(inc[0] >= 0 ? inc[0] : inc[1])])
-                paths.push_back(walk(int(v), inc[0] >= 0 ? inc[0] : inc[1]));
+        QStringList info;
+        info << QObject::tr("Swept %1 path(s) from '%2'.")
+                    .arg(polyline.paths_buffer().size()).arg(entry.name);
+        if (branching > 0) {
+            info << QObject::tr(
+                "%1 vertex junction(s) joined more than two edges; the polyline was split "
+                "there rather than branched.").arg(branching);
         }
-        for (std::size_t e = 0; e < edges.size(); ++e) {
-            if (!visited[e])
-                paths.push_back(walk(edges[e][0], int(e)));
-        }
-
-        for (const std::vector<int> &path : paths) {
-            if (path.size() < 2)
-                continue;
-            tf::points_buffer<float, 3> pts;
-            for (int v : path) {
-                const vcg::Point3f &p = mesh.vert[std::size_t(v)].cP();
-                const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
-                pts.emplace_back(w.x(), w.y(), w.z());
-            }
-            tf::curves_buffer<int, float, 3> cb;
-            cb.points_buffer() = pts;
-            std::vector<int> indices(path.size());
-            for (std::size_t i = 0; i < path.size(); ++i)
-                indices[i] = int(i);
-            cb.paths_buffer().push_back(tf::make_range(indices.data(), indices.size()));
-
-            auto tube = tf::make_tube_mesh(cb.curves()[0], float(radius), segments);
-            appendTfMeshTo(tube, output);
-            ++tubeCount;
-        }
+        return addResultLayer(
+            doc, tubes, QObject::tr("Tube"),
+            QObject::tr("The sweep produced no geometry."), info);
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm tube generation failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));
         doc.finishFilterProgress(false, message);
         return fail(message);
     }
-
-    if (output.FN() <= 0) {
-        const QString message = QObject::tr("The sweep produced no geometry.");
-        doc.finishFilterProgress(false, message);
-        return fail(message);
-    }
-
-    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
-    vcg::tri::UpdateBounding<VCGMesh>::Box(output);
-    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
-
-    const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
-    const int newIndex = doc.addMesh(output, QObject::tr("Tube"), ioMask);
-    if (newIndex < 0) {
-        const QString message = QObject::tr("Failed to add the tube layer.");
-        doc.finishFilterProgress(false, message);
-        return fail(message);
-    }
-    doc.finishFilterProgress(true, QObject::tr("Created tube."));
-
-    QStringList info;
-    info << QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name)
-         << QObject::tr("Swept %1 path(s) from '%2'.").arg(tubeCount).arg(entry.name)
-         << QObject::tr("Output: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
-    if (branching > 0) {
-        info << QObject::tr(
-            "%1 vertex junction(s) joined more than two edges; the polyline was split "
-            "there rather than branched.").arg(branching);
-    }
-    MeshFilterRunResult result;
-    result.success = true;
-    result.documentModified = true;
-    result.infoMessages = info;
-    result.newMeshIndices.push_back(newIndex);
-    return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -1281,18 +1139,22 @@ MeshFilterRunResult runSignedDistance(const FilterParams &params, Document &doc)
             | tf::tag(ctx.edgeLink);
 
         Document::MeshEntry &entry = doc.mesh(targetIndex);
-        const QMatrix4x4 &m = entry.transform;
-        for (VCGVertex &v : entry.mesh.vert) {
-            if (v.IsD())
-                continue;
-            const vcg::Point3f &p = v.cP();
-            const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
-            double d = tf::signed_distance(tagged, tf::make_point(w.x(), w.y(), w.z()));
+        const TfPoints queries = worldPoints(entry);
+        tf::buffer<double> distances;
+        distances.allocate(std::size_t(queries.size()));
+        tf::parallel_transform(
+            queries, distances,
+            [&tagged](const auto &q) { return tf::signed_distance(tagged, q); },
+            tf::checked);
+
+        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
+        for (std::size_t i = 0; i < live.size(); ++i) {
+            double d = distances[i];
             if (d < 0.0)
                 ++insideCount;
             if (absolute)
                 d = std::abs(d);
-            v.Q() = float(d);
+            entry.mesh.vert[live[i]].Q() = float(d);
             minDistance = std::min(minDistance, d);
             maxDistance = std::max(maxDistance, d);
         }
@@ -1350,14 +1212,19 @@ MeshFilterRunResult runSelectInsideMesh(const FilterParams &params, Document &do
             | tf::tag(ctx.edgeLink);
 
         Document::MeshEntry &entry = doc.mesh(targetIndex);
-        const QMatrix4x4 &m = entry.transform;
+        const TfPoints queries = worldPoints(entry);
+        tf::buffer<double> distances;
+        distances.allocate(std::size_t(queries.size()));
+        tf::parallel_transform(
+            queries, distances,
+            [&tagged](const auto &q) { return tf::signed_distance(tagged, q); },
+            tf::checked);
+
+        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
         const bool replace = (mode != QStringLiteral("add") && mode != QStringLiteral("subtract"));
-        for (VCGVertex &v : entry.mesh.vert) {
-            if (v.IsD())
-                continue;
-            const vcg::Point3f &p = v.cP();
-            const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
-            const double d = tf::signed_distance(tagged, tf::make_point(w.x(), w.y(), w.z()));
+        for (std::size_t i = 0; i < live.size(); ++i) {
+            VCGVertex &v = entry.mesh.vert[live[i]];
+            const double d = distances[i];
             const bool hit = invert ? (d > 0.0) : (d < 0.0);
             if (replace)
                 hit ? v.SetS() : v.ClearS();
@@ -1449,19 +1316,6 @@ MeshFilterRunResult runChamferDistance(const FilterParams &params, Document &doc
 // ---------------------------------------------------------------------------
 // Smoothing, curvature and normals
 // ---------------------------------------------------------------------------
-
-// tfMeshFromLayer() skips deleted vertices, so the nth TrueForm point is the nth *live*
-// VCG vertex. Results have to be written back through that mapping, not by raw index.
-std::vector<std::size_t> liveVertexIndices(const VCGMesh &mesh)
-{
-    std::vector<std::size_t> live;
-    live.reserve(std::size_t(std::max(0, mesh.VN())));
-    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
-        if (!mesh.vert[i].IsD())
-            live.push_back(i);
-    }
-    return live;
-}
 
 // Connectivity shared by the per-vertex operators. Built once per run; the tags below
 // reference these, so they must outlive the call that uses them.
@@ -1713,12 +1567,13 @@ MeshFilterRunResult replaceLayerGeometry(
     const std::size_t pointCount = std::size_t(points.size());
     if (pointCount > 0) {
         vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
-        std::size_t vi = 0;
-        for (const auto &p : points) {
-            const QVector3D local = inverse.map(QVector3D(float(p[0]), float(p[1]), float(p[2])));
-            output.vert[vi].P() = vcg::Point3f(local.x(), local.y(), local.z());
-            ++vi;
-        }
+        tf::parallel_for_each(tf::enumerate(points), [&output, &inverse](auto pair) {
+            auto &&[vi, p] = pair;
+            const QVector3D local =
+                inverse.map(QVector3D(float(p[0]), float(p[1]), float(p[2])));
+            output.vert[std::size_t(vi)].P() =
+                vcg::Point3f(local.x(), local.y(), local.z());
+        }, tf::checked);
         for (const auto &face : result.faces()) {
             const std::size_t n = std::size_t(face.size());
             for (std::size_t k = 2; k < n; ++k) {
@@ -1859,52 +1714,16 @@ MeshFilterRunResult runOrient(const QString &filterId, const FilterParams &param
     doc.beginFilterProgress(outward ? QObject::tr("Orient Faces Outward (TrueForm)")
                                     : QObject::tr("Orient Faces Consistently (TrueForm)"));
     int flipped = 0;
-    int passes = 0;
-    int remainingInconsistent = 0;
+    bool orientable = false;
     try {
         Document::MeshEntry &entry = doc.mesh(index);
         TfMesh source = tfMeshFromLayer(entry);
 
-        // One call to tf::orient_faces_consistently only partly repairs a badly mixed
-        // winding: it reverses faces in place while indexing an edge link built from the
-        // pre-flip winding, and reversing an n-gon permutes its edge slots (for a
-        // triangle, slots 0 and 1 swap), so later lookups pair the wrong edge with the
-        // wrong peer. Each call rebuilds the link from the current state, so iterating
-        // converges — on a box with alternate faces flipped, 14 inconsistencies go
-        // 8 -> 3 -> 0. Iterate to a fixed point rather than making the user click twice.
-        const auto inconsistentCount = [](const TfMesh &mesh) {
-            std::map<std::pair<int, int>, int> directed;
-            for (const auto &f : mesh.polygons().faces()) {
-                const std::size_t n = std::size_t(f.size());
-                for (std::size_t k = 0; k < n; ++k)
-                    ++directed[{ int(f[k]), int(f[(k + 1) % n]) }];
-            }
-            int bad = 0;
-            for (const auto &entryPair : directed) {
-                if (entryPair.second > 1)
-                    bad += entryPair.second - 1;
-            }
-            return bad;
-        };
-
-        constexpr int kMaxPasses = 8;
-        int previous = inconsistentCount(source);
-        for (int pass = 0; pass < kMaxPasses && previous > 0; ++pass) {
+        {
             auto polys = source.polygons();
-            tf::orient_faces_consistently(polys);
-            const int current = inconsistentCount(source);
-            passes = pass + 1;
-            if (current == 0 || current >= previous)
-                break; // converged, or no longer improving
-            previous = current;
+            orientable = outward ? tf::ensure_positive_orientation(polys)
+                                 : tf::orient_faces_consistently(polys);
         }
-        remainingInconsistent = inconsistentCount(source);
-
-        if (outward) {
-            auto polys = source.polygons();
-            tf::ensure_positive_orientation(polys, /*is_consistent=*/true);
-        }
-
         // Only the winding changed, so the faces are rewritten in place; positions and
         // the vertex numbering are untouched.
         const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
@@ -1954,12 +1773,11 @@ MeshFilterRunResult runOrient(const QString &filterId, const FilterParams &param
     MeshFilterRunResult result;
     result.success = true;
     result.documentModified = true;
-    result.infoMessages << QObject::tr("Reoriented %1 face(s) over %2 pass(es).")
-                               .arg(flipped).arg(passes);
-    if (remainingInconsistent > 0) {
+    result.infoMessages << QObject::tr("Reoriented %1 face(s).").arg(flipped);
+    if (!orientable) {
         result.infoMessages << QObject::tr(
-            "%1 edge(s) remain inconsistently wound; the mesh may be non-orientable.")
-                                   .arg(remainingInconsistent);
+            "The mesh is non-orientable; components without a consistent winding "
+            "were left unchanged.");
     }
     return result;
 }
@@ -1973,34 +1791,46 @@ int selectFaceEdges(
     const std::vector<std::pair<int, int>> &edges,
     bool clearFirst)
 {
-    std::set<std::pair<std::size_t, std::size_t>> wanted;
+    using EdgeKey = std::array<std::size_t, 2>;
+    const auto canonical = [](std::size_t a, std::size_t b) {
+        return a < b ? EdgeKey{a, b} : EdgeKey{b, a};
+    };
+
+    tf::hash_set<EdgeKey, tf::array_hash<std::size_t, 2>> wanted;
+    wanted.reserve(edges.size());
     for (const auto &e : edges) {
         if (e.first < 0 || e.second < 0)
             continue;
         if (std::size_t(e.first) >= live.size() || std::size_t(e.second) >= live.size())
             continue;
-        auto a = live[std::size_t(e.first)];
-        auto b = live[std::size_t(e.second)];
-        wanted.insert(a < b ? std::make_pair(a, b) : std::make_pair(b, a));
+        wanted.insert(canonical(live[std::size_t(e.first)], live[std::size_t(e.second)]));
     }
 
     const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
+    if (!base)
+        return 0;
+
     int marked = 0;
-    for (VCGFace &f : mesh.face) {
-        if (f.IsD() || !base)
-            continue;
-        for (int k = 0; k < 3; ++k) {
-            if (clearFirst)
-                f.ClearFaceEdgeS(k);
-            const auto a = std::size_t(f.cV(k) - base);
-            const auto b = std::size_t(f.cV((k + 1) % 3) - base);
-            const auto key = a < b ? std::make_pair(a, b) : std::make_pair(b, a);
-            if (wanted.count(key)) {
-                f.SetFaceEdgeS(k);
-                ++marked;
+    tf::blocked_reduce(
+        tf::make_sequence_range(mesh.face.size()), marked, int(0),
+        [&](auto &&block, int &local) {
+            for (std::size_t fi : block) {
+                VCGFace &f = mesh.face[fi];
+                if (f.IsD())
+                    continue;
+                for (int k = 0; k < 3; ++k) {
+                    if (clearFirst)
+                        f.ClearFaceEdgeS(k);
+                    const auto key = canonical(std::size_t(f.cV(k) - base),
+                                               std::size_t(f.cV((k + 1) % 3) - base));
+                    if (wanted.count(key)) {
+                        f.SetFaceEdgeS(k);
+                        ++local;
+                    }
+                }
             }
-        }
-    }
+        },
+        [](int local, int &total) { total += local; }, tf::checked);
     return marked;
 }
 
@@ -2072,13 +1902,10 @@ MeshFilterRunResult runRepairSelfIntersections(const FilterParams &params, Docum
     doc.beginFilterProgress(QObject::tr("Repair Self-Intersections (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
-        using FormView = decltype(std::declval<const TfMesh &>().polygons());
-        std::vector<FormView> forms;
-        forms.emplace_back(source.polygons());
-        auto arrangement = tf::make_mesh_arrangements(tf::make_range(forms.data(), forms.size()));
+        auto [mesh, faceLabels] = tf::make_polygon_arrangements(source.polygons());
 
         return addResultLayer(
-            doc, std::get<0>(arrangement), QObject::tr("Resolved"),
+            doc, mesh, QObject::tr("Resolved"),
             QObject::tr("The arrangement is empty."),
             { QObject::tr("Resolved self-intersections of '%1'.").arg(doc.mesh(index).name) });
     } catch (const std::exception &e) {
@@ -2128,26 +1955,19 @@ MeshFilterRunResult runCutAlongIsocontour(const FilterParams &params, Document &
         const double t = (double(i) + 1.0) / (double(count) + 1.0);
         cutValues.push_back(float(double(lo) + t * (double(hi) - double(lo))));
     }
-    // N cut values partition the range into N+1 bands; keep all of them, so the result is
-    // the whole surface, cut rather than filtered.
-    std::vector<int> bands(std::size_t(count) + 1);
-    for (std::size_t i = 0; i < bands.size(); ++i)
-        bands[i] = int(i);
-
     doc.beginFilterProgress(QObject::tr("Cut Along Scalar Isocontour (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
-        auto banded = tf::make_isobands(
+        auto [mesh, labels, faceLabels] = tf::embedded_isocurves(
             source.polygons(),
             tf::make_range(scalars.data(), scalars.size()),
-            tf::make_range(cutValues.data(), cutValues.size()),
-            tf::make_range(bands.data(), bands.size()));
+            tf::make_range(cutValues.data(), cutValues.size()));
         return addResultLayer(
-            doc, std::get<0>(banded), QObject::tr("Isobands"),
+            doc, mesh, QObject::tr("Isobands"),
             QObject::tr("Cutting produced no faces."),
             { QObject::tr("From '%1'.").arg(doc.mesh(index).name),
               QObject::tr("%1 contour(s), %2 band(s), between %3 and %4.")
-                  .arg(count).arg(bands.size())
+                  .arg(count).arg(count + 1)
                   .arg(QString::number(double(lo), 'g', 6))
                   .arg(QString::number(double(hi), 'g', 6)) });
     } catch (const std::exception &e) {
