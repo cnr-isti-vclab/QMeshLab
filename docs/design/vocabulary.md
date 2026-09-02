@@ -416,6 +416,7 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Rename` | Change the label of a layer or raster | `Relabel`. `Set` would have covered it and matches the ids, but *rename* is the word a user searches for |
 | `Render` | Produce an image from the scene | `Draw`, `Snapshot`, `Screenshot` — and not `Create`, which produces a layer |
 | `Defragment` | Reduce the fragmentation of a texture atlas by merging compatible charts and resampling | Admitted **narrowly**, for that alone. It is the term of the paper the filter implements (Maggiordomo et al. 2021); `Merge` describes only half of it, and `Pack` means arranging charts rather than merging them |
+| `Estimate` | Report a result that is explicitly statistical or approximate, where the approximation is something the user needs to know about | Admitted **narrowly**. `Compute` wins wherever the result is exact; the footnote below states the same rule and is where the ratified set ends |
 
 **Attribute-editing verbs**, admitted as a closed group of standard image and signal
 operations, each keeping its ordinary meaning: `Normalize`, `Adjust`, `Clamp`, `Invert`,
@@ -563,6 +564,10 @@ Verb Object [(Backend)]
 Expression*), `from` for the source (*Compute Geodesic Distance from Border*), `to` for
 the destination (*Convert to Pure Triangles*). Prefer `by` for "how", and keep the
 phrase readable rather than mechanically short.
+
+`for` names the class of input a specialised variant is built for, distinguishing it
+from the general filter: *Measure Topological Properties for Quad Mesh* beside
+*Measure Topological Properties* (2026-09-01).
 
 `with` is admitted as a fourth connector, for an *additional output* a filter also
 produces: *Parametrize from Registered Rasters with Texture* beside *Parametrize from

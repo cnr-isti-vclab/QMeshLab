@@ -380,7 +380,7 @@
     {
       "id": "get_overlapping_meshes_graph",
       "categories": ["Measurement/Geometric"],
-      "name": "Overlapping Meshes",
+      "name": "Measure Layer Overlap",
       "pythonName": "get_overlapping_meshes_graph",
       "shortDescription": "Report which mesh layers overlap in an occupancy grid.",
       "longDescriptionMarkdown": "Voxelize all mesh layers into an occupancy grid and report the pairs that occupy common cells. This is an information filter and does not modify the document.",

@@ -1215,3 +1215,90 @@ All settled (2026-09-01).
 `Parametrization` was added to `appliedRoots`. Verified to discriminate: restoring
 *Small Islands Remover* fails the guard with
 `leading word 'Small' is not in the lexicon`.
+
+# Round 9 — `Measurement` (14 filters)
+
+**Applied 2026-09-01.** 13 renamed, 1 already conformant. One further filter carries
+`Measurement` as a *secondary* category (*Create Plane from Selection*) and belongs to
+its own round.
+
+The round turns on a distinction §3 already draws and nothing had enforced: **`Measure`
+reports values without modifying, `Compute` calculates and stores an attribute**.
+`outputModifies` settles it filter by filter, and exactly one of the fourteen stores
+anything.
+
+## Measurement/Geometric (6)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Compute Area/Perimeter of Selection | **Measure Selection Area and Perimeter** | `measure_selection_area_and_perimeter` |
+| Compute Geometric Measures | **Measure Geometric Properties** | `measure_geometric_properties` |
+| Hausdorff Distance | **Measure Hausdorff Distance** | `measure_hausdorff_distance` |
+| Overlapping Meshes | **Measure Layer Overlap** | `measure_layer_overlap` |
+| Distance from Reference Mesh | **Compute Distance from Reference Mesh** | `compute_distance_from_reference_mesh` |
+| Measure Chamfer Distance (TrueForm) | *unchanged* | |
+
+*Distance from Reference Mesh* is the one `Compute`: it declares `outputModifies: ["VQ"]`
+and writes the distance into vertex quality. *Hausdorff Distance* reports statistics and
+produces sample layers only as an optional by-product, so it stays `Measure`.
+
+The `/` in *Area/Perimeter* was never a connector, and rewriting that name removed the
+last real use of `of` in any shipped name — the only other occurrence sits inside the
+fixed phrase *line of sight*. No new connector was needed for it.
+
+## Measurement/Statistics (5)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Estimate radius from density | **Estimate Radius from Density** | `estimate_radius_from_density` |
+| Per Face Quality Histogram | **Measure Face Scalar Histogram** | `measure_face_scalar_histogram` |
+| Per Face Quality Stat | **Measure Face Scalar Statistics** | `measure_face_scalar_statistics` |
+| Per Vertex Quality Histogram | **Measure Vertex Scalar Histogram** | `measure_vertex_scalar_histogram` |
+| Per Vertex Quality Stat | **Measure Vertex Scalar Statistics** | `measure_vertex_scalar_statistics` |
+
+`Quality` → `Scalar` is §4; `Stat` is an abbreviation §5 does not carry.
+
+## Measurement/Topological (3)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Compute Topological Measures | **Measure Topological Properties** | `measure_topological_properties` |
+| Compute Topological Measures for Quad Meshes | **Measure Topological Properties for Quad Mesh** | `measure_topological_properties_for_quad_mesh` |
+| Current Mesh Info | **Measure Mesh Summary** | `measure_mesh_summary` |
+
+`Info` is a rejected synonym of `Measure`. "Measures" could not survive beside the verb,
+so the pair became "Properties"; keeping the two parallel is what promoted `for` to a
+connector rather than splitting them into differently shaped names.
+
+## A defect the round exposed
+
+**The vocabulary permitted `Estimate` and the guard rejected it.** §3 admitted it in the
+footnote below the table — *"permitted only when the result is explicitly statistical or
+approximate"* — and that footnote's own worked example is *Estimate Radius from Density*,
+this exact filter. But the ratified set is defined as everything **above** that footnote,
+which is where round 6's guard truncates, so the parser saw 55 verbs and `Estimate` was
+not one of them.
+
+Doc and enforcement had disagreed since the truncation landed, and nothing caught it
+because no shipped filter led with `Estimate`. It now has a table row of its own, above
+the footnote; the footnote stays, because it is also the marker the guard truncates on.
+
+## Connector added
+
+`for` names the class of input a specialised variant is built for, distinguishing it from
+the general filter: *Measure Topological Properties for Quad Mesh* beside *Measure
+Topological Properties*. Like `with` in round 8, it arrived with exactly one user.
+
+## Rulings
+
+All settled (2026-09-01).
+
+1. ~~"Properties" or "Geometry"/"Topology" as the object?~~ **Properties.**
+2. ~~The quad variant breaks the parallel with its sibling.~~ **`for Quad Mesh`**, which
+   admitted `for`.
+
+## Enforcement
+
+`Measurement` was added to `appliedRoots`. Verified to discriminate: restoring
+*Current Mesh Info* fails the guard with
+`leading word 'Current' is not in the lexicon`.

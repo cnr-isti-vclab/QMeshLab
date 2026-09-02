@@ -1148,7 +1148,7 @@ void FilterTests::hausdorffRunsOnTransientMeshCopies()
     QVERIFY(savedResult.documentModified);
     QCOMPARE(doc.meshCount(), meshCountBeforeSamples + 2);
     QCOMPARE(doc.undoTreeInfo().size(), historySize + 1);
-    QCOMPARE(doc.undoText(), QStringLiteral("Hausdorff Distance"));
+    QCOMPARE(doc.undoText(), QStringLiteral("Measure Hausdorff Distance"));
     const auto savedActions = doc.undoNodeScriptActions(doc.undoCurrentNodeId());
     QCOMPARE(int(std::count_if(
         savedActions.begin(), savedActions.end(),
@@ -4482,7 +4482,8 @@ void FilterTests::displayNamesLeadWithALexiconVerb()
         QStringLiteral("Meshing"), QStringLiteral("Attribute"),
         QStringLiteral("Creation"), QStringLiteral("Geometry"),
         QStringLiteral("Selection"), QStringLiteral("Repair"),
-        QStringLiteral("Document"), QStringLiteral("Parametrization")
+        QStringLiteral("Document"), QStringLiteral("Parametrization"),
+        QStringLiteral("Measurement")
     };
 
     Document probe;

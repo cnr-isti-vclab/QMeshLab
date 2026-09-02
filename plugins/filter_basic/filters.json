@@ -4,7 +4,7 @@
     {
       "id": "mesh_info",
       "categories": ["Measurement/Topological"],
-      "name": "Current Mesh Info",
+      "name": "Measure Mesh Summary",
       "pythonName": "get_info",
       "shortDescription": "Prints a compact summary for the current mesh.",
       "longDescriptionMarkdown": "Outputs vertex/edge/face counts and bounding-box metrics for the current mesh.",

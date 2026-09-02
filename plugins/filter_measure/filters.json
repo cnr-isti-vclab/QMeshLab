@@ -4,7 +4,7 @@
     {
       "id": "compute_topological_measures",
       "categories": ["Measurement/Topological"],
-      "name": "Compute Topological Measures",
+      "name": "Measure Topological Properties",
       "pythonName": "compute_topological_measures",
       "shortDescription": "Compute a set of topological measures over a mesh.",
       "longDescriptionMarkdown": "Compute a set of topological measures over a mesh.",
@@ -24,7 +24,7 @@
     {
       "id": "compute_topological_measures_quad_meshes",
       "categories": ["Measurement/Topological"],
-      "name": "Compute Topological Measures for Quad Meshes",
+      "name": "Measure Topological Properties for Quad Mesh",
       "pythonName": "compute_topological_measures_quad",
       "shortDescription": "Compute a set of topological measures over a quad mesh.",
       "longDescriptionMarkdown": "Compute a set of topological measures over a quad mesh.",
@@ -43,7 +43,7 @@
     {
       "id": "compute_geometric_measures",
       "categories": ["Measurement/Geometric"],
-      "name": "Compute Geometric Measures",
+      "name": "Measure Geometric Properties",
       "pythonName": "compute_geometric_measures",
       "shortDescription": "Compute a set of geometric measures of a mesh or point cloud.",
       "longDescriptionMarkdown": "Compute a set of geometric measures of a mesh/pointcloud. Bounding box extents and diagonal, principal axis, thin shell barycenter (mesh only), vertex barycenter and quality-weighted barycenter (pointcloud only), surface area (mesh only), volume (closed mesh) and inertia tensor matrix (closed mesh).",
@@ -58,7 +58,7 @@
     {
       "id": "compute_area_perimeter_selection",
       "categories": ["Measurement/Geometric"],
-      "name": "Compute Area/Perimeter of Selection",
+      "name": "Measure Selection Area and Perimeter",
       "pythonName": "compute_selection_area_perimeter",
       "shortDescription": "Compute area and perimeter of the face selection.",
       "longDescriptionMarkdown": "Compute area and perimeter of the FACE selection.",
@@ -76,7 +76,7 @@
     {
       "id": "per_vertex_quality_stat",
       "categories": ["Measurement/Statistics"],
-      "name": "Per Vertex Quality Stat",
+      "name": "Measure Vertex Scalar Statistics",
       "pythonName": "compute_vertex_quality_stat",
       "shortDescription": "Compute aggregate statistics over per-vertex quality.",
       "longDescriptionMarkdown": "Compute some aggregate statistics over the per vertex quality, like Min, Max, Average, StdDev and Variance.",
@@ -92,7 +92,7 @@
     {
       "id": "per_face_quality_stat",
       "categories": ["Measurement/Statistics"],
-      "name": "Per Face Quality Stat",
+      "name": "Measure Face Scalar Statistics",
       "pythonName": "compute_face_quality_stat",
       "shortDescription": "Compute aggregate statistics over per-face quality.",
       "longDescriptionMarkdown": "Compute some aggregate statistics over the per face quality, like Min, Max, Average, StdDev and Variance.",
@@ -108,7 +108,7 @@
     {
       "id": "per_vertex_quality_histogram",
       "categories": ["Measurement/Statistics"],
-      "name": "Per Vertex Quality Histogram",
+      "name": "Measure Vertex Scalar Histogram",
       "pythonName": "compute_vertex_quality_histogram",
       "shortDescription": "Compute a histogram of per-vertex quality values.",
       "longDescriptionMarkdown": "Compute an histogram of the values of the per-vertex quality. It can be useful to evaluate the distribution of the quality value over the surface. It can be discrete (e.g. based on vertex count or area weighted).",
@@ -161,7 +161,7 @@
     {
       "id": "per_face_quality_histogram",
       "categories": ["Measurement/Statistics"],
-      "name": "Per Face Quality Histogram",
+      "name": "Measure Face Scalar Histogram",
       "pythonName": "compute_face_quality_histogram",
       "shortDescription": "Compute a histogram of per-face quality values.",
       "longDescriptionMarkdown": "Compute an histogram of the values of the per-face quality.",

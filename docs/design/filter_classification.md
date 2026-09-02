@@ -250,7 +250,7 @@ That was the main finding of this pass.
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Current Mesh Info | `basic` | `Measurement/Topological` |  |
+| Measure Mesh Summary | `basic` | `Measurement/Topological` |  |
 
 ### `Layer` (14)
 
@@ -286,7 +286,7 @@ That was the main finding of this pass.
 |---|---|---|---|
 | Compute Curvature (APSS) | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
 | Compute Curvature (RIMLS) | `mls` | `Attribute/Curvature` | <sub>touches: scalar</sub> |
-| Estimate radius from density | `mls` | `Measurement/Statistics` |  |
+| Estimate Radius from Density | `mls` | `Measurement/Statistics` |  |
 | MLS projection (APSS) | `mls` | `Geometry/Smoothing` |  |
 | MLS projection (RIMLS) | `mls` | `Geometry/Smoothing` |  |
 | Reconstruct Surface by Marching Cubes (APSS) | `mls` | `Creation/Reconstruction` |  |
@@ -297,20 +297,20 @@ That was the main finding of this pass.
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Compute Area/Perimeter of Selection | `measure` | `Measurement/Geometric` |  |
-| Compute Geometric Measures | `measure` | `Measurement/Geometric` |  |
-| Compute Topological Measures | `measure` | `Measurement/Topological` |  |
-| Compute Topological Measures for Quad Meshes | `measure` | `Measurement/Topological` |  |
-| Overlapping Meshes | `icp` | `Measurement/Geometric` |  |
+| Measure Selection Area and Perimeter | `measure` | `Measurement/Geometric` |  |
+| Measure Geometric Properties | `measure` | `Measurement/Geometric` |  |
+| Measure Topological Properties | `measure` | `Measurement/Topological` |  |
+| Measure Topological Properties for Quad Mesh | `measure` | `Measurement/Topological` |  |
+| Measure Layer Overlap | `icp` | `Measurement/Geometric` |  |
 
 ### `Measure/Quality` (4)
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Per Face Quality Histogram | `measure` | `Measurement/Statistics` |  |
-| Per Face Quality Stat | `measure` | `Measurement/Statistics` |  |
-| Per Vertex Quality Histogram | `measure` | `Measurement/Statistics` |  |
-| Per Vertex Quality Stat | `measure` | `Measurement/Statistics` |  |
+| Measure Face Scalar Histogram | `measure` | `Measurement/Statistics` |  |
+| Measure Face Scalar Statistics | `measure` | `Measurement/Statistics` |  |
+| Measure Vertex Scalar Histogram | `measure` | `Measurement/Statistics` |  |
+| Measure Vertex Scalar Statistics | `measure` | `Measurement/Statistics` |  |
 
 ### `Meshing` (38)
 
@@ -441,8 +441,8 @@ That was the main finding of this pass.
 |---|---|---|---|
 | Sample Vertices by Clustering | `sampling` | `Creation/Sampling` |  |
 | Colorize Vertices by Disk Distance | `sampling` | `Attribute/Color` | <sub>touches: scalar</sub> |
-| Distance from Reference Mesh | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures <sub>touches: scalar</sub> |
-| Hausdorff Distance | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures |
+| Compute Distance from Reference Mesh | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures <sub>touches: scalar</sub> |
+| Measure Hausdorff Distance | `sampling` | `Measurement/Geometric` · `Attribute/Scalar` | **mis-filed** - it measures |
 | Sample Mesh Elements | `sampling` | `Creation/Sampling` |  |
 | Sample Surface by Monte Carlo | `sampling` | `Creation/Sampling` |  |
 | Point Cloud Simplification | `sampling` | `Meshing/Simplification` | **mis-filed** as Sampling |
