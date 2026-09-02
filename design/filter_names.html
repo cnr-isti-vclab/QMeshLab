@@ -2821,6 +2821,228 @@ admitted <code class="docutils literal notranslate"><span class="pre">for</span>
 <code class="docutils literal notranslate"><span class="pre">leading</span> <span class="pre">word</span> <span class="pre">'Current'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">lexicon</span></code>.</p>
 </section>
 </section>
+<section class="tex2jax_ignore mathjax_ignore" id="round-10-transfer-13-filters">
+<h1>Round 10 — <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13 filters)<a class="headerlink" href="#round-10-transfer-13-filters" title="Link to this heading">¶</a></h1>
+<p><strong>Applied 2026-09-01.</strong> All 13 renamed, and the three subcategories renamed and
+remembered with them. Nine names carried the <code class="docutils literal notranslate"><span class="pre">Verb:</span></code> colon form the guard rejects
+outright, three led with <code class="docutils literal notranslate"><span class="pre">Project</span></code>, and one was a verbless noun phrase.</p>
+<p>Every name collapses onto one shape: <strong><code class="docutils literal notranslate"><span class="pre">Transfer</span> <span class="pre">&lt;attribute&gt;</span> <span class="pre">from</span> <span class="pre">&lt;source&gt;</span> <span class="pre">to</span> <span class="pre">&lt;target&gt;</span></code></strong>.</p>
+<section id="transfer-from-rasters-3-was-raster-to-mesh">
+<h2>Transfer/From Rasters (3, was <code class="docutils literal notranslate"><span class="pre">Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>)<a class="headerlink" href="#transfer-from-rasters-3-was-raster-to-mesh" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Project Current Raster Color to Current Mesh</p></td>
+<td><p><strong>Transfer Color from Current Raster to Vertex</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_current_raster_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Project Active Rasters Color to Current Mesh</p></td>
+<td><p><strong>Transfer Color from Visible Rasters to Vertex</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_visible_rasters_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Project Active Rasters Color to Current Mesh Texture</p></td>
+<td><p><strong>Transfer Color from Visible Rasters to Texture</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_visible_rasters_to_texture</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>No ruling was needed: §3 settles it outright — <em>“<code class="docutils literal notranslate"><span class="pre">Transfer</span></code>, not <code class="docutils literal notranslate"><span class="pre">Project</span></code>. <code class="docutils literal notranslate"><span class="pre">Project</span></code>
+described only the raster sub-case.”</em> <code class="docutils literal notranslate"><span class="pre">Project</span></code> was later readmitted, but only for moving
+<em>vertices</em> onto geometry, and these move colour. “Active” → “Visible” follows the
+descriptions, which already said “all visible rasters”.</p>
+</section>
+<section id="transfer-within-a-mesh-7-was-mesh-to-mesh">
+<h2>Transfer/Within a Mesh (7, was <code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>)<a class="headerlink" href="#transfer-within-a-mesh-7-was-mesh-to-mesh" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Transfer Color: Vertex to Face</p></td>
+<td><p><strong>Transfer Color from Vertex to Face</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_vertex_to_face</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color: Mesh to Face</p></td>
+<td><p><strong>Transfer Color from Mesh to Face</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_mesh_to_face</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Color: Face to Vertex</p></td>
+<td><p><strong>Transfer Color from Face to Vertex</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_face_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Color: Texture to Vertex</p></td>
+<td><p><strong>Transfer Color from Texture to Vertex</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_texture_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer Quality: Vertex to Face</p></td>
+<td><p><strong>Transfer Scalar from Vertex to Face</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_scalar_from_vertex_to_face</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer Quality: Face to Vertex</p></td>
+<td><p><strong>Transfer Scalar from Face to Vertex</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_scalar_from_face_to_vertex</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer: Vertex Color to Texture</p></td>
+<td><p><strong>Transfer Color from Vertex to Texture</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_vertex_to_texture</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Quality</span></code> → <code class="docutils literal notranslate"><span class="pre">Scalar</span></code> is §4; the ids already said <code class="docutils literal notranslate"><span class="pre">compute_scalar_transfer_…</span></code>, so only the
+label had lagged.</p>
+</section>
+<section id="transfer-between-layers-3-was-attribute-to-texture">
+<h2>Transfer/Between Layers (3, was <code class="docutils literal notranslate"><span class="pre">Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code>)<a class="headerlink" href="#transfer-between-layers-3-was-attribute-to-texture" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Vertex Attribute Transfer</p></td>
+<td><p><strong>Transfer Vertex Attributes by Closest Point</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_vertex_attributes_by_closest_point</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Transfer: Texture to Vertex Color</p></td>
+<td><p><strong>Transfer Color from Texture to Vertex by Closest Point</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_color_from_texture_to_vertex_by_closest_point</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transfer: Vertex Attributes to Texture</p></td>
+<td><p><strong>Transfer Vertex Attributes to Texture by Closest Point</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">transfer_vertex_attributes_to_texture_by_closest_point</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="the-subcategories-now-name-what-supplies-the-correspondence">
+<h2>The subcategories now name what supplies the correspondence<a class="headerlink" href="#the-subcategories-now-name-what-supplies-the-correspondence" title="Link to this heading">¶</a></h2>
+<p>The old split mixed axes — <code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> beside <code class="docutils literal notranslate"><span class="pre">Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code> — and six of the
+seven filters under <code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> never went mesh to mesh at all: they moved an attribute
+between elements of a <em>single</em> mesh. The distinction that actually matters is whether a
+correspondence has to be constructed:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Subcategory</p></th>
+<th class="head"><p>What supplies the correspondence</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code></p></td>
+<td><p>The mesh’s own incidence. A face already knows its vertices; nothing is chosen and nothing can be wrong</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Between</span> <span class="pre">Layers</span></code></p></td>
+<td><p>A computed match between two layers — closest point on the source surface, bounded by <code class="docutils literal notranslate"><span class="pre">upperBound</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">From</span> <span class="pre">Rasters</span></code></p></td>
+<td><p>The raster’s camera</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Membership follows the parameter signature, not the name: exactly three filters carry
+<code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code>/<code class="docutils literal notranslate"><span class="pre">targetMesh</span></code>/<code class="docutils literal notranslate"><span class="pre">upperBound</span></code>, and those three are <code class="docutils literal notranslate"><span class="pre">Between</span> <span class="pre">Layers</span></code>. Two of them
+had been filed under <code class="docutils literal notranslate"><span class="pre">Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code>, and <em>Transfer: Vertex Color to Texture</em> — same
+mesh, no source/target pair — had been filed with them; all three moved.</p>
+<p><code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Closest</span> <span class="pre">Point</span></code> names that mechanism on the three cross-layer filters. It is the
+standard term for what they do, it explains what <code class="docutils literal notranslate"><span class="pre">upperBound</span></code> bounds, and it avoids
+overloading <code class="docutils literal notranslate"><span class="pre">Project</span></code>, which §3 keeps for moving vertices onto geometry.</p>
+<p>“Domain” was considered and rejected for the subcategory names: §2 already rules that
+<code class="docutils literal notranslate"><span class="pre">inputDomain</span></code>/<code class="docutils literal notranslate"><span class="pre">outputDomain</span></code> mean <em>document scope</em>, so the word is spoken for. “Between
+Elements” fails too, because a texture is not one of §4’s elements.</p>
+</section>
+<section id="id23">
+<h2>Rulings<a class="headerlink" href="#id23" title="Link to this heading">¶</a></h2>
+<p>All settled (2026-09-01).</p>
+<ol class="arabic simple">
+<li><p>~~How to mark the cross-layer three?~~ <strong><code class="docutils literal notranslate"><span class="pre">by</span> <span class="pre">Closest</span> <span class="pre">Point</span></code></strong>, over <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">Another</span> <span class="pre">Layer</span></code>: less short, more true, and it names the mechanism rather than the arity.</p></li>
+<li><p>~~<code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> misdescribes its contents.~~ <strong>Subcategories renamed</strong> to
+<code class="docutils literal notranslate"><span class="pre">Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> / <code class="docutils literal notranslate"><span class="pre">Between</span> <span class="pre">Layers</span></code> / <code class="docutils literal notranslate"><span class="pre">From</span> <span class="pre">Rasters</span></code>, and three filters re-homed.
+<code class="docutils literal notranslate"><span class="pre">Same</span> <span class="pre">Mesh</span></code> was the runner-up to <code class="docutils literal notranslate"><span class="pre">Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>; the prepositional form pairs with
+<code class="docutils literal notranslate"><span class="pre">Between</span> <span class="pre">Layers</span></code> as an inside/outside pair, which <code class="docutils literal notranslate"><span class="pre">Same</span> <span class="pre">Mesh</span></code> does not.</p></li>
+</ol>
+</section>
+<section id="id24">
+<h2>Enforcement<a class="headerlink" href="#id24" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Transfer</span></code> was added to <code class="docutils literal notranslate"><span class="pre">appliedRoots</span></code>. Verified to discriminate: restoring
+<em>Vertex Attribute Transfer</em> fails the guard with
+<code class="docutils literal notranslate"><span class="pre">leading</span> <span class="pre">word</span> <span class="pre">'Vertex'</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">lexicon</span></code>.</p>
+</section>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="round-11-texture-3-filters">
+<h1>Round 11 — <code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3 filters)<a class="headerlink" href="#round-11-texture-3-filters" title="Link to this heading">¶</a></h1>
+<p><strong>Applied 2026-09-01.</strong> 1 renamed, 2 already conformant. The last round of pass 1.</p>
+<p>Eight further filters carry a bare <code class="docutils literal notranslate"><span class="pre">Texture</span></code> as a <em>secondary</em> category — the raster
+transfers, the defragmentation pair, <em>Pack UV Charts</em>, <em>Simplify by Quadric Edge Collapse
+with Texture (vcglib)</em> — and were renamed by their own rounds.</p>
+<section id="texture-conversion-1">
+<h2>Texture/Conversion (1)<a class="headerlink" href="#texture-conversion-1" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Proposed</p></th>
+<th class="head"><p>Python (pass 2)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Convert: Object-Space Normal Map to Tangent-Space</p></td>
+<td><p><strong>Convert Object-Space Normal Map to Tangent Space</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">convert_object_space_normal_map_to_tangent_space</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The last <code class="docutils literal notranslate"><span class="pre">Verb:</span></code> colon name in the archive. <code class="docutils literal notranslate"><span class="pre">Convert</span></code> was already the right verb and <code class="docutils literal notranslate"><span class="pre">to</span></code>
+already the right connector; only the colon had to go. The trailing hyphen goes with it:
+<em>object-space</em> is a compound adjective adjacent to the noun it modifies and keeps its
+hyphen, while <em>to tangent space</em> is a prepositional phrase and never needed one.</p>
+</section>
+<section id="texture-assignment-and-texture-packing-2">
+<h2>Texture/Assignment and Texture/Packing (2)<a class="headerlink" href="#texture-assignment-and-texture-packing-2" title="Link to this heading">¶</a></h2>
+<p><em>Set Texture</em> and <em>Pack Texture Images</em> were already conformant.</p>
+</section>
+<section id="a-lexicon-entry-corrected">
+<h2>A lexicon entry corrected<a class="headerlink" href="#a-lexicon-entry-corrected" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Pack</span></code> was defined as “Arrange UV charts in an atlas”, but <em>Pack Texture Images</em> arranges
+whole images, not charts — the entry under-described its own shipped user, and had done
+since it was written. It now reads “Arrange UV charts, or whole texture images, into an
+atlas”. The two filters now form a pair distinguished only by their object, which is what
+the grammar is for: <strong>Pack UV Charts</strong> beside <strong>Pack Texture Images</strong>.</p>
+</section>
+<section id="id25">
+<h2>Enforcement<a class="headerlink" href="#id25" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Texture</span></code> was added to <code class="docutils literal notranslate"><span class="pre">appliedRoots</span></code>, completing the set: all eleven roots are now
+checked on every build. Verified to discriminate: restoring
+<em>Convert: Object-Space Normal Map to Tangent-Space</em> fails the guard with
+<code class="docutils literal notranslate"><span class="pre">repeats</span> <span class="pre">the</span> <span class="pre">category</span> <span class="pre">with</span> <span class="pre">a</span> <span class="pre">colon</span></code> — the colon branch of the check, which no earlier
+round had exercised on its own.</p>
+</section>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="pass-1-complete">
+<h1>Pass 1 complete<a class="headerlink" href="#pass-1-complete" title="Link to this heading">¶</a></h1>
+<p>All 328 filters across 11 roots carry a display name that leads with a ratified verb and
+follows <code class="docutils literal notranslate"><span class="pre">Verb</span> <span class="pre">Object</span> <span class="pre">[(Backend)]</span></code>. The lexicon closed at 56 verbs and 5 connectors
+(<code class="docutils literal notranslate"><span class="pre">by</span></code>, <code class="docutils literal notranslate"><span class="pre">from</span></code>, <code class="docutils literal notranslate"><span class="pre">to</span></code>, <code class="docutils literal notranslate"><span class="pre">with</span></code>, <code class="docutils literal notranslate"><span class="pre">for</span></code>).</p>
+<p>Ids and <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s are untouched by design and are pass 2: <strong>250 of 328 <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s
+and 280 of 328 ids</strong> no longer match their display name, plus parameter ids on top.</p>
+</section>
 
         </article>
       </div>
@@ -2961,6 +3183,23 @@ admitted <code class="docutils literal notranslate"><span class="pre">for</span>
 <li><a class="reference internal" href="#id22">Enforcement</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#round-10-transfer-13-filters">Round 10 — <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13 filters)</a><ul>
+<li><a class="reference internal" href="#transfer-from-rasters-3-was-raster-to-mesh">Transfer/From Rasters (3, was <code class="docutils literal notranslate"><span class="pre">Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>)</a></li>
+<li><a class="reference internal" href="#transfer-within-a-mesh-7-was-mesh-to-mesh">Transfer/Within a Mesh (7, was <code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>)</a></li>
+<li><a class="reference internal" href="#transfer-between-layers-3-was-attribute-to-texture">Transfer/Between Layers (3, was <code class="docutils literal notranslate"><span class="pre">Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code>)</a></li>
+<li><a class="reference internal" href="#the-subcategories-now-name-what-supplies-the-correspondence">The subcategories now name what supplies the correspondence</a></li>
+<li><a class="reference internal" href="#id23">Rulings</a></li>
+<li><a class="reference internal" href="#id24">Enforcement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#round-11-texture-3-filters">Round 11 — <code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3 filters)</a><ul>
+<li><a class="reference internal" href="#texture-conversion-1">Texture/Conversion (1)</a></li>
+<li><a class="reference internal" href="#texture-assignment-and-texture-packing-2">Texture/Assignment and Texture/Packing (2)</a></li>
+<li><a class="reference internal" href="#a-lexicon-entry-corrected">A lexicon entry corrected</a></li>
+<li><a class="reference internal" href="#id25">Enforcement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pass-1-complete">Pass 1 complete</a></li>
 </ul>
 
           </div>

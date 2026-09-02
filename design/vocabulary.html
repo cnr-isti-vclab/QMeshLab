@@ -379,8 +379,8 @@ validates against; this table mirrors it and must be updated together with it.</
 <td><p>Creates or edits texture images</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code></p></td>
-<td><p>Moves data between existing domains, layers or rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Between</span> <span class="pre">Layers</span></code> · <code class="docutils literal notranslate"><span class="pre">From</span> <span class="pre">Rasters</span></code></p></td>
+<td><p>Moves an attribute to another element, layer or raster. The subcategory names what supplies the correspondence: a mesh’s own incidence, a computed match between two layers, or a raster’s camera</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Measurement</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Topological</span></code> · <code class="docutils literal notranslate"><span class="pre">Statistics</span></code></p></td>
@@ -601,7 +601,7 @@ with <code class="docutils literal notranslate"><span class="pre">embree</span><
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Raster</span></code></p></td>
 <td><p>5</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> (color projection) · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> (coverage count)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code> (color projection) · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> (coverage count)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Remeshing</span></code></p></td>
 <td><p>8</p></td>
@@ -633,7 +633,7 @@ with <code class="docutils literal notranslate"><span class="pre">embree</span><
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
 <td><p>16</p></td>
-<td><p><em>split</em> — <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> (Voronoi Atlas, Flat Plane, Trivial Per-Triangle) · <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code> (PerWedge↔PerVertex) · <code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code> (+<code class="docutils literal notranslate"><span class="pre">Texture</span></code> secondary) · <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code> (Set Texture) · <code class="docutils literal notranslate"><span class="pre">Texture/Conversion</span></code> (normal-map) · <code class="docutils literal notranslate"><span class="pre">Texture/Packing</span></code> (Pack Texture Images) · <code class="docutils literal notranslate"><span class="pre">Transfer/Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code> (the three Transfer filters)</p></td>
+<td><p><em>split</em> — <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> (Voronoi Atlas, Flat Plane, Trivial Per-Triangle) · <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code> (PerWedge↔PerVertex) · <code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code> (+<code class="docutils literal notranslate"><span class="pre">Texture</span></code> secondary) · <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code> (Set Texture) · <code class="docutils literal notranslate"><span class="pre">Texture/Conversion</span></code> (normal-map) · <code class="docutils literal notranslate"><span class="pre">Texture/Packing</span></code> (Pack Texture Images) · <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> (the three Transfer filters)</p></td>
 </tr>
 </tbody>
 </table>
@@ -653,8 +653,8 @@ topology; they are not document-structure operations.</p></li>
 <p>Filters that now legitimately carry <strong>more than one</strong> category include <em>Simplification:
 QEC (with texture)</em> → <code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code> + <code class="docutils literal notranslate"><span class="pre">Texture</span></code>; <em>Parameterization +
 texturing from registered rasters</em> → <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> +
-<code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code> + <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>; <em>Transfer Vertex Color to Texture</em> →
-<code class="docutils literal notranslate"><span class="pre">Transfer/Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code> + <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code> + <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code>; <em>Transfer Vertex Color to Texture</em> →
+<code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> + <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>.</p>
 </section>
 <section id="categories-and-what-should-never-be-hand-tagged">
 <h3>Categories, and what should never be hand-tagged<a class="headerlink" href="#categories-and-what-should-never-be-hand-tagged" title="Link to this heading">¶</a></h3>
@@ -925,7 +925,7 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p><code class="docutils literal notranslate"><span class="pre">Unwrap</span></code>, <code class="docutils literal notranslate"><span class="pre">Parameterize</span></code>, <code class="docutils literal notranslate"><span class="pre">Flatten</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Pack</span></code></p></td>
-<td><p>Arrange UV charts in an atlas</p></td>
+<td><p>Arrange UV charts, or whole texture images, into an atlas</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Layout</span></code>, <code class="docutils literal notranslate"><span class="pre">Bin</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Set</span></code></p></td>

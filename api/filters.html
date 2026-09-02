@@ -1552,7 +1552,7 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 </section>
 <section id="compute-face-scalar-from-raster-coverage">
 <span id="filter-compute-scalar-from-raster-coverage-per-face"></span><h2>Compute Face Scalar from Raster Coverage<a class="headerlink" href="#compute-face-scalar-from-raster-coverage" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.img_patch_param</p>
 <p>Compute a quality value representing the number of images into which each face of the active mesh is visible.</p>
 <dl class="py function">
@@ -1570,7 +1570,7 @@ Hugues Hoppe, Tony DeRose, Tom Duchamp, John McDonald, Werner Stuetzle, <strong>
 </section>
 <section id="compute-vertex-scalar-from-raster-coverage">
 <span id="filter-compute-scalar-from-raster-coverage-per-vertex"></span><h2>Compute Vertex Scalar from Raster Coverage<a class="headerlink" href="#compute-vertex-scalar-from-raster-coverage" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.img_patch_param</p>
 <p>Compute a quality value representing the number of images into which each vertex of the active mesh is visible.</p>
 <dl class="py function">
@@ -5450,7 +5450,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </section>
 <section id="parametrize-from-registered-rasters-with-texture">
 <span id="filter-compute-texcoord-parametrization-and-texture-from-registered-rasters"></span><h2>Parametrize from Registered Rasters with Texture<a class="headerlink" href="#parametrize-from-registered-rasters-with-texture" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.img_patch_param</p>
 <p>The mesh is parameterized and textured by creating some patches that correspond to projection of portions of surfaces onto the set of registered rasters.</p>
 <dl class="py function">
@@ -5504,7 +5504,7 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 </section>
 <section id="parametrize-from-registered-rasters">
 <span id="filter-compute-texcoord-parametrization-from-registered-rasters"></span><h2>Parametrize from Registered Rasters<a class="headerlink" href="#parametrize-from-registered-rasters" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.img_patch_param</p>
 <p>The mesh is parameterized by creating some patches that correspond to projection of portions of surfaces onto the set of registered rasters.</p>
 <dl class="py function">
@@ -6676,7 +6676,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <hr class="docutils" />
 </section>
 <section id="convert-object-space-normal-map-to-tangent-space">
-<span id="filter-convert-normal-map-to-tangent-space"></span><h2>Convert: Object-Space Normal Map to Tangent-Space<a class="headerlink" href="#convert-object-space-normal-map-to-tangent-space" title="Link to this heading">¶</a></h2>
+<span id="filter-convert-normal-map-to-tangent-space"></span><h2>Convert Object-Space Normal Map to Tangent Space<a class="headerlink" href="#convert-object-space-normal-map-to-tangent-space" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Conversion</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
 <p>Convert an object-space normal map into a tangent-space normal map for the current mesh UV slot.</p>
@@ -6721,9 +6721,9 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
-<section id="transfer-texture-to-vertex-color">
-<span id="filter-transfer-texture-to-vertex-color"></span><h2>Transfer: Texture to Vertex Color<a class="headerlink" href="#transfer-texture-to-vertex-color" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<section id="transfer-color-from-texture-to-vertex-by-closest-point">
+<span id="filter-transfer-texture-to-vertex-color"></span><h2>Transfer Color from Texture to Vertex by Closest Point<a class="headerlink" href="#transfer-color-from-texture-to-vertex-by-closest-point" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
 <p>Generate vertex colors by sampling texture colors from the same mesh or another mesh.</p>
 <dl class="py function">
@@ -6741,146 +6741,9 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
-<section id="transfer-vertex-attributes-to-texture">
-<span id="filter-transfer-vertex-attributes-to-texture"></span><h2>Transfer: Vertex Attributes to Texture<a class="headerlink" href="#transfer-vertex-attributes-to-texture" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
-<p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
-<p>Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.transfer_vertex_attributes_to_texture">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_vertex_attributes_to_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_vertex_attributes_to_texture" title="Link to this definition">¶</a></dt>
-<dd><p>Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that contains the source data that we want to transfer.</p></li>
-<li><p><strong>targetMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh whose texture will be filled according to source mesh data.</p></li>
-<li><p><strong>AttributeEnum</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">vertex_color</span></code>) — Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.</p></li>
-<li><p><strong>upperBound</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.</p></li>
-<li><p><strong>textName</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">texture.png</span></code>) — Base path of the texture image to be created. If more than one target texture slot is used, numeric suffixes are added automatically.</p></li>
-<li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
-<li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
-<li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If target mesh has associated textures, overwrite them instead of creating new files.</p></li>
-<li><p><strong>pullpush</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.</p></li>
-<li><p><strong>sourceTexture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — When Texture Color is selected, choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="transfer-vertex-color-to-texture">
-<span id="filter-transfer-vertex-color-to-texture"></span><h2>Transfer: Vertex Color to Texture<a class="headerlink" href="#transfer-vertex-color-to-texture" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
-<p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
-<p>Bake per-vertex color into texture image(s) using the current UV parametrization.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.transfer_vertex_color_to_texture">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_vertex_color_to_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_vertex_color_to_texture" title="Link to this definition">¶</a></dt>
-<dd><p>Fills the specified texture using per-vertex color data of the mesh.</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>textName</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">texture.png</span></code>) — Base path of the texture image to be created. If more than one texture slot is used, numeric suffixes are added automatically.</p></li>
-<li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
-<li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
-<li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If current mesh has associated textures, overwrite them instead of creating new files.</p></li>
-<li><p><strong>pullpush</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="transfer-color-face-to-vertex">
-<span id="filter-transfer-color-face-to-vertex"></span><h2>Transfer Color: Face to Vertex<a class="headerlink" href="#transfer-color-face-to-vertex" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
-<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
-<p>Transfer face colors to vertex colors.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.transfer_color_face_to_vertex">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_face_to_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_color_face_to_vertex" title="Link to this definition">¶</a></dt>
-<dd><p>Face to Vertex color transfer</p>
-<p>This filter has no parameters.</p>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="transfer-color-mesh-to-face">
-<span id="filter-transfer-color-mesh-to-face"></span><h2>Transfer Color: Mesh to Face<a class="headerlink" href="#transfer-color-mesh-to-face" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
-<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
-<p>Transfer the per-mesh color to face colors.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.transfer_color_mesh_to_face">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_mesh_to_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_color_mesh_to_face" title="Link to this definition">¶</a></dt>
-<dd><p>Mesh to Face color transfer</p>
-<p>This filter has no parameters.</p>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="transfer-color-texture-to-vertex">
-<span id="filter-transfer-color-texture-to-vertex"></span><h2>Transfer Color: Texture to Vertex<a class="headerlink" href="#transfer-color-texture-to-vertex" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
-<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
-<p>Sample associated textures into vertex colors.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.transfer_color_texture_to_vertex">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_texture_to_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_color_texture_to_vertex" title="Link to this definition">¶</a></dt>
-<dd><p>Texture to Vertex color transfer</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>sourceTexture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Choose which associated texture to sample. Automatic uses each face’s per-wedge texture slot assignment, matching MeshLab’s multi-texture behavior.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="transfer-color-vertex-to-face">
-<span id="filter-transfer-color-vertex-to-face"></span><h2>Transfer Color: Vertex to Face<a class="headerlink" href="#transfer-color-vertex-to-face" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
-<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
-<p>Transfer vertex colors to face colors.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.transfer_color_vertex_to_face">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_vertex_to_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_color_vertex_to_face" title="Link to this definition">¶</a></dt>
-<dd><p>Vertex to Face color transfer</p>
-<p>This filter has no parameters.</p>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="transfer-quality-face-to-vertex">
-<span id="filter-transfer-quality-face-to-vertex"></span><h2>Transfer Quality: Face to Vertex<a class="headerlink" href="#transfer-quality-face-to-vertex" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
-<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
-<p>Transfer face quality to vertex quality.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.transfer_quality_face_to_vertex">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_quality_face_to_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_quality_face_to_vertex" title="Link to this definition">¶</a></dt>
-<dd><p>Face to Vertex quality transfer</p>
-<p><strong>Parameters:</strong></p>
-<ul class="simple">
-<li><p><strong>areaWeight</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true the vertex quality is computed according to the surface of the involved faces.</p></li>
-</ul>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="transfer-quality-vertex-to-face">
-<span id="filter-transfer-quality-vertex-to-face"></span><h2>Transfer Quality: Vertex to Face<a class="headerlink" href="#transfer-quality-vertex-to-face" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
-<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
-<p>Transfer vertex quality to face quality.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.transfer_quality_vertex_to_face">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_quality_vertex_to_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_quality_vertex_to_face" title="Link to this definition">¶</a></dt>
-<dd><p>Vertex to Face quality transfer</p>
-<p>This filter has no parameters.</p>
-</dd></dl>
-
-<hr class="docutils" />
-</section>
-<section id="vertex-attribute-transfer">
-<span id="filter-transfer-vertex-attributes"></span><h2>Vertex Attribute Transfer<a class="headerlink" href="#vertex-attribute-transfer" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p>
+<section id="transfer-vertex-attributes-by-closest-point">
+<span id="filter-transfer-vertex-attributes"></span><h2>Transfer Vertex Attributes by Closest Point<a class="headerlink" href="#transfer-vertex-attributes-by-closest-point" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.sampling</p>
 <p>Transfer attributes from one mesh to another by closest-point projection.</p>
 <dl class="py function">
@@ -6906,9 +6769,35 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
-<section id="project-active-rasters-color-to-current-mesh-texture">
-<span id="filter-compute-color-and-texture-from-active-rasters-projection"></span><h2>Project Active Rasters Color to Current Mesh Texture<a class="headerlink" href="#project-active-rasters-color-to-current-mesh-texture" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
+<section id="transfer-vertex-attributes-to-texture-by-closest-point">
+<span id="filter-transfer-vertex-attributes-to-texture"></span><h2>Transfer Vertex Attributes to Texture by Closest Point<a class="headerlink" href="#transfer-vertex-attributes-to-texture-by-closest-point" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
+<p>Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.transfer_vertex_attributes_to_texture">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_vertex_attributes_to_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_vertex_attributes_to_texture" title="Link to this definition">¶</a></dt>
+<dd><p>Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The mesh that contains the source data that we want to transfer.</p></li>
+<li><p><strong>targetMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The mesh whose texture will be filled according to source mesh data.</p></li>
+<li><p><strong>AttributeEnum</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">vertex_color</span></code>) — Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.</p></li>
+<li><p><strong>upperBound</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag002</span></code>) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.</p></li>
+<li><p><strong>textName</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">texture.png</span></code>) — Base path of the texture image to be created. If more than one target texture slot is used, numeric suffixes are added automatically.</p></li>
+<li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
+<li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If target mesh has associated textures, overwrite them instead of creating new files.</p></li>
+<li><p><strong>pullpush</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.</p></li>
+<li><p><strong>sourceTexture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — When Texture Color is selected, choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="transfer-color-from-visible-rasters-to-texture">
+<span id="filter-compute-color-and-texture-from-active-rasters-projection"></span><h2>Transfer Color from Visible Rasters to Texture<a class="headerlink" href="#transfer-color-from-visible-rasters-to-texture" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.color_projection</p>
 <p>Project color from all visible rasters onto a new mesh texture using wedge UV coordinates.</p>
 <dl class="py function">
@@ -6931,9 +6820,9 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
-<section id="project-active-rasters-color-to-current-mesh">
-<span id="filter-compute-color-from-active-rasters-projection"></span><h2>Project Active Rasters Color to Current Mesh<a class="headerlink" href="#project-active-rasters-color-to-current-mesh" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<section id="transfer-color-from-visible-rasters-to-vertex">
+<span id="filter-compute-color-from-active-rasters-projection"></span><h2>Transfer Color from Visible Rasters to Vertex<a class="headerlink" href="#transfer-color-from-visible-rasters-to-vertex" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.color_projection</p>
 <p>Project color from all visible rasters onto the mesh vertices with weighted blending.</p>
 <dl class="py function">
@@ -6956,9 +6845,9 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
-<section id="project-current-raster-color-to-current-mesh">
-<span id="filter-compute-color-from-current-raster-projection"></span><h2>Project Current Raster Color to Current Mesh<a class="headerlink" href="#project-current-raster-color-to-current-mesh" title="Link to this heading">¶</a></h2>
-<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<section id="transfer-color-from-current-raster-to-vertex">
+<span id="filter-compute-color-from-current-raster-projection"></span><h2>Transfer Color from Current Raster to Vertex<a class="headerlink" href="#transfer-color-from-current-raster-to-vertex" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.color_projection</p>
 <p>Project the current raster image color onto the mesh vertices.</p>
 <dl class="py function">
@@ -6972,6 +6861,117 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><p><strong>onselection</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If true, projection is only applied to selected vertices.</p></li>
 <li><p><strong>blankColor</strong> (<em>color</em>, default: <code class="docutils literal notranslate"><span class="pre">#00000000</span></code>) — Areas that cannot be projected will be filled with this color. If all channels are 0, the original color is preserved.</p></li>
 <li><p><strong>preserveoccluded</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If true, depth-occluded vertices keep their original color instead of being assigned the blank color.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="transfer-color-from-face-to-vertex">
+<span id="filter-transfer-color-face-to-vertex"></span><h2>Transfer Color from Face to Vertex<a class="headerlink" href="#transfer-color-from-face-to-vertex" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
+<p>Transfer face colors to vertex colors.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.transfer_color_face_to_vertex">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_face_to_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_color_face_to_vertex" title="Link to this definition">¶</a></dt>
+<dd><p>Face to Vertex color transfer</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="transfer-color-from-mesh-to-face">
+<span id="filter-transfer-color-mesh-to-face"></span><h2>Transfer Color from Mesh to Face<a class="headerlink" href="#transfer-color-from-mesh-to-face" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
+<p>Transfer the per-mesh color to face colors.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.transfer_color_mesh_to_face">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_mesh_to_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_color_mesh_to_face" title="Link to this definition">¶</a></dt>
+<dd><p>Mesh to Face color transfer</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="transfer-color-from-texture-to-vertex">
+<span id="filter-transfer-color-texture-to-vertex"></span><h2>Transfer Color from Texture to Vertex<a class="headerlink" href="#transfer-color-from-texture-to-vertex" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
+<p>Sample associated textures into vertex colors.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.transfer_color_texture_to_vertex">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_texture_to_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_color_texture_to_vertex" title="Link to this definition">¶</a></dt>
+<dd><p>Texture to Vertex color transfer</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceTexture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Choose which associated texture to sample. Automatic uses each face’s per-wedge texture slot assignment, matching MeshLab’s multi-texture behavior.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="transfer-color-from-vertex-to-face">
+<span id="filter-transfer-color-vertex-to-face"></span><h2>Transfer Color from Vertex to Face<a class="headerlink" href="#transfer-color-from-vertex-to-face" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
+<p>Transfer vertex colors to face colors.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.transfer_color_vertex_to_face">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_vertex_to_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_color_vertex_to_face" title="Link to this definition">¶</a></dt>
+<dd><p>Vertex to Face color transfer</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="transfer-scalar-from-face-to-vertex">
+<span id="filter-transfer-quality-face-to-vertex"></span><h2>Transfer Scalar from Face to Vertex<a class="headerlink" href="#transfer-scalar-from-face-to-vertex" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
+<p>Transfer face quality to vertex quality.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.transfer_quality_face_to_vertex">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_quality_face_to_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_quality_face_to_vertex" title="Link to this definition">¶</a></dt>
+<dd><p>Face to Vertex quality transfer</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>areaWeight</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If true the vertex quality is computed according to the surface of the involved faces.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="transfer-scalar-from-vertex-to-face">
+<span id="filter-transfer-quality-vertex-to-face"></span><h2>Transfer Scalar from Vertex to Face<a class="headerlink" href="#transfer-scalar-from-vertex-to-face" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.colorproc</p>
+<p>Transfer vertex quality to face quality.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.transfer_quality_vertex_to_face">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_quality_vertex_to_face</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_quality_vertex_to_face" title="Link to this definition">¶</a></dt>
+<dd><p>Vertex to Face quality transfer</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="transfer-color-from-vertex-to-texture">
+<span id="filter-transfer-vertex-color-to-texture"></span><h2>Transfer Color from Vertex to Texture<a class="headerlink" href="#transfer-color-from-vertex-to-texture" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.texture</p>
+<p>Bake per-vertex color into texture image(s) using the current UV parametrization.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.transfer_vertex_color_to_texture">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_vertex_color_to_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_vertex_color_to_texture" title="Link to this definition">¶</a></dt>
+<dd><p>Fills the specified texture using per-vertex color data of the mesh.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>textName</strong> (<em>filesave</em>, default: <code class="docutils literal notranslate"><span class="pre">texture.png</span></code>) — Base path of the texture image to be created. If more than one texture slot is used, numeric suffixes are added automatically.</p></li>
+<li><p><strong>textW</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture width.</p></li>
+<li><p><strong>textH</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1024</span></code>) — The texture height.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — If current mesh has associated textures, overwrite them instead of creating new files.</p></li>
+<li><p><strong>pullpush</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.</p></li>
 </ul>
 </dd></dl>
 
@@ -8286,7 +8286,7 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.set_texture"><code class="docutils literal notranslate"><span class="pre">ms.set_texture()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#convert-object-space-normal-map-to-tangent-space">Convert: Object-Space Normal Map to Tangent-Space</a><ul>
+<li><a class="reference internal" href="#convert-object-space-normal-map-to-tangent-space">Convert Object-Space Normal Map to Tangent Space</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.convert_normal_map_to_tangent_space"><code class="docutils literal notranslate"><span class="pre">ms.convert_normal_map_to_tangent_space()</span></code></a></li>
 </ul>
 </li>
@@ -8294,56 +8294,56 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.pack_texture_per_mesh"><code class="docutils literal notranslate"><span class="pre">ms.pack_texture_per_mesh()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#transfer-texture-to-vertex-color">Transfer: Texture to Vertex Color</a><ul>
+<li><a class="reference internal" href="#transfer-color-from-texture-to-vertex-by-closest-point">Transfer Color from Texture to Vertex by Closest Point</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.transfer_texture_to_vertex_color"><code class="docutils literal notranslate"><span class="pre">ms.transfer_texture_to_vertex_color()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#transfer-vertex-attributes-to-texture">Transfer: Vertex Attributes to Texture</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.transfer_vertex_attributes_to_texture"><code class="docutils literal notranslate"><span class="pre">ms.transfer_vertex_attributes_to_texture()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#transfer-vertex-color-to-texture">Transfer: Vertex Color to Texture</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.transfer_vertex_color_to_texture"><code class="docutils literal notranslate"><span class="pre">ms.transfer_vertex_color_to_texture()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#transfer-color-face-to-vertex">Transfer Color: Face to Vertex</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.transfer_color_face_to_vertex"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_face_to_vertex()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#transfer-color-mesh-to-face">Transfer Color: Mesh to Face</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.transfer_color_mesh_to_face"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_mesh_to_face()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#transfer-color-texture-to-vertex">Transfer Color: Texture to Vertex</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.transfer_color_texture_to_vertex"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_texture_to_vertex()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#transfer-color-vertex-to-face">Transfer Color: Vertex to Face</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.transfer_color_vertex_to_face"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_vertex_to_face()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#transfer-quality-face-to-vertex">Transfer Quality: Face to Vertex</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.transfer_quality_face_to_vertex"><code class="docutils literal notranslate"><span class="pre">ms.transfer_quality_face_to_vertex()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#transfer-quality-vertex-to-face">Transfer Quality: Vertex to Face</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.transfer_quality_vertex_to_face"><code class="docutils literal notranslate"><span class="pre">ms.transfer_quality_vertex_to_face()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#vertex-attribute-transfer">Vertex Attribute Transfer</a><ul>
+<li><a class="reference internal" href="#transfer-vertex-attributes-by-closest-point">Transfer Vertex Attributes by Closest Point</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.transfer_vertex_attributes"><code class="docutils literal notranslate"><span class="pre">ms.transfer_vertex_attributes()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#project-active-rasters-color-to-current-mesh-texture">Project Active Rasters Color to Current Mesh Texture</a><ul>
+<li><a class="reference internal" href="#transfer-vertex-attributes-to-texture-by-closest-point">Transfer Vertex Attributes to Texture by Closest Point</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.transfer_vertex_attributes_to_texture"><code class="docutils literal notranslate"><span class="pre">ms.transfer_vertex_attributes_to_texture()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-color-from-visible-rasters-to-texture">Transfer Color from Visible Rasters to Texture</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_color_and_texture_from_active_rasters_projection"><code class="docutils literal notranslate"><span class="pre">ms.compute_color_and_texture_from_active_rasters_projection()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#project-active-rasters-color-to-current-mesh">Project Active Rasters Color to Current Mesh</a><ul>
+<li><a class="reference internal" href="#transfer-color-from-visible-rasters-to-vertex">Transfer Color from Visible Rasters to Vertex</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_color_from_active_rasters_projection"><code class="docutils literal notranslate"><span class="pre">ms.compute_color_from_active_rasters_projection()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#project-current-raster-color-to-current-mesh">Project Current Raster Color to Current Mesh</a><ul>
+<li><a class="reference internal" href="#transfer-color-from-current-raster-to-vertex">Transfer Color from Current Raster to Vertex</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.compute_color_from_current_raster_projection"><code class="docutils literal notranslate"><span class="pre">ms.compute_color_from_current_raster_projection()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-color-from-face-to-vertex">Transfer Color from Face to Vertex</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.transfer_color_face_to_vertex"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_face_to_vertex()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-color-from-mesh-to-face">Transfer Color from Mesh to Face</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.transfer_color_mesh_to_face"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_mesh_to_face()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-color-from-texture-to-vertex">Transfer Color from Texture to Vertex</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.transfer_color_texture_to_vertex"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_texture_to_vertex()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-color-from-vertex-to-face">Transfer Color from Vertex to Face</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.transfer_color_vertex_to_face"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_vertex_to_face()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-scalar-from-face-to-vertex">Transfer Scalar from Face to Vertex</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.transfer_quality_face_to_vertex"><code class="docutils literal notranslate"><span class="pre">ms.transfer_quality_face_to_vertex()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-scalar-from-vertex-to-face">Transfer Scalar from Vertex to Face</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.transfer_quality_vertex_to_face"><code class="docutils literal notranslate"><span class="pre">ms.transfer_quality_vertex_to_face()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-color-from-vertex-to-texture">Transfer Color from Vertex to Texture</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.transfer_vertex_color_to_texture"><code class="docutils literal notranslate"><span class="pre">ms.transfer_vertex_color_to_texture()</span></code></a></li>
 </ul>
 </li>
 </ul>

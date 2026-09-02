@@ -1675,7 +1675,7 @@ Compute vertex quality using the camera definition, according to viewing angle o
 
 ## Compute Face Scalar from Raster Coverage
 
-**Categories:** `Attribute/Scalar`, `Transfer/Raster to Mesh`
+**Categories:** `Attribute/Scalar`, `Transfer/From Rasters`
 
 **Plugin:** qmeshlab.filter.img_patch_param
 
@@ -1698,7 +1698,7 @@ Compute a quality value representing the number of images into which each face o
 
 ## Compute Vertex Scalar from Raster Coverage
 
-**Categories:** `Attribute/Scalar`, `Transfer/Raster to Mesh`
+**Categories:** `Attribute/Scalar`, `Transfer/From Rasters`
 
 **Plugin:** qmeshlab.filter.img_patch_param
 
@@ -6591,7 +6591,7 @@ Texture function using muparser to generate new per wedge tex coords for every f
 
 ## Parametrize from Registered Rasters with Texture
 
-**Categories:** `Parametrization/UV Creation`, `Texture`, `Transfer/Raster to Mesh`
+**Categories:** `Parametrization/UV Creation`, `Texture`, `Transfer/From Rasters`
 
 **Plugin:** qmeshlab.filter.img_patch_param
 
@@ -6659,7 +6659,7 @@ Computes an **as-rigid-as-possible (ARAP)** UV parametrization. A harmonic map w
 
 ## Parametrize from Registered Rasters
 
-**Categories:** `Parametrization/UV Creation`, `Transfer/Raster to Mesh`
+**Categories:** `Parametrization/UV Creation`, `Transfer/From Rasters`
 
 **Plugin:** qmeshlab.filter.img_patch_param
 
@@ -8180,7 +8180,7 @@ Associates one texture with the current mesh UV parametrization, replacing its e
 
 (filter-convert-normal-map-to-tangent-space)=
 
-## Convert: Object-Space Normal Map to Tangent-Space
+## Convert Object-Space Normal Map to Tangent Space
 
 **Categories:** `Texture/Conversion`
 
@@ -8240,9 +8240,9 @@ Every face must reference one valid texture consistently across its three wedges
 
 (filter-transfer-texture-to-vertex-color)=
 
-## Transfer: Texture to Vertex Color
+## Transfer Color from Texture to Vertex by Closest Point
 
-**Categories:** `Transfer/Attribute to Texture`, `Attribute/Color`
+**Categories:** `Transfer/Between Layers`, `Attribute/Color`
 
 **Plugin:** qmeshlab.filter.texture
 
@@ -8263,192 +8263,11 @@ Generates Vertex Color values picking color from a texture (same mesh or another
 
 ---
 
-(filter-transfer-vertex-attributes-to-texture)=
-
-## Transfer: Vertex Attributes to Texture
-
-**Categories:** `Transfer/Attribute to Texture`, `Texture`
-
-**Plugin:** qmeshlab.filter.texture
-
-Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.
-
-```{py:function} ms.transfer_vertex_attributes_to_texture(**params)
-:module: _qmeshlab
-
-Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.
-
-**Parameters:**
-
-- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh that contains the source data that we want to transfer.
-- **targetMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh whose texture will be filled according to source mesh data.
-- **AttributeEnum** (*enum*, default: `vertex_color`) — Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.
-- **upperBound** (*absperc*, default: `@bboxDiag002`) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.
-- **textName** (*filesave*, default: `texture.png`) — Base path of the texture image to be created. If more than one target texture slot is used, numeric suffixes are added automatically.
-- **textW** (*int*, default: `1024`) — The texture width.
-- **textH** (*int*, default: `1024`) — The texture height.
-- **overwrite** (*bool*, default: `False`) — If target mesh has associated textures, overwrite them instead of creating new files.
-- **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
-- **sourceTexture** (*textureref*, default: `0`) — When Texture Color is selected, choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.
-```
-
----
-
-(filter-transfer-vertex-color-to-texture)=
-
-## Transfer: Vertex Color to Texture
-
-**Categories:** `Transfer/Attribute to Texture`, `Texture`
-
-**Plugin:** qmeshlab.filter.texture
-
-Bake per-vertex color into texture image(s) using the current UV parametrization.
-
-```{py:function} ms.transfer_vertex_color_to_texture(**params)
-:module: _qmeshlab
-
-Fills the specified texture using per-vertex color data of the mesh.
-
-**Parameters:**
-
-- **textName** (*filesave*, default: `texture.png`) — Base path of the texture image to be created. If more than one texture slot is used, numeric suffixes are added automatically.
-- **textW** (*int*, default: `1024`) — The texture width.
-- **textH** (*int*, default: `1024`) — The texture height.
-- **overwrite** (*bool*, default: `False`) — If current mesh has associated textures, overwrite them instead of creating new files.
-- **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
-```
-
----
-
-(filter-transfer-color-face-to-vertex)=
-
-## Transfer Color: Face to Vertex
-
-**Categories:** `Transfer/Mesh to Mesh`, `Attribute/Color`
-
-**Plugin:** qmeshlab.filter.colorproc
-
-Transfer face colors to vertex colors.
-
-```{py:function} ms.transfer_color_face_to_vertex(**params)
-:module: _qmeshlab
-
-Face to Vertex color transfer
-
-This filter has no parameters.
-```
-
----
-
-(filter-transfer-color-mesh-to-face)=
-
-## Transfer Color: Mesh to Face
-
-**Categories:** `Transfer/Mesh to Mesh`, `Attribute/Color`
-
-**Plugin:** qmeshlab.filter.colorproc
-
-Transfer the per-mesh color to face colors.
-
-```{py:function} ms.transfer_color_mesh_to_face(**params)
-:module: _qmeshlab
-
-Mesh to Face color transfer
-
-This filter has no parameters.
-```
-
----
-
-(filter-transfer-color-texture-to-vertex)=
-
-## Transfer Color: Texture to Vertex
-
-**Categories:** `Transfer/Mesh to Mesh`, `Attribute/Color`
-
-**Plugin:** qmeshlab.filter.colorproc
-
-Sample associated textures into vertex colors.
-
-```{py:function} ms.transfer_color_texture_to_vertex(**params)
-:module: _qmeshlab
-
-Texture to Vertex color transfer
-
-**Parameters:**
-
-- **sourceTexture** (*textureref*, default: `0`) — Choose which associated texture to sample. Automatic uses each face's per-wedge texture slot assignment, matching MeshLab's multi-texture behavior.
-```
-
----
-
-(filter-transfer-color-vertex-to-face)=
-
-## Transfer Color: Vertex to Face
-
-**Categories:** `Transfer/Mesh to Mesh`, `Attribute/Color`
-
-**Plugin:** qmeshlab.filter.colorproc
-
-Transfer vertex colors to face colors.
-
-```{py:function} ms.transfer_color_vertex_to_face(**params)
-:module: _qmeshlab
-
-Vertex to Face color transfer
-
-This filter has no parameters.
-```
-
----
-
-(filter-transfer-quality-face-to-vertex)=
-
-## Transfer Quality: Face to Vertex
-
-**Categories:** `Transfer/Mesh to Mesh`, `Attribute/Scalar`
-
-**Plugin:** qmeshlab.filter.colorproc
-
-Transfer face quality to vertex quality.
-
-```{py:function} ms.transfer_quality_face_to_vertex(**params)
-:module: _qmeshlab
-
-Face to Vertex quality transfer
-
-**Parameters:**
-
-- **areaWeight** (*bool*, default: `True`) — If true the vertex quality is computed according to the surface of the involved faces.
-```
-
----
-
-(filter-transfer-quality-vertex-to-face)=
-
-## Transfer Quality: Vertex to Face
-
-**Categories:** `Transfer/Mesh to Mesh`, `Attribute/Scalar`
-
-**Plugin:** qmeshlab.filter.colorproc
-
-Transfer vertex quality to face quality.
-
-```{py:function} ms.transfer_quality_vertex_to_face(**params)
-:module: _qmeshlab
-
-Vertex to Face quality transfer
-
-This filter has no parameters.
-```
-
----
-
 (filter-transfer-vertex-attributes)=
 
-## Vertex Attribute Transfer
+## Transfer Vertex Attributes by Closest Point
 
-**Categories:** `Transfer/Mesh to Mesh`
+**Categories:** `Transfer/Between Layers`
 
 **Plugin:** qmeshlab.filter.sampling
 
@@ -8477,11 +8296,42 @@ Transfer the chosen per-vertex attributes from one layer to another. Useful to t
 
 ---
 
+(filter-transfer-vertex-attributes-to-texture)=
+
+## Transfer Vertex Attributes to Texture by Closest Point
+
+**Categories:** `Transfer/Between Layers`, `Texture`
+
+**Plugin:** qmeshlab.filter.texture
+
+Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.
+
+```{py:function} ms.transfer_vertex_attributes_to_texture(**params)
+:module: _qmeshlab
+
+Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The mesh that contains the source data that we want to transfer.
+- **targetMesh** (*mesh*, default: `@otherMeshIndex`) — The mesh whose texture will be filled according to source mesh data.
+- **AttributeEnum** (*enum*, default: `vertex_color`) — Choose what attribute has to be transferred onto the target texture. You can choose between per-vertex attributes or transfer color information from source mesh texture.
+- **upperBound** (*absperc*, default: `@bboxDiag002`) — Sample points for which we do not find anything within this distance are rejected and not considered for recovering data.
+- **textName** (*filesave*, default: `texture.png`) — Base path of the texture image to be created. If more than one target texture slot is used, numeric suffixes are added automatically.
+- **textW** (*int*, default: `1024`) — The texture width.
+- **textH** (*int*, default: `1024`) — The texture height.
+- **overwrite** (*bool*, default: `False`) — If target mesh has associated textures, overwrite them instead of creating new files.
+- **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
+- **sourceTexture** (*textureref*, default: `0`) — When Texture Color is selected, choose which associated source texture to sample. Automatic uses the source mesh per-face texture slot assignment.
+```
+
+---
+
 (filter-compute-color-and-texture-from-active-rasters-projection)=
 
-## Project Active Rasters Color to Current Mesh Texture
+## Transfer Color from Visible Rasters to Texture
 
-**Categories:** `Transfer/Raster to Mesh`, `Texture`
+**Categories:** `Transfer/From Rasters`, `Texture`
 
 **Plugin:** qmeshlab.filter.color_projection
 
@@ -8509,9 +8359,9 @@ Projects color information from all visible and valid rasters onto a new texture
 
 (filter-compute-color-from-active-rasters-projection)=
 
-## Project Active Rasters Color to Current Mesh
+## Transfer Color from Visible Rasters to Vertex
 
-**Categories:** `Transfer/Raster to Mesh`, `Attribute/Color`
+**Categories:** `Transfer/From Rasters`, `Attribute/Color`
 
 **Plugin:** qmeshlab.filter.color_projection
 
@@ -8539,9 +8389,9 @@ Projects color information from all visible and valid rasters onto the mesh vert
 
 (filter-compute-color-from-current-raster-projection)=
 
-## Project Current Raster Color to Current Mesh
+## Transfer Color from Current Raster to Vertex
 
-**Categories:** `Transfer/Raster to Mesh`, `Attribute/Color`
+**Categories:** `Transfer/From Rasters`, `Attribute/Color`
 
 **Plugin:** qmeshlab.filter.color_projection
 
@@ -8559,5 +8409,155 @@ Projects color information from the current raster onto the mesh vertices using 
 - **onselection** (*bool*, default: `False`) — If true, projection is only applied to selected vertices.
 - **blankColor** (*color*, default: `#00000000`) — Areas that cannot be projected will be filled with this color. If all channels are 0, the original color is preserved.
 - **preserveoccluded** (*bool*, default: `False`) — If true, depth-occluded vertices keep their original color instead of being assigned the blank color.
+```
+
+---
+
+(filter-transfer-color-face-to-vertex)=
+
+## Transfer Color from Face to Vertex
+
+**Categories:** `Transfer/Within a Mesh`, `Attribute/Color`
+
+**Plugin:** qmeshlab.filter.colorproc
+
+Transfer face colors to vertex colors.
+
+```{py:function} ms.transfer_color_face_to_vertex(**params)
+:module: _qmeshlab
+
+Face to Vertex color transfer
+
+This filter has no parameters.
+```
+
+---
+
+(filter-transfer-color-mesh-to-face)=
+
+## Transfer Color from Mesh to Face
+
+**Categories:** `Transfer/Within a Mesh`, `Attribute/Color`
+
+**Plugin:** qmeshlab.filter.colorproc
+
+Transfer the per-mesh color to face colors.
+
+```{py:function} ms.transfer_color_mesh_to_face(**params)
+:module: _qmeshlab
+
+Mesh to Face color transfer
+
+This filter has no parameters.
+```
+
+---
+
+(filter-transfer-color-texture-to-vertex)=
+
+## Transfer Color from Texture to Vertex
+
+**Categories:** `Transfer/Within a Mesh`, `Attribute/Color`
+
+**Plugin:** qmeshlab.filter.colorproc
+
+Sample associated textures into vertex colors.
+
+```{py:function} ms.transfer_color_texture_to_vertex(**params)
+:module: _qmeshlab
+
+Texture to Vertex color transfer
+
+**Parameters:**
+
+- **sourceTexture** (*textureref*, default: `0`) — Choose which associated texture to sample. Automatic uses each face's per-wedge texture slot assignment, matching MeshLab's multi-texture behavior.
+```
+
+---
+
+(filter-transfer-color-vertex-to-face)=
+
+## Transfer Color from Vertex to Face
+
+**Categories:** `Transfer/Within a Mesh`, `Attribute/Color`
+
+**Plugin:** qmeshlab.filter.colorproc
+
+Transfer vertex colors to face colors.
+
+```{py:function} ms.transfer_color_vertex_to_face(**params)
+:module: _qmeshlab
+
+Vertex to Face color transfer
+
+This filter has no parameters.
+```
+
+---
+
+(filter-transfer-quality-face-to-vertex)=
+
+## Transfer Scalar from Face to Vertex
+
+**Categories:** `Transfer/Within a Mesh`, `Attribute/Scalar`
+
+**Plugin:** qmeshlab.filter.colorproc
+
+Transfer face quality to vertex quality.
+
+```{py:function} ms.transfer_quality_face_to_vertex(**params)
+:module: _qmeshlab
+
+Face to Vertex quality transfer
+
+**Parameters:**
+
+- **areaWeight** (*bool*, default: `True`) — If true the vertex quality is computed according to the surface of the involved faces.
+```
+
+---
+
+(filter-transfer-quality-vertex-to-face)=
+
+## Transfer Scalar from Vertex to Face
+
+**Categories:** `Transfer/Within a Mesh`, `Attribute/Scalar`
+
+**Plugin:** qmeshlab.filter.colorproc
+
+Transfer vertex quality to face quality.
+
+```{py:function} ms.transfer_quality_vertex_to_face(**params)
+:module: _qmeshlab
+
+Vertex to Face quality transfer
+
+This filter has no parameters.
+```
+
+---
+
+(filter-transfer-vertex-color-to-texture)=
+
+## Transfer Color from Vertex to Texture
+
+**Categories:** `Transfer/Within a Mesh`, `Texture`
+
+**Plugin:** qmeshlab.filter.texture
+
+Bake per-vertex color into texture image(s) using the current UV parametrization.
+
+```{py:function} ms.transfer_vertex_color_to_texture(**params)
+:module: _qmeshlab
+
+Fills the specified texture using per-vertex color data of the mesh.
+
+**Parameters:**
+
+- **textName** (*filesave*, default: `texture.png`) — Base path of the texture image to be created. If more than one texture slot is used, numeric suffixes are added automatically.
+- **textW** (*int*, default: `1024`) — The texture width.
+- **textH** (*int*, default: `1024`) — The texture height.
+- **overwrite** (*bool*, default: `False`) — If current mesh has associated textures, overwrite them instead of creating new files.
+- **pullpush** (*bool*, default: `True`) — If enabled the unmapped texture space is colored using a pull-push filling algorithm, otherwise it is left black.
 ```
 

@@ -1302,3 +1302,138 @@ All settled (2026-09-01).
 `Measurement` was added to `appliedRoots`. Verified to discriminate: restoring
 *Current Mesh Info* fails the guard with
 `leading word 'Current' is not in the lexicon`.
+
+# Round 10 — `Transfer` (13 filters)
+
+**Applied 2026-09-01.** All 13 renamed, and the three subcategories renamed and
+remembered with them. Nine names carried the `Verb:` colon form the guard rejects
+outright, three led with `Project`, and one was a verbless noun phrase.
+
+Every name collapses onto one shape: **`Transfer <attribute> from <source> to <target>`**.
+
+## Transfer/From Rasters (3, was `Raster to Mesh`)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Project Current Raster Color to Current Mesh | **Transfer Color from Current Raster to Vertex** | `transfer_color_from_current_raster_to_vertex` |
+| Project Active Rasters Color to Current Mesh | **Transfer Color from Visible Rasters to Vertex** | `transfer_color_from_visible_rasters_to_vertex` |
+| Project Active Rasters Color to Current Mesh Texture | **Transfer Color from Visible Rasters to Texture** | `transfer_color_from_visible_rasters_to_texture` |
+
+No ruling was needed: §3 settles it outright — *"`Transfer`, not `Project`. `Project`
+described only the raster sub-case."* `Project` was later readmitted, but only for moving
+*vertices* onto geometry, and these move colour. "Active" → "Visible" follows the
+descriptions, which already said "all visible rasters".
+
+## Transfer/Within a Mesh (7, was `Mesh to Mesh`)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Transfer Color: Vertex to Face | **Transfer Color from Vertex to Face** | `transfer_color_from_vertex_to_face` |
+| Transfer Color: Mesh to Face | **Transfer Color from Mesh to Face** | `transfer_color_from_mesh_to_face` |
+| Transfer Color: Face to Vertex | **Transfer Color from Face to Vertex** | `transfer_color_from_face_to_vertex` |
+| Transfer Color: Texture to Vertex | **Transfer Color from Texture to Vertex** | `transfer_color_from_texture_to_vertex` |
+| Transfer Quality: Vertex to Face | **Transfer Scalar from Vertex to Face** | `transfer_scalar_from_vertex_to_face` |
+| Transfer Quality: Face to Vertex | **Transfer Scalar from Face to Vertex** | `transfer_scalar_from_face_to_vertex` |
+| Transfer: Vertex Color to Texture | **Transfer Color from Vertex to Texture** | `transfer_color_from_vertex_to_texture` |
+
+`Quality` → `Scalar` is §4; the ids already said `compute_scalar_transfer_…`, so only the
+label had lagged.
+
+## Transfer/Between Layers (3, was `Attribute to Texture`)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Vertex Attribute Transfer | **Transfer Vertex Attributes by Closest Point** | `transfer_vertex_attributes_by_closest_point` |
+| Transfer: Texture to Vertex Color | **Transfer Color from Texture to Vertex by Closest Point** | `transfer_color_from_texture_to_vertex_by_closest_point` |
+| Transfer: Vertex Attributes to Texture | **Transfer Vertex Attributes to Texture by Closest Point** | `transfer_vertex_attributes_to_texture_by_closest_point` |
+
+## The subcategories now name what supplies the correspondence
+
+The old split mixed axes — `Mesh to Mesh` beside `Attribute to Texture` — and six of the
+seven filters under `Mesh to Mesh` never went mesh to mesh at all: they moved an attribute
+between elements of a *single* mesh. The distinction that actually matters is whether a
+correspondence has to be constructed:
+
+| Subcategory | What supplies the correspondence |
+|---|---|
+| `Within a Mesh` | The mesh's own incidence. A face already knows its vertices; nothing is chosen and nothing can be wrong |
+| `Between Layers` | A computed match between two layers — closest point on the source surface, bounded by `upperBound` |
+| `From Rasters` | The raster's camera |
+
+Membership follows the parameter signature, not the name: exactly three filters carry
+`sourceMesh`/`targetMesh`/`upperBound`, and those three are `Between Layers`. Two of them
+had been filed under `Attribute to Texture`, and *Transfer: Vertex Color to Texture* — same
+mesh, no source/target pair — had been filed with them; all three moved.
+
+`by Closest Point` names that mechanism on the three cross-layer filters. It is the
+standard term for what they do, it explains what `upperBound` bounds, and it avoids
+overloading `Project`, which §3 keeps for moving vertices onto geometry.
+
+"Domain" was considered and rejected for the subcategory names: §2 already rules that
+`inputDomain`/`outputDomain` mean *document scope*, so the word is spoken for. "Between
+Elements" fails too, because a texture is not one of §4's elements.
+
+## Rulings
+
+All settled (2026-09-01).
+
+1. ~~How to mark the cross-layer three?~~ **`by Closest Point`**, over `from Another
+   Layer`: less short, more true, and it names the mechanism rather than the arity.
+2. ~~`Mesh to Mesh` misdescribes its contents.~~ **Subcategories renamed** to
+   `Within a Mesh` / `Between Layers` / `From Rasters`, and three filters re-homed.
+   `Same Mesh` was the runner-up to `Within a Mesh`; the prepositional form pairs with
+   `Between Layers` as an inside/outside pair, which `Same Mesh` does not.
+
+## Enforcement
+
+`Transfer` was added to `appliedRoots`. Verified to discriminate: restoring
+*Vertex Attribute Transfer* fails the guard with
+`leading word 'Vertex' is not in the lexicon`.
+
+# Round 11 — `Texture` (3 filters)
+
+**Applied 2026-09-01.** 1 renamed, 2 already conformant. The last round of pass 1.
+
+Eight further filters carry a bare `Texture` as a *secondary* category — the raster
+transfers, the defragmentation pair, *Pack UV Charts*, *Simplify by Quadric Edge Collapse
+with Texture (vcglib)* — and were renamed by their own rounds.
+
+## Texture/Conversion (1)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Convert: Object-Space Normal Map to Tangent-Space | **Convert Object-Space Normal Map to Tangent Space** | `convert_object_space_normal_map_to_tangent_space` |
+
+The last `Verb:` colon name in the archive. `Convert` was already the right verb and `to`
+already the right connector; only the colon had to go. The trailing hyphen goes with it:
+*object-space* is a compound adjective adjacent to the noun it modifies and keeps its
+hyphen, while *to tangent space* is a prepositional phrase and never needed one.
+
+## Texture/Assignment and Texture/Packing (2)
+
+*Set Texture* and *Pack Texture Images* were already conformant.
+
+## A lexicon entry corrected
+
+`Pack` was defined as "Arrange UV charts in an atlas", but *Pack Texture Images* arranges
+whole images, not charts — the entry under-described its own shipped user, and had done
+since it was written. It now reads "Arrange UV charts, or whole texture images, into an
+atlas". The two filters now form a pair distinguished only by their object, which is what
+the grammar is for: **Pack UV Charts** beside **Pack Texture Images**.
+
+## Enforcement
+
+`Texture` was added to `appliedRoots`, completing the set: all eleven roots are now
+checked on every build. Verified to discriminate: restoring
+*Convert: Object-Space Normal Map to Tangent-Space* fails the guard with
+`repeats the category with a colon` — the colon branch of the check, which no earlier
+round had exercised on its own.
+
+# Pass 1 complete
+
+All 328 filters across 11 roots carry a display name that leads with a ratified verb and
+follows `Verb Object [(Backend)]`. The lexicon closed at 56 verbs and 5 connectors
+(`by`, `from`, `to`, `with`, `for`).
+
+Ids and `pythonName`s are untouched by design and are pass 2: **250 of 328 `pythonName`s
+and 280 of 328 ids** no longer match their display name, plus parameter ids on top.

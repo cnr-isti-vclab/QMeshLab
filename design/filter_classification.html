@@ -488,15 +488,15 @@ filters carried more than one.</p>
 <td><p>1</p></td>
 <td><p>1</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code></p></td>
 <td><p>3</p></td>
 <td><p>3</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code></p></td>
 <td><p>7</p></td>
 <td><p>7</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
 <td><p>0</p></td>
 <td><p>4</p></td>
 </tr>
@@ -743,34 +743,34 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Transfer Color: Face to Vertex</p></td>
+<tr class="row-odd"><td><p>Transfer Color from Face to Vertex</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Transfer Color: Mesh to Face</p></td>
+<tr class="row-even"><td><p>Transfer Color from Mesh to Face</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Transfer Color: Texture to Vertex</p></td>
+<tr class="row-odd"><td><p>Transfer Color from Texture to Vertex</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Transfer Color: Vertex to Face</p></td>
+<tr class="row-even"><td><p>Transfer Color from Vertex to Face</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Transfer Quality: Face to Vertex</p></td>
+<tr class="row-odd"><td><p>Transfer Scalar from Face to Vertex</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: scalar</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Transfer Quality: Vertex to Face</p></td>
+<tr class="row-even"><td><p>Transfer Scalar from Vertex to Face</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">colorproc</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
 <td><p><strong>mis-filed</strong> - it is a Transfer <sub>touches: scalar</sub></p></td>
 </tr>
 <tr class="row-odd"><td><p>Tint Vertex Color</p></td>
@@ -1632,12 +1632,12 @@ That was the main finding of this pass.</p>
 <tbody>
 <tr class="row-even"><td><p>Parametrize from Registered Rasters with Texture</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
 <td><p><sub>touches: texture, uv</sub></p></td>
 </tr>
 <tr class="row-odd"><td><p>Parametrize from Registered Rasters</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
 </tr>
 </tbody>
@@ -1774,29 +1774,29 @@ That was the main finding of this pass.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Project Active Rasters Color to Current Mesh</p></td>
+<tr class="row-even"><td><p>Transfer Color from Visible Rasters to Vertex</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">color_projection</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Project Active Rasters Color to Current Mesh Texture</p></td>
+<tr class="row-odd"><td><p>Transfer Color from Visible Rasters to Texture</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">color_projection</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Project Current Raster Color to Current Mesh</p></td>
+<tr class="row-even"><td><p>Transfer Color from Current Raster to Vertex</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">color_projection</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
 <tr class="row-odd"><td><p>Compute Face Scalar from Raster Coverage</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
 <td><p><strong>mis-filed</strong> as <code class="docutils literal notranslate"><span class="pre">Raster</span></code> <sub>touches: scalar</sub></p></td>
 </tr>
 <tr class="row-even"><td><p>Compute Vertex Scalar from Raster Coverage</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img_patch_param</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/Raster</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code></p></td>
 <td><p><strong>mis-filed</strong> as <code class="docutils literal notranslate"><span class="pre">Raster</span></code> <sub>touches: scalar</sub></p></td>
 </tr>
 </tbody>
@@ -1988,9 +1988,9 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p></td>
 <td><p><strong>mis-filed</strong> as Sampling</p></td>
 </tr>
-<tr class="row-even"><td><p>Vertex Attribute Transfer</p></td>
+<tr class="row-even"><td><p>Transfer Vertex Attributes by Closest Point</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Mesh</span> <span class="pre">to</span> <span class="pre">Mesh</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code></p></td>
 <td><p><strong>mis-filed</strong> as Sampling <sub>touches: color, scalar, selection</sub></p></td>
 </tr>
 <tr class="row-odd"><td><p>Sample Volume</p></td>
@@ -2307,7 +2307,7 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code></p></td>
 <td><p><sub>touches: uv</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Convert: Object-Space Normal Map to Tangent-Space</p></td>
+<tr class="row-even"><td><p>Convert Object-Space Normal Map to Tangent Space</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Texture/Conversion</span></code></p></td>
 <td><p><sub>touches: texture</sub></p></td>
@@ -2362,19 +2362,19 @@ That was the main finding of this pass.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
 <td><p>chart surgery; image resample is a consequence</p></td>
 </tr>
-<tr class="row-odd"><td><p>Transfer: Texture to Vertex Color</p></td>
+<tr class="row-odd"><td><p>Transfer Color from Texture to Vertex by Closest Point</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> · <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
 <td><p><sub>touches: color</sub></p></td>
 </tr>
-<tr class="row-even"><td><p>Transfer: Vertex Attributes to Texture</p></td>
+<tr class="row-even"><td><p>Transfer Vertex Attributes to Texture by Closest Point</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
 <td><p><sub>touches: texture</sub></p></td>
 </tr>
-<tr class="row-odd"><td><p>Transfer: Vertex Color to Texture</p></td>
+<tr class="row-odd"><td><p>Transfer Color from Vertex to Texture</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">texture</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Attribute</span> <span class="pre">to</span> <span class="pre">Texture</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
 <td><p><sub>touches: texture</sub></p></td>
 </tr>
 </tbody>
