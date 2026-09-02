@@ -1389,3 +1389,51 @@ All settled (2026-09-01).
 `Transfer` was added to `appliedRoots`. Verified to discriminate: restoring
 *Vertex Attribute Transfer* fails the guard with
 `leading word 'Vertex' is not in the lexicon`.
+
+# Round 11 — `Texture` (3 filters)
+
+**Applied 2026-09-01.** 1 renamed, 2 already conformant. The last round of pass 1.
+
+Eight further filters carry a bare `Texture` as a *secondary* category — the raster
+transfers, the defragmentation pair, *Pack UV Charts*, *Simplify by Quadric Edge Collapse
+with Texture (vcglib)* — and were renamed by their own rounds.
+
+## Texture/Conversion (1)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Convert: Object-Space Normal Map to Tangent-Space | **Convert Object-Space Normal Map to Tangent Space** | `convert_object_space_normal_map_to_tangent_space` |
+
+The last `Verb:` colon name in the archive. `Convert` was already the right verb and `to`
+already the right connector; only the colon had to go. The trailing hyphen goes with it:
+*object-space* is a compound adjective adjacent to the noun it modifies and keeps its
+hyphen, while *to tangent space* is a prepositional phrase and never needed one.
+
+## Texture/Assignment and Texture/Packing (2)
+
+*Set Texture* and *Pack Texture Images* were already conformant.
+
+## A lexicon entry corrected
+
+`Pack` was defined as "Arrange UV charts in an atlas", but *Pack Texture Images* arranges
+whole images, not charts — the entry under-described its own shipped user, and had done
+since it was written. It now reads "Arrange UV charts, or whole texture images, into an
+atlas". The two filters now form a pair distinguished only by their object, which is what
+the grammar is for: **Pack UV Charts** beside **Pack Texture Images**.
+
+## Enforcement
+
+`Texture` was added to `appliedRoots`, completing the set: all eleven roots are now
+checked on every build. Verified to discriminate: restoring
+*Convert: Object-Space Normal Map to Tangent-Space* fails the guard with
+`repeats the category with a colon` — the colon branch of the check, which no earlier
+round had exercised on its own.
+
+# Pass 1 complete
+
+All 328 filters across 11 roots carry a display name that leads with a ratified verb and
+follows `Verb Object [(Backend)]`. The lexicon closed at 56 verbs and 5 connectors
+(`by`, `from`, `to`, `with`, `for`).
+
+Ids and `pythonName`s are untouched by design and are pass 2: **250 of 328 `pythonName`s
+and 280 of 328 ids** no longer match their display name, plus parameter ids on top.

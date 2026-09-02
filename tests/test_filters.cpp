@@ -5167,7 +5167,8 @@ void FilterTests::displayNamesLeadWithALexiconVerb()
         QStringLiteral("Creation"), QStringLiteral("Geometry"),
         QStringLiteral("Selection"), QStringLiteral("Repair"),
         QStringLiteral("Document"), QStringLiteral("Parametrization"),
-        QStringLiteral("Measurement"), QStringLiteral("Transfer")
+        QStringLiteral("Measurement"), QStringLiteral("Transfer"),
+        QStringLiteral("Texture")
     };
 
     Document probe;

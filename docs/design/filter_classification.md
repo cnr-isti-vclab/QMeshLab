@@ -522,7 +522,7 @@ That was the main finding of this pass.
 |---|---|---|---|
 | Convert Per-Vertex UV to Per-Wedge UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |
 | Convert Per-Wedge UV to Per-Vertex UV | `texture` | `Parametrization/UV Conversion` | <sub>touches: uv</sub> |
-| Convert: Object-Space Normal Map to Tangent-Space | `texture` | `Texture/Conversion` | <sub>touches: texture</sub> |
+| Convert Object-Space Normal Map to Tangent Space | `texture` | `Texture/Conversion` | <sub>touches: texture</sub> |
 | Parametrize by Harmonic Map (libigl) | `parametrization` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
 | Parametrize by Least Squares Conformal Maps (libigl) | `parametrization` | `Parametrization/UV Creation` | <sub>touches: uv</sub> |
 | Pack Texture Images | `texture` | `Texture/Packing` · `Parametrization/Atlas Packing` |  |

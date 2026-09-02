@@ -398,7 +398,7 @@ Canonical verbs for the leading word of a name. One meaning each.
 | `Cut` | Split a surface along a curve, introducing a boundary | **`Split`** (claimed by layer and element operations) |
 | `Smooth` | Reduce noise in positions/normals | `Denoise`, `Fair`, `Blur`, `Relax` |
 | `Parametrize` | Create or edit UVs | `Unwrap`, `Parameterize`, `Flatten` |
-| `Pack` | Arrange UV charts in an atlas | `Layout`, `Bin` |
+| `Pack` | Arrange UV charts, or whole texture images, into an atlas | `Layout`, `Bin` |
 | `Set` | Assign a value or state | *(prefer over `Define`, `Assign`)* |
 | `Convert` | Change representation, same information | `Translate`, `Cast` |
 | `Duplicate`, `Split`, `Extract` | Layer-structure operations. `Split` additionally covers separating *mesh elements* that were sharing storage (*Split Vertices by Attribute Seam*) | `Clone`, `Separate`, `Detach` |
