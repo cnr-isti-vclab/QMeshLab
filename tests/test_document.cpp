@@ -242,7 +242,7 @@ void DocumentTests::everyFilterRunReportsItsDuration()
 
     QString filterKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("mesh_info")) {
+        if (info.descriptor.id == QStringLiteral("measure_mesh_summary")) {
             filterKey = info.key;
             break;
         }
@@ -292,7 +292,7 @@ void DocumentTests::undoRestoresDynamicFilterBounds()
 
     auto targetFaceBounds = [&doc]() {
         for (const auto &info : doc.filterInfos()) {
-            if (info.descriptor.id != QStringLiteral("meshing_decimation_quadric_edge_collapse"))
+            if (info.descriptor.id != QStringLiteral("simplify_by_quadric_edge_collapse_vcglib"))
                 continue;
             for (const auto &p : info.descriptor.parameters) {
                 if (p.id == QStringLiteral("TargetFaceNum"))
@@ -308,7 +308,7 @@ void DocumentTests::undoRestoresDynamicFilterBounds()
 
     QString decimationKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("meshing_decimation_quadric_edge_collapse")) {
+        if (info.descriptor.id == QStringLiteral("simplify_by_quadric_edge_collapse_vcglib")) {
             decimationKey = info.key;
             break;
         }
@@ -352,8 +352,8 @@ void DocumentTests::undoNodeActionIsTheOneThatProducedTheState()
         }
         return QString();
     };
-    const QString decimationKey = keyFor(QStringLiteral("meshing_decimation_quadric_edge_collapse"));
-    const QString infoKey = keyFor(QStringLiteral("mesh_info"));
+    const QString decimationKey = keyFor(QStringLiteral("simplify_by_quadric_edge_collapse_vcglib"));
+    const QString infoKey = keyFor(QStringLiteral("measure_mesh_summary"));
     QVERIFY(!decimationKey.isEmpty());
     QVERIFY(!infoKey.isEmpty());
 
@@ -508,7 +508,7 @@ void DocumentTests::progressLogIsTransientAndRemovedOnCompletion()
 
     QString decimationKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("meshing_decimation_quadric_edge_collapse")) {
+        if (info.descriptor.id == QStringLiteral("simplify_by_quadric_edge_collapse_vcglib")) {
             decimationKey = info.key;
             break;
         }

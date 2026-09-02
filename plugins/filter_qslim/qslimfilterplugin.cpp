@@ -26,7 +26,7 @@
 
 namespace {
 
-constexpr QLatin1StringView kQSlimFilter("simplification_quadric_edge_collapse_qslim");
+constexpr QLatin1StringView kQSlimFilter("simplify_by_quadric_edge_collapse_qslim");
 using Mask = vcg::tri::io::Mask;
 
 std::mutex &qslimMutex()

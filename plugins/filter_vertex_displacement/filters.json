@@ -68,10 +68,10 @@
       "outputModifies": ["VG", "VN", "FN"]
     },
     {
-      "id": "displace_by_fractal_brownian_motion",
+      "id": "displace_vertices_by_fractal_brownian_motion",
       "categories": ["Geometry/Deformation"],
       "name": "Displace Vertices by Fractal Brownian Motion",
-      "pythonName": "displace_by_fractal_brownian_motion",
+      "pythonName": "displace_vertices_by_fractal_brownian_motion",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices along their normals using fractal Brownian motion.",
       "longDescriptionMarkdown": "Evaluates fractal Brownian motion (fBM) in normalized object space and displaces each vertex along a smoothed normal. The noise is the weighted sum $$N(\\mathbf{x})=\\sum_{i=0}^{n-1} L^{-Hi}\\,P(L^i\\mathbf{x}),$$ where $P$ is VCGLib's three-dimensional Perlin noise, $n$ is the octave count, $L$ is lacunarity, and $H$ is the fractal increment. Lower $H$ retains more high-frequency detail.",
@@ -91,10 +91,10 @@
       "outputModifies": ["VG", "VN", "FN"]
     },
     {
-      "id": "displace_by_standard_multifractal_noise",
+      "id": "displace_vertices_by_standard_multifractal_noise",
       "categories": ["Geometry/Deformation"],
       "name": "Displace Vertices by Standard Multifractal Noise",
-      "pythonName": "displace_by_standard_multifractal_noise",
+      "pythonName": "displace_vertices_by_standard_multifractal_noise",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices using multiplicative standard multifractal noise.",
       "longDescriptionMarkdown": "Evaluates standard multifractal noise in normalized object space and displaces vertices along smoothed normals. Unlike additive fBM, its octave contributions are multiplied: $$N(\\mathbf{x})=\\prod_{i=0}^{n-1}\\left(O+L^{-Hi}P(L^i\\mathbf{x})\\right).$$ The offset $O$ controls multifractality and the fractal increment $H$ controls the contribution of high frequencies.",
@@ -115,10 +115,10 @@
       "outputModifies": ["VG", "VN", "FN"]
     },
     {
-      "id": "displace_by_heterogeneous_multifractal_noise",
+      "id": "displace_vertices_by_heterogeneous_multifractal_noise",
       "categories": ["Geometry/Deformation"],
       "name": "Displace Vertices by Heterogeneous Multifractal Noise",
-      "pythonName": "displace_by_heterogeneous_multifractal_noise",
+      "pythonName": "displace_vertices_by_heterogeneous_multifractal_noise",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices using elevation-dependent heterogeneous multifractal noise.",
       "longDescriptionMarkdown": "Evaluates a heterogeneous multifractal whose successive increments are modulated by the accumulated signal. This makes high-frequency detail depend on the local elevation already produced by lower octaves, yielding spatially varying roughness rather than a stationary noise field.",
@@ -139,10 +139,10 @@
       "outputModifies": ["VG", "VN", "FN"]
     },
     {
-      "id": "displace_by_hybrid_multifractal_noise",
+      "id": "displace_vertices_by_hybrid_multifractal_noise",
       "categories": ["Geometry/Deformation"],
       "name": "Displace Vertices by Hybrid Multifractal Noise",
-      "pythonName": "displace_by_hybrid_multifractal_noise",
+      "pythonName": "displace_vertices_by_hybrid_multifractal_noise",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices using signal-weighted hybrid multifractal noise.",
       "longDescriptionMarkdown": "Evaluates hybrid multifractal noise, where each octave controls how strongly the following octave contributes. The feedback is clamped to avoid unbounded amplification, producing terrain-like regions with locally varying roughness.",
@@ -163,10 +163,10 @@
       "outputModifies": ["VG", "VN", "FN"]
     },
     {
-      "id": "displace_by_ridged_multifractal_noise",
+      "id": "displace_vertices_by_ridged_multifractal_noise",
       "categories": ["Geometry/Deformation"],
       "name": "Displace Vertices by Ridged Multifractal Noise",
-      "pythonName": "displace_by_ridged_multifractal_noise",
+      "pythonName": "displace_vertices_by_ridged_multifractal_noise",
       "referenceIds": ["ebert2002procedural"],
       "shortDescription": "Displace vertices using ridged multifractal noise.",
       "longDescriptionMarkdown": "Evaluates ridged multifractal noise by folding each Perlin signal around zero, subtracting it from the offset, and squaring it. Feedback controlled by the gain sharpens coherent ridges while suppressing detail away from them.",

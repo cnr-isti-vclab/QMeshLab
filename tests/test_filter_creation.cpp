@@ -1,4 +1,5 @@
 #include <QtTest/QtTest>
+#include <QDirIterator>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -158,6 +159,7 @@ private:
 private slots:
     void ontologyIsWellFormed();
     void everyFilterIsClassified();
+    void everyDeclaredFilterIsDispatchable();
     void runWithDefaults_data();
     void runWithDefaults();
     void cleanupTestCase();
@@ -221,6 +223,45 @@ void FilterCreationTests::everyFilterIsClassified()
 
 // Populate one row per eligible filter.  The row tag (= filter id) is used by
 // Qt Test as the sub-test name in output and in --testcase selectors.
+// A descriptor declares an id; the plugin dispatches on that same string, held as a
+// literal in its own source. Nothing links the two, so a rename that updates one and not
+// the other leaves a filter that is listed, enabled, and refuses when picked.
+//
+// This is checked against the sources rather than by running the filters: the manager
+// validates the input domain before it dispatches, so on an empty document no plugin ever
+// sees the id, and running them on a real one means actually running three hundred
+// filters. Pass 2 renamed 281 ids at once, which is when this stopped being hypothetical.
+void FilterCreationTests::everyDeclaredFilterIsDispatchable()
+{
+    QString sources;
+    QDirIterator it(QStringLiteral(TEST_SOURCE_DIR "/plugins"),
+                    {QStringLiteral("*.cpp"), QStringLiteral("*.h")},
+                    QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString path = it.next();
+        // Vendored upstream trees carry their own unrelated string literals.
+        if (path.contains(QStringLiteral("/upstream/")))
+            continue;
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly))
+            sources += QString::fromUtf8(f.readAll());
+    }
+    QVERIFY2(sources.size() > 100000, "could not read the plugin sources");
+
+    Document doc;
+    QStringList undispatchable;
+    for (const auto &info : doc.filterInfos()) {
+        if (!sources.contains(QStringLiteral("\"%1\"").arg(info.descriptor.id)))
+            undispatchable << QStringLiteral("%1 (%2)").arg(info.descriptor.name,
+                                                            info.descriptor.id);
+    }
+    QVERIFY2(undispatchable.isEmpty(),
+             qPrintable(QStringLiteral("%1 filter id(s) appear in no plugin source, so no "
+                                       "plugin will dispatch them:\n  %2")
+                            .arg(undispatchable.size())
+                            .arg(undispatchable.join(QStringLiteral("\n  ")))));
+}
+
 void FilterCreationTests::runWithDefaults_data()
 {
     QTest::addColumn<QString>("key");

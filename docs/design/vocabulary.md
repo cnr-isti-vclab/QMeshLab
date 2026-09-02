@@ -621,8 +621,18 @@ Python name:
 verb_object[_backend]
 ```
 
-Examples: `compute_vertex_normals`, `remove_duplicate_vertices`,
-`transfer_raster_color_to_vertex_color`, `simplify_quadric_edge_collapse_qslim`.
+The display name, in snake_case: punctuation collapses to `_`, a `(Backend)` suffix
+becomes a trailing `_backend`, and the articles `the`/`a`/`an` drop. Nothing else is
+dropped -- connectors included -- so the menu name and the API name are one string in two
+spellings, and neither has to be looked up to know the other. **The `id` is the same
+string**, so a filter has one name, not three.
+
+Examples: *Compute Vertex Normals* → `compute_vertex_normals`; *Simplify by Quadric Edge
+Collapse (QSlim)* → `simplify_by_quadric_edge_collapse_qslim`; *Transfer Color from Vertex
+to Face* → `transfer_color_from_vertex_to_face`.
+
+An earlier draft of this section dropped `by` while keeping `from` and `to`, which no
+reader could have predicted; pass 2 settled it by keeping every word (2026-09-03).
 
 ### Discoverability: prerequisite (done)
 

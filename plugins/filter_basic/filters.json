@@ -2,10 +2,10 @@
   "pluginId": "qmeshlab.filter.basic",
   "filters": [
     {
-      "id": "mesh_info",
+      "id": "measure_mesh_summary",
       "categories": ["Measurement/Topological"],
       "name": "Measure Mesh Summary",
-      "pythonName": "get_info",
+      "pythonName": "measure_mesh_summary",
       "shortDescription": "Prints a compact summary for the current mesh.",
       "longDescriptionMarkdown": "Outputs vertex/edge/face counts and bounding-box metrics for the current mesh.",
       "tags": [
@@ -30,10 +30,10 @@
       ]
     },
     {
-      "id": "create_noisy_isosurface",
+      "id": "create_isosurface_from_perlin_noise",
       "categories": ["Creation/Primitives"],
       "name": "Create Isosurface from Perlin Noise",
-      "pythonName": "generate_noisy_isosurface",
+      "pythonName": "create_isosurface_from_perlin_noise",
       "shortDescription": "Creates an isosurface perturbed by 3D Perlin noise.",
       "longDescriptionMarkdown": "Generates a scalar field over a cubic grid and extracts an isosurface using marching cubes.",
       "tags": [

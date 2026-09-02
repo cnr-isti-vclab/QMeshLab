@@ -21,9 +21,9 @@
 #include <memory>
 
 namespace {
-constexpr QLatin1StringView kPlanarFlip("meshing_edge_flip_by_planar_optimization");
-constexpr QLatin1StringView kCurvatureFlip("meshing_edge_flip_by_curvature_optimization");
-constexpr QLatin1StringView kNearLaplacian("apply_coord_laplacian_smoothing_surface_preserving");
+constexpr QLatin1StringView kPlanarFlip("flip_edges_by_planarity");
+constexpr QLatin1StringView kCurvatureFlip("flip_edges_by_curvature");
+constexpr QLatin1StringView kNearLaplacian("smooth_vertices_by_surface_preserving_laplacian_vcglib");
 
 using Mask = vcg::tri::io::Mask;
 

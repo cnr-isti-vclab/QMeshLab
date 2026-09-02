@@ -31,17 +31,17 @@
 #include <optional>
 
 namespace {
-constexpr QLatin1StringView kFilterVoronoiAtlas("generate_voronoi_atlas_parametrization");
-constexpr QLatin1StringView kFilterWedgeToVertex("compute_texcoord_transfer_wedge_to_vertex");
-constexpr QLatin1StringView kFilterVertexToWedge("compute_texcoord_transfer_vertex_to_wedge");
-constexpr QLatin1StringView kFilterPlanarMapping("compute_texcoord_parametrization_flat_plane_per_wedge");
-constexpr QLatin1StringView kFilterTriangleMapping("compute_texcoord_parametrization_triangle_trivial_per_wedge");
-constexpr QLatin1StringView kFilterSetTexture("set_texture_per_mesh");
-constexpr QLatin1StringView kFilterColorToTexture("compute_texmap_from_color");
-constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_texture_to_color_per_vertex");
-constexpr QLatin1StringView kFilterTransferToTexture("transfer_attributes_to_texture_per_vertex");
+constexpr QLatin1StringView kFilterVoronoiAtlas("parametrize_by_voronoi_atlas_vcglib");
+constexpr QLatin1StringView kFilterWedgeToVertex("convert_per_wedge_uv_to_per_vertex_uv");
+constexpr QLatin1StringView kFilterVertexToWedge("convert_per_vertex_uv_to_per_wedge_uv");
+constexpr QLatin1StringView kFilterPlanarMapping("parametrize_by_flat_plane");
+constexpr QLatin1StringView kFilterTriangleMapping("parametrize_by_trivial_per_triangle_layout");
+constexpr QLatin1StringView kFilterSetTexture("set_texture");
+constexpr QLatin1StringView kFilterColorToTexture("transfer_color_from_vertex_to_texture");
+constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_color_from_texture_to_vertex_by_closest_point");
+constexpr QLatin1StringView kFilterTransferToTexture("transfer_vertex_attributes_to_texture_by_closest_point");
 constexpr QLatin1StringView kFilterObjectToTangentNormal("convert_object_space_normal_map_to_tangent_space");
-constexpr QLatin1StringView kFilterPackTextures("pack_textures");
+constexpr QLatin1StringView kFilterPackTextures("pack_texture_images");
 
 using Mask = vcg::tri::io::Mask;
 namespace Tex = TextureAssociationUtils;

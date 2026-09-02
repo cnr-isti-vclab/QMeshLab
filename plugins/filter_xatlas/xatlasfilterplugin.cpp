@@ -16,7 +16,7 @@
 
 namespace {
 
-constexpr QLatin1StringView kFilterXAtlas("generate_xatlas_parametrization");
+constexpr QLatin1StringView kFilterXAtlas("parametrize_by_atlas_xatlas");
 using Mask = vcg::tri::io::Mask;
 namespace Tex = TextureAssociationUtils;
 

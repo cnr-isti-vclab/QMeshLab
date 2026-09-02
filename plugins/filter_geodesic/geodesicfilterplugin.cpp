@@ -9,10 +9,10 @@
 #include <limits>
 
 namespace {
-constexpr QLatin1StringView kFilterBorderGeodesic("compute_scalar_by_border_distance_per_vertex");
-constexpr QLatin1StringView kFilterPointGeodesic("compute_scalar_by_geodesic_distance_from_given_point_per_vertex");
-constexpr QLatin1StringView kFilterSelectedGeodesic("compute_scalar_by_geodesic_distance_from_selection_per_vertex");
-constexpr QLatin1StringView kFilterHeatGeodesic("compute_scalar_by_heat_geodesic_distance_from_selection_per_vertex");
+constexpr QLatin1StringView kFilterBorderGeodesic("compute_geodesic_distance_from_border");
+constexpr QLatin1StringView kFilterPointGeodesic("compute_geodesic_distance_from_point");
+constexpr QLatin1StringView kFilterSelectedGeodesic("compute_geodesic_distance_from_selection_vcglib");
+constexpr QLatin1StringView kFilterHeatGeodesic("compute_heat_geodesic_distance_from_selection_vcglib");
 
 MeshFilterRunResult vertexQualityResult(int meshIndex, const QString &message)
 {

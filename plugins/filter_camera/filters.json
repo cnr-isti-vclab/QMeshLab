@@ -2,10 +2,10 @@
   "pluginId": "qmeshlab.filter.camera",
   "filters": [
     {
-      "id": "set_camera_per_mesh",
+      "id": "set_mesh_camera",
       "categories": ["Document/Camera"],
       "name": "Set Mesh Camera",
-      "pythonName": "set_camera_per_mesh",
+      "pythonName": "set_mesh_camera",
       "shortDescription": "Set the camera parameters for the current mesh.",
       "longDescriptionMarkdown": "Set camera parameters for the current mesh. The camera is stored and used by other filters such as 'Vertex Quality from Camera'.",
       "tags": ["camera", "mesh"],
@@ -57,10 +57,10 @@
       ]
     },
     {
-      "id": "set_camera_per_raster",
+      "id": "set_raster_camera",
       "categories": ["Document/Camera"],
       "name": "Set Raster Camera",
-      "pythonName": "set_camera_per_raster",
+      "pythonName": "set_raster_camera",
       "shortDescription": "Set the camera parameters for the current raster.",
       "longDescriptionMarkdown": "Set camera parameters for the current raster. The viewport is automatically recalculated from the raster image dimensions.",
       "tags": ["camera", "raster"],
@@ -111,10 +111,10 @@
       ]
     },
     {
-      "id": "compute_scalar_from_camera_per_vertex",
+      "id": "compute_vertex_scalar_from_camera",
       "categories": ["Attribute/Scalar"],
       "name": "Compute Vertex Scalar from Camera",
-      "pythonName": "compute_scalar_from_camera_per_vertex",
+      "pythonName": "compute_vertex_scalar_from_camera",
       "shortDescription": "Compute vertex quality using the camera definition, according to viewing angle or distance.",
       "longDescriptionMarkdown": "Compute vertex quality using the camera definition, according to viewing angle or distance. Uses the current raster camera if available.",
       "tags": ["camera", "quality"],
@@ -167,10 +167,10 @@
       ]
     },
     {
-      "id": "apply_cameras_rotation",
+      "id": "rotate_cameras",
       "categories": ["Document/Camera"],
       "name": "Rotate Cameras",
-      "pythonName": "apply_cameras_rotation",
+      "pythonName": "rotate_cameras",
       "shortDescription": "Rotate the camera, or all the cameras of the project.",
       "longDescriptionMarkdown": "Rotate the camera, or all the cameras of the project. The selected raster is the reference if viewpoint rotation is selected.",
       "tags": ["camera", "transform", "rotation"],
@@ -265,10 +265,10 @@
       ]
     },
     {
-      "id": "apply_cameras_scaling",
+      "id": "scale_cameras",
       "categories": ["Document/Camera"],
       "name": "Scale Cameras",
-      "pythonName": "apply_cameras_scaling",
+      "pythonName": "scale_cameras",
       "shortDescription": "Scale the camera, or all the cameras of the project.",
       "longDescriptionMarkdown": "Scale the camera, or all the cameras of the project.",
       "tags": ["camera", "transform", "scale"],
@@ -340,10 +340,10 @@
       ]
     },
     {
-      "id": "apply_cameras_translation",
+      "id": "translate_cameras",
       "categories": ["Document/Camera"],
       "name": "Translate Cameras",
-      "pythonName": "apply_cameras_translation",
+      "pythonName": "translate_cameras",
       "shortDescription": "Translate the camera, or all the cameras of the project.",
       "longDescriptionMarkdown": "Translate the camera, or all the cameras of the project.",
       "tags": ["camera", "transform", "translation"],
@@ -423,10 +423,10 @@
       ]
     },
     {
-      "id": "apply_cameras_extrinsics_transformation",
+      "id": "transform_camera_extrinsics",
       "categories": ["Document/Camera"],
       "name": "Transform Camera Extrinsics",
-      "pythonName": "apply_cameras_extrinsics_transformation",
+      "pythonName": "transform_camera_extrinsics",
       "shortDescription": "Apply a similarity transformation to the camera extrinsics.",
       "longDescriptionMarkdown": "Apply a similarity transformation to the camera extrinsics, or all the cameras of the project.",
       "tags": ["camera", "transform"],
@@ -506,10 +506,10 @@
       ]
     },
     {
-      "id": "compute_normal_from_cameras_per_vertex",
+      "id": "orient_vertex_normals_by_cameras",
       "categories": ["Attribute/Normal"],
       "name": "Orient Vertex Normals by Cameras",
-      "pythonName": "compute_normal_from_cameras_per_vertex",
+      "pythonName": "orient_vertex_normals_by_cameras",
       "shortDescription": "Reorient vertex normals to point toward the cameras that see them best.",
       "longDescriptionMarkdown": "Reorient vertex normals using visible rasters. For each vertex, the best camera is chosen among all visible rasters and the normal is oriented to face toward that camera. If the per-vertex attribute 'correspondences' exists (from Bundler .out imports), the original Bundler camera indices are used instead.",
       "tags": ["camera", "normal", "orientation"],

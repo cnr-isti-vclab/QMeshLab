@@ -2,10 +2,10 @@
   "pluginId": "qmeshlab.filter.expression",
   "filters": [
     {
-      "id": "conditional_vertex_selection",
+      "id": "select_vertices_by_expression",
       "categories": ["Selection/by Attribute"],
       "name": "Select Vertices by Expression",
-      "pythonName": "select_vertices_by_condition",
+      "pythonName": "select_vertices_by_expression",
       "shortDescription": "Selects vertices for which a boolean expression evaluates true.",
       "longDescriptionMarkdown": "Boolean function using muparser lib to perform vertex selection over current mesh.<br>",
       "tags": [
@@ -44,10 +44,10 @@
       ]
     },
     {
-      "id": "conditional_face_selection",
+      "id": "select_faces_by_expression",
       "categories": ["Selection/by Attribute"],
       "name": "Select Faces by Expression",
-      "pythonName": "select_faces_by_condition",
+      "pythonName": "select_faces_by_expression",
       "shortDescription": "Selects faces for which a boolean expression evaluates true.",
       "longDescriptionMarkdown": "Boolean function using muparser lib to perform faces selection over current mesh.<br>",
       "tags": [
@@ -86,10 +86,10 @@
       ]
     },
     {
-      "id": "per_vertex_geometric_function",
+      "id": "compute_vertex_coordinates_by_expression",
       "categories": ["Geometry/Deformation"],
       "name": "Compute Vertex Coordinates by Expression",
-      "pythonName": "apply_vertex_geometric_function",
+      "pythonName": "compute_vertex_coordinates_by_expression",
       "shortDescription": "Computes new per-vertex coordinates from expressions.",
       "longDescriptionMarkdown": "Geometric function using muparser lib to generate new Coord<br>You can change x,y,z for every vertex according to the function specified.<br>",
       "tags": [
@@ -160,10 +160,10 @@
       ]
     },
     {
-      "id": "per_vertex_normal_function",
+      "id": "compute_vertex_normals_by_expression",
       "categories": ["Attribute/Normal"],
       "name": "Compute Vertex Normals by Expression",
-      "pythonName": "apply_vertex_normal_function",
+      "pythonName": "compute_vertex_normals_by_expression",
       "shortDescription": "Computes new per-vertex normals from expressions.",
       "longDescriptionMarkdown": "Normal function using muparser to generate new Normal for every vertex<br>",
       "tags": [
@@ -225,10 +225,10 @@
       ]
     },
     {
-      "id": "per_face_normal_function",
+      "id": "compute_face_normals_by_expression",
       "categories": ["Attribute/Normal"],
       "name": "Compute Face Normals by Expression",
-      "pythonName": "apply_face_normal_function",
+      "pythonName": "compute_face_normals_by_expression",
       "shortDescription": "Computes new per-face normals from expressions.",
       "longDescriptionMarkdown": "Normal function using muparser to generate new Normal for every face<br>",
       "tags": [
@@ -290,10 +290,10 @@
       ]
     },
     {
-      "id": "per_vertex_color_function",
+      "id": "compute_vertex_color_by_expression",
       "categories": ["Attribute/Color"],
       "name": "Compute Vertex Color by Expression",
-      "pythonName": "apply_vertex_color_function",
+      "pythonName": "compute_vertex_color_by_expression",
       "shortDescription": "Computes per-vertex RGBA colors from expressions.",
       "longDescriptionMarkdown": "Color function using muparser lib to generate new RGBA color for every vertex<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br>",
       "tags": [
@@ -363,10 +363,10 @@
       ]
     },
     {
-      "id": "per_face_color_function",
+      "id": "compute_face_color_by_expression",
       "categories": ["Attribute/Color"],
       "name": "Compute Face Color by Expression",
-      "pythonName": "apply_face_color_function",
+      "pythonName": "compute_face_color_by_expression",
       "shortDescription": "Computes per-face RGBA colors from expressions.",
       "longDescriptionMarkdown": "Color function using muparser lib to generate new RGBA color for every face<br>Red, Green, Blue and Alpha channels may be defined specifying a function in their respective fields.<br>",
       "tags": [
@@ -436,10 +436,10 @@
       ]
     },
     {
-      "id": "per_vertex_quality_function",
+      "id": "compute_vertex_scalar_by_expression",
       "categories": ["Attribute/Scalar"],
       "name": "Compute Vertex Scalar by Expression",
-      "pythonName": "apply_vertex_quality_function",
+      "pythonName": "compute_vertex_scalar_by_expression",
       "shortDescription": "Computes per-vertex scalar quality from an expression.",
       "longDescriptionMarkdown": "Quality function using muparser to generate new Quality for every vertex<br>",
       "tags": [
@@ -501,10 +501,10 @@
       ]
     },
     {
-      "id": "per_face_quality_function",
+      "id": "compute_face_scalar_by_expression",
       "categories": ["Attribute/Scalar"],
       "name": "Compute Face Scalar by Expression",
-      "pythonName": "apply_face_quality_function",
+      "pythonName": "compute_face_scalar_by_expression",
       "shortDescription": "Computes per-face scalar quality from an expression.",
       "longDescriptionMarkdown": "Quality function using muparser to generate new Quality for every face<br>Insert three function each one for quality of the three vertex of a face<br>",
       "tags": [
@@ -566,10 +566,10 @@
       ]
     },
     {
-      "id": "per_vertex_texture_function",
+      "id": "parametrize_per_vertex_by_expression",
       "categories": ["Parametrization/UV Creation"],
       "name": "Parametrize per Vertex by Expression",
-      "pythonName": "apply_vertex_texture_function",
+      "pythonName": "parametrize_per_vertex_by_expression",
       "shortDescription": "Computes per-vertex texture coordinates from expressions.",
       "longDescriptionMarkdown": "Texture function using muparser to generate new texture coords for every vertex<br>",
       "tags": [
@@ -626,10 +626,10 @@
       ]
     },
     {
-      "id": "per_wedge_texture_function",
+      "id": "parametrize_per_wedge_by_expression",
       "categories": ["Parametrization/UV Creation"],
       "name": "Parametrize per Wedge by Expression",
-      "pythonName": "apply_wedge_texture_function",
+      "pythonName": "parametrize_per_wedge_by_expression",
       "shortDescription": "Computes per-wedge texture coordinates from expressions.",
       "longDescriptionMarkdown": "Texture function using muparser to generate new per wedge tex coords for every face<br>Insert six functions each u v for each one of the three vertex of a face<br>",
       "tags": [
@@ -718,10 +718,10 @@
       ]
     },
     {
-      "id": "define_per_vertex_scalar_attribute",
+      "id": "define_custom_vertex_scalar_attribute",
       "categories": ["Attribute/Custom"],
       "name": "Define Custom Vertex Scalar Attribute",
-      "pythonName": "define_vertex_scalar_attribute",
+      "pythonName": "define_custom_vertex_scalar_attribute",
       "shortDescription": "Defines and fills a custom per-vertex scalar attribute.",
       "longDescriptionMarkdown": "Add a new Per-Vertex custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>",
       "tags": [
@@ -767,10 +767,10 @@
       ]
     },
     {
-      "id": "define_per_face_scalar_attribute",
+      "id": "define_custom_face_scalar_attribute",
       "categories": ["Attribute/Custom"],
       "name": "Define Custom Face Scalar Attribute",
-      "pythonName": "define_face_scalar_attribute",
+      "pythonName": "define_custom_face_scalar_attribute",
       "shortDescription": "Defines and fills a custom per-face scalar attribute.",
       "longDescriptionMarkdown": "Add a new Per-Face custom scalar attribute to current mesh and fill it with the defined function.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>",
       "tags": [
@@ -816,10 +816,10 @@
       ]
     },
     {
-      "id": "define_per_vertex_point_attribute",
+      "id": "define_custom_vertex_point_attribute",
       "categories": ["Attribute/Custom"],
       "name": "Define Custom Vertex Point Attribute",
-      "pythonName": "define_vertex_point_attribute",
+      "pythonName": "define_custom_vertex_point_attribute",
       "shortDescription": "Defines and fills a custom per-vertex point attribute.",
       "longDescriptionMarkdown": "Add a new Per-Vertex custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>",
       "tags": [
@@ -881,10 +881,10 @@
       ]
     },
     {
-      "id": "define_per_face_point_attribute",
+      "id": "define_custom_face_point_attribute",
       "categories": ["Attribute/Custom"],
       "name": "Define Custom Face Point Attribute",
-      "pythonName": "define_face_point_attribute",
+      "pythonName": "define_custom_face_point_attribute",
       "shortDescription": "Defines and fills a custom per-face point attribute.",
       "longDescriptionMarkdown": "Add a new Per-Face custom point attribute to current mesh and fill it with the defined functions.<br>Attribute names must contain only letters, numbers and underscores.<br>The name specified for the attribute can be used in other filter functions.<br>",
       "tags": [
@@ -946,7 +946,7 @@
       ]
     },
     {
-      "id": "grid_generator",
+      "id": "create_grid",
       "categories": ["Creation/Primitives"],
       "name": "Create Grid",
       "pythonName": "create_grid",
@@ -1014,10 +1014,10 @@
       ]
     },
     {
-      "id": "implicit_surface",
+      "id": "create_isosurface_from_expression",
       "categories": ["Creation/Primitives"],
       "name": "Create Isosurface from Expression",
-      "pythonName": "create_implicit_surface",
+      "pythonName": "create_isosurface_from_expression",
       "shortDescription": "Extracts an isosurface from an implicit scalar field.",
       "longDescriptionMarkdown": "Generate a new mesh that corresponds to the 0 valued isosurface defined by the scalar field generated by the given expression",
       "tags": [
@@ -1127,10 +1127,10 @@
       ]
     },
     {
-      "id": "refine_user_defined",
+      "id": "refine_by_user_expression",
       "categories": ["Meshing/Subdivision"],
       "name": "Refine by User Expression",
-      "pythonName": "refine_user_defined",
+      "pythonName": "refine_by_user_expression",
       "shortDescription": "Refines edges selected by an expression and places split points by expressions.",
       "longDescriptionMarkdown": "Refine current mesh with user defined parameters.<br>Specify a Boolean Function needed to select which edges will be cut for refinement purpose.<br>Each edge is identified with first and second vertex.<br>Arguments accepted are first and second vertex attributes:<br>",
       "tags": [

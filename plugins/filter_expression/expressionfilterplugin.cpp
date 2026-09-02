@@ -28,24 +28,24 @@
 #include <vector>
 
 namespace {
-constexpr QLatin1StringView kFilterVertSelection("conditional_vertex_selection");
-constexpr QLatin1StringView kFilterFaceSelection("conditional_face_selection");
-constexpr QLatin1StringView kFilterGeomFunc("per_vertex_geometric_function");
-constexpr QLatin1StringView kFilterFaceColor("per_face_color_function");
-constexpr QLatin1StringView kFilterFaceQuality("per_face_quality_function");
-constexpr QLatin1StringView kFilterVertColor("per_vertex_color_function");
-constexpr QLatin1StringView kFilterVertQuality("per_vertex_quality_function");
-constexpr QLatin1StringView kFilterVertTex("per_vertex_texture_function");
-constexpr QLatin1StringView kFilterWedgeTex("per_wedge_texture_function");
-constexpr QLatin1StringView kFilterVertNormal("per_vertex_normal_function");
-constexpr QLatin1StringView kFilterFaceNormal("per_face_normal_function");
-constexpr QLatin1StringView kFilterDefVertScalar("define_per_vertex_scalar_attribute");
-constexpr QLatin1StringView kFilterDefFaceScalar("define_per_face_scalar_attribute");
-constexpr QLatin1StringView kFilterDefVertPoint("define_per_vertex_point_attribute");
-constexpr QLatin1StringView kFilterDefFacePoint("define_per_face_point_attribute");
-constexpr QLatin1StringView kFilterGrid("grid_generator");
-constexpr QLatin1StringView kFilterRefine("refine_user_defined");
-constexpr QLatin1StringView kFilterIso("implicit_surface");
+constexpr QLatin1StringView kFilterVertSelection("select_vertices_by_expression");
+constexpr QLatin1StringView kFilterFaceSelection("select_faces_by_expression");
+constexpr QLatin1StringView kFilterGeomFunc("compute_vertex_coordinates_by_expression");
+constexpr QLatin1StringView kFilterFaceColor("compute_face_color_by_expression");
+constexpr QLatin1StringView kFilterFaceQuality("compute_face_scalar_by_expression");
+constexpr QLatin1StringView kFilterVertColor("compute_vertex_color_by_expression");
+constexpr QLatin1StringView kFilterVertQuality("compute_vertex_scalar_by_expression");
+constexpr QLatin1StringView kFilterVertTex("parametrize_per_vertex_by_expression");
+constexpr QLatin1StringView kFilterWedgeTex("parametrize_per_wedge_by_expression");
+constexpr QLatin1StringView kFilterVertNormal("compute_vertex_normals_by_expression");
+constexpr QLatin1StringView kFilterFaceNormal("compute_face_normals_by_expression");
+constexpr QLatin1StringView kFilterDefVertScalar("define_custom_vertex_scalar_attribute");
+constexpr QLatin1StringView kFilterDefFaceScalar("define_custom_face_scalar_attribute");
+constexpr QLatin1StringView kFilterDefVertPoint("define_custom_vertex_point_attribute");
+constexpr QLatin1StringView kFilterDefFacePoint("define_custom_face_point_attribute");
+constexpr QLatin1StringView kFilterGrid("create_grid");
+constexpr QLatin1StringView kFilterRefine("refine_by_user_expression");
+constexpr QLatin1StringView kFilterIso("create_isosurface_from_expression");
 
 QString parserOperatorsReferenceMarkdown()
 {

@@ -22,7 +22,7 @@ constexpr QLatin1StringView kFilterPointCloudAmbientOcclusion(
     "compute_point_cloud_ambient_occlusion");
 constexpr QLatin1StringView kFilterShapeDiameter("compute_shape_diameter_function");
 constexpr QLatin1StringView kFilterSelectVisibleFaces("select_visible_faces");
-constexpr QLatin1StringView kFilterAnalyzeNormals("analyze_normals");
+constexpr QLatin1StringView kFilterAnalyzeNormals("orient_face_normals_by_ray_casting");
 
 struct CurrentMeshRef
 {

@@ -21,11 +21,11 @@
 
 namespace {
 
-constexpr QLatin1StringView kGaussian("compute_gaussian_curvature_per_vertex_libigl");
-constexpr QLatin1StringView kPrincipal("compute_curvature_principal_directions_per_vertex_libigl");
-constexpr QLatin1StringView kExactGeodesic("compute_exact_geodesic_distance_from_selection_per_vertex_libigl");
-constexpr QLatin1StringView kHeatGeodesic("compute_heat_geodesic_distance_from_selection_per_vertex_libigl");
-constexpr QLatin1StringView kHessianSmooth("apply_scalar_hessian_smoothing_per_vertex_libigl");
+constexpr QLatin1StringView kGaussian("compute_gaussian_curvature_libigl");
+constexpr QLatin1StringView kPrincipal("compute_principal_curvature_directions_libigl");
+constexpr QLatin1StringView kExactGeodesic("compute_exact_geodesic_distance_from_selection_libigl");
+constexpr QLatin1StringView kHeatGeodesic("compute_heat_geodesic_distance_from_selection_libigl");
+constexpr QLatin1StringView kHessianSmooth("smooth_vertex_scalar_by_hessian_energy_libigl");
 namespace IglAdapter = qmeshlab::libigl;
 using Mask = vcg::tri::io::Mask;
 

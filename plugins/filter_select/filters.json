@@ -72,7 +72,7 @@
       ]
     },
     {
-      "id": "select_by_view_angle",
+      "id": "select_faces_by_view_angle",
       "categories": ["Selection/by Attribute"],
       "name": "Select Faces by View Angle",
       "pythonName": "select_faces_by_view_angle",
@@ -133,10 +133,10 @@
       ]
     },
     {
-      "id": "select_problematic_faces",
+      "id": "select_ill_shaped_faces",
       "categories": ["Selection/by Topology"],
       "name": "Select Ill-Shaped Faces",
-      "pythonName": "select_problematic_faces",
+      "pythonName": "select_ill_shaped_faces",
       "shortDescription": "Select problematic faces: elongated, flipped, or folded.",
       "longDescriptionMarkdown": "Select faces with 'problems', like normal inverted w.r.t the surrounding areas, extremely elongated or folded.",
       "tags": [
@@ -214,7 +214,7 @@
       ]
     },
     {
-      "id": "select_invert",
+      "id": "invert_selection",
       "categories": ["Selection/Set Operations"],
       "name": "Invert Selection",
       "pythonName": "invert_selection",
@@ -338,10 +338,10 @@
       ]
     },
     {
-      "id": "delete_selected_vertices",
+      "id": "remove_selected_vertices",
       "categories": ["Meshing/Deletion"],
       "name": "Remove Selected Vertices",
-      "pythonName": "delete_selected_vertices",
+      "pythonName": "remove_selected_vertices",
       "shortDescription": "Delete selected vertices; incident faces are deleted too.",
       "longDescriptionMarkdown": "Delete the current set of selected vertices; faces that share one of the deleted vertices are deleted too.",
       "tags": [
@@ -361,10 +361,10 @@
       ]
     },
     {
-      "id": "delete_all_faces",
+      "id": "remove_all_faces",
       "categories": ["Meshing/Deletion"],
       "name": "Remove All Faces",
-      "pythonName": "delete_all_faces",
+      "pythonName": "remove_all_faces",
       "shortDescription": "Delete all faces, turning mesh into point cloud.",
       "longDescriptionMarkdown": "Delete ALL faces, turning the mesh into a pointcloud.",
       "tags": [
@@ -380,10 +380,10 @@
       ]
     },
     {
-      "id": "delete_selected_faces",
+      "id": "remove_selected_faces",
       "categories": ["Meshing/Deletion"],
       "name": "Remove Selected Faces",
-      "pythonName": "delete_selected_faces",
+      "pythonName": "remove_selected_faces",
       "shortDescription": "Delete selected faces; unreferenced vertices are not deleted.",
       "longDescriptionMarkdown": "Delete the current set of selected faces, vertices that remains unreferenced are not deleted.",
       "tags": [
@@ -402,10 +402,10 @@
       ]
     },
     {
-      "id": "delete_selected_faces_and_vertices",
+      "id": "remove_selected_faces_and_vertices",
       "categories": ["Meshing/Deletion"],
       "name": "Remove Selected Faces and Vertices",
-      "pythonName": "delete_selected_faces_and_vertices",
+      "pythonName": "remove_selected_faces_and_vertices",
       "shortDescription": "Delete selected faces and enclosed selected vertices.",
       "longDescriptionMarkdown": "Delete the current set of selected faces and all the vertices surrounded by that faces.",
       "tags": [
@@ -427,7 +427,7 @@
       ]
     },
     {
-      "id": "select_erode",
+      "id": "erode_selection",
       "categories": ["Selection/Set Operations"],
       "name": "Erode Selection",
       "pythonName": "erode_selection",
@@ -450,7 +450,7 @@
       ]
     },
     {
-      "id": "select_dilate",
+      "id": "dilate_selection",
       "categories": ["Selection/Set Operations"],
       "name": "Dilate Selection",
       "pythonName": "dilate_selection",
@@ -496,10 +496,10 @@
       ]
     },
     {
-      "id": "select_by_face_quality",
+      "id": "select_faces_by_scalar",
       "categories": ["Selection/by Attribute"],
       "name": "Select Faces by Scalar",
-      "pythonName": "select_by_face_quality",
+      "pythonName": "select_faces_by_scalar",
       "shortDescription": "Select elements using per-face quality range.",
       "longDescriptionMarkdown": "Select all the faces/vertices with within the specified face quality range.",
       "tags": [
@@ -551,10 +551,10 @@
       ]
     },
     {
-      "id": "select_by_vertex_quality",
+      "id": "select_vertices_by_scalar",
       "categories": ["Selection/by Attribute"],
       "name": "Select Vertices by Scalar",
-      "pythonName": "select_by_vertex_quality",
+      "pythonName": "select_vertices_by_scalar",
       "shortDescription": "Select elements using per-vertex quality range.",
       "longDescriptionMarkdown": "Select all the faces/vertices within the specified vertex quality range.",
       "tags": [
@@ -606,7 +606,7 @@
       ]
     },
     {
-      "id": "select_by_color",
+      "id": "select_faces_by_color",
       "categories": ["Selection/by Attribute"],
       "name": "Select Faces by Color",
       "pythonName": "select_faces_by_color",
@@ -749,10 +749,10 @@
       ]
     },
     {
-      "id": "select_non_manifold_edges",
+      "id": "select_non_manifold_edges_vcglib",
       "categories": ["Selection/by Topology"],
       "name": "Select Non-Manifold Edges (vcglib)",
-      "pythonName": "select_non_manifold_edges",
+      "pythonName": "select_non_manifold_edges_vcglib",
       "shortDescription": "Select faces and vertices incident on non manifold edges.",
       "longDescriptionMarkdown": "Select the faces and the vertices incident on non manifold edges (e.g. edges where more than two faces are incident); note that this function select the components that",
       "tags": [
@@ -804,7 +804,7 @@
       "id": "select_faces_by_edge_length",
       "categories": ["Selection/by Attribute"],
       "name": "Select Faces by Edge Length",
-      "pythonName": "select_faces_with_edges_longer_than",
+      "pythonName": "select_faces_by_edge_length",
       "shortDescription": "Select all triangles having an edge longer than threshold.",
       "longDescriptionMarkdown": "Select all triangles having an edge with length greater or equal than a given threshold.",
       "tags": [
@@ -881,10 +881,10 @@
       ]
     },
     {
-      "id": "select_by_rectangle",
+      "id": "select_by_screen_rectangle",
       "categories": ["Selection/by Visibility"],
       "name": "Select by Screen Rectangle",
-      "pythonName": "select_by_rectangle",
+      "pythonName": "select_by_screen_rectangle",
       "shortDescription": "Select vertices or faces whose screen projection falls inside a rectangle.",
       "longDescriptionMarkdown": "Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside the rectangle. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.",
       "tags": [

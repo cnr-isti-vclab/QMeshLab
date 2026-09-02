@@ -18,12 +18,12 @@
   ],
   "filters": [
     {
-      "id": "compute_matrix_by_obb_alignment",
+      "id": "align_by_bounding_box_trueform",
       "categories": [
         "Geometry/Alignment"
       ],
       "name": "Align by Bounding Box (TrueForm)",
-      "pythonName": "compute_matrix_by_obb_alignment",
+      "pythonName": "align_by_bounding_box_trueform",
       "shortDescription": "Coarsely align one layer to another by matching their oriented bounding boxes.",
       "longDescriptionMarkdown": "Aligns the source layer to the reference by fitting their **oriented bounding boxes**. It needs no initial guess and no correspondences, and it is fast, which makes it the natural first step before ICP — *Align by ICP* can run it for you.\n\nAn oriented bounding box is only defined up to 180-degree flips about its axes, so the fit is ambiguous in principle. TrueForm resolves this by testing the candidate orientations against a spatial index of the reference and keeping the best.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_obb_alignment`.",
       "tags": [
@@ -61,12 +61,12 @@
       ]
     },
     {
-      "id": "compute_matrix_by_icp_trueform",
+      "id": "align_by_icp_trueform",
       "categories": [
         "Geometry/Alignment"
       ],
       "name": "Align by ICP (TrueForm)",
-      "pythonName": "compute_matrix_by_icp_trueform",
+      "pythonName": "align_by_icp_trueform",
       "shortDescription": "Align one layer to another with iterative closest point, point-to-point or point-to-plane.",
       "longDescriptionMarkdown": "Refines the alignment of the source layer onto the reference by **iterative closest point**.\n\n**Metric** chooses the error being minimised:\n\n- *Point to point* — the classic formulation. Robust, but converges slowly across flat regions where many correspondences are nearly equivalent.\n- *Point to plane* — measures each correspondence along the reference's surface normal, so the source can slide freely along a surface. It converges in far fewer iterations on smooth geometry, and is the better default when the reference has reliable normals.\n\nICP only refines **locally**: from a poor starting position it converges confidently to the wrong answer rather than failing. **Coarse Initialization** therefore runs *Align by Bounding Box (TrueForm)* first, which is usually enough to land in the right basin.\n\n**Samples** subsamples the source each iteration, which is what keeps large clouds tractable; 0 uses every point. **Outlier Proportion** discards that fraction of the worst correspondences each iteration, which matters when the two layers only partly overlap.\n\nThe reported **Chamfer residual** is the mean one-way distance after alignment — useful for comparing runs.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_icp_alignment`.",
       "tags": [
@@ -172,12 +172,12 @@
       ]
     },
     {
-      "id": "compute_matrix_by_corresponding_points",
+      "id": "align_to_corresponding_points_trueform",
       "categories": [
         "Geometry/Alignment"
       ],
       "name": "Align to Corresponding Points (TrueForm)",
-      "pythonName": "compute_matrix_by_corresponding_points",
+      "pythonName": "align_to_corresponding_points_trueform",
       "shortDescription": "Align two layers whose vertices already correspond one to one, optionally solving for scale.",
       "longDescriptionMarkdown": "Computes the transformation that best maps the source layer's vertices onto the reference's, assuming the two are already in **one-to-one correspondence**: same number of live vertices, in matching order. This is the Procrustes (Kabsch) fit.\n\nUse it when the correspondence is known by construction — two states of the same mesh, a mesh and its deformed copy, or point sets you have paired yourself. When the correspondence is unknown, use *Align by ICP* instead, which searches for it.\n\n**Allow Uniform Scale** is the reason to reach for this filter over ICP: with correspondences given, scale can be solved for as well as rotation and translation, which no ICP variant here does. Leave it off for a rigid fit.\n\nThe result is written to the source layer's **matrix**; vertex coordinates are not touched.\n\nImplemented with TrueForm's `fit_rigid_alignment` and `fit_similarity_alignment`.",
       "tags": [
@@ -244,9 +244,9 @@
         "csg",
         "exact"
       ],
-      "id": "generate_boolean_union_trueform",
+      "id": "mesh_union_trueform",
       "name": "Mesh Union (TrueForm)",
-      "pythonName": "generate_boolean_union_trueform",
+      "pythonName": "mesh_union_trueform",
       "shortDescription": "Exact boolean union of two layers.",
       "longDescriptionMarkdown": "The union of two closed solids: everything inside either one.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
       "parameters": [
@@ -289,9 +289,9 @@
         "csg",
         "exact"
       ],
-      "id": "generate_boolean_intersection_trueform",
+      "id": "mesh_intersection_trueform",
       "name": "Mesh Intersection (TrueForm)",
-      "pythonName": "generate_boolean_intersection_trueform",
+      "pythonName": "mesh_intersection_trueform",
       "shortDescription": "Exact boolean intersection of two layers.",
       "longDescriptionMarkdown": "The intersection of two closed solids: only what lies inside both.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
       "parameters": [
@@ -334,9 +334,9 @@
         "csg",
         "exact"
       ],
-      "id": "generate_boolean_difference_trueform",
+      "id": "mesh_difference_trueform",
       "name": "Mesh Difference (TrueForm)",
-      "pythonName": "generate_boolean_difference_trueform",
+      "pythonName": "mesh_difference_trueform",
       "shortDescription": "Exact boolean difference of two layers.",
       "longDescriptionMarkdown": "The first solid with the second removed from it. Order matters: swap the two layers to get the opposite difference.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
       "parameters": [
@@ -379,9 +379,9 @@
         "csg",
         "exact"
       ],
-      "id": "generate_boolean_xor_trueform",
+      "id": "mesh_symmetric_difference_trueform",
       "name": "Mesh Symmetric Difference (TrueForm)",
-      "pythonName": "generate_boolean_xor_trueform",
+      "pythonName": "mesh_symmetric_difference_trueform",
       "shortDescription": "Exact boolean symmetric difference of two layers.",
       "longDescriptionMarkdown": "Everything inside exactly one of the two solids, and nothing inside both.\\n\\nTrueForm's boolean primitive offers union, intersection and difference but not this one, so it is evaluated through the CSG evaluator as `(A - B) | (B - A)`. The result is the same; only the route differs.\\n\\nTrueForm evaluates booleans with **exact predicates**, so coplanar faces and near-degenerate intersections are decided consistently rather than by a tolerance. Both layers are taken in **world space**, so their layer matrices are applied first, and the result is added as a new layer with an identity matrix.\\n\\nThe libigl implementation of the same operation is also available and worth comparing on difficult input.",
       "parameters": [
@@ -425,9 +425,9 @@
         "expression",
         "exact"
       ],
-      "id": "generate_csg_expression",
+      "id": "mesh_csg_expression_trueform",
       "name": "Mesh CSG Expression (TrueForm)",
-      "pythonName": "generate_csg_expression",
+      "pythonName": "mesh_csg_expression_trueform",
       "shortDescription": "Evaluate a boolean expression over any number of layers in one exact pass.",
       "longDescriptionMarkdown": "Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\\n\\n**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:\\n\\n| Operator | Meaning |\\n|---|---|\\n| `\\\\|` | union |\\n| `-` | difference |\\n| `&` | intersection |\\n| `~` | complement |\\n\\n`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.\\n\\nExamples:\\n\\n- `0 | 1 | 2` — the union of three layers\\n- `(0 | 1) - 2` — two layers joined, then a third drilled out of them\\n- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference\\n\\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.",
       "parameters": [
@@ -463,9 +463,9 @@
         "self-intersection",
         "3d printing"
       ],
-      "id": "generate_outer_shell",
+      "id": "extract_outer_shell_trueform",
       "name": "Extract Outer Shell (TrueForm)",
-      "pythonName": "generate_outer_shell",
+      "pythonName": "extract_outer_shell_trueform",
       "shortDescription": "Keep only the outermost surface of a layer, discarding internal shells.",
       "longDescriptionMarkdown": "Resolves the layer's self-intersections and keeps only the **outermost** boundary, dropping every internal shell and any surface enclosed by another.\\n\\nThis is the repair step for geometry assembled from overlapping parts — kitbashed models, scans merged from several pieces, or anything destined for 3D printing, where interior walls are invisible but still slow slicing and can confuse a slicer about what is solid.\\n\\nThe input should be solid rather than an open sheet: an open surface has no inside, so there is no outer shell to extract.",
       "parameters": [
@@ -492,9 +492,9 @@
       "outputModifies": [
         "VG"
       ],
-      "id": "generate_polyline_from_self_intersections",
+      "id": "create_polyline_from_self_intersections_trueform",
       "name": "Create Polyline from Self-Intersections (TrueForm)",
-      "pythonName": "generate_polyline_from_self_intersections",
+      "pythonName": "create_polyline_from_self_intersections_trueform",
       "shortDescription": "Extract the curve where a mesh passes through itself, as a polyline layer.",
       "longDescriptionMarkdown": "Extracts the exact curve along which the layer intersects **itself**, as a new polyline layer.\\n\\n*Select Self Intersecting Faces* marks the faces involved; this gives the intersection itself, which is what you need to see where the problem is rather than merely that it exists — and, being exact geometry rather than a selection, it can be measured, exported, or swept into a tube.\\n\\nA clean mesh produces nothing, and the filter says so.",
       "tags": [
@@ -528,9 +528,9 @@
       "outputModifies": [
         "VG"
       ],
-      "id": "generate_polyline_from_mesh_intersection",
+      "id": "create_polyline_from_mesh_intersection_trueform",
       "name": "Create Polyline from Mesh Intersection (TrueForm)",
-      "pythonName": "generate_polyline_from_mesh_intersection",
+      "pythonName": "create_polyline_from_mesh_intersection_trueform",
       "shortDescription": "Extract the curve where two layers cross, as a polyline layer.",
       "longDescriptionMarkdown": "Extracts the exact curve along which two layers intersect, as a new polyline layer. Both are taken in world space, so their layer matrices are applied first.\\n\\nThe curve is computed with the same exact arrangement the booleans use, so it is the true intersection rather than a sampled approximation, and it is usable as a construction line — a seam to cut along, a profile to sweep, or a measurement.\\n\\nLayers that do not touch produce nothing.",
       "tags": [
@@ -572,9 +572,9 @@
       "outputModifies": [
         "VG"
       ],
-      "id": "generate_polyline_from_scalar_isocontour",
+      "id": "create_polyline_from_scalar_isocontour_trueform",
       "name": "Create Polyline from Scalar Isocontour (TrueForm)",
-      "pythonName": "generate_polyline_from_scalar_isocontour",
+      "pythonName": "create_polyline_from_scalar_isocontour_trueform",
       "shortDescription": "Extract contour lines of the per-vertex scalar field as polylines on the surface.",
       "longDescriptionMarkdown": "Extracts level sets of the **per-vertex scalar field** as polylines lying exactly on the surface.\\n\\nThis turns every scalar QMeshLab can compute into something with extractable contours: geodesic distance from a point or a border, curvature, ambient occlusion, shape diameter, raster coverage, or anything written by *Compute Vertex Scalar by Expression*. Contours of a geodesic distance are isodistance rings; of a height field, topographic contour lines.\\n\\n**Contours** sets how many levels are extracted. They are spaced evenly and placed strictly *inside* the range, never at its extremes, where a contour is either empty or the whole boundary.\\n\\nBy default the range is the field's own minimum and maximum. Enable **Use Custom Range** to contour a chosen band instead — useful when a few outliers would otherwise compress every contour into a corner of the model.\\n\\nA constant field has no contours, and the filter says so rather than returning an empty layer.",
       "tags": [
@@ -633,9 +633,9 @@
       ]
     },
     {
-      "id": "generate_tube_from_polyline",
+      "id": "create_tube_from_polyline_trueform",
       "name": "Create Tube from Polyline (TrueForm)",
-      "pythonName": "generate_tube_from_polyline",
+      "pythonName": "create_tube_from_polyline_trueform",
       "categories": [
         "Creation/Primitives"
       ],
@@ -692,9 +692,9 @@
       ]
     },
     {
-      "id": "compute_scalar_by_signed_distance_per_vertex",
+      "id": "compute_signed_distance_to_mesh_trueform",
       "name": "Compute Signed Distance to Mesh (TrueForm)",
-      "pythonName": "compute_scalar_by_signed_distance_per_vertex",
+      "pythonName": "compute_signed_distance_to_mesh_trueform",
       "categories": [
         "Attribute/Scalar"
       ],
@@ -743,9 +743,9 @@
       ]
     },
     {
-      "id": "select_vertices_inside_mesh",
+      "id": "select_vertices_inside_mesh_trueform",
       "name": "Select Vertices Inside Mesh (TrueForm)",
-      "pythonName": "select_vertices_inside_mesh",
+      "pythonName": "select_vertices_inside_mesh_trueform",
       "categories": [
         "Selection/by Attribute"
       ],
@@ -816,9 +816,9 @@
       ]
     },
     {
-      "id": "compute_chamfer_distance",
+      "id": "measure_chamfer_distance_trueform",
       "name": "Measure Chamfer Distance (TrueForm)",
-      "pythonName": "compute_chamfer_distance",
+      "pythonName": "measure_chamfer_distance_trueform",
       "categories": [
         "Measurement/Geometric"
       ],
@@ -881,9 +881,9 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "id": "apply_laplacian_smoothing_trueform",
+      "id": "smooth_vertices_by_laplacian_trueform",
       "name": "Smooth Vertices by Laplacian (TrueForm)",
-      "pythonName": "apply_laplacian_smoothing_trueform",
+      "pythonName": "smooth_vertices_by_laplacian_trueform",
       "categories": [
         "Geometry/Smoothing"
       ],
@@ -938,9 +938,9 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "id": "apply_taubin_smoothing_trueform",
+      "id": "smooth_vertices_by_taubin_trueform",
       "name": "Smooth Vertices by Taubin (TrueForm)",
-      "pythonName": "apply_taubin_smoothing_trueform",
+      "pythonName": "smooth_vertices_by_taubin_trueform",
       "categories": [
         "Geometry/Smoothing"
       ],
@@ -1008,9 +1008,9 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "id": "compute_scalar_by_curvature_trueform",
+      "id": "compute_curvature_trueform",
       "name": "Compute Curvature (TrueForm)",
-      "pythonName": "compute_scalar_by_curvature_trueform",
+      "pythonName": "compute_curvature_trueform",
       "categories": [
         "Attribute/Curvature"
       ],
@@ -1125,9 +1125,9 @@
         "VN",
         "FN"
       ],
-      "id": "remeshing_isotropic_trueform",
+      "id": "remesh_isotropically_trueform",
       "name": "Remesh Isotropically (TrueForm)",
-      "pythonName": "remeshing_isotropic_trueform",
+      "pythonName": "remesh_isotropically_trueform",
       "categories": [
         "Meshing/Remeshing"
       ],
@@ -1205,9 +1205,9 @@
         "VN",
         "FN"
       ],
-      "id": "simplification_by_error_trueform",
+      "id": "simplify_by_error_bound_trueform",
       "name": "Simplify by Error Bound (TrueForm)",
-      "pythonName": "simplification_by_error_trueform",
+      "pythonName": "simplify_by_error_bound_trueform",
       "categories": [
         "Meshing/Simplification"
       ],
@@ -1275,9 +1275,9 @@
         "VN",
         "FN"
       ],
-      "id": "simplification_by_decimation_trueform",
+      "id": "simplify_by_decimation_trueform",
       "name": "Simplify by Decimation (TrueForm)",
-      "pythonName": "simplification_by_decimation_trueform",
+      "pythonName": "simplify_by_decimation_trueform",
       "categories": [
         "Meshing/Simplification"
       ],
@@ -1328,9 +1328,9 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "id": "orient_faces_coherently_trueform",
+      "id": "orient_faces_consistently_trueform",
       "name": "Orient Faces Consistently (TrueForm)",
-      "pythonName": "orient_faces_coherently_trueform",
+      "pythonName": "orient_faces_consistently_trueform",
       "categories": [
         "Repair/Topology"
       ],
@@ -1462,9 +1462,9 @@
       ]
     },
     {
-      "id": "repair_self_intersections",
+      "id": "repair_self_intersections_trueform",
       "name": "Repair Self-Intersections (TrueForm)",
-      "pythonName": "repair_self_intersections",
+      "pythonName": "repair_self_intersections_trueform",
       "categories": [
         "Repair/Topology"
       ],
@@ -1500,9 +1500,9 @@
       ]
     },
     {
-      "id": "cut_along_scalar_isocontour",
+      "id": "cut_along_scalar_isocontour_trueform",
       "name": "Cut Along Scalar Isocontour (TrueForm)",
-      "pythonName": "cut_along_scalar_isocontour",
+      "pythonName": "cut_along_scalar_isocontour_trueform",
       "categories": [
         "Meshing/Remeshing"
       ],
@@ -1591,9 +1591,9 @@
       ]
     },
     {
-      "id": "improve_triangulation_trueform",
+      "id": "remesh_by_edge_flipping_trueform",
       "name": "Remesh by Edge Flipping (TrueForm)",
-      "pythonName": "improve_triangulation_trueform",
+      "pythonName": "remesh_by_edge_flipping_trueform",
       "categories": [
         "Meshing/Remeshing"
       ],

@@ -33,7 +33,7 @@
   ],
   "filters": [
     {
-      "id": "repair_watertight_mesh",
+      "id": "repair_watertight_mesh_meshfix",
       "categories": ["Repair/Topology"],
       "name": "Repair Watertight Mesh (MeshFix)",
       "pythonName": "repair_watertight_mesh_meshfix",

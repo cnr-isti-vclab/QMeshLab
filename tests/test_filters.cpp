@@ -439,13 +439,13 @@ void FilterTests::filterRegistryExposesBuiltins()
     bool hasGlobalIcp = false;
     bool hasOverlapGraph = false;
     for (const auto &info : infos) {
-        hasMeshInfo = hasMeshInfo || (info.descriptor.id == QStringLiteral("mesh_info"));
-        hasNormalize = hasNormalize || (info.descriptor.id == QStringLiteral("compute_matrix_by_reference_frame_normalization"));
-        hasDuplicate = hasDuplicate || (info.descriptor.id == QStringLiteral("generate_copy_of_current_mesh"));
-        hasCreateIso = hasCreateIso || (info.descriptor.id == QStringLiteral("create_noisy_isosurface"));
+        hasMeshInfo = hasMeshInfo || (info.descriptor.id == QStringLiteral("measure_mesh_summary"));
+        hasNormalize = hasNormalize || (info.descriptor.id == QStringLiteral("normalize_reference_frame"));
+        hasDuplicate = hasDuplicate || (info.descriptor.id == QStringLiteral("duplicate_current_layer"));
+        hasCreateIso = hasCreateIso || (info.descriptor.id == QStringLiteral("create_isosurface_from_perlin_noise"));
         hasCleanUnref =
             hasCleanUnref || (info.descriptor.id == QStringLiteral("remove_unreferenced_vertices"));
-        if (info.descriptor.id == QStringLiteral("repair_watertight_mesh")) {
+        if (info.descriptor.id == QStringLiteral("repair_watertight_mesh_meshfix")) {
             hasMeshFixRepair = true;
             QCOMPARE(info.descriptor.provenance.project, QStringLiteral("MeshFix 2.1"));
             QCOMPARE(info.descriptor.provenance.integration, QStringLiteral("external/meshfix"));
@@ -456,7 +456,7 @@ void FilterTests::filterRegistryExposesBuiltins()
                 QStringLiteral("@article{attene2010meshfix,")));
         }
         if (info.descriptor.id
-            == QStringLiteral("simplification_quadric_edge_collapse_qslim")) {
+            == QStringLiteral("simplify_by_quadric_edge_collapse_qslim")) {
             hasOriginalQSlim = true;
             QCOMPARE(info.descriptor.provenance.project,
                      QStringLiteral("QSlim 2.1 (original MixKit implementation)"));
@@ -466,26 +466,26 @@ void FilterTests::filterRegistryExposesBuiltins()
             QCOMPARE(info.descriptor.references.front().doi,
                      QStringLiteral("10.1145/258734.258849"));
         }
-        if (info.descriptor.id == QStringLiteral("surface_reconstruction_screened_poisson")) {
+        if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_screened_poisson")) {
             hasScreenedPoissonReference = true;
             QCOMPARE(info.descriptor.references.size(), size_t(1));
             QCOMPARE(info.descriptor.references.front().doi,
                      QStringLiteral("10.1145/2487228.2487237"));
             QVERIFY(!info.descriptor.references.front().webUrl().isEmpty());
         }
-        if (info.descriptor.id == QStringLiteral("apply_texmap_defragmentation")) {
+        if (info.descriptor.id == QStringLiteral("defragment_texture_atlas")) {
             hasTextureDefragReference = true;
             QCOMPARE(info.descriptor.references.size(), size_t(1));
             QCOMPARE(info.descriptor.references.front().id,
                      QStringLiteral("maggiordomo2021texture"));
         }
-        if (info.descriptor.id == QStringLiteral("apply_small_islands_remover")) {
+        if (info.descriptor.id == QStringLiteral("merge_small_texture_islands")) {
             hasSmallIslandsReference = true;
             QCOMPARE(info.descriptor.references.size(), size_t(1));
             QCOMPARE(info.descriptor.references.front().id,
                      QStringLiteral("maggiordomo2021texture"));
         }
-        if (info.descriptor.id == QStringLiteral("meshing_decimation_quadric_edge_collapse")) {
+        if (info.descriptor.id == QStringLiteral("simplify_by_quadric_edge_collapse_vcglib")) {
             hasQuadricReference = true;
             QCOMPARE(info.descriptor.references.size(), size_t(1));
             QCOMPARE(info.descriptor.references.front().doi,
@@ -494,7 +494,7 @@ void FilterTests::filterRegistryExposesBuiltins()
                      QStringLiteral("https://github.com/alecjacobson/qslim"));
         }
         if (info.descriptor.id
-            == QStringLiteral("meshing_decimation_quadric_edge_collapse_with_texture")) {
+            == QStringLiteral("simplify_by_quadric_edge_collapse_with_texture_vcglib")) {
             hasTexturedQuadricReference = true;
             QCOMPARE(info.descriptor.references.size(), size_t(1));
             QCOMPARE(info.descriptor.references.front().doi,
@@ -503,27 +503,27 @@ void FilterTests::filterRegistryExposesBuiltins()
         hasSelectOutliers =
             hasSelectOutliers || (info.descriptor.id == QStringLiteral("select_outliers"));
         hasSelectColor =
-            hasSelectColor || (info.descriptor.id == QStringLiteral("select_by_color"));
+            hasSelectColor || (info.descriptor.id == QStringLiteral("select_faces_by_color"));
         hasTriOptimizePlanar =
-            hasTriOptimizePlanar || (info.descriptor.id == QStringLiteral("meshing_edge_flip_by_planar_optimization"));
+            hasTriOptimizePlanar || (info.descriptor.id == QStringLiteral("flip_edges_by_planarity"));
         hasTriOptimizeCurvature =
-            hasTriOptimizeCurvature || (info.descriptor.id == QStringLiteral("meshing_edge_flip_by_curvature_optimization"));
+            hasTriOptimizeCurvature || (info.descriptor.id == QStringLiteral("flip_edges_by_curvature"));
         hasTriOptimizeSmooth =
-            hasTriOptimizeSmooth || (info.descriptor.id == QStringLiteral("apply_coord_laplacian_smoothing_surface_preserving"));
+            hasTriOptimizeSmooth || (info.descriptor.id == QStringLiteral("smooth_vertices_by_surface_preserving_laplacian_vcglib"));
         hasVoronoiSampling =
-            hasVoronoiSampling || (info.descriptor.id == QStringLiteral("generate_sampling_voronoi"));
+            hasVoronoiSampling || (info.descriptor.id == QStringLiteral("sample_surface_by_voronoi_relaxation"));
         hasVoronoiVolume =
-            hasVoronoiVolume || (info.descriptor.id == QStringLiteral("generate_sampling_volumetric"));
+            hasVoronoiVolume || (info.descriptor.id == QStringLiteral("sample_volume"));
         hasVoronoiScaffolding =
-            hasVoronoiScaffolding || (info.descriptor.id == QStringLiteral("generate_voronoi_scaffolding"));
+            hasVoronoiScaffolding || (info.descriptor.id == QStringLiteral("create_voronoi_scaffolding"));
         hasSolidWireframe =
-            hasSolidWireframe || (info.descriptor.id == QStringLiteral("generate_solid_wireframe"));
+            hasSolidWireframe || (info.descriptor.id == QStringLiteral("create_solid_wireframe"));
         hasTwoMeshIcp =
-            hasTwoMeshIcp || (info.descriptor.id == QStringLiteral("compute_matrix_by_icp_between_meshes"));
+            hasTwoMeshIcp || (info.descriptor.id == QStringLiteral("align_by_icp_vcglib"));
         hasGlobalIcp =
-            hasGlobalIcp || (info.descriptor.id == QStringLiteral("compute_matrix_by_mesh_global_alignment"));
+            hasGlobalIcp || (info.descriptor.id == QStringLiteral("align_meshes_globally"));
         hasOverlapGraph =
-            hasOverlapGraph || (info.descriptor.id == QStringLiteral("get_overlapping_meshes_graph"));
+            hasOverlapGraph || (info.descriptor.id == QStringLiteral("measure_layer_overlap"));
     }
 
     QVERIFY(hasMeshInfo);
@@ -562,7 +562,7 @@ void FilterTests::filterApplicabilityReflectsDocumentState()
         const std::vector<Document::FilterInfo> infos = doc.filterInfos();
         QVERIFY(!infos.empty());
         for (const auto &info : infos) {
-            if (info.descriptor.id == QStringLiteral("create_noisy_isosurface")) {
+            if (info.descriptor.id == QStringLiteral("create_isosurface_from_perlin_noise")) {
                 createIsoKey = info.key;
             }
             if (info.descriptor.inputDomain == MeshFilterInputDomain::None) {
@@ -597,11 +597,11 @@ void FilterTests::filterApplicabilityReflectsDocumentState()
         const std::vector<Document::FilterInfo> infos = doc.filterInfos();
         QVERIFY(!infos.empty());
         for (const auto &info : infos) {
-            if (info.descriptor.id == QStringLiteral("mesh_info"))
+            if (info.descriptor.id == QStringLiteral("measure_mesh_summary"))
                 hasMeshInfoApplicable = info.applicable;
-            else if (info.descriptor.id == QStringLiteral("compute_matrix_by_reference_frame_normalization"))
+            else if (info.descriptor.id == QStringLiteral("normalize_reference_frame"))
                 hasNormalizeApplicable = info.applicable;
-            else if (info.descriptor.id == QStringLiteral("generate_copy_of_current_mesh"))
+            else if (info.descriptor.id == QStringLiteral("duplicate_current_layer"))
                 hasDuplicateApplicable = info.applicable;
         }
     }
@@ -622,7 +622,7 @@ void FilterTests::planarSectionSurfaceUsesCpuTessellator()
     QVERIFY(doc.addMesh(cube, QStringLiteral("disconnected cubes")) >= 0);
 
     const QString sectionKey = filterKeyForId(
-        doc, QStringLiteral("generate_polyline_from_planar_section"));
+        doc, QStringLiteral("create_polyline_from_planar_section"));
     QVERIFY(!sectionKey.isEmpty());
 
     MeshFilterParameterValues params;
@@ -663,7 +663,7 @@ void FilterTests::planarSectionSurfaceUsesCpuTessellator()
     QVERIFY(nestedDoc.addMesh(outer, QStringLiteral("nested cubes")) >= 0);
 
     const QString nestedSectionKey = filterKeyForId(
-        nestedDoc, QStringLiteral("generate_polyline_from_planar_section"));
+        nestedDoc, QStringLiteral("create_polyline_from_planar_section"));
     const MeshFilterRunResult nestedResult = nestedDoc.runFilter(nestedSectionKey, params);
     QVERIFY2(nestedResult.success, qPrintable(nestedResult.errorMessage));
     QCOMPARE(nestedResult.newMeshIndices.size(), 2);
@@ -696,13 +696,13 @@ void FilterTests::basicFiltersRunOnLoadedMesh()
     QString duplicateKey;
     QString createIsoKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("mesh_info"))
+        if (info.descriptor.id == QStringLiteral("measure_mesh_summary"))
             meshInfoKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("compute_matrix_by_reference_frame_normalization"))
+        else if (info.descriptor.id == QStringLiteral("normalize_reference_frame"))
             normalizeKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_copy_of_current_mesh"))
+        else if (info.descriptor.id == QStringLiteral("duplicate_current_layer"))
             duplicateKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("create_noisy_isosurface"))
+        else if (info.descriptor.id == QStringLiteral("create_isosurface_from_perlin_noise"))
             createIsoKey = info.key;
     }
 
@@ -770,11 +770,11 @@ void FilterTests::filterParameterValidation()
     QString normalizeKey;
     QString createIsoKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("mesh_info"))
+        if (info.descriptor.id == QStringLiteral("measure_mesh_summary"))
             meshInfoKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("compute_matrix_by_reference_frame_normalization"))
+        else if (info.descriptor.id == QStringLiteral("normalize_reference_frame"))
             normalizeKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("create_noisy_isosurface"))
+        else if (info.descriptor.id == QStringLiteral("create_isosurface_from_perlin_noise"))
             createIsoKey = info.key;
     }
 
@@ -837,7 +837,7 @@ void FilterTests::meshFixRepairsOpenCube()
 
     QString filterKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("repair_watertight_mesh")) {
+        if (info.descriptor.id == QStringLiteral("repair_watertight_mesh_meshfix")) {
             filterKey = info.key;
             break;
         }
@@ -875,7 +875,7 @@ void FilterTests::qslimSimplifiesCube()
     QString filterKey;
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id
-            == QStringLiteral("simplification_quadric_edge_collapse_qslim")) {
+            == QStringLiteral("simplify_by_quadric_edge_collapse_qslim")) {
             filterKey = info.key;
             break;
         }
@@ -935,7 +935,7 @@ void FilterTests::instantMeshesRemeshesCube()
     QString subdivisionKey;
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id
-            == QStringLiteral("meshing_tri_to_quad_by_4_8_subdivision")) {
+            == QStringLiteral("convert_to_quads_by_4_8_subdivision")) {
             subdivisionKey = info.key;
             break;
         }
@@ -954,7 +954,7 @@ void FilterTests::catmullClarkSubdividesCube()
 
     QString filterKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("meshing_surface_subdivision_catmull_clark")) {
+        if (info.descriptor.id == QStringLiteral("subdivide_by_catmull_clark")) {
             filterKey = info.key;
             break;
         }
@@ -985,9 +985,9 @@ void FilterTests::polygonFaceCountCacheTracksFilterChanges()
     QString toTrianglesKey;
     QString toQuadsKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("meshing_poly_to_tri"))
+        if (info.descriptor.id == QStringLiteral("convert_to_pure_triangles"))
             toTrianglesKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("meshing_tri_to_quad_by_smart_triangle_pairing"))
+        else if (info.descriptor.id == QStringLiteral("convert_to_quads_by_triangle_pairing"))
             toQuadsKey = info.key;
     }
     QVERIFY(!toTrianglesKey.isEmpty());
@@ -1015,7 +1015,7 @@ void FilterTests::isolatedFoldRepairPreservesFlagsAndConverges()
     const int meshIndex = doc.addMesh(folded, QStringLiteral("Isolated fold"));
     QString filterKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("remove_folded_faces_by_edge_flip")) {
+        if (info.descriptor.id == QStringLiteral("remove_isolated_folded_faces_by_edge_flip")) {
             filterKey = info.key;
             break;
         }
@@ -1045,7 +1045,7 @@ void FilterTests::isolatedFoldRepairRejectsUnsupportedMeshes()
     QString filterKey;
     Document registry;
     for (const auto &info : registry.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("remove_folded_faces_by_edge_flip")) {
+        if (info.descriptor.id == QStringLiteral("remove_isolated_folded_faces_by_edge_flip")) {
             filterKey = info.key;
             break;
         }
@@ -1104,11 +1104,11 @@ void FilterTests::vertexDisplacementFiltersRunOnCube()
     QVERIFY(doc.addMesh(input, QStringLiteral("Cube")) >= 0);
 
     const QStringList fractalIds {
-        QStringLiteral("displace_by_fractal_brownian_motion"),
-        QStringLiteral("displace_by_standard_multifractal_noise"),
-        QStringLiteral("displace_by_heterogeneous_multifractal_noise"),
-        QStringLiteral("displace_by_hybrid_multifractal_noise"),
-        QStringLiteral("displace_by_ridged_multifractal_noise")
+        QStringLiteral("displace_vertices_by_fractal_brownian_motion"),
+        QStringLiteral("displace_vertices_by_standard_multifractal_noise"),
+        QStringLiteral("displace_vertices_by_heterogeneous_multifractal_noise"),
+        QStringLiteral("displace_vertices_by_hybrid_multifractal_noise"),
+        QStringLiteral("displace_vertices_by_ridged_multifractal_noise")
     };
     QHash<QString, QString> fractalKeys;
     QStringList found;
@@ -1147,9 +1147,9 @@ void FilterTests::vertexDisplacementFiltersRunOnCube()
         params.insert(QStringLiteral("octaves"), 3);
         params.insert(QStringLiteral("lacunarity"), 2.0);
         params.insert(QStringLiteral("fractalIncrement"), 1.2);
-        if (id != QStringLiteral("displace_by_fractal_brownian_motion"))
+        if (id != QStringLiteral("displace_vertices_by_fractal_brownian_motion"))
             params.insert(QStringLiteral("offset"), 0.9);
-        if (id == QStringLiteral("displace_by_ridged_multifractal_noise"))
+        if (id == QStringLiteral("displace_vertices_by_ridged_multifractal_noise"))
             params.insert(QStringLiteral("gain"), 2.0);
         params.insert(QStringLiteral("seed"), 1.0);
         params.insert(QStringLiteral("normalSmoothingSteps"), 2);
@@ -1172,7 +1172,7 @@ void FilterTests::sphericalCapPointCreationIsAreaUniform()
 {
     Document probe;
     const QString filterKey = filterKeyForId(
-        probe, QStringLiteral("create_points_on_a_spherical_cap"));
+        probe, QStringLiteral("create_points_on_spherical_cap"));
     QVERIFY(!filterKey.isEmpty());
 
     const vcg::Point3f axis = vcg::Normalized(vcg::Point3f(1.0f, 2.0f, 3.0f));
@@ -1237,11 +1237,11 @@ void FilterTests::splitConnectedComponentsAfterDuplicateVertexRemoval()
     };
 
     const MeshFilterRunResult clean =
-        doc.runFilter(filterKey(QStringLiteral("remove_duplicated_vertices")), {});
+        doc.runFilter(filterKey(QStringLiteral("remove_duplicate_vertices_vcglib")), {});
     QVERIFY2(clean.success, qPrintable(clean.errorMessage));
 
     const MeshFilterRunResult split = doc.runFilter(
-        filterKey(QStringLiteral("generate_splitting_by_connected_components")), {});
+        filterKey(QStringLiteral("split_into_connected_components")), {});
     QVERIFY2(split.success, qPrintable(split.errorMessage));
     QCOMPARE(split.newMeshIndices.size(), 2);
     for (int meshIndex : split.newMeshIndices) {
@@ -1268,7 +1268,7 @@ void FilterTests::hausdorffRunsOnTransientMeshCopies()
 
     QString filterKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("get_hausdorff_distance")) {
+        if (info.descriptor.id == QStringLiteral("measure_hausdorff_distance")) {
             filterKey = info.key;
             break;
         }
@@ -1314,7 +1314,7 @@ void FilterTests::cgalAlphaWrapRunsWhenAvailable()
 
     QString alphaWrapKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("generate_alpha_wrap")) {
+        if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_alpha_wrapping")) {
             alphaWrapKey = info.key;
             break;
         }
@@ -1352,9 +1352,9 @@ void FilterTests::cgalAlphaWrapAcceptsPointClouds()
     QString alphaWrapKey;
     QString removeFacesKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("generate_alpha_wrap"))
+        if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_alpha_wrapping"))
             alphaWrapKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("delete_all_faces"))
+        else if (info.descriptor.id == QStringLiteral("remove_all_faces"))
             removeFacesKey = info.key;
     }
 
@@ -1512,7 +1512,7 @@ void FilterTests::alphaShapeConvergesToConvexHull()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("create_icosahedron"))
             icosaKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_alpha_shape"))
+        else if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_alpha_shape"))
             alphaKey = info.key;
     }
     QVERIFY(!icosaKey.isEmpty());
@@ -1555,7 +1555,7 @@ void FilterTests::alphaShapeHandlesALargePointSet()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("create_sphere"))
             sphereKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_alpha_shape"))
+        else if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_alpha_shape"))
             alphaKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
@@ -1604,9 +1604,9 @@ void FilterTests::voronoiFilteringReconstructsASphere()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("create_sphere"))
             sphereKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_voronoi_filtering"))
+        else if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_voronoi_filtering"))
             voronoiKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("delete_all_faces"))
+        else if (info.descriptor.id == QStringLiteral("remove_all_faces"))
             removeFacesKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
@@ -1646,9 +1646,9 @@ void FilterTests::advancingFrontReconstructsASphere()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("create_sphere"))
             sphereKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_advancing_front_reconstruction"))
+        else if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_advancing_front"))
             frontKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("delete_all_faces"))
+        else if (info.descriptor.id == QStringLiteral("remove_all_faces"))
             removeFacesKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
@@ -1694,9 +1694,9 @@ void FilterTests::scaleSpaceReconstructsASphere()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("create_sphere"))
             sphereKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_scale_space_reconstruction"))
+        else if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_scale_space"))
             scaleSpaceKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("delete_all_faces"))
+        else if (info.descriptor.id == QStringLiteral("remove_all_faces"))
             removeFacesKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
@@ -1745,7 +1745,7 @@ void FilterTests::orientNormalsFlipsInvertedNormals()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("create_sphere"))
             sphereKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("compute_normal_orientation_per_vertex"))
+        else if (info.descriptor.id == QStringLiteral("orient_point_cloud_normals"))
             orientKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
@@ -1808,7 +1808,7 @@ void FilterTests::cgalPoissonReconstructsASphere()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("create_sphere"))
             sphereKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_poisson_reconstruction_cgal"))
+        else if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_poisson_cgal"))
             poissonKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
@@ -1857,9 +1857,9 @@ void FilterTests::kineticReconstructsABox()
     for (const auto &info : doc.filterInfos()) {
         if (info.descriptor.id == QStringLiteral("create_box"))
             boxKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("meshing_surface_subdivision_midpoint"))
+        else if (info.descriptor.id == QStringLiteral("subdivide_by_midpoint"))
             subdivideKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_kinetic_reconstruction"))
+        else if (info.descriptor.id == QStringLiteral("reconstruct_surface_by_kinetic_partition"))
             kineticKey = info.key;
     }
     QVERIFY(!boxKey.isEmpty());
@@ -1914,9 +1914,9 @@ void FilterTests::trueFormAlignmentRecoversAKnownTransform()
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
-        else if (id == QStringLiteral("compute_matrix_by_obb_alignment")) obbKey = info.key;
-        else if (id == QStringLiteral("compute_matrix_by_icp_trueform")) icpKey = info.key;
-        else if (id == QStringLiteral("compute_matrix_by_corresponding_points")) correspondingKey = info.key;
+        else if (id == QStringLiteral("align_by_bounding_box_trueform")) obbKey = info.key;
+        else if (id == QStringLiteral("align_by_icp_trueform")) icpKey = info.key;
+        else if (id == QStringLiteral("align_to_corresponding_points_trueform")) correspondingKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
     if (icpKey.isEmpty())
@@ -2013,11 +2013,11 @@ void FilterTests::trueFormBooleansAgreeWithVolume()
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_box")) boxKey = info.key;
-        else if (id == QStringLiteral("generate_boolean_union_trueform")) unionKey = info.key;
-        else if (id == QStringLiteral("generate_boolean_intersection_trueform")) interKey = info.key;
-        else if (id == QStringLiteral("generate_boolean_difference_trueform")) diffKey = info.key;
-        else if (id == QStringLiteral("generate_boolean_xor_trueform")) xorKey = info.key;
-        else if (id == QStringLiteral("generate_outer_shell")) shellKey = info.key;
+        else if (id == QStringLiteral("mesh_union_trueform")) unionKey = info.key;
+        else if (id == QStringLiteral("mesh_intersection_trueform")) interKey = info.key;
+        else if (id == QStringLiteral("mesh_difference_trueform")) diffKey = info.key;
+        else if (id == QStringLiteral("mesh_symmetric_difference_trueform")) xorKey = info.key;
+        else if (id == QStringLiteral("extract_outer_shell_trueform")) shellKey = info.key;
     }
     QVERIFY(!boxKey.isEmpty());
     if (unionKey.isEmpty())
@@ -2079,8 +2079,8 @@ void FilterTests::trueFormCsgExpressionMatchesPairwiseBooleans()
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_box")) boxKey = info.key;
-        else if (id == QStringLiteral("generate_csg_expression")) csgKey = info.key;
-        else if (id == QStringLiteral("generate_boolean_union_trueform")) unionKey = info.key;
+        else if (id == QStringLiteral("mesh_csg_expression_trueform")) csgKey = info.key;
+        else if (id == QStringLiteral("mesh_union_trueform")) unionKey = info.key;
     }
     QVERIFY(!boxKey.isEmpty());
     if (csgKey.isEmpty())
@@ -2150,11 +2150,11 @@ void FilterTests::trueFormCurveFamilyProducesPolylines()
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_box")) boxKey = info.key;
         else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
-        else if (id == QStringLiteral("generate_polyline_from_mesh_intersection")) interKey = info.key;
-        else if (id == QStringLiteral("generate_polyline_from_self_intersections")) selfKey = info.key;
-        else if (id == QStringLiteral("generate_polyline_from_scalar_isocontour")) isoKey = info.key;
-        else if (id == QStringLiteral("generate_tube_from_polyline")) tubeKey = info.key;
-        else if (id == QStringLiteral("compute_scalar_by_border_distance_per_vertex")) borderKey = info.key;
+        else if (id == QStringLiteral("create_polyline_from_mesh_intersection_trueform")) interKey = info.key;
+        else if (id == QStringLiteral("create_polyline_from_self_intersections_trueform")) selfKey = info.key;
+        else if (id == QStringLiteral("create_polyline_from_scalar_isocontour_trueform")) isoKey = info.key;
+        else if (id == QStringLiteral("create_tube_from_polyline_trueform")) tubeKey = info.key;
+        else if (id == QStringLiteral("compute_geodesic_distance_from_border")) borderKey = info.key;
     }
     QVERIFY(!boxKey.isEmpty());
     if (interKey.isEmpty())
@@ -2236,8 +2236,8 @@ void FilterTests::newMeshFiltersReportTheirLayers()
             const QString id = info.descriptor.id;
             if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
             else if (id == QStringLiteral("create_box")) boxKey = info.key;
-            else if (id == QStringLiteral("compute_scalar_by_border_distance_per_vertex")) borderKey = info.key;
-            else if (id == QStringLiteral("generate_polyline_from_planar_section")) sectionKey = info.key;
+            else if (id == QStringLiteral("compute_geodesic_distance_from_border")) borderKey = info.key;
+            else if (id == QStringLiteral("create_polyline_from_planar_section")) sectionKey = info.key;
         }
         if (boxKey.isEmpty() || sphereKey.isEmpty())
             return false;
@@ -2288,9 +2288,9 @@ void FilterTests::newMeshFiltersReportTheirLayers()
         // the algorithm running at full resolution.
         static const QSet<QString> kTooSlowForASweep = {
             QStringLiteral("remesh_to_quads_instant_meshes"),
-            QStringLiteral("generate_marching_cubes_rimls"),
-            QStringLiteral("generate_marching_cubes_apss"),
-            QStringLiteral("generate_surface_reconstruction_vcg"),
+            QStringLiteral("reconstruct_surface_by_marching_cubes_rimls"),
+            QStringLiteral("reconstruct_surface_by_marching_cubes_apss"),
+            QStringLiteral("reconstruct_surface_by_volumetric_merging"),
         };
         if (kTooSlowForASweep.contains(info.descriptor.id))
             continue;
@@ -2348,9 +2348,9 @@ void FilterTests::trueFormDistanceAndContainment()
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_box")) boxKey = info.key;
         else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
-        else if (id == QStringLiteral("compute_scalar_by_signed_distance_per_vertex")) distKey = info.key;
-        else if (id == QStringLiteral("select_vertices_inside_mesh")) insideKey = info.key;
-        else if (id == QStringLiteral("compute_chamfer_distance")) chamferKey = info.key;
+        else if (id == QStringLiteral("compute_signed_distance_to_mesh_trueform")) distKey = info.key;
+        else if (id == QStringLiteral("select_vertices_inside_mesh_trueform")) insideKey = info.key;
+        else if (id == QStringLiteral("measure_chamfer_distance_trueform")) chamferKey = info.key;
     }
     QVERIFY(!boxKey.isEmpty() && !sphereKey.isEmpty());
     if (distKey.isEmpty())
@@ -2448,9 +2448,9 @@ void FilterTests::trueFormAttributeFiltersBehaveAsDocumented()
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
-        else if (id == QStringLiteral("apply_laplacian_smoothing_trueform")) laplacianKey = info.key;
-        else if (id == QStringLiteral("apply_taubin_smoothing_trueform")) taubinKey = info.key;
-        else if (id == QStringLiteral("compute_scalar_by_curvature_trueform")) curvatureKey = info.key;
+        else if (id == QStringLiteral("smooth_vertices_by_laplacian_trueform")) laplacianKey = info.key;
+        else if (id == QStringLiteral("smooth_vertices_by_taubin_trueform")) taubinKey = info.key;
+        else if (id == QStringLiteral("compute_curvature_trueform")) curvatureKey = info.key;
         else if (id == QStringLiteral("compute_normals_trueform")) normalsKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
@@ -2554,9 +2554,9 @@ void FilterTests::trueFormRemeshingChangesResolutionAsAsked()
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
-        else if (id == QStringLiteral("remeshing_isotropic_trueform")) isoKey = info.key;
-        else if (id == QStringLiteral("simplification_by_error_trueform")) simplifyKey = info.key;
-        else if (id == QStringLiteral("simplification_by_decimation_trueform")) decimateKey = info.key;
+        else if (id == QStringLiteral("remesh_isotropically_trueform")) isoKey = info.key;
+        else if (id == QStringLiteral("simplify_by_error_bound_trueform")) simplifyKey = info.key;
+        else if (id == QStringLiteral("simplify_by_decimation_trueform")) decimateKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
     if (isoKey.isEmpty())
@@ -2647,7 +2647,7 @@ void FilterTests::trueFormOrientationAndEdgeSelection()
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_box")) boxKey = info.key;
         else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
-        else if (id == QStringLiteral("orient_faces_coherently_trueform")) coherentKey = info.key;
+        else if (id == QStringLiteral("orient_faces_consistently_trueform")) coherentKey = info.key;
         else if (id == QStringLiteral("orient_faces_outward_trueform")) outwardKey = info.key;
         else if (id == QStringLiteral("select_crease_edges_trueform")) creaseKey = info.key;
         else if (id == QStringLiteral("select_non_manifold_edges_trueform")) nonManifoldKey = info.key;
@@ -2777,9 +2777,9 @@ void FilterTests::trueFormRepairAndIsobands()
         if (id == QStringLiteral("create_box")) boxKey = info.key;
         else if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
         else if (id == QStringLiteral("remove_duplicate_vertices_trueform")) cleanKey = info.key;
-        else if (id == QStringLiteral("repair_self_intersections")) resolveKey = info.key;
-        else if (id == QStringLiteral("cut_along_scalar_isocontour")) cutKey = info.key;
-        else if (id == QStringLiteral("compute_scalar_by_border_distance_per_vertex")) borderKey = info.key;
+        else if (id == QStringLiteral("repair_self_intersections_trueform")) resolveKey = info.key;
+        else if (id == QStringLiteral("cut_along_scalar_isocontour_trueform")) cutKey = info.key;
+        else if (id == QStringLiteral("compute_geodesic_distance_from_border")) borderKey = info.key;
         else if (id == QStringLiteral("meshing_vertex_unreferenced_split")) unweldKey = info.key;
     }
     QVERIFY(!boxKey.isEmpty());
@@ -2880,7 +2880,7 @@ void FilterTests::trueFormImproveTriangulationRaisesQuality()
     for (const auto &info : doc.filterInfos()) {
         const QString id = info.descriptor.id;
         if (id == QStringLiteral("create_sphere")) sphereKey = info.key;
-        else if (id == QStringLiteral("improve_triangulation_trueform")) improveKey = info.key;
+        else if (id == QStringLiteral("remesh_by_edge_flipping_trueform")) improveKey = info.key;
     }
     QVERIFY(!sphereKey.isEmpty());
     if (improveKey.isEmpty())
@@ -2950,7 +2950,7 @@ void FilterTests::trueFormIsocontoursLandOnTheRequestedValues()
 {
     Document doc;
     const QString key =
-        filterKeyForId(doc, QStringLiteral("generate_polyline_from_scalar_isocontour"));
+        filterKeyForId(doc, QStringLiteral("create_polyline_from_scalar_isocontour_trueform"));
     if (key.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
@@ -3055,7 +3055,7 @@ void FilterTests::trueFormIsocontoursLandOnTheRequestedValues()
 void FilterTests::trueFormIsobandCutSplitsOnlyAlongTheContours()
 {
     Document doc;
-    const QString key = filterKeyForId(doc, QStringLiteral("cut_along_scalar_isocontour"));
+    const QString key = filterKeyForId(doc, QStringLiteral("cut_along_scalar_isocontour_trueform"));
     if (key.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
@@ -3095,7 +3095,7 @@ void FilterTests::trueFormIntersectionCurveTracesTheCrossingLoop()
 {
     Document doc;
     const QString key =
-        filterKeyForId(doc, QStringLiteral("generate_polyline_from_mesh_intersection"));
+        filterKeyForId(doc, QStringLiteral("create_polyline_from_mesh_intersection_trueform"));
     if (key.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
@@ -3148,7 +3148,7 @@ void FilterTests::trueFormTubesSweepTheWholePolyline()
     constexpr double kRadius = 0.1;
 
     Document doc;
-    const QString key = filterKeyForId(doc, QStringLiteral("generate_tube_from_polyline"));
+    const QString key = filterKeyForId(doc, QStringLiteral("create_tube_from_polyline_trueform"));
     if (key.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
@@ -3237,7 +3237,7 @@ void FilterTests::trueFormSignedDistanceReportsExactMagnitudes()
 {
     Document doc;
     const QString key =
-        filterKeyForId(doc, QStringLiteral("compute_scalar_by_signed_distance_per_vertex"));
+        filterKeyForId(doc, QStringLiteral("compute_signed_distance_to_mesh_trueform"));
     if (key.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
@@ -3285,7 +3285,7 @@ void FilterTests::trueFormSignedDistanceReportsExactMagnitudes()
 void FilterTests::trueFormContainmentSelectionModesCompose()
 {
     Document doc;
-    const QString key = filterKeyForId(doc, QStringLiteral("select_vertices_inside_mesh"));
+    const QString key = filterKeyForId(doc, QStringLiteral("select_vertices_inside_mesh_trueform"));
     if (key.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
@@ -3344,7 +3344,7 @@ void FilterTests::trueFormContainmentSelectionModesCompose()
 void FilterTests::trueFormChamferDistanceMeasuresAKnownOffset()
 {
     Document doc;
-    const QString key = filterKeyForId(doc, QStringLiteral("compute_chamfer_distance"));
+    const QString key = filterKeyForId(doc, QStringLiteral("measure_chamfer_distance_trueform"));
     if (key.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
 
@@ -3433,10 +3433,10 @@ void FilterTests::trueFormNonManifoldSelectionFindsTheSharedEdge()
 void FilterTests::trueFormShellAndRepairOfOverlappingCubes()
 {
     Document doc;
-    const QString shellKey = filterKeyForId(doc, QStringLiteral("generate_outer_shell"));
+    const QString shellKey = filterKeyForId(doc, QStringLiteral("extract_outer_shell_trueform"));
     if (shellKey.isEmpty())
         QSKIP("TrueForm filter plugin is not available in this build.");
-    const QString repairKey = filterKeyForId(doc, QStringLiteral("repair_self_intersections"));
+    const QString repairKey = filterKeyForId(doc, QStringLiteral("repair_self_intersections_trueform"));
     QVERIFY(!repairKey.isEmpty());
 
     VCGMesh overlapping;
@@ -3507,7 +3507,7 @@ void FilterTests::voronoiAtlasHandlesCoarseMeshes()
         QString primKey, atlasKey;
         for (const auto &info : doc.filterInfos()) {
             if (info.descriptor.id == QLatin1String(c.primitive)) primKey = info.key;
-            else if (info.descriptor.id == QStringLiteral("generate_voronoi_atlas_parametrization"))
+            else if (info.descriptor.id == QStringLiteral("parametrize_by_voronoi_atlas_vcglib"))
                 atlasKey = info.key;
         }
         QVERIFY(!primKey.isEmpty());
@@ -3546,7 +3546,7 @@ void FilterTests::geodesicQualityFilterDoesNotBakeVertexColors()
 
     QString borderGeodesicKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("compute_scalar_by_border_distance_per_vertex")) {
+        if (info.descriptor.id == QStringLiteral("compute_geodesic_distance_from_border")) {
             borderGeodesicKey = info.key;
             break;
         }
@@ -3578,11 +3578,11 @@ void FilterTests::triOptimizeFiltersRunOnLoadedMesh()
     QString curvatureKey;
     QString smoothKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("meshing_edge_flip_by_planar_optimization"))
+        if (info.descriptor.id == QStringLiteral("flip_edges_by_planarity"))
             planarKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("meshing_edge_flip_by_curvature_optimization"))
+        else if (info.descriptor.id == QStringLiteral("flip_edges_by_curvature"))
             curvatureKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("apply_coord_laplacian_smoothing_surface_preserving"))
+        else if (info.descriptor.id == QStringLiteral("smooth_vertices_by_surface_preserving_laplacian_vcglib"))
             smoothKey = info.key;
     }
 
@@ -3626,7 +3626,7 @@ void FilterTests::voronoiSurfaceSamplingRunsOnCube()
 
     QString voronoiSamplingKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("generate_sampling_voronoi")) {
+        if (info.descriptor.id == QStringLiteral("sample_surface_by_voronoi_relaxation")) {
             voronoiSamplingKey = info.key;
             break;
         }
@@ -3668,7 +3668,7 @@ void FilterTests::voronoiSolidWireframeRunsOnLoadedMesh()
 
     QString solidWireframeKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("generate_solid_wireframe")) {
+        if (info.descriptor.id == QStringLiteral("create_solid_wireframe")) {
             solidWireframeKey = info.key;
             break;
         }
@@ -3720,7 +3720,7 @@ void FilterTests::icpBetweenPointCloudsUpdatesSourceTransform()
 
     QString icpKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("compute_matrix_by_icp_between_meshes")) {
+        if (info.descriptor.id == QStringLiteral("align_by_icp_vcglib")) {
             icpKey = info.key;
             break;
         }
@@ -3765,7 +3765,7 @@ void FilterTests::translateFilterMovesOnlyCurrentMesh()
 
     QString translateKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("compute_matrix_from_translation")) {
+        if (info.descriptor.id == QStringLiteral("translate")) {
             translateKey = info.key;
             break;
         }
@@ -3831,7 +3831,7 @@ void FilterTests::applyToAllVisibleLayersIsASingleUndoStep()
     doc.setMeshVisible(1, false);
     doc.setCurrentMeshIndex(0);
 
-    const QString key = filterKeyForId(doc, QStringLiteral("compute_matrix_from_translation"));
+    const QString key = filterKeyForId(doc, QStringLiteral("translate"));
     QVERIFY(!key.isEmpty());
 
     const int undoDepthBefore = doc.undoCursorPosition();
@@ -3873,7 +3873,7 @@ void FilterTests::applyToAllVisibleLayersDoesNotConsumeItsOwnOutput()
     QCOMPARE(addCubeLayer(doc, QStringLiteral("Cube A")), 0);
     QCOMPARE(addCubeLayer(doc, QStringLiteral("Cube B")), 1);
 
-    const QString key = filterKeyForId(doc, QStringLiteral("generate_copy_of_current_mesh"));
+    const QString key = filterKeyForId(doc, QStringLiteral("duplicate_current_layer"));
     QVERIFY(!key.isEmpty());
 
     const int undoDepthBefore = doc.undoCursorPosition();
@@ -3908,7 +3908,7 @@ void FilterTests::applyToAllVisibleLayersReportsSkippedLayers()
 
     // Compute Face Normals declares requireFaces, so the point-cloud layer fails
     // validation while both cubes go through.
-    const QString key = filterKeyForId(doc, QStringLiteral("compute_normal_per_face"));
+    const QString key = filterKeyForId(doc, QStringLiteral("compute_face_normals"));
     QVERIFY(!key.isEmpty());
 
     const Document::MultiMeshFilterResult result = doc.runFilterOnVisibleMeshes(key, {});
@@ -3946,7 +3946,7 @@ void FilterTests::packTextureImagesCreatesGutteredAtlas()
 
     QString filterKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("pack_textures")) {
+        if (info.descriptor.id == QStringLiteral("pack_texture_images")) {
             filterKey = info.key;
             QCOMPARE(info.descriptor.name, QStringLiteral("Pack Texture Images"));
             break;
@@ -4008,9 +4008,9 @@ void FilterTests::faceQualityFiltersAreSplit()
     QString geometricFilterKey;
     QString textureFilterKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("compute_scalar_by_geometric_measure_per_face"))
+        if (info.descriptor.id == QStringLiteral("compute_face_scalar_from_geometry"))
             geometricFilterKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("compute_scalar_by_texture_distortion_per_face"))
+        else if (info.descriptor.id == QStringLiteral("compute_uv_distortion"))
             textureFilterKey = info.key;
     }
     QVERIFY(!geometricFilterKey.isEmpty());
@@ -4083,13 +4083,13 @@ void FilterTests::libiglParametrizationFiltersRunWhenAvailable()
     QString arapKey;
     QString slimKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_harmonic"))
+        if (info.descriptor.id == QStringLiteral("parametrize_by_harmonic_map_libigl"))
             harmonicKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_least_squares_conformal_maps"))
+        else if (info.descriptor.id == QStringLiteral("parametrize_by_least_squares_conformal_maps_libigl"))
             lscmKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_as_rigid_as_possible_libigl"))
+        else if (info.descriptor.id == QStringLiteral("parametrize_by_as_rigid_as_possible_libigl"))
             arapKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("compute_texcoord_parametrization_slim_libigl"))
+        else if (info.descriptor.id == QStringLiteral("parametrize_by_slim_libigl"))
             slimKey = info.key;
     }
 
@@ -4138,26 +4138,26 @@ void FilterTests::libiglQuantityFiltersRunWhenAvailable()
 
     QString gaussianKey, principalKey, exactKey, heatKey, hessianKey, windingKey;
     for (const auto &info : sphereDoc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("compute_gaussian_curvature_per_vertex_libigl")) {
+        if (info.descriptor.id == QStringLiteral("compute_gaussian_curvature_libigl")) {
             gaussianKey = info.key;
             QCOMPARE(info.descriptor.provenance.project, QStringLiteral("libigl"));
             QCOMPARE(info.descriptor.references.size(), size_t(2));
             QCOMPARE(info.descriptor.references.back().doi,
                      QStringLiteral("10.1007/978-3-662-05105-4_2"));
         } else if (info.descriptor.id
-                   == QStringLiteral("compute_curvature_principal_directions_per_vertex_libigl")) {
+                   == QStringLiteral("compute_principal_curvature_directions_libigl")) {
             principalKey = info.key;
         } else if (info.descriptor.id
-                   == QStringLiteral("compute_exact_geodesic_distance_from_selection_per_vertex_libigl")) {
+                   == QStringLiteral("compute_exact_geodesic_distance_from_selection_libigl")) {
             exactKey = info.key;
         } else if (info.descriptor.id
-                   == QStringLiteral("compute_heat_geodesic_distance_from_selection_per_vertex_libigl")) {
+                   == QStringLiteral("compute_heat_geodesic_distance_from_selection_libigl")) {
             heatKey = info.key;
         } else if (info.descriptor.id
-                   == QStringLiteral("apply_scalar_hessian_smoothing_per_vertex_libigl")) {
+                   == QStringLiteral("smooth_vertex_scalar_by_hessian_energy_libigl")) {
             hessianKey = info.key;
         } else if (info.descriptor.id
-                   == QStringLiteral("compute_generalized_winding_number_per_vertex_libigl")) {
+                   == QStringLiteral("compute_generalized_winding_number_libigl")) {
             windingKey = info.key;
         }
     }
@@ -4266,13 +4266,13 @@ void FilterTests::meshBooleanFiltersRunWhenAvailable()
     QString differenceKey;
     QString xorKey;
     for (const auto &info : doc.filterInfos()) {
-        if (info.descriptor.id == QStringLiteral("generate_boolean_intersection"))
+        if (info.descriptor.id == QStringLiteral("mesh_intersection_libigl"))
             intersectionKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_boolean_union"))
+        else if (info.descriptor.id == QStringLiteral("mesh_union_libigl"))
             unionKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_boolean_difference"))
+        else if (info.descriptor.id == QStringLiteral("mesh_difference_libigl"))
             differenceKey = info.key;
-        else if (info.descriptor.id == QStringLiteral("generate_boolean_xor"))
+        else if (info.descriptor.id == QStringLiteral("mesh_symmetric_difference_libigl"))
             xorKey = info.key;
     }
 
@@ -4482,7 +4482,7 @@ std::vector<float> montecarloSamples(const QString &key, int randomSeed)
 void FilterTests::randomSeedMakesSamplingReproducible()
 {
     Document probe;
-    const QString key = filterKeyForId(probe, QStringLiteral("generate_sampling_montecarlo"));
+    const QString key = filterKeyForId(probe, QStringLiteral("sample_surface_by_monte_carlo"));
     QVERIFY(!key.isEmpty());
 
     const std::vector<float> first = montecarloSamples(key, 12345);
@@ -4500,7 +4500,7 @@ void FilterTests::randomSeedMakesSamplingReproducible()
 void FilterTests::randomSeedZeroVariesBetweenRuns()
 {
     Document probe;
-    const QString key = filterKeyForId(probe, QStringLiteral("generate_sampling_montecarlo"));
+    const QString key = filterKeyForId(probe, QStringLiteral("sample_surface_by_monte_carlo"));
     QVERIFY(!key.isEmpty());
 
     const std::vector<float> first = montecarloSamples(key, 0);
@@ -4513,7 +4513,7 @@ void FilterTests::randomSeedZeroVariesBetweenRuns()
 void FilterTests::randomSeedControlsExpressionRnd()
 {
     Document probe;
-    const QString key = filterKeyForId(probe, QStringLiteral("per_vertex_quality_function"));
+    const QString key = filterKeyForId(probe, QStringLiteral("compute_vertex_scalar_by_expression"));
     QVERIFY(!key.isEmpty());
 
     // Write rnd() into the per-vertex scalar so the drawn values land somewhere we
@@ -4554,46 +4554,46 @@ void FilterTests::randomSeedControlsExpressionRnd()
 void FilterTests::randomizedFiltersDeclareARandomSeed()
 {
     const QStringList randomizedFilterIds{
-        QStringLiteral("generate_sampling_element"),
-        QStringLiteral("generate_sampling_montecarlo"),
-        QStringLiteral("generate_sampling_stratified_triangle"),
-        QStringLiteral("generate_sampling_poisson_disk"),
-        QStringLiteral("generate_simplified_point_cloud"),
-        QStringLiteral("get_hausdorff_distance"),
-        QStringLiteral("generate_sampling_voronoi"),
-        QStringLiteral("generate_sampling_volumetric"),
-        QStringLiteral("generate_voronoi_scaffolding"),
-        QStringLiteral("generate_voronoi_atlas_parametrization"),
-        QStringLiteral("compute_curvature_principal_directions_per_vertex"),
-        QStringLiteral("apply_color_noising_per_vertex"),
-        QStringLiteral("compute_color_scattering_per_mesh"),
-        QStringLiteral("create_sphere_points"),
-        QStringLiteral("create_points_on_a_spherical_cap"),
+        QStringLiteral("sample_mesh_elements"),
+        QStringLiteral("sample_surface_by_monte_carlo"),
+        QStringLiteral("sample_surface_by_stratified_triangles"),
+        QStringLiteral("sample_surface_by_poisson_disk"),
+        QStringLiteral("simplify_point_cloud"),
+        QStringLiteral("measure_hausdorff_distance"),
+        QStringLiteral("sample_surface_by_voronoi_relaxation"),
+        QStringLiteral("sample_volume"),
+        QStringLiteral("create_voronoi_scaffolding"),
+        QStringLiteral("parametrize_by_voronoi_atlas_vcglib"),
+        QStringLiteral("compute_principal_curvature_directions_vcglib"),
+        QStringLiteral("add_noise_to_vertex_color"),
+        QStringLiteral("set_random_layer_color"),
+        QStringLiteral("create_points_on_sphere"),
+        QStringLiteral("create_points_on_spherical_cap"),
         QStringLiteral("displace_vertices_randomly"),
-        QStringLiteral("compute_matrix_by_icp_between_meshes"),
-        QStringLiteral("compute_matrix_by_mesh_global_alignment"),
-        QStringLiteral("apply_texmap_defragmentation"),
-        QStringLiteral("apply_small_islands_remover"),
+        QStringLiteral("align_by_icp_vcglib"),
+        QStringLiteral("align_meshes_globally"),
+        QStringLiteral("defragment_texture_atlas"),
+        QStringLiteral("merge_small_texture_islands"),
         // filter_expression: randomness is opt-in through the formula's rnd() /
         // randInt() helpers, but it still has to be seedable. grid_generator is
         // excluded on purpose — it is the one filter there with no expression.
-        QStringLiteral("conditional_vertex_selection"),
-        QStringLiteral("conditional_face_selection"),
-        QStringLiteral("per_vertex_geometric_function"),
-        QStringLiteral("per_vertex_normal_function"),
-        QStringLiteral("per_face_normal_function"),
-        QStringLiteral("per_vertex_color_function"),
-        QStringLiteral("per_face_color_function"),
-        QStringLiteral("per_vertex_quality_function"),
-        QStringLiteral("per_face_quality_function"),
-        QStringLiteral("per_vertex_texture_function"),
-        QStringLiteral("per_wedge_texture_function"),
-        QStringLiteral("define_per_vertex_scalar_attribute"),
-        QStringLiteral("define_per_face_scalar_attribute"),
-        QStringLiteral("define_per_vertex_point_attribute"),
-        QStringLiteral("define_per_face_point_attribute"),
-        QStringLiteral("implicit_surface"),
-        QStringLiteral("refine_user_defined"),
+        QStringLiteral("select_vertices_by_expression"),
+        QStringLiteral("select_faces_by_expression"),
+        QStringLiteral("compute_vertex_coordinates_by_expression"),
+        QStringLiteral("compute_vertex_normals_by_expression"),
+        QStringLiteral("compute_face_normals_by_expression"),
+        QStringLiteral("compute_vertex_color_by_expression"),
+        QStringLiteral("compute_face_color_by_expression"),
+        QStringLiteral("compute_vertex_scalar_by_expression"),
+        QStringLiteral("compute_face_scalar_by_expression"),
+        QStringLiteral("parametrize_per_vertex_by_expression"),
+        QStringLiteral("parametrize_per_wedge_by_expression"),
+        QStringLiteral("define_custom_vertex_scalar_attribute"),
+        QStringLiteral("define_custom_face_scalar_attribute"),
+        QStringLiteral("define_custom_vertex_point_attribute"),
+        QStringLiteral("define_custom_face_point_attribute"),
+        QStringLiteral("create_isosurface_from_expression"),
+        QStringLiteral("refine_by_user_expression"),
     };
 
     Document doc;
@@ -4665,7 +4665,7 @@ void FilterTests::capFiltersAgreeOnTheHalfAngleConvention()
     pointParams.insert(QStringLiteral("technique"), QStringLiteral("fibonacci"));
 
     const QString pointKey =
-        filterKeyForId(doc, QStringLiteral("create_points_on_a_spherical_cap"));
+        filterKeyForId(doc, QStringLiteral("create_points_on_spherical_cap"));
     QVERIFY(!pointKey.isEmpty());
     const MeshFilterRunResult pointResult = doc.runFilter(pointKey, pointParams);
     QVERIFY2(pointResult.success, qPrintable(pointResult.errorMessage));
@@ -4693,7 +4693,7 @@ void FilterTests::capFiltersAgreeOnTheHalfAngleConvention()
 void FilterTests::elementSamplingEmitsOneSamplePerElement()
 {
     Document probe;
-    const QString key = filterKeyForId(probe, QStringLiteral("generate_sampling_element"));
+    const QString key = filterKeyForId(probe, QStringLiteral("sample_mesh_elements"));
     QVERIFY(!key.isEmpty());
 
     const QString sphereKey = filterKeyForId(probe, QStringLiteral("create_sphere"));
@@ -4825,7 +4825,7 @@ void FilterTests::normalizeReferenceFrameIsOrientationInvariant()
 {
     Document probe;
     const QString key =
-        filterKeyForId(probe, QStringLiteral("compute_matrix_by_reference_frame_normalization"));
+        filterKeyForId(probe, QStringLiteral("normalize_reference_frame"));
     QVERIFY(!key.isEmpty());
 
     auto canonicalize = [&](const QString &rotationMode, const QMatrix4x4 *pre) {
@@ -4890,7 +4890,7 @@ void FilterTests::normalizeReferenceFrameControlsAreIndependent()
 {
     Document probe;
     const QString key =
-        filterKeyForId(probe, QStringLiteral("compute_matrix_by_reference_frame_normalization"));
+        filterKeyForId(probe, QStringLiteral("normalize_reference_frame"));
     QVERIFY(!key.isEmpty());
 
     auto run = [&](const QString &position, const QString &rotation, const QString &scale,
@@ -4977,9 +4977,9 @@ void FilterTests::normalizeReferenceFrameControlsAreIndependent()
 void FilterTests::bboxCentrePivotIsWorldSpace()
 {
     Document probe;
-    const QString rotateKey = filterKeyForId(probe, QStringLiteral("compute_matrix_from_rotation"));
+    const QString rotateKey = filterKeyForId(probe, QStringLiteral("rotate"));
     const QString scaleKey =
-        filterKeyForId(probe, QStringLiteral("compute_matrix_from_scaling_or_normalization"));
+        filterKeyForId(probe, QStringLiteral("scale"));
     QVERIFY(!rotateKey.isEmpty());
     QVERIFY(!scaleKey.isEmpty());
 
@@ -5054,7 +5054,7 @@ void FilterTests::unfrozenTransformFilterKeepsTheMatrix()
     QCOMPARE(doc.addMesh(cube, QStringLiteral("B"), vcg::tri::io::Mask::IOM_VERTCOORD), 1);
     doc.setCurrentMeshIndex(1);
 
-    const QString key = filterKeyForId(doc, QStringLiteral("compute_matrix_from_translation"));
+    const QString key = filterKeyForId(doc, QStringLiteral("translate"));
     QVERIFY(!key.isEmpty());
 
     MeshFilterParameterValues params;
@@ -5216,24 +5216,24 @@ void FilterTests::structuredReferencesRenderCitations()
     int checked = 0;
     for (const auto &info : doc.filterInfos()) {
         static const QStringList kCited{
-            QStringLiteral("apply_coord_taubin_smoothing"),
-            QStringLiteral("apply_coord_hc_laplacian_smoothing"),
-            QStringLiteral("apply_coord_laplacian_smoothing_scale_dependent"),
-            QStringLiteral("apply_normal_unsharp_mask_per_vertex"),
-            QStringLiteral("apply_coord_unsharp_mask"),
-            QStringLiteral("apply_scalar_unsharp_mask_per_vertex"),
-            QStringLiteral("apply_color_unsharp_mask_per_vertex"),
-            QStringLiteral("apply_coord_two_steps_smoothing"),
-            QStringLiteral("compute_mls_projection_apss"),
-            QStringLiteral("compute_mls_projection_rimls"),
-            QStringLiteral("generate_marching_cubes_apss"),
-            QStringLiteral("generate_marching_cubes_rimls"),
-            QStringLiteral("compute_curvature_and_color_apss_per_vertex"),
-            QStringLiteral("compute_curvature_and_color_rimls_per_vertex"),
-            QStringLiteral("compute_matrix_by_icp_between_meshes"),
-            QStringLiteral("compute_matrix_by_mesh_global_alignment"),
-            QStringLiteral("displace_by_fractal_brownian_motion"),
-            QStringLiteral("apply_taubin_smoothing_trueform"),
+            QStringLiteral("smooth_vertices_by_taubin_vcglib"),
+            QStringLiteral("smooth_vertices_by_hc_laplacian"),
+            QStringLiteral("smooth_vertices_by_scale_dependent_laplacian"),
+            QStringLiteral("sharpen_face_normals_by_unsharp_mask"),
+            QStringLiteral("sharpen_vertices_by_unsharp_mask"),
+            QStringLiteral("sharpen_vertex_scalar_by_unsharp_mask"),
+            QStringLiteral("sharpen_vertex_color_by_unsharp_mask"),
+            QStringLiteral("smooth_vertices_by_two_step_normal_fitting"),
+            QStringLiteral("project_vertices_onto_mls_surface_apss"),
+            QStringLiteral("project_vertices_onto_mls_surface_rimls"),
+            QStringLiteral("reconstruct_surface_by_marching_cubes_apss"),
+            QStringLiteral("reconstruct_surface_by_marching_cubes_rimls"),
+            QStringLiteral("compute_curvature_apss"),
+            QStringLiteral("compute_curvature_rimls"),
+            QStringLiteral("align_by_icp_vcglib"),
+            QStringLiteral("align_meshes_globally"),
+            QStringLiteral("displace_vertices_by_fractal_brownian_motion"),
+            QStringLiteral("smooth_vertices_by_taubin_trueform"),
         };
         if (!kCited.contains(info.descriptor.id))
             continue;
@@ -5469,7 +5469,7 @@ void FilterTests::selfIntersectionCurvesFindTheCrossing()
                                   vcg::tri::io::Mask::IOM_VERTCOORD);
     doc.setCurrentMeshIndex(index);
 
-    const QString key = filterKeyForId(doc, QStringLiteral("generate_polyline_from_self_intersections"));
+    const QString key = filterKeyForId(doc, QStringLiteral("create_polyline_from_self_intersections_trueform"));
     QVERIFY(!key.isEmpty());
     const MeshFilterRunResult r = doc.runFilter(key, {});
     QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -5514,7 +5514,7 @@ void FilterTests::packUvChartsSurvivesAnyRotationCount()
         uvParams.insert(QStringLiteral("textdim"), 128);
         QVERIFY(doc.runFilter(
             filterKeyForId(doc,
-                QStringLiteral("compute_texcoord_parametrization_triangle_trivial_per_wedge")),
+                QStringLiteral("parametrize_by_trivial_per_triangle_layout")),
             uvParams).success);
 
         MeshFilterParameterValues params;
@@ -5554,7 +5554,7 @@ void FilterTests::packUvChartsWorksWithoutATexture()
         uvParams.insert(QStringLiteral("textdim"), 256);
         return doc.runFilter(
             filterKeyForId(doc,
-                QStringLiteral("compute_texcoord_parametrization_triangle_trivial_per_wedge")),
+                QStringLiteral("parametrize_by_trivial_per_triangle_layout")),
             uvParams).success;
     };
 
@@ -5624,7 +5624,7 @@ void FilterTests::packUvChartsRunsEveryAlgorithm()
         uvParams.insert(QStringLiteral("textdim"), 256);
         const MeshFilterRunResult uv = doc.runFilter(
             filterKeyForId(doc,
-                QStringLiteral("compute_texcoord_parametrization_triangle_trivial_per_wedge")),
+                QStringLiteral("parametrize_by_trivial_per_triangle_layout")),
             uvParams);
         QVERIFY2(uv.success, qPrintable(uv.errorMessage));
 
@@ -5691,7 +5691,7 @@ void FilterTests::textureIslandMergeCanSkipResampling()
         doc.setCurrentMeshIndex(meshIndex);
 
         const QString uvKey = filterKeyForId(
-            doc, QStringLiteral("compute_texcoord_parametrization_triangle_trivial_per_wedge"));
+            doc, QStringLiteral("parametrize_by_trivial_per_triangle_layout"));
         if (uvKey.isEmpty()) { error = QStringLiteral("parametrization filter missing"); return false; }
         MeshFilterParameterValues uvParams;
         uvParams.insert(QStringLiteral("textdim"), 256);
@@ -5706,7 +5706,7 @@ void FilterTests::textureIslandMergeCanSkipResampling()
                   texture, QStringLiteral("atlas.png")) });
         doc.setCurrentMeshIndex(meshIndex);
 
-        const QString key = filterKeyForId(doc, QStringLiteral("apply_small_islands_remover"));
+        const QString key = filterKeyForId(doc, QStringLiteral("merge_small_texture_islands"));
         if (key.isEmpty()) { error = QStringLiteral("filter not registered"); return false; }
         MeshFilterParameterValues params;
         params.insert(QStringLiteral("resampleTextures"), resample);
@@ -5766,7 +5766,7 @@ void FilterTests::voronoiAtlasKeepsSelectionAndColorAlone()
                                       | vcg::tri::io::Mask::IOM_VERTCOLOR);
     doc.setCurrentMeshIndex(index);
 
-    const QString key = filterKeyForId(doc, QStringLiteral("generate_voronoi_atlas_parametrization"));
+    const QString key = filterKeyForId(doc, QStringLiteral("parametrize_by_voronoi_atlas_vcglib"));
     QVERIFY(!key.isEmpty());
     MeshFilterParameterValues params;
     params.insert(QStringLiteral("regionNum"), 4);
@@ -5828,7 +5828,7 @@ void FilterTests::quadPairingChoosesGoodDiagonals()
     doc.setCurrentMeshIndex(index);
 
     const QString key = filterKeyForId(
-        doc, QStringLiteral("meshing_tri_to_quad_by_smart_triangle_pairing"));
+        doc, QStringLiteral("convert_to_quads_by_triangle_pairing"));
     QVERIFY(!key.isEmpty());
     const MeshFilterRunResult r = doc.runFilter(key, {});
     QVERIFY2(r.success, qPrintable(r.errorMessage));

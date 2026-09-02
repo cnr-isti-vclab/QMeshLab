@@ -37,30 +37,30 @@
 namespace {
 constexpr QLatin1StringView kFilterSelectAll("select_all");
 constexpr QLatin1StringView kFilterSelectNone("select_none");
-constexpr QLatin1StringView kFilterSelectByAngle("select_by_view_angle");
+constexpr QLatin1StringView kFilterSelectByAngle("select_faces_by_view_angle");
 constexpr QLatin1StringView kFilterSelectVisibleVerts("select_visible_vertices");
-constexpr QLatin1StringView kFilterSelectUgly("select_problematic_faces");
-constexpr QLatin1StringView kFilterSelectInvert("select_invert");
+constexpr QLatin1StringView kFilterSelectUgly("select_ill_shaped_faces");
+constexpr QLatin1StringView kFilterSelectInvert("invert_selection");
 constexpr QLatin1StringView kFilterSelectConnected("select_connected_faces");
 constexpr QLatin1StringView kFilterSelectFaceFromVert("select_faces_from_vertices");
 constexpr QLatin1StringView kFilterSelectVertFromFace("select_vertices_from_faces");
-constexpr QLatin1StringView kFilterDeleteSelectedVerts("delete_selected_vertices");
-constexpr QLatin1StringView kFilterDeleteAllFaces("delete_all_faces");
-constexpr QLatin1StringView kFilterDeleteSelectedFaces("delete_selected_faces");
-constexpr QLatin1StringView kFilterDeleteSelectedFaceVerts("delete_selected_faces_and_vertices");
-constexpr QLatin1StringView kFilterSelectErode("select_erode");
-constexpr QLatin1StringView kFilterSelectDilate("select_dilate");
+constexpr QLatin1StringView kFilterDeleteSelectedVerts("remove_selected_vertices");
+constexpr QLatin1StringView kFilterDeleteAllFaces("remove_all_faces");
+constexpr QLatin1StringView kFilterDeleteSelectedFaces("remove_selected_faces");
+constexpr QLatin1StringView kFilterDeleteSelectedFaceVerts("remove_selected_faces_and_vertices");
+constexpr QLatin1StringView kFilterSelectErode("erode_selection");
+constexpr QLatin1StringView kFilterSelectDilate("dilate_selection");
 constexpr QLatin1StringView kFilterSelectBorder("select_border");
-constexpr QLatin1StringView kFilterSelectByFaceQuality("select_by_face_quality");
-constexpr QLatin1StringView kFilterSelectByVertQuality("select_by_vertex_quality");
-constexpr QLatin1StringView kFilterSelectByColor("select_by_color");
+constexpr QLatin1StringView kFilterSelectByFaceQuality("select_faces_by_scalar");
+constexpr QLatin1StringView kFilterSelectByVertQuality("select_vertices_by_scalar");
+constexpr QLatin1StringView kFilterSelectByColor("select_faces_by_color");
 constexpr QLatin1StringView kFilterSelectSelfIntersect("select_self_intersecting_faces");
 constexpr QLatin1StringView kFilterSelectTexBorder("select_vertex_texture_seams");
-constexpr QLatin1StringView kFilterSelectNonManifoldFace("select_non_manifold_edges");
+constexpr QLatin1StringView kFilterSelectNonManifoldFace("select_non_manifold_edges_vcglib");
 constexpr QLatin1StringView kFilterSelectNonManifoldVertex("select_non_manifold_vertices");
 constexpr QLatin1StringView kFilterSelectFacesByEdge("select_faces_by_edge_length");
 constexpr QLatin1StringView kFilterSelectOutlier("select_outliers");
-constexpr QLatin1StringView kFilterSelectByRectangle("select_by_rectangle");
+constexpr QLatin1StringView kFilterSelectByRectangle("select_by_screen_rectangle");
 
 
 void updateGeometryAfterDeletion(VCGMesh &mesh)

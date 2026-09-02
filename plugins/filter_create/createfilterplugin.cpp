@@ -21,16 +21,16 @@ constexpr QLatin1StringView kFilterCreateBox("create_box");
 constexpr QLatin1StringView kFilterCreateAnnulus("create_annulus");
 constexpr QLatin1StringView kFilterCreateSphere("create_sphere");
 constexpr QLatin1StringView kFilterCreateSphereCap("create_sphere_cap");
-constexpr QLatin1StringView kFilterCreateSpherePoints("create_sphere_points");
-constexpr QLatin1StringView kFilterCreateSphericalCapPoints("create_points_on_a_spherical_cap");
+constexpr QLatin1StringView kFilterCreateSpherePoints("create_points_on_sphere");
+constexpr QLatin1StringView kFilterCreateSphericalCapPoints("create_points_on_spherical_cap");
 constexpr QLatin1StringView kFilterCreateIcosahedron("create_icosahedron");
 constexpr QLatin1StringView kFilterCreateDodecahedron("create_dodecahedron");
-constexpr QLatin1StringView kFilterCreateDodecahedronSym("create_dodecahedron_sym");
+constexpr QLatin1StringView kFilterCreateDodecahedronSym("create_symmetric_dodecahedron");
 constexpr QLatin1StringView kFilterCreateTetrahedron("create_tetrahedron");
 constexpr QLatin1StringView kFilterCreateOctahedron("create_octahedron");
 constexpr QLatin1StringView kFilterCreateCone("create_cone");
 constexpr QLatin1StringView kFilterCreateTorus("create_torus");
-constexpr QLatin1StringView kFilterFitPlane("fit_plane_to_selection");
+constexpr QLatin1StringView kFilterFitPlane("create_plane_from_selection");
 constexpr QLatin1StringView kFilterConvexHull("create_convex_hull");
 
 MeshFilterRunResult success(const QString &name, int newIndex, const QStringList &extraInfo = {})

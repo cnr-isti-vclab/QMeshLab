@@ -2,10 +2,10 @@
   "pluginId": "qmeshlab.filter.clean",
   "filters": [
     {
-      "id": "surface_reconstruction_ball_pivoting",
+      "id": "reconstruct_surface_by_ball_pivoting",
       "categories": ["Creation/Reconstruction"],
       "name": "Reconstruct Surface by Ball Pivoting",
-      "pythonName": "generate_surface_reconstruction_ball_pivoting",
+      "pythonName": "reconstruct_surface_by_ball_pivoting",
       "shortDescription": "Reconstruct a surface from oriented points using Ball Pivoting.",
       "longDescriptionMarkdown": "Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud. <br>Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.<br><b>The ball-pivoting algorithm for surface reconstruction.</b><br>IEEE TVCG 1999",
       "tags": [
@@ -72,10 +72,10 @@
       ]
     },
     {
-      "id": "remove_vertices_wrt_quality",
+      "id": "remove_vertices_by_scalar",
       "categories": ["Repair/Degenerate"],
       "name": "Remove Vertices by Scalar",
-      "pythonName": "remove_vertices_wrt_quality",
+      "pythonName": "remove_vertices_by_scalar",
       "shortDescription": "Remove all vertices whose scalar is lower than a threshold.",
       "longDescriptionMarkdown": "Remove all the vertices whose scalar is smaller than the specified constant",
       "tags": [
@@ -108,10 +108,10 @@
       ]
     },
     {
-      "id": "remove_isolated_pieces_face_num",
+      "id": "remove_isolated_components_by_face_count",
       "categories": ["Repair/Degenerate"],
       "name": "Remove Isolated Components by Face Count",
-      "pythonName": "remove_isolated_pieces_by_face_num",
+      "pythonName": "remove_isolated_components_by_face_count",
       "shortDescription": "Remove isolated connected components composed of few triangles.",
       "longDescriptionMarkdown": "Remove isolated connected components composed of a limited number of triangles",
       "tags": [
@@ -160,10 +160,10 @@
       ]
     },
     {
-      "id": "remove_isolated_pieces_diameter",
+      "id": "remove_isolated_components_by_diameter",
       "categories": ["Repair/Degenerate"],
       "name": "Remove Isolated Components by Diameter",
-      "pythonName": "remove_isolated_pieces_by_diameter",
+      "pythonName": "remove_isolated_components_by_diameter",
       "shortDescription": "Remove isolated connected components whose diameter is below a threshold.",
       "longDescriptionMarkdown": "Remove isolated connected components whose diameter is smaller than the specified constant",
       "tags": [
@@ -278,10 +278,10 @@
       ]
     },
     {
-      "id": "snap_mismatched_borders",
+      "id": "repair_mismatched_borders",
       "categories": ["Repair/Holes and Borders"],
       "name": "Repair Mismatched Borders",
-      "pythonName": "snap_mismatched_borders",
+      "pythonName": "repair_mismatched_borders",
       "shortDescription": "Try to snap together slightly mismatched adjacent borders.",
       "longDescriptionMarkdown": "Try to snap together adjacent borders that are slightly mismatched.<br>This situation can happen on badly triangulated adjacent patches defined by high order surfaces.<br>For each border vertex the filter snap it onto the closest boundary edge only if it is closest of <i>edge_length*threshold</i>. When vertex is snapped the corresponding face is split and a new vertex is created.",
       "tags": [
@@ -359,10 +359,10 @@
       ]
     },
     {
-      "id": "merge_wedge_texture_coord",
+      "id": "merge_close_wedge_uvs",
       "categories": ["Repair/Duplicates"],
       "name": "Merge Close Wedge UVs",
-      "pythonName": "merge_wedge_texture_coords",
+      "pythonName": "merge_close_wedge_uvs",
       "shortDescription": "Merge per-wedge UVs that are very close.",
       "longDescriptionMarkdown": "Merge together per-wedge UVs that are very close. Used to correct apparent texture seams that can arise from numerical approximations when saving in ascii formats.",
       "tags": [
@@ -421,10 +421,10 @@
       ]
     },
     {
-      "id": "remove_folded_faces_by_edge_flip",
+      "id": "remove_isolated_folded_faces_by_edge_flip",
       "categories": ["Repair/Topology"],
       "name": "Remove Isolated Folded Faces by Edge Flip",
-      "pythonName": "remove_isolated_folded_faces",
+      "pythonName": "remove_isolated_folded_faces_by_edge_flip",
       "shortDescription": "Repair isolated folded triangles by changing the local triangulation.",
       "longDescriptionMarkdown": "Repair an isolated folded triangle whose normal is nearly opposite to all three adjacent faces. The filter flips one supporting edge only when the opposite vertex projects strictly inside the adjacent triangle and the flip reduces the number of near-opposite normal relations in the affected neighborhood. No vertices or faces are removed.\n\nThe input must be a consistently oriented, 2-manifold triangle mesh. Polygonal faux-edge meshes and meshes with per-wedge UVs are rejected because an edge flip cannot preserve their polygon boundaries or UV seams unambiguously.",
       "tags": [
@@ -505,10 +505,10 @@
       ]
     },
     {
-      "id": "repair_non_manifold_vertices_split",
+      "id": "repair_non_manifold_vertices_by_splitting",
       "categories": ["Repair/Topology"],
       "name": "Repair Non-Manifold Vertices by Splitting",
-      "pythonName": "repair_non_manifold_vertices",
+      "pythonName": "repair_non_manifold_vertices_by_splitting",
       "shortDescription": "Split non-manifold vertices until the mesh becomes 2-manifold.",
       "longDescriptionMarkdown": "Split non Manifold vertices until it becomes 2-Manifold.",
       "tags": [
@@ -566,10 +566,10 @@
       ]
     },
     {
-      "id": "remove_duplicated_vertices",
+      "id": "remove_duplicate_vertices_vcglib",
       "categories": ["Repair/Duplicates"],
       "name": "Remove Duplicate Vertices (vcglib)",
-      "pythonName": "remove_duplicate_vertices",
+      "pythonName": "remove_duplicate_vertices_vcglib",
       "shortDescription": "Merge vertices that have exactly the same coordinates.",
       "longDescriptionMarkdown": "Check for every vertex on the mesh: if there are two vertices with same coordinates they are merged into a single one.",
       "tags": [

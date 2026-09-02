@@ -12,9 +12,9 @@
 #include <vcg/complex/algorithms/update/normal.h>
 
 namespace {
-constexpr QLatin1StringView kFilterScreenedPoisson("surface_reconstruction_screened_poisson");
-constexpr QLatin1StringView kFilterSSDRecon("surface_reconstruction_ssd");
-constexpr QLatin1StringView kFilterSurfaceTrimmer("surface_reconstruction_surface_trimmer");
+constexpr QLatin1StringView kFilterScreenedPoisson("reconstruct_surface_by_screened_poisson");
+constexpr QLatin1StringView kFilterSSDRecon("reconstruct_surface_by_smooth_signed_distance");
+constexpr QLatin1StringView kFilterSurfaceTrimmer("trim_surface_by_scalar_isovalue");
 
 std::vector<int> selectedMeshIndices(const Document &doc, bool mergeVisible)
 {

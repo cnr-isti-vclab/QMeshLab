@@ -38,13 +38,13 @@ using NeighbSet = std::set<VCGFace *>;
 namespace {
 
 constexpr QLatin1StringView kPatchParamOnly(
-    "compute_texcoord_parametrization_from_registered_rasters");
+    "parametrize_from_registered_rasters");
 constexpr QLatin1StringView kPatchParamTex(
-    "compute_texcoord_parametrization_and_texture_from_registered_rasters");
+    "parametrize_from_registered_rasters_with_texture");
 constexpr QLatin1StringView kCoverageVert(
-    "compute_scalar_from_raster_coverage_per_vertex");
+    "compute_vertex_scalar_from_raster_coverage");
 constexpr QLatin1StringView kCoverageFace(
-    "compute_scalar_from_raster_coverage_per_face");
+    "compute_face_scalar_from_raster_coverage");
 
 MeshFilterRunResult fail(const QString &m) { return {false, false, m}; }
 MeshFilterRunResult ok(const QStringList &info = {}) {

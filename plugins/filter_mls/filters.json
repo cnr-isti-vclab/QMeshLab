@@ -51,10 +51,10 @@
   ],
   "filters": [
     {
-      "id": "compute_mls_projection_apss",
+      "id": "project_vertices_onto_mls_surface_apss",
       "categories": ["Geometry/Smoothing"],
       "name": "Project Vertices onto MLS Surface (APSS)",
-      "pythonName": "apply_mls_apss",
+      "pythonName": "project_vertices_onto_mls_surface_apss",
       "shortDescription": "Project a mesh or point set onto an Algebraic Point Set Surface.",
       "longDescriptionMarkdown": "Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\\n\\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.",
       "referenceIds": ["guennebaud2007", "guennebaud2008"],
@@ -180,10 +180,10 @@
       ]
     },
     {
-      "id": "compute_mls_projection_rimls",
+      "id": "project_vertices_onto_mls_surface_rimls",
       "categories": ["Geometry/Smoothing"],
       "name": "Project Vertices onto MLS Surface (RIMLS)",
-      "pythonName": "apply_mls_rimls",
+      "pythonName": "project_vertices_onto_mls_surface_rimls",
       "shortDescription": "Project a mesh or point set onto a Robust Implicit MLS surface.",
       "longDescriptionMarkdown": "Projects a mesh, or a bare point set, onto the MLS surface defined by itself or by another point set.\\n\\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.",
       "referenceIds": ["oztireli2009"],
@@ -311,10 +311,10 @@
       ]
     },
     {
-      "id": "generate_marching_cubes_apss",
+      "id": "reconstruct_surface_by_marching_cubes_apss",
       "categories": ["Creation/Reconstruction"],
       "name": "Reconstruct Surface by Marching Cubes (APSS)",
-      "pythonName": "generate_marching_cubes_apss",
+      "pythonName": "reconstruct_surface_by_marching_cubes_apss",
       "shortDescription": "Extract an APSS iso-surface as a new mesh with marching cubes.",
       "longDescriptionMarkdown": "Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\\n\\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.",
       "referenceIds": ["guennebaud2007", "guennebaud2008"],
@@ -395,10 +395,10 @@
       ]
     },
     {
-      "id": "generate_marching_cubes_rimls",
+      "id": "reconstruct_surface_by_marching_cubes_rimls",
       "categories": ["Creation/Reconstruction"],
       "name": "Reconstruct Surface by Marching Cubes (RIMLS)",
-      "pythonName": "generate_marching_cubes_rimls",
+      "pythonName": "reconstruct_surface_by_marching_cubes_rimls",
       "shortDescription": "Extract a Robust Implicit MLS iso-surface as a new mesh with marching cubes.",
       "longDescriptionMarkdown": "Extracts the iso-surface of an MLS surface as a mesh, using marching cubes. The coarse extraction is followed by an accurate projection onto the MLS surface and a zero-removal pass.\\n\\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.",
       "referenceIds": ["oztireli2009"],
@@ -481,10 +481,10 @@
       ]
     },
     {
-      "id": "compute_curvature_and_color_apss_per_vertex",
+      "id": "compute_curvature_apss",
       "categories": ["Attribute/Curvature"],
       "name": "Compute Curvature (APSS)",
-      "pythonName": "compute_apss_curvature",
+      "pythonName": "compute_curvature_apss",
       "shortDescription": "Compute APSS curvature estimates and store them in vertex quality.",
       "longDescriptionMarkdown": "Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\\n\\nThis is the **algebraic point set surfaces** (APSS) variant: the local approximation fitted at each point is an algebraic sphere rather than a plane, which keeps curved regions from flattening out. It needs points carrying oriented normals.",
       "referenceIds": ["guennebaud2007", "guennebaud2008"],
@@ -591,10 +591,10 @@
       ]
     },
     {
-      "id": "compute_curvature_and_color_rimls_per_vertex",
+      "id": "compute_curvature_rimls",
       "categories": ["Attribute/Curvature"],
       "name": "Compute Curvature (RIMLS)",
-      "pythonName": "compute_rimls_curvature",
+      "pythonName": "compute_curvature_rimls",
       "shortDescription": "Compute RIMLS curvature estimates and store them in vertex quality.",
       "longDescriptionMarkdown": "Computes curvature at each vertex of a mesh or point set and stores it in the vertex scalar field. No color is baked; the view switches to scalar visualization when the filter finishes.\\n\\nThis is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS with non-linear kernel regression, so sharp edges survive instead of being rounded away with the noise. It needs points carrying oriented normals.",
       "referenceIds": ["oztireli2009"],
@@ -707,7 +707,7 @@
       ]
     },
     {
-      "id": "compute_custom_radius_scalar_attribute_per_vertex",
+      "id": "estimate_radius_from_density",
       "categories": ["Measurement/Statistics"],
       "name": "Estimate Radius from Density",
       "pythonName": "estimate_radius_from_density",
@@ -741,10 +741,10 @@
       ]
     },
     {
-      "id": "compute_selection_by_small_disconnected_components_per_face",
+      "id": "select_small_disconnected_components",
       "categories": ["Selection/by Topology"],
       "name": "Select Small Disconnected Components",
-      "pythonName": "select_small_disconnected_component",
+      "pythonName": "select_small_disconnected_components",
       "shortDescription": "Select the small disconnected components of a mesh.",
       "longDescriptionMarkdown": "Select the small disconnected components of a mesh.",
       "tags": [

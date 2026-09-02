@@ -12,7 +12,7 @@
 
 namespace {
 
-constexpr QLatin1StringView kWinding("compute_generalized_winding_number_per_vertex_libigl");
+constexpr QLatin1StringView kWinding("compute_generalized_winding_number_libigl");
 namespace IglAdapter = qmeshlab::libigl;
 
 MeshFilterRunResult fail(const QString &message)

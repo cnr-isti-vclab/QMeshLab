@@ -165,12 +165,12 @@
   ],
   "filters": [
     {
-      "id": "generate_boolean_intersection",
+      "id": "mesh_intersection_libigl",
       "categories": [
         "Meshing/Boolean"
       ],
       "name": "Mesh Intersection (libigl)",
-      "pythonName": "generate_boolean_intersection",
+      "pythonName": "mesh_intersection_libigl",
       "referenceIds": ["libigl"],
       "shortDescription": "Create the exact intersection of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean intersection between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
@@ -253,12 +253,12 @@
       ]
     },
     {
-      "id": "generate_boolean_union",
+      "id": "mesh_union_libigl",
       "categories": [
         "Meshing/Boolean"
       ],
       "name": "Mesh Union (libigl)",
-      "pythonName": "generate_boolean_union",
+      "pythonName": "mesh_union_libigl",
       "referenceIds": ["libigl"],
       "shortDescription": "Create the exact union of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean union between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
@@ -341,12 +341,12 @@
       ]
     },
     {
-      "id": "generate_boolean_difference",
+      "id": "mesh_difference_libigl",
       "categories": [
         "Meshing/Boolean"
       ],
       "name": "Mesh Difference (libigl)",
-      "pythonName": "generate_boolean_difference",
+      "pythonName": "mesh_difference_libigl",
       "referenceIds": ["libigl"],
       "shortDescription": "Create the exact difference of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. The result is `First Mesh - Second Mesh`. Both operands should be watertight and consistently oriented.",
@@ -429,12 +429,12 @@
       ]
     },
     {
-      "id": "generate_boolean_xor",
+      "id": "mesh_symmetric_difference_libigl",
       "categories": [
         "Meshing/Boolean"
       ],
       "name": "Mesh Symmetric Difference (libigl)",
-      "pythonName": "generate_boolean_xor",
+      "pythonName": "mesh_symmetric_difference_libigl",
       "referenceIds": ["libigl"],
       "shortDescription": "Create the exact symmetric difference of two mesh layers using libigl and CGAL.",
       "longDescriptionMarkdown": "Executes an exact boolean symmetric difference between two mesh layers and creates the result as a new layer. The computation uses libigl's CGAL-backed mesh boolean implementation. Both operands should be watertight and consistently oriented.",
@@ -518,12 +518,12 @@
       ]
     },
     {
-      "id": "compute_texcoord_parametrization_harmonic",
+      "id": "parametrize_by_harmonic_map_libigl",
       "categories": [
         "Parametrization/UV Creation"
       ],
       "name": "Parametrize by Harmonic Map (libigl)",
-      "pythonName": "compute_texcoord_parametrization_harmonic",
+      "pythonName": "parametrize_by_harmonic_map_libigl",
       "referenceIds": ["libigl"],
       "shortDescription": "Compute a single-patch fixed-boundary harmonic UV parametrization using libigl.",
       "longDescriptionMarkdown": "Computes a single-patch fixed-boundary harmonic parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.",
@@ -561,12 +561,12 @@
       ]
     },
     {
-      "id": "compute_texcoord_parametrization_least_squares_conformal_maps",
+      "id": "parametrize_by_least_squares_conformal_maps_libigl",
       "categories": [
         "Parametrization/UV Creation"
       ],
       "name": "Parametrize by Least Squares Conformal Maps (libigl)",
-      "pythonName": "compute_texcoord_parametrization_least_squares_conformal_maps",
+      "pythonName": "parametrize_by_least_squares_conformal_maps_libigl",
       "referenceIds": ["libigl"],
       "shortDescription": "Compute a Least Squares Conformal Maps UV parametrization using libigl.",
       "longDescriptionMarkdown": "Computes a Least Squares Conformal Maps parametrization of the current mesh and stores the result as per-vertex texture coordinates. The mesh must have a boundary. If the mesh already has per-wedge texture coordinates, they are synchronized from the new per-vertex coordinates so the result is immediately visible in texture and UV views.",
@@ -593,10 +593,10 @@
       ]
     },
     {
-      "id": "compute_gaussian_curvature_per_vertex_libigl",
+      "id": "compute_gaussian_curvature_libigl",
       "categories": ["Attribute/Curvature", "Attribute/Scalar"],
       "name": "Compute Gaussian Curvature (libigl)",
-      "pythonName": "compute_gaussian_curvature_per_vertex_libigl",
+      "pythonName": "compute_gaussian_curvature_libigl",
       "referenceIds": ["libigl", "meyer2003discrete"],
       "shortDescription": "Compute the integrated Gaussian curvature at each vertex with libigl.",
       "longDescriptionMarkdown": "Computes libigl's discrete **angle deficit** at every face-referenced vertex and stores it in **vertex scalar**:\n\n$$K_i = 2\\pi - \\sum_{f \\ni} \\theta_{if}.$$\n\nThis is integrated Gaussian curvature, not curvature divided by a vertex area. On a closed manifold mesh its sum is governed by Gauss-Bonnet. At boundary vertices the expression is not an intrinsic Gaussian-curvature estimate; the reported value still uses $2\\pi$, so interpret boundary values with care. Faux-edge polygon groups are processed through their stored triangle representation. No colors are baked into the mesh; QMeshLab switches to vertex-scalar visualization after completion.",
@@ -611,10 +611,10 @@
       "outputModifies": ["VQ"]
     },
     {
-      "id": "compute_curvature_principal_directions_per_vertex_libigl",
+      "id": "compute_principal_curvature_directions_libigl",
       "categories": ["Attribute/Curvature", "Attribute/Scalar"],
       "name": "Compute Principal Curvature Directions (libigl)",
-      "pythonName": "compute_curvature_principal_directions_per_vertex_libigl",
+      "pythonName": "compute_principal_curvature_directions_libigl",
       "referenceIds": ["libigl", "panozzo2010curvature"],
       "shortDescription": "Estimate principal curvature values and directions with libigl's multi-scale fitting method.",
       "longDescriptionMarkdown": "Estimates the two principal curvatures and their tangent directions using libigl's multi-scale local fitting implementation. The maximal and minimal values are stored in the mesh curvature component as $k_1$ and $k_2$, with their corresponding directions. **Quality Mapping** also stores one derived value in **vertex scalar** for immediate visualization.\n\n**Neighborhood Radius** is measured in vertex rings when **Use K-ring Neighborhood** is enabled. Otherwise libigl interprets it relative to average edge length. Larger neighborhoods suppress noise but also smooth small features. Vertices for which libigl cannot form a valid fit are reported and assigned zero curvature and zero directions. Faux-edge polygon groups are processed through their stored triangle representation.",
@@ -663,10 +663,10 @@
       "outputModifies": ["VA", "VQ"]
     },
     {
-      "id": "compute_exact_geodesic_distance_from_selection_per_vertex_libigl",
+      "id": "compute_exact_geodesic_distance_from_selection_libigl",
       "categories": ["Attribute/Scalar"],
       "name": "Compute Exact Geodesic Distance from Selection (libigl)",
-      "pythonName": "compute_exact_geodesic_distance_from_selection_per_vertex_libigl",
+      "pythonName": "compute_exact_geodesic_distance_from_selection_libigl",
       "referenceIds": ["libigl", "mitchell1987geodesic"],
       "shortDescription": "Compute exact surface distance from selected vertices with libigl.",
       "longDescriptionMarkdown": "Computes the exact polyhedral geodesic distance from the nearest selected, face-referenced vertex to every face-referenced vertex and stores it in **vertex scalar**. Distances follow the piecewise-linear triangle surface, not only mesh edges. Faux edges therefore remain ordinary edges of the stored surface triangulation.\n\nThis implementation is substantially more expensive than graph or heat-method approximations and is intended when exact distances are required. At least one face-referenced vertex must be selected. No colors are baked into the mesh; QMeshLab switches to vertex-scalar visualization after completion.",
@@ -681,10 +681,10 @@
       "outputModifies": ["VQ"]
     },
     {
-      "id": "compute_heat_geodesic_distance_from_selection_per_vertex_libigl",
+      "id": "compute_heat_geodesic_distance_from_selection_libigl",
       "categories": ["Attribute/Scalar"],
       "name": "Compute Heat Geodesic Distance from Selection (libigl)",
-      "pythonName": "compute_heat_geodesic_distance_from_selection_per_vertex_libigl",
+      "pythonName": "compute_heat_geodesic_distance_from_selection_libigl",
       "referenceIds": ["libigl", "crane2013heat"],
       "shortDescription": "Approximate surface distance from selected vertices with libigl's heat method.",
       "longDescriptionMarkdown": "Approximates geodesic distance from the nearest selected, face-referenced vertex with the heat method and stores it in **vertex scalar**. The method diffuses heat for a short time, normalizes its gradient, and solves a Poisson equation. It is generally much faster than the exact method for large source-to-all queries.\n\nThe timestep is $t = m h^2$, where $h$ is average edge length and **Time Step Multiplier** is $m$. Smaller values preserve finer detail but may be less stable. **Intrinsic Delaunay Operators** uses libigl's intrinsic Delaunay cotangent, mass, and gradient operators, reducing sensitivity to poor input triangulations without changing connectivity. At least one face-referenced vertex must be selected. Faux-edge polygon groups are processed through their stored triangle representation.",
@@ -719,10 +719,10 @@
       "outputModifies": ["VQ"]
     },
     {
-      "id": "compute_texcoord_parametrization_as_rigid_as_possible_libigl",
+      "id": "parametrize_by_as_rigid_as_possible_libigl",
       "categories": ["Parametrization/UV Creation"],
       "name": "Parametrize by As-Rigid-As-Possible (libigl)",
-      "pythonName": "compute_texcoord_parametrization_as_rigid_as_possible_libigl",
+      "pythonName": "parametrize_by_as_rigid_as_possible_libigl",
       "referenceIds": ["libigl", "sorkine2007arap"],
       "shortDescription": "Optimize a harmonic UV map with libigl's ARAP local-global solver.",
       "longDescriptionMarkdown": "Computes an **as-rigid-as-possible (ARAP)** UV parametrization. A harmonic map with a circular boundary supplies the initial guess; libigl's local-global solver then reduces local metric distortion without fixing the boundary. The input must be a connected disk-like triangle surface with at least one interior vertex.\n\n**Iterations** limits the nonlinear optimization. More iterations generally improve convergence at additional cost. ARAP strongly favors locally rigid maps but does not guarantee a globally injective result; use SLIM when preventing flipped triangles is the primary goal. The result is stored as per-vertex texture coordinates and synchronized to existing per-wedge coordinates.",
@@ -746,10 +746,10 @@
       "outputModifies": ["VT", "WT"]
     },
     {
-      "id": "compute_texcoord_parametrization_slim_libigl",
+      "id": "parametrize_by_slim_libigl",
       "categories": ["Parametrization/UV Creation"],
       "name": "Parametrize by SLIM (libigl)",
-      "pythonName": "compute_texcoord_parametrization_slim_libigl",
+      "pythonName": "parametrize_by_slim_libigl",
       "referenceIds": ["libigl", "rabinovich2017slim"],
       "shortDescription": "Optimize a flip-preventing UV map with libigl's SLIM solver.",
       "longDescriptionMarkdown": "Computes a UV parametrization with **Scalable Locally Injective Mappings (SLIM)**. The filter starts from a circular-boundary harmonic map and minimizes the selected distortion energy through SLIM's flip-preventing local-global iterations. If the cotangent harmonic initializer contains flips, a uniform-weight harmonic map is tried instead. The input must be a connected disk-like triangle surface with at least one interior vertex.\n\n**Symmetric Dirichlet** balances angle and area distortion and is the recommended default. **ARAP** emphasizes local rigidity; **Conformal** emphasizes angle preservation. SLIM preserves injectivity when supplied with an injective initial map, but cannot repair an initializer that remains folded. The result is stored as per-vertex texture coordinates and synchronized to existing per-wedge coordinates.",
@@ -786,10 +786,10 @@
       "outputModifies": ["VT", "WT"]
     },
     {
-      "id": "compute_generalized_winding_number_per_vertex_libigl",
+      "id": "compute_generalized_winding_number_libigl",
       "categories": ["Attribute/Scalar"],
       "name": "Compute Generalized Winding Number (libigl)",
-      "pythonName": "compute_generalized_winding_number_per_vertex_libigl",
+      "pythonName": "compute_generalized_winding_number_libigl",
       "referenceIds": ["libigl", "jacobson2013winding", "barill2018fastwinding"],
       "shortDescription": "Evaluate another layer's generalized winding-number field at every current-layer vertex.",
       "longDescriptionMarkdown": "Evaluates the oriented **Surface Mesh** winding-number field at every vertex of the current mesh or point cloud and stores it in **vertex scalar**. Layer transforms are applied before evaluation. For a consistently oriented closed surface, values are approximately $1$ inside and $0$ outside; reversing its orientation reverses the sign. On open, self-intersecting, or non-manifold triangle soups the field remains continuous and useful, but the value $0.5$ is only a conventional classification threshold.\n\n**Fast Approximation** builds libigl's second-order hierarchy and is the practical default for large inputs. **Exact** directly accumulates triangle solid angles and can be prohibitively expensive because its work grows with both surface triangles and query vertices.",
@@ -823,10 +823,10 @@
       "outputModifies": ["VQ"]
     },
     {
-      "id": "apply_scalar_hessian_smoothing_per_vertex_libigl",
+      "id": "smooth_vertex_scalar_by_hessian_energy_libigl",
       "categories": ["Attribute/Scalar"],
       "name": "Smooth Vertex Scalar by Hessian Energy (libigl)",
-      "pythonName": "apply_scalar_hessian_smoothing_per_vertex_libigl",
+      "pythonName": "smooth_vertex_scalar_by_hessian_energy_libigl",
       "referenceIds": ["libigl", "stein2018natural"],
       "shortDescription": "Smooth vertex scalar values with Hessian energy and natural boundary conditions.",
       "longDescriptionMarkdown": "Smooths the current **vertex scalar** field by minimizing\n\n$$\\alpha\\,u^T H u + (1-\\alpha)(u-f)^T M(u-f),$$\n\nwhere $f$ is the input scalar field, $H$ is libigl's mixed finite-element Hessian-energy matrix, and $M$ is the Voronoi mass matrix. Unlike a squared-Laplacian construction, Hessian energy supplies natural high-order boundary conditions, so the geometric shape of an open boundary does not impose the usual low-order boundary bias.\n\n**Smoothing Weight** is $\\alpha$: zero preserves the input and values near one favor an affine field. Its effect depends on mesh scale because the two energy terms have different physical dimensions. The filter changes scalar values only, not geometry or colors.",

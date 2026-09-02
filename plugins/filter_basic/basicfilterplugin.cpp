@@ -14,8 +14,8 @@
 #include <memory>
 
 namespace {
-constexpr QLatin1StringView kFilterMeshInfo("mesh_info");
-constexpr QLatin1StringView kFilterCreateNoisyIso("create_noisy_isosurface");
+constexpr QLatin1StringView kFilterMeshInfo("measure_mesh_summary");
+constexpr QLatin1StringView kFilterCreateNoisyIso("create_isosurface_from_perlin_noise");
 
 }
 

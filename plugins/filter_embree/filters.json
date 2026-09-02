@@ -293,10 +293,10 @@
       ]
     },
     {
-      "id": "analyze_normals",
+      "id": "orient_face_normals_by_ray_casting",
       "categories": ["Attribute/Normal"],
       "name": "Orient Face Normals by Ray Casting",
-      "pythonName": "reorient_face_normals",
+      "pythonName": "orient_face_normals_by_ray_casting",
       "shortDescription": "Reorients wrongly oriented faces using Embree ray casting.",
       "longDescriptionMarkdown": "Reorient face normals by geometry.Given the input mesh, this filter uses raytracing to determine if any faces are pointing inward and corrects their orientation. The number of rays is defined by the user; the higher the number, the higher the precision, but at the cost of computation time.This filter requires two values:<ul>\t<li> the number of rays to be shot from the barycenter of each face </li>\t<li> Parity Sampling: If selected, the normal analysis will be performed using the Parity Sampling algorithm. It is suggested to use this algotirhm when the standard one (visibility sampling) faild to riorient all faces because it is used to reorient faces invisible from the outside</li></ul><b> For further details, see the reference paper: Kenshi Takayama, Alec Jacobson, Ladislav Kavan, Olga Sorkine-Hornung. </b><br> <b> A Simple Method for Correcting Facet Orientations in Polygon Meshes Based on Ray Casting. Journal of Computer Graphics Techniques 3(4), 2014.</b> This filter uses the Embree3 library by Intel.",
       "tags": [

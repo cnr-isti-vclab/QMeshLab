@@ -25,19 +25,19 @@
 #include <vector>
 
 namespace {
-constexpr QLatin1StringView kSplitFaces("generate_from_selected_faces");
-constexpr QLatin1StringView kSplitVertices("generate_from_selected_vertices");
-constexpr QLatin1StringView kSplitConnected("generate_splitting_by_connected_components");
-constexpr QLatin1StringView kDuplicate("generate_copy_of_current_mesh");
-constexpr QLatin1StringView kDeleteCurrent("delete_current_mesh");
-constexpr QLatin1StringView kDeleteHidden("delete_non_visible_meshes");
-constexpr QLatin1StringView kDeleteCurrentRaster("delete_current_raster");
-constexpr QLatin1StringView kDeleteHiddenRasters("delete_non_active_rasters");
-constexpr QLatin1StringView kFlatten("generate_by_merging_visible_meshes");
-constexpr QLatin1StringView kRenameMesh("set_mesh_name");
-constexpr QLatin1StringView kRenameRaster("set_raster_name");
-constexpr QLatin1StringView kExportRasterCameras("save_active_raster_cameras");
-constexpr QLatin1StringView kImportRasterCameras("load_active_raster_cameras");
+constexpr QLatin1StringView kSplitFaces("extract_selected_faces");
+constexpr QLatin1StringView kSplitVertices("extract_selected_vertices");
+constexpr QLatin1StringView kSplitConnected("split_into_connected_components");
+constexpr QLatin1StringView kDuplicate("duplicate_current_layer");
+constexpr QLatin1StringView kDeleteCurrent("remove_current_mesh_layer");
+constexpr QLatin1StringView kDeleteHidden("remove_hidden_mesh_layers");
+constexpr QLatin1StringView kDeleteCurrentRaster("remove_current_raster");
+constexpr QLatin1StringView kDeleteHiddenRasters("remove_hidden_rasters");
+constexpr QLatin1StringView kFlatten("merge_visible_layers");
+constexpr QLatin1StringView kRenameMesh("rename_current_mesh_layer");
+constexpr QLatin1StringView kRenameRaster("rename_current_raster");
+constexpr QLatin1StringView kExportRasterCameras("export_cameras_from_visible_rasters");
+constexpr QLatin1StringView kImportRasterCameras("import_cameras_to_visible_rasters");
 constexpr QLatin1StringView kRenderFromRenderStateJson("render_from_render_state_json");
 using Mask = vcg::tri::io::Mask;
 using Sel = vcg::tri::UpdateSelection<VCGMesh>;

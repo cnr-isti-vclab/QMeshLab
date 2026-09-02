@@ -33,10 +33,10 @@
 
 namespace {
 
-constexpr QLatin1StringView kVoronoiSampling("generate_sampling_voronoi");
-constexpr QLatin1StringView kVolumeSampling("generate_sampling_volumetric");
-constexpr QLatin1StringView kVoronoiScaffolding("generate_voronoi_scaffolding");
-constexpr QLatin1StringView kSolidWireframe("generate_solid_wireframe");
+constexpr QLatin1StringView kVoronoiSampling("sample_surface_by_voronoi_relaxation");
+constexpr QLatin1StringView kVolumeSampling("sample_volume");
+constexpr QLatin1StringView kVoronoiScaffolding("create_voronoi_scaffolding");
+constexpr QLatin1StringView kSolidWireframe("create_solid_wireframe");
 
 using Mask = vcg::tri::io::Mask;
 using Scalar = VCGMesh::ScalarType;

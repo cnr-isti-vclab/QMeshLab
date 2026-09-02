@@ -37,8 +37,8 @@
 
 namespace {
 
-constexpr QLatin1StringView kFilterTextureDefrag("apply_texmap_defragmentation");
-constexpr QLatin1StringView kFilterSmallIslandsRemover("apply_small_islands_remover");
+constexpr QLatin1StringView kFilterTextureDefrag("defragment_texture_atlas");
+constexpr QLatin1StringView kFilterSmallIslandsRemover("merge_small_texture_islands");
 constexpr QLatin1StringView kFilterPackCharts("pack_uv_charts");
 
 using Mask = vcg::tri::io::Mask;

@@ -24,7 +24,7 @@
 
 namespace {
 
-constexpr QLatin1StringView kRepairWatertightMesh("repair_watertight_mesh");
+constexpr QLatin1StringView kRepairWatertightMesh("repair_watertight_mesh_meshfix");
 using Mask = vcg::tri::io::Mask;
 using MeshFixMesh = T_MESH::Basic_TMesh;
 

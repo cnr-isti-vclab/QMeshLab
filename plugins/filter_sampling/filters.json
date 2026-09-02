@@ -2,7 +2,7 @@
   "pluginId": "qmeshlab.filter.sampling",
   "filters": [
     {
-      "id": "generate_sampling_element",
+      "id": "sample_mesh_elements",
       "categories": ["Creation/Sampling"],
       "name": "Sample Mesh Elements",
       "pythonName": "sample_mesh_elements",
@@ -64,10 +64,10 @@
       ]
     },
     {
-      "id": "generate_sampling_montecarlo",
+      "id": "sample_surface_by_monte_carlo",
       "categories": ["Creation/Sampling"],
       "name": "Sample Surface by Monte Carlo",
-      "pythonName": "sample_montecarlo",
+      "pythonName": "sample_surface_by_monte_carlo",
       "shortDescription": "Create a random point cloud from the current surface.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; samples are generated in a randomly uniform way, or with a distribution biased by the per-vertex quality values of the mesh.",
       "tags": [
@@ -148,10 +148,10 @@
       ]
     },
     {
-      "id": "generate_sampling_stratified_triangle",
+      "id": "sample_surface_by_stratified_triangles",
       "categories": ["Creation/Sampling"],
       "name": "Sample Surface by Stratified Triangles",
-      "pythonName": "sample_stratified_triangles",
+      "pythonName": "sample_surface_by_stratified_triangles",
       "shortDescription": "Generate structured samples over the triangle mesh.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh; to generate multiple samples inside a triangle each triangle is subdivided according to various <i>stratified</i> strategies. Distribution is often biased by triangle shape.",
       "tags": [
@@ -227,10 +227,10 @@
       ]
     },
     {
-      "id": "generate_sampling_clustered_vertex",
+      "id": "sample_vertices_by_clustering",
       "categories": ["Creation/Sampling"],
       "name": "Sample Vertices by Clustering",
-      "pythonName": "sample_clustered_vertices",
+      "pythonName": "sample_vertices_by_clustering",
       "shortDescription": "Cluster the point set into grid cells and keep one representative per cell.",
       "longDescriptionMarkdown": "Create a new layer populated with a subsampling of the vertices of the current mesh; the subsampling is driven by a simple one-per-gridded cell strategy.",
       "tags": [
@@ -284,10 +284,10 @@
       ]
     },
     {
-      "id": "generate_sampling_poisson_disk",
+      "id": "sample_surface_by_poisson_disk",
       "categories": ["Creation/Sampling"],
       "name": "Sample Surface by Poisson Disk",
-      "pythonName": "sample_poisson_disk",
+      "pythonName": "sample_surface_by_poisson_disk",
       "shortDescription": "Generate well-spaced samples over a surface or point cloud.",
       "longDescriptionMarkdown": "Create a new layer populated with a point sampling of the current mesh;samples are generated according to a Poisson-disk distribution, using the algorithm described in:<br><b>'Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes'</b><br> Massimiliano Corsini, Paolo Cignoni, Roberto Scopigno<br>IEEE TVCG 2012",
       "tags": [
@@ -436,10 +436,10 @@
       ]
     },
     {
-      "id": "get_hausdorff_distance",
+      "id": "measure_hausdorff_distance",
       "categories": ["Measurement/Geometric", "Attribute/Scalar"],
       "name": "Measure Hausdorff Distance",
-      "pythonName": "compute_hausdorff_distance",
+      "pythonName": "measure_hausdorff_distance",
       "shortDescription": "Compute directional Hausdorff distance statistics between two meshes.",
       "longDescriptionMarkdown": "Compute the Measure Hausdorff Distance between two layers, sampling one of the two and finding for each sample the closest point over the other mesh. If sample layers are saved, distances are stored in vertex quality and QMeshLab switches those layers to vertex-quality color visualization without baking colors.",
       "tags": [
@@ -547,10 +547,10 @@
       ]
     },
     {
-      "id": "compute_scalar_by_distance_from_another_mesh_per_vertex",
+      "id": "compute_distance_from_reference_mesh",
       "categories": ["Measurement/Geometric", "Attribute/Scalar"],
       "name": "Compute Distance from Reference Mesh",
-      "pythonName": "compute_distance_from_reference",
+      "pythonName": "compute_distance_from_reference_mesh",
       "shortDescription": "Compute per-vertex distance from another mesh or point cloud.",
       "longDescriptionMarkdown": "Compute the signed/unsigned (per vertex) distance between a mesh/pointcloud and a reference mesh/pointcloud. Distance is stored in vertex quality; after the filter runs QMeshLab switches the measured mesh to vertex-quality color visualization without baking colors.",
       "tags": [
@@ -609,7 +609,7 @@
       ]
     },
     {
-      "id": "generate_sampling_texel",
+      "id": "sample_texels",
       "categories": ["Creation/Sampling"],
       "name": "Sample Texels",
       "pythonName": "sample_texels",
@@ -677,10 +677,10 @@
       ]
     },
     {
-      "id": "transfer_attributes_per_vertex",
+      "id": "transfer_vertex_attributes_by_closest_point",
       "categories": ["Transfer/Between Layers"],
       "name": "Transfer Vertex Attributes by Closest Point",
-      "pythonName": "transfer_vertex_attributes",
+      "pythonName": "transfer_vertex_attributes_by_closest_point",
       "shortDescription": "Transfer attributes from one mesh to another by closest-point projection.",
       "longDescriptionMarkdown": "Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.<br>For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.<br>The algorithm assumes that the two meshes are reasonably similar and aligned.",
       "tags": [
@@ -807,10 +807,10 @@
       ]
     },
     {
-      "id": "generate_resampled_uniform_mesh",
+      "id": "remesh_uniformly_by_volumetric_resampling",
       "categories": ["Meshing/Remeshing"],
       "name": "Remesh Uniformly by Volumetric Resampling",
-      "pythonName": "resample_uniform",
+      "pythonName": "remesh_uniformly_by_volumetric_resampling",
       "shortDescription": "Build an offset mesh from a signed distance field sampled on a regular grid.",
       "longDescriptionMarkdown": "Create a new mesh that is a resampled version of the current one.<br>The resampling is done by building a uniform volumetric representation where each voxel contains the signed distance from the original surface. The resampled surface is reconstructed using the <b>marching cube</b> algorithm over this volume.",
       "tags": [
@@ -883,10 +883,10 @@
       ]
     },
     {
-      "id": "compute_color_by_point_cloud_voronoi_projection",
+      "id": "colorize_vertices_by_voronoi_regions",
       "categories": ["Attribute/Color"],
       "name": "Colorize Vertices by Voronoi Regions",
-      "pythonName": "voronoi_vertex_coloring",
+      "pythonName": "colorize_vertices_by_voronoi_regions",
       "shortDescription": "Color a mesh according to projected seed points from another layer.",
       "longDescriptionMarkdown": "Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of P over M and color M according to the geodesic distance from these projected points. Projection and coloring are done on a per vertex basis.",
       "tags": [
@@ -934,10 +934,10 @@
       ]
     },
     {
-      "id": "compute_scalar_by_distance_from_point_cloud_per_vertex",
+      "id": "colorize_vertices_by_disk_distance",
       "categories": ["Attribute/Color"],
       "name": "Colorize Vertices by Disk Distance",
-      "pythonName": "disk_vertex_coloring",
+      "pythonName": "colorize_vertices_by_disk_distance",
       "shortDescription": "Color a mesh according to the distance from projected point-cloud disks.",
       "longDescriptionMarkdown": "Given a Mesh <b>M</b> and a Pointset <b>P</b>, The filter project each vertex of P over M and color M according to the Euclidean distance from these projected points. Projection and coloring are done on a per vertex basis.",
       "tags": [
@@ -1004,10 +1004,10 @@
       ]
     },
     {
-      "id": "generate_sampling_regular_recursive",
+      "id": "sample_offset_surface_recursively",
       "categories": ["Creation/Sampling"],
       "name": "Sample Offset Surface Recursively",
-      "pythonName": "sample_regular_recursive",
+      "pythonName": "sample_offset_surface_recursively",
       "shortDescription": "Generate offset surface samples by recursively subdividing the bounding box.",
       "longDescriptionMarkdown": "The bounding box is recursively partitioned in a octree style, center of bbox are considered, when the center is nearer to the surface than a given threshold it is projected on it. It works also for building offsetted samples.",
       "tags": [
@@ -1048,7 +1048,7 @@
       ]
     },
     {
-      "id": "generate_simplified_point_cloud",
+      "id": "simplify_point_cloud",
       "categories": ["Meshing/Simplification"],
       "name": "Simplify Point Cloud",
       "pythonName": "simplify_point_cloud",

@@ -27,9 +27,9 @@ vcg::Box3d vcg::PointMatchingScale::b;
 
 namespace {
 
-constexpr QLatin1StringView kTwoMeshIcp("compute_matrix_by_icp_between_meshes");
-constexpr QLatin1StringView kGlobalIcp("compute_matrix_by_mesh_global_alignment");
-constexpr QLatin1StringView kOverlappingMeshes("get_overlapping_meshes_graph");
+constexpr QLatin1StringView kTwoMeshIcp("align_by_icp_vcglib");
+constexpr QLatin1StringView kGlobalIcp("align_meshes_globally");
+constexpr QLatin1StringView kOverlappingMeshes("measure_layer_overlap");
 
 using Mask = vcg::tri::io::Mask;
 

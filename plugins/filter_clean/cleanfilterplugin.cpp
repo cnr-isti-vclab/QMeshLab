@@ -23,20 +23,20 @@
 #include <vector>
 
 namespace {
-constexpr QLatin1StringView kFilterBallPivoting("surface_reconstruction_ball_pivoting");
-constexpr QLatin1StringView kFilterRemoveWrtQ("remove_vertices_wrt_quality");
-constexpr QLatin1StringView kFilterRemoveIsolatedComplexity("remove_isolated_pieces_face_num");
-constexpr QLatin1StringView kFilterRemoveIsolatedDiameter("remove_isolated_pieces_diameter");
+constexpr QLatin1StringView kFilterBallPivoting("reconstruct_surface_by_ball_pivoting");
+constexpr QLatin1StringView kFilterRemoveWrtQ("remove_vertices_by_scalar");
+constexpr QLatin1StringView kFilterRemoveIsolatedComplexity("remove_isolated_components_by_face_count");
+constexpr QLatin1StringView kFilterRemoveIsolatedDiameter("remove_isolated_components_by_diameter");
 constexpr QLatin1StringView kFilterRemoveTVertex("remove_t_vertices");
-constexpr QLatin1StringView kFilterSnapMismatchedBorder("snap_mismatched_borders");
+constexpr QLatin1StringView kFilterSnapMismatchedBorder("repair_mismatched_borders");
 constexpr QLatin1StringView kFilterMergeCloseVertex("merge_close_vertices");
-constexpr QLatin1StringView kFilterMergeWedgeTex("merge_wedge_texture_coord");
+constexpr QLatin1StringView kFilterMergeWedgeTex("merge_close_wedge_uvs");
 constexpr QLatin1StringView kFilterRemoveDuplicateFace("remove_duplicate_faces");
-constexpr QLatin1StringView kFilterRemoveFoldFace("remove_folded_faces_by_edge_flip");
+constexpr QLatin1StringView kFilterRemoveFoldFace("remove_isolated_folded_faces_by_edge_flip");
 constexpr QLatin1StringView kFilterRepairNonManifEdge("repair_non_manifold_edges");
-constexpr QLatin1StringView kFilterRemoveNonManifVert("repair_non_manifold_vertices_split");
+constexpr QLatin1StringView kFilterRemoveNonManifVert("repair_non_manifold_vertices_by_splitting");
 constexpr QLatin1StringView kFilterRemoveUnrefVertex("remove_unreferenced_vertices");
-constexpr QLatin1StringView kFilterRemoveDuplicatedVertex("remove_duplicated_vertices");
+constexpr QLatin1StringView kFilterRemoveDuplicatedVertex("remove_duplicate_vertices_vcglib");
 constexpr QLatin1StringView kFilterRemoveFaceZeroArea("remove_zero_area_faces");
 
 struct CurrentMeshRef {

@@ -25,27 +25,27 @@
 #include <vector>
 
 namespace {
-constexpr QLatin1StringView kFilterCreaseCut("meshing_cut_along_crease_edges");
-constexpr QLatin1StringView kFilterLaplacian("apply_coord_laplacian_smoothing");
-constexpr QLatin1StringView kFilterHcLaplacian("apply_coord_hc_laplacian_smoothing");
-constexpr QLatin1StringView kFilterSdLaplacian("apply_coord_laplacian_smoothing_scale_dependent");
-constexpr QLatin1StringView kFilterTwoStep("apply_coord_two_steps_smoothing");
-constexpr QLatin1StringView kFilterTaubin("apply_coord_taubin_smoothing");
-constexpr QLatin1StringView kFilterDepth("apply_coord_depth_smoothing");
-constexpr QLatin1StringView kFilterDirectional("apply_coord_directional_preservation");
-constexpr QLatin1StringView kFilterVertexQualitySmooth("apply_scalar_smoothing_per_vertex");
-constexpr QLatin1StringView kFilterFaceNormalSmooth("apply_normal_smoothing_per_face");
-constexpr QLatin1StringView kFilterUnsharpNormal("apply_normal_unsharp_mask_per_vertex");
-constexpr QLatin1StringView kFilterUnsharpGeometry("apply_coord_unsharp_mask");
-constexpr QLatin1StringView kFilterUnsharpQuality("apply_scalar_unsharp_mask_per_vertex");
-constexpr QLatin1StringView kFilterUnsharpColor("apply_color_unsharp_mask_per_vertex");
-constexpr QLatin1StringView kFilterRecomputeVertexNormal("compute_normal_per_vertex");
-constexpr QLatin1StringView kFilterRecomputeFaceNormal("compute_normal_per_face");
-constexpr QLatin1StringView kFilterRecomputePolygonFaceNormal("compute_normal_polygon_mesh_per_face");
-constexpr QLatin1StringView kFilterNormalizeFaceNormal("apply_normal_normalization_per_face");
-constexpr QLatin1StringView kFilterNormalizeVertexNormal("apply_normal_normalization_per_vertex");
-constexpr QLatin1StringView kFilterLinearMorph("compute_coord_linear_morphing");
-constexpr QLatin1StringView kFilterScalarHarmonic("compute_scalar_by_scalar_harmonic_field_per_vertex");
+constexpr QLatin1StringView kFilterCreaseCut("cut_along_crease_edges");
+constexpr QLatin1StringView kFilterLaplacian("smooth_vertices_by_laplacian_vcglib");
+constexpr QLatin1StringView kFilterHcLaplacian("smooth_vertices_by_hc_laplacian");
+constexpr QLatin1StringView kFilterSdLaplacian("smooth_vertices_by_scale_dependent_laplacian");
+constexpr QLatin1StringView kFilterTwoStep("smooth_vertices_by_two_step_normal_fitting");
+constexpr QLatin1StringView kFilterTaubin("smooth_vertices_by_taubin_vcglib");
+constexpr QLatin1StringView kFilterDepth("smooth_vertices_along_one_direction");
+constexpr QLatin1StringView kFilterDirectional("project_vertices_onto_line_of_sight");
+constexpr QLatin1StringView kFilterVertexQualitySmooth("smooth_vertex_scalar");
+constexpr QLatin1StringView kFilterFaceNormalSmooth("smooth_face_normals");
+constexpr QLatin1StringView kFilterUnsharpNormal("sharpen_face_normals_by_unsharp_mask");
+constexpr QLatin1StringView kFilterUnsharpGeometry("sharpen_vertices_by_unsharp_mask");
+constexpr QLatin1StringView kFilterUnsharpQuality("sharpen_vertex_scalar_by_unsharp_mask");
+constexpr QLatin1StringView kFilterUnsharpColor("sharpen_vertex_color_by_unsharp_mask");
+constexpr QLatin1StringView kFilterRecomputeVertexNormal("compute_vertex_normals");
+constexpr QLatin1StringView kFilterRecomputeFaceNormal("compute_face_normals");
+constexpr QLatin1StringView kFilterRecomputePolygonFaceNormal("compute_polygon_face_normals");
+constexpr QLatin1StringView kFilterNormalizeFaceNormal("normalize_face_normals");
+constexpr QLatin1StringView kFilterNormalizeVertexNormal("normalize_vertex_normals");
+constexpr QLatin1StringView kFilterLinearMorph("displace_vertices_toward_target_mesh");
+constexpr QLatin1StringView kFilterScalarHarmonic("compute_harmonic_scalar_field");
 
 using Mask = vcg::tri::io::Mask;
 using Point = vcg::Point3f;

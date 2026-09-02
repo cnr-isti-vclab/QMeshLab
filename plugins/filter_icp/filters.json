@@ -32,10 +32,10 @@
   ],
   "filters": [
     {
-      "id": "compute_matrix_by_icp_between_meshes",
+      "id": "align_by_icp_vcglib",
       "categories": ["Geometry/Alignment"],
       "name": "Align by ICP (vcglib)",
-      "pythonName": "compute_matrix_by_icp_between_meshes",
+      "pythonName": "align_by_icp_vcglib",
       "shortDescription": "Compute an ICP transform that aligns one mesh layer to another.",
       "longDescriptionMarkdown": "Perform Iterative Closest Point alignment between a fixed reference layer and a moving source layer. The source layer transform is updated; vertex coordinates are not baked. Existing layer transforms are used as the initial pose, so the alignment follows what is visible in the 3D view.",
       "referenceIds": ["besl1992"],
@@ -194,10 +194,10 @@
       "outputModifies": ["TM"]
     },
     {
-      "id": "compute_matrix_by_mesh_global_alignment",
+      "id": "align_meshes_globally",
       "categories": ["Geometry/Alignment"],
       "name": "Align Meshes Globally",
-      "pythonName": "compute_matrix_by_mesh_global_alignment",
+      "pythonName": "align_meshes_globally",
       "shortDescription": "Globally align overlapping mesh layers using pairwise ICP arcs.",
       "longDescriptionMarkdown": "Build an overlap graph among the selected document layers, run ICP on sufficiently overlapping layer pairs, then solve a global alignment. The chosen base mesh remains fixed and the other layer transforms are updated without baking coordinates.",
       "referenceIds": ["pulli1999"],
@@ -378,10 +378,10 @@
       "outputModifies": ["TM"]
     },
     {
-      "id": "get_overlapping_meshes_graph",
+      "id": "measure_layer_overlap",
       "categories": ["Measurement/Geometric"],
       "name": "Measure Layer Overlap",
-      "pythonName": "get_overlapping_meshes_graph",
+      "pythonName": "measure_layer_overlap",
       "shortDescription": "Report which mesh layers overlap in an occupancy grid.",
       "longDescriptionMarkdown": "Voxelize all mesh layers into an occupancy grid and report the pairs that occupy common cells. This is an information filter and does not modify the document.",
       "tags": ["overlap", "measure", "layers", "occupancy"],

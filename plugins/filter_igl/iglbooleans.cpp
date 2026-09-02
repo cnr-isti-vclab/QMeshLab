@@ -20,10 +20,10 @@
 
 namespace {
 
-constexpr QLatin1StringView kIntersection("generate_boolean_intersection");
-constexpr QLatin1StringView kUnion("generate_boolean_union");
-constexpr QLatin1StringView kDifference("generate_boolean_difference");
-constexpr QLatin1StringView kXor("generate_boolean_xor");
+constexpr QLatin1StringView kIntersection("mesh_intersection_libigl");
+constexpr QLatin1StringView kUnion("mesh_union_libigl");
+constexpr QLatin1StringView kDifference("mesh_difference_libigl");
+constexpr QLatin1StringView kXor("mesh_symmetric_difference_libigl");
 using Mask = vcg::tri::io::Mask;
 namespace IglAdapter = qmeshlab::libigl;
 

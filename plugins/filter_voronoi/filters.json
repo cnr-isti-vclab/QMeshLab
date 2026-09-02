@@ -2,10 +2,10 @@
   "pluginId": "qmeshlab.filter.voronoi",
   "filters": [
     {
-      "id": "generate_sampling_voronoi",
+      "id": "sample_surface_by_voronoi_relaxation",
       "categories": ["Creation/Sampling"],
       "name": "Sample Surface by Voronoi Relaxation",
-      "pythonName": "generate_sampling_voronoi",
+      "pythonName": "sample_surface_by_voronoi_relaxation",
       "shortDescription": "Sample a surface and relax the samples with a geodesic Voronoi/Lloyd process.",
       "longDescriptionMarkdown": "Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The selected vertices of the current mesh become the final seeds, and two additional layers are produced: a Voronoi region mesh and a polyline representation of the Voronoi boundaries.",
       "tags": [
@@ -196,10 +196,10 @@
       ]
     },
     {
-      "id": "generate_sampling_volumetric",
+      "id": "sample_volume",
       "categories": ["Creation/Sampling"],
       "name": "Sample Volume",
-      "pythonName": "generate_sampling_volumetric",
+      "pythonName": "sample_volume",
       "shortDescription": "Generate diagnostic Monte Carlo and surface samples inside a watertight mesh.",
       "longDescriptionMarkdown": "Compute a volumetric Monte Carlo sampling of a watertight mesh and add diagnostic sample layers. This follows the original MeshLab filter behavior: the Poisson-filtered volume point set is not emitted yet by the upstream implementation.",
       "tags": [
@@ -274,10 +274,10 @@
       ]
     },
     {
-      "id": "generate_voronoi_scaffolding",
+      "id": "create_voronoi_scaffolding",
       "categories": ["Creation/Primitives"],
       "name": "Create Voronoi Scaffolding",
-      "pythonName": "generate_voronoi_scaffolding",
+      "pythonName": "create_voronoi_scaffolding",
       "shortDescription": "Build a scaffold mesh from a volumetric Voronoi sampling of a watertight mesh.",
       "longDescriptionMarkdown": "Build a volumetric Voronoi sampling of the current mesh, relax the internal seeds, and extract a scaffold mesh from the implicit Voronoi structure.",
       "tags": [
@@ -404,10 +404,10 @@
       ]
     },
     {
-      "id": "generate_solid_wireframe",
+      "id": "create_solid_wireframe",
       "categories": ["Creation/Primitives"],
       "name": "Create Solid Wireframe",
-      "pythonName": "generate_solid_wireframe",
+      "pythonName": "create_solid_wireframe",
       "shortDescription": "Convert the current mesh into a solid shell made of cylinders, spheres, and face prisms.",
       "longDescriptionMarkdown": "Create a new solid wireframe layer by replacing edges with cylinders, vertices with spheres or short cylinders, and faces with prisms.",
       "tags": [

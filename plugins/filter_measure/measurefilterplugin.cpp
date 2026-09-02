@@ -21,14 +21,14 @@
 #include <memory>
 
 namespace {
-constexpr QLatin1StringView kFilterTopo("compute_topological_measures");
-constexpr QLatin1StringView kFilterTopoQuad("compute_topological_measures_quad_meshes");
-constexpr QLatin1StringView kFilterGeom("compute_geometric_measures");
-constexpr QLatin1StringView kFilterSelectionArea("compute_area_perimeter_selection");
-constexpr QLatin1StringView kFilterVertStat("per_vertex_quality_stat");
-constexpr QLatin1StringView kFilterFaceStat("per_face_quality_stat");
-constexpr QLatin1StringView kFilterVertHist("per_vertex_quality_histogram");
-constexpr QLatin1StringView kFilterFaceHist("per_face_quality_histogram");
+constexpr QLatin1StringView kFilterTopo("measure_topological_properties");
+constexpr QLatin1StringView kFilterTopoQuad("measure_topological_properties_for_quad_mesh");
+constexpr QLatin1StringView kFilterGeom("measure_geometric_properties");
+constexpr QLatin1StringView kFilterSelectionArea("measure_selection_area_and_perimeter");
+constexpr QLatin1StringView kFilterVertStat("measure_vertex_scalar_statistics");
+constexpr QLatin1StringView kFilterFaceStat("measure_face_scalar_statistics");
+constexpr QLatin1StringView kFilterVertHist("measure_vertex_scalar_histogram");
+constexpr QLatin1StringView kFilterFaceHist("measure_face_scalar_histogram");
 
 using Histogramf = vcg::Histogram<float>;
 using Distributionf = vcg::Distribution<float>;

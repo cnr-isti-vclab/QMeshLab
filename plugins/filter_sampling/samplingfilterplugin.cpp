@@ -28,20 +28,20 @@
 #include <numeric>
 
 namespace {
-constexpr QLatin1StringView kFilterElementSampling("generate_sampling_element");
-constexpr QLatin1StringView kFilterMontecarloSampling("generate_sampling_montecarlo");
-constexpr QLatin1StringView kFilterStratifiedSampling("generate_sampling_stratified_triangle");
-constexpr QLatin1StringView kFilterClusteredSampling("generate_sampling_clustered_vertex");
-constexpr QLatin1StringView kFilterPoissonDiskSampling("generate_sampling_poisson_disk");
-constexpr QLatin1StringView kFilterHausdorffDistance("get_hausdorff_distance");
-constexpr QLatin1StringView kFilterDistanceFromReference("compute_scalar_by_distance_from_another_mesh_per_vertex");
-constexpr QLatin1StringView kFilterTexelSampling("generate_sampling_texel");
-constexpr QLatin1StringView kFilterVertexResampling("transfer_attributes_per_vertex");
-constexpr QLatin1StringView kFilterUniformMeshResampling("generate_resampled_uniform_mesh");
-constexpr QLatin1StringView kFilterVoronoiColoring("compute_color_by_point_cloud_voronoi_projection");
-constexpr QLatin1StringView kFilterDiskColoring("compute_scalar_by_distance_from_point_cloud_per_vertex");
-constexpr QLatin1StringView kFilterRegularRecursiveSampling("generate_sampling_regular_recursive");
-constexpr QLatin1StringView kFilterPointCloudSimplification("generate_simplified_point_cloud");
+constexpr QLatin1StringView kFilterElementSampling("sample_mesh_elements");
+constexpr QLatin1StringView kFilterMontecarloSampling("sample_surface_by_monte_carlo");
+constexpr QLatin1StringView kFilterStratifiedSampling("sample_surface_by_stratified_triangles");
+constexpr QLatin1StringView kFilterClusteredSampling("sample_vertices_by_clustering");
+constexpr QLatin1StringView kFilterPoissonDiskSampling("sample_surface_by_poisson_disk");
+constexpr QLatin1StringView kFilterHausdorffDistance("measure_hausdorff_distance");
+constexpr QLatin1StringView kFilterDistanceFromReference("compute_distance_from_reference_mesh");
+constexpr QLatin1StringView kFilterTexelSampling("sample_texels");
+constexpr QLatin1StringView kFilterVertexResampling("transfer_vertex_attributes_by_closest_point");
+constexpr QLatin1StringView kFilterUniformMeshResampling("remesh_uniformly_by_volumetric_resampling");
+constexpr QLatin1StringView kFilterVoronoiColoring("colorize_vertices_by_voronoi_regions");
+constexpr QLatin1StringView kFilterDiskColoring("colorize_vertices_by_disk_distance");
+constexpr QLatin1StringView kFilterRegularRecursiveSampling("sample_offset_surface_recursively");
+constexpr QLatin1StringView kFilterPointCloudSimplification("simplify_point_cloud");
 
 using Mask = vcg::tri::io::Mask;
 namespace Tex = TextureAssociationUtils;

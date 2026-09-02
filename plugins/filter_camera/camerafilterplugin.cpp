@@ -31,14 +31,14 @@
 
 namespace {
 
-constexpr QLatin1StringView kSetMeshCamera("set_camera_per_mesh");
-constexpr QLatin1StringView kSetRasterCamera("set_camera_per_raster");
-constexpr QLatin1StringView kQualityFromCamera("compute_scalar_from_camera_per_vertex");
-constexpr QLatin1StringView kCameraRotate("apply_cameras_rotation");
-constexpr QLatin1StringView kCameraScale("apply_cameras_scaling");
-constexpr QLatin1StringView kCameraTranslate("apply_cameras_translation");
-constexpr QLatin1StringView kCameraTransform("apply_cameras_extrinsics_transformation");
-constexpr QLatin1StringView kOrientNormals("compute_normal_from_cameras_per_vertex");
+constexpr QLatin1StringView kSetMeshCamera("set_mesh_camera");
+constexpr QLatin1StringView kSetRasterCamera("set_raster_camera");
+constexpr QLatin1StringView kQualityFromCamera("compute_vertex_scalar_from_camera");
+constexpr QLatin1StringView kCameraRotate("rotate_cameras");
+constexpr QLatin1StringView kCameraScale("scale_cameras");
+constexpr QLatin1StringView kCameraTranslate("translate_cameras");
+constexpr QLatin1StringView kCameraTransform("transform_camera_extrinsics");
+constexpr QLatin1StringView kOrientNormals("orient_vertex_normals_by_cameras");
 constexpr QLatin1StringView kCameraViewSelection("set_camera_to_view_selection");
 constexpr QLatin1StringView kCameraFromDirection("set_camera_from_direction");
 

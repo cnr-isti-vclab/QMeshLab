@@ -32,11 +32,11 @@
 namespace {
 
 constexpr QLatin1StringView kFilterSingleProj(
-    "compute_color_from_current_raster_projection");
+    "transfer_color_from_current_raster_to_vertex");
 constexpr QLatin1StringView kFilterMultiProj(
-    "compute_color_from_active_rasters_projection");
+    "transfer_color_from_visible_rasters_to_vertex");
 constexpr QLatin1StringView kFilterMultiTexture(
-    "compute_color_and_texture_from_active_rasters_projection");
+    "transfer_color_from_visible_rasters_to_texture");
 
 MeshFilterRunResult fail(const QString &message)
 {

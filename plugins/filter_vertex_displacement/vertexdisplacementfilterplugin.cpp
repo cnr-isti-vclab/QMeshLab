@@ -56,15 +56,15 @@ MeshFilterRunResult success(const QStringList &messages)
 
 bool fractalKind(const QString &id, FractalKind &kind)
 {
-    if (id == QStringLiteral("displace_by_fractal_brownian_motion"))
+    if (id == QStringLiteral("displace_vertices_by_fractal_brownian_motion"))
         kind = FractalKind::Fbm;
-    else if (id == QStringLiteral("displace_by_standard_multifractal_noise"))
+    else if (id == QStringLiteral("displace_vertices_by_standard_multifractal_noise"))
         kind = FractalKind::Standard;
-    else if (id == QStringLiteral("displace_by_heterogeneous_multifractal_noise"))
+    else if (id == QStringLiteral("displace_vertices_by_heterogeneous_multifractal_noise"))
         kind = FractalKind::Heterogeneous;
-    else if (id == QStringLiteral("displace_by_hybrid_multifractal_noise"))
+    else if (id == QStringLiteral("displace_vertices_by_hybrid_multifractal_noise"))
         kind = FractalKind::Hybrid;
-    else if (id == QStringLiteral("displace_by_ridged_multifractal_noise"))
+    else if (id == QStringLiteral("displace_vertices_by_ridged_multifractal_noise"))
         kind = FractalKind::Ridged;
     else
         return false;

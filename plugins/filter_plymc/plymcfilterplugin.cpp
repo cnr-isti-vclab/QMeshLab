@@ -26,8 +26,8 @@
 
 namespace {
 
-constexpr QLatin1StringView kRecon("generate_surface_reconstruction_vcg");
-constexpr QLatin1StringView kMCSimplify("meshing_decimation_edge_collapse_for_marching_cube_meshes");
+constexpr QLatin1StringView kRecon("reconstruct_surface_by_volumetric_merging");
+constexpr QLatin1StringView kMCSimplify("simplify_marching_cubes_mesh_by_edge_collapse");
 
 MeshFilterRunResult fail(const QString &m) { return {false, false, m}; }
 MeshFilterRunResult ok(const QStringList &info = {}) {

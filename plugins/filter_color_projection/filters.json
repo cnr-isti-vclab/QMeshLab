@@ -2,10 +2,10 @@
   "pluginId": "qmeshlab.filter.color_projection",
   "filters": [
     {
-      "id": "compute_color_from_current_raster_projection",
+      "id": "transfer_color_from_current_raster_to_vertex",
       "categories": ["Transfer/From Rasters", "Attribute/Color"],
       "name": "Transfer Color from Current Raster to Vertex",
-      "pythonName": "compute_color_from_current_raster_projection",
+      "pythonName": "transfer_color_from_current_raster_to_vertex",
       "shortDescription": "Project the current raster image color onto the mesh vertices.",
       "longDescriptionMarkdown": "Projects color information from the current raster onto the mesh vertices using perspective projection. Optionally uses a software depth buffer to restrict projection to visible faces only.",
       "tags": ["color", "raster", "projection", "vertex"],
@@ -60,10 +60,10 @@
       "outputModifies": ["VC"]
     },
     {
-      "id": "compute_color_from_active_rasters_projection",
+      "id": "transfer_color_from_visible_rasters_to_vertex",
       "categories": ["Transfer/From Rasters", "Attribute/Color"],
       "name": "Transfer Color from Visible Rasters to Vertex",
-      "pythonName": "compute_color_from_active_rasters_projection",
+      "pythonName": "transfer_color_from_visible_rasters_to_vertex",
       "shortDescription": "Project color from all visible rasters onto the mesh vertices with weighted blending.",
       "longDescriptionMarkdown": "Projects color information from all visible and valid rasters onto the mesh vertices using perspective projection and weighted blending. Weights can account for view angle, distance, image border proximity, depth discontinuities, and image alpha.",
       "tags": ["color", "raster", "projection", "vertex", "multi"],
@@ -150,10 +150,10 @@
       "outputModifies": ["VC"]
     },
     {
-      "id": "compute_color_and_texture_from_active_rasters_projection",
+      "id": "transfer_color_from_visible_rasters_to_texture",
       "categories": ["Transfer/From Rasters", "Texture"],
       "name": "Transfer Color from Visible Rasters to Texture",
-      "pythonName": "compute_color_and_texture_from_active_rasters_projection",
+      "pythonName": "transfer_color_from_visible_rasters_to_texture",
       "shortDescription": "Project color from all visible rasters onto a new mesh texture using wedge UV coordinates.",
       "longDescriptionMarkdown": "Projects color information from all visible and valid rasters onto a new texture image, using the mesh's existing wedge UV coordinates. The result is saved as a texture image and associated with the mesh.",
       "tags": ["color", "raster", "projection", "texture", "multi"],

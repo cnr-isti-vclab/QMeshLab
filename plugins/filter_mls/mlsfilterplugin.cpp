@@ -25,14 +25,14 @@
 #include <memory>
 
 namespace {
-constexpr QLatin1StringView kIdRimlsProjection("compute_mls_projection_rimls");
-constexpr QLatin1StringView kIdApssProjection("compute_mls_projection_apss");
-constexpr QLatin1StringView kIdRimlsMcube("generate_marching_cubes_rimls");
-constexpr QLatin1StringView kIdApssMcube("generate_marching_cubes_apss");
-constexpr QLatin1StringView kIdRimlsCurvatureQuality("compute_curvature_and_color_rimls_per_vertex");
-constexpr QLatin1StringView kIdApssCurvatureQuality("compute_curvature_and_color_apss_per_vertex");
-constexpr QLatin1StringView kIdRadiusFromDensity("compute_custom_radius_scalar_attribute_per_vertex");
-constexpr QLatin1StringView kIdSelectSmallComponents("compute_selection_by_small_disconnected_components_per_face");
+constexpr QLatin1StringView kIdRimlsProjection("project_vertices_onto_mls_surface_rimls");
+constexpr QLatin1StringView kIdApssProjection("project_vertices_onto_mls_surface_apss");
+constexpr QLatin1StringView kIdRimlsMcube("reconstruct_surface_by_marching_cubes_rimls");
+constexpr QLatin1StringView kIdApssMcube("reconstruct_surface_by_marching_cubes_apss");
+constexpr QLatin1StringView kIdRimlsCurvatureQuality("compute_curvature_rimls");
+constexpr QLatin1StringView kIdApssCurvatureQuality("compute_curvature_apss");
+constexpr QLatin1StringView kIdRadiusFromDensity("estimate_radius_from_density");
+constexpr QLatin1StringView kIdSelectSmallComponents("select_small_disconnected_components");
 
 enum CurvatureType {
     CT_MEAN = 0,

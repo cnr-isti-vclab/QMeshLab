@@ -83,10 +83,10 @@
   ],
   "filters": [
     {
-      "id": "meshing_cut_along_crease_edges",
+      "id": "cut_along_crease_edges",
       "categories": ["Meshing/Remeshing"],
       "name": "Cut Along Crease Edges",
-      "pythonName": "cut_mesh_along_crease_edges",
+      "pythonName": "cut_along_crease_edges",
       "shortDescription": "Split the mesh along sharp edges.",
       "longDescriptionMarkdown": "Cut the mesh along crease edges, duplicating the vertices as necessary. Crease (or sharp) edges are defined according to the variation of normal of the adjacent faces.",
       "tags": [
@@ -124,10 +124,10 @@
       ]
     },
     {
-      "id": "apply_coord_laplacian_smoothing",
+      "id": "smooth_vertices_by_laplacian_vcglib",
       "categories": ["Geometry/Smoothing"],
       "name": "Smooth Vertices by Laplacian (vcglib)",
-      "pythonName": "smooth_laplacian",
+      "pythonName": "smooth_vertices_by_laplacian_vcglib",
       "shortDescription": "Average vertex positions with their neighbors.",
       "longDescriptionMarkdown": "Laplacian smoothing: each vertex moves toward the average position of its neighbours. The simplest and fastest of the smoothing filters, and the one that shrinks the mesh most -- repeated passes pull the surface inward. Use Taubin or HC Laplacian where that matters.",
       "tags": [
@@ -184,10 +184,10 @@
       ]
     },
     {
-      "id": "apply_coord_hc_laplacian_smoothing",
+      "id": "smooth_vertices_by_hc_laplacian",
       "categories": ["Geometry/Smoothing"],
       "name": "Smooth Vertices by HC Laplacian",
-      "pythonName": "smooth_hc_laplacian",
+      "pythonName": "smooth_vertices_by_hc_laplacian",
       "shortDescription": "Improved Laplacian smoothing with better shape preservation.",
       "longDescriptionMarkdown": "HC Laplacian smoothing: an extended Laplacian smoothing that pushes each vertex back toward its original position after every averaging step, which removes most of the shrinkage plain Laplacian smoothing causes.",
       "referenceIds": ["vollmer1999"],
@@ -209,10 +209,10 @@
       ]
     },
     {
-      "id": "apply_coord_laplacian_smoothing_scale_dependent",
+      "id": "smooth_vertices_by_scale_dependent_laplacian",
       "categories": ["Geometry/Smoothing"],
       "name": "Smooth Vertices by Scale-Dependent Laplacian",
-      "pythonName": "smooth_scale_dependent_laplacian",
+      "pythonName": "smooth_vertices_by_scale_dependent_laplacian",
       "shortDescription": "Fujiwara-style scale-dependent Laplacian smoothing.",
       "longDescriptionMarkdown": "Scale-dependent Laplacian smoothing, using the Fujiwara extended umbrella operator. Weighting each neighbour by the inverse of its edge length makes the smoothing step independent of how unevenly the mesh is tessellated, so dense and sparse regions are faired at the same rate rather than the dense ones collapsing first.",
       "referenceIds": ["desbrun1999"],
@@ -265,10 +265,10 @@
       ]
     },
     {
-      "id": "apply_coord_two_steps_smoothing",
+      "id": "smooth_vertices_by_two_step_normal_fitting",
       "categories": ["Geometry/Smoothing"],
       "name": "Smooth Vertices by Two-Step Normal Fitting",
-      "pythonName": "smooth_two_step",
+      "pythonName": "smooth_vertices_by_two_step_normal_fitting",
       "shortDescription": "Feature-preserving smoothing through normal smoothing and vertex fitting.",
       "longDescriptionMarkdown": "A feature-preserving fairing filter that runs in two stages:\\n\\n1. **Normal smoothing** -- face normals that already point in similar directions are averaged together, while normals that differ sharply are left alone, so creases survive.\\n2. **Vertex repositioning** -- vertices are then moved to fit the smoothed normals.\\n\\nSmoothing the normals first and the positions second is what separates this from plain Laplacian smoothing: noise is removed without rounding off the edges that carry the shape.",
       "referenceIds": ["belyaev2003"],
@@ -344,10 +344,10 @@
       ]
     },
     {
-      "id": "apply_coord_taubin_smoothing",
+      "id": "smooth_vertices_by_taubin_vcglib",
       "categories": ["Geometry/Smoothing"],
       "name": "Smooth Vertices by Taubin (vcglib)",
-      "pythonName": "smooth_taubin",
+      "pythonName": "smooth_vertices_by_taubin_vcglib",
       "shortDescription": "Lambda-mu smoothing with reduced shrinkage.",
       "longDescriptionMarkdown": "The $\\lambda$-$\\mu$ Taubin smoothing. Each iteration combines two low-pass filtering steps -- a positive $\\lambda$ pass followed by a negative $\\mu$ pass -- so that noise is attenuated without the volume loss of repeated Laplacian smoothing.",
       "referenceIds": ["taubin1995"],
@@ -411,10 +411,10 @@
       ]
     },
     {
-      "id": "apply_coord_depth_smoothing",
+      "id": "smooth_vertices_along_one_direction",
       "categories": ["Geometry/Smoothing"],
       "name": "Smooth Vertices along One Direction",
-      "pythonName": "smooth_depth",
+      "pythonName": "smooth_vertices_along_one_direction",
       "shortDescription": "Smooth vertices only along a given depth direction.",
       "longDescriptionMarkdown": "A laplacian smooth that is constrained to move vertices only in one given direction (usually the viewer direction).",
       "tags": [
@@ -480,10 +480,10 @@
       ]
     },
     {
-      "id": "apply_coord_directional_preservation",
+      "id": "project_vertices_onto_line_of_sight",
       "categories": ["Geometry/Smoothing"],
       "name": "Project Vertices onto the Line of Sight",
-      "pythonName": "smooth_directional",
+      "pythonName": "project_vertices_onto_line_of_sight",
       "shortDescription": "Snap vertices back onto the sight line through their stored position.",
       "longDescriptionMarkdown": "Projects every vertex back onto the line joining **Viewpoint** to the position stored for it in a per-vertex custom point attribute, keeping only the part of its displacement that lies along that line and discarding the part across it.\n\nWriting $o$ for the stored position, $p$ for the current one and $d$ for the unit vector from the viewpoint to $o$:\n\n$$p_{\\mathrm{new}} = o + d\\,\\big((p-o)\\cdot d\\big).$$\n\nRun it after a smoothing filter to confine that filter's effect to depth. Time-of-flight scanners resolve *x,y* well but carry much larger depth error, so smoothing is worth trusting along the line of sight and worth undoing across it. Store the original coordinates first, in the custom attribute named here.\n\nNote that this is a projection, not a blend: there is no mixing factor, and every vertex moves.",
       "tags": [
@@ -527,10 +527,10 @@
       ]
     },
     {
-      "id": "apply_scalar_smoothing_per_vertex",
+      "id": "smooth_vertex_scalar",
       "categories": ["Attribute/Scalar"],
       "name": "Smooth Vertex Scalar",
-      "pythonName": "smooth_vertex_quality",
+      "pythonName": "smooth_vertex_scalar",
       "shortDescription": "Laplacian smoothing of vertex quality values.",
       "longDescriptionMarkdown": "Laplacian smooth of the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex</a> values.",
       "tags": [
@@ -550,7 +550,7 @@
       ]
     },
     {
-      "id": "apply_normal_smoothing_per_face",
+      "id": "smooth_face_normals",
       "categories": ["Attribute/Normal"],
       "name": "Smooth Face Normals",
       "pythonName": "smooth_face_normals",
@@ -571,10 +571,10 @@
       ]
     },
     {
-      "id": "apply_normal_unsharp_mask_per_vertex",
+      "id": "sharpen_face_normals_by_unsharp_mask",
       "categories": ["Attribute/Normal"],
       "name": "Sharpen Face Normals by Unsharp Mask",
-      "pythonName": "unsharp_mask_normals",
+      "pythonName": "sharpen_face_normals_by_unsharp_mask",
       "shortDescription": "Enhance face normal variation using an unsharp mask.",
       "longDescriptionMarkdown": "Sharpens the **per-face normals**, so that shading brings out variations in orientation that a flat rendering hides. The geometry is untouched -- only the normals change -- which makes it a rendering aid rather than a modelling operation.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
       "referenceIds": ["cignoni2005"],
@@ -635,10 +635,10 @@
       ]
     },
     {
-      "id": "apply_coord_unsharp_mask",
+      "id": "sharpen_vertices_by_unsharp_mask",
       "categories": ["Geometry/Smoothing"],
       "name": "Sharpen Vertices by Unsharp Mask",
-      "pythonName": "unsharp_mask_geometry",
+      "pythonName": "sharpen_vertices_by_unsharp_mask",
       "shortDescription": "Enhance geometric ridges and valleys with an unsharp mask.",
       "longDescriptionMarkdown": "Sharpens the **vertex positions**, deepening ridges and valleys in the surface itself. Unlike the normal variant this really moves geometry, so the effect survives export.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
       "referenceIds": ["cignoni2005"],
@@ -694,10 +694,10 @@
       ]
     },
     {
-      "id": "apply_scalar_unsharp_mask_per_vertex",
+      "id": "sharpen_vertex_scalar_by_unsharp_mask",
       "categories": ["Attribute/Scalar"],
       "name": "Sharpen Vertex Scalar by Unsharp Mask",
-      "pythonName": "unsharp_mask_quality",
+      "pythonName": "sharpen_vertex_scalar_by_unsharp_mask",
       "shortDescription": "Enhance per-vertex quality variations with an unsharp mask.",
       "longDescriptionMarkdown": "Sharpens the **per-vertex scalar field**, so that gentle gradients in the values become steeper and easier to read once the field is mapped to color.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
       "referenceIds": ["cignoni2005"],
@@ -752,10 +752,10 @@
       ]
     },
     {
-      "id": "apply_color_unsharp_mask_per_vertex",
+      "id": "sharpen_vertex_color_by_unsharp_mask",
       "categories": ["Attribute/Color"],
       "name": "Sharpen Vertex Color by Unsharp Mask",
-      "pythonName": "unsharp_mask_color",
+      "pythonName": "sharpen_vertex_color_by_unsharp_mask",
       "shortDescription": "Enhance per-vertex color variation with an unsharp mask.",
       "longDescriptionMarkdown": "Sharpens the **per-vertex color**, pulling out variation that is hard to see in a low-contrast or noisy color field.\\n\\nUnsharp masking exaggerates local variation by adding back the difference between the signal and a smoothed copy of it: $$s' = s + \\lambda\\,(s - \\mathrm{smooth}(s)).$$ **Weight** is $\\lambda$; larger values sharpen harder and amplify noise along with the features. **Smoothing steps** sets how blurred the subtracted copy is, which fixes the scale of the detail being enhanced.\\n\\n",
       "referenceIds": ["cignoni2005"],
@@ -810,7 +810,7 @@
       ]
     },
     {
-      "id": "compute_normal_per_vertex",
+      "id": "compute_vertex_normals",
       "categories": ["Attribute/Normal"],
       "name": "Compute Vertex Normals",
       "pythonName": "compute_vertex_normals",
@@ -860,7 +860,7 @@
       ]
     },
     {
-      "id": "compute_normal_per_face",
+      "id": "compute_face_normals",
       "categories": ["Attribute/Normal"],
       "name": "Compute Face Normals",
       "pythonName": "compute_face_normals",
@@ -881,10 +881,10 @@
       ]
     },
     {
-      "id": "compute_normal_polygon_mesh_per_face",
+      "id": "compute_polygon_face_normals",
       "categories": ["Attribute/Normal"],
       "name": "Compute Polygon Face Normals",
-      "pythonName": "compute_per_polygon_face_normals",
+      "pythonName": "compute_polygon_face_normals",
       "shortDescription": "Recompute polygon-shading normals for faux-edge polygon meshes.",
       "longDescriptionMarkdown": "Recompute face normals as the average of the normals of the triangles that builds a polygon. Useful for showing uniformly shaded quad or polygonal meshes represented using <a href='https://stackoverflow.com/questions/59392193'>faux edges</a>.",
       "tags": [
@@ -902,7 +902,7 @@
       ]
     },
     {
-      "id": "apply_normal_normalization_per_face",
+      "id": "normalize_face_normals",
       "categories": ["Attribute/Normal"],
       "name": "Normalize Face Normals",
       "pythonName": "normalize_face_normals",
@@ -923,7 +923,7 @@
       ]
     },
     {
-      "id": "apply_normal_normalization_per_vertex",
+      "id": "normalize_vertex_normals",
       "categories": ["Attribute/Normal"],
       "name": "Normalize Vertex Normals",
       "pythonName": "normalize_vertex_normals",
@@ -944,10 +944,10 @@
       ]
     },
     {
-      "id": "compute_coord_linear_morphing",
+      "id": "displace_vertices_toward_target_mesh",
       "categories": ["Geometry/Deformation"],
       "name": "Displace Vertices toward Target Mesh",
-      "pythonName": "vertex_linear_morphing",
+      "pythonName": "displace_vertices_toward_target_mesh",
       "shortDescription": "Linearly morph the current mesh toward another mesh.",
       "longDescriptionMarkdown": "Morphs the current mesh toward a target mesh that has the same number of vertices in the same order. Each source vertex moves along the straight line to its counterpart:\\n\\n$$p_i^{\\mathrm{result}}=(1-\\lambda)\\,p_i^{\\mathrm{source}}+\\lambda\\,p_i^{\\mathrm{target}}.$$\\n\\n**Weight** is $\\lambda$: 0 leaves the mesh alone, 1 lands exactly on the target, and values in between interpolate. Values outside $[0,1]$ extrapolate past either end.",
       "tags": [
@@ -990,10 +990,10 @@
       ]
     },
     {
-      "id": "compute_scalar_by_scalar_harmonic_field_per_vertex",
+      "id": "compute_harmonic_scalar_field",
       "categories": ["Attribute/Scalar"],
       "name": "Compute Harmonic Scalar Field",
-      "pythonName": "generate_scalar_harmonic_field",
+      "pythonName": "compute_harmonic_scalar_field",
       "shortDescription": "Compute a harmonic scalar field over the mesh.",
       "longDescriptionMarkdown": "Generates a scalar harmonic field over the mesh. Input scalar values must be assigned to two vertices as Dirichlet boundary conditions. Applying the filter, a discrete Laplace operator generates the harmonic field values for all the mesh vertices, which are stored in the <a href='https://stackoverflow.com/questions/58610746'>quality per vertex attribute</a> of the mesh.<br>For more details see:<b>Dynamic Harmonic Fields for Surface Processing</b> by <i>Kai Xua, Hao Zhang, Daniel Cohen-Or, Yueshan Xionga</i>. Computers & Graphics, 2009 <br><a href='https://doi.org/10.1016/j.cag.2009.03.022'>doi:10.1016/j.cag.2009.03.022</a>",
       "tags": [

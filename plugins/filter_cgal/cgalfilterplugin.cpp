@@ -43,14 +43,14 @@
 
 namespace {
 
-constexpr QLatin1StringView kFilterAlphaWrap("generate_alpha_wrap");
-constexpr QLatin1StringView kFilterAlphaShape("generate_alpha_shape");
-constexpr QLatin1StringView kFilterVoronoiFiltering("generate_voronoi_filtering");
-constexpr QLatin1StringView kFilterScaleSpace("generate_scale_space_reconstruction");
-constexpr QLatin1StringView kFilterAdvancingFront("generate_advancing_front_reconstruction");
-constexpr QLatin1StringView kFilterOrientNormals("compute_normal_orientation_per_vertex");
-constexpr QLatin1StringView kFilterPoisson("generate_poisson_reconstruction_cgal");
-constexpr QLatin1StringView kFilterKinetic("generate_kinetic_reconstruction");
+constexpr QLatin1StringView kFilterAlphaWrap("reconstruct_surface_by_alpha_wrapping");
+constexpr QLatin1StringView kFilterAlphaShape("reconstruct_surface_by_alpha_shape");
+constexpr QLatin1StringView kFilterVoronoiFiltering("reconstruct_surface_by_voronoi_filtering");
+constexpr QLatin1StringView kFilterScaleSpace("reconstruct_surface_by_scale_space");
+constexpr QLatin1StringView kFilterAdvancingFront("reconstruct_surface_by_advancing_front");
+constexpr QLatin1StringView kFilterOrientNormals("orient_point_cloud_normals");
+constexpr QLatin1StringView kFilterPoisson("reconstruct_surface_by_poisson_cgal");
+constexpr QLatin1StringView kFilterKinetic("reconstruct_surface_by_kinetic_partition");
 using Mask = vcg::tri::io::Mask;
 using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 using CgalPoint = Kernel::Point_3;

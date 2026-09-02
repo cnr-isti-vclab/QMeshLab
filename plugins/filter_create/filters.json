@@ -50,10 +50,10 @@
       "parameters": []
     },
     {
-      "id": "create_dodecahedron_sym",
+      "id": "create_symmetric_dodecahedron",
       "categories": ["Creation/Primitives"],
       "name": "Create Symmetric Dodecahedron",
-      "pythonName": "create_dodecahedron_symmetric",
+      "pythonName": "create_symmetric_dodecahedron",
       "shortDescription": "Creates a symmetrically triangulated Dodecahedron.",
       "longDescriptionMarkdown": "Create a Dodecahedron, but triangulated with an additional vertex in the middle of each face to preserve symmetry.",
       "tags": [
@@ -238,7 +238,7 @@
       ]
     },
     {
-      "id": "create_sphere_points",
+      "id": "create_points_on_sphere",
       "categories": ["Creation/Primitives"],
       "name": "Create Points on a Sphere",
       "pythonName": "create_points_on_sphere",
@@ -303,10 +303,10 @@
       ]
     },
     {
-      "id": "create_points_on_a_spherical_cap",
+      "id": "create_points_on_spherical_cap",
       "categories": ["Creation/Primitives"],
       "name": "Create Points on a Spherical Cap",
-      "pythonName": "create_points_on_a_spherical_cap",
+      "pythonName": "create_points_on_spherical_cap",
       "shortDescription": "Creates an area-uniform point cloud on a unit-sphere cap.",
       "longDescriptionMarkdown": "Creates points on the surface of a unit-sphere cap centred on **Cap Direction** and bounded by **Cap Half-Angle** $\\alpha$. Every generated point also receives its outward radial normal. Both techniques are uniform with respect to spherical surface area: equivalently, $\\cos\\theta$ is distributed uniformly in $[\\cos\\alpha,1]$, rather than $\\theta$ being distributed uniformly. **Monte Carlo** generates independent random samples and can be reproduced with a non-zero seed. **Fibonacci** is deterministic and uses VCGLib's direct equal-area spherical-cap construction, producing the exact requested count without first generating and discarding points from a complete sphere. A half-angle of $180^\\circ$ covers the complete sphere.",
       "tags": [
@@ -500,10 +500,10 @@
       ]
     },
     {
-      "id": "fit_plane_to_selection",
+      "id": "create_plane_from_selection",
       "categories": ["Creation/Primitives", "Measurement/Geometric"],
       "name": "Create Plane from Selection",
-      "pythonName": "fit_plane_to_selection",
+      "pythonName": "create_plane_from_selection",
       "shortDescription": "Creates a quad on the plane fitting the current selection.",
       "longDescriptionMarkdown": "Fits a plane to the selected vertices (or vertices of selected faces) of the current mesh and creates a new planar quad mesh aligned to that plane.",
       "tags": [
