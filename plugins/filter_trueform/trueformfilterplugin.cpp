@@ -507,9 +507,10 @@ MeshFilterRunResult runBoolean(const QString &filterId, const FilterParams &para
     try {
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
-        auto result = tf::make_boolean(a.polygons(), b.polygons(), op);
+        auto [mesh, tagLabels, faceLabels] =
+            tf::make_boolean(a.polygons(), b.polygons(), op);
         return addResultLayer(
-            doc, std::get<0>(result), label,
+            doc, mesh, label,
             QObject::tr("The %1 is empty.").arg(label),
             { QObject::tr("'%1' and '%2'.").arg(doc.mesh(aIndex).name, doc.mesh(bIndex).name) });
     } catch (const std::exception &e) {
@@ -734,11 +735,7 @@ MeshFilterRunResult runSymmetricDifference(const FilterParams &params, Document 
     try {
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
-        using FormView = decltype(std::declval<const TfMesh &>().polygons());
-        std::vector<FormView> forms;
-        forms.emplace_back(a.polygons());
-        forms.emplace_back(b.polygons());
-        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()));
+        auto graph = tf::make_csg_graph(a.polygons(), b.polygons());
 
         const tf::csg::expr lhs(0);
         const tf::csg::expr rhs(1);
@@ -1909,13 +1906,10 @@ MeshFilterRunResult runRepairSelfIntersections(const FilterParams &params, Docum
     doc.beginFilterProgress(QObject::tr("Repair Self-Intersections (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
-        using FormView = decltype(std::declval<const TfMesh &>().polygons());
-        std::vector<FormView> forms;
-        forms.emplace_back(source.polygons());
-        auto arrangement = tf::make_mesh_arrangements(tf::make_range(forms.data(), forms.size()));
+        auto [mesh, faceLabels] = tf::make_polygon_arrangements(source.polygons());
 
         return addResultLayer(
-            doc, std::get<0>(arrangement), QObject::tr("Resolved"),
+            doc, mesh, QObject::tr("Resolved"),
             QObject::tr("The arrangement is empty."),
             { QObject::tr("Resolved self-intersections of '%1'.").arg(doc.mesh(index).name) });
     } catch (const std::exception &e) {
@@ -1965,26 +1959,19 @@ MeshFilterRunResult runCutAlongIsocontour(const FilterParams &params, Document &
         const double t = (double(i) + 1.0) / (double(count) + 1.0);
         cutValues.push_back(float(double(lo) + t * (double(hi) - double(lo))));
     }
-    // N cut values partition the range into N+1 bands; keep all of them, so the result is
-    // the whole surface, cut rather than filtered.
-    std::vector<int> bands(std::size_t(count) + 1);
-    for (std::size_t i = 0; i < bands.size(); ++i)
-        bands[i] = int(i);
-
     doc.beginFilterProgress(QObject::tr("Cut Along Scalar Isocontour (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
-        auto banded = tf::make_isobands(
+        auto [mesh, labels, faceLabels] = tf::embedded_isocurves(
             source.polygons(),
             tf::make_range(scalars.data(), scalars.size()),
-            tf::make_range(cutValues.data(), cutValues.size()),
-            tf::make_range(bands.data(), bands.size()));
+            tf::make_range(cutValues.data(), cutValues.size()));
         return addResultLayer(
-            doc, std::get<0>(banded), QObject::tr("Isobands"),
+            doc, mesh, QObject::tr("Isobands"),
             QObject::tr("Cutting produced no faces."),
             { QObject::tr("From '%1'.").arg(doc.mesh(index).name),
               QObject::tr("%1 contour(s), %2 band(s), between %3 and %4.")
-                  .arg(count).arg(bands.size())
+                  .arg(count).arg(count + 1)
                   .arg(QString::number(double(lo), 'g', 6))
                   .arg(QString::number(double(hi), 'g', 6)) });
     } catch (const std::exception &e) {
