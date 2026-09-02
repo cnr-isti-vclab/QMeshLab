@@ -6410,7 +6410,7 @@ The *Try chart permutations* option is worth knowing about. The rasterized packe
 - **algorithm** (*enum*, default: `rasterized_scaled`) — Which vcglib packer lays the charts out.
 - **textureSize** (*int*, default: `1024`) — Side of the square atlas the charts are packed into.
 - **gutterWidth** (*int*, default: `4`) — Padding kept around each chart, so bilinear filtering cannot bleed between neighbours.
-- **rotationNum** (*int*, default: `4`) — How many orientations each chart is tried at. Rasterized packers only.
+- **rotationNum** (*int*, default: `4`) — How many orientations each chart is tried at, rounded to the nearest multiple of four -- the packer derives four slots from every base rasterization, so only multiples of four are usable. Rasterized packers only.
 - **permutations** (*bool*, default: `False`) — Retry the layout with reshuffled chart orders. Costs five packing passes per similarly sized chart, so on a uniform atlas it is five per chart and it dominates the run. Rasterized packers only.
 - **resampleTextures** (*bool*, default: `True`) — Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.
 - **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the atlas packing exactly reproducible.
