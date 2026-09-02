@@ -99,18 +99,35 @@ MeshFilterRunResult success(const QStringList &info)
     return result;
 }
 
+// tfMeshFromLayer() skips deleted vertices, so the nth TrueForm point is the nth *live*
+// VCG vertex. Results have to be written back through that mapping, not by raw index.
+std::vector<std::size_t> liveVertexIndices(const VCGMesh &mesh)
+{
+    std::vector<std::size_t> live;
+    live.reserve(std::size_t(std::max(0, mesh.VN())));
+    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
+        if (!mesh.vert[i].IsD())
+            live.push_back(i);
+    }
+    return live;
+}
+
 // Collect a layer's live vertices in world space. Alignment is only meaningful across
 // layers, so the layer matrix has to be applied before anything is compared.
 TfPoints worldPoints(const Document::MeshEntry &entry)
 {
-    TfPoints points;
+    const VCGMesh &mesh = entry.mesh;
     const QMatrix4x4 &m = entry.transform;
-    for (const VCGVertex &v : entry.mesh.vert) {
-        if (v.IsD())
-            continue;
-        const QVector3D p = m.map(QVector3D(v.cP().X(), v.cP().Y(), v.cP().Z()));
-        points.emplace_back(p.x(), p.y(), p.z());
-    }
+    const std::vector<std::size_t> live = liveVertexIndices(mesh);
+
+    TfPoints points;
+    points.allocate(live.size());
+    tf::parallel_for_each(tf::enumerate(tf::make_range(live)), [&](auto pair) {
+        auto &&[at, vi] = pair;
+        const vcg::Point3f &p = mesh.vert[vi].cP();
+        const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
+        points[std::size_t(at)] = tf::make_point(w.x(), w.y(), w.z());
+    }, tf::checked);
     return points;
 }
 
@@ -364,36 +381,43 @@ TfMesh tfMeshFromLayer(const Document::MeshEntry &entry)
     const VCGMesh &mesh = entry.mesh;
     const QMatrix4x4 &m = entry.transform;
 
+    const std::vector<std::size_t> live = liveVertexIndices(mesh);
     std::vector<int> remap(mesh.vert.size(), -1);
     auto &points = out.points_buffer();
-    int next = 0;
-    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
-        if (mesh.vert[i].IsD())
-            continue;
-        const vcg::Point3f &p = mesh.vert[i].cP();
+    points.allocate(live.size());
+    tf::parallel_for_each(tf::enumerate(tf::make_range(live)), [&](auto pair) {
+        auto &&[at, vi] = pair;
+        remap[vi] = int(at);
+        const vcg::Point3f &p = mesh.vert[vi].cP();
         const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
-        points.emplace_back(w.x(), w.y(), w.z());
-        remap[i] = next++;
-    }
+        points[std::size_t(at)] = tf::make_point(w.x(), w.y(), w.z());
+    }, tf::checked);
 
     const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
-    auto &faces = out.faces_buffer();
-    for (const VCGFace &f : mesh.face) {
-        if (f.IsD() || !base)
-            continue;
-        int corner[3];
-        bool ok = true;
-        for (int k = 0; k < 3; ++k) {
-            const ptrdiff_t raw = f.cV(k) - base;
-            if (raw < 0 || std::size_t(raw) >= remap.size() || remap[std::size_t(raw)] < 0) {
-                ok = false;
-                break;
+    if (!base)
+        return out;
+
+    tf::sequenced_generate(
+        tf::make_sequence_range(mesh.face.size()), out.faces_buffer().data_buffer(),
+        [&](std::size_t fi, tf::buffer<int> &corners) {
+            const VCGFace &f = mesh.face[fi];
+            if (f.IsD())
+                return;
+            int corner[3];
+            for (int k = 0; k < 3; ++k) {
+                const ptrdiff_t raw = f.cV(k) - base;
+                if (raw < 0 || std::size_t(raw) >= remap.size()
+                    || remap[std::size_t(raw)] < 0)
+                    return;
+                corner[k] = remap[std::size_t(raw)];
             }
-            corner[k] = remap[std::size_t(raw)];
-        }
-        if (ok && corner[0] != corner[1] && corner[1] != corner[2] && corner[0] != corner[2])
-            faces.emplace_back(corner[0], corner[1], corner[2]);
-    }
+            if (corner[0] == corner[1] || corner[1] == corner[2] || corner[0] == corner[2])
+                return;
+            corners.push_back(corner[0]);
+            corners.push_back(corner[1]);
+            corners.push_back(corner[2]);
+        },
+        tf::checked);
     return out;
 }
 
@@ -409,11 +433,11 @@ MeshFilterRunResult addResultLayer(
     const std::size_t pointCount = std::size_t(points.size());
     if (pointCount > 0) {
         vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
-        std::size_t vi = 0;
-        for (const auto &p : points) {
-            output.vert[vi].P() = vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
-            ++vi;
-        }
+        tf::parallel_for_each(tf::enumerate(points), [&output](auto pair) {
+            auto &&[vi, p] = pair;
+            output.vert[std::size_t(vi)].P() =
+                vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
+        }, tf::checked);
         for (const auto &face : buffer.faces()) {
             const std::size_t n = std::size_t(face.size());
             for (std::size_t k = 2; k < n; ++k) {
@@ -797,11 +821,11 @@ MeshFilterRunResult addPolylineLayer(
     std::size_t segmentCount = 0;
     if (pointCount > 0) {
         vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
-        std::size_t vi = 0;
-        for (const auto &p : points) {
-            output.vert[vi].P() = vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
-            ++vi;
-        }
+        tf::parallel_for_each(tf::enumerate(points), [&output](auto pair) {
+            auto &&[vi, p] = pair;
+            output.vert[std::size_t(vi)].P() =
+                vcg::Point3f(float(p[0]), float(p[1]), float(p[2]));
+        }, tf::checked);
         for (const auto &path : curves.paths()) {
             const std::size_t n = std::size_t(path.size());
             for (std::size_t k = 1; k < n; ++k) {
@@ -1037,11 +1061,11 @@ MeshFilterRunResult runTubeFromPolyline(const FilterParams &params, Document &do
         const QMatrix4x4 &m = entry.transform;
         auto &points = polyline.points_buffer();
         points.allocate(vertexCount);
-        for (std::size_t i = 0; i < vertexCount; ++i) {
+        tf::parallel_for_each(tf::make_sequence_range(vertexCount), [&](std::size_t i) {
             const vcg::Point3f &p = mesh.vert[i].cP();
             const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
             points[i] = tf::make_point(w.x(), w.y(), w.z());
-        }
+        }, tf::checked);
 
         auto tubes = tf::make_tube_mesh(polyline.curves(), float(radius), segments);
 
@@ -1115,18 +1139,22 @@ MeshFilterRunResult runSignedDistance(const FilterParams &params, Document &doc)
             | tf::tag(ctx.edgeLink);
 
         Document::MeshEntry &entry = doc.mesh(targetIndex);
-        const QMatrix4x4 &m = entry.transform;
-        for (VCGVertex &v : entry.mesh.vert) {
-            if (v.IsD())
-                continue;
-            const vcg::Point3f &p = v.cP();
-            const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
-            double d = tf::signed_distance(tagged, tf::make_point(w.x(), w.y(), w.z()));
+        const TfPoints queries = worldPoints(entry);
+        tf::buffer<double> distances;
+        distances.allocate(std::size_t(queries.size()));
+        tf::parallel_transform(
+            queries, distances,
+            [&tagged](const auto &q) { return tf::signed_distance(tagged, q); },
+            tf::checked);
+
+        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
+        for (std::size_t i = 0; i < live.size(); ++i) {
+            double d = distances[i];
             if (d < 0.0)
                 ++insideCount;
             if (absolute)
                 d = std::abs(d);
-            v.Q() = float(d);
+            entry.mesh.vert[live[i]].Q() = float(d);
             minDistance = std::min(minDistance, d);
             maxDistance = std::max(maxDistance, d);
         }
@@ -1184,14 +1212,19 @@ MeshFilterRunResult runSelectInsideMesh(const FilterParams &params, Document &do
             | tf::tag(ctx.edgeLink);
 
         Document::MeshEntry &entry = doc.mesh(targetIndex);
-        const QMatrix4x4 &m = entry.transform;
+        const TfPoints queries = worldPoints(entry);
+        tf::buffer<double> distances;
+        distances.allocate(std::size_t(queries.size()));
+        tf::parallel_transform(
+            queries, distances,
+            [&tagged](const auto &q) { return tf::signed_distance(tagged, q); },
+            tf::checked);
+
+        const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
         const bool replace = (mode != QStringLiteral("add") && mode != QStringLiteral("subtract"));
-        for (VCGVertex &v : entry.mesh.vert) {
-            if (v.IsD())
-                continue;
-            const vcg::Point3f &p = v.cP();
-            const QVector3D w = m.map(QVector3D(p.X(), p.Y(), p.Z()));
-            const double d = tf::signed_distance(tagged, tf::make_point(w.x(), w.y(), w.z()));
+        for (std::size_t i = 0; i < live.size(); ++i) {
+            VCGVertex &v = entry.mesh.vert[live[i]];
+            const double d = distances[i];
             const bool hit = invert ? (d > 0.0) : (d < 0.0);
             if (replace)
                 hit ? v.SetS() : v.ClearS();
@@ -1283,19 +1316,6 @@ MeshFilterRunResult runChamferDistance(const FilterParams &params, Document &doc
 // ---------------------------------------------------------------------------
 // Smoothing, curvature and normals
 // ---------------------------------------------------------------------------
-
-// tfMeshFromLayer() skips deleted vertices, so the nth TrueForm point is the nth *live*
-// VCG vertex. Results have to be written back through that mapping, not by raw index.
-std::vector<std::size_t> liveVertexIndices(const VCGMesh &mesh)
-{
-    std::vector<std::size_t> live;
-    live.reserve(std::size_t(std::max(0, mesh.VN())));
-    for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
-        if (!mesh.vert[i].IsD())
-            live.push_back(i);
-    }
-    return live;
-}
 
 // Connectivity shared by the per-vertex operators. Built once per run; the tags below
 // reference these, so they must outlive the call that uses them.
@@ -1547,12 +1567,13 @@ MeshFilterRunResult replaceLayerGeometry(
     const std::size_t pointCount = std::size_t(points.size());
     if (pointCount > 0) {
         vcg::tri::Allocator<VCGMesh>::AddVertices(output, int(pointCount));
-        std::size_t vi = 0;
-        for (const auto &p : points) {
-            const QVector3D local = inverse.map(QVector3D(float(p[0]), float(p[1]), float(p[2])));
-            output.vert[vi].P() = vcg::Point3f(local.x(), local.y(), local.z());
-            ++vi;
-        }
+        tf::parallel_for_each(tf::enumerate(points), [&output, &inverse](auto pair) {
+            auto &&[vi, p] = pair;
+            const QVector3D local =
+                inverse.map(QVector3D(float(p[0]), float(p[1]), float(p[2])));
+            output.vert[std::size_t(vi)].P() =
+                vcg::Point3f(local.x(), local.y(), local.z());
+        }, tf::checked);
         for (const auto &face : result.faces()) {
             const std::size_t n = std::size_t(face.size());
             for (std::size_t k = 2; k < n; ++k) {
