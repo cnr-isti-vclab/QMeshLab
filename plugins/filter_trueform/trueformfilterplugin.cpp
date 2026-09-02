@@ -866,15 +866,6 @@ MeshFilterRunResult runOuterShell(const FilterParams &params, Document &doc)
 // Curves
 // ---------------------------------------------------------------------------
 
-// The return_curves overloads hand back a tuple whose trailing element is the curves;
-// the leading elements are the cut mesh and per-face provenance, which vary in number by
-// overload and are not surfaced yet.
-template <typename Tuple>
-const auto &curvesOf(const Tuple &result)
-{
-    return std::get<std::tuple_size_v<std::decay_t<Tuple>> - 1>(result);
-}
-
 // Turn a TrueForm curves_buffer into a QMeshLab polyline layer: an edge mesh, which is
 // what the Create Polyline family already produces.
 template <typename Curves>
@@ -952,8 +943,8 @@ MeshFilterRunResult runSelfIntersectionCurves(const FilterParams &params, Docume
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
         // v0.10.0 replaced embedded_self_intersection_curves with this, which returns the
-        // curves themselves rather than a tuple ending in them -- hence no curvesOf. The
-        // default config is the same primitives | resolve_contours the old entry point used.
+        // curves themselves rather than a tuple ending in them. The default config is the
+        // same primitives | resolve_contours the old entry point used.
         auto curves = tf::make_self_intersection_curves(source.polygons());
         return addPolylineLayer(
             doc, curves, QObject::tr("Self-Intersections"),
@@ -980,10 +971,9 @@ MeshFilterRunResult runIntersectionCurves(const FilterParams &params, Document &
     try {
         const TfMesh a = tfMeshFromLayer(doc.mesh(aIndex));
         const TfMesh b = tfMeshFromLayer(doc.mesh(bIndex));
-        auto curves = tf::make_boolean(
-            a.polygons(), b.polygons(), tf::boolean_op::intersection, tf::return_curves);
+        auto curves = tf::make_intersection_curves(a.polygons(), b.polygons());
         return addPolylineLayer(
-            doc, curvesOf(curves), QObject::tr("Intersection Curve"),
+            doc, curves, QObject::tr("Intersection Curve"),
             QObject::tr("The two layers do not intersect."),
             { QObject::tr("'%1' against '%2'.")
                   .arg(doc.mesh(aIndex).name, doc.mesh(bIndex).name) });
@@ -1053,13 +1043,12 @@ MeshFilterRunResult runIsocurves(const FilterParams &params, Document &doc)
     doc.beginFilterProgress(QObject::tr("Create Polyline from Scalar Isocontour (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
-        auto curves = tf::embedded_isocurves(
+        auto curves = tf::make_isocontours(
             source.polygons(),
             tf::make_range(scalars.data(), scalars.size()),
-            tf::make_range(cutValues.data(), cutValues.size()),
-            tf::return_curves);
+            tf::make_range(cutValues.data(), cutValues.size()));
         return addPolylineLayer(
-            doc, curvesOf(curves), QObject::tr("Isocontours"),
+            doc, curves, QObject::tr("Isocontours"),
             QObject::tr("No contours were produced at the requested values."),
             { QObject::tr("From '%1'.").arg(doc.mesh(index).name),
               QObject::tr("%1 contour(s) between %2 and %3.")
