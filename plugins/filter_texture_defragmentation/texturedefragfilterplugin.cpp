@@ -175,7 +175,10 @@ int packChartsWithAlgorithm(const std::vector<ChartHandle> &charts,
         // the run -- it multiplies the packing work by five times the number of similarly
         // sized charts -- so here it is the user's call.
         par.permutations = permutations;
-        par.rotationNum = rotationNum;
+        // The packer rasterizes rotationNum/4 base orientations and derives four slots
+        // from each, so anything that is not a multiple of four leaves slots unwritten.
+        // Round to the nearest usable count rather than handing it a value it cannot use.
+        par.rotationNum = std::max(4, ((rotationNum + 2) / 4) * 4);
         par.gutterWidth = gutterWidth;
         par.minmax = false;
         par.randomSeed = randomSeed;

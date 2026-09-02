@@ -352,7 +352,7 @@
           "default": 4,
           "min": 1,
           "max": 64,
-          "help": "How many orientations each chart is tried at. Rasterized packers only."
+          "help": "How many orientations each chart is tried at, rounded to the nearest multiple of four -- the packer derives four slots from every base rasterization, so only multiples of four are usable. Rasterized packers only."
         },
         {
           "id": "permutations",

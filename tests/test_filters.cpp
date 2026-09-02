@@ -254,6 +254,7 @@ private slots:
     void textureIslandMergeCanSkipResampling();
     void packUvChartsRunsEveryAlgorithm();
     void packUvChartsWorksWithoutATexture();
+    void packUvChartsSurvivesAnyRotationCount();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
 };
 
@@ -4751,6 +4752,51 @@ void FilterTests::layerFiltersRunFromTheContextMenuAreTheParameterlessOnes()
     };
     expected.sort();
     QCOMPARE(immediate, expected);
+}
+
+// The rasterizing packer builds rotationNum/4 base rasterizations and derives four slots
+// from each, but sizes its arrays to rotationNum -- so 6 left slots 4 and 5 resized and
+// never written, and searching them threw std::out_of_range. Any count must be safe.
+void FilterTests::packUvChartsSurvivesAnyRotationCount()
+{
+    for (int rotations : {1, 2, 3, 4, 5, 6, 7, 9, 16}) {
+        constexpr int kSide = 4;
+        VCGMesh grid;
+        vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
+        for (int j = 0; j < kSide; ++j)
+            for (int i = 0; i < kSide; ++i)
+                grid.vert[std::size_t(j * kSide + i)].P() =
+                    vcg::Point3f(float(i), float(j), 0.0f);
+        for (int j = 0; j < kSide - 1; ++j) {
+            for (int i = 0; i < kSide - 1; ++i) {
+                const int a = j * kSide + i;
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + 1, a + kSide + 1);
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + kSide + 1, a + kSide);
+            }
+        }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+
+        Document doc;
+        const int meshIndex = doc.addMesh(grid, QStringLiteral("Grid"),
+                                          vcg::tri::io::Mask::IOM_VERTCOORD);
+        doc.setCurrentMeshIndex(meshIndex);
+        MeshFilterParameterValues uvParams;
+        uvParams.insert(QStringLiteral("textdim"), 128);
+        QVERIFY(doc.runFilter(
+            filterKeyForId(doc,
+                QStringLiteral("compute_texcoord_parametrization_triangle_trivial_per_wedge")),
+            uvParams).success);
+
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("algorithm"), QStringLiteral("rasterized_scaled"));
+        params.insert(QStringLiteral("textureSize"), 256);
+        params.insert(QStringLiteral("rotationNum"), rotations);
+        params.insert(QStringLiteral("resampleTextures"), false);
+        const MeshFilterRunResult r =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts")), params);
+        QVERIFY2(r.success,
+                 qPrintable(QStringLiteral("rotationNum %1: %2").arg(rotations).arg(r.errorMessage)));
+    }
 }
 
 void FilterTests::packUvChartsWorksWithoutATexture()
