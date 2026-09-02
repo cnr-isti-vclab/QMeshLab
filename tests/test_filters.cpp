@@ -255,6 +255,7 @@ private slots:
     void packUvChartsRunsEveryAlgorithm();
     void packUvChartsWorksWithoutATexture();
     void packUvChartsSurvivesAnyRotationCount();
+    void selfIntersectionCurvesFindTheCrossing();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
 };
 
@@ -4757,6 +4758,49 @@ void FilterTests::layerFiltersRunFromTheContextMenuAreTheParameterlessOnes()
 // The rasterizing packer builds rotationNum/4 base rasterizations and derives four slots
 // from each, but sizes its arrays to rotationNum -- so 6 left slots 4 and 5 resized and
 // never written, and searching them threw std::out_of_range. Any count must be safe.
+// The one entry point the TrueForm v0.10.0 bump replaced: embedded_self_intersection_curves
+// became make_self_intersection_curves, which returns the curves rather than a tuple whose
+// last element is them. Nothing covered this filter before, so a silent empty result would
+// have gone unnoticed.
+void FilterTests::selfIntersectionCurvesFindTheCrossing()
+{
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 6);
+    // One triangle lying in z = 0...
+    mesh.vert[0].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    mesh.vert[1].P() = vcg::Point3f(2.0f, 0.0f, 0.0f);
+    mesh.vert[2].P() = vcg::Point3f(1.0f, 2.0f, 0.0f);
+    // ...and one standing in x = 1, passing straight through it.
+    mesh.vert[3].P() = vcg::Point3f(1.0f, 0.5f, -1.0f);
+    mesh.vert[4].P() = vcg::Point3f(1.0f, 0.5f,  1.0f);
+    mesh.vert[5].P() = vcg::Point3f(1.0f, 1.5f,  0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 3, 4, 5);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+
+    Document doc;
+    const int index = doc.addMesh(mesh, QStringLiteral("Crossing"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(index);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("generate_polyline_from_self_intersections"));
+    QVERIFY(!key.isEmpty());
+    const MeshFilterRunResult r = doc.runFilter(key, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), std::size_t(1));
+
+    // The curve is the segment where the standing triangle crosses z = 0, which runs
+    // along x = 1 from y = 0.5 to y = 1.5.
+    const VCGMesh &curve = doc.mesh(r.newMeshIndices.front()).mesh;
+    QVERIFY2(curve.EN() > 0, "the self-intersection curve came back empty");
+    for (const auto &v : curve.vert) {
+        if (v.IsD()) continue;
+        QVERIFY2(std::abs(v.cP().X() - 1.0f) < 1e-3f,
+                 qPrintable(QStringLiteral("curve point off the crossing plane: x = %1").arg(v.cP().X())));
+        QVERIFY(std::abs(v.cP().Z()) < 1e-3f);
+    }
+}
+
 void FilterTests::packUvChartsSurvivesAnyRotationCount()
 {
     for (int rotations : {1, 2, 3, 4, 5, 6, 7, 9, 16}) {

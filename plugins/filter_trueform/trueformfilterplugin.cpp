@@ -951,9 +951,12 @@ MeshFilterRunResult runSelfIntersectionCurves(const FilterParams &params, Docume
     doc.beginFilterProgress(QObject::tr("Create Polyline from Self-Intersections (TrueForm)"));
     try {
         const TfMesh source = tfMeshFromLayer(doc.mesh(index));
-        auto curves = tf::embedded_self_intersection_curves(source.polygons(), tf::return_curves);
+        // v0.10.0 replaced embedded_self_intersection_curves with this, which returns the
+        // curves themselves rather than a tuple ending in them -- hence no curvesOf. The
+        // default config is the same primitives | resolve_contours the old entry point used.
+        auto curves = tf::make_self_intersection_curves(source.polygons());
         return addPolylineLayer(
-            doc, curvesOf(curves), QObject::tr("Self-Intersections"),
+            doc, curves, QObject::tr("Self-Intersections"),
             QObject::tr("No self-intersections were found."),
             { QObject::tr("From '%1'.").arg(doc.mesh(index).name) });
     } catch (const std::exception &e) {

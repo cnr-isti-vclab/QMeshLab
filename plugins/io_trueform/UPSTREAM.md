@@ -9,6 +9,24 @@ git -C external/trueform fetch
 git -C external/trueform checkout <reviewed-commit>
 ```
 
+Currently pinned at **v0.10.0** (2026-09-01, from v0.9.17). That release is
+breaking: the `cut` module was removed outright, with no compatibility shim, and
+its ground redistributed to `arrangement`, `iso` and `csg`. It cost QMeshLab one
+call site, because both plugins include the umbrella `<trueform/trueform.hpp>`,
+which re-exports the new modules — the header moves are invisible from here, and
+only a removed *entry point* breaks the build. Read the release notes' "Module
+map" and "Removed entry points" tables before the next bump; that is where an
+upgrade's real cost is stated.
+
+Two things changed under us that the compiler cannot catch, and neither is
+covered by a test:
+
+- **An open boolean operand is now a volume unless declared a sheet.** The
+  boolean filters pass closed meshes in the covered cases, so nothing moved, but
+  an open operand behaves differently from v0.9.17.
+- **Tolerance is now the pitch the input's planes are quantized to.** A wall
+  doubled at less than the pitch becomes one wall.
+
 ## Licensing and permission
 
 TrueForm is dual-licensed under the PolyForm Noncommercial License 1.0.0 or a
