@@ -112,7 +112,7 @@ validates against; this table mirrors it and must be updated together with it.
 | `Creation` | `Primitives` · `Reconstruction` · `Sampling` | Produces a new layer |
 | `Parametrization` | `UV Creation` · `UV Conversion` · `Atlas Packing` · `Defragmentation` | Creates or edits texture coordinates and atlas layout |
 | `Texture` | `Assignment` · `Conversion` · `Packing` | Creates or edits texture images |
-| `Transfer` | `Mesh to Mesh` · `Raster to Mesh` · `Attribute to Texture` | Moves data between existing domains, layers or rasters |
+| `Transfer` | `Within a Mesh` · `Between Layers` · `From Rasters` | Moves an attribute to another element, layer or raster. The subcategory names what supplies the correspondence: a mesh's own incidence, a computed match between two layers, or a raster's camera |
 | `Measurement` | `Geometric` · `Topological` · `Statistics` | Reports values; does **not** modify the document |
 | `Document` | `Layer` · `Camera` · `Render` | Document structure and view state |
 
@@ -233,7 +233,7 @@ All three shape questions raised during review are now settled: `Repair` is a ro
 | `Quality` | 7 | `Attribute/Scalar` |
 | `Quality/Embree` | 3 | `Attribute/Scalar` — backend dropped |
 | `Quality/Geodesic` | 4 | `Attribute/Scalar` — backend dropped |
-| `Raster` | 5 | `Transfer/Raster to Mesh` (color projection) · `Attribute/Scalar` (coverage count) |
+| `Raster` | 5 | `Transfer/From Rasters` (color projection) · `Attribute/Scalar` (coverage count) |
 | `Remeshing` | 8 | `Meshing/Remeshing` |
 | `Remeshing, Smoothing and Resampling` | 2 | `Creation/Reconstruction` · `Meshing/Simplification` |
 | `Remeshing/Surface Reconstruction` | 3 | `Creation/Reconstruction` |
@@ -241,7 +241,7 @@ All three shape questions raised during review are now settled: `Repair` is a ro
 | `Selection` | 27 | `Selection/*` by criterion |
 | `Selection/Embree` | 1 | `Selection/by Visibility` — backend dropped |
 | `Smoothing` | 16 | `Geometry/Smoothing` |
-| `Texture` | 16 | *split* — `Parametrization/UV Creation` (Voronoi Atlas, Flat Plane, Trivial Per-Triangle) · `Parametrization/UV Conversion` (PerWedge↔PerVertex) · `Parametrization/Defragmentation` (+`Texture` secondary) · `Texture/Assignment` (Set Texture) · `Texture/Conversion` (normal-map) · `Texture/Packing` (Pack Texture Images) · `Transfer/Attribute to Texture` (the three Transfer filters) |
+| `Texture` | 16 | *split* — `Parametrization/UV Creation` (Voronoi Atlas, Flat Plane, Trivial Per-Triangle) · `Parametrization/UV Conversion` (PerWedge↔PerVertex) · `Parametrization/Defragmentation` (+`Texture` secondary) · `Texture/Assignment` (Set Texture) · `Texture/Conversion` (normal-map) · `Texture/Packing` (Pack Texture Images) · `Transfer/Between Layers` (the three Transfer filters) |
 
 Notable corrections this surfaces:
 
@@ -258,8 +258,8 @@ Notable corrections this surfaces:
 Filters that now legitimately carry **more than one** category include *Simplification:
 QEC (with texture)* → `Meshing/Simplification` + `Texture`; *Parameterization +
 texturing from registered rasters* → `Parametrization/UV Creation` +
-`Texture/Assignment` + `Transfer/Raster to Mesh`; *Transfer Vertex Color to Texture* →
-`Transfer/Attribute to Texture` + `Attribute/Color`.
+`Texture/Assignment` + `Transfer/From Rasters`; *Transfer Vertex Color to Texture* →
+`Transfer/Between Layers` + `Attribute/Color`.
 
 ### Categories, and what should never be hand-tagged
 

@@ -95,9 +95,9 @@ filters carried more than one.
 | `Texture/Assignment` | 1 | 1 |
 | `Texture/Conversion` | 1 | 1 |
 | `Texture/Packing` | 1 | 1 |
-| `Transfer/Attribute to Texture` | 3 | 3 |
-| `Transfer/Mesh to Mesh` | 7 | 7 |
-| `Transfer/Raster to Mesh` | 0 | 4 |
+| `Transfer/Between Layers` | 3 | 3 |
+| `Transfer/Within a Mesh` | 7 | 7 |
+| `Transfer/From Rasters` | 0 | 4 |
 
 **In the pre-migration descriptors, 47 filters were mis-filed**: their applied
 category moved them to a different root from the one implied by their old `menuPath`.
@@ -157,12 +157,12 @@ That was the main finding of this pass.
 | Set Mesh Color | `colorproc` | `Attribute/Color` |  |
 | Smooth Face Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
 | Smooth Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
-| Transfer Color: Face to Vertex | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
-| Transfer Color: Mesh to Face | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
-| Transfer Color: Texture to Vertex | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
-| Transfer Color: Vertex to Face | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
-| Transfer Quality: Face to Vertex | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Scalar` | **mis-filed** - it is a Transfer <sub>touches: scalar</sub> |
-| Transfer Quality: Vertex to Face | `colorproc` | `Transfer/Mesh to Mesh` · `Attribute/Scalar` | **mis-filed** - it is a Transfer <sub>touches: scalar</sub> |
+| Transfer Color from Face to Vertex | `colorproc` | `Transfer/Within a Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
+| Transfer Color from Mesh to Face | `colorproc` | `Transfer/Within a Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
+| Transfer Color from Texture to Vertex | `colorproc` | `Transfer/Within a Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
+| Transfer Color from Vertex to Face | `colorproc` | `Transfer/Within a Mesh` · `Attribute/Color` | **mis-filed** - it is a Transfer <sub>touches: color</sub> |
+| Transfer Scalar from Face to Vertex | `colorproc` | `Transfer/Within a Mesh` · `Attribute/Scalar` | **mis-filed** - it is a Transfer <sub>touches: scalar</sub> |
+| Transfer Scalar from Vertex to Face | `colorproc` | `Transfer/Within a Mesh` · `Attribute/Scalar` | **mis-filed** - it is a Transfer <sub>touches: scalar</sub> |
 | Tint Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
 | Desaturate Vertex Color | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
 | Adjust Vertex Color Levels | `colorproc` | `Attribute/Color` | <sub>touches: color</sub> |
@@ -365,8 +365,8 @@ That was the main finding of this pass.
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Parametrize from Registered Rasters with Texture | `img_patch_param` | `Parametrization/UV Creation` · `Texture` · `Transfer/Raster to Mesh` | <sub>touches: texture, uv</sub> |
-| Parametrize from Registered Rasters | `img_patch_param` | `Parametrization/UV Creation` · `Transfer/Raster to Mesh` | <sub>touches: uv</sub> |
+| Parametrize from Registered Rasters with Texture | `img_patch_param` | `Parametrization/UV Creation` · `Texture` · `Transfer/From Rasters` | <sub>touches: texture, uv</sub> |
+| Parametrize from Registered Rasters | `img_patch_param` | `Parametrization/UV Creation` · `Transfer/From Rasters` | <sub>touches: uv</sub> |
 
 ### `Quality` (7)
 
@@ -401,11 +401,11 @@ That was the main finding of this pass.
 
 | Filter | Plugin | Applied categories | Note |
 |---|---|---|---|
-| Project Active Rasters Color to Current Mesh | `color_projection` | `Transfer/Raster to Mesh` · `Attribute/Color` | <sub>touches: color</sub> |
-| Project Active Rasters Color to Current Mesh Texture | `color_projection` | `Transfer/Raster to Mesh` · `Texture` | <sub>touches: uv</sub> |
-| Project Current Raster Color to Current Mesh | `color_projection` | `Transfer/Raster to Mesh` · `Attribute/Color` | <sub>touches: color</sub> |
-| Compute Face Scalar from Raster Coverage | `img_patch_param` | `Attribute/Scalar` · `Transfer/Raster to Mesh` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
-| Compute Vertex Scalar from Raster Coverage | `img_patch_param` | `Attribute/Scalar` · `Transfer/Raster to Mesh` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
+| Transfer Color from Visible Rasters to Vertex | `color_projection` | `Transfer/From Rasters` · `Attribute/Color` | <sub>touches: color</sub> |
+| Transfer Color from Visible Rasters to Texture | `color_projection` | `Transfer/From Rasters` · `Texture` | <sub>touches: uv</sub> |
+| Transfer Color from Current Raster to Vertex | `color_projection` | `Transfer/From Rasters` · `Attribute/Color` | <sub>touches: color</sub> |
+| Compute Face Scalar from Raster Coverage | `img_patch_param` | `Attribute/Scalar` · `Transfer/From Rasters` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
+| Compute Vertex Scalar from Raster Coverage | `img_patch_param` | `Attribute/Scalar` · `Transfer/From Rasters` | **mis-filed** as `Raster` <sub>touches: scalar</sub> |
 
 ### `Remeshing` (8)
 
@@ -451,7 +451,7 @@ That was the main finding of this pass.
 | Sample Surface by Stratified Triangles | `sampling` | `Creation/Sampling` |  |
 | Sample Texels | `sampling` | `Creation/Sampling` |  |
 | Uniform Mesh Resampling | `sampling` | `Meshing/Remeshing` | **mis-filed** as Sampling |
-| Vertex Attribute Transfer | `sampling` | `Transfer/Mesh to Mesh` | **mis-filed** as Sampling <sub>touches: color, scalar, selection</sub> |
+| Transfer Vertex Attributes by Closest Point | `sampling` | `Transfer/Within a Mesh` | **mis-filed** as Sampling <sub>touches: color, scalar, selection</sub> |
 | Sample Volume | `voronoi` | `Creation/Sampling` |  |
 | Sample Surface by Voronoi Relaxation | `voronoi` | `Creation/Sampling` | <sub>touches: color, scalar, selection</sub> |
 | Create Voronoi Scaffolding | `voronoi` | `Creation/Primitives` | builds a new structure |
@@ -533,6 +533,6 @@ That was the main finding of this pass.
 | Set Texture | `texture` | `Texture/Assignment` | <sub>touches: texture</sub> |
 | Merge Small Texture Islands | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
 | Defragment Texture Atlas | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
-| Transfer: Texture to Vertex Color | `texture` | `Transfer/Attribute to Texture` · `Attribute/Color` | <sub>touches: color</sub> |
-| Transfer: Vertex Attributes to Texture | `texture` | `Transfer/Attribute to Texture` · `Texture` | <sub>touches: texture</sub> |
-| Transfer: Vertex Color to Texture | `texture` | `Transfer/Attribute to Texture` · `Texture` | <sub>touches: texture</sub> |
+| Transfer Color from Texture to Vertex by Closest Point | `texture` | `Transfer/Between Layers` · `Attribute/Color` | <sub>touches: color</sub> |
+| Transfer Vertex Attributes to Texture by Closest Point | `texture` | `Transfer/Between Layers` · `Texture` | <sub>touches: texture</sub> |
+| Transfer Color from Vertex to Texture | `texture` | `Transfer/Between Layers` · `Texture` | <sub>touches: texture</sub> |

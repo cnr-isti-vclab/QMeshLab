@@ -336,8 +336,8 @@
     },
     {
       "id": "compute_texmap_from_color",
-      "categories": ["Transfer/Attribute to Texture", "Texture"],
-      "name": "Transfer: Vertex Color to Texture",
+      "categories": ["Transfer/Within a Mesh", "Texture"],
+      "name": "Transfer Color from Vertex to Texture",
       "pythonName": "transfer_vertex_color_to_texture",
       "shortDescription": "Bake per-vertex color into texture image(s) using the current UV parametrization.",
       "longDescriptionMarkdown": "Fills the specified texture using per-vertex color data of the mesh.",
@@ -415,8 +415,8 @@
     },
     {
       "id": "transfer_texture_to_color_per_vertex",
-      "categories": ["Transfer/Attribute to Texture", "Attribute/Color"],
-      "name": "Transfer: Texture to Vertex Color",
+      "categories": ["Transfer/Between Layers", "Attribute/Color"],
+      "name": "Transfer Color from Texture to Vertex by Closest Point",
       "pythonName": "transfer_texture_to_vertex_color",
       "shortDescription": "Generate vertex colors by sampling texture colors from the same mesh or another mesh.",
       "longDescriptionMarkdown": "Generates Vertex Color values picking color from a texture (same mesh or another mesh).",
@@ -481,8 +481,8 @@
     },
     {
       "id": "transfer_attributes_to_texture_per_vertex",
-      "categories": ["Transfer/Attribute to Texture", "Texture"],
-      "name": "Transfer: Vertex Attributes to Texture",
+      "categories": ["Transfer/Between Layers", "Texture"],
+      "name": "Transfer Vertex Attributes to Texture by Closest Point",
       "pythonName": "transfer_vertex_attributes_to_texture",
       "shortDescription": "Transfer texture color, vertex color, normals, or quality from one mesh into another mesh texture.",
       "longDescriptionMarkdown": "Transfer texture color, vertex color or normal from one mesh the texture of another mesh. This may be useful to restore detail lost in simplification, or resample a texture in a different parametrization.",

@@ -1302,3 +1302,90 @@ All settled (2026-09-01).
 `Measurement` was added to `appliedRoots`. Verified to discriminate: restoring
 *Current Mesh Info* fails the guard with
 `leading word 'Current' is not in the lexicon`.
+
+# Round 10 — `Transfer` (13 filters)
+
+**Applied 2026-09-01.** All 13 renamed, and the three subcategories renamed and
+remembered with them. Nine names carried the `Verb:` colon form the guard rejects
+outright, three led with `Project`, and one was a verbless noun phrase.
+
+Every name collapses onto one shape: **`Transfer <attribute> from <source> to <target>`**.
+
+## Transfer/From Rasters (3, was `Raster to Mesh`)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Project Current Raster Color to Current Mesh | **Transfer Color from Current Raster to Vertex** | `transfer_color_from_current_raster_to_vertex` |
+| Project Active Rasters Color to Current Mesh | **Transfer Color from Visible Rasters to Vertex** | `transfer_color_from_visible_rasters_to_vertex` |
+| Project Active Rasters Color to Current Mesh Texture | **Transfer Color from Visible Rasters to Texture** | `transfer_color_from_visible_rasters_to_texture` |
+
+No ruling was needed: §3 settles it outright — *"`Transfer`, not `Project`. `Project`
+described only the raster sub-case."* `Project` was later readmitted, but only for moving
+*vertices* onto geometry, and these move colour. "Active" → "Visible" follows the
+descriptions, which already said "all visible rasters".
+
+## Transfer/Within a Mesh (7, was `Mesh to Mesh`)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Transfer Color: Vertex to Face | **Transfer Color from Vertex to Face** | `transfer_color_from_vertex_to_face` |
+| Transfer Color: Mesh to Face | **Transfer Color from Mesh to Face** | `transfer_color_from_mesh_to_face` |
+| Transfer Color: Face to Vertex | **Transfer Color from Face to Vertex** | `transfer_color_from_face_to_vertex` |
+| Transfer Color: Texture to Vertex | **Transfer Color from Texture to Vertex** | `transfer_color_from_texture_to_vertex` |
+| Transfer Quality: Vertex to Face | **Transfer Scalar from Vertex to Face** | `transfer_scalar_from_vertex_to_face` |
+| Transfer Quality: Face to Vertex | **Transfer Scalar from Face to Vertex** | `transfer_scalar_from_face_to_vertex` |
+| Transfer: Vertex Color to Texture | **Transfer Color from Vertex to Texture** | `transfer_color_from_vertex_to_texture` |
+
+`Quality` → `Scalar` is §4; the ids already said `compute_scalar_transfer_…`, so only the
+label had lagged.
+
+## Transfer/Between Layers (3, was `Attribute to Texture`)
+
+| Current | Proposed | Python (pass 2) |
+|---|---|---|
+| Vertex Attribute Transfer | **Transfer Vertex Attributes by Closest Point** | `transfer_vertex_attributes_by_closest_point` |
+| Transfer: Texture to Vertex Color | **Transfer Color from Texture to Vertex by Closest Point** | `transfer_color_from_texture_to_vertex_by_closest_point` |
+| Transfer: Vertex Attributes to Texture | **Transfer Vertex Attributes to Texture by Closest Point** | `transfer_vertex_attributes_to_texture_by_closest_point` |
+
+## The subcategories now name what supplies the correspondence
+
+The old split mixed axes — `Mesh to Mesh` beside `Attribute to Texture` — and six of the
+seven filters under `Mesh to Mesh` never went mesh to mesh at all: they moved an attribute
+between elements of a *single* mesh. The distinction that actually matters is whether a
+correspondence has to be constructed:
+
+| Subcategory | What supplies the correspondence |
+|---|---|
+| `Within a Mesh` | The mesh's own incidence. A face already knows its vertices; nothing is chosen and nothing can be wrong |
+| `Between Layers` | A computed match between two layers — closest point on the source surface, bounded by `upperBound` |
+| `From Rasters` | The raster's camera |
+
+Membership follows the parameter signature, not the name: exactly three filters carry
+`sourceMesh`/`targetMesh`/`upperBound`, and those three are `Between Layers`. Two of them
+had been filed under `Attribute to Texture`, and *Transfer: Vertex Color to Texture* — same
+mesh, no source/target pair — had been filed with them; all three moved.
+
+`by Closest Point` names that mechanism on the three cross-layer filters. It is the
+standard term for what they do, it explains what `upperBound` bounds, and it avoids
+overloading `Project`, which §3 keeps for moving vertices onto geometry.
+
+"Domain" was considered and rejected for the subcategory names: §2 already rules that
+`inputDomain`/`outputDomain` mean *document scope*, so the word is spoken for. "Between
+Elements" fails too, because a texture is not one of §4's elements.
+
+## Rulings
+
+All settled (2026-09-01).
+
+1. ~~How to mark the cross-layer three?~~ **`by Closest Point`**, over `from Another
+   Layer`: less short, more true, and it names the mechanism rather than the arity.
+2. ~~`Mesh to Mesh` misdescribes its contents.~~ **Subcategories renamed** to
+   `Within a Mesh` / `Between Layers` / `From Rasters`, and three filters re-homed.
+   `Same Mesh` was the runner-up to `Within a Mesh`; the prepositional form pairs with
+   `Between Layers` as an inside/outside pair, which `Same Mesh` does not.
+
+## Enforcement
+
+`Transfer` was added to `appliedRoots`. Verified to discriminate: restoring
+*Vertex Attribute Transfer* fails the guard with
+`leading word 'Vertex' is not in the lexicon`.

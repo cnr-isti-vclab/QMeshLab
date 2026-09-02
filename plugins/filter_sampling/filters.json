@@ -678,8 +678,8 @@
     },
     {
       "id": "transfer_attributes_per_vertex",
-      "categories": ["Transfer/Mesh to Mesh"],
-      "name": "Vertex Attribute Transfer",
+      "categories": ["Transfer/Between Layers"],
+      "name": "Transfer Vertex Attributes by Closest Point",
       "pythonName": "transfer_vertex_attributes",
       "shortDescription": "Transfer attributes from one mesh to another by closest-point projection.",
       "longDescriptionMarkdown": "Transfer the chosen per-vertex attributes from one layer to another. Useful to transfer attributes to different representations of a same object.<br>For each vertex of the target mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the target vertex.<br>The algorithm assumes that the two meshes are reasonably similar and aligned.",

@@ -3,7 +3,7 @@
   "filters": [
     {
       "id": "compute_texcoord_parametrization_from_registered_rasters",
-      "categories": ["Parametrization/UV Creation", "Transfer/Raster to Mesh"],
+      "categories": ["Parametrization/UV Creation", "Transfer/From Rasters"],
       "name": "Parametrize from Registered Rasters",
       "pythonName": "compute_texcoord_parametrization_from_registered_rasters",
       "shortDescription": "The mesh is parameterized by creating some patches that correspond to projection of portions of surfaces onto the set of registered rasters.",
@@ -94,7 +94,7 @@
     },
     {
       "id": "compute_texcoord_parametrization_and_texture_from_registered_rasters",
-      "categories": ["Parametrization/UV Creation", "Texture", "Transfer/Raster to Mesh"],
+      "categories": ["Parametrization/UV Creation", "Texture", "Transfer/From Rasters"],
       "name": "Parametrize from Registered Rasters with Texture",
       "pythonName": "compute_texcoord_parametrization_and_texture_from_registered_rasters",
       "shortDescription": "The mesh is parameterized and textured by creating some patches that correspond to projection of portions of surfaces onto the set of registered rasters.",
@@ -228,7 +228,7 @@
     },
     {
       "id": "compute_scalar_from_raster_coverage_per_vertex",
-      "categories": ["Attribute/Scalar", "Transfer/Raster to Mesh"],
+      "categories": ["Attribute/Scalar", "Transfer/From Rasters"],
       "name": "Compute Vertex Scalar from Raster Coverage",
       "pythonName": "compute_scalar_from_raster_coverage_per_vertex",
       "shortDescription": "Compute a quality value representing the number of images into which each vertex of the active mesh is visible.",
@@ -264,7 +264,7 @@
     },
     {
       "id": "compute_scalar_from_raster_coverage_per_face",
-      "categories": ["Attribute/Scalar", "Transfer/Raster to Mesh"],
+      "categories": ["Attribute/Scalar", "Transfer/From Rasters"],
       "name": "Compute Face Scalar from Raster Coverage",
       "pythonName": "compute_scalar_from_raster_coverage_per_face",
       "shortDescription": "Compute a quality value representing the number of images into which each face of the active mesh is visible.",
