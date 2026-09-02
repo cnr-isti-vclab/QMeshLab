@@ -161,6 +161,146 @@ void makeIcpPointCloud(VCGMesh &mesh)
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
 }
 
+void makeScalarStripMesh(VCGMesh &mesh, int columns)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 2 * (columns + 1));
+    for (int i = 0; i <= columns; ++i) {
+        mesh.vert[std::size_t(2 * i)].P() = vcg::Point3f(float(i), 0.0f, 0.0f);
+        mesh.vert[std::size_t(2 * i + 1)].P() = vcg::Point3f(float(i), 1.0f, 0.0f);
+    }
+    for (int i = 0; i < columns; ++i) {
+        const int a = 2 * i;
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, a, a + 2, a + 3);
+        vcg::tri::Allocator<VCGMesh>::AddFace(mesh, a, a + 3, a + 1);
+    }
+    // The scalar is the X coordinate itself, so the contour at value v is the line x = v.
+    for (VCGVertex &v : mesh.vert)
+        v.Q() = v.cP().X();
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
+void makeNonManifoldFanMesh(VCGMesh &mesh)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 5);
+    mesh.vert[0].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    mesh.vert[1].P() = vcg::Point3f(1.0f, 0.0f, 0.0f);
+    mesh.vert[2].P() = vcg::Point3f(0.5f, 1.0f, 0.0f);
+    mesh.vert[3].P() = vcg::Point3f(0.5f, 0.0f, 1.0f);
+    mesh.vert[4].P() = vcg::Point3f(0.5f, -1.0f, 0.0f);
+
+    // Three fins on the edge 0-1, which three faces therefore share.
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 3);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 4);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
+void addPolylineSegment(VCGMesh &mesh, int firstVertex, int secondVertex)
+{
+    auto edge = vcg::tri::Allocator<VCGMesh>::AddEdges(mesh, 1);
+    edge->V(0) = &mesh.vert[std::size_t(firstVertex)];
+    edge->V(1) = &mesh.vert[std::size_t(secondVertex)];
+}
+
+double polylineLength(const VCGMesh &mesh)
+{
+    double total = 0.0;
+    for (const VCGEdge &e : mesh.edge) {
+        if (e.IsD())
+            continue;
+        total += double((e.cV(1)->cP() - e.cV(0)->cP()).Norm());
+    }
+    return total;
+}
+
+int polylinePathCount(const VCGMesh &mesh)
+{
+    const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
+    if (!base)
+        return 0;
+
+    std::vector<std::vector<int>> neighbours(mesh.vert.size());
+    for (const VCGEdge &e : mesh.edge) {
+        if (e.IsD())
+            continue;
+        const int first = int(e.cV(0) - base);
+        const int second = int(e.cV(1) - base);
+        neighbours[std::size_t(first)].push_back(second);
+        neighbours[std::size_t(second)].push_back(first);
+    }
+
+    std::vector<bool> reached(mesh.vert.size(), false);
+    std::vector<int> pending;
+    int paths = 0;
+    for (std::size_t start = 0; start < neighbours.size(); ++start) {
+        if (reached[start] || neighbours[start].empty())
+            continue;
+        ++paths;
+        reached[start] = true;
+        pending.push_back(int(start));
+        while (!pending.empty()) {
+            const int at = pending.back();
+            pending.pop_back();
+            for (int next : neighbours[std::size_t(at)]) {
+                if (!reached[std::size_t(next)]) {
+                    reached[std::size_t(next)] = true;
+                    pending.push_back(next);
+                }
+            }
+        }
+    }
+    return paths;
+}
+
+// Vertices carrying a single edge: a closed curve has none, an open one has two ends.
+int polylineLooseEndCount(const VCGMesh &mesh)
+{
+    std::vector<int> valence(mesh.vert.size(), 0);
+    const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
+    for (const VCGEdge &e : mesh.edge) {
+        if (e.IsD() || !base)
+            continue;
+        ++valence[std::size_t(e.cV(0) - base)];
+        ++valence[std::size_t(e.cV(1) - base)];
+    }
+
+    int ends = 0;
+    for (int n : valence) {
+        if (n == 1)
+            ++ends;
+    }
+    return ends;
+}
+
+// Every live vertex sits at one of the given X coordinates, and none of them is unused.
+// The strip's scalar is its own X coordinate, so a contour at value v is the line x = v
+// and this is the whole statement about where the isocontour filters put their answers.
+bool verticesLieAtXValues(const VCGMesh &mesh, const std::vector<double> &values)
+{
+    std::vector<int> seen(values.size(), 0);
+    for (const VCGVertex &v : mesh.vert) {
+        if (v.IsD())
+            continue;
+        int match = -1;
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            if (std::abs(double(v.cP().X()) - values[i]) < 1e-4)
+                match = int(i);
+        }
+        if (match < 0)
+            return false;
+        ++seen[std::size_t(match)];
+    }
+    for (int count : seen) {
+        if (count == 0)
+            return false;
+    }
+    return true;
+}
+
 bool matrixNear(const QMatrix4x4 &a, const QMatrix4x4 &b, float eps = 1e-3f)
 {
     for (int row = 0; row < 4; ++row)
@@ -219,6 +359,15 @@ private slots:
     void trueFormOrientationAndEdgeSelection();
     void trueFormRepairAndIsobands();
     void trueFormImproveTriangulationRaisesQuality();
+    void trueFormIsocontoursLandOnTheRequestedValues();
+    void trueFormIsobandCutSplitsOnlyAlongTheContours();
+    void trueFormIntersectionCurveTracesTheCrossingLoop();
+    void trueFormTubesSweepTheWholePolyline();
+    void trueFormSignedDistanceReportsExactMagnitudes();
+    void trueFormContainmentSelectionModesCompose();
+    void trueFormChamferDistanceMeasuresAKnownOffset();
+    void trueFormNonManifoldSelectionFindsTheSharedEdge();
+    void trueFormShellAndRepairOfOverlappingCubes();
     void voronoiAtlasHandlesCoarseMeshes();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
@@ -2791,6 +2940,541 @@ void FilterTests::trueFormImproveTriangulationRaisesQuality()
     QVERIFY2(worstAngle(after) > before,
              qPrintable(QStringLiteral("worst angle %1 -> %2, no improvement")
                             .arg(before).arg(worstAngle(after))));
+}
+
+// A strip carrying its own X coordinate as the vertex scalar: the contour at value v is
+// then the straight line x = v, one unit long, so both where the polyline lies and how
+// much of it there is can be stated exactly. The filter chooses the contour values
+// itself, spaced strictly inside the range, which is the part a caller cannot see.
+void FilterTests::trueFormIsocontoursLandOnTheRequestedValues()
+{
+    Document doc;
+    const QString key =
+        filterKeyForId(doc, QStringLiteral("generate_polyline_from_scalar_isocontour"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh strip;
+    makeScalarStripMesh(strip, 4);
+    const int index = doc.addMesh(strip, QStringLiteral("Strip"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD
+                                      | vcg::tri::io::Mask::IOM_VERTQUALITY);
+
+    // Four contours over the observed range of 0 to 4: at a fifth, two fifths, and so on.
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), index);
+        p.insert(QStringLiteral("contourCount"), 4);
+        const MeshFilterRunResult r = doc.runFilter(key, p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QCOMPARE(r.newMeshIndices.size(), std::size_t(1));
+
+        const VCGMesh &curve = doc.mesh(r.newMeshIndices.front()).mesh;
+        QCOMPARE(curve.FN(), 0); // a polyline, not a surface
+        QVERIFY2(verticesLieAtXValues(curve, { 0.8, 1.6, 2.4, 3.2 }),
+                 "the contours are not on the four requested values");
+        QVERIFY2(std::abs(polylineLength(curve) - 4.0) < 1e-3,
+                 qPrintable(QStringLiteral("contour length %1, expected 4")
+                                .arg(polylineLength(curve))));
+        // Four separate contours, each crossing the strip from one border to the other.
+        QCOMPARE(polylinePathCount(curve), 4);
+        QCOMPARE(polylineLooseEndCount(curve), 8);
+    }
+
+    // A stated range narrower than the field: two contours, at 1.5 and 2.5.
+    {
+        // The run before left its own polyline layer current, and applicability is
+        // decided on the current layer, which has no faces.
+        doc.setCurrentMeshIndex(index);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), index);
+        p.insert(QStringLiteral("contourCount"), 2);
+        p.insert(QStringLiteral("useCustomRange"), true);
+        p.insert(QStringLiteral("minValue"), 0.5);
+        p.insert(QStringLiteral("maxValue"), 3.5);
+        const MeshFilterRunResult r = doc.runFilter(key, p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+        const VCGMesh &curve = doc.mesh(r.newMeshIndices.front()).mesh;
+        QVERIFY2(verticesLieAtXValues(curve, { 1.5, 2.5 }),
+                 "the custom range moved the contours somewhere else");
+        QVERIFY2(std::abs(polylineLength(curve) - 2.0) < 1e-3,
+                 qPrintable(QStringLiteral("contour length %1, expected 2")
+                                .arg(polylineLength(curve))));
+        QCOMPARE(polylinePathCount(curve), 2);
+    }
+
+    // A field whose level sets close: distance from the centre of a disk. The one contour
+    // crosses the four spokes halfway along, so it is a closed square of side one half.
+    {
+        VCGMesh disk;
+        makeOpenDiskMesh(disk);
+        const vcg::Point3f centre = disk.bbox.Center();
+        for (VCGVertex &v : disk.vert)
+            v.Q() = (v.cP() - centre).Norm();
+        const int radial = doc.addMesh(disk, QStringLiteral("Disk"),
+                                       vcg::tri::io::Mask::IOM_VERTCOORD
+                                           | vcg::tri::io::Mask::IOM_VERTQUALITY);
+
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), radial);
+        p.insert(QStringLiteral("contourCount"), 1);
+        const MeshFilterRunResult r = doc.runFilter(key, p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+        const VCGMesh &curve = doc.mesh(r.newMeshIndices.front()).mesh;
+        QCOMPARE(polylinePathCount(curve), 1);
+        QVERIFY2(polylineLooseEndCount(curve) == 0, "the ring did not close");
+        QVERIFY2(std::abs(polylineLength(curve) - 2.0) < 1e-3,
+                 qPrintable(QStringLiteral("ring length %1, expected 2")
+                                .arg(polylineLength(curve))));
+        // Half the corner distance, since the corners are the only vertices off zero.
+        const double radius = 0.5 * double((disk.vert[0].cP() - centre).Norm());
+        for (const VCGVertex &v : curve.vert) {
+            if (v.IsD())
+                continue;
+            QVERIFY(std::abs(double((v.cP() - centre).Norm()) - radius) < 1e-4);
+        }
+    }
+
+    // An inverted range is a user error, and must be reported rather than guessed at.
+    {
+        doc.setCurrentMeshIndex(index);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), index);
+        p.insert(QStringLiteral("useCustomRange"), true);
+        p.insert(QStringLiteral("minValue"), 3.0);
+        p.insert(QStringLiteral("maxValue"), 1.0);
+        QVERIFY(!doc.runFilter(key, p).success);
+    }
+}
+
+// Cutting along the same field, on the same strip. Splitting a surface along a contour
+// cannot alter the surface, so the area is an exact invariant, and every vertex of the
+// result is either one of the originals or a point on one of the four contours.
+void FilterTests::trueFormIsobandCutSplitsOnlyAlongTheContours()
+{
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("cut_along_scalar_isocontour"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh strip;
+    makeScalarStripMesh(strip, 4);
+    const int index = doc.addMesh(strip, QStringLiteral("Strip"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD
+                                      | vcg::tri::io::Mask::IOM_VERTQUALITY);
+
+    const auto areaOf = [](const VCGMesh &m) {
+        return double(vcg::tri::Stat<VCGMesh>::ComputeMeshArea(m));
+    };
+    QVERIFY(std::abs(areaOf(doc.mesh(index).mesh) - 4.0) < 1e-4);
+    const int before = doc.mesh(index).mesh.FN();
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), index);
+    p.insert(QStringLiteral("contourCount"), 4);
+    const MeshFilterRunResult r = doc.runFilter(key, p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), std::size_t(1));
+
+    const VCGMesh &cut = doc.mesh(r.newMeshIndices.front()).mesh;
+    QVERIFY2(cut.FN() > before, "cutting should have added faces");
+    QVERIFY2(std::abs(areaOf(cut) - 4.0) < 1e-3,
+             qPrintable(QStringLiteral("cut area %1, expected 4").arg(areaOf(cut))));
+    QVERIFY2(verticesLieAtXValues(
+                 cut, { 0.0, 1.0, 2.0, 3.0, 4.0, 0.8, 1.6, 2.4, 3.2 }),
+             "the cut introduced a vertex that is neither an original nor on a contour");
+}
+
+// A bar driven through one face of a cube. The two surfaces meet in a single square
+// loop lying in that face, whose side is the bar's cross-section, so the curve's
+// position and its total length are both exact: a curve that wandered, doubled back or
+// came back partial could not satisfy either.
+void FilterTests::trueFormIntersectionCurveTracesTheCrossingLoop()
+{
+    Document doc;
+    const QString key =
+        filterKeyForId(doc, QStringLiteral("generate_polyline_from_mesh_intersection"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int solid = doc.addMesh(cube, QStringLiteral("Cube"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    const int bar = doc.addMesh(cube, QStringLiteral("Bar"),
+                                vcg::tri::io::Mask::IOM_VERTCOORD);
+
+    // Half a side across in X and half as wide in Y and Z: the bar leaves the cube
+    // through the x = 1 face alone, well clear of its edges.
+    QMatrix4x4 place;
+    place.translate(0.5f, 0.25f, 0.25f);
+    place.scale(1.0f, 0.5f, 0.5f);
+    doc.setMeshTransform(bar, place);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("firstMesh"), solid);
+    p.insert(QStringLiteral("secondMesh"), bar);
+    const MeshFilterRunResult r = doc.runFilter(key, p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), std::size_t(1));
+
+    const VCGMesh &curve = doc.mesh(r.newMeshIndices.front()).mesh;
+    QCOMPARE(curve.FN(), 0);
+    QVERIFY(curve.EN() > 0);
+    QVERIFY2(verticesLieAtXValues(curve, { 1.0 }),
+             "the crossing loop does not lie in the x = 1 face");
+    // One loop, and it closes: a seam that came back in pieces would not.
+    QCOMPARE(polylinePathCount(curve), 1);
+    QVERIFY2(polylineLooseEndCount(curve) == 0, "the crossing loop did not close");
+    // The bar's cross-section is half a side square, so the loop is four halves long.
+    QVERIFY2(std::abs(polylineLength(curve) - 2.0) < 1e-3,
+             qPrintable(QStringLiteral("loop length %1, expected 2")
+                            .arg(polylineLength(curve))));
+    QVERIFY(std::abs(curve.bbox.DimY() - 0.5f) < 1e-3f);
+    QVERIFY(std::abs(curve.bbox.DimZ() - 0.5f) < 1e-3f);
+}
+
+// The sweep that consumes the polyline family's output. Its input is an edge mesh whose
+// edges arrive in no particular order, so the filter chains them into paths itself; a
+// path of P points swept with S segments makes P rings of S vertices and 2 * S triangles
+// per step, which pins the chaining and the sweep together. A vertex where three edges
+// meet cannot be swept unambiguously, so the polyline is split there rather than
+// branched, and no segment is lost in the splitting.
+void FilterTests::trueFormTubesSweepTheWholePolyline()
+{
+    constexpr int kSegments = 12;
+    constexpr double kRadius = 0.1;
+
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("generate_tube_from_polyline"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh line;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(line, 4);
+    for (int i = 0; i < 4; ++i)
+        line.vert[std::size_t(i)].P() = vcg::Point3f(float(i), 0.0f, 0.0f);
+    // Deliberately out of order: the filter chains the edges, it does not read them off
+    // in the order the layer happens to hold them.
+    addPolylineSegment(line, 2, 3);
+    addPolylineSegment(line, 0, 1);
+    addPolylineSegment(line, 1, 2);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(line);
+    const int polyline = doc.addMesh(line, QStringLiteral("Polyline"),
+                                     vcg::tri::io::Mask::IOM_VERTCOORD
+                                         | vcg::tri::io::Mask::IOM_EDGEINDEX);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), polyline);
+    p.insert(QStringLiteral("radius"), kRadius);
+    p.insert(QStringLiteral("segments"), kSegments);
+    const MeshFilterRunResult r = doc.runFilter(key, p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(r.newMeshIndices.size(), std::size_t(1));
+    QVERIFY2(r.infoMessages.join(QStringLiteral(" ")).contains(QStringLiteral("Swept 1 path(s)")),
+             qPrintable(r.infoMessages.join(QStringLiteral("\n"))));
+
+    const VCGMesh &tube = doc.mesh(r.newMeshIndices.front()).mesh;
+    QCOMPARE(tube.VN(), 4 * kSegments);
+    QCOMPARE(tube.FN(), 3 * kSegments * 2);
+    // As long as the polyline, and as wide as the profile: the ring vertices sit on the
+    // radius and its edges cut the corners, so the width is just under the diameter.
+    QVERIFY(std::abs(tube.bbox.DimX() - 3.0f) < 1e-4f);
+    for (float width : { tube.bbox.DimY(), tube.bbox.DimZ() }) {
+        QVERIFY(width <= float(2.0 * kRadius) + 1e-4f);
+        QVERIFY(width > float(1.9 * kRadius));
+    }
+    const vcg::Point3f origin = tube.bbox.min;
+
+    // The layer matrix belongs to the sweep as well: the tube is world-space geometry.
+    // The sweep left its own solid current, and applicability is decided on the current
+    // layer, which has no edges.
+    doc.setCurrentMeshIndex(polyline);
+    QMatrix4x4 moved;
+    moved.translate(10.0f, 0.0f, 0.0f);
+    doc.setMeshTransform(polyline, moved);
+    const MeshFilterRunResult elsewhere = doc.runFilter(key, p);
+    QVERIFY2(elsewhere.success, qPrintable(elsewhere.errorMessage));
+    const VCGMesh &movedTube = doc.mesh(elsewhere.newMeshIndices.front()).mesh;
+    QCOMPARE(movedTube.FN(), tube.FN());
+    QVERIFY(std::abs(movedTube.bbox.min.X() - (origin.X() + 10.0f)) < 1e-3f);
+    QVERIFY(std::abs(movedTube.bbox.min.Y() - origin.Y()) < 1e-4f);
+
+    // Three edges meeting at one vertex: the junction is reported, and all three are
+    // still swept, however the polyline was divided at it.
+    VCGMesh junction;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(junction, 4);
+    junction.vert[0].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    junction.vert[1].P() = vcg::Point3f(-1.0f, 0.0f, 0.0f);
+    junction.vert[2].P() = vcg::Point3f(1.0f, 0.0f, 0.0f);
+    junction.vert[3].P() = vcg::Point3f(0.0f, 1.0f, 0.0f);
+    addPolylineSegment(junction, 0, 1);
+    addPolylineSegment(junction, 0, 2);
+    addPolylineSegment(junction, 0, 3);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(junction);
+    const int branched = doc.addMesh(junction, QStringLiteral("Junction"),
+                                     vcg::tri::io::Mask::IOM_VERTCOORD
+                                         | vcg::tri::io::Mask::IOM_EDGEINDEX);
+
+    MeshFilterParameterValues q;
+    q.insert(QStringLiteral("sourceMesh"), branched);
+    q.insert(QStringLiteral("radius"), kRadius);
+    q.insert(QStringLiteral("segments"), kSegments);
+    const MeshFilterRunResult swept = doc.runFilter(key, q);
+    QVERIFY2(swept.success, qPrintable(swept.errorMessage));
+    QVERIFY2(swept.infoMessages.join(QStringLiteral(" "))
+                 .contains(QStringLiteral("1 vertex junction(s)")),
+             qPrintable(swept.infoMessages.join(QStringLiteral("\n"))));
+    QCOMPARE(doc.mesh(swept.newMeshIndices.front()).mesh.FN(), 3 * kSegments * 2);
+}
+
+// Distances a reader can check by hand: the centre of a unit cube is half a side inside
+// it, and the two other probes are a whole side beyond a face. The existing coverage
+// only asks for the sign, which a filter reporting the wrong magnitude would still pass.
+void FilterTests::trueFormSignedDistanceReportsExactMagnitudes()
+{
+    Document doc;
+    const QString key =
+        filterKeyForId(doc, QStringLiteral("compute_scalar_by_signed_distance_per_vertex"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int reference = doc.addMesh(cube, QStringLiteral("Cube"),
+                                      vcg::tri::io::Mask::IOM_VERTCOORD);
+
+    VCGMesh probes;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(probes, 3);
+    probes.vert[0].P() = vcg::Point3f(0.5f, 0.5f, 0.5f);
+    probes.vert[1].P() = vcg::Point3f(2.0f, 0.5f, 0.5f);
+    probes.vert[2].P() = vcg::Point3f(0.5f, 0.5f, -1.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(probes, 0, 1, 2);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(probes);
+    const int source = doc.addMesh(probes, QStringLiteral("Probes"),
+                                   vcg::tri::io::Mask::IOM_VERTCOORD);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), source);
+    p.insert(QStringLiteral("referenceMesh"), reference);
+    const MeshFilterRunResult r = doc.runFilter(key, p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY2(r.infoMessages.join(QStringLiteral(" "))
+                 .contains(QStringLiteral("1 vertex(es) lie inside")),
+             qPrintable(r.infoMessages.join(QStringLiteral("\n"))));
+
+    const VCGMesh &measured = doc.mesh(source).mesh;
+    QVERIFY2(std::abs(measured.vert[0].cQ() + 0.5f) < 1e-4f,
+             qPrintable(QStringLiteral("centre reads %1, expected -0.5")
+                            .arg(measured.vert[0].cQ())));
+    QVERIFY(std::abs(measured.vert[1].cQ() - 1.0f) < 1e-4f);
+    QVERIFY(std::abs(measured.vert[2].cQ() - 1.0f) < 1e-4f);
+
+    // The unsigned field keeps the magnitudes and drops the sign.
+    p.insert(QStringLiteral("unsigned"), true);
+    QVERIFY2(doc.runFilter(key, p).success, "unsigned distance failed");
+    QVERIFY(std::abs(doc.mesh(source).mesh.vert[0].cQ() - 0.5f) < 1e-4f);
+    QVERIFY(std::abs(doc.mesh(source).mesh.vert[1].cQ() - 1.0f) < 1e-4f);
+}
+
+// The containment filter answers the same question as the distance, so the same probes
+// settle it, and it is the selection modes that need saying: replacing, inverting, and
+// then adding to and subtracting from a selection that is already there.
+void FilterTests::trueFormContainmentSelectionModesCompose()
+{
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("select_vertices_inside_mesh"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int reference = doc.addMesh(cube, QStringLiteral("Cube"),
+                                      vcg::tri::io::Mask::IOM_VERTCOORD);
+
+    VCGMesh probes;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(probes, 3);
+    probes.vert[0].P() = vcg::Point3f(0.5f, 0.5f, 0.5f);
+    probes.vert[1].P() = vcg::Point3f(2.0f, 0.5f, 0.5f);
+    probes.vert[2].P() = vcg::Point3f(0.5f, 0.5f, -1.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(probes, 0, 1, 2);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(probes);
+    const int source = doc.addMesh(probes, QStringLiteral("Probes"),
+                                   vcg::tri::io::Mask::IOM_VERTCOORD);
+
+    const auto selection = [&doc, source]() {
+        const VCGMesh &m = doc.mesh(source).mesh;
+        QString bits;
+        for (const VCGVertex &v : m.vert) {
+            if (!v.IsD())
+                bits += v.IsS() ? QLatin1Char('1') : QLatin1Char('0');
+        }
+        return bits;
+    };
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), source);
+    p.insert(QStringLiteral("referenceMesh"), reference);
+    QVERIFY2(doc.runFilter(key, p).success, "containment failed");
+    QCOMPARE(selection(), QStringLiteral("100"));
+
+    // Inverting selects the complement, and replaces what was there.
+    p.insert(QStringLiteral("selectOutside"), true);
+    QVERIFY2(doc.runFilter(key, p).success, "containment failed");
+    QCOMPARE(selection(), QStringLiteral("011"));
+
+    // Adding the inside ones to that leaves all three selected.
+    p.insert(QStringLiteral("selectOutside"), false);
+    p.insert(QStringLiteral("mode"), QStringLiteral("add"));
+    QVERIFY2(doc.runFilter(key, p).success, "containment failed");
+    QCOMPARE(selection(), QStringLiteral("111"));
+
+    // Subtracting the outside ones takes the selection back to the enclosed vertex.
+    p.insert(QStringLiteral("selectOutside"), true);
+    p.insert(QStringLiteral("mode"), QStringLiteral("subtract"));
+    QVERIFY2(doc.runFilter(key, p).success, "containment failed");
+    QCOMPARE(selection(), QStringLiteral("100"));
+}
+
+// A cube against a copy of itself moved a quarter of a side: every corner's nearest
+// neighbour is the corner it was moved from, so the mean of those distances is the
+// offset itself, in both directions. The existing coverage only counts the messages.
+void FilterTests::trueFormChamferDistanceMeasuresAKnownOffset()
+{
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("compute_chamfer_distance"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int a = doc.addMesh(cube, QStringLiteral("Cube"), vcg::tri::io::Mask::IOM_VERTCOORD);
+    const int b = doc.addMesh(cube, QStringLiteral("Shifted"), vcg::tri::io::Mask::IOM_VERTCOORD);
+    QMatrix4x4 shift;
+    shift.translate(0.25f, 0.0f, 0.0f);
+    doc.setMeshTransform(b, shift);
+
+    const auto reported = [](const QString &message) {
+        return message.section(QStringLiteral(": "), -1).toDouble();
+    };
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), a);
+    p.insert(QStringLiteral("referenceMesh"), b);
+    p.insert(QStringLiteral("symmetric"), true);
+    const MeshFilterRunResult r = doc.runFilter(key, p);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(r.infoMessages.size() == 3); // each direction, and the larger of the two
+    for (const QString &message : r.infoMessages) {
+        QVERIFY2(std::abs(reported(message) - 0.25) < 1e-5, qPrintable(message));
+    }
+
+    // One direction only: one measurement, and the same one.
+    p.insert(QStringLiteral("symmetric"), false);
+    const MeshFilterRunResult oneWay = doc.runFilter(key, p);
+    QVERIFY2(oneWay.success, qPrintable(oneWay.errorMessage));
+    QVERIFY(oneWay.infoMessages.size() == 1);
+    QVERIFY(std::abs(reported(oneWay.infoMessages.front()) - 0.25) < 1e-5);
+}
+
+// Three fins on one edge. The existing coverage asks a clean sphere for its non-manifold
+// edges and is told there are none, which a filter that selects nothing at all would
+// also satisfy; this asks a mesh that has one.
+void FilterTests::trueFormNonManifoldSelectionFindsTheSharedEdge()
+{
+    Document doc;
+    const QString key =
+        filterKeyForId(doc, QStringLiteral("select_non_manifold_edges_trueform"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh fan;
+    makeNonManifoldFanMesh(fan);
+    const int index = doc.addMesh(fan, QStringLiteral("Fan"), vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(index);
+
+    const auto countSelectedEdges = [](const VCGMesh &m) {
+        int n = 0;
+        for (const VCGFace &f : m.face) {
+            if (f.IsD())
+                continue;
+            for (int k = 0; k < 3; ++k)
+                if (f.IsFaceEdgeS(k))
+                    ++n;
+        }
+        return n;
+    };
+
+    QVERIFY2(doc.runFilter(key, {}).success, "non-manifold selection failed");
+    // All three fins carry the edge 0-1, so each of them marks it once.
+    QCOMPARE(countSelectedEdges(doc.mesh(index).mesh), 3);
+    QVERIFY(isSelectedEdge(doc.mesh(index).mesh, 0, 1));
+    QVERIFY(!isSelectedEdge(doc.mesh(index).mesh, 1, 2));
+
+    // Adding to the selection keeps what is already marked; replacing clears it first.
+    doc.mesh(index).mesh.face[0].SetFaceEdgeS(1);
+    MeshFilterParameterValues add;
+    add.insert(QStringLiteral("replaceSelection"), false);
+    QVERIFY2(doc.runFilter(key, add).success, "non-manifold selection failed");
+    QCOMPARE(countSelectedEdges(doc.mesh(index).mesh), 4);
+
+    MeshFilterParameterValues replace;
+    replace.insert(QStringLiteral("replaceSelection"), true);
+    QVERIFY2(doc.runFilter(key, replace).success, "non-manifold selection failed");
+    QCOMPARE(countSelectedEdges(doc.mesh(index).mesh), 3);
+}
+
+// Two unit cubes overlapping in one corner octant, in a single layer: the shape both of
+// the repair filters are for. Resolving the self-intersections only splits the surface,
+// so its area is unchanged; extracting the outer shell discards what is enclosed, so the
+// volume is the union's and the area is the two cubes' less the six buried quarters.
+void FilterTests::trueFormShellAndRepairOfOverlappingCubes()
+{
+    Document doc;
+    const QString shellKey = filterKeyForId(doc, QStringLiteral("generate_outer_shell"));
+    if (shellKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+    const QString repairKey = filterKeyForId(doc, QStringLiteral("repair_self_intersections"));
+    QVERIFY(!repairKey.isEmpty());
+
+    VCGMesh overlapping;
+    makeCubeMesh(overlapping, 0.0f, 0.0f, 0.0f);
+    VCGMesh second;
+    makeCubeMesh(second, 0.5f, 0.5f, 0.5f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(overlapping, second);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(overlapping);
+    const int index = doc.addMesh(overlapping, QStringLiteral("Overlapping"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+
+    const auto areaOf = [](const VCGMesh &m) {
+        return double(vcg::tri::Stat<VCGMesh>::ComputeMeshArea(m));
+    };
+    const auto volumeOf = [](const VCGMesh &m) {
+        return double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(m)));
+    };
+    QVERIFY(std::abs(areaOf(doc.mesh(index).mesh) - 12.0) < 1e-4);
+    const int before = doc.mesh(index).mesh.FN();
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("sourceMesh"), index);
+
+    const MeshFilterRunResult resolved = doc.runFilter(repairKey, p);
+    QVERIFY2(resolved.success, qPrintable(resolved.errorMessage));
+    const VCGMesh &split = doc.mesh(resolved.newMeshIndices.front()).mesh;
+    QVERIFY2(split.FN() > before, "resolving should have split the crossing faces");
+    QVERIFY2(std::abs(areaOf(split) - 12.0) < 1e-3,
+             qPrintable(QStringLiteral("resolved area %1, expected 12").arg(areaOf(split))));
+    QVERIFY(std::abs(split.bbox.DimX() - 1.5f) < 1e-4f);
+
+    const MeshFilterRunResult shell = doc.runFilter(shellKey, p);
+    QVERIFY2(shell.success, qPrintable(shell.errorMessage));
+    const VCGMesh &outer = doc.mesh(shell.newMeshIndices.front()).mesh;
+    QVERIFY2(std::abs(volumeOf(outer) - 1.875) < 1e-3,
+             qPrintable(QStringLiteral("shell volume %1, expected 1.875").arg(volumeOf(outer))));
+    QVERIFY2(std::abs(areaOf(outer) - 10.5) < 1e-3,
+             qPrintable(QStringLiteral("shell area %1, expected 10.5").arg(areaOf(outer))));
 }
 
 // Voronoi Atlas used to hang or abort on coarse meshes rather than failing. Two vcglib
