@@ -13,11 +13,11 @@
 #include <QVector3D>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <exception>
 #include <optional>
-#include <set>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -1828,34 +1828,46 @@ int selectFaceEdges(
     const std::vector<std::pair<int, int>> &edges,
     bool clearFirst)
 {
-    std::set<std::pair<std::size_t, std::size_t>> wanted;
+    using EdgeKey = std::array<std::size_t, 2>;
+    const auto canonical = [](std::size_t a, std::size_t b) {
+        return a < b ? EdgeKey{a, b} : EdgeKey{b, a};
+    };
+
+    tf::hash_set<EdgeKey, tf::array_hash<std::size_t, 2>> wanted;
+    wanted.reserve(edges.size());
     for (const auto &e : edges) {
         if (e.first < 0 || e.second < 0)
             continue;
         if (std::size_t(e.first) >= live.size() || std::size_t(e.second) >= live.size())
             continue;
-        auto a = live[std::size_t(e.first)];
-        auto b = live[std::size_t(e.second)];
-        wanted.insert(a < b ? std::make_pair(a, b) : std::make_pair(b, a));
+        wanted.insert(canonical(live[std::size_t(e.first)], live[std::size_t(e.second)]));
     }
 
     const VCGVertex *base = mesh.vert.empty() ? nullptr : &mesh.vert.front();
+    if (!base)
+        return 0;
+
     int marked = 0;
-    for (VCGFace &f : mesh.face) {
-        if (f.IsD() || !base)
-            continue;
-        for (int k = 0; k < 3; ++k) {
-            if (clearFirst)
-                f.ClearFaceEdgeS(k);
-            const auto a = std::size_t(f.cV(k) - base);
-            const auto b = std::size_t(f.cV((k + 1) % 3) - base);
-            const auto key = a < b ? std::make_pair(a, b) : std::make_pair(b, a);
-            if (wanted.count(key)) {
-                f.SetFaceEdgeS(k);
-                ++marked;
+    tf::blocked_reduce(
+        tf::make_sequence_range(mesh.face.size()), marked, int(0),
+        [&](auto &&block, int &local) {
+            for (std::size_t fi : block) {
+                VCGFace &f = mesh.face[fi];
+                if (f.IsD())
+                    continue;
+                for (int k = 0; k < 3; ++k) {
+                    if (clearFirst)
+                        f.ClearFaceEdgeS(k);
+                    const auto key = canonical(std::size_t(f.cV(k) - base),
+                                               std::size_t(f.cV((k + 1) % 3) - base));
+                    if (wanted.count(key)) {
+                        f.SetFaceEdgeS(k);
+                        ++local;
+                    }
+                }
             }
-        }
-    }
+        },
+        [](int local, int &total) { total += local; }, tf::checked);
     return marked;
 }
 
