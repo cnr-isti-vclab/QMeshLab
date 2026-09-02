@@ -1714,52 +1714,16 @@ MeshFilterRunResult runOrient(const QString &filterId, const FilterParams &param
     doc.beginFilterProgress(outward ? QObject::tr("Orient Faces Outward (TrueForm)")
                                     : QObject::tr("Orient Faces Consistently (TrueForm)"));
     int flipped = 0;
-    int passes = 0;
-    int remainingInconsistent = 0;
+    bool orientable = false;
     try {
         Document::MeshEntry &entry = doc.mesh(index);
         TfMesh source = tfMeshFromLayer(entry);
 
-        // One call to tf::orient_faces_consistently only partly repairs a badly mixed
-        // winding: it reverses faces in place while indexing an edge link built from the
-        // pre-flip winding, and reversing an n-gon permutes its edge slots (for a
-        // triangle, slots 0 and 1 swap), so later lookups pair the wrong edge with the
-        // wrong peer. Each call rebuilds the link from the current state, so iterating
-        // converges — on a box with alternate faces flipped, 14 inconsistencies go
-        // 8 -> 3 -> 0. Iterate to a fixed point rather than making the user click twice.
-        const auto inconsistentCount = [](const TfMesh &mesh) {
-            std::map<std::pair<int, int>, int> directed;
-            for (const auto &f : mesh.polygons().faces()) {
-                const std::size_t n = std::size_t(f.size());
-                for (std::size_t k = 0; k < n; ++k)
-                    ++directed[{ int(f[k]), int(f[(k + 1) % n]) }];
-            }
-            int bad = 0;
-            for (const auto &entryPair : directed) {
-                if (entryPair.second > 1)
-                    bad += entryPair.second - 1;
-            }
-            return bad;
-        };
-
-        constexpr int kMaxPasses = 8;
-        int previous = inconsistentCount(source);
-        for (int pass = 0; pass < kMaxPasses && previous > 0; ++pass) {
+        {
             auto polys = source.polygons();
-            tf::orient_faces_consistently(polys);
-            const int current = inconsistentCount(source);
-            passes = pass + 1;
-            if (current == 0 || current >= previous)
-                break; // converged, or no longer improving
-            previous = current;
+            orientable = outward ? tf::ensure_positive_orientation(polys)
+                                 : tf::orient_faces_consistently(polys);
         }
-        remainingInconsistent = inconsistentCount(source);
-
-        if (outward) {
-            auto polys = source.polygons();
-            tf::ensure_positive_orientation(polys, /*is_consistent=*/true);
-        }
-
         // Only the winding changed, so the faces are rewritten in place; positions and
         // the vertex numbering are untouched.
         const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
@@ -1809,12 +1773,11 @@ MeshFilterRunResult runOrient(const QString &filterId, const FilterParams &param
     MeshFilterRunResult result;
     result.success = true;
     result.documentModified = true;
-    result.infoMessages << QObject::tr("Reoriented %1 face(s) over %2 pass(es).")
-                               .arg(flipped).arg(passes);
-    if (remainingInconsistent > 0) {
+    result.infoMessages << QObject::tr("Reoriented %1 face(s).").arg(flipped);
+    if (!orientable) {
         result.infoMessages << QObject::tr(
-            "%1 edge(s) remain inconsistently wound; the mesh may be non-orientable.")
-                                   .arg(remainingInconsistent);
+            "The mesh is non-orientable; components without a consistent winding "
+            "were left unchanged.");
     }
     return result;
 }
