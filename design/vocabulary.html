@@ -1265,8 +1265,16 @@ noun is available. Recorded so the names are not “corrected” back to verb-fi
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>verb_object[_backend]
 </pre></div>
 </div>
-<p>Examples: <code class="docutils literal notranslate"><span class="pre">compute_vertex_normals</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_duplicate_vertices</span></code>,
-<code class="docutils literal notranslate"><span class="pre">transfer_raster_color_to_vertex_color</span></code>, <code class="docutils literal notranslate"><span class="pre">simplify_quadric_edge_collapse_qslim</span></code>.</p>
+<p>The display name, in snake_case: punctuation collapses to <code class="docutils literal notranslate"><span class="pre">_</span></code>, a <code class="docutils literal notranslate"><span class="pre">(Backend)</span></code> suffix
+becomes a trailing <code class="docutils literal notranslate"><span class="pre">_backend</span></code>, and the articles <code class="docutils literal notranslate"><span class="pre">the</span></code>/<code class="docutils literal notranslate"><span class="pre">a</span></code>/<code class="docutils literal notranslate"><span class="pre">an</span></code> drop. Nothing else is
+dropped – connectors included – so the menu name and the API name are one string in two
+spellings, and neither has to be looked up to know the other. <strong>The <code class="docutils literal notranslate"><span class="pre">id</span></code> is the same
+string</strong>, so a filter has one name, not three.</p>
+<p>Examples: <em>Compute Vertex Normals</em> → <code class="docutils literal notranslate"><span class="pre">compute_vertex_normals</span></code>; <em>Simplify by Quadric Edge
+Collapse (QSlim)</em> → <code class="docutils literal notranslate"><span class="pre">simplify_by_quadric_edge_collapse_qslim</span></code>; <em>Transfer Color from Vertex
+to Face</em> → <code class="docutils literal notranslate"><span class="pre">transfer_color_from_vertex_to_face</span></code>.</p>
+<p>An earlier draft of this section dropped <code class="docutils literal notranslate"><span class="pre">by</span></code> while keeping <code class="docutils literal notranslate"><span class="pre">from</span></code> and <code class="docutils literal notranslate"><span class="pre">to</span></code>, which no
+reader could have predicted; pass 2 settled it by keeping every word (2026-09-03).</p>
 <section id="discoverability-prerequisite-done">
 <h3>Discoverability: prerequisite (done)<a class="headerlink" href="#discoverability-prerequisite-done" title="Link to this heading">¶</a></h3>
 <p>Dropping the category prefix from names is only safe if filter search can still find a
