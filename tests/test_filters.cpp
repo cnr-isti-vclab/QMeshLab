@@ -80,6 +80,22 @@ void makeOpenDiskMesh(VCGMesh &mesh)
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 }
 
+// A flat open square at height z, two triangles wound so their normal points along +Z.
+// Made wider than the solids it is cut against, so it separates them completely.
+void makeSquareSheetMesh(VCGMesh &mesh, float halfWidth, float z)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
+    mesh.vert[0].P() = vcg::Point3f(-halfWidth, -halfWidth, z);
+    mesh.vert[1].P() = vcg::Point3f(halfWidth, -halfWidth, z);
+    mesh.vert[2].P() = vcg::Point3f(halfWidth, halfWidth, z);
+    mesh.vert[3].P() = vcg::Point3f(-halfWidth, halfWidth, z);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 2, 3);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
 void makeOpenCubeMesh(VCGMesh &mesh)
 {
     makeCubeMesh(mesh, 0.0f, 0.0f, 0.0f);
@@ -351,6 +367,7 @@ private slots:
     void trueFormAlignmentRecoversAKnownTransform();
     void trueFormBooleansAgreeWithVolume();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
+    void trueFormCsgSheetsCutWithoutEnclosing();
     void trueFormCurveFamilyProducesPolylines();
     void newMeshFiltersReportTheirLayers();
     void trueFormDistanceAndContainment();
@@ -2136,6 +2153,97 @@ void FilterTests::trueFormCsgExpressionMatchesPairwiseBooleans()
     QVERIFY(!doc.runFilter(csgKey, bad).success);
     bad.insert(QStringLiteral("expression"), QStringLiteral("0 | 999"));
     QVERIFY(!doc.runFilter(csgKey, bad).success);
+}
+
+// A sheet is an open surface that cuts without enclosing anything, so the same expression
+// means one thing when the cutter is declared a sheet and another when it is not. A unit
+// cube halved by a square through its middle states both: the two sides are exactly half
+// the cube each, and left undeclared the cutter encloses no volume and removes nothing.
+void FilterTests::trueFormCsgSheetsCutWithoutEnclosing()
+{
+    Document doc;
+
+    const QString csgKey = filterKeyForId(doc, QStringLiteral("mesh_csg_expression_trueform"));
+    if (csgKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int solid = doc.addMesh(cube, QStringLiteral("cube"));
+    QVERIFY(solid >= 0);
+
+    VCGMesh sheet;
+    makeSquareSheetMesh(sheet, 2.0f, 0.5f);
+    const int cutter = doc.addMesh(sheet, QStringLiteral("sheet"));
+    QVERIFY(cutter >= 0);
+
+    const auto volumeOf = [&doc](int index) {
+        return double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(doc.mesh(index).mesh)));
+    };
+    const auto holesIn = [&doc](int index) {
+        VCGMesh &m = doc.mesh(index).mesh;
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        return vcg::tri::Clean<VCGMesh>::CountHoles(m);
+    };
+
+    // In front of the sheet's normals, and behind them: half the cube each, and each one
+    // capped along the cut rather than left open where the sheet passed through.
+    MeshFilterParameterValues front;
+    front.insert(QStringLiteral("expression"), QStringLiteral("%1 - %2").arg(solid).arg(cutter));
+    front.insert(QStringLiteral("sheets"), QString::number(cutter));
+    const MeshFilterRunResult above = doc.runFilter(csgKey, front);
+    QVERIFY2(above.success, qPrintable(above.errorMessage));
+    QCOMPARE(above.newMeshIndices.size(), 1);
+    QCOMPARE(holesIn(above.newMeshIndices.front()), 0);
+    QVERIFY2(std::abs(volumeOf(above.newMeshIndices.front()) - 0.5) < 1e-4,
+             qPrintable(QStringLiteral("the front half measured %1, expected 0.5")
+                            .arg(volumeOf(above.newMeshIndices.front()))));
+
+    MeshFilterParameterValues back;
+    back.insert(QStringLiteral("expression"), QStringLiteral("%1 & %2").arg(solid).arg(cutter));
+    back.insert(QStringLiteral("sheets"), QString::number(cutter));
+    const MeshFilterRunResult below = doc.runFilter(csgKey, back);
+    QVERIFY2(below.success, qPrintable(below.errorMessage));
+    QCOMPARE(holesIn(below.newMeshIndices.front()), 0);
+    QVERIFY2(std::abs(volumeOf(below.newMeshIndices.front()) - 0.5) < 1e-4,
+             qPrintable(QStringLiteral("the back half measured %1, expected 0.5")
+                            .arg(volumeOf(below.newMeshIndices.front()))));
+
+    // Undeclared, the same layer is read as a solid: an open surface encloses nothing, so
+    // the difference gives the cube back whole. This is what an empty parameter means, and
+    // it is what every call written before the parameter existed keeps getting.
+    MeshFilterParameterValues noSheets;
+    noSheets.insert(QStringLiteral("expression"), QStringLiteral("%1 - %2").arg(solid).arg(cutter));
+    noSheets.insert(QStringLiteral("sheets"), QString());
+    const MeshFilterRunResult whole = doc.runFilter(csgKey, noSheets);
+    QVERIFY2(whole.success, qPrintable(whole.errorMessage));
+    QVERIFY2(std::abs(volumeOf(whole.newMeshIndices.front()) - 1.0) < 1e-4,
+             qPrintable(QStringLiteral("without sheets the difference measured %1, expected 1.0")
+                            .arg(volumeOf(whole.newMeshIndices.front()))));
+
+    // And an empty sheet list leaves a solid-only expression exactly where it was: two
+    // unit cubes overlapping in half their extent still union to one and a half.
+    VCGMesh shifted;
+    makeCubeMesh(shifted, 0.5f, 0.0f, 0.0f);
+    const int second = doc.addMesh(shifted, QStringLiteral("shifted cube"));
+    MeshFilterParameterValues union2;
+    union2.insert(QStringLiteral("expression"), QStringLiteral("%1 | %2").arg(solid).arg(second));
+    union2.insert(QStringLiteral("sheets"), QString());
+    const MeshFilterRunResult merged = doc.runFilter(csgKey, union2);
+    QVERIFY2(merged.success, qPrintable(merged.errorMessage));
+    QVERIFY2(std::abs(volumeOf(merged.newMeshIndices.front()) - 1.5) < 1e-4,
+             qPrintable(QStringLiteral("the union measured %1, expected 1.5")
+                            .arg(volumeOf(merged.newMeshIndices.front()))));
+
+    // A sheet the expression never mentions is a mistake worth reporting: it would be
+    // built into the arrangement and cut nothing anyone asked about.
+    MeshFilterParameterValues stray;
+    stray.insert(QStringLiteral("expression"), QStringLiteral("%1 | %2").arg(solid).arg(second));
+    stray.insert(QStringLiteral("sheets"), QString::number(cutter));
+    const MeshFilterRunResult unused = doc.runFilter(csgKey, stray);
+    QVERIFY(!unused.success);
+    QVERIFY(unused.errorMessage.contains(QStringLiteral("sheet")));
 }
 
 // The curve filters and the sweep that consumes their output. Each case is chosen so the

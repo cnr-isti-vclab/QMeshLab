@@ -9,6 +9,7 @@
 #include <QMatrix4x4>
 #include <QObject>
 #include <QList>
+#include <QRegularExpression>
 #include <QStringList>
 #include <QVector3D>
 
@@ -690,6 +691,57 @@ private:
     QList<int> m_operands;
 };
 
+// Layer numbers written the way the CSG expression writes its operands, separated by
+// spaces or commas. Empty text is an empty list rather than an error: it is how a caller
+// says "none of them".
+bool parseLayerList(const QString &text, int meshCount, QList<int> &layers, QString &error)
+{
+    layers.clear();
+    static const QRegularExpression separators(QStringLiteral("[\\s,]+"));
+    const QStringList parts = text.trimmed().split(separators, Qt::SkipEmptyParts);
+    for (const QString &part : parts) {
+        bool ok = false;
+        const int layer = part.toInt(&ok);
+        if (!ok) {
+            error = QObject::tr("'%1' is not a layer number.").arg(part);
+            return false;
+        }
+        if (layer < 0 || layer >= meshCount) {
+            error = QObject::tr("Layer %1 does not exist; the document has %2.")
+                        .arg(layer).arg(meshCount);
+            return false;
+        }
+        if (!layers.contains(layer))
+            layers.append(layer);
+    }
+    return true;
+}
+
+// The sheet declaration TrueForm's graph takes: operand ids, not layer numbers. A sheet
+// cuts only inside the arrangement it belongs to, so a layer named here has to be one of
+// the operands, in the order the graph will see them.
+bool resolveSheetTags(
+    const QString &text, const QList<int> &operands, Document &doc,
+    std::vector<int> &tags, QString &error)
+{
+    QList<int> layers;
+    if (!parseLayerList(text, doc.meshCount(), layers, error))
+        return false;
+    tags.clear();
+    tags.reserve(std::size_t(layers.size()));
+    for (int layer : layers) {
+        const int tag = int(operands.indexOf(layer));
+        if (tag < 0) {
+            error = QObject::tr("Layer %1 ('%2') is listed as a sheet but is not one of "
+                                "the operands.")
+                        .arg(layer).arg(doc.mesh(layer).name);
+            return false;
+        }
+        tags.push_back(tag);
+    }
+    return true;
+}
+
 MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
 {
     const QString text = params.getString(QStringLiteral("expression")).trimmed();
@@ -710,6 +762,11 @@ MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
         }
     }
 
+    std::vector<int> sheets;
+    if (!resolveSheetTags(params.getString(QStringLiteral("sheets")), operands, doc,
+                          sheets, error))
+        return fail(error);
+
     doc.beginFilterProgress(QObject::tr("Mesh CSG Expression (TrueForm)"));
     try {
         std::vector<TfMesh> meshes;
@@ -725,7 +782,8 @@ MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
 
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(30, "Building the arrangement...");
-        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()));
+        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()),
+                                        tf::make_range(sheets.data(), sheets.size()));
 
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(70, "Evaluating the expression...");
@@ -734,10 +792,20 @@ MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
         QStringList used;
         for (int layer : operands)
             used << QObject::tr("%1 = '%2'").arg(layer).arg(doc.mesh(layer).name);
+        QStringList info{ QObject::tr("Expression: %1").arg(text),
+                          used.join(QStringLiteral(", ")) };
+        if (!sheets.empty()) {
+            QStringList named;
+            for (int tag : sheets)
+                named << QObject::tr("'%1'").arg(doc.mesh(operands.at(tag)).name);
+            info << QObject::tr("Cutting with %1 as %2.")
+                        .arg(named.join(QStringLiteral(", ")),
+                             sheets.size() == 1 ? QObject::tr("a sheet")
+                                                : QObject::tr("sheets"));
+        }
         return addResultLayer(
             doc, result, QObject::tr("CSG"),
-            QObject::tr("The expression evaluates to an empty solid."),
-            { QObject::tr("Expression: %1").arg(text), used.join(QStringLiteral(", ")) });
+            QObject::tr("The expression evaluates to an empty solid."), info);
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm CSG failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));

@@ -429,7 +429,7 @@
       "name": "Mesh CSG Expression (TrueForm)",
       "pythonName": "mesh_csg_expression_trueform",
       "shortDescription": "Evaluate a boolean expression over any number of layers in one exact pass.",
-      "longDescriptionMarkdown": "Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\\n\\n**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:\\n\\n| Operator | Meaning |\\n|---|---|\\n| `\\\\|` | union |\\n| `-` | difference |\\n| `&` | intersection |\\n| `~` | complement |\\n\\n`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.\\n\\nExamples:\\n\\n- `0 | 1 | 2` — the union of three layers\\n- `(0 | 1) - 2` — two layers joined, then a third drilled out of them\\n- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference\\n\\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.",
+      "longDescriptionMarkdown": "Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\\n\\n**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:\\n\\n| Operator | Meaning |\\n|---|---|\\n| `\\\\|` | union |\\n| `-` | difference |\\n| `&` | intersection |\\n| `~` | complement |\\n\\n`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.\\n\\nExamples:\\n\\n- `0 | 1 | 2` — the union of three layers\\n- `(0 | 1) - 2` — two layers joined, then a third drilled out of them\\n- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference\\n\\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.\n\n**Sheets.** A layer listed in *Sheets* enters the expression as an **open oriented surface** rather than a solid: it cuts the other operands without enclosing any volume of its own, and its operand bit means *behind the surface*, on the far side of its normals. Anything can be a sheet — a plane, a curved terrain, a trimmed patch — and it need not be closed or even reach past the solid it divides.\n\nFor a cube as layer 0 and a surface through it as layer 1, `0 - 1` is the piece in front of the surface and `0 & 1` the piece behind it, each capped along the cut and watertight. Leave *Sheets* empty and every operand is a solid, which is what a closed mesh should be.",
       "parameters": [
         {
           "id": "expression",
@@ -438,6 +438,14 @@
           "group": "main",
           "type": "string",
           "default": "0 | 1"
+        },
+        {
+          "id": "sheets",
+          "label": "Sheets",
+          "help": "Layer numbers to treat as open cutting surfaces rather than solids, e.g. 1 2. Each must also appear in the expression. Leave empty to treat every operand as a solid.",
+          "group": "main",
+          "type": "string",
+          "default": ""
         }
       ]
     },
