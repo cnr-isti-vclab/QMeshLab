@@ -54,6 +54,7 @@ constexpr QLatin1StringView kFilterIntersection("mesh_intersection_trueform");
 constexpr QLatin1StringView kFilterDifference("mesh_difference_trueform");
 constexpr QLatin1StringView kFilterSymmetricDifference("mesh_symmetric_difference_trueform");
 constexpr QLatin1StringView kFilterCsg("mesh_csg_expression_trueform");
+constexpr QLatin1StringView kFilterSolidDomains("split_into_solid_domains_trueform");
 constexpr QLatin1StringView kFilterOuterShell("extract_outer_shell_trueform");
 constexpr QLatin1StringView kFilterSelfIntersectionCurves("create_polyline_from_self_intersections_trueform");
 constexpr QLatin1StringView kFilterIntersectionCurves("create_polyline_from_mesh_intersection_trueform");
@@ -373,6 +374,7 @@ MeshFilterRunResult runAlignCorresponding(const FilterParams &params, Document &
 // ---------------------------------------------------------------------------
 
 using TfMesh = tf::polygons_buffer<int, float, 3, 3>;
+using TfForms = std::vector<decltype(std::declval<const TfMesh &>().polygons())>;
 
 // A layer's triangles in world space. Booleans across layers are only meaningful once
 // each layer's matrix has been applied.
@@ -422,12 +424,33 @@ TfMesh tfMeshFromLayer(const Document::MeshEntry &entry)
     return out;
 }
 
-// Copy a TrueForm result into a fresh document layer. The result is already in world
-// space, so the new layer keeps an identity matrix.
+// The layers an N-operand read runs on, in operand order.
+std::vector<TfMesh> tfMeshesFromLayers(const QList<int> &layers, Document &doc)
+{
+    std::vector<TfMesh> meshes;
+    meshes.reserve(std::size_t(layers.size()));
+    for (int layer : layers)
+        meshes.push_back(tfMeshFromLayer(doc.mesh(layer)));
+    return meshes;
+}
+
+// The views a graph is built over. They borrow the meshes, which the caller keeps alive
+// for as long as the graph lives.
+TfForms tfFormsOf(const std::vector<TfMesh> &meshes)
+{
+    TfForms forms;
+    forms.reserve(meshes.size());
+    for (const TfMesh &m : meshes)
+        forms.emplace_back(m.polygons());
+    return forms;
+}
+
+// Copy a TrueForm result buffer into a fresh document layer. The result is already in
+// world space, so the new layer keeps an identity matrix, and a polygon face is fanned
+// into triangles. Returns -1 when the buffer carries no face the document can hold; what
+// that means is the calling filter's to say.
 template <typename Buffer>
-MeshFilterRunResult addResultLayer(
-    Document &doc, const Buffer &buffer, const QString &layerName,
-    const QString &emptyMessage, QStringList info)
+int addBufferLayer(Document &doc, const Buffer &buffer, const QString &layerName)
 {
     VCGMesh output;
     const auto points = buffer.points();
@@ -455,24 +478,31 @@ MeshFilterRunResult addResultLayer(
         }
     }
 
-    if (output.FN() <= 0) {
-        doc.finishFilterProgress(false, emptyMessage);
-        return fail(emptyMessage);
-    }
+    if (output.FN() <= 0)
+        return -1;
 
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
     vcg::tri::UpdateBounding<VCGMesh>::Box(output);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
 
     const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
-    const int newIndex = doc.addMesh(output, layerName, ioMask);
+    return doc.addMesh(output, layerName, ioMask);
+}
+
+// The single-result form: one layer, and the progress and reporting around it.
+template <typename Buffer>
+MeshFilterRunResult addResultLayer(
+    Document &doc, const Buffer &buffer, const QString &layerName,
+    const QString &emptyMessage, QStringList info)
+{
+    const int newIndex = addBufferLayer(doc, buffer, layerName);
     if (newIndex < 0) {
-        const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
-        doc.finishFilterProgress(false, message);
-        return fail(message);
+        doc.finishFilterProgress(false, emptyMessage);
+        return fail(emptyMessage);
     }
     doc.finishFilterProgress(true, QObject::tr("Created %1.").arg(layerName));
 
+    const VCGMesh &output = doc.mesh(newIndex).mesh;
     info.prepend(QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name));
     info << QObject::tr("Output: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
     MeshFilterRunResult result;
@@ -480,6 +510,48 @@ MeshFilterRunResult addResultLayer(
     result.documentModified = true;
     result.infoMessages = info;
     result.newMeshIndices.push_back(newIndex);
+    return result;
+}
+
+// The many-result form every decomposition shares: one layer per buffer, named in turn,
+// and the run reported once over the whole set. An empty buffer produces no layer, so the
+// reported indices are exactly the layers that exist.
+template <typename Buffers, typename Naming>
+MeshFilterRunResult addResultLayers(
+    Document &doc, const Buffers &buffers, Naming name_of,
+    const QString &emptyMessage, QStringList info)
+{
+    QVector<int> newIndices;
+    newIndices.reserve(int(buffers.size()));
+    for (std::size_t k = 0; k < buffers.size(); ++k) {
+        const int newIndex = addBufferLayer(doc, buffers[k], name_of(k));
+        if (newIndex >= 0)
+            newIndices.push_back(newIndex);
+    }
+
+    if (newIndices.isEmpty()) {
+        doc.finishFilterProgress(false, emptyMessage);
+        return fail(emptyMessage);
+    }
+    doc.finishFilterProgress(
+        true, QObject::tr("Created %1 layer(s).").arg(newIndices.size()));
+
+    int vertices = 0, faces = 0;
+    QStringList names;
+    for (int index : newIndices) {
+        const VCGMesh &output = doc.mesh(index).mesh;
+        vertices += output.VN();
+        faces += output.FN();
+        names << doc.mesh(index).name;
+    }
+    info.prepend(QObject::tr("Created %1 layer(s): %2.")
+                     .arg(newIndices.size()).arg(names.join(QStringLiteral(", "))));
+    info << QObject::tr("Output: %1 vertices, %2 faces.").arg(vertices).arg(faces);
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages = info;
+    result.newMeshIndices = newIndices;
     return result;
 }
 
@@ -769,16 +841,8 @@ MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
 
     doc.beginFilterProgress(QObject::tr("Mesh CSG Expression (TrueForm)"));
     try {
-        std::vector<TfMesh> meshes;
-        meshes.reserve(std::size_t(operands.size()));
-        for (int layer : operands)
-            meshes.push_back(tfMeshFromLayer(doc.mesh(layer)));
-
-        using FormView = decltype(std::declval<const TfMesh &>().polygons());
-        std::vector<FormView> forms;
-        forms.reserve(meshes.size());
-        for (const TfMesh &m : meshes)
-            forms.emplace_back(m.polygons());
+        const std::vector<TfMesh> meshes = tfMeshesFromLayers(operands, doc);
+        const TfForms forms = tfFormsOf(meshes);
 
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(30, "Building the arrangement...");
@@ -865,6 +929,62 @@ MeshFilterRunResult runOuterShell(const FilterParams &params, Document &doc)
             { QObject::tr("From '%1'.").arg(doc.mesh(index).name) });
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm outer shell failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Every region of space the operands enclose, each as its own watertight layer. A boolean
+// picks one of those regions and merges the rest away; this keeps them all and keeps them
+// apart, which is the read nothing else in the ecosystem offers.
+MeshFilterRunResult runSolidDomains(const FilterParams &params, Document &doc)
+{
+    QList<int> layers;
+    QString error;
+    if (!parseLayerList(params.getString(QStringLiteral("layers")), doc.meshCount(),
+                        layers, error))
+        return fail(error);
+    if (layers.isEmpty())
+        return fail(QObject::tr("No layers were listed."));
+    for (int layer : layers) {
+        if (doc.mesh(layer).mesh.FN() <= 0) {
+            return fail(QObject::tr("Layer %1 ('%2') has no faces.")
+                            .arg(layer).arg(doc.mesh(layer).name));
+        }
+    }
+
+    std::vector<int> sheets;
+    if (!resolveSheetTags(params.getString(QStringLiteral("sheets")), layers, doc,
+                          sheets, error))
+        return fail(error);
+
+    doc.beginFilterProgress(QObject::tr("Split into Solid Domains (TrueForm)"));
+    try {
+        const std::vector<TfMesh> meshes = tfMeshesFromLayers(layers, doc);
+        const TfForms forms = tfFormsOf(meshes);
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(30, "Building the arrangement...");
+        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()),
+                                        tf::make_range(sheets.data(), sheets.size()));
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(70, "Extracting the domains...");
+        auto domains = tf::make_csg_domains(graph);
+        const auto &cells = domains.first;
+        const auto &ids = domains.second;
+
+        QStringList used;
+        for (int layer : layers)
+            used << QObject::tr("'%1'").arg(doc.mesh(layer).name);
+        return addResultLayers(
+            doc, cells,
+            [&ids](std::size_t k) { return QObject::tr("Domain %1").arg(ids[k]); },
+            QObject::tr("The layers enclose nothing to decompose."),
+            { QObject::tr("From %1.").arg(used.join(QStringLiteral(", "))) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm domain decomposition failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));
         doc.finishFilterProgress(false, message);
         return fail(message);
@@ -2160,6 +2280,8 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runSymmetricDifference(params, doc);
     if (filterId == QString::fromLatin1(kFilterCsg))
         return runCsgExpression(params, doc);
+    if (filterId == QString::fromLatin1(kFilterSolidDomains))
+        return runSolidDomains(params, doc);
     if (filterId == QString::fromLatin1(kFilterOuterShell))
         return runOuterShell(params, doc);
     if (filterId == QString::fromLatin1(kFilterSelfIntersectionCurves))

@@ -451,6 +451,53 @@
     },
     {
       "categories": [
+        "Meshing/Boolean"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "tags": [
+        "trueform",
+        "boolean",
+        "csg",
+        "domain",
+        "decomposition",
+        "exact"
+      ],
+      "id": "split_into_solid_domains_trueform",
+      "name": "Split into Solid Domains (TrueForm)",
+      "pythonName": "split_into_solid_domains_trueform",
+      "shortDescription": "Split the volume the layers enclose into one watertight layer per region.",
+      "longDescriptionMarkdown": "Builds one arrangement of the listed layers and emits **every region of space they enclose** as its own watertight layer. Two overlapping solids give three: what only the first encloses, what only the second encloses, and what both do. A self-intersecting layer decomposes on its own, into the regions its surface actually bounds.\n\nThis has no equivalent anywhere else in QMeshLab. A boolean answers one question about one region and merges everything else away; *Split into Connected Components* separates surfaces that are already apart. Neither can hand you the pieces a set of overlapping solids cuts space into, which is what a bill of materials, a contact analysis or a volumetric mesh generator needs.\n\n**Layers** are layer numbers as shown in the layer panel, separated by spaces or commas; a single number is a valid answer. **Sheets** names those of them that are open cutting surfaces rather than solids, exactly as in *Mesh CSG Expression* — a solid crossed by a sheet decomposes into the pieces on either side of it.\n\nEach output layer is closed and named for the domain it carries. The unbounded outside is not one of them, and the layer matrices are baked in, so every layer is world-space geometry. Reads TrueForm's `make_csg_domains`.",
+      "parameters": [
+        {
+          "id": "layers",
+          "label": "Layers",
+          "help": "The layer numbers to decompose, e.g. 0 1 2. A single layer decomposes into the regions its own surface encloses.",
+          "group": "main",
+          "type": "string",
+          "default": "0 1"
+        },
+        {
+          "id": "sheets",
+          "label": "Sheets",
+          "help": "Which of those layers are open cutting surfaces rather than solids, e.g. 1. Leave empty to treat every layer as a solid.",
+          "group": "main",
+          "type": "string",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "categories": [
         "Repair/Topology"
       ],
       "inputDomain": "SingleMesh",

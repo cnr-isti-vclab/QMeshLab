@@ -368,6 +368,7 @@ private slots:
     void trueFormBooleansAgreeWithVolume();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
+    void trueFormSolidDomainsSplitTheEnclosedVolume();
     void trueFormCurveFamilyProducesPolylines();
     void newMeshFiltersReportTheirLayers();
     void trueFormDistanceAndContainment();
@@ -2244,6 +2245,121 @@ void FilterTests::trueFormCsgSheetsCutWithoutEnclosing()
     const MeshFilterRunResult unused = doc.runFilter(csgKey, stray);
     QVERIFY(!unused.success);
     QVERIFY(unused.errorMessage.contains(QStringLiteral("sheet")));
+}
+
+// Two unit cubes overlapping in an eighth of their extent cut space into three regions of
+// stated size, and each one has to come back closed and on its own layer. The same read
+// answers for a sheet cutting a solid and for a single layer crossing itself, which are
+// the two shapes a boolean cannot express at all.
+void FilterTests::trueFormSolidDomainsSplitTheEnclosedVolume()
+{
+    Document doc;
+
+    const QString domainsKey = filterKeyForId(doc, QStringLiteral("split_into_solid_domains_trueform"));
+    if (domainsKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    const auto volumeOf = [&doc](int index) {
+        return double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(doc.mesh(index).mesh)));
+    };
+    const auto holesIn = [&doc](int index) {
+        VCGMesh &m = doc.mesh(index).mesh;
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        return vcg::tri::Clean<VCGMesh>::CountHoles(m);
+    };
+    const auto sortedVolumes = [&](const QVector<int> &indices) {
+        std::vector<double> volumes;
+        for (int index : indices)
+            volumes.push_back(volumeOf(index));
+        std::sort(volumes.begin(), volumes.end());
+        return volumes;
+    };
+
+    // Overlapping by half a side in each axis: the shared corner is an eighth of a cube,
+    // and what is left of each is seven eighths.
+    VCGMesh first;
+    makeCubeMesh(first, 0.0f, 0.0f, 0.0f);
+    const int a = doc.addMesh(first, QStringLiteral("cube a"));
+    VCGMesh second;
+    makeCubeMesh(second, 0.5f, 0.5f, 0.5f);
+    const int b = doc.addMesh(second, QStringLiteral("cube b"));
+
+    MeshFilterParameterValues pair;
+    pair.insert(QStringLiteral("layers"), QStringLiteral("%1 %2").arg(a).arg(b));
+    pair.insert(QStringLiteral("sheets"), QString());
+    const MeshFilterRunResult overlap = doc.runFilter(domainsKey, pair);
+    QVERIFY2(overlap.success, qPrintable(overlap.errorMessage));
+    QCOMPARE(overlap.newMeshIndices.size(), 3);
+    const std::vector<double> volumes = sortedVolumes(overlap.newMeshIndices);
+    const double expected[3] = { 0.125, 0.875, 0.875 };
+    for (std::size_t k = 0; k < 3; ++k) {
+        QVERIFY2(std::abs(volumes[k] - expected[k]) < 1e-4,
+                 qPrintable(QStringLiteral("domain %1 measured %2, expected %3")
+                                .arg(k).arg(volumes[k]).arg(expected[k])));
+    }
+    for (int index : overlap.newMeshIndices)
+        QCOMPARE(holesIn(index), 0);
+    // Named for the domain each one carries, so the layer panel says which is which.
+    for (int index : overlap.newMeshIndices)
+        QVERIFY2(doc.mesh(index).name.startsWith(QStringLiteral("Domain")),
+                 qPrintable(doc.mesh(index).name));
+
+    // A solid halved by an open surface: two closed pieces, and the sheet itself is not
+    // one of them.
+    Document cut;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int solid = cut.addMesh(cube, QStringLiteral("cube"));
+    VCGMesh sheet;
+    makeSquareSheetMesh(sheet, 2.0f, 0.5f);
+    const int cutter = cut.addMesh(sheet, QStringLiteral("sheet"));
+
+    MeshFilterParameterValues halves;
+    halves.insert(QStringLiteral("layers"), QStringLiteral("%1 %2").arg(solid).arg(cutter));
+    halves.insert(QStringLiteral("sheets"), QString::number(cutter));
+    const MeshFilterRunResult split = cut.runFilter(domainsKey, halves);
+    QVERIFY2(split.success, qPrintable(split.errorMessage));
+    QCOMPARE(split.newMeshIndices.size(), 2);
+    for (int index : split.newMeshIndices) {
+        const double got =
+            double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(cut.mesh(index).mesh)));
+        QVERIFY2(std::abs(got - 0.5) < 1e-4,
+                 qPrintable(QStringLiteral("half measured %1, expected 0.5").arg(got)));
+        VCGMesh &m = cut.mesh(index).mesh;
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        QCOMPARE(vcg::tri::Clean<VCGMesh>::CountHoles(m), 0);
+    }
+
+    // One layer holding two crossing cubes: the graph arranges a single form against
+    // itself, and the three regions come back exactly as they did from two layers.
+    Document self;
+    VCGMesh crossing;
+    makeCubeMesh(crossing, 0.0f, 0.0f, 0.0f);
+    VCGMesh other;
+    makeCubeMesh(other, 0.5f, 0.5f, 0.5f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(crossing, other, false);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(crossing);
+    const int both = self.addMesh(crossing, QStringLiteral("crossing cubes"));
+
+    MeshFilterParameterValues single;
+    single.insert(QStringLiteral("layers"), QString::number(both));
+    single.insert(QStringLiteral("sheets"), QString());
+    const MeshFilterRunResult alone = self.runFilter(domainsKey, single);
+    QVERIFY2(alone.success, qPrintable(alone.errorMessage));
+    QCOMPARE(alone.newMeshIndices.size(), 3);
+    std::vector<double> selfVolumes;
+    for (int index : alone.newMeshIndices) {
+        selfVolumes.push_back(
+            double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(self.mesh(index).mesh))));
+    }
+    std::sort(selfVolumes.begin(), selfVolumes.end());
+    for (std::size_t k = 0; k < 3; ++k) {
+        QVERIFY2(std::abs(selfVolumes[k] - expected[k]) < 1e-4,
+                 qPrintable(QStringLiteral("self-arranged domain %1 measured %2, expected %3")
+                                .arg(k).arg(selfVolumes[k]).arg(expected[k])));
+    }
 }
 
 // The curve filters and the sweep that consumes their output. Each case is chosen so the
