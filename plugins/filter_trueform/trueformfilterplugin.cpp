@@ -55,6 +55,8 @@ constexpr QLatin1StringView kFilterDifference("mesh_difference_trueform");
 constexpr QLatin1StringView kFilterSymmetricDifference("mesh_symmetric_difference_trueform");
 constexpr QLatin1StringView kFilterCsg("mesh_csg_expression_trueform");
 constexpr QLatin1StringView kFilterSolidDomains("split_into_solid_domains_trueform");
+constexpr QLatin1StringView kFilterSplitComponents(
+    "split_into_connected_components_trueform");
 constexpr QLatin1StringView kFilterOuterShell("extract_outer_shell_trueform");
 constexpr QLatin1StringView kFilterSelfIntersectionCurves("create_polyline_from_self_intersections_trueform");
 constexpr QLatin1StringView kFilterIntersectionCurves("create_polyline_from_mesh_intersection_trueform");
@@ -985,6 +987,71 @@ MeshFilterRunResult runSolidDomains(const FilterParams &params, Document &doc)
             { QObject::tr("From %1.").arg(used.join(QStringLiteral(", "))) });
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm domain decomposition failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Connected components
+// ---------------------------------------------------------------------------
+
+// Per-face component labels under the asked connectivity. TrueForm has a producer for
+// each standard; the vertex-connected one labels VERTICES rather than faces, and a face's
+// corners are all linked to each other through the face's own edges, so the component of
+// any one corner is the component of the face.
+tf::buffer<int> faceComponentLabels(const TfMesh &source, const QString &connectivity)
+{
+    if (connectivity == QStringLiteral("edge")) {
+        auto cc = tf::make_edge_connected_component_labels(source.polygons());
+        return std::move(cc.labels);
+    }
+    if (connectivity == QStringLiteral("vertex")) {
+        const auto cc = tf::make_vertex_connected_component_labels(source.polygons());
+        tf::buffer<int> labels;
+        labels.allocate(source.polygons().size());
+        tf::parallel_for_each(tf::enumerate(source.polygons().faces()),
+            [&labels, &cc](auto pair) {
+                auto &&[fi, face] = pair;
+                labels[std::size_t(fi)] = cc.labels[std::size_t(face[0])];
+            }, tf::checked);
+        return labels;
+    }
+    auto cc = tf::make_manifold_edge_connected_component_labels(source.polygons());
+    return std::move(cc.labels);
+}
+
+// One layer per surface that stands on its own. TrueForm labels the faces in parallel and
+// splits them in one pass, which is where the speed on a large mesh comes from, and it has
+// a producer for each of the three connectivity standards the parameter offers.
+MeshFilterRunResult runSplitComponents(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const QString connectivity = params.getEnum(QStringLiteral("connectivity"));
+
+    doc.beginFilterProgress(QObject::tr("Split into Connected Components (TrueForm)"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        const tf::buffer<int> faceLabels = faceComponentLabels(source, connectivity);
+        auto split = tf::split_into_components(source.polygons(), faceLabels);
+        const auto &components = split.first;
+        const auto &componentLabels = split.second;
+
+        return addResultLayers(
+            doc, components,
+            [&componentLabels](std::size_t k) {
+                return QObject::tr("Component %1").arg(componentLabels[k]);
+            },
+            QObject::tr("The layer has no connected component to split out."),
+            { QObject::tr("From '%1'.").arg(doc.mesh(index).name) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm component splitting failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));
         doc.finishFilterProgress(false, message);
         return fail(message);
@@ -2282,6 +2349,8 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runCsgExpression(params, doc);
     if (filterId == QString::fromLatin1(kFilterSolidDomains))
         return runSolidDomains(params, doc);
+    if (filterId == QString::fromLatin1(kFilterSplitComponents))
+        return runSplitComponents(params, doc);
     if (filterId == QString::fromLatin1(kFilterOuterShell))
         return runOuterShell(params, doc);
     if (filterId == QString::fromLatin1(kFilterSelfIntersectionCurves))

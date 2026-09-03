@@ -498,6 +498,65 @@
     },
     {
       "categories": [
+        "Document/Layer"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "NewMeshes",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "tags": [
+        "trueform",
+        "layer",
+        "connected components",
+        "split"
+      ],
+      "id": "split_into_connected_components_trueform",
+      "name": "Split into Connected Components (TrueForm)",
+      "pythonName": "split_into_connected_components_trueform",
+      "shortDescription": "Split a layer into one layer per connected surface, computed in parallel.",
+      "longDescriptionMarkdown": "Splits the layer into one new layer per connected surface, exactly as *Split into Connected Components* does — this is the same operation through TrueForm, which labels the faces in parallel and emits the components in one pass. On a million-face mesh that is the difference worth having; on a small one the two are indistinguishable.\n\n**Connectivity** chooses what counts as joining two faces, and all three standards are one call each.\n\n| Setting | Two faces are joined when |\n|---|---|\n| Manifold edges | a chain of shared edges links them, counting only edges that exactly two faces use |\n| Any shared edge | a chain of shared edges links them, however many faces use each |\n| Any shared vertex | a chain of shared vertices links them |\n\nThe default separates at seams: a **boundary** edge joins nothing, and neither does an edge three or more faces meet along, so sheets passing through a shared seam come back as separate layers. *Any shared edge* walks through such a seam and reproduces what *Split into Connected Components* does there; *any shared vertex* additionally joins pieces that only touch at a single point. On a manifold mesh all three agree.\n\nWeld first with *Remove Duplicate Vertices (TrueForm)* if a layer arrived as a triangle soup: unwelded faces share nothing at all, and every one of them is its own component under any setting.\n\nThe source layer is kept, and the layer matrix is baked into the results. Reads TrueForm's `make_manifold_edge_connected_component_labels`, `make_edge_connected_component_labels` or `make_vertex_connected_component_labels`, then `split_into_components`.",
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Layer",
+          "help": "The layer to split into its connected components.",
+          "group": "main",
+          "type": "mesh",
+          "default": "@currentMeshIndex"
+        },
+        {
+          "id": "connectivity",
+          "label": "Connectivity",
+          "help": "What counts as joining two faces. Manifold edges keep sheets that meet at a seam apart; any shared edge walks through the seam; any shared vertex also joins pieces that only touch at a point.",
+          "group": "main",
+          "type": "enum",
+          "default": "manifold",
+          "enumOptions": [
+            {
+              "id": "manifold",
+              "label": "Manifold edges \u2014 seams separate"
+            },
+            {
+              "id": "edge",
+              "label": "Any shared edge \u2014 vcglib-compatible"
+            },
+            {
+              "id": "vertex",
+              "label": "Any shared vertex"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "categories": [
         "Repair/Topology"
       ],
       "inputDomain": "SingleMesh",

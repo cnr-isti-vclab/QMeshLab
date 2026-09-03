@@ -369,6 +369,8 @@ private slots:
     void trueFormCsgExpressionMatchesPairwiseBooleans();
     void trueFormCsgSheetsCutWithoutEnclosing();
     void trueFormSolidDomainsSplitTheEnclosedVolume();
+    void trueFormComponentSplitSeparatesDisjointSurfaces();
+    void trueFormComponentConnectivityChoosesWhatJoins();
     void trueFormCurveFamilyProducesPolylines();
     void newMeshFiltersReportTheirLayers();
     void trueFormDistanceAndContainment();
@@ -2362,6 +2364,161 @@ void FilterTests::trueFormSolidDomainsSplitTheEnclosedVolume()
     }
 }
 
+// Three surfaces that touch nowhere, in one layer: the split has to find exactly three and
+// give each one back whole. A surface already in one piece is the other half of the
+// contract -- it comes back as itself, not as a copy that lost or gained a face.
+void FilterTests::trueFormComponentSplitSeparatesDisjointSurfaces()
+{
+    Document doc;
+
+    const QString splitKey = filterKeyForId(
+        doc, QStringLiteral("split_into_connected_components_trueform"));
+    if (splitKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    // Two cubes far enough apart to share nothing, plus a triangle floating on its own.
+    VCGMesh scattered;
+    makeCubeMesh(scattered, 0.0f, 0.0f, 0.0f);
+    VCGMesh away;
+    makeCubeMesh(away, 5.0f, 0.0f, 0.0f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(scattered, away, false);
+    const int base = scattered.VN();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(scattered, 3);
+    scattered.vert[std::size_t(base)].P() = vcg::Point3f(0.0f, 10.0f, 0.0f);
+    scattered.vert[std::size_t(base) + 1].P() = vcg::Point3f(1.0f, 10.0f, 0.0f);
+    scattered.vert[std::size_t(base) + 2].P() = vcg::Point3f(0.0f, 11.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(scattered, base, base + 1, base + 2);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(scattered);
+    const int scatteredIndex = doc.addMesh(scattered, QStringLiteral("three pieces"));
+    QVERIFY(scatteredIndex >= 0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("sourceMesh"), scatteredIndex);
+    const MeshFilterRunResult result = doc.runFilter(splitKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 3);
+
+    std::vector<int> faceCounts;
+    for (int index : result.newMeshIndices)
+        faceCounts.push_back(doc.mesh(index).mesh.FN());
+    std::sort(faceCounts.begin(), faceCounts.end());
+    QCOMPARE(faceCounts[0], 1);
+    QCOMPARE(faceCounts[1], 12);
+    QCOMPARE(faceCounts[2], 12);
+    // Nothing is duplicated and nothing is dropped: the pieces add back up to the layer.
+    QCOMPARE(faceCounts[0] + faceCounts[1] + faceCounts[2], scattered.FN());
+    for (int index : result.newMeshIndices)
+        QVERIFY2(doc.mesh(index).name.startsWith(QStringLiteral("Component")),
+                 qPrintable(doc.mesh(index).name));
+
+    // One connected surface is one component, returned intact.
+    const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
+    QVERIFY(!sphereKey.isEmpty());
+    doc.setCurrentMeshIndex(scatteredIndex);
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int sphere = doc.currentMeshIndex();
+    const int sphereFaces = doc.mesh(sphere).mesh.FN();
+    QVERIFY(sphereFaces > 0);
+
+    MeshFilterParameterValues one;
+    one.insert(QStringLiteral("sourceMesh"), sphere);
+    const MeshFilterRunResult whole = doc.runFilter(splitKey, one);
+    QVERIFY2(whole.success, qPrintable(whole.errorMessage));
+    QCOMPARE(whole.newMeshIndices.size(), 1);
+    QCOMPARE(doc.mesh(whole.newMeshIndices.front()).mesh.FN(), sphereFaces);
+    QCOMPARE(doc.mesh(whole.newMeshIndices.front()).mesh.VN(), doc.mesh(sphere).mesh.VN());
+}
+
+// Two shapes that separate under one connectivity standard and join under the next, which
+// is the whole of what the parameter decides. Three fins along one edge are one surface to
+// anything that walks a non-manifold seam and three to anything that stops at it; a bowtie
+// is two surfaces to anything that needs a shared edge and one to anything that will cross
+// a single shared vertex.
+void FilterTests::trueFormComponentConnectivityChoosesWhatJoins()
+{
+    Document doc;
+
+    const QString splitKey = filterKeyForId(
+        doc, QStringLiteral("split_into_connected_components_trueform"));
+    if (splitKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    // Three triangles hanging off the same edge: that edge is used by three faces, so it
+    // is not a manifold edge.
+    VCGMesh fins;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(fins, 5);
+    fins.vert[0].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    fins.vert[1].P() = vcg::Point3f(1.0f, 0.0f, 0.0f);
+    fins.vert[2].P() = vcg::Point3f(0.5f, 1.0f, 0.0f);
+    fins.vert[3].P() = vcg::Point3f(0.5f, -1.0f, 0.0f);
+    fins.vert[4].P() = vcg::Point3f(0.5f, 0.0f, 1.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(fins, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(fins, 0, 1, 3);
+    vcg::tri::Allocator<VCGMesh>::AddFace(fins, 0, 1, 4);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(fins);
+    const int finsIndex = doc.addMesh(fins, QStringLiteral("three fins"));
+    QVERIFY(finsIndex >= 0);
+
+    const auto splitWith = [&](int layer, const QString &connectivity) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("sourceMesh"), layer);
+        params.insert(QStringLiteral("connectivity"), connectivity);
+        return doc.runFilter(splitKey, params);
+    };
+
+    const MeshFilterRunResult finsManifold =
+        splitWith(finsIndex, QStringLiteral("manifold"));
+    QVERIFY2(finsManifold.success, qPrintable(finsManifold.errorMessage));
+    QCOMPARE(finsManifold.newMeshIndices.size(), 3);
+
+    const MeshFilterRunResult finsEdge = splitWith(finsIndex, QStringLiteral("edge"));
+    QVERIFY2(finsEdge.success, qPrintable(finsEdge.errorMessage));
+    QCOMPARE(finsEdge.newMeshIndices.size(), 1);
+    QCOMPARE(doc.mesh(finsEdge.newMeshIndices.front()).mesh.FN(), 3);
+
+    // A bowtie: two triangles meeting at exactly one vertex and sharing no edge.
+    VCGMesh bowtie;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(bowtie, 5);
+    bowtie.vert[0].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    bowtie.vert[1].P() = vcg::Point3f(1.0f, 0.0f, 0.0f);
+    bowtie.vert[2].P() = vcg::Point3f(0.0f, 1.0f, 0.0f);
+    bowtie.vert[3].P() = vcg::Point3f(-1.0f, 0.0f, 0.0f);
+    bowtie.vert[4].P() = vcg::Point3f(0.0f, -1.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(bowtie, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(bowtie, 0, 3, 4);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(bowtie);
+    const int bowtieIndex = doc.addMesh(bowtie, QStringLiteral("bowtie"));
+    QVERIFY(bowtieIndex >= 0);
+
+    const MeshFilterRunResult bowtieEdge = splitWith(bowtieIndex, QStringLiteral("edge"));
+    QVERIFY2(bowtieEdge.success, qPrintable(bowtieEdge.errorMessage));
+    QCOMPARE(bowtieEdge.newMeshIndices.size(), 2);
+
+    const MeshFilterRunResult bowtieVertex =
+        splitWith(bowtieIndex, QStringLiteral("vertex"));
+    QVERIFY2(bowtieVertex.success, qPrintable(bowtieVertex.errorMessage));
+    QCOMPARE(bowtieVertex.newMeshIndices.size(), 1);
+    QCOMPARE(doc.mesh(bowtieVertex.newMeshIndices.front()).mesh.FN(), 2);
+
+    // The permissive settings only ever join: neither invents a piece where the default
+    // already found one, and two cubes standing apart stay apart under all three.
+    VCGMesh apart;
+    makeCubeMesh(apart, 0.0f, 0.0f, 0.0f);
+    VCGMesh far;
+    makeCubeMesh(far, 5.0f, 0.0f, 0.0f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(apart, far, false);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(apart);
+    const int apartIndex = doc.addMesh(apart, QStringLiteral("two cubes"));
+    for (const QString &connectivity : { QStringLiteral("manifold"),
+                                         QStringLiteral("edge"),
+                                         QStringLiteral("vertex") }) {
+        const MeshFilterRunResult r = splitWith(apartIndex, connectivity);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QVERIFY2(r.newMeshIndices.size() == 2,
+                 qPrintable(QStringLiteral("%1 found %2 components, expected 2")
+                                .arg(connectivity).arg(r.newMeshIndices.size())));
+    }
+}
 // The curve filters and the sweep that consumes their output. Each case is chosen so the
 // expected answer is known: two overlapping boxes cross in a closed loop, a sphere's
 // height field contours into rings, and a clean mesh self-intersects nowhere.
