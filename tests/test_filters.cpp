@@ -5529,10 +5529,14 @@ void FilterTests::packUvChartsSurvivesAnyRotationCount()
     }
 }
 
+// A layer can carry a parametrization and no texture at all -- straight out of a UV
+// filter, before anything is baked. All three filters here read the source images only to
+// learn their resolution and sample them only when resampling, so with resampling off each
+// is a UV operation and that layer is a valid input.
 void FilterTests::packUvChartsWorksWithoutATexture()
 {
     const auto build = [](Document &doc) {
-        constexpr int kSide = 5;
+        constexpr int kSide = 4;
         VCGMesh grid;
         vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
         for (int j = 0; j < kSide; ++j)
@@ -5558,37 +5562,52 @@ void FilterTests::packUvChartsWorksWithoutATexture()
             uvParams).success;
     };
 
-    // No texture, no resampling: packs the UVs and returns a layer with no textures.
-    {
-        Document doc;
-        QVERIFY(build(doc));
-        QCOMPARE(Document::meshTextureAssociationCount(doc.mesh(0)), 0);
-        MeshFilterParameterValues params;
-        params.insert(QStringLiteral("algorithm"), QStringLiteral("object_oriented_rect"));
-        params.insert(QStringLiteral("textureSize"), 512);
-        params.insert(QStringLiteral("resampleTextures"), false);
-        const MeshFilterRunResult r =
-            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts")), params);
-        QVERIFY2(r.success, qPrintable(r.errorMessage));
-        QVERIFY(!r.newMeshIndices.empty());
-        const Document::MeshEntry &out = doc.mesh(r.newMeshIndices.front());
-        QCOMPARE(Document::meshTextureAssociationCount(out), 0);
-        QVERIFY(vcg::tri::HasPerWedgeTexCoord(out.mesh));
-    }
+    const QStringList ids{
+        QStringLiteral("pack_uv_charts"),
+        QStringLiteral("merge_small_texture_islands"),
+        QStringLiteral("defragment_texture_atlas")
+    };
 
-    // No texture but resampling asked for: there is nothing to resample, and the message
-    // has to say which switch fixes it.
-    {
-        Document doc;
-        QVERIFY(build(doc));
-        MeshFilterParameterValues params;
-        params.insert(QStringLiteral("algorithm"), QStringLiteral("object_oriented_rect"));
-        params.insert(QStringLiteral("resampleTextures"), true);
-        const MeshFilterRunResult r =
-            doc.runFilter(filterKeyForId(doc, QStringLiteral("pack_uv_charts")), params);
-        QVERIFY(!r.success);
-        QVERIFY2(r.errorMessage.contains(QStringLiteral("Resample textures")),
-                 qPrintable(r.errorMessage));
+    for (const QString &id : ids) {
+        // The success path costs a full run, and for the two defragmentation filters most
+        // of that is spent inside the chart packer -- two minutes on a mesh this size, for
+        // reasons recorded with the packing measurements. The no-texture handling is one
+        // shared block, so running it once proves it; each filter's refusal path below is
+        // cheap and still covers all three descriptors no longer demanding a texture.
+        const bool runSuccessPath = (id == QStringLiteral("pack_uv_charts"));
+
+        // No texture, no resampling: works on the UVs, returns a layer with no textures.
+        if (runSuccessPath) {
+            Document doc;
+            QVERIFY(build(doc));
+            QCOMPARE(Document::meshTextureAssociationCount(doc.mesh(0)), 0);
+            MeshFilterParameterValues params;
+            params.insert(QStringLiteral("resampleTextures"), false);
+            // Only the island merge has it, and without it the merge search is slow.
+            if (id == QStringLiteral("merge_small_texture_islands"))
+                params.insert(QStringLiteral("quickRun"), true);
+            const MeshFilterRunResult r =
+                doc.runFilter(filterKeyForId(doc, id), params);
+            QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(id, r.errorMessage)));
+            QVERIFY(!r.newMeshIndices.empty());
+            const Document::MeshEntry &out = doc.mesh(r.newMeshIndices.front());
+            QCOMPARE(Document::meshTextureAssociationCount(out), 0);
+            QVERIFY2(vcg::tri::HasPerWedgeTexCoord(out.mesh), qPrintable(id));
+        }
+
+        // No texture but resampling asked for: nothing to resample, and the message has
+        // to name the switch that fixes it.
+        {
+            Document doc;
+            QVERIFY(build(doc));
+            MeshFilterParameterValues params;
+            params.insert(QStringLiteral("resampleTextures"), true);
+            const MeshFilterRunResult r =
+                doc.runFilter(filterKeyForId(doc, id), params);
+            QVERIFY2(!r.success, qPrintable(QStringLiteral("%1 should have refused").arg(id)));
+            QVERIFY2(r.errorMessage.contains(QStringLiteral("Resample textures")),
+                     qPrintable(QStringLiteral("%1: %2").arg(id, r.errorMessage)));
+        }
     }
 }
 

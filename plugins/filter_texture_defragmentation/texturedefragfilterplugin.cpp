@@ -291,15 +291,15 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
         return fail(QObject::tr("%1 requires per-wedge texture coordinates.").arg(filterLabel));
     const bool wantsResampling = params.getBool(QStringLiteral("resampleTextures"), true);
     const int sourceTextureCount = Document::meshTextureAssociationCount(sourceEntry);
-    // Repack only reads the source images to learn their resolution, and only samples them
-    // when it is going to resample. With resampling off it is a pure UV operation, so a
-    // layer that has a parametrization but no texture yet is a legitimate input.
-    const bool packsWithoutTextures = (isRepack && !wantsResampling && sourceTextureCount <= 0);
+    // All three filters read the source images only to learn their resolution, and sample
+    // them only when they are going to resample. With resampling off each is a pure UV
+    // operation, so a layer that carries a parametrization but no texture yet -- straight
+    // out of a UV filter, before anything is baked -- is a legitimate input for any of them.
+    const bool packsWithoutTextures = (!wantsResampling && sourceTextureCount <= 0);
     if (sourceTextureCount <= 0 && !packsWithoutTextures) {
-        return fail(isRepack
-            ? QObject::tr("%1 has no texture to resample. Attach one, or turn off "
-                          "\"Resample textures\" to repack the UVs alone.").arg(filterLabel)
-            : QObject::tr("%1 requires at least one associated texture image.").arg(filterLabel));
+        return fail(QObject::tr("%1 has no texture to resample. Attach one, or turn off "
+                                "\"Resample textures\" to work on the parametrization alone.")
+                        .arg(filterLabel));
     }
 
     doc.beginFilterProgress(filterLabel);
@@ -340,6 +340,10 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
         // A stand-in whose only job is to carry the resolution: the UVs are scaled into
         // its texel space, which is what makes the gutter a pixel count rather than a
         // fraction of the atlas. One bit per pixel, since nothing ever samples it.
+        //
+        // Pack UV Charts asks for the size; the two defragmentation filters take their
+        // output size from the input textures and so have nothing to ask, which leaves the
+        // default standing in for them.
         const int atlasSize = params.getInt(QStringLiteral("textureSize"), 1024);
         QImage placeholder(atlasSize, atlasSize, QImage::Format_Mono);
         placeholder.fill(0);
