@@ -6435,6 +6435,8 @@ Reduces texture fragmentation by merging compatible atlas charts, repacking the 
 
 This QMeshLab port vendors the upstream TextureDefrag reference implementation from `https://github.com/maggio-a/texture-defrag` and adapts it to QMeshLab's mesh-owned texture model. The filter creates a new mesh layer named `texdefrag_<source>` rather than overwriting the input mesh, preserving the original atlas for comparison.
 
+Turn off *Resample textures* to treat this as a parametrization operation instead: the layer comes back with the reorganized UV layout and no texture images, and in that mode it accepts a layer that has a parametrization but no texture yet.
+
 Implementation note: the original reference code used OpenGL to rasterize the new texture atlas. QMeshLab isolates that step behind the original `RenderTexture` boundary; this first integration uses an internal image renderer so the algorithm can run from the filter framework without requiring an OpenGL context. The renderer boundary is intentionally narrow so a QRhi backend can replace it cleanly.
 
 **References:**
@@ -6469,7 +6471,9 @@ Merge texture islands below a size threshold into neighbors sharing a seam, then
 ```{py:function} ms.merge_small_texture_islands(**params)
 :module: _qmeshlab
 
-Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands. It shares the defragmentation pipeline, so it needs the texture images as well as the parametrization: UVs are scaled into pixel space before anything else runs, the surviving charts are repacked, and the new atlas is resampled from the originals. The layer therefore comes back with new texture images, not just moved UVs.
+Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands. It shares the defragmentation pipeline: UVs are scaled into pixel space before anything else runs, the surviving charts are repacked, and the new atlas is resampled from the originals, so the layer comes back with new texture images and not just moved UVs.
+
+Turn off *Resample textures* to treat it as a parametrization operation instead. The layer then comes back with the merged, repacked UV layout and no texture images -- and in that mode a layer that has a parametrization but no texture yet is a valid input.
 
 **References:**
 
