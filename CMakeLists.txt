@@ -468,6 +468,44 @@ target_compile_definitions(QMeshLabFilterCreationTests PRIVATE
 
 add_test(NAME QMeshLabFilterCreationTests COMMAND QMeshLabFilterCreationTests)
 
+qt_add_executable(QMeshLabFilterDescriptorTests
+    tests/test_filter_descriptors.cpp
+)
+
+target_include_directories(QMeshLabFilterDescriptorTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+)
+
+target_link_libraries(QMeshLabFilterDescriptorTests PRIVATE
+    QMeshLabPlugins
+    Qt6::Test
+)
+
+target_compile_definitions(QMeshLabFilterDescriptorTests PRIVATE
+    TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+add_test(NAME QMeshLabFilterDescriptorTests COMMAND QMeshLabFilterDescriptorTests)
+
+qt_add_executable(QMeshLabFilterSmokeTests
+    tests/test_filter_smoke.cpp
+)
+
+target_include_directories(QMeshLabFilterSmokeTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+)
+
+target_link_libraries(QMeshLabFilterSmokeTests PRIVATE
+    QMeshLabPlugins
+    Qt6::Test
+)
+
+target_compile_definitions(QMeshLabFilterSmokeTests PRIVATE
+    TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+add_test(NAME QMeshLabFilterSmokeTests COMMAND QMeshLabFilterSmokeTests)
+
 # ParameterFormBuilder deliberately depends on nothing but Document + Qt Widgets,
 # so it can be compiled straight into the test rather than dragging in the app.
 qt_add_executable(QMeshLabParameterFormTests

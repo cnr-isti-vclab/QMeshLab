@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MeshLabProject>
+    <MeshGroup>
+    <MLMesh label="gargoyle.ply" filename="gargoyle.ply">
+        <MLMatrix44>1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000</MLMatrix44>
+    </MLMesh>
+    </MeshGroup>
+    <RasterGroup>
+        <MLRaster label="DSC_0039.JPG">
+            <VCGCamera TranslationVector="930.244995 -724.127014 -219.350006 1" RotationMatrix="-0.096069 0.163347 -0.981880 0.000000 -0.645806 -0.760865 -0.063392 0.000000 -0.757434 0.628014 0.178586 0.000000 0.000000 0.000000 0.000000 1.000000" CameraType="0" FocalMm="177.2120" LensDistortion="0 0" PixelSizeMm="0.071112 0.071112" ViewportPx="750 502" CenterPx="375.00 251.00" BinaryData="0"/>
+            <Plane fileName="DSC_0039.JPG" semantic="RGBA"/>
+        </MLRaster>
+        <MLRaster label="DSC_0040.JPG">
+            <VCGCamera TranslationVector="294.039001 975.429993 112.596001 1" RotationMatrix="0.157566 -0.182422 0.970512 0.000000 -0.931056 0.300086 0.207566 0.000000 -0.329102 -0.936307 -0.122562 0.000000 0.000000 0.000000 0.000000 1.000000" CameraType="0" FocalMm="140.1290" LensDistortion="0 0" PixelSizeMm="0.071112 0.071112" ViewportPx="750 502" CenterPx="375.00 251.00" BinaryData="0"/>
+            <Plane fileName="DSC_0040.JPG" semantic="RGBA"/>
+        </MLRaster>
+        <MLRaster label="DSC_0041.JPG">
+            <VCGCamera TranslationVector="-512.315002 -139.266998 509.760986 1" RotationMatrix="0.156074 0.853818 0.496626 0.000000 0.705111 -0.448404 0.549319 0.000000 0.691708 0.264441 -0.672020 0.000000 0.000000 0.000000 0.000000 1.000000" CameraType="0" FocalMm="115.7100" LensDistortion="0 0" PixelSizeMm="0.071112 0.071112" ViewportPx="750 502" CenterPx="375.00 251.00" BinaryData="0"/>
+            <Plane fileName="DSC_0041.JPG" semantic="RGBA"/>
+        </MLRaster>
+        <MLRaster label="DSC_0042.JPG">
+            <VCGCamera TranslationVector="-479.433990 72.796204 -718.362000 1" RotationMatrix="-0.293043 -0.939711 0.176266 0.000000 0.773380 -0.341373 -0.534181 0.000000 0.562147 -0.020217 0.826790 0.000000 0.000000 0.000000 0.000000 1.000000" CameraType="0" FocalMm="142.7060" LensDistortion="0 0" PixelSizeMm="0.071112 0.071112" ViewportPx="750 502" CenterPx="375.00 251.00" BinaryData="0"/>
+            <Plane fileName="DSC_0042.JPG" semantic="RGBA"/>
+        </MLRaster>
+    </RasterGroup>
+</MeshLabProject>

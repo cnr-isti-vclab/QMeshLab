@@ -158,7 +158,7 @@
           "type": "bool",
           "label": "Resample textures",
           "default": true,
-          "description": "Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.",
+          "help": "Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.",
           "group": "main"
         }
       ]
@@ -270,7 +270,7 @@
           "type": "bool",
           "label": "Resample textures",
           "default": true,
-          "description": "Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.",
+          "help": "Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.",
           "group": "main"
         }
       ]
@@ -365,7 +365,7 @@
           "type": "bool",
           "label": "Resample textures",
           "default": true,
-          "description": "Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.",
+          "help": "Render the new atlas by resampling the original texture images. Turn it off to treat this as a parametrization-only filter: the layer comes back with the reorganized UV layout and no texture images, which is what you want when the texture is going to be baked again afterwards. The source images are still required either way -- the algorithm measures islands and distortion in texel space, so it needs their resolution before it can start.",
           "group": "main"
         },
         {

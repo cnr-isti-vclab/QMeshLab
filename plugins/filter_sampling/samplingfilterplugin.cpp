@@ -468,6 +468,14 @@ int addDerivedMesh(
 std::unique_ptr<VCGMesh> makePreparedSurfaceMesh(const VCGMesh &source)
 {
     auto prepared = std::make_unique<VCGMesh>();
+    // Append copies an optional component only when the destination already has it
+    // enabled, so a plain copy drops the source's texture coordinates -- and a
+    // filter that then reads them off the copy dereferences an empty OCF store
+    // instead of getting an exception. Texel sampling did exactly that.
+    if (source.face.IsWedgeTexCoordEnabled())
+        prepared->face.EnableWedgeTexCoord();
+    if (source.vert.IsTexCoordEnabled())
+        prepared->vert.EnableTexCoord();
     vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(*prepared, source);
     if (prepared->FN() > 0) {
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(*prepared);
@@ -1499,6 +1507,9 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(*prepared);
         vcg::tri::Allocator<VCGMesh>::CompactEveryVector(*prepared);
         vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(*prepared);
+        // RegularRecursiveOffset walks a face grid with closest-point queries, which
+        // mark the faces they visit.
+        prepared->face.EnableMark();
         std::vector<Point> pointVector;
         vcg::tri::SurfaceSampling<VCGMesh, LocalRedetailSampler>::RegularRecursiveOffset(
             *prepared,

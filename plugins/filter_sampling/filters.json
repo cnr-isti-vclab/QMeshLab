@@ -1041,7 +1041,7 @@
           "group": "main",
           "type": "absperc",
           "default": 0.0,
-          "min": "@bboxDiagTenth",
+          "min": "@negBboxDiagTenth",
           "max": "@bboxDiagTenth",
           "decimals": 6
         }
