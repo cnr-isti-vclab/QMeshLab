@@ -9,6 +9,7 @@
 #include <QMatrix4x4>
 #include <QObject>
 #include <QList>
+#include <QRegularExpression>
 #include <QStringList>
 #include <QVector3D>
 
@@ -53,6 +54,9 @@ constexpr QLatin1StringView kFilterIntersection("mesh_intersection_trueform");
 constexpr QLatin1StringView kFilterDifference("mesh_difference_trueform");
 constexpr QLatin1StringView kFilterSymmetricDifference("mesh_symmetric_difference_trueform");
 constexpr QLatin1StringView kFilterCsg("mesh_csg_expression_trueform");
+constexpr QLatin1StringView kFilterSolidDomains("split_into_solid_domains_trueform");
+constexpr QLatin1StringView kFilterSplitComponents(
+    "split_into_connected_components_trueform");
 constexpr QLatin1StringView kFilterOuterShell("extract_outer_shell_trueform");
 constexpr QLatin1StringView kFilterSelfIntersectionCurves("create_polyline_from_self_intersections_trueform");
 constexpr QLatin1StringView kFilterIntersectionCurves("create_polyline_from_mesh_intersection_trueform");
@@ -372,6 +376,7 @@ MeshFilterRunResult runAlignCorresponding(const FilterParams &params, Document &
 // ---------------------------------------------------------------------------
 
 using TfMesh = tf::polygons_buffer<int, float, 3, 3>;
+using TfForms = std::vector<decltype(std::declval<const TfMesh &>().polygons())>;
 
 // A layer's triangles in world space. Booleans across layers are only meaningful once
 // each layer's matrix has been applied.
@@ -421,12 +426,33 @@ TfMesh tfMeshFromLayer(const Document::MeshEntry &entry)
     return out;
 }
 
-// Copy a TrueForm result into a fresh document layer. The result is already in world
-// space, so the new layer keeps an identity matrix.
+// The layers an N-operand read runs on, in operand order.
+std::vector<TfMesh> tfMeshesFromLayers(const QList<int> &layers, Document &doc)
+{
+    std::vector<TfMesh> meshes;
+    meshes.reserve(std::size_t(layers.size()));
+    for (int layer : layers)
+        meshes.push_back(tfMeshFromLayer(doc.mesh(layer)));
+    return meshes;
+}
+
+// The views a graph is built over. They borrow the meshes, which the caller keeps alive
+// for as long as the graph lives.
+TfForms tfFormsOf(const std::vector<TfMesh> &meshes)
+{
+    TfForms forms;
+    forms.reserve(meshes.size());
+    for (const TfMesh &m : meshes)
+        forms.emplace_back(m.polygons());
+    return forms;
+}
+
+// Copy a TrueForm result buffer into a fresh document layer. The result is already in
+// world space, so the new layer keeps an identity matrix, and a polygon face is fanned
+// into triangles. Returns -1 when the buffer carries no face the document can hold; what
+// that means is the calling filter's to say.
 template <typename Buffer>
-MeshFilterRunResult addResultLayer(
-    Document &doc, const Buffer &buffer, const QString &layerName,
-    const QString &emptyMessage, QStringList info)
+int addBufferLayer(Document &doc, const Buffer &buffer, const QString &layerName)
 {
     VCGMesh output;
     const auto points = buffer.points();
@@ -454,24 +480,31 @@ MeshFilterRunResult addResultLayer(
         }
     }
 
-    if (output.FN() <= 0) {
-        doc.finishFilterProgress(false, emptyMessage);
-        return fail(emptyMessage);
-    }
+    if (output.FN() <= 0)
+        return -1;
 
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(output);
     vcg::tri::UpdateBounding<VCGMesh>::Box(output);
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(output);
 
     const int ioMask = Mask::IOM_VERTCOORD | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
-    const int newIndex = doc.addMesh(output, layerName, ioMask);
+    return doc.addMesh(output, layerName, ioMask);
+}
+
+// The single-result form: one layer, and the progress and reporting around it.
+template <typename Buffer>
+MeshFilterRunResult addResultLayer(
+    Document &doc, const Buffer &buffer, const QString &layerName,
+    const QString &emptyMessage, QStringList info)
+{
+    const int newIndex = addBufferLayer(doc, buffer, layerName);
     if (newIndex < 0) {
-        const QString message = QObject::tr("Failed to add the %1 layer.").arg(layerName);
-        doc.finishFilterProgress(false, message);
-        return fail(message);
+        doc.finishFilterProgress(false, emptyMessage);
+        return fail(emptyMessage);
     }
     doc.finishFilterProgress(true, QObject::tr("Created %1.").arg(layerName));
 
+    const VCGMesh &output = doc.mesh(newIndex).mesh;
     info.prepend(QObject::tr("Created mesh '%1'.").arg(doc.mesh(newIndex).name));
     info << QObject::tr("Output: %1 vertices, %2 faces.").arg(output.VN()).arg(output.FN());
     MeshFilterRunResult result;
@@ -479,6 +512,48 @@ MeshFilterRunResult addResultLayer(
     result.documentModified = true;
     result.infoMessages = info;
     result.newMeshIndices.push_back(newIndex);
+    return result;
+}
+
+// The many-result form every decomposition shares: one layer per buffer, named in turn,
+// and the run reported once over the whole set. An empty buffer produces no layer, so the
+// reported indices are exactly the layers that exist.
+template <typename Buffers, typename Naming>
+MeshFilterRunResult addResultLayers(
+    Document &doc, const Buffers &buffers, Naming name_of,
+    const QString &emptyMessage, QStringList info)
+{
+    QVector<int> newIndices;
+    newIndices.reserve(int(buffers.size()));
+    for (std::size_t k = 0; k < buffers.size(); ++k) {
+        const int newIndex = addBufferLayer(doc, buffers[k], name_of(k));
+        if (newIndex >= 0)
+            newIndices.push_back(newIndex);
+    }
+
+    if (newIndices.isEmpty()) {
+        doc.finishFilterProgress(false, emptyMessage);
+        return fail(emptyMessage);
+    }
+    doc.finishFilterProgress(
+        true, QObject::tr("Created %1 layer(s).").arg(newIndices.size()));
+
+    int vertices = 0, faces = 0;
+    QStringList names;
+    for (int index : newIndices) {
+        const VCGMesh &output = doc.mesh(index).mesh;
+        vertices += output.VN();
+        faces += output.FN();
+        names << doc.mesh(index).name;
+    }
+    info.prepend(QObject::tr("Created %1 layer(s): %2.")
+                     .arg(newIndices.size()).arg(names.join(QStringLiteral(", "))));
+    info << QObject::tr("Output: %1 vertices, %2 faces.").arg(vertices).arg(faces);
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages = info;
+    result.newMeshIndices = newIndices;
     return result;
 }
 
@@ -690,6 +765,57 @@ private:
     QList<int> m_operands;
 };
 
+// Layer numbers written the way the CSG expression writes its operands, separated by
+// spaces or commas. Empty text is an empty list rather than an error: it is how a caller
+// says "none of them".
+bool parseLayerList(const QString &text, int meshCount, QList<int> &layers, QString &error)
+{
+    layers.clear();
+    static const QRegularExpression separators(QStringLiteral("[\\s,]+"));
+    const QStringList parts = text.trimmed().split(separators, Qt::SkipEmptyParts);
+    for (const QString &part : parts) {
+        bool ok = false;
+        const int layer = part.toInt(&ok);
+        if (!ok) {
+            error = QObject::tr("'%1' is not a layer number.").arg(part);
+            return false;
+        }
+        if (layer < 0 || layer >= meshCount) {
+            error = QObject::tr("Layer %1 does not exist; the document has %2.")
+                        .arg(layer).arg(meshCount);
+            return false;
+        }
+        if (!layers.contains(layer))
+            layers.append(layer);
+    }
+    return true;
+}
+
+// The sheet declaration TrueForm's graph takes: operand ids, not layer numbers. A sheet
+// cuts only inside the arrangement it belongs to, so a layer named here has to be one of
+// the operands, in the order the graph will see them.
+bool resolveSheetTags(
+    const QString &text, const QList<int> &operands, Document &doc,
+    std::vector<int> &tags, QString &error)
+{
+    QList<int> layers;
+    if (!parseLayerList(text, doc.meshCount(), layers, error))
+        return false;
+    tags.clear();
+    tags.reserve(std::size_t(layers.size()));
+    for (int layer : layers) {
+        const int tag = int(operands.indexOf(layer));
+        if (tag < 0) {
+            error = QObject::tr("Layer %1 ('%2') is listed as a sheet but is not one of "
+                                "the operands.")
+                        .arg(layer).arg(doc.mesh(layer).name);
+            return false;
+        }
+        tags.push_back(tag);
+    }
+    return true;
+}
+
 MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
 {
     const QString text = params.getString(QStringLiteral("expression")).trimmed();
@@ -710,22 +836,20 @@ MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
         }
     }
 
+    std::vector<int> sheets;
+    if (!resolveSheetTags(params.getString(QStringLiteral("sheets")), operands, doc,
+                          sheets, error))
+        return fail(error);
+
     doc.beginFilterProgress(QObject::tr("Mesh CSG Expression (TrueForm)"));
     try {
-        std::vector<TfMesh> meshes;
-        meshes.reserve(std::size_t(operands.size()));
-        for (int layer : operands)
-            meshes.push_back(tfMeshFromLayer(doc.mesh(layer)));
-
-        using FormView = decltype(std::declval<const TfMesh &>().polygons());
-        std::vector<FormView> forms;
-        forms.reserve(meshes.size());
-        for (const TfMesh &m : meshes)
-            forms.emplace_back(m.polygons());
+        const std::vector<TfMesh> meshes = tfMeshesFromLayers(operands, doc);
+        const TfForms forms = tfFormsOf(meshes);
 
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(30, "Building the arrangement...");
-        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()));
+        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()),
+                                        tf::make_range(sheets.data(), sheets.size()));
 
         if (vcg::CallBackPos *cb = doc.progressCallback())
             (*cb)(70, "Evaluating the expression...");
@@ -734,10 +858,20 @@ MeshFilterRunResult runCsgExpression(const FilterParams &params, Document &doc)
         QStringList used;
         for (int layer : operands)
             used << QObject::tr("%1 = '%2'").arg(layer).arg(doc.mesh(layer).name);
+        QStringList info{ QObject::tr("Expression: %1").arg(text),
+                          used.join(QStringLiteral(", ")) };
+        if (!sheets.empty()) {
+            QStringList named;
+            for (int tag : sheets)
+                named << QObject::tr("'%1'").arg(doc.mesh(operands.at(tag)).name);
+            info << QObject::tr("Cutting with %1 as %2.")
+                        .arg(named.join(QStringLiteral(", ")),
+                             sheets.size() == 1 ? QObject::tr("a sheet")
+                                                : QObject::tr("sheets"));
+        }
         return addResultLayer(
             doc, result, QObject::tr("CSG"),
-            QObject::tr("The expression evaluates to an empty solid."),
-            { QObject::tr("Expression: %1").arg(text), used.join(QStringLiteral(", ")) });
+            QObject::tr("The expression evaluates to an empty solid."), info);
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm CSG failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));
@@ -797,6 +931,127 @@ MeshFilterRunResult runOuterShell(const FilterParams &params, Document &doc)
             { QObject::tr("From '%1'.").arg(doc.mesh(index).name) });
     } catch (const std::exception &e) {
         const QString message = QObject::tr("TrueForm outer shell failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// Every region of space the operands enclose, each as its own watertight layer. A boolean
+// picks one of those regions and merges the rest away; this keeps them all and keeps them
+// apart, which is the read nothing else in the ecosystem offers.
+MeshFilterRunResult runSolidDomains(const FilterParams &params, Document &doc)
+{
+    QList<int> layers;
+    QString error;
+    if (!parseLayerList(params.getString(QStringLiteral("layers")), doc.meshCount(),
+                        layers, error))
+        return fail(error);
+    if (layers.isEmpty())
+        return fail(QObject::tr("No layers were listed."));
+    for (int layer : layers) {
+        if (doc.mesh(layer).mesh.FN() <= 0) {
+            return fail(QObject::tr("Layer %1 ('%2') has no faces.")
+                            .arg(layer).arg(doc.mesh(layer).name));
+        }
+    }
+
+    std::vector<int> sheets;
+    if (!resolveSheetTags(params.getString(QStringLiteral("sheets")), layers, doc,
+                          sheets, error))
+        return fail(error);
+
+    doc.beginFilterProgress(QObject::tr("Split into Solid Domains (TrueForm)"));
+    try {
+        const std::vector<TfMesh> meshes = tfMeshesFromLayers(layers, doc);
+        const TfForms forms = tfFormsOf(meshes);
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(30, "Building the arrangement...");
+        auto graph = tf::make_csg_graph(tf::make_range(forms.data(), forms.size()),
+                                        tf::make_range(sheets.data(), sheets.size()));
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(70, "Extracting the domains...");
+        auto domains = tf::make_csg_domains(graph);
+        const auto &cells = domains.first;
+        const auto &ids = domains.second;
+
+        QStringList used;
+        for (int layer : layers)
+            used << QObject::tr("'%1'").arg(doc.mesh(layer).name);
+        return addResultLayers(
+            doc, cells,
+            [&ids](std::size_t k) { return QObject::tr("Domain %1").arg(ids[k]); },
+            QObject::tr("The layers enclose nothing to decompose."),
+            { QObject::tr("From %1.").arg(used.join(QStringLiteral(", "))) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm domain decomposition failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Connected components
+// ---------------------------------------------------------------------------
+
+// Per-face component labels under the asked connectivity. TrueForm has a producer for
+// each standard; the vertex-connected one labels VERTICES rather than faces, and a face's
+// corners are all linked to each other through the face's own edges, so the component of
+// any one corner is the component of the face.
+tf::buffer<int> faceComponentLabels(const TfMesh &source, const QString &connectivity)
+{
+    if (connectivity == QStringLiteral("edge")) {
+        auto cc = tf::make_edge_connected_component_labels(source.polygons());
+        return std::move(cc.labels);
+    }
+    if (connectivity == QStringLiteral("vertex")) {
+        const auto cc = tf::make_vertex_connected_component_labels(source.polygons());
+        tf::buffer<int> labels;
+        labels.allocate(source.polygons().size());
+        tf::parallel_for_each(tf::enumerate(source.polygons().faces()),
+            [&labels, &cc](auto pair) {
+                auto &&[fi, face] = pair;
+                labels[std::size_t(fi)] = cc.labels[std::size_t(face[0])];
+            }, tf::checked);
+        return labels;
+    }
+    auto cc = tf::make_manifold_edge_connected_component_labels(source.polygons());
+    return std::move(cc.labels);
+}
+
+// One layer per surface that stands on its own. TrueForm labels the faces in parallel and
+// splits them in one pass, which is where the speed on a large mesh comes from, and it has
+// a producer for each of the three connectivity standards the parameter offers.
+MeshFilterRunResult runSplitComponents(const FilterParams &params, Document &doc)
+{
+    const int index = params.getMesh(QStringLiteral("sourceMesh"), doc.currentMeshIndex());
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    if (doc.mesh(index).mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const QString connectivity = params.getEnum(QStringLiteral("connectivity"));
+
+    doc.beginFilterProgress(QObject::tr("Split into Connected Components (TrueForm)"));
+    try {
+        const TfMesh source = tfMeshFromLayer(doc.mesh(index));
+        const tf::buffer<int> faceLabels = faceComponentLabels(source, connectivity);
+        auto split = tf::split_into_components(source.polygons(), faceLabels);
+        const auto &components = split.first;
+        const auto &componentLabels = split.second;
+
+        return addResultLayers(
+            doc, components,
+            [&componentLabels](std::size_t k) {
+                return QObject::tr("Component %1").arg(componentLabels[k]);
+            },
+            QObject::tr("The layer has no connected component to split out."),
+            { QObject::tr("From '%1'.").arg(doc.mesh(index).name) });
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm component splitting failed: %1")
                                     .arg(QString::fromLocal8Bit(e.what()));
         doc.finishFilterProgress(false, message);
         return fail(message);
@@ -2092,6 +2347,10 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runSymmetricDifference(params, doc);
     if (filterId == QString::fromLatin1(kFilterCsg))
         return runCsgExpression(params, doc);
+    if (filterId == QString::fromLatin1(kFilterSolidDomains))
+        return runSolidDomains(params, doc);
+    if (filterId == QString::fromLatin1(kFilterSplitComponents))
+        return runSplitComponents(params, doc);
     if (filterId == QString::fromLatin1(kFilterOuterShell))
         return runOuterShell(params, doc);
     if (filterId == QString::fromLatin1(kFilterSelfIntersectionCurves))

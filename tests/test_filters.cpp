@@ -80,6 +80,22 @@ void makeOpenDiskMesh(VCGMesh &mesh)
     vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 }
 
+// A flat open square at height z, two triangles wound so their normal points along +Z.
+// Made wider than the solids it is cut against, so it separates them completely.
+void makeSquareSheetMesh(VCGMesh &mesh, float halfWidth, float z)
+{
+    mesh.Clear();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
+    mesh.vert[0].P() = vcg::Point3f(-halfWidth, -halfWidth, z);
+    mesh.vert[1].P() = vcg::Point3f(halfWidth, -halfWidth, z);
+    mesh.vert[2].P() = vcg::Point3f(halfWidth, halfWidth, z);
+    mesh.vert[3].P() = vcg::Point3f(-halfWidth, halfWidth, z);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 2, 3);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+}
+
 void makeOpenCubeMesh(VCGMesh &mesh)
 {
     makeCubeMesh(mesh, 0.0f, 0.0f, 0.0f);
@@ -351,6 +367,10 @@ private slots:
     void trueFormAlignmentRecoversAKnownTransform();
     void trueFormBooleansAgreeWithVolume();
     void trueFormCsgExpressionMatchesPairwiseBooleans();
+    void trueFormCsgSheetsCutWithoutEnclosing();
+    void trueFormSolidDomainsSplitTheEnclosedVolume();
+    void trueFormComponentSplitSeparatesDisjointSurfaces();
+    void trueFormComponentConnectivityChoosesWhatJoins();
     void trueFormCurveFamilyProducesPolylines();
     void newMeshFiltersReportTheirLayers();
     void trueFormDistanceAndContainment();
@@ -2138,6 +2158,367 @@ void FilterTests::trueFormCsgExpressionMatchesPairwiseBooleans()
     QVERIFY(!doc.runFilter(csgKey, bad).success);
 }
 
+// A sheet is an open surface that cuts without enclosing anything, so the same expression
+// means one thing when the cutter is declared a sheet and another when it is not. A unit
+// cube halved by a square through its middle states both: the two sides are exactly half
+// the cube each, and left undeclared the cutter encloses no volume and removes nothing.
+void FilterTests::trueFormCsgSheetsCutWithoutEnclosing()
+{
+    Document doc;
+
+    const QString csgKey = filterKeyForId(doc, QStringLiteral("mesh_csg_expression_trueform"));
+    if (csgKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int solid = doc.addMesh(cube, QStringLiteral("cube"));
+    QVERIFY(solid >= 0);
+
+    VCGMesh sheet;
+    makeSquareSheetMesh(sheet, 2.0f, 0.5f);
+    const int cutter = doc.addMesh(sheet, QStringLiteral("sheet"));
+    QVERIFY(cutter >= 0);
+
+    const auto volumeOf = [&doc](int index) {
+        return double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(doc.mesh(index).mesh)));
+    };
+    const auto holesIn = [&doc](int index) {
+        VCGMesh &m = doc.mesh(index).mesh;
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        return vcg::tri::Clean<VCGMesh>::CountHoles(m);
+    };
+
+    // In front of the sheet's normals, and behind them: half the cube each, and each one
+    // capped along the cut rather than left open where the sheet passed through.
+    MeshFilterParameterValues front;
+    front.insert(QStringLiteral("expression"), QStringLiteral("%1 - %2").arg(solid).arg(cutter));
+    front.insert(QStringLiteral("sheets"), QString::number(cutter));
+    const MeshFilterRunResult above = doc.runFilter(csgKey, front);
+    QVERIFY2(above.success, qPrintable(above.errorMessage));
+    QCOMPARE(above.newMeshIndices.size(), 1);
+    QCOMPARE(holesIn(above.newMeshIndices.front()), 0);
+    QVERIFY2(std::abs(volumeOf(above.newMeshIndices.front()) - 0.5) < 1e-4,
+             qPrintable(QStringLiteral("the front half measured %1, expected 0.5")
+                            .arg(volumeOf(above.newMeshIndices.front()))));
+
+    MeshFilterParameterValues back;
+    back.insert(QStringLiteral("expression"), QStringLiteral("%1 & %2").arg(solid).arg(cutter));
+    back.insert(QStringLiteral("sheets"), QString::number(cutter));
+    const MeshFilterRunResult below = doc.runFilter(csgKey, back);
+    QVERIFY2(below.success, qPrintable(below.errorMessage));
+    QCOMPARE(holesIn(below.newMeshIndices.front()), 0);
+    QVERIFY2(std::abs(volumeOf(below.newMeshIndices.front()) - 0.5) < 1e-4,
+             qPrintable(QStringLiteral("the back half measured %1, expected 0.5")
+                            .arg(volumeOf(below.newMeshIndices.front()))));
+
+    // Undeclared, the same layer is read as a solid: an open surface encloses nothing, so
+    // the difference gives the cube back whole. This is what an empty parameter means, and
+    // it is what every call written before the parameter existed keeps getting.
+    MeshFilterParameterValues noSheets;
+    noSheets.insert(QStringLiteral("expression"), QStringLiteral("%1 - %2").arg(solid).arg(cutter));
+    noSheets.insert(QStringLiteral("sheets"), QString());
+    const MeshFilterRunResult whole = doc.runFilter(csgKey, noSheets);
+    QVERIFY2(whole.success, qPrintable(whole.errorMessage));
+    QVERIFY2(std::abs(volumeOf(whole.newMeshIndices.front()) - 1.0) < 1e-4,
+             qPrintable(QStringLiteral("without sheets the difference measured %1, expected 1.0")
+                            .arg(volumeOf(whole.newMeshIndices.front()))));
+
+    // And an empty sheet list leaves a solid-only expression exactly where it was: two
+    // unit cubes overlapping in half their extent still union to one and a half.
+    VCGMesh shifted;
+    makeCubeMesh(shifted, 0.5f, 0.0f, 0.0f);
+    const int second = doc.addMesh(shifted, QStringLiteral("shifted cube"));
+    MeshFilterParameterValues union2;
+    union2.insert(QStringLiteral("expression"), QStringLiteral("%1 | %2").arg(solid).arg(second));
+    union2.insert(QStringLiteral("sheets"), QString());
+    const MeshFilterRunResult merged = doc.runFilter(csgKey, union2);
+    QVERIFY2(merged.success, qPrintable(merged.errorMessage));
+    QVERIFY2(std::abs(volumeOf(merged.newMeshIndices.front()) - 1.5) < 1e-4,
+             qPrintable(QStringLiteral("the union measured %1, expected 1.5")
+                            .arg(volumeOf(merged.newMeshIndices.front()))));
+
+    // A sheet the expression never mentions is a mistake worth reporting: it would be
+    // built into the arrangement and cut nothing anyone asked about.
+    MeshFilterParameterValues stray;
+    stray.insert(QStringLiteral("expression"), QStringLiteral("%1 | %2").arg(solid).arg(second));
+    stray.insert(QStringLiteral("sheets"), QString::number(cutter));
+    const MeshFilterRunResult unused = doc.runFilter(csgKey, stray);
+    QVERIFY(!unused.success);
+    QVERIFY(unused.errorMessage.contains(QStringLiteral("sheet")));
+}
+
+// Two unit cubes overlapping in an eighth of their extent cut space into three regions of
+// stated size, and each one has to come back closed and on its own layer. The same read
+// answers for a sheet cutting a solid and for a single layer crossing itself, which are
+// the two shapes a boolean cannot express at all.
+void FilterTests::trueFormSolidDomainsSplitTheEnclosedVolume()
+{
+    Document doc;
+
+    const QString domainsKey = filterKeyForId(doc, QStringLiteral("split_into_solid_domains_trueform"));
+    if (domainsKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    const auto volumeOf = [&doc](int index) {
+        return double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(doc.mesh(index).mesh)));
+    };
+    const auto holesIn = [&doc](int index) {
+        VCGMesh &m = doc.mesh(index).mesh;
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        return vcg::tri::Clean<VCGMesh>::CountHoles(m);
+    };
+    const auto sortedVolumes = [&](const QVector<int> &indices) {
+        std::vector<double> volumes;
+        for (int index : indices)
+            volumes.push_back(volumeOf(index));
+        std::sort(volumes.begin(), volumes.end());
+        return volumes;
+    };
+
+    // Overlapping by half a side in each axis: the shared corner is an eighth of a cube,
+    // and what is left of each is seven eighths.
+    VCGMesh first;
+    makeCubeMesh(first, 0.0f, 0.0f, 0.0f);
+    const int a = doc.addMesh(first, QStringLiteral("cube a"));
+    VCGMesh second;
+    makeCubeMesh(second, 0.5f, 0.5f, 0.5f);
+    const int b = doc.addMesh(second, QStringLiteral("cube b"));
+
+    MeshFilterParameterValues pair;
+    pair.insert(QStringLiteral("layers"), QStringLiteral("%1 %2").arg(a).arg(b));
+    pair.insert(QStringLiteral("sheets"), QString());
+    const MeshFilterRunResult overlap = doc.runFilter(domainsKey, pair);
+    QVERIFY2(overlap.success, qPrintable(overlap.errorMessage));
+    QCOMPARE(overlap.newMeshIndices.size(), 3);
+    const std::vector<double> volumes = sortedVolumes(overlap.newMeshIndices);
+    const double expected[3] = { 0.125, 0.875, 0.875 };
+    for (std::size_t k = 0; k < 3; ++k) {
+        QVERIFY2(std::abs(volumes[k] - expected[k]) < 1e-4,
+                 qPrintable(QStringLiteral("domain %1 measured %2, expected %3")
+                                .arg(k).arg(volumes[k]).arg(expected[k])));
+    }
+    for (int index : overlap.newMeshIndices)
+        QCOMPARE(holesIn(index), 0);
+    // Named for the domain each one carries, so the layer panel says which is which.
+    for (int index : overlap.newMeshIndices)
+        QVERIFY2(doc.mesh(index).name.startsWith(QStringLiteral("Domain")),
+                 qPrintable(doc.mesh(index).name));
+
+    // A solid halved by an open surface: two closed pieces, and the sheet itself is not
+    // one of them.
+    Document cut;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    const int solid = cut.addMesh(cube, QStringLiteral("cube"));
+    VCGMesh sheet;
+    makeSquareSheetMesh(sheet, 2.0f, 0.5f);
+    const int cutter = cut.addMesh(sheet, QStringLiteral("sheet"));
+
+    MeshFilterParameterValues halves;
+    halves.insert(QStringLiteral("layers"), QStringLiteral("%1 %2").arg(solid).arg(cutter));
+    halves.insert(QStringLiteral("sheets"), QString::number(cutter));
+    const MeshFilterRunResult split = cut.runFilter(domainsKey, halves);
+    QVERIFY2(split.success, qPrintable(split.errorMessage));
+    QCOMPARE(split.newMeshIndices.size(), 2);
+    for (int index : split.newMeshIndices) {
+        const double got =
+            double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(cut.mesh(index).mesh)));
+        QVERIFY2(std::abs(got - 0.5) < 1e-4,
+                 qPrintable(QStringLiteral("half measured %1, expected 0.5").arg(got)));
+        VCGMesh &m = cut.mesh(index).mesh;
+        m.face.EnableFFAdjacency();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+        QCOMPARE(vcg::tri::Clean<VCGMesh>::CountHoles(m), 0);
+    }
+
+    // One layer holding two crossing cubes: the graph arranges a single form against
+    // itself, and the three regions come back exactly as they did from two layers.
+    Document self;
+    VCGMesh crossing;
+    makeCubeMesh(crossing, 0.0f, 0.0f, 0.0f);
+    VCGMesh other;
+    makeCubeMesh(other, 0.5f, 0.5f, 0.5f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(crossing, other, false);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(crossing);
+    const int both = self.addMesh(crossing, QStringLiteral("crossing cubes"));
+
+    MeshFilterParameterValues single;
+    single.insert(QStringLiteral("layers"), QString::number(both));
+    single.insert(QStringLiteral("sheets"), QString());
+    const MeshFilterRunResult alone = self.runFilter(domainsKey, single);
+    QVERIFY2(alone.success, qPrintable(alone.errorMessage));
+    QCOMPARE(alone.newMeshIndices.size(), 3);
+    std::vector<double> selfVolumes;
+    for (int index : alone.newMeshIndices) {
+        selfVolumes.push_back(
+            double(std::abs(vcg::tri::Stat<VCGMesh>::ComputeMeshVolume(self.mesh(index).mesh))));
+    }
+    std::sort(selfVolumes.begin(), selfVolumes.end());
+    for (std::size_t k = 0; k < 3; ++k) {
+        QVERIFY2(std::abs(selfVolumes[k] - expected[k]) < 1e-4,
+                 qPrintable(QStringLiteral("self-arranged domain %1 measured %2, expected %3")
+                                .arg(k).arg(selfVolumes[k]).arg(expected[k])));
+    }
+}
+
+// Three surfaces that touch nowhere, in one layer: the split has to find exactly three and
+// give each one back whole. A surface already in one piece is the other half of the
+// contract -- it comes back as itself, not as a copy that lost or gained a face.
+void FilterTests::trueFormComponentSplitSeparatesDisjointSurfaces()
+{
+    Document doc;
+
+    const QString splitKey = filterKeyForId(
+        doc, QStringLiteral("split_into_connected_components_trueform"));
+    if (splitKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    // Two cubes far enough apart to share nothing, plus a triangle floating on its own.
+    VCGMesh scattered;
+    makeCubeMesh(scattered, 0.0f, 0.0f, 0.0f);
+    VCGMesh away;
+    makeCubeMesh(away, 5.0f, 0.0f, 0.0f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(scattered, away, false);
+    const int base = scattered.VN();
+    vcg::tri::Allocator<VCGMesh>::AddVertices(scattered, 3);
+    scattered.vert[std::size_t(base)].P() = vcg::Point3f(0.0f, 10.0f, 0.0f);
+    scattered.vert[std::size_t(base) + 1].P() = vcg::Point3f(1.0f, 10.0f, 0.0f);
+    scattered.vert[std::size_t(base) + 2].P() = vcg::Point3f(0.0f, 11.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(scattered, base, base + 1, base + 2);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(scattered);
+    const int scatteredIndex = doc.addMesh(scattered, QStringLiteral("three pieces"));
+    QVERIFY(scatteredIndex >= 0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("sourceMesh"), scatteredIndex);
+    const MeshFilterRunResult result = doc.runFilter(splitKey, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 3);
+
+    std::vector<int> faceCounts;
+    for (int index : result.newMeshIndices)
+        faceCounts.push_back(doc.mesh(index).mesh.FN());
+    std::sort(faceCounts.begin(), faceCounts.end());
+    QCOMPARE(faceCounts[0], 1);
+    QCOMPARE(faceCounts[1], 12);
+    QCOMPARE(faceCounts[2], 12);
+    // Nothing is duplicated and nothing is dropped: the pieces add back up to the layer.
+    QCOMPARE(faceCounts[0] + faceCounts[1] + faceCounts[2], scattered.FN());
+    for (int index : result.newMeshIndices)
+        QVERIFY2(doc.mesh(index).name.startsWith(QStringLiteral("Component")),
+                 qPrintable(doc.mesh(index).name));
+
+    // One connected surface is one component, returned intact.
+    const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
+    QVERIFY(!sphereKey.isEmpty());
+    doc.setCurrentMeshIndex(scatteredIndex);
+    QVERIFY2(doc.runFilter(sphereKey, {}).success, "create_sphere failed");
+    const int sphere = doc.currentMeshIndex();
+    const int sphereFaces = doc.mesh(sphere).mesh.FN();
+    QVERIFY(sphereFaces > 0);
+
+    MeshFilterParameterValues one;
+    one.insert(QStringLiteral("sourceMesh"), sphere);
+    const MeshFilterRunResult whole = doc.runFilter(splitKey, one);
+    QVERIFY2(whole.success, qPrintable(whole.errorMessage));
+    QCOMPARE(whole.newMeshIndices.size(), 1);
+    QCOMPARE(doc.mesh(whole.newMeshIndices.front()).mesh.FN(), sphereFaces);
+    QCOMPARE(doc.mesh(whole.newMeshIndices.front()).mesh.VN(), doc.mesh(sphere).mesh.VN());
+}
+
+// Two shapes that separate under one connectivity standard and join under the next, which
+// is the whole of what the parameter decides. Three fins along one edge are one surface to
+// anything that walks a non-manifold seam and three to anything that stops at it; a bowtie
+// is two surfaces to anything that needs a shared edge and one to anything that will cross
+// a single shared vertex.
+void FilterTests::trueFormComponentConnectivityChoosesWhatJoins()
+{
+    Document doc;
+
+    const QString splitKey = filterKeyForId(
+        doc, QStringLiteral("split_into_connected_components_trueform"));
+    if (splitKey.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    // Three triangles hanging off the same edge: that edge is used by three faces, so it
+    // is not a manifold edge.
+    VCGMesh fins;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(fins, 5);
+    fins.vert[0].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    fins.vert[1].P() = vcg::Point3f(1.0f, 0.0f, 0.0f);
+    fins.vert[2].P() = vcg::Point3f(0.5f, 1.0f, 0.0f);
+    fins.vert[3].P() = vcg::Point3f(0.5f, -1.0f, 0.0f);
+    fins.vert[4].P() = vcg::Point3f(0.5f, 0.0f, 1.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(fins, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(fins, 0, 1, 3);
+    vcg::tri::Allocator<VCGMesh>::AddFace(fins, 0, 1, 4);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(fins);
+    const int finsIndex = doc.addMesh(fins, QStringLiteral("three fins"));
+    QVERIFY(finsIndex >= 0);
+
+    const auto splitWith = [&](int layer, const QString &connectivity) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("sourceMesh"), layer);
+        params.insert(QStringLiteral("connectivity"), connectivity);
+        return doc.runFilter(splitKey, params);
+    };
+
+    const MeshFilterRunResult finsManifold =
+        splitWith(finsIndex, QStringLiteral("manifold"));
+    QVERIFY2(finsManifold.success, qPrintable(finsManifold.errorMessage));
+    QCOMPARE(finsManifold.newMeshIndices.size(), 3);
+
+    const MeshFilterRunResult finsEdge = splitWith(finsIndex, QStringLiteral("edge"));
+    QVERIFY2(finsEdge.success, qPrintable(finsEdge.errorMessage));
+    QCOMPARE(finsEdge.newMeshIndices.size(), 1);
+    QCOMPARE(doc.mesh(finsEdge.newMeshIndices.front()).mesh.FN(), 3);
+
+    // A bowtie: two triangles meeting at exactly one vertex and sharing no edge.
+    VCGMesh bowtie;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(bowtie, 5);
+    bowtie.vert[0].P() = vcg::Point3f(0.0f, 0.0f, 0.0f);
+    bowtie.vert[1].P() = vcg::Point3f(1.0f, 0.0f, 0.0f);
+    bowtie.vert[2].P() = vcg::Point3f(0.0f, 1.0f, 0.0f);
+    bowtie.vert[3].P() = vcg::Point3f(-1.0f, 0.0f, 0.0f);
+    bowtie.vert[4].P() = vcg::Point3f(0.0f, -1.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddFace(bowtie, 0, 1, 2);
+    vcg::tri::Allocator<VCGMesh>::AddFace(bowtie, 0, 3, 4);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(bowtie);
+    const int bowtieIndex = doc.addMesh(bowtie, QStringLiteral("bowtie"));
+    QVERIFY(bowtieIndex >= 0);
+
+    const MeshFilterRunResult bowtieEdge = splitWith(bowtieIndex, QStringLiteral("edge"));
+    QVERIFY2(bowtieEdge.success, qPrintable(bowtieEdge.errorMessage));
+    QCOMPARE(bowtieEdge.newMeshIndices.size(), 2);
+
+    const MeshFilterRunResult bowtieVertex =
+        splitWith(bowtieIndex, QStringLiteral("vertex"));
+    QVERIFY2(bowtieVertex.success, qPrintable(bowtieVertex.errorMessage));
+    QCOMPARE(bowtieVertex.newMeshIndices.size(), 1);
+    QCOMPARE(doc.mesh(bowtieVertex.newMeshIndices.front()).mesh.FN(), 2);
+
+    // The permissive settings only ever join: neither invents a piece where the default
+    // already found one, and two cubes standing apart stay apart under all three.
+    VCGMesh apart;
+    makeCubeMesh(apart, 0.0f, 0.0f, 0.0f);
+    VCGMesh far;
+    makeCubeMesh(far, 5.0f, 0.0f, 0.0f);
+    vcg::tri::Append<VCGMesh, VCGMesh>::Mesh(apart, far, false);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(apart);
+    const int apartIndex = doc.addMesh(apart, QStringLiteral("two cubes"));
+    for (const QString &connectivity : { QStringLiteral("manifold"),
+                                         QStringLiteral("edge"),
+                                         QStringLiteral("vertex") }) {
+        const MeshFilterRunResult r = splitWith(apartIndex, connectivity);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QVERIFY2(r.newMeshIndices.size() == 2,
+                 qPrintable(QStringLiteral("%1 found %2 components, expected 2")
+                                .arg(connectivity).arg(r.newMeshIndices.size())));
+    }
+}
 // The curve filters and the sweep that consumes their output. Each case is chosen so the
 // expected answer is known: two overlapping boxes cross in a closed loop, a sphere's
 // height field contours into rings, and a clean mesh self-intersects nowhere.

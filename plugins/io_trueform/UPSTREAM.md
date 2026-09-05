@@ -9,14 +9,21 @@ git -C external/trueform fetch
 git -C external/trueform checkout <reviewed-commit>
 ```
 
-Currently pinned at **v0.10.0** (2026-09-01, from v0.9.17). That release is
-breaking: the `cut` module was removed outright, with no compatibility shim, and
-its ground redistributed to `arrangement`, `iso` and `csg`. It cost QMeshLab one
-call site, because both plugins include the umbrella `<trueform/trueform.hpp>`,
-which re-exports the new modules — the header moves are invisible from here, and
-only a removed *entry point* breaks the build. Read the release notes' "Module
-map" and "Removed entry points" tables before the next bump; that is where an
-upgrade's real cost is stated.
+Currently pinned at **v0.10.2** (2026-09-03). Everything since v0.10.0 is
+additive, so neither plugin changed to take it: v0.10.1 repaired orientation and
+the Euler count, and v0.10.2 reads every OBJ in parallel — 44.5 ms to 6.5 ms on a
+million-triangle dragon, and 76.3 ms to 8.3 ms for the reader that also returns
+normals, texture coordinates and groups — decides bundle containment from face
+interiors rather than from vertices, and lets `make_cdt` return region labels.
+
+The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
+removed outright, with no compatibility shim, and its ground redistributed to
+`arrangement`, `iso` and `csg`. It cost QMeshLab one call site, because both
+plugins include the umbrella `<trueform/trueform.hpp>`, which re-exports the new
+modules — the header moves are invisible from here, and only a removed *entry
+point* breaks the build. Read the release notes' "Module map" and "Removed entry
+points" tables before the next bump; that is where an upgrade's real cost is
+stated.
 
 Two things changed under us that the compiler cannot catch, and neither is
 covered by a test:
