@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 328 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 330 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -3239,6 +3239,48 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="split-into-connected-components-trueform">
+<span id="filter-split-into-connected-components-trueform"></span><h2>Split into Connected Components (TrueForm)<a class="headerlink" href="#split-into-connected-components-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Split a layer into one layer per connected surface, computed in parallel.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.split_into_connected_components_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">split_into_connected_components_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.split_into_connected_components_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Splits the layer into one new layer per connected surface, exactly as <em>Split into Connected Components</em> does — this is the same operation through TrueForm, which labels the faces in parallel and emits the components in one pass. On a million-face mesh that is the difference worth having; on a small one the two are indistinguishable.</p>
+<p><strong>Connectivity</strong> chooses what counts as joining two faces, and all three standards are one call each.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Setting</p></th>
+<th class="head"><p>Two faces are joined when</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Manifold edges</p></td>
+<td><p>a chain of shared edges links them, counting only edges that exactly two faces use</p></td>
+</tr>
+<tr class="row-odd"><td><p>Any shared edge</p></td>
+<td><p>a chain of shared edges links them, however many faces use each</p></td>
+</tr>
+<tr class="row-even"><td><p>Any shared vertex</p></td>
+<td><p>a chain of shared vertices links them</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The default separates at seams: a <strong>boundary</strong> edge joins nothing, and neither does an edge three or more faces meet along, so sheets passing through a shared seam come back as separate layers. <em>Any shared edge</em> walks through such a seam and reproduces what <em>Split into Connected Components</em> does there; <em>any shared vertex</em> additionally joins pieces that only touch at a single point. On a manifold mesh all three agree.</p>
+<p>Weld first with <em>Remove Duplicate Vertices (TrueForm)</em> if a layer arrived as a triangle soup: unwelded faces share nothing at all, and every one of them is its own component under any setting.</p>
+<p>The source layer is kept, and the layer matrix is baked into the results. Reads TrueForm’s <code class="docutils literal notranslate"><span class="pre">make_manifold_edge_connected_component_labels</span></code>, <code class="docutils literal notranslate"><span class="pre">make_edge_connected_component_labels</span></code> or <code class="docutils literal notranslate"><span class="pre">make_vertex_connected_component_labels</span></code>, then <code class="docutils literal notranslate"><span class="pre">split_into_components</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The layer to split into its connected components.</p></li>
+<li><p><strong>connectivity</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">manifold</span></code>) — What counts as joining two faces. Manifold edges keep sheets that meet at a seam apart; any shared edge walks through the seam; any shared vertex also joins pieces that only touch at a point.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="render-from-render-state-json">
 <span id="filter-render-from-render-state-json"></span><h2>Render from Render-State JSON<a class="headerlink" href="#render-from-render-state-json" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Document/Render</span></code></p>
@@ -4420,9 +4462,12 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <dt class="sig sig-object py" id="qmeshlab.ms.mesh_csg_expression_trueform">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">mesh_csg_expression_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.mesh_csg_expression_trueform" title="Link to this definition">¶</a></dt>
 <dd><p>Evaluates an arbitrary constructive-solid-geometry expression over the document’s layers, in a <strong>single arrangement</strong> rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\n\n<strong>Operands are layer numbers</strong>, as shown in the layer panel. Operators, loosest-binding first:\n\n| Operator | Meaning |\n|—|—|\n| <code class="docutils literal notranslate"><span class="pre">\\|</span></code> | union |\n| <code class="docutils literal notranslate"><span class="pre">-</span></code> | difference |\n| <code class="docutils literal notranslate"><span class="pre">&amp;</span></code> | intersection |\n| <code class="docutils literal notranslate"><span class="pre">~</span></code> | complement |\n\n<code class="docutils literal notranslate"><span class="pre">|</span></code> and <code class="docutils literal notranslate"><span class="pre">-</span></code> share the lowest precedence and associate to the left; <code class="docutils literal notranslate"><span class="pre">&amp;</span></code> binds tighter; <code class="docutils literal notranslate"><span class="pre">~</span></code> binds tightest. Parentheses group.\n\nExamples:\n\n- <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">|</span> <span class="pre">1</span> <span class="pre">|</span> <span class="pre">2</span></code> — the union of three layers\n- <code class="docutils literal notranslate"><span class="pre">(0</span> <span class="pre">|</span> <span class="pre">1)</span> <span class="pre">-</span> <span class="pre">2</span></code> — two layers joined, then a third drilled out of them\n- <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&amp;</span> <span class="pre">~1</span></code> — the part of layer 0 outside layer 1, i.e. the difference\n\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.</p>
+<p><strong>Sheets.</strong> A layer listed in <em>Sheets</em> enters the expression as an <strong>open oriented surface</strong> rather than a solid: it cuts the other operands without enclosing any volume of its own, and its operand bit means <em>behind the surface</em>, on the far side of its normals. Anything can be a sheet — a plane, a curved terrain, a trimmed patch — and it need not be closed or even reach past the solid it divides.</p>
+<p>For a cube as layer 0 and a surface through it as layer 1, <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">-</span> <span class="pre">1</span></code> is the piece in front of the surface and <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&amp;</span> <span class="pre">1</span></code> the piece behind it, each capped along the cut and watertight. Leave <em>Sheets</em> empty and every operand is a solid, which is what a closed mesh should be.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>expression</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">|</span> <span class="pre">1</span></code>) — A boolean expression over layer numbers, e.g. (0 | 1) - 2. Operators: | union, - difference, &amp; intersection, ~ complement.</p></li>
+<li><p><strong>sheets</strong> (<em>string</em>, default: ``) — Layer numbers to treat as open cutting surfaces rather than solids, e.g. 1 2. Each must also appear in the expression. Leave empty to treat every operand as a solid.</p></li>
 </ul>
 </dd></dl>
 
@@ -4607,6 +4652,27 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 <ul class="simple">
 <li><p><strong>firstMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>) — The first operand.</p></li>
 <li><p><strong>secondMesh</strong> (<em>mesh</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>) — The second operand.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="split-into-solid-domains-trueform">
+<span id="filter-split-into-solid-domains-trueform"></span><h2>Split into Solid Domains (TrueForm)<a class="headerlink" href="#split-into-solid-domains-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.trueform</p>
+<p>Split the volume the layers enclose into one watertight layer per region.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.split_into_solid_domains_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">split_into_solid_domains_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.split_into_solid_domains_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Builds one arrangement of the listed layers and emits <strong>every region of space they enclose</strong> as its own watertight layer. Two overlapping solids give three: what only the first encloses, what only the second encloses, and what both do. A self-intersecting layer decomposes on its own, into the regions its surface actually bounds.</p>
+<p>This has no equivalent anywhere else in QMeshLab. A boolean answers one question about one region and merges everything else away; <em>Split into Connected Components</em> separates surfaces that are already apart. Neither can hand you the pieces a set of overlapping solids cuts space into, which is what a bill of materials, a contact analysis or a volumetric mesh generator needs.</p>
+<p><strong>Layers</strong> are layer numbers as shown in the layer panel, separated by spaces or commas; a single number is a valid answer. <strong>Sheets</strong> names those of them that are open cutting surfaces rather than solids, exactly as in <em>Mesh CSG Expression</em> — a solid crossed by a sheet decomposes into the pieces on either side of it.</p>
+<p>Each output layer is closed and named for the domain it carries. The unbounded outside is not one of them, and the layer matrices are baked in, so every layer is world-space geometry. Reads TrueForm’s <code class="docutils literal notranslate"><span class="pre">make_csg_domains</span></code>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>layers</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">1</span></code>) — The layer numbers to decompose, e.g. 0 1 2. A single layer decomposes into the regions its own surface encloses.</p></li>
+<li><p><strong>sheets</strong> (<em>string</em>, default: ``) — Which of those layers are open cutting surfaces rather than solids, e.g. 1. Leave empty to treat every layer as a solid.</p></li>
 </ul>
 </dd></dl>
 
@@ -7620,6 +7686,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.split_into_connected_components"><code class="docutils literal notranslate"><span class="pre">ms.split_into_connected_components()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#split-into-connected-components-trueform">Split into Connected Components (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.split_into_connected_components_trueform"><code class="docutils literal notranslate"><span class="pre">ms.split_into_connected_components_trueform()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#render-from-render-state-json">Render from Render-State JSON</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.render_from_render_state_json"><code class="docutils literal notranslate"><span class="pre">ms.render_from_render_state_json()</span></code></a></li>
 </ul>
@@ -7862,6 +7932,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#mesh-union-trueform">Mesh Union (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.mesh_union_trueform"><code class="docutils literal notranslate"><span class="pre">ms.mesh_union_trueform()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#split-into-solid-domains-trueform">Split into Solid Domains (TrueForm)</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.split_into_solid_domains_trueform"><code class="docutils literal notranslate"><span class="pre">ms.split_into_solid_domains_trueform()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#remove-all-faces">Remove All Faces</a><ul>

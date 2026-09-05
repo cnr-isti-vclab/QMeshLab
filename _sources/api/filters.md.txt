@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 328 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 330 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -3803,6 +3803,43 @@ Split current layer into many layers, one for each connected component.
 
 ---
 
+(filter-split-into-connected-components-trueform)=
+
+## Split into Connected Components (TrueForm)
+
+**Categories:** `Document/Layer`
+
+**Plugin:** qmeshlab.filter.trueform
+
+Split a layer into one layer per connected surface, computed in parallel.
+
+```{py:function} ms.split_into_connected_components_trueform(**params)
+:module: _qmeshlab
+
+Splits the layer into one new layer per connected surface, exactly as *Split into Connected Components* does — this is the same operation through TrueForm, which labels the faces in parallel and emits the components in one pass. On a million-face mesh that is the difference worth having; on a small one the two are indistinguishable.
+
+**Connectivity** chooses what counts as joining two faces, and all three standards are one call each.
+
+| Setting | Two faces are joined when |
+|---|---|
+| Manifold edges | a chain of shared edges links them, counting only edges that exactly two faces use |
+| Any shared edge | a chain of shared edges links them, however many faces use each |
+| Any shared vertex | a chain of shared vertices links them |
+
+The default separates at seams: a **boundary** edge joins nothing, and neither does an edge three or more faces meet along, so sheets passing through a shared seam come back as separate layers. *Any shared edge* walks through such a seam and reproduces what *Split into Connected Components* does there; *any shared vertex* additionally joins pieces that only touch at a single point. On a manifold mesh all three agree.
+
+Weld first with *Remove Duplicate Vertices (TrueForm)* if a layer arrived as a triangle soup: unwelded faces share nothing at all, and every one of them is its own component under any setting.
+
+The source layer is kept, and the layer matrix is baked into the results. Reads TrueForm's `make_manifold_edge_connected_component_labels`, `make_edge_connected_component_labels` or `make_vertex_connected_component_labels`, then `split_into_components`.
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*, default: `@currentMeshIndex`) — The layer to split into its connected components.
+- **connectivity** (*enum*, default: `manifold`) — What counts as joining two faces. Manifold edges keep sheets that meet at a seam apart; any shared edge walks through the seam; any shared vertex also joins pieces that only touch at a point.
+```
+
+---
+
 (filter-render-from-render-state-json)=
 
 ## Render from Render-State JSON
@@ -5287,9 +5324,14 @@ Evaluate a boolean expression over any number of layers in one exact pass.
 
 Evaluates an arbitrary constructive-solid-geometry expression over the document's layers, in a **single arrangement** rather than a chain of pairwise booleans. That matters for more than convenience: chaining booleans re-meshes and re-intersects at every step, accumulating error and cost, while one arrangement resolves all the surfaces together and classifies each region once.\n\n**Operands are layer numbers**, as shown in the layer panel. Operators, loosest-binding first:\n\n| Operator | Meaning |\n|---|---|\n| `\\|` | union |\n| `-` | difference |\n| `&` | intersection |\n| `~` | complement |\n\n`|` and `-` share the lowest precedence and associate to the left; `&` binds tighter; `~` binds tightest. Parentheses group.\n\nExamples:\n\n- `0 | 1 | 2` — the union of three layers\n- `(0 | 1) - 2` — two layers joined, then a third drilled out of them\n- `0 & ~1` — the part of layer 0 outside layer 1, i.e. the difference\n\nA layer may appear more than once; it becomes a single operand. Every referenced layer is taken in world space.
 
+**Sheets.** A layer listed in *Sheets* enters the expression as an **open oriented surface** rather than a solid: it cuts the other operands without enclosing any volume of its own, and its operand bit means *behind the surface*, on the far side of its normals. Anything can be a sheet — a plane, a curved terrain, a trimmed patch — and it need not be closed or even reach past the solid it divides.
+
+For a cube as layer 0 and a surface through it as layer 1, `0 - 1` is the piece in front of the surface and `0 & 1` the piece behind it, each capped along the cut and watertight. Leave *Sheets* empty and every operand is a solid, which is what a closed mesh should be.
+
 **Parameters:**
 
 - **expression** (*string*, default: `0 | 1`) — A boolean expression over layer numbers, e.g. (0 | 1) - 2. Operators: | union, - difference, & intersection, ~ complement.
+- **sheets** (*string*, default: ``) — Layer numbers to treat as open cutting surfaces rather than solids, e.g. 1 2. Each must also appear in the expression. Leave empty to treat every operand as a solid.
 ```
 
 ---
@@ -5522,6 +5564,35 @@ The union of two closed solids: everything inside either one.\n\nTrueForm evalua
 
 - **firstMesh** (*mesh*, default: `@currentMeshIndex`) — The first operand.
 - **secondMesh** (*mesh*, default: `@otherMeshIndex`) — The second operand.
+```
+
+---
+
+(filter-split-into-solid-domains-trueform)=
+
+## Split into Solid Domains (TrueForm)
+
+**Categories:** `Meshing/Boolean`
+
+**Plugin:** qmeshlab.filter.trueform
+
+Split the volume the layers enclose into one watertight layer per region.
+
+```{py:function} ms.split_into_solid_domains_trueform(**params)
+:module: _qmeshlab
+
+Builds one arrangement of the listed layers and emits **every region of space they enclose** as its own watertight layer. Two overlapping solids give three: what only the first encloses, what only the second encloses, and what both do. A self-intersecting layer decomposes on its own, into the regions its surface actually bounds.
+
+This has no equivalent anywhere else in QMeshLab. A boolean answers one question about one region and merges everything else away; *Split into Connected Components* separates surfaces that are already apart. Neither can hand you the pieces a set of overlapping solids cuts space into, which is what a bill of materials, a contact analysis or a volumetric mesh generator needs.
+
+**Layers** are layer numbers as shown in the layer panel, separated by spaces or commas; a single number is a valid answer. **Sheets** names those of them that are open cutting surfaces rather than solids, exactly as in *Mesh CSG Expression* — a solid crossed by a sheet decomposes into the pieces on either side of it.
+
+Each output layer is closed and named for the domain it carries. The unbounded outside is not one of them, and the layer matrices are baked in, so every layer is world-space geometry. Reads TrueForm's `make_csg_domains`.
+
+**Parameters:**
+
+- **layers** (*string*, default: `0 1`) — The layer numbers to decompose, e.g. 0 1 2. A single layer decomposes into the regions its own surface encloses.
+- **sheets** (*string*, default: ``) — Which of those layers are open cutting surfaces rather than solids, e.g. 1. Leave empty to treat every layer as a solid.
 ```
 
 ---
