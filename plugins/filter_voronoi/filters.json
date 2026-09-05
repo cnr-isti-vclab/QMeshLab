@@ -184,15 +184,6 @@
             }
           ]
         }
-      ],
-      "outputModifies": [
-        "VG",
-        "FV",
-        "VN",
-        "FN",
-        "VC",
-        "VQ",
-        "VS"
       ]
     },
     {

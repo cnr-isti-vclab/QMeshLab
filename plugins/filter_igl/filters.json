@@ -240,16 +240,6 @@
           "type": "bool",
           "default": false
         }
-      ],
-      "outputModifies": [
-        "VG",
-        "FV",
-        "VN",
-        "FN",
-        "VC",
-        "VQ",
-        "FC",
-        "FQ"
       ]
     },
     {
@@ -328,16 +318,6 @@
           "type": "bool",
           "default": false
         }
-      ],
-      "outputModifies": [
-        "VG",
-        "FV",
-        "VN",
-        "FN",
-        "VC",
-        "VQ",
-        "FC",
-        "FQ"
       ]
     },
     {
@@ -416,16 +396,6 @@
           "type": "bool",
           "default": false
         }
-      ],
-      "outputModifies": [
-        "VG",
-        "FV",
-        "VN",
-        "FN",
-        "VC",
-        "VQ",
-        "FC",
-        "FQ"
       ]
     },
     {
@@ -505,16 +475,6 @@
           "type": "bool",
           "default": false
         }
-      ],
-      "outputModifies": [
-        "VG",
-        "FV",
-        "VN",
-        "FN",
-        "VC",
-        "VQ",
-        "FC",
-        "FQ"
       ]
     },
     {

@@ -233,11 +233,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "tags": [
         "trueform",
         "boolean",
@@ -278,11 +273,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "tags": [
         "trueform",
         "boolean",
@@ -323,11 +313,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "tags": [
         "trueform",
         "boolean",
@@ -368,11 +353,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "tags": [
         "trueform",
         "boolean",
@@ -413,11 +393,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "tags": [
         "trueform",
         "boolean",
@@ -459,11 +434,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "tags": [
         "trueform",
         "boolean",
@@ -506,11 +476,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "tags": [
         "trueform",
         "layer",
@@ -565,11 +530,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "tags": [
         "trueform",
         "repair",
@@ -603,9 +563,6 @@
       "categories": [
         "Creation/Primitives"
       ],
-      "outputModifies": [
-        "VG"
-      ],
       "id": "create_polyline_from_self_intersections_trueform",
       "name": "Create Polyline from Self-Intersections (TrueForm)",
       "pythonName": "create_polyline_from_self_intersections_trueform",
@@ -638,9 +595,6 @@
       },
       "categories": [
         "Creation/Primitives"
-      ],
-      "outputModifies": [
-        "VG"
       ],
       "id": "create_polyline_from_mesh_intersection_trueform",
       "name": "Create Polyline from Mesh Intersection (TrueForm)",
@@ -682,9 +636,6 @@
       },
       "categories": [
         "Creation/Primitives"
-      ],
-      "outputModifies": [
-        "VG"
       ],
       "id": "create_polyline_from_scalar_isocontour_trueform",
       "name": "Create Polyline from Scalar Isocontour (TrueForm)",
@@ -759,11 +710,6 @@
         "requireVertices": true,
         "requireEdges": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "shortDescription": "Sweep a circular profile along a polyline to make a solid tube.",
       "longDescriptionMarkdown": "Sweeps a circular profile along each path of a polyline layer, producing a solid tube.\\n\\nThe *Create Polyline* filters produce edge meshes, which render as hairlines and cannot be shaded, exported to a solid format, or printed. This turns one into geometry — so a measured cross-section, an intersection seam, or a set of isocontours becomes something you can look at properly or fabricate.\\n\\n**Radius** is the tube radius and **Sides** the number of segments around it; 8 is smooth enough for most uses, more for close-ups.\\n\\nEdges are chained into paths first. A vertex where three or more edges meet cannot be swept unambiguously, so the polyline is **split** there rather than branched, and the count of such junctions is reported.",
       "tags": [
@@ -1588,11 +1534,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "VN",
-        "FN"
-      ],
       "shortDescription": "Resolve a mesh's self-intersections into real edges and split faces.",
       "longDescriptionMarkdown": "Computes the **arrangement** of the layer against itself: every place the surface passes through itself becomes a real edge, and every crossed face is split along it.\\n\\nThis is the principled repair for self-intersecting geometry. Before it, the surface has no well-defined inside — a ray can cross the same sheet twice with nothing recording that they met — which is why self-intersections break booleans, offsetting, signed distance and printing. Afterwards the pieces are properly separated, and *Extract Outer Shell (TrueForm)* can keep the outermost one.\\n\\nUse *Create Polyline from Self-Intersections (TrueForm)* first to see where the problem is, and *Select Self Intersecting Faces* to see how much is affected.\\n\\nThe result is a new layer; nothing is removed, so all interior sheets survive as separate geometry.",
       "tags": [
@@ -1626,12 +1567,6 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "outputModifies": [
-        "VG",
-        "FV",
-        "VN",
-        "FN"
-      ],
       "shortDescription": "Split the surface along contours of the vertex scalar field.",
       "longDescriptionMarkdown": "Cuts the surface along evenly spaced contours of the **per-vertex scalar field**, so the band between each pair of successive contour values becomes its own set of faces, with real edges along the boundaries.\\n\\nWhere *Create Polyline from Scalar Isocontour (TrueForm)* draws the contour lines, this one cuts the mesh at them: the bands are geometry, so they can be coloured separately, split into layers, exported, or measured. Contour a height field and you get terraces; contour a geodesic distance and you get rings you can separate.\\n\\nEvery band is kept, so the result is the whole surface cut up rather than a filtered part of it.\\n\\nCompute a scalar first — a constant field has nothing to cut along, and the filter says so.",
       "tags": [

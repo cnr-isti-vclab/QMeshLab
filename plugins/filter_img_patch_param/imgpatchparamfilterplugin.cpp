@@ -131,32 +131,6 @@ void getFaceNeighbors(VCGFace *f, NeighbSet &neighb)
 }
 
 // ---------------------------------------------------------------------------
-// Debug: save depth buffer as grayscale PNG
-// ---------------------------------------------------------------------------
-
-void saveDepthDebug(const FloatBuffer &dbuf, const QString &path, int w, int h)
-{
-    if (dbuf.sx <= 0 || dbuf.sy <= 0) return;
-    float mn = std::numeric_limits<float>::max(), mx = 0.0f;
-    for (int y = 0; y < h; ++y)
-        for (int x = 0; x < w; ++x) {
-            float d = dbuf.getval(x, y);
-            if (d > 0.0f) { if (d < mn) mn = d; if (d > mx) mx = d; }
-        }
-    if (mx <= mn) return;
-    QImage img(w, h, QImage::Format_Grayscale8);
-    float s = 255.0f / (mx - mn);
-    for (int y = 0; y < h; ++y) {
-        uchar *ln = img.scanLine(y);
-        for (int x = 0; x < w; ++x) {
-            float d = dbuf.getval(x, h - 1 - y);
-            ln[x] = (uchar)(d > 0.0f ? std::clamp(int((d - mn) * s), 0, 255) : 0);
-        }
-    }
-    img.save(path);
-}
-
-// ---------------------------------------------------------------------------
 // Per-vertex visibility test
 // ---------------------------------------------------------------------------
 
@@ -988,9 +962,6 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         QElapsedTimer tOne;
         tOne.start();
         rc.dbuf = buildDepthBuffer(re.shot, m, tf, &rc.vcache);
-        saveDepthDebug(*rc.dbuf,
-                       QDir::homePath() + QStringLiteral("/Desktop/qml_depth_%1.png").arg(ri),
-                       rc.iw, rc.ih);
         qint64 oneMs = tOne.elapsed();
 
         float zN = std::numeric_limits<float>::max();
@@ -1100,10 +1071,6 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         tDbRebuild.start();
         for (int ri : activeRasters) {
             rcs[size_t(ri)].dbuf = buildDepthBuffer(doc.raster(ri).shot, m, tf, &rcs[size_t(ri)].vcache);
-            auto vp = doc.raster(ri).shot.viewportPx();
-            saveDepthDebug(*rcs[size_t(ri)].dbuf,
-                           QDir::homePath() + QStringLiteral("/Desktop/qml_depth_rebuild_%1.png").arg(ri),
-                           vp.width(), vp.height());
         }
         doc.writeLog(QObject::tr("Depth buffers rebuilt after compaction: %1 ms")
             .arg(tDbRebuild.elapsed()),

@@ -491,6 +491,18 @@ void FilterDescriptorTests::checkParameters(const MeshFilterDescriptor &d,
 void FilterDescriptorTests::checkCodes(const MeshFilterDescriptor &d,
                                        QStringList &problems) const
 {
+    // outputModifies says which attributes of the *current mesh* a filter rewrites, and
+    // the framework reads it only for that: to refresh the polygon face-count cache when
+    // FV/FP appear, and to take the cheap selection-delta undo path when nothing but
+    // VS/FS does. On a filter that produces new layers instead there is no current mesh
+    // being modified, so the codes describe nothing and the two consumers above would be
+    // acting on a mesh the filter never touched. 28 filters had accumulated one anyway.
+    if (!d.outputModifies.isEmpty()
+        && d.outputDomain != MeshFilterOutputDomain::ModifyCurrentMesh) {
+        problems << QStringLiteral("declares outputModifies (%1) but does not modify the "
+                                   "current mesh")
+                        .arg(d.outputModifies.join(QStringLiteral(", ")));
+    }
     for (const QString &code : d.outputModifies) {
         if (!outputModifyCodes().contains(code))
             problems << QStringLiteral("unknown outputModifies code '%1'").arg(code);

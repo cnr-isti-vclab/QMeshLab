@@ -58,30 +58,6 @@ MeshFilterRunResult success(const QStringList &info = {})
 
 
 
-static void saveDepthDebug(const FloatBuffer &dbuf, const QString &path, int w, int h)
-{
-    if (dbuf.sx <= 0 || dbuf.sy <= 0) return;
-    float mn = std::numeric_limits<float>::max(), mx = 0.0f;
-    for (int y = 0; y < h; ++y)
-        for (int x = 0; x < w; ++x) {
-            float d = dbuf.getval(x, y);
-            if (d > 0.0f) { if (d < mn) mn = d; if (d > mx) mx = d; }
-        }
-    if (mx <= mn) return;
-    QImage img(w, h, QImage::Format_Grayscale8);
-    float s = 255.0f / (mx - mn);
-    // FloatBuffer uses VCG y-convention (y=0 at bottom);
-    // QImage::scanLine(0) is the top row — flip vertically.
-    for (int y = 0; y < h; ++y) {
-        uchar *ln = img.scanLine(y);
-        for (int x = 0; x < w; ++x) {
-            float d = dbuf.getval(x, h - 1 - y);
-            ln[x] = (uchar)(d > 0.0f ? std::clamp(int((d - mn) * s), 0, 255) : 0);
-        }
-    }
-    img.save(path);
-}
-
 // ---------------------------------------------------------------------------
 // near/far, texels
 // ---------------------------------------------------------------------------
@@ -184,15 +160,6 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
 
         auto dbuf = buildDepthBuffer(shot, m, ent.transform);
 
-        // Debug save to ~/Desktop
-        {
-            static int di = 0;
-            QString path = QDir(QDir::homePath()).filePath(
-                QStringLiteral("Desktop/qmeshlab_depth_%1.png").arg(++di));
-            saveDepthDebug(*dbuf, path, iw, ih);
-            doc.writeLog(QObject::tr("Depth buffer saved: %1 (%2x%3)").arg(path).arg(iw).arg(ih),
-                         Document::LogSource::Application);
-        }
 
         for (VCGVertex &v : m.vert) {
             if (v.IsD() || (onSel && !v.IsS())) continue;
