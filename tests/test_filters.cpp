@@ -428,9 +428,12 @@ private slots:
     void selfIntersectionCurvesFindTheCrossing();
     void abstractDomainIsBuiltAndAttachedToTheLayer();
     void abstractDomainRefusesAnOpenMesh();
+    void abstractDomainIndexesRegionsOnFaces();
     void abstractDomainConsumersRunAndRefuseWithoutIt();
     void atlasedMeshPacksOneUvSpaceForEveryChartShape();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
+    void bothBallPivotingsInterpolateTheirInputPoints();
+    void ballPivotingRebuildsAfterDeletingTheInitialFaces();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -5970,6 +5973,142 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
     // about a third as many as there are half-diamonds, and nothing is left over.
     QVERIFY(chartCount[QStringLiteral("halfstar")] < chartCount[QStringLiteral("hexagon")]);
     QVERIFY(chartCount[QStringLiteral("star+irregular")] < chartCount[QStringLiteral("star")]);
+}
+
+// Both ball pivoting filters are interpolating reconstructions: every face they add must be
+// built on points that were already there. The two implementations differ in almost every
+// other respect, which is why QMeshLab ships both, so this checks the property they share
+// rather than pinning either one's output.
+void FilterTests::bothBallPivotingsInterpolateTheirInputPoints()
+{
+    for (const QString &id : {QStringLiteral("reconstruct_surface_by_ball_pivoting_gruber"),
+                              QStringLiteral("reconstruct_surface_by_ball_pivoting_vcglib")}) {
+        Document doc;
+        QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+        doc.setCurrentMeshIndex(0);
+        const int pointCount = doc.mesh(0).mesh.VN();
+        const double diagonal = double(doc.mesh(0).mesh.bbox.Diag());
+
+        MeshFilterParameterValues params;
+        // The ball has to reach the next point and still enclose none, so the radius belongs
+        // near the sampling distance rather than a multiple of it. This is the guess vcglib
+        // makes when it is handed a radius of zero.
+        const double spacing = std::sqrt(diagonal * diagonal / double(pointCount));
+        params.insert(id.endsWith(QStringLiteral("gruber")) ? QStringLiteral("ballRadius")
+                                                            : QStringLiteral("ball_radius"),
+                      spacing);
+        params.insert(id.endsWith(QStringLiteral("gruber"))
+                          ? QStringLiteral("deleteInitialFaces")
+                          : QStringLiteral("delete_initial_faces"),
+                      true);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, id), params);
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(id, r.errorMessage)));
+
+        const VCGMesh &m = doc.mesh(0).mesh;
+        QVERIFY2(m.FN() > 0, qPrintable(QStringLiteral("%1 reconstructed nothing").arg(id)));
+        // No point was invented. The vcglib one may cluster points away, so it is allowed to
+        // end up with fewer, never more.
+        QVERIFY2(m.VN() <= pointCount,
+                 qPrintable(QStringLiteral("%1 added vertices: %2 from %3")
+                                .arg(id).arg(m.VN()).arg(pointCount)));
+        for (const VCGFace &f : m.face) {
+            if (f.IsD()) continue;
+            for (int k = 0; k < 3; ++k)
+                QVERIFY2(!f.cV(k)->IsD(),
+                         qPrintable(QStringLiteral("%1 built a face on a deleted vertex").arg(id)));
+        }
+        qDebug("%-46s %d faces over %d points", qPrintable(id), m.FN(), pointCount);
+    }
+}
+
+// Deleting the initial faces used to hang: inputPrepare builds VF adjacency over the faces,
+// AdvancingFront chains its new ones onto the vertices' VF pointers and walks them, and
+// clearing the face vector left those pointers in freed storage.
+void FilterTests::ballPivotingRebuildsAfterDeletingTheInitialFaces()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+    const int faceCount = doc.mesh(0).mesh.FN();
+    QVERIFY(faceCount > 0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("delete_initial_faces"), true);
+    const MeshFilterRunResult r = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("reconstruct_surface_by_ball_pivoting_vcglib")),
+        params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(doc.mesh(0).mesh.FN() > 0);
+}
+
+void FilterTests::abstractDomainIndexesRegionsOnFaces()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("minDomainFaces"), 150);
+    params.insert(QStringLiteral("maxDomainFaces"), 200);
+    const MeshFilterRunResult r = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("parametrize_by_abstract_domain")), params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    const Document::MeshEntry &entry = doc.mesh(0);
+    QVERIFY((entry.ioMask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0);
+
+    // Every face carries a domain region index, and between them they cover the whole
+    // domain: as many distinct values as the run reported faces in the domain.
+    const QString tally = r.infoMessages.filter(QStringLiteral("Abstract domain:")).value(0);
+    const int domainFaces = QStringView(tally).split(QLatin1Char(' ')).value(2).toInt();
+    QVERIFY(domainFaces > 0);
+
+    QSet<int> regions;
+    for (const VCGFace &f : entry.mesh.face) {
+        if (f.IsD()) continue;
+        const float q = f.cQ();
+        QVERIFY2(q >= 0.0f && q < float(domainFaces) && q == std::floor(q),
+                 qPrintable(QStringLiteral("face scalar %1 is not a region index in [0,%2)")
+                                .arg(double(q)).arg(domainFaces)));
+        regions.insert(int(q));
+    }
+    qDebug("%d domain faces, %d of them reached by a face of the mesh", domainFaces,
+           int(regions.size()));
+    QCOMPARE(regions.size(), domainFaces);
+
+    // The regions have to be connected patches, not a speckle, or there is nothing worth
+    // looking at. Count the face adjacencies that cross a region boundary: about 44% of
+    // them here, since 194 regions over ~2.4k faces makes each one a dozen triangles with
+    // a long perimeter. Shuffling the labels would put 99.5% of them on a boundary, so the
+    // bar sits well clear of both.
+    {
+        VCGMesh &mesh = doc.mesh(0).mesh;
+        VCGMeshFFAdjScope ffAdj(mesh);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+        int adjacencies = 0;
+        int crossings = 0;
+        for (VCGFace &f : mesh.face) {
+            if (f.IsD()) continue;
+            for (int k = 0; k < 3; ++k) {
+                const VCGFace *n = f.FFp(k);
+                if (!n || n == &f || n < &f) continue;
+                ++adjacencies;
+                if (int(f.cQ()) != int(n->cQ()))
+                    ++crossings;
+            }
+        }
+        QVERIFY(adjacencies > 0);
+        const double onBoundary = double(crossings) / double(adjacencies);
+        qDebug("%.1f%% of face adjacencies lie on a region boundary", 100.0 * onBoundary);
+        QVERIFY2(onBoundary < 0.6, qPrintable(QStringLiteral("regions are not connected "
+                                                            "patches (%1 on a boundary)")
+                                                  .arg(onBoundary)));
+    }
+
+    // And the view is asked to show it.
+    QCOMPARE(r.visualizationHints.size(), 1);
+    QCOMPARE(r.visualizationHints.front().meshIndex, 0);
+    QVERIFY(r.visualizationHints.front().attribute
+            == MeshFilterVisualizationAttribute::FaceQuality);
 }
 
 void FilterTests::abstractDomainConsumersRunAndRefuseWithoutIt()

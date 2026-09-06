@@ -289,7 +289,7 @@ MeshFilterRunResult runRemesh(const FilterParams &params, Document &doc, int ind
     result.infoMessages
         << QObject::tr("Remeshed to %1 vertices and %2 faces.")
                .arg(remeshed.VN()).arg(remeshed.FN())
-        << QObject::tr("Interpolation domains: %1 in face, %2 in diamond, %3 in star.")
+        << QObject::tr("Placed through %1 face domains, %2 half-diamonds, %3 half-stars.")
                .arg(inFace).arg(inEdge).arg(inStar)
         << QObject::tr("Merged %1 vertices.").arg(merged);
     doc.finishFilterProgress(true, QObject::tr("Remeshed over the abstract domain."));
@@ -575,11 +575,38 @@ MeshFilterRunResult IsoParamFilterPlugin::runFilter(
     }
     iso->CopyParametrization<VCGMesh>(&entry.mesh);
 
+    // Paint the sub-domain each face belongs to onto the layer as a per-face scalar, so the
+    // domain regions can be seen on the mesh they were built from. The face's centre
+    // decides: a region boundary is a path across the surface and does not follow mesh
+    // edges, so a face can straddle one, and picking by centre keeps the regions crisp
+    // where the per-vertex indices CopyParametrization writes would dither along the seam.
+    bool facesIndexed = paramMesh->face.size() == entry.mesh.face.size();
+    if (facesIndexed) {
+        const IsoParametrization::CoordType centre(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f);
+        for (std::size_t i = 0; i < entry.mesh.face.size(); ++i) {
+            if (entry.mesh.face[i].IsD())
+                continue;
+            int domain = 0;
+            vcg::Point2f uv;
+            iso->Phi(&paramMesh->face[i], centre, domain, uv);
+            entry.mesh.face[i].Q() = float(domain);
+        }
+    } else {
+        doc.writeLog(QStringLiteral("[isoparam] the parametrized mesh has %1 faces against "
+                                    "the layer's %2, so the per-face domain index was "
+                                    "skipped")
+                         .arg(paramMesh->face.size()).arg(entry.mesh.face.size()),
+                     Document::LogSource::VCG, Document::LogLevel::Warning);
+    }
+
     // Announce the mesh change *before* attaching the domain, not after. The UVs written
     // above are a change to this layer, and markMeshGeometryChanged drops plugin data that
     // does not survive one -- which this deliberately does not. Attaching first would
     // install the domain and then immediately throw it away.
-    entry.ioMask |= vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+    entry.ioMask |= vcg::tri::io::Mask::IOM_VERTTEXCOORD
+        | vcg::tri::io::Mask::IOM_VERTQUALITY;
+    if (facesIndexed)
+        entry.ioMask |= vcg::tri::io::Mask::IOM_FACEQUALITY;
     doc.markMeshGeometryChanged(
         index, QObject::tr("Built an abstract domain for '%1'.").arg(entry.name));
 
@@ -595,6 +622,13 @@ MeshFilterRunResult IsoParamFilterPlugin::runFilter(
         << QObject::tr("Abstract domain: %1 faces.").arg(domainFaces)
         << QObject::tr("One-way stretch efficiency: %1.").arg(double(stretch), 0, 'f', 4)
         << QObject::tr("Area and angle distortion: %1%.").arg(double(aggregate) * 100.0, 0, 'f', 2);
+    if (facesIndexed) {
+        result.infoMessages << QObject::tr(
+            "Per-face scalar set to the domain region each face falls in, 0 to %1.")
+                                   .arg(domainFaces - 1);
+        result.visualizationHints.push_back(
+            {index, MeshFilterVisualizationAttribute::FaceQuality});
+    }
     doc.finishFilterProgress(true, QObject::tr("Abstract domain built."));
     return result;
 }
