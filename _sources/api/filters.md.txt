@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 330 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 334 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -5857,6 +5857,34 @@ Mesh optimization by edge flipping, improving local triangle quality for face pa
 
 ---
 
+(filter-remesh-by-abstract-domain)=
+
+## Remesh by Abstract Domain
+
+**Categories:** `Meshing/Remeshing`
+
+**Plugin:** qmeshlab.filter.isoparam
+
+Remesh a layer uniformly by subdividing each triangle of its abstract domain.
+
+```{py:function} ms.remesh_by_abstract_domain(**params)
+:module: _qmeshlab
+
+Builds a new layer by subdividing every triangle of the abstract domain recursively and mapping the samples back onto the surface. Because the domain triangles are near-equilateral by construction, the result is close to uniform.
+
+Requires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.
+
+**References:**
+
+- Nico Pietroni, Marco Tarini, Paolo Cignoni. **Almost Isometric Mesh Parameterization through Abstract Domains**. *IEEE Transactions on Visualization and Computer Graphics* (2010). [DOI](https://doi.org/10.1109/TVCG.2009.96)
+
+**Parameters:**
+
+- **samplingRate** (*int*, default: `10`) — How finely each domain triangle is subdivided. This is a resolution multiplier, not a target face count, so the output grows roughly with its square.
+```
+
+---
+
 (filter-remesh-by-edge-flipping-trueform)=
 
 ## Remesh by Edge Flipping (TrueForm)
@@ -6604,6 +6632,72 @@ Convert per-wedge texture coordinates into per-vertex texture coordinates, split
 Converts per Wedge Texture Coordinates to per Vertex Texture Coordinates splitting vertices with not coherent Wedge coordinates.
 
 This filter has no parameters.
+```
+
+---
+
+(filter-create-atlased-mesh-from-abstract-domain)=
+
+## Create Atlased Mesh from Abstract Domain
+
+**Categories:** `Parametrization/UV Creation`
+
+**Plugin:** qmeshlab.filter.isoparam
+
+Build a new layer carrying a per-wedge atlas parametrization, one chart per diamond of the abstract domain.
+
+```{py:function} ms.create_atlased_mesh_from_abstract_domain(**params)
+:module: _qmeshlab
+
+Turns the abstract domain into an ordinary texture atlas: each diamond of the domain becomes one square chart, and the charts are packed into a single UV square with a gutter between them.
+
+The result is a new layer with per-wedge UVs, usable by anything that consumes a normal parametrization.
+
+Requires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.
+
+**References:**
+
+- Nico Pietroni, Marco Tarini, Paolo Cignoni. **Almost Isometric Mesh Parameterization through Abstract Domains**. *IEEE Transactions on Visualization and Computer Graphics* (2010). [DOI](https://doi.org/10.1109/TVCG.2009.96)
+
+**Parameters:**
+
+- **borderSize** (*double*, default: `0.1`) — Gutter kept around each chart, as a fraction of the chart. Larger values waste atlas area but keep bilinear filtering from bleeding between charts.
+```
+
+---
+
+(filter-parametrize-by-abstract-domain)=
+
+## Parametrize by Abstract Domain
+
+**Categories:** `Parametrization/UV Creation`
+
+**Plugin:** qmeshlab.filter.isoparam
+
+Build an abstract domain mesh and an almost isometric parametrization of the layer onto it.
+
+```{py:function} ms.parametrize_by_abstract_domain(**params)
+:module: _qmeshlab
+
+Simplifies the layer down to a coarse **abstract domain** and parametrizes the original surface onto it, keeping the mapping as close to isometric as the surface allows.
+
+The domain is attached to the layer as plugin data rather than written into the mesh, and the layer panel reports its size and distortion. It is dropped automatically if the layer's geometry changes, because a parametrization of moved vertices would be meaningless.
+
+The mesh must be a **single watertight two-manifold component**; the filter says which precondition failed when it is not.
+
+Counter-intuitively, a *smaller* abstract domain costs more, not less: the domain is reached by edge collapse, so asking for fewer faces asks for more work. On a 40k-vertex sphere, 150-200 faces took about twice as long as 400-500.
+
+**References:**
+
+- Nico Pietroni, Marco Tarini, Paolo Cignoni. **Almost Isometric Mesh Parameterization through Abstract Domains**. *IEEE Transactions on Visualization and Computer Graphics* (2010). [DOI](https://doi.org/10.1109/TVCG.2009.96)
+
+**Parameters:**
+
+- **minDomainFaces** (*int*, default: `150`) — Fewest faces the abstract domain may have. Fewer faces means a coarser domain and a longer run, since the domain is reached by collapsing edges.
+- **maxDomainFaces** (*int*, default: `200`) — Most faces the abstract domain may have. A wide interval lets the optimizer choose, at the cost of holding every intermediate result in memory.
+- **stopCriteria** (*enum*, default: `correspondence`) — What the search optimizes for when choosing where to stop between the two domain sizes.
+- **convergenceAccuracy** (*int*, default: `1`) — Higher values optimize the texture coordinates harder: slower, and eventually slightly better.
+- **doubleStep** (*bool*, default: `True`) — Split the parametrization into two passes, which is both faster and more robust on most inputs.
 ```
 
 ---
@@ -8309,6 +8403,37 @@ Every face must reference one valid texture consistently across its three wedges
 
 - **containerNum** (*int*, default: `1`) — Number of output images. It must be smaller than the number of texture groups actually used by the mesh.
 - **gutter** (*int*, default: `4`) — Border pixels reserved around every source image. The source image edges are extruded into this area to prevent bilinear-filtering bleed.
+```
+
+---
+
+(filter-transfer-abstract-domain-to-another-layer)=
+
+## Transfer Abstract Domain to Another Layer
+
+**Categories:** `Transfer/Between Layers`
+
+**Plugin:** qmeshlab.filter.isoparam
+
+Carry an abstract domain from one layer onto another, similar and aligned one, by closest point.
+
+```{py:function} ms.transfer_abstract_domain_to_another_layer(**params)
+:module: _qmeshlab
+
+Copies a layer's abstract domain onto a second layer -- typically the same object at a different resolution -- by finding, for each target vertex, the closest point on the source parametrization.
+
+The two layers must be reasonably similar in shape and already aligned; nothing here registers them for you.
+
+Unlike MeshLab, which moves the domain and leaves the source without one, the source **keeps its own domain** and the target gets an independent copy.
+
+**References:**
+
+- Nico Pietroni, Marco Tarini, Paolo Cignoni. **Almost Isometric Mesh Parameterization through Abstract Domains**. *IEEE Transactions on Visualization and Computer Graphics* (2010). [DOI](https://doi.org/10.1109/TVCG.2009.96)
+
+**Parameters:**
+
+- **sourceMesh** (*mesh*) — The layer that already carries an abstract domain.
+- **targetMesh** (*mesh*) — The layer to receive the parametrization.
 ```
 
 ---

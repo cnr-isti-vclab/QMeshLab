@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 330 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 334 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -4869,6 +4869,28 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="remesh-by-abstract-domain">
+<span id="filter-remesh-by-abstract-domain"></span><h2>Remesh by Abstract Domain<a class="headerlink" href="#remesh-by-abstract-domain" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.isoparam</p>
+<p>Remesh a layer uniformly by subdividing each triangle of its abstract domain.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.remesh_by_abstract_domain">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remesh_by_abstract_domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.remesh_by_abstract_domain" title="Link to this definition">¶</a></dt>
+<dd><p>Builds a new layer by subdividing every triangle of the abstract domain recursively and mapping the samples back onto the surface. Because the domain triangles are near-equilateral by construction, the result is close to uniform.</p>
+<p>Requires an abstract domain on the layer: run <strong>Parametrize by Abstract Domain</strong> first.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Nico Pietroni, Marco Tarini, Paolo Cignoni. <strong>Almost Isometric Mesh Parameterization through Abstract Domains</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (2010). <a class="reference external" href="https://doi.org/10.1109/TVCG.2009.96">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>samplingRate</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">10</span></code>) — How finely each domain triangle is subdivided. This is a resolution multiplier, not a target face count, so the output grows roughly with its square.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="remesh-by-edge-flipping-trueform">
 <span id="filter-remesh-by-edge-flipping-trueform"></span><h2>Remesh by Edge Flipping (TrueForm)<a class="headerlink" href="#remesh-by-edge-flipping-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p>
@@ -5468,6 +5490,57 @@ If set to zero the parameter is ignored and the algorithm employs the default pa
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">convert_per_wedge_uv_to_per_vertex_uv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.convert_per_wedge_uv_to_per_vertex_uv" title="Link to this definition">¶</a></dt>
 <dd><p>Converts per Wedge Texture Coordinates to per Vertex Texture Coordinates splitting vertices with not coherent Wedge coordinates.</p>
 <p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="create-atlased-mesh-from-abstract-domain">
+<span id="filter-create-atlased-mesh-from-abstract-domain"></span><h2>Create Atlased Mesh from Abstract Domain<a class="headerlink" href="#create-atlased-mesh-from-abstract-domain" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.isoparam</p>
+<p>Build a new layer carrying a per-wedge atlas parametrization, one chart per diamond of the abstract domain.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.create_atlased_mesh_from_abstract_domain">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">create_atlased_mesh_from_abstract_domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.create_atlased_mesh_from_abstract_domain" title="Link to this definition">¶</a></dt>
+<dd><p>Turns the abstract domain into an ordinary texture atlas: each diamond of the domain becomes one square chart, and the charts are packed into a single UV square with a gutter between them.</p>
+<p>The result is a new layer with per-wedge UVs, usable by anything that consumes a normal parametrization.</p>
+<p>Requires an abstract domain on the layer: run <strong>Parametrize by Abstract Domain</strong> first.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Nico Pietroni, Marco Tarini, Paolo Cignoni. <strong>Almost Isometric Mesh Parameterization through Abstract Domains</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (2010). <a class="reference external" href="https://doi.org/10.1109/TVCG.2009.96">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>borderSize</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.1</span></code>) — Gutter kept around each chart, as a fraction of the chart. Larger values waste atlas area but keep bilinear filtering from bleeding between charts.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="parametrize-by-abstract-domain">
+<span id="filter-parametrize-by-abstract-domain"></span><h2>Parametrize by Abstract Domain<a class="headerlink" href="#parametrize-by-abstract-domain" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.isoparam</p>
+<p>Build an abstract domain mesh and an almost isometric parametrization of the layer onto it.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.parametrize_by_abstract_domain">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">parametrize_by_abstract_domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.parametrize_by_abstract_domain" title="Link to this definition">¶</a></dt>
+<dd><p>Simplifies the layer down to a coarse <strong>abstract domain</strong> and parametrizes the original surface onto it, keeping the mapping as close to isometric as the surface allows.</p>
+<p>The domain is attached to the layer as plugin data rather than written into the mesh, and the layer panel reports its size and distortion. It is dropped automatically if the layer’s geometry changes, because a parametrization of moved vertices would be meaningless.</p>
+<p>The mesh must be a <strong>single watertight two-manifold component</strong>; the filter says which precondition failed when it is not.</p>
+<p>Counter-intuitively, a <em>smaller</em> abstract domain costs more, not less: the domain is reached by edge collapse, so asking for fewer faces asks for more work. On a 40k-vertex sphere, 150-200 faces took about twice as long as 400-500.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Nico Pietroni, Marco Tarini, Paolo Cignoni. <strong>Almost Isometric Mesh Parameterization through Abstract Domains</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (2010). <a class="reference external" href="https://doi.org/10.1109/TVCG.2009.96">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>minDomainFaces</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">150</span></code>) — Fewest faces the abstract domain may have. Fewer faces means a coarser domain and a longer run, since the domain is reached by collapsing edges.</p></li>
+<li><p><strong>maxDomainFaces</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">200</span></code>) — Most faces the abstract domain may have. A wide interval lets the optimizer choose, at the cost of holding every intermediate result in memory.</p></li>
+<li><p><strong>stopCriteria</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">correspondence</span></code>) — What the search optimizes for when choosing where to stop between the two domain sizes.</p></li>
+<li><p><strong>convergenceAccuracy</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">1</span></code>) — Higher values optimize the texture coordinates harder: slower, and eventually slightly better.</p></li>
+<li><p><strong>doubleStep</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Split the parametrization into two passes, which is both faster and more robust on most inputs.</p></li>
+</ul>
 </dd></dl>
 
 <hr class="docutils" />
@@ -6789,6 +6862,30 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 
 <hr class="docutils" />
 </section>
+<section id="transfer-abstract-domain-to-another-layer">
+<span id="filter-transfer-abstract-domain-to-another-layer"></span><h2>Transfer Abstract Domain to Another Layer<a class="headerlink" href="#transfer-abstract-domain-to-another-layer" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.isoparam</p>
+<p>Carry an abstract domain from one layer onto another, similar and aligned one, by closest point.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.transfer_abstract_domain_to_another_layer">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_abstract_domain_to_another_layer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.transfer_abstract_domain_to_another_layer" title="Link to this definition">¶</a></dt>
+<dd><p>Copies a layer’s abstract domain onto a second layer – typically the same object at a different resolution – by finding, for each target vertex, the closest point on the source parametrization.</p>
+<p>The two layers must be reasonably similar in shape and already aligned; nothing here registers them for you.</p>
+<p>Unlike MeshLab, which moves the domain and leaves the source without one, the source <strong>keeps its own domain</strong> and the target gets an independent copy.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Nico Pietroni, Marco Tarini, Paolo Cignoni. <strong>Almost Isometric Mesh Parameterization through Abstract Domains</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (2010). <a class="reference external" href="https://doi.org/10.1109/TVCG.2009.96">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>sourceMesh</strong> (<em>mesh</em>) — The layer that already carries an abstract domain.</p></li>
+<li><p><strong>targetMesh</strong> (<em>mesh</em>) — The layer to receive the parametrization.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="transfer-color-from-texture-to-vertex-by-closest-point">
 <span id="filter-transfer-color-from-texture-to-vertex-by-closest-point"></span><h2>Transfer Color from Texture to Vertex by Closest Point<a class="headerlink" href="#transfer-color-from-texture-to-vertex-by-closest-point" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
@@ -7986,6 +8083,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.flip_edges_by_planarity"><code class="docutils literal notranslate"><span class="pre">ms.flip_edges_by_planarity()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#remesh-by-abstract-domain">Remesh by Abstract Domain</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.remesh_by_abstract_domain"><code class="docutils literal notranslate"><span class="pre">ms.remesh_by_abstract_domain()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#remesh-by-edge-flipping-trueform">Remesh by Edge Flipping (TrueForm)</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.remesh_by_edge_flipping_trueform"><code class="docutils literal notranslate"><span class="pre">ms.remesh_by_edge_flipping_trueform()</span></code></a></li>
 </ul>
@@ -8088,6 +8189,14 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#convert-per-wedge-uv-to-per-vertex-uv">Convert Per-Wedge UV to Per-Vertex UV</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.convert_per_wedge_uv_to_per_vertex_uv"><code class="docutils literal notranslate"><span class="pre">ms.convert_per_wedge_uv_to_per_vertex_uv()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-atlased-mesh-from-abstract-domain">Create Atlased Mesh from Abstract Domain</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.create_atlased_mesh_from_abstract_domain"><code class="docutils literal notranslate"><span class="pre">ms.create_atlased_mesh_from_abstract_domain()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#parametrize-by-abstract-domain">Parametrize by Abstract Domain</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.parametrize_by_abstract_domain"><code class="docutils literal notranslate"><span class="pre">ms.parametrize_by_abstract_domain()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#parametrize-by-as-rigid-as-possible-libigl">Parametrize by As-Rigid-As-Possible (libigl)</a><ul>
@@ -8368,6 +8477,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#pack-texture-images">Pack Texture Images</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.pack_texture_images"><code class="docutils literal notranslate"><span class="pre">ms.pack_texture_images()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-abstract-domain-to-another-layer">Transfer Abstract Domain to Another Layer</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.transfer_abstract_domain_to_another_layer"><code class="docutils literal notranslate"><span class="pre">ms.transfer_abstract_domain_to_another_layer()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#transfer-color-from-texture-to-vertex-by-closest-point">Transfer Color from Texture to Vertex by Closest Point</a><ul>
