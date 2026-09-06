@@ -418,7 +418,7 @@ That was the main finding of this pass.
 | ICP Between Meshes | `icp` | `Geometry/Alignment` | **mis-filed** as Remeshing <sub>touches: texture</sub> |
 | Planar flipping optimization | `trioptimize` | `Meshing/Remeshing` | <sub>touches: scalar</sub> |
 | Refine User-Defined | `func` | `Meshing/Subdivision` |  |
-| Reconstruct Surface by Ball Pivoting | `clean` | `Creation/Reconstruction` | **not cleaning** - reconstruction |
+| Reconstruct Surface by Ball Pivoting (vcglib) | `clean` | `Creation/Reconstruction` | **not cleaning** - reconstruction |
 
 ### `Remeshing, Smoothing and Resampling` (2)
 

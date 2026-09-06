@@ -39,13 +39,35 @@ QMeshLab is closer to being model-drivable than it looks. The relevant assets:
 
 Two gaps, of very different size.
 
-1. **No standalone Python distribution.** `_qmeshlab` is built as a *static*
-   library (`src/python/CMakeLists.txt`) and registered with
-   `PyImport_AppendInittab` inside the app; `pymeshlab2` is a shim module
-   synthesized at runtime in `PythonHost.cpp`. There is no importable extension
-   module and no wheel. Any out-of-process integration needs
-   `nanobind_add_module` and a packaging story first. This is the cheapest gap
-   to close and unblocks the most.
+1. **The headless distribution is a separate, much smaller build.** Inside the
+   app, `_qmeshlab` is a *static* library (`src/python/CMakeLists.txt`)
+   registered via `PyImport_AppendInittab`, and `pymeshlab2` is a shim module
+   synthesized at runtime in `PythonHost.cpp`. A real wheel does exist, in the
+   sibling repository `cignoni/pymeshlab2` (scikit-build-core + nanobind), which
+   consumes QMeshLab as a submodule. Three kinds of drift separate them, and
+   only the third is substantial:
+
+   - *Bindings*: none by construction. That repository compiles
+     `src/python/bindings/{module,meshset_core}.cpp` directly out of the
+     QMeshLab submodule — the same sources the app compiles.
+   - *Facade*: two hand-maintained name lists. `PythonHost.cpp` exposes seven
+     names; the wheel's `python/pymeshlab2/__init__.py` exposes three. Small,
+     already drifted, and best fixed by giving it a single source of truth.
+   - *Build graph*: the wheel's `CMakeLists.txt` hand-enumerates QMeshLab
+     sources and enables **2 plugins out of the 40** wired in
+     `plugins/CMakeLists.txt`. The headless build is therefore not a lagging
+     copy of the app's filter set but a different, far smaller one — the
+     opposite of what a model-facing catalogue needs.
+
+   The fix is structural: either QMeshLab exports consumable CMake targets, or
+   the wheel target moves into this repository and the sibling repo shrinks to
+   packaging metadata. Two obstacles are real either way — `Document` does not
+   separate cleanly from rendering (`meshgpuresourcecache`, `linerenderer`,
+   `colormap` must be compiled for it to link), and enabling all 40 plugins
+   pulls embree, CGAL, libigl, quadwild and screened-poisson into a wheel build.
+   Deciding **which plugin set the headless build carries** precedes any LLM
+   work: a curated subset is buildable but makes the model's filter catalogue
+   diverge from the application's.
 2. **No IPC of any kind.** No `QLocalServer`, no socket, no RPC. Driving the
    *live* document from outside the process requires new plumbing plus thread
    marshalling onto the GUI thread, and has to interact correctly with the
@@ -162,9 +184,10 @@ Ordered by risk and by what each step unblocks.
 
 0. **Descriptor and naming quality.** Already in progress for other reasons; it
    is the prerequisite regardless of which path is taken.
-1. **Build `_qmeshlab` as a real extension module** and ship an importable
-   package. No LLM content at all, but it unblocks every out-of-process option,
-   plus headless batch use and CI.
+1. **Converge the headless build with the application build.** No LLM content
+   at all, but it unblocks every out-of-process option, plus headless batch use
+   and CI. Includes choosing the plugin set the wheel carries — see the second
+   gap above.
 2. **Headless tool server** over that package, out of tree. Find out empirically
    where a model goes wrong before designing around assumptions.
 3. **Sensor and vision tools** in the same server, closing the act/observe loop.

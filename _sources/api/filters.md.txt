@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 334 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 335 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -2593,7 +2593,7 @@ Grows a triangulation outward from a seed facet, repeatedly choosing the most pl
 
 **Beta** is half the angle of the wedge in which only the triangle radius decides plausibility.
 
-This is CGAL's counterpart to *Reconstruct Surface by Ball Pivoting*: both grow a surface outward and interpolate the input points, but they are different algorithms and are worth comparing on the same cloud. CGAL has no ball-pivoting implementation of its own.
+This is CGAL's counterpart to the *Reconstruct Surface by Ball Pivoting* filters: both grow a surface outward and interpolate the input points, but they are different algorithms and are worth comparing on the same cloud. CGAL has no ball-pivoting implementation of its own.
 
 Implemented with CGAL's Advancing Front Surface Reconstruction.
 
@@ -2686,9 +2686,46 @@ Original MeshLab plugin contribution: Lex van der Sluijs, PTC.
 
 ---
 
-(filter-reconstruct-surface-by-ball-pivoting)=
+(filter-reconstruct-surface-by-ball-pivoting-gruber)=
 
-## Reconstruct Surface by Ball Pivoting
+## Reconstruct Surface by Ball Pivoting (Gruber)
+
+**Categories:** `Creation/Reconstruction`
+
+Reconstruct a surface from oriented points using a direct implementation of the original Ball Pivoting paper.
+
+```{py:function} ms.reconstruct_surface_by_ball_pivoting_gruber(**params)
+:module: _qmeshlab
+
+Rolls a ball of the given radius over the point cloud: starting from a seed triangle the ball pivots around each boundary edge until it lands on another point, which makes the next triangle, and so on until the front runs out. Every vertex of the result is one of the input points -- nothing is invented, nothing is moved.
+
+This is Bernhard Gruber's implementation, a direct and deliberately unelaborated reading of the 1999 paper. QMeshLab also ships **Reconstruct Surface by Ball Pivoting (vcglib)**, and the two behave very differently on the same cloud, which is why both are here:
+
+| | this filter | (vcglib) |
+| --- | --- | --- |
+| seeds | one, and the front grows from it alone | re-seeds, so every disconnected piece is covered |
+| radius | you give it | you give it, or 0 to guess from the bounding box |
+| clustering | none -- every input point stands | merges points closer than a clustering radius |
+| creases | none -- the ball rolls over any fold | stops at a crease angle you set |
+
+The single seed is the difference you will notice first. On a cloud in several pieces this one reconstructs whichever piece its seed landed in and leaves the rest bare; that is the published algorithm, and the filter says so in its report when it happens. Against that, nothing is clustered away, so on a cloud you have already sampled evenly it gives you back exactly the points you put in.
+
+Works best on uniformly sampled clouds. If the sampling is uneven, run **Sample Surface by Poisson Disk** first. The points must carry normals, and they must be oriented consistently -- the ball needs to know which side the surface is on.
+
+Reference:
+Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G., **The ball-pivoting algorithm for surface reconstruction**, IEEE TVCG 1999.
+
+**Parameters:**
+
+- **ballRadius** (*absperc*, default: `0.0`) — Radius of the ball rolled over the points. Gaps wider than the ball are left open, and pits narrower than it are bridged over. There is no autoguess here, unlike the vcglib implementation: pick something close to the spacing of the cloud, and raise it until the holes close.
+- **deleteInitialFaces** (*bool*, default: `True`) — Throw away any faces the layer already has and rebuild from the points alone. This implementation always starts from its own seed triangle and cannot grow a front from existing faces, so leaving this off simply keeps the old faces alongside the new ones.
+```
+
+---
+
+(filter-reconstruct-surface-by-ball-pivoting-vcglib)=
+
+## Reconstruct Surface by Ball Pivoting (vcglib)
 
 **Categories:** `Creation/Reconstruction`
 
@@ -2696,7 +2733,7 @@ Original MeshLab plugin contribution: Lex van der Sluijs, PTC.
 
 Reconstruct a surface from oriented points using Ball Pivoting.
 
-```{py:function} ms.reconstruct_surface_by_ball_pivoting(**params)
+```{py:function} ms.reconstruct_surface_by_ball_pivoting_vcglib(**params)
 :module: _qmeshlab
 
 Given a point cloud with normals it reconstructs a surface using the <b>Ball Pivoting Algorithm</b>.Starting with a seed triangle, the BPA algorithm  pivots a ball of the given radius around the already formed edges until it touches another point, forming another triangle. The process continues until all reachable edges have been tried. This surface reconstruction algorithm uses the existing points without creating new ones. Works better with uniformly sampled point clouds. If needed first perform a poisson disk subsampling of the point cloud. <br>Bernardini F., Mittleman J., Rushmeier H., Silva C., Taubin G.<br><b>The ball-pivoting algorithm for surface reconstruction.</b><br>IEEE TVCG 1999
@@ -5865,12 +5902,18 @@ Mesh optimization by edge flipping, improving local triangle quality for face pa
 
 **Plugin:** qmeshlab.filter.isoparam
 
-Remesh a layer uniformly by subdividing each triangle of its abstract domain.
+Remesh a layer uniformly by sampling each region of its abstract domain on a regular grid.
 
 ```{py:function} ms.remesh_by_abstract_domain(**params)
 :module: _qmeshlab
 
-Builds a new layer by subdividing every triangle of the abstract domain recursively and mapping the samples back onto the surface. Because the domain triangles are near-equilateral by construction, the result is close to uniform.
+Builds a new layer by resampling the surface through the abstract domain. One square patch of *N* x *N* samples is taken over each **half-diamond** of the domain -- the region belonging to one domain edge -- on a grid of lines parallel to its sides, and the patches are stitched together into a single mesh.
+
+The result is close to uniform, and regular almost everywhere. Every interior sample of a patch ends up with exactly six neighbours, four along the grid and two along the one patch diagonal that is used, and because the domain's triangles are equilateral by construction those six come out at nearly equal distances on the surface. Irregular vertices survive only where the domain itself is irregular, at its cone singularities.
+
+The output size is the number of domain edges -- half again the number of domain faces -- times the square of the sampling rate, less the samples merged where patches meet.
+
+The filter reports which interpolation domain each sample was placed through: a single domain triangle where the sample and its neighbourhood fit inside one, a half-diamond where they straddle a domain edge, a half-star where they turn around a domain vertex. All three cover the whole domain, so a sample always has at least one to use.
 
 Requires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.
 
@@ -5880,7 +5923,7 @@ Requires an abstract domain on the layer: run **Parametrize by Abstract Domain**
 
 **Parameters:**
 
-- **samplingRate** (*int*, default: `10`) — How finely each domain triangle is subdivided. This is a resolution multiplier, not a target face count, so the output grows roughly with its square.
+- **samplingRate** (*int*, default: `10`) — Side of the square patch sampled over each region of the domain. This is a resolution, not a target face count: the output grows with its square, and with the number of domain edges. A 200-face domain at rate 10 is about 30,000 samples.
 ```
 
 ---
@@ -6644,16 +6687,43 @@ This filter has no parameters.
 
 **Plugin:** qmeshlab.filter.isoparam
 
-Build a new layer carrying a per-wedge atlas parametrization, one chart per diamond of the abstract domain.
+Build a new layer carrying a per-wedge atlas parametrization, with a choice of how the abstract domain is cut into charts.
 
 ```{py:function} ms.create_atlased_mesh_from_abstract_domain(**params)
 :module: _qmeshlab
 
-Turns the abstract domain into an ordinary texture atlas: each diamond of the domain becomes one square chart, and the charts are packed into a single UV square with a gutter between them.
+Turns the abstract domain into an ordinary texture atlas. The domain is a set of unit-sided equilateral triangles, and it can be cut into charts in several ways -- three of them are partitions given in the paper this is built on (Pietroni et al. 2010, section 4.2) -- after which one of the vcglib packers lays the charts out in a single UV square.
 
-The result is a new layer with per-wedge UVs, usable by anything that consumes a normal parametrization.
+The result is a new layer with per-wedge UVs, all sharing texture index 0, usable by anything that consumes a normal parametrization.
+
+*Chart shape* decides both the cut and the unfolding:
+
+- **Square** takes one chart per *half-diamond* -- the region belonging to a domain edge -- and flattens it onto a square, which is what the paper's own geometry-image construction does. It packs best, but that map is explicitly not rigid, so it distorts.
+- **Rhombus** unfolds the same region as the 60 degree rhombus it actually is, so both halves come out as the equilateral triangles the paper says its samples form when the right patch diagonal is used. Near-isometric, at the cost of some atlas area.
+- **Hexagon** merges: a half-diamond is a rhombus whose obtuse corners sit on the two triangle barycentres it spans, so the three that meet across a domain triangle join at 120 degrees each and tile a regular hexagon. Every domain triangle is a candidate, but a half-diamond belongs to the triangles on both sides of its edge and can only go to one of them, so some charts come out a wedge short and a few regions stay single.
+- **Polygon** uses the paper's *half-star* partition instead: one chart per domain vertex, each the k-agon joining the barycentres of the k triangles around it. It is a partition and not a search, so every region lands in exactly one chart and nothing is left over -- the fewest charts of any option, and the lowest area distortion, because that unfolding is area-preserving by construction where the square and rhombus ones are not.
+- **Star** merges around domain vertices the other way, out of whole half-diamonds. They meet at their *acute* corners there, so six of them close the ring but leave a six-pointed chart whose points cost atlas area.
+
+On a 1.2k sphere with a 194-triangle domain:
+
+| shape | charts | atlas covered | area distortion |
+| --- | --- | --- | --- |
+| Square | 291 | 73% | 1.35 |
+| Rhombus | 291 | 65% | 1.35 |
+| Hexagon | 131 | 69% | 1.35 |
+| Polygon | 99 | 62% | 1.30 |
+| Star | 154 | 60% | 1.35 |
+| Star, irregular too | 94 | 54% | 1.33 |
+
+(*area distortion* is the 95th percentile of per-face texel density over its median; 1.0 would be perfectly area-preserving.) Every shape lays its charts out at one texel density, so no chart takes more of the atlas per unit of surface than another.
+
+There is no single winner: **Square** buys atlas area with distortion and seams, **Polygon** buys the fewest seams and the truest areas with atlas area, and **Hexagon** sits between them. Pick by whether the atlas is going to be baked once or authored against.
+
+Four packers are offered, and they trade quality against time very differently -- see **Pack UV Charts**, which drives the same ones -- but *Rasterized, scaled to fit* is what you want here unless the chart count makes it too slow.
 
 Requires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.
+
+Based on Pietroni, Tarini and Cignoni, *Almost isometric mesh parameterization through abstract domains*, IEEE TVCG 2010; the square patches and the half-star partition are theirs, the merged hexagon and star charts are not.
 
 **References:**
 
@@ -6661,7 +6731,15 @@ Requires an abstract domain on the layer: run **Parametrize by Abstract Domain**
 
 **Parameters:**
 
-- **borderSize** (*double*, default: `0.1`) — Gutter kept around each chart, as a fraction of the chart. Larger values waste atlas area but keep bilinear filtering from bleeding between charts.
+- **chartShape** (*enum*, default: `square`) — How the domain is cut into charts and each chart unfolded. Square and Rhombus give one chart per domain edge; Polygon gives one per domain vertex, the fewest charts and the truest areas; Hexagon merges three edge-charts per domain triangle and packs tightest of the merged options; Star merges around vertices instead and wastes atlas area on its points.
+- **mergeIrregularStars** (*bool*, default: `False`) — Star charts normally merge only around regular domain vertices, the ones with exactly six triangles. With this on, vertices with five or seven triangles are merged too. Far more diamonds get absorbed -- on a 1.2k sphere, 266 of 291 against 176 -- at the cost of some stretch, since those triangles have to open to 72 degrees or close to 51 to make the ring meet. Ignored unless the chart shape is Star.
+- **borderSize** (*double*, default: `0.1`) — How far a face may stray outside its diamond before it is split in two. Smaller values cut the mesh more finely and keep the charts tighter to the domain, which also lets more diamonds join a hexagonal chart. The gutter between packed charts is set separately.
+- **packingAlgorithm** (*enum*, default: `rasterized_scaled`) — Which vcglib packer lays the charts out in the atlas.
+- **textureSize** (*int*, default: `2048`) — Side of the square atlas the charts are packed into. The UVs come back normalized either way; this sets the resolution the packer works at, and so what the gutter is worth. A domain has many small charts, and the gutter is what costs atlas area: on a 1.2k sphere, 291 charts at 1024 with a 4-pixel gutter cover 56% of the atlas, and the same run at 2048 covers 67%.
+- **gutterWidth** (*int*, default: `2`) — Padding kept around each chart, so bilinear filtering cannot bleed between neighbours.
+- **rotationNum** (*int*, default: `4`) — How many orientations each chart is tried at, rounded to the nearest multiple of four -- the packer derives four slots from every base rasterization, so only multiples of four are usable. Rasterized packers only.
+- **permutations** (*bool*, default: `False`) — Retry the layout with reshuffled chart orders. Costs five packing passes per similarly sized chart, so on a uniform atlas it is five per chart and it dominates the run. Rasterized packers only.
+- **randomSeed** (*int*, default: `0`) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the chart permutations exactly reproducible.
 ```
 
 ---
@@ -6674,18 +6752,26 @@ Requires an abstract domain on the layer: run **Parametrize by Abstract Domain**
 
 **Plugin:** qmeshlab.filter.isoparam
 
-Build an abstract domain mesh and an almost isometric parametrization of the layer onto it.
+Build an abstract domain of equilateral triangles and an almost isometric parametrization of the layer onto it.
 
 ```{py:function} ms.parametrize_by_abstract_domain(**params)
 :module: _qmeshlab
 
 Simplifies the layer down to a coarse **abstract domain** and parametrizes the original surface onto it, keeping the mapping as close to isometric as the surface allows.
 
+The domain is *abstract* in a strict sense: it is connectivity and adjacency only, with every one of its triangles taken to be equilateral and unit-sided. It has no 3D embedding, and for most surfaces none exists. That is what makes it a simple domain to work over -- all its regions are the same shape and size -- and it is also what the parametrization aims at: regions of equal area on the mesh, separated by paths of equal length, which is exactly the condition for the mapping to be isometric.
+
+It is built by decimation. Every triangle of the input starts as its own sub-domain; edge collapses and edge flips on the domain then reduce it, each one followed by a local reoptimization of the mapping and, at intervals, a global one over the whole mesh. A collapse costs the inverse of the two regions' areas plus the squared length of the path between them, so the smallest regions and the shortest paths go first, and what survives tends toward equally sized regions separated by equally long paths. The optimizer weights area preservation three times as heavily as conformality.
+
 The domain is attached to the layer as plugin data rather than written into the mesh, and the layer panel reports its size and distortion. It is dropped automatically if the layer's geometry changes, because a parametrization of moved vertices would be meaningless.
+
+What *is* written into the mesh is the mapping itself, as per-vertex UVs, and the domain regions, as scalars: each vertex gets the region its own position falls in, and each face gets the one its centre falls in. The per-face one is the better picture -- a region boundary is a path across the surface rather than a chain of mesh edges, so a face can straddle one, and deciding per face keeps the regions crisp where the per-vertex values dither along the seam. The filter asks the view to colour by it when it finishes, which is the quickest way to see what kind of domain you got. Any per-vertex or per-face scalar already on the layer is overwritten.
 
 The mesh must be a **single watertight two-manifold component**; the filter says which precondition failed when it is not.
 
-Counter-intuitively, a *smaller* abstract domain costs more, not less: the domain is reached by edge collapse, so asking for fewer faces asks for more work. On a 40k-vertex sphere, 150-200 faces took about twice as long as 400-500.
+Counter-intuitively, a *smaller* abstract domain costs more, not less. The two size bounds are a search range, not a tolerance: decimation always runs all the way down to the smallest, scoring the domain at every step, and then back-tracks to the best size in the interval. Lowering the smallest therefore buys more work, not less. On a 40k-vertex sphere, 150-200 faces took about twice as long as 400-500.
+
+Based on Pietroni, Tarini and Cignoni, *Almost isometric mesh parameterization through abstract domains*, IEEE TVCG 2010.
 
 **References:**
 
@@ -6693,11 +6779,19 @@ Counter-intuitively, a *smaller* abstract domain costs more, not less: the domai
 
 **Parameters:**
 
-- **minDomainFaces** (*int*, default: `150`) — Fewest faces the abstract domain may have. Fewer faces means a coarser domain and a longer run, since the domain is reached by collapsing edges.
-- **maxDomainFaces** (*int*, default: `200`) — Most faces the abstract domain may have. A wide interval lets the optimizer choose, at the cost of holding every intermediate result in memory.
-- **stopCriteria** (*enum*, default: `correspondence`) — What the search optimizes for when choosing where to stop between the two domain sizes.
-- **convergenceAccuracy** (*int*, default: `1`) — Higher values optimize the texture coordinates harder: slower, and eventually slightly better.
-- **doubleStep** (*bool*, default: `True`) — Split the parametrization into two passes, which is both faster and more robust on most inputs.
+- **minDomainFaces** (*int*, default: `150`) — Fewest faces the abstract domain may have. Decimation runs down to this number whatever the criteria then choose, so this is what sets the cost of the run: lowering it means more collapses, not fewer. Domains of four to a few hundred faces are the usual range.
+- **maxDomainFaces** (*int*, default: `200`) — Most faces the abstract domain may have. Together with the smallest it bounds the interval the stopping criteria search over; a wide interval gives them more to choose from, at the cost of holding every intermediate domain in memory.
+- **stopCriteria** (*enum*, default: `correspondence`) — Which measure decides where in the size interval to stop.
+
+**Heuristic** is the rule the original technique proposes: distortion multiplied by the square root of the number of sub-domains, so a domain that needs more faces to reduce distortion is penalized for it. Use this when you have no particular size in mind and want the sweet-spot.
+
+**Correspondence** is that distortion on its own -- area and angle distortion combined, area weighted three to one. With no penalty on domain size it will lean toward the largest domain in the interval, since distortion falls as the domain grows. Use it when you have already chosen the size and just want the least distorted result in it.
+
+**Domain regularity** counts domain vertices that are not surrounded by six triangles. Those are the cone singularities, and they are the only places where the mapping between a domain region and its parametrization is not an isometry, so fewer of them makes everything downstream better behaved.
+
+**L2 stretch** is the standard stretch-efficiency measure, if you want to compare against results quoted in that metric.
+- **convergenceAccuracy** (*int*, default: `1`) — How hard the mapping is optimized. It raises the effort spent on each local reoptimization after a collapse or a flip, and both the iteration count and the tightness of the global optimization that runs between them. The global phase usually converges within ten passes at the default, so higher values buy less than they cost.
+- **doubleStep** (*bool*, default: `True`) — Decimate in two phases on large inputs: a cheap first pass down to 15,000 sub-domains, then the full optimized run from there. It only engages above 30,000 faces, and below that the setting does nothing.
 ```
 
 ---
@@ -8420,9 +8514,9 @@ Carry an abstract domain from one layer onto another, similar and aligned one, b
 ```{py:function} ms.transfer_abstract_domain_to_another_layer(**params)
 :module: _qmeshlab
 
-Copies a layer's abstract domain onto a second layer -- typically the same object at a different resolution -- by finding, for each target vertex, the closest point on the source parametrization.
+Copies a layer's abstract domain onto a second layer -- typically the same object at a different resolution -- by finding, for each target vertex, the closest point on the source parametrization and reading its domain position off that.
 
-The two layers must be reasonably similar in shape and already aligned; nothing here registers them for you.
+This is a convenience rather than part of the original technique, and it inherits the limits of closest-point matching: the two layers must be reasonably similar in shape and already aligned, and nothing here registers them for you. Where the surfaces disagree the domain positions will follow the source's geometry rather than the target's.
 
 Unlike MeshLab, which moves the domain and leaves the source without one, the source **keeps its own domain** and the target gets an independent copy.
 

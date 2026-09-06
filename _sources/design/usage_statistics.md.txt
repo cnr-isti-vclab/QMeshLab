@@ -11,9 +11,11 @@ See also: [Preferences](preferences.md) · [Architecture](architecture.md) ·
 
 ## 1. Why collect anything
 
-QMeshLab ships **327 filters across 33 filter plugins, exposing 1131 parameters**,
-plus 6 I/O plugins, 4 interactive tools and 14 preferences. Nobody knows which parts
-of that surface are load-bearing. Every maintenance decision — what to deprecate,
+QMeshLab ships **334 filters across 34 filter plugins, exposing 1163 parameters**,
+organized into 11 root categories and 42 subcategories, plus 6 I/O plugins covering 9
+file formats, 4 interactive tools and 15 preferences. (Counts as of 2026-09-06; they
+moved twice while this document was being written, which is itself part of the
+argument.) Nobody knows which parts of that surface are load-bearing. Every maintenance decision — what to deprecate,
 what to test, what to optimize, what to document first — is currently made on
 intuition and on the loudest issue reports.
 
@@ -26,10 +28,12 @@ review. This register is the contract:
 |---|---|
 | Which filters can be deprecated or merged? | invocation counts per filter, per version, over months |
 | Which filters are broken in the field? | failure counts + stable error codes per filter |
-| Which of the 1131 parameters are dead UI? | count of runs where a parameter differed from its default |
+| Which of the 1163 parameters are dead UI? | count of runs where a parameter differed from its default |
 | Where does time go for real users? | runtime histograms bucketed by mesh size |
 | Did release N regress performance? | same histograms, sliced by app version |
 | Which file formats deserve engineering? | I/O counts and failure rates per format and direction |
+| Which importer should own a contested format? | the same counts keyed by plugin — `obj` is claimed by three plugins today, `stl` by two |
+| Which languages and regions to translate for? | country distribution against UI language, collected unlinked (§3.6) |
 | What hardware must keep working? | coarse OS / arch / GPU-family / RAM buckets |
 | What document sizes must stay interactive? | peak mesh count, peak face count, peak memory buckets |
 | Are new features discovered at all? | entry-point counters (menu, panel, search, Python, tool) |
@@ -37,7 +41,7 @@ review. This register is the contract:
 | How long must old versions be supported? | version distribution over time |
 | Which defaults are wrong? | which preferences are non-default |
 
-Twelve decisions, and every one of them is answerable from counters and histograms.
+Fourteen decisions, and every one of them is answerable from counters and histograms.
 None of them needs a per-action timeline, a user identity, a file name, or a
 timestamp. That is the whole basis of the privacy design: **the useful questions are
 aggregate questions, so collect aggregates and nothing else.**
@@ -118,14 +122,37 @@ statistic is wrong. With monthly rotation, "sessions per install this month" and
 the previous value is gone from disk and was never sent alongside the new one.
 
 A "Forget me" button clears the local id and queues a deletion request for the
-current id; combined with the 90-day raw retention in §3.7, most erasure happens by
+current id; combined with the 90-day raw retention in §3.8, most erasure happens by
 expiry rather than by request.
 
 ### 3.5 A fingerprinting budget for the envelope
 
 The envelope is where re-identification risk actually lives, because a combination of
-coarse facts can be near-unique even when each fact is harmless. So the envelope is
-budgeted in bits, and the budget is part of the schema review:
+coarse facts can be near-unique even when every fact in it is harmless on its own.
+This is the oldest result in the field — ZIP code, birth date and sex identify most of
+the US population; the EFF's browser-fingerprinting work found the average browser
+carried around 18 bits and was unique among half a million. Each field is innocuous;
+the tuple is an identifier.
+
+The budget is not an efficiency measure. The envelope is a few hundred bytes against a
+payload dominated by the filter map, and sending raw GPU and driver strings would cost
+on the order of 60 MB a year even at the largest scale in §7.2 — nothing. It buys
+three specific things:
+
+1. **It protects the id rotation.** Monthly rotation (§3.4) only works if September's
+   rows cannot be matched to October's. A rotated id sitting next to a rare hardware
+   tuple is only pseudo-rotated: join on the tuple and the year-long profile
+   reassembles. Without the budget, the rotation is theatre.
+2. **It closes the linkage path this project actually has** — the public issue
+   tracker. "Crashes on my M2 Ultra, 128 GB, Italian UI, 2026.3 from the dmg" is five
+   envelope fields in one sentence, written voluntarily, in public, next to a name.
+3. **It decides which legal regime applies.** Data that cannot single anyone out is
+   not personal data and most of the GDPR does not reach it; data that can is
+   pseudonymous, with the whole apparatus attached — records of processing, DPIA,
+   erasure requests, breach notification. For a service hosted by a public research
+   institution that distinction is worth more than any individual field.
+
+So the envelope is budgeted in bits, and the budget is part of the schema review:
 
 | Field | Granularity | ≈ bits |
 |---|---|---|
@@ -140,24 +167,72 @@ budgeted in bits, and the budget is part of the schema review:
 | channel | dmg / installer / package / source | 2 |
 | **total** | | **~27** |
 
-27 bits is ~134 M distinct signatures, which is not comfortable, so two controls
-apply. First, the client sends `other` for anything not on the shipped allowlist —
-notably GPU strings, which are otherwise nearly unique and must never be sent raw.
-Second, **ingest enforces k-anonymity**: the server keeps a rolling per-month count
-per envelope signature and coarsens a rare signature (below k = 50 installs) to a
-generalized one before writing it to storage. Note what is *not* in the table:
-no country, no timezone, no screen resolution, no locale region, no build id, no CPU
-model, no GPU driver version.
+27 bits is ~134 M distinct signatures against a population several orders of
+magnitude smaller: on a uniform distribution every single install would be unique.
+Real signatures are not uniform — most pile into a handful of modal tuples (current
+macOS, arm64, English, latest release), while the singletons live in the tail: older
+distributions, unusual memory sizes, rare languages. The bit count is therefore a
+**prior, not a mechanism**.
 
-### 3.6 The IP address is never stored
+Two controls do the actual work. First, the client sends `other` for anything not on
+the shipped allowlist — notably GPU strings, which are otherwise nearly unique and
+must never be sent raw. Second, **ingest enforces k-anonymity**, which measures real
+occupancy instead of assuming it: a rolling per-month count per envelope signature,
+and any signature below k = 50 installs is generalized before it is written to
+storage.
+
+The two are not redundant, and their interaction is the real reason to keep the budget
+tight: **low entropy is what makes k-anonymity affordable.** At 40-odd bits the
+coarsening would fire on a large fraction of records and the platform breakdown would
+survive only for the modal configurations — losing precisely the tail where the bugs
+are. Spending few bits up front is what lets the threshold almost never trigger.
+
+Note what is *not* in the table: no timezone, no screen resolution, no locale region,
+no build id, no CPU model, no GPU driver version — and no country, which *is*
+collected, but not here. See §3.6.
+
+### 3.6 Country, without spending bits
+
+Country is worth keeping: it is the only thing that answers which languages and
+regions to translate for, and UI language alone does not answer it — an Italian lab
+running an English UI is a translation opportunity, an English UI in Ohio is not. But
+as an envelope field it is expensive, roughly 6 effective bits once the skew of the
+install base is accounted for, and it would push a large share of tuples into
+k-anonymity coarsening.
+
+The way out is that **the translation question needs a marginal distribution, never a
+join.** Nobody needs to know which filters Japanese users run; they need to know how
+many installs are in Japan and what language those installs are set to. So country
+never enters the digest:
+
+- the proxy already sees the client IP transiently, for rate limiting (§3.7);
+- ingest maps it to a country code in memory, reads `language` and `app_version` from
+  the payload, and **increments a counter** in a separate geo table;
+- that table holds tallies only — no install id, no session id, no submission id, no
+  behavioural data, and no per-row timestamp, because increments are accumulated in
+  memory and flushed on a fixed schedule.
+
+There is consequently nothing to join on: the geo table is a set of counts, not a set
+of records. Country costs zero bits of the §3.5 budget, the digest never carries it,
+and a full database breach yields a row saying "1 842 installs in Japan in August, 61
+of them with an English UI" and nothing further. Published country figures get the
+same k = 20 suppression as everything else in §8, with small countries rolled into a
+region bucket rather than named.
+
+The residual limitation is real and deliberate: country **cannot** be crossed with
+filter usage, crash rate or hardware. If that ever becomes a question worth answering
+it costs about 3 bits with an 8-region bucket — a decision to take explicitly rather
+than drift into (§10).
+
+### 3.7 The IP address is never stored
 
 TLS terminates on a reverse proxy with access logging disabled; the application
 receives no `X-Forwarded-For` and writes no client address. The IP exists only in the
 proxy's memory for the life of the request, where it is used for rate limiting and
-then discarded. Deriving country at ingest is deliberately *not* done: it costs 6+
-bits of the budget above and answers no question in §1.
+then discarded. The one thing derived from it — a country code — is immediately
+reduced to a counter increment and never attached to a digest, as described in §3.6.
 
-### 3.7 Self-hosted, short raw retention, no third party
+### 3.8 Self-hosted, short raw retention, no third party
 
 No SaaS analytics, no error-reporting service, no CDN in front — a third-party
 processor would add a data-processing agreement, an international-transfer analysis,
@@ -167,12 +242,12 @@ daily rollups, which contain no envelope signature finer than the k-anonymized o
 are kept indefinitely. Server code and schema live in this repository so the claims
 here are checkable.
 
-### 3.8 Consent
+### 3.9 Consent
 
 **Opt-in, off by default.** The alternative — opt-out — yields far better coverage,
 and for a project maintained inside a European public research institution it is not
 worth defending. The honest consent flow is also the effective one: a first-run
-dialog that states the twelve decisions, links this document, and offers a **"Show me
+dialog that states the fourteen decisions, links this document, and offers a **"Show me
 exactly what would be sent"** button that renders the real payload from the current
 session. Opt-in rates rise sharply when the payload is inspectable, and the same
 viewer is the best debugging tool the feature has.
@@ -220,8 +295,9 @@ One submission, one JSON object, gzipped. Illustrative rather than final:
   },
   "errors": {"filter_quadwild::quadrangulate": {"E_SOLVER_FAILED": 2}},
   "io": {
-    "ply:in":  {"n": 3, "failed": 0, "size_hist": [0,0,0,2,1,0,0,0]},
-    "gltf:out": {"n": 1, "failed": 1}
+    "ply:in:io_vcg":          {"n": 3, "failed": 0, "size_hist": [0,0,0,2,1,0,0,0]},
+    "obj:in:io_obj_rapidobj": {"n": 2, "failed": 0},
+    "gltf:out:io_gltf":       {"n": 1, "failed": 1}
   },
   "ui": {"tool.measure": 6, "undo_graph.jump": 2, "render_mode.radiance_scaling": 1},
   "document": {"max_meshes_bucket": 2, "max_faces_bucket": 5, "peak_mem_bucket": 3},
@@ -240,6 +316,12 @@ Notes on specific choices:
 - **`prev_exit_filter`** is the cheapest crash signal that exists and is entirely
   public information: the filter key that was running when the previous session
   failed to shut down cleanly.
+- **I/O keys carry the plugin id**, because three plugins claim `obj` and two claim
+  `stl`, and `Document::preferredImportPluginForExtension`
+  (`src/core/document_io.cpp:92`) makes the winner a user-visible choice. Which
+  importer people actually end up on, and whether it fails more than its rivals, is a
+  question nothing else answers.
+- **No country field.** It is counted at ingest instead, unlinked; see §3.6.
 - **`sample_rate`** is present from day one so that client-side sampling can be
   switched on later without invalidating comparisons.
 
@@ -255,7 +337,7 @@ already funnels everything interesting through single call sites:
 | session lifecycle, unclean exit | `MainWindow` ctor/dtor, `src/app/main.cpp` | one flag file written at start, removed on clean quit |
 | document shape | `Document` layer add/remove | peak counts and memory |
 | feature discovery | `RenderWidget` mode changes, `InteractiveTool` activation | 4 tools, render modes |
-| wrong defaults | `Preferences::changed` — `src/core/preferences.h` | 14 preferences |
+| wrong defaults | `Preferences::changed` — `src/core/preferences.h` | 15 preferences |
 
 ```
 Document::runFilter ──┐
@@ -310,15 +392,18 @@ research lab is the real constraint:
 ```
 nginx (TLS, no access log, rate limit, 64 KB body cap)
   └─ ingest service (~300 lines, Go or Python): schema validate → k-anon coarsen
-       └─ append to /data/raw/YYYY-MM-DD.ndjson.gz         (deleted after 90 days)
-            └─ nightly DuckDB job → /data/rollup/*.parquet (kept indefinitely)
-                 └─ static HTML dashboard, regenerated nightly
+       ├─ append to /data/raw/YYYY-MM-DD.ndjson.gz         (deleted after 90 days)
+       │    └─ nightly DuckDB job → /data/rollup/*.parquet (kept indefinitely)
+       │         └─ static HTML dashboard, regenerated nightly
+       └─ in-memory geo tallies, flushed hourly → /data/geo/*.parquet
+            (country × language × app_version counts only, no join key — §3.6)
 ```
 
 No database server, no dashboard service, no queue, no container orchestration. The
 rollup tables are small enough to be embarrassing: filter × version × day is
-327 × ~8 × 365 ≈ **955 k rows per year**, which DuckDB queries in milliseconds and
-which fits in a file you can email.
+334 × ~8 × 365 ≈ **975 k rows per year**, which DuckDB queries in milliseconds and
+which fits in a file you can email. The geo table is smaller still — country ×
+language × app_version × month is a few tens of thousands of sparse rows a year.
 
 ### 7.2 Traffic model
 
@@ -374,8 +459,8 @@ as obfuscation, not authentication.
 
 The community supplies the data, so the community gets the data. Monthly, publish:
 
-- a static dashboard with filter usage, failure rates, version adoption and platform
-  mix;
+- a static dashboard with filter usage, failure rates, version adoption, platform mix
+  and a country/region map;
 - machine-readable aggregate CSVs, with any cell below k = 20 installs suppressed;
 - the schema, the ingest code, and the decisions register — in this repository.
 
@@ -403,8 +488,12 @@ exactly what everyone's payloads became.
    install id (rejected here).
 3. **Hosting** — institutional VM vs. commercial VPS. Both are adequate; the
    institutional route affects who the data controller is.
-4. **Whether country is worth 6 bits.** Assumed no. It would inform translation
-   priorities, which is a real question not in the register above.
+4. **Whether country may ever be crossed with behaviour.** Assumed no: the marginal
+   distribution in §3.6 is free, but a join needs country inside the envelope, which
+   costs ~3 bits even with an 8-region bucket and re-opens the k-anonymity question.
+5. **GPU driver version.** Currently excluded as 4–6 bits. It is also the difference
+   between "Radeon users have problems" and "this driver branch has problems", which
+   for a renderer-heavy application may be worth buying.
 
 ## Related
 
