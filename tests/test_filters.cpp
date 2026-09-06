@@ -6001,7 +6001,12 @@ void FilterTests::bothBallPivotingsInterpolateTheirInputPoints()
                           ? QStringLiteral("deleteInitialFaces")
                           : QStringLiteral("delete_initial_faces"),
                       true);
-        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, id), params);
+        const QString key = filterKeyForId(doc, id);
+        // The Gruber implementation needs glm, so its plugin is skipped in builds without it.
+        if (key.isEmpty())
+            QSKIP("Ball pivoting (Gruber) plugin is not available in this build.");
+
+        const MeshFilterRunResult r = doc.runFilter(key, params);
         QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(id, r.errorMessage)));
 
         const VCGMesh &m = doc.mesh(0).mesh;

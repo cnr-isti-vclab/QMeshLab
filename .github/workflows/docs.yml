@@ -30,7 +30,7 @@ jobs:
           pip install -r docs/requirements.txt
 
       - name: Install native dependencies
-        run: brew install eigen tbb
+        run: brew install eigen tbb glm
 
       - name: Configure and build
         run: |

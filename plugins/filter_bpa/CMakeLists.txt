@@ -5,7 +5,12 @@ if (NOT QMESH_PLUGIN_FILTER_BPA)
     return()
 endif()
 
-find_package(glm CONFIG REQUIRED)
+find_package(glm CONFIG QUIET)
+
+if (NOT TARGET glm::glm)
+    message(STATUS "Skipping filter_bpa - glm not found")
+    return()
+endif()
 
 add_library(QMeshLabPluginFilterBpa STATIC
     bpafilterplugin.h

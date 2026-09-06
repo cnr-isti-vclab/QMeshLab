@@ -83,9 +83,13 @@
 #if QMESH_PLUGIN_FILTER_COLORPROC_ENABLED
 #include "plugins/filter_colorproc/colorprocfilterplugin.h"
 #endif
-#if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
+#if QMESH_PLUGIN_FILTER_ISOPARAM_ENABLED
 #include "plugins/filter_isoparam/isoparamfilterplugin.h"
+#endif
+#if QMESH_PLUGIN_FILTER_BPA_ENABLED
 #include "plugins/filter_bpa/bpafilterplugin.h"
+#endif
+#if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
 #include "plugins/filter_xatlas/xatlasfilterplugin.h"
 #endif
 #if QMESH_PLUGIN_FILTER_TRIOPTIMIZE_ENABLED
@@ -187,9 +191,13 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
 #if QMESH_PLUGIN_FILTER_COLORPROC_ENABLED
     registerColorProcFilterPlugin(pluginManager);
 #endif
-#if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
+#if QMESH_PLUGIN_FILTER_ISOPARAM_ENABLED
     registerIsoParamFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_BPA_ENABLED
     registerBpaFilterPlugin(pluginManager);
+#endif
+#if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
     registerXAtlasFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_TRIOPTIMIZE_ENABLED

@@ -220,10 +220,12 @@ add_subdirectory(filter_bpa)
 add_subdirectory(filter_xatlas)
 if (TARGET QMeshLabPluginFilterIsoParam)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterIsoParam)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_ISOPARAM_ENABLED=1)
 endif()
 
 if (TARGET QMeshLabPluginFilterBpa)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterBpa)
+    target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_BPA_ENABLED=1)
 endif()
 
 if (TARGET QMeshLabPluginFilterXAtlas)
