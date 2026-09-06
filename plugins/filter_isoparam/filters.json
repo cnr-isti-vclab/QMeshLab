@@ -164,7 +164,7 @@
         "pietroni2010isoparam"
       ],
       "shortDescription": "Build a new layer carrying a per-wedge atlas parametrization, with one chart per diamond of the abstract domain or one per regular domain vertex.",
-      "longDescriptionMarkdown": "Turns the abstract domain into an ordinary texture atlas. Every face of the parametrized mesh already lives inside exactly one diamond of the domain, so the diamonds are the charts, and one of the vcglib packers lays them out in a single UV square.\n\nThe result is a new layer with per-wedge UVs, all sharing texture index 0, usable by anything that consumes a normal parametrization.\n\n*Chart shape* decides how the domain is cut into charts and how each one is unfolded:\n\n- **Square** flattens each diamond onto the unit square, as the reference implementation does. It packs best, but it stretches the two triangles of the diamond into halves of a square, which they are not.\n- **Rhombus** unfolds each diamond as the 60 degree rhombus it actually is, so both halves come out as equilateral triangles. Near-isometric, at the cost of some atlas area.\n- **Hexagon** additionally merges charts: a domain vertex with exactly six triangles around it has its six diamonds unfolded together, through that vertex's star map, into a single chart. Two adjacent regular vertices share a diamond and cannot both have it, and a diamond whose faces stray outside the star has to stay behind, so a merged chart is often a wedge or two short of a full hexagon. Everything left over is laid out as a rhombus. *Merge irregular vertices too* widens this to vertices with five or seven triangles, which absorbs many more diamonds but stretches their triangles to close the ring.\n\nOn a 1.2k sphere with a 194-triangle domain, the three shapes come out at 291 charts covering 73% of the atlas, 291 charts covering 65%, and 154 charts covering 61% -- and hexagons with *Merge irregular vertices too* reach 94 charts covering 55%, having absorbed 266 of the 291 diamonds. Every step down in chart count, and so in seams, costs atlas area. Which end of that you want depends on whether the atlas is going to be baked once or authored against.\n\nFour packers are offered, and they trade quality against time very differently -- see **Pack UV Charts**, which drives the same ones -- but *Rasterized, scaled to fit* is what you want here unless the chart count makes it too slow.\n\nRequires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.",
+      "longDescriptionMarkdown": "Turns the abstract domain into an ordinary texture atlas. The domain is a set of unit-sided equilateral triangles, and it can be cut into charts in several ways -- three of them are partitions given in the paper this is built on (Pietroni et al. 2010, section 4.2) -- after which one of the vcglib packers lays the charts out in a single UV square.\n\nThe result is a new layer with per-wedge UVs, all sharing texture index 0, usable by anything that consumes a normal parametrization.\n\n*Chart shape* decides both the cut and the unfolding:\n\n- **Square** takes one chart per *half-diamond* -- the region belonging to a domain edge -- and flattens it onto a square, as the reference implementation does. It packs best, but the map is not rigid, so it distorts.\n- **Rhombus** unfolds the same region as the 60 degree rhombus it actually is, so both halves come out as equilateral triangles. Near-isometric, at the cost of some atlas area.\n- **Hexagon** merges: a half-diamond is a rhombus whose obtuse corners sit on the two triangle barycentres it spans, so the three that meet across a domain triangle join at 120 degrees each and tile a regular hexagon. Every domain triangle is a candidate, but a half-diamond belongs to the triangles on both sides of its edge and can only go to one of them, so some charts come out a wedge short and a few regions stay single.\n- **Polygon** uses the paper's *half-star* partition instead: one chart per domain vertex, each the k-agon joining the barycentres of the k triangles around it. It is a partition and not a search, so every region lands in exactly one chart and nothing is left over -- the fewest charts of any option, and the lowest area distortion, because that unfolding is area-preserving by construction where the square and rhombus ones are not.\n- **Star** merges around domain vertices the other way, out of whole half-diamonds. They meet at their *acute* corners there, so six of them close the ring but leave a six-pointed chart whose points cost atlas area.\n\nOn a 1.2k sphere with a 194-triangle domain:\n\n| shape | charts | atlas covered | area distortion |\n| --- | --- | --- | --- |\n| Square | 291 | 73% | 1.35 |\n| Rhombus | 291 | 65% | 1.35 |\n| Hexagon | 131 | 69% | 1.35 |\n| Polygon | 99 | 62% | 1.30 |\n| Star | 154 | 60% | 1.35 |\n| Star, irregular too | 94 | 54% | 1.33 |\n\n(*area distortion* is the 95th percentile of per-face texel density over its median; 1.0 would be perfectly area-preserving.) Every shape lays its charts out at one texel density, so no chart takes more of the atlas per unit of surface than another.\n\nThere is no single winner: **Square** buys atlas area with distortion and seams, **Polygon** buys the fewest seams and the truest areas with atlas area, and **Hexagon** sits between them. Pick by whether the atlas is going to be baked once or authored against.\n\nFour packers are offered, and they trade quality against time very differently -- see **Pack UV Charts**, which drives the same ones -- but *Rasterized, scaled to fit* is what you want here unless the chart count makes it too slow.\n\nRequires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.",
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true
@@ -174,7 +174,7 @@
         {
           "id": "chartShape",
           "label": "Chart shape",
-          "help": "How the domain is cut into charts and each chart unfolded. A square packs best but distorts; a rhombus of two equilateral triangles is near-isometric; hexagons additionally merge the diamonds around every regular domain vertex into one chart, which roughly halves the chart count and the seams for about a tenth of the atlas area.",
+          "help": "How the domain is cut into charts and each chart unfolded. Square and Rhombus give one chart per domain edge; Polygon gives one per domain vertex, the fewest charts and the truest areas; Hexagon merges three edge-charts per domain triangle and packs tightest of the merged options; Star merges around vertices instead and wastes atlas area on its points.",
           "group": "main",
           "type": "enum",
           "default": "square",
@@ -189,7 +189,15 @@
             },
             {
               "id": "hexagon",
-              "label": "Hexagon around regular domain vertices"
+              "label": "Hexagon around domain triangles"
+            },
+            {
+              "id": "halfstar",
+              "label": "Polygon around domain vertices"
+            },
+            {
+              "id": "star",
+              "label": "Star around domain vertices"
             }
           ]
         },
@@ -199,7 +207,7 @@
           "type": "bool",
           "group": "main",
           "default": false,
-          "help": "Hexagonal charts normally merge only around regular domain vertices, the ones with exactly six triangles, whose star unfolds into a regular hexagon of equilateral triangles. With this on, vertices with five or seven triangles are merged too, into a pentagon or a heptagon. Far more diamonds get absorbed -- on a 1.2k sphere, 266 of 291 against 176, and 94 charts against 154 -- at the cost of some stretch, since those triangles have to open to 72 degrees or close to 51 to make the ring meet. Ignored unless the chart shape is Hexagon."
+          "help": "Star charts normally merge only around regular domain vertices, the ones with exactly six triangles. With this on, vertices with five or seven triangles are merged too. Far more diamonds get absorbed -- on a 1.2k sphere, 266 of 291 against 176 -- at the cost of some stretch, since those triangles have to open to 72 degrees or close to 51 to make the ring meet. Ignored unless the chart shape is Star."
         },
         {
           "id": "borderSize",

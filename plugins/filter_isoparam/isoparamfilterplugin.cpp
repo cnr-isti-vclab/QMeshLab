@@ -308,9 +308,11 @@ MeshFilterRunResult runAtlasedMesh(const FilterParams &params, Document &doc, in
 
     const QString shapeId = params.getEnum(QStringLiteral("chartShape"));
     atlaslayout::Params layout;
-    layout.shape = shapeId == QStringLiteral("hexagon") ? atlaslayout::ChartShape::Hexagon
-                 : shapeId == QStringLiteral("rhombus") ? atlaslayout::ChartShape::Rhombus
-                                                        : atlaslayout::ChartShape::Square;
+    layout.shape = shapeId == QStringLiteral("hexagon")  ? atlaslayout::ChartShape::Hexagon
+                 : shapeId == QStringLiteral("star")     ? atlaslayout::ChartShape::Star
+                 : shapeId == QStringLiteral("halfstar") ? atlaslayout::ChartShape::HalfStar
+                 : shapeId == QStringLiteral("rhombus")  ? atlaslayout::ChartShape::Rhombus
+                                                         : atlaslayout::ChartShape::Square;
     layout.mergeIrregularStars = params.getBool(QStringLiteral("mergeIrregularStars"), false);
     layout.border = float(params.getDouble(QStringLiteral("borderSize"), 0.1));
     layout.packing.algorithm = params.getEnum(QStringLiteral("packingAlgorithm"));
@@ -368,11 +370,15 @@ MeshFilterRunResult runAtlasedMesh(const FilterParams &params, Document &doc, in
     result.infoMessages
         << QObject::tr("Atlased mesh: %1 vertices, %2 faces, per-wedge UVs.")
                .arg(atlased.VN()).arg(atlased.FN())
-        << QObject::tr("%1 charts: %2 star charts over %3 diamonds, %4 single diamonds. "
-                       "Atlas covered: %5%.")
-               .arg(stats.starCharts + stats.diamondCharts)
-               .arg(stats.starCharts).arg(stats.mergedDiamonds).arg(stats.diamondCharts)
-               .arg(100.0 * stats.coverage, 0, 'f', 1);
+        << (layout.shape == atlaslayout::ChartShape::HalfStar
+                ? QObject::tr("%1 charts, one per domain vertex. Atlas covered: %2%.")
+                      .arg(stats.mergedCharts).arg(100.0 * stats.coverage, 0, 'f', 1)
+                : QObject::tr("%1 charts: %2 merged over %3 diamonds, %4 single diamonds. "
+                              "Atlas covered: %5%.")
+                      .arg(stats.mergedCharts + stats.diamondCharts)
+                      .arg(stats.mergedCharts).arg(stats.mergedDiamonds)
+                      .arg(stats.diamondCharts)
+                      .arg(100.0 * stats.coverage, 0, 'f', 1));
     if (stats.irregularStarCharts > 0)
         result.infoMessages << QObject::tr(
             "%1 of the star charts sit on an irregular domain vertex, so they came out as "

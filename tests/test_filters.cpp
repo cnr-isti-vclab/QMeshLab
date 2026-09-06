@@ -5889,7 +5889,9 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
         {QStringLiteral("square"), false},
         {QStringLiteral("rhombus"), false},
         {QStringLiteral("hexagon"), false},
-        {QStringLiteral("hexagon"), true},
+        {QStringLiteral("halfstar"), false},
+        {QStringLiteral("star"), false},
+        {QStringLiteral("star"), true},
     };
     for (const auto &pass : passes) {
         const QString shape = pass.second ? pass.first + QStringLiteral("+irregular")
@@ -5907,6 +5909,7 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
         QSet<int> textureIds;
         double covered = 0.0;
         double signedArea = 0.0;
+        std::vector<double> density;
         for (const VCGFace &f : m.face) {
             if (f.IsD()) continue;
             for (int k = 0; k < 3; ++k) {
@@ -5921,15 +5924,30 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
                                  - (c.X() - a.X()) * (b.Y() - a.Y())) * 0.5;
             covered += std::abs(area);
             signedArea += area;
+            const double area3d = vcg::DoubleArea(f) * 0.5;
+            if (area3d > 0.0)
+                density.push_back(std::abs(area) / area3d);
         }
+        // Texel density: every chart has to be laid out at the same scale, whether it was
+        // merged or left on its own, or the packer spends the atlas on whichever kind came
+        // out bigger. What is left is the parametrization's own area distortion.
+        std::sort(density.begin(), density.end());
+        const double median = density[density.size() / 2];
+        const double p95 = density[density.size() * 95 / 100];
+        qDebug("%-16s texel density median %.4g, p95/median %.2f", qPrintable(shape),
+               median, p95 / median);
+        QVERIFY2(p95 < 2.0 * median,
+                 qPrintable(QStringLiteral("%1: charts packed at different scales "
+                                           "(p95/median %2)").arg(shape).arg(p95 / median)));
         // Packing transforms are similarities, so they cannot mirror a chart: every face
         // must still wind the same way. A disagreement means a chart folded over itself,
         // which is what makes a parametrization useless to bake against.
         QVERIFY2(std::abs(std::abs(signedArea) - covered) < 1e-6 * covered,
                  qPrintable(QStringLiteral("%1: folded charts (|signed| %2 vs %3)")
                                 .arg(shape).arg(std::abs(signedArea)).arg(covered)));
-        // "N charts: H hexagonal, D per diamond. Atlas covered: C%."
-        const QString tally = r.infoMessages.filter(QStringLiteral("charts:")).value(0);
+        // Both tally lines open with the chart count: "N charts: ..." for the layouts built
+        // out of half-diamonds, "N charts, one per domain vertex." for the half-star one.
+        const QString tally = r.infoMessages.filter(QStringLiteral(" charts")).value(0);
         QVERIFY2(!tally.isEmpty(), qPrintable(shape));
         chartCount[shape] = tally.split(QLatin1Char(' ')).value(0).toInt();
         QVERIFY(chartCount[shape] > 0);
@@ -5947,8 +5965,11 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
     // unfolded, and widening to irregular vertices can only merge more.
     QCOMPARE(chartCount[QStringLiteral("rhombus")], chartCount[QStringLiteral("square")]);
     QVERIFY(chartCount[QStringLiteral("hexagon")] < chartCount[QStringLiteral("square")]);
-    QVERIFY(chartCount[QStringLiteral("hexagon+irregular")]
-            < chartCount[QStringLiteral("hexagon")]);
+    QVERIFY(chartCount[QStringLiteral("star")] < chartCount[QStringLiteral("square")]);
+    // Half-stars partition the domain one chart per vertex, so on a closed domain there are
+    // about a third as many as there are half-diamonds, and nothing is left over.
+    QVERIFY(chartCount[QStringLiteral("halfstar")] < chartCount[QStringLiteral("hexagon")]);
+    QVERIFY(chartCount[QStringLiteral("star+irregular")] < chartCount[QStringLiteral("star")]);
 }
 
 void FilterTests::abstractDomainConsumersRunAndRefuseWithoutIt()

@@ -3,6 +3,12 @@
 // Atlas layout for the isoparametrization: turns the abstract domain into charts and packs
 // them into a single UV square. Included from isoparamfilterplugin.cpp *after* the vendored
 // headers, because it builds directly on IsoParametrization and DiamondParametrizator.
+//
+// "diamond" here follows DiamondParametrizator, but the region it names is the paper's
+// *half*-diamond domain (Pietroni et al. 2010, section 4.1, and `getHDiamIndex`): the
+// rhombus whose long diagonal is a domain edge and whose short diagonal joins the
+// barycentres of the two triangles sharing it. Area sqrt(3)/6 for unit domain triangles.
+// UPSTREAM.md has the rest, including why that matters for texel density.
 
 #include "uvpacker.h"
 
@@ -19,15 +25,16 @@ namespace atlaslayout {
 enum class ChartShape {
     Square,   // each diamond flattened onto the unit square, as the reference code does
     Rhombus,  // each diamond as the 60 degree rhombus it actually is
-    Hexagon,  // the six diamonds around a regular domain vertex unfolded as one chart
+    Hexagon,  // the three diamonds around a domain triangle, which tile a regular hexagon
+    Star,     // the diamonds around a domain vertex, which tile a six-pointed star
+    HalfStar, // the paper's own third partition: one convex k-agon per domain vertex
 };
 
 struct Params
 {
     ChartShape shape = ChartShape::Square;
-    // Hexagon charts normally merge only around regular (valence-six) domain vertices,
-    // whose six triangles unfold into a regular hexagon of equilateral triangles. With this
-    // on, valence five and seven are merged too, into a pentagon and a heptagon.
+    // Star charts normally merge only around regular (valence-six) domain vertices. With
+    // this on, valence five and seven are merged too.
     bool mergeIrregularStars = false;
     float border = 0.1f;
     uvpacker::Params packing;
@@ -35,7 +42,7 @@ struct Params
 
 struct Stats
 {
-    int starCharts = 0;
+    int mergedCharts = 0;
     int irregularStarCharts = 0;
     int mergedDiamonds = 0;
     int diamondCharts = 0;
@@ -49,18 +56,237 @@ namespace detail {
 // through that vertex's star map, or a single diamond unfolded through the quad map.
 struct Chart
 {
-    int star = -1;    // abstract vertex index, or -1 for a plain diamond chart
-    int valence = 0;  // triangles around that vertex: six is the regular, hexagonal case
-    std::vector<int> diamonds;
+    int star = -1;       // vertex-centred chart: the abstract vertex it turns around
+    int centerFace = -1; // face-centred chart: the abstract triangle it is built on
+    int valence = 0;     // triangles around a star's vertex; six is the regular case
+    std::vector<int> diamonds; // the half-diamonds this chart was assembled from
+    std::vector<int> faces;    // set instead when the chart was not assembled from those
 };
 
-// GE1Quad flattens the diamond domain -- a 60 degree rhombus -- onto the unit square. This
-// puts it back, so the two halves come out as equilateral triangles of side one, the same
-// size as the triangles of a star chart.
+// Maps one triangle onto another. Used to bring each diamond of a face-centred chart into a
+// common frame, by the copy of the central triangle every one of them contains.
+struct Affine2
+{
+    vcg::Point2f origin, target, ex, ey;
+    float inv[2][2] = {{0.0f, 0.0f}, {0.0f, 0.0f}};
+
+    vcg::Point2f operator()(const vcg::Point2f &p) const
+    {
+        const vcg::Point2f q = p - origin;
+        const float a = inv[0][0] * q.X() + inv[0][1] * q.Y();
+        const float b = inv[1][0] * q.X() + inv[1][1] * q.Y();
+        return target + ex * a + ey * b;
+    }
+};
+
+// Zero determinant means the source triangle is degenerate; the caller checks for it.
+inline Affine2 affineFrom(const vcg::Point2f src[3], const vcg::Point2f dst[3], float &det)
+{
+    Affine2 t;
+    t.origin = src[0];
+    t.target = dst[0];
+    t.ex = dst[1] - dst[0];
+    t.ey = dst[2] - dst[0];
+    const vcg::Point2f u = src[1] - src[0];
+    const vcg::Point2f v = src[2] - src[0];
+    det = u.X() * v.Y() - u.Y() * v.X();
+    const float scale = std::fabs(det) > 1e-20f ? 1.0f / det : 0.0f;
+    t.inv[0][0] = v.Y() * scale;
+    t.inv[0][1] = -v.X() * scale;
+    t.inv[1][0] = -u.Y() * scale;
+    t.inv[1][1] = u.X() * scale;
+    return t;
+}
+
+// Where a face-centred chart puts its central triangle: equilateral, side one, the same size
+// as the two halves of a rhombus chart, so every chart carries texels at one density.
+inline const vcg::Point2f *canonicalTriangle()
+{
+    static const vcg::Point2f corners[3] = {vcg::Point2f(0.0f, 0.0f), vcg::Point2f(1.0f, 0.0f),
+                                            vcg::Point2f(0.5f, 0.86602540378f)};
+    return corners;
+}
+
+// The three diamonds of a domain triangle, and the affine placement each one needs to land
+// in the chart's common frame.
+inline bool faceChartPlacements(IsoParametrization &iso,
+                                int centerFace,
+                                const std::vector<int> &diamonds,
+                                std::vector<Affine2> &placements)
+{
+    placements.clear();
+    int orientation = 0;
+    for (int diamond : diamonds) {
+        vcg::Point2f src[3];
+        for (int j = 0; j < 3; ++j) {
+            // Barycentric corners of the central triangle, in the diamond's own domain.
+            const vcg::Point2f corner(j == 0 ? 1.0f : 0.0f, j == 1 ? 1.0f : 0.0f);
+            iso.GE1(centerFace, corner, diamond, src[j]);
+        }
+        float det = 0.0f;
+        const Affine2 placement = affineFrom(src, canonicalTriangle(), det);
+        placements.push_back(placement);
+    }
+    return true;
+}
+
+// The paper's third partition (section 4.2): half-star domains, one per domain vertex, each
+// the k-agon joining the barycentres of the k triangles around it. Unlike the two merging
+// strategies below this is a partition and not a search -- every face lands in exactly one
+// chart, there is nothing to contend over and nothing left over, and the charts come out
+// convex. It gives one chart per domain vertex where the half-diamonds give one per edge,
+// which on a closed domain is about a third as many.
+//
+// It rides on the half-diamond split that has already run: a face inside the half-diamond of
+// edge (v,w) is inside both triangles sharing that edge, and both of them are in v's star
+// and in w's star, so whichever of the two the face is assigned to can unfold it.
+inline void claimHalfStarCharts(IsoParametrization &iso,
+                                ParamMesh &paramMesh,
+                                std::vector<Chart> &charts,
+                                Stats &stats)
+{
+    AbstractMesh &abstractMesh = *iso.AbsMesh();
+    std::vector<int> valence(abstractMesh.vert.size(), 0);
+    for (std::size_t fi = 0; fi < abstractMesh.face.size(); ++fi) {
+        AbstractFace &f = abstractMesh.face[fi];
+        if (f.IsD())
+            continue;
+        for (int k = 0; k < 3; ++k)
+            ++valence[vcg::tri::Index(abstractMesh, f.V(k))];
+    }
+
+    const IsoParametrization::CoordType centre(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f);
+    std::map<int, int> chartOfStar;
+    for (std::size_t i = 0; i < paramMesh.face.size(); ++i) {
+        ParamFace &f = paramMesh.face[i];
+        if (f.IsD())
+            continue;
+        // Which half-star the face sits in, decided the way the reference code decides a
+        // half-diamond: by where the face's own centre lands in the domain.
+        int I = 0;
+        vcg::Point2f UV;
+        iso.Phi(&f, centre, I, UV);
+        const int star = iso.getHStarIndex(I, UV);
+        auto found = chartOfStar.find(star);
+        if (found == chartOfStar.end()) {
+            Chart chart;
+            chart.star = star;
+            chart.valence = valence[std::size_t(star)];
+            found = chartOfStar.insert({star, int(charts.size())}).first;
+            charts.push_back(std::move(chart));
+            ++stats.mergedCharts;
+        }
+        charts[std::size_t(found->second)].faces.push_back(int(i));
+    }
+}
+
+// Merges the three diamonds around each domain triangle into one chart. Every diamond meets
+// its two neighbours at 120 degrees across that triangle's medians, so three of them tile a
+// regular hexagon -- which is why this needs no valence condition at all, unlike the
+// vertex-centred stars, and why it comes out convex rather than six-pointed.
+//
+// The chart is the isometric unfolding of the triangle with its three neighbours flapped
+// out: each diamond already carries an isometric copy of the central triangle, so lining
+// those copies up puts all three in one frame.
+//
+// A diamond belongs to the triangles on both sides of its edge and can only be claimed
+// once, so the triples that are still whole are served first.
+inline void claimFaceHexagons(IsoParametrization &iso,
+                              const std::map<int, std::vector<int>> &facesOfDiamond,
+                              std::vector<Chart> &charts,
+                              std::map<int, int> &chartOfDiamond,
+                              Stats &stats)
+{
+    AbstractMesh &abstractMesh = *iso.AbsMesh();
+    std::vector<Chart> candidates;
+    for (std::size_t fi = 0; fi < abstractMesh.face.size(); ++fi) {
+        AbstractFace &f = abstractMesh.face[fi];
+        if (f.IsD())
+            continue;
+        Chart candidate;
+        candidate.centerFace = int(fi);
+        for (int k = 0; k < 3; ++k) {
+            if (f.FFp(k) == &f) // a border edge has no diamond
+                continue;
+            float bary[3] = {0.1f, 0.1f, 0.1f};
+            bary[k] = 0.45f;
+            bary[(k + 1) % 3] = 0.45f;
+            const int diamond = iso.getHDiamIndex(int(fi), vcg::Point2f(bary[0], bary[1]));
+            if (facesOfDiamond.count(diamond))
+                candidate.diamonds.push_back(diamond);
+        }
+        std::vector<Affine2> placements;
+        if (candidate.diamonds.size() >= 2
+            && faceChartPlacements(iso, candidate.centerFace, candidate.diamonds, placements))
+            candidates.push_back(std::move(candidate));
+    }
+
+    std::stable_sort(candidates.begin(), candidates.end(),
+                     [](const Chart &a, const Chart &b) {
+                         return a.diamonds.size() > b.diamonds.size();
+                     });
+
+    for (Chart &candidate : candidates) {
+        std::vector<int> free;
+        for (int diamond : candidate.diamonds)
+            if (!chartOfDiamond.count(diamond))
+                free.push_back(diamond);
+        if (free.size() < 2)
+            continue;
+        candidate.diamonds = std::move(free);
+        const int chart = int(charts.size());
+        for (int diamond : candidate.diamonds)
+            chartOfDiamond[diamond] = chart;
+        stats.mergedDiamonds += int(candidate.diamonds.size());
+        ++stats.mergedCharts;
+        charts.push_back(std::move(candidate));
+    }
+}
+
+
+
+// A diamond's own region is not the two whole domain triangles: it is the rhombus whose
+// acute corners are the endpoints of the domain edge and whose obtuse corners are the two
+// triangle centres, and that is what GE1Quad flattens onto the unit square. With unit
+// domain triangles its area is sqrt(3)/6.
+//
+// Both single-diamond layouts have to come back out at that area. The merged charts are
+// placed by an isometry of the domain, so anything else here would pack a leftover diamond
+// at a different texel density from its neighbours -- three times larger, in the case of a
+// rhombus of side one, which is what this used to produce.
+constexpr float kDiamondRegionArea = 0.28867513f; // sqrt(3)/6
+
+// The 60 degree rhombus the diamond actually is, at the area above: side 1/sqrt(3).
 inline vcg::Point2f shearToRhombus(const vcg::Point2f &quad)
 {
-    const float kHeight = 0.86602540378f; // sqrt(3)/2
-    return vcg::Point2f(quad.X() + 0.5f * quad.Y(), kHeight * quad.Y());
+    const float kSide = 0.57735027f;                 // 1/sqrt(3)
+    const float kHeight = 0.86602540378f * kSide;    // sqrt(3)/2 of that
+    return vcg::Point2f((quad.X() + 0.5f * quad.Y()) * kSide, kHeight * quad.Y());
+}
+
+// The square the reference implementation uses, at the same area.
+inline vcg::Point2f scaleToSquare(const vcg::Point2f &quad)
+{
+    const float kSide = 0.53728497f; // sqrt(sqrt(3)/6)
+    return quad * kSide;
+}
+
+// Pietroni et al. 2010, section 4.1: a star domain is "rescaled so that its total area
+// matches the area of k equilateral unit-sided triangles", which is what makes g_E
+// area-preserving -- the paper's stated choice, and the reason every chart here can be laid
+// out at one texel density. ParametrizeStarEquilateral hard-codes circumradius one instead,
+// and a regular k-agon of circumradius one only has that area at k = 6. This puts the
+// missing rescale back: a valence-five star is otherwise 10% too large and a valence-seven
+// one 10% too small.
+inline float starAreaCorrection(int valence)
+{
+    if (valence == 6 || valence < 3)
+        return 1.0f;
+    const double kPi = 3.14159265358979323846;
+    const double kUnitTriangle = 0.43301270189; // sqrt(3)/4
+    const double actual = 0.5 * valence * std::sin(2.0 * kPi / valence);
+    const double wanted = valence * kUnitTriangle;
+    return float(std::sqrt(wanted / actual));
 }
 
 // The abstract faces around a domain vertex: the faces of its star.
@@ -312,7 +538,7 @@ inline void claimStarCharts(IsoParametrization &iso,
         for (int diamond : candidate.diamonds)
             chartOfDiamond[diamond] = chart;
         stats.mergedDiamonds += int(candidate.diamonds.size());
-        ++stats.starCharts;
+        ++stats.mergedCharts;
         if (candidate.valence != 6)
             ++stats.irregularStarCharts;
         charts.push_back(std::move(candidate));
@@ -342,17 +568,25 @@ bool build(IsoParametrization &iso, const Params &params, MeshType &out, Stats &
 
     std::vector<detail::Chart> charts;
     std::map<int, int> chartOfDiamond;
-    if (params.shape == ChartShape::Hexagon)
+    if (params.shape == ChartShape::HalfStar)
+        detail::claimHalfStarCharts(iso, paramMesh, charts, stats);
+    else if (params.shape == ChartShape::Hexagon)
+        detail::claimFaceHexagons(iso, facesOfDiamond, charts, chartOfDiamond, stats);
+    else if (params.shape == ChartShape::Star)
         detail::claimStarCharts(iso, paramMesh, params.border,
                                 params.mergeIrregularStars ? 5 : 6,
                                 params.mergeIrregularStars ? 7 : 6,
                                 facesOfDiamond, charts, chartOfDiamond, stats);
-    for (const auto &entry : facesOfDiamond) {
-        if (chartOfDiamond.count(entry.first))
-            continue;
-        chartOfDiamond[entry.first] = int(charts.size());
-        charts.push_back({-1, 0, {entry.first}});
-        ++stats.diamondCharts;
+    // Half-diamonds that no merged chart took become charts of their own. A half-star
+    // layout has already taken every face, so there is nothing left to place.
+    if (params.shape != ChartShape::HalfStar) {
+        for (const auto &entry : facesOfDiamond) {
+            if (chartOfDiamond.count(entry.first))
+                continue;
+            chartOfDiamond[entry.first] = int(charts.size());
+            charts.push_back({-1, -1, 0, {entry.first}, {}});
+            ++stats.diamondCharts;
+        }
     }
 
     // Unfold every chart into its own frame and take its outline from the result, so the
@@ -366,10 +600,26 @@ bool build(IsoParametrization &iso, const Params &params, MeshType &out, Stats &
         const std::vector<int> starFaces =
             chart.star >= 0 ? detail::starFacesOf(*iso.AbsMesh(), chart.star)
                             : std::vector<int>();
+        const float starScale = detail::starAreaCorrection(chart.valence);
+        std::vector<detail::Affine2> placements;
+        if (chart.centerFace >= 0)
+            detail::faceChartPlacements(iso, chart.centerFace, chart.diamonds, placements);
+
+        // The chart's faces, each with the half-diamond slot it arrived through, or -1 when
+        // the chart was not assembled out of half-diamonds.
+        std::vector<std::pair<int, int>> members;
+        for (std::size_t d = 0; d < chart.diamonds.size(); ++d)
+            for (int fi : facesOfDiamond.at(chart.diamonds[d]))
+                members.push_back({fi, int(d)});
+        for (int fi : chart.faces)
+            members.push_back({fi, -1});
+
         std::vector<int> faces;
         std::vector<vcg::Point2f> points;
-        for (int diamond : chart.diamonds) {
-            for (int fi : facesOfDiamond.at(diamond)) {
+        {
+            for (const auto &member : members) {
+                const int fi = member.first;
+                const int diamond = member.second >= 0 ? chart.diamonds[std::size_t(member.second)] : -1;
                 ParamFace &f = paramMesh.face[std::size_t(fi)];
                 faces.push_back(fi);
                 chartOfFace[std::size_t(fi)] = int(c);
@@ -381,12 +631,19 @@ bool build(IsoParametrization &iso, const Params &params, MeshType &out, Stats &
                         detail::remapIntoStar(*iso.AbsMesh(), iso, chart.star, starFaces,
                                               tolerance, I, UV);
                         iso.GE0(I, UV, chart.star, uv);
+                        uv *= starScale;
+                    } else if (chart.centerFace >= 0
+                               && std::size_t(member.second) < placements.size()) {
+                        vcg::Point2f uvDiamond;
+                        iso.GE1(f.V(j)->T().N(), f.V(j)->T().P(), diamond, uvDiamond);
+                        uv = placements[std::size_t(member.second)](uvDiamond);
                     } else {
                         vcg::Point2f uvDiamond;
                         iso.GE1(f.V(j)->T().N(), f.V(j)->T().P(), diamond, uvDiamond);
                         iso.GE1Quad(diamond, uvDiamond, uv);
-                        if (params.shape != ChartShape::Square)
-                            uv = detail::shearToRhombus(uv);
+                        uv = params.shape == ChartShape::Square
+                                 ? detail::scaleToSquare(uv)
+                                 : detail::shearToRhombus(uv);
                     }
                     f.WT(j).P() = uv;
                     points.push_back(uv);
