@@ -19,11 +19,6 @@ target_include_directories(QMeshLabPluginFilterIsoParam
         ${CMAKE_CURRENT_SOURCE_DIR}/upstream
 )
 
-# The 2010 reference code still derives from std::unary_function, which C++17 removed.
-# libc++ keeps it behind this switch; scoped to this target so nothing else sees it.
-target_compile_definitions(QMeshLabPluginFilterIsoParam
-    PRIVATE _LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION)
-
 target_link_libraries(QMeshLabPluginFilterIsoParam
     PUBLIC
         QMeshLabCore

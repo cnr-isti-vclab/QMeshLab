@@ -198,7 +198,11 @@ template <class FaceType>
     // In this implementation we simply put the new vertex in the MidPoint position.
     // Color and TexCoords are interpolated accordingly.
     template<class MESH_TYPE>
-    struct SplitMidPoint : public   std::unary_function<vcg::face::Pos<typename MESH_TYPE::FaceType> ,  typename MESH_TYPE::CoordType >
+    // QMeshLab: was `: public std::unary_function<Pos<FaceType>, CoordType>`. That base
+    // contributed nothing but the argument_type/result_type typedefs, which nothing here or
+    // in vcglib's RefineE ever reads, and C++17 removed it from the standard. Dropping it is
+    // portable; keeping it needs a different opt-in macro on every standard library.
+    struct SplitMidPoint
     {
         typedef typename MESH_TYPE::VertexType VertexType;
         typedef typename MESH_TYPE::FaceType FaceType;

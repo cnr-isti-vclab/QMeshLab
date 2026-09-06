@@ -47,13 +47,21 @@ vendored sources are untouched by this.
 
 ## Patches to diam_parametrization.h
 
-Two, both marked `QMeshLab:` in the source.
+Three, all marked `QMeshLab:` in the source.
 
 **The atlas is one UV space.** `AssociateDiamond` parks the diamond index in `WT(0).N()` as
 scratch, and `SetWedgeCoords` never cleared it, so it escaped as the wedge's texture id --
 291 distinct ids on a 1,200-vertex sphere, which makes every diamond look like a separate
 texture to anything that reads `N()`. It is now zeroed once all three wedges of a face are
 placed, and only then, because `QuadCoord` reads the index back out of it.
+
+**`std::unary_function` dropped.** `SplitMidPoint` derived from it, which contributed only
+the `argument_type`/`result_type` typedefs -- read by nothing in this tree and nothing in
+vcglib's `RefineE`. C++17 removed it from the standard, and every standard library gates it
+behind a different opt-in macro (`_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION` on
+libc++, `_HAS_AUTO_PTR_ETC` on the MSVC STL), so the target used to carry a macro that only
+worked on one of them and the Windows build broke on the other. Removing the base class is
+portable and costs nothing.
 
 **`PrepareDiamonds` split out of `SetCoordinates`.** The loop that splits faces until each
 one lies inside a single diamond, and the assignment that names that diamond in `WT(0).N()`,
