@@ -2657,6 +2657,9 @@ void MainWindow::showMemoryInfo()
         if (s.customAttributeBytes > 0)
             addRow(meshItem, tr("Custom attributes"), s.customAttributeBytes,
                    tr("estimated from owning container capacities"));
+        if (s.pluginDataBytes > 0)
+            addRow(meshItem, tr("Plugin data"), s.pluginDataBytes,
+                   tr("self-reported by the owning plugin"));
     }
 
     // --- CPU image storage ---
@@ -2774,6 +2777,7 @@ void MainWindow::showMemoryInfo()
         meshJson.insert(QStringLiteral("faceBytes"), double(stats.faceBytes));
         meshJson.insert(QStringLiteral("faceOcfBytes"), double(stats.faceOcfBytes));
         meshJson.insert(QStringLiteral("customAttributeBytes"), double(stats.customAttributeBytes));
+        meshJson.insert(QStringLiteral("pluginDataBytes"), double(stats.pluginDataBytes));
         meshJson.insert(QStringLiteral("totalBytes"), double(stats.totalBytes()));
         meshesJson.append(meshJson);
     }

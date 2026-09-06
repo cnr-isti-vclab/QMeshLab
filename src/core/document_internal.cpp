@@ -517,6 +517,9 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.modified = src.modified;
     dst.ioMask = src.ioMask;
     dst.polygonFaceCount = src.polygonFaceCount;
+    // Shared, not copied: the payloads are immutable, so a duplicate and its original
+    // pointing at one instance cannot interfere. The copy is O(entries).
+    dst.pluginData = src.pluginData;
 }
 
 void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)

@@ -376,6 +376,9 @@ QString meshDataSummary(const Document::MeshEntry &entry)
     if (attrs.faceCount() > 0)
         tokens << QObject::tr("FA %1").arg(attrs.faceCount());
 
+    if (!entry.pluginData.empty())
+        tokens << QObject::tr("PD %1").arg(entry.pluginData.size());
+
     const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
     if (!textures.empty()) {
         int foundCount = 0;
@@ -419,6 +422,13 @@ QString meshDataTooltip(const Document::MeshEntry &entry, int faceCount)
     if (attrs.faceCount() > 0) {
         lines << QObject::tr("Face custom attributes: %1")
                      .arg(ownerAttributeSummary(attrs.faceScalars, attrs.faceColors, attrs.facePoints));
+    }
+    if (!entry.pluginData.empty()) {
+        lines << QObject::tr("Plugin data:");
+        for (const auto &[ownerKey, data] : entry.pluginData) {
+            lines << QObject::tr("  %1: %2")
+                         .arg(ownerKey, data ? data->describe() : QObject::tr("(empty)"));
+        }
     }
     const std::vector<LayerTextureInfo> textures = collectLayerTextures(entry);
     if (!textures.empty()) {

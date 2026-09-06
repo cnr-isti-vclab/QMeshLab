@@ -2,6 +2,7 @@
 
 #include "camerashot.h"
 #include "meshioplugin.h"
+#include "layerdata.h"
 #include "rasterplane.h"
 #include "vcgmesh.h"
 #include "viewstate.h"
@@ -12,6 +13,7 @@
 #include <QVariant>
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -70,6 +72,10 @@ struct MeshSnapshot {
     int polygonFaceCount = -1;
     // Shared, immutable geometry; never null after capture.
     std::shared_ptr<const VCGMesh> geometry;
+    // Plugin-owned intermediates. Immutable, so the snapshot shares the very objects the
+    // layer held at capture -- copying this map copies pointers, not payloads, and no
+    // plugin code runs on either the undo or the redo path.
+    std::map<QString, LayerDataPtr> pluginData;
 };
 
 struct RasterSnapshot {

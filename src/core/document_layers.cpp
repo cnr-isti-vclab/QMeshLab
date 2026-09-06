@@ -484,6 +484,46 @@ void Document::markRasterImageChanged(int index, const QString &contextMessage)
         endUndoStep(true);
 }
 
+// The key must be namespaced with the owning plugin's id. Two plugins choosing the same
+// bare key would otherwise overwrite each other's data with no diagnostic at all.
+static bool layerDataKeyIsNamespaced(const QString &ownerKey)
+{
+    const int slash = ownerKey.indexOf(QLatin1Char('/'));
+    return slash > 0 && slash < ownerKey.size() - 1;
+}
+
+void Document::setLayerData(int meshIndex, const QString &ownerKey, LayerDataPtr data)
+{
+    if (meshIndex < 0 || meshIndex >= meshCount())
+        return;
+    if (!layerDataKeyIsNamespaced(ownerKey)) {
+        writeLog(tr("Layer data key '%1' is not namespaced as '<pluginId>/<name>'; ignored.")
+                     .arg(ownerKey),
+                 LogSource::Application, LogLevel::Warning);
+        return;
+    }
+    if (data)
+        mesh(meshIndex).pluginData[ownerKey] = std::move(data);
+    else
+        mesh(meshIndex).pluginData.erase(ownerKey);
+}
+
+LayerDataPtr Document::layerData(int meshIndex, const QString &ownerKey) const
+{
+    if (meshIndex < 0 || meshIndex >= meshCount())
+        return {};
+    const auto &map = mesh(meshIndex).pluginData;
+    const auto it = map.find(ownerKey);
+    return it == map.end() ? LayerDataPtr{} : it->second;
+}
+
+void Document::clearLayerData(int meshIndex, const QString &ownerKey)
+{
+    if (meshIndex < 0 || meshIndex >= meshCount())
+        return;
+    mesh(meshIndex).pluginData.erase(ownerKey);
+}
+
 void Document::markMeshGeometryChanged(int index, const QString &contextMessage)
 {
     if (index < 0 || index >= meshCount())
@@ -494,6 +534,18 @@ void Document::markMeshGeometryChanged(int index, const QString &contextMessage)
     MeshEntry &entry = mesh(index);
     entry.modified = true;
     entry.geometryRevision = m_nextGeometryRevision++;
+    // Plugin intermediates are derived from the geometry, so by default they do not
+    // outlive a change to it; one that genuinely does says so for itself.
+    for (auto it = entry.pluginData.begin(); it != entry.pluginData.end();) {
+        if (it->second && it->second->survivesGeometryChange()) {
+            ++it;
+        } else {
+            writeLog(tr("Dropped layer data '%1' on '%2': its geometry changed.")
+                         .arg(it->first, entry.name),
+                     LogSource::Application, LogLevel::Debug);
+            it = entry.pluginData.erase(it);
+        }
+    }
     if (!contextMessage.trimmed().isEmpty()) {
         writeLog(contextMessage.trimmed(), LogSource::Application);
     } else {

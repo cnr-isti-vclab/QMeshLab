@@ -6,6 +6,7 @@
 #include "meshioplugin.h"
 #include "meshgpuresourcecache.h"
 #include "rasterplane.h"
+#include "layerdata.h"
 #include "vcgmesh.h"
 #include "viewstate.h"
 #include <QObject>
@@ -83,6 +84,9 @@ public:
         int ioMask = 0;
         // Logical face count for faux-edge polygon meshes; -1 for triangle meshes.
         int polygonFaceCount = -1;
+        // Plugin-owned intermediates keyed by owner (see setLayerData). Immutable and
+        // shared, so copying this map is O(entries) and never touches the payloads.
+        std::map<QString, LayerDataPtr> pluginData;
         VCGMesh mesh;
     };
 
@@ -148,10 +152,13 @@ public:
         qint64 faceBytes = 0;
         qint64 faceOcfBytes = 0;
         qint64 customAttributeBytes = 0;
+        // Whatever the plugins attached to this layer say they occupy. Self-reported, so
+        // a plugin that does not implement approximateBytes() simply contributes nothing.
+        qint64 pluginDataBytes = 0;
         qint64 totalBytes() const
         {
             return vertexBytes + vertexOcfBytes + edgeBytes + faceBytes + faceOcfBytes
-                + customAttributeBytes;
+                + customAttributeBytes + pluginDataBytes;
         }
     };
 
@@ -291,6 +298,18 @@ public:
     // Wall-clock stamp taken when QMeshLabCore loaded, so a view can render an entry's
     // time as an elapsed offset from application start instead of a bare clock reading.
     static qint64 applicationStartMSecsSinceEpoch();
+
+    // ---- Plugin-owned layer data -------------------------------------------------
+    // A plugin attaches an intermediate result to a layer under a key it namespaces with
+    // its own pluginId ("<pluginId>/<what>"); Core rejects anything else, because a
+    // collision between two plugins would otherwise be silent. The value is immutable, so
+    // undo captures and restores it by sharing the pointer and never copies the payload.
+    //
+    // Dropped automatically when the layer's geometry changes, unless the data says it
+    // survives that. Not written to project files.
+    void setLayerData(int meshIndex, const QString &ownerKey, LayerDataPtr data);
+    LayerDataPtr layerData(int meshIndex, const QString &ownerKey) const;
+    void clearLayerData(int meshIndex, const QString &ownerKey);
 
     void clearLog();
     void writeLog(

@@ -34,6 +34,8 @@ UndoState Document::captureUndoState() const
         snap.modified           = entry->modified;
         snap.ioMask             = entry->ioMask;
         snap.polygonFaceCount   = entry->polygonFaceCount;
+        // Pointers, not payloads: immutability makes sharing the capture.
+        snap.pluginData         = entry->pluginData;
 
         // Attempt to reuse an already-interned geometry object.
         // Key: (meshId, geometryRevision, selectionRevision) — the full content
@@ -145,6 +147,7 @@ void Document::restoreUndoState(const UndoState &state)
                 entry->modified         = snap.modified;
                 entry->ioMask           = snap.ioMask;
                 entry->polygonFaceCount = snap.polygonFaceCount;
+                entry->pluginData       = snap.pluginData;
                 {
                     QElapsedTimer t2; t2.start();
                     deepCopyMesh(*snap.geometry, entry->mesh);

@@ -39,6 +39,10 @@ std::vector<Document::CpuMeshMemoryStats> Document::cpuMeshMemoryStats() const
         s.faceBytes      = qint64(entry.mesh.face.capacity()) * sizeof(VCGFace);
         s.faceOcfBytes   = vcgFaceOcfBytes(entry.mesh);
         s.customAttributeBytes = vcgCustomAttributeBytes(entry.mesh);
+        for (const auto &[ownerKey, data] : entry.pluginData) {
+            if (data)
+                s.pluginDataBytes += qint64(data->approximateBytes());
+        }
         result.push_back(s);
     }
     return result;
