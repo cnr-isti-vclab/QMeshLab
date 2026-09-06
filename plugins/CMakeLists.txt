@@ -216,9 +216,14 @@ if (TARGET QMeshLabPluginFilterColorProc)
 endif()
 
 add_subdirectory(filter_isoparam)
+add_subdirectory(filter_bpa)
 add_subdirectory(filter_xatlas)
 if (TARGET QMeshLabPluginFilterIsoParam)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterIsoParam)
+endif()
+
+if (TARGET QMeshLabPluginFilterBpa)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterBpa)
 endif()
 
 if (TARGET QMeshLabPluginFilterXAtlas)

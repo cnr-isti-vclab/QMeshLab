@@ -30,7 +30,7 @@ distinct, so no filter collides with another.
 | Orient Point Cloud Normals | `compute_normal_orientation_per_vertex` | `compute_normal_orientation_per_vertex` | `orient_point_cloud_normals` |
 | Reconstruct Surface by Poisson (CGAL) | `generate_poisson_reconstruction_cgal` | `generate_poisson_reconstruction_cgal` | `reconstruct_surface_by_poisson_cgal` |
 | Reconstruct Surface by Kinetic Partition | `generate_kinetic_reconstruction` | `generate_kinetic_reconstruction` | `reconstruct_surface_by_kinetic_partition` |
-| Reconstruct Surface by Ball Pivoting | `surface_reconstruction_ball_pivoting` | `generate_surface_reconstruction_ball_pivoting` | `reconstruct_surface_by_ball_pivoting` |
+| Reconstruct Surface by Ball Pivoting (vcglib) | `surface_reconstruction_ball_pivoting` | `generate_surface_reconstruction_ball_pivoting` | `reconstruct_surface_by_ball_pivoting_vcglib` |
 | Remove Vertices by Scalar | `remove_vertices_wrt_quality` | `remove_vertices_wrt_quality` | `remove_vertices_by_scalar` |
 | Remove Isolated Components by Face Count | `remove_isolated_pieces_face_num` | `remove_isolated_pieces_by_face_num` | `remove_isolated_components_by_face_count` |
 | Remove Isolated Components by Diameter | `remove_isolated_pieces_diameter` | `remove_isolated_pieces_by_diameter` | `remove_isolated_components_by_diameter` |

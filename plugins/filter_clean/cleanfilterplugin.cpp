@@ -23,7 +23,7 @@
 #include <vector>
 
 namespace {
-constexpr QLatin1StringView kFilterBallPivoting("reconstruct_surface_by_ball_pivoting");
+constexpr QLatin1StringView kFilterBallPivoting("reconstruct_surface_by_ball_pivoting_vcglib");
 constexpr QLatin1StringView kFilterRemoveWrtQ("remove_vertices_by_scalar");
 constexpr QLatin1StringView kFilterRemoveIsolatedComplexity("remove_isolated_components_by_face_count");
 constexpr QLatin1StringView kFilterRemoveIsolatedDiameter("remove_isolated_components_by_diameter");
@@ -245,6 +245,11 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         if (deleteFaces) {
             mesh.fn = 0;
             mesh.face.clear();
+            // inputPrepare built VF adjacency over the faces just dropped, and AdvancingFront
+            // both chains its new faces onto the vertices' VF pointers and walks them with a
+            // VFIterator. Left stale they point into freed storage and the walk never
+            // terminates. Rebuilding over the now-empty face vector nulls them.
+            vcg::tri::UpdateTopology<VCGMesh>::VertexFace(mesh);
         }
 
         const int beforeFaceCount = mesh.FN();

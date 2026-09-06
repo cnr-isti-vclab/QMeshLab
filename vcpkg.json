@@ -13,6 +13,7 @@
     "xerces-c",
     "rapidobj",
     "muparser",
+    "glm",
     "embree",
     "tbb",
     "cgal",

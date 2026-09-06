@@ -512,7 +512,7 @@ on a grid and run marching cubes, differing only in where the field comes from.
 |---|---|---|
 | Surface Reconstruction: Screened Poisson | **Reconstruct Surface by Screened Poisson** | `reconstruct_surface_by_screened_poisson` |
 | Surface Reconstruction: SSD | **Reconstruct Surface by Smooth Signed Distance** | `reconstruct_surface_by_smooth_signed_distance` |
-| Surface Reconstruction: Ball Pivoting | **Reconstruct Surface by Ball Pivoting** | `reconstruct_surface_by_ball_pivoting` |
+| Surface Reconstruction: Ball Pivoting | **Reconstruct Surface by Ball Pivoting (vcglib)** | `reconstruct_surface_by_ball_pivoting_vcglib` |
 | Surface Reconstruction: VCG | **Reconstruct Surface by Volumetric Merging** | `reconstruct_surface_by_volumetric_merging` |
 | Alpha Wrap | **Reconstruct Surface by Alpha Wrapping** | `reconstruct_surface_by_alpha_wrapping` |
 | Marching Cubes (APSS) | **Reconstruct Surface by Marching Cubes (APSS)** | `reconstruct_surface_by_marching_cubes_apss` |
