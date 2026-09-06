@@ -84,6 +84,7 @@
 #include "plugins/filter_colorproc/colorprocfilterplugin.h"
 #endif
 #if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
+#include "plugins/filter_isoparam/isoparamfilterplugin.h"
 #include "plugins/filter_xatlas/xatlasfilterplugin.h"
 #endif
 #if QMESH_PLUGIN_FILTER_TRIOPTIMIZE_ENABLED
@@ -186,6 +187,7 @@ void registerBuiltinMeshFilterPlugins(MeshFilterPluginManager &pluginManager)
     registerColorProcFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_XATLAS_ENABLED
+    registerIsoParamFilterPlugin(pluginManager);
     registerXAtlasFilterPlugin(pluginManager);
 #endif
 #if QMESH_PLUGIN_FILTER_TRIOPTIMIZE_ENABLED

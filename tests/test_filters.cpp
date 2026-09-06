@@ -12,6 +12,7 @@
 #include <random>
 
 #include "document.h"
+#include "layerdata.h"
 
 #include <vcg/complex/algorithms/stat.h>
 #include "textureassociationutils.h"
@@ -425,6 +426,9 @@ private slots:
     void packUvChartsWorksWithoutATexture();
     void packUvChartsSurvivesAnyRotationCount();
     void selfIntersectionCurvesFindTheCrossing();
+    void abstractDomainIsBuiltAndAttachedToTheLayer();
+    void abstractDomainRefusesAnOpenMesh();
+    void abstractDomainConsumersRunAndRefuseWithoutIt();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
 };
 
@@ -5829,6 +5833,130 @@ void FilterTests::layerFiltersRunFromTheContextMenuAreTheParameterlessOnes()
 // became make_self_intersection_curves, which returns the curves rather than a tuple whose
 // last element is them. Nothing covered this filter before, so a silent empty result would
 // have gone unnoticed.
+// The first filter of the isoparametrization family: it builds an abstract domain and
+// hangs it off the layer as plugin data for the later ones to read.
+void FilterTests::abstractDomainIsBuiltAndAttachedToTheLayer()
+{
+    Document doc;
+    const int index = doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply"));
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("parametrize_by_abstract_domain"));
+    QVERIFY(!key.isEmpty());
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("minDomainFaces"), 150);
+    params.insert(QStringLiteral("maxDomainFaces"), 200);
+    const MeshFilterRunResult r = doc.runFilter(key, params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    const LayerDataPtr domain =
+        doc.layerData(index, QStringLiteral("qmeshlab.filter.isoparam/abstract_domain"));
+    QVERIFY2(domain, "the abstract domain was not attached to the layer");
+    QVERIFY2(domain->describe().contains(QStringLiteral("abstract domain")),
+             qPrintable(domain->describe()));
+    QVERIFY(domain->approximateBytes() > 0);
+
+    // The filter writes per-vertex UVs, which is the parametrization it just built.
+    QVERIFY(doc.mesh(index).ioMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD);
+}
+
+// Every precondition failure must be a message, never an abort: this is 12k lines of
+// research code and the whole family refuses anything that is not one watertight shell.
+// The three consumers of the domain. Each must run once it exists, and each must say what
+// to do when it does not -- reaching one of these first is the normal mistake.
+void FilterTests::abstractDomainConsumersRunAndRefuseWithoutIt()
+{
+    const QString kDomain = QStringLiteral("qmeshlab.filter.isoparam/abstract_domain");
+    const QStringList consumers{
+        QStringLiteral("remesh_by_abstract_domain"),
+        QStringLiteral("create_atlased_mesh_from_abstract_domain")
+    };
+
+    // Without a domain: refused, and the message names the filter that builds one.
+    for (const QString &id : consumers) {
+        Document doc;
+        QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+        doc.setCurrentMeshIndex(0);
+        const MeshFilterRunResult r = doc.runFilter(filterKeyForId(doc, id), {});
+        QVERIFY2(!r.success, qPrintable(QStringLiteral("%1 ran without a domain").arg(id)));
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("Parametrize by Abstract Domain")),
+                 qPrintable(QStringLiteral("%1: %2").arg(id, r.errorMessage)));
+    }
+
+    // With one: both produce a new layer.
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+    MeshFilterParameterValues build;
+    build.insert(QStringLiteral("minDomainFaces"), 150);
+    build.insert(QStringLiteral("maxDomainFaces"), 200);
+    const MeshFilterRunResult made = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("parametrize_by_abstract_domain")), build);
+    QVERIFY2(made.success, qPrintable(made.errorMessage));
+    QVERIFY(doc.layerData(0, kDomain));
+
+    MeshFilterParameterValues remeshParams;
+    remeshParams.insert(QStringLiteral("samplingRate"), 4);
+    const MeshFilterRunResult remesh = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("remesh_by_abstract_domain")), remeshParams);
+    QVERIFY2(remesh.success, qPrintable(remesh.errorMessage));
+    QCOMPARE(remesh.newMeshIndices.size(), std::size_t(1));
+    QVERIFY(doc.mesh(remesh.newMeshIndices.front()).mesh.FN() > 0);
+
+    doc.setCurrentMeshIndex(0);
+    const MeshFilterRunResult atlas = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("create_atlased_mesh_from_abstract_domain")), {});
+    QVERIFY2(atlas.success, qPrintable(atlas.errorMessage));
+    QCOMPARE(atlas.newMeshIndices.size(), std::size_t(1));
+    const Document::MeshEntry &atlased = doc.mesh(atlas.newMeshIndices.front());
+    QVERIFY2(vcg::tri::HasPerWedgeTexCoord(atlased.mesh), "the atlased layer has no per-wedge UVs");
+
+    // Transfer: the target gains a domain of its own and the source keeps its one, which
+    // is where this deliberately differs from MeshLab.
+    const int copy = doc.duplicateMesh(0);
+    QVERIFY(copy > 0);
+    doc.clearLayerData(copy, kDomain);
+    MeshFilterParameterValues transfer;
+    transfer.insert(QStringLiteral("sourceMesh"), 0);
+    transfer.insert(QStringLiteral("targetMesh"), copy);
+    const MeshFilterRunResult moved = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("transfer_abstract_domain_to_another_layer")), transfer);
+    QVERIFY2(moved.success, qPrintable(moved.errorMessage));
+    QVERIFY2(doc.layerData(copy, kDomain), "the target did not receive a domain");
+    QVERIFY2(doc.layerData(0, kDomain), "the source lost its own domain");
+    QVERIFY(doc.layerData(copy, kDomain).get() != doc.layerData(0, kDomain).get());
+}
+
+void FilterTests::abstractDomainRefusesAnOpenMesh()
+{
+    constexpr int kSide = 12;
+    VCGMesh grid;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
+    for (int j = 0; j < kSide; ++j)
+        for (int i = 0; i < kSide; ++i)
+            grid.vert[std::size_t(j * kSide + i)].P() = vcg::Point3f(float(i), float(j), 0.0f);
+    for (int j = 0; j < kSide - 1; ++j) {
+        for (int i = 0; i < kSide - 1; ++i) {
+            const int a = j * kSide + i;
+            vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + 1, a + kSide + 1);
+            vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + kSide + 1, a + kSide);
+        }
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+
+    Document doc;
+    const int index = doc.addMesh(grid, QStringLiteral("Open"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(index);
+
+    const MeshFilterRunResult r = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("parametrize_by_abstract_domain")), {});
+    QVERIFY2(!r.success, "an open mesh was accepted");
+    QVERIFY2(r.errorMessage.contains(QStringLiteral("watertight")), qPrintable(r.errorMessage));
+    QVERIFY(!doc.layerData(index, QStringLiteral("qmeshlab.filter.isoparam/abstract_domain")));
+}
+
 void FilterTests::selfIntersectionCurvesFindTheCrossing()
 {
     VCGMesh mesh;

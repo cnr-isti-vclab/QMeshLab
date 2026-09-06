@@ -10,6 +10,7 @@
 #include <cmath>
 
 #include "document.h"
+#include "layerdata.h"
 #include "helperprocess.h"
 #include "processmemoryinfo.h"
 #include <vcg/complex/allocate.h>
@@ -50,6 +51,11 @@ private slots:
     void helperProcessLoopEndsWhenTheEventPumpReapsTheChild();
     void helperProcessEchoesHelperOutputAndItsPid();
     void helperProcessCancelKillsTheWholeProcessGroup();
+    void layerDataSurvivesUndoAndRedo();
+    void layerDataIsDroppedWhenGeometryChanges();
+    void layerDataIsSharedByADuplicatedLayer();
+    void layerDataKeyMustBeNamespaced();
+    void layerDataIsCountedInTheMemoryReport();
     void loadMeshAddsLayerAndEmitsSignal();
     void planarPolygonTessellationHandlesConcavity();
     void loadConcavePolygonFormatsPreserveFauxEdges();
@@ -420,6 +426,150 @@ HelperProcess::Request shellRequest(const QString &script, const QString &label)
     return request;
 }
 
+}
+
+namespace {
+
+// Stands in for a plugin's intermediate -- an abstract domain, a solver state. Counts its
+// live instances so a test can tell sharing from copying.
+class ProbeLayerData : public LayerData
+{
+public:
+    explicit ProbeLayerData(QString tag, bool survives = false)
+        : m_tag(std::move(tag)), m_survives(survives) { ++s_live; }
+    ~ProbeLayerData() override { --s_live; }
+
+    QString describe() const override { return QStringLiteral("probe(%1)").arg(m_tag); }
+    bool survivesGeometryChange() const override { return m_survives; }
+    std::size_t approximateBytes() const override { return 4096; }
+
+    static int live() { return s_live; }
+
+private:
+    QString m_tag;
+    bool m_survives;
+    static int s_live;
+};
+int ProbeLayerData::s_live = 0;
+
+const QString kProbeKey = QStringLiteral("qmeshlab.test.probe/domain");
+
+int addTinyMesh(Document &doc, const QString &name)
+{
+    VCGMesh m;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(m, 3);
+    m.vert[0].P() = vcg::Point3f(0, 0, 0);
+    m.vert[1].P() = vcg::Point3f(1, 0, 0);
+    m.vert[2].P() = vcg::Point3f(0, 1, 0);
+    vcg::tri::Allocator<VCGMesh>::AddFace(m, 0, 1, 2);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(m);
+    return doc.addMesh(m, name, vcg::tri::io::Mask::IOM_VERTCOORD);
+}
+
+}
+
+// The point of the whole facility: a plugin's intermediate has to come back with an undo,
+// and go away again with a redo, without the plugin being asked to copy anything.
+void DocumentTests::layerDataSurvivesUndoAndRedo()
+{
+    Document doc;
+    const int index = addTinyMesh(doc, QStringLiteral("Layer"));
+    QVERIFY(index >= 0);
+    QVERIFY(!doc.layerData(index, kProbeKey));
+
+    doc.beginUndoStep(QStringLiteral("Install probe"));
+    doc.setLayerData(index, kProbeKey, std::make_shared<ProbeLayerData>(QStringLiteral("a")));
+    doc.endUndoStep(true);
+
+    auto installed = doc.layerData(index, kProbeKey);
+    QVERIFY(installed);
+    QCOMPARE(installed->describe(), QStringLiteral("probe(a)"));
+
+    QVERIFY(doc.canUndo());
+    doc.undo();
+    QVERIFY2(!doc.layerData(index, kProbeKey), "undo did not take the data back off");
+
+    QVERIFY(doc.canRedo());
+    doc.redo();
+    const auto again = doc.layerData(index, kProbeKey);
+    QVERIFY2(again, "redo did not restore the data");
+    // Sharing, not copying: redo must hand back the very object, since a plugin may hold
+    // pointers into it and a copy would silently diverge.
+    QCOMPARE(again.get(), installed.get());
+}
+
+// Derived data must not outlive the geometry it was derived from -- unless it says so.
+void DocumentTests::layerDataIsDroppedWhenGeometryChanges()
+{
+    Document doc;
+    const int index = addTinyMesh(doc, QStringLiteral("Layer"));
+    const QString survivorKey = QStringLiteral("qmeshlab.test.probe/survivor");
+
+    doc.setLayerData(index, kProbeKey,
+                     std::make_shared<ProbeLayerData>(QStringLiteral("derived"), false));
+    doc.setLayerData(index, survivorKey,
+                     std::make_shared<ProbeLayerData>(QStringLiteral("independent"), true));
+
+    doc.markMeshGeometryChanged(index, QStringLiteral("test"));
+
+    QVERIFY2(!doc.layerData(index, kProbeKey), "geometry changed and the derived data stayed");
+    QVERIFY2(doc.layerData(index, survivorKey), "data declaring it survives was dropped anyway");
+}
+
+void DocumentTests::layerDataIsSharedByADuplicatedLayer()
+{
+    Document doc;
+    const int index = addTinyMesh(doc, QStringLiteral("Layer"));
+    doc.setLayerData(index, kProbeKey, std::make_shared<ProbeLayerData>(QStringLiteral("a")));
+    const int before = ProbeLayerData::live();
+
+    const int copy = doc.duplicateMesh(index);
+    QVERIFY(copy > index);
+
+    const auto original = doc.layerData(index, kProbeKey);
+    const auto duplicate = doc.layerData(copy, kProbeKey);
+    QVERIFY2(duplicate, "the duplicate lost the layer data");
+    // The payload is immutable, so both layers point at one instance rather than two.
+    QCOMPARE(duplicate.get(), original.get());
+    QCOMPARE(ProbeLayerData::live(), before);
+}
+
+// Plugin data can be the largest thing on a layer -- an abstract domain outweighs the
+// mesh it came from -- so the memory report has to see it, or the undo budget is blind.
+void DocumentTests::layerDataIsCountedInTheMemoryReport()
+{
+    Document doc;
+    const int index = addTinyMesh(doc, QStringLiteral("Layer"));
+
+    const auto before = doc.cpuMeshMemoryStats();
+    QCOMPARE(before.size(), std::size_t(1));
+    QCOMPARE(before[0].pluginDataBytes, qint64(0));
+    const qint64 baseTotal = before[0].totalBytes();
+
+    doc.setLayerData(index, kProbeKey, std::make_shared<ProbeLayerData>(QStringLiteral("a")));
+    doc.setLayerData(index, QStringLiteral("qmeshlab.test.probe/second"),
+                     std::make_shared<ProbeLayerData>(QStringLiteral("b")));
+
+    const auto after = doc.cpuMeshMemoryStats();
+    QCOMPARE(after.size(), std::size_t(1));
+    // Two probes at 4096 each, and it must reach the total the reports actually show.
+    QCOMPARE(after[0].pluginDataBytes, qint64(8192));
+    QCOMPARE(after[0].totalBytes(), baseTotal + 8192);
+}
+
+// Two plugins picking the same bare key would overwrite each other in silence.
+void DocumentTests::layerDataKeyMustBeNamespaced()
+{
+    Document doc;
+    const int index = addTinyMesh(doc, QStringLiteral("Layer"));
+
+    doc.setLayerData(index, QStringLiteral("domain"),
+                     std::make_shared<ProbeLayerData>(QStringLiteral("bare")));
+    QVERIFY2(!doc.layerData(index, QStringLiteral("domain")),
+             "an un-namespaced key was accepted");
+
+    doc.setLayerData(index, kProbeKey, std::make_shared<ProbeLayerData>(QStringLiteral("ok")));
+    QVERIFY(doc.layerData(index, kProbeKey));
 }
 
 void DocumentTests::helperProcessLoopEndsWhenTheEventPumpReapsTheChild()

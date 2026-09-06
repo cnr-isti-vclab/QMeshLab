@@ -1,0 +1,225 @@
+{
+  "pluginId": "qmeshlab.filter.isoparam",
+  "references": [
+    {
+      "id": "pietroni2010isoparam",
+      "type": "article-journal",
+      "title": "Almost Isometric Mesh Parameterization through Abstract Domains",
+      "author": [
+        {
+          "family": "Pietroni",
+          "given": "Nico"
+        },
+        {
+          "family": "Tarini",
+          "given": "Marco"
+        },
+        {
+          "family": "Cignoni",
+          "given": "Paolo"
+        }
+      ],
+      "container-title": "IEEE Transactions on Visualization and Computer Graphics",
+      "volume": "16",
+      "issue": "4",
+      "page": "621-635",
+      "issued": {
+        "date-parts": [
+          [
+            2010
+          ]
+        ]
+      },
+      "DOI": "10.1109/TVCG.2009.96"
+    }
+  ],
+  "filters": [
+    {
+      "id": "parametrize_by_abstract_domain",
+      "pythonName": "parametrize_by_abstract_domain",
+      "name": "Parametrize by Abstract Domain",
+      "categories": [
+        "Parametrization/UV Creation"
+      ],
+      "referenceIds": [
+        "pietroni2010isoparam"
+      ],
+      "shortDescription": "Build an abstract domain mesh and an almost isometric parametrization of the layer onto it.",
+      "longDescriptionMarkdown": "Simplifies the layer down to a coarse **abstract domain** and parametrizes the original surface onto it, keeping the mapping as close to isometric as the surface allows.\n\nThe domain is attached to the layer as plugin data rather than written into the mesh, and the layer panel reports its size and distortion. It is dropped automatically if the layer's geometry changes, because a parametrization of moved vertices would be meaningless.\n\nThe mesh must be a **single watertight two-manifold component**; the filter says which precondition failed when it is not.\n\nCounter-intuitively, a *smaller* abstract domain costs more, not less: the domain is reached by edge collapse, so asking for fewer faces asks for more work. On a 40k-vertex sphere, 150-200 faces took about twice as long as 400-500.",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "inputPrepare": [
+        "FF"
+      ],
+      "outputModifies": [
+        "VT"
+      ],
+      "parameters": [
+        {
+          "id": "minDomainFaces",
+          "label": "Smallest abstract domain",
+          "help": "Fewest faces the abstract domain may have. Fewer faces means a coarser domain and a longer run, since the domain is reached by collapsing edges.",
+          "group": "main",
+          "type": "int",
+          "default": 150,
+          "min": 8,
+          "max": 100000
+        },
+        {
+          "id": "maxDomainFaces",
+          "label": "Largest abstract domain",
+          "help": "Most faces the abstract domain may have. A wide interval lets the optimizer choose, at the cost of holding every intermediate result in memory.",
+          "group": "main",
+          "type": "int",
+          "default": 200,
+          "min": 8,
+          "max": 100000
+        },
+        {
+          "id": "stopCriteria",
+          "label": "Optimization criteria",
+          "help": "What the search optimizes for when choosing where to stop between the two domain sizes.",
+          "group": "main",
+          "type": "enum",
+          "default": "correspondence",
+          "enumOptions": [
+            {
+              "id": "heuristic",
+              "label": "Heuristic"
+            },
+            {
+              "id": "correspondence",
+              "label": "Correspondence"
+            },
+            {
+              "id": "regularity",
+              "label": "Domain regularity"
+            },
+            {
+              "id": "l2",
+              "label": "L2 stretch"
+            }
+          ]
+        },
+        {
+          "id": "convergenceAccuracy",
+          "label": "Convergence precision",
+          "help": "Higher values optimize the texture coordinates harder: slower, and eventually slightly better.",
+          "group": "advanced",
+          "type": "int",
+          "default": 1,
+          "min": 1,
+          "max": 10
+        },
+        {
+          "id": "doubleStep",
+          "label": "Two-step parametrization",
+          "help": "Split the parametrization into two passes, which is both faster and more robust on most inputs.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "remesh_by_abstract_domain",
+      "pythonName": "remesh_by_abstract_domain",
+      "name": "Remesh by Abstract Domain",
+      "categories": [
+        "Meshing/Remeshing"
+      ],
+      "referenceIds": [
+        "pietroni2010isoparam"
+      ],
+      "shortDescription": "Remesh a layer uniformly by subdividing each triangle of its abstract domain.",
+      "longDescriptionMarkdown": "Builds a new layer by subdividing every triangle of the abstract domain recursively and mapping the samples back onto the surface. Because the domain triangles are near-equilateral by construction, the result is close to uniform.\n\nRequires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": null,
+      "parameters": [
+        {
+          "id": "samplingRate",
+          "label": "Sampling rate",
+          "help": "How finely each domain triangle is subdivided. This is a resolution multiplier, not a target face count, so the output grows roughly with its square.",
+          "group": "main",
+          "type": "int",
+          "default": 10,
+          "min": 2,
+          "max": 200
+        }
+      ]
+    },
+    {
+      "id": "create_atlased_mesh_from_abstract_domain",
+      "pythonName": "create_atlased_mesh_from_abstract_domain",
+      "name": "Create Atlased Mesh from Abstract Domain",
+      "categories": [
+        "Parametrization/UV Creation"
+      ],
+      "referenceIds": [
+        "pietroni2010isoparam"
+      ],
+      "shortDescription": "Build a new layer carrying a per-wedge atlas parametrization, one chart per diamond of the abstract domain.",
+      "longDescriptionMarkdown": "Turns the abstract domain into an ordinary texture atlas: each diamond of the domain becomes one square chart, and the charts are packed into a single UV square with a gutter between them.\n\nThe result is a new layer with per-wedge UVs, usable by anything that consumes a normal parametrization.\n\nRequires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": null,
+      "parameters": [
+        {
+          "id": "borderSize",
+          "label": "Border ratio",
+          "help": "Gutter kept around each chart, as a fraction of the chart. Larger values waste atlas area but keep bilinear filtering from bleeding between charts.",
+          "group": "main",
+          "type": "double",
+          "default": 0.1,
+          "min": 0.01,
+          "max": 0.5,
+          "decimals": 3
+        }
+      ]
+    },
+    {
+      "id": "transfer_abstract_domain_to_another_layer",
+      "pythonName": "transfer_abstract_domain_to_another_layer",
+      "name": "Transfer Abstract Domain to Another Layer",
+      "categories": [
+        "Transfer/Between Layers"
+      ],
+      "referenceIds": [
+        "pietroni2010isoparam"
+      ],
+      "shortDescription": "Carry an abstract domain from one layer onto another, similar and aligned one, by closest point.",
+      "longDescriptionMarkdown": "Copies a layer's abstract domain onto a second layer -- typically the same object at a different resolution -- by finding, for each target vertex, the closest point on the source parametrization.\n\nThe two layers must be reasonably similar in shape and already aligned; nothing here registers them for you.\n\nUnlike MeshLab, which moves the domain and leaves the source without one, the source **keeps its own domain** and the target gets an independent copy.",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VT",
+        "WT"
+      ],
+      "parameters": [
+        {
+          "id": "sourceMesh",
+          "label": "Source layer",
+          "help": "The layer that already carries an abstract domain.",
+          "group": "main",
+          "type": "mesh"
+        },
+        {
+          "id": "targetMesh",
+          "label": "Target layer",
+          "help": "The layer to receive the parametrization.",
+          "group": "main",
+          "type": "mesh"
+        }
+      ]
+    }
+  ]
+}

@@ -215,7 +215,12 @@ if (TARGET QMeshLabPluginFilterColorProc)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_COLORPROC_ENABLED=1)
 endif()
 
+add_subdirectory(filter_isoparam)
 add_subdirectory(filter_xatlas)
+if (TARGET QMeshLabPluginFilterIsoParam)
+    target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterIsoParam)
+endif()
+
 if (TARGET QMeshLabPluginFilterXAtlas)
     target_link_libraries(QMeshLabPlugins PUBLIC QMeshLabPluginFilterXAtlas)
     target_compile_definitions(QMeshLabPlugins PRIVATE QMESH_PLUGIN_FILTER_XATLAS_ENABLED=1)
