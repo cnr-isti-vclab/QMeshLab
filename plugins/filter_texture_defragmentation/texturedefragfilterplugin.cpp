@@ -4,6 +4,7 @@
 #include "filterparam.h"
 #include "meshfilterpluginmanager.h"
 #include "textureassociationutils.h"
+#include "uvpacker.h"
 #include "vcgmesh.h"
 #include "../filter_texture/texture_packer.hpp"
 
@@ -136,12 +137,7 @@ QString textureAssetName(const QString &meshName, int index)
 
 
 // Packs every chart into a single atlas of the requested size with whichever vcg packer
-// was asked for.
-//
-// Deliberately single-container, unlike the upstream Pack(): that one grows the container
-// and spills into further textures, which makes two algorithms incomparable because they
-// end up with different atlas counts. Three of the four scale the layout to fit, so a
-// fixed target is the fair comparison; the fourth reports what it could place.
+// was asked for. The packing itself lives in uvpacker, shared with the atlas builders.
 int packChartsWithAlgorithm(const std::vector<ChartHandle> &charts,
                             const QString &algorithm,
                             int textureSize,
@@ -153,57 +149,19 @@ int packChartsWithAlgorithm(const std::vector<ChartHandle> &charts,
                             std::vector<vcg::Similarity2f> &transforms,
                             std::vector<int> &chartToContainer)
 {
-    typedef vcg::RasterizedOutline2Packer<float, QtOutline2Rasterizer> RasterPacker;
-
-    std::vector<Outline2f> outlines;
+    std::vector<uvpacker::Outline> outlines;
     outlines.reserve(charts.size());
     for (const ChartHandle &chart : charts)
         outlines.push_back(ExtractOutline2f(*chart));
 
-    const vcg::Point2i container(textureSize, textureSize);
-    transforms.clear();
-    chartToContainer.assign(outlines.size(), -1);
-    int placed = 0;
-
-    if (algorithm == QLatin1String("rasterized_scaled")
-        || algorithm == QLatin1String("rasterized_best_effort")) {
-        RasterPacker::Parameters par;
-        par.costFunction = RasterPacker::Parameters::LowestHorizon;
-        par.doubleHorizon = false;
-        par.innerHorizon = true;
-        // Upstream hard-codes this as (chartCount < 50). It is the single biggest cost in
-        // the run -- it multiplies the packing work by five times the number of similarly
-        // sized charts -- so here it is the user's call.
-        par.permutations = permutations;
-        // The packer rasterizes rotationNum/4 base orientations and derives four slots
-        // from each, so anything that is not a multiple of four leaves slots unwritten.
-        // Round to the nearest usable count rather than handing it a value it cannot use.
-        par.rotationNum = std::max(4, ((rotationNum + 2) / 4) * 4);
-        par.gutterWidth = gutterWidth;
-        par.minmax = false;
-        par.randomSeed = randomSeed;
-
-        if (algorithm == QLatin1String("rasterized_scaled")) {
-            if (RasterPacker::Pack(outlines, {container}, transforms, chartToContainer, par)) {
-                placed = int(outlines.size());
-                std::fill(chartToContainer.begin(), chartToContainer.end(), 0);
-            }
-        } else {
-            placed = RasterPacker::PackBestEffort(outlines, {container}, transforms,
-                                                  chartToContainer, par);
-        }
-    } else {
-        typedef vcg::PolyPacker<float> RectPacker;
-        vcg::Point2f covered;
-        const bool ok = (algorithm == QLatin1String("axis_aligned_rect"))
-            ? RectPacker::PackAsAxisAlignedRect(outlines, container, transforms, covered)
-            : RectPacker::PackAsObjectOrientedRect(outlines, container, transforms, covered,
-                                                   float(gutterWidth));
-        if (ok) {
-            placed = int(outlines.size());
-            std::fill(chartToContainer.begin(), chartToContainer.end(), 0);
-        }
-    }
+    uvpacker::Params par;
+    par.algorithm = algorithm;
+    par.textureSize = textureSize;
+    par.gutterWidth = gutterWidth;
+    par.rotationNum = rotationNum;
+    par.permutations = permutations;
+    par.randomSeed = randomSeed;
+    const int placed = uvpacker::packOutlines(outlines, par, transforms, chartToContainer);
 
     texszVec.clear();
     if (placed > 0)

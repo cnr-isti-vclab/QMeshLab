@@ -98,6 +98,7 @@ add_library(QMeshLabCore STATIC
     src/core/memorypressuremonitor.h src/core/memorypressuremonitor.cpp
     src/core/filterparam.h src/core/filterparam.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
+    src/core/uvpacker.h src/core/uvpacker.cpp
     src/core/viewpointoccluder.h src/core/viewpointoccluder.cpp
     src/core/layerdata.h
     src/core/vcgmesh.h
@@ -117,6 +118,9 @@ add_library(QMeshLabCore STATIC
     src/render/viewstate.h
     src/render/viewtrackball.h src/render/viewtrackball.cpp
 )
+
+# Backs the rasterized packers in uvpacker; the only .cpp vcglib needs compiled in.
+target_sources(QMeshLabCore PRIVATE ${CMAKE_SOURCE_DIR}/vcglib/wrap/qt/outline2_rasterizer.cpp)
 
 target_include_directories(QMeshLabCore PUBLIC
     ${CMAKE_SOURCE_DIR}/src/core

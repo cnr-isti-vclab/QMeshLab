@@ -27,7 +27,6 @@ add_library(QMeshLabPluginFilterTextureDefragmentation STATIC
     ${TEXTURE_DEFRAG_UPSTREAM_DIR}/texture_object.cpp
     ${TEXTURE_DEFRAG_UPSTREAM_DIR}/texture_optimization.cpp
     ${TEXTURE_DEFRAG_UPSTREAM_DIR}/texture_rendering.cpp
-    ${CMAKE_SOURCE_DIR}/vcglib/wrap/qt/outline2_rasterizer.cpp
 )
 
 target_include_directories(QMeshLabPluginFilterTextureDefragmentation

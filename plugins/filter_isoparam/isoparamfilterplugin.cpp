@@ -6,6 +6,8 @@
 #include "meshfilterpluginmanager.h"
 #include "vcgmesh.h"
 
+#include <QFile>
+#include <QFileInfo>
 #include <QObject>
 #include <QStringList>
 
@@ -35,11 +37,18 @@ inline int captured_printf(const char *format, ...)
     return n;
 }
 
-inline int captured_fprintf(std::FILE *, const char *format, ...)
+inline int captured_fprintf(std::FILE *stream, const char *format, ...)
 {
-    char buffer[1024];
     va_list args;
     va_start(args, format);
+    // Only the console is narration. SaveBaseDomain writes the abstract domain itself with
+    // fprintf, and capturing that would quietly produce an empty file.
+    if (stream != stdout && stream != stderr) {
+        const int n = std::vfprintf(stream, format, args);
+        va_end(args);
+        return n;
+    }
+    char buffer[1024];
     const int n = std::vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
     append(buffer);
@@ -61,6 +70,9 @@ inline int captured_fprintf(std::FILE *, const char *format, ...)
 
 #undef printf
 #undef fprintf
+
+// After the vendored headers: it builds on IsoParametrization and DiamondParametrizator.
+#include "atlaslayout.h"
 
 #include <vcg/complex/append.h>
 #include <vcg/complex/algorithms/clean.h>
@@ -284,8 +296,9 @@ MeshFilterRunResult runRemesh(const FilterParams &params, Document &doc, int ind
     return result;
 }
 
-// One chart per diamond of the domain, packed into a single atlas: the parametrization
-// arrives as per-wedge UVs on a new layer.
+// The domain's diamonds become charts -- singly, or six at a time around a regular domain
+// vertex -- and one of the vcglib packers lays them out in a single atlas. The
+// parametrization arrives as per-wedge UVs on a new layer.
 MeshFilterRunResult runAtlasedMesh(const FilterParams &params, Document &doc, int index)
 {
     QString error;
@@ -293,22 +306,41 @@ MeshFilterRunResult runAtlasedMesh(const FilterParams &params, Document &doc, in
     if (!domain)
         return fail(error);
 
-    const double borderSize = params.getDouble(QStringLiteral("borderSize"), 0.1);
+    const QString shapeId = params.getEnum(QStringLiteral("chartShape"));
+    atlaslayout::Params layout;
+    layout.shape = shapeId == QStringLiteral("hexagon") ? atlaslayout::ChartShape::Hexagon
+                 : shapeId == QStringLiteral("rhombus") ? atlaslayout::ChartShape::Rhombus
+                                                        : atlaslayout::ChartShape::Square;
+    layout.mergeIrregularStars = params.getBool(QStringLiteral("mergeIrregularStars"), false);
+    layout.border = float(params.getDouble(QStringLiteral("borderSize"), 0.1));
+    layout.packing.algorithm = params.getEnum(QStringLiteral("packingAlgorithm"));
+    layout.packing.textureSize = params.getInt(QStringLiteral("textureSize"), 1024);
+    layout.packing.gutterWidth = params.getInt(QStringLiteral("gutterWidth"), 4);
+    layout.packing.rotationNum = params.getInt(QStringLiteral("rotationNum"), 4);
+    layout.packing.permutations = params.getBool(QStringLiteral("permutations"), false);
+    const RandomSeed seed = params.getRandomSeed();
+    layout.packing.randomSeed = seed.value;
 
     doc.beginFilterProgress(QObject::tr("Create Atlased Mesh from Abstract Domain"));
     QStringList narration;
+    atlaslayout::Stats stats;
     VCGMesh atlased;
     atlased.face.EnableWedgeTexCoord();
+    bool laidOut = false;
     {
         const std::lock_guard<std::mutex> guard(isoparam_capture::mutex());
         const isoparam_capture::Scope capture(narration);
-        DiamondParametrizator diamond;
-        diamond.Init(domain->parametrization());
-        diamond.SetCoordinates<VCGMesh>(atlased, float(borderSize));
+        laidOut = atlaslayout::build(*domain->parametrization(), layout, atlased, stats);
     }
     for (const QString &line : narration)
         doc.writeLog(QStringLiteral("[isoparam] %1").arg(line),
                      Document::LogSource::VCG, Document::LogLevel::Debug);
+
+    if (!laidOut) {
+        const QString message = QObject::tr("The packer could not lay the charts out.");
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
 
     if (atlased.FN() <= 0) {
         const QString message = QObject::tr("The atlased mesh came out empty.");
@@ -335,7 +367,21 @@ MeshFilterRunResult runAtlasedMesh(const FilterParams &params, Document &doc, in
     result.newMeshIndices.push_back(newIndex);
     result.infoMessages
         << QObject::tr("Atlased mesh: %1 vertices, %2 faces, per-wedge UVs.")
-               .arg(atlased.VN()).arg(atlased.FN());
+               .arg(atlased.VN()).arg(atlased.FN())
+        << QObject::tr("%1 charts: %2 star charts over %3 diamonds, %4 single diamonds. "
+                       "Atlas covered: %5%.")
+               .arg(stats.starCharts + stats.diamondCharts)
+               .arg(stats.starCharts).arg(stats.mergedDiamonds).arg(stats.diamondCharts)
+               .arg(100.0 * stats.coverage, 0, 'f', 1);
+    if (stats.irregularStarCharts > 0)
+        result.infoMessages << QObject::tr(
+            "%1 of the star charts sit on an irregular domain vertex, so they came out as "
+            "pentagons or heptagons rather than hexagons.").arg(stats.irregularStarCharts);
+    if (stats.unplacedCharts > 0)
+        result.infoMessages << QObject::tr(
+            "%1 charts did not fit and were collapsed; raise the atlas size or pick a "
+            "packer that scales to fit.").arg(stats.unplacedCharts);
+    result.infoMessages << seed.message();
     doc.finishFilterProgress(true, QObject::tr("Built the atlased mesh."));
     return result;
 }

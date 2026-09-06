@@ -429,6 +429,7 @@ private slots:
     void abstractDomainIsBuiltAndAttachedToTheLayer();
     void abstractDomainRefusesAnOpenMesh();
     void abstractDomainConsumersRunAndRefuseWithoutIt();
+    void atlasedMeshPacksOneUvSpaceForEveryChartShape();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
 };
 
@@ -5865,6 +5866,91 @@ void FilterTests::abstractDomainIsBuiltAndAttachedToTheLayer()
 // research code and the whole family refuses anything that is not one watertight shell.
 // The three consumers of the domain. Each must run once it exists, and each must say what
 // to do when it does not -- reaching one of these first is the normal mistake.
+// The atlas has to be one UV space. AssociateDiamond keeps the diamond index in WT.N() as
+// scratch, and left there it escapes as the wedge's texture id -- 291 distinct ids on a
+// 1.2k sphere, so every diamond looked like a separate texture.
+void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+    MeshFilterParameterValues build;
+    build.insert(QStringLiteral("minDomainFaces"), 150);
+    build.insert(QStringLiteral("maxDomainFaces"), 200);
+    QVERIFY(doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("parametrize_by_abstract_domain")), build).success);
+
+    const QString key = filterKeyForId(
+        doc, QStringLiteral("create_atlased_mesh_from_abstract_domain"));
+
+    QMap<QString, int> chartCount;
+    // The last pass is the hexagon layout again, widened to irregular domain vertices.
+    const QList<QPair<QString, bool>> passes{
+        {QStringLiteral("square"), false},
+        {QStringLiteral("rhombus"), false},
+        {QStringLiteral("hexagon"), false},
+        {QStringLiteral("hexagon"), true},
+    };
+    for (const auto &pass : passes) {
+        const QString shape = pass.second ? pass.first + QStringLiteral("+irregular")
+                                          : pass.first;
+        doc.setCurrentMeshIndex(0);
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("chartShape"), pass.first);
+        params.insert(QStringLiteral("mergeIrregularStars"), pass.second);
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(shape, r.errorMessage)));
+
+        const VCGMesh &m = doc.mesh(r.newMeshIndices.front()).mesh;
+        QVERIFY(m.FN() > 0);
+
+        QSet<int> textureIds;
+        double covered = 0.0;
+        double signedArea = 0.0;
+        for (const VCGFace &f : m.face) {
+            if (f.IsD()) continue;
+            for (int k = 0; k < 3; ++k) {
+                textureIds.insert(f.cWT(k).N());
+                const auto uv = f.cWT(k).P();
+                QVERIFY2(uv.X() >= -1e-4f && uv.X() <= 1.0001f
+                             && uv.Y() >= -1e-4f && uv.Y() <= 1.0001f,
+                         qPrintable(QStringLiteral("%1: UV outside the atlas").arg(shape)));
+            }
+            const auto a = f.cWT(0).P(), b = f.cWT(1).P(), c = f.cWT(2).P();
+            const double area = ((b.X() - a.X()) * (c.Y() - a.Y())
+                                 - (c.X() - a.X()) * (b.Y() - a.Y())) * 0.5;
+            covered += std::abs(area);
+            signedArea += area;
+        }
+        // Packing transforms are similarities, so they cannot mirror a chart: every face
+        // must still wind the same way. A disagreement means a chart folded over itself,
+        // which is what makes a parametrization useless to bake against.
+        QVERIFY2(std::abs(std::abs(signedArea) - covered) < 1e-6 * covered,
+                 qPrintable(QStringLiteral("%1: folded charts (|signed| %2 vs %3)")
+                                .arg(shape).arg(std::abs(signedArea)).arg(covered)));
+        // "N charts: H hexagonal, D per diamond. Atlas covered: C%."
+        const QString tally = r.infoMessages.filter(QStringLiteral("charts:")).value(0);
+        QVERIFY2(!tally.isEmpty(), qPrintable(shape));
+        chartCount[shape] = tally.split(QLatin1Char(' ')).value(0).toInt();
+        QVERIFY(chartCount[shape] > 0);
+        qDebug("%-8s %s | measured coverage %.4f", qPrintable(shape), qPrintable(tally), covered);
+
+        QCOMPARE(textureIds.size(), 1);
+        QCOMPARE(*textureIds.begin(), 0);
+        QVERIFY(covered > 0.0);
+        // No chart left behind: the scaled packer always fits what it is given.
+        QVERIFY2(r.infoMessages.filter(QStringLiteral("did not fit")).isEmpty(),
+                 qPrintable(shape));
+    }
+
+    // Merging cuts the chart count; square and rhombus differ only in how a diamond is
+    // unfolded, and widening to irregular vertices can only merge more.
+    QCOMPARE(chartCount[QStringLiteral("rhombus")], chartCount[QStringLiteral("square")]);
+    QVERIFY(chartCount[QStringLiteral("hexagon")] < chartCount[QStringLiteral("square")]);
+    QVERIFY(chartCount[QStringLiteral("hexagon+irregular")]
+            < chartCount[QStringLiteral("hexagon")]);
+}
+
 void FilterTests::abstractDomainConsumersRunAndRefuseWithoutIt()
 {
     const QString kDomain = QStringLiteral("qmeshlab.filter.isoparam/abstract_domain");

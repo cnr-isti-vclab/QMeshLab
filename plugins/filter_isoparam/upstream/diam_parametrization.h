@@ -421,6 +421,12 @@ template <class FaceType>
                 curr->WT(j).P()=QCoord;
                 ///and finally set for global texture coords
             }
+            // QMeshLab: WT.N() carried the diamond index, which AssociateDiamond stores
+            // there as scratch. Left alone it escapes as the wedge's texture id and every
+            // diamond looks like a separate texture. Zeroed only now that all three wedges
+            // are placed, because QuadCoord above reads the index back out of it.
+            for (int j=0;j<3;j++)
+                curr->WT(j).N()=0;
         }
     }
 
@@ -521,16 +527,12 @@ public:
 
 
 
-    ///set the vertex coordinates
-    template <class MeshType>
-    void SetCoordinates(MeshType &mesh,const PScalarType &border=0.01)
+    // QMeshLab: split out of SetCoordinates so a layout other than the square grid below
+    // can drive it. On return every face of the parametrized mesh lies inside a single
+    // diamond, whose index it carries in WT(0..2).N().
+    void PrepareDiamonds(const PScalarType &border)
     {
-        std::vector<vcg::Color4b > colorDiam;
-
-        //ParamMesh *to_param=isoParam->ParaMesh();
-
         bool done=true;
-        /*int n0=to_param->fn;*/
         int step=0;
         while (done)
         {
@@ -542,8 +544,14 @@ public:
             isoParam->Update();
             step++;
         }
-
         AssociateDiamond();
+    }
+
+    ///set the vertex coordinates
+    template <class MeshType>
+    void SetCoordinates(MeshType &mesh,const PScalarType &border=0.01)
+    {
+        PrepareDiamonds(border);
         SetWedgeCoords(border);
 
         ///copy parametrization to the new mesh

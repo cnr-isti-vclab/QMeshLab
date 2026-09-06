@@ -163,8 +163,8 @@
       "referenceIds": [
         "pietroni2010isoparam"
       ],
-      "shortDescription": "Build a new layer carrying a per-wedge atlas parametrization, one chart per diamond of the abstract domain.",
-      "longDescriptionMarkdown": "Turns the abstract domain into an ordinary texture atlas: each diamond of the domain becomes one square chart, and the charts are packed into a single UV square with a gutter between them.\n\nThe result is a new layer with per-wedge UVs, usable by anything that consumes a normal parametrization.\n\nRequires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.",
+      "shortDescription": "Build a new layer carrying a per-wedge atlas parametrization, with one chart per diamond of the abstract domain or one per regular domain vertex.",
+      "longDescriptionMarkdown": "Turns the abstract domain into an ordinary texture atlas. Every face of the parametrized mesh already lives inside exactly one diamond of the domain, so the diamonds are the charts, and one of the vcglib packers lays them out in a single UV square.\n\nThe result is a new layer with per-wedge UVs, all sharing texture index 0, usable by anything that consumes a normal parametrization.\n\n*Chart shape* decides how the domain is cut into charts and how each one is unfolded:\n\n- **Square** flattens each diamond onto the unit square, as the reference implementation does. It packs best, but it stretches the two triangles of the diamond into halves of a square, which they are not.\n- **Rhombus** unfolds each diamond as the 60 degree rhombus it actually is, so both halves come out as equilateral triangles. Near-isometric, at the cost of some atlas area.\n- **Hexagon** additionally merges charts: a domain vertex with exactly six triangles around it has its six diamonds unfolded together, through that vertex's star map, into a single chart. Two adjacent regular vertices share a diamond and cannot both have it, and a diamond whose faces stray outside the star has to stay behind, so a merged chart is often a wedge or two short of a full hexagon. Everything left over is laid out as a rhombus. *Merge irregular vertices too* widens this to vertices with five or seven triangles, which absorbs many more diamonds but stretches their triangles to close the ring.\n\nOn a 1.2k sphere with a 194-triangle domain, the three shapes come out at 291 charts covering 73% of the atlas, 291 charts covering 65%, and 154 charts covering 61% -- and hexagons with *Merge irregular vertices too* reach 94 charts covering 55%, having absorbed 266 of the 291 diamonds. Every step down in chart count, and so in seams, costs atlas area. Which end of that you want depends on whether the atlas is going to be baked once or authored against.\n\nFour packers are offered, and they trade quality against time very differently -- see **Pack UV Charts**, which drives the same ones -- but *Rasterized, scaled to fit* is what you want here unless the chart count makes it too slow.\n\nRequires an abstract domain on the layer: run **Parametrize by Abstract Domain** first.",
       "inputRequirements": {
         "requireVertices": true,
         "requireFaces": true
@@ -172,15 +172,119 @@
       "outputModifies": null,
       "parameters": [
         {
+          "id": "chartShape",
+          "label": "Chart shape",
+          "help": "How the domain is cut into charts and each chart unfolded. A square packs best but distorts; a rhombus of two equilateral triangles is near-isometric; hexagons additionally merge the diamonds around every regular domain vertex into one chart, which roughly halves the chart count and the seams for about a tenth of the atlas area.",
+          "group": "main",
+          "type": "enum",
+          "default": "square",
+          "enumOptions": [
+            {
+              "id": "square",
+              "label": "Square"
+            },
+            {
+              "id": "rhombus",
+              "label": "Rhombus of two equilateral triangles"
+            },
+            {
+              "id": "hexagon",
+              "label": "Hexagon around regular domain vertices"
+            }
+          ]
+        },
+        {
+          "id": "mergeIrregularStars",
+          "label": "Merge irregular vertices too",
+          "type": "bool",
+          "group": "main",
+          "default": false,
+          "help": "Hexagonal charts normally merge only around regular domain vertices, the ones with exactly six triangles, whose star unfolds into a regular hexagon of equilateral triangles. With this on, vertices with five or seven triangles are merged too, into a pentagon or a heptagon. Far more diamonds get absorbed -- on a 1.2k sphere, 266 of 291 against 176, and 94 charts against 154 -- at the cost of some stretch, since those triangles have to open to 72 degrees or close to 51 to make the ring meet. Ignored unless the chart shape is Hexagon."
+        },
+        {
           "id": "borderSize",
-          "label": "Border ratio",
-          "help": "Gutter kept around each chart, as a fraction of the chart. Larger values waste atlas area but keep bilinear filtering from bleeding between charts.",
+          "label": "Diamond overshoot",
+          "help": "How far a face may stray outside its diamond before it is split in two. Smaller values cut the mesh more finely and keep the charts tighter to the domain, which also lets more diamonds join a hexagonal chart. The gutter between packed charts is set separately.",
           "group": "main",
           "type": "double",
           "default": 0.1,
           "min": 0.01,
           "max": 0.5,
           "decimals": 3
+        },
+        {
+          "id": "packingAlgorithm",
+          "label": "Packing algorithm",
+          "type": "enum",
+          "group": "main",
+          "default": "rasterized_scaled",
+          "enumOptions": [
+            {
+              "id": "rasterized_scaled",
+              "label": "Rasterized, scaled to fit"
+            },
+            {
+              "id": "rasterized_best_effort",
+              "label": "Rasterized, best effort"
+            },
+            {
+              "id": "axis_aligned_rect",
+              "label": "Axis-aligned rectangles"
+            },
+            {
+              "id": "object_oriented_rect",
+              "label": "Object-oriented rectangles"
+            }
+          ],
+          "help": "Which vcglib packer lays the charts out in the atlas."
+        },
+        {
+          "id": "textureSize",
+          "label": "Atlas size (pixels)",
+          "type": "int",
+          "group": "main",
+          "default": 2048,
+          "min": 16,
+          "max": 16384,
+          "help": "Side of the square atlas the charts are packed into. The UVs come back normalized either way; this sets the resolution the packer works at, and so what the gutter is worth. A domain has many small charts, and the gutter is what costs atlas area: on a 1.2k sphere, 291 charts at 1024 with a 4-pixel gutter cover 56% of the atlas, and the same run at 2048 covers 67%."
+        },
+        {
+          "id": "gutterWidth",
+          "label": "Gutter (pixels)",
+          "type": "int",
+          "group": "main",
+          "default": 2,
+          "min": 0,
+          "max": 256,
+          "help": "Padding kept around each chart, so bilinear filtering cannot bleed between neighbours."
+        },
+        {
+          "id": "rotationNum",
+          "label": "Rotations tried",
+          "type": "int",
+          "group": "advanced",
+          "default": 4,
+          "min": 1,
+          "max": 64,
+          "help": "How many orientations each chart is tried at, rounded to the nearest multiple of four -- the packer derives four slots from every base rasterization, so only multiples of four are usable. Rasterized packers only."
+        },
+        {
+          "id": "permutations",
+          "label": "Try chart permutations",
+          "type": "bool",
+          "group": "advanced",
+          "default": false,
+          "help": "Retry the layout with reshuffled chart orders. Costs five packing passes per similarly sized chart, so on a uniform atlas it is five per chart and it dominates the run. Rasterized packers only."
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "type": "int",
+          "group": "advanced",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647,
+          "help": "Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the chart permutations exactly reproducible."
         }
       ]
     },

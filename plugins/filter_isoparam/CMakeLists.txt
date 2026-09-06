@@ -6,6 +6,7 @@ if (NOT QMESH_PLUGIN_FILTER_ISOPARAM)
 endif()
 
 add_library(QMeshLabPluginFilterIsoParam STATIC
+    atlaslayout.h
     isoparamfilterplugin.h
     isoparamfilterplugin.cpp
 )
