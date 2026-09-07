@@ -20,6 +20,9 @@
 #include <QButtonGroup>
 #include <QClipboard>
 #include <QApplication>
+#include <QTextEdit>
+#include <QPlainTextEdit>
+#include <QLineEdit>
 #include <QCloseEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -1298,16 +1301,28 @@ MainWindow::MainWindow(QWidget *parent)
         this,
         &MainWindow::centerCameraOnSelection);
     viewMenu->addSeparator();
-    viewMenu->addAction(
+    // Ctrl+C and Ctrl+V here are scoped to the 3D views rather than the whole window.
+    // As window shortcuts they took the keys away from every other panel -- the log, the
+    // Python console, the script editor -- so copy meant "camera JSON" wherever you were
+    // typing, and paste overwrote the camera from whatever the clipboard held. Widget scope
+    // hands them to whichever panel has focus. The menu entries still fire from the menu
+    // whatever is focused, so the commands remain reachable with no view active.
+    m_copyCameraAction = viewMenu->addAction(
         tr("Copy Camera/Trackball JSON"),
         QKeySequence::Copy,
         this,
         &MainWindow::copyCameraState);
-    viewMenu->addAction(
+    m_copyCameraAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    m_pasteCameraAction = viewMenu->addAction(
         tr("Paste Camera/Trackball JSON"),
         QKeySequence::Paste,
         this,
         &MainWindow::pasteCameraState);
+    m_pasteCameraAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    // The first view is built before the menus, so it is picked up here; later splits get
+    // them from createRenderWidget().
+    for (RenderWidget *view : m_renderWidgets)
+        attachViewShortcuts(view);
 
 #ifdef QMESHLAB_PYTHON_CONSOLE
     viewMenu->addSeparator();
@@ -1337,17 +1352,78 @@ MainWindow::MainWindow(QWidget *parent)
     helpMenu->addSeparator();
     helpMenu->addAction(tr("&About"), this, &MainWindow::showAbout);
 
+    // Ctrl+F steps aside while something editable has focus.
+    connect(qApp, &QApplication::focusChanged, this, [this](QWidget *, QWidget *now) {
+        updateTextEditingShortcuts(now);
+    });
+
     QSettings settings;
     m_recentMeshes = settings.value(QStringLiteral("recentMeshes")).toStringList();
     sanitizeRecentMeshes();
     refreshRecentMeshesMenu();
 }
 
+// Ctrl+F opens the Filter Browser from anywhere in the application, which means it also
+// fires while you are typing in the script editor or at the console prompt -- jumping you
+// out of the text you were writing.
+//
+// It is the only one of our standard-key shortcuts that needs help. Qt lets a focused widget
+// claim a key ahead of a shortcut through QEvent::ShortcutOverride, and the text widgets do
+// exactly that for the keys they implement, so Ctrl+C, Ctrl+V and Ctrl+Z already reach an
+// editable QPlainTextEdit or QLineEdit untouched. Measured, per widget under focus:
+//
+//              QPlainTextEdit  read-only  QLineEdit  QListWidget
+//   Ctrl+C     widget          SHORTCUT   widget     SHORTCUT
+//   Ctrl+V     widget          SHORTCUT   widget     SHORTCUT
+//   Ctrl+Z     widget          SHORTCUT   widget     SHORTCUT
+//   Ctrl+F     SHORTCUT        SHORTCUT   SHORTCUT   SHORTCUT
+//
+// Nothing implements find, so Ctrl+F is claimed by nobody and the shortcut always wins. The
+// read-only and list columns are why the camera keys had to move to the views: there is no
+// text control there to claim them. Undo needs nothing -- where the shortcut does win there
+// is no typing to undo, so document undo is the right answer.
+//
+// Qt resolves a shortcut before the key reaches the widget, so what steps aside is the
+// binding rather than the action: the menu entry stays enabled and clickable throughout.
+void MainWindow::updateTextEditingShortcuts(QWidget *focused)
+{
+    const auto editable = [](const QWidget *w) {
+        if (auto *line = qobject_cast<const QLineEdit *>(w))
+            return !line->isReadOnly();
+        if (auto *plain = qobject_cast<const QPlainTextEdit *>(w))
+            return !plain->isReadOnly();
+        if (auto *rich = qobject_cast<const QTextEdit *>(w))
+            return !rich->isReadOnly();
+        return false;
+    };
+
+    const bool editing = focused && editable(focused);
+    if (editing == m_textEditingHasFocus)
+        return;
+    m_textEditingHasFocus = editing;
+    if (m_filterBrowserAction)
+        m_filterBrowserAction->setShortcut(
+            editing ? QKeySequence() : QKeySequence(QKeySequence::Find));
+}
+
+
 RenderWidget *MainWindow::currentRenderWidget() const
 {
     if (m_currentRenderWidget)
         return m_currentRenderWidget;
     return m_renderWidgets.isEmpty() ? nullptr : m_renderWidgets.first();
+}
+
+// The view-scoped shortcuts every 3D view carries. Actions are owned by the View menu, so
+// a view being closed does not take them with it.
+void MainWindow::attachViewShortcuts(RenderWidget *view)
+{
+    if (!view)
+        return;
+    if (m_copyCameraAction)
+        view->addAction(m_copyCameraAction);
+    if (m_pasteCameraAction)
+        view->addAction(m_pasteCameraAction);
 }
 
 RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
@@ -1362,6 +1438,7 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
     view->setContextMenuPolicy(Qt::CustomContextMenu);
     parentSplitter->addWidget(view);
     m_renderWidgets.append(view);
+    attachViewShortcuts(view);
 
     connect(view, &RenderWidget::viewActivated, this, [this](RenderWidget *activatedView) {
         setCurrentRenderWidget(activatedView);
@@ -1990,12 +2067,15 @@ void MainWindow::refreshFiltersMenu(const std::vector<Document::FilterInfo> &fil
         return;
 
     m_filtersMenu->clear();
-    QAction *filterBrowserAction = m_filtersMenu->addAction(
+    m_filterBrowserAction = m_filtersMenu->addAction(
         tr("Filter Browser..."),
         this,
         &MainWindow::openFilterBrowser);
-    filterBrowserAction->setShortcut(QKeySequence::Find);
-    filterBrowserAction->setShortcutContext(Qt::ApplicationShortcut);
+    // The menu is rebuilt from scratch on every filter reload, so the suspended state has
+    // to be reapplied rather than assumed.
+    m_filterBrowserAction->setShortcut(
+        m_textEditingHasFocus ? QKeySequence() : QKeySequence(QKeySequence::Find));
+    m_filterBrowserAction->setShortcutContext(Qt::ApplicationShortcut);
     m_filtersMenu->addSeparator();
 
     std::vector<Document::FilterInfo> infos = filterInfos;

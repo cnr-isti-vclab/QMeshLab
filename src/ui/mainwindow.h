@@ -89,6 +89,8 @@ private slots:
 private:
     RenderWidget *currentRenderWidget() const;
     RenderWidget *createRenderWidget(QSplitter *parentSplitter);
+    void attachViewShortcuts(RenderWidget *view);
+    void updateTextEditingShortcuts(QWidget *focused);
     void setCurrentRenderWidget(RenderWidget *view);
     void updateCurrentViewBorder();
     void splitCurrentView(Qt::Orientation orientation);
@@ -162,6 +164,14 @@ private:
     QLabel *m_frameStatsLabel = nullptr;
     QAction *m_undoAction = nullptr;
     QAction *m_redoAction = nullptr;
+    // Ctrl+C / Ctrl+V for the camera. Scoped to the 3D views, so the text panels keep
+    // their own copy and paste; see attachViewShortcuts().
+    QAction *m_copyCameraAction = nullptr;
+    QAction *m_pasteCameraAction = nullptr;
+    // Rebuilt with the Filters menu, so it is kept here to keep its Ctrl+F binding in step
+    // with updateTextEditingShortcuts().
+    QAction *m_filterBrowserAction = nullptr;
+    bool m_textEditingHasFocus = false;
     QListWidget *m_logListWidget = nullptr;
     // Entries quieter than this are kept in the document but not shown; raising the
     // preference repopulates the panel, so past detail can be recovered after the fact.
