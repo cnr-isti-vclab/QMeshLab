@@ -17,6 +17,8 @@ nanobind_build_library(nanobind-static)
 add_library(_qmeshlab_bindings STATIC
     bindings/meshset_core.h
     bindings/meshset_core.cpp
+    bindings/pymesh.h
+    bindings/pymesh.cpp
     bindings/module.cpp
 )
 

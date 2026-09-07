@@ -1,7 +1,11 @@
 #include "meshset_core.h"
+#include "pymesh.h"
 
 #include "document.h"
+
+#if !defined(PYMESHLAB_STANDALONE)
 #include "headlessrendercontext.h"
+#endif
 
 #include <nanobind/stl/array.h>
 
@@ -222,6 +226,19 @@ bool MeshSetCore::meshIdExists(int index) const
     return index >= 0 && index < m_document->meshCount();
 }
 
+nanobind::object MeshSetCore::currentMesh() const
+{
+    const int idx = currentMeshId();
+    return nb::cast(PyMesh(m_document, idx));
+}
+
+nanobind::object MeshSetCore::mesh(int index) const
+{
+    if (index < 0 || index >= m_document->meshCount())
+        throw std::runtime_error("Mesh index out of range.");
+    return nb::cast(PyMesh(m_document, index));
+}
+
 void MeshSetCore::setCurrentMeshVisibility(bool visible)
 {
     const int index = currentMeshId();
@@ -421,6 +438,7 @@ FilterRunRecord MeshSetCore::applyFilter(const std::string &filterNameOrKey,
     }
 }
 
+#if !defined(PYMESHLAB_STANDALONE)
 nanobind::bytes MeshSetCore::renderSnapshot(
     const std::string &renderStateJson,
     int width,
@@ -454,3 +472,4 @@ nanobind::bytes MeshSetCore::renderSnapshot(
         reinterpret_cast<const char *>(image.constBits()),
         byteCount);
 }
+#endif

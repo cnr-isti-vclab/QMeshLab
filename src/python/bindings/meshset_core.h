@@ -20,7 +20,10 @@
 #include <vector>
 
 class Document;
+#if !defined(PYMESHLAB_STANDALONE)
 class HeadlessRenderContext;
+#endif
+class PyMesh;
 
 struct FilterInfoRecord
 {
@@ -64,6 +67,8 @@ public:
     int currentMeshId() const;
     void setCurrentMesh(int index);
     bool meshIdExists(int index) const;
+    nanobind::object currentMesh() const;
+    nanobind::object mesh(int index) const;
     void setCurrentMeshVisibility(bool visible);
     void setMeshVisibility(int index, bool visible);
     bool isCurrentMeshVisible() const;
@@ -86,16 +91,18 @@ public:
     FilterRunRecord applyFilter(const std::string &filterNameOrKey,
                                 const nanobind::dict &params) const;
 
-    // Offscreen rendering. The renderStateJson is the same format used by
-    // RenderWidget::applyRenderStateJson(). Returns raw RGBA bytes.
+#if !defined(PYMESHLAB_STANDALONE)
     nanobind::bytes renderSnapshot(const std::string &renderStateJson,
                                    int width,
                                    int height);
+#endif
 
 private:
     QString resolveFilterKey(const QString &filterNameOrKey) const;
 
     Document *m_document = nullptr;
     bool m_ownsDocument = false;
+#if !defined(PYMESHLAB_STANDALONE)
     mutable std::unique_ptr<HeadlessRenderContext> m_renderContext;
+#endif
 };

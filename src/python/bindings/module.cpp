@@ -1,5 +1,9 @@
 #include "meshset_core.h"
+#include "pymesh.h"
+
+#if !defined(PYMESHLAB_STANDALONE)
 #include "mlgui.h"
+#endif
 
 #include <QVector3D>
 #include <QMetaType>
@@ -95,13 +99,16 @@ NB_MODULE(_qmeshlab, m)
             return d;
         });
 
+    registerPyMesh(m);
+
     nb::class_<MeshSetCore>(m, "MeshSet")
         .def(nb::init<>())
         .def("__len__",           &MeshSetCore::meshCount)
         .def("mesh_count",         &MeshSetCore::meshCount)
         .def("mesh_number",        &MeshSetCore::meshCount)
         .def("number_meshes",      &MeshSetCore::meshCount)
-        .def("current_mesh",       &MeshSetCore::currentMeshIndex)
+        .def("current_mesh",       &MeshSetCore::currentMesh)
+        .def("mesh",               &MeshSetCore::mesh,            nb::arg("index"))
         .def("current_mesh_id",    &MeshSetCore::currentMeshId)
         .def("set_current_mesh",   &MeshSetCore::setCurrentMesh,   nb::arg("index"))
         .def("mesh_id_exists",     &MeshSetCore::meshIdExists,     nb::arg("id"))
@@ -127,9 +134,13 @@ NB_MODULE(_qmeshlab, m)
         .def("list_filters",       &MeshSetCore::listFilters)
         .def("apply_filter",       &MeshSetCore::applyFilter,
              nb::arg("filter"), nb::arg("params") = nb::dict())
+#if !defined(PYMESHLAB_STANDALONE)
         .def("render_snapshot",    &MeshSetCore::renderSnapshot,
-             nb::arg("render_state_json"), nb::arg("width"), nb::arg("height"));
+             nb::arg("render_state_json"), nb::arg("width"), nb::arg("height"))
+#endif
+        ;
 
+#if !defined(PYMESHLAB_STANDALONE)
     nb::class_<MlGui>(m, "MlGui")
         .def("camera_state_json",       &MlGui::cameraStateJson)
         .def("render_state_json",       &MlGui::renderStateJson)
@@ -146,4 +157,5 @@ NB_MODULE(_qmeshlab, m)
         .def("save_snapshot",           &MlGui::saveSnapshot,
              nb::arg("path"), nb::arg("width"), nb::arg("height"),
              nb::arg("render_state_json") = nb::str(""));
+#endif
 }
