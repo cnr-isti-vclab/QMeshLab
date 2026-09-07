@@ -6861,6 +6861,7 @@ Leave 0 for automatic calculation.</p></li>
 <dt class="sig sig-object py" id="qmeshlab.ms.select_by_screen_rectangle">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_by_screen_rectangle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.select_by_screen_rectangle" title="Link to this definition">¶</a></dt>
 <dd><p>Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside the rectangle. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.</p>
+<p><em>Expand to Connected Components</em> is what the rubber-band tool’s <strong>C</strong> modifier sets: the rectangle only has to graze a component for all of it to be selected.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>camera_state</strong> (<em>camerastate</em>) — Camera state (QMeshLab.CameraState JSON) defining the projection.</p></li>
@@ -6876,6 +6877,7 @@ Leave 0 for automatic calculation.</p></li>
 <li><p><strong>element</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">face</span></code>) — Whether to select vertices or faces (by centroid).</p></li>
 <li><p><strong>mode</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">replace</span></code>) — Replace the current selection, add to it, or subtract from it.</p></li>
 <li><p><strong>visible_only</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).</p></li>
+<li><p><strong>expand_to_components</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Grow what the rectangle touched to the whole connected component it belongs to, so grazing one triangle takes the entire piece. The growth starts from what the rectangle hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole component under the rectangle instead of growing whatever was left behind. Vertices are grown through their faces, since components are a face notion. Face-face adjacency is built on demand, so this costs more than a plain drag.</p></li>
 </ul>
 </dd></dl>
 
