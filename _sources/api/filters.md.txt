@@ -6608,12 +6608,14 @@ Implementation note: the original reference code used OpenGL to rasterize the ne
 
 **Plugin:** qmeshlab.filter.texture_defragmentation
 
-Merge texture islands below a size threshold into neighbors sharing a seam, then repack and resample the atlas.
+Merge texture islands -- the small ones, or the ones you select -- into neighbors sharing a seam, then repack and resample the atlas.
 
 ```{py:function} ms.merge_small_texture_islands(**params)
 :module: _qmeshlab
 
-Attempts to reduce all texture islands within a given size by merging them with neighbors sharing a common seam. The procedure tries to avoid distortion and overlap introduced by the removal of islands. It shares the defragmentation pipeline: UVs are scaled into pixel space before anything else runs, the surviving charts are repacked, and the new atlas is resampled from the originals, so the layer comes back with new texture images and not just moved UVs.
+Dissolves texture islands into a neighbour they share a seam with, so the pair becomes one island with one fewer seam between them.
+
+Which islands go is up to *Islands to merge*: either every island under a size threshold, which is the automatic sweep, or the ones you picked by hand. In the second mode any island holding at least one selected face is a candidate -- select a single face to name an island -- and it is merged into an adjacent island, which is how you fold a chart into a particular neighbour rather than whichever the size sweep would have chosen. An island with no selected neighbour has nowhere to go and is left alone. The procedure tries to avoid distortion and overlap introduced by the removal of islands. It shares the defragmentation pipeline: UVs are scaled into pixel space before anything else runs, the surviving charts are repacked, and the new atlas is resampled from the originals, so the layer comes back with new texture images and not just moved UVs.
 
 Turn off *Resample textures* to treat it as a parametrization operation instead. The layer then comes back with the merged, repacked UV layout and no texture images -- and in that mode a layer that has a parametrization but no texture yet is a valid input.
 
@@ -6623,7 +6625,8 @@ Turn off *Resample textures* to treat it as a parametrization operation instead.
 
 **Parameters:**
 
-- **maxMultiplier** (*double*, default: `1.0`) — Islands whose UV boundary length is smaller than this factor times the median island boundary length are candidates for removal. A value of 1.0 targets all below-median islands; 0.2 targets only the absolute tiniest fragments; values above 1.0 also capture larger-than-median islands. Set to 0 to attempt removal of all islands.
+- **islandSource** (*enum*, default: `by_size`) — Which islands get dissolved into their neighbours. *Below a size threshold* is the automatic sweep, governed by the size multiplier. *The selected ones* takes them from the face selection instead: any island holding at least one selected face is a candidate, so one face is enough to name an island, and the size multiplier is ignored.
+- **maxMultiplier** (*double*, default: `1.0`) — Islands whose UV boundary length is smaller than this factor times the median island boundary length are candidates for removal. A value of 1.0 targets all below-median islands; 0.2 targets only the absolute tiniest fragments; values above 1.0 also capture larger-than-median islands. Set to 0 to attempt removal of all islands. Ignored when *Islands to merge* is set to the selected ones.
 - **distortionMode** (*enum*, default: `STRICT`) — Specifies how aggressively the algorithm removes islands:
 **STRICT**: operations that introduce significant geometric distortion are immediately rejected. Prioritizes visual fidelity over compactness.
 **LOOSE**: distortion introduced by the removal of islands is ignored. Still, operations that introduce overlaps are rejected. Prioritizes layout compactness over quality.
