@@ -216,7 +216,6 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         const QString element = params.getEnum(QStringLiteral("element"));
         const QString mode = params.getEnum(QStringLiteral("mode"));
         const bool doFaces = (element != QStringLiteral("vertex"));
-        const bool subtract = (mode == QStringLiteral("subtract"));
 
         // "Visible only": keep only faces not occluded from the viewpoint. A ray
         // is cast from the camera eye to each candidate face centroid and the face
@@ -232,7 +231,26 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         if (doFaces && mesh.FN() <= 0)
             return fail(QObject::tr("Current mesh has no faces."));
-        if (mode == QStringLiteral("replace")) {
+
+        // "Connected components": grow what the rectangle touched to the whole component
+        // it belongs to. The growth has to start from the raw hits rather than from the
+        // finished selection -- with Ctrl (subtract) the whole component under the
+        // rectangle must come out, and growing the *remainder* would do very nearly the
+        // opposite. So while expanding, the pass below marks hits only and the composition
+        // mode is applied afterwards, against a snapshot taken here.
+        const bool expandComponents =
+            params.getBool(QStringLiteral("expand_to_components")) && mesh.FN() > 0;
+        std::vector<bool> selectionBefore;
+        if (expandComponents) {
+            const std::size_t n = doFaces ? std::size_t(mesh.face.size())
+                                          : std::size_t(mesh.vert.size());
+            selectionBefore.resize(n, false);
+            for (std::size_t i = 0; i < n; ++i)
+                selectionBefore[i] = doFaces ? mesh.face[i].IsS() : mesh.vert[i].IsS();
+        }
+        // Marking hits means selecting them, whatever the requested mode.
+        const bool subtract = !expandComponents && (mode == QStringLiteral("subtract"));
+        if (expandComponents || mode == QStringLiteral("replace")) {
             if (doFaces)
                 Sel::FaceClear(mesh);
             else
@@ -344,6 +362,43 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             }
         }
 
+        std::size_t grownComponentFaces = 0;
+        if (expandComponents) {
+            {
+                // FF adjacency is built here rather than declared in inputPrepare: every
+                // drag would otherwise pay for it, and the ordinary case has no use for it.
+                VCGMeshFFAdjScope _ffAdj(mesh);
+                vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+                // vcglib only grows components face-wise, so a vertex rectangle goes out
+                // through the faces it touched and comes back over all of theirs.
+                if (!doFaces)
+                    Sel::FaceFromVertexLoose(mesh);
+                grownComponentFaces = Sel::FaceConnectedFF(mesh);
+                if (!doFaces)
+                    Sel::VertexFromFaceLoose(mesh);
+            }
+
+            // Now apply the requested composition against the snapshot.
+            changed = 0;
+            const std::size_t n = selectionBefore.size();
+            for (std::size_t i = 0; i < n; ++i) {
+                const bool before = selectionBefore[i];
+                const bool grown = doFaces ? mesh.face[i].IsS() : mesh.vert[i].IsS();
+                bool after = grown;
+                if (mode == QStringLiteral("add"))
+                    after = before || grown;
+                else if (mode == QStringLiteral("subtract"))
+                    after = before && !grown;
+                if (after != before)
+                    ++changed;
+                if (doFaces) {
+                    if (after) mesh.face[i].SetS(); else mesh.face[i].ClearS();
+                } else {
+                    if (after) mesh.vert[i].SetS(); else mesh.vert[i].ClearS();
+                }
+            }
+        }
+
         const qint64 elapsedMs = timer.elapsed();
         const int total = doFaces ? mesh.FN() : mesh.VN();
         QStringList messages = {
@@ -358,6 +413,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                 .arg(elapsedMs)
                 .arg(nThreads)
         };
+        if (expandComponents)
+            messages << QObject::tr("Expanded to whole connected components (%1 faces in the "
+                                    "components the rectangle touched).")
+                            .arg(grownComponentFaces);
         if (occluder)
             messages << QObject::tr("Visibility test via %1.")
                             .arg(occluder->usesEmbree() ? QObject::tr("embree")

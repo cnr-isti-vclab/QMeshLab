@@ -3,7 +3,9 @@
   "filters": [
     {
       "id": "select_all",
-      "categories": ["Selection/Set Operations"],
+      "categories": [
+        "Selection/Set Operations"
+      ],
       "name": "Select All",
       "pythonName": "select_all",
       "shortDescription": "Select all the faces/vertices of the current mesh.",
@@ -38,7 +40,9 @@
     },
     {
       "id": "select_none",
-      "categories": ["Selection/Set Operations"],
+      "categories": [
+        "Selection/Set Operations"
+      ],
       "name": "Select None",
       "pythonName": "select_none",
       "shortDescription": "Clear the current set of selected faces/vertices.",
@@ -73,7 +77,9 @@
     },
     {
       "id": "select_faces_by_view_angle",
-      "categories": ["Selection/by Attribute"],
+      "categories": [
+        "Selection/by Attribute"
+      ],
       "name": "Select Faces by View Angle",
       "pythonName": "select_faces_by_view_angle",
       "shortDescription": "Select faces according to angle with view direction.",
@@ -134,7 +140,9 @@
     },
     {
       "id": "select_ill_shaped_faces",
-      "categories": ["Selection/by Topology"],
+      "categories": [
+        "Selection/by Topology"
+      ],
       "name": "Select Ill-Shaped Faces",
       "pythonName": "select_ill_shaped_faces",
       "shortDescription": "Select problematic faces: elongated, flipped, or folded.",
@@ -215,7 +223,9 @@
     },
     {
       "id": "invert_selection",
-      "categories": ["Selection/Set Operations"],
+      "categories": [
+        "Selection/Set Operations"
+      ],
       "name": "Invert Selection",
       "pythonName": "invert_selection",
       "shortDescription": "Invert the current set of selected faces/vertices.",
@@ -250,7 +260,9 @@
     },
     {
       "id": "select_connected_faces",
-      "categories": ["Selection/by Topology"],
+      "categories": [
+        "Selection/by Topology"
+      ],
       "name": "Select Connected Faces",
       "pythonName": "select_connected_faces",
       "shortDescription": "Expand selected faces to their connected components.",
@@ -275,7 +287,9 @@
     },
     {
       "id": "select_faces_from_vertices",
-      "categories": ["Selection/by Topology"],
+      "categories": [
+        "Selection/by Topology"
+      ],
       "name": "Select Faces from Vertices",
       "pythonName": "select_faces_from_vertices",
       "shortDescription": "Transfer selection from selected vertices to faces.",
@@ -307,7 +321,9 @@
     },
     {
       "id": "select_vertices_from_faces",
-      "categories": ["Selection/by Topology"],
+      "categories": [
+        "Selection/by Topology"
+      ],
       "name": "Select Vertices from Faces",
       "pythonName": "select_vertices_from_faces",
       "shortDescription": "Transfer selection from selected faces to vertices.",
@@ -339,7 +355,9 @@
     },
     {
       "id": "remove_selected_vertices",
-      "categories": ["Meshing/Deletion"],
+      "categories": [
+        "Meshing/Deletion"
+      ],
       "name": "Remove Selected Vertices",
       "pythonName": "remove_selected_vertices",
       "shortDescription": "Delete selected vertices; incident faces are deleted too.",
@@ -362,7 +380,9 @@
     },
     {
       "id": "remove_all_faces",
-      "categories": ["Meshing/Deletion"],
+      "categories": [
+        "Meshing/Deletion"
+      ],
       "name": "Remove All Faces",
       "pythonName": "remove_all_faces",
       "shortDescription": "Delete all faces, turning mesh into point cloud.",
@@ -381,7 +401,9 @@
     },
     {
       "id": "remove_selected_faces",
-      "categories": ["Meshing/Deletion"],
+      "categories": [
+        "Meshing/Deletion"
+      ],
       "name": "Remove Selected Faces",
       "pythonName": "remove_selected_faces",
       "shortDescription": "Delete selected faces; unreferenced vertices are not deleted.",
@@ -403,7 +425,9 @@
     },
     {
       "id": "remove_selected_faces_and_vertices",
-      "categories": ["Meshing/Deletion"],
+      "categories": [
+        "Meshing/Deletion"
+      ],
       "name": "Remove Selected Faces and Vertices",
       "pythonName": "remove_selected_faces_and_vertices",
       "shortDescription": "Delete selected faces and enclosed selected vertices.",
@@ -428,7 +452,9 @@
     },
     {
       "id": "erode_selection",
-      "categories": ["Selection/Set Operations"],
+      "categories": [
+        "Selection/Set Operations"
+      ],
       "name": "Erode Selection",
       "pythonName": "erode_selection",
       "shortDescription": "Erode (reduce) current selected faces.",
@@ -451,7 +477,9 @@
     },
     {
       "id": "dilate_selection",
-      "categories": ["Selection/Set Operations"],
+      "categories": [
+        "Selection/Set Operations"
+      ],
       "name": "Dilate Selection",
       "pythonName": "dilate_selection",
       "shortDescription": "Dilate (expand) current selected faces.",
@@ -474,7 +502,9 @@
     },
     {
       "id": "select_border",
-      "categories": ["Selection/by Topology"],
+      "categories": [
+        "Selection/by Topology"
+      ],
       "name": "Select Border",
       "pythonName": "select_border",
       "shortDescription": "Select vertices and faces on mesh boundary.",
@@ -497,7 +527,9 @@
     },
     {
       "id": "select_faces_by_scalar",
-      "categories": ["Selection/by Attribute"],
+      "categories": [
+        "Selection/by Attribute"
+      ],
       "name": "Select Faces by Scalar",
       "pythonName": "select_faces_by_scalar",
       "shortDescription": "Select elements using per-face quality range.",
@@ -552,7 +584,9 @@
     },
     {
       "id": "select_vertices_by_scalar",
-      "categories": ["Selection/by Attribute"],
+      "categories": [
+        "Selection/by Attribute"
+      ],
       "name": "Select Vertices by Scalar",
       "pythonName": "select_vertices_by_scalar",
       "shortDescription": "Select elements using per-vertex quality range.",
@@ -607,7 +641,9 @@
     },
     {
       "id": "select_faces_by_color",
-      "categories": ["Selection/by Attribute"],
+      "categories": [
+        "Selection/by Attribute"
+      ],
       "name": "Select Faces by Color",
       "pythonName": "select_faces_by_color",
       "shortDescription": "Select part of the mesh based on vertex color.",
@@ -700,7 +736,9 @@
     },
     {
       "id": "select_self_intersecting_faces",
-      "categories": ["Selection/by Topology"],
+      "categories": [
+        "Selection/by Topology"
+      ],
       "name": "Select Self-Intersecting Faces",
       "pythonName": "select_self_intersecting_faces",
       "shortDescription": "Select only self intersecting faces.",
@@ -726,7 +764,10 @@
     },
     {
       "id": "select_vertex_texture_seams",
-      "categories": ["Selection/by Topology", "Parametrization"],
+      "categories": [
+        "Selection/by Topology",
+        "Parametrization"
+      ],
       "name": "Select Vertex Texture Seams",
       "pythonName": "select_vertex_texture_seams",
       "shortDescription": "Select vertices on texture seams.",
@@ -750,7 +791,9 @@
     },
     {
       "id": "select_non_manifold_edges_vcglib",
-      "categories": ["Selection/by Topology"],
+      "categories": [
+        "Selection/by Topology"
+      ],
       "name": "Select Non-Manifold Edges (vcglib)",
       "pythonName": "select_non_manifold_edges_vcglib",
       "shortDescription": "Select faces and vertices incident on non manifold edges.",
@@ -776,7 +819,9 @@
     },
     {
       "id": "select_non_manifold_vertices",
-      "categories": ["Selection/by Topology"],
+      "categories": [
+        "Selection/by Topology"
+      ],
       "name": "Select Non-Manifold Vertices",
       "pythonName": "select_non_manifold_vertices",
       "shortDescription": "Select non manifold vertices.",
@@ -802,7 +847,9 @@
     },
     {
       "id": "select_faces_by_edge_length",
-      "categories": ["Selection/by Attribute"],
+      "categories": [
+        "Selection/by Attribute"
+      ],
       "name": "Select Faces by Edge Length",
       "pythonName": "select_faces_by_edge_length",
       "shortDescription": "Select all triangles having an edge longer than threshold.",
@@ -837,7 +884,9 @@
     },
     {
       "id": "select_outliers",
-      "categories": ["Selection/by Attribute"],
+      "categories": [
+        "Selection/by Attribute"
+      ],
       "name": "Select Outliers",
       "pythonName": "select_outliers",
       "shortDescription": "Select outlier vertices using LoOP.",
@@ -882,11 +931,13 @@
     },
     {
       "id": "select_by_screen_rectangle",
-      "categories": ["Selection/by Visibility"],
+      "categories": [
+        "Selection/by Visibility"
+      ],
       "name": "Select by Screen Rectangle",
       "pythonName": "select_by_screen_rectangle",
       "shortDescription": "Select vertices or faces whose screen projection falls inside a rectangle.",
-      "longDescriptionMarkdown": "Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside the rectangle. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.",
+      "longDescriptionMarkdown": "Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside the rectangle. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.\n\n*Expand to Connected Components* is what the rubber-band tool's **C** modifier sets: the rectangle only has to graze a component for all of it to be selected.",
       "tags": [
         "selection"
       ],
@@ -916,8 +967,14 @@
           "type": "enum",
           "default": "view3d",
           "enumOptions": [
-            { "id": "view3d", "label": "3D view" },
-            { "id": "uv", "label": "UV / parametrization" }
+            {
+              "id": "view3d",
+              "label": "3D view"
+            },
+            {
+              "id": "uv",
+              "label": "UV / parametrization"
+            }
           ]
         },
         {
@@ -984,8 +1041,14 @@
           "type": "enum",
           "default": "face",
           "enumOptions": [
-            { "id": "vertex", "label": "Vertices" },
-            { "id": "face", "label": "Faces" }
+            {
+              "id": "vertex",
+              "label": "Vertices"
+            },
+            {
+              "id": "face",
+              "label": "Faces"
+            }
           ]
         },
         {
@@ -996,9 +1059,18 @@
           "type": "enum",
           "default": "replace",
           "enumOptions": [
-            { "id": "replace", "label": "Replace" },
-            { "id": "add", "label": "Add" },
-            { "id": "subtract", "label": "Subtract" }
+            {
+              "id": "replace",
+              "label": "Replace"
+            },
+            {
+              "id": "add",
+              "label": "Add"
+            },
+            {
+              "id": "subtract",
+              "label": "Subtract"
+            }
           ]
         },
         {
@@ -1008,6 +1080,14 @@
           "group": "main",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "expand_to_components",
+          "label": "Expand to Connected Components",
+          "type": "bool",
+          "group": "main",
+          "default": false,
+          "help": "Grow what the rectangle touched to the whole connected component it belongs to, so grazing one triangle takes the entire piece. The growth starts from what the rectangle hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole component under the rectangle instead of growing whatever was left behind. Vertices are grown through their faces, since components are a face notion. Face-face adjacency is built on demand, so this costs more than a plain drag."
         }
       ],
       "outputModifies": [
@@ -1017,11 +1097,13 @@
     },
     {
       "id": "select_visible_vertices",
-      "categories": ["Selection/by Visibility"],
+      "categories": [
+        "Selection/by Visibility"
+      ],
       "name": "Select Visible Vertices",
       "pythonName": "select_visible_vertices",
       "shortDescription": "Select the vertices visible from a given viewpoint.",
-      "longDescriptionMarkdown": "Selects the vertices of the current layer that are **visible from a viewpoint**, using the *hidden point removal* operator: the points are inverted through a sphere centred on the viewpoint, and the ones landing on the convex hull of the inverted set are the visible ones.\n\nOnly vertex positions are used, so this works on a raw point cloud with no faces and no normals — which is what it is for. It is the point-cloud counterpart of *Select Visible Faces*, which needs a surface to cast rays against.\n\n**Radius Threshold** sets the inversion sphere radius as `radius * 10^threshold`. Larger values mark more points visible: use a large threshold for dense clouds and a small one for sparse clouds.\n\nThe selection is **added** to the current one; clear it first for an exact result.\n\nReference:\nSagi Katz, Ayellet Tal, Ronen Basri, **Direct Visibility of Point Sets**, ACM Transactions on Graphics 26(3), 2007.",
+      "longDescriptionMarkdown": "Selects the vertices of the current layer that are **visible from a viewpoint**, using the *hidden point removal* operator: the points are inverted through a sphere centred on the viewpoint, and the ones landing on the convex hull of the inverted set are the visible ones.\n\nOnly vertex positions are used, so this works on a raw point cloud with no faces and no normals \u2014 which is what it is for. It is the point-cloud counterpart of *Select Visible Faces*, which needs a surface to cast rays against.\n\n**Radius Threshold** sets the inversion sphere radius as `radius * 10^threshold`. Larger values mark more points visible: use a large threshold for dense clouds and a small one for sparse clouds.\n\nThe selection is **added** to the current one; clear it first for an exact result.\n\nReference:\nSagi Katz, Ayellet Tal, Ronen Basri, **Direct Visibility of Point Sets**, ACM Transactions on Graphics 26(3), 2007.",
       "tags": [
         "selection",
         "visibility",
@@ -1036,8 +1118,25 @@
         "requireVertices": true
       },
       "parameters": [
-        { "id": "radiusThreshold", "label": "Radius Threshold", "help": "Exponent of the inversion sphere radius (radius * 10^threshold). Larger values mark more points as visible; use a large value for dense clouds, a small one for sparse clouds.", "group": "main", "type": "double", "default": 0.0, "min": 0.0, "max": 7.0, "decimals": 3 },
-        { "id": "usecamera", "label": "Use ViewPoint from Mesh Camera", "help": "Uses the ViewPoint from the camera associated to the current mesh. If there is no camera, an error occurs.", "group": "main", "type": "bool", "default": false },
+        {
+          "id": "radiusThreshold",
+          "label": "Radius Threshold",
+          "help": "Exponent of the inversion sphere radius (radius * 10^threshold). Larger values mark more points as visible; use a large value for dense clouds, a small one for sparse clouds.",
+          "group": "main",
+          "type": "double",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 7.0,
+          "decimals": 3
+        },
+        {
+          "id": "usecamera",
+          "label": "Use ViewPoint from Mesh Camera",
+          "help": "Uses the ViewPoint from the camera associated to the current mesh. If there is no camera, an error occurs.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
         {
           "id": "viewpoint",
           "enabledWhen": "!usecamera",
@@ -1047,7 +1146,11 @@
           "type": "point3f",
           "point3fRole": "point",
           "point3fDefaultPreset": "cameraEye",
-          "default": [0.0, 0.0, 0.0]
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ]
         }
       ],
       "outputModifies": [

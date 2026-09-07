@@ -432,6 +432,7 @@ private slots:
     void abstractDomainConsumersRunAndRefuseWithoutIt();
     void atlasedMeshPacksOneUvSpaceForEveryChartShape();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
+    void rubberBandExpandsToConnectedComponents();
     void hardcodedFilterKeysInTheUiStillResolve();
     void setMatrixComposesOnTheLeftOfTheLayerTransform();
     void bothBallPivotingsInterpolateTheirInputPoints();
@@ -5981,6 +5982,109 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
 // built on points that were already there. The two implementations differ in almost every
 // other respect, which is why QMeshLab ships both, so this checks the property they share
 // rather than pinning either one's output.
+// The rubber-band tool's C modifier sets expand_to_components: grazing one triangle takes
+// the whole piece. Driven here in UV space, where the projection is fully determined by
+// pan/zoom/aspect, so which faces the rectangle hits is exact rather than inferred from a
+// camera. Three triangles form one component, a fourth stands alone, and the rectangle is
+// aimed at a single triangle of the first.
+void FilterTests::rubberBandExpandsToConnectedComponents()
+{
+    VCGMesh mesh;
+    auto *vi = &*vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 8);
+    const float p[8][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, {2, 0, 0},
+                           {10, 10, 0}, {11, 10, 0}, {10, 11, 0}};
+    for (int i = 0; i < 8; ++i)
+        mesh.vert[std::size_t(i)].P() = VCGMesh::CoordType(p[i][0], p[i][1], p[i][2]);
+    (void)vi;
+    auto *fi = &*vcg::tri::Allocator<VCGMesh>::AddFaces(mesh, 4);
+    (void)fi;
+    // Faces 0-2 share edges, so they are one component; face 3 is on its own.
+    const int idx[4][3] = {{0, 1, 2}, {1, 3, 2}, {1, 4, 3}, {5, 6, 7}};
+    for (int f = 0; f < 4; ++f)
+        for (int c = 0; c < 3; ++c)
+            mesh.face[std::size_t(f)].V(c) = &mesh.vert[std::size_t(idx[f][c])];
+
+    Document doc;
+    const int layer = doc.addMesh(mesh, QStringLiteral("components"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD
+                                      | vcg::tri::io::Mask::IOM_FACEINDEX
+                                      | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QVERIFY(layer >= 0);
+    doc.setCurrentMeshIndex(layer);
+
+    // UVs go on the document's own copy: enabling an OCF component on a local mesh does not
+    // survive being copied into the layer.
+    // One value per face -- the face rule uses the centroid of the three wedges, and with
+    // pan 0, zoom 1 and aspect 1 a u of x lands at (x + 1) / 2 across the screen.
+    VCGMesh &layerMesh = doc.mesh(layer).mesh;
+    layerMesh.face.EnableWedgeTexCoord();
+    QVERIFY(layerMesh.face.IsWedgeTexCoordEnabled());
+    // addMesh trims the mask to what the mesh actually carried, which at that point was
+    // nothing, so the bit has to go back on for the UV reader to look at the wedges.
+    doc.mesh(layer).ioMask |= vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+    // Writing UVs behind the document's back leaves the undo system's interned copy stale,
+    // and the next filter run would be handed that UV-less copy.
+    doc.markMeshGeometryChanged(layer, QStringLiteral("test UVs"));
+    const float faceU[4] = {0.0f, 0.3f, 0.6f, 0.9f};
+    for (int f = 0; f < 4; ++f)
+        for (int c = 0; c < 3; ++c) {
+            layerMesh.face[std::size_t(f)].WT(c).U() = faceU[f];
+            layerMesh.face[std::size_t(f)].WT(c).V() = 0.0f;
+        }
+    const QString key = filterKeyForId(doc, QStringLiteral("select_by_screen_rectangle"));
+    QVERIFY(!key.isEmpty());
+
+    // Returns the selected face indices. QVERIFY expands to `return;`, so a failed run is
+    // reported and comes back empty for the comparison to catch.
+    const auto drag = [&](const QString &mode, bool expand) -> QList<int> {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("space"), QStringLiteral("uv"));
+        // Unused in UV space, but the parameter is typed and has no default, so it has to
+        // be a well-formed camera state rather than an empty object.
+        params.insert(QStringLiteral("camera_state"),
+                      QStringLiteral(R"({"kind":"QMeshLab.CameraState","version":1})"));
+        params.insert(QStringLiteral("aspect"), 1.0);
+        params.insert(QStringLiteral("uv_pan_x"), 0.0);
+        params.insert(QStringLiteral("uv_pan_y"), 0.0);
+        params.insert(QStringLiteral("uv_zoom"), 1.0);
+        // Around screen (0.5, 0.5), which is u = 0: face 0 only.
+        params.insert(QStringLiteral("rect_min_x"), 0.45);
+        params.insert(QStringLiteral("rect_max_x"), 0.55);
+        params.insert(QStringLiteral("rect_min_y"), 0.45);
+        params.insert(QStringLiteral("rect_max_y"), 0.55);
+        params.insert(QStringLiteral("element"), QStringLiteral("face"));
+        params.insert(QStringLiteral("mode"), mode);
+        params.insert(QStringLiteral("visible_only"), false);
+        params.insert(QStringLiteral("expand_to_components"), expand);
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        if (!r.success) {
+            qWarning("rectangle select failed: %s", qPrintable(r.errorMessage));
+            return {};
+        }
+        QList<int> selected;
+        const VCGMesh &m = doc.mesh(0).mesh;
+        for (int f = 0; f < m.FN(); ++f)
+            if (m.face[std::size_t(f)].IsS())
+                selected << f;
+        return selected;
+    };
+
+    // Without expansion the rectangle takes what it covers, and nothing else.
+    QCOMPARE(drag(QStringLiteral("replace"), false), QList<int>({0}));
+    // With it, the whole component the rectangle grazed -- and none of the loner.
+    QCOMPARE(drag(QStringLiteral("replace"), true), QList<int>({0, 1, 2}));
+
+    // Subtract is the case worth pinning: the component under the rectangle has to come
+    // out, not the remainder be grown. Start from everything selected.
+    const QString allKey = filterKeyForId(doc, QStringLiteral("select_all"));
+    QVERIFY(doc.runFilter(allKey, {}).success);
+    QCOMPARE(drag(QStringLiteral("subtract"), true), QList<int>({3}));
+    // And subtract without expansion still removes only what the rectangle covered, which
+    // is the path the modifier reorganised.
+    QVERIFY(doc.runFilter(allKey, {}).success);
+    QCOMPARE(drag(QStringLiteral("subtract"), false), QList<int>({1, 2, 3}));
+}
+
 // The transform tool hands its gesture over as a raw matrix and relies on the filter
 // composing it on the LEFT of the layer's existing transform -- the gesture is in world
 // space, so `new = gesture * current`. Composing on the right would look correct on an

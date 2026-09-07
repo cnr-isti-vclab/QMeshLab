@@ -380,6 +380,7 @@ qt_add_resources(QMeshLab "icons"
         img/cur_sel_rect_eye.png
         img/cur_sel_rect_plus_eye.png
         img/cur_sel_rect_minus_eye.png
+        img/cur_badge_cc.png
 )
 
 qt_add_resources(QMeshLab "help"
