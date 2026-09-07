@@ -40,7 +40,7 @@ Methods
 .. py:method:: MeshSet.current_mesh(...)
    :module: _qmeshlab
 
-   current_mesh(self) -> int
+   current_mesh(self) -> object
 
 .. py:method:: MeshSet.current_mesh_id(...)
    :module: _qmeshlab
@@ -91,6 +91,11 @@ Methods
    :module: _qmeshlab
 
    load_raster_image(self, path: str) -> None
+
+.. py:method:: MeshSet.mesh(...)
+   :module: _qmeshlab
+
+   mesh(self, index: int) -> object
 
 .. py:method:: MeshSet.mesh_count(...)
    :module: _qmeshlab
