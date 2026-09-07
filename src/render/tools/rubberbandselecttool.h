@@ -7,7 +7,7 @@
 class QRubberBand;
 
 // Session tool: drag a rectangle to select the current mesh's faces (by centroid)
-// or vertices. On release it commits exactly one select_by_rectangle filter call
+// or vertices. On release it commits exactly one select_by_screen_rectangle filter call
 // (camera + normalized rect) → one undo node, fully scriptable. Modifiers:
 // Shift = add, Ctrl = subtract, otherwise replace. Keys: F/V switch faces/vertices,
 // Esc cancels the in-progress drag.

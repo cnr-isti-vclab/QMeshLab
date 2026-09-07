@@ -14,9 +14,10 @@
 
 namespace {
 
-constexpr const char *kTranslateKey = "qmeshlab.filter.meshing::compute_matrix_from_translation";
-constexpr const char *kRotateKey    = "qmeshlab.filter.meshing::compute_matrix_from_rotation";
-constexpr const char *kScaleKey     = "qmeshlab.filter.meshing::compute_matrix_from_scaling_or_normalization";
+// One filter for all three gestures: the gesture matrix goes over whole rather than
+// decomposed. See commitGesture().
+constexpr const char *kSetMatrixKey =
+    "qmeshlab.filter.meshing::set_matrix_from_values_or_layer";
 
 QVector3D axisVector(int axis)
 {
@@ -281,12 +282,8 @@ void TransformTool::commitGesture()
     }
 
     // Everything the commit needs, read before the gesture state is torn down.
-    const Gesture gesture = m_gesture;
     const int meshIndex = m_meshIndex;
     const QMatrix4x4 delta = gestureMatrix();
-    const QVector3D pivot = m_pivot;
-    const int axis = m_axis;
-    const double degrees = rotationDegrees();
 
     // The preview must be gone before runFilter captures its "before" snapshot,
     // or the undo step would restore a state that already includes the change.
@@ -299,50 +296,23 @@ void TransformTool::commitGesture()
     // no gesture left for that callback to cancel.
     clearGesture();
 
+    // gestureMatrix() already returns the complete world-space delta -- pivot translation
+    // and all -- so it is handed over as a matrix rather than decomposed into a translation,
+    // or an axis and an angle, or a scale and a centre. The layer then receives exactly the
+    // transform the preview drew instead of one reconstructed from parts, and none of it
+    // depends on the filter offering a pivot, which the merged Set Matrix filter does not.
     MeshFilterParameterValues params;
-    QString key;
-    switch (gesture) {
-    case Gesture::Translate: {
-        const QVector3D t = delta.column(3).toVector3D();
-        key = QString::fromLatin1(kTranslateKey);
-        params[QStringLiteral("traslMethod")] = QStringLiteral("xyz");
-        params[QStringLiteral("axis")] = t;
-        break;
-    }
-    case Gesture::Rotate: {
-        const QVector3D a = (axis >= 0) ? axisVector(axis) : viewForward();
-        key = QString::fromLatin1(kRotateKey);
-        params[QStringLiteral("rotAxis")] = QStringLiteral("custom");
-        params[QStringLiteral("customAxis")] = a;
-        params[QStringLiteral("angle")] = degrees;
-        // Explicit world-space centre rather than rotCenter=bbox_center: the filter
-        // reads mesh.bbox, which is the *untransformed* local box, yet composes its
-        // matrix in world space -- so the two only agree while the layer transform is
-        // identity, and the preview would drift from the commit on a moved layer.
-        params[QStringLiteral("rotCenter")] = QStringLiteral("custom");
-        params[QStringLiteral("customCenter")] = pivot;
-        break;
-    }
-    case Gesture::Scale: {
-        const QVector3D s(delta(0, 0), delta(1, 1), delta(2, 2));
-        key = QString::fromLatin1(kScaleKey);
-        params[QStringLiteral("axisX")] = double(s.x());
-        params[QStringLiteral("axisY")] = double(s.y());
-        params[QStringLiteral("axisZ")] = double(s.z());
-        params[QStringLiteral("uniformFlag")] = false;
-        params[QStringLiteral("scaleCenter")] = QStringLiteral("custom");
-        params[QStringLiteral("customCenter")] = pivot;
-        break;
-    }
-    case Gesture::None:
-        return;
-    }
-    // Keep it a layer matrix: baking every gesture would deep-copy the mesh.
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col)
+            params[QStringLiteral("m%1%2").arg(row).arg(col)] = double(delta(row, col));
+    // Keep it a layer matrix: baking every gesture would deep-copy the mesh. The filter
+    // composes what it is handed onto the existing layer transform.
     params[QStringLiteral("Freeze")] = false;
 
     const int previousCurrent = doc->currentMeshIndex();
     doc->setCurrentMeshIndex(meshIndex);
-    const MeshFilterRunResult result = doc->runFilter(key, params);
+    const MeshFilterRunResult result =
+        doc->runFilter(QString::fromLatin1(kSetMatrixKey), params);
     if (previousCurrent != meshIndex)
         doc->setCurrentMeshIndex(previousCurrent);
 

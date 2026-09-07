@@ -2589,7 +2589,7 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
     params.insert(QStringLiteral("colorMapId"), mapId);
 
     const QString filterKey =
-        QStringLiteral("qmeshlab.filter.colorproc::compute_color_from_scalar_per_vertex");
+        QStringLiteral("qmeshlab.filter.colorproc::colorize_vertices_by_scalar");
     const QString label = tr("Bake Quality to Vertex Color");
     m_doc->beginFilterProgress(label);
     // Document::runFilter logs the run's duration for every entry point; no timing here.

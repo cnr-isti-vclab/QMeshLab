@@ -432,6 +432,8 @@ private slots:
     void abstractDomainConsumersRunAndRefuseWithoutIt();
     void atlasedMeshPacksOneUvSpaceForEveryChartShape();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
+    void hardcodedFilterKeysInTheUiStillResolve();
+    void setMatrixComposesOnTheLeftOfTheLayerTransform();
     void bothBallPivotingsInterpolateTheirInputPoints();
     void ballPivotingRebuildsAfterDeletingTheInitialFaces();
 };
@@ -5979,6 +5981,89 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
 // built on points that were already there. The two implementations differ in almost every
 // other respect, which is why QMeshLab ships both, so this checks the property they share
 // rather than pinning either one's output.
+// The transform tool hands its gesture over as a raw matrix and relies on the filter
+// composing it on the LEFT of the layer's existing transform -- the gesture is in world
+// space, so `new = gesture * current`. Composing on the right would look correct on an
+// untransformed layer and wrong on every moved one, which is the sort of thing that gets
+// noticed late.
+void FilterTests::setMatrixComposesOnTheLeftOfTheLayerTransform()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+
+    QMatrix4x4 existing;
+    existing.translate(3.0f, 0.0f, 0.0f);
+    doc.setMeshTransform(0, existing);
+
+    // A rotation, so left and right composition give different answers.
+    QMatrix4x4 gesture;
+    gesture.rotate(90.0f, 0.0f, 0.0f, 1.0f);
+
+    MeshFilterParameterValues params;
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col)
+            params[QStringLiteral("m%1%2").arg(row).arg(col)] = double(gesture(row, col));
+    params[QStringLiteral("Freeze")] = false;
+    const MeshFilterRunResult r = doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("set_matrix_from_values_or_layer")), params);
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    const QMatrix4x4 expected = gesture * existing;
+    const QMatrix4x4 actual = doc.mesh(0).transform;
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col)
+            QVERIFY2(std::abs(actual(row, col) - expected(row, col)) < 1e-4f,
+                     qPrintable(QStringLiteral("m%1%2: %3 expected %4")
+                                    .arg(row).arg(col)
+                                    .arg(actual(row, col)).arg(expected(row, col))));
+}
+
+// The tools and the render widget reach for a handful of filters by literal
+// "pluginId::filterId" key. Nothing else ties those strings to the descriptors, so a naming
+// round renames the filter and the call site keeps asking for a filter that no longer
+// exists -- which is how rubber-band selection, the transform tool and the quality bake all
+// came to be broken at once, each failing only when a user reached for it.
+//
+// This reads the keys out of the sources rather than keeping a list here, so it cannot drift
+// out of date the way a hand-written list would.
+void FilterTests::hardcodedFilterKeysInTheUiStillResolve()
+{
+    Document doc;
+    QSet<QString> declared;
+    for (const auto &info : doc.filterInfos())
+        declared.insert(info.key);
+    QVERIFY(!declared.isEmpty());
+
+    const QRegularExpression keyPattern(
+        QStringLiteral("qmeshlab\\.filter\\.[a-z_]+::[a-z_]+"));
+    QStringList missing;
+    int found = 0;
+    QDirIterator it(QStringLiteral(TEST_SOURCE_DIR "/src"),
+                    {QStringLiteral("*.cpp"), QStringLiteral("*.h")},
+                    QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString path = it.next();
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            continue;
+        const QString text = QString::fromUtf8(file.readAll());
+        auto matches = keyPattern.globalMatch(text);
+        while (matches.hasNext()) {
+            const QString key = matches.next().captured(0);
+            ++found;
+            if (!declared.contains(key))
+                missing << QStringLiteral("%1 (%2)").arg(key, QFileInfo(path).fileName());
+        }
+    }
+
+    // If this ever drops to zero the pattern has stopped matching and the test is asleep.
+    QVERIFY2(found > 0, "found no hardcoded filter keys in src/ -- has the pattern gone stale?");
+    QVERIFY2(missing.isEmpty(),
+             qPrintable(QStringLiteral("filter keys referenced in the UI no longer exist: %1")
+                            .arg(missing.join(QStringLiteral(", ")))));
+}
+
 void FilterTests::bothBallPivotingsInterpolateTheirInputPoints()
 {
     for (const QString &id : {QStringLiteral("reconstruct_surface_by_ball_pivoting_gruber"),
