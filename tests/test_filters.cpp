@@ -433,6 +433,7 @@ private slots:
     void atlasedMeshPacksOneUvSpaceForEveryChartShape();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
     void rubberBandExpandsToConnectedComponents();
+    void islandMergeCanTakeItsIslandsFromTheSelection();
     void hardcodedFilterKeysInTheUiStillResolve();
     void setMatrixComposesOnTheLeftOfTheLayerTransform();
     void bothBallPivotingsInterpolateTheirInputPoints();
@@ -5982,6 +5983,93 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
 // built on points that were already there. The two implementations differ in almost every
 // other respect, which is why QMeshLab ships both, so this checks the property they share
 // rather than pinning either one's output.
+// Merge Small Texture Islands can take its candidates from the face selection instead of
+// from the size threshold, so a chart can be folded into a chosen neighbour by hand.
+void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
+{
+    // A trivial per-triangle parametrization: every face is its own island, which is the
+    // cheapest thing to hand an island merger.
+    const auto build = [](Document &doc) {
+        VCGMesh grid;
+        constexpr int kSide = 3;
+        vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
+        for (int j = 0; j < kSide; ++j)
+            for (int i = 0; i < kSide; ++i)
+                grid.vert[std::size_t(j * kSide + i)].P() =
+                    vcg::Point3f(float(i), float(j), 0.0f);
+        for (int j = 0; j < kSide - 1; ++j)
+            for (int i = 0; i < kSide - 1; ++i) {
+                const int a = j * kSide + i;
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + 1, a + kSide + 1);
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + kSide + 1, a + kSide);
+            }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+        const int index = doc.addMesh(grid, QStringLiteral("Grid"),
+                                      vcg::tri::io::Mask::IOM_VERTCOORD);
+        doc.setCurrentMeshIndex(index);
+        MeshFilterParameterValues uvParams;
+        uvParams.insert(QStringLiteral("textdim"), 256);
+        return doc.runFilter(
+            filterKeyForId(doc,
+                QStringLiteral("parametrize_by_trivial_per_triangle_layout")),
+            uvParams).success;
+    };
+
+    const auto mergeParams = [](bool bySelection) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("islandSource"),
+                      bySelection ? QStringLiteral("selection") : QStringLiteral("by_size"));
+        params.insert(QStringLiteral("resampleTextures"), false);
+        params.insert(QStringLiteral("quickRun"), true);
+        return params;
+    };
+
+    // Asked to merge the selection with nothing selected: refused, and the message says
+    // what to do about it rather than reporting a silent no-op.
+    {
+        Document doc;
+        QVERIFY(build(doc));
+        const QString key =
+            filterKeyForId(doc, QStringLiteral("merge_small_texture_islands"));
+        QVERIFY(!key.isEmpty());
+        const MeshFilterRunResult r = doc.runFilter(key, mergeParams(true));
+        QVERIFY2(!r.success, "merging by selection with nothing selected should refuse");
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("no faces are selected")),
+                 qPrintable(r.errorMessage));
+    }
+
+    // With a face selected, the run goes through and the layer keeps its parametrization.
+    {
+        Document doc;
+        QVERIFY(build(doc));
+        VCGMesh &m = doc.mesh(0).mesh;
+        QVERIFY(m.FN() >= 4);
+        // One island selected, out of eight. That is enough to catch both ways this can go
+        // wrong: the selected mark used to be inherited by the merged chart, so a single
+        // selected face swallowed the whole atlas, and the queued costs are computed up
+        // front, so pairs that were eligible when queued used to execute after the mark had
+        // been consumed. Either way more than one merge would happen.
+        m.face[0].SetS();
+        const QString key =
+            filterKeyForId(doc, QStringLiteral("merge_small_texture_islands"));
+        const int faceCount = m.FN();
+        const MeshFilterRunResult r = doc.runFilter(key, mergeParams(true));
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        QVERIFY(!r.newMeshIndices.empty());
+        const Document::MeshEntry &out = doc.mesh(r.newMeshIndices.front());
+        QVERIFY(vcg::tri::HasPerWedgeTexCoord(out.mesh));
+        QCOMPARE(out.mesh.FN(), faceCount);
+        const QString tally = r.infoMessages.filter(QStringLiteral("UV islands:")).value(0);
+        QVERIFY2(!tally.isEmpty(), qPrintable(r.infoMessages.join(QStringLiteral(" | "))));
+        const QRegularExpression merged(QStringLiteral("\\((\\d+) merged away\\)"));
+        const QRegularExpressionMatch mm = merged.match(tally);
+        QVERIFY2(mm.hasMatch(), qPrintable(tally));
+        qDebug("   %s", qPrintable(tally));
+        // Exactly the island that was selected: something merged, and only that one.
+        QCOMPARE(mm.captured(1).toInt(), 1);
+    }
+}
+
 // The rubber-band tool's C modifier sets expand_to_components: grazing one triangle takes
 // the whole piece. Driven here in UV space, where the projection is fully determined by
 // pan/zoom/aspect, so which faces the rectangle hits is exact rather than inferred from a

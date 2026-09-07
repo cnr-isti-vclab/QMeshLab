@@ -150,6 +150,11 @@ void FaceGroup::UpdateCache() const
         weightedSumNormal += (fptr->P(1) - fptr->P(0)) ^ (fptr->P(2) ^ fptr->P(0));
     }
 
+    // QMeshLab: folded into the existing sweep rather than given one of its own.
+    bool anySelectedFace = false;
+    for (auto fptr : fpVec)
+        anySelectedFace = anySelectedFace || fptr->IsS();
+
     double border3D = 0.0;
     double borderUV = 0.0;
     for (auto fptr : fpVec) {
@@ -167,6 +172,7 @@ void FaceGroup::UpdateCache() const
     cache.border3D = border3D;
     cache.weightedSumNormal = weightedSumNormal;
     cache.uvFlipped = (areaUV < 0);
+    cache.anySelectedFace = anySelectedFace;
 
     dirty = false;
 }
@@ -196,6 +202,25 @@ double FaceGroup::OriginalAreaUV() const
         doubleAreaUV += std::abs((tcs.tc[1].P() - tcs.tc[0].P()) ^ (tcs.tc[2].P() - tcs.tc[0].P()));
     }
     return 0.5 * doubleAreaUV;
+}
+
+// QMeshLab: see Cache::anySelectedFace.
+bool FaceGroup::AnySelectedFace() const
+{
+    if (dirty)
+        UpdateCache();
+    return cache.anySelectedFace;
+}
+
+// QMeshLab: a selected island is meant to be dissolved once, not to become a seed that
+// keeps absorbing its neighbours -- the selected mark is inherited by the union, so left in
+// place a single selected face would swallow the whole connected atlas. Clearing it as the
+// merge is accepted is what stops the cascade.
+void FaceGroup::ClearFaceSelection()
+{
+    for (auto fptr : fpVec)
+        fptr->ClearS();
+    dirty = true;
 }
 
 double FaceGroup::AreaUV() const

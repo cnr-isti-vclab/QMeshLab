@@ -56,6 +56,11 @@ struct FaceGroup {
         double border3D;
         vcg::Point3d weightedSumNormal;
         bool uvFlipped;
+        // QMeshLab: whether any face of the chart is selected, so the island merger can be
+        // driven by a hand-made selection as well as by a size threshold. Cached with the
+        // rest because ComputeCost asks per candidate merge, and kept honest by the same
+        // dirty flag -- a merge appends faces through AddFace, which sets it.
+        bool anySelectedFace;
     };
 
     void UpdateCache() const;
@@ -92,6 +97,8 @@ struct FaceGroup {
     double BorderUV() const;
     double Border3D() const;
     bool UVFlipped() const;
+    bool AnySelectedFace() const;  // QMeshLab: see Cache::anySelectedFace
+    void ClearFaceSelection();     // QMeshLab: consumes the mark once the chart is merged
     vcg::Box2d UVBox() const;
 
     bool UVFlipped();

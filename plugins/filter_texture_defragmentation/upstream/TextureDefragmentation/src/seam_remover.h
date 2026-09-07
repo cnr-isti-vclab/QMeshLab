@@ -77,6 +77,11 @@ struct AlgoParameters {
 
     // === FP_SMALL_CHARTS_REMOVER parameters ===
     double maxThreshold          = 0.0;
+    // QMeshLab: with this on, the island merger takes its candidates from the face
+    // selection instead of from maxThreshold. Same rule either way -- a merge is allowed
+    // when at least one of the two charts qualifies -- so a selected island dissolves into
+    // its neighbour and unselected pairs are left alone.
+    bool mergeSelectedIslands    = false;
     int targetTexCount               = 0;
 
     // === SHARED PARAMETERS ===

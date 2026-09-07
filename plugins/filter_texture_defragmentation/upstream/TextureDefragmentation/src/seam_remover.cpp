@@ -498,6 +498,25 @@ void GreedyOptimization(GraphHandle graph, AlgoStateHandle state, const AlgoPara
                     LogExecutionStats();
                 }
 
+                // QMeshLab: eligibility is re-checked here, at the point of action, and
+                // not only where the cost was computed. Costs are worked out up front, so
+                // a pair that was eligible when it entered the queue can come up for
+                // execution after its selected island has already been dissolved -- and
+                // executing it anyway is how a hand-picked merge quietly pulls in
+                // neighbours nobody asked for. The pair is dropped rather than requeued:
+                // it is not going to become eligible again.
+                if (params.mergeSelectedIslands) {
+                    ChartPair pair = GetCharts(ws.first, graph);
+                    if (!pair.first->AnySelectedFace() && !pair.second->AnySelectedFace()) {
+                        // Retired rather than merely skipped: the loop stops when the top
+                        // of the queue is infinite, so dropping the seam without recording
+                        // that cost leaves it churning through stale finite entries.
+                        state->cost[ws.first] = Infinity();
+                        LOG_DEBUG << "Retired operation: neither chart is selected";
+                        continue;
+                    }
+                }
+
                 // We prepare for the merge operation by keeping a snapshot of the UV
                 // parametrization before the current merge operation. All backed-up
                 // information is stored within the SeamData instance `sd`. If the merge
@@ -602,6 +621,13 @@ void GreedyOptimization(GraphHandle graph, AlgoStateHandle state, const AlgoPara
                 statsCheck[status]++;
                 if (status == PASS) {
                     AcceptMove(sd, state, graph, params);
+                    // QMeshLab: see FaceGroup::ClearFaceSelection. Only once the merge is
+                    // committed -- the checks above can still reject it, and a rejected
+                    // merge must leave the island eligible for another neighbour.
+                    if (params.mergeSelectedIslands) {
+                        sd.a->ClearFaceSelection();
+                        sd.b->ClearFaceSelection();
+                    }
                     ColorizeSeam(sd.csh, vcg::Color4b(255, 69, 0, 255));
                     accept++;
                     LOG_DEBUG << "Accepted operation";
@@ -879,12 +905,20 @@ static CostInfo ComputeCost (
     // ========= VARIANT USING MEDIAN BORDER =========
 
     ///////////////////// CHANGE FILTERTYPE AFTER SETTING UP AN ENUM FOR THE VARIANT OF TEXTURE DEFRAG /////////////////
+    // ========= QMESHLAB VARIANT USING THE FACE SELECTION =========
+    // Same shape as the size rule below it: reject only when *neither* chart qualifies.
+    const bool selectionCond   =  params.filterType == FilterType::SmallIslandRemover                       &&
+                                  params.mergeSelectedIslands                                              &&
+                                  !a->AnySelectedFace()                                                    &&
+                                  !b->AnySelectedFace();
+
     const bool smallIslandCond =  params.filterType == FilterType::SmallIslandRemover                       &&
+                                  !params.mergeSelectedIslands                                             &&
                                   params.maxThreshold > 0                                                   &&
                                   a->BorderUV() > params.maxThreshold                                       &&
                                   b->BorderUV() > params.maxThreshold;
 
-    if (smallIslandCond) {
+    if (selectionCond || smallIslandCond) {
         return { Infinity(), {}, CostInfo::OVER_UV_AREA };
     }
 

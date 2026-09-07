@@ -105,6 +105,11 @@ bool buildDefragMesh(const VCGMesh &source, Mesh &defragMesh, QString &error)
             fi->WT(k).V() = srcF.cWT(k).V();
             fi->WT(k).N() = srcF.cWT(k).N();
         }
+        // The face selection travels with the face rather than being matched up by index
+        // later: the pipeline cleans and compacts the mesh before the chart graph is built,
+        // so index alignment with the source is not something to rely on.
+        if (srcF.IsS())
+            fi->SetS();
         fi->SetMesh();
     }
 
@@ -247,6 +252,21 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
         return fail(QObject::tr("%1 requires a non-empty triangular mesh.").arg(filterLabel));
     if (!vcg::tri::HasPerWedgeTexCoord(sourceMesh))
         return fail(QObject::tr("%1 requires per-wedge texture coordinates.").arg(filterLabel));
+    // Merging by selection with nothing selected would run the whole pipeline and change
+    // nothing, so it is caught here rather than reported as a no-op afterwards.
+    int selectedFaceCount = 0;
+    for (const VCGFace &f : sourceMesh.face)
+        if (!f.IsD() && f.IsS())
+            ++selectedFaceCount;
+    const bool mergeBySelection =
+        !isDefrag && !isRepack
+        && params.getEnum(QStringLiteral("islandSource")) == QStringLiteral("selection");
+    if (mergeBySelection && selectedFaceCount == 0)
+        return fail(QObject::tr(
+            "%1 was asked to merge the selected islands, but no faces are selected. Select "
+            "some faces on the islands you want dissolved -- one face is enough to name an "
+            "island -- or set Islands to merge back to 'below a size threshold'.")
+                        .arg(filterLabel));
     const bool wantsResampling = params.getBool(QStringLiteral("resampleTextures"), true);
     const int sourceTextureCount = Document::meshTextureAssociationCount(sourceEntry);
     // All three filters read the source images only to learn their resolution, and sample
@@ -442,6 +462,9 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
         // islands are precisely the ones with poor seam-to-boundary ratios, so
         // penalizing them would deprioritize exactly the merges we want.
         ap.expb = 0.0;
+
+        // Candidates come either from the size threshold below or from the face selection.
+        ap.mergeSelectedIslands = mergeBySelection;
 
         const double multiplier = params.getDouble("maxMultiplier", 1.0);
         // ========== TRANSLATION OVER MULTIPLIER AGAINST MEDIAN ISLAND SIZE ===========
@@ -751,6 +774,10 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
                  ? QObject::tr("Output textures: %1").arg(renderedTextures.size())
                  : QObject::tr("Textures not resampled: the layer carries the new atlas "
                                "layout and no texture images."))
+         << QObject::tr("UV islands: %1 before, %2 after (%3 merged away).")
+                .arg(islandsBeforeDefrag)
+                .arg(islandsAfterDefrag)
+                .arg(islandsBeforeDefrag - islandsAfterDefrag)
          << QObject::tr("Charts packed: %1").arg(chartsToPack.size())
          << QObject::tr("Duplicated vertices introduced by seam processing: %1").arg(duplicatedVertices);
     if (removedZeroFaces > 0)
