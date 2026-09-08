@@ -6600,9 +6600,9 @@ Implementation note: the original reference code used OpenGL to rasterize the ne
 
 ---
 
-(filter-merge-small-texture-islands)=
+(filter-merge-texture-islands)=
 
-## Merge Small Texture Islands
+## Merge Texture Islands
 
 **Categories:** `Parametrization/Defragmentation`, `Texture`
 
@@ -6610,7 +6610,7 @@ Implementation note: the original reference code used OpenGL to rasterize the ne
 
 Merge texture islands -- the small ones, or the ones you select -- into neighbors sharing a seam, then repack and resample the atlas.
 
-```{py:function} ms.merge_small_texture_islands(**params)
+```{py:function} ms.merge_texture_islands(**params)
 :module: _qmeshlab
 
 Dissolves texture islands into a neighbour they share a seam with, so the pair becomes one island with one fewer seam between them.

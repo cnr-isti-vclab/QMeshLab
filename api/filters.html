@@ -5486,14 +5486,14 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
-<section id="merge-small-texture-islands">
-<span id="filter-merge-small-texture-islands"></span><h2>Merge Small Texture Islands<a class="headerlink" href="#merge-small-texture-islands" title="Link to this heading">¶</a></h2>
+<section id="merge-texture-islands">
+<span id="filter-merge-texture-islands"></span><h2>Merge Texture Islands<a class="headerlink" href="#merge-texture-islands" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span></code></p>
 <p><strong>Plugin:</strong> qmeshlab.filter.texture_defragmentation</p>
 <p>Merge texture islands – the small ones, or the ones you select – into neighbors sharing a seam, then repack and resample the atlas.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="qmeshlab.ms.merge_small_texture_islands">
-<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">merge_small_texture_islands</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.merge_small_texture_islands" title="Link to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="qmeshlab.ms.merge_texture_islands">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">merge_texture_islands</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.merge_texture_islands" title="Link to this definition">¶</a></dt>
 <dd><p>Dissolves texture islands into a neighbour they share a seam with, so the pair becomes one island with one fewer seam between them.</p>
 <p>Which islands go is up to <em>Islands to merge</em>: either every island under a size threshold, which is the automatic sweep, or the ones you picked by hand. In the second mode any island holding at least one selected face is a candidate – select a single face to name an island – and it is merged into an adjacent island, which is how you fold a chart into a particular neighbour rather than whichever the size sweep would have chosen. An island with no selected neighbour has nowhere to go and is left alone. The procedure tries to avoid distortion and overlap introduced by the removal of islands. It shares the defragmentation pipeline: UVs are scaled into pixel space before anything else runs, the surviving charts are repacked, and the new atlas is resampled from the originals, so the layer comes back with new texture images and not just moved UVs.</p>
 <p>Turn off <em>Resample textures</em> to treat it as a parametrization operation instead. The layer then comes back with the merged, repacked UV layout and no texture images – and in that mode a layer that has a parametrization but no texture yet is a valid input.</p>
@@ -8314,8 +8314,8 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 <li><a class="reference internal" href="#qmeshlab.ms.defragment_texture_atlas"><code class="docutils literal notranslate"><span class="pre">ms.defragment_texture_atlas()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#merge-small-texture-islands">Merge Small Texture Islands</a><ul>
-<li><a class="reference internal" href="#qmeshlab.ms.merge_small_texture_islands"><code class="docutils literal notranslate"><span class="pre">ms.merge_small_texture_islands()</span></code></a></li>
+<li><a class="reference internal" href="#merge-texture-islands">Merge Texture Islands</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.merge_texture_islands"><code class="docutils literal notranslate"><span class="pre">ms.merge_texture_islands()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#convert-per-vertex-uv-to-per-wedge-uv">Convert Per-Vertex UV to Per-Wedge UV</a><ul>
