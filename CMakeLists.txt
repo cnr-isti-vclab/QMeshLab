@@ -12,6 +12,17 @@ endif()
 
 project(QMeshLab LANGUAGES CXX)
 
+# Product identity, single source of truth for the macOS bundle (see
+# resources/Info.plist.in) and anywhere else the app names itself.
+# Version follows the MeshLab date scheme (YYYY.MM); CI may override it.
+set(QMESHLAB_VERSION "2026.11" CACHE STRING "Product version, YYYY.MM")
+set(QMESHLAB_BUNDLE_NAME "QMeshLab")
+# Deliberately distinct from classic MeshLab's com.vcg.meshlab so both can be
+# installed side by side. Changing this invalidates code-signing identity and
+# the user's TCC privacy grants, so treat it as stable.
+set(QMESHLAB_BUNDLE_IDENTIFIER "net.meshlab.MeshLab")
+set(QMESHLAB_BUNDLE_COPYRIGHT "© 2026 Visual Computing Lab, CNR-ISTI. GPL-3.0.")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -218,13 +229,12 @@ qt_add_executable(QMeshLab
 
 set_target_properties(QMeshLab PROPERTIES
     MACOSX_BUNDLE TRUE
-    # Stable bundle identity. Without this Qt substitutes a placeholder
-    # (com.yourcompany.<hash>.QMeshLab) whose hash component is not stable across
-    # build trees, which breaks code-signing identity, TCC privacy grants, `open -b`
-    # and Launch Services. Deliberately distinct from classic MeshLab's
-    # com.vcg.meshlab so both can be installed side by side.
-    MACOSX_BUNDLE_GUI_IDENTIFIER "net.meshlab.MeshLab"
-    MACOSX_BUNDLE_BUNDLE_NAME "QMeshLab"
+    # Also set as target properties, not only in the plist: the Xcode generator and
+    # some Qt deployment tooling read these rather than the generated Info.plist.
+    MACOSX_BUNDLE_GUI_IDENTIFIER "${QMESHLAB_BUNDLE_IDENTIFIER}"
+    MACOSX_BUNDLE_BUNDLE_NAME "${QMESHLAB_BUNDLE_NAME}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${QMESHLAB_VERSION}"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${QMESHLAB_VERSION}"
 )
 
 option(QMESH_MACOS_BUNDLE_ICON "Generate and embed the macOS app bundle icon" ON)
@@ -245,8 +255,29 @@ if (APPLE AND QMESH_MACOS_BUNDLE_ICON)
     set_source_files_properties("${QMESHLAB_APP_ICON_ICNS}" PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources"
     )
+    set(QMESHLAB_BUNDLE_ICON_NAME "QMeshLab.icns")
     set_target_properties(QMeshLab PROPERTIES
-        MACOSX_BUNDLE_ICON_FILE "QMeshLab.icns"
+        MACOSX_BUNDLE_ICON_FILE "${QMESHLAB_BUNDLE_ICON_NAME}"
+    )
+endif()
+
+# macOS bundle metadata: identity, version, minimum OS, and the document type
+# associations that make double-click open, "Open With", and drag-onto-Dock work.
+# Qt's default template supplies none of that — it ships a placeholder identifier,
+# reports version 1.0, leaves LSMinimumSystemVersion empty, and registers no
+# document types at all. Pre-configured here with @ONLY so every value is
+# resolved from this scope rather than by Qt's own substitution pass.
+if (APPLE)
+    if (NOT DEFINED QMESHLAB_BUNDLE_ICON_NAME)
+        set(QMESHLAB_BUNDLE_ICON_NAME "")
+    endif()
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/resources/Info.plist.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
+        @ONLY
+    )
+    set_target_properties(QMeshLab PROPERTIES
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
     )
 endif()
 

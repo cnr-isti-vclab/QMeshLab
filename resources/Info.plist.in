@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS bundle metadata for QMeshLab.
+
+  Configured by the root CMakeLists.txt into ${CMAKE_CURRENT_BINARY_DIR}/Info.plist
+  and installed through the MACOSX_BUNDLE_INFO_PLIST target property.  Placeholders
+  use the at-sign form and are resolved by configure_file(... @ONLY), so nothing
+  here depends on CMake's or Qt's own plist substitution pass.
+
+  This file exists because Qt's default template ships placeholder identity
+  (com.yourcompany.<hash>.<target>), reports version 1.0, leaves
+  LSMinimumSystemVersion empty, and declares no document types at all — which
+  means double-clicking a .ply or .mlp would not open the application.
+-->
+<plist version="1.0">
+<dict>
+    <!-- Identity -->
+    <key>CFBundleIdentifier</key>
+    <string>@QMESHLAB_BUNDLE_IDENTIFIER@</string>
+    <key>CFBundleName</key>
+    <string>@QMESHLAB_BUNDLE_NAME@</string>
+    <key>CFBundleDisplayName</key>
+    <string>@QMESHLAB_BUNDLE_NAME@</string>
+    <key>CFBundleExecutable</key>
+    <string>@QMESHLAB_BUNDLE_NAME@</string>
+    <key>CFBundleIconFile</key>
+    <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.graphics-design</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>@QMESHLAB_BUNDLE_COPYRIGHT@</string>
+
+    <!-- Version.  CFBundleVersion must increase monotonically across releases. -->
+    <key>CFBundleShortVersionString</key>
+    <string>@QMESHLAB_VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@QMESHLAB_VERSION@</string>
+
+    <!--
+      Minimum OS.  Left empty by the default template, which means macOS lets the
+      app launch on an unsupported system and it dies with a dyld symbol error
+      instead of showing "requires a newer version of macOS".
+    -->
+    <key>LSMinimumSystemVersion</key>
+    <string>@CMAKE_OSX_DEPLOYMENT_TARGET@</string>
+
+    <!-- Runtime.  NSRequiresAquaSystemAppearance is deliberately absent so the
+         application follows the system light/dark appearance. -->
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+
+    <!--
+      Document types.  Enables double-click open, Finder's "Open With", dragging
+      files onto the Dock icon, and "always open with".
+
+      LSHandlerRank is set deliberately:
+        Owner     — formats belonging to this project (.mlp, .vmi)
+        Alternate — widely shared formats (.ply .obj .stl .off .gltf .glb .3mf .e57)
+
+      "Alternate" is the courteous choice for shared formats: it registers the app
+      as a capable handler without seizing .obj or .stl from whatever the user
+      already prefers (Blender, Cinema 4D, Preview).  Claiming Default here would
+      silently hijack those associations on install.
+
+      CFBundleTypeRole is "Editor" throughout.  Any format that turns out to be
+      import-only should be changed to "Viewer" so macOS does not imply save
+      support — worth checking for .e57.
+
+      Association is declared via CFBundleTypeExtensions rather than
+      LSItemContentTypes for the public formats.  Apple does publish UTIs for some
+      of these (PLY, STL, OBJ), but asserting a UTI that turns out to be wrong
+      breaks the association silently, whereas the extension form is reliable.
+      Add LSItemContentTypes later if Quick Look integration is wanted.
+    -->
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>MeshLab Project</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>mlp</string></array>
+            <key>LSItemContentTypes</key>
+            <array><string>net.meshlab.project</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>VCG Mesh Image</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>vmi</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Stanford Polygon File</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>ply</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Wavefront OBJ</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>obj</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Stereolithography Model</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>stl</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Object File Format</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>off</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>glTF 3D Scene</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>gltf</string>
+                <string>glb</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>3D Manufacturing Format</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>3mf</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>E57 Point Cloud</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>e57</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+        </dict>
+    </array>
+
+    <!--
+      .mlp is this project's own format, so it gets a real exported UTI rather
+      than an extension-only declaration.  MeshLab project files are XML.
+    -->
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>net.meshlab.project</string>
+            <key>UTTypeDescription</key>
+            <string>MeshLab Project</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.xml</string>
+            </array>
+            <key>UTTypeIconFile</key>
+            <string>@QMESHLAB_BUNDLE_ICON_NAME@</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array><string>mlp</string></array>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>
