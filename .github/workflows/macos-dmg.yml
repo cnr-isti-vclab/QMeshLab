@@ -2,9 +2,26 @@ name: macOS DMG
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    # A documentation-only commit cannot break packaging. paths-ignore only skips
+    # the run when *every* changed file matches, so a commit touching both docs
+    # and code still builds.
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/workflows/docs.yml'
 
 permissions:
   contents: read
+
+# One build per branch. Pushing again while a build is in flight cancels it rather
+# than queueing a second: only the newest commit is worth packaging. A run started by
+# hand gets a group of its own, so a push cannot cancel a release build and two manual
+# runs cannot cancel each other.
+concurrency:
+  group: macos-dmg-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'push' }}
+  cancel-in-progress: true
 
 jobs:
   build-dmg:
@@ -138,6 +155,7 @@ jobs:
             ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
             ${{ env.VCPKG_ROOT }}/buildtrees/**/*.txt
           if-no-files-found: warn
+          retention-days: 7
 
       - name: Configure
         run: |
@@ -271,6 +289,7 @@ jobs:
           name: ${{ steps.release-metadata.outputs.artifact_stem }}-notarization-log
           path: ${{ env.NOTARY_LOG_PATH }}
           if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v7
@@ -278,3 +297,7 @@ jobs:
           name: ${{ steps.release-metadata.outputs.artifact_stem }}
           path: ${{ github.workspace }}/build-release/${{ steps.release-metadata.outputs.artifact_stem }}.dmg
           if-no-files-found: error
+          # Every push builds one of these, so they have to expire or the artifact
+          # list becomes unusable. Two weeks is long enough to go back to last
+          # week's build; a release worth keeping should be attached to a release.
+          retention-days: 14
