@@ -39,7 +39,7 @@
 namespace {
 
 constexpr QLatin1StringView kFilterTextureDefrag("defragment_texture_atlas");
-constexpr QLatin1StringView kFilterSmallIslandsRemover("merge_small_texture_islands");
+constexpr QLatin1StringView kFilterMergeIslands("merge_texture_islands");
 constexpr QLatin1StringView kFilterPackCharts("pack_uv_charts");
 
 using Mask = vcg::tri::io::Mask;
@@ -220,11 +220,11 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     Document &doc) const
 {
     // Core checks before starting the process.
-    // 1 - ensure that the requested filter was either Defragment Texture Atlas or Merge Small Texture Islands.
+    // 1 - ensure that the requested filter was either Defragment Texture Atlas or Merge Texture Islands.
     // 2 - ensure that a mesh was selected.
     // 3 - ensure that the mesh provided has faces, per-wedge texture coordinates and has at least one texture image.
     if (filterId != QString::fromLatin1(kFilterTextureDefrag) &&
-        filterId != QString::fromLatin1(kFilterSmallIslandsRemover) &&
+        filterId != QString::fromLatin1(kFilterMergeIslands) &&
         filterId != QString::fromLatin1(kFilterPackCharts)) {
         return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
     }
@@ -237,7 +237,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     const bool isRepack = (filterId == QString::fromLatin1(kFilterPackCharts));
     const QString filterLabel = isDefrag  ? QObject::tr("Defragment Texture Atlas")
                               : isRepack  ? QObject::tr("Pack UV Charts")
-                                          : QObject::tr("Merge Small Texture Islands");
+                                          : QObject::tr("Merge Texture Islands");
 
     const int meshIndex = doc.currentMeshIndex();
     if (meshIndex < 0 || meshIndex >= doc.meshCount()) {
@@ -441,7 +441,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
         ap.offsetFactor = params.getDouble(QStringLiteral("offsetFactor"), 5.0);
         ap.timelimit = params.getDouble(QStringLiteral("timelimit"), 0.0);
     }
-    else if (filterId == QString::fromLatin1(kFilterSmallIslandsRemover)) {
+    else if (filterId == QString::fromLatin1(kFilterMergeIslands)) {
         ap.filterType = FilterType::SmallIslandRemover;
         ap.timelimit = params.getDouble(QStringLiteral("timelimit"), 0.0);
         ap.reduce = true;
@@ -547,7 +547,7 @@ MeshFilterRunResult TextureDefragFilterPlugin::runFilter(
     //	  merge operation. After a merge it tries to run an As-Rigid-As-Possible (ARAP) optimization to fix
     //	  the introduced distortion. Note that if the merge introduces too much distortion or unfixable
     //	  overlaps, it is rejected and its operations are rolled back. Note that the distortion checks are
-    //	  skipped when running Merge Small Texture Islands with distortionMode set to LOOSE.
+    //	  skipped when running Merge Texture Islands with distortionMode set to LOOSE.
     //
     //	* `Finalize` prepares the now optimized input mesh to be returned, collapsing coincident duplicate
     //	  vertices, removing orphaned vertices and rebuilding topologies.

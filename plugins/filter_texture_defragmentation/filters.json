@@ -167,13 +167,13 @@
       ]
     },
     {
-      "id": "merge_small_texture_islands",
+      "id": "merge_texture_islands",
       "categories": [
         "Parametrization/Defragmentation",
         "Texture"
       ],
-      "name": "Merge Small Texture Islands",
-      "pythonName": "merge_small_texture_islands",
+      "name": "Merge Texture Islands",
+      "pythonName": "merge_texture_islands",
       "referenceIds": [
         "maggiordomo2021texture"
       ],

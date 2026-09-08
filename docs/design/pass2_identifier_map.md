@@ -270,7 +270,7 @@ distinct, so no filter collides with another.
 | Convert Object-Space Normal Map to Tangent Space | `convert_object_space_normal_map_to_tangent_space` | `convert_normal_map_to_tangent_space` | `convert_object_space_normal_map_to_tangent_space` |
 | Pack Texture Images | `pack_textures` | `pack_texture_per_mesh` | `pack_texture_images` |
 | Defragment Texture Atlas | `apply_texmap_defragmentation` | `defragment_texture_map` | `defragment_texture_atlas` |
-| Merge Small Texture Islands | `apply_small_islands_remover` | `small_islands_remover` | `merge_small_texture_islands` |
+| Merge Texture Islands | `apply_small_islands_remover` | `small_islands_remover` | `merge_texture_islands` |
 | Pack UV Charts | `pack_uv_charts` | `pack_uv_charts` | `pack_uv_charts` |
 | Flip Edges by Planarity | `meshing_edge_flip_by_planar_optimization` | `meshing_edge_flip_by_planar_optimization` | `flip_edges_by_planarity` |
 | Flip Edges by Curvature | `meshing_edge_flip_by_curvature_optimization` | `meshing_edge_flip_by_curvature_optimization` | `flip_edges_by_curvature` |

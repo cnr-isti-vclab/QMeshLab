@@ -1169,11 +1169,15 @@ qualifier. `into` → `to`, the ratified connector.
 
 | Current | Proposed | Python (pass 2) |
 |---|---|---|
-| Small Islands Remover | **Merge Small Texture Islands** | `merge_small_texture_islands` |
+| Small Islands Remover | **Merge Texture Islands** | `merge_texture_islands` |
 | Texture Map Defragmentation | **Defragment Texture Atlas** | `defragment_texture_atlas` |
 
 Both were verbless noun phrases. *Small Islands Remover* removes nothing: its own
 description says it merges small islands into neighbours that share a seam.
+
+**Revised 2026-09-08.** *Merge Small Texture Islands* dropped the *Small*: the filter now
+takes the islands to merge either from a size threshold or from the face selection, so which
+islands go is a parameter and no longer part of what the filter is. `Merge Texture Islands`.
 
 ## Verbs added to the lexicon
 

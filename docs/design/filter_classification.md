@@ -531,7 +531,7 @@ That was the main finding of this pass.
 | Parametrize by Voronoi Atlas (vcglib) | `texture` | `Parametrization/UV Creation` |  |
 | Parametrize by Atlas (xatlas) | `xatlas` | `Parametrization/UV Creation` | <sub>touches: texture, uv</sub> |
 | Set Texture | `texture` | `Texture/Assignment` | <sub>touches: texture</sub> |
-| Merge Small Texture Islands | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
+| Merge Texture Islands | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
 | Defragment Texture Atlas | `texture_defragmentation` | `Parametrization/Defragmentation` · `Texture` | chart surgery; image resample is a consequence |
 | Transfer Color from Texture to Vertex by Closest Point | `texture` | `Transfer/Between Layers` · `Attribute/Color` | <sub>touches: color</sub> |
 | Transfer Vertex Attributes to Texture by Closest Point | `texture` | `Transfer/Between Layers` · `Texture` | <sub>touches: texture</sub> |

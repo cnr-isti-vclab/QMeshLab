@@ -189,7 +189,7 @@ Discriminators for the borderline cases:
 
   **Defragmentation is `Parametrization`, not `Texture`.** *Texture Map
   Defragmentation* is described as "reduce texture atlas fragmentation by **merging
-  compatible charts** and resampling the texture map", and *Merge Small Texture Islands*
+  compatible charts** and resampling the texture map", and *Merge Texture Islands*
   merges "islands … with neighbors sharing a common seam". Charts, islands and seams are
   parametrization concepts: the operation is chart surgery, and resampling the image is
   a consequence. So both filters get `Parametrization/Defragmentation` as primary and

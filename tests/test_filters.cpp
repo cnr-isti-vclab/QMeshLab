@@ -511,7 +511,7 @@ void FilterTests::filterRegistryExposesBuiltins()
             QCOMPARE(info.descriptor.references.front().id,
                      QStringLiteral("maggiordomo2021texture"));
         }
-        if (info.descriptor.id == QStringLiteral("merge_small_texture_islands")) {
+        if (info.descriptor.id == QStringLiteral("merge_texture_islands")) {
             hasSmallIslandsReference = true;
             QCOMPARE(info.descriptor.references.size(), size_t(1));
             QCOMPARE(info.descriptor.references.front().id,
@@ -4966,7 +4966,7 @@ void FilterTests::randomizedFiltersDeclareARandomSeed()
         QStringLiteral("align_by_icp_vcglib"),
         QStringLiteral("align_meshes_globally"),
         QStringLiteral("defragment_texture_atlas"),
-        QStringLiteral("merge_small_texture_islands"),
+        QStringLiteral("merge_texture_islands"),
         // filter_expression: randomness is opt-in through the formula's rnd() /
         // randInt() helpers, but it still has to be seedable. grid_generator is
         // excluded on purpose — it is the one filter there with no expression.
@@ -5983,7 +5983,7 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
 // built on points that were already there. The two implementations differ in almost every
 // other respect, which is why QMeshLab ships both, so this checks the property they share
 // rather than pinning either one's output.
-// Merge Small Texture Islands can take its candidates from the face selection instead of
+// Merge Texture Islands can take its candidates from the face selection instead of
 // from the size threshold, so a chart can be folded into a chosen neighbour by hand.
 void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
 {
@@ -6030,7 +6030,7 @@ void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
         Document doc;
         QVERIFY(build(doc));
         const QString key =
-            filterKeyForId(doc, QStringLiteral("merge_small_texture_islands"));
+            filterKeyForId(doc, QStringLiteral("merge_texture_islands"));
         QVERIFY(!key.isEmpty());
         const MeshFilterRunResult r = doc.runFilter(key, mergeParams(true));
         QVERIFY2(!r.success, "merging by selection with nothing selected should refuse");
@@ -6051,7 +6051,7 @@ void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
         // been consumed. Either way more than one merge would happen.
         m.face[0].SetS();
         const QString key =
-            filterKeyForId(doc, QStringLiteral("merge_small_texture_islands"));
+            filterKeyForId(doc, QStringLiteral("merge_texture_islands"));
         const int faceCount = m.FN();
         const MeshFilterRunResult r = doc.runFilter(key, mergeParams(true));
         QVERIFY2(r.success, qPrintable(r.errorMessage));
@@ -6601,7 +6601,7 @@ void FilterTests::packUvChartsWorksWithoutATexture()
 
     const QStringList ids{
         QStringLiteral("pack_uv_charts"),
-        QStringLiteral("merge_small_texture_islands"),
+        QStringLiteral("merge_texture_islands"),
         QStringLiteral("defragment_texture_atlas")
     };
 
@@ -6621,7 +6621,7 @@ void FilterTests::packUvChartsWorksWithoutATexture()
             MeshFilterParameterValues params;
             params.insert(QStringLiteral("resampleTextures"), false);
             // Only the island merge has it, and without it the merge search is slow.
-            if (id == QStringLiteral("merge_small_texture_islands"))
+            if (id == QStringLiteral("merge_texture_islands"))
                 params.insert(QStringLiteral("quickRun"), true);
             const MeshFilterRunResult r =
                 doc.runFilter(filterKeyForId(doc, id), params);
@@ -6762,7 +6762,7 @@ void FilterTests::textureIslandMergeCanSkipResampling()
                   texture, QStringLiteral("atlas.png")) });
         doc.setCurrentMeshIndex(meshIndex);
 
-        const QString key = filterKeyForId(doc, QStringLiteral("merge_small_texture_islands"));
+        const QString key = filterKeyForId(doc, QStringLiteral("merge_texture_islands"));
         if (key.isEmpty()) { error = QStringLiteral("filter not registered"); return false; }
         MeshFilterParameterValues params;
         params.insert(QStringLiteral("resampleTextures"), resample);
