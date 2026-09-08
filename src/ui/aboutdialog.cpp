@@ -125,9 +125,9 @@ AboutDialog::AboutDialog(QWidget *parent)
         "algorithms as clearly attributed, reproducible plugins whose upstream "
         "implementations remain easy to update.</p>"
         "<h3>Project links</h3>"
-        "<p><a href='https://github.com/cignoni/QMeshLab'>Source code</a> &nbsp;·&nbsp; "
-        "<a href='https://github.com/cignoni/QMeshLab/issues'>Report an issue</a> &nbsp;·&nbsp; "
-        "<a href='https://github.com/cignoni/QMeshLab/tree/main/docs'>Documentation</a> &nbsp;·&nbsp; "
+        "<p><a href='https://github.com/cnr-isti-vclab/QMeshLab'>Source code</a> &nbsp;·&nbsp; "
+        "<a href='https://github.com/cnr-isti-vclab/QMeshLab/issues'>Report an issue</a> &nbsp;·&nbsp; "
+        "<a href='https://github.com/cnr-isti-vclab/QMeshLab/tree/main/docs'>Documentation</a> &nbsp;·&nbsp; "
         "<a href='https://www.meshlab.net'>Original MeshLab</a></p>"), tabs),
         tr("Overview"));
 
@@ -138,7 +138,7 @@ AboutDialog::AboutDialog(QWidget *parent)
         "Lab</a>, ISTI-CNR. Its architecture and interface are new, while its "
         "purpose, data model traditions and VCGLib foundation come from the "
         "original project.</p>"
-        "<p>See the <a href='https://github.com/cignoni/QMeshLab/graphs/contributors'>"
+        "<p>See the <a href='https://github.com/cnr-isti-vclab/QMeshLab/graphs/contributors'>"
         "QMeshLab contributors</a> and the "
         "<a href='https://github.com/cnr-isti-vclab/meshlab/graphs/contributors'>"
         "MeshLab contributors</a>.</p>"
@@ -150,7 +150,7 @@ AboutDialog::AboutDialog(QWidget *parent)
         "<p>The MeshLab publication list and suggested references are available at "
         "<a href='https://www.meshlab.net/#references'>meshlab.net/references</a>.</p>"
         "<h3>Contact</h3>"
-        "<p>Please use the <a href='https://github.com/cignoni/QMeshLab/issues'>"
+        "<p>Please use the <a href='https://github.com/cnr-isti-vclab/QMeshLab/issues'>"
         "issue tracker</a> for reproducible bugs and concrete feature requests.</p>"), tabs),
         tr("Credits and citations"));
 
@@ -168,7 +168,7 @@ AboutDialog::AboutDialog(QWidget *parent)
     buildHtml += tr(
         "</table><h2>License</h2>"
         "<p>QMeshLab is free software distributed under the "
-        "<a href='https://github.com/cignoni/QMeshLab/blob/main/LICENSE'>"
+        "<a href='https://github.com/cnr-isti-vclab/QMeshLab/blob/main/LICENSE'>"
         "GNU General Public License, version 3</a>. Integrated third-party "
         "components and archived algorithms retain their respective licenses "
         "and provenance.</p>");

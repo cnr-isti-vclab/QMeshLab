@@ -218,6 +218,13 @@ qt_add_executable(QMeshLab
 
 set_target_properties(QMeshLab PROPERTIES
     MACOSX_BUNDLE TRUE
+    # Stable bundle identity. Without this Qt substitutes a placeholder
+    # (com.yourcompany.<hash>.QMeshLab) whose hash component is not stable across
+    # build trees, which breaks code-signing identity, TCC privacy grants, `open -b`
+    # and Launch Services. Deliberately distinct from classic MeshLab's
+    # com.vcg.meshlab so both can be installed side by side.
+    MACOSX_BUNDLE_GUI_IDENTIFIER "net.meshlab.MeshLab"
+    MACOSX_BUNDLE_BUNDLE_NAME "QMeshLab"
 )
 
 option(QMESH_MACOS_BUNDLE_ICON "Generate and embed the macOS app bundle icon" ON)

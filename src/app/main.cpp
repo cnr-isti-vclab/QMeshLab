@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
     // Qt defaults to 256 MB decoded-image cap, which can reject valid assets.
     QImageReader::setAllocationLimit(0);
     app.setOrganizationName(QStringLiteral("QMeshLab"));
-    app.setOrganizationDomain(QStringLiteral("qmeshlab.org"));
+    app.setOrganizationDomain(QStringLiteral("meshlab.net"));
     app.setApplicationName(QStringLiteral("QMeshLab"));
     const QIcon appIcon(QStringLiteral(":/img/MeshLab_Icon_512x512.png"));
     if (!appIcon.isNull())
