@@ -26,9 +26,17 @@ concurrency:
 jobs:
   build-dmg:
     name: Build Signed and Notarized DMG
-    # Apple Silicon only: macOS 26 is Apple's last Intel release. Pinned rather
-    # than macos-latest because, with no explicit CMAKE_OSX_DEPLOYMENT_TARGET,
-    # the runner's OS version becomes the dmg's minimum supported macOS.
+    # Apple Silicon only: macOS 26 is Apple's last Intel release.
+    #
+    # The minimum supported macOS is now declared explicitly, in two places that
+    # must agree: CMAKE_OSX_DEPLOYMENT_TARGET in CMakeLists.txt for the app, and
+    # VCPKG_OSX_DEPLOYMENT_TARGET in ci/vcpkg-triplets/arm64-osx.cmake for the
+    # dependencies. The runner no longer decides it.
+    #
+    # Still pinned rather than macos-latest so the SDK matches that deployment
+    # target. On a newer runner, calling an API introduced after macOS 15 is only
+    # a warning, and the failure surfaces as a crash on a user's machine; on a
+    # matching runner it is a compile error here.
     runs-on: macos-15
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
@@ -38,6 +46,9 @@ jobs:
       QT_ARCH: clang_64
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       VCPKG_TARGET_TRIPLET: arm64-osx
+      # Overlay shadows the builtin arm64-osx to pin VCPKG_OSX_DEPLOYMENT_TARGET,
+      # so dependencies target the same minimum macOS as the application.
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/ci/vcpkg-triplets
 
     steps:
       - name: Checkout
@@ -120,7 +131,7 @@ jobs:
             ${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed
           # runner.arch is part of the key: runner.os is "macOS" for both Intel
           # and Apple Silicon, so an x64 cache must not reach an arm64 runner.
-          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}
           restore-keys: |
             macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-
 
@@ -129,6 +140,7 @@ jobs:
           set -o pipefail
           "$VCPKG_ROOT/vcpkg" install \
             --triplet "$VCPKG_TARGET_TRIPLET" \
+            --overlay-triplets="$VCPKG_OVERLAY_TRIPLETS" \
             --x-manifest-root="$GITHUB_WORKSPACE" \
             --x-install-root="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
             --clean-after-build 2>&1 | tee "$GITHUB_WORKSPACE/vcpkg-install.log"
@@ -143,7 +155,7 @@ jobs:
             ~/Library/Caches/vcpkg/archives
             ${{ env.VCPKG_ROOT }}/downloads
             ${{ github.workspace }}/${{ env.BUILD_DIR }}/vcpkg_installed
-          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          key: macos-dmg-vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'ci/vcpkg-triplets/*.cmake') }}
 
       - name: Upload vcpkg failure logs
         if: failure()
@@ -168,6 +180,7 @@ jobs:
             -DOpenMP_CXX_LIB_NAMES=omp \
             -DOpenMP_omp_LIBRARY="$OpenMP_ROOT/lib/libomp.dylib" \
             -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET" \
+            -DVCPKG_OVERLAY_TRIPLETS="$VCPKG_OVERLAY_TRIPLETS" \
             -DVCPKG_INSTALLED_DIR="$GITHUB_WORKSPACE/$BUILD_DIR/vcpkg_installed" \
             -DVCPKG_MANIFEST_INSTALL=OFF \
             -DCMAKE_MAKE_PROGRAM="$(brew --prefix ninja)/bin/ninja"
