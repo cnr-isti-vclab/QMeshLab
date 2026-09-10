@@ -77,6 +77,13 @@ jobs:
         run: |
           # GMP is built from source by vcpkg on macOS and its autoreconf step
           # needs the complete GNU autotools toolchain.
+          #
+          # libomp is the one dependency neither CMAKE_OSX_DEPLOYMENT_TARGET nor the
+          # vcpkg triplet governs: Homebrew serves a bottle built for the runner's
+          # own macOS, and that dylib is bundled into the app. On this pinned
+          # macos-15 runner the bottle matches the 15.0 target, but if the pin ever
+          # moves, watch the link step for "was built for newer version" — a bundled
+          # libomp newer than the deployment target can fail on a user's macOS 15.
           brew install \
             ninja \
             libomp \
