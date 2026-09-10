@@ -10,6 +10,7 @@
 #include <cmath>
 
 #include "document.h"
+#include "textureassociationutils.h"
 #include "layerdata.h"
 #include "helperprocess.h"
 #include "processmemoryinfo.h"
@@ -63,6 +64,8 @@ private slots:
     void addRasterImageCreatesDocumentLayer();
     void currentLayerKindFollowsMeshAndRasterSelection();
     void loadRasterImageReadsFile();
+    void unreadableImageSaysWhyItCannotBeRead();
+    void legacyTargaLoadsThroughTheStbFallback();
     void loadMeshLabProjectLoadsMeshesAndTransforms();
     void loadMeshLabProjectLoadsRastersAndCamera();
     void rasterCameraUndoRedoRestoresShot();
@@ -1013,6 +1016,108 @@ void DocumentTests::loadRasterImageReadsFile()
     QVERIFY(doc.raster(0).currentPlane());
     QCOMPARE(doc.raster(0).currentPlane()->size, QSize(5, 3));
     QCOMPARE(doc.raster(0).currentPlane()->sourcePath, path);
+}
+
+void DocumentTests::unreadableImageSaysWhyItCannotBeRead()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    QImage image(4, 2, QImage::Format_RGBA8888);
+    image.fill(Qt::magenta);
+
+    // A format Qt never ships a plugin for, so the verdict is the same everywhere.
+    // The bytes must not be a readable image either: QImageReader tries the suffix's
+    // handler first but then falls back to sniffing the content, so a PNG named .psd
+    // loads fine and would not reach the branch under test.
+    const QString unhandled = dir.filePath(QStringLiteral("texture.psd"));
+    QFile unhandledFile(unhandled);
+    QVERIFY(unhandledFile.open(QIODevice::WriteOnly));
+    unhandledFile.write("8BPS\0\1\0\0 not actually a photoshop file");
+    unhandledFile.close();
+    QImage read;
+    QString error;
+    QVERIFY(!TextureAssociationUtils::readImageFile(unhandled, read, error));
+    QVERIFY(read.isNull());
+    // The whole point of the message: name the format, not just the failure. A .tga
+    // texture on a build without qtimageformats used to arrive as "Failed to load
+    // texture 'auvBG.tga'." with nothing to act on -- and content sniffing cannot
+    // supply the format either, since an uncompressed Targa header is byte-identical
+    // to a Windows .cur one and QImageReader::imageFormat() answers "ico".
+    QVERIFY2(error.contains(QStringLiteral("psd")), qPrintable(error));
+    QVERIFY2(error.contains(QStringLiteral("no decoder in this build")), qPrintable(error));
+
+    const QString missing = dir.filePath(QStringLiteral("absent.png"));
+    QVERIFY(!TextureAssociationUtils::readImageFile(missing, read, error));
+    QVERIFY2(error.contains(QStringLiteral("does not exist")), qPrintable(error));
+
+    const QString corrupt = dir.filePath(QStringLiteral("broken.png"));
+    QFile file(corrupt);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write("\x89PNG\r\n\x1a\n" "not actually a png");
+    file.close();
+    QVERIFY(!TextureAssociationUtils::readImageFile(corrupt, read, error));
+    QVERIFY2(!error.contains(QStringLiteral("no decoder in this build")), qPrintable(error));
+
+    const QString good = dir.filePath(QStringLiteral("fine.png"));
+    QVERIFY(image.save(good));
+    QVERIFY2(TextureAssociationUtils::readImageFile(good, read, error), qPrintable(error));
+    QCOMPARE(read.size(), QSize(4, 2));
+}
+
+void DocumentTests::legacyTargaLoadsThroughTheStbFallback()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    // A Targa written to the original spec: 18-byte header, uncompressed true-colour, no
+    // trailing "TRUEVISION-XFILE." footer. QTgaHandler accepts only TrueVision 2.0 files,
+    // so it rejects this one outright even where qtimageformats is deployed -- and where
+    // it is not, Qt has no Targa handler at all and misidentifies the header as a Windows
+    // .cur. Either way the file has to come back through the stb fallback.
+    constexpr int kWidth = 4;
+    constexpr int kHeight = 2;
+    QByteArray tga;
+    const auto put16 = [&tga](int value) {
+        tga.append(char(value & 0xFF));
+        tga.append(char((value >> 8) & 0xFF));
+    };
+    tga.append(char(0));    // no image id
+    tga.append(char(0));    // no colour map
+    tga.append(char(2));    // uncompressed true-colour
+    put16(0);               // colour map origin
+    put16(0);               // colour map length
+    tga.append(char(0));    // colour map entry size
+    put16(0);               // x origin
+    put16(0);               // y origin
+    put16(kWidth);
+    put16(kHeight);
+    tga.append(char(24));   // bits per pixel
+    tga.append(char(0));    // descriptor: bottom-left origin, as Targa defaults to
+    QCOMPARE(tga.size(), 18);
+
+    // Pixels are BGR, and with a bottom-left origin the first row in the file is the
+    // BOTTOM row of the image. Writing blue first and red second means a correctly
+    // decoded image is red along its top edge -- the check that catches a missing flip,
+    // which would otherwise mirror every texture that comes through here.
+    for (int i = 0; i < kWidth; ++i)
+        tga.append("\xFF\x00\x00", 3); // blue, bottom row
+    for (int i = 0; i < kWidth; ++i)
+        tga.append("\x00\x00\xFF", 3); // red, top row
+
+    const QString path = dir.filePath(QStringLiteral("legacy.tga"));
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write(tga), qint64(tga.size()));
+    }
+
+    QImage image;
+    QString error;
+    QVERIFY2(TextureAssociationUtils::readImageFile(path, image, error), qPrintable(error));
+    QCOMPARE(image.size(), QSize(kWidth, kHeight));
+    QCOMPARE(image.pixelColor(0, 0), QColor(Qt::red));
+    QCOMPARE(image.pixelColor(kWidth - 1, kHeight - 1), QColor(Qt::blue));
 }
 
 void DocumentTests::loadMeshLabProjectLoadsMeshesAndTransforms()

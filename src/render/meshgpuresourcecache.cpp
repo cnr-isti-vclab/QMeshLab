@@ -1,5 +1,6 @@
 #include "meshgpuresourcecache.h"
 #include "linerenderer.h"
+#include "textureassociationutils.h"
 #include "meshioplugin.h"
 #include "qualityrange.h"
 
@@ -504,10 +505,15 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     if (asset && asset->hasImage()) {
                         image = asset->image;
                     } else {
-                        if (texturePath.isEmpty() || !QFileInfo::exists(texturePath))
+                        if (texturePath.isEmpty())
                             return false;
-                        QImageReader reader(texturePath);
-                        image = reader.read();
+                        // Through readImageFile, not QImageReader: it adds the stb
+                        // fallback, without which anything Qt's plugins decline -- a
+                        // Targa lacking the TrueVision 2.0 footer, say -- silently
+                        // renders untextured.
+                        QString imageError;
+                        if (!TextureAssociationUtils::readImageFile(texturePath, image, imageError))
+                            return false;
                     }
                     if (image.isNull())
                         return false;

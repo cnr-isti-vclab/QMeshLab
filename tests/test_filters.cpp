@@ -2,6 +2,7 @@
 
 #include <QElapsedTimer>
 #include <QFile>
+#include <QTemporaryDir>
 #include <QFileInfo>
 #include <QDirIterator>
 #include <QRegularExpression>
@@ -434,6 +435,7 @@ private slots:
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
     void rubberBandExpandsToConnectedComponents();
     void islandMergeCanTakeItsIslandsFromTheSelection();
+    void islandMergeSurvivesATextureItCannotDecode();
     void hardcodedFilterKeysInTheUiStillResolve();
     void setMatrixComposesOnTheLeftOfTheLayerTransform();
     void bothBallPivotingsInterpolateTheirInputPoints();
@@ -5985,6 +5987,95 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
 // rather than pinning either one's output.
 // Merge Texture Islands can take its candidates from the face selection instead of
 // from the size threshold, so a chart can be folded into a chosen neighbour by hand.
+void FilterTests::islandMergeSurvivesATextureItCannotDecode()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    // A texture the application cannot decode. In the wild this is not exotic: Qt reads
+    // an image format only when the matching plugin from qtimageformats is deployed, and
+    // its Targa reader then rejects every file that lacks the TrueVision 2.0 footer, so a
+    // well-formed .tga written to the original spec fails too. The bytes here must not be
+    // a readable image either -- QImageReader falls back to sniffing the content when the
+    // suffix has no handler, so a PNG under another name would load.
+    const QString texturePath = dir.filePath(QStringLiteral("atlas.psd"));
+    {
+        QFile file(texturePath);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("8BPS\0\1\0\0 not actually a photoshop file");
+    }
+
+    const auto build = [&](Document &doc) {
+        VCGMesh grid;
+        constexpr int kSide = 3;
+        vcg::tri::Allocator<VCGMesh>::AddVertices(grid, kSide * kSide);
+        for (int j = 0; j < kSide; ++j)
+            for (int i = 0; i < kSide; ++i)
+                grid.vert[std::size_t(j * kSide + i)].P() =
+                    vcg::Point3f(float(i), float(j), 0.0f);
+        for (int j = 0; j < kSide - 1; ++j)
+            for (int i = 0; i < kSide - 1; ++i) {
+                const int a = j * kSide + i;
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + 1, a + kSide + 1);
+                vcg::tri::Allocator<VCGMesh>::AddFace(grid, a, a + kSide + 1, a + kSide);
+            }
+        vcg::tri::UpdateBounding<VCGMesh>::Box(grid);
+        const int index = doc.addMesh(grid, QStringLiteral("Grid"),
+                                      vcg::tri::io::Mask::IOM_VERTCOORD);
+        doc.setCurrentMeshIndex(index);
+        MeshFilterParameterValues uvParams;
+        uvParams.insert(QStringLiteral("textdim"), 256);
+        if (!doc.runFilter(
+                filterKeyForId(doc,
+                    QStringLiteral("parametrize_by_trivial_per_triangle_layout")),
+                uvParams).success)
+            return false;
+        // The layer now claims a texture that cannot be read -- exactly what an .obj
+        // pointing at a legacy .tga leaves behind, since import records the path and
+        // decodes nothing.
+        TextureAssociationUtils::ensureTextureListed(doc.mesh(index), texturePath);
+        return Document::meshTextureAssociationCount(doc.mesh(index)) == 1;
+    };
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("islandSource"), QStringLiteral("by_size"));
+    params.insert(QStringLiteral("quickRun"), true);
+
+    // Resampling off: nothing samples the image, so the run proceeds on a stand-in and
+    // says so. Before this it refused over a texture it was never going to touch.
+    {
+        Document doc;
+        QVERIFY(build(doc));
+        MeshFilterParameterValues layoutOnly = params;
+        layoutOnly.insert(QStringLiteral("resampleTextures"), false);
+        const MeshFilterRunResult r = doc.runFilter(
+            filterKeyForId(doc, QStringLiteral("merge_texture_islands")), layoutOnly);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+        const QString info = r.infoMessages.join(QLatin1Char('\n'));
+        QVERIFY2(info.contains(QStringLiteral("Could not read")), qPrintable(info));
+        // No readable texture on the layer to take the texel grid from, so the stand-in
+        // falls back to the output atlas size. The result has to name it: the layout is
+        // sound either way, but a gutter given in pixels now refers to that grid.
+        QVERIFY2(info.contains(QStringLiteral("assumed 1024x1024")), qPrintable(info));
+    }
+
+    // Resampling on: the pixels are genuinely needed, so this still fails -- but the
+    // message has to point at the way out rather than just naming the file.
+    {
+        Document doc;
+        QVERIFY(build(doc));
+        MeshFilterParameterValues resampling = params;
+        resampling.insert(QStringLiteral("resampleTextures"), true);
+        const MeshFilterRunResult r = doc.runFilter(
+            filterKeyForId(doc, QStringLiteral("merge_texture_islands")), resampling);
+        QVERIFY2(!r.success, "resampling from an undecodable texture cannot work");
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("Resample textures")),
+                 qPrintable(r.errorMessage));
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("no decoder in this build")),
+                 qPrintable(r.errorMessage));
+    }
+}
+
 void FilterTests::islandMergeCanTakeItsIslandsFromTheSelection()
 {
     // A trivial per-triangle parametrization: every face is its own island, which is the

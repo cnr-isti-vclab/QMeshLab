@@ -2,6 +2,7 @@
 
 #include "meshioplugin.h"
 #include "meshiopluginmanager.h"
+#include "textureassociationutils.h"
 
 #include <vcg/complex/allocate.h>
 #include <wrap/io_trimesh/io_mask.h>
@@ -30,7 +31,10 @@
 #include <vector>
 
 #define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
+// STB_IMAGE_IMPLEMENTATION deliberately absent: QMeshLabCore's stbimageimpl.cpp compiles
+// stb_image for the whole project (readImageFile falls back to it for the formats Qt
+// declines), and defining it twice collides at link. tinygltf still gets its
+// declarations from the header and its definitions from core, which this plugin links.
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <tiny_gltf.h>
 
@@ -724,8 +728,10 @@ bool fillTinyGltfImageFromFile(
     int textureSlot,
     vcg::CallBackPos *cb)
 {
-    QImageReader reader(texturePath);
-    return fillTinyGltfImage(outImage, reader.read(), textureSlot, cb, texturePath);
+    QImage image;
+    QString imageError;
+    TextureAssociationUtils::readImageFile(texturePath, image, imageError);
+    return fillTinyGltfImage(outImage, image, textureSlot, cb, texturePath);
 }
 
 QString saveTextureImage(

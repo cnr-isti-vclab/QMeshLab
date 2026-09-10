@@ -36,7 +36,11 @@ jobs:
       QT_ARCH: msvc2022_64
       QT_INSTALL_DIR: ${{ github.workspace }}\Qt
       QT_PACKAGE_BASE_URL: https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6110/qt6_6110_msvc2022_64
-      QT_PACKAGE_NAMES: qt.qt6.6110.win64_msvc2022_64;qt.qt6.6110.addons.qtshadertools.win64_msvc2022_64
+      # qtimageformats carries the tga/tiff/webp/icns image plugins. Without it
+      # QImageReader reads none of those, so a .tga texture fails to load with nothing
+      # but "Unknown error" -- and windeployqt can only bundle the plugins that the Qt
+      # it is pointed at actually has.
+      QT_PACKAGE_NAMES: qt.qt6.6110.win64_msvc2022_64;qt.qt6.6110.addons.qtshadertools.win64_msvc2022_64;qt.qt6.6110.addons.qtimageformats.win64_msvc2022_64;qt.qt6.6110.addons.qtimageformats.win64_msvc2022_64
 
     steps:
       - name: Checkout
@@ -62,7 +66,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ env.QT_INSTALL_DIR }}
-          key: windows-qt-${{ runner.os }}-${{ env.QT_VERSION }}-${{ env.QT_ARCH }}-qtshadertools-public-archives
+          key: windows-qt-${{ runner.os }}-${{ env.QT_VERSION }}-${{ env.QT_ARCH }}-qtshadertools-qtimageformats-public-archives
 
       - name: Install Qt from public archives
         if: steps.cache-qt.outputs.cache-hit != 'true'

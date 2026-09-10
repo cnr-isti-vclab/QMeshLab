@@ -109,6 +109,7 @@ add_library(QMeshLabCore STATIC
     src/core/memorypressuremonitor.h src/core/memorypressuremonitor.cpp
     src/core/filterparam.h src/core/filterparam.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
+    src/core/stbimageimpl.cpp
     src/core/uvpacker.h src/core/uvpacker.cpp
     src/core/viewpointoccluder.h src/core/viewpointoccluder.cpp
     src/core/layerdata.h
@@ -132,6 +133,19 @@ add_library(QMeshLabCore STATIC
 
 # Backs the rasterized packers in uvpacker; the only .cpp vcglib needs compiled in.
 target_sources(QMeshLabCore PRIVATE ${CMAKE_SOURCE_DIR}/vcglib/wrap/qt/outline2_rasterizer.cpp)
+
+# stb_image backs readImageFile's fallback for the formats Qt declines -- notably any
+# Targa without the TrueVision 2.0 footer, which QTgaHandler rejects outright. The
+# implementation is compiled here, once, and stbimageimpl.cpp is the only translation
+# unit that may define STB_IMAGE_IMPLEMENTATION: tinygltf pulls the same header into
+# the glTF plugin, so a second definition would collide at link time.
+find_path(STB_INCLUDE_DIR stb_image.h PATH_SUFFIXES stb)
+if (STB_INCLUDE_DIR)
+    target_include_directories(QMeshLabCore PUBLIC ${STB_INCLUDE_DIR})
+    target_compile_definitions(QMeshLabCore PUBLIC QMESHLAB_HAS_STB_IMAGE)
+else()
+    message(WARNING "stb_image.h not found: images Qt cannot decode (legacy .tga) will fail to load.")
+endif()
 
 target_include_directories(QMeshLabCore PUBLIC
     ${CMAKE_SOURCE_DIR}/src/core

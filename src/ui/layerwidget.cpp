@@ -1,3 +1,4 @@
+#include "textureassociationutils.h"
 #include "layerwidget.h"
 #include "document.h"
 #include <wrap/io_trimesh/io_mask.h>
@@ -739,7 +740,14 @@ QPixmap textureThumbnail(const QString &path, int w, int h)
         const QSize native = reader.size();
         if (native.isValid())
             reader.setScaledSize(native.scaled(w, h, Qt::KeepAspectRatio));
-        const QImage img = reader.read();
+        QImage img = reader.read();
+        if (img.isNull()) {
+            // Scaled reads are the cheap path and worth keeping, but they only work for
+            // formats Qt itself decodes. Anything it declines comes back full size
+            // through the fallback and gets scaled below like everything else.
+            QString imageError;
+            TextureAssociationUtils::readImageFile(path, img, imageError);
+        }
         if (!img.isNull()) {
             QImage normalized = img;
             normalized.setDevicePixelRatio(1.0);

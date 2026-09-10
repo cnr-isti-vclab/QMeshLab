@@ -106,9 +106,13 @@ jobs:
           host: mac
           target: desktop
           arch: ${{ env.QT_ARCH }}
-          modules: qtshadertools
+          # qtimageformats carries the tga/tiff/webp/icns image plugins. Without it
+          # QImageReader reads none of those, so a .tga texture fails to load with
+          # nothing but "Unknown error" -- and macdeployqt can only bundle the plugins
+          # that the Qt it is pointed at actually has.
+          modules: qtshadertools qtimageformats
           cache: true
-          cache-key-prefix: qmeshlab-qt-macos
+          cache-key-prefix: qmeshlab-qt-macos-imgfmt
 
       - name: Expose Qt tools
         run: |
