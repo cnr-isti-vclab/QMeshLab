@@ -41,6 +41,7 @@
 #include <QStatusBar>
 #include <QTextBrowser>
 #include <QScreen>
+#include <QScrollBar>
 #include <QSplitter>
 #include <QDockWidget>
 #include <QDialog>
@@ -1721,10 +1722,22 @@ void MainWindow::splitCurrentView(Qt::Orientation orientation)
     newView->setRenderSettings(sourceView->renderSettings());
     newView->copyPerMeshRenderModesFrom(sourceView);
     newView->setMeshVisibilityState(sourceView->meshVisibilityState());
+    // Both of these used to be collected and dropped. A failure here is invisible in the
+    // result -- the new view just shows the default camera, or the 3D mode instead of the
+    // one being split -- which reads as "splitting reset my camera" and leaves nothing to
+    // go on. Copying the camera also clears the new view's pending frame-the-scene, so a
+    // failure here is exactly what would make the split appear to reset it.
     QString viewModeError;
-    newView->setViewMode(sourceView->viewMode(), &viewModeError);
+    if (!newView->setViewMode(sourceView->viewMode(), &viewModeError) && !viewModeError.isEmpty()) {
+        m_doc->writeLog(tr("Split view: could not carry over the view mode: %1").arg(viewModeError),
+                        Document::LogSource::Application, Document::LogLevel::Warning);
+    }
     QString cameraError;
-    newView->applyCameraStateJson(sourceView->cameraStateJson(), &cameraError);
+    if (!newView->applyCameraStateJson(sourceView->cameraStateJson(), &cameraError)
+        && !cameraError.isEmpty()) {
+        m_doc->writeLog(tr("Split view: could not carry over the camera: %1").arg(cameraError),
+                        Document::LogSource::Application, Document::LogLevel::Warning);
+    }
 
     setCurrentRenderWidget(newView);
     statusBar()->showMessage(tr("Created new view"), 1500);
@@ -2955,15 +2968,87 @@ void MainWindow::showImportPlugins()
     dialog.setWindowTitle(tr("I/O Plugins"));
 
     auto *layout = new QVBoxLayout(&dialog);
-    layout->addWidget(new QLabel(tr("Import preferences"), &dialog));
 
+    // A QTableWidget's sizeHint is its scroll area's, not its contents' -- about 256x192
+    // whatever it holds -- so a dialog sized from size hints opens with the tables cropped:
+    // elided plugin names down the side, the right-hand columns past the edge, and the last
+    // row hidden. These matrices are small and fixed (a handful of plugins by a handful of
+    // extensions), so measure what they actually need and let the dialog be that wide.
+    const auto fitToContents = [](QTableWidget *table, int maxHeight) {
+        table->resizeColumnsToContents();
+        table->resizeRowsToContents();
+        // The vertical header's sizeHint is also premature -- it has not measured its own
+        // labels yet and reports far less than the plugin names need, which is what elided
+        // them. Measure the text.
+        // isHidden(), not isVisible(): nothing here has been shown yet, so isVisible() is
+        // false for a header that is perfectly well configured to appear, and the whole
+        // measurement silently came out as the columns alone.
+        int width = 0;
+        if (!table->verticalHeader()->isHidden()) {
+            const QFontMetrics metrics(table->verticalHeader()->font());
+            for (int row = 0; row < table->rowCount(); ++row) {
+                if (const QTableWidgetItem *item = table->verticalHeaderItem(row))
+                    width = std::max(width, metrics.horizontalAdvance(item->text()));
+            }
+            width += 16; // the header's own padding either side
+        }
+        for (int col = 0; col < table->columnCount(); ++col) {
+            // resizeColumnsToContents measures items, and these cells hold WIDGETS -- the
+            // radio buttons -- which have not been laid out yet and so measure near zero.
+            // The header's own hint knows how wide "gltf" is; the floor covers a column
+            // whose only content is a radio button. The header's ResizeToContents mode
+            // sets the real widths once there is something to measure, so this is an upper
+            // bound on what it will choose -- deliberately, since underestimating crops.
+            static constexpr int kMinCellWidth = 34;
+            width += std::max({ table->columnWidth(col),
+                                table->horizontalHeader()->sectionSizeHint(col),
+                                kMinCellWidth });
+        }
+        int height = table->horizontalHeader()->sizeHint().height();
+        for (int row = 0; row < table->rowCount(); ++row)
+            height += table->rowHeight(row);
+        const int frame = 2 * table->frameWidth() + 2;
+        table->setMinimumWidth(width + frame);
+        // Also a maximum: stretched to the dialog width these matrices are mostly empty
+        // frame, and a table exactly as wide as its columns reads as a table.
+        table->setMaximumWidth(width + frame);
+        // Capped, so an install with many plugins scrolls instead of filling the screen.
+        table->setMinimumHeight(std::min(height + frame, maxHeight));
+        table->setMaximumHeight(height + frame);
+    };
+
+    const auto sectionLabel = [&dialog](const QString &text) {
+        auto *label = new QLabel(text, &dialog);
+        QFont font = label->font();
+        font.setBold(true);
+        label->setFont(font);
+        return label;
+    };
+    const auto explanation = [&dialog](const QString &text) {
+        auto *label = new QLabel(text, &dialog);
+        label->setWordWrap(true);
+        label->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        return label;
+    };
+
+    layout->addWidget(explanation(
+        tr("Every format QMeshLab opens or saves is handled by a plugin, and some formats "
+           "are handled by more than one -- three plugins read .obj. This is where you "
+           "choose which of them opens each kind of file, and see what each plugin can "
+           "carry.")));
+    layout->addSpacing(8);
+    layout->addWidget(sectionLabel(tr("Import: which plugin opens each format")));
+
+    QTableWidget *importTable = nullptr;
     std::vector<QButtonGroup *> groups;
     if (hasImportMatrix) {
-        layout->addWidget(new QLabel(
-            tr("Choose the preferred plugin for each file type/extension."),
-            &dialog));
+        layout->addWidget(explanation(
+            tr("Pick one plugin per extension; the choice is remembered between sessions. "
+               "Where you have not chosen, the first plugin that accepts the file is used. "
+               "Plugins differ in what they tolerate and what they preserve, so a file that "
+               "one refuses may well open with another.")));
 
-        auto *importTable = new QTableWidget(
+        importTable = new QTableWidget(
             static_cast<int>(importPlugins.size()),
             importExtensions.size(),
             &dialog);
@@ -3024,35 +3109,30 @@ void MainWindow::showImportPlugins()
             }
         }
 
-        importTable->resizeColumnsToContents();
-        importTable->resizeRowsToContents();
         importTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         importTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        importTable->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
-        layout->addWidget(importTable, 1);
+        fitToContents(importTable, 260);
+        layout->addWidget(importTable, 0);
     } else {
         auto *label = new QLabel(tr("No import plugins are available."), &dialog);
         label->setStyleSheet(QStringLiteral("color: palette(mid);"));
         layout->addWidget(label);
     }
 
-    layout->addSpacing(8);
-    layout->addWidget(new QLabel(tr("Export support"), &dialog));
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Export: which plugin writes each format")));
     if (hasExportMatrix) {
-        auto *summary = new QLabel(
-            tr("Savable formats: %1")
-                .arg(exportExtensions.join(QStringLiteral(", "))),
-            &dialog);
-        summary->setStyleSheet(QStringLiteral("color: palette(mid);"));
-        layout->addWidget(summary);
+        layout->addWidget(explanation(
+            tr("Nothing to choose here: saving uses whichever plugin writes the format you "
+               "save to. Savable formats: %1.")
+                .arg(exportExtensions.join(QStringLiteral(", ")))));
     } else {
-        auto *summary = new QLabel(tr("No savable formats available."), &dialog);
-        summary->setStyleSheet(QStringLiteral("color: palette(mid);"));
-        layout->addWidget(summary);
+        layout->addWidget(explanation(tr("No savable formats available.")));
     }
 
+    QTableWidget *exportTable = nullptr;
     if (hasExportMatrix) {
-        auto *exportTable = new QTableWidget(
+        exportTable = new QTableWidget(
             static_cast<int>(exportPlugins.size()),
             exportExtensions.size(),
             &dialog);
@@ -3089,20 +3169,22 @@ void MainWindow::showImportPlugins()
             }
         }
 
-        exportTable->resizeColumnsToContents();
-        exportTable->resizeRowsToContents();
         exportTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         exportTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        exportTable->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
-        layout->addWidget(exportTable, 1);
+        fitToContents(exportTable, 260);
+        layout->addWidget(exportTable, 0);
     } else {
         auto *label = new QLabel(tr("No export plugins are available."), &dialog);
         label->setStyleSheet(QStringLiteral("color: palette(mid);"));
         layout->addWidget(label);
     }
 
-    layout->addSpacing(8);
-    layout->addWidget(new QLabel(tr("Format data support"), &dialog));
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("What each plugin carries")));
+    layout->addWidget(explanation(
+        tr("The mesh data each plugin can read and write for a format. Anything not listed "
+           "is dropped when a file goes through that plugin, which is the other reason the "
+           "choice above matters.")));
     auto *capabilityTable = new QTableWidget(&dialog);
     capabilityTable->setColumnCount(4);
     capabilityTable->setHorizontalHeaderLabels(
@@ -3144,11 +3226,16 @@ void MainWindow::showImportPlugins()
     }
     capabilityTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     capabilityTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    capabilityTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    capabilityTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+    // Stretch shared the leftover width between these two, which with a narrow dialog left
+    // each attribute list wrapping at about five characters a line. Give them a real width
+    // and let the dialog carry it.
+    capabilityTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Interactive);
+    capabilityTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Interactive);
+    capabilityTable->setColumnWidth(2, 260);
+    capabilityTable->setColumnWidth(3, 260);
     capabilityTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    capabilityTable->setMinimumHeight(180);
-    layout->addWidget(capabilityTable, 2);
+    capabilityTable->setMinimumHeight(200);
+    layout->addWidget(capabilityTable, 1);
 
     auto *buttons =
         new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &dialog);
@@ -3157,11 +3244,30 @@ void MainWindow::showImportPlugins()
     layout->addWidget(buttons);
     dialog.adjustSize();
 
+    // Widest thing the dialog has to show, rather than the size hint, which understates the
+    // tables (see fitToContents above). The capability table is allowed to scroll sideways
+    // if its two attribute columns are extravagant, so it only asks for its fixed columns.
+    int contentWidth = 0;
+    for (const QTableWidget *table : { importTable, exportTable })
+        if (table)
+            contentWidth = std::max(contentWidth, table->minimumWidth());
+    const int capabilityColumns = capabilityTable->horizontalHeader()->sectionSize(0)
+        + capabilityTable->horizontalHeader()->sectionSize(1) + 2 * 260;
+    contentWidth = std::max(contentWidth,
+                            capabilityColumns + 2 * capabilityTable->frameWidth()
+                                + capabilityTable->verticalScrollBar()->sizeHint().width());
+    const QMargins margins = layout->contentsMargins();
+    contentWidth += margins.left() + margins.right();
+
     if (QScreen *screen = dialog.screen()) {
-        const QSize maxDialogSize(
-            screen->availableGeometry().width() * 9 / 10,
-            screen->availableGeometry().height() * 9 / 10);
-        dialog.resize(dialog.sizeHint().boundedTo(maxDialogSize));
+        const QRect available = screen->availableGeometry();
+        const QSize maxDialogSize(available.width() * 9 / 10, available.height() * 9 / 10);
+        const QSize wanted(std::max(contentWidth, dialog.sizeHint().width()),
+                           dialog.sizeHint().height());
+        dialog.resize(wanted.boundedTo(maxDialogSize));
+    } else {
+        dialog.resize(std::max(contentWidth, dialog.sizeHint().width()),
+                      dialog.sizeHint().height());
     }
 
     if (dialog.exec() != QDialog::Accepted)

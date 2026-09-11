@@ -514,6 +514,10 @@ struct SceneRasterProjectedDrawItem {
     mutable std::unique_ptr<QRhiBuffer> m_viewFrustumVbuf;
     mutable std::unique_ptr<QRhiBuffer> m_viewFrustumUbuf;
     mutable std::unique_ptr<QRhiShaderResourceBindings> m_viewFrustumSrb;
+    // True when the mesh's bounding box is wholly inside the sphere the trackball frames.
+    // Drives the "when the new mesh is off-screen" reframe preference.
+    bool meshFitsInCurrentFrame(int index) const;
+
     bool m_reframeCameraRequested = true;
     bool m_resetTrackballRequested = false;
     bool m_centerAnimActive = false;

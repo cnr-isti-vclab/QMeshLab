@@ -502,8 +502,22 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
             m_meshVisibility.insert(m_meshVisibility.begin() + index, true);
         else
             ensureVisibilitySize();
-        if (!m_doc->isRestoringUndoRedo())
-            m_reframeCameraRequested = true;
+        // Reframing exists so that what you just added is visible, which is why the
+        // default only reframes when the addition would land off-screen: framing on every
+        // add threw away a camera the user had set, and not framing at all can drop a mesh
+        // outside the view with no sign it loaded. The first mesh into an empty document
+        // always frames, whatever the setting -- the alternative is a view pointed at
+        // nothing. See view.reframeOnMeshAdded in resources/preferences.json.
+        if (!m_doc->isRestoringUndoRedo()) {
+            const QString mode =
+                Preferences::instance().stringValue(QStringLiteral("view.reframeOnMeshAdded"));
+            const bool firstMesh = m_doc->meshCount() <= 1;
+            if (mode == QLatin1String("never"))
+                m_reframeCameraRequested = m_reframeCameraRequested || firstMesh;
+            else if (mode == QLatin1String("always") || firstMesh
+                     || !meshFitsInCurrentFrame(index))
+                m_reframeCameraRequested = true;
+        }
         syncPerMeshRenderModesWithDocument();
         syncOverlaySettingsToCurrentMesh();
         refreshColorSourceAvailability();
@@ -526,8 +540,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
             m_meshVisibility.erase(m_meshVisibility.begin() + index);
         else
             ensureVisibilitySize();
-        if (!m_doc->isRestoringUndoRedo())
-            m_reframeCameraRequested = true;
+        // Deliberately no reframe here. Deleting a layer is not a reason to move the
+        // camera, and the next mesh into the emptied document frames it again anyway.
         syncPerMeshRenderModesWithDocument();
         syncOverlaySettingsToCurrentMesh();
         refreshColorSourceAvailability();
