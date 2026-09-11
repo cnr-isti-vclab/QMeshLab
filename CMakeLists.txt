@@ -108,6 +108,7 @@ add_library(QMeshLabCore STATIC
     src/core/helperprocess.h src/core/helperprocess.cpp
     src/core/memorypressuremonitor.h src/core/memorypressuremonitor.cpp
     src/core/filterparam.h src/core/filterparam.cpp
+    src/core/filedialogdirectory.h src/core/filedialogdirectory.cpp
     src/core/textureassociationutils.h src/core/textureassociationutils.cpp
     src/core/stbimageimpl.cpp
     src/core/uvpacker.h src/core/uvpacker.cpp
@@ -423,6 +424,7 @@ qt_add_resources(QMeshLab "icons"
         img/tool_select_layer.png
         img/tool_select_rect.png
         img/icon_measure.png
+        img/snapshot.png
         img/axis.png
         img/cur_pick.png
         img/cur_measure.png

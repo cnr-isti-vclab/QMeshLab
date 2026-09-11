@@ -6,10 +6,12 @@
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QScopeGuard>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <cmath>
 
 #include "document.h"
+#include "filedialogdirectory.h"
 #include "textureassociationutils.h"
 #include "layerdata.h"
 #include "helperprocess.h"
@@ -62,6 +64,7 @@ private slots:
     void loadConcavePolygonFormatsPreserveFauxEdges();
     void loadObjWithMissingMaterialLibrary();
     void factoryDefaultObjImporterIsVcglib();
+    void fileDialogsRememberWhereYouWere();
     void failedLoadSaysWhyNotJustThatItFailed();
     void addRasterImageCreatesDocumentLayer();
     void currentLayerKindFollowsMeshAndRasterSelection();
@@ -944,6 +947,76 @@ void DocumentTests::failedLoadSaysWhyNotJustThatItFailed()
     reason = QStringLiteral("stale");
     QCOMPARE(doc.loadMesh(good, &reason), 0);
     QVERIFY2(reason.isEmpty(), qPrintable(reason));
+}
+
+void DocumentTests::fileDialogsRememberWhereYouWere()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QTemporaryDir other;
+    QVERIFY(other.isValid());
+
+    // QSettings is process-wide, so give this test its own application name and put it back
+    // afterwards rather than trampling whatever the rest of the suite relies on.
+    const QString savedApp = QCoreApplication::applicationName();
+    QCoreApplication::setApplicationName(QStringLiteral("QMeshLabFileDialogDirectoryTest"));
+    const auto restore = qScopeGuard([&] {
+        QSettings settings;
+        settings.clear();
+        QCoreApplication::setApplicationName(savedApp);
+    });
+    { QSettings settings; settings.clear(); }
+
+    // Nothing remembered: the caller gets an empty directory and its bare suggestion, which
+    // is exactly the behaviour the call sites had before, so a fresh profile is unchanged.
+    QVERIFY(FileDialogDirectory::startingDirectory(QStringLiteral("mesh")).isEmpty());
+    QCOMPARE(FileDialogDirectory::startingPath(QStringLiteral("mesh"),
+                                               QStringLiteral("model.ply")),
+             QStringLiteral("model.ply"));
+
+    // A file is remembered by its directory, and the file need not exist -- a save dialog's
+    // target does not yet.
+    FileDialogDirectory::remember(QStringLiteral("mesh"),
+                                  QDir(dir.path()).filePath(QStringLiteral("not_yet.ply")));
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("mesh")), dir.path());
+    QCOMPARE(FileDialogDirectory::startingPath(QStringLiteral("mesh"),
+                                               QStringLiteral("model.ply")),
+             QDir(dir.path()).filePath(QStringLiteral("model.ply")));
+
+    // A purpose never used before falls back to wherever the user last was, rather than to
+    // the working directory: related files tend to sit together.
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("snapshot")), dir.path());
+
+    // Purposes stay independent once each has been used.
+    FileDialogDirectory::remember(QStringLiteral("snapshot"),
+                                  QDir(other.path()).filePath(QStringLiteral("shot.png")));
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("snapshot")), other.path());
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("mesh")), dir.path());
+
+    // A remembered directory that has since gone away must not be handed back: the dialog
+    // would open on nothing. Falling through to the shared fallback is the recovery.
+    QTemporaryDir *doomed = new QTemporaryDir;
+    QVERIFY(doomed->isValid());
+    const QString doomedPath = doomed->path();
+    FileDialogDirectory::remember(QStringLiteral("export"),
+                                  QDir(doomedPath).filePath(QStringLiteral("out.tsv")));
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("export")), doomedPath);
+    delete doomed;
+    QVERIFY(!QFileInfo(doomedPath).isDir());
+    // Both the purpose and the shared fallback pointed at it -- it was the last directory
+    // used for anything -- so there is nothing left to fall back to and the caller gets an
+    // empty string, i.e. the platform default. Only one directory is kept per purpose, and
+    // inventing a different one the user never asked for would be worse than that.
+    QVERIFY(FileDialogDirectory::startingDirectory(QStringLiteral("export")).isEmpty());
+
+    // A purpose whose own directory is gone still falls back when the shared one survives.
+    FileDialogDirectory::remember(QStringLiteral("mesh"),
+                                  QDir(dir.path()).filePath(QStringLiteral("again.ply")));
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("export")), dir.path());
+
+    // An empty path is ignored rather than wiping what is remembered.
+    FileDialogDirectory::remember(QStringLiteral("mesh"), QString());
+    QCOMPARE(FileDialogDirectory::startingDirectory(QStringLiteral("mesh")), dir.path());
 }
 
 void DocumentTests::factoryDefaultObjImporterIsVcglib()

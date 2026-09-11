@@ -7,6 +7,7 @@
 #include "helperprocess.h"
 #include "meshfilterpanel.h"
 #include "meshsaveoptionsdialog.h"
+#include "filedialogdirectory.h"
 #include "renderwidget.h"
 #include "viewsplitterlayout.h"
 #include "interactivetool.h"
@@ -1576,6 +1577,17 @@ void MainWindow::setupToolsMenu(QMenu *toolsMenu)
             setActiveToolIndex(checked ? i : -1);
         });
     }
+
+    // Snapshot lives here rather than on the horizontal bar, which is entirely rendering
+    // state: this does something rather than changing how the view looks. It is not one of
+    // the tools above either -- nothing is entered or exited, so it is not checkable and
+    // stays out of their exclusive group -- hence the separator.
+    toolBar->addSeparator();
+    auto *snapshotAction = new QAction(QIcon(QStringLiteral(":/img/snapshot.png")),
+                                       tr("Snapshot PNG"), this);
+    snapshotAction->setToolTip(tr("Save a PNG of the current view (Ctrl+Shift+S)"));
+    connect(snapshotAction, &QAction::triggered, this, &MainWindow::saveSnapshotPng);
+    toolBar->addAction(snapshotAction);
 }
 
 void MainWindow::exitActiveTool()
@@ -1843,10 +1855,12 @@ void MainWindow::openFile()
     const QStringList fileNames = QFileDialog::getOpenFileNames(
         this,
         tr("Open Mesh"),
-        QString(),
+        FileDialogDirectory::startingDirectory(QStringLiteral("mesh")),
         m_doc->openDialogFilter());
     if (fileNames.isEmpty())
         return;
+
+    FileDialogDirectory::remember(QStringLiteral("mesh"), fileNames.first());
 
     const bool groupUndoStep = (fileNames.size() > 1);
     if (groupUndoStep)
@@ -1903,10 +1917,12 @@ void MainWindow::openRasterImage()
     const QStringList fileNames = QFileDialog::getOpenFileNames(
         this,
         tr("Open Raster Image"),
-        QString(),
+        FileDialogDirectory::startingDirectory(QStringLiteral("raster")),
         rasterImageOpenDialogFilter());
     if (fileNames.isEmpty())
         return;
+
+    FileDialogDirectory::remember(QStringLiteral("raster"), fileNames.first());
 
     const bool groupUndoStep = (fileNames.size() > 1);
     if (groupUndoStep)
@@ -2324,7 +2340,10 @@ void MainWindow::saveCurrentMesh()
     const Document::MeshEntry &entry = m_doc->mesh(currentIndex);
     const QString defaultPath = !entry.sourcePath.isEmpty()
         ? entry.sourcePath
-        : QStringLiteral("%1.ply").arg(entry.name.isEmpty() ? QStringLiteral("mesh") : entry.name);
+        : FileDialogDirectory::startingPath(
+              QStringLiteral("mesh"),
+              QStringLiteral("%1.ply").arg(
+                  entry.name.isEmpty() ? QStringLiteral("mesh") : entry.name));
 
     QString selectedFilter;
     QString targetPath = QFileDialog::getSaveFileName(
@@ -2335,6 +2354,7 @@ void MainWindow::saveCurrentMesh()
         &selectedFilter);
     if (targetPath.isEmpty())
         return;
+    FileDialogDirectory::remember(QStringLiteral("mesh"), targetPath);
     targetPath = appendSaveExtensionIfMissing(targetPath, selectedFilter);
 
     const int capabilityMask = m_doc->saveMaskCapability(targetPath);
@@ -2390,7 +2410,8 @@ void MainWindow::saveProjectAs()
     using SaveOpts = Document::MeshLabProjectSaveOptions;
 
     QString selectedFilter;
-    const QString defaultPath = QStringLiteral("project.mlp");
+    const QString defaultPath = FileDialogDirectory::startingPath(
+        QStringLiteral("project"), QStringLiteral("project.mlp"));
     QString targetPath = QFileDialog::getSaveFileName(
         this,
         tr("Save MeshLab Project"),
@@ -2398,6 +2419,7 @@ void MainWindow::saveProjectAs()
         tr("MeshLab Project (*.mlp)"),
         &selectedFilter);
     if (targetPath.isEmpty()) return;
+    FileDialogDirectory::remember(QStringLiteral("project"), targetPath);
 
     // Options dialog
     QDialog dlg(this);
@@ -2480,10 +2502,12 @@ void MainWindow::saveSnapshotPng()
     QString targetPath = QFileDialog::getSaveFileName(
         this,
         tr("Save Snapshot"),
-        QStringLiteral("snapshot.png"),
+        FileDialogDirectory::startingPath(QStringLiteral("snapshot"),
+                                          QStringLiteral("snapshot.png")),
         tr("PNG Image (*.png)"));
     if (targetPath.isEmpty())
         return;
+    FileDialogDirectory::remember(QStringLiteral("snapshot"), targetPath);
     if (!targetPath.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive))
         targetPath += QStringLiteral(".png");
 

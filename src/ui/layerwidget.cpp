@@ -1,3 +1,4 @@
+#include "filedialogdirectory.h"
 #include "textureassociationutils.h"
 #include "layerwidget.h"
 #include "document.h"
@@ -1825,10 +1826,11 @@ void LayerWidget::savePlaneImage(int rasterIndex, int planeIndex)
     const QString path = QFileDialog::getSaveFileName(
         this,
         tr("Save Plane Image"),
-        defaultName,
+        FileDialogDirectory::startingPath(QStringLiteral("raster"), defaultName),
         tr("PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;BMP Image (*.bmp);;All Files (*)"));
     if (path.isEmpty())
         return;
+    FileDialogDirectory::remember(QStringLiteral("raster"), path);
     if (!plane.image.save(path)) {
         QMessageBox::critical(this, tr("Save Plane Image"),
             tr("Failed to save image to:\n%1").arg(path));
