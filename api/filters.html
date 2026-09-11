@@ -244,7 +244,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 335 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 336 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="add-noise-to-vertex-color">
 <span id="filter-add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -4460,6 +4460,34 @@ Nina Amenta, Marshall Bern, <strong>Surface Reconstruction by Voronoi Filtering<
 
 <hr class="docutils" />
 </section>
+<section id="measure-abstract-domain">
+<span id="filter-measure-abstract-domain"></span><h2>Measure Abstract Domain<a class="headerlink" href="#measure-abstract-domain" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code>, <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code></p>
+<p><strong>Plugin:</strong> qmeshlab.filter.isoparam</p>
+<p>Report the structure, quality and validity of the abstract domain attached to a layer.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="qmeshlab.ms.measure_abstract_domain">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">measure_abstract_domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#qmeshlab.ms.measure_abstract_domain" title="Link to this definition">¶</a></dt>
+<dd><p>Report everything known about the abstract domain a previous run of <em>Parametrize by Abstract Domain</em> left on this layer. Nothing is modified.</p>
+<p>The domain is otherwise hard to inspect: it lives in layer data, the layer panel shows only three numbers, and each filter that consumes it exposes just the part it needs. This reports:</p>
+<ul class="simple">
+<li><p><strong>Structure.</strong> The number of sub-domains – the unit-sided equilateral triangles the domain is made of – with the domain’s vertex, edge and face counts, its Euler characteristic and genus, and whether it is closed and 2-manifold.</p></li>
+<li><p><strong>Vertex valences.</strong> A histogram, and the count of irregular vertices. Valence six is regular; the <em>Star</em> and <em>Hexagon</em> chart shapes of <em>Create Atlased Mesh</em> merge around regular vertices by default, so this predicts how much they can merge.</p></li>
+<li><p><strong>Chart counts.</strong> How many charts each chart shape of <em>Create Atlased Mesh</em> would produce, which saves running it to find out.</p></li>
+<li><p><strong>How the mesh sits in the domain.</strong> Parametrized vertex and face counts, layer faces per sub-domain, the spread of vertices across sub-domains, and how many faces straddle more than one sub-domain.</p></li>
+<li><p><strong>Quality.</strong> The stretch efficiency and area distortion the parametrizator reported when it stopped. A stretch of 1.0 is isometric.</p></li>
+<li><p><strong>Structural checks.</strong> The invariants the technique requires: at least four sub-domains, a closed domain, no sub-domain left uncovered, and every vertex naming a sub-domain that exists and sitting inside its triangle. A domain that fails one of these is not usable, and the symptom is otherwise just a later filter misbehaving.</p></li>
+</ul>
+<p>Every figure is also returned as a named output value, so a script can assert on it.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Nico Pietroni, Marco Tarini, Paolo Cignoni. <strong>Almost Isometric Mesh Parameterization through Abstract Domains</strong>. <em>IEEE Transactions on Visualization and Computer Graphics</em> (2010). <a class="reference external" href="https://doi.org/10.1109/TVCG.2009.96">DOI</a></p></li>
+</ul>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="measure-mesh-summary">
 <span id="filter-measure-mesh-summary"></span><h2>Measure Mesh Summary<a class="headerlink" href="#measure-mesh-summary" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p>
@@ -8116,6 +8144,10 @@ Sagi Katz, Ayellet Tal, Ronen Basri, <strong>Direct Visibility of Point Sets</st
 </li>
 <li><a class="reference internal" href="#measure-vertex-scalar-statistics">Measure Vertex Scalar Statistics</a><ul>
 <li><a class="reference internal" href="#qmeshlab.ms.measure_vertex_scalar_statistics"><code class="docutils literal notranslate"><span class="pre">ms.measure_vertex_scalar_statistics()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#measure-abstract-domain">Measure Abstract Domain</a><ul>
+<li><a class="reference internal" href="#qmeshlab.ms.measure_abstract_domain"><code class="docutils literal notranslate"><span class="pre">ms.measure_abstract_domain()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#measure-mesh-summary">Measure Mesh Summary</a><ul>

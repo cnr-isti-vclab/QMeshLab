@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 335 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 336 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -5282,6 +5282,41 @@ Compute aggregate statistics over per-vertex quality.
 :module: _qmeshlab
 
 Compute some aggregate statistics over the per vertex quality, like Min, Max, Average, StdDev and Variance.
+
+This filter has no parameters.
+```
+
+---
+
+(filter-measure-abstract-domain)=
+
+## Measure Abstract Domain
+
+**Categories:** `Measurement/Topological`, `Parametrization/UV Creation`
+
+**Plugin:** qmeshlab.filter.isoparam
+
+Report the structure, quality and validity of the abstract domain attached to a layer.
+
+```{py:function} ms.measure_abstract_domain(**params)
+:module: _qmeshlab
+
+Report everything known about the abstract domain a previous run of *Parametrize by Abstract Domain* left on this layer. Nothing is modified.
+
+The domain is otherwise hard to inspect: it lives in layer data, the layer panel shows only three numbers, and each filter that consumes it exposes just the part it needs. This reports:
+
+- **Structure.** The number of sub-domains -- the unit-sided equilateral triangles the domain is made of -- with the domain's vertex, edge and face counts, its Euler characteristic and genus, and whether it is closed and 2-manifold.
+- **Vertex valences.** A histogram, and the count of irregular vertices. Valence six is regular; the *Star* and *Hexagon* chart shapes of *Create Atlased Mesh* merge around regular vertices by default, so this predicts how much they can merge.
+- **Chart counts.** How many charts each chart shape of *Create Atlased Mesh* would produce, which saves running it to find out.
+- **How the mesh sits in the domain.** Parametrized vertex and face counts, layer faces per sub-domain, the spread of vertices across sub-domains, and how many faces straddle more than one sub-domain.
+- **Quality.** The stretch efficiency and area distortion the parametrizator reported when it stopped. A stretch of 1.0 is isometric.
+- **Structural checks.** The invariants the technique requires: at least four sub-domains, a closed domain, no sub-domain left uncovered, and every vertex naming a sub-domain that exists and sitting inside its triangle. A domain that fails one of these is not usable, and the symptom is otherwise just a later filter misbehaving.
+
+Every figure is also returned as a named output value, so a script can assert on it.
+
+**References:**
+
+- Nico Pietroni, Marco Tarini, Paolo Cignoni. **Almost Isometric Mesh Parameterization through Abstract Domains**. *IEEE Transactions on Visualization and Computer Graphics* (2010). [DOI](https://doi.org/10.1109/TVCG.2009.96)
 
 This filter has no parameters.
 ```
