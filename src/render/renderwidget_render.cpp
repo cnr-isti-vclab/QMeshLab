@@ -548,10 +548,15 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     if (!rasterMode)
         prepareToolDepthCuedLines(u, vp, sz);
 
-    cb->beginPass(renderTarget(), m_renderSettings.sceneBackgroundBottomColor, { 1.0f, 0 }, u);
+    const QColor clearColor = m_captureTransparentBackground
+        ? QColor(0, 0, 0, 0)
+        : m_renderSettings.sceneBackgroundBottomColor;
+    cb->beginPass(renderTarget(), clearColor, { 1.0f, 0 }, u);
     cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
 
-    if (m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
+    // The gradient is a full-screen quad, so clearing to alpha 0 is not enough on its own:
+    // drawing it would paint the backdrop straight back over the cleared buffer.
+    if (!m_captureTransparentBackground && m_sceneBackgroundPipeline && m_sceneBackgroundSrb) {
         cb->setGraphicsPipeline(m_sceneBackgroundPipeline.get());
         cb->setShaderResources(m_sceneBackgroundSrb.get());
         cb->draw(3);

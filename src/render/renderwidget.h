@@ -518,6 +518,11 @@ struct SceneRasterProjectedDrawItem {
     // Drives the "when the new mesh is off-screen" reframe preference.
     bool meshFitsInCurrentFrame(int index) const;
 
+    // Set only for the duration of an offscreen capture asking for a transparent
+    // background: the colour buffer is cleared to alpha 0 and the gradient quad is skipped,
+    // so the scene lands on nothing instead of on the viewport's own backdrop.
+    bool m_captureTransparentBackground = false;
+
     bool m_reframeCameraRequested = true;
     bool m_resetTrackballRequested = false;
     bool m_centerAnimActive = false;

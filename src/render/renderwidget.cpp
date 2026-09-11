@@ -15,6 +15,7 @@
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/simplex/face/topology.h>
 #include <QEventLoop>
+#include <QScopeGuard>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
@@ -1121,8 +1122,10 @@ QImage RenderWidget::renderOffscreenToImage(
 
     const QSize oldFixedSize = fixedColorBufferSize();
 
-    // TODO: transparentBackground — set QRhi clear color to transparent then restore.
-    Q_UNUSED(transparentBackground);
+    m_captureTransparentBackground = transparentBackground;
+    const auto restoreBackground = qScopeGuard([this] {
+        m_captureTransparentBackground = false;
+    });
 
     setFixedColorBufferSize(pixelSize);
     update();

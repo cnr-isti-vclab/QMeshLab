@@ -220,6 +220,7 @@ qt_add_executable(QMeshLab
     src/ui/filterpresentation.h src/ui/filterpresentation.cpp
     src/ui/filterpluginsinfodialog.h src/ui/filterpluginsinfodialog.cpp
     src/ui/meshsaveoptionsdialog.h src/ui/meshsaveoptionsdialog.cpp
+    src/ui/snapshotdialog.h src/ui/snapshotdialog.cpp
     src/render/renderwidget.h src/render/renderwidget.cpp
     src/render/renderwidget_internal.h
     src/render/renderwidget_modes.cpp

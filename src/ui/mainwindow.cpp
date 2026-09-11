@@ -9,6 +9,7 @@
 #include "meshsaveoptionsdialog.h"
 #include "filedialogdirectory.h"
 #include "renderwidget.h"
+#include "snapshotdialog.h"
 #include "viewsplitterlayout.h"
 #include "interactivetool.h"
 #include "layerwidget.h"
@@ -2499,78 +2500,23 @@ void MainWindow::saveSnapshotPng()
     if (!view)
         return;
 
-    QString targetPath = QFileDialog::getSaveFileName(
-        this,
-        tr("Save Snapshot"),
+    SnapshotDialog dialog(
+        view,
         FileDialogDirectory::startingPath(QStringLiteral("snapshot"),
                                           QStringLiteral("snapshot.png")),
-        tr("PNG Image (*.png)"));
-    if (targetPath.isEmpty())
+        this);
+    if (dialog.exec() != QDialog::Accepted)
         return;
+
+    const QString targetPath = dialog.targetPath();
+    if (targetPath.isEmpty()) {
+        statusBar()->showMessage(tr("Snapshot needs a file name"), 3000);
+        return;
+    }
     FileDialogDirectory::remember(QStringLiteral("snapshot"), targetPath);
-    if (!targetPath.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive))
-        targetPath += QStringLiteral(".png");
 
-    const qreal dpr = qMax(1.0, view->devicePixelRatioF());
-    const QSize basePixelSize(
-        qMax(1, int(std::lround(double(view->width()) * dpr))),
-        qMax(1, int(std::lround(double(view->height()) * dpr))));
-
-    QDialog optionsDialog(this);
-    optionsDialog.setWindowTitle(tr("Snapshot Options"));
-    auto *optionsLayout = new QVBoxLayout(&optionsDialog);
-    auto *form = new QFormLayout();
-    optionsLayout->addLayout(form);
-
-    auto *widthSpin = new QSpinBox(&optionsDialog);
-    widthSpin->setRange(64, 16384);
-    widthSpin->setValue(basePixelSize.width());
-    widthSpin->setSuffix(tr(" px"));
-
-    auto *heightSpin = new QSpinBox(&optionsDialog);
-    heightSpin->setRange(64, 16384);
-    heightSpin->setValue(basePixelSize.height());
-    heightSpin->setSuffix(tr(" px"));
-
-    auto *lockAspect = new QCheckBox(tr("Lock aspect ratio"), &optionsDialog);
-    lockAspect->setChecked(true);
-
-    form->addRow(tr("Width"), widthSpin);
-    form->addRow(tr("Height"), heightSpin);
-    form->addRow(QString(), lockAspect);
-
-    bool resizingFromLock = false;
-    const double aspect =
-        (basePixelSize.height() > 0)
-        ? (double(basePixelSize.width()) / double(basePixelSize.height()))
-        : 1.0;
-    connect(widthSpin, qOverload<int>(&QSpinBox::valueChanged), &optionsDialog, [=, &resizingFromLock](int w) {
-        if (!lockAspect->isChecked() || resizingFromLock || aspect <= 0.0)
-            return;
-        resizingFromLock = true;
-        heightSpin->setValue(qMax(64, int(std::lround(double(w) / aspect))));
-        resizingFromLock = false;
-    });
-    connect(heightSpin, qOverload<int>(&QSpinBox::valueChanged), &optionsDialog, [=, &resizingFromLock](int h) {
-        if (!lockAspect->isChecked() || resizingFromLock)
-            return;
-        resizingFromLock = true;
-        widthSpin->setValue(qMax(64, int(std::lround(double(h) * aspect))));
-        resizingFromLock = false;
-    });
-
-    auto *buttons =
-        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, &optionsDialog);
-    optionsLayout->addWidget(buttons);
-    connect(buttons, &QDialogButtonBox::accepted, &optionsDialog, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &optionsDialog, &QDialog::reject);
-
-    if (optionsDialog.exec() != QDialog::Accepted)
-        return;
-
-    const QSize snapshotSize(widthSpin->value(), heightSpin->value());
     QString captureError;
-    const QImage snapshot = view->renderOffscreenToImage(snapshotSize, false, &captureError);
+    const QImage snapshot = dialog.capture(dialog.snapshotSize(), &captureError);
     if (snapshot.isNull()) {
         const QString msg = tr("Failed to capture snapshot: %1").arg(captureError);
         statusBar()->showMessage(msg, 3500);
