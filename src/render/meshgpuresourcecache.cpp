@@ -1367,22 +1367,13 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         if (meshData.bbox.IsNull())
             return true;
 
-        const auto &mn = meshData.bbox.min;
-        const auto &mx = meshData.bbox.max;
-        std::vector<float> bd = {
-            mn[0],mn[1],mn[2],  mx[0],mn[1],mn[2],
-            mx[0],mn[1],mn[2],  mx[0],mx[1],mn[2],
-            mx[0],mx[1],mn[2],  mn[0],mx[1],mn[2],
-            mn[0],mx[1],mn[2],  mn[0],mn[1],mn[2],
-            mn[0],mn[1],mx[2],  mx[0],mn[1],mx[2],
-            mx[0],mn[1],mx[2],  mx[0],mx[1],mx[2],
-            mx[0],mx[1],mx[2],  mn[0],mx[1],mx[2],
-            mn[0],mx[1],mx[2],  mn[0],mn[1],mx[2],
-            mn[0],mn[1],mn[2],  mn[0],mn[1],mx[2],
-            mx[0],mn[1],mn[2],  mx[0],mn[1],mx[2],
-            mx[0],mx[1],mn[2],  mx[0],mx[1],mx[2],
-            mn[0],mx[1],mn[2],  mn[0],mx[1],mx[2],
-        };
+        const float mn[3] = {
+            meshData.bbox.min[0], meshData.bbox.min[1], meshData.bbox.min[2] };
+        const float mx[3] = {
+            meshData.bbox.max[0], meshData.bbox.max[1], meshData.bbox.max[2] };
+        // Holds both styles back to back; the draw picks the range it wants.
+        const std::vector<float> bd =
+            LineRenderer::buildBoundingBoxVertices(mn, mx, LineRenderer::kBoundingBoxBracketFraction);
 
         dst.vbuf.reset(
             rhi->newBuffer(
@@ -1394,7 +1385,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             return true;
         }
         ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), bd.data());
-        dst.vertexCount = 24;
+        dst.vertexCount = LineRenderer::kBoundingBoxVertexCount;
         return true;
     };
 

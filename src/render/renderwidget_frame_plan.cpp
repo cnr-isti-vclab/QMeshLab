@@ -1,4 +1,5 @@
 #include "renderwidget.h"
+#include "linerenderer.h"
 #include "document.h"
 #include <utility>
 
@@ -324,7 +325,8 @@ void RenderWidget::planSimpleBufferPasses(
            QRhiGraphicsPipeline *pipeline,
            const PerMeshRenderSettings &meshSettings,
            QRhiBuffer *vertexBuffer,
-           int vertexCount) {
+           int vertexCount,
+           int firstVertex = 0) {
             if (!pipeline || !vertexBuffer || vertexCount <= 0)
                 return;
             items.push_back(SceneBufferDrawItem {
@@ -332,7 +334,8 @@ void RenderWidget::planSimpleBufferPasses(
                 pipeline,
                 meshSettings,
                 vertexBuffer,
-                vertexCount
+                vertexCount,
+                firstVertex
             });
         };
 
@@ -396,13 +399,19 @@ void RenderWidget::planSimpleBufferPasses(
             const MeshGpuResourceCache::BBoxPassView bboxView =
                 m_doc->bboxPassGpuView(m_rhi, mi);
             if (bboxView.valid) {
+                // The buffer carries the box edges then the corner brackets; the style
+                // chooses which half to draw.
+                const bool brackets =
+                    meshSettings.boundingBoxStyle == BoundingBoxStyle::CornerBrackets;
                 appendBufferDrawItem(
                     plan.boundingBoxItems,
                     mi,
                     m_bboxPipeline.get(),
                     meshSettings,
                     bboxView.vertexBuffer,
-                    bboxView.vertexCount);
+                    brackets ? LineRenderer::kBoundingBoxBracketVertexCount
+                             : LineRenderer::kBoundingBoxEdgeVertexCount,
+                    brackets ? LineRenderer::kBoundingBoxEdgeVertexCount : 0);
             }
         }
 

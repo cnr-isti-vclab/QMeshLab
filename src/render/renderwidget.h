@@ -184,6 +184,9 @@ private:
         PerMeshRenderSettings meshSettings;
         QRhiBuffer *vertexBuffer = nullptr;
         int vertexCount = 0;
+        // Non-zero only for the bounding box, whose buffer holds both of its styles back
+        // to back so that switching style costs a draw range rather than a rebuild.
+        int firstVertex = 0;
     };
     struct SceneRasterBackplateDrawItem {
         int rasterIndex = -1;

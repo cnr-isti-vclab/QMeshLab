@@ -530,11 +530,16 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bboxForm->setHorizontalSpacing(6);
     bboxForm->setVerticalSpacing(1);
     bboxForm->setLabelAlignment(kSettingsLabelAlignment);
+    m_bboxStyleCombo = new QComboBox(bboxPage);
+    m_bboxStyleCombo->addItem(tr("Box"), static_cast<int>(BoundingBoxStyle::Box));
+    m_bboxStyleCombo->addItem(
+        tr("Corner brackets"), static_cast<int>(BoundingBoxStyle::CornerBrackets));
     m_bboxColorButton = makeColorButton(bboxPage);
     m_bboxShowCornersCheck = new QCheckBox(bboxPage);
     m_bboxShowCornersCheck->setChecked(m_globalSettings.showBoundingBoxCorners);
     m_bboxShowDimensionsCheck = new QCheckBox(bboxPage);
     m_bboxShowDimensionsCheck->setChecked(m_globalSettings.showBoundingBoxDimensions);
+    bboxForm->addRow(tr("Style"), m_bboxStyleCombo);
     bboxForm->addRow(
         tr("Wire color"),
         makeCenteredFieldContainer(m_bboxColorButton, bboxPage));
@@ -1240,6 +1245,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindGlobalCheckBox(m_bboxShowCornersCheck, &GlobalRenderSettings::showBoundingBoxCorners);
     bindGlobalCheckBox(m_bboxShowDimensionsCheck, &GlobalRenderSettings::showBoundingBoxDimensions);
 
+    bindMeshEnumCombo(m_bboxStyleCombo, &PerMeshRenderSettings::boundingBoxStyle);
     bindMeshEnumCombo(m_pointColorSourceCombo, &PerMeshRenderSettings::pointColorSource);
     bindMeshColorButton(m_pointsColorButton, &PerMeshRenderSettings::pointColor, tr("Point Color"));
     bindMeshFloatSpin(m_pointSizeSpin, &PerMeshRenderSettings::pointSize);

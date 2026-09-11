@@ -33,7 +33,7 @@ void RenderWidget::renderSceneBufferItems(
         setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
         const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &binding);
-        cb->draw(item.vertexCount);
+        cb->draw(quint32(item.vertexCount), 1, quint32(item.firstVertex));
     }
 }
 

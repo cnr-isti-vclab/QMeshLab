@@ -202,9 +202,10 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("quality_isolines_enabled", qualityIsolinesEnabled) \
     F("quality_isoline_count", qualityIsolineCount)
 
-// 42 flat fields; the three fill_* sub-objects are listed separately
+// 43 flat fields; the three fill_* sub-objects are listed separately
 #define QMESHLAB_PER_MESH_SETTINGS_FIELDS(F) \
     F("show_bounding_box", showBoundingBox) \
+    F("bounding_box_style", boundingBoxStyle) \
     F("show_points", showPoints) \
     F("show_edges", showEdges) \
     F("show_wire", showWire) \

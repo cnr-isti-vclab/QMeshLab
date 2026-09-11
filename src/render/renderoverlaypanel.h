@@ -98,6 +98,7 @@ private:
     QPushButton *m_decoratorCurvatureDirPD2ColorButton = nullptr;
     QPushButton *m_decoratorBoundaryEdgeColorButton = nullptr;
     QPushButton *m_decoratorTextureSeamColorButton = nullptr;
+    QComboBox *m_bboxStyleCombo = nullptr;
     QPushButton *m_bboxColorButton = nullptr;
     QPushButton *m_pointsColorButton = nullptr;
     QPushButton *m_edgeColorButton = nullptr;

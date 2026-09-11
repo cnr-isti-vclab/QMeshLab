@@ -97,6 +97,12 @@ struct RsFillParams {
     bool operator!=(const RsFillParams &o) const { return !(*this == o); }
 };
 
+// How a layer's bounding box is drawn.
+enum class BoundingBoxStyle {
+    Box = 0,        // all twelve edges
+    CornerBrackets  // three short arms at each corner, the rest of each edge left open
+};
+
 enum class PointColorSource {
     Constant = 0,
     PerVertex,
@@ -134,6 +140,7 @@ enum class CurrentMeshDebugView {
 // named type so that external code can manipulate per-mesh settings directly.
 struct PerMeshRenderSettings {
     bool showBoundingBox = false;
+    BoundingBoxStyle boundingBoxStyle = BoundingBoxStyle::Box;
     bool showPoints = false;
     bool showEdges = false;
     bool showWire = true;

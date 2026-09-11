@@ -642,6 +642,23 @@ target_link_libraries(QMeshLabViewGridLayoutTests PRIVATE
 
 add_test(NAME QMeshLabViewGridLayoutTests COMMAND QMeshLabViewGridLayoutTests)
 
+qt_add_executable(QMeshLabLineGeometryTests
+    tests/test_linegeometry.cpp
+)
+
+target_include_directories(QMeshLabLineGeometryTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/render
+)
+
+# Line geometry only -- no document, no GPU, not even a widget.
+target_link_libraries(QMeshLabLineGeometryTests PRIVATE
+    QMeshLabCore
+    Qt6::Test
+)
+
+add_test(NAME QMeshLabLineGeometryTests COMMAND QMeshLabLineGeometryTests)
+
 qt_add_executable(QMeshLabAxisGizmoTests
     tests/test_viewaxisgizmo.cpp
 )
