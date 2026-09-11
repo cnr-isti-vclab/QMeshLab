@@ -1860,12 +1860,15 @@ void MainWindow::openFile()
         m_doc->beginUndoStep(tr("Open Meshes"));
 
     int loadedCount = 0;
-    int failedCount = 0;
+    QStringList failures;
     for (const QString &fileName : fileNames) {
-        if (loadMeshFromPath(fileName))
+        // Single file: let loadMeshFromPath put its own message in the status bar, which is
+        // where one has always gone. A batch collects instead, so nothing is overwritten.
+        QString reason;
+        if (loadMeshFromPath(fileName, fileNames.size() > 1 ? &reason : nullptr))
             ++loadedCount;
         else
-            ++failedCount;
+            failures << tr("%1 -- %2").arg(QFileInfo(fileName).fileName(), reason);
     }
     if (groupUndoStep)
         m_doc->endUndoStep(loadedCount > 0);
@@ -1874,9 +1877,32 @@ void MainWindow::openFile()
         statusBar()->showMessage(
             tr("Open complete: %1 loaded, %2 failed")
                 .arg(loadedCount)
-                .arg(failedCount),
+                .arg(failures.size()),
             3500);
     }
+
+    if (failures.isEmpty())
+        return;
+
+    // Say which files did not make it and why. A count alone leaves the user to work out
+    // which of the names they picked is missing from the layer list.
+    for (const QString &failure : failures)
+        m_doc->writeLog(tr("Open failed: %1").arg(failure), Document::LogSource::Application,
+                        Document::LogLevel::Warning);
+    if (fileNames.size() == 1)
+        return; // already in the status bar, and one failure is not worth a dialog
+
+    static constexpr int kMaxListed = 12;
+    QStringList listed = failures.mid(0, kMaxListed);
+    if (failures.size() > kMaxListed)
+        listed << tr("... and %1 more (see the log)").arg(failures.size() - kMaxListed);
+    QMessageBox::warning(
+        this,
+        tr("Some files did not open"),
+        tr("%1 of %2 files did not open:\n\n%3")
+            .arg(failures.size())
+            .arg(fileNames.size())
+            .arg(listed.join(QStringLiteral("\n"))));
 }
 
 void MainWindow::openRasterImage()
@@ -3276,15 +3302,27 @@ void MainWindow::pasteCameraState()
     m_doc->writeLog(msg, Document::LogSource::Application);
 }
 
-bool MainWindow::loadMeshFromPath(const QString &filePath)
+bool MainWindow::loadMeshFromPath(const QString &filePath, QString *errorMessage)
 {
     const bool isProject =
         QFileInfo(filePath).suffix().compare(QStringLiteral("mlp"), Qt::CaseInsensitive) == 0;
+    QString reason;
     const int err = isProject
         ? m_doc->loadMeshLabProject(filePath)
-        : m_doc->loadMesh(filePath);
+        : m_doc->loadMesh(filePath, &reason);
     if (err != 0) {
-        statusBar()->showMessage(tr("Failed to load %1").arg(filePath), 3000);
+        if (reason.isEmpty()) {
+            reason = isProject ? tr("the project could not be opened")
+                               : tr("the importer reported error %1").arg(err);
+        }
+        // The status bar is the wrong place to leave this when several files are opening:
+        // the next file's message replaces it and the summary replaces them all, which is
+        // how a four-file open could drop two of them with nothing to show for it. The
+        // caller collects the reason and reports the set.
+        if (errorMessage)
+            *errorMessage = reason;
+        else
+            statusBar()->showMessage(tr("Failed to load %1: %2").arg(filePath, reason), 5000);
         return false;
     }
 

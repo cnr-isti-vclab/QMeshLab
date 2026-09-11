@@ -61,6 +61,8 @@ private slots:
     void planarPolygonTessellationHandlesConcavity();
     void loadConcavePolygonFormatsPreserveFauxEdges();
     void loadObjWithMissingMaterialLibrary();
+    void factoryDefaultObjImporterIsVcglib();
+    void failedLoadSaysWhyNotJustThatItFailed();
     void addRasterImageCreatesDocumentLayer();
     void currentLayerKindFollowsMeshAndRasterSelection();
     void loadRasterImageReadsFile();
@@ -896,6 +898,88 @@ void DocumentTests::loadConcavePolygonFormatsPreserveFauxEdges()
         for (int edge = 0; edge < 3; ++edge)
             fauxEdgeCount += face.IsF(edge) ? 1 : 0;
     QCOMPARE(fauxEdgeCount, 2);
+}
+
+void DocumentTests::failedLoadSaysWhyNotJustThatItFailed()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    // An extension no importer claims. The reason has to name it: opening four files and
+    // being told only that two failed leaves the user to work out which two.
+    const QString unknown = dir.filePath(QStringLiteral("model.xyzzy"));
+    {
+        QFile f(unknown);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("not a mesh");
+    }
+    Document doc;
+    QString reason;
+    QVERIFY(doc.loadMesh(unknown, &reason) != 0);
+    QVERIFY2(reason.contains(QStringLiteral("xyzzy")), qPrintable(reason));
+    QVERIFY2(reason.contains(QStringLiteral("importer")), qPrintable(reason));
+
+    // A file the importer accepts by extension but cannot parse: the reason must come from
+    // the importer rather than being invented here.
+    const QString broken = dir.filePath(QStringLiteral("broken.ply"));
+    {
+        QFile f(broken);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("ply\nformat ascii 1.0\nelement vertex 99\nend_header\n");
+    }
+    reason.clear();
+    QVERIFY(doc.loadMesh(broken, &reason) != 0);
+    QVERIFY2(!reason.isEmpty(), "a failed load must say why");
+
+    // And the out-parameter is optional: every other caller passes nothing.
+    QVERIFY(doc.loadMesh(unknown) != 0);
+
+    // On success it must not leave a stale reason behind for the caller to misread.
+    const QString good = dir.filePath(QStringLiteral("triangle.obj"));
+    {
+        QFile f(good);
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Text));
+        f.write("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+    }
+    reason = QStringLiteral("stale");
+    QCOMPARE(doc.loadMesh(good, &reason), 0);
+    QVERIFY2(reason.isEmpty(), qPrintable(reason));
+}
+
+void DocumentTests::factoryDefaultObjImporterIsVcglib()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("triangle.obj"));
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+    }
+
+    Document doc;
+    // The factory default is whoever registered first among the plugins that accept the
+    // extension, so clear any preference this machine happens to carry before asking.
+    const QString saved = doc.preferredImportPluginForExtension(QStringLiteral("obj"));
+    const auto restore = qScopeGuard([&] {
+        doc.setPreferredImportPluginForExtension(QStringLiteral("obj"), saved);
+    });
+    doc.setPreferredImportPluginForExtension(QStringLiteral("obj"), QString());
+
+    QCOMPARE(doc.loadMesh(path), 0);
+
+    // Three plugins accept .obj -- vcglib, rapidobj and TrueForm -- and which one runs is
+    // decided by the order in plugins/meshpluginregistry.cpp. vcglib has to be the one,
+    // because it is the most tolerant of the three and a default meets whatever a user
+    // drags onto it. The log line is the only place that choice is visible.
+    QString loadLine;
+    for (const Document::LogEntry &entry : doc.logMessages()) {
+        if (entry.message.contains(QStringLiteral("Loading mesh:")))
+            loadLine = entry.message;
+    }
+    QVERIFY2(!loadLine.isEmpty(), "the load should be logged");
+    QVERIFY2(loadLine.contains(QStringLiteral("VCG"), Qt::CaseInsensitive),
+             qPrintable(QStringLiteral("factory default importer changed: %1").arg(loadLine)));
 }
 
 void DocumentTests::loadObjWithMissingMaterialLibrary()

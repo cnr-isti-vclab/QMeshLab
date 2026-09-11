@@ -97,7 +97,9 @@ private:
     bool closeRenderWidget(RenderWidget *view);
     void closeCurrentView();
     void syncDocumentVisibilityFromCurrentView();
-    bool loadMeshFromPath(const QString &filePath);
+    // errorMessage, when given, receives the reason instead of it going to the status bar,
+    // so a batch open can report every failure together rather than each replacing the last.
+    bool loadMeshFromPath(const QString &filePath, QString *errorMessage = nullptr);
     bool loadRasterFromPath(const QString &filePath);
     bool handleDragEnterOrMove(QDropEvent *event);
     void setInteractionBlocked(bool blocked);
