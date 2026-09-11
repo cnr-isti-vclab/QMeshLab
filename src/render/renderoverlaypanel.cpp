@@ -363,8 +363,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_currentMeshDebugViewCombo->addItem(
         tr("Eroded"),
         static_cast<int>(CurrentMeshDebugView::ErodedMask));
+    // Names the thing it switches on. "Highlight" named neither what is highlighted nor
+    // how, and sat directly above the outline's own colour and width.
     currentMeshForm->addRow(
-        tr("Highlight"),
+        tr("Current layer outline"),
         makeCenteredFieldContainer(m_currentMeshHighlightCheck, viewer3dPage));
     currentMeshForm->addRow(
         tr("Trackball gizmo"),

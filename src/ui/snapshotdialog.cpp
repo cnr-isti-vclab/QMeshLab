@@ -117,7 +117,7 @@ SnapshotDialog::SnapshotDialog(RenderWidget *view, const QString &suggestedPath,
     m_gizmosCheck = new QCheckBox(tr("Include gizmos and highlights"), this);
     m_gizmosCheck->setChecked(false);
     m_gizmosCheck->setToolTip(
-        tr("The trackball sphere and the current-layer highlight are there to work with, not "
+        tr("The trackball sphere and the current-layer outline are there to work with, not "
            "to publish, so they are left out by default."));
     form->addRow(tr("Gizmos"), m_gizmosCheck);
 
