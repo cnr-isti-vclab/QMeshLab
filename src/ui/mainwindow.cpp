@@ -8,6 +8,7 @@
 #include "meshfilterpanel.h"
 #include "meshsaveoptionsdialog.h"
 #include "renderwidget.h"
+#include "viewsplitterlayout.h"
 #include "interactivetool.h"
 #include "layerwidget.h"
 #include "memorypressuremonitor.h"
@@ -1770,28 +1771,7 @@ bool MainWindow::closeRenderWidget(RenderWidget *view)
     view->setParent(nullptr);
     view->deleteLater();
 
-    // Collapse nested splitters left with a single child.
-    auto collapse = [this](QSplitter *splitter) {
-        QSplitter *current = splitter;
-        while (current && current != m_viewSplitter) {
-            if (current->count() != 1) {
-                current = qobject_cast<QSplitter *>(current->parentWidget());
-                continue;
-            }
-
-            QWidget *onlyChild = current->widget(0);
-            auto *parent = qobject_cast<QSplitter *>(current->parentWidget());
-            if (!onlyChild || !parent)
-                break;
-
-            const int idx = parent->indexOf(current);
-            onlyChild->setParent(parent);
-            parent->insertWidget(idx, onlyChild);
-            current->deleteLater();
-            current = parent;
-        }
-    };
-    collapse(parentSplitter);
+    ViewSplitterLayout::collapseSingleChildSplitters(parentSplitter, m_viewSplitter);
 
     if (!nextCurrent && !m_renderWidgets.isEmpty())
         nextCurrent = m_renderWidgets.first();

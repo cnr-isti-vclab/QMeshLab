@@ -128,6 +128,7 @@ add_library(QMeshLabCore STATIC
     src/render/renderingsettings.h
     src/render/rendersettingsjson.h src/render/rendersettingsjson.cpp
     src/render/viewstate.h
+    src/render/viewsplitterlayout.h src/render/viewsplitterlayout.cpp
     src/render/viewtrackball.h src/render/viewtrackball.cpp
 )
 
@@ -601,6 +602,24 @@ target_link_libraries(QMeshLabPreferencesTests PRIVATE
 )
 
 add_test(NAME QMeshLabPreferencesTests COMMAND QMeshLabPreferencesTests)
+
+qt_add_executable(QMeshLabViewLayoutTests
+    tests/test_viewsplitterlayout.cpp
+)
+
+target_include_directories(QMeshLabViewLayoutTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/render
+)
+
+# Splitter surgery only, so this needs Core rather than the whole plugin aggregate.
+target_link_libraries(QMeshLabViewLayoutTests PRIVATE
+    QMeshLabCore
+    Qt6::Test
+    Qt6::Widgets
+)
+
+add_test(NAME QMeshLabViewLayoutTests COMMAND QMeshLabViewLayoutTests)
 
 qt_add_executable(QMeshLabRenderSettingsJsonTests
     tests/test_rendersettingsjson.cpp
