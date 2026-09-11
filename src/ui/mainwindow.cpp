@@ -1291,6 +1291,20 @@ MainWindow::MainWindow(QWidget *parent)
         &MainWindow::setCurrentViewParametrizationMode);
     viewMenu->addAction(tr("Raster Mode"), this, &MainWindow::setCurrentViewRasterMode);
     viewMenu->addSeparator();
+    m_layerGridAction = viewMenu->addAction(
+        tr("Arrange Layers in a Grid"),
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G),
+        this,
+        &MainWindow::toggleCurrentViewLayerGrid);
+    m_layerGridAction->setCheckable(true);
+    m_layerGridAction->setShortcutContext(Qt::WindowShortcut);
+    connect(viewMenu, &QMenu::aboutToShow, this, [this] {
+        const RenderWidget *view = currentRenderWidget();
+        m_layerGridAction->setChecked(
+            view
+            && view->renderSettings().layerArrangement == LayerArrangement::Grid);
+    });
+    viewMenu->addSeparator();
     viewMenu->addAction(tr("Split Horizontally"), this, &MainWindow::splitViewHorizontally);
     viewMenu->addAction(tr("Split Vertically"), this, &MainWindow::splitViewVertically);
     viewMenu->addSeparator();
@@ -1482,6 +1496,12 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
         uvModeAction->setEnabled(view->canSwitchToViewMode(RenderWidget::ViewMode::ParametrizationUV));
         rasterModeAction->setEnabled(view->canSwitchToViewMode(RenderWidget::ViewMode::RasterImage));
         menu.addSeparator();
+        QAction *layerGridAction = menu.addAction(tr("Arrange Layers in a Grid"));
+        layerGridAction->setCheckable(true);
+        layerGridAction->setChecked(
+            view->renderSettings().layerArrangement == LayerArrangement::Grid);
+        layerGridAction->setEnabled(view->viewMode() == RenderWidget::ViewMode::Scene3D);
+        menu.addSeparator();
         QAction *syncCameraAction = menu.addAction(tr("Synchronize Camera"));
         syncCameraAction->setCheckable(true);
         syncCameraAction->setChecked(m_cameraSyncEnabled);
@@ -1504,6 +1524,8 @@ RenderWidget *MainWindow::createRenderWidget(QSplitter *parentSplitter)
             setCurrentViewParametrizationMode();
         } else if (chosen == rasterModeAction) {
             setCurrentViewRasterMode();
+        } else if (chosen == layerGridAction) {
+            toggleCurrentViewLayerGrid();
         } else if (chosen == syncCameraAction) {
             m_cameraSyncEnabled = syncCameraAction->isChecked();
             if (m_cameraSyncEnabled)
@@ -1806,6 +1828,31 @@ void MainWindow::closeCurrentView()
         return;
     }
     statusBar()->showMessage(tr("View closed"), 1500);
+}
+
+void MainWindow::toggleCurrentViewLayerGrid()
+{
+    RenderWidget *view = currentRenderWidget();
+    if (!view)
+        return;
+    if (view->viewMode() != RenderWidget::ViewMode::Scene3D) {
+        statusBar()->showMessage(
+            tr("The grid arrangement applies to the 3D scene view."), 3000);
+        return;
+    }
+
+    RenderSettings settings = view->renderSettings();
+    const bool toGrid = (settings.layerArrangement != LayerArrangement::Grid);
+    settings.layerArrangement = toGrid ? LayerArrangement::Grid : LayerArrangement::Overlay;
+    view->setRenderSettings(settings);
+
+    // A grid of one tile is the overlay arrangement, so say so rather than leave the user
+    // wondering why nothing happened.
+    if (toGrid && !view->isLayerGridActive()) {
+        statusBar()->showMessage(
+            tr("The grid needs at least two visible layers; showing the single one full size."),
+            4000);
+    }
 }
 
 void MainWindow::splitViewHorizontally()

@@ -9,6 +9,7 @@
 #include "qualityrange.h"
 #include "renderoverlaypanel.h"
 #include "viewaxisgizmo.h"
+#include "viewgridlayout.h"
 #include <wrap/io_trimesh/io_mask.h>
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/update/topology.h>
@@ -24,6 +25,7 @@
 #include <QJsonParseError>
 #include <QLabel>
 #include <QListWidget>
+#include <QFontMetrics>
 #include <QPainter>
 #include <QPaintEvent>
 #include <QPixmap>
@@ -561,6 +563,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         refreshColorSourceAvailability();
         m_uvFitRequested = true;
         updateQualityHistogramOverlay();
+        // Which tile is marked as current, and which caption is highlighted, both move.
+        layoutOverlayButtons();
         update();
     });
     connect(m_doc, &Document::currentLayerChanged, this, [this](CurrentLayerKind, int) {
@@ -580,6 +584,8 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
         m_qualityHistogram.valid = false;
         updateBoundingBoxCornersOverlay();
         updateQualityHistogramOverlay();
+        // Renaming a layer arrives here, and its tile caption is its name.
+        layoutOverlayButtons();
         update();
     });
     // Selection-only change: the selection overlay buffer rebuilds on its own
@@ -647,6 +653,11 @@ void RenderWidget::setRenderSettings(const RenderSettings &settings)
         || prev.qualityHistogramInvertColorMap != m_renderSettings.qualityHistogramInvertColorMap) {
         m_qualityHistogram.valid = false;
     }
+    if (prev.layerArrangement != m_renderSettings.layerArrangement) {
+        // The grid suspends any active tool, so its badge and cursor have to follow.
+        updateToolBadge();
+        applyToolCursor();
+    }
     syncOverlaySettingsToCurrentMesh();
     if (m_overlayPanel)
         m_overlayPanel->setGlobalSettings(m_renderSettings);
@@ -673,6 +684,7 @@ void RenderWidget::setMeshVisible(int index, bool visible)
         return;
     m_meshVisibility[idx] = visible;
     updateBoundingBoxCornersOverlay();
+    layoutOverlayButtons();
     update();
 }
 
@@ -691,7 +703,130 @@ void RenderWidget::setMeshVisibilityState(const std::vector<bool> &visibility)
     if (!changed)
         return;
     updateBoundingBoxCornersOverlay();
+    layoutOverlayButtons();
     update();
+}
+
+namespace {
+
+// Half the width of the line framing each tile, as a fraction of the shorter side of what
+// is being drawn -- tiles are inset on every side, so the line between two of them is twice
+// this. Proportional to the image rather than to the widget, because the widget's size is
+// not a reliable guide: a headless render context hosts a RenderWidget at its own default
+// size and renders through a fixed-size buffer several times larger, and it shows() that
+// widget, so neither the size nor the visibility distinguishes it from a real view.
+//
+// The line doubles as the margin that absorbs the few pixels a wide line or a large point
+// can spill past the edge of its viewport into the tile next door.
+constexpr double kViewTileFrameFraction = 0.0012;
+constexpr int kViewTileFrameMinPx = 2;
+constexpr int kViewTileFrameMaxPx = 8;
+
+int viewTileFrameInset(const QSize &viewportSize)
+{
+    const int shorterSide = qMin(viewportSize.width(), viewportSize.height());
+    return std::clamp(
+        qRound(kViewTileFrameFraction * double(shorterSide)),
+        kViewTileFrameMinPx,
+        kViewTileFrameMaxPx);
+}
+
+} // namespace
+
+std::vector<RenderWidget::ViewTile> RenderWidget::viewTiles(const QSize &viewportSize) const
+{
+    const ViewTile wholeView { QRect(QPoint(0, 0), viewportSize), -1 };
+    if (m_renderSettings.layerArrangement != LayerArrangement::Grid
+        || m_viewMode != ViewMode::Scene3D
+        || !m_doc) {
+        return { wholeView };
+    }
+
+    std::vector<int> layers;
+    layers.reserve(size_t(m_doc->meshCount()));
+    for (int i = 0; i < m_doc->meshCount(); ++i) {
+        if (meshVisible(i))
+            layers.push_back(i);
+    }
+    // One layer in a grid of one is the overlay arrangement with extra steps, and no layers
+    // would ask the layout for zero tiles.
+    if (layers.size() < 2)
+        return { wholeView };
+
+    // The shape follows the aspect of what the user is looking at, which is the widget --
+    // so a snapshot rendered at some other resolution keeps the arrangement on screen
+    // instead of reflowing to the file's aspect ratio. A headless render context has no
+    // meaningful widget size (it keeps its container at 1x1 and renders into a fixed-size
+    // buffer), and there the requested size is all there is to go on.
+    // The shape follows the aspect of what is being drawn. On screen that is the widget,
+    // scaled by the device pixel ratio, so the tiles the mouse is tested against are the
+    // tiles that were rendered. A snapshot at some other aspect ratio reflows to suit
+    // itself, which keeps a snapshot and its preview agreeing with each other.
+    const ViewGridLayout::Shape shape =
+        ViewGridLayout::chooseShape(int(layers.size()), viewportSize);
+    const int inset = viewTileFrameInset(viewportSize);
+
+    // Tiles are inset on every side, so the gap between two of them is twice the inset.
+    // Shrinking the whole grid by the same amount first gives the outer border that same
+    // width, which is what makes the frame read as one deliberate grid instead of a middle
+    // rule that happens to be thicker than the edges.
+    QRect field(QPoint(0, 0), viewportSize);
+    if (field.width() > 4 * inset && field.height() > 4 * inset)
+        field.adjust(inset, inset, -inset, -inset);
+    const std::vector<QRect> rects =
+        ViewGridLayout::tileRects(int(layers.size()), shape, field.size(), inset);
+
+    std::vector<ViewTile> tiles;
+    tiles.reserve(layers.size());
+    for (size_t i = 0; i < layers.size(); ++i)
+        tiles.push_back(ViewTile { rects[i].translated(field.topLeft()), layers[i] });
+    return tiles;
+}
+
+int RenderWidget::viewTileAt(const QPoint &point) const
+{
+    const std::vector<ViewTile> tiles = viewTiles(size());
+    std::vector<QRect> rects;
+    rects.reserve(tiles.size());
+    for (const ViewTile &tile : tiles)
+        rects.push_back(tile.rect);
+    return ViewGridLayout::tileAt(rects, point);
+}
+
+bool RenderWidget::tileShowsMesh(const ViewTile &tile, int meshIndex)
+{
+    return tile.meshIndex < 0 || tile.meshIndex == meshIndex;
+}
+
+QRect RenderWidget::navigationTileRectAt(const QPointF &pos) const
+{
+    const std::vector<ViewTile> tiles = viewTiles(size());
+    const QPoint point = pos.toPoint();
+    for (const ViewTile &tile : tiles) {
+        if (tile.rect.contains(point))
+            return tile.rect;
+    }
+    return tiles[size_t(referenceTileIndex(tiles))].rect;
+}
+
+int RenderWidget::layerAtViewPoint(const QPoint &point) const
+{
+    const std::vector<ViewTile> tiles = viewTiles(size());
+    for (const ViewTile &tile : tiles) {
+        if (tile.rect.contains(point))
+            return tile.meshIndex;
+    }
+    return -1;
+}
+
+int RenderWidget::referenceTileIndex(const std::vector<ViewTile> &tiles) const
+{
+    const int currentMeshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+    for (size_t i = 0; i < tiles.size(); ++i) {
+        if (tiles[i].meshIndex == currentMeshIndex)
+            return int(i);
+    }
+    return 0;
 }
 
 void RenderWidget::copyPerMeshRenderModesFrom(const RenderWidget *other)
@@ -1660,6 +1795,116 @@ void RenderWidget::createOverlayButtons()
     layoutOverlayButtons();
 }
 
+void RenderWidget::updateTileOverlays()
+{
+    constexpr int kCaptionMargin = 6;
+
+    const std::vector<ViewTile> tiles = viewTiles(size());
+    // One tile is the overlay arrangement: naming the only layer on screen would just be
+    // furniture, and the layer panel already says which one is current.
+    const bool grid = tiles.size() > 1;
+    const int currentMeshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
+
+    if (grid) {
+        while (m_tileCaptionLabels.size() < tiles.size()) {
+            auto *label = new QLabel(this);
+            label->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+            label->setTextInteractionFlags(Qt::NoTextInteraction);
+            label->setAlignment(Qt::AlignCenter);
+            m_tileCaptionLabels.push_back(label);
+        }
+    }
+
+    for (std::size_t i = 0; i < m_tileCaptionLabels.size(); ++i) {
+        QLabel *label = m_tileCaptionLabels[i];
+        if (!label)
+            continue;
+        if (!grid || i >= tiles.size()) {
+            label->hide();
+            continue;
+        }
+
+        const ViewTile &tile = tiles[i];
+        const int meshIndex = tile.meshIndex;
+        if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount()) {
+            label->hide();
+            continue;
+        }
+        // Past a certain number of layers the tiles are too small for a caption to be
+        // anything but an obstruction -- all label and no picture.
+        constexpr int kCaptionMinTileWidth = 130;
+        constexpr int kCaptionMinTileHeight = 90;
+        if (tile.rect.width() < kCaptionMinTileWidth
+            || tile.rect.height() < kCaptionMinTileHeight) {
+            label->hide();
+            continue;
+        }
+
+        const bool isCurrent = (meshIndex == currentMeshIndex);
+        const QColor accent = m_renderSettings.currentMeshOutlineColor;
+        label->setStyleSheet(QStringLiteral(
+            "QLabel {"
+            "  color: rgba(246,246,250,248);"
+            "  background: %1;"
+            "  border: 1px solid %2;"
+            "  border-radius: 5px;"
+            "  padding: 2px 8px;"
+            "}")
+            .arg(isCurrent
+                     ? QStringLiteral("rgba(%1,%2,%3,210)")
+                           .arg(accent.red()).arg(accent.green()).arg(accent.blue())
+                     : QStringLiteral("rgba(20,20,24,188)"),
+                 isCurrent
+                     ? QStringLiteral("rgba(255,255,255,150)")
+                     : QStringLiteral("rgba(110,110,122,190)")));
+
+        // A layer name is usually a file name and routinely wider than a tile, so elide it.
+        // Held well short of the full width: a caption stretching the whole way across reads
+        // as a banner over the picture rather than a label on it, and the middle of a file
+        // name is the part you least need to see.
+        constexpr double kCaptionMaxWidthFraction = 0.75;
+        const int available = int(kCaptionMaxWidthFraction * tile.rect.width());
+        const QFontMetrics metrics(label->font());
+        const int chrome = 2 * (8 + 1); // padding + border, from the stylesheet above
+        label->setText(metrics.elidedText(
+            m_doc->mesh(meshIndex).name, Qt::ElideMiddle, qMax(16, available - chrome)));
+        label->adjustSize();
+
+        // Bottom centre: the view's own corners are already spoken for -- settings panel,
+        // axis gizmo, tool badge -- and under the picture is where a caption belongs anyway.
+        const int x = tile.rect.x() + (tile.rect.width() - label->width()) / 2;
+        const int y = tile.rect.bottom() - label->height() - kCaptionMargin + 1;
+        label->move(qMax(tile.rect.x(), x), qMax(tile.rect.y(), y));
+        label->show();
+        label->raise();
+    }
+
+    if (!m_currentTileIndicator) {
+        m_currentTileIndicator = new QWidget(this);
+        m_currentTileIndicator->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        m_currentTileIndicator->hide();
+    }
+    int currentTile = -1;
+    for (std::size_t i = 0; grid && i < tiles.size(); ++i) {
+        if (tiles[i].meshIndex == currentMeshIndex)
+            currentTile = int(i);
+    }
+    if (currentTile < 0) {
+        m_currentTileIndicator->hide();
+    } else {
+        const QColor accent = m_renderSettings.currentMeshOutlineColor;
+        m_currentTileIndicator->setStyleSheet(QStringLiteral(
+            "QWidget {"
+            "  background: transparent;"
+            "  border: 1px solid rgba(%1,%2,%3,235);"
+            "}")
+            .arg(accent.red()).arg(accent.green()).arg(accent.blue()));
+        m_currentTileIndicator->setGeometry(tiles[std::size_t(currentTile)].rect);
+        m_currentTileIndicator->show();
+        m_currentTileIndicator->raise();
+    }
+}
+
 void RenderWidget::layoutOverlayButtons()
 {
     constexpr int kOverlayMargin = 8;
@@ -1736,6 +1981,7 @@ void RenderWidget::layoutOverlayButtons()
         m_decoratorInfoOverlayLabel->raise();
     }
     layoutUvTextureGroupUi();
+    updateTileOverlays();
 }
 
 // The gizmo drag is fed through the same ViewTrackball arcball as a viewport
@@ -1986,7 +2232,7 @@ void RenderWidget::updateBoundingBoxCornersOverlay()
 void RenderWidget::updateBoundingBoxCornersOverlayPlacement(
     const QMatrix4x4 &mvp,
     const QMatrix4x4 &view,
-    const QSize &pixelSize)
+    const QRect &viewportRect)
 {
     if (!m_bboxOverlayCornersValid
         || !m_bboxMinCornerOverlayLabel
@@ -1996,13 +2242,16 @@ void RenderWidget::updateBoundingBoxCornersOverlayPlacement(
         || !m_bboxDimZOverlayLabel)
         return;
 
-    const auto projectToScreen = [this, &mvp, &pixelSize](const QVector3D &world, QPoint &screenPos) -> bool {
+    const auto projectToScreen = [this, &mvp, &viewportRect](const QVector3D &world, QPoint &screenPos) -> bool {
         const QVector4D clip = mvp * QVector4D(world, 1.0f);
         if (clip.w() <= 1e-6f)
             return false;
         const QVector3D ndc = clip.toVector3DAffine();
-        const float px = (ndc.x() * 0.5f + 0.5f) * float(pixelSize.width());
-        const float py = (1.0f - (ndc.y() * 0.5f + 0.5f)) * float(pixelSize.height());
+        // NDC spans the tile, not the target, so the tile's own origin comes back in here.
+        const float px =
+            float(viewportRect.x()) + (ndc.x() * 0.5f + 0.5f) * float(viewportRect.width());
+        const float py =
+            float(viewportRect.y()) + (1.0f - (ndc.y() * 0.5f + 0.5f)) * float(viewportRect.height());
 
         // QRhi renders in physical pixels, QWidget overlays are in logical pixels.
         const float dpr = qMax(1.0, devicePixelRatioF());
@@ -2692,9 +2941,24 @@ void RenderWidget::setToolOwnerIsCurrent(bool current)
 
 bool RenderWidget::toolAllowedInCurrentMode() const
 {
+    // Tools project world positions to the screen through the view's own size and camera,
+    // so in the grid arrangement every one of them would compute against the wrong
+    // rectangle. Rather than let a selection land somewhere unrelated to the cursor, the
+    // tool stays owned here and suspended -- the mouse drives the camera -- until the view
+    // goes back to overlaying its layers.
+    if (isLayerGridActive())
+        return false;
     return m_viewMode == ViewMode::Scene3D
         || (m_viewMode == ViewMode::ParametrizationUV
             && m_activeTool && m_activeTool->supportsUvView());
+}
+
+bool RenderWidget::isLayerGridActive() const
+{
+    // Not simply the setting: one visible layer, or a view showing UVs or a raster, draws
+    // as a single tile and behaves exactly like the overlay arrangement.
+    const std::vector<ViewTile> tiles = viewTiles(size());
+    return tiles.size() > 1;
 }
 
 bool RenderWidget::toolLive() const
@@ -2866,7 +3130,24 @@ void RenderWidget::mousePressEvent(QMouseEvent *e)
         e->accept();
         return;
     }
-    m_trackball.mousePress(e, size());
+    // Clicking a tile makes its layer current. Without it the grid is only a way of looking
+    // at several layers; with it, it is also the way you pick one -- and the marked tile and
+    // highlighted caption say immediately which one you got.
+    if (m_doc) {
+        const int clickedLayer = layerAtViewPoint(e->position().toPoint());
+        if (clickedLayer >= 0 && clickedLayer != m_doc->currentMeshIndex())
+            m_doc->setCurrentMeshIndex(clickedLayer);
+    }
+
+    // Every tile shares one camera, but the arcball is sized to the viewport the drag
+    // happens in: a drag inside a quarter-sized tile measured against the whole view would
+    // turn the camera at a quarter of the speed the cursor suggests. Latching the tile at
+    // press means leaving it mid-drag changes nothing.
+    m_navigationTileRect = navigationTileRectAt(e->position());
+    const QPointF local = e->position() - QPointF(m_navigationTileRect.topLeft());
+    const QMouseEvent tileEvent(
+        e->type(), local, local, e->button(), e->buttons(), e->modifiers());
+    m_trackball.mousePress(&tileEvent, m_navigationTileRect.size());
 }
 
 void RenderWidget::mouseDoubleClickEvent(QMouseEvent *e)
@@ -3026,7 +3307,12 @@ void RenderWidget::mouseMoveEvent(QMouseEvent *e)
         e->accept();
         return;
     }
-    if (m_trackball.mouseMove(e, size()))
+    if (m_navigationTileRect.isEmpty())
+        m_navigationTileRect = navigationTileRectAt(e->position());
+    const QPointF local = e->position() - QPointF(m_navigationTileRect.topLeft());
+    const QMouseEvent tileEvent(
+        e->type(), local, local, e->button(), e->buttons(), e->modifiers());
+    if (m_trackball.mouseMove(&tileEvent, m_navigationTileRect.size()))
         update();
 }
 

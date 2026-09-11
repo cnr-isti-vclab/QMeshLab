@@ -165,8 +165,9 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     if (!fieldsEqual(*this, o, &SettingsType::member)) \
         return false;
 
-// 32 fields
+// 34 fields
 #define QMESHLAB_GLOBAL_SETTINGS_FIELDS(F) \
+    F("layer_arrangement", layerArrangement) \
     F("highlight_current_mesh", highlightCurrentMesh) \
     F("show_trackball_gizmo", showTrackballGizmo) \
     F("show_axis_gizmo", showAxisGizmo) \

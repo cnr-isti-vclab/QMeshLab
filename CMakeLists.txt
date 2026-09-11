@@ -129,6 +129,7 @@ add_library(QMeshLabCore STATIC
     src/render/renderingsettings.h
     src/render/rendersettingsjson.h src/render/rendersettingsjson.cpp
     src/render/viewstate.h
+    src/render/viewgridlayout.h src/render/viewgridlayout.cpp
     src/render/viewsplitterlayout.h src/render/viewsplitterlayout.cpp
     src/render/viewaxisgizmo.h src/render/viewaxisgizmo.cpp
     src/render/viewtrackball.h src/render/viewtrackball.cpp
@@ -623,6 +624,23 @@ target_link_libraries(QMeshLabViewLayoutTests PRIVATE
 )
 
 add_test(NAME QMeshLabViewLayoutTests COMMAND QMeshLabViewLayoutTests)
+
+qt_add_executable(QMeshLabViewGridLayoutTests
+    tests/test_viewgridlayout.cpp
+)
+
+target_include_directories(QMeshLabViewGridLayoutTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/render
+)
+
+# Tile arithmetic only -- no document, no GPU, not even a widget.
+target_link_libraries(QMeshLabViewGridLayoutTests PRIVATE
+    QMeshLabCore
+    Qt6::Test
+)
+
+add_test(NAME QMeshLabViewGridLayoutTests COMMAND QMeshLabViewGridLayoutTests)
 
 qt_add_executable(QMeshLabAxisGizmoTests
     tests/test_viewaxisgizmo.cpp

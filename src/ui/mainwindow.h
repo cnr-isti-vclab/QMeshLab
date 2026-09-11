@@ -83,6 +83,9 @@ private slots:
     void setCurrentViewSceneMode();
     void setCurrentViewParametrizationMode();
     void setCurrentViewRasterMode();
+    // Toggles the current view between overlaying its visible layers and giving each one a
+    // tile of its own.
+    void toggleCurrentViewLayerGrid();
     void splitViewHorizontally();
     void splitViewVertically();
 
@@ -134,6 +137,9 @@ private:
     QSplitter *m_viewSplitter = nullptr;
     QList<RenderWidget *> m_renderWidgets;
     RenderWidget *m_currentRenderWidget = nullptr;
+    // Checked state follows the current view, refreshed when the View menu opens so it stays
+    // right after an undo or a script changes the arrangement behind the menu's back.
+    QAction *m_layerGridAction = nullptr;
     bool m_cameraSyncEnabled = false;
     bool m_syncingCameraViews = false;
     bool m_syncingVisibilityProxy = false;

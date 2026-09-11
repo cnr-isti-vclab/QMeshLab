@@ -109,6 +109,17 @@ enum class QualityHistogramSource {
     FaceQuality
 };
 
+// How the visible layers share the 3D view.
+enum class LayerArrangement {
+    // Every visible layer drawn in one shared space, which is what a 3D viewer normally
+    // does and what you want whenever the layers belong together in world coordinates.
+    Overlay = 0,
+    // One tile per visible layer, all tiles showing the same camera from the same angle.
+    // For comparing variants of one object -- decimations, parametrizations, repairs --
+    // where overlaying them just produces one unreadable pile.
+    Grid
+};
+
 enum class CurrentMeshDebugView {
     Outline = 0,
     FullMask,
@@ -186,6 +197,7 @@ Q_DECLARE_METATYPE(PerMeshRenderSettings)
 
 // View-level (global) rendering settings shared across all meshes in the scene.
 struct GlobalRenderSettings {
+    LayerArrangement layerArrangement = LayerArrangement::Overlay;
     bool highlightCurrentMesh = true;
     bool showTrackballGizmo = true;
     // Separate from showTrackballGizmo on purpose: the orbit sphere and the corner
