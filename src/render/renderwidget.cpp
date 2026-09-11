@@ -1715,7 +1715,8 @@ void RenderWidget::layoutOverlayButtons()
         // Position on the intended visibility, not isVisible(): before the view
         // is first shown isVisible() is still false, so gating on it left the
         // gizmo parked at its construction position in the top-left corner.
-        const bool gizmoVisible = (m_viewMode == ViewMode::Scene3D);
+        const bool gizmoVisible =
+            (m_viewMode == ViewMode::Scene3D) && m_renderSettings.showAxisGizmo;
         m_axisGizmo->setVisible(gizmoVisible);
         if (gizmoVisible) {
             const int x = width() - m_axisGizmo->width() - kOverlayMargin;

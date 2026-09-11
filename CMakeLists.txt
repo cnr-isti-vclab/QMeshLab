@@ -129,6 +129,7 @@ add_library(QMeshLabCore STATIC
     src/render/rendersettingsjson.h src/render/rendersettingsjson.cpp
     src/render/viewstate.h
     src/render/viewsplitterlayout.h src/render/viewsplitterlayout.cpp
+    src/render/viewaxisgizmo.h src/render/viewaxisgizmo.cpp
     src/render/viewtrackball.h src/render/viewtrackball.cpp
 )
 
@@ -232,7 +233,6 @@ qt_add_executable(QMeshLab
     src/render/viewtrackball.h
     src/render/viewstate.h
     src/render/renderoverlaypanel.h src/render/renderoverlaypanel.cpp
-    src/render/viewaxisgizmo.h src/render/viewaxisgizmo.cpp
     src/render/interactivetool.h src/render/interactivetoolfactory.cpp
     src/render/tools/selectlayertool.h src/render/tools/selectlayertool.cpp
     src/render/tools/rubberbandselecttool.h src/render/tools/rubberbandselecttool.cpp
@@ -620,6 +620,26 @@ target_link_libraries(QMeshLabViewLayoutTests PRIVATE
 )
 
 add_test(NAME QMeshLabViewLayoutTests COMMAND QMeshLabViewLayoutTests)
+
+qt_add_executable(QMeshLabAxisGizmoTests
+    tests/test_viewaxisgizmo.cpp
+)
+
+target_include_directories(QMeshLabAxisGizmoTests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src/render
+    ${CMAKE_SOURCE_DIR}/src/core
+)
+
+# The gizmo reads Preferences, which drags in Document, which references the plugin
+# registries -- so this needs the same aggregate the other document-backed tests link.
+target_link_libraries(QMeshLabAxisGizmoTests PRIVATE
+    QMeshLabPlugins
+    Qt6::Test
+    Qt6::Widgets
+)
+
+add_test(NAME QMeshLabAxisGizmoTests COMMAND QMeshLabAxisGizmoTests)
 
 qt_add_executable(QMeshLabRenderSettingsJsonTests
     tests/test_rendersettingsjson.cpp

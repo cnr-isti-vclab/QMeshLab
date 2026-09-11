@@ -169,6 +169,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
 #define QMESHLAB_GLOBAL_SETTINGS_FIELDS(F) \
     F("highlight_current_mesh", highlightCurrentMesh) \
     F("show_trackball_gizmo", showTrackballGizmo) \
+    F("show_axis_gizmo", showAxisGizmo) \
     F("show_view_cameras", showViewCameras) \
     F("show_decorator_info", showDecoratorInfo) \
     F("fill_texture_nearest_sampling", fillTextureNearestSampling) \

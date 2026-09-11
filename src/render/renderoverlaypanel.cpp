@@ -321,6 +321,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_currentMeshHighlightCheck->setChecked(m_globalSettings.highlightCurrentMesh);
     m_showTrackballGizmoCheck = new QCheckBox(viewer3dPage);
     m_showTrackballGizmoCheck->setChecked(m_globalSettings.showTrackballGizmo);
+    m_showAxisGizmoCheck = new QCheckBox(viewer3dPage);
+    m_showAxisGizmoCheck->setChecked(m_globalSettings.showAxisGizmo);
     m_currentMeshOutlineColorButton = makeColorButton(viewer3dPage);
     m_sceneBackgroundTopColorButton = makeColorButton(viewer3dPage);
     m_sceneBackgroundBottomColorButton = makeColorButton(viewer3dPage);
@@ -367,6 +369,9 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->addRow(
         tr("Trackball gizmo"),
         makeCenteredFieldContainer(m_showTrackballGizmoCheck, viewer3dPage));
+    currentMeshForm->addRow(
+        tr("Axis gizmo"),
+        makeCenteredFieldContainer(m_showAxisGizmoCheck, viewer3dPage));
     m_showViewCamerasCheck = new QCheckBox(viewer3dPage);
     m_showViewCamerasCheck->setChecked(m_globalSettings.showViewCameras);
     currentMeshForm->addRow(
@@ -1163,6 +1168,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
 
     bindGlobalCheckBox(m_currentMeshHighlightCheck, &GlobalRenderSettings::highlightCurrentMesh);
     bindGlobalCheckBox(m_showTrackballGizmoCheck, &GlobalRenderSettings::showTrackballGizmo);
+    bindGlobalCheckBox(m_showAxisGizmoCheck, &GlobalRenderSettings::showAxisGizmo);
     bindGlobalCheckBox(m_showViewCamerasCheck, &GlobalRenderSettings::showViewCameras);
     bindGlobalCheckBox(m_fillTextureNearestCheck, &GlobalRenderSettings::fillTextureNearestSampling);
     bindGlobalColorButton(
@@ -1758,6 +1764,10 @@ void RenderOverlayPanel::setGlobalSettings(const RenderSettings &settings)
     if (m_showTrackballGizmoCheck) {
         QSignalBlocker blocker(m_showTrackballGizmoCheck);
         m_showTrackballGizmoCheck->setChecked(m_globalSettings.showTrackballGizmo);
+    }
+    if (m_showAxisGizmoCheck) {
+        QSignalBlocker blocker(m_showAxisGizmoCheck);
+        m_showAxisGizmoCheck->setChecked(m_globalSettings.showAxisGizmo);
     }
     if (m_uvShowFullTextureCheck) {
         QSignalBlocker blocker(m_uvShowFullTextureCheck);

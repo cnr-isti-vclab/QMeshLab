@@ -188,6 +188,10 @@ Q_DECLARE_METATYPE(PerMeshRenderSettings)
 struct GlobalRenderSettings {
     bool highlightCurrentMesh = true;
     bool showTrackballGizmo = true;
+    // Separate from showTrackballGizmo on purpose: the orbit sphere and the corner
+    // orientation gizmo are two different things, and wanting one without the other is the
+    // common case -- the sphere sits over the mesh, the axis gizmo sits out of the way.
+    bool showAxisGizmo = true;
     bool showViewCameras = true;
     bool showBoundingBoxCorners = false;
     bool showBoundingBoxDimensions = false;
