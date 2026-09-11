@@ -432,6 +432,7 @@ private slots:
     void abstractDomainIndexesRegionsOnFaces();
     void abstractDomainConsumersRunAndRefuseWithoutIt();
     void atlasedMeshPacksOneUvSpaceForEveryChartShape();
+    void abstractDomainMeasureReportsItsStructureAndCatchesABrokenOne();
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
     void rubberBandExpandsToConnectedComponents();
     void islandMergeCanTakeItsIslandsFromTheSelection();
@@ -5878,6 +5879,75 @@ void FilterTests::abstractDomainIsBuiltAndAttachedToTheLayer()
 // The atlas has to be one UV space. AssociateDiamond keeps the diamond index in WT.N() as
 // scratch, and left there it escapes as the wedge's texture id -- 291 distinct ids on a
 // 1.2k sphere, so every diamond looked like a separate texture.
+void FilterTests::abstractDomainMeasureReportsItsStructureAndCatchesABrokenOne()
+{
+    Document doc;
+    QVERIFY(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/sample_mesh/sphere_1.2kv.ply")) >= 0);
+    doc.setCurrentMeshIndex(0);
+
+    const QString measureKey = filterKeyForId(doc, QStringLiteral("measure_abstract_domain"));
+    QVERIFY(!measureKey.isEmpty());
+
+    // Before the domain exists the filter has to say so rather than report zeroes -- this is
+    // the first of the family most people reach, since it is the one that only looks.
+    {
+        const MeshFilterRunResult r = doc.runFilter(measureKey, MeshFilterParameterValues{});
+        QVERIFY2(!r.success, "measuring a layer with no domain should refuse");
+        QVERIFY2(r.errorMessage.contains(QStringLiteral("no abstract domain")),
+                 qPrintable(r.errorMessage));
+    }
+
+    MeshFilterParameterValues build;
+    build.insert(QStringLiteral("minDomainFaces"), 150);
+    build.insert(QStringLiteral("maxDomainFaces"), 200);
+    QVERIFY(doc.runFilter(
+        filterKeyForId(doc, QStringLiteral("parametrize_by_abstract_domain")), build).success);
+
+    const MeshFilterRunResult r = doc.runFilter(measureKey, MeshFilterParameterValues{});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QVERIFY(!r.documentModified);
+
+    const auto value = [&r](const char *key) {
+        const QString k = QString::fromLatin1(key);
+        Q_ASSERT(r.outputValues.contains(k));
+        return r.outputValues.value(k);
+    };
+
+    // Paper, sec. 4: the domain is a closed, 2-manifold, well-oriented set of equilateral
+    // sub-domains, N "typically ranges between a minimum of 4 and a maximum of a few
+    // hundreds", and Theta is a bijection -- so no sub-domain may be left uncovered.
+    const int subDomains = value("sub_domains").toInt();
+    QVERIFY2(subDomains >= 4, qPrintable(QStringLiteral("N = %1").arg(subDomains)));
+    QVERIFY(subDomains <= 200); // the interval asked for above
+    QCOMPARE(value("domain_border_sides").toInt(), 0);
+    QCOMPARE(value("empty_sub_domains").toInt(), 0);
+    QCOMPARE(value("vertices_outside_their_sub_domain").toInt(), 0);
+    QVERIFY(value("structurally_valid").toBool());
+
+    // A closed sphere: genus zero, so V - E + F = 2. Worth pinning, because the count of
+    // edges is derived from the face count and the border count rather than counted, and
+    // this is what catches that derivation going wrong.
+    QCOMPARE(value("domain_euler_characteristic").toInt(), 2);
+    QCOMPARE(value("domain_edges").toInt(), (3 * subDomains) / 2);
+
+    // Square and Rhombus build one chart per half-diamond, i.e. per domain edge, and
+    // Polygon one per half-star, i.e. per domain vertex. The atlas test measures exactly
+    // 291 square charts on this mesh, so the report has to agree with it.
+    QCOMPARE(value("domain_edges").toInt(), 291);
+    QCOMPARE(value("domain_vertices").toInt(), 99);
+
+    QCOMPARE(value("param_faces").toInt(), doc.mesh(0).mesh.FN());
+    QVERIFY(value("stretch_efficiency").toDouble() >= 1.0);
+    QVERIFY2(value("stretch_efficiency").toDouble() < 1.5,
+             qPrintable(QStringLiteral("stretch %1").arg(value("stretch_efficiency").toDouble())));
+    QVERIFY(value("layer_faces_per_sub_domain").toDouble() > 0.0);
+
+    const QString report = r.infoMessages.join(QLatin1Char('\n'));
+    QVERIFY2(report.contains(QStringLiteral("Sub-domains")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("valence")), qPrintable(report));
+    QVERIFY2(report.contains(QStringLiteral("Structural checks: all passed")), qPrintable(report));
+}
+
 void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
 {
     Document doc;
@@ -5909,6 +5979,11 @@ void FilterTests::atlasedMeshPacksOneUvSpaceForEveryChartShape()
         MeshFilterParameterValues params;
         params.insert(QStringLiteral("chartShape"), pass.first);
         params.insert(QStringLiteral("mergeIrregularStars"), pass.second);
+        // Pinned, because the default of 0 means "fresh seed every run" and it drives the
+        // packer's permutation shuffle: the coverages below moved by a few tenths of a
+        // percent from run to run, and the assertions here are one-sided bounds that a bad
+        // draw could cross. Any fixed value does; this one is arbitrary.
+        params.insert(QStringLiteral("randomSeed"), 20100701);
         const MeshFilterRunResult r = doc.runFilter(key, params);
         QVERIFY2(r.success, qPrintable(QStringLiteral("%1: %2").arg(shape, r.errorMessage)));
 
