@@ -50,6 +50,10 @@ private:
         int index = -1;
     };
     LayerItemRef layerRefForItem(QTreeWidgetItem *item) const;
+    // The layer under a point given in this widget's own coordinates, in whichever view is
+    // showing. Each view hit-tests in its viewport's coordinates, not the panel's, so the
+    // point has to be mapped before it means anything.
+    LayerItemRef layerRefAt(const QPoint &widgetPos) const;
     void updateCurrentItemVisuals();
     void savePlaneImage(int rasterIndex, int planeIndex);
 

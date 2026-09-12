@@ -192,7 +192,7 @@ void FilterCreationTests::ontologyIsWellFormed()
 
 // Guards the classification against drift: this is what stops a new filter
 // inventing a category, which is how the previous 32 free-text menuPath values
-// accumulated. See docs/design/filter_classification.md.
+// accumulated. See docs/design/history/filter_classification.md.
 void FilterCreationTests::everyFilterIsClassified()
 {
     Document doc;

@@ -1848,15 +1848,63 @@ void LayerWidget::savePlaneImage(int rasterIndex, int planeIndex)
     }
 }
 
+LayerWidget::LayerItemRef LayerWidget::layerRefAt(const QPoint &widgetPos) const
+{
+    const auto localPos = [this, &widgetPos](const QAbstractScrollArea *view) {
+        return view->viewport()->mapFrom(this, widgetPos);
+    };
+    const auto isUnder = [&](const QAbstractScrollArea *view) {
+        return view && view->isVisible()
+            && view->viewport()->rect().contains(localPos(view));
+    };
+
+    if (m_viewMode == ViewMode::Tree) {
+        if (isUnder(m_meshTree))
+            return layerRefForItem(m_meshTree->itemAt(localPos(m_meshTree)));
+        if (isUnder(m_rasterTree))
+            return layerRefForItem(m_rasterTree->itemAt(localPos(m_rasterTree)));
+        return {};
+    }
+
+    // Both tables can be sorted by any column, so a row number is not a layer number. The
+    // layer index travels with the row, in the eye column's role data.
+    const auto indexInRow = [](const QTableWidget *table, int row, int role) {
+        const QTableWidgetItem *item = table->item(row, 0);
+        if (!item)
+            return -1;
+        bool ok = false;
+        const int index = item->data(role).toInt(&ok);
+        return ok ? index : -1;
+    };
+
+    if (isUnder(m_meshTable)) {
+        const int row = m_meshTable->rowAt(localPos(m_meshTable).y());
+        const int index = (row >= 0) ? indexInRow(m_meshTable, row, kRoleMeshIndex) : -1;
+        if (index >= 0 && index < m_doc->meshCount())
+            return LayerItemRef { LayerItemKind::Mesh, index };
+    }
+    if (isUnder(m_rasterTable)) {
+        const int row = m_rasterTable->rowAt(localPos(m_rasterTable).y());
+        const int index = (row >= 0) ? indexInRow(m_rasterTable, row, kRoleRasterIndex) : -1;
+        if (index >= 0 && index < m_doc->rasterCount())
+            return LayerItemRef { LayerItemKind::Raster, index };
+    }
+    return {};
+}
+
 void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
 {
-    // In table mode, the table widgets handle their own context menus.
-    // Forward to the tree context if possible, otherwise no-op.
-    if (m_viewMode == ViewMode::Table)
-        return;
-
-    QTreeWidgetItem *itemUnderCursor = m_meshTree->itemAt(event->pos());
-    if (!itemUnderCursor) itemUnderCursor = m_rasterTree->itemAt(event->pos());
+    // A raster's planes are children of its row, so they exist only in the tree. Everything
+    // below this block works in either view.
+    QTreeWidgetItem *itemUnderCursor = nullptr;
+    if (m_viewMode == ViewMode::Tree) {
+        const QPoint meshPos = m_meshTree->viewport()->mapFrom(this, event->pos());
+        const QPoint rasterPos = m_rasterTree->viewport()->mapFrom(this, event->pos());
+        if (m_meshTree->viewport()->rect().contains(meshPos))
+            itemUnderCursor = m_meshTree->itemAt(meshPos);
+        else if (m_rasterTree->viewport()->rect().contains(rasterPos))
+            itemUnderCursor = m_rasterTree->itemAt(rasterPos);
+    }
 
     // Right-click on a plane child item
     if (itemUnderCursor && itemUnderCursor->parent()) {
@@ -1887,7 +1935,7 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
         }
     }
 
-    const LayerItemRef ref = layerRefForItem(itemUnderCursor);
+    const LayerItemRef ref = layerRefAt(event->pos());
     if (ref.kind == LayerItemKind::Raster && ref.index >= 0) {
         QMenu menu(this);
         QAction *currentAction = menu.addAction(tr("Set Current Raster"));
