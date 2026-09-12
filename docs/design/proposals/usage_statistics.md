@@ -6,8 +6,8 @@ identify anyone. Nothing in this document is implemented yet; the codebase today
 no network code at all (`find_package(Qt6 ... )` in `CMakeLists.txt:33` does not
 include `Network`) and no crash handling.
 
-See also: [Preferences](preferences.md) · [Architecture](architecture.md) ·
-[Filter Organization](filter_organization.md)
+See also: [Preferences](../preferences.md) · [Architecture](../architecture.md) ·
+[Filter Organization](../filter_organization.md)
 
 ## 1. Why collect anything
 
@@ -380,7 +380,7 @@ Design points worth committing to:
 | GPU family allowlist | `src/render` | map the driver string to a coarse family; raw strings must never leave |
 | Bucket ladders | `src/core/telemetry.h` | shared by client and server rollups; changing one is a schema version bump |
 | Consent + viewer UI | `src/ui` | first-run dialog, a preferences page, and a payload viewer |
-| Telemetry preferences | `resources/preferences.json` | `stats.enabled`, `stats.consentVersion` — the existing schema renders them with no UI code, per [Preferences](preferences.md) |
+| Telemetry preferences | `resources/preferences.json` | `stats.enabled`, `stats.consentVersion` — the existing schema renders them with no UI code, per [Preferences](../preferences.md) |
 
 ## 7. Server side sizing
 
@@ -497,7 +497,7 @@ exactly what everyone's payloads became.
 
 ## Related
 
-`Telemetry` is deliberately shaped like [`Preferences`](preferences.md) — a `src/core`
+`Telemetry` is deliberately shaped like [`Preferences`](../preferences.md) — a `src/core`
 singleton over a declared schema — so that adding a counter is a schema entry plus one
 call, and so that the same JSON-declared-parameters machinery can render the consent
 and settings UI without new widget code.

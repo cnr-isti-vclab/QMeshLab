@@ -12,18 +12,25 @@ CI — see [GitHub Actions: macOS DMG](#github-actions-macos-dmg) below.
 
 ## Documentation Index
 - [Python Scripting](docs/python_scripting.md)
-- [Architecture](docs/design/architecture.md)
-- [Data Model](docs/design/data_model.md)
-- [Rendering](docs/design/rendering.md)
-- [Adding a Filter](docs/design/adding_a_filter.md)
-- [Vocabulary](docs/design/vocabulary.md)
-- [Filter Organization](docs/design/filter_organization.md)
-- [Filter Classification](docs/design/filter_classification.md)
-- [Filter Names](docs/design/filter_names.md)
-- [Preferences](docs/design/preferences.md)
-- [Memory Accounting](docs/design/memory_accounting.md)
-- [Usage Statistics](docs/design/usage_statistics.md)
-- [LLM Integration](docs/design/llm_integration.md)
+- [Design Documents](docs/design/) — indexed and grouped in
+  [docs/design/README.md](docs/design/README.md), which separates reference
+  documents (how QMeshLab works today) from proposals (not implemented) and
+  history (dated records of finished work):
+  - Reference: [Architecture](docs/design/architecture.md) ·
+    [Data Model](docs/design/data_model.md) ·
+    [Rendering](docs/design/rendering.md) ·
+    [Memory Accounting](docs/design/memory_accounting.md) ·
+    [Preferences](docs/design/preferences.md) ·
+    [Adding a Filter](docs/design/adding_a_filter.md) ·
+    [Vocabulary](docs/design/vocabulary.md) ·
+    [Filter Organization](docs/design/filter_organization.md) ·
+    [TrueForm Plugin](docs/design/trueform_plugin.md)
+  - Proposals: [LLM Integration](docs/design/proposals/llm_integration.md) ·
+    [Usage Statistics](docs/design/proposals/usage_statistics.md) ·
+    [Gaussian Splatting](docs/design/proposals/gaussian_splatting.md)
+  - History: [Filter Classification](docs/design/history/filter_classification.md) ·
+    [Filter Names](docs/design/history/filter_names.md) ·
+    [Pass 2 Identifier Map](docs/design/history/pass2_identifier_map.md)
 
 ## Current Features
 - Single `Document` shared by one or more `RenderWidget` views
