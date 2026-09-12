@@ -7,7 +7,7 @@ later in this document are retained as historical design notes, not as a live
 description of the current source tree.
 
 See also: **[Vocabulary](vocabulary.md)** — the normative category ontology, verb and
-noun lexicons this document applies; **[Filter Name Proposal](filter_names.md)** —
+noun lexicons this document applies; **[Filter Name Proposal](history/filter_names.md)** —
 per-filter display/Python name proposals derived from that grammar; [Adding a Filter](adding_a_filter.md)
 (practical how-to), [Architecture](architecture.md) and
 [Data Model](data_model.md).

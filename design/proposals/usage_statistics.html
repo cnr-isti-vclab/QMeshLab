@@ -1,15 +1,15 @@
 <!doctype html>
-<html class="no-js" lang="en" data-content_root="../">
+<html class="no-js" lang="en" data-content_root="../../">
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>Usage Statistics - QMeshLab 0.1 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
 
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
+      <a href="../../index.html"><div class="brand">QMeshLab 0.1 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -180,11 +180,11 @@
   <aside class="sidebar-drawer">
     <div class="sidebar-container">
       
-      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
   
   <span class="sidebar-brand-text">QMeshLab 0.1 documentation</span>
   
-</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
   <input type="hidden" name="area" value="default">
@@ -192,18 +192,18 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../api/meshset.html">MeshSet</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/mlgui.html">MlGui</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/filters.html">Filters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/types.html">Supporting Types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../examples/first_steps.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../building.html">Building the documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
 </ul>
 
 </div>
@@ -224,7 +224,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/design/usage_statistics.md.txt" title="View this page">
+  <a class="muted-link" href="../../_sources/design/proposals/usage_statistics.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -249,8 +249,8 @@ the data is useful enough to change decisions and narrow enough that it cannot
 identify anyone. Nothing in this document is implemented yet; the codebase today has
 no network code at all (<code class="docutils literal notranslate"><span class="pre">find_package(Qt6</span> <span class="pre">...</span> <span class="pre">)</span></code> in <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:33</span></code> does not
 include <code class="docutils literal notranslate"><span class="pre">Network</span></code>) and no crash handling.</p>
-<p>See also: <a class="reference internal" href="preferences.html"><span class="std std-doc">Preferences</span></a> · <a class="reference internal" href="architecture.html"><span class="std std-doc">Architecture</span></a> ·
-<a class="reference internal" href="filter_organization.html"><span class="std std-doc">Filter Organization</span></a></p>
+<p>See also: <a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a> · <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a> ·
+<a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a></p>
 <section id="why-collect-anything">
 <h2>1. Why collect anything<a class="headerlink" href="#why-collect-anything" title="Link to this heading">¶</a></h2>
 <p>QMeshLab ships <strong>334 filters across 34 filter plugins, exposing 1163 parameters</strong>,
@@ -735,7 +735,7 @@ mechanism rather than a promise.</p></li>
 </tr>
 <tr class="row-odd"><td><p>Telemetry preferences</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">resources/preferences.json</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">stats.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">stats.consentVersion</span></code> — the existing schema renders them with no UI code, per <a class="reference internal" href="preferences.html"><span class="std std-doc">Preferences</span></a></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">stats.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">stats.consentVersion</span></code> — the existing schema renders them with no UI code, per <a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a></p></td>
 </tr>
 </tbody>
 </table>
@@ -935,7 +935,7 @@ for a renderer-heavy application may be worth buying.</p></li>
 </section>
 <section id="related">
 <h2>Related<a class="headerlink" href="#related" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">Telemetry</span></code> is deliberately shaped like <a class="reference internal" href="preferences.html"><span class="std std-doc"><code class="docutils literal notranslate"><span class="pre">Preferences</span></code></span></a> — a <code class="docutils literal notranslate"><span class="pre">src/core</span></code>
+<p><code class="docutils literal notranslate"><span class="pre">Telemetry</span></code> is deliberately shaped like <a class="reference internal" href="../preferences.html"><span class="std std-doc"><code class="docutils literal notranslate"><span class="pre">Preferences</span></code></span></a> — a <code class="docutils literal notranslate"><span class="pre">src/core</span></code>
 singleton over a declared schema — so that adding a counter is a schema entry plus one
 call, and so that the same JSON-declared-parameters machinery can render the consent
 and settings UI without new widget code.</p>
@@ -1019,9 +1019,9 @@ and settings UI without new widget code.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=2709fde1"></script>
-    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
-    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
-    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
     </body>
 </html>

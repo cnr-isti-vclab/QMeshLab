@@ -476,7 +476,7 @@ both sides of this line — a prerequisite when a filter needs them, and a resul
 asks for as *Compute Normals*.
 
 Every verb above the `Estimate` footnote is ratified. The rounds that introduced the
-later ones are recorded in [Filter Names](filter_names.md), which is the history; this
+later ones are recorded in [Filter Names](history/filter_names.md), which is the history; this
 table is the authority. `tests/test_filters.cpp` parses it and fails if any shipped
 display name leads with a word that is not here.
 

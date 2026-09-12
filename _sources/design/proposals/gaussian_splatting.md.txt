@@ -5,9 +5,9 @@ to QMeshLab. **Nothing described here is implemented.** It records what the
 technique demands, which of QMeshLab's mechanisms already carry weight for it,
 which do not, and the design decisions already taken.
 
-See also: [Rendering](rendering.md) (the QRhi pipeline this would extend),
-[Data Model](data_model.md) (layers, revisions, undo), [Architecture](architecture.md),
-[Adding a Filter](adding_a_filter.md).
+See also: [Rendering](../rendering.md) (the QRhi pipeline this would extend),
+[Data Model](../data_model.md) (layers, revisions, undo), [Architecture](../architecture.md),
+[Adding a Filter](../adding_a_filter.md).
 
 ## Status
 

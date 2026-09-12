@@ -285,12 +285,19 @@ one filter, so the two compose.</p>
 <span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Do Something"</span><span class="p">,</span>
 <span class="w">      </span><span class="nt">"pythonName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"do_something"</span><span class="p">,</span>
 <span class="w">      </span><span class="nt">"shortDescription"</span><span class="p">:</span><span class="w"> </span><span class="s2">"One line shown in the browser."</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"longDescriptionMarkdown"</span><span class="p">:</span><span class="w"> </span><span class="s2">"What it does, for the in-app help and the Python docs."</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">"tags"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"topology"</span><span class="p">],</span>
 <span class="w">      </span><span class="nt">"inputDomain"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SingleMesh"</span><span class="p">,</span><span class="w">          </span><span class="c1">// None | SingleMesh | WholeDocument</span>
 <span class="w">      </span><span class="nt">"outputDomain"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ModifyCurrentMesh"</span><span class="p">,</span><span class="w">  </span><span class="c1">// Information | ModifyCurrentMesh | NewMeshes</span>
+<span class="w">      </span><span class="nt">"inputRequirements"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"requireVertices"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">"requireFaces"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">},</span>
 <span class="w">      </span><span class="nt">"inputPrepare"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"FF"</span><span class="p">,</span><span class="w"> </span><span class="s2">"FNorm"</span><span class="p">],</span><span class="w">      </span><span class="c1">// topology/normals the framework builds for you</span>
 <span class="w">      </span><span class="nt">"outputModifies"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"VG"</span><span class="p">,</span><span class="w"> </span><span class="s2">"FN"</span><span class="p">],</span><span class="w">       </span><span class="c1">// which mesh attributes you change (see below)</span>
 <span class="w">      </span><span class="nt">"parameters"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"amount"</span><span class="p">,</span><span class="w"> </span><span class="nt">"label"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Amount"</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"double"</span><span class="p">,</span><span class="w"> </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="nt">"min"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"amount"</span><span class="p">,</span><span class="w"> </span><span class="nt">"label"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Amount"</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"double"</span><span class="p">,</span><span class="w"> </span><span class="nt">"group"</span><span class="p">:</span><span class="w"> </span><span class="s2">"main"</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="nt">"min"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="nt">"max"</span><span class="p">:</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="nt">"decimals"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">"help"</span><span class="p">:</span><span class="w"> </span><span class="s2">"A sentence or two. Shown in the tooltip and the generated docs."</span>
+<span class="w">        </span><span class="p">}</span>
 <span class="w">      </span><span class="p">]</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">]</span>
@@ -299,7 +306,34 @@ one filter, so the two compose.</p>
 </div>
 <p>The default <code class="docutils literal notranslate"><span class="pre">MeshFilterPlugin::filters()</span></code> loads this from the Qt resource
 <code class="docutils literal notranslate"><span class="pre">:/filters/&lt;pluginId&gt;/filters.json</span></code>, so the <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> PREFIX must match
-<code class="docutils literal notranslate"><span class="pre">pluginId</span></code>. Parameter types: <code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">int</span> <span class="pre">double</span> <span class="pre">absPerc</span> <span class="pre">enum</span> <span class="pre">color</span> <span class="pre">point3f</span> <span class="pre">string</span> <span class="pre">fileOpen</span> <span class="pre">fileSave</span> <span class="pre">mesh</span> <span class="pre">cameraState</span> <span class="pre">renderState</span> <span class="pre">textureRef</span> <span class="pre">textureOutputRef</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">pluginId</span></code>.</p>
+<p>Parameter types are matched <strong>exactly, in lower case</strong>. An unrecognised string
+falls through to <code class="docutils literal notranslate"><span class="pre">string</span></code> silently, so <code class="docutils literal notranslate"><span class="pre">absPerc</span></code> is a bug rather than a synonym:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">bool</span>  <span class="nb">int</span>  <span class="n">double</span>  <span class="n">absperc</span>  <span class="n">enum</span>  <span class="n">color</span>  <span class="n">point3f</span>  <span class="n">string</span>  <span class="n">mesh</span>
+<span class="n">fileopen</span>  <span class="n">filesave</span>  <span class="n">textureref</span>  <span class="n">textureoutputref</span>  <span class="n">camerastate</span>  <span class="n">renderstate</span>
+</pre></div>
+</div>
+<p>(<code class="docutils literal notranslate"><span class="pre">file_open</span></code> and <code class="docutils literal notranslate"><span class="pre">file_save</span></code> are accepted as alternates.)</p>
+<p>Every parameter also carries <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">help</span></code> and <code class="docutils literal notranslate"><span class="pre">group</span></code> — all 1168 declared
+parameters do. Each distinct <code class="docutils literal notranslate"><span class="pre">group</span></code> becomes one section of the form, in order
+of first appearance, and headings only appear once there is more than one group.
+The name is cosmetic except for one rule: <strong>a group whose name begins with
+<code class="docutils literal notranslate"><span class="pre">advanced</span></code> is hidden behind the advanced toggle</strong>, which is why <code class="docutils literal notranslate"><span class="pre">advanced.tree</span></code>
+and <code class="docutils literal notranslate"><span class="pre">advanced.solver</span></code> work. Underscores and dots become spaces in the heading
+(<code class="docutils literal notranslate"><span class="pre">advanced.solver</span></code> reads “Advanced solver” — sections are flat, not nested), and
+an empty group is “Main”.</p>
+<p><code class="docutils literal notranslate"><span class="pre">enum</span></code> parameters must carry <code class="docutils literal notranslate"><span class="pre">enumOptions</span></code>, an array of <code class="docutils literal notranslate"><span class="pre">{&quot;id&quot;,</span> <span class="pre">&quot;label&quot;}</span></code> — each
+option may also carry its own <code class="docutils literal notranslate"><span class="pre">help</span></code>. Numeric parameters take <code class="docutils literal notranslate"><span class="pre">min</span></code>, <code class="docutils literal notranslate"><span class="pre">max</span></code> and
+<code class="docutils literal notranslate"><span class="pre">decimals</span></code> (default 3).</p>
+<p><code class="docutils literal notranslate"><span class="pre">inputRequirements</span></code> declares preconditions the framework checks <em>before</em> your
+code runs, so the filter is greyed out with a reason instead of failing inside
+<code class="docutils literal notranslate"><span class="pre">runFilter</span></code>. All are optional booleans: <code class="docutils literal notranslate"><span class="pre">requireVertices</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaces</span></code>,
+<code class="docutils literal notranslate"><span class="pre">requireEdges</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaceQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexColor</span></code>,
+<code class="docutils literal notranslate"><span class="pre">requireFaceColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextureCoordinates</span></code>, <code class="docutils literal notranslate"><span class="pre">requirePerVertexTexCoords</span></code>,
+<code class="docutils literal notranslate"><span class="pre">requirePerWedgeTexCoords</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextures</span></code>. Declare them instead of
+re-checking by hand — 291 of 337 filters do.</p>
+<p><code class="docutils literal notranslate"><span class="pre">tags</span></code> are free-form search keywords; see <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> for the
+standing question of whether they should be generated rather than written.</p>
 <p><code class="docutils literal notranslate"><span class="pre">categories</span></code> is required for in-tree descriptors and is validated against the
 closed ontology in <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a>. The first category is the
 canonical home; later entries are cross-listings. The loader still accepts a
@@ -400,12 +434,16 @@ site rather than changing the shared signature.</p>
 <ul class="simple">
 <li><p><strong>Undo</strong>: <code class="docutils literal notranslate"><span class="pre">runFilter</span></code> for a non-<code class="docutils literal notranslate"><span class="pre">Information</span></code> filter is automatically wrapped in
 one undo step, and the Python call is recorded. <strong>Never touch the undo stack.</strong>
-A filter whose <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> is only selection (<code class="docutils literal notranslate"><span class="pre">VS</span></code>/<code class="docutils literal notranslate"><span class="pre">FS</span></code>) automatically uses
-the cheap bit-packed selection-delta undo instead of a full snapshot.</p></li>
-<li><p><strong>Input preparation</strong>: declare <code class="docutils literal notranslate"><span class="pre">inputPrepare</span></code> codes (<code class="docutils literal notranslate"><span class="pre">FF</span></code>, <code class="docutils literal notranslate"><span class="pre">VF</span></code>, <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>,
-<code class="docutils literal notranslate"><span class="pre">VNorm</span></code>, <code class="docutils literal notranslate"><span class="pre">BBox</span></code>, <code class="docutils literal notranslate"><span class="pre">WTex</span></code>, …) instead of computing adjacency/normals by hand —
-the framework enables the OCF components, runs the vcglib update, and disables
-them afterward.</p></li>
+A <code class="docutils literal notranslate"><span class="pre">SingleMesh</span></code> filter whose <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> is non-empty and contains only
+selection codes (<code class="docutils literal notranslate"><span class="pre">VS</span></code>/<code class="docutils literal notranslate"><span class="pre">FS</span></code>) automatically uses the cheap bit-packed
+selection-delta undo instead of a full snapshot — which matters on large
+meshes, where snapshotting is seconds of deep copy.</p></li>
+<li><p><strong>Input preparation</strong>: declare <code class="docutils literal notranslate"><span class="pre">inputPrepare</span></code> codes instead of computing
+adjacency, normals or flags by hand — the framework enables the OCF
+components, runs the vcglib update in dependency order, and disables them
+afterward. The full set: <code class="docutils literal notranslate"><span class="pre">FF</span></code>, <code class="docutils literal notranslate"><span class="pre">VF</span></code>, <code class="docutils literal notranslate"><span class="pre">BorderFF</span></code>, <code class="docutils literal notranslate"><span class="pre">BorderVF</span></code> (each border code
+implies its adjacency), <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>, <code class="docutils literal notranslate"><span class="pre">VNorm</span></code> (implies <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>), <code class="docutils literal notranslate"><span class="pre">BBox</span></code>, <code class="docutils literal notranslate"><span class="pre">FMark</span></code>,
+<code class="docutils literal notranslate"><span class="pre">VMark</span></code>, <code class="docutils literal notranslate"><span class="pre">VTex</span></code>, <code class="docutils literal notranslate"><span class="pre">WTex</span></code>, <code class="docutils literal notranslate"><span class="pre">CurvDir</span></code>.</p></li>
 <li><p><strong>Cleanup/compaction</strong>: after a successful filter the framework compacts the
 affected meshes; don’t leave deleted elements around expecting them to persist.</p></li>
 <li><p><strong>Notify changes</strong>: after mutating a mesh, call the matching
@@ -415,17 +453,71 @@ affected meshes; don’t leave deleted elements around expecting them to persist
 </section>
 <section id="best-practices-what-s-expected">
 <h2>Best practices / what’s expected<a class="headerlink" href="#best-practices-what-s-expected" title="Link to this heading">¶</a></h2>
-<ul class="simple">
+<ul>
 <li><p><strong>Declare <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> accurately</strong> — the framework keys undo storage,
-compaction, and cache invalidation off it. Codes: <code class="docutils literal notranslate"><span class="pre">VG</span> <span class="pre">VN</span> <span class="pre">VC</span> <span class="pre">VQ</span> <span class="pre">VT</span> <span class="pre">VS</span> <span class="pre">FV</span> <span class="pre">FN</span> <span class="pre">FC</span> <span class="pre">FQ</span> <span class="pre">FS</span> <span class="pre">FP</span> <span class="pre">WT</span> <span class="pre">TX</span> <span class="pre">TM</span></code> (V*/F* = vertex/face geometry, normals, color, quality,
-texcoords, selection; <code class="docutils literal notranslate"><span class="pre">FP</span></code> = polygon/faux-edge bits; <code class="docutils literal notranslate"><span class="pre">TM</span></code> = per-mesh transform).</p></li>
-<li><p><strong>Reuse vcglib</strong> (<code class="docutils literal notranslate"><span class="pre">src/vcglib</span></code> → repo-root <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code>) for all 3D computation.</p></li>
+compaction, and cache invalidation off it. The codes, as the UI spells them
+out (<code class="docutils literal notranslate"><span class="pre">FilterPresentation::modifiedDataLabels</span></code>):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>vertex</p></th>
+<th class="head"><p>face</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>geometry / connectivity</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VG</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FV</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VN</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FN</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VC</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FC</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>scalar (quality)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VQ</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FQ</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>texcoords</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">WT</span></code> (per wedge)</p></td>
+</tr>
+<tr class="row-odd"><td><p>named attributes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VA</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FA</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>selection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FS</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>plus <code class="docutils literal notranslate"><span class="pre">FP</span></code> (face polygon bits), <code class="docutils literal notranslate"><span class="pre">TX</span></code> (texture images) and <code class="docutils literal notranslate"><span class="pre">TM</span></code> (per-mesh
+transform).</p>
+</li>
+<li><p><strong>Reuse vcglib</strong> — the <code class="docutils literal notranslate"><span class="pre">vcglib/</span></code> submodule at the repo root — for all 3D
+computation.</p></li>
 <li><p><strong>Parallelize heavy per-element loops</strong> with <code class="docutils literal notranslate"><span class="pre">std::thread</span></code> when independent.</p></li>
 <li><p><strong>Return useful <code class="docutils literal notranslate"><span class="pre">infoMessages</span></code></strong> — they appear in the log; keep <code class="docutils literal notranslate"><span class="pre">errorMessage</span></code>
 actionable and return <code class="docutils literal notranslate"><span class="pre">success</span> <span class="pre">=</span> <span class="pre">false</span></code> on bad input rather than asserting.</p></li>
 <li><p><strong>Suggest a view change</strong> (optional) via <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::visualizationHints</span></code>
 (e.g. switch to textured/quality shading) — see the visualization-hint path in
 <code class="docutils literal notranslate"><span class="pre">MainWindow::applyFilterVisualizationHints</span></code>.</p></li>
+<li><p><strong>Randomized filters declare <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></strong> — <code class="docutils literal notranslate"><span class="pre">int</span></code>, default <code class="docutils literal notranslate"><span class="pre">0</span></code>, minimum <code class="docutils literal notranslate"><span class="pre">0</span></code>,
+resolved through <code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code>, with the drawn value reported
+in the result messages so a run can be pinned afterwards. 39 parameters follow
+this; see <a class="reference internal" href="filter_organization.html#randomseed"><span class="std std-ref">Filter Organization</span></a>.</p></li>
+<li><p><strong>Per-layer plugin data</strong> (rare) — <code class="docutils literal notranslate"><span class="pre">doc.setLayerData(meshIndex,</span> <span class="pre">&quot;&lt;pluginId&gt;/&lt;name&gt;&quot;,</span> <span class="pre">ptr)</span></code>
+attaches an immutable, plugin-owned object to a layer: a solver state, a
+parametrization domain, anything too structured for mesh attributes. Undo
+carries it, and it is dropped when the layer’s geometry changes unless it
+says it survives. Subclass <code class="docutils literal notranslate"><span class="pre">LayerData</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/layerdata.h</span></code>); read it back
+with <code class="docutils literal notranslate"><span class="pre">doc.layerData(meshIndex,</span> <span class="pre">key)</span></code>.</p></li>
 <li><p><strong>Follow the naming/menu taxonomy</strong> in <a class="reference internal" href="filter_organization.html"><span class="std std-doc">Filter Organization</span></a>;
 names should describe the observable result, not the algorithm.</p></li>
 </ul>

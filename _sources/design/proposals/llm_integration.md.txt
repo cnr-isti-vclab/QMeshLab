@@ -5,10 +5,10 @@ model. **Nothing described here is implemented.** It exists to make the design
 choices explicit before any code is written, and to record which of QMeshLab's
 existing mechanisms are already load-bearing for this purpose.
 
-See also: [Architecture](architecture.md) (layers and ownership),
-[Python Scripting](../python_scripting.md) (the current `ms` / `pymeshlab2` surface),
-[Vocabulary](vocabulary.md) (the naming grammar that makes filters machine-legible),
-[Filter Organization](filter_organization.md) and [Adding a Filter](adding_a_filter.md)
+See also: [Architecture](../architecture.md) (layers and ownership),
+[Python Scripting](../../python_scripting.md) (the current `ms` / `pymeshlab2` surface),
+[Vocabulary](../vocabulary.md) (the naming grammar that makes filters machine-legible),
+[Filter Organization](../filter_organization.md) and [Adding a Filter](../adding_a_filter.md)
 (descriptor schema).
 
 ## Status
@@ -24,7 +24,7 @@ QMeshLab is closer to being model-drivable than it looks. The relevant assets:
 | Asset | Where | Why it matters |
 |---|---|---|
 | **327 filters / 33 plugins**, 1131 declared parameters | `plugins/*/filters.json` | Each descriptor carries `id`, `pythonName`, `shortDescription`, `longDescriptionMarkdown`, `tags`, `categories`, `inputDomain`/`outputDomain`, `inputRequirements`, and typed `parameters` with `default`/`min`/`max`/`help`. This is a tool schema already; converting it to JSON Schema is mechanical. |
-| Controlled vocabulary and naming grammar | [Vocabulary](vocabulary.md) | Tool-selection accuracy is dominated by whether names and descriptions are predictable. |
+| Controlled vocabulary and naming grammar | [Vocabulary](../vocabulary.md) | Tool-selection accuracy is dominated by whether names and descriptions are predictable. |
 | Generic dispatch | `Document::runFilter(filterKey, params)`, `MeshSet::apply_filter()` | One entry point; no per-filter binding work. |
 | Pre-flight validation | `Document::validateFilterInvocation()`; `FilterInfo::applicable` / `applicabilityError` | Lets a caller be told *why* a filter cannot run, in a form it can act on, before running it. |
 | Structured results | `MeshFilterRunResult` — `success`, `errorMessage`, `infoMessages`, `newMeshIndices`, `outputValues` | The observation half of an act/observe loop. |
