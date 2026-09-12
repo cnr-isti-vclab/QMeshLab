@@ -1752,6 +1752,7 @@ void RenderWidget::createOverlayButtons()
             switch (pass) {
             case RenderPass::BoundingBox:
                 dst.showBoundingBox = meshSettings.showBoundingBox;
+                dst.boundingBoxStyle = meshSettings.boundingBoxStyle;
                 dst.bboxWireColor   = meshSettings.bboxWireColor;
                 break;
             case RenderPass::Points:

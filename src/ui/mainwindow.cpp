@@ -1252,19 +1252,19 @@ MainWindow::MainWindow(QWidget *parent)
     }
     connect(m_doc, &Document::meshAdded, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFilterUi();
+        scheduleFilterUiRefresh();
     });
     connect(m_doc, &Document::meshRemoved, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFilterUi();
+        scheduleFilterUiRefresh();
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFilterUi();
+        scheduleFilterUiRefresh();
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
-        refreshFilterUi();
+        scheduleFilterUiRefresh();
     });
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
         if (m_doc->isRestoringUndoRedo()) return;
@@ -2133,6 +2133,17 @@ void MainWindow::reloadAllMeshes()
 void MainWindow::refreshFiltersMenu()
 {
     refreshFiltersMenu(m_doc ? m_doc->filterInfos() : std::vector<Document::FilterInfo>{});
+}
+
+void MainWindow::scheduleFilterUiRefresh()
+{
+    if (m_filterUiRefreshPending)
+        return;
+    m_filterUiRefreshPending = true;
+    QMetaObject::invokeMethod(this, [this]() {
+        m_filterUiRefreshPending = false;
+        refreshFilterUi();
+    }, Qt::QueuedConnection);
 }
 
 void MainWindow::refreshFilterUi()

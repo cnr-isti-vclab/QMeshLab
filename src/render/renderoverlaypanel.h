@@ -181,7 +181,6 @@ private:
     QComboBox *m_fillColorSourceCombo = nullptr;
     QStackedWidget *m_fillMaterialStack = nullptr;
     QToolButton *m_currentMeshButton = nullptr;
-    QToolButton *m_modeButton = nullptr;
     QToolButton *m_normalsDecoratorsButton = nullptr;
     QToolButton *m_boundaryDecoratorsButton = nullptr;
     QToolButton *m_bboxButton = nullptr;

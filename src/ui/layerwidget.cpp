@@ -1152,33 +1152,33 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
 
     // Document connections — always rebuild
     connect(m_doc, &Document::meshAdded, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::meshRemoved, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::meshVisibilityChanged, this, [this](int, bool) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::currentMeshChanged, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::currentLayerChanged, this, [this](CurrentLayerKind, int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::meshDataChanged, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::rasterRemoved, this, &LayerWidget::rebuild);
     connect(m_doc, &Document::rasterVisibilityChanged, this, [this](int, bool) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::currentRasterChanged, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
     connect(m_doc, &Document::rasterDataChanged, this, [this](int) {
-        QMetaObject::invokeMethod(this, [this]() { rebuild(); }, Qt::QueuedConnection);
+        scheduleRebuild();
     });
 
     rebuild();
@@ -1196,6 +1196,17 @@ void LayerWidget::setViewMode(ViewMode mode)
 void LayerWidget::toggleViewMode()
 {
     setViewMode(m_viewMode == ViewMode::Tree ? ViewMode::Table : ViewMode::Tree);
+}
+
+void LayerWidget::scheduleRebuild()
+{
+    if (m_rebuildPending)
+        return;
+    m_rebuildPending = true;
+    QMetaObject::invokeMethod(this, [this]() {
+        m_rebuildPending = false;
+        rebuild();
+    }, Qt::QueuedConnection);
 }
 
 void LayerWidget::rebuild()

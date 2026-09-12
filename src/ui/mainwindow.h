@@ -113,6 +113,10 @@ private:
     void refreshRecentMeshesMenu();
     void syncCameraViewsFrom(RenderWidget *sourceView);
     void refreshFilterUi();
+    // Recomputes applicability for every registered filter, rebuilds the whole filters
+    // menu and reloads the filter panel -- so it is posted once per burst rather than run
+    // for each of the forty layers a split can add.
+    void scheduleFilterUiRefresh();
     void refreshFiltersMenu();
     void refreshFiltersMenu(const std::vector<Document::FilterInfo> &infos);
     void setupToolsMenu(QMenu *toolsMenu);
@@ -137,6 +141,7 @@ private:
     QSplitter *m_viewSplitter = nullptr;
     QList<RenderWidget *> m_renderWidgets;
     RenderWidget *m_currentRenderWidget = nullptr;
+    bool m_filterUiRefreshPending = false;
     // Checked state follows the current view, refreshed when the View menu opens so it stays
     // right after an undo or a script changes the arrangement behind the menu's back.
     QAction *m_layerGridAction = nullptr;
